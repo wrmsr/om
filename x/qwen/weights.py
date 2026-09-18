@@ -335,10 +335,10 @@ def _untile_v_heads(
 
 
 class GGUFSource(TensorSource):
-    """GGUF produced by llama.cpp's converter (arch `qwen35`). Uses gguf-py (numpy only)."""
+    """GGUF produced by llama.cpp's converter (arch `qwen35`)."""
 
     def __init__(self, path: str | pathlib.Path) -> None:
-        from gguf import GGUFReader  # MIT, part of llama.cpp
+        from .gguf.reader import GGUFReader
 
         self.path = pathlib.Path(path)
         self.reader = GGUFReader(str(self.path))
@@ -549,7 +549,7 @@ class GGUFSource(TensorSource):
         return name in self._canon
 
     def raw(self, gguf_name: str) -> np.ndarray:
-        from gguf.quants import dequantize
+        from .gguf.quants import dequantize
 
         t = self._tensors[gguf_name]
         arr = dequantize(t.data, t.tensor_type)
@@ -795,7 +795,7 @@ def describe_gguf(path: str | pathlib.Path, max_blocks: int = 4) -> str:
     to look at when a load fails.
     """
 
-    from gguf import GGUFReader
+    from .gguf.reader import GGUFReader
 
     r = GGUFReader(str(path))
     lines = [f'# {path}', '## metadata']
