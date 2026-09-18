@@ -57,8 +57,8 @@ class Session(
         elif isinstance(agn_event, agn.AgentEndEvent):
             # Every outcome is stored, not only completion: the loop keeps the transcript up to a failure or
             # cancellation, repaired so it can be built on, and the agent applies it to its state - the store has to
-            # match what the next prompt will see. The tail here is the repair messages an interrupted run adds
-            # without announcing.
+            # match what the next prompt will see. The tail here is the repair messages an interrupted run adds without
+            # announcing.
             await self._storage.add_entry(*[
                 MessageSessionEntry(m)
                 for m in agn_event.new_messages[self._num_run_stored:]
