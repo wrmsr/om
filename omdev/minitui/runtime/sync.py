@@ -31,7 +31,9 @@ from ..events.types import MouseEvent
 from ..events.types import ResizeEvent
 from ..events.types import ResumeEvent
 from ..events.types import SuspendEvent
+from ..events.types import TerminalVersionEvent
 from ..events.xterm import XtermEventParser
+from ..events.xterm import terminal_version_is_relay
 from ..screens.cells import Line
 from ..surfaces.base import Surface
 from ..surfaces.inlines import InlineSurface
@@ -193,6 +195,11 @@ class SyncDriver:
                 # escape parsing may wait indefinitely (immune to laggy split sequences).
                 self._parser.set_escape_unambiguous(bool(event.flags & 1))
                 continue
+            if isinstance(event, TerminalVersionEvent):
+                # A tmux relay answers XTVERSION for itself, and has already resolved every ESC it forwards: escape
+                # parsing needs no timer behind it.
+                self._parser.set_escape_relay_resolved(terminal_version_is_relay(event.text))
+                continue
             if isinstance(event, ModeReportEvent) and event.mode == 2026:
                 self._surface.set_sync_output(event.value != 0)
                 continue
@@ -218,7 +225,8 @@ class SyncDriver:
         """
         On every entry into application mode (startup and resume). For an inline surface, learn where the shell left
         the cursor before touching the terminal: a mid-line prompt gets a fresh line instead of being overwritten, and
-        rendering and commits hold until the answer (or a short timeout). Then ask about synchronized output.
+        rendering and commits hold until the answer (or a short timeout). Then ask about synchronized output, and who
+        the terminal is (a tmux answer zeroes the escape waits).
         """
 
         surface = self._surface
@@ -227,6 +235,7 @@ class SyncDriver:
             self._awaiting_origin = True
             self._origin_deadline = self._clock() + .25
         surface.request_sync_output_report()
+        surface.request_terminal_version()
 
     ##
     # Job control

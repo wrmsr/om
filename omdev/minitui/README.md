@@ -41,8 +41,9 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   terminal keeps the main screen; the origin's terminal row tracked on the side so mouse rows translate to frame rows)
   and `AltSurface` (fullscreen, absolute addressing). Terminfo for output capabilities; hardcoded-xterm fallbacks;
   runtime-negotiated extras (kitty keys, bracketed paste, sync output).
-- **events/** - typed `Key`/events, a generator escape-sequence parser with clock-free cooperative timeouts, keymap trie
-  with vim's two-timeout semantics, SGR mouse / CPR / DECRQM / kitty decoding.
+- **events/** - typed `Key`/events, a generator escape-sequence parser with clock-free cooperative timeouts (indefinite
+  once kitty confirms disambiguation, zero once a tmux in front identifies itself via XTVERSION), keymap trie with vim's
+  two-timeout semantics, SGR mouse / CPR / DECRQM / kitty / XTVERSION decoding.
 - **docs/** - `Document` mutated only through range edits (`TextEdit`, tree-sitter/LSP-shaped) carrying exact inverses;
   position remapping; cursor-tuple groundwork for multi-cursor; smartcase search; the incremental highlighter protocol
   with the (optional, quarantined) tree-sitter implementation riding those same edits.

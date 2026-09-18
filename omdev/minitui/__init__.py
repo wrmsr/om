@@ -155,6 +155,7 @@ with _lang.auto_proxy_init(
         CursorPositionEvent,
         ModeReportEvent,
         KittyFlagsEvent,
+        TerminalVersionEvent,
         UnknownSequenceEvent,
     )
 

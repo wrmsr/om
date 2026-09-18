@@ -3091,6 +3091,7 @@ def _process_dataclass__1df56c9cc838d09141deb8a541b74461d222b5f5():
     ),
     cls_names=(
         ('omdev.minitui.events.types', 'PasteEvent'),
+        ('omdev.minitui.events.types', 'TerminalVersionEvent'),
         ('omdev.minitui.events.types', 'UnknownSequenceEvent'),
     ),
 )

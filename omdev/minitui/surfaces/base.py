@@ -43,6 +43,12 @@ class Surface(lang.Abstract):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def request_terminal_version(self) -> None:
+        """Send the XTVERSION query; the answer, if any, arrives in the input stream as a TerminalVersionEvent."""
+
+        raise NotImplementedError
+
     @property
     @abc.abstractmethod
     def width(self) -> int:

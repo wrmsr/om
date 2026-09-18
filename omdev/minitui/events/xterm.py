@@ -10,6 +10,9 @@ bodies bypass per-character parsing entirely.
 
 A relay that doesn't recognize a CSI (tmux, for the bare CSI P..S some terminals send for F1-F4) delivers it as alt+[
 plus its tail; the extended-key form of that alt+[ is held for one escape window so the tail can be reassembled.
+
+The one DCS parsed is the XTVERSION reply, through which a tmux in front of us identifies itself - and, having
+resolved every ESC before forwarding it, zeroes the escape windows (see the constants block).
 """
 import typing as ta
 
@@ -28,6 +31,7 @@ from .types import ModeReportEvent
 from .types import MouseEvent
 from .types import MouseEventKind
 from .types import PasteEvent
+from .types import TerminalVersionEvent
 from .types import UnknownSequenceEvent
 
 
@@ -38,16 +42,23 @@ from .types import UnknownSequenceEvent
 # the alt prefix - and only elapsed time can tell them apart. Every program picks a timeout and thereby picks its
 # failure mode: vim waits ~1000ms for key codes by default (sequence-favoring; the famous "delay after ESC"), neovim
 # picks ttimeoutlen=50 (ESC-favoring; splits break on laggy links), tmux's escape-time (historically 500ms) makes it the
-# classic splitter of sequences it misjudged. The kitty keyboard protocol deletes the ambiguity entirely - the escape
-# key arrives as CSI 27u - so when the terminal confirms it (see `set_escape_unambiguous`) these timeouts stop applying
-# and escape parsing waits indefinitely, like the CSI path always has.
+# classic splitter of sequences it misjudged. Two negotiations remove the guesswork where they apply, in this order of
+# precedence:
+# - The kitty keyboard protocol deletes the ambiguity entirely - the escape key arrives as CSI 27u - so when the
+#   terminal confirms it (see `set_escape_unambiguous`) these timeouts stop applying and escape parsing waits
+#   indefinitely, like the CSI path always has.
+# - A tmux in front of us has already spent its own escape-time on every ESC it forwards: a lone ESC it writes IS the
+#   escape key, and each key it forwards - a sequence, an alt chord, a query reply - lands in one write. When it
+#   identifies itself (the XTVERSION reply; see `set_escape_relay_resolved`) the waits drop to zero: a lone ESC
+#   resolves at the end of the chunk it arrived in, no timer involved.
 
-# How long a lone ESC waits for a following byte before resolving as the escape key. The default sides with sequence
-# integrity over ESC latency (closer to vim's ~1000ms than neovim's 50) - the sole cost is bare-ESC resolution latency
-# (the visible mode-change lag vim users tune with ttimeoutlen), and on any kitty-confirmed terminal the timeout stops
-# applying anyway. Injectable per-instance via `XtermEventParser(escape_timeout_s=...)` for laggy legacy links (mosh
-# into tmux, bad wifi).
-ESCAPE_TIMEOUT_S = .5
+# How long a lone ESC waits for a following byte before resolving as the escape key, on the legacy wire with neither
+# confirmation. Two things ride on it: the escape key's latency (the mode-change lag vim users tune with ttimeoutlen),
+# and the window inside which a following byte is fused into an alt chord - a real keystroke lost, and the escape with
+# it. Nothing on a sane link splits a sequence across this window (terminals write them whole, mosh sends whole
+# keystrokes, relays forward whole keys), so it stays short: neovim's 50ms. Injectable per-instance via
+# `XtermEventParser(escape_timeout_s=...)`.
+ESCAPE_TIMEOUT_S = .05
 
 # How long an SS3 intro (ESC O) waits for its final byte. Kept at least as long as the bare-ESC timeout (vim waits
 # ~1000ms here): the CSI path waits indefinitely for its final, and an SS3 tail delayed past a too-short window silently
@@ -57,6 +68,7 @@ SS3_TIMEOUT_S = .5
 
 
 _MAX_CSI_LENGTH = 64
+_MAX_DCS_LENGTH = 256
 
 
 _CSI_LETTER_BASES: ta.Mapping[str, str] = {
@@ -149,6 +161,10 @@ _RELAY_SPLIT_CSI_BASES: ta.Mapping[str, str] = {
 # The extended-form key a relay-split CSI arrives behind.
 _RELAY_SPLIT_HEAD = Key('[', alt=True)
 
+# XTVERSION replies of relays that resolve every ESC before forwarding it (see `set_escape_relay_resolved`). tmux
+# answers the query for itself (`tmux 3.4`); screen does not answer it at all.
+_RESOLVING_RELAY_PREFIXES: ta.Sequence[str] = ('tmux ',)
+
 
 def _decode_modifiers(m: int) -> dict[str, bool]:
     bits = max(m - 1, 0)
@@ -168,6 +184,12 @@ def _int_params(params: str) -> list[int | None]:
     return out
 
 
+def terminal_version_is_relay(text: str) -> bool:
+    """Whether an XTVERSION reply names a relay that resolves every ESC it forwards (`set_escape_relay_resolved`)."""
+
+    return text.startswith(tuple(_RESOLVING_RELAY_PREFIXES))
+
+
 class XtermEventParser(EventParser):
     def __init__(
             self,
@@ -182,6 +204,7 @@ class XtermEventParser(EventParser):
         self.escape_timeout_s = escape_timeout_s
         self.ss3_timeout_s = max(ss3_timeout_s, escape_timeout_s)
         self._escape_unambiguous = False
+        self._escape_relay_resolved = False
 
     @property
     def escape_unambiguous(self) -> bool:
@@ -197,11 +220,35 @@ class XtermEventParser(EventParser):
 
         self._escape_unambiguous = unambiguous
 
+    @property
+    def escape_relay_resolved(self) -> bool:
+        return self._escape_relay_resolved
+
+    def set_escape_relay_resolved(self, resolved: bool) -> None:
+        """
+        The nearest relay identified itself as tmux (`terminal_version_is_relay`). tmux has applied its own escape-time
+        to every ESC before forwarding it, so a lone ESC it writes is the escape key - and it writes each forwarded key
+        (a sequence, an alt chord, a relay-split tail, a query reply) in one write. Escape parsing then waits zero time:
+        a lone ESC resolves at the end of the chunk it arrived in, clock-free. Kitty confirmation
+        (`set_escape_unambiguous`) takes precedence: an unambiguous wire needs no resolving at all. Applies to reads
+        begun after the change.
+        """
+
+        self._escape_relay_resolved = resolved
+
     def _escape_wait_s(self) -> float | None:
-        return None if self._escape_unambiguous else self.escape_timeout_s
+        if self._escape_unambiguous:
+            return None
+        if self._escape_relay_resolved:
+            return 0.
+        return self.escape_timeout_s
 
     def _ss3_wait_s(self) -> float | None:
-        return None if self._escape_unambiguous else self.ss3_timeout_s
+        if self._escape_unambiguous:
+            return None
+        if self._escape_relay_resolved:
+            return 0.
+        return self.ss3_timeout_s
 
     def expect_cursor_position_report(self) -> None:
         """
@@ -247,13 +294,63 @@ class XtermEventParser(EventParser):
                 self._emit_char('\x1b')
                 continue
 
-            if c == '[':
-                yield from self._parse_csi()
-            elif c == 'O':
-                yield from self._parse_ss3()
-            else:
-                self._emit_char(c, alt=True)
+            yield from self._parse_escape_tail(c)
             return
+
+    def _parse_escape_tail(self, c: str) -> ParseGenerator:
+        """An ESC was followed by `c` in time: a sequence intro or the alt prefix."""
+
+        if c == '[':
+            yield from self._parse_csi()
+        elif c == 'O':
+            yield from self._parse_ss3()
+        elif c == 'P':
+            yield from self._parse_dcs()
+        else:
+            self._emit_char(c, alt=True)
+
+    def _parse_dcs(self) -> ParseGenerator:
+        """
+        ESC P is alt+shift+p on the legacy wire and the intro of a DCS - and the only DCS we can receive is the
+        XTVERSION reply (`DCS > | text ST`). So commit to a sequence only on the `>` that must follow at once; anything
+        else, or a timeout, is the alt chord, and its follower is parsed normally. The body may lag like a CSI's; an
+        ESC that is not the ST ends it (unknown) and begins whatever it begins.
+        """
+
+        try:
+            c = yield Read1(self._escape_wait_s())
+        except ParseTimeoutError:
+            self._emit_key(Key('P', alt=True))
+            return
+
+        if c != '>':
+            self._emit_key(Key('P', alt=True))
+            yield from self._parse_char(c)
+            return
+
+        body = c
+        while True:
+            c = yield Read1()
+            if c == '\x1b':
+                c = yield Read1()
+                if c == '\\':
+                    break
+                self.emit(UnknownSequenceEvent('\x1bP' + body))
+                if c == '\x1b':
+                    self._emit_char('\x1b')
+                    yield from self._parse_escape()
+                else:
+                    yield from self._parse_escape_tail(c)
+                return
+            body += c
+            if len(body) > _MAX_DCS_LENGTH:
+                self.emit(UnknownSequenceEvent('\x1bP' + body))
+                return
+
+        if body.startswith('>|'):
+            self.emit(TerminalVersionEvent(body[2:]))
+        else:
+            self.emit(UnknownSequenceEvent('\x1bP' + body + '\x1b\\'))
 
     def _parse_ss3(self) -> ParseGenerator:
         try:
@@ -299,7 +396,8 @@ class XtermEventParser(EventParser):
         An extended-form alt+[ may be a relay's rendering of a CSI it didn't recognize (see `_RELAY_SPLIT_CSI_BASES`),
         in which case the tail is the very next byte. Wait one escape window for it; anything else, or a timeout, means
         alt+[ was really pressed. A kitty-confirmed terminal is talking to us directly - nothing in between splits
-        sequences - so there the key is delivered at once.
+        sequences - so there the key is delivered at once. Under a self-identified tmux the window is the chunk: the
+        keys it decoded from one read go out in one write.
         """
 
         if self._escape_unambiguous:
@@ -307,7 +405,7 @@ class XtermEventParser(EventParser):
             return
 
         try:
-            c = yield Read1(self.escape_timeout_s)
+            c = yield Read1(self._escape_wait_s())
         except ParseTimeoutError:
             self._emit_key(head)
             return

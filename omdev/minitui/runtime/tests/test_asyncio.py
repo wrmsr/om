@@ -238,3 +238,32 @@ def test_async_driver_suspend_resume_cycle():
     term = Vt100Terminal(rows=6, cols=40)
     term.feed(data)
     assert 'events: 2' in term.all_lines()
+
+
+def test_async_driver_tmux_reply_zeroes_escape_wait():
+    tty = PipeTty(height=6, width=40)
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
+    driver.parser.escape_timeout_s = 10.  # a timed resolution could not happen inside the test
+    app = RecordingApp(driver)  # type: ignore[arg-type]
+
+    async def main():
+        tty.send(b'\x1b[3;1R')
+        tty.send(b'\x1bP>|tmux 3.4\x1b\\')
+
+        async def later():
+            await asyncio.sleep(.02)
+            tty.send(b'\x1b')
+            await asyncio.sleep(.02)
+            tty.send(b'\x04')
+
+        task = asyncio.get_running_loop().create_task(later())
+        await driver.run(app)
+        await task
+
+    asyncio.run(main())
+    os.close(tty.read_fd)
+    os.close(tty.write_fd)
+
+    assert b'\x1b[>q' in b''.join(tty.writes)
+    assert driver.parser.escape_relay_resolved
+    assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('escape'), Key('d', ctrl=True)]

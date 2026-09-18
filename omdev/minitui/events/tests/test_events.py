@@ -15,10 +15,12 @@ from ..types import ModeReportEvent
 from ..types import MouseEvent
 from ..types import MouseEventKind
 from ..types import PasteEvent
+from ..types import TerminalVersionEvent
 from ..types import UnknownSequenceEvent
 from ..xterm import ESCAPE_TIMEOUT_S
 from ..xterm import SS3_TIMEOUT_S
 from ..xterm import XtermEventParser
+from ..xterm import terminal_version_is_relay
 
 
 ##
@@ -353,3 +355,97 @@ def test_escape_timeouts_injectable():
     p = XtermEventParser()
     assert p.escape_timeout_s == ESCAPE_TIMEOUT_S
     assert p.ss3_timeout_s == SS3_TIMEOUT_S
+
+
+def test_relay_resolved_mode_waits_zero():
+    # A self-identified tmux has already applied its own escape-time to every ESC it forwards, and writes each key it
+    # decoded whole: a lone ESC is the escape key the moment its chunk ends, and no timer is ever armed.
+    p = XtermEventParser()
+    p.set_escape_relay_resolved(True)
+
+    assert keys(p.feed('\x1b')) == [Key('escape')]
+    assert p.pending_timeout_s is None
+    assert keys(p.feed('\x1bx')) == [Key('x', alt=True)]  # tmux's meta-x: one write
+    assert keys(p.feed('\x1b')) == [Key('escape')]        # escape, then a key in its own chunk: two keys
+    assert keys(p.feed('x')) == [Key('x')]
+    assert keys(p.feed('\x1b\x1b')) == [Key('escape'), Key('escape')]
+    assert keys(p.feed('\x1b[A')) == [Key('up')]
+    assert keys(p.feed('\x1bOQ')) == [Key('f2')]
+    assert keys(p.feed('\x1bO')) == [Key('O', alt=True)]  # a lone SS3 intro out of tmux is its meta-O
+    assert keys(p.feed('\x1b[27;3;91~Q')) == [Key('f2')]  # relay-split tail, same chunk
+    assert keys(p.feed('\x1b[27;3;91~')) == [Key('[', alt=True)]  # no tail in the chunk: the real alt+[
+
+    # A CSI final may still lag: tmux never splits one, but the CSI path has always waited indefinitely.
+    assert p.feed('\x1b[') == []
+    assert p.pending_timeout_s is None
+    assert keys(p.feed('A')) == [Key('up')]
+
+
+def test_relay_resolution_is_revocable():
+    p = XtermEventParser()
+    p.set_escape_relay_resolved(True)
+    assert keys(p.feed('\x1b')) == [Key('escape')]
+    p.set_escape_relay_resolved(False)
+    assert p.feed('\x1b') == []
+    assert p.pending_timeout_s == ESCAPE_TIMEOUT_S
+    assert keys(p.flush_timeout()) == [Key('escape')]
+
+
+def test_kitty_confirmation_outranks_relay_resolution():
+    p = XtermEventParser()
+    p.set_escape_relay_resolved(True)
+    p.set_escape_unambiguous(True)
+    assert p.feed('\x1b') == []
+    assert p.pending_timeout_s is None
+    assert keys(p.feed('[27u')) == [Key('escape')]
+
+
+def test_xtversion_reply():
+    p = XtermEventParser()
+    assert p.feed('\x1bP>|tmux 3.4\x1b\\') == [TerminalVersionEvent('tmux 3.4')]
+    assert p.feed('\x1bP>|iTerm2 3.5.14\x1b\\') == [TerminalVersionEvent('iTerm2 3.5.14')]
+    # The body may lag like a CSI's.
+    assert p.feed('\x1bP>|tm') == []
+    assert p.pending_timeout_s is None
+    assert p.feed('ux 3.5a\x1b\\') == [TerminalVersionEvent('tmux 3.5a')]
+    # Under a relay the whole reply is one write.
+    p.set_escape_relay_resolved(True)
+    assert p.feed('\x1bP>|tmux 3.5a\x1b\\') == [TerminalVersionEvent('tmux 3.5a')]
+
+    assert terminal_version_is_relay('tmux 3.4')
+    assert not terminal_version_is_relay('iTerm2 3.5.14')
+    assert not terminal_version_is_relay('XTerm(370)')
+
+
+def test_esc_p_is_alt_p_unless_a_reply_follows():
+    # ESC P is alt+shift+p on the legacy wire; only the `>` that must follow at once makes it a DCS.
+    p = XtermEventParser()
+    assert p.feed('\x1bP') == []
+    assert p.pending_timeout_s == ESCAPE_TIMEOUT_S
+    assert keys(p.flush_timeout()) == [Key('P', alt=True)]
+    assert keys(p.feed('\x1bPx')) == [Key('P', alt=True), Key('x')]
+    assert keys(p.feed('\x1bP\x1b[A')) == [Key('P', alt=True), Key('up')]
+    assert keys(p.feed('\x1bP\x1b')) == [Key('P', alt=True)]
+    assert p.pending_timeout_s == ESCAPE_TIMEOUT_S
+    assert keys(p.flush_timeout()) == [Key('escape')]
+
+
+def test_dcs_malformed_or_cut_short():
+    p = XtermEventParser()
+    assert p.feed('\x1bP>x\x1b\\') == [UnknownSequenceEvent('\x1bP>x\x1b\\')]
+
+    # An ESC that is not the ST ends the DCS, and begins whatever it begins.
+    events = p.feed('\x1bP>|tmux\x1b[A')
+    assert events[0] == UnknownSequenceEvent('\x1bP>|tmux') and keys(events[1:]) == [Key('up')]
+    events = p.feed('\x1bP>|tmux\x1bx')
+    assert events[0] == UnknownSequenceEvent('\x1bP>|tmux') and keys(events[1:]) == [Key('x', alt=True)]
+    events = p.feed('\x1bP>|tmux\x1b\x1b')
+    assert events[0] == UnknownSequenceEvent('\x1bP>|tmux') and keys(events[1:]) == [Key('escape')]
+    assert p.pending_timeout_s == ESCAPE_TIMEOUT_S
+    assert keys(p.flush_timeout()) == [Key('escape')]
+
+    # Bounded: an overlong body is given up on, and parsing carries on with plain characters.
+    events = p.feed('\x1bP>' + 'x' * 300)
+    assert isinstance(events[0], UnknownSequenceEvent)
+    assert keys(events[1:]) == [Key('x')] * 44
+    assert keys(p.feed('y')) == [Key('y')]

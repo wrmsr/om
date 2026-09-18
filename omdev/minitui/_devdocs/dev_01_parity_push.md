@@ -692,3 +692,43 @@ yet.
   (composite + hits, clamping, growth toward budget, clipping, focus cursor, fill + stacking order), 5 menu tests,
   a second chatdemo pty test (click -> menu -> enter -> raw source committed -> q -> main screen, menu gone), q in the
   omllm app (leaves browse; types in the live view). `tests/ptys.py` is the pty harness from the previous entry.
+
+
+## 2026-09-18: ctrl+[ miserable under nested tmux - the bare-ESC wait, zeroed under a self-identifying tmux
+
+Owner report: ctrl+[ snappy in iTerm2 -> mac tmux, fine through mosh, miserable through mosh -> linux tmux. Diagnosed
+with scratch experiments against the sandbox's tmux 3.4 and mosh 1.4.0 (a pty-driven client, a byte-logging pane) plus
+the 3.2a / 3.4 / 3.5a sources:
+- Every tmux before 3.5 turns ctrl+[ into a bare ESC byte no matter what: `tty_keys_extended_key` rewrites C-[ into
+  key 27 at decode time ("convert C-X into C-x"), and `input_key` writes any 7-bit key as one byte - before any
+  extended-keys logic runs, so `extended-keys on` and our CSI >4;2m are moot. Measured on 3.4: CSI 91;5u and
+  CSI 27;5;91~ both reach the pane as `\x1b`. 3.5 dropped the conversion, which is why the local mac path is snappy:
+  the pane is in modifyOtherKeys-2 and 3.5 forwards ctrl+[ as a self-contained sequence (zero wait in the parser).
+- mosh-server's emulator has no handler for CSI > ... m (only > c), so our extended-keys request never reaches the mac
+  tmux, whose legacy encoder maps ctrl+[ to 0x1b for the mosh pane. mosh itself relays a lone ESC in ~2ms and every
+  sequence whole. So on every mosh path the ESC is bare by the time it reaches linux.
+- The linux side had two tmuxes, not one: the container's 3.4 (dockerdev's entry tmux) inside a host 3.2a - its
+  XTVERSION reply was sitting in the container client's `client_termtype`. Both on escape-time 0 per the owner.
+- Then the parser's ESCAPE_TIMEOUT_S = .5 (Aug 18, laggy-link leeway): 500ms of latency per escape, and any byte
+  inside the window fused into an alt chord - the textarea hands unknown alt chords back to the app, which drops
+  them - so a quick C-[ j lost the j and never left insert mode. A default-config tmux hop does the same one hop
+  earlier (measured: lone ESC delayed 501ms; ESC then k 30ms apart forwarded as one `\x1bk`).
+The .5 bought nothing: nothing in the chain can deliver a split sequence to the app (terminals and relays write keys
+whole, mosh sends whole keystrokes), and a lone ESC out of tmux is already a decided escape key.
+Fix, two prongs:
+- Baseline: ESCAPE_TIMEOUT_S .5 -> .05 (neovim's ttimeoutlen). SS3 window unchanged.
+- Zero under tmux: the drivers' startup negotiation also sends XTVERSION (CSI > q). tmux >= 3.2 answers for itself
+  (`DCS >|tmux X.Y ST` - the same trick tmux plays on its own outer terminal), mosh drops it, terminals answer with
+  their own names. The parser gained the one DCS it can receive: ESC P commits to a sequence only on the `>` that must
+  follow at once, otherwise it is alt+shift+p as before; the body may lag like a CSI's; an ESC that is not the ST ends
+  it. -> TerminalVersionEvent, consumed by the drivers as plumbing like the kitty reply: a tmux answer flips
+  `set_escape_relay_resolved`, under which the bare-ESC, SS3, and relay-split waits are zero. Zero is clock-free:
+  `Read1(0)` is satisfied only by a character already in the chunk, so the parse engine resolves it itself at the end
+  of `feed()` - no driver involvement, and no race with a chunk arriving a millisecond later. Verified on 3.4 that keys
+  decoded from one read (meta-x + y, up + x, unknown CSI + Q) reach the pane in one write, so end-of-chunk covers the
+  relay-split F1-F4 reassembly too. Precedence: kitty (indefinite) > relay (zero) > timed. Outside tmux nothing
+  changes but the baseline; through plain ssh the mac tmux answers, which is also right (ssh delivers packets whole).
+Tests: zero-wait semantics (lone ESC, meta chord in one chunk, escape then key across chunks, SS3, ESC ESC, relay-split
+tail present / absent, lagging CSI final), kitty precedence, XTVERSION parse + lagging body, ESC P as alt+P with its
+followers, malformed / cut-short / overlong DCS, both drivers: query sent, reply not forwarded, lone ESC resolves under
+a 10s timed window.

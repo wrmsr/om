@@ -5,7 +5,8 @@ The parse logic is written as a generator that *asks* for characters by yielding
 `emit()`; the engine pumps characters in from `feed()`. Timeouts are cooperative and clock-free: the engine never looks
 at a clock - it exposes the currently-pending read's timeout (`pending_timeout_s`), and whoever owns the real event loop
 calls `flush_timeout()` when that much time passes without input. Tests just call `flush_timeout()` directly, making
-every timeout path exactly reproducible.
+every timeout path exactly reproducible. A zero timeout needs no clock at all: it is satisfied only by a character
+already in hand, so the engine resolves it itself at the end of the `feed()` that left it pending.
 
 (The shape is a reimplementation of the idea in textual's `_parser.py`, on structured events and without the
 buffering/peek machinery.)
@@ -32,7 +33,10 @@ class ParseTimeoutError(Exception):
 
 @dc.dataclass(frozen=True)
 class Read1(lang.Final):
-    """A request for one character; `timeout_s` of None waits indefinitely."""
+    """
+    A request for one character. A `timeout_s` of None waits indefinitely; 0 accepts only a character that arrived in
+    the same chunk, resolving at the end of the feed otherwise.
+    """
 
     timeout_s: float | None = None
 
@@ -79,9 +83,15 @@ class EventParser(lang.Abstract):
         self._events.clear()
         return events
 
+    def _resolve_zero_waits(self) -> None:
+        # A zero timeout is satisfied only by a character already in hand: with the chunk exhausted, it has elapsed.
+        while self._pending.timeout_s == 0:
+            self._pending = check.isinstance(self._gen.throw(ParseTimeoutError()), Read1)
+
     def feed(self, data: str) -> list[Event]:
         for c in data:
             self._pending = check.isinstance(self._gen.send(c), Read1)
+        self._resolve_zero_waits()
         return self._drain()
 
     def flush_timeout(self) -> list[Event]:

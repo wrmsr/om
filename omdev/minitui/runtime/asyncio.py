@@ -32,7 +32,9 @@ from ..events.types import MouseEvent
 from ..events.types import ResizeEvent
 from ..events.types import ResumeEvent
 from ..events.types import SuspendEvent
+from ..events.types import TerminalVersionEvent
 from ..events.xterm import XtermEventParser
+from ..events.xterm import terminal_version_is_relay
 from ..screens.cells import Line
 from ..surfaces.base import Surface
 from ..surfaces.inlines import InlineSurface
@@ -281,6 +283,11 @@ class AsyncioDriver:
                 # escape parsing may wait indefinitely (immune to laggy split sequences).
                 self._parser.set_escape_unambiguous(bool(event.flags & 1))
                 continue
+            if isinstance(event, TerminalVersionEvent):
+                # A tmux relay answers XTVERSION for itself, and has already resolved every ESC it forwards: escape
+                # parsing needs no timer behind it.
+                self._parser.set_escape_relay_resolved(terminal_version_is_relay(event.text))
+                continue
             if isinstance(event, ModeReportEvent) and event.mode == 2026:
                 self._surface.set_sync_output(event.value != 0)
                 continue
@@ -348,7 +355,10 @@ class AsyncioDriver:
             self._has_winch_handler = False
 
     def _negotiate(self) -> None:
-        """On every entry into application mode (startup and resume): the inline origin CPR, the sync-output query."""
+        """
+        On every entry into application mode (startup and resume): the inline origin CPR, the sync-output query, and
+        the XTVERSION query (a tmux answer zeroes the escape waits).
+        """
 
         surface = self._surface
         if isinstance(surface, InlineSurface):
@@ -361,6 +371,7 @@ class AsyncioDriver:
                 lambda: self._resolve_origin(None),
             )
         surface.request_sync_output_report()
+        surface.request_terminal_version()
 
     ##
     # Job control

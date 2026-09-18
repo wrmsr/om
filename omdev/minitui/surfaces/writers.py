@@ -88,6 +88,7 @@ _MOUSE_OFF = b'\x1b[?1006l\x1b[?1000l'
 _ALT_SCREEN_ON = b'\x1b[?1049h'
 _ALT_SCREEN_OFF = b'\x1b[?1049l'
 _SYNC_QUERY = b'\x1b[?2026$p'
+_XTVERSION_QUERY = b'\x1b[>q'
 
 
 class TermWriter:
@@ -178,6 +179,11 @@ class TermWriter:
 
     def sync_query(self) -> None:
         self.raw(_SYNC_QUERY)
+
+    def terminal_version_query(self) -> None:
+        """Ask the terminal its name (XTVERSION; reply: DCS > | text ST) - a tmux answer zeroes the escape waits."""
+
+        self.raw(_XTVERSION_QUERY)
 
     def sync_start(self) -> None:
         self.raw(_SYNC_START)

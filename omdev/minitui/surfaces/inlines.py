@@ -185,6 +185,13 @@ class InlineSurface(Surface):
         w.sync_query()
         w.flush()
 
+    def request_terminal_version(self) -> None:
+        """Send the XTVERSION query; a tmux in front of us answers for itself (a TerminalVersionEvent)."""
+
+        w = self._writer
+        w.terminal_version_query()
+        w.flush()
+
     def request_origin(self, parser: ta.Any) -> None:
         """Send a CPR query (DSR 6); `parser` is armed to recognize the response (expect_cursor_position_report)."""
 

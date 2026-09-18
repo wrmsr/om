@@ -119,6 +119,13 @@ class KittyFlagsEvent(Event, lang.Final):
 
 
 @dc.dataclass(frozen=True)
+class TerminalVersionEvent(Event, lang.Final):
+    """An XTVERSION (CSI > q) reply: the terminal's self-reported name and version, like `tmux 3.4`."""
+
+    text: str
+
+
+@dc.dataclass(frozen=True)
 class UnknownSequenceEvent(Event, lang.Final):
     """An escape sequence we didn't recognize - kept as an event for debuggability rather than silently dropped."""
 

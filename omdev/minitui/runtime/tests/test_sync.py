@@ -10,6 +10,7 @@ from ...events.types import KeyEvent
 from ...events.types import ModeReportEvent
 from ...events.types import MouseEvent
 from ...events.types import PasteEvent
+from ...events.types import TerminalVersionEvent
 from ...screens.cells import Frame
 from ...screens.cells import line_from_segments
 from ...surfaces.inlines import InlineSurface
@@ -275,6 +276,37 @@ def test_kitty_flags_reply_relaxes_escape_parsing():
     # instead of forwarding it to the app.
     app, tty = run_driver(b'\x1b[?1u', then=b'\x04')
     assert not any(isinstance(e, ModeReportEvent) or type(e).__name__ == 'KittyFlagsEvent' for e in app.events)
+
+
+def test_terminal_version_reply_is_plumbing_and_zeroes_escape_wait():
+    # The startup XTVERSION query goes out with the other negotiations. A tmux answer flips the parser into
+    # relay-resolved mode instead of reaching the app, and a lone ESC after that resolves with no timer: the timed
+    # window is made long enough here that a timed resolution could not happen inside the test.
+    tty = PipeTty(height=6, width=40)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
+    driver.parser.escape_timeout_s = 10.
+    app = RecordingApp(driver)
+    tty.send(b'\x1b[3;1R')
+    tty.send(b'\x1bP>|tmux 3.4\x1b\\')
+
+    def quit_later() -> None:
+        tty.send(b'\x04')
+        tty.close_input()
+
+    def send_escape() -> None:
+        tty.send(b'\x1b')
+        driver.timers.call_later(.02, quit_later)
+
+    driver.timers.call_later(.02, send_escape)
+    try:
+        driver.run(app)
+    finally:
+        os.close(tty.read_fd)
+
+    assert b'\x1b[>q' in b''.join(tty.writes)
+    assert driver.parser.escape_relay_resolved
+    assert not any(isinstance(e, TerminalVersionEvent) for e in app.events)
+    assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('escape'), Key('d', ctrl=True)]
 
 
 def test_kitty_query_sent_when_enabled():

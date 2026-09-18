@@ -237,6 +237,11 @@ class AltSurface(Surface):
         w.sync_query()
         w.flush()
 
+    def request_terminal_version(self) -> None:
+        w = self._writer
+        w.terminal_version_query()
+        w.flush()
+
     def take_resized(self) -> bool:
         if not self._tty.take_resized():
             return False
