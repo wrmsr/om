@@ -1,7 +1,5 @@
 # ruff: noqa: N806 N812
-"""
-Quantized-weight path tests (see quant.py). Reuses the synthetic model builders from test_synthetic.py.
-"""
+"""Quantized-weight path tests (see quant.py). Reuses the synthetic model builders from test_synthetic.py."""
 import pathlib
 import tempfile
 
@@ -80,8 +78,8 @@ def test_model_quant():
     ref_lg = ops.numpy(ref.forward(ids))
     ref_lp = ref_lg - np.log(np.exp(ref_lg).sum(-1, keepdims=True))
 
-    # loose bounds: this random model has no structure to hide quantization noise in (int8 lands ~2x bf16's own
-    # rounding error, int4 ~30x); exactness of the QWeight plumbing itself is covered by test_parity
+    # loose bounds: this random model has no structure to hide quantization noise in (int8 lands ~2x bf16's own rounding
+    # error, int4 ~30x); exactness of the QWeight plumbing itself is covered by test_parity
     for quant, tol in (('int8', 0.3), ('int4', 2.5)):
         m = Qwen35.from_source(src, ops, dtype='f32', verbose=False, quant=quant)
         # the big 2-D weights are QWeights; norms / A / dt_bias / conv / in_proj_{a,b} are not
@@ -101,8 +99,8 @@ def test_model_quant():
         assert len(gen) == 4
         print(f'model {quant}: {m.nbytes / 1e6:.2f} MB vs {ref.nbytes / 1e6:.2f} MB f32, max |delta logprob| {err:.3f}')
 
-    # tensor-blob source: MLX int8 blobs are re-packed, not requantized -> bit-identical to the dequantized f32 path
-    # for every natively quantized tensor (the f32-stored ones, e.g. the embedding, get quantized fresh)
+    # tensor-blob source: MLX int8 blobs are re-packed, not requantized -> bit-identical to the dequantized f32 path for
+    # every natively quantized tensor (the f32-stored ones, e.g. the embedding, get quantized fresh)
     om = write_ollama_tensor_model(tmp / 'ollama', cfg, hf)
     tsrc = OllamaTensorSource(om)
     m_f32 = Qwen35.from_source(tsrc, ops, dtype='f32', verbose=False)

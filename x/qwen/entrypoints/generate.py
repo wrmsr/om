@@ -13,7 +13,10 @@ from ..backends import default_dtype
 from ..backends import make_ops
 from ..model import Qwen35
 from ..tokenizer import Tokenizer
+from ..weights import OllamaModel
+from ..weights import describe_gguf
 from ..weights import open_source
+from ..weights import resolve_weights
 
 
 ##
@@ -74,7 +77,7 @@ def main() -> None:
     ap.add_argument(
         '--info',
         action='store_true',
-        help='print config and tensor names, then exit',
+        help='dump the raw GGUF metadata + tensors, then the mapped config and names, and exit',
     )
     ap.add_argument(
         '--quant',
@@ -87,12 +90,17 @@ def main() -> None:
     ops = make_ops(args.backend, args.device)
     dtype = args.dtype or default_dtype(ops)
 
-    src = open_source(args.model)
-    print(f'[model] {src.config.summary()}')
     if args.info:
+        r = resolve_weights(args.model)
+        if not isinstance(r, OllamaModel):
+            print(describe_gguf(r))
+        src = open_source(args.model)  # raises with a diagnostic if the mapping fails
+        print(f'[model] {src.config.summary()}')
         for sn in src.names():
             print(sn)
         return
+    src = open_source(args.model)
+    print(f'[model] {src.config.summary()}')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
     model = Qwen35.from_source(src, ops, dtype=dtype, quant=args.quant)

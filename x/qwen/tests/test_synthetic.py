@@ -149,14 +149,23 @@ def tiny_tokenizer_fields():
     return tokens, types, merges
 
 
-def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
+def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True, flavor='llamacpp'):
+    """
+    flavor: 'llamacpp' (conversion/qwen.py) or 'ollama' (convert_qwen3next.go) -- same layout transforms, but Ollama
+    names the dt bias bare `ssm_dt`, writes a per-layer head_count_kv with zeros for recurrent blocks instead of
+    `attention.recurrent_layers`, and records `ssm.v_head_reordered`.
+    """
+
     w = gguf.GGUFWriter(str(path), 'qwen35')
     w.add_block_count(cfg.num_layers)
     w.add_embedding_length(cfg.hidden_size)
     w.add_feed_forward_length(cfg.intermediate_size)
     w.add_context_length(4096)
     w.add_head_count(cfg.num_heads)
-    w.add_head_count_kv(cfg.num_kv_heads)
+    if flavor == 'ollama':
+        w.add_head_count_kv([cfg.num_kv_heads if t == 'full' else 0 for t in cfg.layer_types])
+    else:
+        w.add_head_count_kv(cfg.num_kv_heads)
     w.add_key_length(cfg.head_dim)
     w.add_value_length(cfg.head_dim)
     w.add_layer_norm_rms_eps(cfg.rms_eps)
@@ -168,7 +177,10 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
     w.add_ssm_group_count(cfg.num_k_heads)
     w.add_ssm_time_step_rank(cfg.num_v_heads)
     w.add_ssm_inner_size(cfg.value_dim)
-    w.add_array('qwen35.attention.recurrent_layers', [t == 'linear' for t in cfg.layer_types])
+    if flavor == 'ollama':
+        w.add_bool('qwen35.ssm.v_head_reordered', True)
+    else:
+        w.add_array('qwen35.attention.recurrent_layers', [t == 'linear' for t in cfg.layer_types])
     w.add_uint32('qwen35.full_attention_interval', 4)
     w.add_vocab_size(cfg.vocab_size)
     tokens, types, merges = tiny_tokenizer_fields()
@@ -198,7 +210,7 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
         i, rest = k.split('.', 2)[1:]
         m = {
             'input_layernorm.weight': 'attn_norm.weight',
-            'post_attention_layernorm.weight': 'attn_post_norm.weight',
+            'post_attention_layernorm.weight': 'post_attention_norm.weight',
             'mlp.gate_proj.weight': 'ffn_gate.weight',
             'mlp.up_proj.weight': 'ffn_up.weight',
             'mlp.down_proj.weight': 'ffn_down.weight',
@@ -214,7 +226,7 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True):
             'linear_attn.in_proj_a.weight': 'ssm_alpha.weight',
             'linear_attn.conv1d.weight': 'ssm_conv1d.weight',
             'linear_attn.A_log': 'ssm_a',
-            'linear_attn.dt_bias': 'ssm_dt.bias',
+            'linear_attn.dt_bias': 'ssm_dt' if flavor == 'ollama' else 'ssm_dt.bias',
             'linear_attn.norm.weight': 'ssm_norm.weight',
             'linear_attn.out_proj.weight': 'ssm_out.weight',
         }
@@ -510,6 +522,13 @@ def _test_gguf_roundtrip(tmp_path=None):
         got = srcq.get(k)
         err = np.abs(got - eff[k]).max()
         assert err < 0.02, (k, err)
+    # Ollama's converter flavour (bare ssm_dt, per-layer head_count_kv, v_head_reordered flag) loads identically
+    write_gguf(tmp_path / 'tiny_ollama.gguf', cfg, hf, quantize=False, flavor='ollama')
+    srco = GGUFSource(tmp_path / 'tiny_ollama.gguf')
+    assert srco.config.layer_types == cfg.layer_types and srco.v_heads_tiled
+    assert set(srco.names()) == set(eff.keys())
+    for k in eff:
+        np.testing.assert_allclose(srco.get(k), eff[k], rtol=1e-6, atol=1e-6, err_msg=k)
     print('gguf roundtrip OK')
     return cfg, hf, eff, src
 

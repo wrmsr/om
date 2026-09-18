@@ -347,6 +347,8 @@ class GGUFSource(TensorSource):
         if arch != 'qwen35':
             raise ValueError(f'unsupported GGUF architecture {arch!r} (want qwen35)')
         self.arch = arch
+        # llama.cpp's converter always tiles the DeltaNet V heads; Ollama's records whether it did
+        self.v_heads_tiled = bool(self.akv('ssm.v_head_reordered', True))
         self.config = self._build_config()
         self.tokenizer_spec = self._build_tokenizer_spec()
         self._canon = self._build_name_map()
@@ -369,12 +371,9 @@ class GGUFSource(TensorSource):
         n_head = a('attention.head_count')
         n_head = max(n_head) if isinstance(n_head, list) else int(n_head)
         n_kv = a('attention.head_count_kv')
+        kv_per_layer = list(n_kv) if isinstance(n_kv, list) else None
         n_kv = max(n_kv) if isinstance(n_kv, list) else int(n_kv)
-        recr = a('attention.recurrent_layers')
-        if recr is None:
-            interval = int(a('full_attention_interval', 4) or 4)
-            recr = [((i + 1) % interval != 0) for i in range(n_layer)]
-        layer_types = ['linear' if bool(r) else 'full' for r in list(recr)[:n_layer]]
+        layer_types = self._layer_types(n_layer, kv_per_layer)
         state = int(a('ssm.state_size'))
         n_v = int(a('ssm.time_step_rank'))
         n_k = int(a('ssm.group_count'))
@@ -425,6 +424,31 @@ class GGUFSource(TensorSource):
             },
         )
 
+    def _layer_types(self, n_layer: int, kv_per_layer: list[int] | None) -> list[str]:
+        """
+        Which blocks are Gated DeltaNet and which are full attention. The tensors themselves are the ground truth
+        (`ssm_a` only exists in linear blocks); the metadata -- `attention.recurrent_layers` (llama.cpp), a per-layer
+        `attention.head_count_kv` with zeros for recurrent blocks (llama.cpp and Ollama), or `full_attention_interval`
+        -- is used to cross-check and as a fallback for files with no block tensors.
+        """
+
+        from_tensors: list[str] | None = None
+        if f'blk.{n_layer - 1}.attn_norm.weight' in self._tensors:
+            from_tensors = ['linear' if f'blk.{i}.ssm_a' in self._tensors else 'full' for i in range(n_layer)]
+        recr = self.akv('attention.recurrent_layers')
+        if recr is not None:
+            from_meta = ['linear' if bool(r) else 'full' for r in list(recr)[:n_layer]]
+        elif kv_per_layer is not None and len(kv_per_layer) >= n_layer:
+            from_meta = ['linear' if int(k) == 0 else 'full' for k in kv_per_layer[:n_layer]]
+        else:
+            interval = int(self.akv('full_attention_interval', 4) or 4)
+            from_meta = ['linear' if (i + 1) % interval else 'full' for i in range(n_layer)]
+        if from_tensors is None:
+            return from_meta
+        if from_tensors != from_meta:
+            print(f'[weights] WARNING: layer kinds from tensors disagree with metadata; trusting tensors')
+        return from_tensors
+
     def _build_tokenizer_spec(self) -> dict:
         kv = self.kv
         return {
@@ -444,20 +468,38 @@ class GGUFSource(TensorSource):
     # name mapping GGUF -> canonical
 
     def _build_name_map(self) -> dict[str, tuple]:
-        """canonical name -> (gguf name, post-processing tag)."""
+        """
+        canonical name -> (gguf name, post-processing tag).
+
+        Two GGUF flavours exist for this arch: llama.cpp's converter and Ollama's own (convert_qwen3next.go). They agree
+        on everything except the DeltaNet dt bias, which llama.cpp writes as `ssm_dt.bias` and Ollama as bare `ssm_dt`;
+        where names differ the first present alternative wins. Ollama also records whether the V heads were tiled
+        (`ssm.v_head_reordered`); llama.cpp always tiles, so the default is True.
+        """
 
         c = self.config
+        ts = self._tensors
+
+        def first(*cands: str) -> str:
+            for cand in cands:
+                if cand in ts:
+                    return cand
+            return cands[0]
+
         m: dict[str, tuple] = {
             'embed_tokens.weight': ('token_embd.weight', None),
             'norm.weight': ('output_norm.weight', None),
         }
-        if 'output.weight' in self._tensors:
+        if 'output.weight' in ts:
             m['lm_head.weight'] = ('output.weight', None)
         for i, lt in enumerate(c.layer_types):
             p = f'blk.{i}.'
             q = f'layers.{i}.'
             m[q + 'input_layernorm.weight'] = (p + 'attn_norm.weight', None)
-            m[q + 'post_attention_layernorm.weight'] = (p + 'attn_post_norm.weight', None)
+            m[q + 'post_attention_layernorm.weight'] = (
+                first(p + 'post_attention_norm.weight', p + 'attn_post_norm.weight'),
+                None,
+            )
             m[q + 'mlp.gate_proj.weight'] = (p + 'ffn_gate.weight', None)
             m[q + 'mlp.up_proj.weight'] = (p + 'ffn_up.weight', None)
             m[q + 'mlp.down_proj.weight'] = (p + 'ffn_down.weight', None)
@@ -484,12 +526,20 @@ class GGUFSource(TensorSource):
                 m[q + 'linear_attn.in_proj_a.weight'] = (p + 'ssm_alpha.weight', 'untile_rows_1')
                 m[q + 'linear_attn.conv1d.weight'] = (p + 'ssm_conv1d.weight', 'untile_conv')
                 m[q + 'linear_attn.A'] = (p + 'ssm_a', 'untile_rows_1')
-                m[q + 'linear_attn.dt_bias'] = (p + 'ssm_dt.bias', 'untile_rows_1')
+                m[q + 'linear_attn.dt_bias'] = (
+                    first(p + 'ssm_dt.bias', p + 'ssm_dt', p + 'ssm_dt.weight'),
+                    'untile_rows_1',
+                )
                 m[q + 'linear_attn.norm.weight'] = (p + 'ssm_norm.weight', None)
                 m[q + 'linear_attn.out_proj.weight'] = (p + 'ssm_out.weight', 'untile_cols_dv')
-        missing = [k for k, (g, _) in m.items() if g not in self._tensors]
+        missing = [(k, g) for k, (g, _) in m.items() if g not in ts]
         if missing:
-            raise KeyError(f'GGUF is missing expected tensors, e.g. {missing[:5]} (of {len(missing)})')
+            blocks = sorted({g.split('.')[1] for _, g in missing if g.startswith('blk.')}, key=int)[:2]
+            have = [n for n in ts if any(n.startswith(f'blk.{b}.') for b in blocks)]
+            raise KeyError(
+                f'GGUF is missing {len(missing)} expected tensors, e.g. {missing[:4]}; '
+                f'tensors present in the first affected blocks: {have}',
+            )
         return m
 
     def names(self) -> list[str]:
@@ -513,7 +563,7 @@ class GGUFSource(TensorSource):
         x = self.raw(gname)
         c = self.config
         r = c.num_v_heads // c.num_k_heads
-        if tag is None:
+        if tag is None or (tag.startswith('untile_') and not self.v_heads_tiled):
             return x
         if tag.startswith('fused_'):
             nq = c.num_heads * c.head_dim * 2
@@ -706,17 +756,17 @@ class OllamaTensorSource(TensorSource):
 # Entry point
 
 
-def open_source(model: str) -> TensorSource:
-    """`model` is an Ollama model name (qwen3.5:0.8b), a path to a .gguf, or a path to an Ollama manifest."""
+def resolve_weights(model: str) -> pathlib.Path | OllamaModel:
+    """`model` -> a GGUF path, or the Ollama manifest for tensor-blob models."""
 
     p = pathlib.Path(model).expanduser()
     if p.is_file() and p.suffix == '.gguf':
-        return GGUFSource(p)
+        return p
     if p.is_file():  # maybe a raw blob: sniff magic
         with open(p, 'rb') as f:
             magic = f.read(4)
         if magic == b'GGUF':
-            return GGUFSource(p)
+            return p
         raise ValueError(f'{p}: not a GGUF')
     om = resolve_ollama(model)
     ggufs = om.layers(MT_GGUF)
@@ -724,10 +774,44 @@ def open_source(model: str) -> TensorSource:
         ggufs.sort(key=lambda l: -l.get('size', 0))
         if len(ggufs) > 1:
             print(f"[weights] {len(ggufs)} model layers in manifest; using largest ({ggufs[0]['digest'][:19]})")
-        return GGUFSource(om.blob(ggufs[0]['digest']))
+        return om.blob(ggufs[0]['digest'])
     if om.layers(MT_TENSOR):
-        return OllamaTensorSource(om)
+        return om
     raise ValueError(f'no model weights found in manifest {om.manifest_path}')
+
+
+def open_source(model: str) -> TensorSource:
+    """`model` is an Ollama model name (qwen3.5:0.8b), a path to a .gguf, or a path to an Ollama manifest."""
+
+    r = resolve_weights(model)
+    if isinstance(r, OllamaModel):
+        return OllamaTensorSource(r)
+    return GGUFSource(r)
+
+
+def describe_gguf(path: str | pathlib.Path, max_blocks: int = 4) -> str:
+    """
+    Raw metadata and tensor listing (names, ggml shapes, types) straight from the file, before any mapping -- the thing
+    to look at when a load fails.
+    """
+
+    from gguf import GGUFReader
+
+    r = GGUFReader(str(path))
+    lines = [f'# {path}', '## metadata']
+    for k, f in r.fields.items():
+        if k.startswith('tokenizer.ggml.') and k not in ('tokenizer.ggml.model', 'tokenizer.ggml.pre'):
+            continue  # token lists are huge
+        v = f.contents()
+        if isinstance(v, list) and len(v) > 16:
+            v = f'list[{len(v)}] {v[:8]}...'
+        lines.append(f'{k} = {v}')
+    lines.append(f'## tensors ({len(r.tensors)}; blocks >= {max_blocks} elided)')
+    for t in r.tensors:
+        if t.name.startswith('blk.') and int(t.name.split('.')[1]) >= max_blocks:
+            continue
+        lines.append(f'{t.name:48s} {t.tensor_type.name:8s} ne={[int(d) for d in t.shape]}')
+    return '\n'.join(lines)
 
 
 def describe(source: TensorSource) -> str:
