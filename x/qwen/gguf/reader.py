@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 # MIT License
 #
 # Copyright (c) 2023 Georgi Gerganov
@@ -14,28 +15,28 @@
 # WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+import collections
 import os
 import sys
-import collections
 import typing as ta
 
 import numpy as np
 import numpy.typing as npt
 
-from .constants import GGMLQuantizationType
 from .constants import GGML_QUANT_SIZES
-from .constants import GGUFEndian
-from .constants import GGUFValueType
 from .constants import GGUF_DEFAULT_ALIGNMENT
 from .constants import GGUF_MAGIC
 from .constants import GGUF_VERSION
+from .constants import GGMLQuantizationType
+from .constants import GGUFEndian
+from .constants import GGUFValueType
 from .quants import quant_shape_to_byte_shape
 
 
 ##
 
 
-READER_SUPPORTED_VERSIONS = [2, GGUF_VERSION]
+READER_SUPPORTED_VERSIONS = (2, GGUF_VERSION)
 
 
 class ReaderField(ta.NamedTuple):
@@ -47,13 +48,13 @@ class ReaderField(ta.NamedTuple):
 
     # Data parts. Some types have multiple components, such as strings that consist of a length followed by the string
     # data.
-    parts: list[npt.NDArray[ta.Any]] = []
+    parts: ta.Sequence[npt.NDArray[ta.Any]] = ()
 
     # Indexes into parts that we can call the actual data. For example an array of strings will be populated with
     # indexes to the actual string data.
-    data: list[int] = [-1]
+    data: ta.Sequence[int] = (-1,)
 
-    types: list[GGUFValueType] = []
+    types: ta.Sequence[GGUFValueType] = ()
 
     def contents(self, index_or_slice: int | slice = slice(None)) -> ta.Any:
         if self.types:
@@ -83,7 +84,11 @@ class ReaderField(ta.NamedTuple):
                     # if isinstance(optim_slice, int):
                     #     return self.parts[self.data[optim_slice]].tolist()[0]
                     # else:
-                    #     return [pv for idx in self.data[optim_slice] for pv in self.parts[idx].tolist()][index_or_slice]
+                    #     return [
+                    #         pv
+                    #         for idx in self.data[optim_slice]
+                    #         for pv in self.parts[idx].tolist()
+                    #     ][index_or_slice]
 
                     if isinstance(index_or_slice, int):
                         return self.parts[self.data[index_or_slice]].tolist()[0]
@@ -116,7 +121,7 @@ class GGUFReader:
     data_offset: int
 
     # Note: Internal helper, API may change.
-    gguf_scalar_to_np: dict[GGUFValueType, type[np.generic]] = {
+    gguf_scalar_to_np: ta.Mapping[GGUFValueType, type[np.generic]] = {
         GGUFValueType.UINT8:   np.uint8,
         GGUFValueType.INT8:    np.int8,
         GGUFValueType.UINT16:  np.uint16,
@@ -149,7 +154,7 @@ class GGUFReader:
         version = temp_version[0]
         if version not in READER_SUPPORTED_VERSIONS:
             raise ValueError(f'Sorry, file appears to be version {version} which we cannot handle')
-        if sys.byteorder == "little":
+        if sys.byteorder == 'little':
             # Host is little endian
             host_endian = GGUFEndian.LITTLE
             swapped_endian = GGUFEndian.BIG
@@ -157,7 +162,7 @@ class GGUFReader:
             # Sorry PDP or other weird systems that don't use BE or LE.
             host_endian = GGUFEndian.BIG
             swapped_endian = GGUFEndian.LITTLE
-        self.endianess = swapped_endian if self.byte_order == "S" else host_endian
+        self.endianess = swapped_endian if self.byte_order == 'S' else host_endian
         self.fields: collections.OrderedDict[str, ReaderField] = collections.OrderedDict()
         self.tensors: list[ReaderTensor] = []
         offs += self._push_field(ReaderField(offs, 'GGUF.version', [temp_version], [0], [GGUFValueType.UINT32]))
@@ -196,7 +201,11 @@ class GGUFReader:
         return self.tensors[idx]
 
     def _get(
-            self, offset: int, dtype: npt.DTypeLike, count: int = 1, override_order: None | ta.Literal['I', 'S', '<'] = None,
+            self,
+            offset: int,
+            dtype: npt.DTypeLike,
+            count: int = 1,
+            override_order: None | ta.Literal['I', 'S', '<'] = None,
     ) -> npt.NDArray[ta.Any]:
         count = int(count)
         itemsize = int(np.empty([], dtype = dtype).itemsize)
@@ -220,7 +229,9 @@ class GGUFReader:
         return slen, self._get(offset + 8, np.uint8, slen[0])
 
     def _get_field_parts(
-            self, orig_offs: int, raw_type: int,
+            self,
+            orig_offs: int,
+            raw_type: int,
     ) -> tuple[int, list[npt.NDArray[ta.Any]], list[int], list[GGUFValueType]]:
         offs = orig_offs
         types: list[GGUFValueType] = []
@@ -319,13 +330,16 @@ class GGUFReader:
     def _build_tensors(self, start_offs: int, fields: list[ReaderField]) -> None:
         tensors = []
         tensor_names = set() # keep track of name to prevent duplicated tensors
+
         for field in fields:
             _name_len, name_data, _n_dims, dims, raw_dtype, offset_tensor = field.parts
+
             # check if there's any tensor having same name already in the list
             tensor_name = str(bytes(name_data), encoding = 'utf-8')
             if tensor_name in tensor_names:
                 raise ValueError(f'Found duplicated tensor with name {tensor_name}')
             tensor_names.add(tensor_name)
+
             ggml_type = GGMLQuantizationType(raw_dtype[0])
             n_elems = int(np.prod(dims))
             np_dims = tuple(reversed(dims.tolist()))
@@ -333,39 +347,48 @@ class GGUFReader:
             n_bytes = n_elems * type_size // block_size
             data_offs = int(start_offs + offset_tensor[0])
             item_type: npt.DTypeLike
+
             if ggml_type == GGMLQuantizationType.F16:
                 item_count = n_elems
                 item_type = np.float16
+
             elif ggml_type == GGMLQuantizationType.F32:
                 item_count = n_elems
                 item_type = np.float32
+
             elif ggml_type == GGMLQuantizationType.F64:
                 item_count = n_elems
                 item_type = np.float64
+
             elif ggml_type == GGMLQuantizationType.I8:
                 item_count = n_elems
                 item_type = np.int8
+
             elif ggml_type == GGMLQuantizationType.I16:
                 item_count = n_elems
                 item_type = np.int16
+
             elif ggml_type == GGMLQuantizationType.I32:
                 item_count = n_elems
                 item_type = np.int32
+
             elif ggml_type == GGMLQuantizationType.I64:
                 item_count = n_elems
                 item_type = np.int64
+
             else:
                 item_count = n_bytes
                 item_type = np.uint8
                 np_dims = quant_shape_to_byte_shape(np_dims, ggml_type)
+
             tensors.append(ReaderTensor(
-                name = tensor_name,
-                tensor_type = ggml_type,
-                shape = dims,
-                n_elements = n_elems,
-                n_bytes = n_bytes,
-                data_offset = data_offs,
-                data = self._get(data_offs, item_type, item_count).reshape(np_dims),
-                field = field,
+                name=tensor_name,
+                tensor_type=ggml_type,
+                shape=dims,
+                n_elements=n_elems,
+                n_bytes=n_bytes,
+                data_offset=data_offs,
+                data=self._get(data_offs, item_type, item_count).reshape(np_dims),
+                field=field,
             ))
         self.tensors = tensors
