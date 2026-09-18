@@ -40,7 +40,7 @@ import types
 import typing as ta
 
 from omcore.formats.toml.parser import toml_loads
-from omcore.formats.toml.writer import TomlWriter
+from omcore.formats.toml.writer import toml_dumps
 from omcore.lite.abstract import Abstract
 from omcore.lite.cached import cached_nullary
 from omcore.lite.check import check
@@ -394,7 +394,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
             }
 
         if (eps := prj.pop('entry-points', None)):
-            pyp_dct['project.entry-points'] = {TomlWriter.Literal(f"'{k}'"): v for k, v in eps.items()}  # type: ignore  # noqa
+            pyp_dct['project.entry-points'] = dict(eps)
 
         if (scs := prj.pop('scripts', None)):
             pyp_dct['project.scripts'] = scs
@@ -433,7 +433,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         cpd = self._collect_pkg_data()
         for pdk, pdv in sorted(cpd.items(), key=lambda kv: kv[0]):
-            pdl = TomlWriter.Literal(f"'{pdk}'")
+            pdl = pdk
             if pdv.inc:
                 pd.setdefault(pdl, []).extend(sorted(set(pdv.inc)))
             if pdv.exc:
@@ -464,7 +464,7 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
         fc = self.file_contents()
 
         with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
-            TomlWriter(f).write_root(fc.pyproject_dct)
+            f.write(toml_dumps(fc.pyproject_dct))
 
         if fc.manifest_in:
             with open(os.path.join(self._cleaned_pkg_dir(), 'MANIFEST.in'), 'w') as f:
@@ -561,7 +561,7 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
         fc = self.file_contents()
 
         with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
-            TomlWriter(f).write_root(fc.pyproject_dct)
+            f.write(toml_dumps(fc.pyproject_dct))
 
         with open(os.path.join(self._cleaned_pkg_dir(), 'setup.py'), 'w') as f:
             f.write(fc.setup_py)
@@ -1116,4 +1116,4 @@ class _PyprojectCliPackageGenerator(BasePyprojectPackageGenerator):
         fc = self.file_contents()
 
         with open(os.path.join(self._cleaned_pkg_dir(), 'pyproject.toml'), 'w') as f:
-            TomlWriter(f).write_root(fc.pyproject_dct)
+            f.write(toml_dumps(fc.pyproject_dct))

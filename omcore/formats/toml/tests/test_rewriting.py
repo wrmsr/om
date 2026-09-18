@@ -7,6 +7,10 @@ import unittest
 from ....lite.check import check
 from ..parser import TomlDecodeError
 from ..parser import TomlDocumentError
+from ..parser import TomlInline
+from ..parser import TomlMultiline
+from ..parser import TomlRaw
+from ..parser import TomlStyle
 from ..parser import TomlValueRenderer
 from ..parser import toml_loads
 from ..parser import toml_parse_document
@@ -111,18 +115,23 @@ class TestSetValueReplace(RewritingTestCase):
         self.assertIsInstance(out.data['b'], decimal.Decimal)
 
     def test_containers(self):
-        self.check(
-            'a = 1',
-            lambda d: d.set_value(('a',), [1, 'x', True, [2], {'k': 1}]),
-            'a = [1, "x", true, [2], { k = 1 }]',
-        )
         self.check('a = 1', lambda d: d.set_value(('a',), {}), 'a = {}')
         self.check('a = 1', lambda d: d.set_value(('a',), []), 'a = []')
-        self.check('a = 1', lambda d: d.set_value(('a',), {'k k': 1, '': 2}), 'a = { "k k" = 1, "" = 2 }')
-        self.check('a = 1', lambda d: d.set_value(('a',), (1, 2)), 'a = [1, 2]')
+        self.check('a = 1', lambda d: d.set_value(('a',), (1, 2)), 'a = [\n    1,\n    2,\n]')
+        self.check(
+            'a = 1',
+            lambda d: d.set_value(('a',), {'k k': 1, '': 2, 'n': {'x': [1]}}),
+            "a = {'k k' = 1, '' = 2, n = {x = [1]}}",
+        )
         self.check('a = [\n 1,\n]\nb = 2\n', lambda d: d.set_value(('a',), 1), 'a = 1\nb = 2\n')
         self.check('a = { x = 1 }\n', lambda d: d.set_value(('a',), [1]), 'a = [1]\n')
-        self.check('a = [1]\n', lambda d: d.set_value(('a', 0), {'x': 1}), 'a = [{ x = 1 }]\n')
+        self.check('a = [1]\n', lambda d: d.set_value(('a', 0), {'x': 1}), 'a = [{x = 1}]\n')
+
+        st = TomlStyle(array_layout='inline', inline_table_padding=' ')
+        doc = toml_parse_document('a = 1', style=st)
+        out = doc.set_value(('a',), [1, 'x', True, [2], {'k': 1}])
+        self.assertEqual(out.src, "a = [1, 'x', true, [2], { k = 1 }]")
+        self.assertIs(out.style, st)
 
     def test_unrenderable(self):
         with self.assertRaises(TomlDocumentError):
@@ -168,8 +177,8 @@ class TestSetValueInsert(RewritingTestCase):
     def test_dotted_keys(self):
         self.check('[t]\nk = 1\n', lambda d: d.set_value(('t', 'a', 'b'), 2), '[t]\nk = 1\na.b = 2\n')
         self.check('x = 1\n', lambda d: d.set_value(('a', 'b', 'c'), 2), 'x = 1\na.b.c = 2\n')
-        self.check('[t]\nk = 1\n', lambda d: d.set_value(('t', 'weird key'), 2), '[t]\nk = 1\n"weird key" = 2\n')
-        self.check('[t]\nk = 1\n', lambda d: d.set_value(('t', ''), 2), '[t]\nk = 1\n"" = 2\n')
+        self.check('[t]\nk = 1\n', lambda d: d.set_value(('t', 'weird key'), 2), "[t]\nk = 1\n'weird key' = 2\n")
+        self.check('[t]\nk = 1\n', lambda d: d.set_value(('t', ''), 2), "[t]\nk = 1\n'' = 2\n")
         self.check('[t]\na.b = 1\n', lambda d: d.set_value(('t', 'a', 'c'), 2), '[t]\na.b = 1\na.c = 2\n')
         self.check('[t.u]\nk = 1\n', lambda d: d.set_value(('t', 'u', 'v', 'w'), 2), '[t.u]\nk = 1\nv.w = 2\n')
         self.check('[t.u]\nk = 1\n', lambda d: d.set_value(('t', 'x'), 2), 't.x = 2\n\n[t.u]\nk = 1\n')
@@ -177,8 +186,8 @@ class TestSetValueInsert(RewritingTestCase):
     def test_inline_tables(self):
         self.check('t = { a = 1 }', lambda d: d.set_value(('t', 'b'), 2), 't = { a = 1, b = 2 }')
         self.check('t = {a = 1,b = 2}', lambda d: d.set_value(('t', 'c'), 3), 't = {a = 1,b = 2,c = 3}')
-        self.check('t = {}', lambda d: d.set_value(('t', 'c'), 3), 't = { c = 3 }')
-        self.check('t = { }', lambda d: d.set_value(('t', 'c'), 3), 't = { c = 3 }')
+        self.check('t = {}', lambda d: d.set_value(('t', 'c'), 3), 't = {c = 3}')
+        self.check('t = { }', lambda d: d.set_value(('t', 'c'), 3), 't = {c = 3}')
         self.check('t = {\n  a = 1,\n}', lambda d: d.set_value(('t', 'b'), 2), 't = {\n  a = 1,\n  b = 2,\n}')
         self.check('t = {\n  a = 1\n}', lambda d: d.set_value(('t', 'b'), 2), 't = {\n  a = 1,\n  b = 2,\n}')
         self.check(
@@ -323,14 +332,14 @@ class TestAddTable(RewritingTestCase):
         self.check(
             'a = 1\n',
             lambda d: d.add_table(('t',), {'k': 'v', 'n': 2, 'd': {'x': 1}}),
-            'a = 1\n\n[t]\nk = "v"\nn = 2\nd = { x = 1 }\n',
+            "a = 1\n\n[t]\nk = 'v'\nn = 2\nd = {x = 1}\n",
         )
         self.check('a = 1', lambda d: d.add_table(('t',)), 'a = 1\n\n[t]\n')
         self.check('', lambda d: d.add_table(('t',)), '[t]\n')
         self.check('\n', lambda d: d.add_table(('t',)), '\n[t]\n')
         self.check('a = 1\n\n', lambda d: d.add_table(('t',)), 'a = 1\n\n[t]\n')
         self.check('a = 1\n', lambda d: d.add_table(('t',), array=True), 'a = 1\n\n[[t]]\n')
-        self.check('a = 1\n', lambda d: d.add_table(('a b', 'c')), 'a = 1\n\n["a b".c]\n')
+        self.check('a = 1\n', lambda d: d.add_table(('a b', 'c')), "a = 1\n\n['a b'.c]\n")
         self.check(
             '[[t]]\nx = 1\n',
             lambda d: d.add_table(['t'], {'x': 2}, array=True),
@@ -342,7 +351,7 @@ class TestAddTable(RewritingTestCase):
         with self.assertRaises(TomlDocumentError):
             toml_parse_document('').add_table(())
         with self.assertRaises(TomlDocumentError):
-            toml_parse_document('').add_table(('a', 1))  # type: ignore
+            toml_parse_document('').add_table(('a', 1))
         with self.assertRaises(TomlDecodeError):
             toml_parse_document('[t]\n').add_table(('t',))
 
@@ -397,10 +406,13 @@ class TestChainedEdits(RewritingTestCase):
             ']',
             '',
             '[tool.om]',
-            'mode = "fast"',
+            "mode = 'fast'",
             '',
             '[tool.other]',
-            'k = [1, 2]',
+            'k = [',
+            '    1,',
+            '    2,',
+            ']',
             '',
         ]))
         self.assertEqual(out.data, {
@@ -414,15 +426,109 @@ class TestChainedEdits(RewritingTestCase):
 class TestValueRenderer(unittest.TestCase):
     def test_keys(self):
         r = TomlValueRenderer()
-        self.assertEqual(r.render_key(('a', 'b-c', 'd e', '', 'f.g')), 'a.b-c."d e".""."f.g"')
-        self.assertEqual(r.render_key_part('123'), '123')
-        self.assertEqual(r.render_key_part('q"q'), '"q\\"q"')
+        self.assertEqual(r.render_key(('a', 'b-c', 'd e', '', 'f.g')), "a.b-c.'d e'.''.'f.g'")
+        self.assertEqual(r.render_key_part('123'), "'123'")
+        self.assertEqual(r.render_key_part('_x1'), '_x1')
+        self.assertEqual(r.render_key_part(5), "'5'")
+        self.assertEqual(r.render_key_part('q"q'), "'q\"q'")
+        self.assertEqual(r.render_key_part("q'q"), '"q\'q"')
+        self.assertEqual(r.render_key_part(TomlRaw('"raw"')), '"raw"')
+        self.assertEqual(TomlValueRenderer(TomlStyle(quotes='basic')).render_key_part('d e'), '"d e"')
+        with self.assertRaises(TomlDocumentError):
+            r.render_key_part(1.5)
 
     def test_strings(self):
         r = TomlValueRenderer()
-        self.assertEqual(r.render_value('x'), '"x"')
+        self.assertEqual(r.render_value('x'), "'x'")
+        self.assertEqual(TomlValueRenderer(TomlStyle(quotes='basic')).render_value('x'), '"x"')
         self.assertEqual(r.render_value("it's"), '"it\'s"')
         self.assertEqual(r.render_value('a\nb'), '"a\\nb"')
         self.assertEqual(r.render_str('x', like='LITERAL_STRING'), "'x'")
         self.assertEqual(r.render_str('a\nb', like='ML_LITERAL_STRING'), "'''\na\nb'''")
         self.assertEqual(TomlValueRenderer(newline='\r\n').render_str('a\nb', like='ML_BASIC_STRING'), '"""\r\na\nb"""')
+
+
+class TestStyleAndPlacement(RewritingTestCase):
+    def test_style_from_parse(self):
+        st = TomlStyle(quotes='basic', array_layout='inline', inline_table_padding=' ')
+        doc = toml_parse_document('a = 1\n', style=st)
+        out = doc.set_value(('b',), ['x', {'k': 1}]).set_value(('c',), 's')
+        self.assertEqual(out.src, 'a = 1\nb = ["x", { k = 1 }]\nc = "s"\n')
+        self.assertIs(out.style, st)
+        with self.assertRaises(TomlDocumentError):
+            toml_parse_document('', style=TomlStyle(quotes='fancy')).set_value(('a',), 1)
+
+    def test_default_style_new_arrays_are_multiline(self):
+        self.check('a = 1\n', lambda d: d.set_value(('b',), [1, 'x']), "a = 1\nb = [\n    1,\n    'x',\n]\n")
+        self.check(
+            '[t]\n  a = 1\n',
+            lambda d: d.set_value(('t', 'b'), [1]),
+            '[t]\n  a = 1\n  b = [\n      1,\n  ]\n',
+        )
+        self.check('a = 1\n', lambda d: d.set_value(('b',), [[1], {'k': [2]}]), 'a = 1\nb = [\n    [\n        1,\n    ],\n    {k = [2]},\n]\n')  # noqa: E501
+
+    def test_auto_layout(self):
+        st = TomlStyle(array_layout='auto', max_inline_width=20)
+        doc = toml_parse_document('', style=st)
+        self.assertEqual(doc.set_value(('a',), [1, 2, 3]).src, 'a = [1, 2, 3]\n')
+        self.assertEqual(doc.set_value(('a',), [[1], 2]).src, 'a = [\n    [1],\n    2,\n]\n')
+        self.assertEqual(
+            doc.set_value(('a',), ['x' * 10, 'y' * 10]).src,
+            "a = [\n    'xxxxxxxxxx',\n    'yyyyyyyyyy',\n]\n",
+        )
+
+    def test_replace_keeps_container_layout(self):
+        self.check('a = [\n  1,\n]\n', lambda d: d.set_value(('a',), [2, 3]), 'a = [\n    2,\n    3,\n]\n')
+        self.check('a = [1]\n', lambda d: d.set_value(('a',), [2, 3]), 'a = [2, 3]\n')
+        self.check('a = [1]\n', lambda d: d.set_value(('a', 0), [2, 3]), 'a = [[2, 3]]\n')
+        self.check('a = [\n  1,\n]\n', lambda d: d.set_value(('a', 0), [2]), 'a = [\n  [\n      2,\n  ],\n]\n')
+        self.check('t = { a = 1 }\n', lambda d: d.set_value(('t', 'a'), [2, 3]), 't = { a = [2, 3] }\n')
+        self.check(
+            't = {\n  a = 1,\n}\n',
+            lambda d: d.set_value(('t', 'a'), [2]),
+            't = {\n  a = [\n      2,\n  ],\n}\n',
+        )
+
+    def test_sibling_mimicry(self):
+        self.check('a = ["x"]\n', lambda d: d.set_value(('a', 1), 'y'), 'a = ["x", "y"]\n')
+        self.check("a = ['x']\n", lambda d: d.set_value(('a', 1), 'y'), "a = ['x', 'y']\n")
+        self.check('a = [1]\n', lambda d: d.set_value(('a', 1), 'y'), "a = [1, 'y']\n")
+        self.check('t = { a = "x" }\n', lambda d: d.set_value(('t', 'b'), 'y'), 't = { a = "x", b = "y" }\n')
+        self.check('a = [0x1]\n', lambda d: d.set_value(('a', 1), 255), 'a = [0x1, 0xff]\n')
+        self.check('a = [0x1]\n', lambda d: d.set_value(('a', 1), 'z'), "a = [0x1, 'z']\n")
+
+    def test_markers(self):
+        self.check('a = 1\n', lambda d: d.set_value(('b',), TomlInline([1, 2])), 'a = 1\nb = [1, 2]\n')
+        self.check('a = 1\n', lambda d: d.set_value(('b',), TomlRaw('[ 1 ]')), 'a = 1\nb = [ 1 ]\n')
+        self.check('a = [1, 2]\n', lambda d: d.set_value(('a',), TomlMultiline([3])), 'a = [\n    3,\n]\n')
+        self.check('a = 1\n', lambda d: d.set_value(('b',), [TomlInline([1, 2])]), 'a = 1\nb = [\n    [1, 2],\n]\n')
+        with self.assertRaises(TomlDocumentError):
+            toml_parse_document('').set_value(('a',), TomlMultiline({'k': 1}))
+        doc = toml_parse_document('', style=TomlStyle(toml_1_1=True))
+        self.assertEqual(doc.set_value(('a',), TomlMultiline({'k': 1})).src, 'a = {\n    k = 1,\n}\n')
+
+    def test_add_table_placement(self):
+        src = '[a]\nx = 1\n\n[c]\nz = 3\n'
+        self.check(
+            src,
+            lambda d: d.add_table(('b',), {'y': 2}, after=('a',)),
+            '[a]\nx = 1\n\n[b]\ny = 2\n\n[c]\nz = 3\n',
+        )
+        self.check(src, lambda d: d.add_table(('b',), after=('c',)), '[a]\nx = 1\n\n[c]\nz = 3\n\n[b]\n')
+        self.check('[a]\nx = 1', lambda d: d.add_table(('b',), after=('a',)), '[a]\nx = 1\n\n[b]\n')
+        self.check('r = 1\n[a]\n', lambda d: d.add_table(('b',), after=()), 'r = 1\n\n[b]\n[a]\n')
+        self.check('# c\n[a]\n', lambda d: d.add_table(('b',), after=()), '# c\n[b]\n\n[a]\n')
+        self.check('', lambda d: d.add_table(('b',), after=()), '[b]\n')
+        with self.assertRaises(TomlDocumentError):
+            toml_parse_document(src).add_table(('b',), after=('nope',))
+
+    def test_add_table_comments_and_spacing(self):
+        self.check(
+            '[a]\n',
+            lambda d: d.add_table(('b',), comments=['##', 'about b', '']),
+            '[a]\n\n##\n# about b\n#\n[b]\n',
+        )
+        doc = toml_parse_document('[a]\n', style=TomlStyle(blank_lines_between_tables=2))
+        self.assertEqual(doc.add_table(('b',)).src, '[a]\n\n\n[b]\n')
+        self.assertEqual(doc.add_table(('b',), after=('a',)).src, '[a]\n\n\n[b]\n')
+        self.assertEqual(doc.add_table(('b',)).add_table(('c',), after=('a',)).src, '[a]\n\n\n[c]\n\n\n[b]\n')

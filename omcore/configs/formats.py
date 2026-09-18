@@ -22,7 +22,7 @@ from ..formats.ini.sections import IniSectionSettingsMap
 from ..formats.ini.sections import extract_ini_sections
 from ..formats.ini.sections import render_ini_sections
 from ..formats.toml.parser import toml_loads
-from ..formats.toml.writer import TomlWriter
+from ..formats.toml.writer import toml_dumps
 from ..formats.yaml.backends import DEFAULT_YAML_BACKEND
 from ..formats.yaml.backends import YamlBackend
 from ..lite.abstract import Abstract
@@ -237,7 +237,7 @@ class TomlConfigRenderer(DumpsConfigRenderer[TomlConfigData]):
     data_cls = TomlConfigData
 
     def dumps(self, o: ta.Any) -> str:
-        return TomlWriter.write_str(o)
+        return toml_dumps(o)
 
 
 ##
