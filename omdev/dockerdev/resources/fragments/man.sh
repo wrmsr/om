@@ -1,1 +1,0 @@
-yes | sudo unminimize ;
