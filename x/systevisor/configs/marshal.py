@@ -25,6 +25,9 @@ from .models import SystevisorUnitKind
 SystevisorConfigEnum = ta.TypeVar('SystevisorConfigEnum', bound=enum.Enum)
 
 
+##
+
+
 class SystevisorConfigEnumObjMarshaler(ObjMarshaler):
     def __init__(self, enum_type: ta.Type[SystevisorConfigEnum]) -> None:
         super().__init__()
@@ -63,6 +66,7 @@ _SYSTEVISOR_CONFIG_ENUM_TYPES = (
 )
 
 _SYSTEVISOR_CONFIG_OBJ_MARSHALER_MANAGER: ObjMarshalerManager = new_obj_marshaler_manager()
+
 for _systevisor_config_marshal_enum_type in _SYSTEVISOR_CONFIG_ENUM_TYPES:
     _SYSTEVISOR_CONFIG_OBJ_MARSHALER_MANAGER.set_obj_marshaler(
         _systevisor_config_marshal_enum_type,

@@ -8,6 +8,9 @@ from omcore.lite.marshal import ObjMarshalerManager
 from omcore.lite.marshal import new_obj_marshaler_manager
 
 
+##
+
+
 def _systevisor_json_normalize_marshaled(value: ta.Any, marshaled: ta.Any) -> ta.Any:
     if isinstance(value, enum.Enum):
         return value.value

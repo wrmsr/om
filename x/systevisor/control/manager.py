@@ -7,6 +7,9 @@ from .configs import SystevisorConfigParticipant
 from .configs import SystevisorConfigPreparedChange
 
 
+##
+
+
 class SystevisorManagerConfigPreparedChange(SystevisorConfigPreparedChange):
     def __init__(self, change: SystevisorPreparedManagerRuntimeChange) -> None:
         self._change = change

@@ -27,6 +27,9 @@ from .operations import SystevisorOperationStatus
 from .operations import SystevisorOperationStore
 
 
+##
+
+
 class SystevisorControlGoalKind(enum.Enum):
     START = 'start'
     STOP = 'stop'

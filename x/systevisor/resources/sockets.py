@@ -12,7 +12,15 @@ from ..runtime.processes import SystevisorChildContext
 from ..runtime.processes import SystevisorChildModifier
 
 
-_SYSTEVISOR_SOCKET_ACTIVATION_ENV_KEYS = ('LISTEN_PID', 'LISTEN_FDS', 'LISTEN_FDNAMES')
+##
+
+
+_SYSTEVISOR_SOCKET_ACTIVATION_ENV_KEYS = (
+    'LISTEN_PID',
+    'LISTEN_FDS',
+    'LISTEN_FDNAMES',
+)
+
 _SYSTEVISOR_SOCKET_DUPLICATE_FLOOR = 64
 
 

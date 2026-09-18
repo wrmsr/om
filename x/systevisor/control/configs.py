@@ -22,6 +22,9 @@ from ..runtime.events import SystevisorEventSubscription
 from .jsoncodec import SystevisorJsonCodec
 
 
+##
+
+
 class SystevisorConfigPreparedChange(Abstract):
     @abc.abstractmethod
     def commit(self) -> None:

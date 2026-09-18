@@ -22,6 +22,9 @@ from omcore.io.streambufs.utils import ByteStreamBuffers
 from .jsoncodec import SystevisorJsonCodec
 
 
+##
+
+
 @dc.dataclass(frozen=True)
 class SystevisorApiEndpoint:
     unix_socket: ta.Optional[str] = None

@@ -4,6 +4,9 @@ import enum
 import typing as ta
 
 
+##
+
+
 class SystevisorConfigDiagnosticSeverity(enum.Enum):
     ERROR = 'error'
     WARNING = 'warning'

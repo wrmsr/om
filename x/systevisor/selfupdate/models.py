@@ -5,6 +5,9 @@ import enum
 import typing as ta
 
 
+##
+
+
 SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION = 1
 
 

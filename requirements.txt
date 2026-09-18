@@ -22,7 +22,7 @@ brotli==1.2.0  # !! USES_GIL - https://github.com/google/brotli/commit/51be27dbd
 
 ### db:
 
-sqlalchemy[asyncio]==2.0.52
+sqlalchemy[asyncio]==2.0.54
 
 ## sql
 
@@ -32,7 +32,7 @@ pg8000==1.31.5
 
 #> mysql-connector-python
 #> mysqlclient
-pymysql==1.2.0
+pymysql==1.2.3
 
 # pyhive
 

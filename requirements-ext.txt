@@ -11,7 +11,7 @@
 # infra
 
 google-api-python-client==2.200.0
-google-cloud-compute==1.52.0
+google-cloud-compute==1.54.0
 
 
 ##
@@ -31,7 +31,7 @@ scikit-image==0.26.0
 
 safetensors==0.8.0
 
-tavily-python==0.8.2
+tavily-python==0.8.3
 
 sqlite-vec==0.1.9
 
@@ -76,10 +76,10 @@ unicorn==2.1.4
 ##
 # bins
 
-deno==2.9.6
-playwright==1.62.0
+deno==2.9.7
+playwright==1.63.0
 ripgrep==15.1.0
-mojo==1.0.0
+mojo==1.1.0
 
 
 ##
@@ -88,7 +88,7 @@ mojo==1.0.0
 yappi==1.7.6
 pyinstrument==5.1.3
 
-debugpy==1.8.21
+debugpy==1.8.22
 
 
 ##
@@ -105,4 +105,4 @@ debugpy==1.8.21
 fsspec==2026.6.0  # via datasets
 mpmath==1.3.0  # via sympy
 jaraco.functools==4.6.0
-pandas==3.0.5
+pandas==3.0.6

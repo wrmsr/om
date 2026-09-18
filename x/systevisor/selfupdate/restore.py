@@ -35,6 +35,9 @@ from .models import SystevisorHandoffFdKind
 from .models import SystevisorHandoffManifest
 
 
+##
+
+
 @dc.dataclass(frozen=True)
 class SystevisorDecodedHandoff:
     manifest: SystevisorHandoffManifest

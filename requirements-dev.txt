@@ -4,7 +4,7 @@ build>=1.6.1
 twine>=6.2.0
 wheel>=0.48.0
 
-uv>=0.12.15
+uv>=0.12.16
 
 pytest==9.1.1
 pytest-benchmark==5.3.0
@@ -23,7 +23,7 @@ asyncpg-stubs==0.31.3
 docutils-stubs==0.0.22
 lxml-stubs==0.5.1
 types-awscrt==0.36.2
-types-docutils==0.23.0.20260911
+types-docutils==0.23.0.20260917
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724
 types-psutil==7.2.2.20260906
@@ -70,14 +70,14 @@ psycopg2==2.9.13
 psycopg==3.3.5
 
 mysql-connector-python==26.7.0
-mysqlclient==2.2.8; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
+mysqlclient==2.3.0; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
 
 ujson==6.0.0
 
 markupsafe==3.0.3
 
 asgiref==3.12.1
-uvicorn[standard]==0.52.4
+uvicorn[standard]==0.53.0
 
 sqlean.py==3.50.4.5  # @om-venv !14t !15t  # SLOW COMPILE
 # git+https://github.com/wrmsr/sqlean.py.git
@@ -127,12 +127,12 @@ tree-sitter-toml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-xml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-yaml==0.7.2  # @om-venv !14t !14dt !15t
 
-snowflake-connector-python[secure-local-storage]==4.7.3  # @om-venv !15t
+snowflake-connector-python[secure-local-storage]==4.7.4  # @om-venv !15t
 # snowflake-sqlalchemy==1.7.7
 
 trino==0.339.0  # @om-venv !14t !14dt !15t  # orjson
 
-huggingface-hub==1.31.0
+huggingface-hub==1.32.0
 hf-xet==1.6.0
 
 greenlet==3.5.6
@@ -153,9 +153,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.95
-botocore==1.43.95
-types-boto3==1.43.95
+boto3==1.43.97
+botocore==1.43.97
+types-boto3==1.43.97
 botocore-stubs==1.43.67
 
 antlr4-python3-runtime==4.13.2
@@ -185,4 +185,4 @@ h11==0.16.0
 wsproto==1.3.2
 
 emoji==2.15.0
-wcwidth==0.8.3
+wcwidth==0.8.4
