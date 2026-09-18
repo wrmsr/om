@@ -193,8 +193,8 @@ def toml_dumps(
     """
     Renders a mapping as a TOML document. Top-level mapping values become `[table]` sections, their keys interpreted as
     header paths (strings split on dots) and any mappings nested within them rendered as inline tables. Other top-level
-    values become root key/value pairs, written before any section. Wrap a top-level mapping in `TomlInline` to write
-    it as a root inline table instead. Use a `TomlBuilder` directly for nested sections, comments, or custom spacing.
+    values become root key/value pairs, written before any section. Wrap a top-level mapping in `TomlInline` to write it
+    as a root inline table instead. Use a `TomlBuilder` directly for nested sections, comments, or custom spacing.
     """
 
     b = TomlBuilder(style=style, newline=newline)

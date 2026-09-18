@@ -80,7 +80,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
             dict(path='../../../../omcore/os/pidfiles/pidfile.py', sha1='1082f109ec1272d7c281707b9620ae6a9a241a9f'),
             dict(path='../../../../omcore/subprocesses/utils.py', sha1='54f0e245f69ed3d4e64f3b6bdac7bdc6e28cf9a4'),
-            dict(path='../../../../omcore/formats/toml/writer.py', sha1='012ee0dee5400b5477a8953cad2f1624bc4eeca9'),
+            dict(path='../../../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
             dict(path='../../../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
             dict(path='../../../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
@@ -5040,8 +5040,8 @@ def toml_dumps(
     """
     Renders a mapping as a TOML document. Top-level mapping values become `[table]` sections, their keys interpreted as
     header paths (strings split on dots) and any mappings nested within them rendered as inline tables. Other top-level
-    values become root key/value pairs, written before any section. Wrap a top-level mapping in `TomlInline` to write
-    it as a root inline table instead. Use a `TomlBuilder` directly for nested sections, comments, or custom spacing.
+    values become root key/value pairs, written before any section. Wrap a top-level mapping in `TomlInline` to write it
+    as a root inline table instead. Use a `TomlBuilder` directly for nested sections, comments, or custom spacing.
     """
 
     b = TomlBuilder(style=style, newline=newline)

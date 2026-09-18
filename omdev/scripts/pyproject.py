@@ -113,7 +113,7 @@ def __om_amalg__():  # noqa
             dict(path='../packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='../packaging/wheelfile.py', sha1='8b3e08f9e0fde948dbce730d5aba5be718fe10e1'),
             dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
-            dict(path='../../omcore/formats/toml/writer.py', sha1='012ee0dee5400b5477a8953cad2f1624bc4eeca9'),
+            dict(path='../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../omcore/lite/maybes.py', sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f'),
@@ -6141,8 +6141,8 @@ def toml_dumps(
     """
     Renders a mapping as a TOML document. Top-level mapping values become `[table]` sections, their keys interpreted as
     header paths (strings split on dots) and any mappings nested within them rendered as inline tables. Other top-level
-    values become root key/value pairs, written before any section. Wrap a top-level mapping in `TomlInline` to write
-    it as a root inline table instead. Use a `TomlBuilder` directly for nested sections, comments, or custom spacing.
+    values become root key/value pairs, written before any section. Wrap a top-level mapping in `TomlInline` to write it
+    as a root inline table instead. Use a `TomlBuilder` directly for nested sections, comments, or custom spacing.
     """
 
     b = TomlBuilder(style=style, newline=newline)
