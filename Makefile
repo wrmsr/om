@@ -16,6 +16,18 @@ fgc: fix gen check
 
 ### Clean
 
+.PHONY: clean-pycache
+clean-pycache:
+	# FIXME: lame
+	-find \
+		om* \
+		x \
+	\
+		-type d \
+		-name '__pycache__' \
+		-prune \
+		-exec rm -rf -- {} +
+
 .PHONY: clean-venv
 clean-venv:
 	-rm -rf \
