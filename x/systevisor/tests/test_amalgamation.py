@@ -17,6 +17,7 @@ _SYSTEVISOR_TEST_AMALG_STDLIB_ROOTS = {
     'abc',
     'argparse',
     'base64',
+    'bisect',
     'collections',
     'configparser',
     'contextlib',
