@@ -27,6 +27,7 @@ class Config:
     url: str | None = None
 
     in_memory: bool | None = None
+    sql: bool | None = None
 
     autoexec: lang.SequenceNotStr[str] | None = None
 
@@ -50,6 +51,7 @@ class Config:
         parser.add_argument('--url')
 
         parser.add_argument('--in-memory', action='store_true')
+        parser.add_argument('--sql', action='store_true')
 
         parser.add_argument('-X', '--autoexec', action='append')
 
@@ -74,6 +76,7 @@ class Config:
             url=args.url,
 
             in_memory=args.in_memory,
+            sql=args.sql,
 
             autoexec=args.autoexec,
 

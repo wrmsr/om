@@ -6,6 +6,8 @@ import uuid
 import pytest
 
 from .... import check
+from .... import dataclasses as dc
+from ...api import querierfuncs as qf
 from ...tabledefs.diffing import AddTrigger
 from ...tabledefs.diffing import DropTrigger
 from ..config import CursorSide
@@ -73,6 +75,34 @@ def check_install(node: Node, schema: ReplicationSchema) -> None:
     # triggers only, on a table that exists: nothing but trigger ops, and none once they are current
     r4 = install_node(node, schema, no_manage_base_tables=True)
     assert all(not m.ops for m in r4.migrations)
+
+
+def check_install_triggers_only(node: Node, schema: ReplicationSchema) -> None:
+    """
+    Tables which are already there, and not ours to manage, get their triggers and nothing else - and then capture.
+    """
+
+    r = node.backend.tabledef_renderer
+    with node.db.connect() as conn:
+        for td in schema.tables:
+            for stmt in r.render_create_statements(dc.replace(td, name=node.table_name(td))):
+                qf.exec(conn, stmt)
+
+    td = schema.table('businesses')
+    before = _business('before')
+    insert_row(node, td, before)
+
+    install_node(node, schema, no_manage_base_tables=True)
+
+    # the row which predates the triggers is backfilled, and one which follows them is captured
+    after = _business('after')
+    insert_row(node, td, after)
+    sh = read_shadow(node, td)
+    assert sh[before['id']].state == ShadowState(version=1, origin=node.node_id, deleted=False)
+    assert sh[after['id']].state == ShadowState(version=1, origin=node.node_id, deleted=False)
+
+    update_row(node, td, after['id'], {'name': 'after again'})
+    assert read_shadow(node, td)[after['id']].version == 2
 
 
 def check_capture(node: Node, schema: ReplicationSchema) -> None:

@@ -135,6 +135,10 @@ from .stores import (  # noqa
 
 from .sql import (  # noqa
     FieldSqlType,
+
+    sql_table_def,
+    sql_table_defs,
+
     SqlStore,
 )
 

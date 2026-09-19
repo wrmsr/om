@@ -9,8 +9,9 @@ from .dialect import SqliteDialect
 def sqlite_adapter(
         *,
         param_style: ParamStyle = ParamStyle.QMARK,
+        immediate: bool = False,
 ) -> DbapiAdapter:
     return DbapiAdapter(
         param_style=param_style,
-        dialect=SqliteDialect(),
+        dialect=SqliteDialect(immediate=immediate),
     )

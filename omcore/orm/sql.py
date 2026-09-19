@@ -78,6 +78,123 @@ class FieldSqlType(tv.UniqueScalarTypedValue[sql.td.Dtype], FieldOption, lang.Fi
 ##
 
 
+def _sql_field_table_def(field: Field) -> list[sql.td.Element]:
+    if Timestamp in field.options:
+        check.is_(rfl.get_runtime_type(field.rty), datetime.datetime)
+
+        if CreatedAt in field.options:
+            check.equal(field.name, 'created_at')
+            return [sql.td.CreatedAt()]
+
+        elif UpdatedAt in field.options:
+            check.equal(field.name, 'updated_at')
+            return [sql.td.UpdatedAt()]
+
+        else:
+            raise RuntimeError(f'Unknown timestamp field type {field}')
+
+    els: list[sql.td.Element] = []
+
+    rty: rfl.Type
+    nullable: bool | None = None
+
+    if isinstance(field, KeyField):
+        rty = field.key_rty
+
+    elif isinstance(field, RefField):
+        rty = field.ref_key_rty
+        nullable = field.is_optional
+
+    else:
+        rty = field.rty
+
+    if isinstance(rty, rfl.UnionType) and rty.is_optional:
+        rty = rty.strip_optional()
+        nullable = True
+    else:
+        if nullable is None:
+            nullable = False
+
+    dty: sql.td.Dtype
+
+    if (dty_opt := field.options.get(FieldSqlType)) is not None:
+        dty = dty_opt.v
+
+    else:
+        ty = rfl.get_runtime_type(rty)
+
+        if ty is int:
+            dty = sql.td.Integer()
+
+        elif ty is str:
+            dty = sql.td.String()
+
+        elif ty is uuid.UUID:
+            dty = sql.td.Uuid()
+
+        elif ty is datetime.datetime:
+            dty = sql.td.Datetime()
+
+        else:
+            raise TypeError(f'unsupported sql field type: {ty!r}')
+
+    els.append(sql.td.Column(
+        field._store_name,
+        dty,
+        nullable=nullable,
+    ))
+
+    return els
+
+
+def _sql_index_table_def(m: Mapper, idx: Index) -> list[sql.td.Element]:
+    return [
+        sql.td.Index(
+            columns=[m._store_name_by_field_name[f] for f in idx.fields],
+            name=idx._store_name,
+            unique=idx._is_unique,
+        ),
+    ]
+
+
+def sql_table_def(m: Mapper) -> sql.td.TableDef:
+    els: list[sql.td.Element] = []
+
+    for f in m.fields:
+        els.extend(_sql_field_table_def(f))
+
+    clu_idx: Index | None = None
+    for idx in m.indexes:
+        if ClusteredIndexOption in idx.options:
+            check.none(clu_idx)
+            clu_idx = idx
+            continue
+
+        els.extend(_sql_index_table_def(m, idx))
+
+    if clu_idx is not None:
+        els.append(sql.td.PrimaryKey(clu_idx._field_store_names))
+    else:
+        els.append(sql.td.PrimaryKey([m._key_field_store_name]))
+
+    return sql.td.table_def(
+        m._store_name,
+        *els,
+    )
+
+
+def sql_table_defs(registry: Registry) -> list[sql.td.TableDef]:
+    """
+    The tables a `SqlStore` keeps the registry's mappers in, as it would create them. A pure function of the mappers,
+    so anything else that needs the schema - replication, say - derives it from the same place, with no store or db.
+    """
+
+    return [sql_table_def(m) for m in registry.mappers]
+
+
+##
+
+
 class SqlStore(Store):
     def __init__(
             self,
@@ -178,109 +295,10 @@ class SqlStore(Store):
 
     #
 
-    def _field_table_def(self, field: Field) -> list[sql.td.Element]:
-        if Timestamp in field.options:
-            check.is_(rfl.get_runtime_type(field.rty), datetime.datetime)
-
-            if CreatedAt in field.options:
-                check.equal(field.name, 'created_at')
-                return [sql.td.CreatedAt()]
-
-            elif UpdatedAt in field.options:
-                check.equal(field.name, 'updated_at')
-                return [sql.td.UpdatedAt()]
-
-            else:
-                raise RuntimeError(f'Unknown timestamp field type {field}')
-
-        els: list[sql.td.Element] = []
-
-        rty: rfl.Type
-        nullable: bool | None = None
-
-        if isinstance(field, KeyField):
-            rty = field.key_rty
-
-        elif isinstance(field, RefField):
-            rty = field.ref_key_rty
-            nullable = field.is_optional
-
-        else:
-            rty = field.rty
-
-        if isinstance(rty, rfl.UnionType) and rty.is_optional:
-            rty = rty.strip_optional()
-            nullable = True
-        else:
-            if nullable is None:
-                nullable = False
-
-        dty: sql.td.Dtype
-
-        if (dty_opt := field.options.get(FieldSqlType)) is not None:
-            dty = dty_opt.v
-
-        else:
-            ty = rfl.get_runtime_type(rty)
-
-            if ty is int:
-                dty = sql.td.Integer()
-
-            elif ty in (str, uuid.UUID):
-                dty = sql.td.String()
-
-            elif ty is datetime.datetime:
-                dty = sql.td.Datetime()
-
-            else:
-                raise TypeError(f'unsupported sql field type: {ty!r}')
-
-        els.append(sql.td.Column(
-            field._store_name,
-            dty,
-            nullable=nullable,
-        ))
-
-        return els
-
-    def _index_table_def(self, m: Mapper, idx: Index) -> list[sql.td.Element]:
-        return [
-            sql.td.Index(
-                columns=[m._store_name_by_field_name[f] for f in idx.fields],
-                name=idx._store_name,
-                unique=idx._is_unique,
-            ),
-        ]
-
-    def _mapper_table_def(self, m: Mapper) -> sql.td.TableDef:
-        els: list[sql.td.Element] = []
-
-        for f in m.fields:
-            els.extend(self._field_table_def(f))
-
-        clu_idx: Index | None = None
-        for idx in m.indexes:
-            if ClusteredIndexOption in idx.options:
-                check.none(clu_idx)
-                clu_idx = idx
-                continue
-
-            els.extend(self._index_table_def(m, idx))
-
-        if clu_idx is not None:
-            els.append(sql.td.PrimaryKey(clu_idx._field_store_names))
-        else:
-            els.append(sql.td.PrimaryKey([m._key_field_store_name]))
-
-        return sql.td.table_def(
-            m._store_name,
-            *els,
-        )
-
     async def _create_schema(self) -> None:
         async with sql.connect(self._db) as conn:
             for m in self._registry.mappers:
-                td = self._mapper_table_def(m)
+                td = sql_table_def(m)
 
                 for stmt in self._tabledef_renderer.render_create_statements(
                         sql.td.lower_table_elements(td),
@@ -290,7 +308,11 @@ class SqlStore(Store):
 
     _has_created_schema: bool = False
 
-    async def _maybe_create_schema(self) -> None:
+    async def ensure_schema(self) -> None:
+        """
+        Creates whatever of the schema does not yet exist. Done on first use regardless, so calling it is optional.
+        """
+
         if self._has_created_schema:
             return
 
@@ -392,7 +414,7 @@ class SqlStore(Store):
                 *sfx,
             ])
 
-            await self._o._maybe_create_schema()
+            await self._o.ensure_schema()
 
             async with sql.query(check.not_none(self._q), stmt, qp) as rows:
                 return [sm.decode(row.to_dict()) async for row in rows]
@@ -431,7 +453,7 @@ class SqlStore(Store):
             ])
 
         async def auto_key_insert(self, m: Mapper, snaps: ta.Sequence[Snap]) -> ta.Mapping[ta.Any, ta.Any]:
-            await self._o._maybe_create_schema()
+            await self._o.ensure_schema()
 
             sm = self._o._mappers[m]
 
@@ -465,7 +487,7 @@ class SqlStore(Store):
             return iak
 
         async def insert(self, m: Mapper, snaps: ta.Sequence[Snap]) -> None:
-            await self._o._maybe_create_schema()
+            await self._o.ensure_schema()
 
             sm = self._o._mappers[m]
 
@@ -484,7 +506,7 @@ class SqlStore(Store):
                 await sql.exec(check.not_none(self._q), stmt, qp)
 
         async def update(self, m: Mapper, diffs: ta.Sequence[tuple[ta.Any, Snap]]) -> None:
-            await self._o._maybe_create_schema()
+            await self._o.ensure_schema()
 
             sm = self._o._mappers[m]
 
@@ -514,7 +536,7 @@ class SqlStore(Store):
                 await sql.exec(check.not_none(self._q), stmt, qp)
 
         async def delete(self, m: Mapper, keys: ta.Sequence[ta.Any]) -> None:
-            await self._o._maybe_create_schema()
+            await self._o.ensure_schema()
 
             sm = self._o._mappers[m]
 

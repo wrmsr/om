@@ -1,10 +1,13 @@
 import os.path
 import uuid
 
+from omcore import check
 from omcore import inject as inj
 from omdev.home.paths import get_home_paths
 
 from .... import harness as har
+from ....harness.sessions.storage.orm.inject import bind_asyncio_sqlite_orm
+from ....harness.sessions.storage.orm.inject import bind_orm_session_storage
 from ..config import Config
 
 
@@ -26,12 +29,24 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     #
 
-    state_dir_path = os.path.join(get_home_paths().state_dir, 'llm', 'sessions', str(session_id.v))
+    check.arg(not (config.in_memory and config.sql), 'Session storage is in memory or in sql, not both')
 
-    if not config.in_memory:
+    state_dir_path = os.path.join(get_home_paths().state_dir, 'llm')
+
+    if config.sql:
+        # One db for every session, unlike the directory each gets otherwise.
+        lst.extend([
+            bind_orm_session_storage(),
+
+            bind_asyncio_sqlite_orm(har.SqliteDbConfig(
+                file_path=os.path.join(state_dir_path, 'sessions.db'),
+            )),
+        ])
+
+    elif not config.in_memory:
         lst.extend([
             inj.bind(har.FsSessionStorage.Config(
-                dir_path=state_dir_path,
+                dir_path=os.path.join(state_dir_path, 'sessions', str(session_id.v)),
             )),
             inj.bind(
                 har.FsSessionStorage,

@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='541fafdb34988456f91031f3dbcd96b0d4c5b9cc',
+    installer_sha1='fb260ac061e25a5464f4747eba1401c9b0c1168c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -46,18 +46,19 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "None, False, False, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', None"
             ", False, False, False), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, Fa"
             "lse, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', None,"
-            " False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value', Non"
-            "e, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', Non"
-            "e, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (),"
-            " (False,)))"
+            "False, False, False), (('sql', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
+            "e, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
+            "se, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value', None, F"
+            "alse, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', None, F"
+            "alse, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (Fa"
+            "lse,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
+def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -90,6 +91,8 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
         __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
         __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
         __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -110,6 +113,7 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
                 web=self.web,
                 url=self.url,
                 in_memory=self.in_memory,
+                sql=self.sql,
                 autoexec=self.autoexec,
                 immediate=self.immediate,
                 verbose=self.verbose,
@@ -133,6 +137,7 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
                 self.web == other.web and
                 self.url == other.url and
                 self.in_memory == other.in_memory and
+                self.sql == other.sql and
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
                 self.verbose == other.verbose
@@ -151,6 +156,7 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
             'web',
             'url',
             'in_memory',
+            'sql',
             'autoexec',
             'immediate',
             'verbose',
@@ -188,6 +194,7 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
                 self.web,
                 self.url,
                 self.in_memory,
+                self.sql,
                 self.autoexec,
                 self.immediate,
                 self.verbose,
@@ -208,9 +215,10 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
             web: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
             url: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
             in_memory: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            autoexec: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            immediate: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            verbose: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            sql: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            autoexec: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            immediate: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            verbose: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'cwd', cwd)
@@ -222,6 +230,7 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
             __dataclass__object_setattr(self, 'web', web)
             __dataclass__object_setattr(self, 'url', url)
             __dataclass__object_setattr(self, 'in_memory', in_memory)
+            __dataclass__object_setattr(self, 'sql', sql)
             __dataclass__object_setattr(self, 'autoexec', autoexec)
             __dataclass__object_setattr(self, 'immediate', immediate)
             __dataclass__object_setattr(self, 'verbose', verbose)
@@ -241,6 +250,7 @@ def _process_dataclass__541fafdb34988456f91031f3dbcd96b0d4c5b9cc():
             parts.append(f"web={self.web!r}")
             parts.append(f"url={self.url!r}")
             parts.append(f"in_memory={self.in_memory!r}")
+            parts.append(f"sql={self.sql!r}")
             parts.append(f"autoexec={self.autoexec!r}")
             parts.append(f"immediate={self.immediate!r}")
             parts.append(f"verbose={self.verbose!r}")

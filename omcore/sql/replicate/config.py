@@ -7,6 +7,7 @@ from ... import lang
 from ..dtypes import Uuid
 from ..tabledefs.elements import Column
 from ..tabledefs.elements import PrimaryKey
+from ..tabledefs.lower import lower_table_elements
 from ..tabledefs.tabledefs import TableDef
 from .errors import ReplicationSchemaError
 from .names import PREFIX
@@ -67,10 +68,11 @@ class ReplicationSchema(lang.Final):
     """
     The tables under replication, identical on every node. Names are bare: each node qualifies them for its own layout
     (a schema on the hub, say). The definitions are the source of truth for every column's dtype, which is what lets a
-    row cross dialects.
+    row cross dialects. They are held lowered, as rows are carried by their columns: a `CreatedAt` left as it was given
+    would be a column every node has and no link replicates.
     """
 
-    tables: ta.Sequence[TableDef] = dc.xfield(coerce=tuple)
+    tables: ta.Sequence[TableDef] = dc.xfield(coerce=lambda tds: tuple(lower_table_elements(td) for td in tds))
 
     def __post_init__(self) -> None:
         seen: set[str] = set()

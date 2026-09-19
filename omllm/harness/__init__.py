@@ -67,6 +67,37 @@ with _lang.auto_proxy_init(
         InMemorySessionStorage,
     )
 
+    from .sessions.storage.orm.impl import (  # noqa
+        StoreOrm,
+    )
+
+    from .sessions.storage.orm.models import (  # noqa
+        OrmSession,
+        OrmSessionEntry,
+
+        orm_mappers,
+    )
+
+    from .sessions.storage.orm.sql import (  # noqa
+        SqlOrm,
+    )
+
+    from .sessions.storage.orm.sqlite import (  # noqa
+        SqliteDbConfig,
+
+        connect_sqlite,
+        sqlite_db,
+        asyncio_sqlite_db,
+    )
+
+    from .sessions.storage.orm.storage import (  # noqa
+        OrmSessionStorage,
+    )
+
+    from .sessions.storage.orm.types import (  # noqa
+        Orm,
+    )
+
     from .sessions.storage.types import (  # noqa
         SessionStorage,
     )

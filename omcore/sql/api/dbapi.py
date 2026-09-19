@@ -123,7 +123,7 @@ class DbapiTxn(Txn, SimpleResource):
 
     def _enter(self) -> None:
         check.state(self._state == 'new')
-        qf.exec(self._conn, 'begin')
+        qf.exec(self._conn, self._conn.adapter.begin_query)
         self._state = 'open'
 
     def _commit_internal(self) -> None:
