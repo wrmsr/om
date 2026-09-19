@@ -6,6 +6,9 @@ omcore/lifecycles/_dataclasses.py linguist-generated
 omcore/marshal/_dataclasses.py linguist-generated
 omcore/orm/_dataclasses.py linguist-generated
 omcore/specs/jmespath/_dataclasses.py linguist-generated
+omcore/specs/jq/_dataclasses.py linguist-generated
+omcore/specs/jsonrpc/_dataclasses.py linguist-generated
+omcore/specs/jsonschema/_dataclasses.py linguist-generated
 omcore/specs/jsonschema/keywords/_dataclasses.py linguist-generated
 omcore/specs/openapi/_dataclasses.py linguist-generated
 omcore/sql/api/_dataclasses.py linguist-generated

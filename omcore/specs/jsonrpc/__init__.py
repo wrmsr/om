@@ -1,3 +1,15 @@
+from ... import dataclasses as _dc  # noqa
+
+
+_dc.init_package(
+    globals(),
+    codegen=True,
+)
+
+
+##
+
+
 from .errors import (  # noqa
     KnownError,
     KnownErrors,
@@ -58,7 +70,7 @@ from .types import (  # noqa
 ##
 
 
-from ... import lang as _lang
+from ... import lang as _lang  # noqa
 
 
 with _lang.auto_proxy_init(globals()):
@@ -111,7 +123,7 @@ with _lang.auto_proxy_init(globals()):
 ##
 
 
-from ... import marshal as _msh
+from ... import marshal as _msh  # noqa
 
 
 _msh.register_global_module_import('._marshal', __package__)
