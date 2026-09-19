@@ -202,6 +202,10 @@ exclude = [
 'omcore.os.pyremote' = [
     'bestpython.sh',
 ]
+'omcore.specs.jq' = [
+    'LICENSE',
+    'prelude.jq',
+]
 'omcore.specs.jsonschema' = [
     'schemas/*',
     'schemas/draft202012/*',

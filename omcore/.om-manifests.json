@@ -373,6 +373,20 @@
     }
   },
   {
+    "module": ".specs.jq.__main__",
+    "attr": "_CLI_MODULE",
+    "file": "omcore/specs/jq/__main__.py",
+    "line": 1,
+    "value": {
+      "!omdev.cli.types.CliModule": {
+        "name": [
+          "pyjq"
+        ],
+        "module": "omcore.specs.jq.__main__"
+      }
+    }
+  },
+  {
     "module": ".text.diffs.cli",
     "attr": "_CLI_MODULE",
     "file": "omcore/text/diffs/cli.py",
