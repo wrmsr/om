@@ -19,7 +19,11 @@ from .streaming import tostream
 
 
 type NativeFunctionImpl = ta.Callable[
-    [JqEvalContext, JqResult, ta.Sequence[FilterArgument]],
+    [
+        JqEvalContext,
+        JqResult,
+        ta.Sequence[FilterArgument],
+    ],
     ta.Iterator[JqResult],
 ]
 
@@ -53,15 +57,29 @@ def _argument_values(
         yield values
         return
     for argument_value in arguments[offset].evaluate(context, value):
-        yield from _argument_values(context, value, arguments, offset + 1, (*values, argument_value))
+        yield from _argument_values(
+            context,
+            value,
+            arguments,
+            offset + 1,
+            (*values, argument_value),
+        )
 
 
-def _type(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _type(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     yield JqResult(context.value_ops.type_name(value.value))
 
 
-def _length(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _length(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     yield JqResult(context.value_ops.length(value.value))
 
@@ -77,27 +95,47 @@ def _keys(
     yield JqResult(context.value_ops.keys(value.value, sorted_=sorted_))
 
 
-def _has(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _has(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         yield JqResult(context.value_ops.has(value.value, values[0].value))
 
 
-def _tostring(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _tostring(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     yield JqResult(context.value_ops.tostring(value.value))
 
 
-def _tojson(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _tojson(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     yield JqResult(context.value_ops.tojson(value.value))
 
 
-def _fromjson(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _fromjson(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     yield JqResult(context.value_ops.fromjson(value.value))
 
 
-def _tonumber(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _tonumber(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     value_type = context.value_ops.type_name(value.value)
     if value_type == 'number':
@@ -114,12 +152,20 @@ def _tonumber(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[Fi
     yield JqResult(number)
 
 
-def _not(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _not(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     yield JqResult(not context.value_ops.truthy(value.value))
 
 
-def _error(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _error(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     if not arguments:
         raise JqThrownError(value.value)
     for values in _argument_values(context, value, arguments):
@@ -127,14 +173,22 @@ def _error(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[Filte
     yield from ()
 
 
-def _input(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _input(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del value, arguments
     input_value = context.input_source.take()
     context.value_ops.type_name(input_value)
     yield JqResult(input_value)
 
 
-def _range(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _range(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         numbers = [item.value for item in values]
         if any(context.value_ops.type_name(number) != 'number' for number in numbers):
@@ -159,7 +213,11 @@ def _range(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[Filte
                 current += step
 
 
-def _path(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _path(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     root = JqResult(value.value, ())
     for result in arguments[0].evaluate(context, root):
         if result.path is None:
@@ -167,17 +225,29 @@ def _path(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[Filter
         yield JqResult(list(result.path))
 
 
-def _getpath(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _getpath(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         yield JqResult(context.value_ops.getpath(value.value, values[0].value))
 
 
-def _setpath(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _setpath(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         yield JqResult(context.value_ops.setpath(value.value, values[0].value, values[1].value))
 
 
-def _delpaths(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _delpaths(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         paths = values[0].value
         if not context.value_ops.is_sequence(paths):
@@ -185,12 +255,20 @@ def _delpaths(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[Fi
         yield JqResult(context.value_ops.delpaths(value.value, paths))
 
 
-def _contains(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _contains(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         yield JqResult(context.value_ops.contains(value.value, values[0].value))
 
 
-def _inside(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _inside(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         yield JqResult(context.value_ops.contains(values[0].value, value.value))
 
@@ -210,7 +288,11 @@ def _string_predicate(
         yield JqResult(predicate(value.value, argument))
 
 
-def _split(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _split(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     if not isinstance(value.value, str):
         raise JqTypeError('split requires a string input')
     for values in _argument_values(context, value, arguments):
@@ -223,14 +305,22 @@ def _split(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[Filte
             yield JqResult(value.value.split(separator))
 
 
-def _reverse(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _reverse(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     if not context.value_ops.is_sequence(value.value):
         raise JqTypeError('reverse requires an array')
     yield JqResult(list(reversed(value.value)))
 
 
-def _sort(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _sort(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     if not context.value_ops.is_sequence(value.value):
         raise JqTypeError('sort requires an array')
@@ -313,7 +403,11 @@ def _extreme_by_impl(
         yield JqResult(pairs[-1 if maximum else 0][1])
 
 
-def _indices(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _indices(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     for values in _argument_values(context, value, arguments):
         needle = values[0].value
         value_type = context.value_ops.type_name(value.value)
@@ -367,14 +461,22 @@ def _extreme(
     yield JqResult(function(value.value, key=key))
 
 
-def _explode(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _explode(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del context, arguments
     if not isinstance(value.value, str):
         raise JqTypeError('explode requires a string')
     yield JqResult([ord(character) for character in value.value])
 
 
-def _implode(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _implode(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     if not context.value_ops.is_sequence(value.value):
         raise JqTypeError('implode requires an array')
@@ -389,7 +491,11 @@ def _implode(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[Fil
     yield JqResult(''.join(characters))
 
 
-def _tostream(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _tostream(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     del arguments
     for stream_value in tostream(value.value, value_ops=context.value_ops):
         yield JqResult(stream_value)
@@ -513,7 +619,11 @@ def _substitute(
                 yield JqResult(prefix + value.value[previous:])
 
 
-def _repeat(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _repeat(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     while True:
         yield from arguments[0].evaluate(context, value)
 
@@ -552,15 +662,27 @@ def _iterative_control(
             stack.append(node_tasks(current))
 
 
-def _while(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _while(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     yield from _iterative_control(context, value, arguments[0], arguments[1], until=False)
 
 
-def _until(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _until(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     yield from _iterative_control(context, value, arguments[0], arguments[1], until=True)
 
 
-def _recurse(context: JqEvalContext, value: JqResult, arguments: ta.Sequence[FilterArgument]) -> ta.Iterator[JqResult]:
+def _recurse(
+        context: JqEvalContext,
+        value: JqResult,
+        arguments: ta.Sequence[FilterArgument],
+) -> ta.Iterator[JqResult]:
     if arguments:
         child_filter = arguments[0]
         condition_filter = arguments[1] if len(arguments) > 1 else None

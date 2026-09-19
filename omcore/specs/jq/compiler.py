@@ -61,7 +61,11 @@ class UserFunction(JqFunction):
             functions: dict[tuple[str, int], JqFunction],
     ) -> ta.Iterator[JqResult]:
         if offset == len(self.parameters):
-            environment = JqEnvironment(parent=self.environment, variables=variables, functions=functions)
+            environment = JqEnvironment(
+                parent=self.environment,
+                variables=variables,
+                functions=functions,
+            )
             yield from self.body(context, value, environment)
             return
 
@@ -101,7 +105,14 @@ class UserFunction(JqFunction):
         context.enter_user_function()
         try:
             try:
-                yield from self._invoke_bindings(context, value, arguments, 0, {}, {})
+                yield from self._invoke_bindings(
+                    context,
+                    value,
+                    arguments,
+                    0,
+                    {},
+                    {},
+                )
             except JqRecursionError:
                 raise
             except RecursionError as exc:
@@ -171,15 +182,26 @@ class Compiler:
             return variable
 
         if isinstance(node, ast.Call):
-            arguments = tuple(self.compile(argument, labels) for argument in node.arguments)
+            arguments = tuple(
+                self.compile(argument, labels)
+                for argument in node.arguments
+            )
 
             def call(
                     context: JqEvalContext,
                     value: JqResult,
                     environment: JqEnvironment,
             ) -> ta.Iterator[JqResult]:
-                filter_arguments = tuple(FilterArgument(argument, environment) for argument in arguments)
-                yield from context.invoke(environment, node.name, value, filter_arguments)
+                filter_arguments = tuple(
+                    FilterArgument(argument, environment)
+                    for argument in arguments
+                )
+                yield from context.invoke(
+                    environment,
+                    node.name,
+                    value,
+                    filter_arguments,
+                )
 
             return call
 
