@@ -54,8 +54,18 @@ def _render(value: ta.Any, *, compact: bool, raw: bool) -> str:
         return value
     canonical = JqValueOps().canonicalize(value)
     if compact:
-        return json.dumps(canonical, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
-    return json.dumps(canonical, ensure_ascii=False, indent=2, allow_nan=False)
+        return json.dumps(
+            canonical,
+            ensure_ascii=False,
+            separators=(',', ':'),
+            allow_nan=False,
+        )
+    return json.dumps(
+        canonical,
+        ensure_ascii=False,
+        indent=2,
+        allow_nan=False,
+    )
 
 
 def _parse_arguments(arguments: ta.Sequence[str] | None) -> argparse.Namespace:

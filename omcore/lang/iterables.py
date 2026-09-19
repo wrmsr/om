@@ -77,6 +77,7 @@ _BUILTIN_SEQUENCE_TYPES: frozenset[type] = frozenset([
     str,
     bytes,
     bytearray,
+    memoryview,
     tuple,
     list,
 ])

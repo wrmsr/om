@@ -586,7 +586,10 @@ class Compiler:
             return break_filter
 
         if isinstance(node, ast.String):
-            parts = tuple(part if isinstance(part, str) else self.compile(part, labels) for part in node.parts)
+            parts = tuple(
+                part if isinstance(part, str) else self.compile(part, labels)
+                for part in node.parts
+            )
 
             def string(
                     context: JqEvalContext,

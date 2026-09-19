@@ -36,4 +36,11 @@ class Scalar:
     value: ta.Any
 
 
-StructuralEvent: ta.TypeAlias = BeginArray | EndArray | BeginObject | ObjectKey | EndObject | Scalar
+StructuralEvent: ta.TypeAlias = ta.Union[  # noqa
+    BeginArray,
+    EndArray,
+    BeginObject,
+    ObjectKey,
+    EndObject,
+    Scalar,
+]

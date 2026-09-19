@@ -26,7 +26,12 @@ JqPath: ta.TypeAlias = tuple[JqPathComponent, ...]
 class JqValueOps:
     options: JqValueOptions = JqValueOptions()
 
-    _SEQUENCE_EXCLUSIONS: ta.ClassVar[tuple[type, ...]] = (str, bytes, bytearray, memoryview)
+    _SEQUENCE_EXCLUSIONS: ta.ClassVar[tuple[type, ...]] = (
+        str,
+        bytes,
+        bytearray,
+        memoryview,
+    )
 
     def is_mapping(self, value: ta.Any) -> bool:
         return isinstance(value, collections.abc.Mapping)
@@ -370,7 +375,12 @@ class JqValueOps:
         return self.tojson(value)
 
     def tojson(self, value: ta.Any) -> str:
-        return json.dumps(self.canonicalize(value), ensure_ascii=False, separators=(',', ':'), allow_nan=False)
+        return json.dumps(
+            self.canonicalize(value),
+            ensure_ascii=False,
+            separators=(',', ':'),
+            allow_nan=False,
+        )
 
     def fromjson(self, value: ta.Any) -> ta.Any:
         if not isinstance(value, str):
@@ -396,7 +406,10 @@ class JqValueOps:
         try:
             if value_type == 'array':
                 return [self._canonicalize(item, active) for item in value]
-            return {key: self._canonicalize(item, active) for key, item in self.iter_object_items(value)}
+            return {
+                key: self._canonicalize(item, active)
+                for key, item in self.iter_object_items(value)
+            }
         finally:
             active.remove(value_id)
 
@@ -429,7 +442,10 @@ class JqValueOps:
         if container_type == 'string':
             return candidate in container
         if container_type == 'array':
-            return all(any(self.contains(item, wanted) for item in container) for wanted in candidate)
+            return all(
+                any(self.contains(item, wanted) for item in container)
+                for wanted in candidate
+            )
         if container_type == 'object':
             container_obj = self.object_dict(container)
             return all(

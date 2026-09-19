@@ -200,7 +200,8 @@ class Parser:
         if token.kind == '(':
             value = self._parse_query(frozenset({')'}))
             end = self._expect(')')
-            return dc_replace_span(value, self._span(token.start, end.end))
+            span = self._span(token.start, end.end)
+            return dc.replace(value, span=span)
 
         if token.kind == '[':
             if (end_token := self._accept(']')) is not None:
@@ -365,7 +366,11 @@ class Parser:
             current = self._current
             otherwise = ast.Identity(span=self._span(current.start, current.start))
         end = self._expect('END')
-        return ast.Conditional(tuple(branches), otherwise, span=self._span(opening.start, end.end))
+        return ast.Conditional(
+            tuple(branches),
+            otherwise,
+            span=self._span(opening.start, end.end),
+        )
 
     def _parse_binding_variable(self) -> Token:
         self._expect('AS')
@@ -381,7 +386,13 @@ class Parser:
         self._expect(';')
         update = self._parse_query(frozenset({')'}))
         end = self._expect(')')
-        return ast.Reduce(source, variable.value, initial, update, span=self._span(opening.start, end.end))
+        return ast.Reduce(
+            source,
+            variable.value,
+            initial,
+            update,
+            span=self._span(opening.start, end.end),
+        )
 
     def _parse_foreach(self, opening: Token) -> ast.Foreach:
         source = self._parse_expression(30, frozenset({'AS'}))
@@ -395,7 +406,14 @@ class Parser:
         else:
             extract = ast.Identity(span=self._span(update.span.end, update.span.end))
         end = self._expect(')')
-        return ast.Foreach(source, variable.value, initial, update, extract, span=self._span(opening.start, end.end))
+        return ast.Foreach(
+            source,
+            variable.value,
+            initial,
+            update,
+            extract,
+            span=self._span(opening.start, end.end),
+        )
 
     def _parse_definition(self, stop: frozenset[str]) -> ast.FunctionDefinition:
         opening = self._expect('DEF')
@@ -428,10 +446,6 @@ class Parser:
             next_node,
             span=self._span(opening.start, next_node.span.end),
         )
-
-
-def dc_replace_span(node: ast.Node, span: ast.SourceSpan) -> ast.Node:
-    return dc.replace(node, span=span)
 
 
 def parse(source: str) -> ast.Node:
