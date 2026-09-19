@@ -1,5 +1,8 @@
 import json
 import subprocess
+import sys
+
+from ....subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
 
 ##
@@ -7,7 +10,7 @@ import subprocess
 
 def run_cli(*arguments, input_value=''):
     return subprocess.run(
-        ['./python', '-m', 'omcore.specs.jq', *arguments],
+        subprocess_maybe_shell_wrap_exec(sys.executable, '-m', 'omcore.specs.jq', *arguments),
         input=input_value,
         text=True,
         capture_output=True,
