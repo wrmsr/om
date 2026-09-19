@@ -21,11 +21,13 @@ class BaseOpenaiResponsesBackend(BaseHttpBackend, lang.Abstract):
             *,
             api_key: sec.Secret | None = None,
             http_client: http.AsyncHttpClient | None = None,
+            base_url: str | None = None,
     ) -> None:
         super().__init__(
             model,
             api_key=api_key,
             http_client=http_client,
+            base_url=base_url,
         )
 
         if model.compat is not None:
