@@ -730,3 +730,12 @@ with _auto_proxy_init(
     from ..lite.wrappers import (  # noqa
         update_wrapper_no_annotations,
     )
+
+
+##
+
+
+from .sys import check_runtime_version  # noqa
+
+
+check_runtime_version()
