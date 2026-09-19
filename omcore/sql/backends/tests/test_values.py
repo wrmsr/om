@@ -41,6 +41,10 @@ def test_sqlite_datetime_text_sorts_with_current_timestamp():
     assert c.encode(DATETIME, _DT.astimezone(datetime.timezone(datetime.timedelta(hours=5)))) == '2020-01-02 03:04:05.123456'  # noqa
     assert '2020-01-02 03:04:05' < c.encode(DATETIME, _DT) < '2020-01-02 03:04:06'
 
+    # as must the milliseconds of a tabledef default
+    assert c.decode(DATETIME, '2020-01-02 03:04:05.123') == _DT.replace(microsecond=123000)
+    assert '2020-01-02 03:04:05.123' < c.encode(DATETIME, _DT) < '2020-01-02 03:04:05.124'
+
 
 def test_mysql_datetime_is_naive_utc():
     c = MysqlDtypeCodec()

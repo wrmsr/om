@@ -18,9 +18,16 @@ from ...tabledefs.elements import index_name
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
+from ...tabledefs.values import Now
+from ...tabledefs.values import SimpleValue
 
 
 ##
+
+
+# Sqlite's current_timestamp stops at the second. This is as fine as its builtins go - they keep time in milliseconds -
+# in the same text form, so the two sort together, as they do with the microseconds a client may write.
+SQLITE_NOW_SQL = "strftime('%Y-%m-%d %H:%M:%f', 'now')"
 
 
 CREATE_UPDATED_AT_TRIGGER_SRC = """\
@@ -30,7 +37,7 @@ for each row
 when new.{column_name} = old.{column_name}
 begin
   update {table_name}
-  set {column_name} = current_timestamp
+  set {column_name} = {now}
   where {where};
 end\
 """
@@ -60,6 +67,7 @@ class SqliteUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
             trigger_name=r.qname(tbl.name.sibling(t.trigger_name(tbl.name))),
             table_name=r.quote_ident(tbl.name.last),
             column_name=r.quote_ident(t.column),
+            now=SQLITE_NOW_SQL,
             where=' and '.join(f'{r.quote_ident(c)} = new.{r.quote_ident(c)}' for c in pk_cols),
         )]
 
@@ -99,6 +107,11 @@ class SqliteTabledefRenderer(Renderer):
             return 'blob'
         else:
             raise TypeError(c.type)
+
+    def render_default(self, v: SimpleValue) -> str:
+        if isinstance(v, Now):
+            return f'({SQLITE_NOW_SQL})'  # a default which is an expression, not a keyword or a literal, goes in parens
+        return super().render_default(v)
 
     def table_suffixes(self, tbl: TableDef, identity_column: str | None) -> list[str]:
         # A single integer-pk column is sqlite's implicit rowid; otherwise the table is WITHOUT ROWID.

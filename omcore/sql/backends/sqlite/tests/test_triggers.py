@@ -1,3 +1,4 @@
+import re
 import sqlite3
 
 from ..... import check
@@ -60,6 +61,10 @@ def test_updated_at_trigger_lifecycle() -> None:
             await qf.exec(conn, "insert into users (name, updated_at) values ('a', '2000-01-01 00:00:00')")
             await qf.exec(conn, "update users set name = 'b'")
             assert await qf.query_scalar(conn, 'select updated_at from users') != '2000-01-01 00:00:00'
+
+            # what the default gives a row and what the trigger gives it are both to the millisecond, in the one form
+            for q in ('select created_at from users', 'select updated_at from users'):
+                assert re.fullmatch(r'\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}', await qf.query_scalar(conn, q))
 
     lang.sync_await(inner())
 

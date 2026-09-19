@@ -13,8 +13,8 @@ from ...dtypes.codecs import as_utc_datetime
 class SqliteDtypeCodec(BaseDtypeCodec):
     """
     Sqlite stores uuids and datetimes as text and booleans as integers. A datetime is written as utc in the same
-    space-separated form sqlite's own current_timestamp uses, so the two sort together as text; either form (and an iso
-    'T' with an offset) reads back.
+    space-separated form sqlite's own timestamps take - current_timestamp's seconds, the milliseconds of the default the
+    tabledefs give a column - so they all sort together as text; any of them (and an iso 'T' with an offset) reads back.
     """
 
     def encode_datetime(self, v: datetime.datetime) -> ta.Any:

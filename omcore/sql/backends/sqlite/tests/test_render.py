@@ -25,8 +25,8 @@ def test_render_golden():
         (
             'create table "users" (\n'
             '  "id" integer not null,\n'
-            '  "created_at" datetime not null default current_timestamp,\n'
-            '  "updated_at" datetime not null default current_timestamp,\n'
+            '  "created_at" datetime not null default (strftime(\'%Y-%m-%d %H:%M:%f\', \'now\')),\n'
+            '  "updated_at" datetime not null default (strftime(\'%Y-%m-%d %H:%M:%f\', \'now\')),\n'
             '  "name" text not null,\n'
             '  primary key ("id")\n'
             ')'
@@ -39,7 +39,7 @@ def test_render_golden():
             'when new."updated_at" = old."updated_at"\n'
             'begin\n'
             '  update "users"\n'
-            '  set "updated_at" = current_timestamp\n'
+            '  set "updated_at" = strftime(\'%Y-%m-%d %H:%M:%f\', \'now\')\n'
             '  where "id" = new."id";\n'
             'end'
         ),
