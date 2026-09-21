@@ -25,6 +25,7 @@ class Config:
     web: bool | None = None
 
     url: str | None = None
+    backend_model_id: str | None = None
 
     in_memory: bool | None = None
     sql: bool | None = None
@@ -49,6 +50,7 @@ class Config:
         parser.add_argument('--web', action='store_true')
 
         parser.add_argument('--url')
+        parser.add_argument('--backend-model-id')
 
         parser.add_argument('--in-memory', action='store_true')
         parser.add_argument('--sql', action='store_true')
@@ -74,6 +76,7 @@ class Config:
             web=args.web,
 
             url=args.url,
+            backend_model_id=args.backend_model_id,
 
             in_memory=args.in_memory,
             sql=args.sql,

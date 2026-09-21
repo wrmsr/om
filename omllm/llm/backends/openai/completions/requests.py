@@ -41,12 +41,15 @@ class RequestPreparer:
             model: Model,
             context: Context,
             options: Options | None = None,
+            *,
+            model_id: str | None = None,
     ) -> None:
         super().__init__()
 
         self._model = model
         self._context = context
         self._given_options = options
+        self._given_model_id = model_id
 
         self._options = Options().merge(
             model.default_options,
@@ -99,7 +102,7 @@ class RequestPreparer:
     @lang.cached_function
     def raw_request(self) -> dict[str, ta.Any]:
         raw_request: dict = {
-            'model': self._model.key_.id,
+            'model': lang.coalesce(self._given_model_id, self._model.key_.id),
         }
 
         if self._options.max_tokens is not None:

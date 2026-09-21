@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='fb260ac061e25a5464f4747eba1401c9b0c1168c',
+    installer_sha1='a7984402be15a48eda7355fec5204d890e34369a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -45,20 +45,21 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "alse, False, False), (('allow_fs_reads', True, True, None, True, True, False, None), 'instance', 'value', "
             "None, False, False, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', None"
             ", False, False, False), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, Fa"
-            "lse, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('sql', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
-            "e, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
-            "se, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value', None, F"
-            "alse, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', None, F"
-            "alse, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (Fa"
-            "lse,)))"
+            "lse, False, False), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('sql', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),)"
+            ", (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
+def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -93,6 +94,8 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
         __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
         __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
         __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
+        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
+        __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -112,6 +115,7 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
                 allow_fs_reads=self.allow_fs_reads,
                 web=self.web,
                 url=self.url,
+                backend_model_id=self.backend_model_id,
                 in_memory=self.in_memory,
                 sql=self.sql,
                 autoexec=self.autoexec,
@@ -136,6 +140,7 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
                 self.allow_fs_reads == other.allow_fs_reads and
                 self.web == other.web and
                 self.url == other.url and
+                self.backend_model_id == other.backend_model_id and
                 self.in_memory == other.in_memory and
                 self.sql == other.sql and
                 self.autoexec == other.autoexec and
@@ -155,6 +160,7 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
             'allow_fs_reads',
             'web',
             'url',
+            'backend_model_id',
             'in_memory',
             'sql',
             'autoexec',
@@ -193,6 +199,7 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
                 self.allow_fs_reads,
                 self.web,
                 self.url,
+                self.backend_model_id,
                 self.in_memory,
                 self.sql,
                 self.autoexec,
@@ -214,11 +221,12 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
             allow_fs_reads: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
             web: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
             url: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            in_memory: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            sql: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            autoexec: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            immediate: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            verbose: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            backend_model_id: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            in_memory: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            sql: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            autoexec: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            immediate: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            verbose: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'cwd', cwd)
@@ -229,6 +237,7 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
             __dataclass__object_setattr(self, 'allow_fs_reads', allow_fs_reads)
             __dataclass__object_setattr(self, 'web', web)
             __dataclass__object_setattr(self, 'url', url)
+            __dataclass__object_setattr(self, 'backend_model_id', backend_model_id)
             __dataclass__object_setattr(self, 'in_memory', in_memory)
             __dataclass__object_setattr(self, 'sql', sql)
             __dataclass__object_setattr(self, 'autoexec', autoexec)
@@ -249,6 +258,7 @@ def _process_dataclass__fb260ac061e25a5464f4747eba1401c9b0c1168c():
             parts.append(f"allow_fs_reads={self.allow_fs_reads!r}")
             parts.append(f"web={self.web!r}")
             parts.append(f"url={self.url!r}")
+            parts.append(f"backend_model_id={self.backend_model_id!r}")
             parts.append(f"in_memory={self.in_memory!r}")
             parts.append(f"sql={self.sql!r}")
             parts.append(f"autoexec={self.autoexec!r}")

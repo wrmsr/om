@@ -307,7 +307,7 @@
     "module": ".llm.backends.openai.completions.immediate",
     "attr": null,
     "file": "omllm/llm/backends/openai/completions/immediate.py",
-    "line": 28,
+    "line": 27,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.openai.completions.immediate",
@@ -322,7 +322,7 @@
     "module": ".llm.backends.openai.completions.stream",
     "attr": null,
     "file": "omllm/llm/backends/openai/completions/stream.py",
-    "line": 133,
+    "line": 132,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.openai.completions.stream",

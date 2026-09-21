@@ -17,7 +17,6 @@ from ....types.messages import TokenUsage
 from ....types.options import Options
 from ...base.http import translating_http_client_errors
 from .base import BaseOpenaiCompletionsBackend
-from .requests import RequestPreparer
 from .responses import translate_stop_reason
 from .responses import translate_token_usage
 
@@ -31,8 +30,7 @@ from .responses import translate_token_usage
 # )
 class OpenaiCompletionsImmediateBackend(BaseOpenaiCompletionsBackend, ImmediateBackend):
     async def immediate(self, context: Context, options: Options | None = None) -> AiMessage:
-        preparer = RequestPreparer(
-            self._model,
+        preparer = self._make_request_preparer(
             context,
             options,
         )

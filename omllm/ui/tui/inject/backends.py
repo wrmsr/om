@@ -49,6 +49,7 @@ def bind_backends(config: Config) -> inj.Elements:
             **lang.opt_kw(
                 api_key=load_secrets().get(api_key_name) if api_key_name is not None else None,
                 base_url=config.url,
+                model_id=config.backend_model_id,
             ),
         )
 

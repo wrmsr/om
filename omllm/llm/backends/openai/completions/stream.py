@@ -20,7 +20,6 @@ from ....types.streams import ToolCallDeltaAiStreamEvent
 from ...base.http import translating_http_client_errors
 from ...base.sse import BaseBackendSseEventProcessor
 from .base import BaseOpenaiCompletionsBackend
-from .requests import RequestPreparer
 from .responses import translate_stop_reason
 from .responses import translate_token_usage
 
@@ -136,8 +135,7 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 # )
 class OpenaiCompletionsStreamBackend(BaseOpenaiCompletionsBackend, StreamBackend):
     async def stream(self, context: Context, options: Options | None = None) -> AiStream:
-        preparer = RequestPreparer(
-            self._model,
+        preparer = self._make_request_preparer(
             context,
             options,
         )
