@@ -39,7 +39,7 @@ def test_render_golden():
             'as $$\n'
             'begin\n'
             '  if new."updated_at" is not distinct from old."updated_at" then\n'
-            '    new."updated_at" := current_timestamp;\n'
+            '    new."updated_at" := greatest(current_timestamp, old."updated_at" + interval \'1 microsecond\');\n'
             '  end if;\n'
             '\n'
             '  return new;\n'

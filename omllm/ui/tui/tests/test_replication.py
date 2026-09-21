@@ -100,19 +100,6 @@ class WorkerThread:
 ##
 
 
-def _read_comparable_rows(node: rep.Node, td: sql.td.TableDef) -> dict:
-    """
-    Column for column, but for `updated_at`. That one is each node's own: its trigger stamps a row which changes without
-    it, and the edge's clock ticks in whole seconds - so a row changed twice within one keeps its `updated_at` there,
-    arrives at the hub looking like it was left alone, and is given the hub's time.
-    """
-
-    return {
-        k: {c: v for c, v in row.items() if c != 'updated_at'}
-        for k, row in read_rows(node, td).items()
-    }
-
-
 @pytest.mark.asyncs('asyncio')
 async def test_sqlite_sessions_replicate_to_postgres(harness):
     hs = harness[HarnessSandboxes]
@@ -180,9 +167,9 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
             num_entries = len(await storage.get_entries())
             assert num_entries == 8
 
-            # The hub has the edge's rows, as the edge's.
+            # The hub has the edge's rows, as the edge's - down to when it was that the edge last updated each.
             for td in schema.tables:
-                assert _read_comparable_rows(hub, td) == _read_comparable_rows(edge, td)
+                assert read_rows(hub, td) == read_rows(edge, td)
                 assert {s.state.origin for s in read_shadow(hub, td).values()} == {edge.node_id}
             assert len(read_rows(hub, schema.table('session_entries'))) == num_entries
             assert read_rows(hub, schema.table('sessions'))[tui.session.id.v]['num_entries'] == num_entries

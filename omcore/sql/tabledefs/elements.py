@@ -154,6 +154,17 @@ class UpdatedAt(Element, lang.Final):
 
 @dc.dataclass(frozen=True)
 class UpdatedAtTrigger(Trigger, lang.Final):
+    """
+    Keeps a column as the time its row was last updated, by whoever it was that updated it, on every dialect alike:
+
+     - An update which changes the column is taken at its word. It is from someone who knows when the row was really
+       updated - a copy of it being brought up to date with its owner's, say - and the column is theirs to set.
+     - One which does not is stamped - with the time, or with the least the dialect can tell apart past what the column
+       already held should the time be no later than that. So the column only ever goes up as its row is updated, no
+       two versions of a row carry the same time, and - which is the point of that - a version of a row arriving
+       wherever an older one is kept always changes the column, and so is taken at its word.
+    """
+
     column: str
 
     @classmethod

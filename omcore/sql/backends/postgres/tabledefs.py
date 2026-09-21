@@ -31,7 +31,7 @@ language plpgsql
 as $$
 begin
   if new.{column_name} is not distinct from old.{column_name} then
-    new.{column_name} := current_timestamp;
+    new.{column_name} := greatest(current_timestamp, old.{column_name} + interval '1 microsecond');
   end if;
 
   return new;

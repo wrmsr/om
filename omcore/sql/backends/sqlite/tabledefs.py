@@ -28,9 +28,14 @@ from ...tabledefs.values import SimpleValue
 
 # Sqlite's current_timestamp stops at the second. This is as fine as its builtins go - they keep time in milliseconds -
 # in the same text form, so the two sort together, as they do with the microseconds a client may write.
-SQLITE_NOW_SQL = "strftime('%Y-%m-%d %H:%M:%f', 'now')"
+SQLITE_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%f'
+SQLITE_NOW_SQL = f"strftime('{SQLITE_DATETIME_FORMAT}', 'now')"
 
 
+# There being no way for a trigger to alter a row on its way in, the stamp is an update of its own after the one made.
+# It is the later of the time and a millisecond - the least there is - past what the column held, the latter put through
+# the same formatting so the two compare as text whatever form it was written in (and being nothing, should it not be a
+# time at all, rather than making nothing of the whole).
 CREATE_UPDATED_AT_TRIGGER_SRC = """\
 create trigger {if_not_exists}{trigger_name}
 after update on {table_name}
@@ -38,7 +43,7 @@ for each row
 when new.{column_name} = old.{column_name}
 begin
   update {table_name}
-  set {column_name} = {now}
+  set {column_name} = max({now}, coalesce(strftime('{format}', old.{column_name}, '+0.001 seconds'), ''))
   where {where};
 end\
 """
@@ -69,6 +74,7 @@ class SqliteUpdatedAtTriggerRenderer(TriggerRenderer[UpdatedAtTrigger]):
             table_name=r.quote_ident(tbl.name.last),
             column_name=r.quote_ident(t.column),
             now=SQLITE_NOW_SQL,
+            format=SQLITE_DATETIME_FORMAT,
             where=' and '.join(f'{r.quote_ident(c)} = new.{r.quote_ident(c)}' for c in pk_cols),
         )]
 

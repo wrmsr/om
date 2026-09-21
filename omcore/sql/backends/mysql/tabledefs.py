@@ -24,11 +24,17 @@ from ...tabledefs.values import SimpleValue
 ##
 
 
+# As the one statement a trigger can be without a compound body, which would need a delimiter of its own to get past a
+# client. Mysql's greatest makes nothing of the whole if any of it is nothing, hence the coalesce.
 CREATE_UPDATED_AT_TRIGGER_SRC = """\
 create trigger {trigger_name}
 before update on {table_name}
 for each row
-set new.{column_name} = current_timestamp(6)\
+set new.{column_name} = if(
+  new.{column_name} <=> old.{column_name},
+  greatest(current_timestamp(6), coalesce(old.{column_name} + interval 1 microsecond, current_timestamp(6))),
+  new.{column_name}
+)\
 """
 
 

@@ -146,10 +146,11 @@ def check_capture_with_kept_columns(node: Node, schema: ReplicationSchema) -> No
     assert read_rows(node, td)[k]['updated_at'] > long_ago
     assert read_shadow(node, td)[k].version == 2 and num_log_entries() == 2
 
-    # nor is it one fewer when every column is written, the kept one with them, as applying a replicated row does
+    # nor is it one fewer when every column is written, the kept one with them, as applying a replicated row does - in
+    # which the kept one is whatever it was given to be, not when it got here
     with node.db.connect() as conn:
         node.backend.upsert_rows(conn, td, node.table_name(td), [{**note, 'text': 'c', 'updated_at': long_ago}])
-    assert read_rows(node, td)[k]['text'] == 'c'
+    assert read_rows(node, td)[k] == {**note, 'text': 'c'}
     assert read_shadow(node, td)[k].version == 3 and num_log_entries() == 3
 
 
@@ -272,6 +273,22 @@ def check_roundtrip(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
         **{c['id']: c for c in cats[2:]},
     }
     assert read_shadow(hub, cat)[cats[1]['id']].state == ShadowState(version=2, origin=edge.node_id, deleted=True)
+
+    # a column a table's own trigger keeps is its owner's the whole way: when the edge last updated the row, to the
+    # tick, however many times and however quickly it did, and never when the hub happened to hear of it
+    notes = schema.table('notes')
+    long_ago = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
+    note: dict[str, ta.Any] = {'id': uuid.uuid7(), 'text': 'n0', 'created_at': long_ago, 'updated_at': long_ago}
+    insert_row(edge, notes, note)
+    sync_link_sweep(link)
+    assert read_rows(hub, notes) == read_rows(edge, notes) == {note['id']: note}
+    seen = [long_ago]
+    for i in range(1, 6):
+        update_row(edge, notes, note['id'], {'text': f'n{i}'})
+        sync_link_sweep(link)
+        assert read_rows(hub, notes) == read_rows(edge, notes)
+        seen.append(read_rows(hub, notes)[note['id']]['updated_at'])
+    assert seen == sorted(set(seen))
 
     # the hub never bounces the edge's own rows back at it
     down = _link('down', schema, hub, edge, origins=OriginFilter.ALL_EXCEPT_TARGET, cursor_side=CursorSide.TARGET)

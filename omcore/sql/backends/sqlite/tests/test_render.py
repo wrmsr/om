@@ -39,7 +39,8 @@ def test_render_golden():
             'when new."updated_at" = old."updated_at"\n'
             'begin\n'
             '  update "users"\n'
-            '  set "updated_at" = strftime(\'%Y-%m-%d %H:%M:%f\', \'now\')\n'
+            '  set "updated_at" = max(strftime(\'%Y-%m-%d %H:%M:%f\', \'now\'), '
+            'coalesce(strftime(\'%Y-%m-%d %H:%M:%f\', old."updated_at", \'+0.001 seconds\'), \'\'))\n'
             '  where "id" = new."id";\n'
             'end'
         ),
