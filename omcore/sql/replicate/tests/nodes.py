@@ -124,7 +124,10 @@ class InjectedFaultError(Exception):
 
 
 class FailingDb(Db):
-    """A db that raises on any statement the (mutable) predicate matches; for staging crashes at chosen points."""
+    """
+    A db that raises on any statement the (mutable) predicate matches, for staging crashes at chosen points - and which
+    keeps count of the connections made and the statements run through it, for seeing what a step costs.
+    """
 
     def __init__(self, db: Db) -> None:
         super().__init__()
@@ -132,17 +135,31 @@ class FailingDb(Db):
         self._db = db
         self.fail_when: ta.Callable[[str], bool] = lambda _: False
 
+        self.num_connects = 0
+        self.statements: list[str] = []
+
+    def reset_counts(self) -> None:
+        self.num_connects = 0
+        self.statements.clear()
+
+    @property
+    def writes(self) -> list[str]:
+        return [s for s in self.statements if s.lstrip().lower().startswith(('insert', 'update', 'delete'))]
+
     @property
     def adapter(self) -> Adapter:
         return self._db.adapter
 
     def _check(self, query: Queryable) -> None:
-        if isinstance(query, Query) and self.fail_when(query.text):
-            raise InjectedFaultError(query.text)
+        if isinstance(query, Query):
+            self.statements.append(query.text)
+            if self.fail_when(query.text):
+                raise InjectedFaultError(query.text)
 
     def connect(self) -> ta.ContextManager[Conn]:
         @contextlib.contextmanager
         def inner():
+            self.num_connects += 1
             with self._db.connect() as conn:
                 yield _FailingConn(self, conn)
 

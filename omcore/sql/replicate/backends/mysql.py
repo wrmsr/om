@@ -167,13 +167,14 @@ class MysqlReplicateBackend(ReplicateBackend, lang.Final):
             self,
             table: str,
             columns: ta.Sequence[str],
-            key: str,
-            placeholders: ta.Sequence[str],
+            keys: ta.Sequence[str],
+            rows: ta.Sequence[ta.Sequence[str]],
     ) -> str:
         # The row-alias form (8.0.19+) rather than the deprecated values() function; mysql demands at least one
         # assignment, so a key-only table re-assigns its key.
-        sets = [f'{c} = new.{c}' for c in columns if c != key] or [f'{key} = {key}']
+        sets = [f'{c} = new.{c}' for c in columns if c not in keys] or [f'{k} = {k}' for k in keys]
         return (
-            f'insert into {table} ({", ".join(columns)}) values ({", ".join(placeholders)}) as new '
+            f'insert into {table} ({", ".join(columns)}) '
+            f'values {", ".join(f"({", ".join(row)})" for row in rows)} as new '
             f'on duplicate key update {", ".join(sets)}'
         )

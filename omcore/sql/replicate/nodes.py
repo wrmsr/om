@@ -3,6 +3,7 @@ import uuid
 
 from ... import check
 from ... import lang
+from ..api.core import Conn
 from ..api.core import Db
 from ..qualifiedname import QualifiedName
 from ..tabledefs.tabledefs import TableDef
@@ -72,6 +73,17 @@ class Node(lang.Final):
         return self._log
 
     #
+
+    def connected(self, conn: Conn | None = None) -> ta.ContextManager[Conn]:
+        """
+        The connection given, left as it is for whoever opened it - or, given none, one of this node's own for the span
+        of the block. A step of a link opens its nodes' connections once and hands them down; anything done on its own
+        gets by without.
+        """
+
+        if conn is not None:
+            return lang.ValueContextManager(conn)
+        return self._db.connect()
 
     def qualify(self, last: str) -> QualifiedName:
         return QualifiedName((*self._qualifier, last))

@@ -11,6 +11,8 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .backends.base import (  # noqa
+        DEFAULT_MAX_STATEMENT_PARAMS,
+
         CursorRow,
         OnConflictReplicateBackend,
         ReplicateBackend,
@@ -62,6 +64,7 @@ with _lang.auto_proxy_init(globals()):
 
     from .links import (  # noqa
         Link,
+        LinkConns,
         LinkSyncReport,
         TableSyncReport,
         TailReport,

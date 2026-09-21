@@ -10,6 +10,7 @@ from .... import dataclasses as dc
 from ...api import querierfuncs as qf
 from ...tabledefs.diffing import AddTrigger
 from ...tabledefs.diffing import DropTrigger
+from ...tabledefs.elements import Column
 from ..config import CursorSide
 from ..config import LinkSpec
 from ..config import OriginFilter
@@ -17,6 +18,7 @@ from ..config import ReplicationSchema
 from ..errors import ReplicationConflictError
 from ..install import install_node
 from ..links import Link
+from ..links import LinkSyncReport
 from ..links import sync_link_once
 from ..links import sync_link_sweep
 from ..links import sync_link_tail
@@ -272,6 +274,77 @@ def check_fault_between_apply_and_cursor(edge: Node, hub: Node, schema: Replicat
     assert link.cursors.read('up', 'businesses').sweeps == 1
 
 
+def check_step_costs(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
+    """What a step costs is a connection to each node and a few statements to a batch - neither of them to a row."""
+
+    edge_db = check.isinstance(edge.db, FailingDb)
+    hub_db = check.isinstance(hub.db, FailingDb)
+    for n in (edge, hub):
+        install_node(n, schema)
+    biz = schema.table('businesses')
+    link = _link('up', schema, edge, hub)
+
+    def step() -> LinkSyncReport:
+        for db in (edge_db, hub_db):
+            db.reset_counts()
+        rep = sync_link_once(link)
+        assert edge_db.num_connects == hub_db.num_connects == 1
+        assert not edge_db.writes
+        return rep
+
+    # with nothing to ship, all that is written is where each table's sweep stands
+    step()
+    assert len(hub_db.writes) == len(schema.tables)
+
+    # however many rows ship, they are one upsert, their shadows another, and the tail's position a third
+    for num_rows in (3, 40):
+        rows = [_business(f'c{num_rows}.{i}') for i in range(num_rows)]
+        for r in rows:
+            insert_row(edge, biz, r)
+        assert check.not_none(step().tail).applied == num_rows
+        assert len(hub_db.writes) == len(schema.tables) + 3
+
+    # as do deletes, which are one more
+    for r in rows[:5]:
+        delete_row(edge, biz, r['id'])
+    update_row(edge, biz, rows[5]['id'], {'name': 'renamed'})
+    rep = step()
+    assert (check.not_none(rep.tail).applied, check.not_none(rep.tail).deleted) == (1, 5)
+    assert len(hub_db.writes) == len(schema.tables) + 4
+
+    assert read_rows(hub, biz) == read_rows(edge, biz)
+
+
+def check_chunked_apply(edge: Node, hub: Node, schema: ReplicationSchema, *, max_statement_params: int) -> None:
+    """A batch too big for one statement goes as several, and arrives the same. The hub's backend has the low limit."""
+
+    hub_db = check.isinstance(hub.db, FailingDb)
+    for n in (edge, hub):
+        install_node(n, schema)
+    biz = schema.table('businesses')
+    num_cols = len(biz.elements[Column])
+    link = _link('up', schema, edge, hub)
+
+    rows = [_business(f'k{i}') for i in range(23)]
+    for r in rows:
+        insert_row(edge, biz, r)
+
+    hub_db.reset_counts()
+    assert check.not_none(sync_link_once(link).tail).applied == len(rows)
+    assert read_rows(hub, biz) == read_rows(edge, biz)
+    assert len([s for s in hub_db.writes if 'businesses' in s]) == (
+        -(-len(rows) // (max_statement_params // num_cols)) +  # the rows
+        -(-len(rows) // (max_statement_params // 5))  # their shadows
+    )
+
+    for r in rows[:17]:
+        delete_row(edge, biz, r['id'])
+    hub_db.reset_counts()
+    assert check.not_none(sync_link_once(link).tail).deleted == 17
+    assert read_rows(hub, biz) == read_rows(edge, biz) and len(read_rows(hub, biz)) == 6
+    assert len([s for s in hub_db.writes if s.lstrip().lower().startswith('delete')]) == -(-17 // max_statement_params)
+
+
 def check_fanout(hub: Node, n: Node, m: Node, schema: ReplicationSchema) -> None:
     """Two edges through one hub: each sees the other's rows with origins intact, and never re-uploads them."""
 
@@ -300,7 +373,7 @@ def check_fanout(hub: Node, n: Node, m: Node, schema: ReplicationSchema) -> None
 
     # a violated writer rule is caught: the hub somehow holds n's row at a version n never wrote
     with hub.db.connect() as conn:
-        hub.backend.upsert_shadow(conn, hub.shadow_name(biz), a['id'], ShadowState(version=9, origin=n.node_id, deleted=False))  # noqa
+        hub.backend.upsert_shadows(conn, hub.shadow_name(biz), {a['id']: ShadowState(version=9, origin=n.node_id, deleted=False)})  # noqa
     with pytest.raises(ReplicationConflictError):
         sync_link_sweep(ups[0])
 

@@ -6,6 +6,7 @@ inspector, dtype codec).
 """
 import abc
 import datetime
+import itertools
 import typing as ta
 import uuid
 
@@ -70,7 +71,22 @@ def sql_string_literal(s: str) -> str:
     return "'" + s.replace("'", "''") + "'"
 
 
+# The most parameters put in one statement by default: sqlite's historical limit, which is the lowest going and so holds
+# everywhere.
+DEFAULT_MAX_STATEMENT_PARAMS: int = 999
+
+
 class ReplicateBackend(lang.Abstract):
+    def __init__(
+            self,
+            *,
+            max_statement_params: int = DEFAULT_MAX_STATEMENT_PARAMS,
+    ) -> None:
+        super().__init__()
+
+        check.arg(max_statement_params > 0)
+        self._max_statement_params = max_statement_params
+
     @property
     @abc.abstractmethod
     def tabledef_renderer(self) -> Renderer:
@@ -96,10 +112,13 @@ class ReplicateBackend(lang.Abstract):
             self,
             table: str,
             columns: ta.Sequence[str],
-            key: str,
-            placeholders: ta.Sequence[str],
+            keys: ta.Sequence[str],
+            rows: ta.Sequence[ta.Sequence[str]],
     ) -> str:
-        """An insert of the (already quoted) columns that becomes an update of the non-key ones on a key clash."""
+        """
+        An insert of rows of placeholders for the (already quoted) columns, each of which becomes an update of the
+        non-key columns on a key clash. No two of the rows may share a key.
+        """
 
         raise NotImplementedError
 
@@ -175,66 +194,60 @@ class ReplicateBackend(lang.Abstract):
         return CursorRow(pos, int(sweeps))
 
     def write_cursor(self, q: Querier, cursor_table: QualifiedName, link: str, table: str, row: CursorRow) -> None:
-        # A cursor row has exactly one writer, so read-then-write is race-free.
-        t = Q.n(tuple(cursor_table))
+        self._upsert(
+            q,
+            cursor_table,
+            [
+                CURSOR_LINK,
+                CURSOR_TABLE,
+                CURSOR_POSITION,
+                CURSOR_SWEEPS,
+                CURSOR_UPDATED_AT,
+            ],
+            [
+                CURSOR_LINK,
+                CURSOR_TABLE,
+            ],
+            [[
+                link,
+                table,
+                row.position,
+                row.sweeps,
+                self.dtype_codec.encode(DATETIME, datetime.datetime.now(datetime.UTC)),
+            ]],
+        )
 
-        pos = row.position
-        now = self.dtype_codec.encode(DATETIME, datetime.datetime.now(datetime.UTC))
+    ##
+    # upserts
 
-        if self.read_cursor(q, cursor_table, link, table) is None:
+    def _upsert(
+            self,
+            q: Querier,
+            table: QualifiedName,
+            columns: ta.Sequence[str],
+            keys: ta.Sequence[str],
+            rows: ta.Sequence[ta.Sequence[ta.Any]],
+    ) -> None:
+        """Upserts rows of already encoded values, in as few statements as the parameter limit allows."""
+
+        for chunk in itertools.batched(rows, max(self._max_statement_params // len(columns), 1)):
+            pp = self._preparer(q)
+            values: dict[str, ta.Any] = {}
+            placeholders: list[list[str]] = []
+            for i, row in enumerate(chunk):
+                check.equal(len(row), len(columns))
+                placeholders.append([pp.add(n) for n in (f'r{i}c{j}' for j in range(len(row)))])
+                values.update((f'r{i}c{j}', v) for j, v in enumerate(row))
+
             qf.exec(
                 q,
-                Q.insert(
-                    [
-                        Q.i(c)
-                        for c in (
-                            CURSOR_LINK,
-                            CURSOR_TABLE,
-                            CURSOR_POSITION,
-                            CURSOR_SWEEPS,
-                            CURSOR_UPDATED_AT,
-                        )
-                    ],
-                    t,
-                    [
-                        Q.p.link,
-                        Q.p.table,
-                        Q.p.position,
-                        Q.p.sweeps,
-                        Q.p.updated_at,
-                    ],
+                self.upsert_sql(
+                    self.qname(table),
+                    [self.quote(c) for c in columns],
+                    [self.quote(k) for k in keys],
+                    placeholders,
                 ),
-                {
-                    Q.p.link: link,
-                    Q.p.table: table,
-                    Q.p.position: pos,
-                    Q.p.sweeps: row.sweeps,
-                    Q.p.updated_at: now,
-                },
-            )
-
-        else:
-            qf.exec(
-                q,
-                Q.update(
-                    t,
-                    [
-                        (Q.i(CURSOR_POSITION), Q.p.position),
-                        (Q.i(CURSOR_SWEEPS), Q.p.sweeps),
-                        (Q.i(CURSOR_UPDATED_AT), Q.p.updated_at),
-                    ],  # noqa
-                    where=Q.and_(
-                        Q.eq(Q.i(CURSOR_LINK), Q.p.link),
-                        Q.eq(Q.i(CURSOR_TABLE), Q.p.table),
-                    ),
-                ),
-                {
-                    Q.p.position: pos,
-                    Q.p.sweeps: row.sweeps,
-                    Q.p.updated_at: now,
-                    Q.p.link: link,
-                    Q.p.table: table,
-                },
+                self._bind(pp, values),
             )
 
     ##
@@ -441,81 +454,77 @@ class ReplicateBackend(lang.Abstract):
 
         return out
 
-    def upsert_shadow(
+    def upsert_shadows(
             self,
             q: Querier,
             shadow: QualifiedName,
-            key: uuid.UUID,
-            state: ShadowState,
+            states: ta.Mapping[uuid.UUID, ShadowState],
     ) -> None:
         codec = self.dtype_codec
-        pp = self._preparer(q)
+        now = codec.encode(DATETIME, datetime.datetime.now(datetime.UTC))
 
-        cols = (
-            SHADOW_KEY,
-            SHADOW_VERSION,
-            SHADOW_ORIGIN,
-            SHADOW_DELETED,
-            SHADOW_CHANGED_AT,
+        self._upsert(
+            q,
+            shadow,
+            [
+                SHADOW_KEY,
+                SHADOW_VERSION,
+                SHADOW_ORIGIN,
+                SHADOW_DELETED,
+                SHADOW_CHANGED_AT,
+            ],
+            [SHADOW_KEY],
+            [
+                [
+                    codec.encode(UUID, key),
+                    codec.encode(_version_dtype(), state.version),
+                    codec.encode(UUID, state.origin),
+                    codec.encode(BOOLEAN, state.deleted),
+                    now,
+                ]
+                for key, state in states.items()
+            ],
         )
-
-        sql = self.upsert_sql(
-            self.qname(shadow),
-            [self.quote(c) for c in cols],
-            self.quote(SHADOW_KEY),
-            [pp.add(c) for c in cols],
-        )
-
-        qf.exec(q, sql, self._bind(pp, {
-            SHADOW_KEY: codec.encode(UUID, key),
-            SHADOW_VERSION: codec.encode(_version_dtype(), state.version),
-            SHADOW_ORIGIN: codec.encode(UUID, state.origin),
-            SHADOW_DELETED: codec.encode(BOOLEAN, state.deleted),
-            SHADOW_CHANGED_AT: codec.encode(DATETIME, datetime.datetime.now(datetime.UTC)),
-        }))
 
     ##
     # base rows
 
-    def upsert_row(
+    def upsert_rows(
             self,
             q: Querier,
             td: TableDef,
             table: QualifiedName,
-            values: ta.Mapping[str, ta.Any],
+            rows: ta.Sequence[ta.Mapping[str, ta.Any]],
     ) -> None:
         codec = self.dtype_codec
         cols = list(td.elements[Column])
-        check.equal(set(values), {c.name for c in cols})
-        pp = self._preparer(q)
-        sql = self.upsert_sql(
-            self.qname(table),
-            [self.quote(c.name) for c in cols],
-            self.quote(table_key_column(td).name),
-            [pp.add(c.name) for c in cols],
-        )
-        qf.exec(
+        names = {c.name for c in cols}
+        for values in rows:
+            check.equal(set(values), names)
+
+        self._upsert(
             q,
-            sql,
-            self._bind(
-                pp,
-                {
-                    c.name: codec.encode(c.type, values[c.name])
-                    for c in cols
-                },
-            ),
+            table,
+            [c.name for c in cols],
+            [table_key_column(td).name],
+            [
+                [codec.encode(c.type, values[c.name]) for c in cols]
+                for values in rows
+            ],
         )
 
-    def delete_row(self, q: Querier, td: TableDef, table: QualifiedName, key: uuid.UUID) -> None:
+    def delete_rows(self, q: Querier, td: TableDef, table: QualifiedName, keys: ta.Sequence[uuid.UUID]) -> None:
         kc = table_key_column(td)
-        qf.exec(
-            q,
-            Q.delete(
-                Q.n(tuple(table)),
-                where=Q.eq(Q.i(kc.name), Q.p.key),
-            ),
-            {Q.p.key: self.dtype_codec.encode(UUID, key)},
-        )
+        for chunk in itertools.batched(keys, self._max_statement_params):
+            ps = [Q.p(f'k{i}') for i in range(len(chunk))]
+            qf.exec(
+                q,
+                Q.delete(
+                    Q.n(tuple(table)),
+                    where=Q.in_(Q.i(kc.name), ps),
+                ),
+                {p: self.dtype_codec.encode(UUID, k) for p, k in zip(ps, chunk)},
+            )
 
     ##
     # log
@@ -596,12 +605,13 @@ class OnConflictReplicateBackend(ReplicateBackend, lang.Abstract):
             self,
             table: str,
             columns: ta.Sequence[str],
-            key: str,
-            placeholders: ta.Sequence[str],
+            keys: ta.Sequence[str],
+            rows: ta.Sequence[ta.Sequence[str]],
     ) -> str:
-        sets = [f'{c} = excluded.{c}' for c in columns if c != key]
+        sets = [f'{c} = excluded.{c}' for c in columns if c not in keys]
         action = f'do update set {", ".join(sets)}' if sets else 'do nothing'
         return (
-            f'insert into {table} ({", ".join(columns)}) values ({", ".join(placeholders)}) '
-            f'on conflict ({key}) {action}'
+            f'insert into {table} ({", ".join(columns)}) '
+            f'values {", ".join(f"({", ".join(row)})" for row in rows)} '
+            f'on conflict ({", ".join(keys)}) {action}'
         )

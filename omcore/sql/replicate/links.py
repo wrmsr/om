@@ -1,9 +1,11 @@
+import contextlib
 import typing as ta
 import uuid
 
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
+from ..api.core import Conn
 from ..tabledefs.tabledefs import TableDef
 from .applying import apply_rows
 from .config import CursorSide
@@ -17,6 +19,15 @@ from .rows import OriginPredicate
 
 
 ##
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class LinkConns(lang.Final):
+    """A link's connections for the span of a step: one to each of its nodes, the cursors' being one of the two."""
+
+    source: Conn
+    target: Conn
+    cursors: Conn
 
 
 class Link(lang.Final):
@@ -73,6 +84,25 @@ class Link(lang.Final):
     def cursors(self) -> CursorStore:
         return self._cursors
 
+    def connect(self) -> ta.ContextManager[LinkConns]:
+        @contextlib.contextmanager
+        def inner():
+            with self._source.db.connect() as source, self._target.db.connect() as target:
+                yield LinkConns(
+                    source=source,
+                    target=target,
+                    cursors=target if self._spec.cursor_side is CursorSide.TARGET else source,
+                )
+
+        return inner()
+
+    def connected(self, conns: LinkConns | None = None) -> ta.ContextManager[LinkConns]:
+        """The connections given, left as they are for whoever opened them - or, given none, the link's own."""
+
+        if conns is not None:
+            return lang.ValueContextManager(conns)
+        return self.connect()
+
     def origin_predicate(self) -> OriginPredicate:
         f = self._spec.origins
         if f is OriginFilter.SOURCE_OWN:
@@ -126,16 +156,17 @@ class LinkSyncReport(lang.Final):
         return sum(t.scanned for t in self.tables)
 
 
-def sync_table_once(link: Link, td: TableDef) -> TableSyncReport:
+def sync_table_once(link: Link, td: TableDef, *, conns: LinkConns | None = None) -> TableSyncReport:
     """One batch of one table's sweep: scan from the cursor, apply by comparison, advance the cursor."""
 
     spec = link.spec
     name = td.name.last
-    cur = link.cursors.read(spec.name, name)
 
-    with link.source.db.connect() as conn:
+    with link.connected(conns) as lc:
+        cur = link.cursors.read(spec.name, name, conn=lc.cursors)
+
         rows = link.source.backend.scan(
-            conn,
+            lc.source,
             td,
             link.source.table_name(td),
             link.source.shadow_name(td),
@@ -144,14 +175,14 @@ def sync_table_once(link: Link, td: TableDef) -> TableSyncReport:
             origins=link.origin_predicate(),
         )
 
-    rep = apply_rows(link.target, td, rows)
+        rep = apply_rows(link.target, td, rows, conn=lc.target)
 
-    completed = len(rows) < spec.batch_size
-    new = CursorState(
-        position=None if completed else rows[-1].key,
-        sweeps=cur.sweeps + (1 if completed else 0),
-    )
-    link.cursors.write(spec.name, name, new)
+        completed = len(rows) < spec.batch_size
+        new = CursorState(
+            position=None if completed else rows[-1].key,
+            sweeps=cur.sweeps + (1 if completed else 0),
+        )
+        link.cursors.write(spec.name, name, new, conn=lc.cursors)
 
     return TableSyncReport(
         table=name,
@@ -165,7 +196,7 @@ def sync_table_once(link: Link, td: TableDef) -> TableSyncReport:
     )
 
 
-def sync_link_tail(link: Link) -> TailReport | None:
+def sync_link_tail(link: Link, *, conns: LinkConns | None = None) -> TailReport | None:
     """
     One batch of the source's change log: the keys it names are looked up and applied exactly as the sweep would, then
     the log position advances past them. Freshness only - a change the tail misses waits for the sweep - which is also
@@ -177,41 +208,41 @@ def sync_link_tail(link: Link) -> TailReport | None:
         return None
 
     spec = link.spec
-    after = link.cursors.read_log(spec.name)
 
-    with source.db.connect() as conn:
-        entries = source.backend.read_log(conn, source.log_table, after=after, limit=spec.tail_batch_size)
+    with link.connected(conns) as lc:
+        after = link.cursors.read_log(spec.name, conn=lc.cursors)
 
-    by_table: dict[str, list[uuid.UUID]] = {td.name.last: [] for td in link.tables}
-    seen: set[tuple[str, uuid.UUID]] = set()
-    for e in entries:
-        if e.table in by_table and (e.table, e.key) not in seen:
-            seen.add((e.table, e.key))
-            by_table[e.table].append(e.key)
+        entries = source.backend.read_log(lc.source, source.log_table, after=after, limit=spec.tail_batch_size)
 
-    applied = deleted = skipped = 0
-    origins = link.origin_predicate()
-    for td in link.tables:
-        keys = by_table[td.name.last]
-        if not keys:
-            continue
-        with source.db.connect() as conn:
+        by_table: dict[str, list[uuid.UUID]] = {td.name.last: [] for td in link.tables}
+        seen: set[tuple[str, uuid.UUID]] = set()
+        for e in entries:
+            if e.table in by_table and (e.table, e.key) not in seen:
+                seen.add((e.table, e.key))
+                by_table[e.table].append(e.key)
+
+        applied = deleted = skipped = 0
+        origins = link.origin_predicate()
+        for td in link.tables:
+            keys = by_table[td.name.last]
+            if not keys:
+                continue
             rows = source.backend.scan_keys(
-                conn,
+                lc.source,
                 td,
                 source.table_name(td),
                 source.shadow_name(td),
                 keys=keys,
                 origins=origins,
             )
-        rep = apply_rows(link.target, td, rows)
-        applied += rep.applied
-        deleted += rep.deleted
-        skipped += rep.skipped
+            rep = apply_rows(link.target, td, rows, conn=lc.target)
+            applied += rep.applied
+            deleted += rep.deleted
+            skipped += rep.skipped
 
-    seq = entries[-1].seq if entries else after
-    if entries:
-        link.cursors.write_log(spec.name, seq)
+        seq = entries[-1].seq if entries else after
+        if entries:
+            link.cursors.write_log(spec.name, seq, conn=lc.cursors)
 
     return TailReport(
         entries=len(entries),
@@ -224,15 +255,19 @@ def sync_link_tail(link: Link) -> TailReport | None:
     )
 
 
-def sync_link_once(link: Link) -> LinkSyncReport:
-    """One step of a link: a batch of the log tail for freshness, then one sweep batch of every table for truth."""
+def sync_link_once(link: Link, *, conns: LinkConns | None = None) -> LinkSyncReport:
+    """
+    One step of a link: a batch of the log tail for freshness, then one sweep batch of every table for truth - all of it
+    over the one connection to each node.
+    """
 
-    tail = sync_link_tail(link)
-    return LinkSyncReport(
-        link=link.name,
-        tables=[sync_table_once(link, td) for td in link.tables],
-        tail=tail,
-    )
+    with link.connected(conns) as lc:
+        tail = sync_link_tail(link, conns=lc)
+        return LinkSyncReport(
+            link=link.name,
+            tables=[sync_table_once(link, td, conns=lc) for td in link.tables],
+            tail=tail,
+        )
 
 
 def sync_link_sweep(link: Link, *, max_steps: int = 10_000) -> LinkSyncReport:
@@ -243,22 +278,23 @@ def sync_link_sweep(link: Link, *, max_steps: int = 10_000) -> LinkSyncReport:
 
     done: dict[str, TableSyncReport] = {}
     acc: dict[str, list[TableSyncReport]] = {td.name.last: [] for td in link.tables}
-    for _ in range(max_steps):
-        for td in link.tables:
-            name = td.name.last
-            if name in done:
-                continue
-            rep = sync_table_once(link, td)
-            acc[name].append(rep)
-            if rep.completed:
-                steps = acc[name]
-                done[name] = dc.replace(
-                    rep,
-                    scanned=sum(r.scanned for r in steps),
-                    applied=sum(r.applied for r in steps),
-                    deleted=sum(r.deleted for r in steps),
-                    skipped=sum(r.skipped for r in steps),
-                )
-        if len(done) == len(link.tables):
-            return LinkSyncReport(link=link.name, tables=[done[td.name.last] for td in link.tables])
+    with link.connect() as lc:
+        for _ in range(max_steps):
+            for td in link.tables:
+                name = td.name.last
+                if name in done:
+                    continue
+                rep = sync_table_once(link, td, conns=lc)
+                acc[name].append(rep)
+                if rep.completed:
+                    steps = acc[name]
+                    done[name] = dc.replace(
+                        rep,
+                        scanned=sum(r.scanned for r in steps),
+                        applied=sum(r.applied for r in steps),
+                        deleted=sum(r.deleted for r in steps),
+                        skipped=sum(r.skipped for r in steps),
+                    )
+            if len(done) == len(link.tables):
+                return LinkSyncReport(link=link.name, tables=[done[td.name.last] for td in link.tables])
     raise RuntimeError(f'{link!r} did not complete a sweep within {max_steps} steps')

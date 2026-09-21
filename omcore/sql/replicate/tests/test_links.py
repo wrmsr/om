@@ -1,16 +1,22 @@
 import contextlib
 
 from ...tests.harness import HarnessSandboxes
+from ..backends.mysql import MysqlReplicateBackend
+from ..backends.postgres import PostgresReplicateBackend
+from ..backends.sqlite import SqliteReplicateBackend
+from ..nodes import Node
 from .models import build_schema
 from .nodes import FailingDb
 from .nodes import mysql_node
 from .nodes import postgres_node
 from .nodes import sqlite_node
+from .scenarios import check_chunked_apply
 from .scenarios import check_fanout
 from .scenarios import check_fault_between_apply_and_cursor
 from .scenarios import check_log_tail
 from .scenarios import check_no_log
 from .scenarios import check_roundtrip
+from .scenarios import check_step_costs
 from .scenarios import check_worker
 from .scenarios import check_worker_maintenance
 
@@ -78,6 +84,34 @@ def test_fault_between_apply_and_cursor(harness) -> None:
             postgres_node('hub', h, FailingDb(h.db())),
             build_schema(),
         )
+
+
+def test_step_costs(harness) -> None:
+    hs = harness[HarnessSandboxes]
+    with hs.sqlite().allocate() as e, hs.postgres().allocate() as h:
+        check_step_costs(
+            sqlite_node('edge', e, FailingDb(e.db())),
+            postgres_node('hub', h, FailingDb(h.db())),
+            build_schema(),
+        )
+
+
+def test_chunked_apply(harness) -> None:
+    hs = harness[HarnessSandboxes]
+    with contextlib.ExitStack() as es:
+        for i, (alloc, backend_cls) in enumerate([
+            (hs.postgres(), PostgresReplicateBackend),
+            (hs.sqlite(), SqliteReplicateBackend),
+            (hs.mysql(), MysqlReplicateBackend),
+        ]):
+            e = es.enter_context(hs.sqlite().allocate())
+            h = es.enter_context(alloc.allocate())
+            check_chunked_apply(
+                sqlite_node(f'edge{i}', e),
+                Node(f'hub{i}', FailingDb(h.db()), backend_cls(max_statement_params=10)),
+                build_schema(),
+                max_statement_params=10,
+            )
 
 
 def test_fanout(harness) -> None:
