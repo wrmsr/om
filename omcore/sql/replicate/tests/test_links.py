@@ -138,7 +138,7 @@ def test_log_tail_mysql_to_sqlite(harness) -> None:
     hs = harness[HarnessSandboxes]
     with (
         hs.mysql().allocate() as e,
-        hs.sqlite().allocate() as h
+        hs.sqlite().allocate() as h,
     ):
         check_log_tail(
             mysql_node('edge', e),
