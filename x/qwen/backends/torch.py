@@ -90,6 +90,7 @@ class CudaGraphStep:
             self.graph = torch.cuda.CUDAGraph()
             with torch.cuda.graph(self.graph):
                 self.static_out = tuple(self.fn(*self.static_in))
+            self.graph.replay()  # capture only records; run it once so this call's outputs are real
             return self.static_out
         for dst, src in zip(self.static_in, args):
             if src is not dst:
