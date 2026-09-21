@@ -33,6 +33,8 @@ class DenyingPermissionAsker(agn.PermissionAsker):
 
 def bind_headless_tui(config: Config) -> inj.Elements:
     return inj.as_elements(
+        inj.bind(config),
+
         bind_tui(config),
 
         inj.bind(ui.NopTextDisplayer()),
@@ -91,6 +93,10 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
                 ),
             ),
         )
+
+        config = await injector[Config]
+        if config.resume is not None:
+            await session.resume()
 
         yield HeadlessTui(
             injector=injector,

@@ -17,6 +17,7 @@ from ..inject import bind_tui
 from .input import InputManager
 from .input import bind_input
 from .output import bind_output
+from .output import display_transcript
 
 
 ##
@@ -59,6 +60,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
         input_manager = await injector[InputManager]
+        text_displayer = await injector[ui.TextDisplayer]
 
         proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
 
@@ -81,6 +83,9 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                 ),
             ),
         )
+
+        if config.resume is not None:
+            await display_transcript(await session.resume(), text_displayer)
 
         #
 

@@ -26,6 +26,7 @@ from ..config import Config
 from ..inject import AgentEventSubscribers
 from .app import MinituiChatApp
 from .inject import bind_minitui
+from .output import AgentEventRenderer
 from .promptpump import PromptPump
 
 
@@ -122,6 +123,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         commands_manager = await injector[har.CommandsManager]
         driver = await injector[mt.AsyncioDriver]
         app = await injector[MinituiChatApp]
+        event_renderer = await injector[AgentEventRenderer]
 
         proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
 
@@ -167,6 +169,9 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                     ),
                 ),
             )
+
+            if config.resume is not None:
+                event_renderer.display_transcript(await session.resume())
 
             for ax in config.autoexec or []:
                 pump.submit(ax)

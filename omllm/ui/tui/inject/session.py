@@ -19,7 +19,7 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     #
 
-    session_id = har.SessionId(uuid.uuid7())
+    session_id = har.SessionId(config.resume if config.resume is not None else uuid.uuid7())
 
     lst.extend([
         inj.bind(session_id),
@@ -30,6 +30,7 @@ def bind_sessions(config: Config) -> inj.Elements:
     #
 
     check.arg(not (config.in_memory and config.sql), 'Session storage is in memory or in sql, not both')
+    check.arg(not (config.in_memory and config.resume is not None), 'An in-memory session cannot be resumed')
 
     state_dir_path = os.path.join(get_home_paths().state_dir, 'llm')
 

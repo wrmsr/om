@@ -48,6 +48,7 @@ from ..types.tools import ToolResult
 from ..types.turns import AgentEndReason
 from ..types.turns import TurnConfig
 from ..types.turns import TurnResult
+from .repairs import build_unanswered_tool_call_results
 
 
 log = logs.get_module_logger(globals())
@@ -192,45 +193,8 @@ class TurnLoop:
                 index=index,
             ))
 
-    def _unexecuted_tool_calls(self) -> list[llm.ToolCall]:
-        """
-        The tool calls of the latest AI message which have no result following them, if that message is this run's.
-        """
-
-        result_ids: set[str] = set()
-
-        for m in reversed(self._context.messages or []):
-            if isinstance(m, llm.ToolResultMessage):
-                result_ids.add(m.tool_call_id)
-
-            elif isinstance(m, llm.AiMessage):
-                return [c for c in m.content if isinstance(c, llm.ToolCall) and c.id not in result_ids]
-
-            elif isinstance(m, llm.UserMessage):
-                # Back at this run's prompt without an AI message: nothing of this run's to repair, and an earlier run's
-                # messages are not to be touched.
-                return []
-
-            # Agent messages are transparent.
-
-        return []
-
     def _unexecuted_tool_call_results(self, why: str) -> list[llm.ToolResultMessage]:
-        """
-        An error result for every unexecuted tool call of the latest AI message, saying it was not executed and why. A
-        call without a result is a transcript providers reject on the next request, so the loop never leaves one behind,
-        however the run ended.
-        """
-
-        return [
-            llm.ToolResultMessage(
-                tool_call_id=tc.id,
-                tool_name=tc.name,
-                content=(llm.TextContent(f'Tool call was not executed: {why}.'),),
-                is_error=True,
-            )
-            for tc in self._unexecuted_tool_calls()
-        ]
+        return build_unanswered_tool_call_results(self._context.messages or (), why)
 
     #
 

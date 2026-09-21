@@ -4,6 +4,7 @@ from omcore import orm
 
 from ...entries import SessionEntry
 from ...types import SessionId
+from ..types import SessionNotFoundError
 from ..types import SessionStorage
 from .models import OrmSession
 from .models import OrmSessionEntry
@@ -36,7 +37,8 @@ class OrmSessionStorage(SessionStorage):
 
     async def get_entries(self) -> ta.Sequence[SessionEntry]:
         async with self._orm.new_session():
-            orm_session = await self._get_orm_session()
+            if (orm_session := await orm.get(OrmSession, self._session_id.v)) is None:
+                raise SessionNotFoundError(str(self._session_id.v))
 
             orm_entries = await orm_session.entries()
 

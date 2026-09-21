@@ -2,6 +2,7 @@ import typing as ta
 import uuid
 
 from omcore import check
+from omcore import dataclasses as dc
 
 from ... import agent as agn
 from ...core.eventbus import EventPublisher
@@ -43,6 +44,40 @@ class Session(
     @property
     def id(self) -> SessionId:
         return self._id
+
+    async def resume(self) -> ta.Sequence[agn.Message]:
+        check.state(not self._agent.is_running)
+        check.state(not self._agent.state.context.messages, 'Cannot resume into a non-empty agent transcript')
+
+        entries = await self._storage.get_entries()
+        messages: list[agn.Message] = [
+            entry.message
+            for entry in entries
+            if isinstance(entry, MessageSessionEntry)
+        ]
+
+        repair_messages: list[agn.Message] = [
+            *agn.build_unanswered_tool_call_results(messages, 'the session was interrupted'),
+        ]
+        if repair_messages:
+            repair_messages.append(agn.InfoAgentMessage('Session resumed after an interruption.'))
+            await self._storage.add_entry(*[
+                MessageSessionEntry(message)
+                for message in repair_messages
+            ])
+            messages.extend(repair_messages)
+
+        await self._agent.update_state(
+            lambda state: dc.replace(
+                state,
+                context=dc.replace(
+                    state.context,
+                    messages=tuple(messages),
+                ),
+            ),
+        )
+
+        return tuple(messages)
 
     async def _on_agent_event(self, agn_event: agn.Event) -> None:
         await self._publish(AgentSessionEvent(agn_event))

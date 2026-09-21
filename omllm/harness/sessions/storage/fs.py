@@ -8,6 +8,7 @@ from omcore import marshal as msh
 from omcore.formats.json import all as json
 
 from ..entries import SessionEntry
+from .types import SessionNotFoundError
 from .types import SessionStorage
 
 
@@ -40,18 +41,40 @@ class FsSessionStorage(SessionStorage):
     async def __aenter__(self) -> ta.Self:
         await super().__aenter__()
 
-        if not os.path.exists(self._dir_path):
-            os.makedirs(self._dir_path, exist_ok=True)
-
         self._is_initialized = True
 
         return self
+
+    async def get_entries(self) -> ta.Sequence[SessionEntry]:
+        check.state(self._is_initialized)
+
+        try:
+            f = open(self._entries_file_path, encoding='utf-8')  # noqa
+        except FileNotFoundError as e:
+            raise SessionNotFoundError(self._dir_path) from e
+
+        with f:
+            entries: list[SessionEntry] = []
+            for line_number, line in enumerate(f, 1):
+                try:
+                    entries.append(msh.unmarshal(json.loads(line), SessionEntry))
+                except Exception as e:  # noqa: BLE001
+                    raise RuntimeError(
+                        f'Failed to read session entry {self._entries_file_path}:{line_number}',
+                    ) from e
+
+        return entries
 
     async def add_entry(self, *entries: SessionEntry) -> None:
         check.state(self._is_initialized)
 
         if not entries:
             return
+
+        #
+
+        if not os.path.exists(self._dir_path):
+            os.makedirs(self._dir_path, exist_ok=True)
 
         #
 
@@ -67,5 +90,5 @@ class FsSessionStorage(SessionStorage):
 
         #
 
-        with open(self._entries_file_path, 'a') as f:  # noqa
+        with open(self._entries_file_path, 'a', encoding='utf-8') as f:  # noqa
             f.write(out.getvalue())

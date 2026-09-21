@@ -2,6 +2,7 @@
 import os.path
 import sqlite3
 import tempfile
+import uuid
 
 import pytest
 
@@ -27,18 +28,24 @@ def test_config_arguments():
     assert not Config.parse_from_arguments([]).sql
     assert Config.parse_from_arguments(['--sql']).sql
 
+    session_id = uuid.uuid7()
+    assert Config.parse_from_arguments(['--resume', str(session_id)]).resume == session_id
+
     with pytest.raises(RuntimeError):  # noqa
         bind_headless_tui(Config(model='scripted', sql=True, in_memory=True))
+
+    with pytest.raises(RuntimeError):  # noqa
+        bind_headless_tui(Config(model='scripted', in_memory=True, resume=session_id))
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_sql_sessions():
     db_path = os.path.join(tempfile.mkdtemp(), 'state', 'llm', 'sessions.db')
 
-    def bind(*turns):
+    def bind(*turns, resume=None):
         return inj.as_elements(
             inj.override(
-                bind_headless_tui(Config(model='scripted', immediate=True, sql=True)),
+                bind_headless_tui(Config(model='scripted', immediate=True, sql=True, resume=resume)),
                 bind_scripted_backend(*turns),
                 inj.bind(har.SqliteDbConfig(file_path=db_path)),
             ),
@@ -76,8 +83,22 @@ async def test_sql_sessions():
 
         await check_stored_transcript(await tui.injector[har.OrmSessionStorage], tui.agent)
 
+        second_session_id = tui.session.id
+
+    # A requested id restores its transcript into a fresh agent and appends to the same session.
+    async with headless_tui(bind(text_message('resumed'), resume=first_session_id.v)) as tui:
+        assert tui.session.id == first_session_id
+        assert len(tui.agent.state.context.messages or ()) == 6
+        resumed_storage = await tui.injector[har.OrmSessionStorage]
+        assert len(await resumed_storage.get_entries()) == 6
+
+        await tui.session.prompt('resuming')
+
+        assert len(tui.agent.state.context.messages or ()) == 8
+        await check_stored_transcript(resumed_storage, tui.agent)
+
     with sqlite3.connect(db_path) as conn:
         assert conn.execute('select id, num_entries from sessions order by id').fetchall() == [
-            (str(first_session_id.v), 6),
-            (str(tui.session.id.v), 2),
+            (str(first_session_id.v), 8),
+            (str(second_session_id.v), 2),
         ]

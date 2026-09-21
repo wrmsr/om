@@ -231,6 +231,11 @@ with _lang.auto_proxy_init(
         TurnLoop,
     )
 
+    from .turns.repairs import (  # noqa
+        find_unanswered_tool_calls,
+        build_unanswered_tool_call_results,
+    )
+
     from .turns.runner import (  # noqa
         TurnLoopRunner,
     )

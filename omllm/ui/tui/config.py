@@ -1,4 +1,5 @@
 import typing as ta
+import uuid
 
 from omcore import dataclasses as dc
 from omcore import lang
@@ -29,6 +30,7 @@ class Config:
 
     in_memory: bool | None = None
     sql: bool | None = None
+    resume: uuid.UUID | None = None
 
     autoexec: lang.SequenceNotStr[str] | None = None
 
@@ -54,6 +56,7 @@ class Config:
 
         parser.add_argument('--in-memory', action='store_true')
         parser.add_argument('--sql', action='store_true')
+        parser.add_argument('--resume', type=uuid.UUID, metavar='SESSION_ID')
 
         parser.add_argument('-X', '--autoexec', action='append')
 
@@ -80,6 +83,7 @@ class Config:
 
             in_memory=args.in_memory,
             sql=args.sql,
+            resume=args.resume,
 
             autoexec=args.autoexec,
 

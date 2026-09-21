@@ -1,16 +1,21 @@
 import os.path
 import sqlite3
 import tempfile
+import uuid
 
 import pytest
 
 from omcore import orm
 from omcore import sql
 
+from ....types import SessionId
+from ...types import SessionNotFoundError
+from ..models import OrmSession
 from ..models import orm_mappers
 from ..sql import SqlOrm
 from ..sqlite import SqliteDbConfig
 from ..sqlite import asyncio_sqlite_db
+from ..storage import OrmSessionStorage
 from .scenarios import check_orm_session_storage
 from .scenarios import check_stored_transcript
 from .scenarios import scripted_session
@@ -30,6 +35,13 @@ async def test_sqlite():
     config = SqliteDbConfig(file_path=os.path.join(tempfile.mkdtemp(), 'state', 'sessions.db'))
 
     async with asyncio_sqlite_db(config) as db, _sql_orm(db) as sql_orm:
+        missing_session_id = SessionId(uuid.uuid7())
+        with pytest.raises(SessionNotFoundError):
+            await OrmSessionStorage(missing_session_id, sql_orm).get_entries()
+
+        async with sql_orm.new_session():
+            assert await orm.get(OrmSession, missing_session_id.v) is None
+
         await check_orm_session_storage(sql_orm)
 
 

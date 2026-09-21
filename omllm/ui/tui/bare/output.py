@@ -16,6 +16,38 @@ from ..rendering import build_terminal_text_displayer
 ##
 
 
+async def display_transcript(
+        messages: ta.Sequence[agn.Message],
+        text_displayer: ui.TextDisplayer,
+) -> None:
+    ai_turn_open = False
+
+    for message in messages:
+        if isinstance(message, llm.UserMessage):
+            ai_turn_open = False
+            user_content = message.content
+            text = user_content if isinstance(user_content, str) else user_content.text
+            await text_displayer.display_text('\nyou:\n', ui.MarkdownText(text))
+
+        elif isinstance(message, llm.AiMessage):
+            if not ai_turn_open:
+                await text_displayer.display_text('\nai:\n')
+                ai_turn_open = True
+            for ai_content in message.content:
+                if isinstance(ai_content, llm.TextContent) and ai_content.text:
+                    await text_displayer.display_text(ui.MarkdownText(ai_content.text))
+
+        elif isinstance(message, llm.ToolResultMessage):
+            text = '\n'.join(content.text for content in message.content)
+            await text_displayer.display_text(f'[{message.tool_name}: {text}]\n')
+
+        elif isinstance(message, agn.InfoAgentMessage):
+            await text_displayer.display_text(f'[{message.info}]\n')
+
+
+##
+
+
 class AgentEventDisplayer(lang.Abstract):
     def __init__(self, text_displayer: ui.TextDisplayer) -> None:
         super().__init__()

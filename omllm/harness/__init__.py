@@ -99,6 +99,7 @@ with _lang.auto_proxy_init(
     )
 
     from .sessions.storage.types import (  # noqa
+        SessionNotFoundError,
         SessionStorage,
     )
 

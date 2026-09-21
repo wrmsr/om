@@ -26,10 +26,13 @@ from ..storage.types import SessionStorage
 
 
 class _RecordingStorage(SessionStorage):
-    def __init__(self):
+    def __init__(self, entries=()):
         super().__init__()
 
-        self.entries = []
+        self.entries = list(entries)
+
+    async def get_entries(self):
+        return tuple(self.entries)
 
     async def add_entry(self, *entries):
         self.entries.extend(entries)
@@ -66,7 +69,7 @@ class _BlockingExecutor:
         raise AssertionError
 
 
-async def _session(backend, tools=()):
+async def _session(backend, tools=(), storage=None):
     agent = agn.Agent(
         turn_runner=agn.TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
@@ -77,7 +80,8 @@ async def _session(backend, tools=()):
     if tools:
         await agent.update_state(lambda s: dc.replace(s, context=agn.Context(tools=agn.ToolSet(list(tools)))))
 
-    storage = _RecordingStorage()
+    if storage is None:
+        storage = _RecordingStorage()
     session = Session(
         agent=agent,
         storage=storage,
@@ -89,6 +93,61 @@ async def _session(backend, tools=()):
 def _stored_types(storage):
     assert all(isinstance(e, MessageSessionEntry) for e in storage.entries)
     return [type(e.message) for e in storage.entries]
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_resume_restores_and_repairs_transcript():
+    tool_calls = tool_call_message(
+        llm.ToolCall('t1', 'finished', {}),
+        llm.ToolCall('t2', 'interrupted', {}),
+    )
+    storage = _RecordingStorage([
+        MessageSessionEntry(llm.UserMessage('hi')),
+        MessageSessionEntry(tool_calls),
+        MessageSessionEntry(llm.ToolResultMessage(
+            tool_call_id='t1',
+            tool_name='finished',
+            content=(llm.TextContent('done'),),
+        )),
+    ])
+
+    def expect(inv):
+        assert [type(message) for message in inv.context.messages or ()] == [
+            llm.UserMessage,
+            llm.AiMessage,
+            llm.ToolResultMessage,
+            llm.ToolResultMessage,
+            llm.UserMessage,
+        ]
+
+    session, _ = await _session(
+        scripted_backend(llm.BackendScriptTurn(text_message('continued'), expect=expect)),
+        storage=storage,
+    )
+
+    messages = await session.resume()
+
+    assert [type(message) for message in messages] == [
+        llm.UserMessage,
+        llm.AiMessage,
+        llm.ToolResultMessage,
+        llm.ToolResultMessage,
+        agn.InfoAgentMessage,
+    ]
+    repair_result = messages[-2]
+    assert isinstance(repair_result, llm.ToolResultMessage)
+    assert repair_result.tool_call_id == 't2'
+    assert repair_result.is_error
+    assert 'interrupted' in repair_result.content[0].text
+    assert len(storage.entries) == 5
+
+    resumed_again, _ = await _session(scripted_backend(text_message('unused')), storage=storage)
+    assert len(await resumed_again.resume()) == 5
+    assert len(storage.entries) == 5
+
+    await session.prompt('continue')
+
+    assert len(storage.entries) == 7
 
 
 @pytest.mark.asyncs('asyncio')

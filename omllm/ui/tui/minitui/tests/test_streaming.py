@@ -1,3 +1,8 @@
+from ..... import agent as agn
+from ..... import llm
+from ...config import Config
+from ..output import AgentEventRenderer
+from ..output import MinituiTextDisplayer
 from .utils import commit_texts
 from .utils import frame_lines
 from .utils import make_app
@@ -58,3 +63,30 @@ def test_live_tail_separates_from_committed_blocks():
     app.stream_break()
     app.stream_feed('Third')
     assert frame_lines(app)[0].startswith('Third')
+
+
+def test_resumed_transcript_is_displayed_settled():
+    app, driver = make_app()
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+
+    renderer.display_transcript([
+        llm.UserMessage('continue the work'),
+        llm.AiMessage([
+            llm.TextContent('On it.'),
+            llm.ToolCall('t1', 'read', {'path': 'README.md'}),
+        ]),
+        llm.ToolResultMessage(
+            tool_call_id='t1',
+            tool_name='read',
+            content=(llm.TextContent('contents'),),
+        ),
+        agn.InfoAgentMessage('Earlier note.'),
+    ])
+
+    text = '\n'.join(commit_texts(driver))
+    assert 'continue the work' in text
+    assert 'On it.' in text
+    assert 'tool: read' in text
+    assert 'contents' in text
+    assert 'Earlier note.' in text
+    assert not app.is_busy

@@ -115,6 +115,45 @@ class AgentEventRenderer:
 
         return _detail_rows(result.content.text)
 
+    def display_transcript(self, messages: ta.Sequence[agn.Message]) -> None:
+        app = self._app
+        ai_turn_open = False
+
+        for message in messages:
+            if isinstance(message, llm.UserMessage):
+                if ai_turn_open:
+                    app.end_ai_turn()
+                    ai_turn_open = False
+
+                user_content = message.content
+                app.show_user_message(user_content if isinstance(user_content, str) else user_content.text)
+                continue
+
+            if not isinstance(message, (llm.AiMessage, llm.ToolResultMessage, agn.InfoAgentMessage)):
+                continue
+
+            if not ai_turn_open:
+                app.begin_ai_turn()
+                ai_turn_open = True
+
+            if isinstance(message, llm.AiMessage):
+                for ai_content in message.content:
+                    if isinstance(ai_content, llm.TextContent) and ai_content.text:
+                        app.display_markdown(ai_content.text)
+                    elif isinstance(ai_content, llm.ToolCall):
+                        args = json.dumps(dict(ai_content.args), default=repr)
+                        app.display_text(f'tool: {ai_content.name}({_truncate(args, 500)})', 'status.dim')
+
+            elif isinstance(message, llm.ToolResultMessage):
+                text = '\n'.join(content.text for content in message.content)
+                app.display_text(f'{message.tool_name}: {_truncate(text, 2000)}', 'status.dim')
+
+            elif isinstance(message, agn.InfoAgentMessage):
+                app.display_text(message.info, 'status.dim')
+
+        if ai_turn_open:
+            app.end_ai_turn()
+
     async def on_agent_event(self, ev: agn.Event) -> None:
         app = self._app
 
