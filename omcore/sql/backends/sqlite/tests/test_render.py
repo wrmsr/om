@@ -24,11 +24,10 @@ def test_render_golden():
     assert SqliteTabledefRenderer().render_create_statements(_users('users')) == [
         (
             'create table "users" (\n'
-            '  "id" integer not null,\n'
+            '  "id" integer primary key autoincrement not null,\n'
             '  "created_at" datetime not null default (strftime(\'%Y-%m-%d %H:%M:%f\', \'now\')),\n'
             '  "updated_at" datetime not null default (strftime(\'%Y-%m-%d %H:%M:%f\', \'now\')),\n'
-            '  "name" text not null,\n'
-            '  primary key ("id")\n'
+            '  "name" text not null\n'
             ')'
         ),
         'create index "users__index__name" on "users" ("name")\n',

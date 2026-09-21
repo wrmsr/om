@@ -115,6 +115,19 @@ class SqliteTabledefRenderer(Renderer):
         else:
             raise TypeError(c.type)
 
+    def column_identity_sql(self, c: Column) -> str:
+        # Being the integer primary key is all it takes for a column to be the rowid, and be given a value when it has
+        # none - but the value given is one past the highest there at the time, so the ids of rows since deleted come
+        # around again, which those of an identity do not on any other dialect, and which anything holding on to an id -
+        # a place in a sequence, say - cannot have. With autoincrement it is one past the highest there has ever been.
+        # It can only be said on the column, as its primary key, so such a table has no constraint for one of its own.
+        return 'primary key autoincrement'
+
+    def primary_key_sql(self, pk: PrimaryKey, identity_column: str | None) -> str | None:
+        if identity_column is not None:
+            return None
+        return super().primary_key_sql(pk, identity_column)
+
     def render_default(self, v: SimpleValue) -> str:
         if isinstance(v, Now):
             return f'({SQLITE_NOW_SQL})'  # a default which is an expression, not a keyword or a literal, goes in parens

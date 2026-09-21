@@ -534,6 +534,17 @@ def check_log_tail(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
     assert (t5.entries, t5.applied) == (1, 1) and t5.seq == position + 1
     assert after_prune['id'] in read_rows(hub, biz)
     rows.append(after_prune)
+
+    # nor does that depend on the entry left behind: a log's sequence is an identity, which on every dialect numbers on
+    # from the highest it has ever given out, and so would from a log emptied outright
+    with edge.db.connect() as conn:
+        qf.exec(conn, f'delete from {edge.backend.qname(edge.log_table)}')  # noqa
+    after_empty = _business('after empty')
+    insert_row(edge, biz, after_empty)
+    t6 = check.not_none(sync_link_tail(link))
+    assert (t6.entries, t6.applied) == (1, 1) and t6.seq == position + 2
+    assert after_empty['id'] in read_rows(hub, biz)
+    rows.append(after_empty)
     assert rows[1]['id'] in read_shadow(edge, biz) and rows[1]['id'] in read_shadow(hub, biz)
     sync_link_sweep(link, prune_tombstones_before=later)
     for n in (edge, hub):

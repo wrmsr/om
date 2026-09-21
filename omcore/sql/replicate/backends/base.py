@@ -586,9 +586,11 @@ class ReplicateBackend(lang.Abstract):
     def prune_log(self, q: Querier, log_table: QualifiedName, *, before: datetime.datetime) -> None:
         """
         Drops the entries older than `before` - but for the newest there is, however old. A link holds its place in the
-        log by sequence number, and not every dialect keeps a sequence going past what is left in the table: sqlite
-        numbers a row one past the highest still there, so from an emptied log it would start over, behind every link's
-        place, and whatever came next would go unseen by them until the numbers had caught back up.
+        log by sequence number, so the numbers must never come around again, behind every link's place, where whatever
+        came next would go unseen by them until the numbers had caught back up. A log's sequence is an identity, which
+        sees to that by itself - but has not always on sqlite, where a log made before it did numbers an entry one past
+        the highest still there, and would start over from an emptied one. Leaving the newest costs nothing, and holds
+        for those too.
         """
 
         # FIXME: FIXME: FIXME: this is a scan of the whole log, there being - deliberately - no index on when an entry

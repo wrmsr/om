@@ -148,6 +148,10 @@ class Renderer(lang.Abstract):
     def column_identity_sql(self, c: Column) -> str:
         return ''
 
+    def primary_key_sql(self, pk: PrimaryKey, identity_column: str | None) -> str | None:
+        # The table's primary key constraint - or none, for a dialect which has said it all on the column already.
+        return f'primary key ({", ".join(self.quote_ident(c) for c in pk.columns)})'
+
     def column_option_sql(self, c: Column) -> list[str]:
         # Base supports no column options; any present trips the fail-closed consumer.
         with c.options.consume():
@@ -339,7 +343,8 @@ class Renderer(lang.Abstract):
 
             elif isinstance(e, PrimaryKey):
                 check.not_empty(e.columns)
-                constraints.append(f'primary key ({", ".join(self.quote_ident(c) for c in e.columns)})')
+                if (pk_sql := self.primary_key_sql(e, identity_column)) is not None:
+                    constraints.append(pk_sql)
 
             elif isinstance(e, Trigger):
                 triggers.extend(self.trigger_create_statements(tbl, e, opts))
