@@ -126,6 +126,18 @@ class MlxOps(Ops):
     def repeat(self, x, n, axis):
         return mx.repeat(x, n, axis=axis)
 
+    def arange(self, n):
+        return mx.arange(n, dtype=mx.int32)
+
+    def scalar(self, v):
+        return mx.array(v, dtype=mx.int32)
+
+    def kv_write(self, buf, pos, x):
+        # item assignment on a preallocated buffer is what mlx-lm's KVCache does; MLX updates in place when it
+        # can and `mx.compile` treats `pos` as a runtime input (checked)
+        buf[:, :, pos] = x[:, :, 0].astype(buf.dtype)
+        return buf
+
     def cumsum(self, x, axis):
         return mx.cumsum(x, axis=axis)
 
@@ -203,6 +215,16 @@ class MlxOps(Ops):
             scale=1.0,
             offset=offset,
         )
+
+    def capture(self, fn):
+        cf = mx.compile(fn)
+
+        def run(*args):
+            out = cf(*args)
+            mx.eval(*out)
+            return out
+
+        return run
 
     def sdpa(self, q, k, v, scale, past):
         T, L = q.shape[2], k.shape[2]

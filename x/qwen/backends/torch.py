@@ -55,14 +55,58 @@ class TorchQWeight:
         )
 
 
+class CudaGraphStep:
+    """
+    CUDA-graph capture of a flat-tuple step function.
+
+    The first call runs the function twice on a side stream (cuBLAS/cuDNN lazy init must not happen inside a
+    capture), then captures it against the argument tensors it was given. Those tensors become the graph's
+    static inputs: later calls `copy_` new arguments into them (skipping arguments that already *are* the static
+    tensors, which is what `kv_write`'s in-place return gives us for the KV buffers), replay, and hand back the
+    graph's output tensors. Outputs are overwritten by the next replay, so a caller that keeps state must feed the
+    outputs straight back in -- the copy into the static inputs is what carries it forward.
+    """
+
+    def __init__(self, fn, use_graph: bool = True) -> None:
+        self.fn = fn
+        self.use_graph = use_graph  # False: same static-input protocol, no graph (testable on CPU)
+        self.graph: torch.cuda.CUDAGraph | None = None
+        self.static_in: list[torch.Tensor] = []
+        self.static_out: tuple[torch.Tensor, ...] = ()
+
+    def __call__(self, *args):
+        if not self.static_in:
+            self.static_in = list(args)
+            if not self.use_graph:
+                return tuple(self.fn(*self.static_in))
+            s = torch.cuda.Stream()
+            s.wait_stream(torch.cuda.current_stream())
+            with torch.cuda.stream(s):
+                for _ in range(2):
+                    self.fn(*self.static_in)
+            torch.cuda.current_stream().wait_stream(s)
+            self.graph = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(self.graph):
+                self.static_out = tuple(self.fn(*self.static_in))
+            return self.static_out
+        for dst, src in zip(self.static_in, args):
+            if src is not dst:
+                dst.copy_(src)
+        if not self.use_graph:
+            return tuple(self.fn(*self.static_in))
+        self.graph.replay()
+        return self.static_out
+
+
 class TorchOps(Ops):
     name = 'torch'
 
-    def __init__(self, device: str | torch.device = 'cpu') -> None:
+    def __init__(self, device: str | torch.device = 'cpu', capture_mode: str = 'auto') -> None:
         super().__init__()
 
         self.device = torch.device(device)
         self.name = f'torch:{self.device}'
+        self.capture_mode = capture_mode  # 'auto' (graph on cuda, plain elsewhere) | 'graph' | 'static' | 'plain'
 
     def dtype(self, name):
         return DTYPES[name]
@@ -116,6 +160,17 @@ class TorchOps(Ops):
 
     def repeat(self, x, n, axis):
         return x.repeat_interleave(n, dim=axis)
+
+    def arange(self, n):
+        return torch.arange(n, dtype=torch.int32, device=self.device)
+
+    def scalar(self, v):
+        return torch.tensor(v, dtype=torch.int32, device=self.device)
+
+    def kv_write(self, buf, pos, x):
+        # in place, so a captured graph keeps writing into the same storage
+        buf.index_copy_(2, pos.reshape(1).to(torch.int64), x.to(buf.dtype))
+        return buf
 
     def cumsum(self, x, axis):
         return torch.cumsum(x, dim=axis)
@@ -223,6 +278,14 @@ class TorchOps(Ops):
 
     def conv1d_causal(self, x, w):
         return F.conv1d(x, w[:, None, :], groups=w.shape[0])
+
+    def capture(self, fn):
+        mode = self.capture_mode
+        if mode == 'auto':
+            mode = 'graph' if self.device.type == 'cuda' else 'plain'
+        if mode == 'plain':
+            return fn
+        return CudaGraphStep(fn, use_graph=(mode == 'graph'))
 
     def rope(
             self,

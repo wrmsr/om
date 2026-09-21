@@ -16,6 +16,7 @@ import typing as ta
 import numpy as np
 from tinygrad import Device
 from tinygrad import Tensor
+from tinygrad import TinyJit
 from tinygrad import dtypes
 
 from ..ops import Ops
@@ -125,6 +126,15 @@ class TinygradOps(Ops):
     def repeat(self, x, n, axis):
         return x.repeat_interleave(n, dim=axis)
 
+    def arange(self, n):
+        return Tensor.arange(n, dtype=dtypes.int32).to(self.device).realize()
+
+    def scalar(self, v):
+        return Tensor([v], dtype=dtypes.int32).to(self.device).reshape(()).contiguous().realize()
+
+    # kv_write: the reference masked blend. tinygrad's `__setitem__` bakes a tensor index into the JIT-recorded
+    # kernels (verified: replays keep writing the captured position), so the functional form is the safe one.
+
     def cumsum(self, x, axis):
         return x.cumsum(axis)
 
@@ -202,6 +212,17 @@ class TinygradOps(Ops):
     def conv1d_causal(self, x, w):
         C, K = w.shape
         return x.conv2d(w.reshape(C, 1, K), groups=C)
+
+    def capture(self, fn):
+        jit = TinyJit(fn)
+
+        def run(*args):
+            # JIT inputs must be real, non-virtual buffers, and its outputs are overwritten by the next call, so
+            # everything is cloned on the way in and out. Correct; not fast. Buffer donation is the follow-up.
+            args = [a.clone().realize() if isinstance(a, Tensor) else a for a in args]
+            return tuple(o.clone().realize() for o in jit(*args))
+
+        return run
 
     def rope(
             self,

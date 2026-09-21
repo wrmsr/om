@@ -88,6 +88,11 @@ def main() -> None:
         default=None,
         help='keep linear weights quantized on device (weight-only affine, group 64); default: none',
     )
+    ap.add_argument(
+        '--functional',
+        action='store_true',
+        help='decode with the growing functional cache instead of the captured static step (reference path)',
+    )
     args = ap.parse_args()
 
     ops = make_ops(args.backend, args.device)
@@ -143,6 +148,7 @@ def main() -> None:
         max_new_tokens=args.max_new_tokens,
         eos_ids=eos,
         on_token=on_token,
+        static=not args.functional,
     )
     sys.stdout.write(streamer.flush())
     dt = time.time() - t0

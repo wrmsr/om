@@ -97,6 +97,41 @@ class Attention:
         o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, T, H * D)))), o.dtype)
         return ops.linear(o, self.wo), (k, v)
 
+    def decode(
+            self,
+            ops: Ops,
+            x: Array,
+            pos: Array,
+            ar: Array,
+            cos: Array,
+            sin: Array,
+            state: FullState,
+    ) -> tuple[Array, FullState]:
+        """One token against fixed-capacity KV buffers. x: [B, 1, hidden]; pos: 0-d int array; ar: arange(L);
+        cos, sin: [1, rope_dim] rows for `pos`; state: (kbuf, vbuf) [B, KV, L, D]. Every shape is static."""
+
+        c = self.cfg
+        B = x.shape[0]
+        H = c.num_heads
+        KV = c.num_kv_heads
+        D = c.head_dim
+        qg = ops.reshape(ops.linear(x, self.wq), (B, 1, H, 2 * D))
+        q = qg[..., :D]
+        gate = qg[..., D:]
+        k = ops.reshape(ops.linear(x, self.wk), (B, 1, KV, D))
+        v = ops.reshape(ops.linear(x, self.wv), (B, 1, KV, D))
+        q = ops.transpose(ops.rms_norm(q, self.q_norm, c.rms_eps), (0, 2, 1, 3))  # [B,H,1,D]
+        k = ops.transpose(ops.rms_norm(k, self.k_norm, c.rms_eps), (0, 2, 1, 3))  # [B,KV,1,D]
+        v = ops.transpose(v, (0, 2, 1, 3))
+        q = ops.rope_with(q, cos, sin)
+        k = ops.rope_with(k, cos, sin)
+        kbuf = ops.kv_write(state[0], pos, k)
+        vbuf = ops.kv_write(state[1], pos, v)
+        o = ops.sdpa_static(q, kbuf, vbuf, pos, ar, self.scale)  # [B,H,1,D]
+        o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, 1, H * D))
+        o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, 1, H * D)))), o.dtype)
+        return ops.linear(o, self.wo), (kbuf, vbuf)
+
 
 class GatedDeltaNet:
     def __init__(self, cfg: Qwen35Config, p: dict[str, Weight]) -> None:
@@ -181,6 +216,27 @@ class Block:
         x = x + m
         x = x + self.mlp(ops, ops.rms_norm(x, self.ln2, self.eps))
         ops.tap(f'layers.{self.index}.out', x)
+        return x, state
+
+    def decode(
+            self,
+            ops: Ops,
+            x: Array,
+            pos: Array,
+            ar: Array,
+            cos: Array,
+            sin: Array,
+            state: ta.Any,
+    ) -> tuple[Array, ta.Any]:
+        """Static-shape single-token step (no taps: a captured step cannot leave the device)."""
+
+        h = ops.rms_norm(x, self.ln1, self.eps)
+        if self.kind == 'full':
+            m, state = ta.cast(Attention, self.mixer).decode(ops, h, pos, ar, cos, sin, state)
+        else:
+            m, state = ta.cast(GatedDeltaNet, self.mixer)(ops, h, state)  # T == 1 is already fixed-shape
+        x = x + m
+        x = x + self.mlp(ops, ops.rms_norm(x, self.ln2, self.eps))
         return x, state
 
 
@@ -376,18 +432,54 @@ class Qwen35:
         ops.tap('logits', logits)
         return logits
 
+    def decode_fn(
+            self,
+            ar: Array,
+            cos_tab: Array,
+            sin_tab: Array,
+    ) -> ta.Callable[..., tuple[Array, ...]]:
+        """
+        Build the static single-token step: `fn(tok, pos, *flat_state) -> (logits, *flat_state)`.
+
+        tok: [B, 1] int; pos: 0-d int; flat_state: two arrays per layer (kbuf, vbuf) or (conv, S). `ar` and the
+        rope tables are constants closed over (they must already live on the device: nothing in the step may
+        allocate from the host). Returns logits [B, V] float32. Pure apart from `kv_write`, so a backend may
+        capture it.
+        """
+
+        ops, c = self.ops, self.cfg
+
+        def fn(tok, pos, *flat):
+            cos = ops.reshape(cos_tab[pos], (1, c.rope_dim))
+            sin = ops.reshape(sin_tab[pos], (1, c.rope_dim))
+            x = ops.embedding(tok, self.embed, self.dtype)
+            out: list[Array] = []
+            for i, blk in enumerate(self.blocks):
+                x, st = blk.decode(ops, x, pos, ar, cos, sin, (flat[2 * i], flat[2 * i + 1]))
+                out.extend(st)
+            x = ops.rms_norm(x[:, -1], self.norm_w, c.rms_eps)
+            return (ops.f32(ops.linear(x, self.lm_head)), *out)
+
+        return fn
+
     def generate(
         self,
         prompt_ids: list[int],
         max_new_tokens: int = 64,
         eos_ids: set[int] | None = None,
         on_token: ta.Callable[[int], None] | None = None,
+        static: bool = True,
     ) -> list[int]:
-        """Greedy decoding with the cache. Yields token ids through on_token as they are produced."""
+        """
+        Greedy decoding. Prefill goes through `forward` (chunked); decode then runs the captured static step
+        (`static=True`, the fast path) or keeps growing the functional cache (`static=False`, the reference).
+        Yields token ids through on_token as they are produced.
+        """
 
         ops = self.ops
         cache = Cache(self.cfg)
         logits = self.forward(np.array([prompt_ids]), cache, last_only=True)
+        dec = Decoder(self, cache, capacity=len(prompt_ids) + max_new_tokens + 1) if static else None
         out: list[int] = []
         for _ in range(max_new_tokens):
             nxt = int(np.argmax(ops.numpy(logits[0, -1])))
@@ -396,5 +488,103 @@ class Qwen35:
                 on_token(nxt)
             if eos_ids and nxt in eos_ids:
                 break
-            logits = self.forward(np.array([[nxt]]), cache, last_only=True)
+            if dec is not None:
+                logits = dec.step(nxt)[:, None]
+            else:
+                logits = self.forward(np.array([[nxt]]), cache, last_only=True)
         return out
+
+
+##
+# Static decode
+
+
+def _pow2_at_least(n: int, floor: int = 8) -> int:
+    c = floor
+    while c < n:
+        c *= 2
+    return c
+
+
+class Decoder:
+    """
+    Fixed-capacity decode state plus the captured step.
+
+    Built from a `Cache` after prefill: the KV of every attention layer is copied into a zero-padded buffer of
+    `capacity` positions, the DeltaNet (conv, S) pairs are carried as-is, and the position becomes a 0-d device
+    array. `step(tok)` runs the captured `decode_fn`; the only host<->device traffic per token is the token id in
+    and the logits out. When the sequence reaches capacity the buffers are doubled and the step re-captured.
+    """
+
+    def __init__(self, model: Qwen35, cache: Cache, capacity: int | None = None) -> None:
+        if model.ops.taps is not None:
+            raise RuntimeError('taps must be off for the static decoder')
+        self.model = model
+        self.ops = model.ops
+        self.seq_len = cache.seq_len
+        self.capacity = _pow2_at_least(capacity or (cache.seq_len + 1))
+        if self.capacity <= self.seq_len:
+            self.capacity = _pow2_at_least(self.seq_len + 1)
+        self.flat: list[Array] = []
+        for st in cache.layers:
+            if st is None:
+                raise ValueError('cache has no state; run a prefill first')
+            self.flat.extend(st)
+        self._alloc(self.capacity, first=True)
+
+    def _pad_to(self, capacity: int) -> None:
+        """Zero-pad every KV buffer to `capacity` positions (no-op for buffers already that long)."""
+
+        ops, c = self.ops, self.model.cfg
+        flat: list[Array] = []
+        for i, kind in enumerate(c.layer_types):
+            a, b = self.flat[2 * i], self.flat[2 * i + 1]
+            if kind == 'full':
+                B, KV, T, D = a.shape
+                if T < capacity:
+                    pad = ops.zeros((B, KV, capacity - T, D), a.dtype)
+                    a = ops.concat([a, pad], 2)
+                    b = ops.concat([b, pad], 2)
+                elif T > capacity:
+                    raise ValueError(f'KV longer ({T}) than capacity ({capacity})')
+            flat.extend([a, b])
+        self.flat = flat
+
+    def _alloc(self, capacity: int, first: bool = False) -> None:
+        ops, c = self.ops, self.model.cfg
+        self.capacity = capacity
+        self._pad_to(capacity)
+        self.ar = ops.arange(capacity)
+        cos_np, sin_np = ops.rope_tables(0, capacity, c.rope_dim, c.rope_theta)
+        self.cos_tab = ops.array(cos_np, self.model.dtype)
+        self.sin_tab = ops.array(sin_np, self.model.dtype)
+        self.fn = ops.capture(self.model.decode_fn(self.ar, self.cos_tab, self.sin_tab))
+
+    def ensure_capacity(self, n: int) -> None:
+        if n > self.capacity:
+            self._alloc(_pow2_at_least(n))
+
+    def step(self, tok: int | list[int]) -> Array:
+        """Process the token at position `seq_len`; returns logits [B, V] float32 for the next position."""
+
+        ops = self.ops
+        self.ensure_capacity(self.seq_len + 1)
+        ids = np.asarray([tok] if isinstance(tok, int) else tok, dtype=np.int32).reshape(-1, 1)
+        out = self.fn(ops.array(ids), ops.scalar(self.seq_len), *self.flat)
+        self.flat = list(out[1:])
+        self.seq_len += 1
+        return out[0]
+
+    def snapshot(self) -> tuple[int, list[Array]]:
+        """(seq_len, copies of the state) -- the prefix-cache primitive for the static path."""
+
+        return self.seq_len, [self.ops.copy(a) for a in self.flat]
+
+    def restore(self, snap: tuple[int, list[Array]]) -> None:
+        self.seq_len, flat = snap
+        self.flat = [self.ops.copy(a) for a in flat]
+        snap_cap = max(a.shape[2] for a, kind in zip(self.flat[::2], self.model.cfg.layer_types) if kind == 'full')
+        if snap_cap > self.capacity:
+            self._alloc(snap_cap)  # snapshot taken after a growth; the step must be re-captured for its shapes
+        else:
+            self._pad_to(self.capacity)

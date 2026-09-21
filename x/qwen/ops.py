@@ -110,6 +110,26 @@ class Ops(abc.ABC):
     def repeat(self, x: Array, n: int, axis: int) -> Array:
         """repeat_interleave: each slice along `axis` repeated `n` times consecutively."""
 
+    @abc.abstractmethod
+    def arange(self, n: int) -> Array:
+        """int32 [n]."""
+
+    @abc.abstractmethod
+    def scalar(self, v: int) -> Array:
+        """A 0-d int32 array (a position index that lives on the device, so a captured step can read it)."""
+
+    def kv_write(self, buf: Array, pos: Array, x: Array) -> Array:
+        """
+        Write x [B, KV, 1, D] into buf [B, KV, L, D] at position `pos` (0-d int array) and return the buffer that
+        now holds it. Backends with mutable buffers write in place and return the same object; functional
+        backends return a new array. Callers must use the return value. The reference is a masked blend, which
+        is graph-safe everywhere but touches the whole buffer.
+        """
+
+        L = buf.shape[2]
+        oh = self.cast(self.arange(L) == pos, buf.dtype)[None, None, :, None]
+        return buf * (1 - oh) + self.cast(x, buf.dtype) * oh
+
     # elementwise / reductions
 
     @abc.abstractmethod
@@ -194,8 +214,12 @@ class Ops(abc.ABC):
         """NeoX rotate-half on the first `dims` of x: [B, H, T, D], positions offset .. offset+T."""
 
         cos_np, sin_np = self.rope_tables(offset, x.shape[2], dims, theta)
-        cos = self.array(cos_np, x.dtype)
-        sin = self.array(sin_np, x.dtype)
+        return self.rope_with(x, self.array(cos_np, x.dtype), self.array(sin_np, x.dtype))
+
+    def rope_with(self, x: Array, cos: Array, sin: Array) -> Array:
+        """rotate-half with explicit tables cos, sin: [T, dims] (T == x.shape[2])."""
+
+        dims = cos.shape[-1]
         xr = x[..., :dims]
         xp = x[..., dims:]
         half = dims // 2
@@ -375,6 +399,33 @@ class Ops(abc.ABC):
             out = out[:, :, :T]
         return out, S
 
+    def sdpa_static(self, q: Array, kbuf: Array, vbuf: Array, pos: Array, ar: Array, scale: float) -> Array:
+        """
+        One-token attention against a fixed-capacity KV buffer. q: [B, H, 1, D]; kbuf, vbuf: [B, KV, L, D] with
+        positions 0..pos valid; ar: arange(L); pos: 0-d int array. Grouped-query heads are folded into the
+        matmul batch so the buffer is never repeated. Scores are masked additively and softmaxed in float32;
+        every shape is independent of `pos`, which is what lets a backend capture the whole step.
+        """
+
+        B, H, _, D = q.shape
+        KV, L = kbuf.shape[1], kbuf.shape[2]
+        G = H // KV
+        qg = self.reshape(q, (B, KV, G, D))
+        scores = self.f32(qg @ self.transpose(kbuf, (0, 1, 3, 2))) * scale  # [B, KV, G, L]
+        mask = self.cast(ar > pos, self.dtype('f32')) * -1e30
+        p = self.softmax(scores + mask[None, None, None, :], -1)
+        o = self.cast(p, vbuf.dtype) @ vbuf  # [B, KV, G, D]
+        return self.reshape(o, (B, H, 1, D))
+
+    def capture(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
+        """
+        Make a static-shape step callable fast: CUDA graphs on torch, `mx.compile` on MLX, `TinyJit` on tinygrad.
+        `fn` takes and returns flat tuples of arrays and must be pure apart from `kv_write`. Returned arrays are
+        only valid until the next call. The default is the identity.
+        """
+
+        return fn
+
     # instrumentation
 
     def tap(self, name: str, x: Array) -> None:
@@ -438,6 +489,16 @@ class NumpyOps(Ops):
 
     def repeat(self, x, n, axis):
         return np.repeat(x, n, axis=axis)
+
+    def arange(self, n):
+        return np.arange(n, dtype=np.int32)
+
+    def scalar(self, v):
+        return np.array(v, dtype=np.int32)
+
+    def kv_write(self, buf, pos, x):
+        buf[:, :, int(pos)] = x[:, :, 0]
+        return buf
 
     def cumsum(self, x, axis):
         return np.cumsum(x, axis=axis)

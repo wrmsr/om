@@ -165,6 +165,47 @@ def test_gated_delta_parity():
         print(f'{ops.name}: chunked gated delta vs f64 recurrence: out {e_out:.1e}, state {e_state:.1e}')
 
 
+def test_static_decode_parity():
+    """The captured fixed-capacity decode step == the functional cached decode == the numpy golden one-shot
+    forward, per backend, including a capacity doubling mid-sequence and snapshot/restore."""
+
+    from ..model import Decoder
+
+    cfg, hf, src = synthetic_source()
+    ids = np.random.default_rng(4).integers(0, 256, (1, 14))
+    n_prompt = 5
+    gold = Qwen35.from_source(src, NumpyOps(), dtype='f32', verbose=False)
+    gold_logits = gold.forward(ids)[0]  # [T, V]
+
+    for ops in backends():
+        if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
+            ops.capture_mode = 'static'  # exercise the CUDA-graph static-input protocol without a GPU
+        model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+        cache = Cache(cfg)
+        model.forward(ids[:, :n_prompt], cache)
+        dec = Decoder(model, cache, capacity=8)  # 5 prompt tokens; grows past 8 partway through
+        got = []
+        for t in range(n_prompt, ids.shape[1]):
+            if t == n_prompt + 2:
+                snap = dec.snapshot()
+            got.append(ops.numpy(dec.step(int(ids[0, t]))))
+        got = np.concatenate(got, 0)  # logits after tokens n_prompt .. T-1
+        e = rel_err(got, gold_logits[n_prompt:])
+        assert e < 2e-4, (ops.name, e)
+        # restore the snapshot and re-run the tail: identical
+        dec.restore(snap)
+        again = [ops.numpy(dec.step(int(ids[0, t]))) for t in range(n_prompt + 2, ids.shape[1])]
+        assert np.abs(np.concatenate(again, 0) - got[2:]).max() < 1e-5, ops.name
+        print(f'{ops.name}: static decode step vs golden rel err {e:.1e} (capacity grew to {dec.capacity})')
+
+        # generate() static path == generate() functional path
+        a = model.generate(ids[0, :n_prompt].tolist(), max_new_tokens=6, static=True)
+        b = model.generate(ids[0, :n_prompt].tolist(), max_new_tokens=6, static=False)
+        assert a == b, (ops.name, a, b)
+        if hasattr(ops, 'capture_mode'):
+            ops.capture_mode = 'auto'
+
+
 def test_qweight_parity():
     rng = np.random.default_rng(1)
     w = (rng.standard_normal((96, 256)) * 0.05).astype(np.float32)

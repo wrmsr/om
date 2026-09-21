@@ -42,8 +42,7 @@ python -m x.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --d
 ```
 
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path. `--backend`
-defaults to mlx on macOS when it is installed, torch otherwise; `tinygrad` works but without a `TinyJit`-wrapped
-decode step it recompiles kernels every token (see below); `numpy` is the (slow) reference.
+defaults to mlx on macOS when it is installed, torch otherwise; `numpy` is the (slow) reference.
 
 ## The Ops seam
 
@@ -57,16 +56,39 @@ second tier; `test_parity.py` checks every backend against the numpy float64 gol
 
 Rules the shared code follows (and any new shared code must): no item assignment, no in-place ops, functional
 state (`mixer(x, state) -> (y, state)`), explicit `ops.f32()` where accumulation must be f32, control flow on
-shapes only. Those are exactly the constraints `mx.compile` / CUDA graphs will need later.
+shapes only. Those are exactly the constraints the captured decode step relies on (below).
 
 The gated delta rule has two composed forms behind `Ops.gated_delta`: the per-token recurrence (used for decode,
 T == 1) and a chunked WY form (used for prefill) that does everything inside a 64-token chunk as batched matmuls
 and carries the state across chunks, so a prompt costs O(T/64) sequential steps instead of O(T). The per-chunk
 triangular inverse is a Neumann product (exact, since the matrix is nilpotent), which keeps it item-assignment
 free and graph-friendly. On lazy backends (MLX, tinygrad) this is what makes prefill viable at all: the recurrence
-would build a T-step graph. tinygrad additionally compiles a kernel per distinct shape, and the growing KV cache
-changes shapes every decode step, so until the decode step has static buffers and a `TinyJit` around it, expect
-seconds per token there (prefill is fine once its kernels are cached).
+would build a T-step graph.
+
+## The static decode step
+
+Prefill runs through `forward` with the functional, growing `Cache`. Decode then moves to `Decoder`
+(`model.py`), whose state has shapes that never change: per attention layer a zero-padded KV buffer of `capacity`
+positions (`ops.kv_write` puts the new token at `pos`, `ops.sdpa_static` attends over the whole buffer with an
+additive mask from `arange > pos`, grouped-query heads folded into the matmul batch so nothing is repeated), per
+DeltaNet layer the fixed-size `(conv, S)` pair, plus a 0-d device position and precomputed RoPE tables gathered by
+`pos`. `Qwen35.decode_fn` builds the step as a pure function `fn(tok, pos, *flat_state) -> (logits, *flat_state)`
+and `ops.capture` makes it fast:
+
+- torch on CUDA: `CudaGraphStep` -- two warm-up runs on a side stream, capture against the argument tensors, then
+  replay with `copy_` into the static inputs (skipped for the KV buffers, which `kv_write` mutates in place); a
+  27B step becomes one graph launch instead of ~700 kernel launches. `capture_mode='static'` runs the same
+  protocol without a graph, which is how it is tested on CPU.
+- MLX: `mx.compile` (the setitem index is a runtime input; verified).
+- tinygrad: `TinyJit`, with inputs and outputs cloned each call because JIT buffers are reused (correct, not yet
+  fast; `__setitem__` bakes the index into recorded kernels, so `kv_write` stays the masked-blend reference there).
+
+`Decoder.step(tok)` moves one token id in and the logits out per token; `snapshot()` / `restore()` are the
+prefix-cache primitives (restore re-pads or re-captures across a capacity change); when the sequence reaches
+`capacity` the buffers double and the step is re-captured. Attention reads the full buffer every step, so cost
+tracks the power-of-two capacity, not the live length -- at 32 KB/token that is ~1 GB per step at 32k, fine
+against 15 GB of weights. `test_parity.py::test_static_decode_parity` checks the step against the golden forward on
+every backend, through a growth and a restore. `--functional` in `generate` selects the old path for comparison.
 
 Instrumentation: set `ops.taps = {}` and every `ops.tap(name, x)` in the model records a numpy copy (embedding,
 each block's mixer output and block output, final norm, logits). Wrapping an `Ops` is the general mechanism --
@@ -128,14 +150,12 @@ Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only
 
 ## Where to go next (in order)
 
-1. **Static-shape decode step** — preallocated KV buffers + a position index, so the step can be captured
-   (`TinyJit`, `mx.compile`, CUDA graphs). Chunked prefill is done; this is what unlocks decode speed on all
-   three accelerated backends at once.
+1. **Fused int4 GEMV (torch)** — the raw step rate is now launch-overhead free on CUDA; the next factor of two is
+   dequant traffic in `TorchQWeight.linear` (a Triton kernel slots into `TorchOps.linear`).
 2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
-3. **Fused quantized matmuls (torch)** — `TorchQWeight.linear` expands to bf16 per call; MLX already fuses. A fused int4/int8 kernel
-   (or carrying the GGUF Q4_K/Q8_0 blocks as-is and writing the dot kernels) buys back decode bandwidth
-   and, for the GGUF path, removes the double quantization.
+3. **MTP speculative decoding** — the 27B checkpoints carry a one-layer draft head; verify is a captured T=4 step
+   and rollback is `Decoder.restore` of a pre-verify snapshot.
 4. **Serving** — `Qwen35.generate` is the whole inference loop; wrap it in whatever HTTP layer you like.
 
 MoE variants (`qwen35moe`) and the vision tower are deliberately not supported.
