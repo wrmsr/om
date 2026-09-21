@@ -11,8 +11,14 @@ scale, bias [N, K // GROUP] in the compute dtype; w = q * scale + bias.
 Each program computes a [BLOCK_M, BLOCK_N] output tile over the whole K axis. BLOCK_M is 16 (the tensor-core
 minimum); rows beyond M are masked to zero, so M == 1 runs the same code and simply wastes lanes it was not going
 to use anyway. For int4 the even and odd elements are two separate `tl.dot`s against the low- and high-nibble
-planes, which avoids interleaving in registers. Larger M (prefill) is compute-bound and should keep using
-dequant + cuBLAS; `TorchOps.linear` switches at `triton_max_m`.
+planes, which avoids interleaving in registers. Scales are loaded once per group ([BLOCK_N, groups per block])
+and broadcast over the group through a reshape, never gathered per element. Larger M (prefill) is compute-bound
+and should keep using dequant + cuBLAS; `TorchOps.linear` switches at `triton_max_m`.
+
+Shared memory: the software pipeline stages every load that feeds a `tl.dot`, so the per-stage footprint is the
+x tiles plus the dequantized weight tiles in the activation dtype. At BLOCK_N=32, BLOCK_K=128 that is ~14 KB (bf16)
+or ~26 KB (f32) per stage; consumer Blackwell (sm_120) allows ~99 KB per block, so BLOCK_K=256 with 3 stages in
+f32 does not fit -- keep BLOCK_K at 128 and let f32 use 2 stages.
 
 With `TRITON_INTERPRET=1` the kernel runs on CPU through Triton's numpy interpreter (slow, f32 only), which is
 how `tests/test_triton.py` checks it without a GPU.
@@ -33,6 +39,10 @@ except ImportError:  # pragma: no cover
 
 
 HAVE_TRITON = triton is not None
+
+# (dtype, bits) -> (block_k, num_stages) that compiled; filled in by `qlinear` when a launch runs out of shared
+# memory and a smaller configuration is tried instead
+_RESOLVED: dict[tuple[ta.Any, int], tuple[int, int]] = {}
 
 
 if HAVE_TRITON:
@@ -65,20 +75,26 @@ if HAVE_TRITON:
         n_groups = K // GROUP
         acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
 
+        G: tl.constexpr = BLOCK_K // GROUP  # groups per K block
+        rg = tl.arange(0, G)
+
         if BITS == 4:
             KB: tl.constexpr = BLOCK_K // 2  # packed bytes per row per block
+            GB: tl.constexpr = GROUP // 2  # packed bytes per group
             rb = tl.arange(0, KB)
             for k0 in range(0, K, BLOCK_K):
                 kb = k0 // 2 + rb  # byte columns
                 ke = k0 + 2 * rb  # even element columns; odd = ke + 1
-                g = ke // GROUP
+                gcol = k0 // GROUP + rg  # [G] group columns of the scale plane
                 q = tl.load(q_ptr + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
-                s = tl.load(s_ptr + rn[:, None] * n_groups + g[None, :], mask=n_mask[:, None], other=0.0)
-                b = tl.load(b_ptr + rn[:, None] * n_groups + g[None, :], mask=n_mask[:, None], other=0.0)
-                s = s.to(tl.float32)
-                b = b.to(tl.float32)
-                lo = (q & 0xF).to(tl.float32) * s + b  # [BLOCK_N, KB]  w[:, even]
-                hi = (q >> 4).to(tl.float32) * s + b  # [BLOCK_N, KB]  w[:, odd]
+                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                s = s.to(tl.float32)[:, :, None]  # [BLOCK_N, G, 1]
+                b = b.to(tl.float32)[:, :, None]
+                lo = tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b
+                hi = tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b
+                lo = tl.reshape(lo, (BLOCK_N, KB))  # w[:, even]
+                hi = tl.reshape(hi, (BLOCK_N, KB))  # w[:, odd]
                 xe = tl.load(x_ptr + rm[:, None] * stride_xm + ke[None, :], mask=m_mask[:, None], other=0.0)
                 xo = tl.load(x_ptr + rm[:, None] * stride_xm + (ke + 1)[None, :], mask=m_mask[:, None], other=0.0)
                 if IEEE:
@@ -91,11 +107,14 @@ if HAVE_TRITON:
             rk0 = tl.arange(0, BLOCK_K)
             for k0 in range(0, K, BLOCK_K):
                 rk = k0 + rk0
-                g = rk // GROUP
+                gcol = k0 // GROUP + rg
                 q = tl.load(q_ptr + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
-                s = tl.load(s_ptr + rn[:, None] * n_groups + g[None, :], mask=n_mask[:, None], other=0.0)
-                b = tl.load(b_ptr + rn[:, None] * n_groups + g[None, :], mask=n_mask[:, None], other=0.0)
-                w = q.to(tl.float32) * s.to(tl.float32) + b.to(tl.float32)  # [BLOCK_N, BLOCK_K]
+                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                s = s.to(tl.float32)[:, :, None]
+                b = b.to(tl.float32)[:, :, None]
+                w = tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b
+                w = tl.reshape(w, (BLOCK_N, BLOCK_K))
                 xt = tl.load(x_ptr + rm[:, None] * stride_xm + rk[None, :], mask=m_mask[:, None], other=0.0)
                 if IEEE:
                     acc = tl.dot(xt, tl.trans(w.to(xt.dtype)), acc, input_precision='ieee')
@@ -106,9 +125,9 @@ if HAVE_TRITON:
         tl.store(y_ptr + rm[:, None] * stride_ym + rn[None, :], y, mask=m_mask[:, None] & n_mask[None, :])
 
 
-def _block_k(k: int) -> int:
+def _block_k(k: int, cap: int = 128) -> int:
     for bk in (256, 128, 64):
-        if k % bk == 0:
+        if bk <= cap and k % bk == 0:
             return bk
     raise ValueError(f'K={k} is not a multiple of 64')
 
@@ -122,14 +141,16 @@ def qlinear(
         group: int,
         shape: tuple[int, int],
         block_n: int | None = None,
+        block_k: int | None = None,
         num_warps: int = 4,
+        num_stages: int | None = None,
 ) -> torch.Tensor:
     """
     x [..., K] @ w.T -> [..., N] in x's dtype, w given as packed codes + per-group scale/bias.
 
     block_n defaults to 32 for narrow outputs (a 5120-wide projection is only 160 programs even then; a split-K
-    variant is the next step for those) and 64 otherwise. These two knobs and `num_warps` are untuned guesses --
-    sweep them on the target GPU.
+    variant is the next step for those) and 64 otherwise; block_k to 128 (see the shared-memory note above);
+    num_stages to 3 for 16-bit activations and 2 for f32. All untuned guesses -- sweep them on the target GPU.
     """
 
     if not HAVE_TRITON:
@@ -137,29 +158,47 @@ def qlinear(
     n, k = shape
     if block_n is None:
         block_n = 32 if n <= 8192 else 64
+    key = (x.dtype, bits)
+    if block_k is None and num_stages is None and key in _RESOLVED:
+        block_k, num_stages = _RESOLVED[key]
+    if num_stages is None:
+        num_stages = 2 if x.dtype == torch.float32 else 3
     x2 = x.reshape(-1, k)
     if x2.stride(1) != 1:
         x2 = x2.contiguous()
     m = x2.shape[0]
     y = torch.empty((m, n), dtype=x.dtype, device=x.device)
     grid = (triton.cdiv(n, block_n), triton.cdiv(m, 16))
-    _qlinear_kernel[grid](
-        x2,
-        q,
-        scale,
-        bias,
-        y,
-        m,
-        n,
-        k,
-        x2.stride(0),
-        y.stride(0),
-        BITS=bits,
-        GROUP=group,
-        BLOCK_M=16,
-        BLOCK_N=block_n,
-        BLOCK_K=_block_k(k),
-        IEEE=(x.dtype == torch.float32),
-        num_warps=num_warps,
-    )
-    return y.reshape(*x.shape[:-1], n)
+    bk = _block_k(k, block_k or 128)
+    while True:
+        try:
+            _qlinear_kernel[grid](
+                x2,
+                q,
+                scale,
+                bias,
+                y,
+                m,
+                n,
+                k,
+                x2.stride(0),
+                y.stride(0),
+                BITS=bits,
+                GROUP=group,
+                BLOCK_M=16,
+                BLOCK_N=block_n,
+                BLOCK_K=bk,
+                IEEE=(x.dtype == torch.float32),
+                num_warps=num_warps,
+                num_stages=num_stages,
+            )
+            _RESOLVED.setdefault(key, (bk, num_stages))
+            return y.reshape(*x.shape[:-1], n)
+        except triton.runtime.errors.OutOfResources:
+            # shared memory: shrink the stage first, then the pipeline depth
+            if bk > 64 and k % (bk // 2) == 0:
+                bk //= 2
+            elif num_stages > 1:
+                num_stages -= 1
+            else:
+                raise
