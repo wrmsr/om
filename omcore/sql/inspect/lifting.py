@@ -27,13 +27,10 @@ def lift_reflected_table(
 
     els: list[Element] = []
 
-    pk: list[str] = []
     for rc in reflected.columns:
         els.append(Column(rc.name, lift_dtype(rc), nullable=rc.nullable))
-        if rc.primary_key:
-            pk.append(rc.name)
-    if pk:
-        els.append(PrimaryKey(pk))
+    if reflected.primary_key:
+        els.append(PrimaryKey(reflected.primary_key))
 
     for ri in reflected.indexes:
         els.append(Index(ri.columns, name=ri.name, unique=ri.unique))

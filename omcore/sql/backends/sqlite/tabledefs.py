@@ -15,6 +15,7 @@ from ...tabledefs.elements import Index
 from ...tabledefs.elements import PrimaryKey
 from ...tabledefs.elements import UpdatedAtTrigger
 from ...tabledefs.elements import index_name
+from ...tabledefs.lower import cluster_on_primary_key
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
@@ -112,6 +113,10 @@ class SqliteTabledefRenderer(Renderer):
         if isinstance(v, Now):
             return f'({SQLITE_NOW_SQL})'  # a default which is an expression, not a keyword or a literal, goes in parens
         return super().render_default(v)
+
+    def physical_table(self, tbl: TableDef) -> TableDef:
+        # A table without a rowid is its primary key's b-tree, and there is no other way to say what order it is in.
+        return cluster_on_primary_key(tbl)
 
     def table_suffixes(self, tbl: TableDef, identity_column: str | None) -> list[str]:
         # A single integer-pk column is sqlite's implicit rowid; otherwise the table is WITHOUT ROWID.

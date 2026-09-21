@@ -12,6 +12,7 @@ from ...syntax import QuoteStyles
 from ...tabledefs.diffing import AlterColumn
 from ...tabledefs.elements import Column
 from ...tabledefs.elements import UpdatedAtTrigger
+from ...tabledefs.lower import cluster_on_primary_key
 from ...tabledefs.rendering import RenderColumn
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
@@ -129,6 +130,10 @@ class MysqlTabledefRenderer(Renderer):
             parts.append(rc.identity)
         parts.extend(rc.extra)
         return ' '.join(parts)
+
+    def physical_table(self, tbl: TableDef) -> TableDef:
+        # An innodb table is its primary key's index, and there is no other way to say what order it is in.
+        return cluster_on_primary_key(tbl)
 
     def drop_index_statement(self, table_name: QualifiedName, name: str) -> str:
         # Mysql scopes index names to their table rather than their schema.

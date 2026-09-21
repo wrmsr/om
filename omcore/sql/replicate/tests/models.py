@@ -1,4 +1,8 @@
-"""The yelp-like demo schema, keyed by uuids as replicated tables must be, plus a table exercising every dtype."""
+"""
+The yelp-like demo schema, keyed by uuids as replicated tables must be, plus a table exercising every dtype - and one of
+them clustered.
+"""
+from .... import typedvalues as tv
 from ...dtypes import BOOLEAN
 from ...dtypes import BYTES
 from ...dtypes import DATETIME
@@ -9,6 +13,7 @@ from ...dtypes import Integer
 from ...tabledefs.elements import Column
 from ...tabledefs.elements import Index
 from ...tabledefs.elements import PrimaryKey
+from ...tabledefs.options import Clustered
 from ...tabledefs.tabledefs import table_def
 from ..config import ReplicationSchema
 
@@ -25,13 +30,15 @@ def build_schema() -> ReplicationSchema:
             Column('name', STRING),
             Index(['name']),
         ),
+        # Clustered on other than its key, which on some dialects makes that key no longer its primary key where it
+        # counts - while it is still by that key that it is captured, and applied.
         table_def(
             'business_categories',
             Column('id', UUID),
             PrimaryKey(['id']),
             Column('business_id', UUID),
             Column('tag', STRING),
-            Index(['business_id']),
+            Index(['business_id', 'tag'], unique=True, options=tv.TypedValues(Clustered())),
         ),
         table_def(
             'users',

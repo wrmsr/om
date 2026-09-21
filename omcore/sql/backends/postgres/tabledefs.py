@@ -1,5 +1,7 @@
 import typing as ta
 
+from .... import dataclasses as dc
+from .... import typedvalues as tv
 from ...dtypes import Boolean
 from ...dtypes import Bytes
 from ...dtypes import Datetime
@@ -10,7 +12,10 @@ from ...dtypes import Uuid
 from ...qualifiedname import QualifiedName
 from ...tabledefs.diffing import AlterColumn
 from ...tabledefs.elements import Column
+from ...tabledefs.elements import Index
 from ...tabledefs.elements import UpdatedAtTrigger
+from ...tabledefs.elements import index_name
+from ...tabledefs.options import Clustered
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
@@ -131,6 +136,21 @@ class PostgresTabledefRenderer(Renderer):
 
     def drop_statement(self, tbl: TableDef) -> str:
         return f'drop table if exists {self.qname(tbl.name)} cascade'
+
+    def index_statements(self, table_name: QualifiedName, e: Index, opts: Renderer.CreateOptions) -> list[str]:
+        if Clustered not in e.options:
+            return super().index_statements(table_name, e, opts)
+
+        # A postgres table is a heap, which nothing keeps in any order - not even that of its primary key, so there is
+        # no other shape to give it. The most there is to do is to mark the index as the one to cluster on: a `cluster`
+        # then puts the table in its order, as of then, and what comes after lands wherever it fits.
+        stmts = super().index_statements(
+            table_name,
+            dc.replace(e, options=tv.TypedValues(*(o for o in e.options if not isinstance(o, Clustered)))),
+            opts,
+        )
+        stmts.append(f'alter table {self.qname(table_name)} cluster on {self.quote_ident(index_name(table_name, e))}')
+        return stmts
 
     def alter_column_statements(self, op: AlterColumn) -> list[str]:
         c = op.column

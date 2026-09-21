@@ -37,6 +37,9 @@ async def migrate_table(
     Bring the live table named by `table` into line with the in-code definition: create it wholesale if absent,
     otherwise reflect it, diff the in-code definition against the reflection, and apply the resulting migration ops.
 
+    The diff is of the table as the backend holds it - its physical form, which is what the reflection is of - while
+    the triggers it adds are rendered against the definition.
+
     Async-only, like the inspector it drives: a sync caller wraps its db/conn and runs this through `lang.sync_await`.
     Limited to the diff's supported subset (column add/drop/alter, named-index add/drop, trigger add/drop by name);
     primary-key changes are refused rather than mis-migrated.
@@ -50,7 +53,11 @@ async def migrate_table(
             await qf.exec(querier, s)
         return TableMigration(table.name, created=True)
 
-    ops = diff_table(table, inspector.lift_table(reflected))
+    ops = diff_table(
+        renderer.physical_table(table),
+        inspector.lift_table(reflected),
+        trigger_table=table,
+    )
     for op in ops:
         for s in renderer.render_migration(op):
             await qf.exec(querier, s)

@@ -79,6 +79,11 @@ from .diffing import (  # noqa
 )
 
 from .lower import (  # noqa
+    ClusteredIndexError,
+
+    clustered_index,
+    cluster_on_primary_key,
+
     lower_table_elements,
     normalize_table,
     select_backend_options,
@@ -94,6 +99,8 @@ from .options import (  # noqa
     ColumnOptions,
     IndexOptions,
     TableOptions,
+
+    Clustered,
 )
 
 from ..syntax import (  # noqa

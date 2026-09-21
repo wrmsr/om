@@ -23,6 +23,7 @@ from .elements import Index
 from .elements import PrimaryKey
 from .elements import Trigger
 from .elements import index_name
+from .lower import clustered_index
 from .predicates import And
 from .predicates import Compare
 from .predicates import IsNull
@@ -167,6 +168,16 @@ class Renderer(lang.Abstract):
     def table_suffixes(self, tbl: TableDef, identity_column: str | None) -> list[str]:
         return []
 
+    def physical_table(self, tbl: TableDef) -> TableDef:
+        """
+        The table as this backend holds it, where that is not as it is defined - a clustered one, on a backend which can
+        only cluster on the primary key. It is the physical table which is created, and which reflection will see, so it
+        is the one a definition is diffed as; its triggers though are rendered against the definition.
+        """
+
+        clustered_index(tbl)
+        return tbl
+
     def drop_statement(self, tbl: TableDef) -> str:
         return f'drop table if exists {self.qname(tbl.name)}'
 
@@ -192,6 +203,10 @@ class Renderer(lang.Abstract):
             out.write(f' where {self.render_predicate(e.where)}')
         out.write('\n')
         return out.getvalue()
+
+    def index_statements(self, table_name: QualifiedName, e: Index, opts: CreateOptions) -> list[str]:
+        # All it takes to have the index, which for some is more than creating it.
+        return [self.index_statement(table_name, e, opts)]
 
     def drop_index_statement(self, table_name: QualifiedName, name: str) -> str:
         # An index lives in its table's schema, so a drop must qualify it the same way.
@@ -287,18 +302,21 @@ class Renderer(lang.Abstract):
 
         self.consume_table_options(tbl)
 
+        # Everything from here on is of the physical table, but for the triggers, which get the one that was given.
+        ptbl = self.physical_table(tbl)
+
         cols: ta.Mapping[str, Column] = col.make_map_by(
             lambda c: c.name,
-            tbl.elements[Column],
+            ptbl.elements[Column],
             strict=True,
         )
 
-        pk = tbl.elements.get(PrimaryKey)
+        pk = ptbl.elements.get(PrimaryKey)
         identity_column = self._identity_column(cols, pk)
 
         # Columns participating in an index or the primary key - some backends (mysql) must give an indexed string a
         # bounded varchar length rather than an un-indexable text type.
-        indexed_cols = {cn for i in tbl.elements.get(Index, ()) for cn in i.columns}
+        indexed_cols = {cn for i in ptbl.elements.get(Index, ()) for cn in i.columns}
         if pk is not None:
             indexed_cols.update(pk.columns)
 
@@ -315,7 +333,7 @@ class Renderer(lang.Abstract):
         indexes: list[str] = []
         triggers: list[str] = []
 
-        for e in tbl.elements:
+        for e in ptbl.elements:
             if isinstance(e, Column):
                 pass  # Already handled
 
@@ -327,7 +345,7 @@ class Renderer(lang.Abstract):
                 triggers.extend(self.trigger_create_statements(tbl, e, opts))
 
             elif isinstance(e, Index):
-                indexes.append(self.index_statement(tbl.name, e, opts))
+                indexes.extend(self.index_statements(tbl.name, e, opts))
 
             else:
                 raise TypeError(e)
@@ -357,7 +375,7 @@ class Renderer(lang.Abstract):
 
         cts.write(')')
 
-        for sfx in self.table_suffixes(tbl, identity_column):
+        for sfx in self.table_suffixes(ptbl, identity_column):
             cts.write('\n')
             cts.write(sfx)
 
@@ -395,7 +413,7 @@ class Renderer(lang.Abstract):
         elif isinstance(op, AlterColumn):
             return self.alter_column_statements(op)
         elif isinstance(op, AddIndex):
-            return [self.index_statement(op.table, op.index, opts)]
+            return self.index_statements(op.table, op.index, opts)
         elif isinstance(op, DropIndex):
             return [self.drop_index_statement(op.table, op.name)]
         elif isinstance(op, AddTrigger):

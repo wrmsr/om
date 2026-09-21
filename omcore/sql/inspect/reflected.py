@@ -22,7 +22,6 @@ class ReflectedColumn(lang.Final):
     _: dc.KW_ONLY
 
     nullable: bool = True
-    primary_key: bool = False
     length: int | None = None  # a bounded character length, when the db reports one
 
 
@@ -48,5 +47,6 @@ class ReflectedTable(lang.Final):
 
     _: dc.KW_ONLY
 
+    primary_key: ta.Sequence[str] = ()  # in the key's own order, which need not be the columns'
     indexes: ta.Sequence[ReflectedIndex] = ()
     triggers: ta.Sequence[ReflectedTrigger] = ()

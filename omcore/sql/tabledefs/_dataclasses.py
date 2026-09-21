@@ -768,6 +768,7 @@ def _process_dataclass__d9f666669ebcabaafab5e42c8d4335568ad125c5():
         ('omcore.sql.tabledefs.elements', 'IdIntegerPrimaryKey'),
         ('omcore.sql.tabledefs.elements', 'Trigger'),
         ('omcore.sql.tabledefs.elements', 'UpdatedAt'),
+        ('omcore.sql.tabledefs.options', 'Clustered'),
         ('omcore.sql.tabledefs.values', 'SpecialValue'),
     ),
 )

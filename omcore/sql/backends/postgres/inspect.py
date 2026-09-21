@@ -57,7 +57,7 @@ class PostgresInspector(Inspector):
         if not cols_rows:
             return None
 
-        pk_cols = {
+        pk_cols = [
             r.to_dict()['column_name']
             for r in await query_all(querier, (
                 'select kcu.column_name '
@@ -65,9 +65,10 @@ class PostgresInspector(Inspector):
                 'join information_schema.key_column_usage kcu '
                 'on kcu.constraint_schema = tc.constraint_schema and kcu.constraint_name = tc.constraint_name '
                 f'where tc.table_schema = {schema} and tc.table_name = {table} '
-                "and tc.constraint_type = 'PRIMARY KEY'"
+                "and tc.constraint_type = 'PRIMARY KEY' "
+                'order by kcu.ordinal_position'
             ))
-        }
+        ]
 
         cols: list[ReflectedColumn] = []
         for r in cols_rows:
@@ -76,7 +77,6 @@ class PostgresInspector(Inspector):
                 d['column_name'],
                 d['data_type'],
                 nullable=d['is_nullable'] == 'YES',
-                primary_key=d['column_name'] in pk_cols,
                 length=d['character_maximum_length'],
             ))
 
@@ -112,7 +112,7 @@ class PostgresInspector(Inspector):
             ))
         ]
 
-        return ReflectedTable(name, cols, indexes=idxs, triggers=trgs)
+        return ReflectedTable(name, cols, primary_key=pk_cols, indexes=idxs, triggers=trgs)
 
     def lift_table(self, reflected: ReflectedTable) -> TableDef:
         return lift_reflected_table(reflected, self.lift_dtype)

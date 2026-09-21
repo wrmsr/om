@@ -153,6 +153,10 @@ def _sql_index_table_def(m: Mapper, idx: Index) -> list[sql.td.Element]:
             columns=[m._store_name_by_field_name[f] for f in idx.fields],
             name=idx._store_name,
             unique=idx._is_unique,
+
+            # Passed on as it is: the key stays the primary key, and what clustering on another index comes to is the
+            # backend's business.
+            options=tv.TypedValues(*([sql.td.Clustered()] if ClusteredIndexOption in idx.options else [])),
         ),
     ]
 
@@ -163,19 +167,10 @@ def sql_table_def(m: Mapper) -> sql.td.TableDef:
     for f in m.fields:
         els.extend(_sql_field_table_def(f))
 
-    clu_idx: Index | None = None
     for idx in m.indexes:
-        if ClusteredIndexOption in idx.options:
-            check.none(clu_idx)
-            clu_idx = idx
-            continue
-
         els.extend(_sql_index_table_def(m, idx))
 
-    if clu_idx is not None:
-        els.append(sql.td.PrimaryKey(clu_idx._field_store_names))
-    else:
-        els.append(sql.td.PrimaryKey([m._key_field_store_name]))
+    els.append(sql.td.PrimaryKey([m._key_field_store_name]))
 
     return sql.td.table_def(
         m._store_name,

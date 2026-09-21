@@ -48,7 +48,7 @@ class MysqlInspector(Inspector):
         table = _lit(name.last)
 
         rows = await query_all(querier, (
-            'select column_name as name, data_type as type, is_nullable as nullable, column_key as ckey, '
+            'select column_name as name, data_type as type, is_nullable as nullable, '
             'character_maximum_length as length '
             'from information_schema.columns '
             f'where table_schema = {schema} and table_name = {table} '
@@ -64,16 +64,16 @@ class MysqlInspector(Inspector):
                 d['name'],
                 d['type'],
                 nullable=d['nullable'] == 'YES',
-                primary_key=d['ckey'] == 'PRI',
                 length=int(d['length']) if d['length'] is not None else None,
             ))
 
+        # The primary key is an index like the rest here, under a name of its own.
         idx_cols: dict[str, list[str]] = {}
         idx_unique: dict[str, bool] = {}
         for r in await query_all(querier, (
             'select index_name as iname, column_name as cname, non_unique as nonuniq '
             'from information_schema.statistics '
-            f"where table_schema = {schema} and table_name = {table} and index_name != 'PRIMARY' "
+            f'where table_schema = {schema} and table_name = {table} '
             'order by index_name, seq_in_index'
         )):
             d = r.to_dict()
@@ -81,6 +81,7 @@ class MysqlInspector(Inspector):
             idx_cols.setdefault(iname, []).append(d['cname'])
             idx_unique[iname] = not bool(int(d['nonuniq']))
 
+        pk_cols = idx_cols.pop('PRIMARY', [])
         idxs = [ReflectedIndex(nm, cs, unique=idx_unique[nm]) for nm, cs in idx_cols.items()]
 
         trgs = [
@@ -93,7 +94,7 @@ class MysqlInspector(Inspector):
             ))
         ]
 
-        return ReflectedTable(name, cols, indexes=idxs, triggers=trgs)
+        return ReflectedTable(name, cols, primary_key=pk_cols, indexes=idxs, triggers=trgs)
 
     def lift_table(self, reflected: ReflectedTable) -> TableDef:
         return lift_reflected_table(reflected, self.lift_dtype)

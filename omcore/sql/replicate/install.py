@@ -9,7 +9,6 @@ from ..api.asyncs import SyncToAsyncConn
 from ..api.queriers import Querier
 from ..inspect.migrating import TableMigration
 from ..inspect.migrating import migrate_table
-from ..tabledefs.diffing import AddTrigger
 from ..tabledefs.diffing import diff_table
 from ..tabledefs.elements import Elements
 from ..tabledefs.elements import OpaqueTrigger
@@ -137,11 +136,10 @@ def _migrate_triggers_only(
     current = TableDef(base.name, Elements(*kept, *triggers))
 
     # A trigger is rendered against the table as the schema defines it, not as it was reflected: reflection is lossy (to
-    # sqlite a uuid is just text), and a capture trigger has to know its key for what it is.
+    # sqlite a uuid is just text), and need not even be of the same shape (a clustered table's key may not be its
+    # primary key where it counts), while a capture trigger has to know its key for what it is.
     wanted = TableDef(base.name, Elements(*base.elements, *triggers))
 
-    for op in diff_table(current, existing):
-        if isinstance(op, AddTrigger):
-            op = dc.replace(op, table_def=wanted)
+    for op in diff_table(current, existing, trigger_table=wanted):
         for s in r.render_migration(op):
             qf.exec(conn, s)

@@ -53,6 +53,7 @@ class SqliteInspector(Inspector):
             return None
 
         cols: list[ReflectedColumn] = []
+        pk: dict[int, str] = {}
         for row in info:
             d = row.to_dict()
             m = _BOUNDED_CHAR_TYPE_PAT.match(d['type'].strip().lower())
@@ -60,9 +61,10 @@ class SqliteInspector(Inspector):
                 d['name'],
                 d['type'],
                 nullable=not d['notnull'],
-                primary_key=bool(d['pk']),
                 length=int(m.group(1)) if m is not None else None,
             ))
+            if d['pk']:
+                pk[d['pk']] = d['name']  # not a flag but the column's place in the key, from 1
 
         idxs: list[ReflectedIndex] = []
         for irow in await query_all(querier, f'pragma {db_prefix}index_list({table})'):
@@ -85,7 +87,13 @@ class SqliteInspector(Inspector):
             ))
         ]
 
-        return ReflectedTable(name, cols, indexes=idxs, triggers=trgs)
+        return ReflectedTable(
+            name,
+            cols,
+            primary_key=[pk[i] for i in sorted(pk)],
+            indexes=idxs,
+            triggers=trgs,
+        )
 
     def lift_table(self, reflected: ReflectedTable) -> TableDef:
         return lift_reflected_table(reflected, self.lift_dtype)

@@ -103,7 +103,12 @@ def dtypes_confidently_differ(cur: Dtype, ex: Dtype) -> bool:
         return False
 
 
-def diff_table(current: TableDef, existing: TableDef) -> list[MigrationOp]:
+def diff_table(
+        current: TableDef,
+        existing: TableDef,
+        *,
+        trigger_table: TableDef | None = None,
+) -> list[MigrationOp]:
     """
     Produce the migration ops that bring `existing` (e.g. a table reflected from a live db) up to `current` (the
     in-code definition): column add/drop/alter, named-index add/drop, and trigger add/drop. A column's nullability
@@ -114,6 +119,11 @@ def diff_table(current: TableDef, existing: TableDef) -> list[MigrationOp]:
     claimed by a trigger type present in `current` - anything else on the table is somebody else's and is left alone.
     Whether an `AlterColumn` can actually be applied is the backend's call - sqlite, lacking ALTER COLUMN, refuses it at
     render time. Operates on the order-normal-form, so element order is insignificant.
+
+    What is diffed is a table as the db holds it, which is not always the table as it was defined: reflection may have
+    lost what a column really is, and a backend may hold a table in another shape than its definition's altogether (see
+    `cluster_on_primary_key`). A trigger however is rendered against the table it is on, and means that table as
+    defined - so when the two differ `trigger_table` is that definition, and is what an added trigger is given.
     """
 
     if current.name != existing.name:
@@ -124,7 +134,8 @@ def diff_table(current: TableDef, existing: TableDef) -> list[MigrationOp]:
 
     cur_pk = current.elements.get(PrimaryKey)
     ex_pk = existing.elements.get(PrimaryKey)
-    if frozenset(cur_pk.columns if cur_pk is not None else ()) != frozenset(ex_pk.columns if ex_pk is not None else ()):
+    # In order: it is the order of a key's columns which the table is kept in, and looked up by.
+    if list(cur_pk.columns if cur_pk is not None else ()) != list(ex_pk.columns if ex_pk is not None else ()):
         raise UnsupportedDiffError(f'primary-key change is not supported: {ex_pk!r} -> {cur_pk!r}')
 
     cur_pk_cols = frozenset(cur_pk.columns if cur_pk is not None else ())
@@ -186,7 +197,7 @@ def diff_table(current: TableDef, existing: TableDef) -> list[MigrationOp]:
             continue
         if isinstance(t, OpaqueTrigger):
             raise UnsupportedDiffError(f'opaque trigger {nm!r} is absent from the db and cannot be created')
-        ops.append(AddTrigger(current.name, t, current))
+        ops.append(AddTrigger(current.name, t, trigger_table if trigger_table is not None else current))
 
     for nm in ex_trg_names:
         if nm in cur_trg:

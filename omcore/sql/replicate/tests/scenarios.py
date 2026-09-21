@@ -208,6 +208,23 @@ def check_roundtrip(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
     assert hs[rows[0]['id']].state == ShadowState(version=2, origin=edge.node_id, deleted=False)
     assert hs[rows[1]['id']].state == ShadowState(version=2, origin=edge.node_id, deleted=True)
 
+    # a clustered table goes like any other, whatever physical form either end has for it: inserted, updated in place
+    # (where its key may be no more than a unique index to upsert against), and deleted
+    cat = schema.table('business_categories')
+    cats = [{'id': uuid.uuid7(), 'business_id': rows[2]['id'], 'tag': f't{i}'} for i in range(4)]
+    for c in cats:
+        insert_row(edge, cat, c)
+    sync_link_sweep(link)
+    assert read_rows(hub, cat) == {c['id']: c for c in cats}
+    update_row(edge, cat, cats[0]['id'], {'tag': 'retagged'})
+    delete_row(edge, cat, cats[1]['id'])
+    sync_link_sweep(link)
+    assert read_rows(hub, cat) == read_rows(edge, cat) == {
+        cats[0]['id']: {**cats[0], 'tag': 'retagged'},
+        **{c['id']: c for c in cats[2:]},
+    }
+    assert read_shadow(hub, cat)[cats[1]['id']].state == ShadowState(version=2, origin=edge.node_id, deleted=True)
+
     # the hub never bounces the edge's own rows back at it
     down = _link('down', schema, hub, edge, origins=OriginFilter.ALL_EXCEPT_TARGET, cursor_side=CursorSide.TARGET)
     rep = sync_link_sweep(down)
