@@ -38,11 +38,24 @@ from .nodes import update_row
 
 
 def _business(name: str) -> dict[str, ta.Any]:
-    return {'id': uuid.uuid7(), 'name': name}
+    return {
+        'id': uuid.uuid7(),
+        'name': name,
+    }
 
 
 def _sink(**kw: ta.Any) -> dict[str, ta.Any]:
-    return {'id': uuid.uuid7(), 'i': None, 's': None, 'd': None, 'u': None, 'b': None, 'f': None, 'y': None, **kw}
+    return {
+        'id': uuid.uuid7(),
+        'i': None,
+        's': None,
+        'd': None,
+        'u': None,
+        'b': None,
+        'f': None,
+        'y': None,
+        **kw,
+    }
 
 
 ##

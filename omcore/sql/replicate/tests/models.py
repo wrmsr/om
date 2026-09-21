@@ -23,6 +23,7 @@ from ..config import ReplicationSchema
 
 def build_schema() -> ReplicationSchema:
     return ReplicationSchema([
+
         table_def(
             'businesses',
             Column('id', UUID),
@@ -30,6 +31,7 @@ def build_schema() -> ReplicationSchema:
             Column('name', STRING),
             Index(['name']),
         ),
+
         # Clustered on other than its key, which on some dialects makes that key no longer its primary key where it
         # counts - while it is still by that key that it is captured, and applied.
         table_def(
@@ -40,6 +42,7 @@ def build_schema() -> ReplicationSchema:
             Column('tag', STRING),
             Index(['business_id', 'tag'], unique=True, options=tv.TypedValues(Clustered())),
         ),
+
         table_def(
             'users',
             Column('id', UUID),
@@ -48,6 +51,7 @@ def build_schema() -> ReplicationSchema:
             Column('favorite_business_id', UUID, nullable=True),
             Index(['name']),
         ),
+
         table_def(
             'user_relations',
             Column('id', UUID),
@@ -57,6 +61,7 @@ def build_schema() -> ReplicationSchema:
             Index(['src_id']),
             Index(['dst_id']),
         ),
+
         table_def(
             'reviews',
             Column('id', UUID),
@@ -67,6 +72,7 @@ def build_schema() -> ReplicationSchema:
             Index(['business_id']),
             Index(['user_id']),
         ),
+
         table_def(
             'kitchen_sink',
             Column('id', UUID),
@@ -79,4 +85,5 @@ def build_schema() -> ReplicationSchema:
             Column('f', FLOAT, nullable=True),
             Column('y', BYTES, nullable=True),
         ),
+
     ])

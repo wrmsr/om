@@ -114,7 +114,10 @@ def _read_comparable_rows(node: rep.Node, td: sql.td.TableDef) -> dict:
 @pytest.mark.asyncs('asyncio')
 async def test_sqlite_sessions_replicate_to_postgres(harness):
     hs = harness[HarnessSandboxes]
-    with hs.sqlite().allocate() as edge_sb, hs.postgres().allocate() as hub_sb:
+    with (
+        hs.sqlite().allocate() as edge_sb,
+        hs.postgres().allocate() as hub_sb,
+    ):
         edge_db_path = check.isinstance(hs.sqlite().backend, sbx.SqliteSandboxBackend).sandbox_db_path(edge_sb.name)
 
         async with headless_tui(

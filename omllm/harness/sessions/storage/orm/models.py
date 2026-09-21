@@ -78,6 +78,8 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
                 ],
             ),
             indexes=[
+                # Wants to be the clustered key, but for now that would make it the primary key too - and the tables are
+                # replicated, which needs them keyed by their ids alone.
                 orm.index(
                     ['session', 'seq'],
                     options=[
