@@ -14,6 +14,8 @@ import torch.nn.functional as F
 
 from ..ops import Ops
 from ..quant import QWeight
+from .torch_triton import HAVE_TRITON
+from .torch_triton import qlinear
 
 
 ##
@@ -101,12 +103,24 @@ class CudaGraphStep:
 class TorchOps(Ops):
     name = 'torch'
 
-    def __init__(self, device: str | torch.device = 'cpu', capture_mode: str = 'auto') -> None:
+    def __init__(
+            self,
+            device: str | torch.device = 'cpu',
+            capture_mode: str = 'auto',
+            triton: bool | None = None,
+            triton_max_m: int = 32,
+            triton_block_n: int | None = None,
+    ) -> None:
         super().__init__()
 
         self.device = torch.device(device)
         self.name = f'torch:{self.device}'
         self.capture_mode = capture_mode  # 'auto' (graph on cuda, plain elsewhere) | 'graph' | 'static' | 'plain'
+        # fused int4/int8 GEMV for quantized weights when the token count is small (decode / verify); prefill
+        # stays on dequant + cuBLAS. None: on when cuda and triton import. True on CPU needs TRITON_INTERPRET=1.
+        self.triton = (self.device.type == 'cuda' and HAVE_TRITON) if triton is None else (triton and HAVE_TRITON)
+        self.triton_max_m = triton_max_m
+        self.triton_block_n = triton_block_n
 
     def dtype(self, name):
         return DTYPES[name]
@@ -239,6 +253,8 @@ class TorchOps(Ops):
 
     def linear(self, x, w):
         if isinstance(w, TorchQWeight):
+            if self.triton and x.numel() // x.shape[-1] <= self.triton_max_m:
+                return qlinear(x, w.q, w.scale, w.bias, w.bits, w.group, w.shape, block_n=self.triton_block_n)
             return w.linear(x)
         return F.linear(x, w)
 

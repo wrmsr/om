@@ -14,6 +14,7 @@ model.py         the model, backend-free: RMSNorm, gated GQA attention w/ partia
 ops.py           the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of
                  the fused-able ones) and `NumpyOps`, the float64 golden backend
 torch_ops.py     torch backend (F.rms_norm / SDPA / conv1d, on-device quantize, TorchQWeight)
+backends/torch_triton.py  Triton int4/int8 GEMV for TorchQWeight (decode / verify; prefill stays on dequant + cuBLAS)
 mlx_ops.py       MLX core backend (mx.fast.rms_norm / rope / sdpa, mx.quantized_matmul, MlxQWeight)
 tinygrad_ops.py  tinygrad backend (Tensor.scaled_dot_product_attention, grouped conv, TinyQWeight)
 backends.py      backend selection for the CLIs
@@ -114,9 +115,13 @@ practice; int4-over-Q4_K_M is a double quantization — prefer int8 if it fits).
 kernel and the two low-rank DeltaNet projections (`in_proj_a` / `in_proj_b`, which Ollama also keeps at source
 precision) are never quantized.
 
-On torch, `TorchQWeight.linear` expands to the activation dtype before each matmul (~2.5 bytes/param of traffic
-instead of 2), so decode is a little slower than a bf16 model that fit — the win is purely memory. A fused
-weight-only kernel (`torch._weight_int4pack_mm`, or Triton) is the follow-up; it slots into `TorchOps.linear`.
+On torch with CUDA, small-M matmuls against a `TorchQWeight` (decode and speculative verify, `triton_max_m`
+tokens or fewer) go through `torch_triton.qlinear`: the packed codes are read once, dequantized in registers and
+fed to `tl.dot`, so per-step traffic is the packed weight rather than a bf16 expansion of it. Prefill (large M)
+is compute-bound and keeps dequant + cuBLAS. The kernel is verified against the dequant path under Triton's CPU
+interpreter (`tests/test_triton.py`) and drops into CUDA graphs like any other kernel. `TorchOps(triton=False)`
+turns it off; `triton_block_n` / `num_warps` are the untuned knobs, and a split-K variant for the narrow (N=5120)
+projections is the obvious next optimisation.
 
 ## Validate against llama.cpp
 
@@ -150,12 +155,12 @@ Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only
 
 ## Where to go next (in order)
 
-1. **Fused int4 GEMV (torch)** — the raw step rate is now launch-overhead free on CUDA; the next factor of two is
-   dequant traffic in `TorchQWeight.linear` (a Triton kernel slots into `TorchOps.linear`).
+1. **MTP speculative decoding** — the 27B checkpoints carry a one-layer draft head; verify is a captured T=4 step
+   and rollback is `Decoder.restore` of a pre-verify snapshot.
 2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
-3. **MTP speculative decoding** — the 27B checkpoints carry a one-layer draft head; verify is a captured T=4 step
-   and rollback is `Decoder.restore` of a pre-verify snapshot.
+3. **Kernel tuning** — sweep `triton_block_n` / `num_warps`, add split-K for the narrow projections, and put
+   `sdpa_static` on a length-aware kernel so decode attention stops reading the whole KV buffer.
 4. **Serving** — `Qwen35.generate` is the whole inference loop; wrap it in whatever HTTP layer you like.
 
 MoE variants (`qwen35moe`) and the vision tower are deliberately not supported.
