@@ -1,6 +1,6 @@
 """
-The yelp-like demo schema, keyed by uuids as replicated tables must be, plus a table exercising every dtype - and one of
-them clustered.
+The yelp-like demo schema, keyed by uuids as replicated tables must be, plus a table exercising every dtype, one kept
+clustered, and one with timestamps kept by triggers.
 """
 from .... import typedvalues as tv
 from ...dtypes import BOOLEAN
@@ -11,6 +11,7 @@ from ...dtypes import STRING
 from ...dtypes import UUID
 from ...dtypes import Integer
 from ...tabledefs.elements import Column
+from ...tabledefs.elements import CreatedAtUpdatedAt
 from ...tabledefs.elements import Index
 from ...tabledefs.elements import PrimaryKey
 from ...tabledefs.options import Clustered
@@ -73,6 +74,14 @@ def build_schema() -> ReplicationSchema:
             Index(['user_id']),
         ),
 
+        # Its timestamps kept by triggers of its own, alongside the ones which capture it.
+        table_def(
+            'notes',
+            Column('id', UUID),
+            PrimaryKey(['id']),
+            Column('text', STRING),
+            CreatedAtUpdatedAt(),
+        ),
         table_def(
             'kitchen_sink',
             Column('id', UUID),

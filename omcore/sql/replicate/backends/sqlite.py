@@ -5,6 +5,9 @@ from ...backends.sqlite.values import SqliteDtypeCodec
 from ...dtypes.codecs import DtypeCodec
 from ...inspect.inspectors import Inspector
 from ...qualifiedname import QualifiedName
+from ...tabledefs.elements import Column
+from ...tabledefs.elements import Trigger
+from ...tabledefs.elements import UpdatedAtTrigger
 from ...tabledefs.rendering import Renderer
 from ...tabledefs.tabledefs import TableDef
 from ...tabledefs.triggers import TriggerRenderer
@@ -36,7 +39,7 @@ from .base import sql_string_literal
 # 'insert or ignore' into an abort, so the shadow row is created by a conditional select instead.
 CAPTURE_TRIGGER_SRC = """\
 create trigger {if_not_exists}{trigger_name}
-after {event} on {table_name}
+after {event}{of_columns} on {table_name}
 for each row
 begin
   insert into {shadow} ({shadow_columns})
@@ -78,6 +81,20 @@ class SqliteCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
         row = 'old' if t.event is CaptureEvent.DELETE else 'new'
         key = r.quote_ident(table_key_column(tbl).name)
 
+        # Sqlite has no way for a trigger to alter a row on its way in, so its updated-at trigger follows an update
+        # with one of its own - which, as an update like any other, would be captured too: two versions and two log
+        # entries to the one change. So where a table has columns kept that way the update trigger is one of the rest
+        # of them, which that second update sets none of. It is by what a statement sets, not by what changes, so an
+        # update of every column - as applying a replicated row is - is still captured; one of nothing but such a
+        # column is not, and rides along with whatever is next captured of its row.
+        of_columns = ''
+        if t.event is CaptureEvent.UPDATE and (kept := {
+            ut.column
+            for ut in tbl.elements.get_any(Trigger)
+            if isinstance(ut, UpdatedAtTrigger)
+        }):
+            of_columns = ' of ' + ', '.join(r.quote_ident(c.name) for c in tbl.elements[Column] if c.name not in kept)
+
         log_statement = ''
         if t.log:
             log_statement = CAPTURE_LOG_SRC.format(
@@ -104,6 +121,7 @@ class SqliteCaptureTriggerRenderer(TriggerRenderer[CaptureTrigger]):
                 if_not_exists='if not exists ' if opts.if_not_exists else '',
                 trigger_name=r.qname(tbl.name.sibling(trigger_name)),
                 event=t.event.value,
+                of_columns=of_columns,
                 table_name=r.quote_ident(tbl.name.last),
                 shadow=r.quote_ident(shadow.last),
                 log_statement=log_statement,

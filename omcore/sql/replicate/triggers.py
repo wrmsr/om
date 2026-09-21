@@ -11,7 +11,8 @@ from .names import capture_trigger_prefix
 ##
 
 
-CAPTURE_TRIGGER_VERSION: ta.Final[int] = 1
+# 2: on sqlite an update is no longer captured a second time for what a table's updated-at trigger then does to the row.
+CAPTURE_TRIGGER_VERSION: ta.Final[int] = 2
 
 
 class CaptureEvent(enum.Enum):

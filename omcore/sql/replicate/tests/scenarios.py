@@ -26,6 +26,7 @@ from ..links import sync_link_tail
 from ..maintenance import prune_log
 from ..nodes import Node
 from ..rows import ShadowState
+from ..triggers import CAPTURE_TRIGGER_VERSION
 from ..workers import TailPacing
 from ..workers import Worker
 from .nodes import FailingDb
@@ -76,7 +77,7 @@ def check_install(node: Node, schema: ReplicationSchema) -> None:
     assert all(not m.created and not m.ops for m in r2.migrations)
 
     # a trigger body version bump is a drop and an add of every capture trigger, and capture keeps working after
-    r3 = install_node(node, schema, capture_trigger_version=2)
+    r3 = install_node(node, schema, capture_trigger_version=CAPTURE_TRIGGER_VERSION + 1)
     ops = [o for m in r3.migrations for o in m.ops]
     assert len([o for o in ops if isinstance(o, AddTrigger)]) == 3 * len(schema.tables)
     assert len([o for o in ops if isinstance(o, DropTrigger)]) == 3 * len(schema.tables)
@@ -119,6 +120,37 @@ def check_install_triggers_only(node: Node, schema: ReplicationSchema) -> None:
 
     update_row(node, td, after['id'], {'name': 'after again'})
     assert read_shadow(node, td)[after['id']].version == 2
+
+
+def check_capture_with_kept_columns(node: Node, schema: ReplicationSchema) -> None:
+    """
+    A change to a row whose table keeps an updated-at of its own is one change: a version, and an entry in the log.
+    """
+
+    install_node(node, schema)
+    td = schema.table('notes')
+    long_ago = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
+    k = uuid.uuid7()
+    note: dict[str, ta.Any] = {'id': k, 'text': 'a', 'created_at': long_ago, 'updated_at': long_ago}
+
+    def num_log_entries() -> int:
+        with node.db.connect() as conn:
+            return len([e for e in node.backend.read_log(conn, node.log_table, after=0, limit=100) if e.key == k])
+
+    insert_row(node, td, note)
+    assert read_shadow(node, td)[k].version == 1 and num_log_entries() == 1
+
+    # the table's own trigger has its say - on sqlite, by an update of its own after the one made - and that is no
+    # second change
+    update_row(node, td, k, {'text': 'b'})
+    assert read_rows(node, td)[k]['updated_at'] > long_ago
+    assert read_shadow(node, td)[k].version == 2 and num_log_entries() == 2
+
+    # nor is it one fewer when every column is written, the kept one with them, as applying a replicated row does
+    with node.db.connect() as conn:
+        node.backend.upsert_rows(conn, td, node.table_name(td), [{**note, 'text': 'c', 'updated_at': long_ago}])
+    assert read_rows(node, td)[k]['text'] == 'c'
+    assert read_shadow(node, td)[k].version == 3 and num_log_entries() == 3
 
 
 def check_capture(node: Node, schema: ReplicationSchema) -> None:
