@@ -2,11 +2,13 @@
 The whole way out: a tui's injector storing its session in a local sqlite db, and a replication worker carrying that db
 to a postgres hub behind its back.
 
-The worker is in this process but not of it. It is on a thread of its own, it has connections of its own to the sqlite
-file - the harness has no idea it is there - and it knows the schema only by the mappers, as a process of its own would.
-Replication is installed db-wide, so both ends are sandboxes.
+The worker is in this process but not of it. It is a task on the harness's own event loop, as it would be run for real,
+but it has a db of its own for the sqlite file - its own connections, on a thread of their own, as a process of its own
+would have - and the harness has no idea it is there; it knows the schema only by the mappers; and the hub it reaches
+over the loop, by a driver which is really async. Replication is installed db-wide, so both ends are sandboxes.
 """
-import threading
+import asyncio
+import contextlib
 import typing as ta
 
 import pytest
@@ -15,6 +17,7 @@ from omcore import check
 from omcore import inject as inj
 from omcore import orm
 from omcore import sql
+from omcore.asyncs.asynclite import all as asl
 from omcore.sql import replicate as rep
 from omcore.sql.replicate.tests.nodes import read_rows
 from omcore.sql.replicate.tests.nodes import read_shadow
@@ -37,64 +40,35 @@ from .headless import headless_tui
 ##
 
 
-class WorkerThread:
+@contextlib.asynccontextmanager
+async def running_worker(links: ta.Sequence[rep.Link]) -> ta.AsyncIterator[ta.Callable[..., ta.Awaitable[None]]]:
     """
-    A replication worker running free on a thread - paced as it would be for real, only much faster, as nobody is going
-    to wait a minute on a sweep here. Its sleeper is the way in: it sleeps on the stop signal rather than the clock, so
-    a stop is prompt, and it says when a pass is over, which is what lets a test wait for something to have come of one
-    instead of guessing at how long that takes.
+    A replication worker running free as a task for the span of the block - paced as it would be for real, only much
+    faster, as nobody is going to wait a minute on a sweep here. What is yielded waits for something to have come of it:
+    each look it takes is a real wait on a db, which is when the worker - and the harness - get their turns.
     """
 
-    def __init__(self, links: list[rep.Link]) -> None:
-        super().__init__()
+    worker = rep.Worker(
+        links,
+        events=asl.asyncio.Events(),
+        tail_pacing=rep.TailPacing(min_interval_s=.01, max_interval_s=.05),
+        sweep_interval_s=.02,
+    )
+    task = asyncio.create_task(worker.run())
 
-        self._worker = rep.Worker(
-            links,
-            tail_pacing=rep.TailPacing(min_interval_s=.01, max_interval_s=.05),
-            sweep_interval_s=.02,
-            sleeper=self._sleep,
-        )
+    async def wait_until(fn: ta.Callable[[], ta.Awaitable[bool]], timeout_s: float = 30.) -> None:
+        async with asyncio.timeout(timeout_s):
+            while not await fn():
+                check.state(not task.done())
 
-        self._cond = threading.Condition()
-        self._num_passes = 0
-        self._stopped = threading.Event()
-        self._error: BaseException | None = None
+    try:
+        yield wait_until
 
-        self._thread = threading.Thread(target=self._run, name='replication-worker', daemon=True)
+    finally:
+        worker.stop()
+        await asyncio.wait_for(task, 30.)
 
-    def _sleep(self, s: float) -> None:
-        with self._cond:
-            self._num_passes += 1
-            self._cond.notify_all()
-
-        self._stopped.wait(s)
-
-    def _run(self) -> None:
-        try:
-            self._worker.run()
-        except BaseException as e:  # noqa
-            self._error = e
-            with self._cond:
-                self._cond.notify_all()
-
-    def __enter__(self) -> ta.Self:
-        self._thread.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._worker.stop()
-        self._stopped.set()
-        self._thread.join(30.)
-        check.state(not self._thread.is_alive())
-        check.none(self._error)
-
-    def wait_until(self, fn: ta.Callable[[], bool], timeout_s: float = 30.) -> None:
-        """Returns once `fn` holds, looking again each time the worker has finished a pass."""
-
-        with self._cond:
-            check.state(self._cond.wait_for(lambda: self._error is not None or fn(), timeout_s))
-        check.none(self._error)
-        check.state(not any(self._worker.failures(link.name) for link in self._worker.links))
+    check.state(not any(worker.failures(link.name) for link in worker.links))
 
 
 ##
@@ -135,30 +109,40 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
             schema = rep.ReplicationSchema(orm.sql_table_defs(orm.registry(*har.orm_mappers())))
             assert set(schema.table_names) == {'sessions', 'session_entries'}
 
-            edge = rep.Node('edge', edge_sb.db(), rep.SqliteReplicateBackend())
-            hub = rep.Node('hub', hub_sb.db(), rep.PostgresReplicateBackend())
-            rep.install_node(edge, schema, no_manage_base_tables=True)
-            rep.install_node(hub, schema)
+            async with har.asyncio_sqlite_db(har.SqliteDbConfig(file_path=edge_db_path)) as edge_db:
+                edge = rep.Node('edge', edge_db, rep.SqliteReplicateBackend())
+                hub = rep.Node('hub', hub_sb.asyncio_db(), rep.PostgresReplicateBackend())
+                await rep.install_node(edge, schema, no_manage_base_tables=True)
+                await rep.install_node(hub, schema)
 
-            link = rep.Link(rep.LinkSpec(name='up', source='edge', target='hub'), schema, edge, hub)
+                link = rep.Link(rep.LinkSpec(name='up', source='edge', target='hub'), schema, edge, hub)
 
-            #
+                #
 
-            def num_hub_entries() -> int:
-                return len(read_rows(hub, schema.table('session_entries')))
+                async def hub_has(num_entries: int) -> bool:
+                    sessions = await read_rows(hub, schema.table('sessions'))
+                    return (
+                        len(await read_rows(hub, schema.table('session_entries'))) == num_entries and
+                        sessions.get(tui.session.id.v, {}).get('num_entries') == num_entries
+                    )
 
-            with WorkerThread([link]) as worker:
-                # What predates the triggers gets there by the sweep alone, the log knowing nothing of it.
-                worker.wait_until(lambda: num_hub_entries() == 2)
+                async with running_worker([link]) as wait_until:
+                    # What predates the triggers gets there by the sweep alone, the log knowing nothing of it.
+                    await wait_until(lambda: hub_has(2))
 
-                # What follows them goes while the worker runs: a turn with a tool call in it, then one which fails.
-                await tui.session.prompt('again')
-                await tui.session.prompt('and again')
+                    # What follows them goes while the worker runs, on the same loop the turns themselves are on: one
+                    # with a tool call in it, then one which fails.
+                    await tui.session.prompt('again')
+                    await tui.session.prompt('and again')
 
-                worker.wait_until(lambda: (
-                    num_hub_entries() == 8 and
-                    read_rows(hub, schema.table('sessions'))[tui.session.id.v]['num_entries'] == 8
-                ))
+                    await wait_until(lambda: hub_has(8))
+
+                #
+
+                # The hub has the edge's rows, as the edge's - down to when it was that the edge last updated each.
+                for td in schema.tables:
+                    assert await read_rows(hub, td) == await read_rows(edge, td)
+                    assert {s.state.origin for s in (await read_shadow(hub, td)).values()} == {await edge.node_id()}
 
             #
 
@@ -166,13 +150,6 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
             await check_stored_transcript(storage, tui.agent)
             num_entries = len(await storage.get_entries())
             assert num_entries == 8
-
-            # The hub has the edge's rows, as the edge's - down to when it was that the edge last updated each.
-            for td in schema.tables:
-                assert read_rows(hub, td) == read_rows(edge, td)
-                assert {s.state.origin for s in read_shadow(hub, td).values()} == {edge.node_id}
-            assert len(read_rows(hub, schema.table('session_entries'))) == num_entries
-            assert read_rows(hub, schema.table('sessions'))[tui.session.id.v]['num_entries'] == num_entries
 
             # And the session reads back off of the hub, through the same storage, as the transcript it is.
             async with har.SqlOrm(

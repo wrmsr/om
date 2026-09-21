@@ -4,6 +4,7 @@ import typing as ta
 
 from .... import dataclasses as dc
 from .... import lang
+from ...api.core import AsyncDb
 from ...api.core import Conn
 from ...api.core import Db
 from ...api.queriers import Querier
@@ -61,6 +62,15 @@ class SandboxBackend(lang.Abstract):
     @abc.abstractmethod
     def sandbox_db(self, run_id: str, name: str, kind: SandboxKind) -> Db:
         """A `Db` scoped to one sandbox: bare names resolve inside it, and nothing else is visible unqualified."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def sandbox_asyncio_db(self, run_id: str, name: str, kind: SandboxKind) -> AsyncDb:
+        """
+        The same, for use under asyncio - by way of a driver which is itself async where there is one, and of the sync
+        one run off the loop where there is not.
+        """
 
         raise NotImplementedError
 

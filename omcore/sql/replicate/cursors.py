@@ -3,10 +3,14 @@ import uuid
 
 from ... import dataclasses as dc
 from ... import lang
-from ..api.core import Conn
+from ..api.core import AsyncConn
 from .backends.base import CursorRow
 from .names import LOG_TABLE_NAME
 from .nodes import Node
+
+
+# Something to call for a connection, called only if it comes to needing one.
+CursorConn: ta.TypeAlias = ta.Callable[[], ta.Awaitable[AsyncConn]]
 
 
 ##
@@ -39,46 +43,46 @@ class CursorStore(lang.Final):
     def forget(self) -> None:
         self._rows.clear()
 
-    def _read(self, link: str, table: str, conn: ta.Callable[[], Conn] | None) -> CursorRow | None:
+    async def _read(self, link: str, table: str, conn: CursorConn | None) -> CursorRow | None:
         try:
             return self._rows[(link, table)]
         except KeyError:
             pass
 
-        with self._node.connected(conn() if conn is not None else None) as node_conn:
-            row = self._node.backend.read_cursor(node_conn, self._node.cursor_table, link, table)
+        async with self._node.connected((await conn()) if conn is not None else None) as node_conn:
+            row = await self._node.backend.read_cursor(node_conn, self._node.cursor_table, link, table)
 
         self._rows[(link, table)] = row
         return row
 
-    def _write(self, link: str, table: str, row: CursorRow, conn: ta.Callable[[], Conn] | None) -> None:
+    async def _write(self, link: str, table: str, row: CursorRow, conn: CursorConn | None) -> None:
         if self._rows.get((link, table)) == row:
             return
 
         self._rows.pop((link, table), None)
-        with self._node.connected(conn() if conn is not None else None) as node_conn:
-            self._node.backend.write_cursor(node_conn, self._node.cursor_table, link, table, row)
+        async with self._node.connected((await conn()) if conn is not None else None) as node_conn:
+            await self._node.backend.write_cursor(node_conn, self._node.cursor_table, link, table, row)
         self._rows[(link, table)] = row
 
     #
 
-    def read(self, link: str, table: str, *, conn: ta.Callable[[], Conn] | None = None) -> CursorState:
-        if (row := self._read(link, table, conn)) is None:
+    async def read(self, link: str, table: str, *, conn: CursorConn | None = None) -> CursorState:
+        if (row := await self._read(link, table, conn)) is None:
             return CursorState()
         return CursorState(
             position=uuid.UUID(row.position) if row.position is not None else None,
             sweeps=row.sweeps,
         )
 
-    def write(
+    async def write(
             self,
             link: str,
             table: str,
             state: CursorState,
             *,
-            conn: ta.Callable[[], Conn] | None = None,
+            conn: CursorConn | None = None,
     ) -> None:
-        self._write(
+        await self._write(
             link,
             table,
             CursorRow(str(state.position) if state.position is not None else None, state.sweeps),
@@ -87,12 +91,12 @@ class CursorStore(lang.Final):
 
     #
 
-    def read_log(self, link: str, *, conn: ta.Callable[[], Conn] | None = None) -> int:
+    async def read_log(self, link: str, *, conn: CursorConn | None = None) -> int:
         """The last log sequence number the link has examined; zero before any."""
 
-        if (row := self._read(link, LOG_TABLE_NAME, conn)) is None or row.position is None:
+        if (row := await self._read(link, LOG_TABLE_NAME, conn)) is None or row.position is None:
             return 0
         return int(row.position)
 
-    def write_log(self, link: str, seq: int, *, conn: ta.Callable[[], Conn] | None = None) -> None:
-        self._write(link, LOG_TABLE_NAME, CursorRow(str(seq), 0), conn)
+    async def write_log(self, link: str, seq: int, *, conn: CursorConn | None = None) -> None:
+        await self._write(link, LOG_TABLE_NAME, CursorRow(str(seq), 0), conn)

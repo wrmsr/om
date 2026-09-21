@@ -13,7 +13,7 @@ import uuid
 from .... import check
 from .... import lang
 from ...api import querierfuncs as qf
-from ...api.queriers import Querier
+from ...api.queriers import AsyncQuerier
 from ...dtypes import BOOLEAN
 from ...dtypes import DATETIME
 from ...dtypes import UUID
@@ -134,7 +134,7 @@ class ReplicateBackend(lang.Abstract):
     def qname(self, n: QualifiedName) -> str:
         return self.tabledef_renderer.qname(n)
 
-    def _preparer(self, q: Querier) -> ParamsPreparer:
+    def _preparer(self, q: AsyncQuerier) -> ParamsPreparer:
         return make_params_preparer(check.not_none(q.adapter.param_style))
 
     def _bind(self, pp: ParamsPreparer, values: ta.Mapping[str, ta.Any]) -> ta.Any:
@@ -143,14 +143,14 @@ class ReplicateBackend(lang.Abstract):
     ##
     # node
 
-    def read_node_id(self, q: Querier, node_table: QualifiedName) -> uuid.UUID | None:
-        rows = qf.query_all(q, Q.select([Q.i(NODE_ID)], Q.n(tuple(node_table))))
+    async def read_node_id(self, q: AsyncQuerier, node_table: QualifiedName) -> uuid.UUID | None:
+        rows = await qf.query_all(q, Q.select([Q.i(NODE_ID)], Q.n(tuple(node_table))))
         if not rows:
             return None
         return self.dtype_codec.decode(UUID, check.single(rows).values[0])
 
-    def insert_node_id(self, q: Querier, node_table: QualifiedName, node_id: uuid.UUID) -> None:
-        qf.exec(
+    async def insert_node_id(self, q: AsyncQuerier, node_table: QualifiedName, node_id: uuid.UUID) -> None:
+        await qf.exec(
             q,
             Q.insert(
                 [
@@ -172,8 +172,14 @@ class ReplicateBackend(lang.Abstract):
     ##
     # cursors
 
-    def read_cursor(self, q: Querier, cursor_table: QualifiedName, link: str, table: str) -> CursorRow | None:
-        rows = qf.query_all(
+    async def read_cursor(
+            self,
+            q: AsyncQuerier,
+            cursor_table: QualifiedName,
+            link: str,
+            table: str,
+    ) -> CursorRow | None:
+        rows = await qf.query_all(
             q,
             Q.select(
                 [
@@ -193,8 +199,15 @@ class ReplicateBackend(lang.Abstract):
         pos, sweeps = check.single(rows).values
         return CursorRow(pos, int(sweeps))
 
-    def write_cursor(self, q: Querier, cursor_table: QualifiedName, link: str, table: str, row: CursorRow) -> None:
-        self._upsert(
+    async def write_cursor(
+            self,
+            q: AsyncQuerier,
+            cursor_table: QualifiedName,
+            link: str,
+            table: str,
+            row: CursorRow,
+    ) -> None:
+        await self._upsert(
             q,
             cursor_table,
             [
@@ -220,9 +233,9 @@ class ReplicateBackend(lang.Abstract):
     ##
     # upserts
 
-    def _upsert(
+    async def _upsert(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             table: QualifiedName,
             columns: ta.Sequence[str],
             keys: ta.Sequence[str],
@@ -239,7 +252,7 @@ class ReplicateBackend(lang.Abstract):
                 placeholders.append([pp.add(n) for n in (f'r{i}c{j}' for j in range(len(row)))])
                 values.update((f'r{i}c{j}', v) for j, v in enumerate(row))
 
-            qf.exec(
+            await qf.exec(
                 q,
                 self.upsert_sql(
                     self.qname(table),
@@ -262,9 +275,9 @@ class ReplicateBackend(lang.Abstract):
             SHADOW_CHANGED_AT,
         ))
 
-    def backfill_shadow(
+    async def backfill_shadow(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             td: TableDef,
             table: QualifiedName,
             shadow: QualifiedName,
@@ -280,14 +293,14 @@ class ReplicateBackend(lang.Abstract):
             f'from {self.qname(table)} b '
             f'where not exists (select 1 from {self.qname(shadow)} s where s.{self.quote(SHADOW_KEY)} = b.{key})'
         )
-        qf.exec(q, sql, self._bind(pp, {
+        await qf.exec(q, sql, self._bind(pp, {
             'origin': self.dtype_codec.encode(UUID, node_id),
             'deleted': self.dtype_codec.encode(BOOLEAN, False),
         }))
 
-    def scan_shadows(
+    async def scan_shadows(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             shadow: QualifiedName,
             *,
             after: uuid.UUID | None,
@@ -321,7 +334,7 @@ class ReplicateBackend(lang.Abstract):
         )
 
         out: dict[uuid.UUID, ShadowState] = {}
-        for r in qf.query_all(q, sql, self._bind(pp, values)):
+        for r in await qf.query_all(q, sql, self._bind(pp, values)):
             k, ver, org, dl = r.values
             out[codec.decode(UUID, k)] = ShadowState(
                 version=codec.decode(_version_dtype(), ver),
@@ -330,9 +343,9 @@ class ReplicateBackend(lang.Abstract):
             )
         return out
 
-    def scan_keys(
+    async def scan_keys(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             td: TableDef,
             table: QualifiedName,
             shadow: QualifiedName,
@@ -355,7 +368,7 @@ class ReplicateBackend(lang.Abstract):
         wheres = [f's.{self.quote(SHADOW_KEY)} in ({", ".join(ps)})']
         self._origin_where(pp, values, wheres, origins)
 
-        return self._select_rows(q, td, table, shadow, pp, values, wheres)
+        return await self._select_rows(q, td, table, shadow, pp, values, wheres)
 
     def _origin_where(
             self,
@@ -376,9 +389,9 @@ class ReplicateBackend(lang.Abstract):
         else:
             raise ValueError(origins.filter)
 
-    def _select_rows(
+    async def _select_rows(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             td: TableDef,
             table: QualifiedName,
             shadow: QualifiedName,
@@ -412,7 +425,7 @@ class ReplicateBackend(lang.Abstract):
         )
 
         out: list[SourceRow] = []
-        for r in qf.query_all(q, sql, self._bind(pp, values)):
+        for r in await qf.query_all(q, sql, self._bind(pp, values)):
             vs = list(r.values)
             k, ver, org, dl = vs[:4]
             deleted = codec.decode(BOOLEAN, dl)
@@ -428,9 +441,9 @@ class ReplicateBackend(lang.Abstract):
             ))
         return out
 
-    def fetch_shadow_states(
+    async def fetch_shadow_states(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             shadow: QualifiedName,
             keys: ta.Sequence[uuid.UUID],
     ) -> dict[uuid.UUID, ShadowState]:
@@ -441,7 +454,7 @@ class ReplicateBackend(lang.Abstract):
         ps = [Q.p(f'k{i}') for i in range(len(keys))]
         out: dict[uuid.UUID, ShadowState] = {}
 
-        for r in qf.query_all(
+        for r in await qf.query_all(
             q,
             Q.select(
                 [
@@ -470,16 +483,16 @@ class ReplicateBackend(lang.Abstract):
 
         return out
 
-    def upsert_shadows(
+    async def upsert_shadows(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             shadow: QualifiedName,
             states: ta.Mapping[uuid.UUID, ShadowState],
     ) -> None:
         codec = self.dtype_codec
         now = codec.encode(DATETIME, datetime.datetime.now(datetime.UTC))
 
-        self._upsert(
+        await self._upsert(
             q,
             shadow,
             [
@@ -505,9 +518,9 @@ class ReplicateBackend(lang.Abstract):
     ##
     # base rows
 
-    def upsert_rows(
+    async def upsert_rows(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             td: TableDef,
             table: QualifiedName,
             rows: ta.Sequence[ta.Mapping[str, ta.Any]],
@@ -518,7 +531,7 @@ class ReplicateBackend(lang.Abstract):
         for values in rows:
             check.equal(set(values), names)
 
-        self._upsert(
+        await self._upsert(
             q,
             table,
             [c.name for c in cols],
@@ -529,11 +542,17 @@ class ReplicateBackend(lang.Abstract):
             ],
         )
 
-    def delete_rows(self, q: Querier, td: TableDef, table: QualifiedName, keys: ta.Sequence[uuid.UUID]) -> None:
+    async def delete_rows(
+            self,
+            q: AsyncQuerier,
+            td: TableDef,
+            table: QualifiedName,
+            keys: ta.Sequence[uuid.UUID],
+    ) -> None:
         kc = table_key_column(td)
         for chunk in itertools.batched(keys, self._max_statement_params):
             ps = [Q.p(f'k{i}') for i in range(len(chunk))]
-            qf.exec(
+            await qf.exec(
                 q,
                 Q.delete(
                     Q.n(tuple(table)),
@@ -545,9 +564,9 @@ class ReplicateBackend(lang.Abstract):
     ##
     # log
 
-    def read_log(
+    async def read_log(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             log_table: QualifiedName,
             *,
             after: int,
@@ -555,7 +574,7 @@ class ReplicateBackend(lang.Abstract):
     ) -> list[LogEntry]:
         codec = self.dtype_codec
         out: list[LogEntry] = []
-        for r in qf.query_all(
+        for r in await qf.query_all(
                 q,
                 Q.select(
                     [
@@ -583,7 +602,7 @@ class ReplicateBackend(lang.Abstract):
             ))
         return out
 
-    def prune_log(self, q: Querier, log_table: QualifiedName, *, before: datetime.datetime) -> None:
+    async def prune_log(self, q: AsyncQuerier, log_table: QualifiedName, *, before: datetime.datetime) -> None:
         """
         Drops the entries older than `before` - but for the newest there is, however old. A link holds its place in the
         log by sequence number, so the numbers must never come around again, behind every link's place, where whatever
@@ -599,7 +618,7 @@ class ReplicateBackend(lang.Abstract):
         #  where that prefix ends.
         pp = self._preparer(q)
         seq = self.quote(LOG_SEQ)
-        qf.exec(
+        await qf.exec(
             q,
             (
                 f'delete from {self.qname(log_table)} '
@@ -610,9 +629,9 @@ class ReplicateBackend(lang.Abstract):
             self._bind(pp, {'before': self.dtype_codec.encode(DATETIME, before)}),
         )
 
-    def prune_tombstones(
+    async def prune_tombstones(
             self,
-            q: Querier,
+            q: AsyncQuerier,
             shadow: QualifiedName,
             *,
             after: uuid.UUID | None,
@@ -642,7 +661,7 @@ class ReplicateBackend(lang.Abstract):
             wheres.append(Q.le(Q.i(SHADOW_KEY), Q.p.upto))
             values[Q.p.upto] = codec.encode(UUID, upto)
 
-        qf.exec(q, Q.delete(Q.n(tuple(shadow)), where=Q.and_(*wheres)), values)
+        await qf.exec(q, Q.delete(Q.n(tuple(shadow)), where=Q.and_(*wheres)), values)
 
 
 ##

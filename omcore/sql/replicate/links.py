@@ -6,7 +6,7 @@ import uuid
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
-from ..api.core import Conn
+from ..api.core import AsyncConn
 from ..tabledefs.tabledefs import TableDef
 from .applying import ApplyReport
 from .applying import apply_rows
@@ -29,27 +29,27 @@ class LinkConns(lang.Final):
     for - a step which finds nothing to do at its source never troubles its target - and all closed together.
     """
 
-    def __init__(self, link: Link, es: contextlib.ExitStack) -> None:
+    def __init__(self, link: Link, aes: contextlib.AsyncExitStack) -> None:
         super().__init__()
 
         self._link = link
-        self._es = es
+        self._aes = aes
 
-        self._source: Conn | None = None
-        self._target: Conn | None = None
+        self._source: AsyncConn | None = None
+        self._target: AsyncConn | None = None
 
-    def source(self) -> Conn:
+    async def source(self) -> AsyncConn:
         if (conn := self._source) is None:
-            conn = self._source = self._es.enter_context(self._link.source.db.connect())
+            conn = self._source = await self._aes.enter_async_context(self._link.source.db.connect())
         return conn
 
-    def target(self) -> Conn:
+    async def target(self) -> AsyncConn:
         if (conn := self._target) is None:
-            conn = self._target = self._es.enter_context(self._link.target.db.connect())
+            conn = self._target = await self._aes.enter_async_context(self._link.target.db.connect())
         return conn
 
-    def cursors(self) -> Conn:
-        return self.target() if self._link.spec.cursor_side is CursorSide.TARGET else self.source()
+    async def cursors(self) -> AsyncConn:
+        return await (self.target() if self._link.spec.cursor_side is CursorSide.TARGET else self.source())
 
 
 class Link(lang.Final):
@@ -106,12 +106,12 @@ class Link(lang.Final):
     def cursors(self) -> CursorStore:
         return self._cursors
 
-    def connect(self) -> ta.ContextManager[LinkConns]:
-        @contextlib.contextmanager
-        def inner():
-            with contextlib.ExitStack() as es:
+    def connect(self) -> ta.AsyncContextManager[LinkConns]:
+        @contextlib.asynccontextmanager
+        async def inner():
+            async with contextlib.AsyncExitStack() as aes:
                 try:
-                    yield LinkConns(self, es)
+                    yield LinkConns(self, aes)
                 except BaseException:
                     # What did and did not get written is now anyone's guess.
                     self._cursors.forget()
@@ -119,19 +119,19 @@ class Link(lang.Final):
 
         return inner()
 
-    def connected(self, conns: LinkConns | None = None) -> ta.ContextManager[LinkConns]:
+    def connected(self, conns: LinkConns | None = None) -> ta.AsyncContextManager[LinkConns]:
         """The connections given, left as they are for whoever opened them - or, given none, the link's own."""
 
         if conns is not None:
-            return lang.ValueContextManager(conns)
+            return lang.ValueAsyncContextManager(conns)
         return self.connect()
 
-    def origin_predicate(self) -> OriginPredicate:
+    async def origin_predicate(self) -> OriginPredicate:
         f = self._spec.origins
         if f is OriginFilter.SOURCE_OWN:
-            return OriginPredicate(filter=f, node_id=self._source.node_id)
+            return OriginPredicate(filter=f, node_id=await self._source.node_id())
         elif f is OriginFilter.ALL_EXCEPT_TARGET:
-            return OriginPredicate(filter=f, node_id=self._target.node_id)
+            return OriginPredicate(filter=f, node_id=await self._target.node_id())
         elif f is OriginFilter.ALL:
             return OriginPredicate(filter=f)
         else:
@@ -179,7 +179,7 @@ class LinkSyncReport(lang.Final):
         return sum(t.scanned for t in self.tables)
 
 
-def sync_table_once(
+async def sync_table_once(
         link: Link,
         td: TableDef,
         *,
@@ -200,13 +200,13 @@ def sync_table_once(
     name = td.name.last
     source = link.source
     target = link.target
-    origins = link.origin_predicate()
+    origins = await link.origin_predicate()
 
-    with link.connected(conns) as lc:
-        cur = link.cursors.read(spec.name, name, conn=lc.cursors)
+    async with link.connected(conns) as lc:
+        cur = await link.cursors.read(spec.name, name, conn=lc.cursors)
 
-        shadows = source.backend.scan_shadows(
-            lc.source(),
+        shadows = await source.backend.scan_shadows(
+            await lc.source(),
             source.shadow_name(td),
             after=cur.position,
             limit=spec.batch_size,
@@ -217,24 +217,28 @@ def sync_table_once(
         # something is - gets said.
         rep = ApplyReport()
         if shadows:
-            states = target.backend.fetch_shadow_states(lc.target(), target.shadow_name(td), list(shadows))
+            states = await target.backend.fetch_shadow_states(
+                await lc.target(),
+                target.shadow_name(td),
+                list(shadows),
+            )
             if (wanted := [k for k, st in shadows.items() if states.get(k) != st]):
-                rows = source.backend.scan_keys(
-                    lc.source(),
+                rows = await source.backend.scan_keys(
+                    await lc.source(),
                     td,
                     source.table_name(td),
                     source.shadow_name(td),
                     keys=wanted,
                     origins=origins,
                 )
-                rep = apply_rows(target, td, rows, conn=lc.target())
+                rep = await apply_rows(target, td, rows, conn=await lc.target())
 
         completed = len(shadows) < spec.batch_size
         last = None if completed else next(reversed(shadows))
 
         if prune_tombstones_before is not None:
-            for node, conn in ((source, lc.source()), (target, lc.target())):
-                node.backend.prune_tombstones(
+            for node, conn in ((source, await lc.source()), (target, await lc.target())):
+                await node.backend.prune_tombstones(
                     conn,
                     node.shadow_name(td),
                     after=cur.position,
@@ -246,7 +250,7 @@ def sync_table_once(
             position=last,
             sweeps=cur.sweeps + (1 if completed else 0),
         )
-        link.cursors.write(spec.name, name, new, conn=lc.cursors)
+        await link.cursors.write(spec.name, name, new, conn=lc.cursors)
 
     return TableSyncReport(
         table=name,
@@ -260,7 +264,7 @@ def sync_table_once(
     )
 
 
-def sync_link_tail(link: Link, *, conns: LinkConns | None = None) -> TailReport | None:
+async def sync_link_tail(link: Link, *, conns: LinkConns | None = None) -> TailReport | None:
     """
     One batch of the source's change log: the keys it names are looked up and applied exactly as the sweep would, then
     the log position advances past them. Freshness only - a change the tail misses waits for the sweep - which is also
@@ -273,10 +277,15 @@ def sync_link_tail(link: Link, *, conns: LinkConns | None = None) -> TailReport 
 
     spec = link.spec
 
-    with link.connected(conns) as lc:
-        after = link.cursors.read_log(spec.name, conn=lc.cursors)
+    async with link.connected(conns) as lc:
+        after = await link.cursors.read_log(spec.name, conn=lc.cursors)
 
-        entries = source.backend.read_log(lc.source(), source.log_table, after=after, limit=spec.tail_batch_size)
+        entries = await source.backend.read_log(
+            await lc.source(),
+            source.log_table,
+            after=after,
+            limit=spec.tail_batch_size,
+        )
 
         by_table: dict[str, list[uuid.UUID]] = {td.name.last: [] for td in link.tables}
         seen: set[tuple[str, uuid.UUID]] = set()
@@ -286,27 +295,27 @@ def sync_link_tail(link: Link, *, conns: LinkConns | None = None) -> TailReport 
                 by_table[e.table].append(e.key)
 
         applied = deleted = skipped = 0
-        origins = link.origin_predicate()
+        origins = await link.origin_predicate()
         for td in link.tables:
             keys = by_table[td.name.last]
             if not keys:
                 continue
-            rows = source.backend.scan_keys(
-                lc.source(),
+            rows = await source.backend.scan_keys(
+                await lc.source(),
                 td,
                 source.table_name(td),
                 source.shadow_name(td),
                 keys=keys,
                 origins=origins,
             )
-            rep = apply_rows(link.target, td, rows, conn=lc.target())
+            rep = await apply_rows(link.target, td, rows, conn=await lc.target())
             applied += rep.applied
             deleted += rep.deleted
             skipped += rep.skipped
 
         seq = entries[-1].seq if entries else after
         if entries:
-            link.cursors.write_log(spec.name, seq, conn=lc.cursors)
+            await link.cursors.write_log(spec.name, seq, conn=lc.cursors)
 
     return TailReport(
         entries=len(entries),
@@ -319,7 +328,7 @@ def sync_link_tail(link: Link, *, conns: LinkConns | None = None) -> TailReport 
     )
 
 
-def sync_link_once(
+async def sync_link_once(
         link: Link,
         *,
         conns: LinkConns | None = None,
@@ -330,19 +339,19 @@ def sync_link_once(
     for truth - all of it over the one connection to each node. A worker paces the two apart.
     """
 
-    with link.connected(conns) as lc:
-        tail = sync_link_tail(link, conns=lc)
+    async with link.connected(conns) as lc:
+        tail = await sync_link_tail(link, conns=lc)
         return LinkSyncReport(
             link=link.name,
             tables=[
-                sync_table_once(link, td, conns=lc, prune_tombstones_before=prune_tombstones_before)
+                await sync_table_once(link, td, conns=lc, prune_tombstones_before=prune_tombstones_before)
                 for td in link.tables
             ],
             tail=tail,
         )
 
 
-def sync_link_sweep(
+async def sync_link_sweep(
         link: Link,
         *,
         max_steps: int = 10_000,
@@ -355,13 +364,13 @@ def sync_link_sweep(
 
     done: dict[str, TableSyncReport] = {}
     acc: dict[str, list[TableSyncReport]] = {td.name.last: [] for td in link.tables}
-    with link.connect() as lc:
+    async with link.connect() as lc:
         for _ in range(max_steps):
             for td in link.tables:
                 name = td.name.last
                 if name in done:
                     continue
-                rep = sync_table_once(link, td, conns=lc, prune_tombstones_before=prune_tombstones_before)
+                rep = await sync_table_once(link, td, conns=lc, prune_tombstones_before=prune_tombstones_before)
                 acc[name].append(rep)
                 if rep.completed:
                     steps = acc[name]

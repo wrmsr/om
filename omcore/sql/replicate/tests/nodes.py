@@ -1,4 +1,8 @@
-"""Test support: nodes over sandboxes, direct row manipulation on a node, and a fault-injecting db."""
+"""
+Test support: nodes over sandboxes, direct row manipulation on a node, and a fault-injecting db. A sandbox hands out a
+sync db, so by default a node's is that behind the async interface, run in place - which is what lets a scenario be
+driven with no event loop at all.
+"""
 import contextlib
 import typing as ta
 import uuid
@@ -6,10 +10,12 @@ import uuid
 from .... import check
 from ...api import querierfuncs as qf
 from ...api.adapters import Adapter
-from ...api.core import Conn
-from ...api.core import Db
-from ...api.core import Rows
-from ...api.core import Txn
+from ...api.asyncs import ImmediateSyncToAsyncRunner
+from ...api.asyncs import SyncToAsyncDb
+from ...api.core import AsyncConn
+from ...api.core import AsyncDb
+from ...api.core import AsyncRows
+from ...api.core import AsyncTxn
 from ...api.queries import Query
 from ...api.queries import Queryable
 from ...queries import Q
@@ -29,39 +35,43 @@ from ..rows import SourceRow
 ##
 
 
-def postgres_node(name: str, sb: Sandbox, db: Db | None = None, **kwargs: ta.Any) -> Node:
-    return Node(name, db if db is not None else sb.db(), PostgresReplicateBackend(), **kwargs)
+def sandbox_async_db(sb: Sandbox) -> AsyncDb:
+    return SyncToAsyncDb(ImmediateSyncToAsyncRunner, sb.db())
 
 
-def sqlite_node(name: str, sb: Sandbox, db: Db | None = None, **kwargs: ta.Any) -> Node:
-    return Node(name, db if db is not None else sb.db(), SqliteReplicateBackend(), **kwargs)
+def postgres_node(name: str, sb: Sandbox, db: AsyncDb | None = None, **kwargs: ta.Any) -> Node:
+    return Node(name, db if db is not None else sandbox_async_db(sb), PostgresReplicateBackend(), **kwargs)
 
 
-def mysql_node(name: str, sb: Sandbox, db: Db | None = None, **kwargs: ta.Any) -> Node:
-    return Node(name, db if db is not None else sb.db(), MysqlReplicateBackend(), **kwargs)
+def sqlite_node(name: str, sb: Sandbox, db: AsyncDb | None = None, **kwargs: ta.Any) -> Node:
+    return Node(name, db if db is not None else sandbox_async_db(sb), SqliteReplicateBackend(), **kwargs)
+
+
+def mysql_node(name: str, sb: Sandbox, db: AsyncDb | None = None, **kwargs: ta.Any) -> Node:
+    return Node(name, db if db is not None else sandbox_async_db(sb), MysqlReplicateBackend(), **kwargs)
 
 
 ##
 
 
-def insert_row(node: Node, td: TableDef, values: ta.Mapping[str, ta.Any]) -> None:
+async def insert_row(node: Node, td: TableDef, values: ta.Mapping[str, ta.Any]) -> None:
     codec = node.backend.dtype_codec
     cols = list(td.elements[Column])
     check.equal(set(values), {c.name for c in cols})
-    with node.db.connect() as conn:
-        qf.exec(
+    async with node.db.connect() as conn:
+        await qf.exec(
             conn,
             Q.insert([Q.i(c.name) for c in cols], Q.n(tuple(node.table_name(td))), [Q.p(c.name) for c in cols]),
             {Q.p(c.name): codec.encode(c.type, values[c.name]) for c in cols},
         )
 
 
-def update_row(node: Node, td: TableDef, key: uuid.UUID, values: ta.Mapping[str, ta.Any]) -> None:
+async def update_row(node: Node, td: TableDef, key: uuid.UUID, values: ta.Mapping[str, ta.Any]) -> None:
     codec = node.backend.dtype_codec
     cols = {c.name: c for c in td.elements[Column]}
     kc = table_key_column(td)
-    with node.db.connect() as conn:
-        qf.exec(
+    async with node.db.connect() as conn:
+        await qf.exec(
             conn,
             Q.update(
                 Q.n(tuple(node.table_name(td))),
@@ -75,24 +85,24 @@ def update_row(node: Node, td: TableDef, key: uuid.UUID, values: ta.Mapping[str,
         )
 
 
-def delete_row(node: Node, td: TableDef, key: uuid.UUID) -> None:
+async def delete_row(node: Node, td: TableDef, key: uuid.UUID) -> None:
     kc = table_key_column(td)
-    with node.db.connect() as conn:
-        qf.exec(
+    async with node.db.connect() as conn:
+        await qf.exec(
             conn,
             Q.delete(Q.n(tuple(node.table_name(td))), where=Q.eq(Q.i(kc.name), Q.p.key)),
             {Q.p.key: node.backend.dtype_codec.encode(kc.type, key)},
         )
 
 
-def read_rows(node: Node, td: TableDef) -> dict[uuid.UUID, dict[str, ta.Any]]:
+async def read_rows(node: Node, td: TableDef) -> dict[uuid.UUID, dict[str, ta.Any]]:
     """Every base row, decoded to canonical values, by key."""
 
     codec = node.backend.dtype_codec
     cols = list(td.elements[Column])
     kc = table_key_column(td)
-    with node.db.connect() as conn:
-        rows = qf.query_all(conn, Q.select([Q.i(c.name) for c in cols], Q.n(tuple(node.table_name(td)))))
+    async with node.db.connect() as conn:
+        rows = await qf.query_all(conn, Q.select([Q.i(c.name) for c in cols], Q.n(tuple(node.table_name(td)))))
     out: dict[uuid.UUID, dict[str, ta.Any]] = {}
     for r in rows:
         d = {c.name: codec.decode(c.type, v) for c, v in zip(cols, r.values)}
@@ -100,19 +110,19 @@ def read_rows(node: Node, td: TableDef) -> dict[uuid.UUID, dict[str, ta.Any]]:
     return out
 
 
-def read_shadow(node: Node, td: TableDef) -> dict[uuid.UUID, SourceRow]:
+async def read_shadow(node: Node, td: TableDef) -> dict[uuid.UUID, SourceRow]:
     """Every shadow row, via the backend's own sweep with no filter."""
 
     origins = OriginPredicate(filter=OriginFilter.ALL)
-    with node.db.connect() as conn:
-        shadows = node.backend.scan_shadows(
+    async with node.db.connect() as conn:
+        shadows = await node.backend.scan_shadows(
             conn,
             node.shadow_name(td),
             after=None,
             limit=1_000_000,
             origins=origins,
         )
-        rows = node.backend.scan_keys(
+        rows = await node.backend.scan_keys(
             conn,
             td,
             node.table_name(td),
@@ -131,13 +141,13 @@ class InjectedFaultError(Exception):
     pass
 
 
-class FailingDb(Db):
+class FailingDb(AsyncDb):
     """
     A db that raises on any statement the (mutable) predicate matches, for staging crashes at chosen points - and which
     keeps count of the connections made and the statements run through it, for seeing what a step costs.
     """
 
-    def __init__(self, db: Db) -> None:
+    def __init__(self, db: AsyncDb) -> None:
         super().__init__()
 
         self._db = db
@@ -164,22 +174,22 @@ class FailingDb(Db):
             if self.fail_when(query.text):
                 raise InjectedFaultError(query.text)
 
-    def connect(self) -> ta.ContextManager[Conn]:
-        @contextlib.contextmanager
-        def inner():
+    def connect(self) -> ta.AsyncContextManager[AsyncConn]:
+        @contextlib.asynccontextmanager
+        async def inner():
             self.num_connects += 1
-            with self._db.connect() as conn:
+            async with self._db.connect() as conn:
                 yield _FailingConn(self, conn)
 
         return inner()
 
-    def query(self, query: Queryable) -> ta.ContextManager[Rows]:
+    def query(self, query: Queryable) -> ta.AsyncContextManager[AsyncRows]:
         self._check(query)
         return self._db.query(query)
 
 
-class _FailingConn(Conn):
-    def __init__(self, db: FailingDb, conn: Conn) -> None:
+class _FailingConn(AsyncConn):
+    def __init__(self, db: FailingDb, conn: AsyncConn) -> None:
         super().__init__()
 
         self._db = db
@@ -189,21 +199,21 @@ class _FailingConn(Conn):
     def adapter(self) -> Adapter:
         return self._conn.adapter
 
-    def query(self, query: Queryable) -> ta.ContextManager[Rows]:
+    def query(self, query: Queryable) -> ta.AsyncContextManager[AsyncRows]:
         self._db._check(query)  # noqa
         return self._conn.query(query)
 
-    def begin(self) -> ta.ContextManager[Txn]:
-        @contextlib.contextmanager
-        def inner():
-            with self._conn.begin() as txn:
+    def begin(self) -> ta.AsyncContextManager[AsyncTxn]:
+        @contextlib.asynccontextmanager
+        async def inner():
+            async with self._conn.begin() as txn:
                 yield _FailingTxn(self._db, txn)
 
         return inner()
 
 
-class _FailingTxn(Txn):
-    def __init__(self, db: FailingDb, txn: Txn) -> None:
+class _FailingTxn(AsyncTxn):
+    def __init__(self, db: FailingDb, txn: AsyncTxn) -> None:
         super().__init__()
 
         self._db = db
@@ -213,12 +223,12 @@ class _FailingTxn(Txn):
     def adapter(self) -> Adapter:
         return self._txn.adapter
 
-    def query(self, query: Queryable) -> ta.ContextManager[Rows]:
+    def query(self, query: Queryable) -> ta.AsyncContextManager[AsyncRows]:
         self._db._check(query)  # noqa
         return self._txn.query(query)
 
-    def commit(self) -> None:
-        self._txn.commit()
+    async def commit(self) -> None:
+        await self._txn.commit()
 
-    def rollback(self) -> None:
-        self._txn.rollback()
+    async def rollback(self) -> None:
+        await self._txn.rollback()

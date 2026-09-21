@@ -2,7 +2,7 @@ import typing as ta
 
 from ... import dataclasses as dc
 from ... import lang
-from ..api.core import Conn
+from ..api.core import AsyncConn
 from ..tabledefs.tabledefs import TableDef
 from .errors import ReplicationConflictError
 from .nodes import Node
@@ -19,12 +19,12 @@ class ApplyReport(lang.Final):
     skipped: int = 0
 
 
-def apply_rows(
+async def apply_rows(
         target: Node,
         td: TableDef,
         rows: ta.Sequence[SourceRow],
         *,
-        conn: Conn | None = None,
+        conn: AsyncConn | None = None,
 ) -> ApplyReport:
     """
     Brings the target up to the source for a batch, by comparison rather than by trust: a row ships only when the target
@@ -43,9 +43,9 @@ def apply_rows(
     ship: list[SourceRow] = []
     skipped = 0
 
-    with target.connected(conn) as target_conn:
-        with target_conn.begin() as txn:
-            states = backend.fetch_shadow_states(txn, shadow, [r.key for r in rows])
+    async with target.connected(conn) as target_conn:
+        async with target_conn.begin() as txn:
+            states = await backend.fetch_shadow_states(txn, shadow, [r.key for r in rows])
 
             for row in rows:
                 if (st := states.get(row.key)) is not None:
@@ -72,12 +72,12 @@ def apply_rows(
             # The deletes go first, so that whatever a deleted row held uniquely is free for a row which now has it.
             deletes = [r for r in ship if r.deleted]
             upserts = [r for r in ship if not r.deleted]
-            backend.delete_rows(txn, td, table, [r.key for r in deletes])
-            backend.upsert_rows(txn, td, table, [r.values or {} for r in upserts])
+            await backend.delete_rows(txn, td, table, [r.key for r in deletes])
+            await backend.upsert_rows(txn, td, table, [r.values or {} for r in upserts])
 
             # And the shadows last: the target's own triggers have by now stamped every row written as locally
             # authored, and this puts the truth back.
-            backend.upsert_shadows(txn, shadow, {r.key: r.state for r in ship})
+            await backend.upsert_shadows(txn, shadow, {r.key: r.state for r in ship})
 
     return ApplyReport(
         applied=len(upserts),

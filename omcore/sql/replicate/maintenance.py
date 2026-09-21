@@ -20,7 +20,7 @@ class MaintenanceReport(lang.Final):
     log_pruned_before: datetime.datetime | None
 
 
-def prune_log(node: Node, *, keep_s: float, now: datetime.datetime | None = None) -> datetime.datetime:
+async def prune_log(node: Node, *, keep_s: float, now: datetime.datetime | None = None) -> datetime.datetime:
     """
     Drops log entries older than the retention, short of the newest one. The log is a hint list, so a dropped entry
     costs nothing but the freshness a tail would have given a link that was away longer than the retention; the sweep
@@ -29,12 +29,12 @@ def prune_log(node: Node, *, keep_s: float, now: datetime.datetime | None = None
 
     check.arg(keep_s >= 0)
     before = (now if now is not None else datetime.datetime.now(datetime.UTC)) - datetime.timedelta(seconds=keep_s)
-    with node.db.connect() as conn:
-        node.backend.prune_log(conn, node.log_table, before=before)
+    async with node.db.connect() as conn:
+        await node.backend.prune_log(conn, node.log_table, before=before)
     return before
 
 
-def maintain_node(
+async def maintain_node(
         node: Node,
         *,
         log_keep_s: float = DEFAULT_LOG_KEEP_S,
@@ -47,7 +47,7 @@ def maintain_node(
 
     return MaintenanceReport(
         node=node.name,
-        log_pruned_before=prune_log(
+        log_pruned_before=await prune_log(
             node,
             keep_s=log_keep_s,
             now=now,

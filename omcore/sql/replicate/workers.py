@@ -1,12 +1,12 @@
 import datetime
 import math
-import threading
 import time
 import typing as ta
 
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
+from ...asyncs.asynclite import all as asl
 from ...logs import all as logs
 from .links import Link
 from .links import LinkSyncReport
@@ -97,19 +97,25 @@ class Worker(lang.Final):
     A failing link doubles its wait up to a cap and never blocks the others, and nothing is ever skipped within a link.
     The logs of the nodes the links touch are pruned on the maintenance interval. The clocks and the sleeper are
     injectable, so tests step it by hand.
+
+    It is async, as is everything it drives, and knows nothing of what it is running under: all it needs of that is an
+    event to be stopped by, which it sleeps on, and it is given what makes one. Under an event loop that and its links'
+    dbs are the loop's own; without one they are the sync kinds behind the same interfaces, and `run` is a call which
+    blocks until another thread calls `stop`.
     """
 
     def __init__(
             self,
             links: ta.Sequence[Link],
             *,
+            events: asl.Events,
             tail_pacing: TailPacing = TailPacing(),
             sweep_interval_s: float = 60.,
             backoff_s: float = 1.,
             max_backoff_s: float = 60.,
             clock: ta.Callable[[], float] = time.monotonic,
             wall_clock: ta.Callable[[], datetime.datetime] = lambda: datetime.datetime.now(datetime.UTC),
-            sleeper: ta.Callable[[float], ta.Any] | None = None,
+            sleeper: ta.Callable[[float], ta.Awaitable[None]] | None = None,
             maintenance_interval_s: float | None = 60. * 60.,
             log_keep_s: float = DEFAULT_LOG_KEEP_S,
             tombstone_keep_s: float | None = DEFAULT_TOMBSTONE_KEEP_S,
@@ -132,10 +138,8 @@ class Worker(lang.Final):
         self._log_keep_s = log_keep_s
         self._tombstone_keep_s = tombstone_keep_s
 
-        self._stop = threading.Event()
-
-        # Waiting on the stop signal rather than the clock, a stop does not have to wait out a sleep.
-        self._sleeper = sleeper if sleeper is not None else self._stop.wait
+        self._stop = events.make_event()
+        self._sleeper = sleeper if sleeper is not None else self._sleep
 
         now = self._clock()
         self._schedules = [_LinkSchedule(link, now, sweep_interval_s) for link in self._links]
@@ -154,9 +158,16 @@ class Worker(lang.Final):
     def failures(self, link: str) -> int:
         return check.single(s for s in self._schedules if s.link.name == link).num_failures
 
+    async def _sleep(self, s: float) -> None:
+        # On the stop signal rather than the clock, so a stop does not have to wait a sleep out.
+        try:
+            await self._stop.wait(timeout=s)
+        except TimeoutError:
+            pass
+
     #
 
-    def _step(self, sch: _LinkSchedule, now: float) -> LinkSyncReport | None:
+    async def _step(self, sch: _LinkSchedule, now: float) -> LinkSyncReport | None:
         link = sch.link
 
         tail_due = sch.next_tail <= now
@@ -168,12 +179,12 @@ class Worker(lang.Final):
         tail: TailReport | None = None
         swept: TableSyncReport | None = None
 
-        with link.connect() as lc:
+        async with link.connect() as lc:
             if tail_due:
-                tail = sync_link_tail(link, conns=lc)
+                tail = await sync_link_tail(link, conns=lc)
 
             if sweep_due:
-                swept = sync_table_once(
+                swept = await sync_table_once(
                     link,
                     link.tables[sweep_table],
                     conns=lc,
@@ -202,7 +213,7 @@ class Worker(lang.Final):
             tail=tail,
         )
 
-    def run_once(self) -> WorkerReport:
+    async def run_once(self) -> WorkerReport:
         """Does whatever is due, which may well be nothing."""
 
         now = self._clock()
@@ -220,7 +231,7 @@ class Worker(lang.Final):
                 sch.next_attempt = None
 
             try:
-                rep = self._step(sch, now)
+                rep = await self._step(sch, now)
             except Exception:  # noqa
                 sch.num_failures += 1
                 delay = min(self._backoff_s * (2 ** sch.num_failures), self._max_backoff_s)
@@ -232,11 +243,11 @@ class Worker(lang.Final):
                 if rep is not None:
                     synced.append(rep)
 
-        maintained = self._maybe_maintain(now)
+        maintained = await self._maybe_maintain(now)
 
         return WorkerReport(synced=synced, failed=failed, waiting=waiting, maintained=maintained)
 
-    def _maybe_maintain(self, now: float) -> list[MaintenanceReport]:
+    async def _maybe_maintain(self, now: float) -> list[MaintenanceReport]:
         # Due on entry and then every interval; a node that fails to be maintained just waits for the next one.
         if (mi := self._maintenance_interval_s) is None:
             return []
@@ -247,7 +258,7 @@ class Worker(lang.Final):
         out: list[MaintenanceReport] = []
         for node in self._nodes.values():
             try:
-                out.append(maintain_node(
+                out.append(await maintain_node(
                     node,
                     log_keep_s=self._log_keep_s,
                     now=self._wall_clock(),
@@ -272,7 +283,7 @@ class Worker(lang.Final):
     # However far off the next thing due, the clock is looked at again at least this often.
     _MAX_SLEEP_S: ta.ClassVar[float] = 60.
 
-    def run(self) -> None:
+    async def run(self) -> None:
         while not self._stop.is_set():
-            self.run_once()
-            self._sleeper(min(max(self.next_due() - self._clock(), 0.), self._MAX_SLEEP_S))
+            await self.run_once()
+            await self._sleeper(min(max(self.next_due() - self._clock(), 0.), self._MAX_SLEEP_S))

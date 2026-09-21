@@ -4,9 +4,7 @@ import uuid
 from ... import dataclasses as dc
 from ... import lang
 from ..api import querierfuncs as qf
-from ..api.asyncs import ImmediateSyncToAsyncRunner
-from ..api.asyncs import SyncToAsyncConn
-from ..api.queriers import Querier
+from ..api.queriers import AsyncQuerier
 from ..inspect.migrating import TableMigration
 from ..inspect.migrating import migrate_table
 from ..tabledefs.diffing import diff_table
@@ -35,7 +33,7 @@ class InstallReport(lang.Final):
     migrations: ta.Sequence[TableMigration]
 
 
-def install_node(
+async def install_node(
         node: Node,
         schema: ReplicationSchema,
         *,
@@ -54,47 +52,44 @@ def install_node(
     insp = node.backend.inspector
     migrations: list[TableMigration] = []
 
-    with node.db.connect() as conn:
-        aconn = SyncToAsyncConn(ImmediateSyncToAsyncRunner(), conn)
+    async with node.db.connect() as conn:
+        async def migrate(td: TableDef) -> None:
+            migrations.append(await migrate_table(conn, td, inspector=insp, renderer=r))
 
-        def migrate(td: TableDef) -> None:
-            migrations.append(lang.sync_await(migrate_table(aconn, td, inspector=insp, renderer=r)))
-
-        migrate(node_table_def(node.node_table))
+        await migrate(node_table_def(node.node_table))
         created_node = False
-        if (node_id := node.backend.read_node_id(conn, node.node_table)) is None:
+        if (node_id := await node.backend.read_node_id(conn, node.node_table)) is None:
             node_id = uuid.uuid7()
-            node.backend.insert_node_id(conn, node.node_table, node_id)
+            await node.backend.insert_node_id(conn, node.node_table, node_id)
             created_node = True
         node._set_node_id(node_id)  # noqa
 
-        migrate(cursor_table_def(node.cursor_table))
+        await migrate(cursor_table_def(node.cursor_table))
         if node.log:
-            migrate(log_table_def(node.log_table))
+            await migrate(log_table_def(node.log_table))
 
         for td in schema.tables:
             table = node.table_name(td)
             shadow = node.shadow_name(td)
 
             # The shadow must exist before a trigger can write to it.
-            migrate(shadow_table_def(shadow))
+            await migrate(shadow_table_def(shadow))
 
             base = dc.replace(td, name=table)
             if not no_manage_base_tables:
-                migrate(TableDef(table, Elements(
+                await migrate(TableDef(table, Elements(
                     *base.elements,
                     *capture_triggers(capture_trigger_version, log=node.log),
                 )))
             else:
-                _migrate_triggers_only(
+                await _migrate_triggers_only(
                     conn,
-                    aconn,
                     node,
                     base,
                     capture_trigger_version,
                 )
 
-            node.backend.backfill_shadow(
+            await node.backend.backfill_shadow(
                 conn,
                 td,
                 table,
@@ -109,9 +104,8 @@ def install_node(
     )
 
 
-def _migrate_triggers_only(
-        conn: Querier,
-        aconn: ta.Any,
+async def _migrate_triggers_only(
+        conn: AsyncQuerier,
         node: Node,
         base: TableDef,
         capture_trigger_version: int,
@@ -121,7 +115,7 @@ def _migrate_triggers_only(
     insp = node.backend.inspector
     r = node.backend.tabledef_renderer
 
-    reflected = lang.sync_await(insp.reflect_table(aconn, base.name))
+    reflected = await insp.reflect_table(conn, base.name)
     if reflected is None:
         raise ReplicationInstallError(f'table {base.name.dotted!r} does not exist on {node!r}')
     existing = insp.lift_table(reflected)
@@ -142,4 +136,4 @@ def _migrate_triggers_only(
 
     for op in diff_table(current, existing, trigger_table=wanted):
         for s in r.render_migration(op):
-            qf.exec(conn, s)
+            await qf.exec(conn, s)

@@ -3,8 +3,8 @@ import uuid
 
 from ... import check
 from ... import lang
-from ..api.core import Conn
-from ..api.core import Db
+from ..api.core import AsyncConn
+from ..api.core import AsyncDb
 from ..qualifiedname import QualifiedName
 from ..tabledefs.tabledefs import TableDef
 from .errors import ReplicationInstallError
@@ -31,7 +31,7 @@ class Node(lang.Final):
     def __init__(
             self,
             name: str,
-            db: Db,
+            db: AsyncDb,
             backend: ReplicateBackend,
             *,
             qualifier: ta.Sequence[str] = (),
@@ -55,7 +55,7 @@ class Node(lang.Final):
         return self._name
 
     @property
-    def db(self) -> Db:
+    def db(self) -> AsyncDb:
         return self._db
 
     @property
@@ -74,7 +74,7 @@ class Node(lang.Final):
 
     #
 
-    def connected(self, conn: Conn | None = None) -> ta.ContextManager[Conn]:
+    def connected(self, conn: AsyncConn | None = None) -> ta.AsyncContextManager[AsyncConn]:
         """
         The connection given, left as it is for whoever opened it - or, given none, one of this node's own for the span
         of the block. A step of a link opens its nodes' connections once and hands them down; anything done on its own
@@ -82,7 +82,7 @@ class Node(lang.Final):
         """
 
         if conn is not None:
-            return lang.ValueContextManager(conn)
+            return lang.ValueAsyncContextManager(conn)
         return self._db.connect()
 
     def qualify(self, last: str) -> QualifiedName:
@@ -108,11 +108,12 @@ class Node(lang.Final):
 
     #
 
-    @property
-    def node_id(self) -> uuid.UUID:
+    async def node_id(self) -> uuid.UUID:
+        """Read from the node the once, as it never changes. A method, and not a property, as that is a query."""
+
         if (nid := self._node_id) is None:
-            with self._db.connect() as conn:
-                nid = self._backend.read_node_id(conn, self.node_table)
+            async with self._db.connect() as conn:
+                nid = await self._backend.read_node_id(conn, self.node_table)
             if nid is None:
                 raise ReplicationInstallError(f'{self!r} is not installed')
             self._node_id = nid

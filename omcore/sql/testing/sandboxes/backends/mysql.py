@@ -9,6 +9,7 @@ from .....secrets.secrets import Secrets
 from ....api import querierfuncs as qf
 from ....api.asyncs import ImmediateSyncToAsyncRunner
 from ....api.asyncs import SyncToAsyncConn
+from ....api.core import AsyncDb
 from ....api.core import Conn
 from ....api.core import Db
 from ....api.queriers import Querier
@@ -96,6 +97,11 @@ class MysqlSandboxBackend(SandboxBackend):
         check.is_(kind, SandboxKind.DATABASE)
         self._names.check_sandbox_name(name)
         return be.connecting.omysql_db(self._loc, database=name, secrets=self._secrets)
+
+    def sandbox_asyncio_db(self, run_id: str, name: str, kind: SandboxKind) -> AsyncDb:
+        check.is_(kind, SandboxKind.DATABASE)
+        self._names.check_sandbox_name(name)
+        return be.connecting.asyncio_omysql_db(self._loc, database=name, secrets=self._secrets)
 
     #
 

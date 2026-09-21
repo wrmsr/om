@@ -6,6 +6,7 @@ import typing as ta
 
 from .... import check
 from ....secrets.secrets import Secrets
+from ...api.core import AsyncDb
 from ...api.core import Db
 from ...dbs import DbTypes
 from ...dbs import HostDbLoc
@@ -23,17 +24,17 @@ def parse_url_db_loc(url: str) -> tuple[HostDbLoc, str | None]:
     return _parse_url_db_loc(url, DbTypes.POSTGRES)
 
 
-def og8000_db(
+def _og8000_kwargs(
         loc: HostDbLoc,
         *,
         database: str | None = None,
         application_name: str | None = None,
         startup_params: ta.Mapping[str, str] | None = None,
         secrets: Secrets | None = None,
-) -> Db:
+) -> dict[str, ta.Any]:
     password = reveal_password(loc, secrets)
 
-    kwargs: dict[str, ta.Any] = dict(
+    return dict(
         user=check.non_empty_str(loc.username),
         password=password,
         host=loc.host,
@@ -43,4 +44,42 @@ def og8000_db(
         startup_params=dict(startup_params) if startup_params is not None else None,
     )
 
+
+def og8000_db(
+        loc: HostDbLoc,
+        *,
+        database: str | None = None,
+        application_name: str | None = None,
+        startup_params: ta.Mapping[str, str] | None = None,
+        secrets: Secrets | None = None,
+) -> Db:
+    kwargs = _og8000_kwargs(
+        loc,
+        database=database,
+        application_name=application_name,
+        startup_params=startup_params,
+        secrets=secrets,
+    )
+
     return og8000.Og8000Db(lambda: og8000_.SyncCoreConnection(**kwargs))
+
+
+def asyncio_og8000_db(
+        loc: HostDbLoc,
+        *,
+        database: str | None = None,
+        application_name: str | None = None,
+        startup_params: ta.Mapping[str, str] | None = None,
+        secrets: Secrets | None = None,
+) -> AsyncDb:
+    """The same db, reached over asyncio's own io rather than blocking sockets."""
+
+    kwargs = _og8000_kwargs(
+        loc,
+        database=database,
+        application_name=application_name,
+        startup_params=startup_params,
+        secrets=secrets,
+    )
+
+    return og8000.AsyncioOg8000Db(lambda: og8000_.AsyncioCoreConnection.connect(**kwargs))

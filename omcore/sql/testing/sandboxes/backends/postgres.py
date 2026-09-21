@@ -7,6 +7,7 @@ import typing as ta
 from ..... import check
 from .....secrets.secrets import Secrets
 from ....api import querierfuncs as qf
+from ....api.core import AsyncDb
 from ....api.core import Conn
 from ....api.core import Db
 from ....api.queriers import Querier
@@ -89,12 +90,11 @@ class PostgresSandboxBackend(SandboxBackend):
             secrets=self._secrets,
         )
 
-    def sandbox_db(self, run_id: str, name: str, kind: SandboxKind) -> Db:
+    def _sandbox_db_kwargs(self, run_id: str, name: str, kind: SandboxKind) -> dict[str, ta.Any]:
         self._names.check_sandbox_name(name)
 
         if kind is SandboxKind.SCHEMA:
-            return be.connecting.og8000_db(
-                self._loc,
+            return dict(
                 database=self._cfg.database,
                 application_name=self._names.application_name(run_id),
                 startup_params={'search_path': self._quote(name)},
@@ -102,8 +102,7 @@ class PostgresSandboxBackend(SandboxBackend):
             )
 
         elif kind is SandboxKind.DATABASE:
-            return be.connecting.og8000_db(
-                self._loc,
+            return dict(
                 database=name,
                 application_name=self._names.application_name(run_id),
                 secrets=self._secrets,
@@ -111,6 +110,12 @@ class PostgresSandboxBackend(SandboxBackend):
 
         else:
             raise ValueError(kind)
+
+    def sandbox_db(self, run_id: str, name: str, kind: SandboxKind) -> Db:
+        return be.connecting.og8000_db(self._loc, **self._sandbox_db_kwargs(run_id, name, kind))
+
+    def sandbox_asyncio_db(self, run_id: str, name: str, kind: SandboxKind) -> AsyncDb:
+        return be.connecting.asyncio_og8000_db(self._loc, **self._sandbox_db_kwargs(run_id, name, kind))
 
     #
 

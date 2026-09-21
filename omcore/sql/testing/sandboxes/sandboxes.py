@@ -7,6 +7,7 @@ import typing as ta
 
 from .... import check
 from .... import lang
+from ...api.core import AsyncDb
 from ...api.core import Conn
 from ...api.core import Db
 from .backend import SandboxBackend
@@ -35,6 +36,7 @@ class Sandbox(lang.Final):
         self._kind = kind
 
         self._db: Db | None = None
+        self._asyncio_db: AsyncDb | None = None
         self._released = False
 
     def __repr__(self) -> str:
@@ -61,6 +63,13 @@ class Sandbox(lang.Final):
             raise SandboxStateError(f'{self!r} is released')
         if (db := self._db) is None:
             db = self._db = self._allocator.backend.sandbox_db(self.run_id, self._name, self._kind)
+        return db
+
+    def asyncio_db(self) -> AsyncDb:
+        if self._released:
+            raise SandboxStateError(f'{self!r} is released')
+        if (db := self._asyncio_db) is None:
+            db = self._asyncio_db = self._allocator.backend.sandbox_asyncio_db(self.run_id, self._name, self._kind)
         return db
 
     def release(self) -> None:

@@ -10,6 +10,9 @@ import typing as ta
 
 from ..... import check
 from ....api import querierfuncs as qf
+from ....api.asyncs import AsyncioToExecutorSyncToAsyncRunner
+from ....api.asyncs import SyncToAsyncDb
+from ....api.core import AsyncDb
 from ....api.core import Conn
 from ....api.core import Db
 from ....api.dbapi import ClosingDbapiConnector
@@ -135,6 +138,11 @@ class SqliteSandboxBackend(SandboxBackend):
     def sandbox_db(self, run_id: str, name: str, kind: SandboxKind) -> Db:
         check.is_(kind, SandboxKind.DATABASE)
         return self._db(self.sandbox_db_path(name))
+
+    def sandbox_asyncio_db(self, run_id: str, name: str, kind: SandboxKind) -> AsyncDb:
+        # There being no async sqlite, this is the sync one run off the loop, on its default executor - which the
+        # connections can be, made as they are to be used from any thread.
+        return SyncToAsyncDb(AsyncioToExecutorSyncToAsyncRunner.factory(), self.sandbox_db(run_id, name, kind))
 
     #
 
