@@ -380,7 +380,7 @@
     "value": {
       "!omdev.cli.types.CliModule": {
         "name": [
-          "pyjq"
+          "jq"
         ],
         "module": "omcore.specs.jq.__main__"
       }

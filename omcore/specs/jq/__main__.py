@@ -1,6 +1,6 @@
 # @om-manifest
 _CLI_MODULE = {'!omdev.cli.types.CliModule': {
-    'name': ['pyjq'],
+    'name': ['jq'],
     'module': __name__,
 }}
 
