@@ -39,15 +39,21 @@ from .headless import headless_tui
 
 class WorkerThread:
     """
-    A replication worker running free on a thread. Its sleeper is the way in: it paces the worker on the stop signal
-    rather than the clock, so a stop is prompt, and it counts the passes, which is what lets a test wait for the worker
-    to have caught up instead of guessing at how long that takes.
+    A replication worker running free on a thread - paced as it would be for real, only much faster, as nobody is going
+    to wait a minute on a sweep here. Its sleeper is the way in: it sleeps on the stop signal rather than the clock, so
+    a stop is prompt, and it says when a pass is over, which is what lets a test wait for something to have come of one
+    instead of guessing at how long that takes.
     """
 
     def __init__(self, links: list[rep.Link]) -> None:
         super().__init__()
 
-        self._worker = rep.Worker(links, interval_s=.01, sleeper=self._sleep)
+        self._worker = rep.Worker(
+            links,
+            tail_pacing=rep.TailPacing(min_interval_s=.01, max_interval_s=.05),
+            sweep_interval_s=.02,
+            sleeper=self._sleep,
+        )
 
         self._cond = threading.Condition()
         self._num_passes = 0
@@ -82,15 +88,11 @@ class WorkerThread:
         check.state(not self._thread.is_alive())
         check.none(self._error)
 
-    def wait_caught_up(self, timeout_s: float = 30.) -> None:
-        """
-        Returns once a pass has both started and finished after this was called: a pass already underway may have read
-        the source before its last write, the one after it cannot have.
-        """
+    def wait_until(self, fn: ta.Callable[[], bool], timeout_s: float = 30.) -> None:
+        """Returns once `fn` holds, looking again each time the worker has finished a pass."""
 
         with self._cond:
-            n = self._num_passes + 2
-            check.state(self._cond.wait_for(lambda: self._num_passes >= n or self._error is not None, timeout_s))
+            check.state(self._cond.wait_for(lambda: self._error is not None or fn(), timeout_s))
         check.none(self._error)
         check.state(not any(self._worker.failures(link.name) for link in self._worker.links))
 
@@ -155,16 +157,21 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
             #
 
+            def num_hub_entries() -> int:
+                return len(read_rows(hub, schema.table('session_entries')))
+
             with WorkerThread([link]) as worker:
-                # What predates the triggers gets there by the sweep alone.
-                worker.wait_caught_up()
-                assert len(read_rows(hub, schema.table('session_entries'))) == 2
+                # What predates the triggers gets there by the sweep alone, the log knowing nothing of it.
+                worker.wait_until(lambda: num_hub_entries() == 2)
 
                 # What follows them goes while the worker runs: a turn with a tool call in it, then one which fails.
                 await tui.session.prompt('again')
                 await tui.session.prompt('and again')
 
-                worker.wait_caught_up()
+                worker.wait_until(lambda: (
+                    num_hub_entries() == 8 and
+                    read_rows(hub, schema.table('sessions'))[tui.session.id.v]['num_entries'] == 8
+                ))
 
             #
 

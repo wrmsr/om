@@ -19,6 +19,7 @@ from .scenarios import check_roundtrip
 from .scenarios import check_step_costs
 from .scenarios import check_worker
 from .scenarios import check_worker_maintenance
+from .scenarios import check_worker_pacing
 
 
 def test_sqlite_to_postgres(harness) -> None:
@@ -190,6 +191,16 @@ def test_no_log(harness) -> None:
         check_no_log(
             sqlite_node('edge', e, no_log=True),
             postgres_node('hub', h),
+            build_schema(),
+        )
+
+
+def test_worker_pacing(harness) -> None:
+    hs = harness[HarnessSandboxes]
+    with hs.sqlite().allocate() as e, hs.postgres().allocate() as h:
+        check_worker_pacing(
+            sqlite_node('edge', e, FailingDb(e.db())),
+            postgres_node('hub', h, FailingDb(h.db())),
             build_schema(),
         )
 

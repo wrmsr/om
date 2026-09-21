@@ -83,7 +83,6 @@ with _lang.auto_proxy_init(globals()):
 
         maintain_node,
         prune_log,
-        prune_tombstones,
     )
 
     from .names import (  # noqa
@@ -126,6 +125,7 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .workers import (  # noqa
+        TailPacing,
         Worker,
         WorkerReport,
     )

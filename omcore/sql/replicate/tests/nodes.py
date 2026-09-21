@@ -103,16 +103,24 @@ def read_rows(node: Node, td: TableDef) -> dict[uuid.UUID, dict[str, ta.Any]]:
 def read_shadow(node: Node, td: TableDef) -> dict[uuid.UUID, SourceRow]:
     """Every shadow row, via the backend's own sweep with no filter."""
 
+    origins = OriginPredicate(filter=OriginFilter.ALL)
     with node.db.connect() as conn:
-        rows = node.backend.scan(
+        shadows = node.backend.scan_shadows(
+            conn,
+            node.shadow_name(td),
+            after=None,
+            limit=1_000_000,
+            origins=origins,
+        )
+        rows = node.backend.scan_keys(
             conn,
             td,
             node.table_name(td),
             node.shadow_name(td),
-            after=None,
-            limit=1_000_000,
-            origins=OriginPredicate(filter=OriginFilter.ALL),
+            keys=list(shadows),
+            origins=origins,
         )
+    check.equal({r.key: r.state for r in rows}, shadows)
     return {r.key: r for r in rows}
 
 

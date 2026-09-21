@@ -1,5 +1,6 @@
 """The behaviors every dialect and every dialect pair must exhibit, written once against nodes. Not a test module."""
 import datetime
+import itertools
 import typing as ta
 import uuid
 
@@ -23,9 +24,9 @@ from ..links import sync_link_once
 from ..links import sync_link_sweep
 from ..links import sync_link_tail
 from ..maintenance import prune_log
-from ..maintenance import prune_tombstones
 from ..nodes import Node
 from ..rows import ShadowState
+from ..workers import TailPacing
 from ..workers import Worker
 from .nodes import FailingDb
 from .nodes import InjectedFaultError
@@ -393,7 +394,7 @@ def check_worker(edge: Node, hub: Node, broken_hub: Node, schema: ReplicationSch
 
     now = [1000.]
     slept: list[float] = []
-    w = Worker([good, bad], interval_s=1., max_backoff_s=8., clock=lambda: now[0], sleeper=slept.append)
+    w = Worker([good, bad], backoff_s=1., max_backoff_s=8., clock=lambda: now[0], sleeper=slept.append)
 
     r1 = w.run_once()
     assert [r.link for r in r1.synced] == ['good'] and r1.failed == ['bad'] and not r1.waiting
@@ -468,13 +469,27 @@ def check_log_tail(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
     assert check.not_none(step.tail).applied == 1
     assert all(t.applied == 0 for t in step.tables)
 
-    # pruning: the log empties, the tombstone goes, the live rows stay
-    prune_log(edge, keep_s=0, now=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60))
+    # pruning: the log goes, and a sweep told to takes the tombstone with it - at both ends, the hub having been given
+    # it first - while the live rows stay
+    later = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60)
+    position = link.cursors.read_log('up')
+    prune_log(edge, keep_s=0, now=later)
     with edge.db.connect() as conn:
-        assert not edge.backend.read_log(conn, edge.log_table, after=0, limit=10)
-    prune_tombstones(edge, schema, keep_s=0, now=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60))
-    sh = read_shadow(edge, biz)
-    assert rows[1]['id'] not in sh and len(sh) == len(rows)  # four originals plus the stepped one
+        assert [e.seq for e in edge.backend.read_log(conn, edge.log_table, after=0, limit=10)] == [position]
+
+    # all but the newest entry, that is, so that the next is numbered on from it - and not, as it would be from nothing
+    # on some dialects, from the start, behind the link's place in the log and unseen by it
+    after_prune = _business('after prune')
+    insert_row(edge, biz, after_prune)
+    t5 = check.not_none(sync_link_tail(link))
+    assert (t5.entries, t5.applied) == (1, 1) and t5.seq == position + 1
+    assert after_prune['id'] in read_rows(hub, biz)
+    rows.append(after_prune)
+    assert rows[1]['id'] in read_shadow(edge, biz) and rows[1]['id'] in read_shadow(hub, biz)
+    sync_link_sweep(link, prune_tombstones_before=later)
+    for n in (edge, hub):
+        sh = read_shadow(n, biz)
+        assert rows[1]['id'] not in sh and len(sh) == len(rows)  # four originals plus the stepped one
 
 
 def check_no_log(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
@@ -495,7 +510,7 @@ def check_no_log(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
 
 
 def check_worker_maintenance(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
-    """The worker prunes every node it touches on its own interval, on a fake clock."""
+    """The worker prunes the log of every node it touches on its own interval, on a fake clock."""
 
     for n in (edge, hub):
         install_node(n, schema)
@@ -507,12 +522,10 @@ def check_worker_maintenance(edge: Node, hub: Node, schema: ReplicationSchema) -
     now = [0.]
     w = Worker(
         [_link('up', schema, edge, hub)],
-        interval_s=1.,
         clock=lambda: now[0],
-        sleeper=lambda _: None,
+        wall_clock=lambda: datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60),
         maintenance_interval_s=100.,
         log_keep_s=0.,
-        tombstone_keep_s=0.,
     )
 
     # pruning runs on the first pass, then not again until the interval has elapsed
@@ -523,7 +536,116 @@ def check_worker_maintenance(edge: Node, hub: Node, schema: ReplicationSchema) -
     now[0] += 60.
     assert len(w.run_once().maintained) == 2
 
-    # a zero retention leaves no log entries and no tombstones behind (a tiny clock skew is tolerated by waiting)
+    # a zero retention leaves nothing in the log behind but its newest entry
     with edge.db.connect() as conn:
-        assert not edge.backend.read_log(conn, edge.log_table, after=0, limit=10)
-    assert row['id'] not in read_shadow(edge, biz)
+        assert len(edge.backend.read_log(conn, edge.log_table, after=0, limit=10)) == 1
+
+
+def check_worker_pacing(edge: Node, hub: Node, schema: ReplicationSchema) -> None:
+    """
+    A worker left alone settles down to nearly nothing, and wakes up when there is something to do: the tail by how
+    lately its log was busy, the sweep a table's batch at a time - sooner for a table found to be behind - pruning
+    tombstones as it goes. All on a fake clock.
+    """
+
+    edge_db = check.isinstance(edge.db, FailingDb)
+    hub_db = check.isinstance(hub.db, FailingDb)
+    for n in (edge, hub):
+        install_node(n, schema)
+    biz = schema.table('businesses')
+    num_tables = len(schema.tables)
+
+    now = [1000.]
+    w = Worker(
+        [_link('up', schema, edge, hub, batch_size=10)],
+        tail_pacing=TailPacing(min_interval_s=.5, max_interval_s=10., idle_ratio=.1),
+        sweep_interval_s=60.,
+        clock=lambda: now[0],
+        wall_clock=lambda: datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60),
+        maintenance_interval_s=None,
+        tombstone_keep_s=0.,
+    )
+
+    def run_until(t: float) -> list[tuple[float, LinkSyncReport]]:
+        """Runs the worker as `run` would, its sleeps being leaps of the clock, up to but not at a time."""
+
+        out: list[tuple[float, LinkSyncReport]] = []
+        while (due := w.next_due()) < t:
+            now[0] = max(now[0], due)
+            rep = w.run_once()
+            assert not rep.failed
+            out.extend((now[0], r) for r in rep.synced)
+        now[0] = t
+        return out
+
+    # left alone, the log is looked at less and less - each wait a tenth of the quiet so far - down to every 10s
+    quiet = run_until(1300.)
+    tails = [t for t, r in quiet if r.tail is not None]
+    gaps = [b - a for a, b in itertools.pairwise(tails)]
+    assert gaps[0] == .5 and gaps[-1] == 10.
+    assert gaps == sorted(gaps)
+    assert all(b <= a * 1.1 + 1e-9 for a, b in itertools.pairwise(gaps) if a > .5)
+    assert len(tails) < 70  # where every half second would have been six hundred
+
+    # while each table gets a batch a minute, no two in the one pass
+    sweeps = [(t, r.tables[0].table) for t, r in quiet if r.tables]
+    assert all(len(r.tables) <= 1 for _, r in quiet)
+    assert {n: len([t for t, tn in sweeps if tn == n]) for n in schema.table_names} == dict.fromkeys(schema.table_names, 5)  # noqa
+    assert len({t for t, _ in sweeps}) == len(sweeps)
+
+    # a look at a log with nothing new in it is the one query, to the source: the far end is not so much as connected to
+    for _ in range(num_tables + 1):
+        for db in (edge_db, hub_db):
+            db.reset_counts()
+        [(_, rep)] = run_until(w.next_due() + 1e-6)
+        if not rep.tables:
+            break
+    assert rep.tail is not None and not rep.tail.entries and not rep.tables
+    assert (edge_db.num_connects, len(edge_db.statements)) == (1, 1)
+    assert (hub_db.num_connects, len(hub_db.statements)) == (0, 0)
+
+    # nor does a sweep which finds everything in place read a single row: just shadows, and their states at the far end
+    for db in (edge_db, hub_db):
+        db.reset_counts()
+    swept = [r for _, r in run_until(now[0] + 60.) if r.tables]
+    assert len(swept) == num_tables
+    assert not any('join' in s.lower() for s in edge_db.statements)
+
+    # something in the log and it is back to the half second, easing off again from there
+    rows = [_business(f'p{i}') for i in range(25)]
+    for r in rows:
+        insert_row(edge, biz, r)
+    start = now[0]
+    busy = run_until(start + 30.)
+    busy_tails = [(t, r.tail) for t, r in busy if r.tail is not None]
+    assert busy_tails[0][1].applied == len(rows)
+    assert read_rows(hub, biz) == read_rows(edge, biz)
+    busy_gaps = [b - a for (a, _), (b, _) in itertools.pairwise(busy_tails)]
+    assert busy_gaps[0] == .5 and 1. < busy_gaps[-1] < 10.
+
+    # a table found to be behind is not made to wait its minute: rows the log never told of - ones from before a node
+    # kept one, or whose entries were pruned - go batch after batch, as fast as they are found
+    with edge.db.connect() as conn:
+        edge.backend.prune_log(conn, edge.log_table, before=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60))  # noqa
+    with hub.db.connect() as conn:
+        for t in (hub.table_name(biz), hub.shadow_name(biz)):
+            qf.exec(conn, f'delete from {hub.backend.qname(t)}')  # noqa
+    assert not read_rows(hub, biz)
+    behind = [(t, r.tables[0]) for t, r in run_until(now[0] + 60.) if r.tables and r.tables[0].table == 'businesses']
+    assert [tr.applied for _, tr in behind] == [10, 10, 5, 0]  # the one which finds nothing more ends the hurry
+    assert len({t for t, _ in behind}) == 1
+    assert read_rows(hub, biz) == read_rows(edge, biz)
+
+    # and tombstones go as the sweep comes by them - at both ends, the far one having first been told of the delete -
+    # which is by the stretch of keys a batch covered, never by a scan for them of its own
+    delete_row(edge, biz, rows[0]['id'])
+    assert read_shadow(edge, biz)[rows[0]['id']].deleted
+    for db in (edge_db, hub_db):
+        db.reset_counts()
+    run_until(now[0] + 300.)  # time enough for a sweep to get all the way around
+    assert rows[0]['id'] not in read_rows(hub, biz)
+    assert all(rows[0]['id'] not in read_shadow(n, biz) for n in (edge, hub))
+    assert len(read_shadow(edge, biz)) == len(read_shadow(hub, biz)) == len(rows) - 1
+    for n, db in ((edge, edge_db), (hub, hub_db)):
+        prunes = [x for x in db.writes if x.lstrip().lower().startswith(f'delete from {n.backend.qname(n.shadow_name(biz))}')]  # noqa
+        assert len(prunes) >= 3 and all(f'{n.backend.quote("id")} >' in x or f'{n.backend.quote("id")} <=' in x for x in prunes)  # noqa

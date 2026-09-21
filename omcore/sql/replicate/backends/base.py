@@ -285,18 +285,20 @@ class ReplicateBackend(lang.Abstract):
             'deleted': self.dtype_codec.encode(BOOLEAN, False),
         }))
 
-    def scan(
+    def scan_shadows(
             self,
             q: Querier,
-            td: TableDef,
-            table: QualifiedName,
             shadow: QualifiedName,
             *,
             after: uuid.UUID | None,
             limit: int,
             origins: OriginPredicate,
-    ) -> list[SourceRow]:
-        """The next batch of the key-space sweep: shadow rows in key order, joined to whatever base row remains."""
+    ) -> dict[uuid.UUID, ShadowState]:
+        """
+        The next batch of the key-space sweep, in key order - and of the shadows alone: a sweep mostly finds that what
+        it looks at is where it should be already, so what is in a base row is read (by `scan_keys`) only once the row
+        is known to be wanted.
+        """
 
         codec = self.dtype_codec
         pp = self._preparer(q)
@@ -309,7 +311,24 @@ class ReplicateBackend(lang.Abstract):
         self._origin_where(pp, values, wheres, origins)
 
         values['limit'] = limit
-        return self._select_rows(q, td, table, shadow, pp, values, wheres, limit_placeholder=pp.add('limit'))
+        sql = (
+            'select '
+            + ', '.join(f's.{self.quote(c)}' for c in (SHADOW_KEY, SHADOW_VERSION, SHADOW_ORIGIN, SHADOW_DELETED))
+            + f' from {self.qname(shadow)} s '
+            + (f'where {" and ".join(wheres)} ' if wheres else '')
+            + f'order by s.{self.quote(SHADOW_KEY)} '
+            + f'limit {pp.add("limit")}'
+        )
+
+        out: dict[uuid.UUID, ShadowState] = {}
+        for r in qf.query_all(q, sql, self._bind(pp, values)):
+            k, ver, org, dl = r.values
+            out[codec.decode(UUID, k)] = ShadowState(
+                version=codec.decode(_version_dtype(), ver),
+                origin=codec.decode(UUID, org),
+                deleted=codec.decode(BOOLEAN, dl),
+            )
+        return out
 
     def scan_keys(
             self,
@@ -321,7 +340,7 @@ class ReplicateBackend(lang.Abstract):
             keys: ta.Sequence[uuid.UUID],
             origins: OriginPredicate,
     ) -> list[SourceRow]:
-        """The sweep's row shape for a given set of keys: what a log tail looks up."""
+        """Whole rows for a given set of keys: what a log tail looks up, and a sweep once it knows what it wants."""
 
         if not keys:
             return []
@@ -336,7 +355,7 @@ class ReplicateBackend(lang.Abstract):
         wheres = [f's.{self.quote(SHADOW_KEY)} in ({", ".join(ps)})']
         self._origin_where(pp, values, wheres, origins)
 
-        return self._select_rows(q, td, table, shadow, pp, values, wheres, limit_placeholder=None)
+        return self._select_rows(q, td, table, shadow, pp, values, wheres)
 
     def _origin_where(
             self,
@@ -366,8 +385,6 @@ class ReplicateBackend(lang.Abstract):
             pp: ParamsPreparer,
             values: ta.Mapping[str, ta.Any],
             wheres: ta.Sequence[str],
-            *,
-            limit_placeholder: str | None,
     ) -> list[SourceRow]:
         codec = self.dtype_codec
         cols = list(td.elements[Column])
@@ -391,8 +408,7 @@ class ReplicateBackend(lang.Abstract):
             + f' from {self.qname(shadow)} s '
             f'left join {self.qname(table)} b on b.{key} = s.{self.quote(SHADOW_KEY)} '
             + (f'where {" and ".join(wheres)} ' if wheres else '')
-            + f'order by s.{self.quote(SHADOW_KEY)} '
-            + (f'limit {limit_placeholder}' if limit_placeholder is not None else '')
+            + f'order by s.{self.quote(SHADOW_KEY)}'
         )
 
         out: list[SourceRow] = []
@@ -568,31 +584,63 @@ class ReplicateBackend(lang.Abstract):
         return out
 
     def prune_log(self, q: Querier, log_table: QualifiedName, *, before: datetime.datetime) -> None:
+        """
+        Drops the entries older than `before` - but for the newest there is, however old. A link holds its place in the
+        log by sequence number, and not every dialect keeps a sequence going past what is left in the table: sqlite
+        numbers a row one past the highest still there, so from an emptied log it would start over, behind every link's
+        place, and whatever came next would go unseen by them until the numbers had caught back up.
+        """
+
+        # FIXME: FIXME: FIXME: this is a scan of the whole log, there being - deliberately - no index on when an entry
+        #  was made. It has to become something which walks the log by its key, as the pruning of tombstones does the
+        #  shadows by theirs: entries are made in sequence, so the ones to go are a prefix of it, and what is wanted is
+        #  where that prefix ends.
+        pp = self._preparer(q)
+        seq = self.quote(LOG_SEQ)
         qf.exec(
             q,
-            Q.delete(
-                Q.n(tuple(log_table)),
-                where=Q.lt(Q.i(LOG_CHANGED_AT), Q.p.before),
+            (
+                f'delete from {self.qname(log_table)} '
+                f'where {self.quote(LOG_CHANGED_AT)} < {pp.add("before")} '
+                # Through a derived table, as mysql will not have a delete's own table in a subquery of it otherwise.
+                f'and {seq} < (select m from (select max({seq}) as m from {self.qname(log_table)}) x)'
             ),
-            {Q.p.before: self.dtype_codec.encode(DATETIME, before)},
+            self._bind(pp, {'before': self.dtype_codec.encode(DATETIME, before)}),
         )
 
-    def prune_tombstones(self, q: Querier, shadow: QualifiedName, *, before: datetime.datetime) -> None:
+    def prune_tombstones(
+            self,
+            q: Querier,
+            shadow: QualifiedName,
+            *,
+            after: uuid.UUID | None,
+            upto: uuid.UUID | None,
+            before: datetime.datetime,
+    ) -> None:
+        """
+        Drops the tombstones older than `before` within a range of keys - after the one, up to and including the other,
+        either of which may be open. It is only ever done by range: a shadow is indexed by its key and nothing else, so
+        this is a walk of a stretch of that index, where doing it by age alone would be a scan of the whole table.
+        """
+
         codec = self.dtype_codec
-        qf.exec(
-            q,
-            Q.delete(
-                Q.n(tuple(shadow)),
-                where=Q.and_(
-                    Q.eq(Q.i(SHADOW_DELETED), Q.p.deleted),
-                    Q.lt(Q.i(SHADOW_CHANGED_AT), Q.p.before),
-                ),
-            ),
-            {
-                Q.p.deleted: codec.encode(BOOLEAN, True),
-                Q.p.before: codec.encode(DATETIME, before),
-            },
-        )
+
+        wheres = [
+            Q.eq(Q.i(SHADOW_DELETED), Q.p.deleted),
+            Q.lt(Q.i(SHADOW_CHANGED_AT), Q.p.before),
+        ]
+        values: dict[ta.Any, ta.Any] = {
+            Q.p.deleted: codec.encode(BOOLEAN, True),
+            Q.p.before: codec.encode(DATETIME, before),
+        }
+        if after is not None:
+            wheres.append(Q.gt(Q.i(SHADOW_KEY), Q.p.after))
+            values[Q.p.after] = codec.encode(UUID, after)
+        if upto is not None:
+            wheres.append(Q.le(Q.i(SHADOW_KEY), Q.p.upto))
+            values[Q.p.upto] = codec.encode(UUID, upto)
+
+        qf.exec(q, Q.delete(Q.n(tuple(shadow)), where=Q.and_(*wheres)), values)
 
 
 ##
