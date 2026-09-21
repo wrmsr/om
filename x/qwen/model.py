@@ -450,8 +450,11 @@ class Qwen35:
         ops, c = self.ops, self.cfg
 
         def fn(tok, pos, *flat):
-            cos = ops.reshape(cos_tab[pos], (1, c.rope_dim))
-            sin = ops.reshape(sin_tab[pos], (1, c.rope_dim))
+            # index with a 1-element array, not the 0-d one: torch turns a 0-d tensor index into `.item()`, a
+            # device->host sync that is illegal inside a CUDA graph capture; a 1-d index is a plain gather
+            p1 = ops.reshape(pos, (1,))
+            cos = cos_tab[p1]  # [1, rope_dim]
+            sin = sin_tab[p1]
             x = ops.embedding(tok, self.embed, self.dtype)
             out: list[Array] = []
             for i, blk in enumerate(self.blocks):
