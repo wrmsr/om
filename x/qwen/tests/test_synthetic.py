@@ -54,6 +54,7 @@ CFG = dict(
         'linear',
         'full',
     ],
+    num_mtp_layers=1,
 )
 
 
@@ -92,6 +93,24 @@ def make_hf_params(cfg: Qwen35Config, seed=0):
             p[q + 'linear_attn.dt_bias'] = n(cfg.num_v_heads) + 1.0
             p[q + 'linear_attn.norm.weight'] = n(cfg.head_v_dim) + 1.0
             p[q + 'linear_attn.out_proj.weight'] = n(h, cfg.value_dim)
+    if cfg.num_mtp_layers:
+        # the draft head: stem + one full-attention block with the text geometry + final norm
+        q = 'mtp.layers.0.'
+        p['mtp.fc.weight'] = n(h, 2 * h)
+        p['mtp.pre_fc_norm_embedding.weight'] = n(h)
+        p['mtp.pre_fc_norm_hidden.weight'] = n(h)
+        p['mtp.norm.weight'] = n(h)
+        p[q + 'input_layernorm.weight'] = n(h)
+        p[q + 'post_attention_layernorm.weight'] = n(h)
+        p[q + 'mlp.gate_proj.weight'] = n(ff, h)
+        p[q + 'mlp.up_proj.weight'] = n(ff, h)
+        p[q + 'mlp.down_proj.weight'] = n(h, ff)
+        p[q + 'self_attn.q_proj.weight'] = n(cfg.num_heads * cfg.head_dim * 2, h)
+        p[q + 'self_attn.k_proj.weight'] = n(cfg.num_kv_heads * cfg.head_dim, h)
+        p[q + 'self_attn.v_proj.weight'] = n(cfg.num_kv_heads * cfg.head_dim, h)
+        p[q + 'self_attn.o_proj.weight'] = n(h, cfg.num_heads * cfg.head_dim)
+        p[q + 'self_attn.q_norm.weight'] = n(cfg.head_dim)
+        p[q + 'self_attn.k_norm.weight'] = n(cfg.head_dim)
     return p
 
 
@@ -102,7 +121,7 @@ def effective(hf: dict) -> dict:
     for k, v in hf.items():
         if k.endswith('A_log'):
             out[k[: -len('A_log')] + 'A'] = -np.exp(v)
-        elif k.endswith('norm.weight') and not k.endswith('linear_attn.norm.weight'):
+        elif (k.endswith('norm.weight') and not k.endswith('linear_attn.norm.weight')) or 'pre_fc_norm' in k:
             out[k] = v + 1.0
         elif k.endswith('conv1d.weight'):
             out[k] = v[:, 0, :]
@@ -157,13 +176,18 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True, flavor='llamacp
     """
 
     w = gguf.GGUFWriter(str(path), 'qwen35')
-    w.add_block_count(cfg.num_layers)
+    n_blocks = cfg.num_layers + cfg.num_mtp_layers
+    w.add_block_count(n_blocks)
+    if cfg.num_mtp_layers:
+        w.add_uint32('qwen35.nextn_predict_layers', cfg.num_mtp_layers)
     w.add_embedding_length(cfg.hidden_size)
     w.add_feed_forward_length(cfg.intermediate_size)
     w.add_context_length(4096)
     w.add_head_count(cfg.num_heads)
     if flavor == 'ollama':
-        w.add_head_count_kv([cfg.num_kv_heads if t == 'full' else 0 for t in cfg.layer_types])
+        w.add_head_count_kv(
+            [cfg.num_kv_heads if t == 'full' else 0 for t in cfg.layer_types] + [cfg.num_kv_heads] * cfg.num_mtp_layers,
+        )
     else:
         w.add_head_count_kv(cfg.num_kv_heads)
     w.add_key_length(cfg.head_dim)
@@ -180,7 +204,10 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True, flavor='llamacp
     if flavor == 'ollama':
         w.add_bool('qwen35.ssm.v_head_reordered', True)
     else:
-        w.add_array('qwen35.attention.recurrent_layers', [t == 'linear' for t in cfg.layer_types])
+        w.add_array(
+            'qwen35.attention.recurrent_layers',
+            [t == 'linear' for t in cfg.layer_types] + [False] * cfg.num_mtp_layers,
+        )
     w.add_uint32('qwen35.full_attention_interval', 4)
     w.add_vocab_size(cfg.vocab_size)
     tokens, types, merges = tiny_tokenizer_fields()
@@ -207,7 +234,19 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True, flavor='llamacp
             return 'output_norm.weight'
         if k == 'lm_head.weight':
             return 'output.weight'
-        i, rest = k.split('.', 2)[1:]
+        if k.startswith('mtp.'):  # conversion/qwen.py: mtp.* -> layer n_layer, stem under nextn.*
+            i = str(cfg.num_layers)
+            stem = {
+                'mtp.fc.weight': 'nextn.eh_proj.weight',
+                'mtp.pre_fc_norm_embedding.weight': 'nextn.enorm.weight',
+                'mtp.pre_fc_norm_hidden.weight': 'nextn.hnorm.weight',
+                'mtp.norm.weight': 'nextn.shared_head_norm.weight',
+            }
+            if k in stem:
+                return f'blk.{i}.{stem[k]}'
+            rest = k.split('.', 3)[3]
+        else:
+            i, rest = k.split('.', 2)[1:]
         m = {
             'input_layernorm.weight': 'attn_norm.weight',
             'post_attention_layernorm.weight': 'post_attention_norm.weight',
@@ -237,8 +276,8 @@ def write_gguf(path, cfg: Qwen35Config, hf: dict, quantize=True, flavor='llamacp
         # replicate conversion/qwen.py transforms
         if k.endswith('A_log'):
             d = -np.exp(d)
-        elif k.endswith('norm.weight') and not k.endswith('linear_attn.norm.weight'):
-            d = d + 1
+        elif (k.endswith('norm.weight') and not k.endswith('linear_attn.norm.weight')) or 'pre_fc_norm' in k:
+            d = d + 1  # (the converter renames pre_fc_norm_* to enorm/hnorm before its *norm.weight rule)
         elif 'conv1d' in k:
             d = d.squeeze()
         if 'linear_attn.' in k and r > 1:
@@ -321,7 +360,7 @@ def write_ollama_tensor_model(root: pathlib.Path, cfg: Qwen35Config, hf: dict):
     layers = []
     n = 0
     for k, v in hf.items():
-        hf_name = 'model.language_model.' + k if k != 'lm_head.weight' else k
+        hf_name = 'model.language_model.' + k if k != 'lm_head.weight' and not k.startswith('mtp.') else k
         digest = f'sha256:{n:064x}'
         n += 1
         p = root / 'blobs' / digest.replace(':', '-')
@@ -381,6 +420,7 @@ def write_ollama_tensor_model(root: pathlib.Path, cfg: Qwen35Config, hf: dict):
                 for t in cfg.layer_types
             ],
             'tie_word_embeddings': False,
+            'mtp_num_hidden_layers': cfg.num_mtp_layers,
         },
     }
     tokens, types, merges = tiny_tokenizer_fields()

@@ -84,7 +84,8 @@ and `ops.capture` makes it fast:
 - tinygrad: `TinyJit`, with inputs and outputs cloned each call because JIT buffers are reused (correct, not yet
   fast; `__setitem__` bakes the index into recorded kernels, so `kv_write` stays the masked-blend reference there).
 
-`Decoder.step(tok)` moves one token id in and the logits out per token; `snapshot()` / `restore()` are the
+`Decoder.step(tok)` moves one token id in and the logits out per token (`Decoder.verify` / `commit` are the
+T = k + 1 variant used by speculative decoding, below); `snapshot()` / `restore()` are the
 prefix-cache primitives (restore re-pads or re-captures across a capacity change); when the sequence reaches
 `capacity` the buffers double and the step is re-captured. Attention reads the full buffer every step, so cost
 tracks the power-of-two capacity, not the live length -- at 32 KB/token that is ~1 GB per step at 32k, fine
@@ -153,10 +154,37 @@ The canonical parameter scheme is HF's layout with *effective* values (see the d
 Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only the `1 + w` and
 `-exp(A_log)` normalisation and MLX affine dequant.
 
+## Speculative decoding (MTP)
+
+The 27B checkpoints carry a one-layer multi-token-prediction head (`blk.64` / `nextn.*` in the GGUF, `mtp.*` in
+HF; `nextn_predict_layers = 1`). `MtpHead` implements it: `rmsnorm(embed(x_{p+1}))` and `rmsnorm(h_p)` (the
+target's final-normed hidden at p) concatenated -- embedding first -- through `fc`, one full-attention block with
+the text geometry and its own KV, a final norm, the target's `lm_head`. It predicts the token at p+2 and
+recurses on its own normed output.
+
+`SpecDecoder` (`model.py`) runs one round as: draft k tokens (the first from the head's last refreshed entry,
+the rest by recursion), verify `[next_tok, d_1..d_k]` in a single captured T = k + 1 target step, accept the
+longest prefix where the target's sample equals the draft, commit, then refresh the draft head over the
+committed positions with the target's true hidden states (one captured T = k + 1 draft step). Rollback costs
+nothing: the KV buffers are masked by position and the verify step returns the DeltaNet state after every token,
+so the state after the accepted prefix is a slice. Accept-if-equal is exact for greedy and for sampling (each
+committed token is a sample from the target given its prefix); rejection sampling would accept more and is the
+follow-up.
+
+```bash
+python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 -p "..."
+python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 --preset thinking -p "..."
+```
+
+`Sampler` does temperature / top-k / top-p / min-p / presence penalty on the host; `--preset thinking` and
+`non-thinking` are Qwen's published settings. `test_parity.py::test_spec_decode_parity` checks that speculative
+decoding reproduces greedy decoding exactly on every backend, with the real head and with oracle drafts
+corrupted at each index so every acceptance length is exercised.
+
 ## Where to go next (in order)
 
-1. **MTP speculative decoding** — the 27B checkpoints carry a one-layer draft head; verify is a captured T=4 step
-   and rollback is `Decoder.restore` of a pre-verify snapshot.
+1. **Rejection sampling** for the verify step (higher acceptance when sampling), and `--lm-head-draft`-style
+   proposal on a vocabulary subset to cut the draft head's output matmul.
 2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
 3. **Kernel tuning** — sweep `triton_block_n` / `num_warps`, add split-K for the narrow projections, and put

@@ -84,6 +84,7 @@ class Qwen35Config:
     context_length: int = 262144
     rope_scaling: dict | None = None
     tied_embeddings: bool = False
+    num_mtp_layers: int = 0  # multi-token-prediction draft blocks after the text stack (1 for the 27B checkpoints)
     extra: dict = dc.field(default_factory=dict)
 
     @property
@@ -417,6 +418,7 @@ class GGUFSource(TensorSource):
             context_length=int(a('context_length', 262144) or 262144),
             rope_scaling=rope_scaling,
             tied_embeddings='output.weight' not in self._tensors,
+            num_mtp_layers=n_nextn,
             extra={
                 'gguf_path': str(self.path),
                 'n_nextn': n_nextn,
@@ -532,6 +534,31 @@ class GGUFSource(TensorSource):
                 )
                 m[q + 'linear_attn.norm.weight'] = (p + 'ssm_norm.weight', None)
                 m[q + 'linear_attn.out_proj.weight'] = (p + 'ssm_out.weight', 'untile_cols_dv')
+        if c.num_mtp_layers:
+            # the draft head is the block after the text stack: a full-attention block plus the `nextn` stem
+            p = f'blk.{c.num_layers}.'
+            q = 'mtp.layers.0.'
+            m['mtp.fc.weight'] = (p + 'nextn.eh_proj.weight', None)
+            m['mtp.pre_fc_norm_embedding.weight'] = (p + 'nextn.enorm.weight', None)
+            m['mtp.pre_fc_norm_hidden.weight'] = (p + 'nextn.hnorm.weight', None)
+            m['mtp.norm.weight'] = (
+                first(p + 'nextn.shared_head_norm.weight', p + 'nextn.shared_head.norm.weight'),
+                None,
+            )
+            m[q + 'input_layernorm.weight'] = (p + 'attn_norm.weight', None)
+            m[q + 'post_attention_layernorm.weight'] = (
+                first(p + 'post_attention_norm.weight', p + 'attn_post_norm.weight'),
+                None,
+            )
+            m[q + 'mlp.gate_proj.weight'] = (p + 'ffn_gate.weight', None)
+            m[q + 'mlp.up_proj.weight'] = (p + 'ffn_up.weight', None)
+            m[q + 'mlp.down_proj.weight'] = (p + 'ffn_down.weight', None)
+            m[q + 'self_attn.q_proj.weight'] = (p + 'attn_q.weight', None)
+            m[q + 'self_attn.k_proj.weight'] = (p + 'attn_k.weight', None)
+            m[q + 'self_attn.v_proj.weight'] = (p + 'attn_v.weight', None)
+            m[q + 'self_attn.o_proj.weight'] = (p + 'attn_output.weight', None)
+            m[q + 'self_attn.q_norm.weight'] = (p + 'attn_q_norm.weight', None)
+            m[q + 'self_attn.k_norm.weight'] = (p + 'attn_k_norm.weight', None)
         missing = [(k, g) for k, (g, _) in m.items() if g not in ts]
         if missing:
             blocks = sorted({g.split('.')[1] for _, g in missing if g.startswith('blk.')}, key=int)[:2]
@@ -675,6 +702,7 @@ class OllamaTensorSource(TensorSource):
             context_length=t.get('max_position_embeddings', 262144),
             rope_scaling=rope_scaling,
             tied_embeddings=bool(t.get('tie_word_embeddings', cfg.get('tie_word_embeddings', False))),
+            num_mtp_layers=int(t.get('mtp_num_hidden_layers', cfg.get('mtp_num_hidden_layers', 0)) or 0),
             extra={'format': 'ollama-tensor'},
         )
 
@@ -744,8 +772,9 @@ class OllamaTensorSource(TensorSource):
         if name.endswith('.linear_attn.A'):
             return -np.exp(self._load_hf(name[:-1] + 'A_log'))
         x = self._load_hf(name)
-        # HF stores zero-centred norm weights (1 + w) for every RMSNorm except the gated one.
-        if name.endswith('norm.weight') and not name.endswith('linear_attn.norm.weight'):
+        # HF stores zero-centred norm weights (1 + w) for every RMSNorm except the gated one (the draft head's
+        # pre_fc_norm_* are norms too, just not named *norm.weight)
+        if (name.endswith('norm.weight') and not name.endswith('linear_attn.norm.weight')) or 'pre_fc_norm' in name:
             x = x + 1.0
         if name.endswith('linear_attn.conv1d.weight') and x.ndim == 3:
             x = x[:, 0, :]

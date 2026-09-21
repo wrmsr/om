@@ -206,6 +206,80 @@ def test_static_decode_parity():
             ops.capture_mode = 'auto'
 
 
+def test_spec_decode_parity():
+    """
+    Speculative decoding must reproduce plain greedy decoding token for token whatever the drafts are. Checked
+    with the real (random, hence useless) draft head, and with an oracle draft function that returns the true
+    continuation corrupted at a chosen index so every acceptance length 0..k gets exercised -- that pins down
+    verify, commit (DeltaNet state selection, KV masking) and the draft-head refresh. Also: the draft head's
+    static step == its functional pass.
+    """
+
+    from ..model import Sampler
+    from ..model import SpecDecoder
+
+    cfg, hf, src = synthetic_source()
+    prompt = np.random.default_rng(6).integers(0, 256, 6).tolist()
+    n_new = 24
+    k = 3
+    for ops in backends():
+        if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
+            ops.capture_mode = 'static'
+        model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
+        ref = model.generate(prompt, max_new_tokens=n_new, static=True)
+        full = prompt + ref
+
+        # (a) the real draft head
+        out = model.generate(prompt, max_new_tokens=n_new, spec=k)
+        assert out == ref, (ops.name, out, ref)
+
+        # (b) oracle drafts, corrupted at index m in turn: exactly m drafts must be accepted each round
+        cache = Cache(cfg)
+        logits, hidden = model.forward(np.array([prompt]), cache, return_hidden=True)
+        sd = SpecDecoder(model, cache, prompt, logits, hidden, k, Sampler(), capacity=len(full) + k + 2)
+        pattern = [3, 0, 1, 2, 3, 3]
+        expected: list[int] = []
+
+        def oracle(n, next_tok, kk):
+            assert next_tok == full[n], (n, next_tok, full[n])
+            d = list(full[n + 1:n + 1 + kk])
+            d += [0] * (kk - len(d))
+            m = pattern[len(expected) % len(pattern)]
+            if m < kk:
+                d[m] = (d[m] + 1) % cfg.vocab_size
+            expected.append(min(m, len(full) - n - 1))
+            return d
+
+        sd.draft_fn = oracle
+        got: list[int] = []
+        while len(got) < n_new:
+            before = sd.accepted
+            got.extend(sd.round())
+            assert sd.accepted - before == expected[-1], (ops.name, sd.rounds, sd.accepted - before, expected[-1])
+        assert got[:n_new] == ref, (ops.name, got[:n_new], ref)
+        print(f'{ops.name}: spec decode == greedy (real head + oracle drafts; {sd.rounds} oracle rounds, '
+              f'{sd.accepted} accepted)')
+
+        # (c) draft-head static step vs functional pass over the same 4 entries from an empty cache
+        mtp = model.mtp
+        assert mtp is not None
+        T = 4
+        toks = np.array([full[1:1 + T]], dtype=np.int32)
+        cache = Cache(cfg)
+        _, hid = model.forward(np.array([full[:T]]), cache, return_hidden=True)
+        f_logits, f_d, (fk, fv) = mtp.prefill(toks, hid, 0)
+        dec = sd.dec
+        B, KV, _, D = fk.shape
+        zeros = ops.zeros((B, KV, dec.capacity, D), fk.dtype)
+        fn = mtp.step_fn(T, dec.ar, dec.cos_tab, dec.sin_tab)
+        s_logits, s_d, sk, sv = fn(ops.array(toks), hid, ops.scalar(0), zeros, ops.copy(zeros))
+        assert rel_err(ops.numpy(s_logits), ops.numpy(f_logits)) < 2e-5, ops.name
+        assert rel_err(ops.numpy(s_d), ops.numpy(f_d)) < 2e-5, ops.name
+        assert rel_err(ops.numpy(sk[:, :, :T]), ops.numpy(fk)) < 2e-5, ops.name
+        if hasattr(ops, 'capture_mode'):
+            ops.capture_mode = 'auto'
+
+
 def test_qweight_parity():
     rng = np.random.default_rng(1)
     w = (rng.standard_normal((96, 256)) * 0.05).astype(np.float32)

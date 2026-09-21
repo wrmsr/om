@@ -12,6 +12,7 @@ from ..backends import BACKENDS
 from ..backends import default_dtype
 from ..backends import make_ops
 from ..model import Qwen35
+from ..model import Sampler
 from ..tokenizer import Tokenizer
 from ..weights import OllamaModel
 from ..weights import describe_gguf
@@ -93,7 +94,30 @@ def main() -> None:
         action='store_true',
         help='decode with the growing functional cache instead of the captured static step (reference path)',
     )
+    ap.add_argument(
+        '--spec',
+        type=int,
+        default=0,
+        metavar='K',
+        help='MTP speculative decoding with K draft tokens per round (loads the draft head); 0 = off',
+    )
+    ap.add_argument('--temperature', type=float, default=0.0, help='0 = greedy (default)')
+    ap.add_argument('--top-k', type=int, default=0)
+    ap.add_argument('--top-p', type=float, default=1.0)
+    ap.add_argument('--min-p', type=float, default=0.0)
+    ap.add_argument('--presence-penalty', type=float, default=0.0)
+    ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument(
+        '--preset',
+        choices=['thinking', 'non-thinking'],
+        default=None,
+        help="Qwen's published sampling presets: thinking t=1.0/top-p .95/top-k 20; non-thinking t=0.7/top-p .8/top-k 20/presence 1.5",  # noqa
+    )
     args = ap.parse_args()
+    if args.preset == 'thinking':
+        args.temperature, args.top_p, args.top_k, args.presence_penalty = 1.0, 0.95, 20, 0.0
+    elif args.preset == 'non-thinking':
+        args.temperature, args.top_p, args.top_k, args.presence_penalty = 0.7, 0.8, 20, 1.5
 
     ops = make_ops(args.backend, args.device)
     dtype = args.dtype or default_dtype(ops)
@@ -111,8 +135,16 @@ def main() -> None:
     print(f'[model] {src.config.summary()}')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
-    model = Qwen35.from_source(src, ops, dtype=dtype, quant=args.quant)
+    model = Qwen35.from_source(src, ops, dtype=dtype, quant=args.quant, mtp=args.spec > 0)
     print(f'[model] loaded on {ops.name} as {dtype} in {time.time() - t0:.1f}s')
+    sampler = Sampler(
+        temperature=args.temperature,
+        top_k=args.top_k,
+        top_p=args.top_p,
+        min_p=args.min_p,
+        presence_penalty=args.presence_penalty,
+        seed=args.seed,
+    )
 
     text = (
         args.prompt
@@ -149,10 +181,19 @@ def main() -> None:
         eos_ids=eos,
         on_token=on_token,
         static=not args.functional,
+        sampler=sampler,
+        spec=args.spec,
     )
     sys.stdout.write(streamer.flush())
     dt = time.time() - t0
     print(f'\n[gen] {n[0]} tokens in {dt:.1f}s ({n[0] / dt:.1f} tok/s incl. prefill)')
+    if args.spec and model.last_spec is not None:
+        sd = model.last_spec
+        print(
+            f'[spec] {sd.rounds} rounds, {sd.accepted} drafts accepted '
+            f'({sd.accepted / max(1, sd.rounds * args.spec):.0%} of {args.spec}/round; '
+            f'{(sd.accepted + sd.rounds) / max(1, sd.rounds):.2f} tokens/round)',
+        )
 
 
 if __name__ == '__main__':

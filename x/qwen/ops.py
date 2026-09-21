@@ -310,9 +310,25 @@ class Ops(abc.ABC):
     ) -> tuple[Array, Array]:
         """Per-token form: O(T) sequential steps, each a handful of small ops. The reference."""
 
+        out, states = self.gated_delta_states(q, k, v, g, beta, state)
+        return out, states[-1]
+
+    def gated_delta_states(
+            self,
+            q: Array,
+            k: Array,
+            v: Array,
+            g: Array,
+            beta: Array,
+            state: Array,
+    ) -> tuple[Array, Array]:
+        """The recurrence, also returning the state after every token: [T, B, H, dk, dv]. Speculative verify
+        runs T = k + 1 tokens and then keeps the state after however many were accepted."""
+
         T = q.shape[2]
         S = state
         outs = []
+        states = []
         for t in range(T):
             # [B,H,dk] / [B,H,dv]
             q_t = q[:, :, t]
@@ -323,7 +339,8 @@ class Ops(abc.ABC):
             delta = (v_t - mem) * beta[:, :, t][..., None]
             S = S + k_t[..., None] * delta[..., None, :]  # rank-1 update
             outs.append(self.sum(S * q_t[..., None], -2))  # q^T S
-        return self.stack(outs, 2), S
+            states.append(S)
+        return self.stack(outs, 2), self.stack(states, 0)
 
     def gated_delta_chunked(
             self,
@@ -401,21 +418,26 @@ class Ops(abc.ABC):
 
     def sdpa_static(self, q: Array, kbuf: Array, vbuf: Array, pos: Array, ar: Array, scale: float) -> Array:
         """
-        One-token attention against a fixed-capacity KV buffer. q: [B, H, 1, D]; kbuf, vbuf: [B, KV, L, D] with
-        positions 0..pos valid; ar: arange(L); pos: 0-d int array. Grouped-query heads are folded into the
-        matmul batch so the buffer is never repeated. Scores are masked additively and softmaxed in float32;
-        every shape is independent of `pos`, which is what lets a backend capture the whole step.
+        Attention for T new tokens against a fixed-capacity KV buffer. q: [B, H, T, D] for positions pos..pos+T-1;
+        kbuf, vbuf: [B, KV, L, D] with positions 0..pos+T-1 valid; ar: arange(L); pos: 0-d int array. Query i
+        sees keys <= pos + i. Grouped-query heads are folded into the matmul batch so the buffer is never
+        repeated. Scores are masked additively and softmaxed in float32; every shape is independent of `pos`,
+        which is what lets a backend capture the whole step. T == 1 is decode, T == k + 1 is speculative verify.
         """
 
-        B, H, _, D = q.shape
+        B, H, T, D = q.shape
         KV, L = kbuf.shape[1], kbuf.shape[2]
         G = H // KV
-        qg = self.reshape(q, (B, KV, G, D))
-        scores = self.f32(qg @ self.transpose(kbuf, (0, 1, 3, 2))) * scale  # [B, KV, G, L]
-        mask = self.cast(ar > pos, self.dtype('f32')) * -1e30
-        p = self.softmax(scores + mask[None, None, None, :], -1)
-        o = self.cast(p, vbuf.dtype) @ vbuf  # [B, KV, G, D]
-        return self.reshape(o, (B, H, 1, D))
+        qg = self.reshape(self.transpose(self.reshape(q, (B, KV, G, T, D)), (0, 1, 3, 2, 4)), (B, KV, T * G, D))
+        scores = self.f32(qg @ self.transpose(kbuf, (0, 1, 3, 2))) * scale  # [B, KV, T*G, L]
+        f32 = self.dtype('f32')
+        qpos = pos + self.arange(T)  # [T]
+        mask = self.cast(ar[None, :] > qpos[:, None], f32) * -1e30  # [T, L]
+        mask = self.reshape(self.repeat(mask, G, 0), (1, 1, T * G, L))  # row t*G + g
+        p = self.softmax(scores + mask, -1)
+        o = self.cast(p, vbuf.dtype) @ vbuf  # [B, KV, T*G, D]
+        o = self.transpose(self.reshape(o, (B, KV, T, G, D)), (0, 1, 3, 2, 4))  # [B, KV, G, T, D]
+        return self.reshape(o, (B, H, T, D))
 
     def capture(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
         """

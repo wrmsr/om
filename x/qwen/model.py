@@ -107,29 +107,32 @@ class Attention:
             sin: Array,
             state: FullState,
     ) -> tuple[Array, FullState]:
-        """One token against fixed-capacity KV buffers. x: [B, 1, hidden]; pos: 0-d int array; ar: arange(L);
-        cos, sin: [1, rope_dim] rows for `pos`; state: (kbuf, vbuf) [B, KV, L, D]. Every shape is static."""
+        """T tokens against fixed-capacity KV buffers. x: [B, T, hidden] at positions pos..pos+T-1; pos: 0-d int
+        array; ar: arange(L); cos, sin: [T, rope_dim] rows for those positions; state: (kbuf, vbuf)
+        [B, KV, L, D]. Every shape is static in `pos`; T == 1 is decode, T == k + 1 speculative verify."""
 
         c = self.cfg
-        B = x.shape[0]
+        B, T, _ = x.shape
         H = c.num_heads
         KV = c.num_kv_heads
         D = c.head_dim
-        qg = ops.reshape(ops.linear(x, self.wq), (B, 1, H, 2 * D))
+        qg = ops.reshape(ops.linear(x, self.wq), (B, T, H, 2 * D))
         q = qg[..., :D]
         gate = qg[..., D:]
-        k = ops.reshape(ops.linear(x, self.wk), (B, 1, KV, D))
-        v = ops.reshape(ops.linear(x, self.wv), (B, 1, KV, D))
-        q = ops.transpose(ops.rms_norm(q, self.q_norm, c.rms_eps), (0, 2, 1, 3))  # [B,H,1,D]
-        k = ops.transpose(ops.rms_norm(k, self.k_norm, c.rms_eps), (0, 2, 1, 3))  # [B,KV,1,D]
+        k = ops.reshape(ops.linear(x, self.wk), (B, T, KV, D))
+        v = ops.reshape(ops.linear(x, self.wv), (B, T, KV, D))
+        q = ops.transpose(ops.rms_norm(q, self.q_norm, c.rms_eps), (0, 2, 1, 3))  # [B,H,T,D]
+        k = ops.transpose(ops.rms_norm(k, self.k_norm, c.rms_eps), (0, 2, 1, 3))  # [B,KV,T,D]
         v = ops.transpose(v, (0, 2, 1, 3))
         q = ops.rope_with(q, cos, sin)
         k = ops.rope_with(k, cos, sin)
-        kbuf = ops.kv_write(state[0], pos, k)
-        vbuf = ops.kv_write(state[1], pos, v)
-        o = ops.sdpa_static(q, kbuf, vbuf, pos, ar, self.scale)  # [B,H,1,D]
-        o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, 1, H * D))
-        o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, 1, H * D)))), o.dtype)
+        kbuf, vbuf = state
+        for i in range(T):
+            kbuf = ops.kv_write(kbuf, pos + i, k[:, :, i:i + 1])
+            vbuf = ops.kv_write(vbuf, pos + i, v[:, :, i:i + 1])
+        o = ops.sdpa_static(q, kbuf, vbuf, pos, ar, self.scale)  # [B,H,T,D]
+        o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, T, H * D))
+        o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, T, H * D)))), o.dtype)
         return ops.linear(o, self.wo), (kbuf, vbuf)
 
 
@@ -146,7 +149,17 @@ class GatedDeltaNet:
         self.norm_w = p['norm']
         self.w_out = p['out_proj']
 
-    def __call__(self, ops: Ops, x: Array, state: LinearState | None) -> tuple[Array, LinearState]:
+    def __call__(
+            self,
+            ops: Ops,
+            x: Array,
+            state: LinearState | None,
+            all_states: bool = False,
+    ) -> tuple[Array, LinearState]:
+        """With all_states the returned pair is stacked per token -- conv [T, B, C, K-1], S [T, B, H, dk, dv] --
+        so a speculative verify can keep the state after exactly the accepted prefix (the KV side needs no
+        rollback: stale positions are masked by `pos`)."""
+
         c = self.cfg
         B, T, _ = x.shape
         Hk = c.num_k_heads
@@ -177,7 +190,11 @@ class GatedDeltaNet:
         g = ops.transpose(self.A[None, None, :] * ops.softplus(a + self.dt_bias), (0, 2, 1))  # [B,Hv,T], <= 0
 
         S = state[1] if state is not None else ops.zeros((B, Hv, dk, dv), f32)
-        out, S = ops.gated_delta(q, k, v, g, beta, S)
+        if all_states:
+            out, S = ops.gated_delta_states(q, k, v, g, beta, S)  # S: [T, B, Hv, dk, dv]
+            conv_state = ops.stack([inp[..., t + 1:t + K] for t in range(T)], 0)  # [T, B, C, K-1]
+        else:
+            out, S = ops.gated_delta(q, k, v, g, beta, S)
 
         out = ops.reshape(ops.transpose(out, (0, 2, 1, 3)), (B, T, Hv, dv))  # [B,T,Hv,dv]
         z = ops.reshape(z, (B, T, Hv, dv))
@@ -227,14 +244,15 @@ class Block:
             cos: Array,
             sin: Array,
             state: ta.Any,
+            all_states: bool = False,
     ) -> tuple[Array, ta.Any]:
-        """Static-shape single-token step (no taps: a captured step cannot leave the device)."""
+        """Static-shape step for T tokens (no taps: a captured step cannot leave the device)."""
 
         h = ops.rms_norm(x, self.ln1, self.eps)
         if self.kind == 'full':
             m, state = ta.cast(Attention, self.mixer).decode(ops, h, pos, ar, cos, sin, state)
         else:
-            m, state = ta.cast(GatedDeltaNet, self.mixer)(ops, h, state)  # T == 1 is already fixed-shape
+            m, state = ta.cast(GatedDeltaNet, self.mixer)(ops, h, state, all_states)  # T tokens: fixed-shape
         x = x + m
         x = x + self.mlp(ops, ops.rms_norm(x, self.ln2, self.eps))
         return x, state
@@ -284,6 +302,35 @@ def required_param_names(cfg: Qwen35Config) -> list[str]:
     return names
 
 
+def mtp_param_names() -> list[str]:
+    """The one-layer draft head: stem, a full-attention block (text geometry, private weights), final norm."""
+
+    q = 'mtp.layers.0.'
+    names = [
+        'mtp.fc.weight',
+        'mtp.pre_fc_norm_embedding.weight',
+        'mtp.pre_fc_norm_hidden.weight',
+        'mtp.norm.weight',
+        q + 'input_layernorm.weight',
+        q + 'post_attention_layernorm.weight',
+        q + 'mlp.gate_proj.weight',
+        q + 'mlp.up_proj.weight',
+        q + 'mlp.down_proj.weight',
+    ]
+    names += [
+        q + f'self_attn.{n}.weight'
+        for n in (
+            'q_proj',
+            'k_proj',
+            'v_proj',
+            'o_proj',
+            'q_norm',
+            'k_norm',
+        )
+    ]
+    return names
+
+
 # tensors that stay in float32 whatever the compute dtype
 KEEP_F32 = (
     'norm',
@@ -318,23 +365,15 @@ class Qwen35:
         self.ops = ops
         self.dtype = dtype
         self.nbytes = sum(ops.nbytes(p) for p in params.values())
+        self.last_spec: SpecDecoder | None = None  # the most recent generate(spec=k)'s decoder, for its stats
         self.embed = params['embed_tokens.weight']
         self.norm_w = params['norm.weight']
         self.lm_head = params.get('lm_head.weight', self.embed)
-        self.blocks: list[Block] = []
-        for i, kind in enumerate(cfg.layer_types):
-            pre = f'layers.{i}.'
-            p = {}
-            for k, v in params.items():
-                if k.startswith(pre):
-                    leaf = k[len(pre):]
-                    # collapse "self_attn.q_proj.weight" -> "q_proj", "linear_attn.A" -> "A", "mlp.gate_proj.weight" ->
-                    # "gate_proj"
-                    parts = leaf.split('.')
-                    if parts[-1] == 'weight':
-                        parts = parts[:-1]
-                    p[parts[-1]] = v
-            self.blocks.append(Block(cfg, i, kind, p))
+        self.blocks: list[Block] = [
+            Block(cfg, i, kind, block_params(params, f'layers.{i}.'))
+            for i, kind in enumerate(cfg.layer_types)
+        ]
+        self.mtp: MtpHead | None = MtpHead(self, params) if 'mtp.fc.weight' in params else None
 
     # loading
 
@@ -347,11 +386,13 @@ class Qwen35:
         quant: str | None = None,
         group: int = 64,
         verbose: bool = True,
+        mtp: bool = False,
     ) -> Qwen35:
         """
         dtype: 'bf16' | 'f16' | 'f32' (compute dtype; norms, A, dt_bias, conv stay f32).
         quant: None, 'int8' or 'int4' (weight-only affine, see quant.py). If the source already holds MLX-quantized
                tensors at the requested width they are re-packed as-is; otherwise weights are quantized.
+        mtp:   also load the multi-token-prediction draft head (needs `num_mtp_layers >= 1` in the source).
         """
 
         cfg = src.config
@@ -368,6 +409,10 @@ class Qwen35:
         params: dict[str, Weight] = {}
         available = set(src.names())
         names = required_param_names(cfg)
+        if mtp:
+            if not cfg.num_mtp_layers:
+                raise ValueError('this source has no MTP head')
+            names += mtp_param_names()
         missing = [n for n in names if n not in available]
         if missing:
             raise KeyError(f'source is missing {len(missing)} tensors, e.g. {missing[:5]}')
@@ -407,8 +452,10 @@ class Qwen35:
         cache: Cache | None = None,
         start_pos: int | None = None,
         last_only: bool = False,
-    ) -> Array:
-        """tokens: [B, T] ints. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32."""
+        return_hidden: bool = False,
+    ) -> ta.Any:
+        """tokens: [B, T] ints. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32; with
+        return_hidden also the final-normed hidden states [B, T, hidden] (what the MTP head conditions on)."""
 
         ops = self.ops
         c = self.cfg
@@ -430,7 +477,50 @@ class Qwen35:
         ops.tap('final_norm', x)
         logits = ops.f32(ops.linear(x, self.lm_head))
         ops.tap('logits', logits)
+        if return_hidden:
+            return logits, x
         return logits
+
+    def step_fn(
+            self,
+            T: int,
+            ar: Array,
+            cos_tab: Array,
+            sin_tab: Array,
+            all_states: bool = False,
+            return_hidden: bool = False,
+    ) -> ta.Callable[..., tuple[Array, ...]]:
+        """
+        Build the static T-token step: `fn(toks, pos, *flat_state) -> (logits, [hidden,] *flat_state)`.
+
+        toks: [B, T] int at positions pos..pos+T-1; pos: 0-d int; flat_state: two arrays per layer (kbuf, vbuf) or
+        (conv, S). `ar` and the rope tables are constants closed over (they must already live on the device:
+        nothing in the step may allocate from the host). Returns logits [B, T, V] float32 (and, with
+        return_hidden, the final-normed hidden [B, T, hidden] the draft head conditions on); with all_states the
+        DeltaNet entries come back stacked per token. Pure apart from `kv_write`, so a backend may capture it.
+        T == 1 is decode; T == k + 1 with all_states is speculative verify.
+        """
+
+        ops, c = self.ops, self.cfg
+
+        def fn(toks, pos, *flat):
+            # index with a 1-element array, not the 0-d one: torch turns a 0-d tensor index into `.item()`, a
+            # device->host sync that is illegal inside a CUDA graph capture; a 1-d index is a plain gather
+            rows = ops.reshape(pos, (1,)) + ar[:T]
+            cos = cos_tab[rows]  # [T, rope_dim]
+            sin = sin_tab[rows]
+            x = ops.embedding(toks, self.embed, self.dtype)
+            out: list[Array] = []
+            for i, blk in enumerate(self.blocks):
+                x, st = blk.decode(ops, x, pos, ar, cos, sin, (flat[2 * i], flat[2 * i + 1]), all_states)
+                out.extend(st)
+            x = ops.rms_norm(x, self.norm_w, c.rms_eps)
+            logits = ops.f32(ops.linear(x, self.lm_head))
+            if return_hidden:
+                return (logits, x, *out)
+            return (logits, *out)
+
+        return fn
 
     def decode_fn(
             self,
@@ -438,32 +528,9 @@ class Qwen35:
             cos_tab: Array,
             sin_tab: Array,
     ) -> ta.Callable[..., tuple[Array, ...]]:
-        """
-        Build the static single-token step: `fn(tok, pos, *flat_state) -> (logits, *flat_state)`.
+        """The single-token step: `fn(tok, pos, *flat_state) -> (logits [B, 1, V], *flat_state)`."""
 
-        tok: [B, 1] int; pos: 0-d int; flat_state: two arrays per layer (kbuf, vbuf) or (conv, S). `ar` and the
-        rope tables are constants closed over (they must already live on the device: nothing in the step may
-        allocate from the host). Returns logits [B, V] float32. Pure apart from `kv_write`, so a backend may
-        capture it.
-        """
-
-        ops, c = self.ops, self.cfg
-
-        def fn(tok, pos, *flat):
-            # index with a 1-element array, not the 0-d one: torch turns a 0-d tensor index into `.item()`, a
-            # device->host sync that is illegal inside a CUDA graph capture; a 1-d index is a plain gather
-            p1 = ops.reshape(pos, (1,))
-            cos = cos_tab[p1]  # [1, rope_dim]
-            sin = sin_tab[p1]
-            x = ops.embedding(tok, self.embed, self.dtype)
-            out: list[Array] = []
-            for i, blk in enumerate(self.blocks):
-                x, st = blk.decode(ops, x, pos, ar, cos, sin, (flat[2 * i], flat[2 * i + 1]))
-                out.extend(st)
-            x = ops.rms_norm(x[:, -1], self.norm_w, c.rms_eps)
-            return (ops.f32(ops.linear(x, self.lm_head)), *out)
-
-        return fn
+        return self.step_fn(1, ar, cos_tab, sin_tab)
 
     def generate(
         self,
@@ -472,30 +539,221 @@ class Qwen35:
         eos_ids: set[int] | None = None,
         on_token: ta.Callable[[int], None] | None = None,
         static: bool = True,
+        sampler: Sampler | None = None,
+        spec: int = 0,
     ) -> list[int]:
         """
-        Greedy decoding. Prefill goes through `forward` (chunked); decode then runs the captured static step
+        Generation. Prefill goes through `forward` (chunked); decode then runs the captured static step
         (`static=True`, the fast path) or keeps growing the functional cache (`static=False`, the reference).
-        Yields token ids through on_token as they are produced.
+        `sampler` defaults to greedy. `spec=k` (needs the MTP head loaded) drafts k tokens per round with the
+        draft head and verifies them in one target step. Yields token ids through on_token as they are produced.
         """
 
         ops = self.ops
+        sampler = sampler or Sampler()
         cache = Cache(self.cfg)
-        logits = self.forward(np.array([prompt_ids]), cache, last_only=True)
-        dec = Decoder(self, cache, capacity=len(prompt_ids) + max_new_tokens + 1) if static else None
+        logits, hidden = self.forward(np.array([prompt_ids]), cache, return_hidden=True)
         out: list[int] = []
-        for _ in range(max_new_tokens):
-            nxt = int(np.argmax(ops.numpy(logits[0, -1])))
-            out.append(nxt)
+
+        def emit(tok: int) -> bool:
+            out.append(tok)
             if on_token:
-                on_token(nxt)
-            if eos_ids and nxt in eos_ids:
+                on_token(tok)
+            return bool(eos_ids and tok in eos_ids)
+
+        if spec:
+            if self.mtp is None:
+                raise ValueError('spec decoding needs the MTP head (from_source(..., mtp=True))')
+            spec_dec = SpecDecoder(
+                self,
+                cache,
+                prompt_ids,
+                logits,
+                hidden,
+                k=spec,
+                sampler=sampler,
+                capacity=len(prompt_ids) + max_new_tokens + spec + 2,
+            )
+            self.last_spec = spec_dec
+            while len(out) < max_new_tokens:
+                for tok in spec_dec.round():
+                    if emit(tok) or len(out) >= max_new_tokens:
+                        break
+                else:
+                    continue
+                break
+            return out
+
+        dec = Decoder(self, cache, capacity=len(prompt_ids) + max_new_tokens + 1) if static else None
+        nxt = sampler.sample(ops.numpy(logits[0, -1]))
+        for _ in range(max_new_tokens):
+            if emit(nxt):
                 break
             if dec is not None:
-                logits = dec.step(nxt)[:, None]
+                row = ops.numpy(dec.step(nxt))[0]
             else:
-                logits = self.forward(np.array([[nxt]]), cache, last_only=True)
+                row = ops.numpy(self.forward(np.array([[nxt]]), cache, last_only=True))[0, -1]
+            nxt = sampler.sample(row)
         return out
+
+
+##
+# Draft head
+
+
+class MtpHead:
+    """
+    Qwen3.5's multi-token-prediction head (the `nextn` block of the GGUF, `mtp.*` in HF): given the target's
+    final-normed hidden state at position p and the token at p+1, it predicts the token at p+2 --
+
+        e = rmsnorm(embed(x_{p+1}), pre_fc_norm_embedding)
+        h = rmsnorm(h_p, pre_fc_norm_hidden)
+        u = fc(concat(e, h))                       # embedding first, hidden second
+        u = one gated-attention block (text geometry, private weights, private KV)
+        d = rmsnorm(u, norm);  logits = lm_head(d)  # the target's output head
+
+    and can recurse, feeding its own normed output `d` back in as the next hidden. All norm weights are stored
+    with the +1 already applied, like the text model's. The block runs through `Block.decode` on its own KV
+    buffers (positions are the hidden's position).
+    """
+
+    def __init__(self, model: Qwen35, params: dict[str, Weight]) -> None:
+        self.model = model
+        self.cfg = model.cfg
+        self.fc = params['mtp.fc.weight']
+        self.enorm = params['mtp.pre_fc_norm_embedding.weight']
+        self.hnorm = params['mtp.pre_fc_norm_hidden.weight']
+        self.norm_w = params['mtp.norm.weight']
+        self.block = Block(self.cfg, self.cfg.num_layers, 'full', block_params(params, 'mtp.layers.0.'))
+
+    def stem(self, ops: Ops, toks: Array, hidden: Array) -> Array:
+        c, m = self.cfg, self.model
+        e = ops.rms_norm(ops.embedding(toks, m.embed, m.dtype), self.enorm, c.rms_eps)
+        h = ops.rms_norm(ops.cast(hidden, m.dtype), self.hnorm, c.rms_eps)
+        return ops.linear(ops.concat([e, h], -1), self.fc)
+
+    def head(self, ops: Ops, u: Array) -> tuple[Array, Array]:
+        c, m = self.cfg, self.model
+        d = ops.rms_norm(u, self.norm_w, c.rms_eps)
+        return ops.f32(ops.linear(d, m.lm_head)), d
+
+    def prefill(self, toks: np.ndarray, hidden: Array, pos: int = 0) -> tuple[Array, Array, FullState]:
+        """Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T,
+        hidden [B, T, H] the target's hidden states at pos..pos+T-1. Returns logits, d, (k, v)."""
+
+        ops = self.model.ops
+        u = self.stem(ops, ops.array(np.asarray(toks, dtype=np.int32)), hidden)
+        u, state = self.block(ops, u, pos, None)
+        logits, d = self.head(ops, u)
+        return logits, d, state
+
+    def step_fn(self, T: int, ar: Array, cos_tab: Array, sin_tab: Array) -> ta.Callable[..., tuple[Array, ...]]:
+        """Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, kbuf, vbuf) -> (logits, d, kbuf, vbuf)`."""
+
+        ops = self.model.ops
+
+        def fn(toks, hidden, pos, kbuf, vbuf):
+            rows = ops.reshape(pos, (1,)) + ar[:T]
+            u = self.stem(ops, toks, hidden)
+            u, (kbuf, vbuf) = self.block.decode(ops, u, pos, ar, cos_tab[rows], sin_tab[rows], (kbuf, vbuf))
+            logits, d = self.head(ops, u)
+            return logits, d, kbuf, vbuf
+
+        return fn
+
+
+def block_params(params: dict[str, Weight], prefix: str) -> dict[str, Weight]:
+    """Collapse "prefix.self_attn.q_proj.weight" -> "q_proj", "prefix.linear_attn.A" -> "A", ..."""
+
+    p = {}
+    for k, v in params.items():
+        if k.startswith(prefix):
+            parts = k[len(prefix):].split('.')
+            if parts[-1] == 'weight':
+                parts = parts[:-1]
+            p[parts[-1]] = v
+    return p
+
+
+##
+# Sampling
+
+
+class Sampler:
+    """
+    Host-side sampling over a float32 logits row: temperature -> presence/frequency penalties -> top-k ->
+    top-p -> min-p -> multinomial. temperature <= 0 is greedy (argmax) and ignores the rest. Qwen's published
+    presets: thinking t=1.0 top-p=0.95 top-k=20; non-thinking t=0.7 top-p=0.8 top-k=20 presence=1.5.
+    """
+
+    def __init__(
+            self,
+            temperature: float = 0.0,
+            top_k: int = 0,
+            top_p: float = 1.0,
+            min_p: float = 0.0,
+            presence_penalty: float = 0.0,
+            frequency_penalty: float = 0.0,
+            seed: int = 0,
+    ) -> None:
+        self.temperature = temperature
+        self.top_k = top_k
+        self.top_p = top_p
+        self.min_p = min_p
+        self.presence_penalty = presence_penalty
+        self.frequency_penalty = frequency_penalty
+        self.rng = np.random.default_rng(seed)
+        self.counts: dict[int, int] = {}  # generated-token histogram for the penalties
+
+    @property
+    def greedy(self) -> bool:
+        return self.temperature <= 0
+
+    def observe(self, tok: int) -> None:
+        self.counts[tok] = self.counts.get(tok, 0) + 1
+
+    def sample(self, logits: np.ndarray) -> int:
+        """One token from a [V] float32 row; records it for the penalties."""
+
+        tok = self.sample_many(logits[None])[0]
+        return tok
+
+    def sample_many(self, logits: np.ndarray) -> list[int]:
+        """One token per row of [T, V]; rows are independent (each is conditioned on its own prefix by the caller,
+        as in speculative verify). Records every sampled token."""
+
+        out = []
+        for row in logits:
+            out.append(self._one(np.asarray(row, dtype=np.float64)))
+        for t in out:
+            self.observe(t)
+        return out
+
+    def _one(self, l: np.ndarray) -> int:
+        if self.greedy:
+            return int(np.argmax(l))
+        if self.counts and (self.presence_penalty or self.frequency_penalty):
+            idx = np.fromiter(self.counts.keys(), dtype=np.int64)
+            cnt = np.fromiter(self.counts.values(), dtype=np.float64)
+            l = l.copy()
+            l[idx] -= self.presence_penalty + self.frequency_penalty * cnt
+        l = l / self.temperature
+        if self.top_k > 0 and self.top_k < l.shape[0]:
+            kth = np.partition(l, -self.top_k)[-self.top_k]
+            l = np.where(l < kth, -np.inf, l)
+        p = np.exp(l - l.max())
+        p /= p.sum()
+        if self.min_p > 0:
+            p = np.where(p < self.min_p * p.max(), 0.0, p)
+        if self.top_p < 1.0:
+            order = np.argsort(-p)
+            cum = np.cumsum(p[order])
+            cut = np.searchsorted(cum, self.top_p) + 1
+            keep = np.zeros_like(p)
+            keep[order[:cut]] = p[order[:cut]]
+            p = keep
+        p /= p.sum()
+        return int(self.rng.choice(p.shape[0], p=p))
 
 
 ##
@@ -561,7 +819,18 @@ class Decoder:
         cos_np, sin_np = ops.rope_tables(0, capacity, c.rope_dim, c.rope_theta)
         self.cos_tab = ops.array(cos_np, self.model.dtype)
         self.sin_tab = ops.array(sin_np, self.model.dtype)
-        self.fn = ops.capture(self.model.decode_fn(self.ar, self.cos_tab, self.sin_tab))
+        self.fns: dict[tuple[int, bool, bool], ta.Callable[..., tuple[Array, ...]]] = {}
+        self.fn = self._fn(1, False, False)
+
+    def _fn(self, T: int, all_states: bool, return_hidden: bool) -> ta.Callable[..., tuple[Array, ...]]:
+        """The captured step for a given shape, built on first use (each is one graph on CUDA)."""
+
+        key = (T, all_states, return_hidden)
+        if key not in self.fns:
+            self.fns[key] = self.ops.capture(
+                self.model.step_fn(T, self.ar, self.cos_tab, self.sin_tab, all_states, return_hidden),
+            )
+        return self.fns[key]
 
     def ensure_capacity(self, n: int) -> None:
         if n > self.capacity:
@@ -576,7 +845,35 @@ class Decoder:
         out = self.fn(ops.array(ids), ops.scalar(self.seq_len), *self.flat)
         self.flat = list(out[1:])
         self.seq_len += 1
-        return out[0]
+        return out[0][:, 0]
+
+    def verify(self, toks: list[int]) -> tuple[Array, Array, list[Array]]:
+        """
+        Speculative verify: run T = len(toks) tokens at positions seq_len.. in one captured step. Returns logits
+        [B, T, V], the final-normed hidden [B, T, hidden], and the per-layer state with the DeltaNet entries
+        stacked per token. Nothing is committed until `commit`.
+        """
+
+        ops = self.ops
+        T = len(toks)
+        self.ensure_capacity(self.seq_len + T)
+        ids = np.asarray(toks, dtype=np.int32).reshape(1, T)
+        out = self._fn(T, True, True)(ops.array(ids), ops.scalar(self.seq_len), *self.flat)
+        return out[0], out[1], list(out[2:])
+
+    def commit(self, flat_all: list[Array], n_accept: int) -> None:
+        """Keep the state after the first `n_accept` verified tokens (the KV buffers need no rollback: positions
+        past the commit are masked by `pos` and overwritten by the next step)."""
+
+        flat: list[Array] = []
+        for i, kind in enumerate(self.model.cfg.layer_types):
+            a, b = flat_all[2 * i], flat_all[2 * i + 1]
+            if kind == 'full':
+                flat.extend([a, b])
+            else:
+                flat.extend([a[n_accept - 1], b[n_accept - 1]])
+        self.flat = flat
+        self.seq_len += n_accept
 
     def snapshot(self) -> tuple[int, list[Array]]:
         """(seq_len, copies of the state) -- the prefix-cache primitive for the static path."""
@@ -591,3 +888,129 @@ class Decoder:
             self._alloc(snap_cap)  # snapshot taken after a growth; the step must be re-captured for its shapes
         else:
             self._pad_to(self.capacity)
+
+
+##
+# Speculative decoding
+
+
+class SpecDecoder:
+    """
+    MTP speculative decoding, batch 1: each round drafts `k` tokens with the draft head (the first from the
+    head's last refreshed entry, the rest by recursion on its own hidden), verifies all of them plus the
+    already-sampled next token in one T = k + 1 target step, commits the accepted prefix, and refreshes the draft
+    head's KV with the target's true hidden states for the committed positions. Acceptance is "the target's
+    sample equals the draft": exact for greedy and for sampling (each committed token is a sample from the
+    target's own distribution given its prefix), just less efficient than rejection sampling would be.
+
+    Rollback on the target side is free: the KV buffers are masked by position and the DeltaNet state after the
+    accepted prefix is selected from the per-token stack the verify step returns. On the draft side the entries
+    written past the commit are rewritten by the next refresh before anything can attend to them.
+    """
+
+    def __init__(
+            self,
+            model: Qwen35,
+            cache: Cache,
+            prompt_ids: list[int],
+            logits: Array,
+            hidden: Array,
+            k: int,
+            sampler: Sampler,
+            capacity: int | None = None,
+    ) -> None:
+        if model.mtp is None:
+            raise ValueError('no MTP head loaded')
+        if not 1 <= k <= 8:
+            raise ValueError(f'draft tokens must be 1..8, got {k}')
+        self.model = model
+        self.ops = ops = model.ops
+        self.mtp = model.mtp
+        self.k = k
+        self.sampler = sampler
+        self.dec = Decoder(model, cache, capacity)
+        n = self.dec.seq_len
+        self.next_tok = sampler.sample(ops.numpy(logits[0, -1]))
+        # draft-head prefill: entry p uses the target hidden at p and the token at p+1, for p = 0..n-1
+        mtoks = np.asarray(list(prompt_ids[1:]) + [self.next_tok], dtype=np.int32)[None]
+        mlogits, d, (mk, mv) = self.mtp.prefill(mtoks, hidden[:, :n], 0)
+        self.mflat: list[Array] = [mk, mv]
+        self.mcap = 0
+        self.mfns: dict[int, ta.Callable[..., tuple[Array, ...]]] = {}
+        self.d_last = d[:, -1:]  # [B, 1, H]
+        self.mlogits_last = ops.numpy(mlogits[0, -1])
+        self.mseq = n  # draft-head entries with true hidden states
+        self.rounds = 0
+        self.accepted = 0
+        # test hook: (seq_len, next_tok, k) -> k draft tokens, replacing the draft head's proposals
+        self.draft_fn: ta.Callable[[int, int, int], list[int]] | None = None
+
+    def _sync_capacity(self) -> None:
+        """Pad the draft head's KV to the target's capacity (re-capturing its steps) whenever the latter grew."""
+
+        ops = self.ops
+        cap = self.dec.capacity
+        if cap == self.mcap:
+            return
+        mk, mv = self.mflat
+        B, KV, T, D = mk.shape
+        if T < cap:
+            pad = ops.zeros((B, KV, cap - T, D), mk.dtype)
+            mk = ops.concat([mk, pad], 2)
+            mv = ops.concat([mv, pad], 2)
+        self.mflat = [mk, mv]
+        self.mcap = cap
+        self.mfns = {}
+
+    def _mfn(self, T: int) -> ta.Callable[..., tuple[Array, ...]]:
+        if T not in self.mfns:
+            self.mfns[T] = self.ops.capture(self.mtp.step_fn(T, self.dec.ar, self.dec.cos_tab, self.dec.sin_tab))
+        return self.mfns[T]
+
+    def round(self) -> list[int]:
+        """One draft / verify / commit cycle; returns the committed tokens (1..k+1 of them)."""
+
+        ops, k = self.ops, self.k
+        self.dec.ensure_capacity(self.dec.seq_len + k + 2)
+        self._sync_capacity()
+        n = self.dec.seq_len
+
+        # draft: d_1 from the last refreshed entry, d_2..d_k by recursion at positions n, n+1, ...
+        drafts = [int(np.argmax(self.mlogits_last))]
+        hid = self.d_last
+        for j in range(1, k):
+            toks = ops.array(np.asarray([[drafts[-1]]], dtype=np.int32))
+            ml, hid, mk, mv = self._mfn(1)(toks, hid, ops.scalar(n - 1 + j), *self.mflat)
+            self.mflat = [mk, mv]
+            drafts.append(int(np.argmax(ops.numpy(ml[0, -1]))))
+        if self.draft_fn is not None:
+            drafts = list(self.draft_fn(n, self.next_tok, k))
+
+        # verify: [next_tok, d_1..d_k] at positions n..n+k in one target step
+        logits, hidden, flat_all = self.dec.verify([self.next_tok] + drafts)
+        rows = ops.numpy(logits[0])  # [k+1, V]; row i is the target's distribution for position n+i+1
+        targets: list[int] = []
+        m = 0
+        for i in range(k + 1):
+            t = self.sampler.sample(rows[i])
+            targets.append(t)
+            if i < k and drafts[i] == t:
+                m += 1
+            else:
+                break
+        committed = [self.next_tok] + drafts[:m]
+        self.dec.commit(flat_all, m + 1)
+        self.next_tok = targets[m]
+
+        # refresh the draft head over positions n..n+k with true hidden states; entry m is the one that matters
+        # (hidden at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh
+        # overwrites before anything attends to them
+        rtoks = np.asarray((drafts[:m] + [targets[m]] + drafts[m:])[:k + 1], dtype=np.int32)[None]
+        ml, d, mk, mv = self._mfn(k + 1)(ops.array(rtoks), hidden, ops.scalar(n), *self.mflat)
+        self.mflat = [mk, mv]
+        self.mlogits_last = ops.numpy(ml[0, m])
+        self.d_last = d[:, m:m + 1]
+        self.mseq = n + m + 1
+        self.rounds += 1
+        self.accepted += m
+        return committed
