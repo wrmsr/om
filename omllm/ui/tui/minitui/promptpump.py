@@ -32,9 +32,7 @@ class PromptPump:
         # queued behind it like a prompt.
         if self._closing or not text.strip():
             return
-        if text.startswith('/'):
-            self._app.show_command_echo(text)
-        else:
+        if not text.startswith('/'):
             self._app.show_user_message(text)
         self._queue.append(text)
         self._maybe_start()
@@ -51,6 +49,8 @@ class PromptPump:
 
     async def _run_one(self, text: str) -> None:
         try:
+            if text.startswith('/'):
+                self._app.show_command_echo(text)
             await self._session.prompt(text)
         except Exception as e:  # noqa: BLE001
             self._app.display_text(f'error: {e!r}', 'error')

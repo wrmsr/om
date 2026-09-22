@@ -52,7 +52,10 @@ class MinituiTextDisplayer(ui.TextDisplayer):
 
     async def display_text(self, *texts: ui.CanText) -> None:
         rendering = ui.StyledTextRenderer().render(*texts)
-        self._app.display_rows(render_text_rows(rendering, self._app.width))
+        rows = render_text_rows(rendering, self._app.width)
+        if rows and not rows[-1]:
+            rows = rows[:-1]
+        self._app.display_rows(rows)
 
 
 ##

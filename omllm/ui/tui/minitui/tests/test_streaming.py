@@ -1,3 +1,5 @@
+from omcore import lang
+
 from ..... import agent as agn
 from ..... import llm
 from ...config import Config
@@ -30,6 +32,15 @@ MARKDOWN = (
 def _stream(app, text, *, chunk=3):
     for i in range(0, len(text), chunk):
         app.stream_feed(text[i:i + chunk])
+
+
+def test_text_displayer_does_not_double_terminal_newline_separator():
+    app, driver = make_app()
+    displayer = MinituiTextDisplayer(app=app)
+
+    lang.sync_await(displayer.display_text('result', '\n'))
+
+    assert commit_texts(driver) == ['result\n']
 
 
 def test_streamed_markdown_renders_like_immediate():

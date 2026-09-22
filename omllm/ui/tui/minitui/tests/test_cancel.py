@@ -298,6 +298,38 @@ async def test_abort_withdraws_active_and_queued_asks_as_errors():
 # The pump
 
 
+class _ReportingSession:
+    def __init__(self, app):
+        super().__init__()
+
+        self._app = app
+        self.prompts = []
+
+    async def prompt(self, text):
+        self.prompts.append(text)
+        self._app.display_text(f'result: {text}')
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_queued_commands_echo_when_they_run():
+    app, driver = make_app()
+    session = _ReportingSession(app)
+    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+
+    pump.submit('/first')
+    pump.submit('/second')
+
+    assert commit_texts(driver) == []
+    await settle(lambda: len(session.prompts) == 2)
+    assert commit_texts(driver) == [
+        '/first\n',
+        'result: /first\n',
+        '/second\n',
+        'result: /second\n',
+    ]
+    await pump.aclose()
+
+
 @pytest.mark.asyncs('asyncio')
 async def test_failed_prompt_displays_error_and_runs_next():
     app, driver = make_app()
