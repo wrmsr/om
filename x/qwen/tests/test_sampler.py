@@ -52,7 +52,13 @@ def test_sampler_distribution():
             s = Sampler(seed=1, **kw)
             s.bind(ops, V)
             got = ops.numpy(s.sample(rows)).astype(np.int64)
-            exp = expected_dist(l, kw['temperature'], kw.get('top_k', 0), kw.get('top_p', 1.0), kw.get('min_p', 0.0))
+            exp = expected_dist(
+                l,
+                kw['temperature'],
+                kw.get('top_k', 0),
+                kw.get('top_p', 1.0),
+                kw.get('min_p', 0.0),
+            )
             assert np.all(exp[got] > 0), (ops.name, kw, 'drew outside the support')
             emp = np.bincount(got, minlength=V) / n
             err = np.abs(emp - exp).max()
@@ -92,7 +98,7 @@ def test_probs_and_rejection_sampling():
                 dict(temperature=1.0, top_p=0.5),
                 dict(),  # greedy: one-hot
         ):
-            s = Sampler(seed=1, **kw)
+            s = Sampler(seed=1, **kw)  # type: ignore
             s.bind(ops, V)
             got = ops.numpy(s.probs(ops.array(np.stack([l, l]), f32)))
             if kw:
