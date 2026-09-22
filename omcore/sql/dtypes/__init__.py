@@ -17,6 +17,7 @@ from .dtypes import (  # noqa
     Boolean,
     Float,
     Bytes,
+    Json,
 
     INTEGER,
     STRING,
@@ -25,6 +26,7 @@ from .dtypes import (  # noqa
     BOOLEAN,
     FLOAT,
     BYTES,
+    JSON,
 )
 
 

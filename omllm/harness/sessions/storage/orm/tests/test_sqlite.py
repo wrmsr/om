@@ -26,7 +26,7 @@ def _sql_orm(db: sql.AsyncDb) -> SqlOrm:
     return SqlOrm(
         registry=orm.registry(*orm_mappers()),
         db=db,
-        tabledef_renderer=sql.be.sqlite.td.SqliteTabledefRenderer(),
+        backend=sql.be.sqlite.backend.SqliteBackend(),
     )
 
 

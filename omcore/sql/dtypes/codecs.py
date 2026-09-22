@@ -1,7 +1,8 @@
 """
 Value translation between a backend driver's representation and one canonical python form per dtype: int, str, a
-tz-aware datetime, uuid.UUID, bool, float, bytes. None passes through in both directions. A backend that already speaks
-the canonical forms (postgres) overrides nothing; others override only the dtypes they represent differently.
+tz-aware datetime, uuid.UUID, bool, float, bytes, and for json whatever the document parses to. None passes through in
+both directions. A backend that already speaks the canonical forms (postgres) overrides next to nothing; others override
+only the dtypes they represent differently.
 """
 import abc
 import datetime
@@ -10,12 +11,14 @@ import uuid
 
 from ... import check
 from ... import lang
+from ...formats.json import all as json
 from .dtypes import Boolean
 from .dtypes import Bytes
 from .dtypes import Datetime
 from .dtypes import Dtype
 from .dtypes import Float
 from .dtypes import Integer
+from .dtypes import Json
 from .dtypes import String
 from .dtypes import Uuid
 
@@ -57,6 +60,8 @@ class BaseDtypeCodec(DtypeCodec, lang.Abstract):
             return self.encode_float(check.isinstance(v, (float, int)))
         elif isinstance(dt, Bytes):
             return self.encode_bytes(check.isinstance(v, bytes))
+        elif isinstance(dt, Json):
+            return self.encode_json(v)
         else:
             raise TypeError(dt)
 
@@ -77,6 +82,8 @@ class BaseDtypeCodec(DtypeCodec, lang.Abstract):
             return self.decode_float(v)
         elif isinstance(dt, Bytes):
             return self.decode_bytes(v)
+        elif isinstance(dt, Json):
+            return self.decode_json(v)
         else:
             raise TypeError(dt)
 
@@ -136,6 +143,18 @@ class BaseDtypeCodec(DtypeCodec, lang.Abstract):
 
     def decode_bytes(self, v: ta.Any) -> bytes:
         return bytes(check.isinstance(v, (bytes, bytearray, memoryview)))
+
+    #
+
+    def encode_json(self, v: ta.Any) -> ta.Any:
+        # The one kind which does not default to its canonical form, as no driver takes that for every document there
+        # is: handed a list one makes an array of it, and handed a str takes it for the text of a document rather than
+        # the document. The text is what they all take - as such where documents are kept as text, and read by the
+        # server as the document where they are not.
+        return json.dumps_compact(v)
+
+    def decode_json(self, v: ta.Any) -> ta.Any:
+        return json.loads(check.isinstance(v, (str, bytes)))
 
 
 ##

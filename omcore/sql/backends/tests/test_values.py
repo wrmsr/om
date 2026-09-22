@@ -6,6 +6,7 @@ from ...dtypes import BYTES
 from ...dtypes import DATETIME
 from ...dtypes import FLOAT
 from ...dtypes import INTEGER
+from ...dtypes import JSON
 from ...dtypes import STRING
 from ...dtypes import UUID
 from ..mysql.values import MysqlDtypeCodec
@@ -30,6 +31,29 @@ def test_roundtrips():
         for dt, v in _VALUES:
             assert codec.decode(dt, codec.encode(dt, v)) == v
             assert codec.encode(dt, None) is None and codec.decode(dt, None) is None
+
+
+def test_json():
+    docs = [{'a': [1, 2.5, None, True], 'b': {'c': 'ü'}}, [1, 'two'], 'a str', 42, 1.5, True]
+
+    # a document goes in as its text, whatever the backend - and however much of a document the driver would take
+    for codec in (PostgresDtypeCodec(), SqliteDtypeCodec(), MysqlDtypeCodec()):
+        assert [codec.encode(JSON, d) for d in docs] == [
+            '{"a":[1,2.5,null,true],"b":{"c":"ü"}}',
+            '[1,"two"]',
+            '"a str"',
+            '42',
+            '1.5',
+            'true',
+        ]
+        assert codec.encode(JSON, None) is None and codec.decode(JSON, None) is None
+
+    # where documents are kept as text that is how they come back, to be read
+    for codec in (SqliteDtypeCodec(), MysqlDtypeCodec()):
+        assert [codec.decode(JSON, codec.encode(JSON, d)) for d in docs] == docs
+
+    # where they are not they come back read - so a str is a document, not the text of one
+    assert [PostgresDtypeCodec().decode(JSON, d) for d in docs] == docs
 
 
 def test_sqlite_datetime_text_sorts_with_current_timestamp():

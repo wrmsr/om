@@ -3,6 +3,7 @@ from .... import check
 from ...api.querierfuncs import query_all
 from ...api.queriers import AsyncQuerier
 from ...dtypes import DATETIME
+from ...dtypes import JSON
 from ...dtypes import STRING
 from ...dtypes import UUID
 from ...dtypes import Dtype
@@ -129,6 +130,8 @@ class PostgresInspector(Inspector):
             return DATETIME
         elif tl == 'uuid':
             return UUID
+        elif tl in ('jsonb', 'json'):
+            return JSON
         elif tl in ('character varying', 'character') and rc.length is not None:
             return String(length=rc.length)
         else:

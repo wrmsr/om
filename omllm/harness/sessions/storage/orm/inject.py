@@ -49,7 +49,7 @@ async def _provide_asyncio_sqlite_orm(
     return await aes.enter_async_context(SqlOrm(
         registry=registry,
         db=db,
-        tabledef_renderer=sql.be.sqlite.td.SqliteTabledefRenderer(),
+        backend=sql.be.sqlite.backend.SqliteBackend(),
     ))
 
 

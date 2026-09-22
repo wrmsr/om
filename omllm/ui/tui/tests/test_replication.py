@@ -155,6 +155,6 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
             async with har.SqlOrm(
                 registry=orm.registry(*har.orm_mappers()),
                 db=sql.api.SyncToAsyncDb(sql.api.ImmediateSyncToAsyncRunner, hub_sb.db()),
-                tabledef_renderer=sql.be.postgres.td.PostgresTabledefRenderer(),
+                backend=sql.be.postgres.backend.PostgresBackend(),
             ) as hub_orm:
                 await check_stored_transcript(har.OrmSessionStorage(tui.session.id, hub_orm), tui.agent)

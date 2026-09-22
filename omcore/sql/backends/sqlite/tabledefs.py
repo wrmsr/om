@@ -7,6 +7,7 @@ from ...dtypes import Bytes
 from ...dtypes import Datetime
 from ...dtypes import Float
 from ...dtypes import Integer
+from ...dtypes import Json
 from ...dtypes import String
 from ...dtypes import Uuid
 from ...qualifiedname import QualifiedName
@@ -112,6 +113,8 @@ class SqliteTabledefRenderer(Renderer):
             return 'real'
         elif isinstance(c.type, Bytes):
             return 'blob'
+        elif isinstance(c.type, Json):
+            return 'text'  # there is no such type, and a name of 'json' would be of numeric affinity: see above
         else:
             raise TypeError(c.type)
 

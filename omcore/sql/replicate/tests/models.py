@@ -7,6 +7,7 @@ from ...dtypes import BOOLEAN
 from ...dtypes import BYTES
 from ...dtypes import DATETIME
 from ...dtypes import FLOAT
+from ...dtypes import JSON
 from ...dtypes import STRING
 from ...dtypes import UUID
 from ...dtypes import Integer
@@ -93,6 +94,7 @@ def build_schema() -> ReplicationSchema:
             Column('b', BOOLEAN, nullable=True),
             Column('f', FLOAT, nullable=True),
             Column('y', BYTES, nullable=True),
+            Column('j', JSON, nullable=True),
         ),
 
     ])

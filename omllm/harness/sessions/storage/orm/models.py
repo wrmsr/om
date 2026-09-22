@@ -69,12 +69,11 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
             field_options=dict(
                 created_at=[orm.CreatedAt()],
                 updated_at=[orm.UpdatedAt()],
+                # Marshaled, and kept as the document that is - which where the db has such a thing is one it can look
+                # into, and everywhere is what a replica gets.
                 entry=[
-                    orm.FieldCodec(orm.CompositeCodec(
-                        orm.MarshalCodec(),
-                        orm.JsonCodec(),
-                    )),
-                    orm.FieldSqlType(sql.td.String()),
+                    orm.FieldCodec(orm.MarshalCodec()),
+                    orm.FieldSqlType(sql.td.Json()),
                 ],
             ),
             indexes=[

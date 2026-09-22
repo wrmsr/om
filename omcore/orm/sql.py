@@ -43,6 +43,7 @@ else:
 """
 import contextlib
 import datetime
+import functools
 import typing as ta
 import uuid
 
@@ -199,6 +200,7 @@ class SqlStore(Store):
             param_style: sql.ParamStyle | None = None,
             tabledef_renderer: sql.td.Renderer,
             tabledef_create_options: sql.td.Renderer.CreateOptions | None = None,
+            dtype_codec: sql.dt.DtypeCodec | None = None,
     ) -> None:
         super().__init__()
 
@@ -206,7 +208,9 @@ class SqlStore(Store):
         self._db = db
 
         # The dialect facets are injected, not chosen here - the orm stays backend-agnostic. param_style is taken from
-        # the connection's adapter when it declares one, falling back to qmark; the tabledef renderer is required.
+        # the connection's adapter when it declares one, falling back to qmark; the tabledef renderer is required; and
+        # the dtype codec is, by whatever has a field whose values no two dialects' drivers agree on the form of.
+        self._dtype_codec = dtype_codec
         if param_style is None:
             param_style = db.adapter.param_style
         if param_style is None:
@@ -237,6 +241,17 @@ class SqlStore(Store):
             self.field_decoders: dict[str, ta.Callable[[ta.Any], ta.Any]] = {}
 
             for f in m.fields:
+                # A field kept as json is whatever it is in python - what its own codec made of it, most likely - and is
+                # a document only by having been said to be: the one kind of value it takes the dialect to put in its
+                # driver's terms, and back. (One kept as the text of a document in a string column is no such thing:
+                # that is a string, which a codec of its own wrote, and every driver takes as it is.)
+                if (st := f.options.get(FieldSqlType)) is not None and isinstance(st.v, sql.td.Json):
+                    if (dc_ := o._dtype_codec) is None:
+                        raise TypeError(f'{f!r} is kept as json, which takes a store given a dtype codec')
+                    self.field_encoders[f._store_name] = functools.partial(dc_.encode, st.v)
+                    self.field_decoders[f._store_name] = functools.partial(dc_.decode, st.v)
+                    continue
+
                 rty = f.unwrapped_rty
 
                 if isinstance(rty, rfl.UnionType) and rty.is_optional:

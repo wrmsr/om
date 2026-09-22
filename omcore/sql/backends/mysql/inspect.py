@@ -4,6 +4,7 @@ from ...api.querierfuncs import query_all
 from ...api.queriers import AsyncQuerier
 from ...dtypes import DATETIME
 from ...dtypes import INTEGER
+from ...dtypes import JSON
 from ...dtypes import STRING
 from ...dtypes import Dtype
 from ...dtypes import Integer
@@ -111,6 +112,8 @@ class MysqlInspector(Inspector):
             return INTEGER  # tinyint is also how a Boolean lands; leave it unspecified rather than guess
         elif tl in ('datetime', 'timestamp', 'date'):
             return DATETIME
+        elif tl == 'json':
+            return JSON
         elif tl in ('varchar', 'char') and rc.length is not None:
             return String(length=rc.length)
         else:

@@ -1,17 +1,21 @@
 import typing as ta
 
+from .... import check
 from ...dtypes import Boolean
 from ...dtypes import Bytes
 from ...dtypes import Datetime
 from ...dtypes import Float
 from ...dtypes import Integer
+from ...dtypes import Json
 from ...dtypes import String
 from ...dtypes import Uuid
 from ...qualifiedname import QualifiedName
 from ...syntax import QuoteStyles
 from ...tabledefs.diffing import AlterColumn
 from ...tabledefs.elements import Column
+from ...tabledefs.elements import Index
 from ...tabledefs.elements import UpdatedAtTrigger
+from ...tabledefs.elements import index_name
 from ...tabledefs.lower import cluster_on_primary_key
 from ...tabledefs.rendering import RenderColumn
 from ...tabledefs.rendering import Renderer
@@ -112,6 +116,8 @@ class MysqlTabledefRenderer(Renderer):
             return 'double'
         elif isinstance(c.type, Bytes):
             return 'blob'
+        elif isinstance(c.type, Json):
+            return 'json'
         else:
             raise TypeError(c.type)
 
@@ -140,6 +146,24 @@ class MysqlTabledefRenderer(Renderer):
     def physical_table(self, tbl: TableDef) -> TableDef:
         # An innodb table is its primary key's index, and there is no other way to say what order it is in.
         return cluster_on_primary_key(tbl)
+
+    def inline_index_sql(self, table_name: QualifiedName, e: Index, opts: Renderer.CreateOptions) -> str | None:
+        # Mysql has no 'create index if not exists'. What it has is indexes in the table's own create statement, which
+        # 'if not exists' on the table then covers - so a table made that way has them all made with it, and one which
+        # was there already is left alone, indexes and all. A table which is not made that way gets them the usual way,
+        # which a migration also does one at a time.
+        if not opts.if_not_exists:
+            return None
+
+        with e.options.consume():
+            pass
+
+        check.none(e.where)  # no partial indexes in mysql
+        return ' '.join([
+            'unique index' if e.unique else 'index',
+            self.quote_ident(index_name(table_name, e)),
+            f'({", ".join(self.quote_ident(c) for c in e.columns)})',
+        ])
 
     def drop_index_statement(self, table_name: QualifiedName, name: str) -> str:
         # Mysql scopes index names to their table rather than their schema.

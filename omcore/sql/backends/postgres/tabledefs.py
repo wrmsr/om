@@ -7,6 +7,7 @@ from ...dtypes import Bytes
 from ...dtypes import Datetime
 from ...dtypes import Float
 from ...dtypes import Integer
+from ...dtypes import Json
 from ...dtypes import String
 from ...dtypes import Uuid
 from ...qualifiedname import QualifiedName
@@ -128,6 +129,8 @@ class PostgresTabledefRenderer(Renderer):
             return 'double precision'
         elif isinstance(c.type, Bytes):
             return 'bytea'
+        elif isinstance(c.type, Json):
+            return 'jsonb'
         else:
             raise TypeError(c.type)
 

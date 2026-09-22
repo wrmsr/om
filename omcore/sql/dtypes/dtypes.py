@@ -68,6 +68,15 @@ class Bytes(Dtype, lang.Final):
     pass
 
 
+@dc.dataclass(frozen=True)
+class Json(Dtype, lang.Final):
+    """
+    A json document, held as one by a backend which has a type for them - to be looked into, and indexed - and as its
+    text by one which does not. A value is whatever json can say, but for a null of its own at the top: that is no value
+    at all, the column's null, as it is for every other dtype.
+    """
+
+
 ##
 
 
@@ -78,3 +87,4 @@ UUID = Uuid()
 BOOLEAN = Boolean()
 FLOAT = Float()
 BYTES = Bytes()
+JSON = Json()

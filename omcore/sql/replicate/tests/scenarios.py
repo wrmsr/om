@@ -59,8 +59,21 @@ def _sink(**kw: ta.Any) -> dict[str, ta.Any]:
         'b': None,
         'f': None,
         'y': None,
+        'j': None,
         **kw,
     }
+
+
+# A document of every kind there is at the top, a str and a list among them: the two a driver is most likely to take for
+# something else.
+_JSON_DOCS: ta.Sequence[ta.Any] = [
+    {'a': [1, 2.5, None, True, {'b': 'ünïcode'}], 'c': {}, 'd': 'e'},
+    [1, 'two', [3], {'four': 4}],
+    'a str, which is not the text of a document but one',
+    42,
+    1.5,
+    True,
+]
 
 
 ##
@@ -189,13 +202,15 @@ async def check_capture(node: Node, schema: ReplicationSchema) -> None:
         b=False,
         f=1.5,
         y=b'\x00\xff',
+        j=_JSON_DOCS[0],
     )
     empty = _sink()
-    await insert_row(node, sink, full)
-    await insert_row(node, sink, empty)
+    docs = [_sink(j=j) for j in _JSON_DOCS[1:]]
+    for r in (full, empty, *docs):
+        await insert_row(node, sink, r)
     got = await read_rows(node, sink)
-    assert got[full['id']] == full
-    assert got[empty['id']] == empty
+    assert got == {r['id']: r for r in (full, empty, *docs)}
+    assert [type(got[r['id']]['j']) for r in docs] == [type(r['j']) for r in docs]
 
 
 ##
@@ -223,10 +238,12 @@ async def check_roundtrip(edge: Node, hub: Node, schema: ReplicationSchema) -> N
         b=True,
         f=2.25,
         y=b'\x01\x02',
+        j=_JSON_DOCS[0],
     )
     empty = _sink()
-    await insert_row(edge, sink, full)
-    await insert_row(edge, sink, empty)
+    docs = [_sink(j=j) for j in _JSON_DOCS[1:]]
+    for r in (full, empty, *docs):
+        await insert_row(edge, sink, r)
 
     # a small batch so a sweep takes several steps
     link = _link('up', schema, edge, hub, batch_size=3, cursor_side=CursorSide.TARGET)
@@ -234,7 +251,7 @@ async def check_roundtrip(edge: Node, hub: Node, schema: ReplicationSchema) -> N
     rep = await sync_link_sweep(link)
     assert rep.completed
     assert await read_rows(hub, biz) == {r['id']: r for r in rows}
-    assert await read_rows(hub, sink) == {full['id']: full, empty['id']: empty}
+    assert await read_rows(hub, sink) == {r['id']: r for r in (full, empty, *docs)}
 
     # the hub's shadow carries the edge's identity and versions, not its own
     hs = await read_shadow(hub, biz)

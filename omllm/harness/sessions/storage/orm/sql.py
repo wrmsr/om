@@ -14,7 +14,7 @@ from .types import Orm
 class SqlOrm(Orm, lang.SelfAsyncContextManaged):
     """
     An orm kept in a sql db - any, as far as this is concerned: whatever is particular to a dialect comes in with the db
-    and the tabledef renderer. Entering it creates whatever of the schema is not there yet, so a db which did not exist
+    and the backend's facets. Entering it creates whatever of the schema is not there yet, so a db which did not exist
     is ready by the time anything is stored in it.
     """
 
@@ -23,14 +23,15 @@ class SqlOrm(Orm, lang.SelfAsyncContextManaged):
             *,
             registry: orm.Registry,
             db: sql.AsyncDb,
-            tabledef_renderer: sql.td.Renderer,
+            backend: sql.be.Backend,
     ) -> None:
         super().__init__()
 
         self._store = orm.SqlStore(
             registry,
             db,
-            tabledef_renderer=tabledef_renderer,
+            tabledef_renderer=backend.tabledef_renderer,
+            dtype_codec=backend.dtype_codec,
         )
 
         self._orm = StoreOrm(

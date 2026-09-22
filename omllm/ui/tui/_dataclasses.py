@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='a7984402be15a48eda7355fec5204d890e34369a',
+    installer_sha1='0e4cf4b1f1379f5bf13e7be06db4660ad9b39b75',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -48,18 +48,19 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "lse, False, False), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value',"
             " None, False, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value"
             "', None, False, False, False), (('sql', True, True, None, True, True, False, None), 'instance', 'value', N"
-            "one, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),)"
-            ", (), (False,)))"
+            "one, False, False, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),),"
+            " (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
+def _process_dataclass__0e4cf4b1f1379f5bf13e7be06db4660ad9b39b75():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -96,6 +97,8 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
         __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
         __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
         __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -118,6 +121,7 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
                 backend_model_id=self.backend_model_id,
                 in_memory=self.in_memory,
                 sql=self.sql,
+                resume=self.resume,
                 autoexec=self.autoexec,
                 immediate=self.immediate,
                 verbose=self.verbose,
@@ -143,6 +147,7 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
                 self.backend_model_id == other.backend_model_id and
                 self.in_memory == other.in_memory and
                 self.sql == other.sql and
+                self.resume == other.resume and
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
                 self.verbose == other.verbose
@@ -163,6 +168,7 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
             'backend_model_id',
             'in_memory',
             'sql',
+            'resume',
             'autoexec',
             'immediate',
             'verbose',
@@ -202,6 +208,7 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
                 self.backend_model_id,
                 self.in_memory,
                 self.sql,
+                self.resume,
                 self.autoexec,
                 self.immediate,
                 self.verbose,
@@ -224,9 +231,10 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
             backend_model_id: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
             in_memory: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
             sql: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            autoexec: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            immediate: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            verbose: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            resume: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            autoexec: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            immediate: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            verbose: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'cwd', cwd)
@@ -240,6 +248,7 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
             __dataclass__object_setattr(self, 'backend_model_id', backend_model_id)
             __dataclass__object_setattr(self, 'in_memory', in_memory)
             __dataclass__object_setattr(self, 'sql', sql)
+            __dataclass__object_setattr(self, 'resume', resume)
             __dataclass__object_setattr(self, 'autoexec', autoexec)
             __dataclass__object_setattr(self, 'immediate', immediate)
             __dataclass__object_setattr(self, 'verbose', verbose)
@@ -261,6 +270,7 @@ def _process_dataclass__a7984402be15a48eda7355fec5204d890e34369a():
             parts.append(f"backend_model_id={self.backend_model_id!r}")
             parts.append(f"in_memory={self.in_memory!r}")
             parts.append(f"sql={self.sql!r}")
+            parts.append(f"resume={self.resume!r}")
             parts.append(f"autoexec={self.autoexec!r}")
             parts.append(f"immediate={self.immediate!r}")
             parts.append(f"verbose={self.verbose!r}")

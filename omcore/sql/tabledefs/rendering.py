@@ -212,6 +212,14 @@ class Renderer(lang.Abstract):
         # All it takes to have the index, which for some is more than creating it.
         return [self.index_statement(table_name, e, opts)]
 
+    def inline_index_sql(self, table_name: QualifiedName, e: Index, opts: CreateOptions) -> str | None:
+        """
+        The index as a clause of the table's own create statement, for a dialect which would rather have it there - or
+        none, for one which makes its indexes afterwards, as most do. Not both: an index goes one way or the other.
+        """
+
+        return None
+
     def drop_index_statement(self, table_name: QualifiedName, name: str) -> str:
         # An index lives in its table's schema, so a drop must qualify it the same way.
         return f'drop index {self.qname(table_name.sibling(name))}'
@@ -350,7 +358,10 @@ class Renderer(lang.Abstract):
                 triggers.extend(self.trigger_create_statements(tbl, e, opts))
 
             elif isinstance(e, Index):
-                indexes.extend(self.index_statements(tbl.name, e, opts))
+                if (inline := self.inline_index_sql(tbl.name, e, opts)) is not None:
+                    constraints.append(inline)
+                else:
+                    indexes.extend(self.index_statements(tbl.name, e, opts))
 
             else:
                 raise TypeError(e)

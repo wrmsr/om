@@ -15,6 +15,6 @@ async def test_postgres(harness):
         async with SqlOrm(
             registry=orm.registry(*orm_mappers()),
             db=sql.api.SyncToAsyncDb(sql.api.ImmediateSyncToAsyncRunner, sb.db()),
-            tabledef_renderer=sql.be.postgres.td.PostgresTabledefRenderer(),
+            backend=sql.be.postgres.backend.PostgresBackend(),
         ) as sql_orm:
             await check_orm_session_storage(sql_orm)
