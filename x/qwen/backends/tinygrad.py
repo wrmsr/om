@@ -261,8 +261,8 @@ class TinygradOps(Ops):
         def run(*args):
             # JIT inputs must be real, non-virtual buffers, and its outputs are overwritten by the next call, so
             # everything is cloned on the way in and out. Correct; not fast. Buffer donation is the follow-up.
-            args = [a.clone().realize() if isinstance(a, Tensor) else a for a in args]
-            return tuple(o.clone().realize() for o in jit(*args))
+            args2 = [a.clone().realize() if isinstance(a, Tensor) else a for a in args]
+            return tuple(o.clone().realize() for o in jit(*args2))
 
         return run
 

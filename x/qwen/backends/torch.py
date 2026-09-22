@@ -329,11 +329,26 @@ class TorchOps(Ops):
         q = torch.round((g - lo[..., None]) / scale[..., None]).clamp_(0, qmax).to(torch.uint8).reshape(out, inn)
         if bits == 4:
             q = q[:, 0::2] | (q[:, 1::2] << 4)
-        return TorchQWeight(q.contiguous(), scale.to(dtype), lo.to(dtype), bits, group, (out, inn))
+        return TorchQWeight(
+            q.contiguous(),
+            scale.to(dtype),
+            lo.to(dtype),
+            bits,
+            group,
+            (out, inn),
+        )
 
     def head_rows(self, w, n):
         if isinstance(w, TorchQWeight):
-            return TorchQWeight(w.q[:n], w.scale[:n], w.bias[:n], w.bits, w.group, (n, w.shape[1]))
+            return TorchQWeight(
+                w.q[:n],
+                w.scale[:n],
+                w.bias[:n],
+                w.bits,
+                w.group,
+                (n, w.shape[1]),
+            )
+
         return w[:n]
 
     def export_qweight(self, w):
@@ -393,7 +408,16 @@ class TorchOps(Ops):
     def linear(self, x, w):
         if isinstance(w, TorchQWeight):
             if self.triton and x.numel() // x.shape[-1] <= self.triton_max_m:
-                return qlinear(x, w.q, w.scale, w.bias, w.bits, w.group, w.shape, block_n=self.triton_block_n)
+                return qlinear(
+                    x,
+                    w.q,
+                    w.scale,
+                    w.bias,
+                    w.bits,
+                    w.group,
+                    w.shape,
+                    block_n=self.triton_block_n,
+                )
             return w.linear(x)
         return F.linear(x, w)
 
@@ -467,7 +491,8 @@ class TorchOps(Ops):
             cos_np, sin_np = self.rope_tables(offset, x.shape[2], dims, theta)
             tabs[key] = (self.array(cos_np, x.dtype), self.array(sin_np, x.dtype))
         cos, sin = tabs[key]
-        xr, xp = x[..., :dims], x[..., dims:]
+        xr = x[..., :dims]
+        xp = x[..., dims:]
         half = dims // 2
         rot = torch.cat([-xr[..., half:], xr[..., :half]], dim=-1)
         return torch.cat([xr * cos[None, None] + rot * sin[None, None], xp], dim=-1)

@@ -33,11 +33,11 @@ import torch
 
 
 try:
-    import triton
-    import triton.language as tl
+    import triton  # type: ignore[import-not-found]
+    import triton.language as tl  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover
-    triton = None  # type: ignore[assignment]
-    tl = None  # type: ignore[assignment]
+    triton = None
+    tl = None
 
 
 ##
@@ -45,13 +45,12 @@ except ImportError:  # pragma: no cover
 
 HAVE_TRITON = triton is not None
 
-# (N, K, bits, dtype, config) -> (block_k, num_stages, split_k) that launched successfully; filled by `_resolve`,
-# which is the only place a launch may fail and be retried smaller (keeps try/except out of the traced hot path)
+# (N, K, bits, dtype, config) -> (block_k, num_stages, split_k) that launched successfully; filled by `_resolve`, which
+# is the only place a launch may fail and be retried smaller (keeps try/except out of the traced hot path)
 _RESOLVED: dict[tuple[ta.Any, ...], tuple[int, int, int]] = {}
 
 
 if HAVE_TRITON:
-
     @triton.jit
     def _qlinear_kernel(
             x_ptr,
@@ -136,7 +135,6 @@ if HAVE_TRITON:
 
 
 if HAVE_TRITON:
-
     @triton.jit
     def _gdn_step_kernel(
             q_ptr,
@@ -222,11 +220,11 @@ def gdn_step(
         num_warps: int = 8,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Fused DeltaNet token step (the whole of Ops.gdn_step) in one launch per layer: each program owns a
-    [dk, block_dv] slice of one head's state in registers, runs the T-token recurrence on it -- l2-norm of q/k,
-    beta and the decay computed in-kernel, key heads broadcast by index -- and writes the outputs and either the
-    final state or the state after every token. Replaces ~25 small kernels (and ~24 MB of state traffic per
-    layer at T=1) with one kernel that reads and writes the 3 MB state once.
+    Fused DeltaNet token step (the whole of Ops.gdn_step) in one launch per layer: each program owns a [dk, block_dv]
+    slice of one head's state in registers, runs the T-token recurrence on it -- l2-norm of q/k, beta and the decay
+    computed in-kernel, key heads broadcast by index -- and writes the outputs and either the final state or the state
+    after every token. Replaces ~25 small kernels (and ~24 MB of state traffic per layer at T=1) with one kernel that
+    reads and writes the 3 MB state once.
 
     q, k: [B, T, Hk, dk]; v: [B, T, Hv, dv]; a, b: [B, T, Hv]; A, dt_bias: [Hv]; state: [B, Hv, dk, dv] float32.
     """
@@ -234,7 +232,8 @@ def gdn_step(
     if not HAVE_TRITON:
         raise RuntimeError('triton is not installed')
     B, T, Hk, dk = q.shape
-    Hv, dv = v.shape[2], v.shape[3]
+    Hv = v.shape[2]
+    dv = v.shape[3]
     if q.stride(-1) != 1:
         q = q.contiguous()
     if k.stride(-1) != 1:
@@ -520,8 +519,8 @@ def qlinear(
 
 def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[int, int, int]:
     """
-    Find (block_k, num_stages, split_k) for `cfg` that fits the GPU's shared memory: try as configured, shrink
-    the K block, then the pipeline depth. Runs once per (shape, dtype, config).
+    Find (block_k, num_stages, split_k) for `cfg` that fits the GPU's shared memory: try as configured, shrink the K
+    block, then the pipeline depth. Runs once per (shape, dtype, config).
     """
 
     m = x2.shape[0]
@@ -536,9 +535,24 @@ def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[in
         try:
             if cfg.fma and m <= 8:
                 _qgemv_fma_kernel[(triton.cdiv(n, cfg.block_n), split)](
-                    x2, q, scale, bias, y, m, n, k, x2.stride(0), y.stride(1),
-                    BITS=bits, GROUP=group, BLOCK_M=8, BLOCK_N=cfg.block_n, BLOCK_K=bk, SPLIT_K=split,
-                    num_warps=cfg.num_warps, num_stages=num_stages,
+                    x2,
+                    q,
+                    scale,
+                    bias,
+                    y,
+                    m,
+                    n,
+                    k,
+                    x2.stride(0),
+                    y.stride(1),
+                    BITS=bits,
+                    GROUP=group,
+                    BLOCK_M=8,
+                    BLOCK_N=cfg.block_n,
+                    BLOCK_K=bk,
+                    SPLIT_K=split,
+                    num_warps=cfg.num_warps,
+                    num_stages=num_stages,
                 )
                 return bk, num_stages, split
             _qlinear_kernel[grid](
@@ -574,14 +588,13 @@ def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[in
 
 def time_graphed(fn: ta.Callable[[int], ta.Any], reps: int = 10, iters: int = 5) -> float:
     """
-    Seconds per call of `fn(i)`, measured as CUDA-graph replays: `reps` calls are captured into one graph and the
-    graph is replayed `iters` times between CUDA events. An eager Triton launch costs ~40-50 us of Python and
-    launcher overhead, which is more than most of these kernels take -- timing eagerly makes every small shape
-    look identical (and penalises split-K for its extra reduction launch). Inside a graph only the GPU time is
-    left, which is also how the kernels run in the decode step. `fn` gets the rep index so the caller can rotate
-    through several copies of the weight: a weight smaller than the L2 cache (96 MB on a 5090) that is timed on
-    its own is served from L2 after the first pass and reports bandwidth the decode step, which streams every
-    weight once from DRAM, will never see.
+    Seconds per call of `fn(i)`, measured as CUDA-graph replays: `reps` calls are captured into one graph and the graph
+    is replayed `iters` times between CUDA events. An eager Triton launch costs ~40-50 us of Python and launcher
+    overhead, which is more than most of these kernels take -- timing eagerly makes every small shape look identical
+    (and penalises split-K for its extra reduction launch). Inside a graph only the GPU time is left, which is also how
+    the kernels run in the decode step. `fn` gets the rep index so the caller can rotate through several copies of the
+    weight: a weight smaller than the L2 cache (96 MB on a 5090) that is timed on its own is served from L2 after the
+    first pass and reports bandwidth the decode step, which streams every weight once from DRAM, will never see.
     """
 
     fn(0)
@@ -641,20 +654,49 @@ def tune(
         # enough distinct copies of the weight to exceed L2 across the captured reps (see time_graphed)
         n_copies = max(1, min(16, -(-256 * 2**20 // nbytes)))
         copies = [qw] + [
-            dc.replace(qw, q=qw.q.clone(), scale=qw.scale.clone(), bias=qw.bias.clone()) for _ in range(n_copies - 1)
+            dc.replace(
+                qw,
+                q=qw.q.clone(),
+                scale=qw.scale.clone(),
+                bias=qw.bias.clone(),
+            )
+            for _ in range(n_copies - 1)
         ]
         reps = max(10, n_copies)
         bns = (16, 32) if n <= 2048 else (32, 64) if n <= 8192 else (64, 128)
         bks = tuple(b for b in (128, 256) if k % b == 0) or (64,)
         sks = (1, 2, 4, 8) if n <= 16384 else (1,)
-        for fma, bn, bk, nw, ns, sk in itertools.product((False, True), bns, bks, (4, 8), (2, 3), sks):
+        for (
+                fma,
+                bn,
+                bk,
+                nw,
+                ns,
+                sk,
+        ) in itertools.product(
+            (False, True),
+            bns,
+            bks,
+            (4, 8),
+            (2, 3),
+            sks,
+        ):
             if k % (bk * sk):
                 continue
             if fma and (bn > 64 or bk > 128 or m > 8):
                 continue  # the FMA tile lives in registers: [bn, bk] f32 per plane
             cfg = GemvConfig(bn, bk, nw, ns, sk, fma)
             try:
-                y = qlinear(x, qw.q, qw.scale, qw.bias, bits, group, (n, k), config=cfg)
+                y = qlinear(
+                    x,
+                    qw.q,
+                    qw.scale,
+                    qw.bias,
+                    bits,
+                    group,
+                    (n, k),
+                    config=cfg,
+                )
                 torch.cuda.synchronize()
                 if ref is None:
                     ref = (x.float() @ qw.dequant(torch.float32).T)
@@ -664,8 +706,14 @@ def tune(
                     continue
                 dt = time_graphed(
                     lambda i: qlinear(
-                        x, copies[i % n_copies].q, copies[i % n_copies].scale, copies[i % n_copies].bias,
-                        bits, group, (n, k), config=cfg,
+                        x,
+                        copies[i % n_copies].q,
+                        copies[i % n_copies].scale,
+                        copies[i % n_copies].bias,
+                        bits,
+                        group,
+                        (n, k),
+                        config=cfg,
                     ),
                     reps=reps,
                 )

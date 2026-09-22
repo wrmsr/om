@@ -1,6 +1,6 @@
 """
-Tune the Triton int4/int8 GEMV launch configurations for a model's projection shapes on this GPU and save
-them for `TorchOps(triton_tuned=...)` / `generate --triton-tuned`.
+Tune the Triton int4/int8 GEMV launch configurations for a model's projection shapes on this GPU and save them for
+`TorchOps(triton_tuned=...)` / `generate --triton-tuned`.
 
     python -m x.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
 """
@@ -22,9 +22,9 @@ from ..weights import open_source
 
 def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[tuple[int, int]]]:
     """
-    Distinct (N, K) of the model's quantized 2-D weights as the model actually runs them -- fused projections
-    (gate_up, qkv, qkvz, ab; see model.FUSIONS) count once with their stacked N -- grouped by bit width (the
-    a/b pair is int8 whatever the model's width).
+    Distinct (N, K) of the model's quantized 2-D weights as the model actually runs them -- fused projections (gate_up,
+    qkv, qkvz, ab; see model.FUSIONS) count once with their stacked N -- grouped by bit width (the a/b pair is int8
+    whatever the model's width).
     """
 
     src = open_source(model)
@@ -41,7 +41,14 @@ def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[
     out: dict[int, set[tuple[int, int]]] = {}
     seen_fused: set[str] = set()
     for name in names:
-        if any(s in name for s in ('norm', 'linear_attn.A', 'dt_bias', 'conv1d')):
+        if any(
+            s in name for s in (
+                'norm',
+                'linear_attn.A',
+                'dt_bias',
+                'conv1d',
+            )
+        ):
             continue
         f = fusion_of(name)
         if f is not None:
@@ -62,13 +69,41 @@ def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--model', required=True)
-    ap.add_argument('--quant', choices=list(QUANT_BITS), default='int4')
-    ap.add_argument('--dtype', choices=['bf16', 'f16', 'f32'], default='bf16')
-    ap.add_argument('-m', type=int, default=4, help='activation rows to tune for (1 = plain decode; 4 = spec-3 verify, the default)')
-    ap.add_argument('--out', required=True, help='JSON to write, e.g. ./.cache/qwen/gemv-int4.json')
+    ap.add_argument(
+        '--model',
+        required=True,
+    )
+    ap.add_argument(
+        '--quant',
+        choices=list(QUANT_BITS),
+        default='int4',
+    )
+    ap.add_argument(
+        '--dtype',
+        choices=[
+            'bf16',
+            'f16',
+            'f32',
+        ],
+        default='bf16',
+    )
+    ap.add_argument(
+        '-m',
+        type=int,
+        default=4,
+        help='activation rows to tune for (1 = plain decode; 4 = spec-3 verify, the default)',
+    )
+    ap.add_argument(
+        '--out',
+        required=True,
+        help='JSON to write, e.g. ./.cache/qwen/gemv-int4.json',
+    )
     args = ap.parse_args()
-    dtype = {'bf16': torch.bfloat16, 'f16': torch.float16, 'f32': torch.float32}[args.dtype]
+    dtype = {
+        'bf16': torch.bfloat16,
+        'f16': torch.float16,
+        'f32': torch.float32,
+    }[args.dtype]
     by_bits = model_shapes(args.model, QUANT_BITS[args.quant])
     for b, shapes in sorted(by_bits.items()):
         shapes = sorted(shapes)

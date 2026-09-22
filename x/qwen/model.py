@@ -576,9 +576,9 @@ class Qwen35:
             natives = [src.get_quant(pn) for pn in parts]
             if all(nq is not None and nq.bits == fbits and nq.group == group for nq in natives):
                 qw = from_native(
-                    np.concatenate([nq.values for nq in natives], 0),  # type: ignore[union-attr]
-                    np.concatenate([nq.scale for nq in natives], 0),  # type: ignore[union-attr]
-                    np.concatenate([nq.bias for nq in natives], 0),  # type: ignore[union-attr]
+                    np.concatenate([nq.values for nq in natives], 0),
+                    np.concatenate([nq.scale for nq in natives], 0),
+                    np.concatenate([nq.bias for nq in natives], 0),
                     fbits,
                     group,
                 )

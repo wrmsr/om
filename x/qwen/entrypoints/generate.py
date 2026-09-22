@@ -110,12 +110,37 @@ def main() -> None:
         help='draft with an output head restricted to the first N token ids (0 = full vocabulary); 32768-65536 '
              'makes the draft steps several times cheaper and costs little acceptance',
     )
-    ap.add_argument('--temperature', type=float, default=0.0, help='0 = greedy (default)')
-    ap.add_argument('--top-k', type=int, default=0)
-    ap.add_argument('--top-p', type=float, default=1.0)
-    ap.add_argument('--min-p', type=float, default=0.0)
-    ap.add_argument('--presence-penalty', type=float, default=0.0)
-    ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument(
+        '--temperature',
+        type=float,
+        default=0.0,
+        help='0 = greedy (default)',
+    )
+    ap.add_argument(
+        '--top-k',
+        type=int,
+        default=0,
+    )
+    ap.add_argument(
+        '--top-p',
+        type=float,
+        default=1.0,
+    )
+    ap.add_argument(
+        '--min-p',
+        type=float,
+        default=0.0,
+    )
+    ap.add_argument(
+        '--presence-penalty',
+        type=float,
+        default=0.0,
+    )
+    ap.add_argument(
+        '--seed',
+        type=int,
+        default=0,
+    )
     ap.add_argument(
         '--cache-dir',
         default=None,
@@ -236,8 +261,8 @@ def main() -> None:
         if args.compile and getattr(ops, 'compile_cache', None):
             from ..backends.torch import save_compile_cache
 
-            if save_compile_cache(ops.compile_cache):
-                print(f'[gen] saved compile cache to {ops.compile_cache}')
+            if save_compile_cache(ops.compile_cache):  # type: ignore[attr-defined]
+                print(f'[gen] saved compile cache to {ops.compile_cache}')  # type: ignore[attr-defined]
 
     streamer = Tokenizer.Streamer(tok)
     t0 = time.time()

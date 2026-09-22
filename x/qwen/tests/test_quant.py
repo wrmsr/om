@@ -139,7 +139,7 @@ def test_param_cache():
 
     ops = TorchOps('cpu')
     tmp = pathlib.Path(tempfile.mkdtemp())
-    cfg = Qwen35Config(**CFG)
+    cfg = Qwen35Config(**CFG)  # type: ignore
     hf = make_hf_params(cfg)
     write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
     src = GGUFSource(tmp / 'tiny.gguf')

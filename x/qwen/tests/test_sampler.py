@@ -1,8 +1,4 @@
-"""
-The device-side sampler (model.Sampler) against exact probabilities, on every backend.
-
-Run:  python -m pytest x/qwen/tests/test_sampler.py -q      or      python -m x.qwen.tests.test_sampler
-"""
+"""The device-side sampler (model.Sampler) against exact probabilities, on every backend."""
 import numpy as np
 
 from ..model import Sampler
@@ -12,7 +8,13 @@ from .test_parity import backends
 ##
 
 
-def expected_dist(l: np.ndarray, temperature: float, top_k: int, top_p: float, min_p: float) -> np.ndarray:
+def expected_dist(
+        l: np.ndarray,
+        temperature: float,
+        top_k: int,
+        top_p: float,
+        min_p: float,
+) -> np.ndarray:
     """What Sampler.sample is supposed to draw from, computed plainly in float64."""
 
     V = l.shape[0]
@@ -71,9 +73,9 @@ def test_sampler_distribution():
 
 def test_probs_and_rejection_sampling():
     """
-    `Sampler.probs` equals the exact warped distribution, and the speculative accept/correct step reproduces
-    the target distribution whatever the draft distribution is (the speculative-sampling theorem), with an
-    acceptance rate of sum(min(p, q)).
+    `Sampler.probs` equals the exact warped distribution, and the speculative accept/correct step reproduces the target
+    distribution whatever the draft distribution is (the speculative-sampling theorem), with an acceptance rate of
+    sum(min(p, q)).
     """
 
     from ..model import speculative_accept
@@ -94,7 +96,13 @@ def test_probs_and_rejection_sampling():
             s.bind(ops, V)
             got = ops.numpy(s.probs(ops.array(np.stack([l, l]), f32)))
             if kw:
-                exp = expected_dist(l, kw['temperature'], kw.get('top_k', 0), kw.get('top_p', 1.0), kw.get('min_p', 0.0))
+                exp = expected_dist(
+                    l,
+                    kw['temperature'],
+                    kw.get('top_k', 0),  # type: ignore
+                    kw.get('top_p', 1.0),
+                    kw.get('min_p', 0.0),
+                )
             else:
                 exp = np.zeros(V)
                 exp[int(np.argmax(l))] = 1.0
@@ -140,7 +148,7 @@ def test_sampled_spec_runs():
     prompt = np.random.default_rng(7).integers(0, 256, 5).tolist()
     for ops in backends():
         if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
-            ops.capture_mode = 'static'
+            ops.capture_mode = 'static'  # type: ignore
         model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
         s = Sampler(temperature=1.0, top_k=20, top_p=0.95, presence_penalty=1.5, seed=3)
         out = model.generate(prompt, max_new_tokens=17, spec=3, sampler=s)
@@ -149,7 +157,7 @@ def test_sampled_spec_runs():
         assert len(out2) == 17
         if hasattr(ops, 'capture_mode'):
             ops.capture_mode = 'auto'
-        print(f'{ops.name}: sampled spec decode OK ({model.last_spec.rounds} rounds)')
+        print(f'{ops.name}: sampled spec decode OK ({model.last_spec.rounds} rounds)')  # type: ignore
 
 
 if __name__ == '__main__':

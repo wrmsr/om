@@ -69,7 +69,7 @@ class ParamCache:
     misses: int = 0
 
     @classmethod
-    def open(cls, cache_dir: str | pathlib.Path, src: ta.Any, quant: str | None, group: int) -> 'ParamCache':
+    def open(cls, cache_dir: str | pathlib.Path, src: ta.Any, quant: str | None, group: int) -> ParamCache:
         root = pathlib.Path(cache_dir).expanduser() / f'{source_identity(src)}-{quant or "none"}-g{group}'
         root.mkdir(parents=True, exist_ok=True)
         return cls(root)
@@ -77,7 +77,7 @@ class ParamCache:
     def _meta_path(self, name: str) -> pathlib.Path:
         return self.root / (_safe(name) + '.json')
 
-    def get(self, name: str) -> 'np.ndarray | QWeight | None':
+    def get(self, name: str) -> np.ndarray | QWeight | None:
         mp = self._meta_path(name)
         if not mp.exists():
             self.misses += 1
