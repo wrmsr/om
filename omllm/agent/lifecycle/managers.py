@@ -7,6 +7,7 @@ from omcore import lang
 from ... import llm
 from ..projection.types import LlmContextBuilder
 from ..types.contexts import Context
+from ..types.errors import NoContextCompactorError
 from ..types.lifecycle import ContextBudget
 from ..types.lifecycle import ContextLifecycleConfig
 from ..types.lifecycle import ContextProjection
@@ -31,30 +32,52 @@ class ContextLifecycleResult:
 
 
 class ContextLifecycleManager(lang.Abstract):
-    """Prepares a model projection and, separately, tries a stronger reduction after a provider overflow."""
+    """
+    Prepares a model projection ahead of a call; separately, tries a stronger reduction after a provider overflow; and
+    compacts on request. The backend given is the one the call is to be made on: its model says what fits, and a
+    compactor may have it do the summarizing.
+    """
 
     @abc.abstractmethod
-    async def prepare(
+    def prepare(
             self,
             context: Context,
             *,
             builder: LlmContextBuilder,
-            model: llm.Model,
+            backend: llm.ImmediateBackend,
             options: llm.Options | None = None,
             config: ContextLifecycleConfig | None = None,
-    ) -> ContextLifecycleResult:
+    ) -> ta.Awaitable[ContextLifecycleResult]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def recover_overflow(
+    def recover_overflow(
             self,
             context: Context,
             *,
             builder: LlmContextBuilder,
-            model: llm.Model,
+            backend: llm.ImmediateBackend,
             options: llm.Options | None = None,
             config: ContextLifecycleConfig | None = None,
-    ) -> ContextLifecycleResult:
+    ) -> ta.Awaitable[ContextLifecycleResult]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def compact(
+            self,
+            context: Context,
+            *,
+            builder: LlmContextBuilder,
+            backend: llm.ImmediateBackend,
+            options: llm.Options | None = None,
+            config: ContextLifecycleConfig | None = None,
+            instructions: str | None = None,
+    ) -> ta.Awaitable[ContextLifecycleResult]:
+        """
+        Compacts whether or not the view is under pressure. The result's reduction is None when there was nothing to
+        compact; NoContextCompactorError is raised when there is no compactor to do it.
+        """
+
         raise NotImplementedError
 
 
@@ -150,12 +173,43 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
     def _requested_output(model: llm.Model, options: llm.Options | None) -> int | None:
         return llm.Options().merge(model.default_options, options).max_tokens
 
+    def _budget(
+            self,
+            context: Context,
+            *,
+            config: ContextLifecycleConfig,
+            backend: llm.ImmediateBackend,
+            options: llm.Options | None,
+            estimated_tokens: int,
+    ) -> ContextBudget | None:
+        if (limits := llm.resolve_model_limits(backend.model)) is None:
+            return None
+
+        return ContextBudget.of(
+            limits,
+            config,
+            requested_output=self._requested_output(backend.model, options),
+            observed_input=(
+                context.context_budget.observed_input
+                if context.context_budget is not None
+                else None
+            ),
+            estimated_input=estimated_tokens,
+        )
+
+    @staticmethod
+    def _target_tokens(budget: ContextBudget, config: ContextLifecycleConfig) -> int:
+        return max(
+            budget.threshold - min(config.prune_headroom_tokens, budget.threshold),
+            0,
+        )
+
     async def _prepare(
             self,
             context: Context,
             *,
             builder: LlmContextBuilder,
-            model: llm.Model,
+            backend: llm.ImmediateBackend,
             options: llm.Options | None,
             config: ContextLifecycleConfig | None = None,
             reason: ContextReductionReason,
@@ -172,25 +226,18 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
         llm_context = builder.build(context)
         estimated_tokens = self._estimator.estimate_context(llm_context)
 
-        budget: ContextBudget | None = None
+        budget = self._budget(
+            context,
+            config=config,
+            backend=backend,
+            options=options,
+            estimated_tokens=estimated_tokens,
+        )
+
         target_tokens: int | None = None
-        if (limits := llm.resolve_model_limits(model)) is not None:
-            budget = ContextBudget.of(
-                limits,
-                config,
-                requested_output=self._requested_output(model, options),
-                observed_input=(
-                    context.context_budget.observed_input
-                    if context.context_budget is not None
-                    else None
-                ),
-                estimated_input=estimated_tokens,
-            )
+        if budget is not None:
             if force or estimated_tokens > budget.threshold:
-                target_tokens = max(
-                    budget.threshold - min(config.prune_headroom_tokens, budget.threshold),
-                    0,
-                )
+                target_tokens = self._target_tokens(budget, config)
 
         elif force:
             # A provider overflow is authoritative even when its catalog has no limits. One deterministic reduction is
@@ -222,6 +269,7 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
         ):
             compacted_projection = await self._compactor.compact(
                 context,
+                backend=backend,
                 target_tokens=target_tokens,
                 reason=reason,
             )
@@ -260,14 +308,14 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
             context: Context,
             *,
             builder: LlmContextBuilder,
-            model: llm.Model,
+            backend: llm.ImmediateBackend,
             options: llm.Options | None = None,
             config: ContextLifecycleConfig | None = None,
     ) -> ContextLifecycleResult:
         return await self._prepare(
             context,
             builder=builder,
-            model=model,
+            backend=backend,
             options=options,
             config=config,
             reason='threshold',
@@ -279,16 +327,85 @@ class StandardContextLifecycleManager(ContextLifecycleManager):
             context: Context,
             *,
             builder: LlmContextBuilder,
-            model: llm.Model,
+            backend: llm.ImmediateBackend,
             options: llm.Options | None = None,
             config: ContextLifecycleConfig | None = None,
     ) -> ContextLifecycleResult:
         return await self._prepare(
             context,
             builder=builder,
-            model=model,
+            backend=backend,
             options=options,
             config=config,
             reason='overflow',
             force=True,
+        )
+
+    async def compact(
+            self,
+            context: Context,
+            *,
+            builder: LlmContextBuilder,
+            backend: llm.ImmediateBackend,
+            options: llm.Options | None = None,
+            config: ContextLifecycleConfig | None = None,
+            instructions: str | None = None,
+    ) -> ContextLifecycleResult:
+        if (compactor := self._compactor) is None:
+            raise NoContextCompactorError
+
+        if config is None:
+            config = ContextLifecycleConfig.ZERO
+
+        llm_context = builder.build(context)
+        before_tokens = estimated_tokens = self._estimator.estimate_context(llm_context)
+
+        budget = self._budget(
+            context,
+            config=config,
+            backend=backend,
+            options=options,
+            estimated_tokens=estimated_tokens,
+        )
+
+        # Asked for outright, the target is what a run under pressure would aim for, or failing any known limits the
+        # size as it stands: the compactor's own policy says how much of the tail to keep.
+        if budget is not None:
+            target_tokens = self._target_tokens(budget, config)
+        else:
+            target_tokens = estimated_tokens
+
+        compacted_projection = await compactor.compact(
+            context,
+            backend=backend,
+            target_tokens=target_tokens,
+            reason='manual',
+            instructions=instructions,
+        )
+
+        reduction: ContextReduction | None = None
+        if (
+                compacted_projection is not None and
+                compacted_projection != (context.projection or ContextProjection.ZERO)
+        ):
+            context = dc.replace(context, projection=compacted_projection)
+            llm_context = builder.build(context)
+            estimated_tokens = self._estimator.estimate_context(llm_context)
+
+            reduction = ContextReduction(
+                reason='manual',
+                before_tokens=before_tokens,
+                after_tokens=estimated_tokens,
+                compacted=True,
+            )
+
+        if budget is not None:
+            budget = dc.replace(budget, estimated_input=estimated_tokens)
+        context = dc.replace(context, context_budget=budget)
+
+        return ContextLifecycleResult(
+            context=context,
+            llm_context=llm_context,
+            context_budget=budget,
+            reduction=reduction,
         )

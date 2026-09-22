@@ -38,6 +38,10 @@ with _lang.auto_proxy_init(
         ParserCommandClass,
     )
 
+    from .commands.compact import (  # noqa
+        CompactCommand,
+    )
+
     from .commands.manager import (  # noqa
         RunCommandResult,
         CommandsManager,
@@ -107,6 +111,7 @@ with _lang.auto_proxy_init(
         SessionEntry,
 
         MessageSessionEntry,
+        ContextProjectionSessionEntry,
     )
 
     from .sessions.events import (  # noqa

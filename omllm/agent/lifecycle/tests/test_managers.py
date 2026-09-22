@@ -5,6 +5,7 @@ from omcore import check
 from .... import llm
 from ...projection.builders import StandardLlmContextBuilder
 from ...types.contexts import Context
+from ...types.errors import NoContextCompactorError
 from ...types.lifecycle import ContextLifecycleConfig
 from ...types.lifecycle import ContextProjection
 from ...types.lifecycle import ContextReductionReason
@@ -33,6 +34,10 @@ def _tool_group(
     ]
 
 
+def _backend(model: llm.Model) -> llm.ImmediateBackend:
+    return llm.ScriptedImmediateBackend(model)
+
+
 @pytest.mark.asyncs('asyncio')
 async def test_individual_tool_output_is_bounded_only_in_the_projection():
     full_text = 'x' * 1_000
@@ -43,7 +48,7 @@ async def test_individual_tool_output_is_bounded_only_in_the_projection():
     result = await StandardContextLifecycleManager().prepare(
         context,
         builder=StandardLlmContextBuilder(),
-        model=llm.Model(key=llm.ModelKey('test', 'unlimited'), backend='test'),
+        backend=_backend(llm.Model(key=llm.ModelKey('test', 'unlimited'), backend='test')),
         options=None,
         config=ContextLifecycleConfig(max_tool_result_chars=100),
     )
@@ -80,7 +85,7 @@ async def test_threshold_prunes_an_old_result_but_keeps_the_recent_tail():
     result = await StandardContextLifecycleManager().prepare(
         context,
         builder=StandardLlmContextBuilder(),
-        model=model,
+        backend=_backend(model),
         options=None,
         config=ContextLifecycleConfig(
             max_tool_result_chars=None,
@@ -118,7 +123,7 @@ async def test_forced_recovery_does_not_prune_errors_or_mutating_tool_results():
     result = await StandardContextLifecycleManager().recover_overflow(
         context,
         builder=StandardLlmContextBuilder(),
-        model=llm.Model(key=llm.ModelKey('test', 'unknown'), backend='test'),
+        backend=_backend(llm.Model(key=llm.ModelKey('test', 'unknown'), backend='test')),
         options=None,
         config=ContextLifecycleConfig(max_tool_result_chars=None),
     )
@@ -128,19 +133,24 @@ async def test_forced_recovery_does_not_prune_errors_or_mutating_tool_results():
 
 
 class _RecordingCompactor(ContextCompactor):
-    def __init__(self) -> None:
+    def __init__(self, projection: ContextProjection | None = None) -> None:
         super().__init__()
 
-        self.calls: list[tuple[Context, int, ContextReductionReason]] = []
+        self._projection = projection
 
-    async def compact(self, context, *, target_tokens, reason):
-        self.calls.append((context, target_tokens, reason))
-        return ContextProjection(summary='The old material was summarized.', first_kept_message_index=1)
+        self.calls: list[tuple[Context, llm.ImmediateBackend, int, ContextReductionReason, str | None]] = []
+
+    async def compact(self, context, *, backend, target_tokens, reason, instructions=None):
+        self.calls.append((context, backend, target_tokens, reason, instructions))
+        return self._projection
+
+
+_SUMMARIZED = ContextProjection(summary='The old material was summarized.', first_kept_message_index=1)
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_compactor_seam_runs_after_deterministic_reduction_is_insufficient():
-    compactor = _RecordingCompactor()
+    compactor = _RecordingCompactor(_SUMMARIZED)
     context = Context(messages=[
         llm.UserMessage('x' * 5_000),
         llm.UserMessage('keep me'),
@@ -154,11 +164,12 @@ async def test_compactor_seam_runs_after_deterministic_reduction_is_insufficient
             output=100,
         ),
     )
+    backend = _backend(model)
 
     result = await StandardContextLifecycleManager(compactor=compactor).prepare(
         context,
         builder=StandardLlmContextBuilder(),
-        model=model,
+        backend=backend,
         options=None,
         config=ContextLifecycleConfig(
             max_tool_result_chars=None,
@@ -168,10 +179,81 @@ async def test_compactor_seam_runs_after_deterministic_reduction_is_insufficient
         ),
     )
 
-    assert len(compactor.calls) == 1
+    [(_, seen_backend, target_tokens, reason, instructions)] = compactor.calls
+    assert seen_backend is backend
+    assert target_tokens == 800
+    assert reason == 'threshold'
+    assert instructions is None
     assert result.reduction is not None and result.reduction.compacted
     assert (rcp := result.context.projection) is not None
     assert rcp.summary == 'The old material was summarized.'
     assert result.context.messages == context.messages
     kept = check.isinstance((result.llm_context.messages or [])[0], llm.UserMessage)
     assert 'keep me' in check.isinstance(kept.content, str)
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_compaction_on_request_is_unconditional_and_reports_itself():
+    compactor = _RecordingCompactor(_SUMMARIZED)
+    context = Context(messages=[
+        llm.UserMessage('a'),
+        llm.UserMessage('keep me'),
+    ])
+    model = llm.Model(
+        key=llm.ModelKey('test', 'big'),
+        backend='test',
+        limits=llm.ModelLimits(
+            context=100_000,
+            input=90_000,
+            output=1_000,
+        ),
+    )
+
+    result = await StandardContextLifecycleManager(compactor=compactor).compact(
+        context,
+        builder=StandardLlmContextBuilder(),
+        backend=_backend(model),
+        config=ContextLifecycleConfig(
+            safety_margin_tokens=0,
+            prune_headroom_tokens=100,
+        ),
+        instructions='Keep the names.',
+    )
+
+    # Nowhere near the threshold, and compacted regardless, to the target a run under pressure would have.
+    [(_, _, target_tokens, reason, instructions)] = compactor.calls
+    assert target_tokens == 89_900
+    assert reason == 'manual'
+    assert instructions == 'Keep the names.'
+
+    assert result.reduction is not None
+    assert result.reduction.reason == 'manual'
+    assert result.reduction.compacted
+    assert result.reduction.tool_result_indices == ()
+    assert result.context.projection == _SUMMARIZED
+    assert result.context.messages == context.messages
+    assert result.context_budget is not None
+    assert result.context_budget.estimated_input == result.reduction.after_tokens
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_compaction_on_request_with_nothing_to_compact_or_nothing_to_compact_with():
+    context = Context(messages=[llm.UserMessage('a')])
+    backend = _backend(llm.Model(key=llm.ModelKey('test', 'unknown'), backend='test'))
+
+    result = await StandardContextLifecycleManager(compactor=_RecordingCompactor(None)).compact(
+        context,
+        builder=StandardLlmContextBuilder(),
+        backend=backend,
+    )
+
+    assert result.reduction is None
+    assert result.context.projection is None
+    assert result.context.messages == context.messages
+
+    with pytest.raises(NoContextCompactorError):
+        await StandardContextLifecycleManager().compact(
+            context,
+            builder=StandardLlmContextBuilder(),
+            backend=backend,
+        )

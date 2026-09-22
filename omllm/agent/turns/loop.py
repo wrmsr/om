@@ -231,13 +231,16 @@ class TurnLoop:
             await self._publish(ContextWindowEvent(result.context_budget))
 
         if result.reduction is not None:
-            await self._publish(ContextReductionEvent(result.reduction))
+            await self._publish(ContextReductionEvent(
+                reduction=result.reduction,
+                projection=check.not_none(result.context.projection),
+            ))
 
     async def _prepare_llm_context(self) -> ContextLifecycleResult:
         result = await self._context_lifecycle_manager.prepare(
             self._context,
             builder=self._context_builder,
-            model=self._llm_backend.model,
+            backend=self._llm_backend,
             options=self._config.llm_options,
             config=self._config.context_lifecycle,
         )
@@ -268,7 +271,7 @@ class TurnLoop:
                 recovered = await self._context_lifecycle_manager.recover_overflow(
                     self._context,
                     builder=self._context_builder,
-                    model=self._llm_backend.model,
+                    backend=self._llm_backend,
                     options=self._config.llm_options,
                     config=lifecycle,
                 )

@@ -28,6 +28,9 @@ def bind_commands(config: Config) -> inj.Elements:
 
         inj.bind(har.PermissionsCommand, singleton=True),
         harness_commands().bind_item(to_key=har.PermissionsCommand),
+
+        inj.bind(har.CompactCommand, singleton=True),
+        harness_commands().bind_item(to_key=har.CompactCommand),
     ])
 
     if config.exec:

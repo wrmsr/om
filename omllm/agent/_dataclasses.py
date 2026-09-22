@@ -266,6 +266,161 @@ def _process_dataclass__967187aca2f953ddbe8d05a15c4aa06b59a3198a():
 
 
 @_register(
+    installer_sha1='7c1faf80c92934497ca96466bf6336ad94adafa6',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('keep_recent_tokens', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('max_summary_tokens', True, True, None, True, True, False, None), '"
+            "instance', 'value', None, False, False, False), (('safety_margin_tokens', True, True, None, True, True, Fa"
+            "lse, None), 'instance', 'value', None, False, False, False), (('max_tool_call_chars', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('options', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('system_prompt', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), "
+            "(False,), (), (False,), (False, True, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.agent.lifecycle.summarizing', 'SummarizingContextCompactor.Config'),
+    ),
+)
+def _process_dataclass__7c1faf80c92934497ca96466bf6336ad94adafa6():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                keep_recent_tokens=self.keep_recent_tokens,
+                max_summary_tokens=self.max_summary_tokens,
+                safety_margin_tokens=self.safety_margin_tokens,
+                max_tool_call_chars=self.max_tool_call_chars,
+                options=self.options,
+                system_prompt=self.system_prompt,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.keep_recent_tokens == other.keep_recent_tokens and
+                self.max_summary_tokens == other.max_summary_tokens and
+                self.safety_margin_tokens == other.safety_margin_tokens and
+                self.max_tool_call_chars == other.max_tool_call_chars and
+                self.options == other.options and
+                self.system_prompt == other.system_prompt
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'keep_recent_tokens',
+            'max_summary_tokens',
+            'safety_margin_tokens',
+            'max_tool_call_chars',
+            'options',
+            'system_prompt',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.keep_recent_tokens,
+                self.max_summary_tokens,
+                self.safety_margin_tokens,
+                self.max_tool_call_chars,
+                self.options,
+                self.system_prompt,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            keep_recent_tokens: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            max_summary_tokens: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            safety_margin_tokens: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            max_tool_call_chars: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            options: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            system_prompt: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'keep_recent_tokens', keep_recent_tokens)
+            __dataclass__object_setattr(self, 'max_summary_tokens', max_summary_tokens)
+            __dataclass__object_setattr(self, 'safety_margin_tokens', safety_margin_tokens)
+            __dataclass__object_setattr(self, 'max_tool_call_chars', max_tool_call_chars)
+            __dataclass__object_setattr(self, 'options', options)
+            __dataclass__object_setattr(self, 'system_prompt', system_prompt)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"keep_recent_tokens={self.keep_recent_tokens!r}")
+            parts.append(f"max_summary_tokens={self.max_summary_tokens!r}")
+            parts.append(f"safety_margin_tokens={self.safety_margin_tokens!r}")
+            parts.append(f"max_tool_call_chars={self.max_tool_call_chars!r}")
+            parts.append(f"options={self.options!r}")
+            parts.append(f"system_prompt={self.system_prompt!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='6d33af36112d66e1635c48bf9e8b7d7a0db3bf1a',
     spec_keys=(
         (
@@ -938,20 +1093,21 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='ccf46b2d53f9a0c3bf82da8ff7c4e73f8c949e19',
+    installer_sha1='491ad39a0dc76ccd515dc16bc26d6baf5416defa',
     spec_keys=(
         (
-            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('reduction', True, True, None, True, False, False, None), 'instance', 'missin"
-            "g', None, False, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (("
-            "),), (), (False,)))"
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('reduction', True, True, None, True, True, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('projection', True, True, None, True, True, False, None), 'instance', 'mis"
+            "sing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), "
+            "((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.types.events', 'ContextReductionEvent'),
     ),
 )
-def _process_dataclass__ccf46b2d53f9a0c3bf82da8ff7c4e73f8c949e19():
+def _process_dataclass__491ad39a0dc76ccd515dc16bc26d6baf5416defa():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -959,6 +1115,7 @@ def _process_dataclass__ccf46b2d53f9a0c3bf82da8ff7c4e73f8c949e19():
         __dataclass__globals,
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -970,6 +1127,7 @@ def _process_dataclass__ccf46b2d53f9a0c3bf82da8ff7c4e73f8c949e19():
                 raise TypeError(self)
             return __class__(  # noqa
                 reduction=self.reduction,
+                projection=self.projection,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -980,13 +1138,15 @@ def _process_dataclass__ccf46b2d53f9a0c3bf82da8ff7c4e73f8c949e19():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.reduction == other.reduction
+                self.reduction == other.reduction and
+                self.projection == other.projection
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'reduction',
+            'projection',
         }
 
         def __setattr__(self, name, value):
@@ -1012,15 +1172,19 @@ def _process_dataclass__ccf46b2d53f9a0c3bf82da8ff7c4e73f8c949e19():
         def __hash__(self):
             return hash((
                 self.reduction,
+                self.projection,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
 
         def __init__(
             self,
+            *,
             reduction: __dataclass__init__fields__0__annotation,
+            projection: __dataclass__init__fields__1__annotation,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'reduction', reduction)
+            __dataclass__object_setattr(self, 'projection', projection)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1028,6 +1192,7 @@ def _process_dataclass__ccf46b2d53f9a0c3bf82da8ff7c4e73f8c949e19():
         def __repr__(self):
             parts = []
             parts.append(f"reduction={self.reduction!r}")
+            parts.append(f"projection={self.projection!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2414,7 +2579,7 @@ def _process_dataclass__b3899faa118fcd62828b6e17b191338a61f356ba():
 
 
 @_register(
-    installer_sha1='6dc26ebcc980f7c0c5804ee41e51d8924ff599a1',
+    installer_sha1='a85a72f196aac240d39ab69f2bacbbba80bc77ff',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2422,15 +2587,15 @@ def _process_dataclass__b3899faa118fcd62828b6e17b191338a61f356ba():
             "ne, False, False, False), (('summary', True, True, None, True, True, False, None), 'instance', 'value', No"
             "ne, False, False, False), (('first_kept_message_index', True, True, None, True, True, False, None), 'insta"
             "nce', 'value', None, False, False, False), (('tool_results', True, True, None, True, True, False, None), '"
-            "instance', 'value', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, "
-            "True, ()), ((),), (), (False,)))"
+            "instance', 'value', 'callable', False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (F"
+            "alse, True, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.types.lifecycle', 'ContextProjection'),
     ),
 )
-def _process_dataclass__6dc26ebcc980f7c0c5804ee41e51d8924ff599a1():
+def _process_dataclass__a85a72f196aac240d39ab69f2bacbbba80bc77ff():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2443,6 +2608,7 @@ def _process_dataclass__6dc26ebcc980f7c0c5804ee41e51d8924ff599a1():
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__coerce = __dataclass__spec.fields[3].coerce
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
@@ -2518,6 +2684,7 @@ def _process_dataclass__6dc26ebcc980f7c0c5804ee41e51d8924ff599a1():
             first_kept_message_index: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             tool_results: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
+            tool_results = __dataclass__init__fields__3__coerce(tool_results)
             __dataclass__object_setattr(self, 'summary', summary)
             __dataclass__object_setattr(self, 'first_kept_message_index', first_kept_message_index)
             __dataclass__object_setattr(self, 'tool_results', tool_results)

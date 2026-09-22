@@ -18,7 +18,18 @@ class AgentError(Error):
 
 
 class AgentBusyError(AgentError):
-    """A prompt was submitted to an agent still running a previous one."""
+    """A prompt, or an exclusive state update, was submitted to an agent still running a previous one."""
+
+
+##
+
+
+class ContextCompactionError(AgentError):
+    pass
+
+
+class NoContextCompactorError(ContextCompactionError):
+    """Compaction was asked of a lifecycle manager with no compactor to do it."""
 
 
 ##

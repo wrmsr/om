@@ -26,3 +26,14 @@ class SessionEntry(lang.Abstract, lang.Sealed):
 @dc.dataclass(frozen=True)
 class MessageSessionEntry(SessionEntry):
     message: agn.Message
+
+
+@ta.final
+@dc.dataclass(frozen=True)
+class ContextProjectionSessionEntry(SessionEntry):
+    """
+    The model view as of this point in the entries, its indices into the messages before it. The latest one stands: a
+    transcript is restored under the last of these, or under none.
+    """
+
+    projection: agn.ContextProjection

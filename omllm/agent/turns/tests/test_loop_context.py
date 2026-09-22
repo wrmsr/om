@@ -5,6 +5,8 @@ from omcore.asyncs.asynclite import all as asl
 
 from .... import llm
 from ....core.asyncs.asyncio import AsyncioGroupRunner
+from ...lifecycle.managers import StandardContextLifecycleManager
+from ...lifecycle.summarizing import SummarizingContextCompactor
 from ...tests.tools import bare_tool
 from ...types.contexts import Context
 from ...types.events import ContextReductionEvent
@@ -209,3 +211,108 @@ async def test_tool_output_is_bounded_before_the_post_tool_llm_call():
         isinstance(event, ContextReductionEvent) and event.reduction.reason == 'tool_output_limit'
         for event in events
     )
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_threshold_compaction_summarizes_the_older_transcript_inside_the_loop():
+    summarizer_seen: list = []
+    seen: list = []
+
+    def expect_summarizer(invocation):
+        summarizer_seen.append(invocation.context)
+
+    def expect(invocation):
+        seen.append(invocation.context)
+
+    # A prompt of just over nine thousand tokens against a model of nine thousand: the system prompt and the two long
+    # turns push it over, and the tail kept is the last word and the prompt.
+    model = llm.Model(
+        key=llm.ModelKey('test', 'small'),
+        backend='scripted',
+        limits=llm.ModelLimits(context=10_000, input=9_000, output=100),
+    )
+    backend = _backend(
+        llm.BackendScriptTurn(
+            llm.AiMessage([llm.TextContent('Summary of x and y.')], stop_reason='stop'),
+            expect=expect_summarizer,
+        ),
+        llm.BackendScriptTurn(
+            llm.AiMessage([llm.TextContent('done')], stop_reason='stop'),
+            expect=expect,
+        ),
+        model=model,
+    )
+    context = Context(
+        system_prompt='S' * 12_000,
+        messages=[
+            llm.UserMessage('x' * 12_000),
+            llm.AiMessage([llm.TextContent('ok')]),
+            llm.UserMessage('y' * 12_000),
+            llm.AiMessage([llm.TextContent('ok')]),
+        ],
+    )
+    events: list = []
+
+    result = await TurnLoop(
+        new_messages=[llm.UserMessage('continue')],
+        config=TurnConfig(
+            context_lifecycle=ContextLifecycleConfig(
+                max_tool_result_chars=None,
+                safety_margin_tokens=0,
+                prune_headroom_tokens=100,
+            ),
+        ),
+        context=context,
+        subscriber=events.append,
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
+        llm_backend=backend,
+        context_lifecycle_manager=StandardContextLifecycleManager(
+            compactor=SummarizingContextCompactor(
+                config=SummarizingContextCompactor.Config(
+                    keep_recent_tokens=100,
+                    max_summary_tokens=50,
+                    safety_margin_tokens=0,
+                ),
+            ),
+        ),
+    ).run()
+
+    assert result.reason is AgentEndReason.COMPLETED
+    assert backend.invocations == 2
+
+    [reduction_event] = [event for event in events if isinstance(event, ContextReductionEvent)]
+    assert reduction_event.reduction.reason == 'threshold'
+    assert reduction_event.reduction.compacted
+    assert reduction_event.projection.summary == 'Summary of x and y.'
+    assert reduction_event.projection.first_kept_message_index == 3
+
+    # The summarizer saw the older part whole, and the model then saw the summary in its place.
+    [summarizer_context] = summarizer_seen
+    summarizer_text = check.isinstance(
+        check.isinstance((summarizer_context.messages or [])[0], llm.UserMessage).content,
+        str,
+    )
+    assert 'x' * 12_000 in summarizer_text
+    assert 'y' * 12_000 in summarizer_text
+    assert 'omitted' not in summarizer_text
+
+    [llm_context] = seen
+    assert llm_context.system_prompt == 'S' * 12_000
+    assert [type(m) for m in llm_context.messages or []] == [llm.UserMessage, llm.AiMessage, llm.UserMessage]
+    assert check.isinstance((llm_context.messages or [])[0], llm.UserMessage).content == (
+        'Earlier conversation summary:\n\nSummary of x and y.'
+    )
+    assert check.isinstance((llm_context.messages or [])[2], llm.UserMessage).content == 'continue'
+
+    # The transcript itself is as it was, plus the run's own messages.
+    assert [type(m) for m in result.context.messages or []] == [
+        llm.UserMessage,
+        llm.AiMessage,
+        llm.UserMessage,
+        llm.AiMessage,
+        llm.UserMessage,
+        llm.AiMessage,
+    ]
+    assert check.isinstance((result.context.messages or [])[0], llm.UserMessage).content == 'x' * 12_000
+    assert result.context.projection == reduction_event.projection

@@ -1,3 +1,4 @@
+import contextlib
 import typing as ta
 
 from omcore import check
@@ -50,7 +51,9 @@ class Agent(
     """
     Holds the conversation state and runs prompts against it, one at a time: a `prompt` submitted while another is
     running raises AgentBusyError rather than interleaving on the state. Input for a run already in progress goes
-    through `steer` and `follow_up` instead. Belongs to one event loop, and is not thread-safe.
+    through `steer` and `follow_up` instead. A state update which has to await before it has its new state - a
+    compaction - goes through `update_state_exclusively`, and is to prompts as a prompt is to it. Belongs to one event
+    loop, and is not thread-safe.
     """
 
     def __init__(
@@ -70,6 +73,8 @@ class Agent(
 
     @property
     def is_running(self) -> bool:
+        """Whether a run, or an exclusive state update, is in progress."""
+
         return self._running
 
     @property
@@ -89,6 +94,26 @@ class Agent(
             new_state=new_state,
             old_state=old_state,
         ))
+
+    @contextlib.asynccontextmanager
+    async def _exclusive(self) -> ta.AsyncIterator[None]:
+        if self._running:
+            raise AgentBusyError
+
+        self._running = True
+        try:
+            yield
+        finally:
+            self._running = False
+
+    async def update_state_exclusively(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> None:
+        """
+        A state update to the exclusion of prompts, for one which awaits on its way to its new state: nothing else gets
+        to run on the state it is about to replace. Raises AgentBusyError if a run is in progress.
+        """
+
+        async with self._exclusive():
+            await self.update_state(fn)
 
     #
 
@@ -177,13 +202,7 @@ class Agent(
         either way. Only the caller's own cancellation raises out.
         """
 
-        if self._running:
-            raise AgentBusyError
+        async with self._exclusive():
+            new_messages = self._coerce_messages(input)
 
-        new_messages = self._coerce_messages(input)
-
-        self._running = True
-        try:
             return await self._prompt(new_messages)
-        finally:
-            self._running = False

@@ -7,6 +7,7 @@ from omcore import lang
 from ... import llm
 from .contexts import Context
 from .lifecycle import ContextBudget
+from .lifecycle import ContextProjection
 from .lifecycle import ContextReduction
 from .lifecycle import UsageLedger
 from .messages import Message
@@ -58,9 +59,13 @@ class ContextWindowEvent(Event):
 
 
 @ta.final
-@dc.dataclass(frozen=True)
+@dc.dataclass(frozen=True, kw_only=True)
 class ContextReductionEvent(Event):
     reduction: ContextReduction
+
+    # The model view as the reduction left it, its indices into the transcript as it stands when this is published -
+    # which is what lets whoever keeps the transcript keep this alongside it.
+    projection: ContextProjection
 
 
 ##

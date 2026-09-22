@@ -152,6 +152,10 @@ with _lang.auto_proxy_init(
         StandardContextLifecycleManager,
     )
 
+    from .lifecycle.summarizing import (  # noqa
+        SummarizingContextCompactor,
+    )
+
     ##
 
     from .projection.builders import (  # noqa
@@ -257,6 +261,9 @@ with _lang.auto_proxy_init(
 
         AgentError,
         AgentBusyError,
+
+        ContextCompactionError,
+        NoContextCompactorError,
 
         TurnError,
         UnknownToolError,
@@ -395,4 +402,8 @@ with _lang.auto_proxy_init(
         BackendManager,
 
         DictBackendManager,
+    )
+
+    from .compaction import (  # noqa
+        ContextCompactionRunner,
     )

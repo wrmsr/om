@@ -17,6 +17,7 @@ from ....core import ui
 from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...commands.base import Commands
 from ...commands.manager import CommandsManager
+from ..entries import ContextProjectionSessionEntry
 from ..entries import MessageSessionEntry
 from ..session import Session
 from ..storage.types import SessionStorage
@@ -69,14 +70,24 @@ class _BlockingExecutor:
         raise AssertionError
 
 
-async def _session(backend, tools=(), storage=None):
-    agent = agn.Agent(
+def _agent(backend, context_lifecycle_manager=None):
+    return agn.Agent(
         turn_runner=agn.TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
+            context_lifecycle_manager=context_lifecycle_manager,
         ),
     )
+
+
+def _commands_manager():
+    return CommandsManager(commands=Commands([]), text_displayer=ui.NopTextDisplayer())
+
+
+async def _session(backend, tools=(), storage=None, agent=None):
+    if agent is None:
+        agent = _agent(backend)
     if tools:
         await agent.update_state(lambda s: dc.replace(s, context=agn.Context(tools=agn.ToolSet(list(tools)))))
 
@@ -85,7 +96,7 @@ async def _session(backend, tools=(), storage=None):
     session = Session(
         agent=agent,
         storage=storage,
-        commands_manager=CommandsManager(commands=Commands([]), text_displayer=ui.NopTextDisplayer()),
+        commands_manager=_commands_manager(),
     )
     return session, storage
 
@@ -226,3 +237,97 @@ async def test_cancelled_mid_tool_stores_the_repair_tail_once():
         agn.InfoAgentMessage,
     ]
     assert storage.entries[2].message.is_error
+
+
+##
+
+
+class _FixedCompactor(agn.ContextCompactor):
+    """Summarizes everything but the newest message, without a model."""
+
+    async def compact(self, context, *, backend, target_tokens, reason, instructions=None):
+        return agn.ContextProjection(
+            summary='Summarized.',
+            first_kept_message_index=len(context.messages or ()) - 1,
+        )
+
+
+def _pressed_backend(*turns):
+    # A model so small that every call is over its threshold, so every call compacts.
+    return llm.ScriptedImmediateBackend(
+        llm.Model(
+            key=llm.ModelKey('test', 'tiny'),
+            backend='test',
+            limits=llm.ModelLimits(context=100, input=90, output=10),
+        ),
+        llm.BackendScript([llm.BackendScriptTurn(t) for t in turns]),
+    )
+
+
+def _entry_types(storage):
+    return [type(e) for e in storage.entries]
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_a_runs_reduction_is_stored_as_it_happens_and_restored_on_resume():
+    manager = agn.StandardContextLifecycleManager(compactor=_FixedCompactor())
+    session, storage = await _session(
+        backend := _pressed_backend(text_message('hello')),
+        agent=_agent(backend, manager),
+    )
+
+    await session.prompt('hi')
+
+    # The reduction landed between the prompt and the answer, and so does its entry.
+    assert _entry_types(storage) == [MessageSessionEntry, ContextProjectionSessionEntry, MessageSessionEntry]
+    projection = storage.entries[1].projection
+    assert projection.summary == 'Summarized.'
+    assert projection.first_kept_message_index == 0
+
+    # Resumed, the projection stands over the messages, and is not stored over again.
+    agent = _agent(backend := _pressed_backend(text_message('again')), manager)
+    resumed, _ = await _session(backend, storage=storage, agent=agent)
+    assert len(await resumed.resume()) == 2
+    assert agent.state.context.projection == projection
+    assert len(storage.entries) == 3
+
+    # The next run's reduction lands the same way, after what came before.
+    await resumed.prompt('more')
+
+    assert _entry_types(storage) == [
+        MessageSessionEntry,
+        ContextProjectionSessionEntry,
+        MessageSessionEntry,
+        MessageSessionEntry,
+        ContextProjectionSessionEntry,
+        MessageSessionEntry,
+    ]
+    assert storage.entries[4].projection.first_kept_message_index == 2
+    assert agent.state.context.projection == storage.entries[4].projection
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_a_projection_arriving_by_state_update_is_stored_once():
+    agent = _agent(backend := scripted_backend(text_message('hello')))
+    session, storage = await _session(backend, agent=agent)
+
+    await session.prompt('hi')
+    assert _entry_types(storage) == [MessageSessionEntry, MessageSessionEntry]
+
+    # What a compaction on request does to the state.
+    projection = agn.ContextProjection(summary='By hand.', first_kept_message_index=2)
+    await agent.update_state(lambda s: dc.replace(s, context=dc.replace(s.context, projection=projection)))
+
+    assert _entry_types(storage) == [MessageSessionEntry, MessageSessionEntry, ContextProjectionSessionEntry]
+    assert storage.entries[2].projection == projection
+
+    # A state update leaving it as it is stores nothing.
+    await agent.update_state(lambda s: s)
+    assert len(storage.entries) == 3
+
+    # A resumed session takes the projection with the messages.
+    resumed_agent = _agent(scripted_backend(text_message('unused')))
+    resumed, _ = await _session(None, storage=storage, agent=resumed_agent)
+    await resumed.resume()
+    assert resumed_agent.state.context.projection == projection
+    assert len(storage.entries) == 3

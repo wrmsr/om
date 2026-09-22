@@ -181,7 +181,7 @@ class ContextProjection:
 
     summary: str | None = None
     first_kept_message_index: int = 0
-    tool_results: ta.Sequence[ToolResultProjection] = ()
+    tool_results: ta.Sequence[ToolResultProjection] = dc.xfield((), coerce=tuple)
 
     def __post_init__(self) -> None:
         check.arg(self.first_kept_message_index >= 0)

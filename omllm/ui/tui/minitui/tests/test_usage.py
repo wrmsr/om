@@ -65,11 +65,14 @@ async def test_context_preparation_shows_estimated_pressure_and_reduction():
 
     assert '~20k/84k' in frame_lines(app)[-1]
 
-    await renderer.on_agent_event(agn.ContextReductionEvent(agn.ContextReduction(
-        reason='threshold',
-        before_tokens=90_000,
-        after_tokens=70_000,
-        tool_result_indices=(2, 5),
-    )))
+    await renderer.on_agent_event(agn.ContextReductionEvent(
+        reduction=agn.ContextReduction(
+            reason='threshold',
+            before_tokens=90_000,
+            after_tokens=70_000,
+            tool_result_indices=(2, 5),
+        ),
+        projection=agn.ContextProjection.ZERO,
+    ))
 
     assert any('context threshold: 90k -> 70k tokens' in text for text in commit_texts(driver))
