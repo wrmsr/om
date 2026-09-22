@@ -85,7 +85,7 @@ def test_model_quant():
         # the big 2-D weights are QWeights; norms / A / dt_bias / conv / in_proj_{a,b} are not
         assert isinstance(m.embed, TorchQWeight) and isinstance(m.lm_head, TorchQWeight)
         blk = m.blocks[0].mixer
-        assert isinstance(blk.w_qkv, TorchQWeight) and not isinstance(blk.w_a, TorchQWeight)  # type: ignore
+        assert isinstance(blk.w_qkvz, TorchQWeight) and isinstance(blk.w_ab, TorchQWeight) and blk.w_ab.bits == 8  # type: ignore
         assert not isinstance(m.blocks[0].ln1, TorchQWeight)
         assert m.nbytes < ref.nbytes
         lg = ops.numpy(m.forward(ids))
@@ -109,7 +109,7 @@ def test_model_quant():
     assert tsrc.get_quant('layers.0.input_layernorm.weight') is None
     n_native = 0
     for i, blk in enumerate(m_q8.blocks):  # type: ignore
-        for attr in ('wg', 'wu', 'wd'):
+        for attr in ('wgu', 'wd'):
             qw = getattr(blk.mlp, attr)  # type: ignore
             assert isinstance(qw, TorchQWeight)
             assert torch.equal(qw.dequant(torch.float32), getattr(m_f32.blocks[i].mlp, attr))
@@ -149,26 +149,29 @@ def test_param_cache():
     c = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # hits
     root = ParamCache.open(cdir, src, 'int4', 64).root
     n_meta = len(list(root.glob('*.json')))
-    n_lin = sum(t == 'linear' for t in cfg.layer_types)
-    # in_proj_a + in_proj_b are cached as one fused in_proj_ab entry per DeltaNet layer
-    n_expect = len([n for n in src.names() if not n.startswith('mtp.')]) - n_lin
+    from ..model import fusion_of
+
+    def n_entries(names):  # fused projections are cached under their fused name
+        return len({(f[0] if (f := fusion_of(n)) else n) for n in names})
+
+    n_expect = n_entries([n for n in src.names() if not n.startswith('mtp.')])
     assert n_meta == n_expect, (n_meta, n_expect)
     for m in (b, c):
-        assert torch.equal(m.blocks[0].mlp.wg.q, a.blocks[0].mlp.wg.q)  # type: ignore
-        assert torch.equal(m.blocks[0].mlp.wg.scale, a.blocks[0].mlp.wg.scale)  # type: ignore
+        assert torch.equal(m.blocks[0].mlp.wgu.q, a.blocks[0].mlp.wgu.q)  # type: ignore
+        assert torch.equal(m.blocks[0].mlp.wgu.scale, a.blocks[0].mlp.wgu.scale)  # type: ignore
         assert torch.equal(m.blocks[0].ln1, a.blocks[0].ln1)
         assert torch.equal(m.forward(ids), a.forward(ids))
     # a later load with the draft head adds only its entries
     d = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
     assert d.mtp is not None and isinstance(d.mtp.fc, TorchQWeight)
-    assert len(list(root.glob('*.json'))) == len(src.names()) - n_lin
+    assert len(list(root.glob('*.json'))) == n_entries(src.names())
     e = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
     assert torch.equal(e.mtp.fc.q, d.mtp.fc.q)  # type: ignore
     # a torn entry (sidecar present, array missing) is a miss and gets rewritten
-    victim = 'layers.1.mlp.up_proj.weight'
+    victim = 'layers.1.mlp.gate_up_proj.weight'  # (the fused entry)
     (root / (victim + '.q.npy')).unlink()
     f = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)
-    assert torch.equal(f.blocks[1].mlp.wu.q, a.blocks[1].mlp.wu.q)  # type: ignore
+    assert torch.equal(f.blocks[1].mlp.wgu.q, a.blocks[1].mlp.wgu.q)  # type: ignore
     assert (root / (victim + '.q.npy')).exists()
     assert source_identity(src) == source_identity(GGUFSource(tmp / 'tiny.gguf'))
     print(f'param cache OK ({n_meta} entries, {ParamCache(root).nbytes() / 1e6:.2f} MB)')

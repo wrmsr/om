@@ -292,6 +292,87 @@ def gdn_step(
     return out, s_out
 
 
+if HAVE_TRITON:
+
+    @triton.jit
+    def _qgemv_fma_kernel(
+            x_ptr,
+            q_ptr,
+            s_ptr,
+            b_ptr,
+            y_ptr,
+            M,
+            N,
+            K,
+            stride_xm,
+            stride_ym,
+            BITS: tl.constexpr,
+            GROUP: tl.constexpr,
+            BLOCK_M: tl.constexpr,
+            BLOCK_N: tl.constexpr,
+            BLOCK_K: tl.constexpr,
+            SPLIT_K: tl.constexpr,
+    ):
+        """
+        The same GEMV as _qlinear_kernel without tensor cores: for M <= BLOCK_M (<= 8) rows the products are plain
+        FMAs reduced along K in registers, so the dequantized weight tile never goes through shared memory -- what
+        every int4 GEMV in llama.cpp / exllama does for small M. Which formulation streams faster on a given GPU
+        is for the tuner to decide (GemvConfig.fma).
+        """
+
+        pid_n = tl.program_id(0)
+        pid_s = tl.program_id(1)
+        rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+        n_mask = rn < N
+        n_groups = K // GROUP
+        k_lo = pid_s * (K // SPLIT_K)
+        k_hi = k_lo + K // SPLIT_K
+        G: tl.constexpr = BLOCK_K // GROUP
+        rg = tl.arange(0, G)
+        accs = []
+        for mi in tl.static_range(BLOCK_M):
+            accs.append(tl.zeros((BLOCK_N,), dtype=tl.float32))
+        if BITS == 4:
+            KB: tl.constexpr = BLOCK_K // 2
+            GB: tl.constexpr = GROUP // 2
+            rb = tl.arange(0, KB)
+            for k0 in range(k_lo, k_hi, BLOCK_K):
+                kb = k0 // 2 + rb
+                ke = k0 + 2 * rb
+                gcol = k0 // GROUP + rg
+                q = tl.load(q_ptr + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
+                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                s = s.to(tl.float32)[:, :, None]
+                b = b.to(tl.float32)[:, :, None]
+                lo = tl.reshape(tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+                hi = tl.reshape(tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+                for mi in tl.static_range(BLOCK_M):
+                    if mi < M:
+                        xe = tl.load(x_ptr + mi * stride_xm + ke).to(tl.float32)
+                        xo = tl.load(x_ptr + mi * stride_xm + ke + 1).to(tl.float32)
+                        accs[mi] += tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)
+        else:
+            rk0 = tl.arange(0, BLOCK_K)
+            for k0 in range(k_lo, k_hi, BLOCK_K):
+                rk = k0 + rk0
+                gcol = k0 // GROUP + rg
+                q = tl.load(q_ptr + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
+                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+                s = s.to(tl.float32)[:, :, None]
+                b = b.to(tl.float32)[:, :, None]
+                w = tl.reshape(tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b, (BLOCK_N, BLOCK_K))
+                for mi in tl.static_range(BLOCK_M):
+                    if mi < M:
+                        xt = tl.load(x_ptr + mi * stride_xm + rk).to(tl.float32)
+                        accs[mi] += tl.sum(w * xt[None, :], 1)
+        y_base = y_ptr + pid_s * M * stride_ym
+        for mi in tl.static_range(BLOCK_M):
+            if mi < M:
+                tl.store(y_base + mi * stride_ym + rn, accs[mi].to(y_ptr.dtype.element_ty), mask=n_mask)
+
+
 def _block_k(k: int, cap: int = 128) -> int:
     for bk in (256, 128, 64):
         if bk <= cap and k % bk == 0:
@@ -306,6 +387,7 @@ class GemvConfig:
     num_warps: int = 4
     num_stages: int = 3
     split_k: int = 1
+    fma: bool = False  # _qgemv_fma_kernel (registers, M <= 8) instead of the tensor-core _qlinear_kernel
 
 
 # (N, K, bits) -> config, filled by `tune` / `load_tuned`; consulted before the heuristics
@@ -381,6 +463,30 @@ def qlinear(
         _RESOLVED[key] = resolved
     bk, num_stages, split = resolved
     y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x.dtype, device=x.device)
+    if cfg.fma and m <= 8:
+        grid = (triton.cdiv(n, cfg.block_n), split)
+        _qgemv_fma_kernel[grid](
+            x2,
+            q,
+            scale,
+            bias,
+            y,
+            m,
+            n,
+            k,
+            x2.stride(0),
+            y.stride(1),
+            BITS=bits,
+            GROUP=group,
+            BLOCK_M=8,
+            BLOCK_N=cfg.block_n,
+            BLOCK_K=bk,
+            SPLIT_K=split,
+            num_warps=cfg.num_warps,
+            num_stages=num_stages,
+        )
+        out = y.sum(0).to(x.dtype) if split > 1 else y[0]
+        return out.reshape(*x.shape[:-1], n)
     grid = (triton.cdiv(n, cfg.block_n), triton.cdiv(m, 16), split)
     _qlinear_kernel[grid](
         x2,
@@ -421,6 +527,13 @@ def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[in
         y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x2.dtype, device=x2.device)
         grid = (triton.cdiv(n, cfg.block_n), triton.cdiv(m, 16), split)
         try:
+            if cfg.fma and m <= 8:
+                _qgemv_fma_kernel[(triton.cdiv(n, cfg.block_n), split)](
+                    x2, q, scale, bias, y, m, n, k, x2.stride(0), y.stride(1),
+                    BITS=bits, GROUP=group, BLOCK_M=8, BLOCK_N=cfg.block_n, BLOCK_K=bk, SPLIT_K=split,
+                    num_warps=cfg.num_warps, num_stages=num_stages,
+                )
+                return bk, num_stages, split
             _qlinear_kernel[grid](
                 x2,
                 q,
@@ -527,10 +640,12 @@ def tune(
         bns = (16, 32) if n <= 2048 else (32, 64) if n <= 8192 else (64, 128)
         bks = tuple(b for b in (128, 256) if k % b == 0) or (64,)
         sks = (1, 2, 4, 8) if n <= 16384 else (1,)
-        for bn, bk, nw, ns, sk in itertools.product(bns, bks, (4, 8), (2, 3), sks):
+        for fma, bn, bk, nw, ns, sk in itertools.product((False, True), bns, bks, (4, 8), (2, 3), sks):
             if k % (bk * sk):
                 continue
-            cfg = GemvConfig(bn, bk, nw, ns, sk)
+            if fma and (bn > 64 or bk > 128 or m > 8):
+                continue  # the FMA tile lives in registers: [bn, bk] f32 per plane
+            cfg = GemvConfig(bn, bk, nw, ns, sk, fma)
             try:
                 y = qlinear(x, qw.q, qw.scale, qw.bias, bits, group, (n, k), config=cfg)
                 torch.cuda.synchronize()

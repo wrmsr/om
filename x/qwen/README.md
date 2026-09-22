@@ -130,9 +130,12 @@ blobs that are already MLX int4/int8 are re-packed bit-for-bit (no requantizatio
 packed words go straight into `mx.quantized_matmul` (fused, no dequant traffic). GGUF k-quants are dequantized
 to f32 and requantized, which adds a small error on top of the file's own quantization (int8 is lossless in
 practice; int4-over-Q4_K_M is a double quantization — prefer int8 if it fits). Norms, `A`, `dt_bias`, the conv
-kernel are never quantized. The two low-rank DeltaNet projections (`in_proj_a` / `in_proj_b`, which Ollama keeps
-at source precision) are fused by the loader into one `in_proj_ab` matmul per layer and, in a quantized model,
-stored int8 (cuBLAS takes ~30 us for an N=48 bf16 GEMM, which across 48 layers was 3 ms of every step).
+kernel are never quantized. Projections that share an input are fused by the loader into one weight stacked
+along the output dim (`model.FUSIONS`): `gate_up_proj`, attention `qkv_proj`, DeltaNet `in_proj_qkvz`, and the
+two low-rank `in_proj_a` / `in_proj_b` as `in_proj_ab`, which is stored int8 whatever the model's width (Ollama
+keeps them at source precision; int8 is effectively that, and cuBLAS took ~30 us per N=48 bf16 GEMM, 3 ms of
+every step). 449 GEMV launches per step become 257, and the fused shapes stream better. The cache stores the fused
+entries; the tuner enumerates the fused shapes.
 
 On torch with CUDA, small-M matmuls against a `TorchQWeight` (decode and speculative verify, `triton_max_m`
 tokens or fewer) go through `torch_triton.qlinear`: the packed codes are read once, dequantized in registers and
@@ -145,7 +148,10 @@ per (N, K) comes from a tuned table when one is loaded (`entrypoints/tune` sweep
 split factor on the actual GPU and writes JSON; `--triton-tuned FILE` / `TorchOps(triton_tuned=)` loads it) and
 from a fill-the-GPU heuristic otherwise. The tuner times by CUDA-graph replay and rotates through enough copies of
 each weight to overflow L2, so it measures DRAM streaming -- what the decode step does -- rather than the
-cache-resident bandwidth a single weight timed in a loop reports.
+cache-resident bandwidth a single weight timed in a loop reports. Two formulations are swept per shape: the
+tensor-core `_qlinear_kernel` (`tl.dot`, weight tile staged through shared memory) and `_qgemv_fma_kernel`
+(`GemvConfig.fma`: plain FMAs reduced in registers, M <= 8, the way llama.cpp / exllama GEMVs work); the tuner
+keeps whichever streams faster on the GPU at hand. Default tuning M is 4 (spec-3 verify).
 
 The DeltaNet token step is one op on the seam, `Ops.gdn_step` (l2-norm, head broadcast, gate, recurrence, from
 the raw projections in their natural layout), which the model calls for T <= 8 -- decode and speculative

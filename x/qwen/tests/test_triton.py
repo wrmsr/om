@@ -60,9 +60,21 @@ def test_qlinear_kernel():
                     err = ((y.float() - ref).abs().max() / ref.abs().max()).item()
                     assert err < tol, (bits, n, k, m, dt, err)
         print(f'int{bits}: kernel matches dequant reference for M in (1, 5, 16, 33)')
-    # split-K: partial sums over K slices, then a reduction; must match the single-program result
+    # the FMA formulation (registers, M <= 8) must match too, for both widths and with split-K
     from ..backends.torch_triton import GemvConfig
 
+    for bits in (8, 4):
+        w = (rng.standard_normal((72, 512)) * 0.05).astype(np.float32)
+        qw = ops.qweight(quantize_np(w, bits, 64), torch.float32)
+        for mm in (1, 3, 8):
+            x = torch.from_numpy(rng.standard_normal((mm, 512)).astype(np.float32)).to(device)
+            ref = x @ qw.dequant(torch.float32).T
+            for sk in (1, 2):
+                y = qlinear(x, qw.q, qw.scale, qw.bias, bits, 64, qw.shape, config=GemvConfig(32, 128, 4, 2, sk, True))
+                assert ((y - ref).abs().max() / ref.abs().max()).item() < 1e-4, ('fma', bits, mm, sk)
+    print('FMA GEMV int8/int4, M in (1, 3, 8), split-K 1/2 OK')
+
+    # split-K: partial sums over K slices, then a reduction; must match the single-program result
     w = (rng.standard_normal((40, 1024)) * 0.05).astype(np.float32)
     qw = ops.qweight(quantize_np(w, 4, 64), torch.float32)
     x = torch.from_numpy(rng.standard_normal((3, 1024)).astype(np.float32)).to(device)

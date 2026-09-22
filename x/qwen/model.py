@@ -66,13 +66,25 @@ class Cache:
 class Attention:
     def __init__(self, cfg: Qwen35Config, p: dict[str, Weight]) -> None:
         self.cfg = cfg
-        self.wq = p['q_proj']
-        self.wk = p['k_proj']
-        self.wv = p['v_proj']
+        self.wqkv = p.get('qkv_proj')  # fused [q | k | v] when the loader provides it
+        self.wq = p.get('q_proj')
+        self.wk = p.get('k_proj')
+        self.wv = p.get('v_proj')
         self.wo = p['o_proj']
         self.q_norm = p['q_norm']
         self.k_norm = p['k_norm']
         self.scale = 1.0 / math.sqrt(cfg.head_dim)
+
+    def project(self, ops: Ops, x: Array) -> tuple[Array, Array, Array]:
+        """[q | gate] [B, T, H*2D], k [B, T, KV*D], v [B, T, KV*D] -- one GEMV when fused."""
+
+        c = self.cfg
+        if self.wqkv is not None:
+            nq = c.num_heads * c.head_dim * 2
+            nkv = c.num_kv_heads * c.head_dim
+            qg, k, v = ops.split(ops.linear(x, self.wqkv), [nq, nkv, nkv], -1)
+            return qg, k, v
+        return ops.linear(x, self.wq), ops.linear(x, self.wk), ops.linear(x, self.wv)
 
     def __call__(self, ops: Ops, x: Array, pos: int, state: FullState | None) -> tuple[Array, FullState]:
         c = self.cfg
@@ -80,12 +92,13 @@ class Attention:
         H = c.num_heads
         KV = c.num_kv_heads
         D = c.head_dim
-        qg = ops.reshape(ops.linear(x, self.wq), (B, T, H, 2 * D))
+        qg, k, v = self.project(ops, x)
+        qg = ops.reshape(qg, (B, T, H, 2 * D))
         # per-head [q | gate]
         q = qg[..., :D]
         gate = qg[..., D:]
-        k = ops.reshape(ops.linear(x, self.wk), (B, T, KV, D))
-        v = ops.reshape(ops.linear(x, self.wv), (B, T, KV, D))
+        k = ops.reshape(k, (B, T, KV, D))
+        v = ops.reshape(v, (B, T, KV, D))
         q = ops.transpose(ops.rms_norm(q, self.q_norm, c.rms_eps), (0, 2, 1, 3))  # [B,H,T,D]
         k = ops.transpose(ops.rms_norm(k, self.k_norm, c.rms_eps), (0, 2, 1, 3))  # [B,KV,T,D]
         v = ops.transpose(v, (0, 2, 1, 3))
@@ -120,11 +133,12 @@ class Attention:
         H = c.num_heads
         KV = c.num_kv_heads
         D = c.head_dim
-        qg = ops.reshape(ops.linear(x, self.wq), (B, T, H, 2 * D))
+        qg, k, v = self.project(ops, x)
+        qg = ops.reshape(qg, (B, T, H, 2 * D))
         q = qg[..., :D]
         gate = qg[..., D:]
-        k = ops.reshape(ops.linear(x, self.wk), (B, T, KV, D))
-        v = ops.reshape(ops.linear(x, self.wv), (B, T, KV, D))
+        k = ops.reshape(k, (B, T, KV, D))
+        v = ops.reshape(v, (B, T, KV, D))
         q = ops.transpose(ops.rms_norm(q, self.q_norm, c.rms_eps), (0, 2, 1, 3))  # [B,H,T,D]
         k = ops.transpose(ops.rms_norm(k, self.k_norm, c.rms_eps), (0, 2, 1, 3))  # [B,KV,T,D]
         v = ops.transpose(v, (0, 2, 1, 3))
@@ -143,8 +157,9 @@ class Attention:
 class GatedDeltaNet:
     def __init__(self, cfg: Qwen35Config, p: dict[str, Weight]) -> None:
         self.cfg = cfg
-        self.w_qkv = p['in_proj_qkv']
-        self.w_z = p['in_proj_z']
+        self.w_qkvz = p.get('in_proj_qkvz')  # fused [qkv | z] when the loader provides it
+        self.w_qkv = p.get('in_proj_qkv')
+        self.w_z = p.get('in_proj_z')
         # the two low-rank [n_v, hidden] projections are fused into one [2 n_v, hidden] matmul when the loader
         # provides it (see from_source); separate weights are still accepted
         self.w_ab = p.get('in_proj_ab')
@@ -175,8 +190,12 @@ class GatedDeltaNet:
         dv = c.head_v_dim
         K = c.conv_kernel
         f32 = ops.dtype('f32')
-        qkv = ops.transpose(ops.f32(ops.linear(x, self.w_qkv)), (0, 2, 1))  # [B, conv_dim, T]
-        z = ops.f32(ops.linear(x, self.w_z))  # [B, T, value_dim]
+        if self.w_qkvz is not None:
+            qkv, z = ops.split(ops.f32(ops.linear(x, self.w_qkvz)), [c.conv_dim, c.value_dim], -1)
+        else:
+            qkv = ops.f32(ops.linear(x, self.w_qkv))
+            z = ops.f32(ops.linear(x, self.w_z))  # [B, T, value_dim]
+        qkv = ops.transpose(qkv, (0, 2, 1))  # [B, conv_dim, T]
         if self.w_ab is not None:
             a, b = ops.split(ops.f32(ops.linear(x, self.w_ab)), [Hv, Hv], -1)  # [B, T, n_v] each
         else:
@@ -230,12 +249,18 @@ class GatedDeltaNet:
 
 class MLP:
     def __init__(self, p: dict[str, Weight]) -> None:
-        self.wg = p['gate_proj']
-        self.wu = p['up_proj']
+        self.wgu = p.get('gate_up_proj')  # fused [2 ff, hidden] when the loader provides it
+        self.wg = p.get('gate_proj')
+        self.wu = p.get('up_proj')
         self.wd = p['down_proj']
 
     def __call__(self, ops: Ops, x: Array) -> Array:
-        return ops.linear(ops.silu(ops.linear(x, self.wg)) * ops.linear(x, self.wu), self.wd)
+        if self.wgu is not None:
+            gu = ops.linear(x, self.wgu)
+            g, u = ops.split(gu, [gu.shape[-1] // 2, gu.shape[-1] // 2], -1)
+        else:
+            g, u = ops.linear(x, self.wg), ops.linear(x, self.wu)
+        return ops.linear(ops.silu(g) * u, self.wd)
 
 
 class Block:
@@ -372,6 +397,28 @@ NO_QUANT = (
 )
 
 
+# Projections that share an input are loaded as one weight stacked along the output dim: one GEMV launch instead
+# of two or three, and a wider N streams better. (fused suffix, part suffixes, bits override). The a/b pair is
+# kept separate from qkv/z because it is stored at int8 whatever the model's width.
+FUSIONS: tuple[tuple[str, tuple[str, ...], int | None], ...] = (
+    ('mlp.gate_up_proj.weight', ('mlp.gate_proj.weight', 'mlp.up_proj.weight'), None),
+    ('self_attn.qkv_proj.weight', ('self_attn.q_proj.weight', 'self_attn.k_proj.weight', 'self_attn.v_proj.weight'), None),
+    ('linear_attn.in_proj_qkvz.weight', ('linear_attn.in_proj_qkv.weight', 'linear_attn.in_proj_z.weight'), None),
+    ('linear_attn.in_proj_ab.weight', ('linear_attn.in_proj_a.weight', 'linear_attn.in_proj_b.weight'), 8),
+)
+
+
+def fusion_of(name: str) -> tuple[str, list[str], int | None] | None:
+    """For a canonical part name, the (fused name, all part names, bits override) it belongs to."""
+
+    for fused, parts, fbits in FUSIONS:
+        for part in parts:
+            if name.endswith(part):
+                prefix = name[: -len(part)]
+                return prefix + fused, [prefix + p for p in parts], fbits
+    return None
+
+
 def is_quantizable(name: str, shape: tuple[int, ...], group: int) -> bool:
     if len(shape) != 2 or shape[1] % group:
         return False
@@ -449,45 +496,21 @@ class Qwen35:
             names.append('lm_head.weight')
         cache = ParamCache.open(cache_dir, src, quant, group) if cache_dir is not None else None
         n_native = n_quant = 0
-        pending_a: dict[str, np.ndarray] = {}  # in_proj_a arrays waiting for their in_proj_b to be fused
         for n_i, name in enumerate(names):
             p: Weight | None = None
             keep_f32 = any(s in name for s in KEEP_F32)
-            if name.endswith('linear_attn.in_proj_a.weight') or name.endswith('linear_attn.in_proj_b.weight'):
-                # fused into `in_proj_ab` (one [2 n_v, hidden] matmul; int8 when the model is quantized): cuBLAS is
-                # slow on N=48 outputs and two launches per layer add up
-                ab_name = name.rsplit('.', 2)[0] + '.in_proj_ab.weight'
-                if ab_name in params:
+            fusion = fusion_of(name)
+            if fusion is not None:
+                fused_name, parts, fbits = fusion
+                if fused_name in params:
                     continue
-                cached = cache.get(ab_name) if cache is not None else None
-                if isinstance(cached, QWeight):
-                    params[ab_name] = ops.qweight(cached, dt)
+                if all(pn in available for pn in parts):
+                    fb = None if bits is None else (fbits or bits)
+                    params[fused_name] = cls._load_fused(src, ops, cache, fused_name, parts, fb, group, dt)
+                    if fb is not None:
+                        n_quant += 1
                     continue
-                if cached is not None:
-                    params[ab_name] = ops.weight(cached, dt)
-                    continue
-                arr = np.array(src.get(name), dtype=np.float32, copy=True)
-                if name.endswith('in_proj_a.weight'):
-                    pending_a[ab_name] = arr
-                    continue
-                ab = np.concatenate([pending_a.pop(ab_name), arr], 0)
-                if bits is not None:
-                    if cache is not None:
-                        try:
-                            pab = ops.quantize(ab, 8, group, dt)
-                            qw = ops.export_qweight(pab)
-                        except NotImplementedError:
-                            qw = quantize_np(ab, 8, group)
-                            pab = ops.qweight(qw, dt)
-                        cache.put(ab_name, qw)
-                    else:
-                        pab = ops.quantize(ab, 8, group, dt)
-                else:
-                    if cache is not None:
-                        cache.put(ab_name, ab)
-                    pab = ops.weight(ab, dt)
-                params[ab_name] = pab
-                continue
+                # a part without its siblings (unusual source): fall through and load it on its own
             cached = cache.get(name) if cache is not None else None
             if isinstance(cached, QWeight):
                 p = ops.qweight(cached, dt)
@@ -532,6 +555,46 @@ class Qwen35:
             c_note = f'; cache {cache.root}: {cache.hits} hit / {cache.misses} miss' if cache is not None else ''
             print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {ops.name}{q_note}{c_note}')
         return model
+
+    @staticmethod
+    def _load_fused(src, ops, cache, fused_name, parts, fbits, group, dt) -> Weight:
+        """Load `parts`, stack them along the output dim, quantize (fbits) or adopt dense; cached under the fused
+        name. Sources that hold the parts already quantized at the same width are re-packed row-wise without
+        requantization."""
+
+        cached = cache.get(fused_name) if cache is not None else None
+        if isinstance(cached, QWeight):
+            return ops.qweight(cached, dt)
+        if cached is not None:
+            return ops.weight(cached, dt)
+        if fbits is not None:
+            natives = [src.get_quant(pn) for pn in parts]
+            if all(nq is not None and nq.bits == fbits and nq.group == group for nq in natives):
+                qw = from_native(
+                    np.concatenate([nq.values for nq in natives], 0),  # type: ignore[union-attr]
+                    np.concatenate([nq.scale for nq in natives], 0),  # type: ignore[union-attr]
+                    np.concatenate([nq.bias for nq in natives], 0),  # type: ignore[union-attr]
+                    fbits,
+                    group,
+                )
+                if cache is not None:
+                    cache.put(fused_name, qw)
+                return ops.qweight(qw, dt)
+        arr = np.concatenate([np.asarray(src.get(pn), dtype=np.float32) for pn in parts], 0)
+        if fbits is not None and arr.ndim == 2 and arr.shape[1] % group == 0:  # (NO_QUANT is about int4; fbits decides)
+            if cache is not None:
+                try:
+                    p = ops.quantize(arr, fbits, group, dt)
+                    qw = ops.export_qweight(p)
+                except NotImplementedError:
+                    qw = quantize_np(arr, fbits, group)
+                    p = ops.qweight(qw, dt)
+                cache.put(fused_name, qw)
+                return p
+            return ops.quantize(arr, fbits, group, dt)
+        if cache is not None:
+            cache.put(fused_name, arr)
+        return ops.weight(arr, dt)
 
     # forward
 
