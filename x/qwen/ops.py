@@ -182,6 +182,12 @@ class Ops(abc.ABC):
 
         return self.qweight(quantize_np(w, bits, group), dtype)
 
+    def export_qweight(self, w: Weight) -> QWeight:
+        """The inverse of `qweight`: a backend-adopted quantized weight back to numpy (for the parameter cache).
+        Backends that cannot raise NotImplementedError and the caller quantizes on the host instead."""
+
+        raise NotImplementedError
+
     @abc.abstractmethod
     def linear(self, x: Array, w: Weight) -> Array:
         """x @ w.T for a dense or quantized weight."""

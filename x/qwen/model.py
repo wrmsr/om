@@ -17,6 +17,7 @@ State is functional: each mixer takes its state (or None) and returns the new on
 are composed from the primitives, and backends override whichever they have a kernel for.
 """
 import math
+import pathlib
 import typing as ta
 
 import numpy as np
@@ -24,8 +25,11 @@ import numpy as np
 from .ops import Array
 from .ops import Ops
 from .ops import Weight
+from .paramcache import ParamCache
 from .quant import QUANT_BITS
+from .quant import QWeight
 from .quant import from_native
+from .quant import quantize as quantize_np
 from .weights import Qwen35Config
 from .weights import TensorSource
 
@@ -387,12 +391,15 @@ class Qwen35:
         group: int = 64,
         verbose: bool = True,
         mtp: bool = False,
+        cache_dir: str | pathlib.Path | None = None,
     ) -> Qwen35:
         """
         dtype: 'bf16' | 'f16' | 'f32' (compute dtype; norms, A, dt_bias, conv stay f32).
         quant: None, 'int8' or 'int4' (weight-only affine, see quant.py). If the source already holds MLX-quantized
                tensors at the requested width they are re-packed as-is; otherwise weights are quantized.
         mtp:   also load the multi-token-prediction draft head (needs `num_mtp_layers >= 1` in the source).
+        cache_dir: keep the finished parameters on disk there (see paramcache.py); the first load fills it, later
+               ones memory-map it and skip the GGUF dequantization entirely.
         """
 
         cfg = src.config
@@ -418,22 +425,45 @@ class Qwen35:
             raise KeyError(f'source is missing {len(missing)} tensors, e.g. {missing[:5]}')
         if 'lm_head.weight' in available and not cfg.tied_embeddings:
             names.append('lm_head.weight')
+        cache = ParamCache.open(cache_dir, src, quant, group) if cache_dir is not None else None
         n_native = n_quant = 0
         for n_i, name in enumerate(names):
             p: Weight | None = None
-            if bits is not None and not any(s in name for s in KEEP_F32 + NO_QUANT):
+            keep_f32 = any(s in name for s in KEEP_F32)
+            cached = cache.get(name) if cache is not None else None
+            if isinstance(cached, QWeight):
+                p = ops.qweight(cached, dt)
+            elif cached is not None:
+                p = ops.weight(cached, f32 if keep_f32 else dt)
+            if p is None and bits is not None and not keep_f32 and not any(s in name for s in NO_QUANT):
                 nq = src.get_quant(name)
                 if nq is not None and nq.bits == bits:
-                    p = ops.qweight(from_native(nq.values, nq.scale, nq.bias, nq.bits, nq.group), dt)
+                    qw = from_native(nq.values, nq.scale, nq.bias, nq.bits, nq.group)
+                    if cache is not None:
+                        cache.put(name, qw)
+                    p = ops.qweight(qw, dt)
                     n_native += 1
             if p is None:
                 arr = np.array(src.get(name), dtype=np.float32, copy=True)
-                if any(s in name for s in KEEP_F32):
+                if keep_f32:
+                    if cache is not None:
+                        cache.put(name, arr)
                     p = ops.weight(arr, f32)
                 elif bits is not None and is_quantizable(name, arr.shape, group):
-                    p = ops.quantize(arr, bits, group, dt)
+                    if cache is not None:
+                        try:  # quantize on the device (fast) and export; fall back to the numpy quantizer
+                            p = ops.quantize(arr, bits, group, dt)
+                            qw = ops.export_qweight(p)
+                        except NotImplementedError:
+                            qw = quantize_np(arr, bits, group)
+                            p = ops.qweight(qw, dt)
+                        cache.put(name, qw)
+                    else:
+                        p = ops.quantize(arr, bits, group, dt)
                     n_quant += 1
                 else:
+                    if cache is not None:
+                        cache.put(name, arr)
                     p = ops.weight(arr, dt)
             params[name] = p
             if verbose and (n_i % 50 == 0 or n_i == len(names) - 1):
@@ -441,7 +471,8 @@ class Qwen35:
         model = cls(cfg, params, ops, dt)
         if verbose:
             q_note = f', {n_native} re-packed + {n_quant} quantized to {quant}' if bits else ''
-            print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {ops.name}{q_note}')
+            c_note = f'; cache {cache.root}: {cache.hits} hit / {cache.misses} miss' if cache is not None else ''
+            print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {ops.name}{q_note}{c_note}')
         return model
 
     # forward

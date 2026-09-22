@@ -177,6 +177,18 @@ class TinygradOps(Ops):
             qw.shape,
         )
 
+    def export_qweight(self, w):
+        if not isinstance(w, TinyQWeight):
+            raise NotImplementedError
+        return QWeight(
+            w.q.numpy(),
+            w.scale.cast(dtypes.float32).numpy(),
+            w.bias.cast(dtypes.float32).numpy(),
+            w.bits,
+            w.group,
+            w.shape,
+        )
+
     def linear(self, x, w):
         if isinstance(w, TinyQWeight):
             return w.linear(x)

@@ -19,6 +19,7 @@ mlx_ops.py       MLX core backend (mx.fast.rms_norm / rope / sdpa, mx.quantized_
 tinygrad_ops.py  tinygrad backend (Tensor.scaled_dot_product_attention, grouped conv, TinyQWeight)
 backends.py      backend selection for the CLIs
 quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
+paramcache.py    on-disk cache of finished parameters (memory-mapped .npy per array), so a 27B loads in seconds
 weights.py       Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs (packed safetensors,
                  MLX int4/int8) -> canonical HF-layout params
 tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
@@ -44,6 +45,22 @@ python -m x.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --d
 
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path. `--backend`
 defaults to mlx on macOS when it is installed, torch otherwise; `numpy` is the (slow) reference.
+
+## The parameter cache
+
+Loading a 27B from an Ollama GGUF costs about two minutes of gguf-py's numpy k-quant dequantization plus the
+requantization, every launch. `--cache-dir DIR` (or `from_source(..., cache_dir=)`) keeps the finished
+parameters under `DIR/<blob digest>-<quant>-g<group>/` as one memory-mapped `.npy` per array: f32 canonical
+arrays for the dense tensors, packed `QWeight` codes + f32 scale/bias for the quantized ones (~18 GB for the
+27B at int4). The first load fills it (quantizing on the device and exporting via `Ops.export_qweight`),
+later loads hit and skip the GGUF entirely. The cache is backend-independent -- a cache built on torch loads
+on MLX -- and per-entry, so a later `--spec` run just adds the draft head's tensors. Entries are written
+atomically and a torn entry reads as a miss. Only worthwhile with `--quant` (an unquantized 27B would be 108 GB
+of f32).
+
+```bash
+python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --cache-dir ./.cache/qwen ...
+```
 
 ## The Ops seam
 

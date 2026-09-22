@@ -109,6 +109,11 @@ def main() -> None:
         default=None,
     )
     ap.add_argument(
+        '--cache-dir',
+        default=None,
+        help='directory for the finished-parameter cache (paramcache.py); e.g. ./.cache/qwen',
+    )
+    ap.add_argument(
         '--show-blob',
         action='store_true',
         help='print the GGUF blob path and exit',
@@ -181,7 +186,7 @@ def main() -> None:
 
     # 3. our model, teacher-forced on the oracle's tokens
 
-    model = Qwen35.from_source(src, ops, dtype=args.dtype, quant=args.quant)
+    model = Qwen35.from_source(src, ops, dtype=args.dtype, quant=args.quant, cache_dir=args.cache_dir)
     seq = prompt_ids + ref_tokens[:-1]
     cache = Cache(src.config)
     t0 = time.time()

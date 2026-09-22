@@ -252,6 +252,18 @@ class TorchOps(Ops):
             q = q[:, 0::2] | (q[:, 1::2] << 4)
         return TorchQWeight(q.contiguous(), scale.to(dtype), lo.to(dtype), bits, group, (out, inn))
 
+    def export_qweight(self, w):
+        if not isinstance(w, TorchQWeight):
+            raise NotImplementedError
+        return QWeight(
+            w.q.cpu().numpy(),
+            w.scale.float().cpu().numpy(),
+            w.bias.float().cpu().numpy(),
+            w.bits,
+            w.group,
+            w.shape,
+        )
+
     def linear(self, x, w):
         if isinstance(w, TorchQWeight):
             if self.triton and x.numel() // x.shape[-1] <= self.triton_max_m:

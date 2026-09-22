@@ -108,6 +108,11 @@ def main() -> None:
     ap.add_argument('--presence-penalty', type=float, default=0.0)
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument(
+        '--cache-dir',
+        default=None,
+        help='directory for the finished-parameter cache (paramcache.py); e.g. ./.cache/qwen. First load fills it',
+    )
+    ap.add_argument(
         '--warmup',
         action='store_true',
         help='run a short throwaway generation first so graph capture / kernel compile stay out of the timing',
@@ -140,7 +145,14 @@ def main() -> None:
     print(f'[model] {src.config.summary()}')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
-    model = Qwen35.from_source(src, ops, dtype=dtype, quant=args.quant, mtp=args.spec > 0)
+    model = Qwen35.from_source(
+        src,
+        ops,
+        dtype=dtype,
+        quant=args.quant,
+        mtp=args.spec > 0,
+        cache_dir=args.cache_dir,
+    )
     print(f'[model] loaded on {ops.name} as {dtype} in {time.time() - t0:.1f}s')
     sampler = Sampler(
         temperature=args.temperature,

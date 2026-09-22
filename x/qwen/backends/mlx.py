@@ -191,6 +191,19 @@ class MlxOps(Ops):
         )
         return MlxQWeight(wq, scales.astype(dtype), biases.astype(dtype), bits, group, tuple(w.shape))
 
+    def export_qweight(self, w):
+        if not isinstance(w, MlxQWeight):
+            raise NotImplementedError
+        words = np.array(w.w)  # uint32, MLX packed layout == quant.QWeight's bytes (first value in the low bits)
+        return QWeight(
+            np.ascontiguousarray(words).view(np.uint8),
+            np.array(w.scales.astype(mx.float32)),
+            np.array(w.biases.astype(mx.float32)),
+            w.bits,
+            w.group,
+            w.shape,
+        )
+
     def linear(self, x, w):
         if isinstance(w, MlxQWeight):
             return w.linear(x)

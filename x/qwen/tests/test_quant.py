@@ -118,3 +118,54 @@ def test_model_quant():
     err = np.abs(ops.numpy(m_q8.forward(ids)) - ops.numpy(m_f32.forward(ids))).max()
     assert err < 0.3, err
     print(f'tensor-blob: {n_native + 1} native int8 tensors re-packed bit-exactly (model max err {err:.3f})')
+
+
+def test_param_cache():
+    """A cached load reproduces the uncached one exactly (dense f32 and exported QWeights), later loads hit, a
+    later mtp=True load only adds the draft head, and torn entries are treated as misses."""
+
+    try:
+        import torch  # noqa
+    except ImportError:
+        print('torch not installed; skipping')
+        return
+    from ..backends.torch import TorchOps
+    from ..backends.torch import TorchQWeight
+    from ..model import Qwen35
+    from ..paramcache import ParamCache
+    from ..paramcache import source_identity
+
+    ops = TorchOps('cpu')
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    cfg = Qwen35Config(**CFG)
+    hf = make_hf_params(cfg)
+    write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
+    src = GGUFSource(tmp / 'tiny.gguf')
+    cdir = tmp / 'cache'
+    ids = np.random.default_rng(0).integers(0, 256, (1, 6))
+
+    a = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False)
+    b = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # fills
+    c = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # hits
+    root = ParamCache.open(cdir, src, 'int4', 64).root
+    n_meta = len(list(root.glob('*.json')))
+    assert n_meta == len([n for n in src.names() if not n.startswith('mtp.')]), n_meta
+    for m in (b, c):
+        assert torch.equal(m.blocks[0].mlp.wg.q, a.blocks[0].mlp.wg.q)  # type: ignore
+        assert torch.equal(m.blocks[0].mlp.wg.scale, a.blocks[0].mlp.wg.scale)  # type: ignore
+        assert torch.equal(m.blocks[0].ln1, a.blocks[0].ln1)
+        assert torch.equal(m.forward(ids), a.forward(ids))
+    # a later load with the draft head adds only its entries
+    d = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
+    assert d.mtp is not None and isinstance(d.mtp.fc, TorchQWeight)
+    assert len(list(root.glob('*.json'))) == len(src.names())
+    e = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
+    assert torch.equal(e.mtp.fc.q, d.mtp.fc.q)  # type: ignore
+    # a torn entry (sidecar present, array missing) is a miss and gets rewritten
+    victim = 'layers.1.mlp.up_proj.weight'
+    (root / (victim + '.q.npy')).unlink()
+    f = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)
+    assert torch.equal(f.blocks[1].mlp.wu.q, a.blocks[1].mlp.wu.q)  # type: ignore
+    assert (root / (victim + '.q.npy')).exists()
+    assert source_identity(src) == source_identity(GGUFSource(tmp / 'tiny.gguf'))
+    print(f'param cache OK ({n_meta} entries, {ParamCache(root).nbytes() / 1e6:.2f} MB)')
