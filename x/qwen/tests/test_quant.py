@@ -149,7 +149,10 @@ def test_param_cache():
     c = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # hits
     root = ParamCache.open(cdir, src, 'int4', 64).root
     n_meta = len(list(root.glob('*.json')))
-    assert n_meta == len([n for n in src.names() if not n.startswith('mtp.')]), n_meta
+    n_lin = sum(t == 'linear' for t in cfg.layer_types)
+    # in_proj_a + in_proj_b are cached as one fused in_proj_ab entry per DeltaNet layer
+    n_expect = len([n for n in src.names() if not n.startswith('mtp.')]) - n_lin
+    assert n_meta == n_expect, (n_meta, n_expect)
     for m in (b, c):
         assert torch.equal(m.blocks[0].mlp.wg.q, a.blocks[0].mlp.wg.q)  # type: ignore
         assert torch.equal(m.blocks[0].mlp.wg.scale, a.blocks[0].mlp.wg.scale)  # type: ignore
@@ -158,7 +161,7 @@ def test_param_cache():
     # a later load with the draft head adds only its entries
     d = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
     assert d.mtp is not None and isinstance(d.mtp.fc, TorchQWeight)
-    assert len(list(root.glob('*.json'))) == len(src.names())
+    assert len(list(root.glob('*.json'))) == len(src.names()) - n_lin
     e = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
     assert torch.equal(e.mtp.fc.q, d.mtp.fc.q)  # type: ignore
     # a torn entry (sidecar present, array missing) is a miss and gets rewritten

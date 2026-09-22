@@ -130,8 +130,9 @@ blobs that are already MLX int4/int8 are re-packed bit-for-bit (no requantizatio
 packed words go straight into `mx.quantized_matmul` (fused, no dequant traffic). GGUF k-quants are dequantized
 to f32 and requantized, which adds a small error on top of the file's own quantization (int8 is lossless in
 practice; int4-over-Q4_K_M is a double quantization — prefer int8 if it fits). Norms, `A`, `dt_bias`, the conv
-kernel and the two low-rank DeltaNet projections (`in_proj_a` / `in_proj_b`, which Ollama also keeps at source
-precision) are never quantized.
+kernel are never quantized. The two low-rank DeltaNet projections (`in_proj_a` / `in_proj_b`, which Ollama keeps
+at source precision) are fused by the loader into one `in_proj_ab` matmul per layer and, in a quantized model,
+stored int8 (cuBLAS takes ~30 us for an N=48 bf16 GEMM, which across 48 layers was 3 ms of every step).
 
 On torch with CUDA, small-M matmuls against a `TorchQWeight` (decode and speculative verify, `triton_max_m`
 tokens or fewer) go through `torch_triton.qlinear`: the packed codes are read once, dequantized in registers and
@@ -142,7 +143,9 @@ turns it off. Narrow projections (o_proj, down_proj, out_proj at N=5120, k/v_pro
 across several programs with a float32 partial-sum reduction, so they fill the GPU; the launch configuration
 per (N, K) comes from a tuned table when one is loaded (`entrypoints/tune` sweeps block sizes, warps, stages and
 split factor on the actual GPU and writes JSON; `--triton-tuned FILE` / `TorchOps(triton_tuned=)` loads it) and
-from a fill-the-GPU heuristic otherwise.
+from a fill-the-GPU heuristic otherwise. The tuner times by CUDA-graph replay and rotates through enough copies of
+each weight to overflow L2, so it measures DRAM streaming -- what the decode step does -- rather than the
+cache-resident bandwidth a single weight timed in a loop reports.
 
 The DeltaNet token step is one op on the seam, `Ops.gdn_step` (l2-norm, head broadcast, gate, recurrence, from
 the raw projections in their natural layout), which the model calls for T <= 8 -- decode and speculative

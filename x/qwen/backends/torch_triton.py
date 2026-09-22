@@ -452,27 +452,30 @@ def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[in
                 raise
 
 
-def time_graphed(fn: ta.Callable[[], ta.Any], reps: int = 10, iters: int = 5) -> float:
+def time_graphed(fn: ta.Callable[[int], ta.Any], reps: int = 10, iters: int = 5) -> float:
     """
-    Seconds per call of `fn`, measured as CUDA-graph replays: `reps` calls are captured into one graph and the
+    Seconds per call of `fn(i)`, measured as CUDA-graph replays: `reps` calls are captured into one graph and the
     graph is replayed `iters` times between CUDA events. An eager Triton launch costs ~40-50 us of Python and
     launcher overhead, which is more than most of these kernels take -- timing eagerly makes every small shape
     look identical (and penalises split-K for its extra reduction launch). Inside a graph only the GPU time is
-    left, which is also how the kernels run in the decode step.
+    left, which is also how the kernels run in the decode step. `fn` gets the rep index so the caller can rotate
+    through several copies of the weight: a weight smaller than the L2 cache (96 MB on a 5090) that is timed on
+    its own is served from L2 after the first pass and reports bandwidth the decode step, which streams every
+    weight once from DRAM, will never see.
     """
 
-    fn()
-    fn()
+    fn(0)
+    fn(1 % reps)
     torch.cuda.synchronize()
     s = torch.cuda.Stream()
     s.wait_stream(torch.cuda.current_stream())
     with torch.cuda.stream(s):
-        fn()
+        fn(0)
     torch.cuda.current_stream().wait_stream(s)
     g = torch.cuda.CUDAGraph()
     with torch.cuda.graph(g):
-        for _ in range(reps):
-            fn()
+        for i in range(reps):
+            fn(i)
     g.replay()
     torch.cuda.synchronize()
     start = torch.cuda.Event(enable_timing=True)
@@ -515,6 +518,12 @@ def tune(
         ref = None
         best: tuple[float, GemvConfig] | None = None
         nbytes = qw.q.numel() + qw.scale.numel() * qw.scale.element_size() * 2
+        # enough distinct copies of the weight to exceed L2 across the captured reps (see time_graphed)
+        n_copies = max(1, min(16, -(-256 * 2**20 // nbytes)))
+        copies = [qw] + [
+            dc.replace(qw, q=qw.q.clone(), scale=qw.scale.clone(), bias=qw.bias.clone()) for _ in range(n_copies - 1)
+        ]
+        reps = max(10, n_copies)
         bns = (16, 32) if n <= 2048 else (32, 64) if n <= 8192 else (64, 128)
         bks = tuple(b for b in (128, 256) if k % b == 0) or (64,)
         sks = (1, 2, 4, 8) if n <= 16384 else (1,)
@@ -531,7 +540,13 @@ def tune(
                     if log:
                         log(f'  !! N={n} K={k} {cfg} computes wrong results; skipped')
                     continue
-                dt = time_graphed(lambda: qlinear(x, qw.q, qw.scale, qw.bias, bits, group, (n, k), config=cfg))
+                dt = time_graphed(
+                    lambda i: qlinear(
+                        x, copies[i % n_copies].q, copies[i % n_copies].scale, copies[i % n_copies].bias,
+                        bits, group, (n, k), config=cfg,
+                    ),
+                    reps=reps,
+                )
             except triton.runtime.errors.OutOfResources:
                 continue
             if best is None or dt < best[0]:

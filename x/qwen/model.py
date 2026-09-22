@@ -145,8 +145,11 @@ class GatedDeltaNet:
         self.cfg = cfg
         self.w_qkv = p['in_proj_qkv']
         self.w_z = p['in_proj_z']
-        self.w_a = p['in_proj_a']
-        self.w_b = p['in_proj_b']
+        # the two low-rank [n_v, hidden] projections are fused into one [2 n_v, hidden] matmul when the loader
+        # provides it (see from_source); separate weights are still accepted
+        self.w_ab = p.get('in_proj_ab')
+        self.w_a = p.get('in_proj_a')
+        self.w_b = p.get('in_proj_b')
         self.conv_w = p['conv1d']  # [conv_dim, K] float32
         self.A = p['A']  # [n_v] == -exp(A_log), float32
         self.dt_bias = p['dt_bias']  # [n_v] float32
@@ -174,8 +177,11 @@ class GatedDeltaNet:
         f32 = ops.dtype('f32')
         qkv = ops.transpose(ops.f32(ops.linear(x, self.w_qkv)), (0, 2, 1))  # [B, conv_dim, T]
         z = ops.f32(ops.linear(x, self.w_z))  # [B, T, value_dim]
-        a = ops.f32(ops.linear(x, self.w_a))  # [B, T, n_v]
-        b = ops.f32(ops.linear(x, self.w_b))
+        if self.w_ab is not None:
+            a, b = ops.split(ops.f32(ops.linear(x, self.w_ab)), [Hv, Hv], -1)  # [B, T, n_v] each
+        else:
+            a = ops.f32(ops.linear(x, self.w_a))  # [B, T, n_v]
+            b = ops.f32(ops.linear(x, self.w_b))
 
         # causal depthwise conv1d over [history | new]
         hist = state[0] if state is not None else ops.zeros((B, c.conv_dim, K - 1), f32)
@@ -443,9 +449,45 @@ class Qwen35:
             names.append('lm_head.weight')
         cache = ParamCache.open(cache_dir, src, quant, group) if cache_dir is not None else None
         n_native = n_quant = 0
+        pending_a: dict[str, np.ndarray] = {}  # in_proj_a arrays waiting for their in_proj_b to be fused
         for n_i, name in enumerate(names):
             p: Weight | None = None
             keep_f32 = any(s in name for s in KEEP_F32)
+            if name.endswith('linear_attn.in_proj_a.weight') or name.endswith('linear_attn.in_proj_b.weight'):
+                # fused into `in_proj_ab` (one [2 n_v, hidden] matmul; int8 when the model is quantized): cuBLAS is
+                # slow on N=48 outputs and two launches per layer add up
+                ab_name = name.rsplit('.', 2)[0] + '.in_proj_ab.weight'
+                if ab_name in params:
+                    continue
+                cached = cache.get(ab_name) if cache is not None else None
+                if isinstance(cached, QWeight):
+                    params[ab_name] = ops.qweight(cached, dt)
+                    continue
+                if cached is not None:
+                    params[ab_name] = ops.weight(cached, dt)
+                    continue
+                arr = np.array(src.get(name), dtype=np.float32, copy=True)
+                if name.endswith('in_proj_a.weight'):
+                    pending_a[ab_name] = arr
+                    continue
+                ab = np.concatenate([pending_a.pop(ab_name), arr], 0)
+                if bits is not None:
+                    if cache is not None:
+                        try:
+                            pab = ops.quantize(ab, 8, group, dt)
+                            qw = ops.export_qweight(pab)
+                        except NotImplementedError:
+                            qw = quantize_np(ab, 8, group)
+                            pab = ops.qweight(qw, dt)
+                        cache.put(ab_name, qw)
+                    else:
+                        pab = ops.quantize(ab, 8, group, dt)
+                else:
+                    if cache is not None:
+                        cache.put(ab_name, ab)
+                    pab = ops.weight(ab, dt)
+                params[ab_name] = pab
+                continue
             cached = cache.get(name) if cache is not None else None
             if isinstance(cached, QWeight):
                 p = ops.qweight(cached, dt)
