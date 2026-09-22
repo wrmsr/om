@@ -737,23 +737,26 @@ class Sampler:
             cnt = np.fromiter(self.counts.values(), dtype=np.float64)
             l = l.copy()
             l[idx] -= self.presence_penalty + self.frequency_penalty * cnt
-        l = l / self.temperature
+        # narrow to the top-k candidates first (a partial partition, O(V)); everything after works on k values, so
+        # top-p never sorts the 248k-wide vocabulary
         if self.top_k > 0 and self.top_k < l.shape[0]:
-            kth = np.partition(l, -self.top_k)[-self.top_k]
-            l = np.where(l < kth, -np.inf, l)
-        p = np.exp(l - l.max())
+            cand = np.argpartition(l, -self.top_k)[-self.top_k:]
+        else:
+            cand = np.arange(l.shape[0])
+        z = l[cand] / self.temperature
+        p = np.exp(z - z.max())
         p /= p.sum()
         if self.min_p > 0:
             p = np.where(p < self.min_p * p.max(), 0.0, p)
         if self.top_p < 1.0:
             order = np.argsort(-p)
             cum = np.cumsum(p[order])
-            cut = np.searchsorted(cum, self.top_p) + 1
+            cut = int(np.searchsorted(cum, self.top_p)) + 1
             keep = np.zeros_like(p)
             keep[order[:cut]] = p[order[:cut]]
             p = keep
         p /= p.sum()
-        return int(self.rng.choice(p.shape[0], p=p))
+        return int(cand[self.rng.choice(p.shape[0], p=p)])
 
 
 ##

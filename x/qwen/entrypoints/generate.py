@@ -108,6 +108,11 @@ def main() -> None:
     ap.add_argument('--presence-penalty', type=float, default=0.0)
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument(
+        '--warmup',
+        action='store_true',
+        help='run a short throwaway generation first so graph capture / kernel compile stay out of the timing',
+    )
+    ap.add_argument(
         '--preset',
         choices=['thinking', 'non-thinking'],
         default=None,
@@ -165,6 +170,11 @@ def main() -> None:
         )
         if i is not None
     }
+
+    if args.warmup:
+        t0 = time.time()
+        model.generate(ids, max_new_tokens=max(8, 2 * args.spec + 2), sampler=Sampler(), spec=args.spec)
+        print(f'[gen] warm-up (capture + compile) {time.time() - t0:.1f}s')
 
     streamer = Tokenizer.Streamer(tok)
     t0 = time.time()
