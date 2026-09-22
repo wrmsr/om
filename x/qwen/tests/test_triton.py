@@ -27,7 +27,7 @@ from ..quant import quantize as quantize_np
 
 def _skip() -> bool:
     if torch is None:
-        print('torch not installed; skipping')
+        print('torch not installed; skipping')  # type: ignore
         return True
 
     from ..backends.triton import HAVE_TRITON

@@ -167,8 +167,8 @@ def test_gated_delta_parity():
 
 def test_static_decode_parity():
     """
-    The captured fixed-capacity decode step == the functional cached decode == the numpy golden one-shot
-    forward, per backend, including a capacity doubling mid-sequence and snapshot/restore.
+    The captured fixed-capacity decode step == the functional cached decode == the numpy golden one-shot forward, per
+    backend, including a capacity doubling mid-sequence and snapshot/restore.
     """
 
     from ..model import Decoder
@@ -181,7 +181,7 @@ def test_static_decode_parity():
 
     for ops in backends():
         if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
-            ops.capture_mode = 'static'  # exercise the CUDA-graph static-input protocol without a GPU
+            ops.capture_mode = 'static'  # type: ignore  # exercise the CUDA-graph static-input protocol without a GPU
         model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
         cache = Cache(cfg)
         model.forward(ids[:, :n_prompt], cache)
@@ -191,8 +191,8 @@ def test_static_decode_parity():
             if t == n_prompt + 2:
                 snap = dec.snapshot()
             got.append(ops.numpy(dec.step(int(ids[0, t]))))
-        got = np.concatenate(got, 0)  # logits after tokens n_prompt .. T-1
-        e = rel_err(got, gold_logits[n_prompt:])
+        got = np.concatenate(got, 0)  # type: ignore  # logits after tokens n_prompt .. T-1
+        e = rel_err(got, gold_logits[n_prompt:])  # type: ignore
         assert e < 2e-4, (ops.name, e)
         # restore the snapshot and re-run the tail: identical
         dec.restore(snap)
@@ -210,11 +210,11 @@ def test_static_decode_parity():
 
 def test_spec_decode_parity():
     """
-    Speculative decoding must reproduce plain greedy decoding token for token whatever the drafts are. Checked
-    with the real (random, hence useless) draft head, and with an oracle draft function that returns the true
-    continuation corrupted at a chosen index so every acceptance length 0..k gets exercised -- that pins down
-    verify, commit (DeltaNet state selection, KV masking) and the draft-head refresh. Also: the draft head's
-    static step == its functional pass.
+    Speculative decoding must reproduce plain greedy decoding token for token whatever the drafts are. Checked with the
+    real (random, hence useless) draft head, and with an oracle draft function that returns the true continuation
+    corrupted at a chosen index so every acceptance length 0..k gets exercised -- that pins down verify, commit
+    (DeltaNet state selection, KV masking) and the draft-head refresh. Also: the draft head's static step == its
+    functional pass.
     """
 
     from ..model import Sampler
@@ -226,7 +226,7 @@ def test_spec_decode_parity():
     k = 3
     for ops in backends():
         if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
-            ops.capture_mode = 'static'
+            ops.capture_mode = 'static'  # type: ignore
         model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
         ref = model.generate(prompt, max_new_tokens=n_new, static=True)
         full = prompt + ref

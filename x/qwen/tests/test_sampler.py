@@ -49,13 +49,13 @@ def test_sampler_distribution():
                 dict(temperature=1.0, top_k=8, min_p=0.1),
                 dict(temperature=1.0, top_p=0.5),  # top_k=0: sorts the vocabulary
         ):
-            s = Sampler(seed=1, **kw)
+            s = Sampler(seed=1, **kw)  # type: ignore
             s.bind(ops, V)
             got = ops.numpy(s.sample(rows)).astype(np.int64)
             exp = expected_dist(
                 l,
                 kw['temperature'],
-                kw.get('top_k', 0),
+                kw.get('top_k', 0),  # type: ignore
                 kw.get('top_p', 1.0),
                 kw.get('min_p', 0.0),
             )

@@ -463,7 +463,17 @@ def qlinear(
     key = (n, k, bits, x.dtype, cfg)
     resolved = _RESOLVED.get(key)
     if resolved is None:
-        resolved = _resolve(x2, q, scale, bias, bits, group, n, k, cfg)
+        resolved = _resolve(
+            x2,
+            q,
+            scale,
+            bias,
+            bits,
+            group,
+            n,
+            k,
+            cfg,
+        )
         _RESOLVED[key] = resolved
     bk, num_stages, split = resolved
     y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x.dtype, device=x.device)
@@ -491,7 +501,11 @@ def qlinear(
         )
         out = y.sum(0).to(x.dtype) if split > 1 else y[0]
         return out.reshape(*x.shape[:-1], n)
-    grid = (triton.cdiv(n, cfg.block_n), triton.cdiv(m, 16), split)
+    grid = (  # type: ignore[assignment]
+        triton.cdiv(n, cfg.block_n),
+        triton.cdiv(m, 16),
+        split,
+    )
     _qlinear_kernel[grid](
         x2,
         q,
@@ -517,7 +531,17 @@ def qlinear(
     return out.reshape(*x.shape[:-1], n)
 
 
-def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[int, int, int]:
+def _resolve(
+        x2,
+        q,
+        scale,
+        bias,
+        bits,
+        group,
+        n,
+        k,
+        cfg: GemvConfig,
+) -> tuple[int, int, int]:
     """
     Find (block_k, num_stages, split_k) for `cfg` that fits the GPU's shared memory: try as configured, shrink the K
     block, then the pipeline depth. Runs once per (shape, dtype, config).

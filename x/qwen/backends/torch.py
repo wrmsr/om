@@ -105,7 +105,7 @@ class CudaGraphStep:
                 dst.copy_(src)
         if not self.use_graph:
             return tuple(self.fn(*self.static_in))
-        self.graph.replay()
+        self.graph.replay()  # type: ignore[union-attr]
         return self.static_out
 
 

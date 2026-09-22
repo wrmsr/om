@@ -23,7 +23,7 @@ from ..weights import open_source
 def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[tuple[int, int]]]:
     """
     Distinct (N, K) of the model's quantized 2-D weights as the model actually runs them -- fused projections (gate_up,
-    qkv, qkvz, ab; see model.FUSIONS) count once with their stacked N -- grouped by bit width (the a/b pair is int8
+    qkv, qkvz, ab; see model.FUSIONS) count once with their stacked N -- grouped b:38y bit width (the a/b pair is int8
     whatever the model's width).
     """
 
@@ -35,7 +35,7 @@ def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[
 
     def shape_of(name: str) -> tuple[int, int]:
         g = src._canon[name][0] if hasattr(src, '_canon') else None  # noqa
-        sh = tuple(reversed([int(d) for d in src._tensors[g].shape])) if g else src.get(name).shape  # noqa
+        sh = tuple(reversed([int(d) for d in src._tensors[g].shape])) if g else src.get(name).shape  # type: ignore  # noqa
         return int(sh[0]), int(sh[1])
 
     out: dict[int, set[tuple[int, int]]] = {}
@@ -105,8 +105,8 @@ def main() -> None:
         'f32': torch.float32,
     }[args.dtype]
     by_bits = model_shapes(args.model, QUANT_BITS[args.quant])
-    for b, shapes in sorted(by_bits.items()):
-        shapes = sorted(shapes)
+    for b, shape_set in sorted(by_bits.items()):
+        shapes = sorted(shape_set)
         print(f'[tune] int{b}: {len(shapes)} shapes: {shapes}')
         tune(shapes, b, dtype=dtype, m=args.m)
     save_tuned(args.out)

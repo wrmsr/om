@@ -188,7 +188,7 @@ def main() -> None:
             ap.error('--compile is a torch backend option')
         ops.compile = True
         if args.cache_dir:
-            ops.compile_cache = str(pathlib.Path(args.cache_dir) / 'torch-compile.bin')
+            ops.compile_cache = str(pathlib.Path(args.cache_dir) / 'torch-compile.bin')  # type: ignore[attr-defined]
     if args.triton_tuned and hasattr(ops, 'triton'):
         from ..backends.triton import load_tuned
 
