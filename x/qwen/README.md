@@ -138,8 +138,16 @@ tokens or fewer) go through `torch_triton.qlinear`: the packed codes are read on
 fed to `tl.dot`, so per-step traffic is the packed weight rather than a bf16 expansion of it. Prefill (large M)
 is compute-bound and keeps dequant + cuBLAS. The kernel is verified against the dequant path under Triton's CPU
 interpreter (`tests/test_triton.py`) and drops into CUDA graphs like any other kernel. `TorchOps(triton=False)`
-turns it off; `triton_block_n` / `num_warps` are the untuned knobs, and a split-K variant for the narrow (N=5120)
-projections is the obvious next optimisation.
+turns it off. Narrow projections (o_proj, down_proj, out_proj at N=5120, k/v_proj at N=1024) are split over K
+across several programs with a float32 partial-sum reduction, so they fill the GPU; the launch configuration
+per (N, K) comes from a tuned table when one is loaded (`entrypoints/tune` sweeps block sizes, warps, stages and
+split factor on the actual GPU and writes JSON; `--triton-tuned FILE` / `TorchOps(triton_tuned=)` loads it) and
+from a fill-the-GPU heuristic otherwise.
+
+```bash
+python -m x.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
+python -m x.qwen.entrypoints.generate ... --triton-tuned ./.cache/qwen/gemv-int4.json
+```
 
 ## Validate against llama.cpp
 

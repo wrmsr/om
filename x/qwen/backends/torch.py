@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from ..ops import Ops
 from ..quant import QWeight
 from .torch_triton import HAVE_TRITON
+from .torch_triton import load_tuned
 from .torch_triton import qlinear
 
 
@@ -111,6 +112,7 @@ class TorchOps(Ops):
             triton: bool | None = None,
             triton_max_m: int = 32,
             triton_block_n: int | None = None,
+            triton_tuned: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -122,6 +124,8 @@ class TorchOps(Ops):
         self.triton = (self.device.type == 'cuda' and HAVE_TRITON) if triton is None else (triton and HAVE_TRITON)
         self.triton_max_m = triton_max_m
         self.triton_block_n = triton_block_n
+        if triton_tuned and HAVE_TRITON:
+            load_tuned(triton_tuned)  # per-shape GEMV configs written by entrypoints/tune
 
     def dtype(self, name):
         return DTYPES[name]

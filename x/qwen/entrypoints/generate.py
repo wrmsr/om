@@ -113,6 +113,11 @@ def main() -> None:
         help='directory for the finished-parameter cache (paramcache.py); e.g. ./.cache/qwen. First load fills it',
     )
     ap.add_argument(
+        '--triton-tuned',
+        default=None,
+        help='JSON from entrypoints/tune with per-shape GEMV launch configs, e.g. ./.cache/qwen/gemv-int4.json',
+    )
+    ap.add_argument(
         '--warmup',
         action='store_true',
         help='run a short throwaway generation first so graph capture / kernel compile stay out of the timing',
@@ -131,6 +136,10 @@ def main() -> None:
 
     ops = make_ops(args.backend, args.device)
     dtype = args.dtype or default_dtype(ops)
+    if args.triton_tuned and hasattr(ops, 'triton'):
+        from ..backends.torch_triton import load_tuned
+
+        print(f'[model] {load_tuned(args.triton_tuned)} tuned GEMV configs from {args.triton_tuned}')
 
     if args.info:
         r = resolve_weights(args.model)
