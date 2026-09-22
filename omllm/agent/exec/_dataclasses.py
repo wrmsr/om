@@ -32,24 +32,24 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='627a294e47a256f542bc977de478bf1381b99c12',
+    installer_sha1='0c4a704b41986d9c51accead97407ab4b7937d3f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, False, False), ((('cmd', True, True, None, True, False, False, None), 'instance', 'missing', 'c"
             "allable', False, False, False), (('cwd', True, True, None, True, True, False, None), 'instance', 'missing'"
-            ", None, False, False, False), (('env', True, True, None, True, True, False, None), 'instance', 'missing', "
-            "'callable', False, False, False), (('timeout_s', True, True, None, True, True, False, None), 'instance', '"
-            "value', None, False, False, False), (('options', True, True, None, True, True, False, None), 'instance', '"
-            "value', 'callable', False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False"
-            ", ()), ((),), (), (False,)))"
+            ", None, False, False, False), (('env', True, True, None, True, True, False, None), 'instance', 'value', 'c"
+            "allable', False, False, False), (('timeout_s', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('options', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', 'callable', False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, "
+            "()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.exec.ops', 'ExecParams'),
     ),
 )
-def _process_dataclass__627a294e47a256f542bc977de478bf1381b99c12():
+def _process_dataclass__0c4a704b41986d9c51accead97407ab4b7937d3f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -61,6 +61,7 @@ def _process_dataclass__627a294e47a256f542bc977de478bf1381b99c12():
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__coerce = __dataclass__spec.fields[2].coerce
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
@@ -144,7 +145,7 @@ def _process_dataclass__627a294e47a256f542bc977de478bf1381b99c12():
             cmd: __dataclass__init__fields__0__annotation,
             *,
             cwd: __dataclass__init__fields__1__annotation,
-            env: __dataclass__init__fields__2__annotation,
+            env: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             timeout_s: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             options: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
