@@ -56,7 +56,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='95dc0e1b4a2228d61f94e16b08a67860b4a84731'),
-            dict(path='server.py', sha1='203cef8e35d7ac2573d7a60d49988609ad837190'),
+            dict(path='server.py', sha1='081ea730f9f5413a695aa374ad30a6e48a65e277'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -2787,6 +2787,7 @@ class _RemoteServerProcess:
             *,
             created_at: float,
             pty_master_fd: ta.Optional[int],
+            pty_slave_fd: ta.Optional[int],
             pty_winsize: ta.Optional[ta.Tuple[int, int]],
     ) -> None:
         super().__init__()
@@ -2797,6 +2798,9 @@ class _RemoteServerProcess:
         self.created_at = created_at
 
         self._pty_master_fd = pty_master_fd
+        self._pty_slave_fd = pty_slave_fd
+        self._pty_read_fd = None  # type: ta.Optional[int]
+        self._pty_reader_task = None  # type: ta.Optional[asyncio.Task]
         self._pty_winsize = pty_winsize
 
         self._stdin = None  # type: ta.Optional[asyncio.StreamWriter]
@@ -2828,9 +2832,13 @@ class _RemoteServerProcess:
 
     async def start(self) -> None:
         if self._pty_master_fd is not None:
-            read_file = os.fdopen(os.dup(self._pty_master_fd), 'rb', 0)
+            read_fd = os.dup(self._pty_master_fd)
+            os.set_blocking(read_fd, False)
+            self._pty_read_fd = read_fd
+            self._pty_reader_task = asyncio.create_task(self._read_pty_output(read_fd, 1))
+            self._reader_tasks.append(self._pty_reader_task)
+
             write_file = os.fdopen(os.dup(self._pty_master_fd), 'wb', 0)
-            await self._connect_reader(read_file, 1)
             self._stdin = await asyncio_open_stream_writer(write_file)
         else:
             if self.popen.stdout is not None:
@@ -2842,6 +2850,70 @@ class _RemoteServerProcess:
 
         self._output_task = asyncio.create_task(self._run_output(), name=f'remote-output-{self.id}')
         self._wait_task = asyncio.create_task(self._run_wait(), name=f'remote-wait-{self.id}')
+
+    async def _drain_pty_output(self, fd: int, output_fd: int) -> bool:
+        while True:
+            try:
+                data = os.read(fd, _REMOTE_PROCESS_OUTPUT_CHUNK_SIZE)
+            except (BlockingIOError, InterruptedError):
+                return True
+            except OSError:
+                # Linux pty masters report EIO when the slave closes; BSDs return EOF.
+                return False
+            if not data:
+                return False
+            await self._service.notify(PROCESS_OUTPUT_METHOD, {
+                'id': self.id,
+                'fd': output_fd,
+                'data': encode_remote_bytes(data),
+            })
+
+    def _close_pty_slave(self) -> None:
+        if self._pty_slave_fd is not None:
+            os.close(self._pty_slave_fd)
+            self._pty_slave_fd = None
+
+    async def _read_pty_output(self, fd: int, output_fd: int) -> None:
+        loop = asyncio.get_running_loop()
+        exited_task = asyncio.create_task(self._exited.wait())
+        readable = None  # type: ta.Optional[asyncio.Future]
+        try:
+            while True:
+                readable = loop.create_future()
+
+                def on_readable() -> None:
+                    if not readable.done():
+                        readable.set_result(None)
+
+                loop.add_reader(fd, on_readable)
+                try:
+                    waiters = [readable]  # type: ta.List[asyncio.Future]
+                    if self._pty_slave_fd is not None:
+                        waiters.append(exited_task)
+                    await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+                finally:
+                    loop.remove_reader(fd)
+                    if not readable.done():
+                        readable.cancel()
+
+                if not await self._drain_pty_output(fd, output_fd):
+                    return
+
+                if exited_task.done():
+                    # Keep one slave descriptor open until the leader has exited and every byte already queued on the
+                    # master has been consumed. Closing the final slave first can discard trailing pty output.
+                    self._close_pty_slave()
+                    if not await self._drain_pty_output(fd, output_fd):
+                        return
+
+        finally:
+            if readable is not None:
+                loop.remove_reader(fd)
+            if not exited_task.done():
+                exited_task.cancel()
+            if self._pty_read_fd == fd:
+                self._pty_read_fd = None
+                os.close(fd)
 
     async def _read_output(self, reader: asyncio.StreamReader, fd: int) -> None:
         while True:
@@ -2975,6 +3047,15 @@ class _RemoteServerProcess:
         for transport in self._read_transports:
             transport.close()
         self._read_transports.clear()
+        self._close_pty_slave()
+        if self._pty_reader_task is not None and not self._pty_reader_task.done():
+            self._pty_reader_task.cancel()
+        if self._pty_read_fd is not None:
+            try:
+                os.close(self._pty_read_fd)
+            except OSError:
+                pass
+            self._pty_read_fd = None
         if self._pty_master_fd is not None:
             try:
                 os.close(self._pty_master_fd)
@@ -3114,6 +3195,7 @@ class _RemoteProcessService:
 
         master = None  # type: ta.Optional[int]
         slave = None  # type: ta.Optional[int]
+        pty_slave_fd = None  # type: ta.Optional[int]
         pty_winsize = None  # type: ta.Optional[ta.Tuple[int, int]]
         try:
             try:
@@ -3152,6 +3234,8 @@ class _RemoteProcessService:
                         stderr=slave,
                         close_fds=True,
                     )
+                    pty_slave_fd = slave
+                    slave = None
 
                 else:
                     raise ValueError(f'Invalid remote stdio kind: {kind!r}')
@@ -3171,6 +3255,7 @@ class _RemoteProcessService:
             popen,
             created_at=time.time(),
             pty_master_fd=master,
+            pty_slave_fd=pty_slave_fd,
             pty_winsize=pty_winsize,
         )
         try:
@@ -3183,11 +3268,7 @@ class _RemoteProcessService:
                 pass
             os.waitpid(popen.pid, 0)  # noqa: ASYNC222
             popen.returncode = -signal.SIGKILL
-            if master is not None:
-                try:
-                    os.close(master)
-                except OSError:
-                    pass
+            process._close_streams()  # noqa: SLF001
             raise
 
         return {
