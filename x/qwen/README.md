@@ -217,13 +217,17 @@ the text geometry and its own KV, a final norm, the target's `lm_head`. It predi
 recurses on its own normed output.
 
 `SpecDecoder` (`model.py`) runs one round as: draft k tokens (the first from the head's last refreshed entry,
-the rest by recursion), verify `[next_tok, d_1..d_k]` in a single captured T = k + 1 target step, accept the
-longest prefix where the target's sample equals the draft, commit, then refresh the draft head over the
-committed positions with the target's true hidden states (one captured T = k + 1 draft step). Rollback costs
-nothing: the KV buffers are masked by position and the verify step returns the DeltaNet state after every token,
-so the state after the accepted prefix is a slice. Accept-if-equal is exact for greedy and for sampling (each
-committed token is a sample from the target given its prefix); rejection sampling would accept more and is the
-follow-up.
+the rest by recursion), each *sampled* from the draft head's warped distribution q; verify `[next_tok, d_1..d_k]`
+in a single captured T = k + 1 target step; rejection-sample (`speculative_accept`): draft i is accepted with
+probability min(1, p_i(d_i) / q_i(d_i)) where p is the target's equally-warped distribution, the first rejected
+position emits a draw from the residual max(0, p - q), and if every draft survives the last row is drawn plainly.
+Then commit and refresh the draft head over the committed positions with the target's true hidden states (one
+captured T = k + 1 draft step). The output distribution is exactly the target's (the speculative-sampling
+theorem; `test_sampler.py` checks it empirically) and the per-draft acceptance is sum(min(p, q)) = 1 - TV(p, q)
+rather than p(argmax q) -- the same thing for greedy, where every distribution is one-hot, and typically 10-20
+points more when sampling. All of it runs on the device; the round still has one host sync (accept flags,
+corrections, drafts). Rollback costs nothing: the KV buffers are masked by position and the verify step returns
+the DeltaNet state after every token, so the state after the accepted prefix is a slice.
 
 ```bash
 python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 -p "..."
@@ -245,9 +249,8 @@ corrupted at each index so every acceptance length is exercised.
 
 ## Where to go next (in order)
 
-1. **Rejection sampling** for the verify step (higher acceptance when sampling), and `--lm-head-draft`-style
-   proposal on a vocabulary subset to cut the draft head's output matmul. Folding the sampler into the captured
-   step would remove its ~10 small launches per round.
+1. **Prefix snapshots** with a host tier (`Decoder.snapshot` + an LRU over device and pinned CPU memory, keyed
+   on token prefixes) -- what turns an agent loop's turns into a few hundred tokens of prefill.
 2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
 3. **Kernel tuning** — sweep `triton_block_n` / `num_warps`, add split-K for the narrow projections, and put

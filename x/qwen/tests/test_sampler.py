@@ -69,6 +69,65 @@ def test_sampler_distribution():
         print(f'{ops.name}: sampler distributions OK')
 
 
+def test_probs_and_rejection_sampling():
+    """`Sampler.probs` equals the exact warped distribution, and the speculative accept/correct step reproduces
+    the target distribution whatever the draft distribution is (the speculative-sampling theorem), with an
+    acceptance rate of sum(min(p, q))."""
+
+    from ..model import speculative_accept
+
+    rng = np.random.default_rng(1)
+    V = 200
+    l = (rng.standard_normal(V) * 2.5).astype(np.float32)
+    for ops in backends():
+        f32 = ops.dtype('f32')
+        for kw in (
+                dict(temperature=1.0, top_k=10, top_p=0.9),
+                dict(temperature=0.7, top_k=20, top_p=0.8),
+                dict(temperature=1.0, top_k=8, min_p=0.1),
+                dict(temperature=1.0, top_p=0.5),
+                dict(),  # greedy: one-hot
+        ):
+            s = Sampler(seed=1, **kw)
+            s.bind(ops, V)
+            got = ops.numpy(s.probs(ops.array(np.stack([l, l]), f32)))
+            if kw:
+                exp = expected_dist(l, kw['temperature'], kw.get('top_k', 0), kw.get('top_p', 1.0), kw.get('min_p', 0.0))
+            else:
+                exp = np.zeros(V)
+                exp[int(np.argmax(l))] = 1.0
+            assert np.abs(got[0] - exp).max() < 1e-5 and np.abs(got[1] - exp).max() < 1e-5, (ops.name, kw)
+
+        # rejection sampling: N independent trials batched along the draft axis
+        n = 4000
+        s = Sampler(temperature=1.0, top_k=12, top_p=0.9, seed=2)
+        s.bind(ops, V)
+        lp = (rng.standard_normal(V) * 2.5).astype(np.float32)
+        lq = (lp + rng.standard_normal(V) * 1.5).astype(np.float32)  # a draft head that is related but wrong
+        p1 = s.probs(ops.array(lp[None], f32))  # [1, V]
+        q1 = s.probs(ops.array(lq[None], f32))
+        p_rows = ops.concat([p1] * (n + 1), 0)
+        q_rows = ops.concat([q1] * n, 0)
+        drafts = ops.cast(s.draw(q_rows), ops.dtype('i32'))
+        q_d = Sampler.gather(ops, q_rows, drafts)
+        accept, corr = speculative_accept(ops, s, p_rows, q_rows, drafts, q_d)
+        dr = ops.numpy(drafts).astype(np.int64)
+        ac = ops.numpy(accept).astype(bool)
+        co = ops.numpy(corr).astype(np.int64)[:n]
+        committed = np.where(ac, dr, co)
+        p_np = ops.numpy(p1)[0]
+        q_np = ops.numpy(q1)[0]
+        emp = np.bincount(committed, minlength=V) / n
+        err = np.abs(emp - p_np).max()
+        assert err < 0.03, (ops.name, err)
+        rate, expected_rate = ac.mean(), np.minimum(p_np, q_np).sum()
+        assert abs(rate - expected_rate) < 0.04, (ops.name, rate, expected_rate)
+        # the naive scheme's rate for comparison: p(argmax q)
+        naive = p_np[int(np.argmax(q_np))]
+        print(f'{ops.name}: probs exact; rejection sampling reproduces p (max err {err:.3f}); acceptance '
+              f'{rate:.2f} vs sum(min(p,q)) {expected_rate:.2f} (accept-if-equal would be {naive:.2f})')
+
+
 def test_sampled_spec_runs():
     """Speculative decoding with a sampling sampler runs end to end and honours the token budget."""
 
@@ -93,4 +152,5 @@ def test_sampled_spec_runs():
 
 if __name__ == '__main__':
     test_sampler_distribution()
+    test_probs_and_rejection_sampling()
     test_sampled_spec_runs()

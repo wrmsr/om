@@ -954,6 +954,93 @@ class Sampler:
         oh = ops.cast(ops.arange(k)[None, :] == choice[:, None], ops.dtype('f32'))
         return ops.cast(ops.sum(ops.cast(idx, ops.dtype('f32')) * oh, -1) + 0.5, ops.dtype('i32'))
 
+    def probs(self, logits: Array) -> Array:
+        """
+        The distribution `sample` draws from, materialised over the whole vocabulary: [T, V] float32 rows that
+        sum to 1, zero outside the kept set. Every truncation (top-k, top-p, min-p) is a per-row threshold on the
+        tempered logits, so this is a topk on the candidates to find the threshold, then one masked softmax.
+        Greedy is a one-hot row. Speculative verify compares the target's and the draft head's versions of this.
+        """
+
+        ops = self.ops
+        if ops is None:
+            raise RuntimeError('bind() first')
+        T, V = logits.shape
+        f32 = ops.dtype('f32')
+        if self.greedy:
+            mx = ops.amax(logits, -1, keepdims=True)
+            return ops.softmax(logits + ops.cast(logits < mx, f32) * -1e30, -1)
+        l = logits
+        if self.penalized and self.counts is not None:
+            pen = self.presence_penalty * ops.cast(self.counts > 0, l.dtype) + self.frequency_penalty * self.counts
+            l = l - pen[None, :]
+        l = l / self.temperature
+        k = self.top_k if 0 < self.top_k < V else V
+        vals, _ = ops.topk(l, k)  # [T, k] descending
+        thr = vals[:, k - 1:k]  # the k-th largest: everything below it is out
+        if self.top_p < 1.0:
+            p = ops.softmax(vals, -1)
+            keep = ops.cast(ops.cumsum(p, -1) - p < self.top_p, f32)
+            thr_p = -ops.amax(-(vals + (1 - keep) * 1e30), -1, keepdims=True)  # smallest kept value
+            thr = ops.amax(ops.stack([thr, thr_p], 0), 0)
+        if self.min_p > 0:
+            thr_m = ops.amax(vals, -1, keepdims=True) + math.log(self.min_p)  # p >= min_p * p_max <=> z >= z_max + ln min_p
+            thr = ops.amax(ops.stack([thr, thr_m], 0), 0)
+        return ops.softmax(l + ops.cast(l < thr, f32) * -1e30, -1)
+
+    def draw(self, probs: Array) -> Array:
+        """One token per row of a [T, V] probability matrix (Gumbel-max over log p; zeros never win)."""
+
+        ops = self.ops
+        if ops is None:
+            raise RuntimeError('bind() first')
+        T, V = probs.shape
+        u = ops.random_uniform((T, V))
+        g = -ops.log(-ops.log(u * (1 - 2e-7) + 1e-7))
+        return ops.argmax(ops.log(probs) + g, -1)
+
+    @staticmethod
+    def gather(ops: Ops, probs: Array, toks: Array) -> Array:
+        """probs[i, toks[i]] for each row -> [T]."""
+
+        V = probs.shape[1]
+        oh = ops.cast(ops.arange(V)[None, :] == toks[:, None], probs.dtype)
+        return ops.sum(probs * oh, -1)
+
+
+def speculative_accept(
+        ops: Ops,
+        sampler: Sampler,
+        p_rows: Array,
+        q_rows: Array,
+        drafts: Array,
+        q_d: Array,
+) -> tuple[Array, Array]:
+    """
+    The rejection-sampling step of speculative decoding (Leviathan et al. / Chen et al.). p_rows: [k+1, V], the
+    target's warped distribution at each verified position; q_rows: [k, V], the draft head's at the k drafted
+    positions; drafts: [k] tokens that were sampled from q_rows; q_d: [k] their draft probabilities. Draft i is
+    accepted with probability min(1, p_i(d_i) / q_i(d_i)). Returns (accept flags [k] int32, corrections [k+1]
+    int32): the token to emit at position i if draft i is the first rejected one -- a draw from the residual
+    max(0, p_i - q_i) renormalised -- and, at index k, a plain draw from p_k for the case where every draft was
+    accepted. The caller takes the first rejection on the host; everything here is one small batch of
+    vocabulary-wide ops, so the round still has a single device->host sync. With every distribution one-hot
+    (greedy) this reduces to "accept iff argmax matches", so greedy and sampled decoding share the path.
+    """
+
+    k = q_rows.shape[0]
+    f32 = ops.dtype('f32')
+    p_d = Sampler.gather(ops, p_rows[:k], drafts)
+    ratio = p_d / (q_d + 1e-30)
+    ratio = ratio * (1 - ops.cast(ratio > 1, f32)) + ops.cast(ratio > 1, f32)  # min(1, ratio)
+    u = ops.random_uniform((k,))
+    accept = ops.cast(u < ratio, ops.dtype('i32'))
+    resid = p_rows[:k] - q_rows
+    resid = resid * ops.cast(resid > 0, f32) + 1e-12 * p_rows[:k]  # max(0, p - q); the tiny term guards p == q
+    resid = resid / ops.sum(resid, -1, keepdims=True)
+    corrections = sampler.draw(ops.concat([resid, p_rows[k:k + 1]], 0))  # [k+1]
+    return accept, corrections
+
 
 ##
 # Static decode
@@ -1180,46 +1267,64 @@ class SpecDecoder:
     def round(self) -> list[int]:
         """One draft / verify / commit cycle; returns the committed tokens (1..k+1 of them)."""
 
-        ops, k = self.ops, self.k
+        ops, k, sampler = self.ops, self.k, self.sampler
         self.dec.ensure_capacity(self.dec.seq_len + k + 2)
         self._sync_capacity()
         n = self.dec.seq_len
+        i32 = self.i32
+        f32 = ops.dtype('f32')
+        V = self.model.cfg.vocab_size
 
         # draft on the device: d_1 from the last refreshed entry, d_2..d_k by recursion at positions n, n+1, ...
-        # (each a [1] int array; nothing comes to the host until the acceptance check)
-        i32 = self.i32
-        darr = [ops.argmax(self.mlogits_last, -1)]
+        # Each draft is *sampled* from the head's warped distribution q (greedy: its argmax), and q and q(d) are
+        # kept for the acceptance test. Nothing comes to the host until that test.
+        darr: list[Array] = []
+        qrows: list[Array] = []
+        qds: list[Array] = []
+        ml = self.mlogits_last  # [1, V or draft_vocab]
         hid = self.d_last
-        for j in range(1, k):
-            ml, hid, mk, mv = self._mfn(1)(
-                ops.reshape(darr[-1], (1, 1)), hid, ops.scalar(n - 1 + j), *self.dec.tables(), *self.mflat,
-            )
-            self.mflat = [mk, mv]
-            darr.append(ops.argmax(ml[:, -1], -1))
-        if self.draft_fn is not None:
+        for j in range(k):
+            q = sampler.probs(ml)
+            d = ops.cast(sampler.draw(q), i32)  # [1]
+            darr.append(d)
+            qds.append(Sampler.gather(ops, q, d))
+            if q.shape[1] < V:  # drafting over a vocabulary prefix: zero mass elsewhere
+                q = ops.concat([q, ops.zeros((1, V - q.shape[1]), f32)], -1)
+            qrows.append(q)
+            if j < k - 1:
+                ml, hid, mk, mv = self._mfn(1)(
+                    ops.reshape(d, (1, 1)), hid, ops.scalar(n + j), *self.dec.tables(), *self.mflat,
+                )
+                self.mflat = [mk, mv]
+                ml = ml[:, -1]
+        if self.draft_fn is not None:  # test hook: given drafts count as certain (q = one-hot at the draft)
             darr = [ops.array(np.asarray([t], dtype=np.int32)) for t in self.draft_fn(n, self.next_tok, k)]
-        drafts_arr = ops.concat([ops.cast(a, i32) for a in darr], 0)  # [k]
+            qrows = [ops.cast(ops.arange(V)[None, :] == d[:, None], f32) for d in darr]
+            qds = [ops.zeros((1,), f32) + 1 for _ in darr]
+        drafts_arr = ops.concat(darr, 0)  # [k]
 
-        # verify: [next_tok, d_1..d_k] at positions n..n+k in one target step; sample the target's k+1 rows on
-        # the device; the only host round-trip of the round is the 2k+1 ids of drafts and targets
+        # verify: [next_tok, d_1..d_k] at positions n..n+k in one target step; rejection-sample on the device; the
+        # only host round-trip of the round is the k accept flags, the k+1 corrections and the k drafts
         toks = ops.reshape(ops.concat([ops.cast(self.next_arr, i32), drafts_arr], 0), (1, k + 1))
         logits, hidden, flat_all = self.dec.verify(toks)
-        targets_arr = self.sampler.sample(logits[0])  # [k+1]; row i is the distribution for position n+i+1
-        both = ops.numpy(ops.concat([drafts_arr, ops.cast(targets_arr, i32)], 0)).tolist()
-        drafts, targets = both[:k], both[k:]
+        p_rows = sampler.probs(logits[0])  # [k+1, V]; row i is the target's distribution for position n+i+1
+        accept, corr = speculative_accept(ops, sampler, p_rows, ops.concat(qrows, 0), drafts_arr, ops.concat(qds, 0))
+        got = ops.numpy(ops.concat([drafts_arr, accept, ops.cast(corr, i32)], 0)).tolist()
+        drafts, flags, corrections = got[:k], got[k:2 * k], got[2 * k:]
         m = 0
-        while m < k and drafts[m] == targets[m]:
+        while m < k and flags[m]:
             m += 1
         committed = [self.next_tok] + drafts[:m]
         self.dec.commit(flat_all, m + 1)
-        self.sampler.observe(targets_arr[:m + 1])  # the accepted drafts equal the targets; plus the correction
-        self.next_arr = targets_arr[m:m + 1]
-        self.next_tok = targets[m]
+        new_arr = corr[m:m + 1]
+        sampler.observe(ops.concat([drafts_arr[:m], ops.cast(new_arr, i32)], 0))  # committed drafts + the next token
+        self.next_arr = new_arr
+        self.next_tok = corrections[m]
 
         # refresh the draft head over positions n..n+k with true hidden states; entry m is the one that matters
         # (hidden at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh
         # overwrites before anything attends to them
-        rtoks = ops.reshape(ops.concat([ops.cast(targets_arr[:m + 1], i32), drafts_arr[m:]], 0), (1, k + 1))
+        rtoks = ops.reshape(ops.concat([drafts_arr[:m], ops.cast(new_arr, i32), drafts_arr[m:]], 0)[:k + 1], (1, k + 1))
         ml, d, mk, mv = self._mfn(k + 1)(rtoks, hidden, ops.scalar(n), *self.dec.tables(), *self.mflat)
         self.mflat = [mk, mv]
         self.mlogits_last = ml[:, m]
