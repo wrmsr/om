@@ -6,8 +6,6 @@ the `bash` tool instead.
 All of these operate on the process scope carried by `ToolEnvironment.processes` - a backgrounded process lives there
 until it is terminated or the scope (session) is torn down.
 """
-import os
-import shutil
 import signal
 import time
 import typing as ta
@@ -112,11 +110,9 @@ class ProcessSpawnTool(ToolClass[ProcessSpawnToolParams]):
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
 
-        cmd = [
-            check.not_none(shutil.which('bash')),
-            '-c',
-            params.command,
-        ]
+        # Keep the executable target-relative; the process manager owns executable resolution and environment
+        # inheritance in whichever namespace it represents.
+        cmd = ['bash', '-c', params.command]
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
@@ -126,7 +122,6 @@ class ProcessSpawnTool(ToolClass[ProcessSpawnToolParams]):
         proc = await scope.spawn(processes.ProcessSpec(
             cmd,
             cwd=cwd,
-            env=dict(os.environ),
             stdio=processes.ProcessStdio(stdin='pipe', stdout='pipe', stderr='pipe'),
             name=params.name,
         ))

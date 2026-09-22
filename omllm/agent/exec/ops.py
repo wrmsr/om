@@ -32,7 +32,12 @@ class ExecParams:
     _: dc.KW_ONLY
 
     cwd: str
-    env: ta.Mapping[str, str] = dc.xfield(coerce=col.frozendict)
+    # None inherits the execution environment's variables. In particular, a remote process manager interprets this as
+    # the remote agent's environment rather than receiving a copy of the harness's environment.
+    env: ta.Mapping[str, str] | None = dc.xfield(
+        default=None,
+        coerce=lambda v: col.frozendict(v) if v is not None else None,
+    )
 
     timeout_s: float | None = None
 
@@ -127,7 +132,7 @@ class ProcessesExecOps(ExecOps):
         spec = processes.ProcessSpec(
             tuple(params.cmd),
             cwd=params.cwd,
-            env=dict(params.env),
+            env=dict(params.env) if params.env is not None else None,
         )
 
         proc = await scope.spawn(spec, *params.options)

@@ -4,11 +4,13 @@ import tempfile
 import pytest
 
 from ......core import processes
+from .....fs.ops import LocalFsOps
 from .....permissions.deciders import StaticPermissionDecider
 from .....permissions.types import PermissionState
 from .....types.tools import ToolContext
 from .....types.tools import ToolEnvironment
 from ....ops import ExecOps
+from ....ops import ExecParams
 from ....ops import ExecResult
 from ..ripgrep import RipgrepTool
 from ..ripgrep import RipgrepToolParams
@@ -18,7 +20,7 @@ class _CaptureExecOps(ExecOps):
     def __init__(self):
         super().__init__()
 
-        self.captured = None
+        self.captured: ExecParams | None = None
 
     async def exec(self, scope, params, *, output=None):
         self.captured = params
@@ -32,6 +34,7 @@ async def test_ripgrep_passes_sandbox_option_when_enabled():
     rg = RipgrepTool(
         permissions=StaticPermissionDecider(PermissionState.ALLOW),
         exec=cap,
+        fs=LocalFsOps(),
         sandbox=True,
     )
     with tempfile.TemporaryDirectory() as td:
@@ -49,13 +52,13 @@ async def test_ripgrep_passes_sandbox_option_when_enabled():
     assert any(isinstance(o, processes.Sandbox) for o in cap.captured.options)
 
 
-@pytest.mark.skipif(shutil.which('rg') is None, reason='no ripgrep')
 @pytest.mark.asyncs('asyncio')
 async def test_ripgrep_no_sandbox():
     cap = _CaptureExecOps()
     rg = RipgrepTool(
         permissions=StaticPermissionDecider(PermissionState.ALLOW),
         exec=cap,
+        fs=LocalFsOps(),
         sandbox=False,
     )
     with tempfile.TemporaryDirectory() as td:
@@ -71,3 +74,5 @@ async def test_ripgrep_no_sandbox():
 
     assert cap.captured is not None
     assert cap.captured.options == ()
+    assert cap.captured.cmd[0] == 'rg'
+    assert cap.captured.env is None

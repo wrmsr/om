@@ -19,15 +19,31 @@ from ....types.contexts import Context
 from ....types.events import ToolExecutionEndEvent
 from ....types.events import ToolExecutionUpdateEvent
 from ....types.progress import OutputToolProgressUpdate
+from ....types.tools import ToolContext
 from ....types.tools import ToolEnvironment
 from ....types.tools import ToolSet
 from ....types.turns import AgentEndReason
+from ...ops import ExecOps
+from ...ops import ExecParams
+from ...ops import ExecResult
 from ...ops import ProcessesExecOps
 from ..bash import BashTool
+from ..bash import BashToolParams
 from ..details import ExecToolResultDetails
 
 
 ##
+
+
+class _CaptureExecOps(ExecOps):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.params: ExecParams | None = None
+
+    async def exec(self, scope, params, *, output=None):
+        self.params = params
+        return ExecResult(rc=0)
 
 
 async def _run(command, *, timeout_s=None):
@@ -63,6 +79,28 @@ def _end_details(events):
     [end] = [e for e in events if isinstance(e, ToolExecutionEndEvent)]
     assert end.result.error is None
     return end.result.details
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_bash_uses_target_shell_and_environment(tmp_path):
+    cap = _CaptureExecOps()
+    tool = BashTool(
+        permissions=StaticPermissionDecider(PermissionState.ALLOW),
+        exec=cap,
+    )
+
+    async with processes.AsyncioProcessManager() as m:
+        await tool.execute(
+            ToolContext(
+                args={},
+                env=ToolEnvironment(cwd=str(tmp_path), processes=m.root),
+            ),
+            BashToolParams('echo hi'),
+        )
+
+    assert cap.params is not None
+    assert cap.params.cmd == ('bash', '-c', 'echo hi')
+    assert cap.params.env is None
 
 
 @pytest.mark.asyncs('asyncio')

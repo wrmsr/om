@@ -1,14 +1,10 @@
 """
 TODO:
- - use FsOps lol
- - must read file before editing
- - must re-read file if file has been modified
  - loosened replacer helpers
  - accept diff format impl
  - injectable confirmation, diff format
 """
 import difflib
-import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -23,6 +19,7 @@ from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
 from .details import EditToolResultDetails
+from .paths import validate_tool_path
 
 
 ##
@@ -89,23 +86,20 @@ class EditTool(ToolClass[EditToolParams]):
         return params.file_path
 
     async def execute(self, ctx: ToolContext, params: EditToolParams) -> ToolResult:
-        if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
-            raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
-        if os.path.commonpath((cwd, params.file_path)) != cwd:
-            raise ValueError('Path not under configured working directory')
+        file_path = await validate_tool_path(self._fs, params.file_path, cwd)
 
         if not params.old_string:
             raise ValueError('The requested edit to was given an empty "old_string" parameter.')
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
-            FsPermissionTarget(params.file_path, 'w'),
+            FsPermissionTarget(file_path, 'w'),
         )
 
-        old_file_b = await self._fs.read_file(params.file_path)
-        old_file = old_file_b.decode('utf-8')
+        old_file_data = await self._fs.read_file(file_path)
+        old_file = old_file_data.data.decode('utf-8')
 
         n = old_file.count(params.old_string)
         if not n:
@@ -119,19 +113,24 @@ class EditTool(ToolClass[EditToolParams]):
 
         # FIXME: confirm lol
 
-        await self._fs.write_file(params.file_path, new_file_b)
+        await self._fs.write_file(
+            file_path,
+            new_file_b,
+            overwrite=True,
+            expected_digest=old_file_data.digest,
+        )
 
         diff = ''.join(difflib.unified_diff(
             old_file.splitlines(keepends=True),
             new_file.splitlines(keepends=True),
-            fromfile=params.file_path,
-            tofile=params.file_path,
+            fromfile=file_path,
+            tofile=file_path,
         ))
 
         return ToolResult(
             content=llm.TextContent('The file has been edited successfully.'),
             details=EditToolResultDetails(
-                path=params.file_path,
+                path=file_path,
                 diff=diff,
             ),
         )

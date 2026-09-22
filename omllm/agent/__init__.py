@@ -117,7 +117,13 @@ with _lang.auto_proxy_init(
     )
 
     from .fs.ops import (  # noqa
+        FsDirEntry,
+        FsFile,
+        FsFileChangedError,
+        FsGlobResult,
         FsOps,
+        FsStat,
+        FsWriteResult,
 
         LocalFsOps,
     )

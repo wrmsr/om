@@ -1,6 +1,5 @@
 import io
 import itertools
-import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -15,6 +14,7 @@ from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
 from .details import ReadToolResultDetails
+from .paths import validate_tool_path
 
 
 ##
@@ -43,10 +43,11 @@ class ReadTool(ToolClass[ReadToolParams]):
 
     description: ta.Final = ToolDescription(
         """
-            Reads a file from the local filesystem. You can access any file directly by using this tool.
+            Reads a file from the configured workspace filesystem. You can access any permitted file directly by using
+            this tool.
 
-            Assume this tool is able to read all files on the machine. If the User provides a path to a file assume that
-            path is valid. It is okay to read a file that does not exist; an error will be returned.
+            If the User provides a path to a file assume that path is valid. It is okay to read a file that does not
+            exist; an error will be returned.
 
             Usage:
             - The file_path parameter must be an absolute path, not a relative path.
@@ -81,39 +82,38 @@ class ReadTool(ToolClass[ReadToolParams]):
         return params.file_path
 
     async def execute(self, ctx: ToolContext, params: ReadToolParams) -> ToolResult:
-        if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
-            raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
-        if os.path.commonpath((cwd, params.file_path)) != cwd:
-            raise ValueError('Path not under configured working directory')
+        file_path = await validate_tool_path(self._fs, params.file_path, cwd)
         if params.num_lines > ABSOLUTE_MAX_NUM_LINES:
             raise ValueError(f'Number of lines exceeds maximum of {ABSOLUTE_MAX_NUM_LINES}')
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
-            FsPermissionTarget(params.file_path, 'r'),
+            FsPermissionTarget(file_path, 'r'),
         )
 
-        if not os.path.exists(params.file_path):
-            raise ValueError('Path does not exist')
-        if not os.path.isfile(params.file_path):
+        try:
+            st = await self._fs.stat(file_path)
+        except FileNotFoundError:
+            raise ValueError('Path does not exist') from None
+        if not st.is_file:
             raise ValueError('Path is not a file')
+
+        file = await self._fs.read_file(file_path)
 
         out = io.StringIO()
         out.write('<file>\n')
 
         zp = len(str(params.line_offset + params.num_lines))
         n = params.line_offset
-        has_trunc = False  # noqa
-        with open(params.file_path, errors='replace') as f:  # noqa
+        with io.TextIOWrapper(io.BytesIO(file.data), errors='replace') as f:
             fi = iter(f)
 
             for line in itertools.islice(fi, params.line_offset, params.line_offset + params.num_lines):
                 out.write(f'{str(n + 1).zfill(zp):}|')
                 line = line.removesuffix('\n')
                 if len(line) > MAX_LINE_LENGTH:
-                    has_trunc = True  # noqa
                     out.write(line[:MAX_LINE_LENGTH])
                     out.write('...')
                 else:
@@ -144,7 +144,7 @@ class ReadTool(ToolClass[ReadToolParams]):
         return ToolResult(
             content=llm.TextContent(out.getvalue()),
             details=ReadToolResultDetails(
-                path=params.file_path,
+                path=file_path,
                 line_offset=params.line_offset,
                 num_lines=n - params.line_offset,
                 has_more=has_more,

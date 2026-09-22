@@ -43,6 +43,20 @@ async def test_procs_exec_ops_basic(tmp_path):
         assert not m.processes
 
 
+@pytest.mark.asyncs('asyncio')
+async def test_procs_exec_ops_inherits_environment(monkeypatch, tmp_path):
+    monkeypatch.setenv('OMLLM_EXEC_INHERITED_TEST', 'inherited')
+
+    async with processes.AsyncioProcessManager() as m:
+        r = await ProcessesExecOps().exec(m.root, ExecParams(
+            ['sh', '-c', 'printf %s "$OMLLM_EXEC_INHERITED_TEST"'],
+            cwd=str(tmp_path),
+        ))
+
+    assert r.rc == 0
+    assert r.stdout == b'inherited'
+
+
 def test_format_exec_output():
     from ..ops import ExecResult
 

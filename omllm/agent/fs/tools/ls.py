@@ -1,5 +1,4 @@
 import io
-import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -11,6 +10,7 @@ from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
+from .paths import validate_tool_path
 
 
 ##
@@ -48,25 +48,22 @@ class LsTool(ToolClass[LsToolParams]):
         return params.dir_path
 
     async def execute(self, ctx: ToolContext, params: LsToolParams) -> str:
-        if os.path.abspath(os.path.realpath(params.dir_path)) != params.dir_path:
-            raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
-        if os.path.commonpath((cwd, params.dir_path)) != cwd:
-            raise ValueError('Path not under configured working directory')
+        dir_path = await validate_tool_path(self._fs, params.dir_path, cwd)
 
-        dir_path = params.dir_path
-        if not dir_path.endswith('/'):
-            dir_path += '/'
+        permission_path = dir_path if dir_path.endswith('/') else dir_path + '/'
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
-            FsPermissionTarget(dir_path, 'r'),
+            FsPermissionTarget(permission_path, 'r'),
         )
 
-        if not os.path.exists(dir_path):
-            raise ValueError('Path does not exist')
-        if not os.path.isdir(dir_path):
+        try:
+            st = await self._fs.stat(dir_path)
+        except FileNotFoundError:
+            raise ValueError('Path does not exist') from None
+        if not st.is_dir:
             raise ValueError('Path is not a directory')
 
         out = io.StringIO()

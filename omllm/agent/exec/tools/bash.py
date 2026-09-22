@@ -5,11 +5,8 @@ TODO:
  - return json of {'stdout': stdout, 'stderr': stderr}
 """
 import codecs
-import os
-import shutil
 import typing as ta
 
-from omcore import check
 from omcore import dataclasses as dc
 
 from .... import llm
@@ -102,11 +99,9 @@ class BashTool(ToolClass[BashToolParams]):
         if (scope := ctx.env.processes) is None:
             raise ValueError('No process scope configured')
 
-        cmd = [
-            check.not_none(shutil.which('bash')),
-            '-c',
-            params.command,
-        ]
+        # Keep the executable target-relative. A local process manager resolves it locally; a remote one resolves it
+        # against the remote execution environment's PATH.
+        cmd = ['bash', '-c', params.command]
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
@@ -118,7 +113,6 @@ class BashTool(ToolClass[BashToolParams]):
             ExecParams(
                 cmd,
                 cwd=cwd,
-                env=dict(os.environ),
                 timeout_s=params.timeout_s,
             ),
             # Output is followed as it arrives only when someone is there to see it.

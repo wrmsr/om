@@ -1,6 +1,4 @@
-import glob
 import io
-import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -15,66 +13,7 @@ from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
 from .details import GlobToolResultDetails
-
-
-##
-
-
-_GLOB_MAGIC = frozenset('*?[')
-
-
-def glob_root(pattern: str) -> str:
-    if not os.path.isabs(pattern):
-        raise ValueError(f'glob pattern must be absolute: {pattern!r}')
-
-    pattern = os.path.normpath(pattern)
-
-    drive, tail = os.path.splitdrive(pattern)
-
-    # For POSIX this starts as '/'. This also does the sensible thing for drive-qualified paths on Windows.
-    root = drive + os.sep
-
-    for part in tail.lstrip(os.sep).split(os.sep):
-        if any(c in part for c in _GLOB_MAGIC):
-            break
-
-        root = os.path.join(root, part)
-
-    return root
-
-
-def path_is_under(path: str, root: str) -> bool:
-    path = os.path.realpath(path)
-    root = os.path.realpath(root)
-
-    try:
-        return os.path.commonpath((path, root)) == root
-    except ValueError:
-        # E.g. different drives on Windows.
-        return False
-
-
-def validate_glob(pattern: str, permitted_root: str) -> str:
-    root = glob_root(pattern)
-
-    if not path_is_under(root, permitted_root):
-        raise ValueError(f'glob root {root!r} is outside permitted root {permitted_root!r}')
-
-    return root
-
-
-def safe_glob(pattern: str, permitted_root: str) -> ta.Generator[str]:
-    validate_glob(pattern, permitted_root)
-
-    permitted_root = os.path.realpath(permitted_root)
-
-    for path in glob.iglob(pattern, recursive=True):
-        real_path = os.path.realpath(path)
-
-        if not path_is_under(real_path, permitted_root):
-            continue
-
-        yield path
+from .paths import validate_tool_glob
 
 
 ##
@@ -109,46 +48,46 @@ class GlobTool(ToolClass[GlobToolParams]):
         super().__init__()
 
         self._permissions = permissions
-        self._fs = fs  # FIXME: use lol
+        self._fs = fs
 
     def summarize(self, ctx: ToolContext, params: GlobToolParams) -> str:
         return params.pattern
 
     async def execute(self, ctx: ToolContext, params: GlobToolParams) -> ToolResult:
-        root_path = glob_root(params.pattern)
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
-        if os.path.commonpath((cwd, root_path)) != cwd:
-            raise ValueError('Pattern not under configured working directory')
+        root_path, resolved_cwd = await validate_tool_glob(self._fs, params.pattern, cwd)
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
             FsPermissionTarget(root_path, 'r'),
         )
 
-        if not os.path.exists(root_path):
-            raise ValueError('Path does not exist')
+        try:
+            await self._fs.stat(root_path)
+        except FileNotFoundError:
+            raise ValueError('Path does not exist') from None
+
+        result = await self._fs.glob(
+            params.pattern,
+            root=resolved_cwd,
+            max_results=MAX_MATCHES,
+        )
 
         out = io.StringIO()
         out.write('<glob>\n')
-        num_matches = 0
-        has_more = False
-        for p in safe_glob(params.pattern, cwd):
-            num_matches += 1
-            if num_matches >= MAX_MATCHES:
-                has_more = True
-                out.write('</glob>\n')
-                out.write('Too many matches, please refine your search or use the `ls` tool.\n')
-                break
-            out.write(f'{p}{"/" if os.path.isdir(p) else ""}\n')
+        for e in result.entries:
+            out.write(f'{e.path}{"/" if e.is_dir else ""}\n')
         out.write('</glob>\n')
+        if result.has_more:
+            out.write('Too many matches, please refine your search or use the `ls` tool.\n')
 
         return ToolResult(
             content=llm.TextContent(out.getvalue()),
             details=GlobToolResultDetails(
                 pattern=params.pattern,
                 root_path=root_path,
-                num_matches=num_matches,
-                has_more=has_more,
+                num_matches=len(result.entries),
+                has_more=result.has_more,
             ),
         )

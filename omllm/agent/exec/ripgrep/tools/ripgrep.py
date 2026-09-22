@@ -7,7 +7,9 @@ from omcore import check
 from omcore import dataclasses as dc
 
 from .....core import processes
+from ....fs.ops import FsOps
 from ....fs.permissions import FsPermissionTarget
+from ....fs.tools.paths import validate_tool_path
 from ....permissions.types import PermissionDecider
 from ....permissions.types import PermissionRequestor
 from ....tools.classes import ToolClass
@@ -26,13 +28,13 @@ from ...permissions import ExecPermissionTarget
 # depth against rg features that read surprising places or spawn helper programs; the sandbox (exec scoped to rg itself,
 # reads scoped to the cwd, env scrubbed) is the actual boundary - these just fail earlier and clearer:
 #
-#  --no-config:            don't read $RIPGREP_CONFIG_PATH (scrubbed from the env anyway)
+#  --no-config:            don't read $RIPGREP_CONFIG_PATH
 #  --no-pre:               don't spawn a preprocessor per file
 #  --no-search-zip:        don't spawn decompressors
 #  --hyperlink-format=none: --hostname-bin is only ever spawned for hyperlink output
 #  --no-follow:            don't follow symlinks out of the tree (seatbelt resolves paths, so they'd only error)
 #  --no-ignore-parent:     don't walk *above* the cwd for ignore files
-#  --no-ignore-global:     don't read ~/.gitignore_global &c (there is no HOME anyway)
+#  --no-ignore-global:     don't read ~/.gitignore_global &c
 SAFETY_RG_ARGS: ta.Final[ta.Sequence[str]] = (
     '--no-config',
     '--no-pre',
@@ -92,12 +94,14 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
             *,
             permissions: PermissionDecider,
             exec: ExecOps,  # noqa
+            fs: FsOps,
             sandbox: bool = True,  # Escape hatch for debugging only - this tool is meant to run confined.
     ) -> None:
         super().__init__()
 
         self._permissions = permissions
         self._exec = exec
+        self._fs = fs
         self._sandbox = sandbox
 
     def summarize(self, ctx: ToolContext, params: RipgrepToolParams) -> str:
@@ -109,9 +113,14 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
         if (scope := ctx.env.processes) is None:
             raise ValueError('No process scope configured')
 
-        # Seatbelt matches resolved vnode paths, so grant - and search from - the resolved cwd.
-        cwd = os.path.realpath(cwd)
-        if not os.path.isdir(cwd):
+        # Resolve and validate in the filesystem namespace paired with this execution environment. For local execution
+        # this still gives the host sandbox its canonical vnode path; a remote FsOps will do the work remotely.
+        cwd = await validate_tool_path(self._fs, cwd, cwd)
+        try:
+            cwd_st = await self._fs.stat(cwd)
+        except FileNotFoundError:
+            raise NotADirectoryError(cwd) from None
+        if not cwd_st.is_dir:
             raise NotADirectoryError(cwd)
 
         #
@@ -130,7 +139,12 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
             FsPermissionTarget(cwd, 'r'),
         )
 
-        rg = os.path.realpath(check.not_none(shutil.which('rg')))
+        if self._sandbox:
+            # A platform Sandbox is necessarily local, and needs the host executable's canonical path in its policy.
+            # Container-backed bindings disable this sandbox and leave `rg` target-relative.
+            rg = os.path.realpath(check.not_none(shutil.which('rg')))
+        else:
+            rg = 'rg'
 
         cmd = [
             rg,
@@ -158,15 +172,22 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
                 private_tmp=False,
             )))
 
-        # A minimal environment: rg must not find a real HOME (~/.gitignore_global &c), and the harness's own environ
-        # (api keys...) has no business inside the sandbox. Locale vars pass through for correct unicode handling.
-        env: dict[str, str] = {
-            'PATH': '/usr/bin:/bin',
-            'HOME': '/var/empty',
-        }
-        for k in ('LANG', 'LC_ALL', 'LC_CTYPE'):
-            if (v := os.environ.get(k)) is not None:
-                env[k] = v
+        env: dict[str, str] | None
+        if self._sandbox:
+            # A minimal environment: rg must not find a real HOME (~/.gitignore_global &c), and the harness's own
+            # environment (api keys...) has no business inside the local sandbox. Locale vars pass through for correct
+            # unicode handling.
+            env = {
+                'PATH': '/usr/bin:/bin',
+                'HOME': '/var/empty',
+            }
+            for k in ('LANG', 'LC_ALL', 'LC_CTYPE'):
+                if (v := os.environ.get(k)) is not None:
+                    env[k] = v
+        else:
+            # Inherit from the selected execution environment: local when local, remote when remote. The explicit
+            # safety args above prevent rg from consuming its global config and ignore files.
+            env = None
 
         result = await self._exec.exec(scope, ExecParams(
             cmd,

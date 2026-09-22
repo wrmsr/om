@@ -1,4 +1,3 @@
-import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -13,6 +12,7 @@ from ...types.tools import ToolResult
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
 from .details import WriteToolResultDetails
+from .paths import validate_tool_path
 
 
 ##
@@ -62,33 +62,32 @@ class WriteTool(ToolClass[WriteToolParams]):
         return params.file_path
 
     async def execute(self, ctx: ToolContext, params: WriteToolParams) -> ToolResult:
-        if os.path.abspath(os.path.realpath(params.file_path)) != params.file_path:
-            raise ValueError('Path must be absolute')
         if ctx.env is None or (cwd := ctx.env.cwd) is None:
             raise ValueError('No working directory configured')
-        if os.path.commonpath((cwd, params.file_path)) != cwd:
-            raise ValueError('Path not under configured working directory')
+        file_path = await validate_tool_path(self._fs, params.file_path, cwd)
 
         await self._permissions.check_allowed(
             PermissionRequestor(tool_context=ctx),
-            FsPermissionTarget(params.file_path, 'w'),
+            FsPermissionTarget(file_path, 'w'),
         )
 
-        created = not os.path.exists(params.file_path)
-        if not created:
-            if not params.overwrite:
-                raise ValueError('Path already exists')
-            if not os.path.isfile(params.file_path):
-                raise ValueError('Path already exists and is not a file')
-
         contents_b = params.contents.encode('utf-8')
-        await self._fs.write_file(params.file_path, contents_b)
+        try:
+            wr = await self._fs.write_file(
+                file_path,
+                contents_b,
+                overwrite=params.overwrite,
+            )
+        except FileExistsError:
+            raise ValueError('Path already exists') from None
+        except IsADirectoryError:
+            raise ValueError('Path already exists and is not a file') from None
 
         return ToolResult(
             content=llm.TextContent('The file has been written successfully.'),
             details=WriteToolResultDetails(
-                path=params.file_path,
+                path=file_path,
                 num_bytes=len(contents_b),
-                created=created,
+                created=wr.created,
             ),
         )

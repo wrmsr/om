@@ -49,6 +49,9 @@ async def test_process_tools_interactive():
             )
             assert 'Started background process' in out
             pid = next(iter(m.root.processes))
+            proc = m.root.processes[pid]
+            assert proc.spec.argv[:2] == ('bash', '-c')
+            assert proc.spec.env is None
 
             # list shows it, running, with its label
             lout = await lst.execute(ctx, ProcessListToolParams())
