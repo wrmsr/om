@@ -67,7 +67,7 @@ json5==0.15.0
 # c/libpq
 psycopg2==2.9.13
 # py/cy
-psycopg==3.3.5
+psycopg==3.3.6
 
 mysql-connector-python==26.7.0
 mysqlclient==2.3.0; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
@@ -152,9 +152,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.98
-botocore==1.43.98
-types-boto3==1.43.98
+boto3==1.43.99
+botocore==1.43.99
+types-boto3==1.43.99
 botocore-stubs==1.43.67
 
 antlr4-python3-runtime==4.13.2
