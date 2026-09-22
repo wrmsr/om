@@ -590,13 +590,19 @@ class Qwen35:
         static: bool = True,
         sampler: Sampler | None = None,
         spec: int = 0,
+        capacity: int | None = None,
     ) -> list[int]:
         """
         Generation. Prefill goes through `forward` (chunked); decode then runs the captured static step
         (`static=True`, the fast path) or keeps growing the functional cache (`static=False`, the reference).
         `sampler` defaults to greedy. `spec=k` (needs the MTP head loaded) drafts k tokens per round with the
-        draft head and verifies them in one target step. Yields token ids through on_token as they are produced.
+        draft head and verifies them in one target step. `capacity` pins the decode buffers' length (rounded up
+        to a power of two); the captured / compiled steps are specific to it, so callers that want to reuse them
+        across generations -- a warm-up, a server -- should pass the same value every time. Default: just enough
+        for this call. Yields token ids through on_token as they are produced.
         """
+
+        capacity = max(capacity or 0, len(prompt_ids) + max_new_tokens + spec + 2)
 
         ops = self.ops
         sampler = sampler or Sampler()
@@ -622,7 +628,7 @@ class Qwen35:
                 hidden,
                 k=spec,
                 sampler=sampler,
-                capacity=len(prompt_ids) + max_new_tokens + spec + 2,
+                capacity=capacity,
             )
             self.last_spec = spec_dec
             while len(out) < max_new_tokens:
@@ -634,7 +640,7 @@ class Qwen35:
                 break
             return out
 
-        dec = Decoder(self, cache, capacity=len(prompt_ids) + max_new_tokens + 1) if static else None
+        dec = Decoder(self, cache, capacity=capacity) if static else None
 
         def draw(row: Array) -> int:  # row: [1, V] on the device -> one token id; only that id leaves the device
             t = sampler.sample(row)

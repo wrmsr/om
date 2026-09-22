@@ -124,6 +124,14 @@ def main() -> None:
         help='torch.compile the captured steps (fuses the small ops between the big kernels); slow first run',
     )
     ap.add_argument(
+        '--capacity',
+        type=int,
+        default=None,
+        help='pin the decode buffers (KV positions) to this length, rounded up to a power of two; the captured and '
+             'compiled steps are specific to it, so pin it to your working context (e.g. 8192) and every prompt '
+             'reuses them. Default: prompt + new tokens',
+    )
+    ap.add_argument(
         '--warmup',
         action='store_true',
         help='run a short throwaway generation first so graph capture / kernel compile stay out of the timing',
@@ -204,9 +212,11 @@ def main() -> None:
         if i is not None
     }
 
+    capacity = max(args.capacity or 0, len(ids) + args.max_new_tokens + args.spec + 2)
     if args.warmup:
         t0 = time.time()
-        model.generate(ids, max_new_tokens=max(8, 2 * args.spec + 2), sampler=Sampler(), spec=args.spec)
+        # same capacity as the real run, or the warm-up compiles/captures steps for the wrong shapes
+        model.generate(ids, max_new_tokens=max(8, 2 * args.spec + 2), sampler=Sampler(), spec=args.spec, capacity=capacity)  # noqa
         print(f'[gen] warm-up (capture + compile) {time.time() - t0:.1f}s')
         if args.compile and getattr(ops, 'compile_cache', None):
             from ..backends.torch import save_compile_cache
@@ -231,6 +241,7 @@ def main() -> None:
         static=not args.functional,
         sampler=sampler,
         spec=args.spec,
+        capacity=capacity,
     )
     sys.stdout.write(streamer.flush())
     dt = time.time() - t0

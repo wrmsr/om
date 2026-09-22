@@ -157,7 +157,10 @@ What remains in the graph after the two kernels is glue -- norms, casts, gates, 
 is graph-captured, so inductor fuses that glue into a few generated kernels. Step functions take everything as
 arguments (tables, buffers), are built once per shape and cached on the model, so every Decoder -- warm-up, each
 `generate`, the draft head's -- reuses the same compiled function instead of re-tracing 64 layers (that
-re-trace was ~20 s a pop). The first process pays the full compile; with `--cache-dir`, `--warmup` then saves
+re-trace was ~20 s a pop). Compiled and captured steps are specific to the buffer capacity, so `--capacity`
+pins it (rounded up to a power of two) and the warm-up, every prompt and a server all share the same steps;
+without it a warm-up sized for 8 tokens and a run sized for 512 compile twice. The first process pays the full
+compile; with `--cache-dir`, `--warmup` then saves
 `torch.compiler` artifacts to `<cache_dir>/torch-compile.bin` and later processes load them (checked on CPU:
 21 s -> 4.6 s cold start on the synthetic model; compiled speculative decode reproduces plain greedy exactly).
 
