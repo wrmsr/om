@@ -52,6 +52,7 @@ omllm/agent/exec/_dataclasses.py linguist-generated
 omllm/agent/exec/ripgrep/_dataclasses.py linguist-generated
 omllm/agent/fs/_dataclasses.py linguist-generated
 omllm/agent/permissions/_dataclasses.py linguist-generated
+omllm/agent/remote/_amalg.py linguist-generated
 omllm/agent/web/_dataclasses.py linguist-generated
 omllm/agent/web/backends/google/_dataclasses.py linguist-generated
 omllm/agent/web/backends/tavily/_dataclasses.py linguist-generated

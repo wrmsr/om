@@ -216,6 +216,20 @@ with _lang.auto_proxy_init(
 
     ##
 
+    from .remote.client import (  # noqa
+        RemoteAgentClient,
+        RemoteFsOps,
+        RemoteProcess,
+        RemoteProcessManager,
+    )
+
+    from .remote.payload import (  # noqa
+        RemoteAgentPayloadFile,
+        get_remote_agent_payload_src,
+    )
+
+    ##
+
     from .tools.classes import (  # noqa
         ToolClass,
     )

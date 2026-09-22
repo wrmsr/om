@@ -53,7 +53,7 @@ class RpcPongMessage:
     id: int
 
 
-RpcMessage = ta.Union[RpcRequestMessage, RpcResultMessage, RpcErrorMessage, RpcCancelMessage, RpcNotificationMessage, RpcPingMessage, RpcPongMessage]  # ta.TypeAlias  # noqa: E501
+RpcMessage = ta.Union[RpcRequestMessage, RpcResultMessage, RpcErrorMessage, RpcCancelMessage, RpcNotificationMessage, RpcPingMessage, RpcPongMessage]  # ta.TypeAlias  # noqa: E501  # om-amalg-typing-no-move
 
 
 ##
