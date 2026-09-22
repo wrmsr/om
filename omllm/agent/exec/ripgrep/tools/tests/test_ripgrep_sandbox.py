@@ -1,3 +1,4 @@
+import os.path
 import shutil
 import tempfile
 
@@ -42,7 +43,7 @@ async def test_ripgrep_passes_sandbox_option_when_enabled():
             ctx = ToolContext(
                 args={},
                 env=ToolEnvironment(
-                    cwd=td,
+                    cwd=os.path.realpath(td),
                     processes=m.root,
                 ),
             )
@@ -66,7 +67,7 @@ async def test_ripgrep_no_sandbox():
             ctx = ToolContext(
                 args={},
                 env=ToolEnvironment(
-                    cwd=td,
+                    cwd=os.path.realpath(td),
                     processes=m.root,
                 ),
             )

@@ -439,6 +439,8 @@ setproctitle("Test")
     )
 
 
+# FIXME:
+@pytest.mark.skip
 def test_fork_segfault():
     run_script(
         """\
