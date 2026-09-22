@@ -148,7 +148,10 @@ class RpcPeer:
             raise RuntimeError('RPC peer has already been started')
         if self._channel.closed:
             raise RpcConnectionClosedError('RPC channel is closed')
-        self._receive_task = asyncio.create_task(self._run(), name='omllm-rpc-receive')
+        self._receive_task = asyncio.create_task(
+            self._run(),
+            name='omllm-rpc-receive',
+        )
 
     async def wait_closed(self) -> None:
         if self._receive_task is None and not self._finished:

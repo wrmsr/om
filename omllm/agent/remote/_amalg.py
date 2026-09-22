@@ -55,7 +55,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/handlers.py', sha1='123f3c9e2c61649e7d65192cd0f559fefd705a57'),
             dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
-            dict(path='../../core/rpc/peers.py', sha1='95dc0e1b4a2228d61f94e16b08a67860b4a84731'),
+            dict(path='../../core/rpc/peers.py', sha1='7355153cae5fa40f217d732ba0b6c586506b992c'),
             dict(path='server.py', sha1='081ea730f9f5413a695aa374ad30a6e48a65e277'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
@@ -2275,7 +2275,10 @@ class RpcPeer:
             raise RuntimeError('RPC peer has already been started')
         if self._channel.closed:
             raise RpcConnectionClosedError('RPC channel is closed')
-        self._receive_task = asyncio.create_task(self._run(), name='omllm-rpc-receive')
+        self._receive_task = asyncio.create_task(
+            self._run(),
+            name='omllm-rpc-receive',
+        )
 
     async def wait_closed(self) -> None:
         if self._receive_task is None and not self._finished:
