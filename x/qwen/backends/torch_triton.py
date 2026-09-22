@@ -317,11 +317,13 @@ if HAVE_TRITON:
         The same GEMV as _qlinear_kernel without tensor cores: for M <= BLOCK_M (<= 8) rows the products are plain
         FMAs reduced along K in registers, so the dequantized weight tile never goes through shared memory -- what
         every int4 GEMV in llama.cpp / exllama does for small M. Which formulation streams faster on a given GPU
-        is for the tuner to decide (GemvConfig.fma).
+        is for the tuner to decide (GemvConfig.fma). Rows are accumulated into a [BLOCK_M, BLOCK_N] tile with a
+        masked add per row (Triton has no row assignment; a per-row list does not survive its loops).
         """
 
         pid_n = tl.program_id(0)
         pid_s = tl.program_id(1)
+        rm = tl.arange(0, BLOCK_M)
         rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
         n_mask = rn < N
         n_groups = K // GROUP
@@ -329,9 +331,7 @@ if HAVE_TRITON:
         k_hi = k_lo + K // SPLIT_K
         G: tl.constexpr = BLOCK_K // GROUP
         rg = tl.arange(0, G)
-        accs = []
-        for mi in tl.static_range(BLOCK_M):
-            accs.append(tl.zeros((BLOCK_N,), dtype=tl.float32))
+        acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
         if BITS == 4:
             KB: tl.constexpr = BLOCK_K // 2
             GB: tl.constexpr = GROUP // 2
@@ -348,10 +348,11 @@ if HAVE_TRITON:
                 lo = tl.reshape(tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
                 hi = tl.reshape(tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
                 for mi in tl.static_range(BLOCK_M):
-                    if mi < M:
-                        xe = tl.load(x_ptr + mi * stride_xm + ke).to(tl.float32)
-                        xo = tl.load(x_ptr + mi * stride_xm + ke + 1).to(tl.float32)
-                        accs[mi] += tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)
+                    xm = (ke < K) & (mi < M)
+                    xe = tl.load(x_ptr + mi * stride_xm + ke, mask=xm, other=0.0).to(tl.float32)
+                    xo = tl.load(x_ptr + mi * stride_xm + ke + 1, mask=xm, other=0.0).to(tl.float32)
+                    row = tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)  # [BLOCK_N]
+                    acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
         else:
             rk0 = tl.arange(0, BLOCK_K)
             for k0 in range(k_lo, k_hi, BLOCK_K):
@@ -364,13 +365,13 @@ if HAVE_TRITON:
                 b = b.to(tl.float32)[:, :, None]
                 w = tl.reshape(tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b, (BLOCK_N, BLOCK_K))
                 for mi in tl.static_range(BLOCK_M):
-                    if mi < M:
-                        xt = tl.load(x_ptr + mi * stride_xm + rk).to(tl.float32)
-                        accs[mi] += tl.sum(w * xt[None, :], 1)
+                    xm = (rk < K) & (mi < M)
+                    xt = tl.load(x_ptr + mi * stride_xm + rk, mask=xm, other=0.0).to(tl.float32)
+                    row = tl.sum(w * xt[None, :], 1)
+                    acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
         y_base = y_ptr + pid_s * M * stride_ym
-        for mi in tl.static_range(BLOCK_M):
-            if mi < M:
-                tl.store(y_base + mi * stride_ym + rn, accs[mi].to(y_ptr.dtype.element_ty), mask=n_mask)
+        y = acc.to(y_ptr.dtype.element_ty)
+        tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=(rm[:, None] < M) & n_mask[None, :])
 
 
 def _block_k(k: int, cap: int = 128) -> int:
