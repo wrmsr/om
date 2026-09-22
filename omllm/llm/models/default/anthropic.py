@@ -54,9 +54,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='anthropic',
-            id='claude-opus-5',
+            id='claude-opus-5.5',
         ),
-        name='Claude Opus 5',
+        name='Claude Opus 5.5',
         backend='anthropic-messages',
         cache=CacheCapabilities(
             control_style='anthropic',

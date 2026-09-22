@@ -23,6 +23,7 @@ from ..payload import get_remote_agent_payload_src
 ##
 
 
+# FIXME: wow
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 _PYTHON_38 = _REPO_ROOT / '.venvs' / '8' / 'bin' / 'python'
 _PYTHON = str(_PYTHON_38) if _PYTHON_38.is_file() else sys.executable

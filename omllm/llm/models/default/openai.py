@@ -22,14 +22,14 @@ _BASE_URL = 'https://api.openai.com/v1'
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
     ##
-    # 5.6
+    # 6
 
     Model(
         key=ModelKey(
             provider='openai',
-            id='gpt-5.6-sol',
+            id='gpt-6-astra',
         ),
-        name='GPT 5.6 Sol',
+        name='GPT 6 Astra',
         backend='openai-responses',
         cache=CacheCapabilities(
             control_style='openai_ttl',
@@ -38,12 +38,57 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             }),
             key=True,
         ),
-        limits=modeldb_model_limits('openai', 'gpt-5.6-sol'),
-        pricing=modeldb_token_pricing('openai', 'gpt-5.6-sol'),
+        limits=modeldb_model_limits('openai', 'gpt-6-astra'),
+        pricing=modeldb_token_pricing('openai', 'gpt-6-astra'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),
     ),
+
+    Model(
+        key=ModelKey(
+            provider='openai',
+            id='gpt-6-sol',
+        ),
+        name='GPT 6 Sol',
+        backend='openai-responses',
+        cache=CacheCapabilities(
+            control_style='openai_ttl',
+            retentions=frozenset({
+                CacheRetention.THIRTY_MINUTES,
+            }),
+            key=True,
+        ),
+        limits=modeldb_model_limits('openai', 'gpt-6-sol'),
+        pricing=modeldb_token_pricing('openai', 'gpt-6-sol'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    Model(
+        key=ModelKey(
+            provider='openai',
+            id='gpt-6-luna',
+        ),
+        name='GPT 6 Luna',
+        backend='openai-responses',
+        cache=CacheCapabilities(
+            control_style='openai_ttl',
+            retentions=frozenset({
+                CacheRetention.THIRTY_MINUTES,
+            }),
+            key=True,
+        ),
+        limits=modeldb_model_limits('openai', 'gpt-6-luna'),
+        pricing=modeldb_token_pricing('openai', 'gpt-6-luna'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    ##
+    # 5.6
 
     Model(
         key=ModelKey(
@@ -61,27 +106,6 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         limits=modeldb_model_limits('openai', 'gpt-5.6-terra'),
         pricing=modeldb_token_pricing('openai', 'gpt-5.6-terra'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
-    ),
-
-    Model(
-        key=ModelKey(
-            provider='openai',
-            id='gpt-5.6-luna',
-        ),
-        name='GPT 5.6 Luna',
-        backend='openai-responses',
-        cache=CacheCapabilities(
-            control_style='openai_ttl',
-            retentions=frozenset({
-                CacheRetention.THIRTY_MINUTES,
-            }),
-            key=True,
-        ),
-        limits=modeldb_model_limits('openai', 'gpt-5.6-luna'),
-        pricing=modeldb_token_pricing('openai', 'gpt-5.6-luna'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),

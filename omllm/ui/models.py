@@ -40,7 +40,7 @@ ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
 
     Model(
         name='claude-opus',
-        key=llm.ModelKey('anthropic', 'claude-opus-5'),
+        key=llm.ModelKey('anthropic', 'claude-opus-5.5'),
         api_key_name='anthropic_api_key',
     ),
 
@@ -108,7 +108,7 @@ ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
 
     Model(
         name='gpt-sol',
-        key=llm.ModelKey('openai', 'gpt-5.6-sol'),
+        key=llm.ModelKey('openai', 'gpt-6-sol'),
         api_key_name='openai_api_key',
     ),
 
@@ -121,7 +121,7 @@ ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         name='gpt-luna',
         aliases=['gpt'],
-        key=llm.ModelKey('openai', 'gpt-5.6-luna'),
+        key=llm.ModelKey('openai', 'gpt-6-luna'),
         api_key_name='openai_api_key',
     ),
 
