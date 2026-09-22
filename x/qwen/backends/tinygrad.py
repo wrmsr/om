@@ -26,7 +26,7 @@ from ..quant import QWeight
 ##
 
 
-DTYPES = {'f32': dtypes.float32, 'f16': dtypes.float16, 'bf16': dtypes.bfloat16}
+DTYPES = {'f32': dtypes.float32, 'f16': dtypes.float16, 'bf16': dtypes.bfloat16, 'i32': dtypes.int32}
 
 
 @dc.dataclass()
@@ -161,6 +161,25 @@ class TinygradOps(Ops):
 
     def softmax(self, x, axis):
         return x.softmax(axis)
+
+    def log(self, x):
+        return x.log()
+
+    def argmax(self, x, axis):
+        return x.argmax(axis=axis).cast(dtypes.int32)
+
+    def amax(self, x, axis, keepdims=False):
+        return x.max(axis=axis, keepdim=keepdims)
+
+    def topk(self, x, k):
+        v, i = x.topk(k, dim=-1, largest=True)  # sorted descending (checked)
+        return v, i.cast(dtypes.int32)
+
+    def seed(self, seed):
+        Tensor.manual_seed(seed)
+
+    def random_uniform(self, shape):
+        return Tensor.rand(*shape, dtype=dtypes.float32).to(self.device)
 
     # weights
 

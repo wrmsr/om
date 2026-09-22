@@ -38,6 +38,7 @@ DTYPE_NAMES = (
     'f32',
     'f16',
     'bf16',
+    'i32',
 )
 
 
@@ -162,6 +163,39 @@ class Ops(abc.ABC):
 
     def silu(self, x: Array) -> Array:
         return x * self.sigmoid(x)
+
+    @abc.abstractmethod
+    def log(self, x: Array) -> Array:
+        pass
+
+    # sampling primitives (see model.Sampler: everything runs on the device, one small int array leaves it)
+
+    @abc.abstractmethod
+    def argmax(self, x: Array, axis: int) -> Array:
+        """Integer array."""
+
+    @abc.abstractmethod
+    def amax(self, x: Array, axis: int, keepdims: bool = False) -> Array:
+        pass
+
+    @abc.abstractmethod
+    def topk(self, x: Array, k: int) -> tuple[Array, Array]:
+        """The k largest along the last axis, sorted descending: (values, integer indices)."""
+
+    @abc.abstractmethod
+    def seed(self, seed: int) -> None:
+        pass
+
+    @abc.abstractmethod
+    def random_uniform(self, shape: tuple[int, ...]) -> Array:
+        """float32 in [0, 1)."""
+
+    def index_add(self, x: Array, idx: Array, vals: Array) -> Array:
+        """x [V] with vals [n] added at idx [n] (duplicates accumulate); returns the updated array. Reference:
+        a one-hot sum, O(n V)."""
+
+        oh = self.cast(self.arange(x.shape[0])[None, :] == idx[:, None], x.dtype)  # [n, V]
+        return x + self.sum(oh * self.cast(vals, x.dtype)[:, None], 0)
 
     @abc.abstractmethod
     def softmax(self, x: Array, axis: int) -> Array:
@@ -480,6 +514,8 @@ class NumpyOps(Ops):
     def dtype(self, name):
         if name not in DTYPE_NAMES:
             raise ValueError(name)
+        if name == 'i32':
+            return np.int32
         return self.precision
 
     def array(self, a, dtype=None):
@@ -553,6 +589,32 @@ class NumpyOps(Ops):
         m = np.max(x, axis=axis, keepdims=True)
         e = np.exp(x - m)
         return e / np.sum(e, axis=axis, keepdims=True)
+
+    def log(self, x):
+        return np.log(x)
+
+    def argmax(self, x, axis):
+        return np.argmax(x, axis=axis).astype(np.int32)
+
+    def amax(self, x, axis, keepdims=False):
+        return np.amax(x, axis=axis, keepdims=keepdims)
+
+    def topk(self, x, k):
+        idx = np.argsort(-x, axis=-1, kind='stable')[..., :k]
+        return np.take_along_axis(x, idx, axis=-1), idx.astype(np.int32)
+
+    def seed(self, seed):
+        self.rng = np.random.default_rng(seed)
+
+    def random_uniform(self, shape):
+        if not hasattr(self, 'rng'):
+            self.rng = np.random.default_rng(0)
+        return self.rng.random(shape, dtype=np.float32)
+
+    def index_add(self, x, idx, vals):
+        out = np.array(x, copy=True)
+        np.add.at(out, np.asarray(idx, dtype=np.int64), np.asarray(vals, dtype=out.dtype))
+        return out
 
     def weight(self, w, dtype):
         return np.asarray(w, dtype=dtype)

@@ -21,7 +21,7 @@ from .torch_triton import qlinear
 ##
 
 
-DTYPES = {'f32': torch.float32, 'f16': torch.float16, 'bf16': torch.bfloat16}
+DTYPES = {'f32': torch.float32, 'f16': torch.float16, 'bf16': torch.bfloat16, 'i32': torch.int32}
 
 
 @dc.dataclass()
@@ -213,6 +213,30 @@ class TorchOps(Ops):
 
     def softmax(self, x, axis):
         return torch.softmax(x, dim=axis)
+
+    def log(self, x):
+        return torch.log(x)
+
+    def argmax(self, x, axis):
+        return torch.argmax(x, dim=axis).to(torch.int32)
+
+    def amax(self, x, axis, keepdims=False):
+        return torch.amax(x, dim=axis, keepdim=keepdims)
+
+    def topk(self, x, k):
+        v, i = torch.topk(x, k, dim=-1, sorted=True)
+        return v, i.to(torch.int32)
+
+    def seed(self, seed):
+        self._gen = torch.Generator(device=self.device).manual_seed(seed)
+
+    def random_uniform(self, shape):
+        if not hasattr(self, '_gen'):
+            self.seed(0)
+        return torch.rand(shape, dtype=torch.float32, device=self.device, generator=self._gen)
+
+    def index_add(self, x, idx, vals):
+        return x.index_add(0, idx.to(torch.int64), vals.to(x.dtype))
 
     # weights
 

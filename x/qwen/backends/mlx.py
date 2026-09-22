@@ -25,6 +25,7 @@ DTYPES = {
     'f32': mx.float32,
     'f16': mx.float16,
     'bf16': mx.bfloat16,
+    'i32': mx.int32,
 }
 
 
@@ -161,6 +162,34 @@ class MlxOps(Ops):
 
     def softmax(self, x, axis):
         return mx.softmax(x, axis=axis)
+
+    def log(self, x):
+        return mx.log(x)
+
+    def argmax(self, x, axis):
+        return mx.argmax(x, axis=axis).astype(mx.int32)
+
+    def amax(self, x, axis, keepdims=False):
+        return mx.max(x, axis=axis, keepdims=keepdims)
+
+    def topk(self, x, k):
+        # mx.topk returns unsorted values without indices: partition, gather, then sort the k
+        idx = mx.argpartition(-x, k - 1, axis=-1)[..., :k] if k < x.shape[-1] else mx.argsort(-x, axis=-1)
+        vals = mx.take_along_axis(x, idx, axis=-1)
+        order = mx.argsort(-vals, axis=-1)
+        return mx.take_along_axis(vals, order, axis=-1), mx.take_along_axis(idx, order, axis=-1).astype(mx.int32)
+
+    def seed(self, seed):
+        self._key = mx.random.key(seed)
+
+    def random_uniform(self, shape):
+        if not hasattr(self, '_key'):
+            self.seed(0)
+        self._key, sub = mx.random.split(self._key)
+        return mx.random.uniform(shape=shape, key=sub, dtype=mx.float32)
+
+    def index_add(self, x, idx, vals):
+        return x.at[idx].add(vals.astype(x.dtype))
 
     # weights
 

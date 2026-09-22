@@ -193,15 +193,19 @@ python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 
 python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 --preset thinking -p "..."
 ```
 
-`Sampler` does temperature / top-k / top-p / min-p / presence penalty on the host; `--preset thinking` and
-`non-thinking` are Qwen's published settings. `test_parity.py::test_spec_decode_parity` checks that speculative
+`Sampler` does temperature / top-k / top-p / min-p / presence and frequency penalties on the device, as `Ops`
+calls over the logits (top-k, then top-p/min-p among the candidates, then a Gumbel-max draw; the penalties read
+a device histogram of observed tokens), so a decode step moves one token id off the device and a speculative
+round moves 2k+1 of them instead of a 4 MB logits block. `--preset thinking` and `non-thinking` are Qwen's
+published settings; `test_sampler.py` checks the draws against the exact distribution on every backend. `test_parity.py::test_spec_decode_parity` checks that speculative
 decoding reproduces greedy decoding exactly on every backend, with the real head and with oracle drafts
 corrupted at each index so every acceptance length is exercised.
 
 ## Where to go next (in order)
 
 1. **Rejection sampling** for the verify step (higher acceptance when sampling), and `--lm-head-draft`-style
-   proposal on a vocabulary subset to cut the draft head's output matmul.
+   proposal on a vocabulary subset to cut the draft head's output matmul. Folding the sampler into the captured
+   step would remove its ~10 small launches per round.
 2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
 3. **Kernel tuning** — sweep `triton_block_n` / `num_warps`, add split-K for the narrow projections, and put

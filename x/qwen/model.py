@@ -582,6 +582,7 @@ class Qwen35:
 
         ops = self.ops
         sampler = sampler or Sampler()
+        sampler.bind(ops, self.cfg.vocab_size)
         cache = Cache(self.cfg)
         logits, hidden = self.forward(np.array([prompt_ids]), cache, return_hidden=True)
         out: list[int] = []
@@ -616,15 +617,20 @@ class Qwen35:
             return out
 
         dec = Decoder(self, cache, capacity=len(prompt_ids) + max_new_tokens + 1) if static else None
-        nxt = sampler.sample(ops.numpy(logits[0, -1]))
+
+        def draw(row: Array) -> int:  # row: [1, V] on the device -> one token id; only that id leaves the device
+            t = sampler.sample(row)
+            sampler.observe(t)
+            return int(ops.numpy(t)[0])
+
+        nxt = draw(logits[:, -1])
         for _ in range(max_new_tokens):
             if emit(nxt):
                 break
             if dec is not None:
-                row = ops.numpy(dec.step(nxt))[0]
+                nxt = draw(dec.step(nxt))
             else:
-                row = ops.numpy(self.forward(np.array([[nxt]]), cache, last_only=True))[0, -1]
-            nxt = sampler.sample(row)
+                nxt = draw(self.forward(np.array([[nxt]]), cache, last_only=True)[:, -1])
         return out
 
 
@@ -712,9 +718,15 @@ def block_params(params: dict[str, Weight], prefix: str) -> dict[str, Weight]:
 
 class Sampler:
     """
-    Host-side sampling over a float32 logits row: temperature -> presence/frequency penalties -> top-k ->
-    top-p -> min-p -> multinomial. temperature <= 0 is greedy (argmax) and ignores the rest. Qwen's published
-    presets: thinking t=1.0 top-p=0.95 top-k=20; non-thinking t=0.7 top-p=0.8 top-k=20 presence=1.5.
+    Sampling on the device: temperature -> presence/frequency penalties -> top-k -> top-p -> min-p ->
+    Gumbel-max draw, all as `Ops` calls on a [T, V] float32 logits array, so what leaves the device is T token
+    ids. temperature <= 0 is greedy (an argmax) and ignores the rest. Qwen's published presets: thinking t=1.0
+    top-p=0.95 top-k=20; non-thinking t=0.7 top-p=0.8 top-k=20 presence=1.5.
+
+    top-p and min-p are applied among the top-k candidates (top-k must be > 0 for them; with top-k=0 they sort
+    the whole vocabulary). The penalties read a device histogram of the tokens `observe`d so far; rows sampled in
+    one call share that state, which for speculative verify means a round's k+1 draws see the histogram as of
+    the round's start. `seed` seeds the backend's generator, so the stream differs between backends.
     """
 
     def __init__(
@@ -733,61 +745,59 @@ class Sampler:
         self.min_p = min_p
         self.presence_penalty = presence_penalty
         self.frequency_penalty = frequency_penalty
-        self.rng = np.random.default_rng(seed)
-        self.counts: dict[int, int] = {}  # generated-token histogram for the penalties
+        self.seed = seed
+        self.ops: Ops | None = None
+        self.counts: Array | None = None  # [V] float32 histogram of observed tokens
 
     @property
     def greedy(self) -> bool:
         return self.temperature <= 0
 
-    def observe(self, tok: int) -> None:
-        self.counts[tok] = self.counts.get(tok, 0) + 1
+    @property
+    def penalized(self) -> bool:
+        return bool(self.presence_penalty or self.frequency_penalty)
 
-    def sample(self, logits: np.ndarray) -> int:
-        """One token from a [V] float32 row; records it for the penalties."""
+    def bind(self, ops: Ops, vocab: int) -> None:
+        if self.ops is not ops:
+            self.ops = ops
+            ops.seed(self.seed)
+            self.counts = ops.zeros((vocab,), ops.dtype('f32'))
 
-        tok = self.sample_many(logits[None])[0]
-        return tok
+    def observe(self, toks: Array) -> None:
+        """Record generated tokens (a 1-d int array on the device) for the penalties."""
 
-    def sample_many(self, logits: np.ndarray) -> list[int]:
-        """One token per row of [T, V]; rows are independent (each is conditioned on its own prefix by the caller,
-        as in speculative verify). Records every sampled token."""
+        if self.penalized and self.ops is not None and self.counts is not None:
+            self.counts = self.ops.index_add(self.counts, toks, self.ops.zeros(toks.shape, self.counts.dtype) + 1)
 
-        out = []
-        for row in logits:
-            out.append(self._one(np.asarray(row, dtype=np.float64)))
-        for t in out:
-            self.observe(t)
-        return out
+    def sample(self, logits: Array) -> Array:
+        """logits [T, V] float32 on the device -> [T] int32 token ids on the device."""
 
-    def _one(self, l: np.ndarray) -> int:
+        ops = self.ops
+        if ops is None:
+            raise RuntimeError('bind() first')
+        T, V = logits.shape
         if self.greedy:
-            return int(np.argmax(l))
-        if self.counts and (self.presence_penalty or self.frequency_penalty):
-            idx = np.fromiter(self.counts.keys(), dtype=np.int64)
-            cnt = np.fromiter(self.counts.values(), dtype=np.float64)
-            l = l.copy()
-            l[idx] -= self.presence_penalty + self.frequency_penalty * cnt
-        # narrow to the top-k candidates first (a partial partition, O(V)); everything after works on k values, so
-        # top-p never sorts the 248k-wide vocabulary
-        if self.top_k > 0 and self.top_k < l.shape[0]:
-            cand = np.argpartition(l, -self.top_k)[-self.top_k:]
-        else:
-            cand = np.arange(l.shape[0])
-        z = l[cand] / self.temperature
-        p = np.exp(z - z.max())
-        p /= p.sum()
+            return ops.argmax(logits, -1)
+        l = logits
+        if self.penalized and self.counts is not None:
+            pen = self.presence_penalty * ops.cast(self.counts > 0, l.dtype) + self.frequency_penalty * self.counts
+            l = l - pen[None, :]
+        k = self.top_k if 0 < self.top_k < V else V
+        vals, idx = ops.topk(l, k)  # [T, k] descending
+        z = vals / self.temperature
+        p = ops.softmax(z, -1)
+        keep = ops.cast(ops.cumsum(p, -1) - p < self.top_p, z.dtype) if self.top_p < 1.0 else None
         if self.min_p > 0:
-            p = np.where(p < self.min_p * p.max(), 0.0, p)
-        if self.top_p < 1.0:
-            order = np.argsort(-p)
-            cum = np.cumsum(p[order])
-            cut = int(np.searchsorted(cum, self.top_p)) + 1
-            keep = np.zeros_like(p)
-            keep[order[:cut]] = p[order[:cut]]
-            p = keep
-        p /= p.sum()
-        return int(cand[self.rng.choice(p.shape[0], p=p)])
+            km = ops.cast(p >= self.min_p * ops.amax(p, -1, keepdims=True), z.dtype)
+            keep = km if keep is None else keep * km
+        if keep is not None:
+            z = z + (1 - keep) * -1e30
+        # Gumbel-max: argmax(z + g), g = -log(-log(u)), is a draw from softmax(z)
+        u = ops.random_uniform((T, k))
+        g = -ops.log(-ops.log(u * (1 - 2e-7) + 1e-7))
+        choice = ops.argmax(z + g, -1)  # [T] index into the k candidates
+        oh = ops.cast(ops.arange(k)[None, :] == choice[:, None], ops.dtype('f32'))
+        return ops.cast(ops.sum(ops.cast(idx, ops.dtype('f32')) * oh, -1) + 0.5, ops.dtype('i32'))
 
 
 ##
@@ -881,18 +891,20 @@ class Decoder:
         self.seq_len += 1
         return out[0][:, 0]
 
-    def verify(self, toks: list[int]) -> tuple[Array, Array, list[Array]]:
+    def verify(self, toks: 'list[int] | Array') -> tuple[Array, Array, list[Array]]:
         """
-        Speculative verify: run T = len(toks) tokens at positions seq_len.. in one captured step. Returns logits
-        [B, T, V], the final-normed hidden [B, T, hidden], and the per-layer state with the DeltaNet entries
-        stacked per token. Nothing is committed until `commit`.
+        Speculative verify: run T tokens (a list of ids, or a [1, T] int array already on the device) at
+        positions seq_len.. in one captured step. Returns logits [B, T, V], the final-normed hidden
+        [B, T, hidden], and the per-layer state with the DeltaNet entries stacked per token. Nothing is
+        committed until `commit`.
         """
 
         ops = self.ops
-        T = len(toks)
+        if isinstance(toks, list):
+            toks = ops.array(np.asarray(toks, dtype=np.int32).reshape(1, len(toks)))
+        T = toks.shape[1]
         self.ensure_capacity(self.seq_len + T)
-        ids = np.asarray(toks, dtype=np.int32).reshape(1, T)
-        out = self._fn(T, True, True)(ops.array(ids), ops.scalar(self.seq_len), *self.flat)
+        out = self._fn(T, True, True)(toks, ops.scalar(self.seq_len), *self.flat)
         return out[0], out[1], list(out[2:])
 
     def commit(self, flat_all: list[Array], n_accept: int) -> None:
@@ -964,7 +976,11 @@ class SpecDecoder:
         self.sampler = sampler
         self.dec = Decoder(model, cache, capacity)
         n = self.dec.seq_len
-        self.next_tok = sampler.sample(ops.numpy(logits[0, -1]))
+        sampler.bind(ops, model.cfg.vocab_size)
+        self.i32 = ops.dtype('i32')
+        self.next_arr = sampler.sample(logits[:, -1])  # [1] on the device
+        sampler.observe(self.next_arr)
+        self.next_tok = int(ops.numpy(self.next_arr)[0])
         # draft-head prefill: entry p uses the target hidden at p and the token at p+1, for p = 0..n-1
         mtoks = np.asarray(list(prompt_ids[1:]) + [self.next_tok], dtype=np.int32)[None]
         mlogits, d, (mk, mv) = self.mtp.prefill(mtoks, hidden[:, :n], 0)
@@ -972,7 +988,7 @@ class SpecDecoder:
         self.mcap = 0
         self.mfns: dict[int, ta.Callable[..., tuple[Array, ...]]] = {}
         self.d_last = d[:, -1:]  # [B, 1, H]
-        self.mlogits_last = ops.numpy(mlogits[0, -1])
+        self.mlogits_last = mlogits[:, -1]  # [1, V] on the device
         self.mseq = n  # draft-head entries with true hidden states
         self.rounds = 0
         self.accepted = 0
@@ -1009,40 +1025,42 @@ class SpecDecoder:
         self._sync_capacity()
         n = self.dec.seq_len
 
-        # draft: d_1 from the last refreshed entry, d_2..d_k by recursion at positions n, n+1, ...
-        drafts = [int(np.argmax(self.mlogits_last))]
+        # draft on the device: d_1 from the last refreshed entry, d_2..d_k by recursion at positions n, n+1, ...
+        # (each a [1] int array; nothing comes to the host until the acceptance check)
+        i32 = self.i32
+        darr = [ops.argmax(self.mlogits_last, -1)]
         hid = self.d_last
         for j in range(1, k):
-            toks = ops.array(np.asarray([[drafts[-1]]], dtype=np.int32))
-            ml, hid, mk, mv = self._mfn(1)(toks, hid, ops.scalar(n - 1 + j), *self.mflat)
+            ml, hid, mk, mv = self._mfn(1)(ops.reshape(darr[-1], (1, 1)), hid, ops.scalar(n - 1 + j), *self.mflat)
             self.mflat = [mk, mv]
-            drafts.append(int(np.argmax(ops.numpy(ml[0, -1]))))
+            darr.append(ops.argmax(ml[:, -1], -1))
         if self.draft_fn is not None:
-            drafts = list(self.draft_fn(n, self.next_tok, k))
+            darr = [ops.array(np.asarray([t], dtype=np.int32)) for t in self.draft_fn(n, self.next_tok, k)]
+        drafts_arr = ops.concat([ops.cast(a, i32) for a in darr], 0)  # [k]
 
-        # verify: [next_tok, d_1..d_k] at positions n..n+k in one target step
-        logits, hidden, flat_all = self.dec.verify([self.next_tok] + drafts)
-        rows = ops.numpy(logits[0])  # [k+1, V]; row i is the target's distribution for position n+i+1
-        targets: list[int] = []
+        # verify: [next_tok, d_1..d_k] at positions n..n+k in one target step; sample the target's k+1 rows on
+        # the device; the only host round-trip of the round is the 2k+1 ids of drafts and targets
+        toks = ops.reshape(ops.concat([ops.cast(self.next_arr, i32), drafts_arr], 0), (1, k + 1))
+        logits, hidden, flat_all = self.dec.verify(toks)
+        targets_arr = self.sampler.sample(logits[0])  # [k+1]; row i is the distribution for position n+i+1
+        both = ops.numpy(ops.concat([drafts_arr, ops.cast(targets_arr, i32)], 0)).tolist()
+        drafts, targets = both[:k], both[k:]
         m = 0
-        for i in range(k + 1):
-            t = self.sampler.sample(rows[i])
-            targets.append(t)
-            if i < k and drafts[i] == t:
-                m += 1
-            else:
-                break
+        while m < k and drafts[m] == targets[m]:
+            m += 1
         committed = [self.next_tok] + drafts[:m]
         self.dec.commit(flat_all, m + 1)
+        self.sampler.observe(targets_arr[:m + 1])  # the accepted drafts equal the targets; plus the correction
+        self.next_arr = targets_arr[m:m + 1]
         self.next_tok = targets[m]
 
         # refresh the draft head over positions n..n+k with true hidden states; entry m is the one that matters
         # (hidden at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh
         # overwrites before anything attends to them
-        rtoks = np.asarray((drafts[:m] + [targets[m]] + drafts[m:])[:k + 1], dtype=np.int32)[None]
-        ml, d, mk, mv = self._mfn(k + 1)(ops.array(rtoks), hidden, ops.scalar(n), *self.mflat)
+        rtoks = ops.reshape(ops.concat([ops.cast(targets_arr[:m + 1], i32), drafts_arr[m:]], 0), (1, k + 1))
+        ml, d, mk, mv = self._mfn(k + 1)(rtoks, hidden, ops.scalar(n), *self.mflat)
         self.mflat = [mk, mv]
-        self.mlogits_last = ops.numpy(ml[0, m])
+        self.mlogits_last = ml[:, m]
         self.d_last = d[:, m:m + 1]
         self.mseq = n + m + 1
         self.rounds += 1
