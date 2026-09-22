@@ -1,5 +1,4 @@
 import asyncio
-import os.path
 
 from omcore import dataclasses as dc
 from omcore import inject as inj
@@ -12,6 +11,7 @@ from ....core import ui
 from ...logs import configure_tui_logging
 from ...types import UiId
 from ..config import Config
+from ..config import TargetCwd
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
 from .input import InputManager
@@ -25,11 +25,6 @@ from .output import display_transcript
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
     config = Config.parse_from_arguments(argv)
-
-    #
-
-    cwd = os.path.abspath(os.path.realpath(config.cwd or os.getcwd()))
-    config = dc.replace(config, cwd=cwd)  # noqa
 
     #
 
@@ -61,6 +56,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         session = await injector[har.Session]
         input_manager = await injector[InputManager]
         text_displayer = await injector[ui.TextDisplayer]
+
+        cwd = (await injector[TargetCwd]).v
 
         proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
 

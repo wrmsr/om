@@ -10,5 +10,12 @@ existing foreground and background process tools need no remote-specific variant
 process groups, retain an unreaped leader until teardown, and are terminated when the RPC connection closes. PTY
 children use a small target-side bootstrap to acquire a controlling terminal before executing the requested argv.
 
-`main.py` is the amalgamation root and `payload.py` loads its generated sibling for a connector. Docker attachment and
-harness injector / CLI selection intentionally live in the next wiring layer, outside this package.
+`main.py` is the amalgamation root and `payload.py` loads its generated sibling. `DockerRemoteAgentConnection` starts
+that payload through `docker exec -i`, owns the resulting RPC client, and tears the Docker process down with the
+connection. `bind_docker_remote_agent` exposes its filesystem and process implementations under the ordinary agent
+interfaces.
+
+The TUI's `--container CONTAINER` option selects these bindings. `--cwd` is interpreted entirely in the target
+namespace; when omitted, the running container's configured working directory is resolved by the remote filesystem.
+Filesystem, process, bash, and ripgrep tools use the remote capabilities. Session storage, model access, permissions,
+eval and web tools, and the rest of the harness remain on the host.

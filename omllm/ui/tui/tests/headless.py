@@ -33,8 +33,6 @@ class DenyingPermissionAsker(agn.PermissionAsker):
 
 def bind_headless_tui(config: Config) -> inj.Elements:
     return inj.as_elements(
-        inj.bind(config),
-
         bind_tui(config),
 
         inj.bind(ui.NopTextDisplayer()),

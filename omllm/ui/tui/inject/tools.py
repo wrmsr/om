@@ -1,3 +1,4 @@
+import os
 import typing as ta
 
 from omcore import inject as inj
@@ -6,6 +7,7 @@ from omcore import lang
 from .... import agent as agn
 from ....core import processes
 from ..config import Config
+from ..config import TargetCwd
 
 
 ##
@@ -26,8 +28,27 @@ def bind_agent_tool_class(tool_cls: type[agn.ToolClass]) -> inj.Elements:
 ##
 
 
+def _provide_local_target_cwd(config: Config) -> TargetCwd:
+    return TargetCwd(os.path.abspath(os.path.realpath(config.cwd or os.getcwd())))
+
+
+async def _provide_remote_target_cwd(config: Config, fs: agn.FsOps) -> TargetCwd:
+    return TargetCwd(await fs.resolve_path(config.cwd or '.'))
+
+
+##
+
+
 def bind_tools(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
+
+    if config.container is not None:
+        lst.extend([
+            agn.bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
+            inj.bind(TargetCwd, singleton=True, to_async_fn=_provide_remote_target_cwd),
+        ])
+    else:
+        lst.append(inj.bind(TargetCwd, singleton=True, to_fn=_provide_local_target_cwd))
 
     if config.eval:
         lst.extend([
@@ -36,9 +57,10 @@ def bind_tools(config: Config) -> inj.Elements:
         ])
 
     if config.exec:
-        lst.extend([
-            processes.bind_process_manager(),
+        if config.container is None:
+            lst.append(processes.bind_process_manager())
 
+        lst.extend([
             inj.bind(agn.ProcessesExecOps, singleton=True),
             inj.bind(agn.ExecOps, to_key=agn.ProcessesExecOps),
 
@@ -62,10 +84,13 @@ def bind_tools(config: Config) -> inj.Elements:
         ])
 
     if config.fs:
-        lst.extend([
-            inj.bind(agn.LocalFsOps, singleton=True),
-            inj.bind(agn.FsOps, to_key=agn.LocalFsOps),
+        if config.container is None:
+            lst.extend([
+                inj.bind(agn.LocalFsOps, singleton=True),
+                inj.bind(agn.FsOps, to_key=agn.LocalFsOps),
+            ])
 
+        lst.extend([
             inj.bind(agn.EditTool, singleton=True),
             bind_agent_tool_class(agn.EditTool),
 

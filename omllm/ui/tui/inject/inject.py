@@ -15,6 +15,8 @@ from .tools import bind_tools
 
 def bind_tui(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = [
+        inj.bind(config),
+
         bind_ui(),
 
         bind_agent(config),

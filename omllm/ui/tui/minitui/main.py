@@ -8,7 +8,6 @@ end of input) drains the pump before the driver stops, so an interrupted turn's 
 rather than being dropped.
 """
 import asyncio
-import os.path
 
 from omcore import check
 from omcore import dataclasses as dc
@@ -23,6 +22,7 @@ from ....core import processes
 from ...logs import configure_tui_logging
 from ...types import UiId
 from ..config import Config
+from ..config import TargetCwd
 from ..inject import AgentEventSubscribers
 from .app import MinituiChatApp
 from .inject import bind_minitui
@@ -67,7 +67,7 @@ class Shutdown:
 ##
 
 
-def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
+def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> tuple[Config, bool]:
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -77,9 +77,6 @@ def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
 
     config, args = Config.parse_from_arguments_(argv, parser=parser)
 
-    cwd = os.path.abspath(os.path.realpath(config.cwd or os.getcwd()))
-    config = dc.replace(config, cwd=cwd)  # noqa
-
     if args.i_am_very_stupid:
         config = dc.replace(
             config,
@@ -87,26 +84,25 @@ def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
             eval=True,
             exec=True,
             fs=True,
-
-            autoexec=[
-                *(config.autoexec or []),
-                '/permissions clear',
-                '/permissions add allow exec {}',
-                f'/permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'',
-                '/echo "YOU ARE VERY STUPID"',
-            ],
         )
 
-    return config
+    return config, args.i_am_very_stupid
+
+
+def _very_stupid_autoexec(cwd: str) -> list[str]:
+    return [
+        '/permissions clear',
+        '/permissions add allow exec {}',
+        f'/permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'',
+        '/echo "YOU ARE VERY STUPID"',
+    ]
 
 
 log = logs.get_module_logger(globals())
 
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
-    config = _parse_config(argv)
-
-    cwd = check.non_empty_str(config.cwd)
+    config, i_am_very_stupid = _parse_config(argv)
 
     #
 
@@ -124,6 +120,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         driver = await injector[mt.AsyncioDriver]
         app = await injector[MinituiChatApp]
         event_renderer = await injector[AgentEventRenderer]
+
+        cwd = check.non_empty_str((await injector[TargetCwd]).v)
 
         proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
 
@@ -173,7 +171,10 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             if config.resume is not None:
                 event_renderer.display_transcript(await session.resume())
 
-            for ax in config.autoexec or []:
+            for ax in [
+                    *(config.autoexec or []),
+                    *(_very_stupid_autoexec(cwd) if i_am_very_stupid else []),
+            ]:
                 pump.submit(ax)
 
             await driver_task

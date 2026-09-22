@@ -66,8 +66,6 @@ def bind_output(config: Config) -> inj.Elements:
 
 def bind_minitui(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = [
-        inj.bind(config),
-
         bind_tui(config),
 
         bind_app(config),

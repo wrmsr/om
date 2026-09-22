@@ -421,6 +421,254 @@ def _process_dataclass__7c1faf80c92934497ca96466bf6336ad94adafa6():
 
 
 @_register(
+    installer_sha1='ccd7f1155fc266626a558ba7a57ab4becbe87de5',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
+            "e, False, True, True), ((('v', True, True, None, True, False, False, None), 'instance', 'missing', None, F"
+            "alse, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), (), (Fa"
+            "lse,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.agent.remote.docker', 'DockerContainerIdt'),
+    ),
+)
+def _process_dataclass__ccd7f1155fc266626a558ba7a57ab4becbe87de5():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__ctx['omcore.dataclasses.impl.concerns.init.InitGenericAnnotations']['v']
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                v=self.v,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.v == other.v
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'v',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.v,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            v: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'v', v)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"{self.v!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='0c6f279f744c362d36c59dd248d2b6883fb55965',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('docker', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('payload_file', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('startup_timeout_s', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False), (('shutdown_timeout_s', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('stderr_tail_bytes', True, True, None, True, True, Fa"
+            "lse, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (Fal"
+            "se,), (False, True, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.agent.remote.docker', 'DockerRemoteAgentConfig'),
+    ),
+)
+def _process_dataclass__0c6f279f744c362d36c59dd248d2b6883fb55965():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                docker=self.docker,
+                payload_file=self.payload_file,
+                startup_timeout_s=self.startup_timeout_s,
+                shutdown_timeout_s=self.shutdown_timeout_s,
+                stderr_tail_bytes=self.stderr_tail_bytes,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.docker == other.docker and
+                self.payload_file == other.payload_file and
+                self.startup_timeout_s == other.startup_timeout_s and
+                self.shutdown_timeout_s == other.shutdown_timeout_s and
+                self.stderr_tail_bytes == other.stderr_tail_bytes
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'docker',
+            'payload_file',
+            'startup_timeout_s',
+            'shutdown_timeout_s',
+            'stderr_tail_bytes',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.docker,
+                self.payload_file,
+                self.startup_timeout_s,
+                self.shutdown_timeout_s,
+                self.stderr_tail_bytes,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            docker: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            payload_file: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            startup_timeout_s: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            shutdown_timeout_s: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            stderr_tail_bytes: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'docker', docker)
+            __dataclass__object_setattr(self, 'payload_file', payload_file)
+            __dataclass__object_setattr(self, 'startup_timeout_s', startup_timeout_s)
+            __dataclass__object_setattr(self, 'shutdown_timeout_s', shutdown_timeout_s)
+            __dataclass__object_setattr(self, 'stderr_tail_bytes', stderr_tail_bytes)
+            self.__post_init__()
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"docker={self.docker!r}")
+            parts.append(f"payload_file={self.payload_file!r}")
+            parts.append(f"startup_timeout_s={self.startup_timeout_s!r}")
+            parts.append(f"shutdown_timeout_s={self.shutdown_timeout_s!r}")
+            parts.append(f"stderr_tail_bytes={self.stderr_tail_bytes!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='6d33af36112d66e1635c48bf9e8b7d7a0db3bf1a',
     spec_keys=(
         (

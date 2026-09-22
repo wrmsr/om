@@ -223,6 +223,18 @@ with _lang.auto_proxy_init(
         RemoteProcessManager,
     )
 
+    from .remote.docker import (  # noqa
+        DockerContainerIdt,
+        DockerRemoteAgentConfig,
+        DockerRemoteAgentConnection,
+        DockerRemoteAgentError,
+        build_docker_remote_agent_argv,
+    )
+
+    from .remote.inject import (  # noqa
+        bind_docker_remote_agent,
+    )
+
     from .remote.payload import (  # noqa
         RemoteAgentPayloadFile,
         get_remote_agent_payload_src,
