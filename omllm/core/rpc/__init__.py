@@ -44,4 +44,3 @@ from .peers import (  # noqa
     DEFAULT_RPC_MAX_TRACEBACK_CHARS,
     RpcPeer,
 )
-
