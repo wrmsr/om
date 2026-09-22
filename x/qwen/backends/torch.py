@@ -326,6 +326,11 @@ class TorchOps(Ops):
             q = q[:, 0::2] | (q[:, 1::2] << 4)
         return TorchQWeight(q.contiguous(), scale.to(dtype), lo.to(dtype), bits, group, (out, inn))
 
+    def head_rows(self, w, n):
+        if isinstance(w, TorchQWeight):
+            return TorchQWeight(w.q[:n], w.scale[:n], w.bias[:n], w.bits, w.group, (n, w.shape[1]))
+        return w[:n]
+
     def export_qweight(self, w):
         if not isinstance(w, TorchQWeight):
             raise NotImplementedError

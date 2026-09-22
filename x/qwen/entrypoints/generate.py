@@ -102,6 +102,14 @@ def main() -> None:
         metavar='K',
         help='MTP speculative decoding with K draft tokens per round (loads the draft head); 0 = off',
     )
+    ap.add_argument(
+        '--draft-vocab',
+        type=int,
+        default=0,
+        metavar='N',
+        help='draft with an output head restricted to the first N token ids (0 = full vocabulary); 32768-65536 '
+             'makes the draft steps several times cheaper and costs little acceptance',
+    )
     ap.add_argument('--temperature', type=float, default=0.0, help='0 = greedy (default)')
     ap.add_argument('--top-k', type=int, default=0)
     ap.add_argument('--top-p', type=float, default=1.0)
@@ -216,7 +224,14 @@ def main() -> None:
     if args.warmup:
         t0 = time.time()
         # same capacity as the real run, or the warm-up compiles/captures steps for the wrong shapes
-        model.generate(ids, max_new_tokens=max(8, 2 * args.spec + 2), sampler=Sampler(), spec=args.spec, capacity=capacity)  # noqa
+        model.generate(
+            ids,
+            max_new_tokens=max(8, 2 * args.spec + 2),
+            sampler=Sampler(),
+            spec=args.spec,
+            capacity=capacity,
+            draft_vocab=args.draft_vocab,
+        )
         print(f'[gen] warm-up (capture + compile) {time.time() - t0:.1f}s')
         if args.compile and getattr(ops, 'compile_cache', None):
             from ..backends.torch import save_compile_cache
@@ -242,6 +257,7 @@ def main() -> None:
         sampler=sampler,
         spec=args.spec,
         capacity=capacity,
+        draft_vocab=args.draft_vocab,
     )
     sys.stdout.write(streamer.flush())
     dt = time.time() - t0

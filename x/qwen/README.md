@@ -230,6 +230,11 @@ python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 
 python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 --preset thinking -p "..."
 ```
 
+`--draft-vocab N` drafts with the output head restricted to the first N token ids (ninfer's `--lm-head-draft`):
+Qwen's BPE ids are roughly in merge-frequency order, so 32-64k of the 248k cover almost every token the target
+picks, and the three draft-head launches per round each drop a 636 MB matmul to a fraction of that. Verify
+always uses the full head, so drafting from a subset can only lower acceptance, never correctness.
+
 `Sampler` does temperature / top-k / top-p / min-p / presence and frequency penalties on the device, as `Ops`
 calls over the logits (top-k, then top-p/min-p among the candidates, then a Gumbel-max draw; the penalties read
 a device histogram of observed tokens), so a decode step moves one token id off the device and a speculative

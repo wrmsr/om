@@ -196,6 +196,11 @@ class TinygradOps(Ops):
             qw.shape,
         )
 
+    def head_rows(self, w, n):
+        if isinstance(w, TinyQWeight):
+            return TinyQWeight(w.q[:n], w.scale[:n], w.bias[:n], w.bits, w.group, (n, w.shape[1]))
+        return w[:n]
+
     def export_qweight(self, w):
         if not isinstance(w, TinyQWeight):
             raise NotImplementedError

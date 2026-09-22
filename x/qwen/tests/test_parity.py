@@ -229,9 +229,11 @@ def test_spec_decode_parity():
         ref = model.generate(prompt, max_new_tokens=n_new, static=True)
         full = prompt + ref
 
-        # (a) the real draft head
+        # (a) the real draft head, full and restricted-vocabulary drafting
         out = model.generate(prompt, max_new_tokens=n_new, spec=k)
         assert out == ref, (ops.name, out, ref)
+        out = model.generate(prompt, max_new_tokens=n_new, spec=k, draft_vocab=64)
+        assert out == ref, (ops.name, 'draft_vocab', out, ref)
 
         # (b) oracle drafts, corrupted at index m in turn: exactly m drafts must be accepted each round
         cache = Cache(cfg)

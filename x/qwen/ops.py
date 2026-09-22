@@ -211,6 +211,12 @@ class Ops(abc.ABC):
     def qweight(self, qw: QWeight, dtype: ta.Any) -> Weight:
         """Adopt an already-quantized parameter (scale/bias stored in `dtype`)."""
 
+    def head_rows(self, w: Weight, n: int) -> Weight:
+        """The first n output rows of a weight (dense or adopted QWeight) as a weight: a cheap view where the
+        backend allows it. Used for a draft head restricted to the first n vocabulary ids."""
+
+        return w[:n]
+
     def quantize(self, w: np.ndarray, bits: int, group: int, dtype: ta.Any) -> Weight:
         """Quantize + adopt. Backends may override to quantize on-device."""
 

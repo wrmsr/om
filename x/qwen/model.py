@@ -696,6 +696,7 @@ class Qwen35:
         sampler: Sampler | None = None,
         spec: int = 0,
         capacity: int | None = None,
+        draft_vocab: int = 0,
     ) -> list[int]:
         """
         Generation. Prefill goes through `forward` (chunked); decode then runs the captured static step
@@ -734,6 +735,7 @@ class Qwen35:
                 k=spec,
                 sampler=sampler,
                 capacity=capacity,
+                draft_vocab=draft_vocab,
             )
             self.last_spec = spec_dec
             while len(out) < max_new_tokens:
@@ -791,7 +793,8 @@ class MtpHead:
         self.hnorm = params['mtp.pre_fc_norm_hidden.weight']
         self.norm_w = params['mtp.norm.weight']
         self.block = Block(self.cfg, self.cfg.num_layers, 'full', block_params(params, 'mtp.layers.0.'))
-        self._steps: dict[int, ta.Callable[..., tuple[Array, ...]]] = {}
+        self._steps: dict[tuple[int, int], ta.Callable[..., tuple[Array, ...]]] = {}
+        self._heads: dict[int, Weight] = {}
 
     def stem(self, ops: Ops, toks: Array, hidden: Array) -> Array:
         c, m = self.cfg, self.model
@@ -799,26 +802,44 @@ class MtpHead:
         h = ops.rms_norm(ops.cast(hidden, m.dtype), self.hnorm, c.rms_eps)
         return ops.linear(ops.concat([e, h], -1), self.fc)
 
-    def head(self, ops: Ops, u: Array) -> tuple[Array, Array]:
+    def head(self, ops: Ops, u: Array, draft_vocab: int = 0) -> tuple[Array, Array]:
+        """Final norm + output head. draft_vocab > 0 restricts the head to the first that many vocabulary ids:
+        Qwen's BPE ids are roughly in merge-frequency order, so the first 32-64k cover almost every token the
+        target will pick while costing a fraction of the 248k-row matmul (ninfer's `--lm-head-draft`)."""
+
         c, m = self.cfg, self.model
         d = ops.rms_norm(u, self.norm_w, c.rms_eps)
-        return ops.f32(ops.linear(d, m.lm_head)), d
+        head = m.lm_head
+        if draft_vocab:
+            key = draft_vocab
+            head = self._heads.get(key)
+            if head is None:
+                head = self._heads[key] = ops.head_rows(m.lm_head, draft_vocab)
+        return ops.f32(ops.linear(d, head)), d
 
-    def prefill(self, toks: np.ndarray, hidden: Array, pos: int = 0) -> tuple[Array, Array, FullState]:
+    def prefill(
+            self,
+            toks: np.ndarray,
+            hidden: Array,
+            pos: int = 0,
+            draft_vocab: int = 0,
+    ) -> tuple[Array, Array, FullState]:
         """Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T,
         hidden [B, T, H] the target's hidden states at pos..pos+T-1. Returns logits, d, (k, v)."""
 
         ops = self.model.ops
         u = self.stem(ops, ops.array(np.asarray(toks, dtype=np.int32)), hidden)
         u, state = self.block(ops, u, pos, None)
-        logits, d = self.head(ops, u)
+        logits, d = self.head(ops, u, draft_vocab)
         return logits, d, state
 
-    def step_fn(self, T: int) -> ta.Callable[..., tuple[Array, ...]]:
+    def step_fn(self, T: int, draft_vocab: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
         """Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, ar, cos_tab, sin_tab, kbuf, vbuf) ->
-        (logits, d, kbuf, vbuf)`; built and compiled once per T, cached on the head."""
+        (logits, d, kbuf, vbuf)`; built and compiled once per (T, draft_vocab), cached on the head. With
+        draft_vocab the logits cover only the first that many ids (see `head`)."""
 
-        fn = self._steps.get(T)
+        key = (T, draft_vocab)
+        fn = self._steps.get(key)
         if fn is None:
             ops = self.model.ops
 
@@ -826,10 +847,10 @@ class MtpHead:
                 rows = ops.reshape(pos, (1,)) + ar[:T]
                 u = self.stem(ops, toks, hidden)
                 u, (kbuf, vbuf) = self.block.decode(ops, u, pos, ar, cos_tab[rows], sin_tab[rows], (kbuf, vbuf))
-                logits, d = self.head(ops, u)
+                logits, d = self.head(ops, u, draft_vocab)
                 return logits, d, kbuf, vbuf
 
-            fn = self._steps[T] = ops.compile_fn(raw)
+            fn = self._steps[key] = ops.compile_fn(raw)
         return fn
 
 
@@ -1099,9 +1120,13 @@ class SpecDecoder:
             k: int,
             sampler: Sampler,
             capacity: int | None = None,
+            draft_vocab: int = 0,
     ) -> None:
         if model.mtp is None:
             raise ValueError('no MTP head loaded')
+        if draft_vocab < 0 or draft_vocab > model.cfg.vocab_size:
+            raise ValueError(f'draft_vocab must be 0..{model.cfg.vocab_size}')
+        self.draft_vocab = draft_vocab
         if not 1 <= k <= 8:
             raise ValueError(f'draft tokens must be 1..8, got {k}')
         self.model = model
@@ -1118,7 +1143,7 @@ class SpecDecoder:
         self.next_tok = int(ops.numpy(self.next_arr)[0])
         # draft-head prefill: entry p uses the target hidden at p and the token at p+1, for p = 0..n-1
         mtoks = np.asarray(list(prompt_ids[1:]) + [self.next_tok], dtype=np.int32)[None]
-        mlogits, d, (mk, mv) = self.mtp.prefill(mtoks, hidden[:, :n], 0)
+        mlogits, d, (mk, mv) = self.mtp.prefill(mtoks, hidden[:, :n], 0, draft_vocab)
         self.mflat: list[Array] = [mk, mv]
         self.mcap = 0
         self.mfns: dict[int, ta.Callable[..., tuple[Array, ...]]] = {}
@@ -1149,7 +1174,7 @@ class SpecDecoder:
 
     def _mfn(self, T: int) -> ta.Callable[..., tuple[Array, ...]]:
         if T not in self.mfns:
-            self.mfns[T] = self.ops.capture(self.mtp.step_fn(T))
+            self.mfns[T] = self.ops.capture(self.mtp.step_fn(T, self.draft_vocab))
         return self.mfns[T]
 
     def round(self) -> list[int]:
