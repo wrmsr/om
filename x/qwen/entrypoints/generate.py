@@ -5,6 +5,7 @@ python generate.py --model qwen3.5:0.8b --prompt "Why is the sky blue?"
 python generate.py --model ~/.ollama/models/blobs/sha256-... --raw --prompt "The capital of France is"
 """
 import argparse
+import pathlib
 import sys
 import time
 
@@ -145,6 +146,8 @@ def main() -> None:
         if not hasattr(ops, 'compile'):
             ap.error('--compile is a torch backend option')
         ops.compile = True
+        if args.cache_dir:
+            ops.compile_cache = str(pathlib.Path(args.cache_dir) / 'torch-compile.bin')
     if args.triton_tuned and hasattr(ops, 'triton'):
         from ..backends.torch_triton import load_tuned
 
@@ -205,6 +208,11 @@ def main() -> None:
         t0 = time.time()
         model.generate(ids, max_new_tokens=max(8, 2 * args.spec + 2), sampler=Sampler(), spec=args.spec)
         print(f'[gen] warm-up (capture + compile) {time.time() - t0:.1f}s')
+        if args.compile and getattr(ops, 'compile_cache', None):
+            from ..backends.torch import save_compile_cache
+
+            if save_compile_cache(ops.compile_cache):
+                print(f'[gen] saved compile cache to {ops.compile_cache}')
 
     streamer = Tokenizer.Streamer(tok)
     t0 = time.time()

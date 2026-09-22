@@ -520,6 +520,13 @@ class Ops(abc.ABC):
         o = self.transpose(self.reshape(o, (B, KV, T, G, D)), (0, 1, 3, 2, 4))  # [B, KV, G, T, D]
         return self.reshape(o, (B, H, T, D))
 
+    def compile_fn(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
+        """Trace-and-fuse a pure step function once, independent of which buffers it will later run on (torch:
+        `torch.compile`). Called once per step shape by the model; `capture` then wraps the result per Decoder.
+        Default: identity."""
+
+        return fn
+
     def capture(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
         """
         Make a static-shape step callable fast: CUDA graphs on torch, `mx.compile` on MLX, `TinyJit` on tinygrad.

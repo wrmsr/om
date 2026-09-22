@@ -385,6 +385,7 @@ class Qwen35:
         self.dtype = dtype
         self.nbytes = sum(ops.nbytes(p) for p in params.values())
         self.last_spec: SpecDecoder | None = None  # the most recent generate(spec=k)'s decoder, for its stats
+        self._steps: dict[tuple[int, bool, bool], ta.Callable[..., tuple[Array, ...]]] = {}  # see step_fn
         self.embed = params['embed_tokens.weight']
         self.norm_w = params['norm.weight']
         self.lm_head = params.get('lm_head.weight', self.embed)
@@ -530,26 +531,33 @@ class Qwen35:
     def step_fn(
             self,
             T: int,
-            ar: Array,
-            cos_tab: Array,
-            sin_tab: Array,
             all_states: bool = False,
             return_hidden: bool = False,
     ) -> ta.Callable[..., tuple[Array, ...]]:
         """
-        Build the static T-token step: `fn(toks, pos, *flat_state) -> (logits, [hidden,] *flat_state)`.
+        The static T-token step: `fn(toks, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits, [hidden,]
+        *flat_state)`.
 
-        toks: [B, T] int at positions pos..pos+T-1; pos: 0-d int; flat_state: two arrays per layer (kbuf, vbuf) or
-        (conv, S). `ar` and the rope tables are constants closed over (they must already live on the device:
-        nothing in the step may allocate from the host). Returns logits [B, T, V] float32 (and, with
+        toks: [B, T] int at positions pos..pos+T-1; pos: 0-d int; ar: arange(capacity); cos_tab, sin_tab:
+        [capacity, rope_dim]; flat_state: two arrays per layer (kbuf, vbuf) or (conv, S). Everything is an
+        argument (no closed-over tensors) so one compiled function serves every Decoder with the same shapes;
+        nothing in the step may allocate from the host. Returns logits [B, T, V] float32 (and, with
         return_hidden, the final-normed hidden [B, T, hidden] the draft head conditions on); with all_states the
         DeltaNet entries come back stacked per token. Pure apart from `kv_write`, so a backend may capture it.
-        T == 1 is decode; T == k + 1 with all_states is speculative verify.
+        T == 1 is decode; T == k + 1 with all_states is speculative verify. Built (and `Ops.compile_fn`ed) once
+        per (T, all_states, return_hidden) and cached on the model.
         """
 
+        key = (T, all_states, return_hidden)
+        fn = self._steps.get(key)
+        if fn is None:
+            fn = self._steps[key] = self.ops.compile_fn(self._build_step(T, all_states, return_hidden))
+        return fn
+
+    def _build_step(self, T: int, all_states: bool, return_hidden: bool) -> ta.Callable[..., tuple[Array, ...]]:
         ops, c = self.ops, self.cfg
 
-        def fn(toks, pos, *flat):
+        def fn(toks, pos, ar, cos_tab, sin_tab, *flat):
             # index with a 1-element array, not the 0-d one: torch turns a 0-d tensor index into `.item()`, a
             # device->host sync that is illegal inside a CUDA graph capture; a 1-d index is a plain gather
             rows = ops.reshape(pos, (1,)) + ar[:T]
@@ -568,15 +576,10 @@ class Qwen35:
 
         return fn
 
-    def decode_fn(
-            self,
-            ar: Array,
-            cos_tab: Array,
-            sin_tab: Array,
-    ) -> ta.Callable[..., tuple[Array, ...]]:
-        """The single-token step: `fn(tok, pos, *flat_state) -> (logits [B, 1, V], *flat_state)`."""
+    def decode_fn(self) -> ta.Callable[..., tuple[Array, ...]]:
+        """The single-token step: `fn(tok, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits [B, 1, V], *flat_state)`."""
 
-        return self.step_fn(1, ar, cos_tab, sin_tab)
+        return self.step_fn(1)
 
     def generate(
         self,
@@ -677,6 +680,7 @@ class MtpHead:
         self.hnorm = params['mtp.pre_fc_norm_hidden.weight']
         self.norm_w = params['mtp.norm.weight']
         self.block = Block(self.cfg, self.cfg.num_layers, 'full', block_params(params, 'mtp.layers.0.'))
+        self._steps: dict[int, ta.Callable[..., tuple[Array, ...]]] = {}
 
     def stem(self, ops: Ops, toks: Array, hidden: Array) -> Array:
         c, m = self.cfg, self.model
@@ -699,18 +703,22 @@ class MtpHead:
         logits, d = self.head(ops, u)
         return logits, d, state
 
-    def step_fn(self, T: int, ar: Array, cos_tab: Array, sin_tab: Array) -> ta.Callable[..., tuple[Array, ...]]:
-        """Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, kbuf, vbuf) -> (logits, d, kbuf, vbuf)`."""
+    def step_fn(self, T: int) -> ta.Callable[..., tuple[Array, ...]]:
+        """Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, ar, cos_tab, sin_tab, kbuf, vbuf) ->
+        (logits, d, kbuf, vbuf)`; built and compiled once per T, cached on the head."""
 
-        ops = self.model.ops
+        fn = self._steps.get(T)
+        if fn is None:
+            ops = self.model.ops
 
-        def fn(toks, hidden, pos, kbuf, vbuf):
-            rows = ops.reshape(pos, (1,)) + ar[:T]
-            u = self.stem(ops, toks, hidden)
-            u, (kbuf, vbuf) = self.block.decode(ops, u, pos, ar, cos_tab[rows], sin_tab[rows], (kbuf, vbuf))
-            logits, d = self.head(ops, u)
-            return logits, d, kbuf, vbuf
+            def raw(toks, hidden, pos, ar, cos_tab, sin_tab, kbuf, vbuf):
+                rows = ops.reshape(pos, (1,)) + ar[:T]
+                u = self.stem(ops, toks, hidden)
+                u, (kbuf, vbuf) = self.block.decode(ops, u, pos, ar, cos_tab[rows], sin_tab[rows], (kbuf, vbuf))
+                logits, d = self.head(ops, u)
+                return logits, d, kbuf, vbuf
 
+            fn = self._steps[T] = ops.compile_fn(raw)
         return fn
 
 
@@ -886,10 +894,11 @@ class Decoder:
 
         key = (T, all_states, return_hidden)
         if key not in self.fns:
-            self.fns[key] = self.ops.capture(
-                self.model.step_fn(T, self.ar, self.cos_tab, self.sin_tab, all_states, return_hidden),
-            )
+            self.fns[key] = self.ops.capture(self.model.step_fn(T, all_states, return_hidden))
         return self.fns[key]
+
+    def tables(self) -> tuple[Array, Array, Array]:
+        return self.ar, self.cos_tab, self.sin_tab
 
     def ensure_capacity(self, n: int) -> None:
         if n > self.capacity:
@@ -901,7 +910,7 @@ class Decoder:
         ops = self.ops
         self.ensure_capacity(self.seq_len + 1)
         ids = np.asarray([tok] if isinstance(tok, int) else tok, dtype=np.int32).reshape(-1, 1)
-        out = self.fn(ops.array(ids), ops.scalar(self.seq_len), *self.flat)
+        out = self.fn(ops.array(ids), ops.scalar(self.seq_len), *self.tables(), *self.flat)
         self.flat = list(out[1:])
         self.seq_len += 1
         return out[0][:, 0]
@@ -919,7 +928,7 @@ class Decoder:
             toks = ops.array(np.asarray(toks, dtype=np.int32).reshape(1, len(toks)))
         T = toks.shape[1]
         self.ensure_capacity(self.seq_len + T)
-        out = self._fn(T, True, True)(toks, ops.scalar(self.seq_len), *self.flat)
+        out = self._fn(T, True, True)(toks, ops.scalar(self.seq_len), *self.tables(), *self.flat)
         return out[0], out[1], list(out[2:])
 
     def commit(self, flat_all: list[Array], n_accept: int) -> None:
@@ -1029,7 +1038,7 @@ class SpecDecoder:
 
     def _mfn(self, T: int) -> ta.Callable[..., tuple[Array, ...]]:
         if T not in self.mfns:
-            self.mfns[T] = self.ops.capture(self.mtp.step_fn(T, self.dec.ar, self.dec.cos_tab, self.dec.sin_tab))
+            self.mfns[T] = self.ops.capture(self.mtp.step_fn(T))
         return self.mfns[T]
 
     def round(self) -> list[int]:
@@ -1046,7 +1055,9 @@ class SpecDecoder:
         darr = [ops.argmax(self.mlogits_last, -1)]
         hid = self.d_last
         for j in range(1, k):
-            ml, hid, mk, mv = self._mfn(1)(ops.reshape(darr[-1], (1, 1)), hid, ops.scalar(n - 1 + j), *self.mflat)
+            ml, hid, mk, mv = self._mfn(1)(
+                ops.reshape(darr[-1], (1, 1)), hid, ops.scalar(n - 1 + j), *self.dec.tables(), *self.mflat,
+            )
             self.mflat = [mk, mv]
             darr.append(ops.argmax(ml[:, -1], -1))
         if self.draft_fn is not None:
@@ -1073,7 +1084,7 @@ class SpecDecoder:
         # (hidden at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh
         # overwrites before anything attends to them
         rtoks = ops.reshape(ops.concat([ops.cast(targets_arr[:m + 1], i32), drafts_arr[m:]], 0), (1, k + 1))
-        ml, d, mk, mv = self._mfn(k + 1)(rtoks, hidden, ops.scalar(n), *self.mflat)
+        ml, d, mk, mv = self._mfn(k + 1)(rtoks, hidden, ops.scalar(n), *self.dec.tables(), *self.mflat)
         self.mflat = [mk, mv]
         self.mlogits_last = ml[:, m]
         self.d_last = d[:, m:m + 1]

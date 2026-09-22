@@ -153,10 +153,13 @@ traffic) with one, which matters because the decode graph is otherwise ~2,500 no
 `test_triton.py::test_gdn_step_kernel` checks it against the composed reference under the interpreter.
 
 What remains in the graph after the two kernels is glue -- norms, casts, gates, the attention prologue -- and
-`--compile` (`TorchOps(compile=True)`) hands the captured step to `torch.compile` first so inductor fuses that
-glue into a few generated kernels before the CUDA graph is captured. The first run pays inductor's compile time
-(minutes for 64 layers; cached on disk afterwards); the step's in-place KV writes and the static-input protocol
-survive compilation (checked on CPU: compiled speculative decode reproduces plain greedy token for token).
+`--compile` (`TorchOps(compile=True)`) hands each step function to `torch.compile` (`Ops.compile_fn`) before it
+is graph-captured, so inductor fuses that glue into a few generated kernels. Step functions take everything as
+arguments (tables, buffers), are built once per shape and cached on the model, so every Decoder -- warm-up, each
+`generate`, the draft head's -- reuses the same compiled function instead of re-tracing 64 layers (that
+re-trace was ~20 s a pop). The first process pays the full compile; with `--cache-dir`, `--warmup` then saves
+`torch.compiler` artifacts to `<cache_dir>/torch-compile.bin` and later processes load them (checked on CPU:
+21 s -> 4.6 s cold start on the synthetic model; compiled speculative decode reproduces plain greedy exactly).
 
 ```bash
 python -m x.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json

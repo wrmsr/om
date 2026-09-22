@@ -271,8 +271,8 @@ def test_spec_decode_parity():
         dec = sd.dec
         B, KV, _, D = fk.shape
         zeros = ops.zeros((B, KV, dec.capacity, D), fk.dtype)
-        fn = mtp.step_fn(T, dec.ar, dec.cos_tab, dec.sin_tab)
-        s_logits, s_d, sk, sv = fn(ops.array(toks), hid, ops.scalar(0), zeros, ops.copy(zeros))
+        fn = mtp.step_fn(T)
+        s_logits, s_d, sk, sv = fn(ops.array(toks), hid, ops.scalar(0), *dec.tables(), zeros, ops.copy(zeros))
         assert rel_err(ops.numpy(s_logits), ops.numpy(f_logits)) < 2e-5, ops.name
         assert rel_err(ops.numpy(s_d), ops.numpy(f_d)) < 2e-5, ops.name
         assert rel_err(ops.numpy(sk[:, :, :T]), ops.numpy(fk)) < 2e-5, ops.name

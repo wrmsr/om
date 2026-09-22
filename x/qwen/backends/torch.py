@@ -7,6 +7,7 @@ Overrides: rms_norm (F.rms_norm), sdpa (flash/SDPA), conv1d_causal (F.conv1d), o
 without touching model.py).
 """
 import dataclasses as dc
+import pathlib
 
 import numpy as np
 import torch
@@ -103,6 +104,39 @@ class CudaGraphStep:
         return self.static_out
 
 
+def load_compile_cache(path: str) -> bool:
+    """Load torch.compiler cache artifacts saved by `save_compile_cache` (torch >= 2.6). Best effort."""
+
+    p = pathlib.Path(path).expanduser()
+    if not p.exists() or not hasattr(torch.compiler, 'load_cache_artifacts'):
+        return False
+    try:
+        torch.compiler.load_cache_artifacts(p.read_bytes())
+        return True
+    except Exception as e:  # noqa
+        print(f'[torch] could not load compile cache {p}: {e}')
+        return False
+
+
+def save_compile_cache(path: str) -> bool:
+    """Persist the current process's torch.compiler artifacts (call after the steps have compiled)."""
+
+    if not hasattr(torch.compiler, 'save_cache_artifacts'):
+        return False
+    try:
+        got = torch.compiler.save_cache_artifacts()
+    except Exception as e:  # noqa
+        print(f'[torch] could not save compile cache: {e}')
+        return False
+    if not got:
+        return False
+    blob, _info = got
+    p = pathlib.Path(path).expanduser()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(blob)
+    return True
+
+
 class TorchOps(Ops):
     name = 'torch'
 
@@ -115,6 +149,7 @@ class TorchOps(Ops):
             triton_block_n: int | None = None,
             triton_tuned: str | None = None,
             compile: bool = False,  # noqa
+            compile_cache: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -124,6 +159,10 @@ class TorchOps(Ops):
         # run the step through torch.compile (inductor fuses the elementwise / norm / cast glue between the big
         # kernels into a few generated ones) before it is graph-captured; slow first call, cached on disk after
         self.compile = compile
+        # torch.compiler cache artifacts (dynamo + inductor) persisted between processes, so a warm start is
+        # seconds rather than the full re-trace; see save_compile_cache
+        self.compile_cache = compile_cache
+        self._cache_loaded = False
         # fused int4/int8 GEMV for quantized weights when the token count is small (decode / verify); prefill
         # stays on dequant + cuBLAS. None: on when cuda and triton import. True on CPU needs TRITON_INTERPRET=1.
         self.triton = (self.device.type == 'cuda' and HAVE_TRITON) if triton is None else (triton and HAVE_TRITON)
@@ -348,12 +387,18 @@ class TorchOps(Ops):
     def conv1d_causal(self, x, w):
         return F.conv1d(x, w[:, None, :], groups=w.shape[0])
 
+    def compile_fn(self, fn):
+        if not self.compile:
+            return fn
+        if self.compile_cache and not self._cache_loaded:
+            self._cache_loaded = True
+            load_compile_cache(self.compile_cache)
+        return torch.compile(fn, dynamic=False)
+
     def capture(self, fn):
         mode = self.capture_mode
         if mode == 'auto':
             mode = 'graph' if self.device.type == 'cuda' else 'plain'
-        if self.compile:
-            fn = torch.compile(fn, dynamic=False)
         if mode == 'plain':
             return fn
         return CudaGraphStep(fn, use_graph=(mode == 'graph'))
