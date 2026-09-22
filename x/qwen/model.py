@@ -183,24 +183,39 @@ class GatedDeltaNet:
         conv_state = inp[..., -(K - 1):]
         conv = ops.transpose(ops.silu(ops.conv1d_causal(inp, self.conv_w)), (0, 2, 1))  # [B, T, conv_dim]
         q, k, v = ops.split(conv, [c.key_dim, c.key_dim, c.value_dim], -1)
-        q = ops.transpose(ops.l2_norm(ops.reshape(q, (B, T, Hk, dk))), (0, 2, 1, 3)) * (dk**-0.5)  # [B,Hk,T,dk]
-        k = ops.transpose(ops.l2_norm(ops.reshape(k, (B, T, Hk, dk))), (0, 2, 1, 3))
-        v = ops.transpose(ops.reshape(v, (B, T, Hv, dv)), (0, 2, 1, 3))  # [B,Hv,T,dv]
-        if Hv != Hk:  # canonical grouped V order -> repeat_interleave (llama.cpp's tiled order would use tiling)
-            q = ops.repeat(q, Hv // Hk, 1)
-            k = ops.repeat(k, Hv // Hk, 1)
-
-        beta = ops.transpose(ops.sigmoid(b), (0, 2, 1))  # [B,Hv,T]
-        g = ops.transpose(self.A[None, None, :] * ops.softplus(a + self.dt_bias), (0, 2, 1))  # [B,Hv,T], <= 0
-
         S = state[1] if state is not None else ops.zeros((B, Hv, dk, dv), f32)
         if all_states:
-            out, S = ops.gated_delta_states(q, k, v, g, beta, S)  # S: [T, B, Hv, dk, dv]
             conv_state = ops.stack([inp[..., t + 1:t + K] for t in range(T)], 0)  # [T, B, C, K-1]
+        if T <= ops.gdn_fused_max_t:
+            # decode / verify: one op from the raw projections (fusable into a single kernel per layer)
+            out, S = ops.gdn_step(
+                ops.reshape(q, (B, T, Hk, dk)),
+                ops.reshape(k, (B, T, Hk, dk)),
+                ops.reshape(v, (B, T, Hv, dv)),
+                a,
+                b,
+                self.A,
+                self.dt_bias,
+                S,
+                all_states,
+                c.rms_eps,
+            )  # out: [B,T,Hv,dv]; S: [B,Hv,dk,dv] or [T,B,Hv,dk,dv]
         else:
-            out, S = ops.gated_delta(q, k, v, g, beta, S)
+            # prefill: normalise, broadcast heads, chunked recurrence
+            q = ops.transpose(ops.l2_norm(ops.reshape(q, (B, T, Hk, dk)), c.rms_eps), (0, 2, 1, 3)) * (dk**-0.5)
+            k = ops.transpose(ops.l2_norm(ops.reshape(k, (B, T, Hk, dk)), c.rms_eps), (0, 2, 1, 3))  # [B,Hk,T,dk]
+            v = ops.transpose(ops.reshape(v, (B, T, Hv, dv)), (0, 2, 1, 3))  # [B,Hv,T,dv]
+            if Hv != Hk:  # canonical grouped V order -> repeat_interleave (llama.cpp's tiled order would tile)
+                q = ops.repeat(q, Hv // Hk, 1)
+                k = ops.repeat(k, Hv // Hk, 1)
+            beta = ops.transpose(ops.sigmoid(b), (0, 2, 1))  # [B,Hv,T]
+            g = ops.transpose(self.A[None, None, :] * ops.softplus(a + self.dt_bias), (0, 2, 1))  # <= 0
+            if all_states:
+                out, S = ops.gated_delta_states(q, k, v, g, beta, S)
+            else:
+                out, S = ops.gated_delta(q, k, v, g, beta, S)
+            out = ops.transpose(out, (0, 2, 1, 3))  # [B,T,Hv,dv]
 
-        out = ops.reshape(ops.transpose(out, (0, 2, 1, 3)), (B, T, Hv, dv))  # [B,T,Hv,dv]
         z = ops.reshape(z, (B, T, Hv, dv))
         out = ops.rms_norm(out, self.norm_w, c.rms_eps) * ops.silu(z)  # gated RMSNorm
         y = ops.linear(ops.cast(ops.reshape(out, (B, T, c.value_dim)), x.dtype), self.w_out)

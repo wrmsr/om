@@ -133,6 +133,165 @@ if HAVE_TRITON:
         tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=m_mask[:, None] & n_mask[None, :])
 
 
+if HAVE_TRITON:
+
+    @triton.jit
+    def _gdn_step_kernel(
+            q_ptr,
+            k_ptr,
+            v_ptr,
+            a_ptr,
+            b_ptr,
+            A_ptr,
+            dt_ptr,
+            s_in_ptr,
+            out_ptr,
+            s_out_ptr,
+            sq_b,
+            sq_t,
+            sq_h,
+            sv_b,
+            sv_t,
+            sv_h,
+            sa_b,
+            sa_t,
+            ss_b,
+            ss_h,
+            so_b,
+            so_t,
+            so_h,
+            ss_out_t,
+            Hv,
+            R,
+            T: tl.constexpr,
+            DK: tl.constexpr,
+            DV: tl.constexpr,
+            BLOCK_DV: tl.constexpr,
+            ALL_STATES: tl.constexpr,
+            EPS: tl.constexpr,
+            QSCALE: tl.constexpr,
+    ):
+        pid = tl.program_id(0)  # b * Hv + h
+        pid_v = tl.program_id(1)  # slice of the value dim
+        bidx = pid // Hv
+        h = pid % Hv
+        kh = h // R  # the key head this value head reads
+        rk = tl.arange(0, DK)
+        rv = pid_v * BLOCK_DV + tl.arange(0, BLOCK_DV)
+        s_off = bidx * ss_b + h * ss_h + rk[:, None] * DV + rv[None, :]
+        S = tl.load(s_in_ptr + s_off)  # [DK, BLOCK_DV] float32, held in registers for all T tokens
+        A_h = tl.load(A_ptr + h)
+        dt_h = tl.load(dt_ptr + h)
+        for t in tl.static_range(T):
+            qv = tl.load(q_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
+            kv = tl.load(k_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
+            qn = qv * tl.rsqrt(tl.sum(qv * qv, 0) + EPS) * QSCALE
+            kn = kv * tl.rsqrt(tl.sum(kv * kv, 0) + EPS)
+            vt = tl.load(v_ptr + bidx * sv_b + t * sv_t + h * sv_h + rv).to(tl.float32)
+            a_t = tl.load(a_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
+            b_t = tl.load(b_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
+            beta = tl.sigmoid(b_t)
+            xg = a_t + dt_h
+            sp = tl.where(xg > 20.0, xg, tl.log(1.0 + tl.exp(tl.minimum(xg, 20.0))))
+            S = S * tl.exp(A_h * sp)  # decay
+            mem = tl.sum(S * kn[:, None], 0)  # k^T S -> [BLOCK_DV]
+            delta = (vt - mem) * beta
+            S = S + kn[:, None] * delta[None, :]  # rank-1 update
+            o = tl.sum(S * qn[:, None], 0)  # q^T S
+            tl.store(out_ptr + bidx * so_b + t * so_t + h * so_h + rv, o)
+            if ALL_STATES:
+                tl.store(s_out_ptr + t * ss_out_t + s_off, S)
+        if not ALL_STATES:
+            tl.store(s_out_ptr + s_off, S)
+
+
+def gdn_step(
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        a: torch.Tensor,
+        b: torch.Tensor,
+        A: torch.Tensor,
+        dt_bias: torch.Tensor,
+        state: torch.Tensor,
+        all_states: bool,
+        eps: float = 1e-6,
+        block_dv: int = 32,
+        num_warps: int = 8,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Fused DeltaNet token step (the whole of Ops.gdn_step) in one launch per layer: each program owns a
+    [dk, block_dv] slice of one head's state in registers, runs the T-token recurrence on it -- l2-norm of q/k,
+    beta and the decay computed in-kernel, key heads broadcast by index -- and writes the outputs and either the
+    final state or the state after every token. Replaces ~25 small kernels (and ~24 MB of state traffic per
+    layer at T=1) with one kernel that reads and writes the 3 MB state once.
+
+    q, k: [B, T, Hk, dk]; v: [B, T, Hv, dv]; a, b: [B, T, Hv]; A, dt_bias: [Hv]; state: [B, Hv, dk, dv] float32.
+    """
+
+    if not HAVE_TRITON:
+        raise RuntimeError('triton is not installed')
+    B, T, Hk, dk = q.shape
+    Hv, dv = v.shape[2], v.shape[3]
+    if q.stride(-1) != 1:
+        q = q.contiguous()
+    if k.stride(-1) != 1:
+        k = k.contiguous()
+    if v.stride(-1) != 1:
+        v = v.contiguous()
+    a = a.contiguous()
+    b = b.contiguous()
+    state = state.contiguous()
+    out = torch.empty((B, T, Hv, dv), dtype=torch.float32, device=q.device)
+    if all_states:
+        s_out = torch.empty((T, B, Hv, dk, dv), dtype=torch.float32, device=q.device)
+        ss_out_t = s_out.stride(0)
+    else:
+        s_out = torch.empty((B, Hv, dk, dv), dtype=torch.float32, device=q.device)
+        ss_out_t = 0
+    block_dv = min(block_dv, dv)
+    if dv % block_dv:
+        raise ValueError(f'dv={dv} is not a multiple of block_dv={block_dv}')
+    grid = (B * Hv, dv // block_dv)
+    _gdn_step_kernel[grid](
+        q,
+        k,
+        v,
+        a,
+        b,
+        A,
+        dt_bias,
+        state,
+        out,
+        s_out,
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        v.stride(0),
+        v.stride(1),
+        v.stride(2),
+        a.stride(0),
+        a.stride(1),
+        state.stride(0),
+        state.stride(1),
+        out.stride(0),
+        out.stride(1),
+        out.stride(2),
+        ss_out_t,
+        Hv,
+        Hv // Hk,
+        T=T,
+        DK=dk,
+        DV=dv,
+        BLOCK_DV=block_dv,
+        ALL_STATES=all_states,
+        EPS=eps,
+        QSCALE=dk**-0.5,
+        num_warps=num_warps,
+    )
+    return out, s_out
+
+
 def _block_k(k: int, cap: int = 128) -> int:
     for bk in (256, 128, 64):
         if bk <= cap and k % bk == 0:

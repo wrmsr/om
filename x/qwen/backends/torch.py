@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from ..ops import Ops
 from ..quant import QWeight
 from .torch_triton import HAVE_TRITON
+from .torch_triton import gdn_step
 from .torch_triton import load_tuned
 from .torch_triton import qlinear
 
@@ -126,6 +127,8 @@ class TorchOps(Ops):
         self.triton_block_n = triton_block_n
         if triton_tuned and HAVE_TRITON:
             load_tuned(triton_tuned)  # per-shape GEMV configs written by entrypoints/tune
+        self.gdn_block_dv = 32  # fused DeltaNet step: value-dim slice per program (state tile [dk, block_dv] f32)
+        self.gdn_num_warps = 8
 
     def dtype(self, name):
         return DTYPES[name]
@@ -291,6 +294,11 @@ class TorchOps(Ops):
             w.group,
             w.shape,
         )
+
+    def gdn_step(self, q, k, v, a, b, A, dt_bias, state, all_states, eps=1e-6):
+        if self.triton:
+            return gdn_step(q, k, v, a, b, A, dt_bias, state, all_states, eps, self.gdn_block_dv, self.gdn_num_warps)
+        return super().gdn_step(q, k, v, a, b, A, dt_bias, state, all_states, eps)
 
     def linear(self, x, w):
         if isinstance(w, TorchQWeight):

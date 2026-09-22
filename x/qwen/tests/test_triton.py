@@ -84,6 +84,45 @@ def test_qlinear_kernel():
     print('TorchOps.linear switch OK')
 
 
+def test_gdn_step_kernel():
+    """The fused DeltaNet step against the composed Ops.gdn_step reference: T in (1, 4), 3 value heads per key
+    head, final state and all-states variants."""
+
+    if _skip():
+        return
+    from ..backends.torch import TorchOps
+    from ..backends.torch_triton import gdn_step
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    ops = TorchOps(device, triton=False)  # reference path
+    torch.manual_seed(0)
+    B, Hk, Hv, dk, dv = 2, 2, 6, 16, 32
+    A = -torch.rand(Hv, device=device) * 4 - 0.1
+    dt = torch.randn(Hv, device=device)
+    for T in (1, 4):
+        q = torch.randn(B, T, Hk, dk, device=device)
+        k = torch.randn(B, T, Hk, dk, device=device)
+        v = torch.randn(B, T, Hv, dv, device=device)
+        a = torch.randn(B, T, Hv, device=device)
+        b = torch.randn(B, T, Hv, device=device)
+        S0 = torch.randn(B, Hv, dk, dv, device=device) * 0.3
+        for all_states in (False, True):
+            ro, rs = ops.gdn_step(q, k, v, a, b, A, dt, S0, all_states)
+            for block_dv in (16, 32):
+                fo, fs = gdn_step(q, k, v, a, b, A, dt, S0, all_states, block_dv=block_dv, num_warps=4)
+                eo = ((fo - ro).abs().max() / ro.abs().max()).item()
+                es = ((fs - rs).abs().max() / rs.abs().max()).item()
+                assert eo < 1e-4 and es < 1e-4, (T, all_states, block_dv, eo, es)
+                assert fs.shape == rs.shape
+        # non-contiguous inputs (as produced by split + reshape in the model)
+        big = torch.randn(B, T, 2 * Hk * dk + Hv * dv, device=device)
+        qq, kk, vv = torch.split(big, [Hk * dk, Hk * dk, Hv * dv], -1)
+        ro, rs = ops.gdn_step(qq.reshape(B, T, Hk, dk), kk.reshape(B, T, Hk, dk), vv.reshape(B, T, Hv, dv), a, b, A, dt, S0, False)  # noqa
+        fo, fs = gdn_step(qq.reshape(B, T, Hk, dk), kk.reshape(B, T, Hk, dk), vv.reshape(B, T, Hv, dv), a, b, A, dt, S0, False)  # noqa
+        assert ((fo - ro).abs().max() / ro.abs().max()).item() < 1e-4
+    print('fused DeltaNet step matches the reference (T=1, 4; final and all states)')
+
+
 def test_model_decode_with_kernel():
     """A quantized model's static decode step gives the same logits with and without the kernel."""
 
@@ -114,4 +153,5 @@ def test_model_decode_with_kernel():
 
 if __name__ == '__main__':
     test_qlinear_kernel()
+    test_gdn_step_kernel()
     test_model_decode_with_kernel()

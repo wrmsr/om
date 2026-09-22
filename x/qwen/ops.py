@@ -382,6 +382,47 @@ class Ops(abc.ABC):
             states.append(S)
         return self.stack(outs, 2), self.stack(states, 0)
 
+    gdn_fused_max_t: int = 8  # up to this many tokens the model calls `gdn_step` (fusable); beyond, the chunked path
+
+    def gdn_step(
+            self,
+            q: Array,
+            k: Array,
+            v: Array,
+            a: Array,
+            b: Array,
+            A: Array,
+            dt_bias: Array,
+            state: Array,
+            all_states: bool,
+            eps: float = 1e-6,
+    ) -> tuple[Array, Array]:
+        """
+        The whole DeltaNet token step from the projections' outputs, for T <= gdn_fused_max_t: l2-normalise
+        q, k (and scale q by 1/sqrt(dk)), broadcast the Hk key heads over the Hv value heads, beta =
+        sigmoid(b), g = A * softplus(a + dt_bias), then the recurrence. Layouts are the projections' natural
+        ones -- q, k: [B, T, Hk, dk]; v: [B, T, Hv, dv]; a, b: [B, T, Hv]; A, dt_bias: [Hv]; state:
+        [B, Hv, dk, dv] -- and the output is [B, T, Hv, dv], so no transposes or head repeats are needed around
+        it. Returns (out, state) or, with all_states, (out, states [T, B, Hv, dk, dv]). One op so a backend can
+        replace the ~25 small kernels of this composition with a single fused one (see torch_triton.gdn_step).
+        """
+
+        B, T, Hk, dk = q.shape
+        Hv, dv = v.shape[2], v.shape[3]
+        qn = self.transpose(self.l2_norm(q, eps), (0, 2, 1, 3)) * (dk**-0.5)  # [B,Hk,T,dk]
+        kn = self.transpose(self.l2_norm(k, eps), (0, 2, 1, 3))
+        vt = self.transpose(v, (0, 2, 1, 3))  # [B,Hv,T,dv]
+        if Hv != Hk:
+            qn = self.repeat(qn, Hv // Hk, 1)
+            kn = self.repeat(kn, Hv // Hk, 1)
+        beta = self.transpose(self.sigmoid(b), (0, 2, 1))  # [B,Hv,T]
+        g = self.transpose(A[None, None, :] * self.softplus(a + dt_bias), (0, 2, 1))
+        if all_states:
+            out, st = self.gated_delta_states(qn, kn, vt, g, beta, state)
+        else:
+            out, st = self.gated_delta(qn, kn, vt, g, beta, state)
+        return self.transpose(out, (0, 2, 1, 3)), st
+
     def gated_delta_chunked(
             self,
             q: Array,

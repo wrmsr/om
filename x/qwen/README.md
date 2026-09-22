@@ -144,6 +144,14 @@ per (N, K) comes from a tuned table when one is loaded (`entrypoints/tune` sweep
 split factor on the actual GPU and writes JSON; `--triton-tuned FILE` / `TorchOps(triton_tuned=)` loads it) and
 from a fill-the-GPU heuristic otherwise.
 
+The DeltaNet token step is one op on the seam, `Ops.gdn_step` (l2-norm, head broadcast, gate, recurrence, from
+the raw projections in their natural layout), which the model calls for T <= 8 -- decode and speculative
+verify. On torch with Triton it is a single fused kernel per layer (`torch_triton.gdn_step`): each program keeps
+a `[dk, block_dv]` slice of one head's state in registers for all T tokens and writes the outputs plus the
+final or per-token states. That replaces ~25 small kernels per layer (and the state's ~24 MB of round-trip
+traffic) with one, which matters because the decode graph is otherwise ~2,500 nodes of a few microseconds each.
+`test_triton.py::test_gdn_step_kernel` checks it against the composed reference under the interpreter.
+
 ```bash
 python -m x.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
 python -m x.qwen.entrypoints.generate ... --triton-tuned ./.cache/qwen/gemv-int4.json
