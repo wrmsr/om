@@ -258,6 +258,39 @@ def qlinear(
         return out.reshape(*x.shape[:-1], n)
 
 
+def time_graphed(fn: ta.Callable[[], ta.Any], reps: int = 10, iters: int = 5) -> float:
+    """
+    Seconds per call of `fn`, measured as CUDA-graph replays: `reps` calls are captured into one graph and the
+    graph is replayed `iters` times between CUDA events. An eager Triton launch costs ~40-50 us of Python and
+    launcher overhead, which is more than most of these kernels take -- timing eagerly makes every small shape
+    look identical (and penalises split-K for its extra reduction launch). Inside a graph only the GPU time is
+    left, which is also how the kernels run in the decode step.
+    """
+
+    fn()
+    fn()
+    torch.cuda.synchronize()
+    s = torch.cuda.Stream()
+    s.wait_stream(torch.cuda.current_stream())
+    with torch.cuda.stream(s):
+        fn()
+    torch.cuda.current_stream().wait_stream(s)
+    g = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(g):
+        for _ in range(reps):
+            fn()
+    g.replay()
+    torch.cuda.synchronize()
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+    start.record()
+    for _ in range(iters):
+        g.replay()
+    end.record()
+    torch.cuda.synchronize()
+    return start.elapsed_time(end) / 1000.0 / (reps * iters)
+
+
 def tune(
         shapes: ta.Iterable[tuple[int, int]],
         bits: int,
@@ -270,12 +303,12 @@ def tune(
     """
     Sweep launch configurations per (N, K) on the current GPU, keep the fastest in TUNED and return them.
     Prints achieved GB/s of packed-weight traffic per shape (the number to compare against the card's
-    bandwidth). Each configuration is a Triton compile (~1 s), so the sweep is kept to ~16-64 per shape: a few
-    minutes for the ~9 distinct shapes of a model.
+    bandwidth). Timing is by CUDA-graph replay (see `time_graphed`), so it reflects what the decode graph
+    sees. Each configuration is a Triton compile (~1 s), so the sweep is kept to ~16-64 per shape: a few minutes
+    for the ~9 distinct shapes of a model.
     """
 
     import itertools
-    import time
 
     out: dict[tuple[int, int, int], GemvConfig] = {}
     for n, k in shapes:
@@ -290,7 +323,7 @@ def tune(
         nbytes = qw.q.numel() + qw.scale.numel() * qw.scale.element_size() * 2
         bns = (16, 32) if n <= 2048 else (32, 64) if n <= 8192 else (64, 128)
         bks = tuple(b for b in (128, 256) if k % b == 0) or (64,)
-        sks = (1, 2, 4, 8) if n <= 8192 else (1,)
+        sks = (1, 2, 4, 8) if n <= 16384 else (1,)
         for bn, bk, nw, ns, sk in itertools.product(bns, bks, (4, 8), (2, 3), sks):
             if k % (bk * sk):
                 continue
@@ -301,15 +334,10 @@ def tune(
                 if ref is None:
                     ref = (x.float() @ qw.dequant(torch.float32).T)
                 if ((y.float() - ref).abs().max() / ref.abs().max()).item() > 3e-2:
-                    continue  # a config that compiles but computes wrong is a bug; skip it loudly below
-                for _ in range(2):
-                    qlinear(x, qw.q, qw.scale, qw.bias, bits, group, (n, k), config=cfg)
-                torch.cuda.synchronize()
-                t0 = time.perf_counter()
-                for _ in range(10):
-                    qlinear(x, qw.q, qw.scale, qw.bias, bits, group, (n, k), config=cfg)
-                torch.cuda.synchronize()
-                dt = (time.perf_counter() - t0) / 10
+                    if log:
+                        log(f'  !! N={n} K={k} {cfg} computes wrong results; skipped')
+                    continue
+                dt = time_graphed(lambda: qlinear(x, qw.q, qw.scale, qw.bias, bits, group, (n, k), config=cfg))
             except triton.runtime.errors.OutOfResources:
                 continue
             if best is None or dt < best[0]:
