@@ -290,7 +290,10 @@ class RpcPeer:
                     ),
                 ))
                 return
-            request_task = asyncio.create_task(self._handle_request(message), name=f'omllm-rpc-request-{message.id}')
+            request_task = asyncio.create_task(
+                self._handle_request(message),
+                name=f'omllm-rpc-request-{message.id}',
+            )
             self._incoming[message.id] = request_task
             request_task.add_done_callback(functools.partial(self._request_done, message.id))
             return

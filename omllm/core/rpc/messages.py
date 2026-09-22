@@ -53,7 +53,15 @@ class RpcPongMessage:
     id: int
 
 
-RpcMessage = ta.Union[RpcRequestMessage, RpcResultMessage, RpcErrorMessage, RpcCancelMessage, RpcNotificationMessage, RpcPingMessage, RpcPongMessage]  # ta.TypeAlias  # noqa: E501  # om-amalg-typing-no-move
+RpcMessage = ta.Union[  # ta.TypeAlias  # om-amalg-typing-no-move
+    RpcRequestMessage,
+    RpcResultMessage,
+    RpcErrorMessage,
+    RpcCancelMessage,
+    RpcNotificationMessage,
+    RpcPingMessage,
+    RpcPongMessage,
+]
 
 
 ##
@@ -69,31 +77,9 @@ class RpcMessageCodec(Abstract):
         raise NotImplementedError
 
 
-def _check_keys(dct: ta.Mapping[str, ta.Any], keys: ta.AbstractSet[str]) -> None:
-    actual = set(dct)
-    if actual != keys:
-        raise RpcProtocolError(f'Invalid RPC message fields: expected {sorted(keys)!r}, got {sorted(actual)!r}')
-
-
-def _decode_id(value: ta.Any) -> int:
-    if type(value) is not int or value <= 0:
-        raise RpcProtocolError(f'Invalid RPC message id: {value!r}')
-    return value
-
-
-def _decode_method(value: ta.Any) -> str:
-    if not isinstance(value, str) or not value:
-        raise RpcProtocolError(f'Invalid RPC method: {value!r}')
-    return value
-
-
-def _reject_json_constant(value: str) -> ta.NoReturn:
-    raise ValueError(f'Invalid JSON constant: {value}')
-
-
 class JsonRpcMessageCodec(RpcMessageCodec):
-    @staticmethod
-    def _to_obj(message: RpcMessage) -> ta.Mapping[str, ta.Any]:
+    @classmethod
+    def _to_obj(cls, message: RpcMessage) -> ta.Mapping[str, ta.Any]:
         if isinstance(message, RpcRequestMessage):
             return {'type': 'request', 'id': message.id, 'method': message.method, 'params': message.params}
         if isinstance(message, RpcResultMessage):
@@ -120,27 +106,45 @@ class JsonRpcMessageCodec(RpcMessageCodec):
         raise TypeError(message)
 
     @staticmethod
-    def _from_obj(obj: ta.Any) -> RpcMessage:
+    def _check_keys(dct: ta.Mapping[str, ta.Any], keys: ta.AbstractSet[str]) -> None:
+        actual = set(dct)
+        if actual != keys:
+            raise RpcProtocolError(f'Invalid RPC message fields: expected {sorted(keys)!r}, got {sorted(actual)!r}')
+
+    @staticmethod
+    def _decode_id(value: ta.Any) -> int:
+        if type(value) is not int or value <= 0:
+            raise RpcProtocolError(f'Invalid RPC message id: {value!r}')
+        return value
+
+    @staticmethod
+    def _decode_method(value: ta.Any) -> str:
+        if not isinstance(value, str) or not value:
+            raise RpcProtocolError(f'Invalid RPC method: {value!r}')
+        return value
+
+    @classmethod
+    def _from_obj(cls, obj: ta.Any) -> RpcMessage:
         if not isinstance(obj, dict):
             raise RpcProtocolError(f'RPC message must be an object, got {type(obj).__name__}')
 
         message_type = obj.get('type')
         if message_type == 'request':
-            _check_keys(obj, {'type', 'id', 'method', 'params'})
+            cls._check_keys(obj, {'type', 'id', 'method', 'params'})
             return RpcRequestMessage(
-                _decode_id(obj['id']),
-                _decode_method(obj['method']),
+                cls._decode_id(obj['id']),
+                cls._decode_method(obj['method']),
                 obj['params'],
             )
         if message_type == 'result':
-            _check_keys(obj, {'type', 'id', 'result'})
-            return RpcResultMessage(_decode_id(obj['id']), obj['result'])
+            cls._check_keys(obj, {'type', 'id', 'result'})
+            return RpcResultMessage(cls._decode_id(obj['id']), obj['result'])
         if message_type == 'error':
-            _check_keys(obj, {'type', 'id', 'error'})
+            cls._check_keys(obj, {'type', 'id', 'error'})
             error = obj['error']
             if not isinstance(error, dict):
                 raise RpcProtocolError(f'RPC error must be an object, got {type(error).__name__}')
-            _check_keys(error, {'code', 'type', 'message', 'traceback'})
+            cls._check_keys(error, {'code', 'type', 'message', 'traceback'})
             if not isinstance(error['code'], str) or not error['code']:
                 raise RpcProtocolError(f'Invalid RPC error code: {error["code"]!r}')
             if not isinstance(error['type'], str) or not error['type']:
@@ -150,7 +154,7 @@ class JsonRpcMessageCodec(RpcMessageCodec):
             if error['traceback'] is not None and not isinstance(error['traceback'], str):
                 raise RpcProtocolError(f'Invalid RPC error traceback: {error["traceback"]!r}')
             return RpcErrorMessage(
-                _decode_id(obj['id']),
+                cls._decode_id(obj['id']),
                 RpcRemoteErrorData(
                     code=error['code'],
                     remote_type=error['type'],
@@ -159,17 +163,17 @@ class JsonRpcMessageCodec(RpcMessageCodec):
                 ),
             )
         if message_type == 'cancel':
-            _check_keys(obj, {'type', 'id'})
-            return RpcCancelMessage(_decode_id(obj['id']))
+            cls._check_keys(obj, {'type', 'id'})
+            return RpcCancelMessage(cls._decode_id(obj['id']))
         if message_type == 'notification':
-            _check_keys(obj, {'type', 'method', 'params'})
-            return RpcNotificationMessage(_decode_method(obj['method']), obj['params'])
+            cls._check_keys(obj, {'type', 'method', 'params'})
+            return RpcNotificationMessage(cls._decode_method(obj['method']), obj['params'])
         if message_type == 'ping':
-            _check_keys(obj, {'type', 'id'})
-            return RpcPingMessage(_decode_id(obj['id']))
+            cls._check_keys(obj, {'type', 'id'})
+            return RpcPingMessage(cls._decode_id(obj['id']))
         if message_type == 'pong':
-            _check_keys(obj, {'type', 'id'})
-            return RpcPongMessage(_decode_id(obj['id']))
+            cls._check_keys(obj, {'type', 'id'})
+            return RpcPongMessage(cls._decode_id(obj['id']))
         raise RpcProtocolError(f'Invalid RPC message type: {message_type!r}')
 
     def encode(self, message: RpcMessage) -> bytes:
@@ -184,9 +188,13 @@ class JsonRpcMessageCodec(RpcMessageCodec):
         except (RecursionError, TypeError, ValueError) as e:
             raise RpcProtocolError(f'RPC message is not JSON-compatible: {e}') from e
 
+    @staticmethod
+    def _reject_json_constant(value: str) -> ta.NoReturn:
+        raise ValueError(f'Invalid JSON constant: {value}')
+
     def decode(self, data: bytes) -> RpcMessage:
         try:
-            obj = json.loads(data.decode('utf-8'), parse_constant=_reject_json_constant)
+            obj = json.loads(data.decode('utf-8'), parse_constant=self._reject_json_constant)
         except (RecursionError, UnicodeDecodeError, ValueError) as e:
             raise RpcProtocolError(f'Invalid RPC JSON: {e}') from e
         return self._from_obj(obj)

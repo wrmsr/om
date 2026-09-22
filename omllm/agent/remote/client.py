@@ -638,7 +638,12 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         ))
         return process
 
-    def _apply_event(self, process: RemoteProcess, method: str, params: ta.Mapping[str, ta.Any]) -> None:
+    def _apply_event(
+            self,
+            process: RemoteProcess,
+            method: str,
+            params: ta.Mapping[str, ta.Any],
+    ) -> None:
         if method == PROCESS_OUTPUT_METHOD:
             process._on_output(  # noqa
                 check_remote_int(params['fd'], minimum=1),
@@ -762,7 +767,11 @@ class _RemoteAgentClientHandler(RpcHandler):
         self.processes: RemoteProcessManager | None = None
 
     async def handle(self, method: str, params: ta.Any) -> None:
-        if method not in (PROCESS_OUTPUT_METHOD, PROCESS_OUTPUT_END_METHOD, PROCESS_EXITED_METHOD):
+        if method not in (
+                PROCESS_OUTPUT_METHOD,
+                PROCESS_OUTPUT_END_METHOD,
+                PROCESS_EXITED_METHOD,
+        ):
             raise ValueError(f'Unexpected remote agent callback: {method!r}')
         if self.processes is None:
             raise RuntimeError('Remote process manager is not attached')
