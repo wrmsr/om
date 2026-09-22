@@ -66,6 +66,7 @@ import termios
 argv = json.loads(sys.argv[1])
 os.setsid()
 fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+os.tcsetpgrp(0, os.getpgrp())
 os.execvpe(argv[0], argv, os.environ)
 """
 

@@ -682,8 +682,12 @@ class PyremoteBootstrapDriver:
                 return e.value
 
             if isinstance(go, self.Read):
-                if len(gi := input.read(go.sz)) != go.sz:
-                    raise EOFError
+                buf = bytearray()
+                while len(buf) < go.sz:
+                    if not (d := input.read(go.sz - len(buf))):
+                        raise EOFError
+                    buf.extend(d)
+                gi = bytes(buf)
             elif isinstance(go, self.Write):
                 gi = None
                 output.write(go.d)
@@ -709,8 +713,7 @@ class PyremoteBootstrapDriver:
                 return e.value
 
             if isinstance(go, self.Read):
-                if len(gi := await input.read(go.sz)) != go.sz:
-                    raise EOFError
+                gi = await input.readexactly(go.sz)
             elif isinstance(go, self.Write):
                 gi = None
                 output.write(go.d)

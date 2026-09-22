@@ -49,14 +49,14 @@ def __om_amalg__():  # noqa
             dict(path='../../../omcore/asyncs/asyncio/streams.py', sha1='0f5b4b31c139f08110827b601ff4f0d45489fba2'),
             dict(path='../../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
-            dict(path='../../../omcore/os/pyremote/core.py', sha1='9f02db93627917f5ce2345612a63ea6a4e01258a'),
+            dict(path='../../../omcore/os/pyremote/core.py', sha1='b0baf1528b4daa0bd392ccdf34b8d34b43d4243d'),
             dict(path='protocol.py', sha1='0820e42ac03ae29bacd92aa6dcae3be20d7b38c6'),
             dict(path='../../core/rpc/errors.py', sha1='9c59beacb63fd0f49b731f8d74b38faefdc90d22'),
             dict(path='../../core/rpc/handlers.py', sha1='123f3c9e2c61649e7d65192cd0f559fefd705a57'),
             dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='95dc0e1b4a2228d61f94e16b08a67860b4a84731'),
-            dict(path='server.py', sha1='06b1cc43ef4229a06a908aa9080a8cfdf9167559'),
+            dict(path='server.py', sha1='203cef8e35d7ac2573d7a60d49988609ad837190'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -1526,8 +1526,12 @@ class PyremoteBootstrapDriver:
                 return e.value
 
             if isinstance(go, self.Read):
-                if len(gi := input.read(go.sz)) != go.sz:
-                    raise EOFError
+                buf = bytearray()
+                while len(buf) < go.sz:
+                    if not (d := input.read(go.sz - len(buf))):
+                        raise EOFError
+                    buf.extend(d)
+                gi = bytes(buf)
             elif isinstance(go, self.Write):
                 gi = None
                 output.write(go.d)
@@ -1553,8 +1557,7 @@ class PyremoteBootstrapDriver:
                 return e.value
 
             if isinstance(go, self.Read):
-                if len(gi := await input.read(go.sz)) != go.sz:
-                    raise EOFError
+                gi = await input.readexactly(go.sz)
             elif isinstance(go, self.Write):
                 gi = None
                 output.write(go.d)
@@ -2591,6 +2594,7 @@ import termios
 argv = json.loads(sys.argv[1])
 os.setsid()
 fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+os.tcsetpgrp(0, os.getpgrp())
 os.execvpe(argv[0], argv, os.environ)
 """
 

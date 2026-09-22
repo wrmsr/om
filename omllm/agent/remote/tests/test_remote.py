@@ -3,6 +3,7 @@ import contextlib
 import os
 import pathlib
 import shlex
+import sys
 import typing as ta
 
 import pytest
@@ -23,22 +24,19 @@ from ..payload import get_remote_agent_payload_src
 
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
-_PYTHON_38_AVAILABLE = (_REPO_ROOT / '.venvs' / '8' / 'pyvenv.cfg').is_file()
+_PYTHON_38 = _REPO_ROOT / '.venvs' / '8' / 'bin' / 'python'
+_PYTHON = str(_PYTHON_38) if _PYTHON_38.is_file() else sys.executable
 
 
 @contextlib.asynccontextmanager
 async def _remote_agent() -> ta.AsyncIterator[RemoteAgentClient]:
-    env = dict(os.environ)
-    if _PYTHON_38_AVAILABLE:
-        env['VENV'] = '8'
     proc = await asyncio.create_subprocess_exec(
-        str(_REPO_ROOT / 'python'),
+        _PYTHON,
         '-c',
         pyremote_build_bootstrap_source('omllm-agent-test'),
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env=env,
     )
     assert proc.stdin is not None
     assert proc.stdout is not None

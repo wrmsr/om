@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote/core.py', sha1='9f02db93627917f5ce2345612a63ea6a4e01258a'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='b0baf1528b4daa0bd392ccdf34b8d34b43d4243d'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -6842,8 +6842,12 @@ class PyremoteBootstrapDriver:
                 return e.value
 
             if isinstance(go, self.Read):
-                if len(gi := input.read(go.sz)) != go.sz:
-                    raise EOFError
+                buf = bytearray()
+                while len(buf) < go.sz:
+                    if not (d := input.read(go.sz - len(buf))):
+                        raise EOFError
+                    buf.extend(d)
+                gi = bytes(buf)
             elif isinstance(go, self.Write):
                 gi = None
                 output.write(go.d)
@@ -6869,8 +6873,7 @@ class PyremoteBootstrapDriver:
                 return e.value
 
             if isinstance(go, self.Read):
-                if len(gi := await input.read(go.sz)) != go.sz:
-                    raise EOFError
+                gi = await input.readexactly(go.sz)
             elif isinstance(go, self.Write):
                 gi = None
                 output.write(go.d)

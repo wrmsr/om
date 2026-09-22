@@ -16,7 +16,7 @@ SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
 VENV_PYTHON_PATH="$SCRIPT_DIR/.venvs/$VENV/bin/python"
 if [ -f "$VENV_PYTHON_PATH" ] ; then
     PYTHON="$VENV_PYTHON_PATH"
-elif command -v python3 &> /dev/null ; then
+elif command -v python3 > /dev/null 2>&1 ; then
     PYTHON=python3
 else
     PYTHON=python
