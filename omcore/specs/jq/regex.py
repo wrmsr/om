@@ -7,6 +7,12 @@ from ... import lang
 from .errors import JqRegexError
 
 
+if ta.TYPE_CHECKING:
+    import regex
+else:
+    regex = lang.proxy_import('regex')
+
+
 ##
 
 
@@ -118,3 +124,11 @@ def regex_capture_object(match: RegexMatch) -> dict[str, ta.Any]:
         for capture in match.captures
         if capture.name is not None
     }
+
+
+##
+
+
+class RegexPackageEngine(PythonRegexEngine):
+    def __init__(self) -> None:
+        super().__init__(regex)

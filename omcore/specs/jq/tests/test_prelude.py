@@ -5,7 +5,7 @@ import pytest
 from ..errors import JqRegexError
 from ..errors import JqRegexUnavailableError
 from ..program import compile_jq
-from ..regexoptional import RegexPackageEngine
+from ..regex import RegexPackageEngine
 from ..streaming import tostream
 
 
