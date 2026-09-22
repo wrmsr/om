@@ -152,6 +152,12 @@ final or per-token states. That replaces ~25 small kernels per layer (and the st
 traffic) with one, which matters because the decode graph is otherwise ~2,500 nodes of a few microseconds each.
 `test_triton.py::test_gdn_step_kernel` checks it against the composed reference under the interpreter.
 
+What remains in the graph after the two kernels is glue -- norms, casts, gates, the attention prologue -- and
+`--compile` (`TorchOps(compile=True)`) hands the captured step to `torch.compile` first so inductor fuses that
+glue into a few generated kernels before the CUDA graph is captured. The first run pays inductor's compile time
+(minutes for 64 layers; cached on disk afterwards); the step's in-place KV writes and the static-input protocol
+survive compilation (checked on CPU: compiled speculative decode reproduces plain greedy token for token).
+
 ```bash
 python -m x.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
 python -m x.qwen.entrypoints.generate ... --triton-tuned ./.cache/qwen/gemv-int4.json

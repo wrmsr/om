@@ -114,12 +114,16 @@ class TorchOps(Ops):
             triton_max_m: int = 32,
             triton_block_n: int | None = None,
             triton_tuned: str | None = None,
+            compile: bool = False,  # noqa
     ) -> None:
         super().__init__()
 
         self.device = torch.device(device)
         self.name = f'torch:{self.device}'
         self.capture_mode = capture_mode  # 'auto' (graph on cuda, plain elsewhere) | 'graph' | 'static' | 'plain'
+        # run the step through torch.compile (inductor fuses the elementwise / norm / cast glue between the big
+        # kernels into a few generated ones) before it is graph-captured; slow first call, cached on disk after
+        self.compile = compile
         # fused int4/int8 GEMV for quantized weights when the token count is small (decode / verify); prefill
         # stays on dequant + cuBLAS. None: on when cuda and triton import. True on CPU needs TRITON_INTERPRET=1.
         self.triton = (self.device.type == 'cuda' and HAVE_TRITON) if triton is None else (triton and HAVE_TRITON)
@@ -348,6 +352,8 @@ class TorchOps(Ops):
         mode = self.capture_mode
         if mode == 'auto':
             mode = 'graph' if self.device.type == 'cuda' else 'plain'
+        if self.compile:
+            fn = torch.compile(fn, dynamic=False)
         if mode == 'plain':
             return fn
         return CudaGraphStep(fn, use_graph=(mode == 'graph'))

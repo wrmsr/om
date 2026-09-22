@@ -43,9 +43,9 @@ except ImportError:  # pragma: no cover
 
 HAVE_TRITON = triton is not None
 
-# (dtype, bits) -> (block_k, num_stages) that compiled; filled in by `qlinear` when a launch runs out of shared
-# memory and a smaller configuration is tried instead
-_RESOLVED: dict[tuple[ta.Any, int], tuple[int, int]] = {}
+# (N, K, bits, dtype, config) -> (block_k, num_stages, split_k) that launched successfully; filled by `_resolve`,
+# which is the only place a launch may fail and be retried smaller (keeps try/except out of the traced hot path)
+_RESOLVED: dict[tuple[ta.Any, ...], tuple[int, int, int]] = {}
 
 
 if HAVE_TRITON:
@@ -374,13 +374,51 @@ def qlinear(
     if x2.stride(1) != 1:
         x2 = x2.contiguous()
     m = x2.shape[0]
+    key = (n, k, bits, x.dtype, cfg)
+    resolved = _RESOLVED.get(key)
+    if resolved is None:
+        resolved = _resolve(x2, q, scale, bias, bits, group, n, k, cfg)
+        _RESOLVED[key] = resolved
+    bk, num_stages, split = resolved
+    y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x.dtype, device=x.device)
+    grid = (triton.cdiv(n, cfg.block_n), triton.cdiv(m, 16), split)
+    _qlinear_kernel[grid](
+        x2,
+        q,
+        scale,
+        bias,
+        y,
+        m,
+        n,
+        k,
+        x2.stride(0),
+        y.stride(1),
+        BITS=bits,
+        GROUP=group,
+        BLOCK_M=16,
+        BLOCK_N=cfg.block_n,
+        BLOCK_K=bk,
+        SPLIT_K=split,
+        IEEE=(x.dtype == torch.float32),
+        num_warps=cfg.num_warps,
+        num_stages=num_stages,
+    )
+    out = y.sum(0).to(x.dtype) if split > 1 else y[0]
+    return out.reshape(*x.shape[:-1], n)
+
+
+def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[int, int, int]:
+    """Find (block_k, num_stages, split_k) for `cfg` that fits the GPU's shared memory: try as configured, shrink
+    the K block, then the pipeline depth. Runs once per (shape, dtype, config)."""
+
+    m = x2.shape[0]
     bk = _block_k(k, cfg.block_k)
     split = cfg.split_k
     while split > 1 and k % (bk * split):
         split //= 2
     num_stages = cfg.num_stages
     while True:
-        y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x.dtype, device=x.device)
+        y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x2.dtype, device=x2.device)
         grid = (triton.cdiv(n, cfg.block_n), triton.cdiv(m, 16), split)
         try:
             _qlinear_kernel[grid](
@@ -400,21 +438,18 @@ def qlinear(
                 BLOCK_N=cfg.block_n,
                 BLOCK_K=bk,
                 SPLIT_K=split,
-                IEEE=(x.dtype == torch.float32),
+                IEEE=(x2.dtype == torch.float32),
                 num_warps=cfg.num_warps,
                 num_stages=num_stages,
             )
+            return bk, num_stages, split
         except triton.runtime.errors.OutOfResources:
-            # shared memory: shrink the stage first, then the pipeline depth
             if bk > 64 and k % (bk // 2) == 0:
                 bk //= 2
             elif num_stages > 1:
                 num_stages -= 1
             else:
                 raise
-            continue
-        out = y.sum(0).to(x.dtype) if split > 1 else y[0]
-        return out.reshape(*x.shape[:-1], n)
 
 
 def time_graphed(fn: ta.Callable[[], ta.Any], reps: int = 10, iters: int = 5) -> float:

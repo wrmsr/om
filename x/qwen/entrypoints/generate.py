@@ -118,6 +118,11 @@ def main() -> None:
         help='JSON from entrypoints/tune with per-shape GEMV launch configs, e.g. ./.cache/qwen/gemv-int4.json',
     )
     ap.add_argument(
+        '--compile',
+        action='store_true',
+        help='torch.compile the captured steps (fuses the small ops between the big kernels); slow first run',
+    )
+    ap.add_argument(
         '--warmup',
         action='store_true',
         help='run a short throwaway generation first so graph capture / kernel compile stay out of the timing',
@@ -136,6 +141,10 @@ def main() -> None:
 
     ops = make_ops(args.backend, args.device)
     dtype = args.dtype or default_dtype(ops)
+    if args.compile:
+        if not hasattr(ops, 'compile'):
+            ap.error('--compile is a torch backend option')
+        ops.compile = True
     if args.triton_tuned and hasattr(ops, 'triton'):
         from ..backends.torch_triton import load_tuned
 
