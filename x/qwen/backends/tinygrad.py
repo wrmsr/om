@@ -26,7 +26,12 @@ from ..quant import QWeight
 ##
 
 
-DTYPES = {'f32': dtypes.float32, 'f16': dtypes.float16, 'bf16': dtypes.bfloat16, 'i32': dtypes.int32}
+DTYPES = {
+    'f32': dtypes.float32,
+    'f16': dtypes.float16,
+    'bf16': dtypes.bfloat16,
+    'i32': dtypes.int32,
+}
 
 
 @dc.dataclass()
@@ -234,7 +239,8 @@ class TinygradOps(Ops):
             past,
     ):
         B, H, T, D = q.shape
-        KV, L = k.shape[1], k.shape[2]
+        KV = k.shape[1]
+        L = k.shape[2]
         if abs(scale * math.sqrt(D) - 1.0) > 1e-6:  # tinygrad's SDPA has no scale argument
             return super().sdpa(q, k, v, scale, past)
         if KV != H:

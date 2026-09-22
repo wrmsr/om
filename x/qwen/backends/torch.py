@@ -15,16 +15,21 @@ import torch.nn.functional as F
 
 from ..ops import Ops
 from ..quant import QWeight
-from .torch_triton import HAVE_TRITON
-from .torch_triton import gdn_step
-from .torch_triton import load_tuned
-from .torch_triton import qlinear
+from .triton import HAVE_TRITON
+from .triton import gdn_step
+from .triton import load_tuned
+from .triton import qlinear
 
 
 ##
 
 
-DTYPES = {'f32': torch.float32, 'f16': torch.float16, 'bf16': torch.bfloat16, 'i32': torch.int32}
+DTYPES = {
+    'f32': torch.float32,
+    'f16': torch.float16,
+    'bf16': torch.bfloat16,
+    'i32': torch.int32,
+}
 
 
 @dc.dataclass()
@@ -64,12 +69,12 @@ class CudaGraphStep:
     """
     CUDA-graph capture of a flat-tuple step function.
 
-    The first call runs the function twice on a side stream (cuBLAS/cuDNN lazy init must not happen inside a
-    capture), then captures it against the argument tensors it was given. Those tensors become the graph's
-    static inputs: later calls `copy_` new arguments into them (skipping arguments that already *are* the static
-    tensors, which is what `kv_write`'s in-place return gives us for the KV buffers), replay, and hand back the
-    graph's output tensors. Outputs are overwritten by the next replay, so a caller that keeps state must feed the
-    outputs straight back in -- the copy into the static inputs is what carries it forward.
+    The first call runs the function twice on a side stream (cuBLAS/cuDNN lazy init must not happen inside a capture),
+    then captures it against the argument tensors it was given. Those tensors become the graph's static inputs: later
+    calls `copy_` new arguments into them (skipping arguments that already *are* the static tensors, which is what
+    `kv_write`'s in-place return gives us for the KV buffers), replay, and hand back the graph's output tensors. Outputs
+    are overwritten by the next replay, so a caller that keeps state must feed the outputs straight back in -- the copy
+    into the static inputs is what carries it forward.
     """
 
     def __init__(self, fn, use_graph: bool = True) -> None:
@@ -156,15 +161,15 @@ class TorchOps(Ops):
         self.device = torch.device(device)
         self.name = f'torch:{self.device}'
         self.capture_mode = capture_mode  # 'auto' (graph on cuda, plain elsewhere) | 'graph' | 'static' | 'plain'
-        # run the step through torch.compile (inductor fuses the elementwise / norm / cast glue between the big
-        # kernels into a few generated ones) before it is graph-captured; slow first call, cached on disk after
+        # run the step through torch.compile (inductor fuses the elementwise / norm / cast glue between the big kernels
+        # into a few generated ones) before it is graph-captured; slow first call, cached on disk after
         self.compile = compile
-        # torch.compiler cache artifacts (dynamo + inductor) persisted between processes, so a warm start is
-        # seconds rather than the full re-trace; see save_compile_cache
+        # torch.compiler cache artifacts (dynamo + inductor) persisted between processes, so a warm start is seconds
+        # rather than the full re-trace; see save_compile_cache
         self.compile_cache = compile_cache
         self._cache_loaded = False
-        # fused int4/int8 GEMV for quantized weights when the token count is small (decode / verify); prefill
-        # stays on dequant + cuBLAS. None: on when cuda and triton import. True on CPU needs TRITON_INTERPRET=1.
+        # fused int4/int8 GEMV for quantized weights when the token count is small (decode / verify); prefill stays on
+        # dequant + cuBLAS. None: on when cuda and triton import. True on CPU needs TRITON_INTERPRET=1.
         self.triton = (self.device.type == 'cuda' and HAVE_TRITON) if triton is None else (triton and HAVE_TRITON)
         self.triton_max_m = triton_max_m
         self.triton_block_n = triton_block_n
@@ -343,10 +348,47 @@ class TorchOps(Ops):
             w.shape,
         )
 
-    def gdn_step(self, q, k, v, a, b, A, dt_bias, state, all_states, eps=1e-6):
+    def gdn_step(
+            self,
+            q,
+            k,
+            v,
+            a,
+            b,
+            A,
+            dt_bias,
+            state,
+            all_states,
+            eps=1e-6,
+    ):
         if self.triton:
-            return gdn_step(q, k, v, a, b, A, dt_bias, state, all_states, eps, self.gdn_block_dv, self.gdn_num_warps)
-        return super().gdn_step(q, k, v, a, b, A, dt_bias, state, all_states, eps)
+            return gdn_step(
+                q,
+                k,
+                v,
+                a,
+                b,
+                A,
+                dt_bias,
+                state,
+                all_states,
+                eps,
+                self.gdn_block_dv,
+                self.gdn_num_warps,
+            )
+
+        return super().gdn_step(
+            q,
+            k,
+            v,
+            a,
+            b,
+            A,
+            dt_bias,
+            state,
+            all_states,
+            eps,
+        )
 
     def linear(self, x, w):
         if isinstance(w, TorchQWeight):
@@ -380,7 +422,8 @@ class TorchOps(Ops):
             past,
     ):
         B, H, T, D = q.shape
-        KV, L = k.shape[1], k.shape[2]
+        KV = k.shape[1]
+        L = k.shape[2]
         if KV != H:
             k = k.repeat_interleave(H // KV, dim=1)
             v = v.repeat_interleave(H // KV, dim=1)

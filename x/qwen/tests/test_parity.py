@@ -166,8 +166,10 @@ def test_gated_delta_parity():
 
 
 def test_static_decode_parity():
-    """The captured fixed-capacity decode step == the functional cached decode == the numpy golden one-shot
-    forward, per backend, including a capacity doubling mid-sequence and snapshot/restore."""
+    """
+    The captured fixed-capacity decode step == the functional cached decode == the numpy golden one-shot
+    forward, per backend, including a capacity doubling mid-sequence and snapshot/restore.
+    """
 
     from ..model import Decoder
 

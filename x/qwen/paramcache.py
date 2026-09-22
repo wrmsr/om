@@ -1,20 +1,21 @@
+# ruff: noqa: N806 N812
 """
 On-disk cache of finished parameters.
 
-Loading a 27B from an Ollama GGUF costs ~2 minutes: gguf-py's numpy k-quant dequantization of every tensor,
-then requantization. The result is the same every time, so `from_source(..., cache_dir=...)` keeps it: one
-`.npy` per array (memory-mapped on the way back in) under
+Loading a 27B from an Ollama GGUF costs ~2 minutes: gguf-py's numpy k-quant dequantization of every tensor, then
+requantization. The result is the same every time, so `from_source(..., cache_dir=...)` keeps it: one `.npy` per array
+(memory-mapped on the way back in) under
 
     <cache_dir>/<source identity>-<quant>-g<group>/<canonical name>[.q|.scale|.bias].npy   (+ <name>.json)
 
-Dense tensors are stored as the float32 canonical arrays `TensorSource.get` returns (only worth it with a
-quantized model: an unquantized 27B would be 108 GB of f32). Quantized tensors are stored as `quant.QWeight`
-(packed uint8 codes + f32 scale/bias), backend-independent, so a cache built on torch loads on MLX. Entries are
-independent files, so loading with `mtp=True` after an `mtp=False` build just adds the draft head.
+Dense tensors are stored as the float32 canonical arrays `TensorSource.get` returns (only worth it with a quantized
+model: an unquantized 27B would be 108 GB of f32). Quantized tensors are stored as `quant.QWeight` (packed uint8 codes +
+f32 scale/bias), backend-independent, so a cache built on torch loads on MLX. Entries are independent files, so loading
+with `mtp=True` after an `mtp=False` build just adds the draft head.
 
-On a miss the weights are quantized on the device as usual and exported back to numpy through
-`Ops.export_qweight`; backends without it fall back to the (slower) numpy quantizer. Writes are atomic per entry
-(temp file + rename), so an interrupted build leaves a partial but valid cache.
+On a miss the weights are quantized on the device as usual and exported back to numpy through `Ops.export_qweight`;
+backends without it fall back to the (slower) numpy quantizer. Writes are atomic per entry (temp file + rename), so an
+interrupted build leaves a partial but valid cache.
 """
 import dataclasses as dc
 import hashlib
@@ -36,8 +37,10 @@ _SHA_RE = re.compile(r'sha256-([0-9a-f]{64})')
 
 
 def source_identity(src: ta.Any) -> str:
-    """A stable id for a TensorSource: the Ollama blob digest when the path carries one, else a hash of the
-    file path, size and mtime (GGUF), else a hash of the manifest's tensor digests (Ollama tensor blobs)."""
+    """
+    A stable id for a TensorSource: the Ollama blob digest when the path carries one, else a hash of the file path, size
+    and mtime (GGUF), else a hash of the manifest's tensor digests (Ollama tensor blobs).
+    """
 
     path = getattr(src, 'path', None)
     if path is not None:

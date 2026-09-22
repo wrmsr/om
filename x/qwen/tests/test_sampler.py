@@ -70,9 +70,11 @@ def test_sampler_distribution():
 
 
 def test_probs_and_rejection_sampling():
-    """`Sampler.probs` equals the exact warped distribution, and the speculative accept/correct step reproduces
+    """
+    `Sampler.probs` equals the exact warped distribution, and the speculative accept/correct step reproduces
     the target distribution whatever the draft distribution is (the speculative-sampling theorem), with an
-    acceptance rate of sum(min(p, q))."""
+    acceptance rate of sum(min(p, q)).
+    """
 
     from ..model import speculative_accept
 

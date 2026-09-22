@@ -10,6 +10,7 @@ import os
 
 import numpy as np
 
+
 try:
     import torch
 except ImportError:  # pragma: no cover
@@ -28,19 +29,22 @@ def _skip() -> bool:
     if torch is None:
         print('torch not installed; skipping')
         return True
-    from ..backends.torch_triton import HAVE_TRITON
+
+    from ..backends.triton import HAVE_TRITON
 
     if not HAVE_TRITON:
         print('triton not installed; skipping')
         return True
+
     return False
 
 
 def test_qlinear_kernel():
     if _skip():
         return
+
     from ..backends.torch import TorchOps
-    from ..backends.torch_triton import qlinear
+    from ..backends.triton import qlinear
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     ops = TorchOps(device)
@@ -60,8 +64,9 @@ def test_qlinear_kernel():
                     err = ((y.float() - ref).abs().max() / ref.abs().max()).item()
                     assert err < tol, (bits, n, k, m, dt, err)
         print(f'int{bits}: kernel matches dequant reference for M in (1, 5, 16, 33)')
+
     # the FMA formulation (registers, M <= 8) must match too, for both widths and with split-K
-    from ..backends.torch_triton import GemvConfig
+    from ..backends.triton import GemvConfig
 
     for bits in (8, 4):
         w = (rng.standard_normal((72, 512)) * 0.05).astype(np.float32)
@@ -97,13 +102,16 @@ def test_qlinear_kernel():
 
 
 def test_gdn_step_kernel():
-    """The fused DeltaNet step against the composed Ops.gdn_step reference: T in (1, 4), 3 value heads per key
-    head, final state and all-states variants."""
+    """
+    The fused DeltaNet step against the composed Ops.gdn_step reference: T in (1, 4), 3 value heads per key
+    head, final state and all-states variants.
+    """
 
     if _skip():
         return
+
     from ..backends.torch import TorchOps
-    from ..backends.torch_triton import gdn_step
+    from ..backends.triton import gdn_step
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     ops = TorchOps(device, triton=False)  # reference path

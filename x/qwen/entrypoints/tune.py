@@ -8,8 +8,8 @@ import argparse
 
 import torch
 
-from ..backends.torch_triton import save_tuned
-from ..backends.torch_triton import tune
+from ..backends.triton import save_tuned
+from ..backends.triton import tune
 from ..model import fusion_of
 from ..model import mtp_param_names
 from ..model import required_param_names
@@ -21,9 +21,11 @@ from ..weights import open_source
 
 
 def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[tuple[int, int]]]:
-    """Distinct (N, K) of the model's quantized 2-D weights as the model actually runs them -- fused projections
+    """
+    Distinct (N, K) of the model's quantized 2-D weights as the model actually runs them -- fused projections
     (gate_up, qkv, qkvz, ab; see model.FUSIONS) count once with their stacked N -- grouped by bit width (the
-    a/b pair is int8 whatever the model's width)."""
+    a/b pair is int8 whatever the model's width).
+    """
 
     src = open_source(model)
     cfg = src.config

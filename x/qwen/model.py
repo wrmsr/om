@@ -124,9 +124,11 @@ class Attention:
             sin: Array,
             state: FullState,
     ) -> tuple[Array, FullState]:
-        """T tokens against fixed-capacity KV buffers. x: [B, T, hidden] at positions pos..pos+T-1; pos: 0-d int
+        """
+        T tokens against fixed-capacity KV buffers. x: [B, T, hidden] at positions pos..pos+T-1; pos: 0-d int
         array; ar: arange(L); cos, sin: [T, rope_dim] rows for those positions; state: (kbuf, vbuf)
-        [B, KV, L, D]. Every shape is static in `pos`; T == 1 is decode, T == k + 1 speculative verify."""
+        [B, KV, L, D]. Every shape is static in `pos`; T == 1 is decode, T == k + 1 speculative verify.
+        """
 
         c = self.cfg
         B, T, _ = x.shape
@@ -160,8 +162,8 @@ class GatedDeltaNet:
         self.w_qkvz = p.get('in_proj_qkvz')  # fused [qkv | z] when the loader provides it
         self.w_qkv = p.get('in_proj_qkv')
         self.w_z = p.get('in_proj_z')
-        # the two low-rank [n_v, hidden] projections are fused into one [2 n_v, hidden] matmul when the loader
-        # provides it (see from_source); separate weights are still accepted
+        # the two low-rank [n_v, hidden] projections are fused into one [2 n_v, hidden] matmul when the loader provides
+        # it (see from_source); separate weights are still accepted
         self.w_ab = p.get('in_proj_ab')
         self.w_a = p.get('in_proj_a')
         self.w_b = p.get('in_proj_b')
@@ -178,9 +180,11 @@ class GatedDeltaNet:
             state: LinearState | None,
             all_states: bool = False,
     ) -> tuple[Array, LinearState]:
-        """With all_states the returned pair is stacked per token -- conv [T, B, C, K-1], S [T, B, H, dk, dv] --
-        so a speculative verify can keep the state after exactly the accepted prefix (the KV side needs no
-        rollback: stale positions are masked by `pos`)."""
+        """
+        With all_states the returned pair is stacked per token -- conv [T, B, C, K-1], S [T, B, H, dk, dv] -- so a
+        speculative verify can keep the state after exactly the accepted prefix (the KV side needs no rollback: stale
+        positions are masked by `pos`).
+        """
 
         c = self.cfg
         B, T, _ = x.shape
@@ -397,9 +401,9 @@ NO_QUANT = (
 )
 
 
-# Projections that share an input are loaded as one weight stacked along the output dim: one GEMV launch instead
-# of two or three, and a wider N streams better. (fused suffix, part suffixes, bits override). The a/b pair is
-# kept separate from qkv/z because it is stored at int8 whatever the model's width.
+# Projections that share an input are loaded as one weight stacked along the output dim: one GEMV launch instead of two
+# or three, and a wider N streams better. (fused suffix, part suffixes, bits override). The a/b pair is kept separate
+# from qkv/z because it is stored at int8 whatever the model's width.
 FUSIONS: tuple[tuple[str, tuple[str, ...], int | None], ...] = (
     ('mlp.gate_up_proj.weight', ('mlp.gate_proj.weight', 'mlp.up_proj.weight'), None),
     ('self_attn.qkv_proj.weight', ('self_attn.q_proj.weight', 'self_attn.k_proj.weight', 'self_attn.v_proj.weight'), None),
@@ -467,8 +471,8 @@ class Qwen35:
         quant: None, 'int8' or 'int4' (weight-only affine, see quant.py). If the source already holds MLX-quantized
                tensors at the requested width they are re-packed as-is; otherwise weights are quantized.
         mtp:   also load the multi-token-prediction draft head (needs `num_mtp_layers >= 1` in the source).
-        cache_dir: keep the finished parameters on disk there (see paramcache.py); the first load fills it, later
-               ones memory-map it and skip the GGUF dequantization entirely.
+        cache_dir: keep the finished parameters on disk there (see paramcache.py); the first load fills it, later ones
+                   memory-map it and skip the GGUF dequantization entirely.
         """
 
         cfg = src.config
@@ -558,9 +562,10 @@ class Qwen35:
 
     @staticmethod
     def _load_fused(src, ops, cache, fused_name, parts, fbits, group, dt) -> Weight:
-        """Load `parts`, stack them along the output dim, quantize (fbits) or adopt dense; cached under the fused
-        name. Sources that hold the parts already quantized at the same width are re-packed row-wise without
-        requantization."""
+        """
+        Load `parts`, stack them along the output dim, quantize (fbits) or adopt dense; cached under the fused name.
+        Sources that hold the parts already quantized at the same width are re-packed row-wise without requantization.
+        """
 
         cached = cache.get(fused_name) if cache is not None else None
         if isinstance(cached, QWeight):
@@ -606,8 +611,10 @@ class Qwen35:
         last_only: bool = False,
         return_hidden: bool = False,
     ) -> ta.Any:
-        """tokens: [B, T] ints. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32; with
-        return_hidden also the final-normed hidden states [B, T, hidden] (what the MTP head conditions on)."""
+        """
+        tokens: [B, T] ints. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32; with
+        return_hidden also the final-normed hidden states [B, T, hidden] (what the MTP head conditions on).
+        """
 
         ops = self.ops
         c = self.cfg
@@ -640,17 +647,15 @@ class Qwen35:
             return_hidden: bool = False,
     ) -> ta.Callable[..., tuple[Array, ...]]:
         """
-        The static T-token step: `fn(toks, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits, [hidden,]
-        *flat_state)`.
+        The static T-token step: `fn(toks, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits, [hidden,] *flat_state)`.
 
-        toks: [B, T] int at positions pos..pos+T-1; pos: 0-d int; ar: arange(capacity); cos_tab, sin_tab:
-        [capacity, rope_dim]; flat_state: two arrays per layer (kbuf, vbuf) or (conv, S). Everything is an
-        argument (no closed-over tensors) so one compiled function serves every Decoder with the same shapes;
-        nothing in the step may allocate from the host. Returns logits [B, T, V] float32 (and, with
-        return_hidden, the final-normed hidden [B, T, hidden] the draft head conditions on); with all_states the
-        DeltaNet entries come back stacked per token. Pure apart from `kv_write`, so a backend may capture it.
-        T == 1 is decode; T == k + 1 with all_states is speculative verify. Built (and `Ops.compile_fn`ed) once
-        per (T, all_states, return_hidden) and cached on the model.
+        toks: [B, T] int at positions pos..pos+T-1; pos: 0-d int; ar: arange(capacity); cos_tab, sin_tab: [capacity,
+        rope_dim]; flat_state: two arrays per layer (kbuf, vbuf) or (conv, S). Everything is an argument (no closed-over
+        tensors) so one compiled function serves every Decoder with the same shapes; nothing in the step may allocate
+        from the host. Returns logits [B, T, V] float32 (and, with return_hidden, the final-normed hidden [B, T, hidden]
+        the draft head conditions on); with all_states the DeltaNet entries come back stacked per token. Pure apart from
+        `kv_write`, so a backend may capture it. T == 1 is decode; T == k + 1 with all_states is speculative verify.
+        Built (and `Ops.compile_fn`ed) once per (T, all_states, return_hidden) and cached on the model.
         """
 
         key = (T, all_states, return_hidden)
@@ -682,7 +687,9 @@ class Qwen35:
         return fn
 
     def decode_fn(self) -> ta.Callable[..., tuple[Array, ...]]:
-        """The single-token step: `fn(tok, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits [B, 1, V], *flat_state)`."""
+        """
+        The single-token step: `fn(tok, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits [B, 1, V], *flat_state)`.
+        """
 
         return self.step_fn(1)
 
@@ -699,13 +706,13 @@ class Qwen35:
         draft_vocab: int = 0,
     ) -> list[int]:
         """
-        Generation. Prefill goes through `forward` (chunked); decode then runs the captured static step
-        (`static=True`, the fast path) or keeps growing the functional cache (`static=False`, the reference).
-        `sampler` defaults to greedy. `spec=k` (needs the MTP head loaded) drafts k tokens per round with the
-        draft head and verifies them in one target step. `capacity` pins the decode buffers' length (rounded up
-        to a power of two); the captured / compiled steps are specific to it, so callers that want to reuse them
-        across generations -- a warm-up, a server -- should pass the same value every time. Default: just enough
-        for this call. Yields token ids through on_token as they are produced.
+        Generation. Prefill goes through `forward` (chunked); decode then runs the captured static step (`static=True`,
+        the fast path) or keeps growing the functional cache (`static=False`, the reference). `sampler` defaults to
+        greedy. `spec=k` (needs the MTP head loaded) drafts k tokens per round with the draft head and verifies them in
+        one target step. `capacity` pins the decode buffers' length (rounded up to a power of two); the captured /
+        compiled steps are specific to it, so callers that want to reuse them across generations -- a warm-up, a server
+        -- should pass the same value every time. Default: just enough for this call. Yields token ids through on_token
+        as they are produced.
         """
 
         capacity = max(capacity or 0, len(prompt_ids) + max_new_tokens + spec + 2)
@@ -780,9 +787,9 @@ class MtpHead:
         u = one gated-attention block (text geometry, private weights, private KV)
         d = rmsnorm(u, norm);  logits = lm_head(d)  # the target's output head
 
-    and can recurse, feeding its own normed output `d` back in as the next hidden. All norm weights are stored
-    with the +1 already applied, like the text model's. The block runs through `Block.decode` on its own KV
-    buffers (positions are the hidden's position).
+    and can recurse, feeding its own normed output `d` back in as the next hidden. All norm weights are stored with the
+    +1 already applied, like the text model's. The block runs through `Block.decode` on its own KV buffers (positions
+    are the hidden's position).
     """
 
     def __init__(self, model: Qwen35, params: dict[str, Weight]) -> None:
@@ -797,17 +804,21 @@ class MtpHead:
         self._heads: dict[int, Weight] = {}
 
     def stem(self, ops: Ops, toks: Array, hidden: Array) -> Array:
-        c, m = self.cfg, self.model
+        c = self.cfg
+        m = self.model
         e = ops.rms_norm(ops.embedding(toks, m.embed, m.dtype), self.enorm, c.rms_eps)
         h = ops.rms_norm(ops.cast(hidden, m.dtype), self.hnorm, c.rms_eps)
         return ops.linear(ops.concat([e, h], -1), self.fc)
 
     def head(self, ops: Ops, u: Array, draft_vocab: int = 0) -> tuple[Array, Array]:
-        """Final norm + output head. draft_vocab > 0 restricts the head to the first that many vocabulary ids:
-        Qwen's BPE ids are roughly in merge-frequency order, so the first 32-64k cover almost every token the
-        target will pick while costing a fraction of the 248k-row matmul (ninfer's `--lm-head-draft`)."""
+        """
+        Final norm + output head. draft_vocab > 0 restricts the head to the first that many vocabulary ids: Qwen's BPE
+        ids are roughly in merge-frequency order, so the first 32-64k cover almost every token the target will pick
+        while costing a fraction of the 248k-row matmul (ninfer's `--lm-head-draft`).
+        """
 
-        c, m = self.cfg, self.model
+        c = self.cfg
+        m = self.model
         d = ops.rms_norm(u, self.norm_w, c.rms_eps)
         head = m.lm_head
         if draft_vocab:
@@ -824,8 +835,10 @@ class MtpHead:
             pos: int = 0,
             draft_vocab: int = 0,
     ) -> tuple[Array, Array, FullState]:
-        """Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T,
-        hidden [B, T, H] the target's hidden states at pos..pos+T-1. Returns logits, d, (k, v)."""
+        """
+        Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T, hidden [B,
+        T, H] the target's hidden states at pos..pos+T-1. Returns logits, d, (k, v).
+        """
 
         ops = self.model.ops
         u = self.stem(ops, ops.array(np.asarray(toks, dtype=np.int32)), hidden)
@@ -834,9 +847,11 @@ class MtpHead:
         return logits, d, state
 
     def step_fn(self, T: int, draft_vocab: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
-        """Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, ar, cos_tab, sin_tab, kbuf, vbuf) ->
-        (logits, d, kbuf, vbuf)`; built and compiled once per (T, draft_vocab), cached on the head. With
-        draft_vocab the logits cover only the first that many ids (see `head`)."""
+        """
+        Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, ar, cos_tab, sin_tab, kbuf, vbuf) -> (logits, d, kbuf,
+        vbuf)`; built and compiled once per (T, draft_vocab), cached on the head. With draft_vocab the logits cover only
+        the first that many ids (see `head`).
+        """
 
         key = (T, draft_vocab)
         fn = self._steps.get(key)
@@ -873,15 +888,15 @@ def block_params(params: dict[str, Weight], prefix: str) -> dict[str, Weight]:
 
 class Sampler:
     """
-    Sampling on the device: temperature -> presence/frequency penalties -> top-k -> top-p -> min-p ->
-    Gumbel-max draw, all as `Ops` calls on a [T, V] float32 logits array, so what leaves the device is T token
-    ids. temperature <= 0 is greedy (an argmax) and ignores the rest. Qwen's published presets: thinking t=1.0
-    top-p=0.95 top-k=20; non-thinking t=0.7 top-p=0.8 top-k=20 presence=1.5.
+    Sampling on the device: temperature -> presence/frequency penalties -> top-k -> top-p -> min-p -> Gumbel-max draw,
+    all as `Ops` calls on a [T, V] float32 logits array, so what leaves the device is T token ids. temperature <= 0 is
+    greedy (an argmax) and ignores the rest. Qwen's published presets: thinking t=1.0 top-p=0.95 top-k=20; non-thinking
+    t=0.7 top-p=0.8 top-k=20 presence=1.5.
 
-    top-p and min-p are applied among the top-k candidates (top-k must be > 0 for them; with top-k=0 they sort
-    the whole vocabulary). The penalties read a device histogram of the tokens `observe`d so far; rows sampled in
-    one call share that state, which for speculative verify means a round's k+1 draws see the histogram as of
-    the round's start. `seed` seeds the backend's generator, so the stream differs between backends.
+    top-p and min-p are applied among the top-k candidates (top-k must be > 0 for them; with top-k=0 they sort the whole
+    vocabulary). The penalties read a device histogram of the tokens `observe`d so far; rows sampled in one call share
+    that state, which for speculative verify means a round's k+1 draws see the histogram as of the round's start. `seed`
+    seeds the backend's generator, so the stream differs between backends.
     """
 
     def __init__(
@@ -956,10 +971,10 @@ class Sampler:
 
     def probs(self, logits: Array) -> Array:
         """
-        The distribution `sample` draws from, materialised over the whole vocabulary: [T, V] float32 rows that
-        sum to 1, zero outside the kept set. Every truncation (top-k, top-p, min-p) is a per-row threshold on the
-        tempered logits, so this is a topk on the candidates to find the threshold, then one masked softmax.
-        Greedy is a one-hot row. Speculative verify compares the target's and the draft head's versions of this.
+        The distribution `sample` draws from, materialised over the whole vocabulary: [T, V] float32 rows that sum to 1,
+        zero outside the kept set. Every truncation (top-k, top-p, min-p) is a per-row threshold on the tempered logits,
+        so this is a topk on the candidates to find the threshold, then one masked softmax. Greedy is a one-hot row.
+        Speculative verify compares the target's and the draft head's versions of this.
         """
 
         ops = self.ops
@@ -1017,15 +1032,15 @@ def speculative_accept(
         q_d: Array,
 ) -> tuple[Array, Array]:
     """
-    The rejection-sampling step of speculative decoding (Leviathan et al. / Chen et al.). p_rows: [k+1, V], the
-    target's warped distribution at each verified position; q_rows: [k, V], the draft head's at the k drafted
-    positions; drafts: [k] tokens that were sampled from q_rows; q_d: [k] their draft probabilities. Draft i is
-    accepted with probability min(1, p_i(d_i) / q_i(d_i)). Returns (accept flags [k] int32, corrections [k+1]
-    int32): the token to emit at position i if draft i is the first rejected one -- a draw from the residual
-    max(0, p_i - q_i) renormalised -- and, at index k, a plain draw from p_k for the case where every draft was
-    accepted. The caller takes the first rejection on the host; everything here is one small batch of
-    vocabulary-wide ops, so the round still has a single device->host sync. With every distribution one-hot
-    (greedy) this reduces to "accept iff argmax matches", so greedy and sampled decoding share the path.
+    The rejection-sampling step of speculative decoding (Leviathan et al. / Chen et al.). p_rows: [k+1, V], the target's
+    warped distribution at each verified position; q_rows: [k, V], the draft head's at the k drafted positions; drafts:
+    [k] tokens that were sampled from q_rows; q_d: [k] their draft probabilities. Draft i is accepted with probability
+    min(1, p_i(d_i) / q_i(d_i)). Returns (accept flags [k] int32, corrections [k+1] int32): the token to emit at
+    position i if draft i is the first rejected one -- a draw from the residual max(0, p_i - q_i) renormalised -- and,
+    at index k, a plain draw from p_k for the case where every draft was accepted. The caller takes the first rejection
+    on the host; everything here is one small batch of vocabulary-wide ops, so the round still has a single device->host
+    sync. With every distribution one-hot (greedy) this reduces to "accept iff argmax matches", so greedy and sampled
+    decoding share the path.
     """
 
     k = q_rows.shape[0]
@@ -1058,9 +1073,9 @@ class Decoder:
     Fixed-capacity decode state plus the captured step.
 
     Built from a `Cache` after prefill: the KV of every attention layer is copied into a zero-padded buffer of
-    `capacity` positions, the DeltaNet (conv, S) pairs are carried as-is, and the position becomes a 0-d device
-    array. `step(tok)` runs the captured `decode_fn`; the only host<->device traffic per token is the token id in
-    and the logits out. When the sequence reaches capacity the buffers are doubled and the step re-captured.
+    `capacity` positions, the DeltaNet (conv, S) pairs are carried as-is, and the position becomes a 0-d device array.
+    `step(tok)` runs the captured `decode_fn`; the only host<->device traffic per token is the token id in and the
+    logits out. When the sequence reaches capacity the buffers are doubled and the step re-captured.
     """
 
     def __init__(self, model: Qwen35, cache: Cache, capacity: int | None = None) -> None:
@@ -1082,7 +1097,8 @@ class Decoder:
     def _pad_to(self, capacity: int) -> None:
         """Zero-pad every KV buffer to `capacity` positions (no-op for buffers already that long)."""
 
-        ops, c = self.ops, self.model.cfg
+        ops = self.ops
+        c = self.model.cfg
         flat: list[Array] = []
         for i, kind in enumerate(c.layer_types):
             a, b = self.flat[2 * i], self.flat[2 * i + 1]
@@ -1098,7 +1114,8 @@ class Decoder:
         self.flat = flat
 
     def _alloc(self, capacity: int, first: bool = False) -> None:
-        ops, c = self.ops, self.model.cfg
+        ops = self.ops
+        c = self.model.cfg
         self.capacity = capacity
         self._pad_to(capacity)
         self.ar = ops.arange(capacity)
@@ -1151,8 +1168,10 @@ class Decoder:
         return out[0], out[1], list(out[2:])
 
     def commit(self, flat_all: list[Array], n_accept: int) -> None:
-        """Keep the state after the first `n_accept` verified tokens (the KV buffers need no rollback: positions
-        past the commit are masked by `pos` and overwritten by the next step)."""
+        """
+        Keep the state after the first `n_accept` verified tokens (the KV buffers need no rollback: positions
+        past the commit are masked by `pos` and overwritten by the next step).
+        """
 
         flat: list[Array] = []
         for i, kind in enumerate(self.model.cfg.layer_types):
@@ -1185,16 +1204,16 @@ class Decoder:
 
 class SpecDecoder:
     """
-    MTP speculative decoding, batch 1: each round drafts `k` tokens with the draft head (the first from the
-    head's last refreshed entry, the rest by recursion on its own hidden), verifies all of them plus the
-    already-sampled next token in one T = k + 1 target step, commits the accepted prefix, and refreshes the draft
-    head's KV with the target's true hidden states for the committed positions. Acceptance is "the target's
-    sample equals the draft": exact for greedy and for sampling (each committed token is a sample from the
-    target's own distribution given its prefix), just less efficient than rejection sampling would be.
+    MTP speculative decoding, batch 1: each round drafts `k` tokens with the draft head (the first from the head's last
+    refreshed entry, the rest by recursion on its own hidden), verifies all of them plus the already-sampled next token
+    in one T = k + 1 target step, commits the accepted prefix, and refreshes the draft head's KV with the target's true
+    hidden states for the committed positions. Acceptance is "the target's sample equals the draft": exact for greedy
+    and for sampling (each committed token is a sample from the target's own distribution given its prefix), just less
+    efficient than rejection sampling would be.
 
-    Rollback on the target side is free: the KV buffers are masked by position and the DeltaNet state after the
-    accepted prefix is selected from the per-token stack the verify step returns. On the draft side the entries
-    written past the commit are rewritten by the next refresh before anything can attend to them.
+    Rollback on the target side is free: the KV buffers are masked by position and the DeltaNet state after the accepted
+    prefix is selected from the per-token stack the verify step returns. On the draft side the entries written past the
+    commit are rewritten by the next refresh before anything can attend to them.
     """
 
     def __init__(
@@ -1267,7 +1286,9 @@ class SpecDecoder:
     def round(self) -> list[int]:
         """One draft / verify / commit cycle; returns the committed tokens (1..k+1 of them)."""
 
-        ops, k, sampler = self.ops, self.k, self.sampler
+        ops = self.ops
+        k = self.k
+        sampler = self.sampler
         self.dec.ensure_capacity(self.dec.seq_len + k + 2)
         self._sync_capacity()
         n = self.dec.seq_len
@@ -1276,8 +1297,8 @@ class SpecDecoder:
         V = self.model.cfg.vocab_size
 
         # draft on the device: d_1 from the last refreshed entry, d_2..d_k by recursion at positions n, n+1, ...
-        # Each draft is *sampled* from the head's warped distribution q (greedy: its argmax), and q and q(d) are
-        # kept for the acceptance test. Nothing comes to the host until that test.
+        # Each draft is *sampled* from the head's warped distribution q (greedy: its argmax), and q and q(d) are kept
+        # for the acceptance test. Nothing comes to the host until that test.
         darr: list[Array] = []
         qrows: list[Array] = []
         qds: list[Array] = []
@@ -1303,8 +1324,8 @@ class SpecDecoder:
             qds = [ops.zeros((1,), f32) + 1 for _ in darr]
         drafts_arr = ops.concat(darr, 0)  # [k]
 
-        # verify: [next_tok, d_1..d_k] at positions n..n+k in one target step; rejection-sample on the device; the
-        # only host round-trip of the round is the k accept flags, the k+1 corrections and the k drafts
+        # verify: [next_tok, d_1..d_k] at positions n..n+k in one target step; rejection-sample on the device; the only
+        # host round-trip of the round is the k accept flags, the k+1 corrections and the k drafts
         toks = ops.reshape(ops.concat([ops.cast(self.next_arr, i32), drafts_arr], 0), (1, k + 1))
         logits, hidden, flat_all = self.dec.verify(toks)
         p_rows = sampler.probs(logits[0])  # [k+1, V]; row i is the target's distribution for position n+i+1
@@ -1321,9 +1342,9 @@ class SpecDecoder:
         self.next_arr = new_arr
         self.next_tok = corrections[m]
 
-        # refresh the draft head over positions n..n+k with true hidden states; entry m is the one that matters
-        # (hidden at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh
-        # overwrites before anything attends to them
+        # refresh the draft head over positions n..n+k with true hidden states; entry m is the one that matters (hidden
+        # at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh overwrites before
+        # anything attends to them
         rtoks = ops.reshape(ops.concat([drafts_arr[:m], ops.cast(new_arr, i32), drafts_arr[m:]], 0)[:k + 1], (1, k + 1))
         ml, d, mk, mv = self._mfn(k + 1)(rtoks, hidden, ops.scalar(n), *self.dec.tables(), *self.mflat)
         self.mflat = [mk, mv]

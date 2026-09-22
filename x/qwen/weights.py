@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 """
 Weight loading for Qwen3.5-family text models (model_type `qwen3_5`, GGUF arch `qwen35`).
 

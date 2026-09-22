@@ -121,8 +121,10 @@ def test_model_quant():
 
 
 def test_param_cache():
-    """A cached load reproduces the uncached one exactly (dense f32 and exported QWeights), later loads hit, a
-    later mtp=True load only adds the draft head, and torn entries are treated as misses."""
+    """
+    A cached load reproduces the uncached one exactly (dense f32 and exported QWeights), later loads hit, a
+    later mtp=True load only adds the draft head, and torn entries are treated as misses.
+    """
 
     try:
         import torch  # noqa

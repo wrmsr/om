@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 """
 Weight-only affine quantization, backend-agnostic.
 

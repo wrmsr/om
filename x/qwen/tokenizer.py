@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 """
 Byte-level BPE tokenizer for Qwen (GPT-2 style), built from a GGUF's `tokenizer.ggml.*` metadata or from an HF
 `tokenizer.json`. Only dependency: `regex` (for \\p{L} classes).

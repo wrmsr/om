@@ -191,8 +191,10 @@ class Ops(abc.ABC):
         """float32 in [0, 1)."""
 
     def index_add(self, x: Array, idx: Array, vals: Array) -> Array:
-        """x [V] with vals [n] added at idx [n] (duplicates accumulate); returns the updated array. Reference:
-        a one-hot sum, O(n V)."""
+        """
+        x [V] with vals [n] added at idx [n] (duplicates accumulate); returns the updated array. Reference: a one-hot
+        sum, O(n V).
+        """
 
         oh = self.cast(self.arange(x.shape[0])[None, :] == idx[:, None], x.dtype)  # [n, V]
         return x + self.sum(oh * self.cast(vals, x.dtype)[:, None], 0)
@@ -212,8 +214,10 @@ class Ops(abc.ABC):
         """Adopt an already-quantized parameter (scale/bias stored in `dtype`)."""
 
     def head_rows(self, w: Weight, n: int) -> Weight:
-        """The first n output rows of a weight (dense or adopted QWeight) as a weight: a cheap view where the
-        backend allows it. Used for a draft head restricted to the first n vocabulary ids."""
+        """
+        The first n output rows of a weight (dense or adopted QWeight) as a weight: a cheap view where the backend
+        allows it. Used for a draft head restricted to the first n vocabulary ids.
+        """
 
         return w[:n]
 
@@ -223,8 +227,10 @@ class Ops(abc.ABC):
         return self.qweight(quantize_np(w, bits, group), dtype)
 
     def export_qweight(self, w: Weight) -> QWeight:
-        """The inverse of `qweight`: a backend-adopted quantized weight back to numpy (for the parameter cache).
-        Backends that cannot raise NotImplementedError and the caller quantizes on the host instead."""
+        """
+        The inverse of `qweight`: a backend-adopted quantized weight back to numpy (for the parameter cache). Backends
+        that cannot raise NotImplementedError and the caller quantizes on the host instead.
+        """
 
         raise NotImplementedError
 
@@ -281,7 +287,8 @@ class Ops(abc.ABC):
         """
 
         B, H, T, D = q.shape
-        KV, L = k.shape[1], k.shape[2]
+        KV = k.shape[1]
+        L = k.shape[2]
         if KV != H:
             k = self.repeat(k, H // KV, 1)
             v = self.repeat(v, H // KV, 1)
@@ -368,8 +375,10 @@ class Ops(abc.ABC):
             beta: Array,
             state: Array,
     ) -> tuple[Array, Array]:
-        """The recurrence, also returning the state after every token: [T, B, H, dk, dv]. Speculative verify
-        runs T = k + 1 tokens and then keeps the state after however many were accepted."""
+        """
+        The recurrence, also returning the state after every token: [T, B, H, dk, dv]. Speculative verify runs T = k + 1
+        tokens and then keeps the state after however many were accepted.
+        """
 
         T = q.shape[2]
         S = state
@@ -404,13 +413,13 @@ class Ops(abc.ABC):
             eps: float = 1e-6,
     ) -> tuple[Array, Array]:
         """
-        The whole DeltaNet token step from the projections' outputs, for T <= gdn_fused_max_t: l2-normalise
-        q, k (and scale q by 1/sqrt(dk)), broadcast the Hk key heads over the Hv value heads, beta =
-        sigmoid(b), g = A * softplus(a + dt_bias), then the recurrence. Layouts are the projections' natural
-        ones -- q, k: [B, T, Hk, dk]; v: [B, T, Hv, dv]; a, b: [B, T, Hv]; A, dt_bias: [Hv]; state:
-        [B, Hv, dk, dv] -- and the output is [B, T, Hv, dv], so no transposes or head repeats are needed around
-        it. Returns (out, state) or, with all_states, (out, states [T, B, Hv, dk, dv]). One op so a backend can
-        replace the ~25 small kernels of this composition with a single fused one (see torch_triton.gdn_step).
+        The whole DeltaNet token step from the projections' outputs, for T <= gdn_fused_max_t: l2-normalise q, k (and
+        scale q by 1/sqrt(dk)), broadcast the Hk key heads over the Hv value heads, beta = sigmoid(b), g = A *
+        softplus(a + dt_bias), then the recurrence. Layouts are the projections' natural ones -- q, k: [B, T, Hk, dk];
+        v: [B, T, Hv, dv]; a, b: [B, T, Hv]; A, dt_bias: [Hv]; state: [B, Hv, dk, dv] -- and the output is [B, T, Hv,
+        dv], so no transposes or head repeats are needed around it. Returns (out, state) or, with all_states, (out,
+        states [T, B, Hv, dk, dv]). One op so a backend can replace the ~25 small kernels of this composition with a
+        single fused one (see torch_triton.gdn_step).
         """
 
         B, T, Hk, dk = q.shape
@@ -505,15 +514,16 @@ class Ops(abc.ABC):
 
     def sdpa_static(self, q: Array, kbuf: Array, vbuf: Array, pos: Array, ar: Array, scale: float) -> Array:
         """
-        Attention for T new tokens against a fixed-capacity KV buffer. q: [B, H, T, D] for positions pos..pos+T-1;
-        kbuf, vbuf: [B, KV, L, D] with positions 0..pos+T-1 valid; ar: arange(L); pos: 0-d int array. Query i
-        sees keys <= pos + i. Grouped-query heads are folded into the matmul batch so the buffer is never
-        repeated. Scores are masked additively and softmaxed in float32; every shape is independent of `pos`,
-        which is what lets a backend capture the whole step. T == 1 is decode, T == k + 1 is speculative verify.
+        Attention for T new tokens against a fixed-capacity KV buffer. q: [B, H, T, D] for positions pos..pos+T-1; kbuf,
+        vbuf: [B, KV, L, D] with positions 0..pos+T-1 valid; ar: arange(L); pos: 0-d int array. Query i sees keys <= pos
+        + i. Grouped-query heads are folded into the matmul batch so the buffer is never repeated. Scores are masked
+        additively and softmaxed in float32; every shape is independent of `pos`, which is what lets a backend capture
+        the whole step. T == 1 is decode, T == k + 1 is speculative verify.
         """
 
         B, H, T, D = q.shape
-        KV, L = kbuf.shape[1], kbuf.shape[2]
+        KV = kbuf.shape[1]
+        L = kbuf.shape[2]
         G = H // KV
         qg = self.reshape(self.transpose(self.reshape(q, (B, KV, G, T, D)), (0, 1, 3, 2, 4)), (B, KV, T * G, D))
         scores = self.f32(qg @ self.transpose(kbuf, (0, 1, 3, 2))) * scale  # [B, KV, T*G, L]
@@ -527,17 +537,19 @@ class Ops(abc.ABC):
         return self.reshape(o, (B, H, T, D))
 
     def compile_fn(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
-        """Trace-and-fuse a pure step function once, independent of which buffers it will later run on (torch:
-        `torch.compile`). Called once per step shape by the model; `capture` then wraps the result per Decoder.
-        Default: identity."""
+        """
+        Trace-and-fuse a pure step function once, independent of which buffers it will later run on (torch:
+        `torch.compile`). Called once per step shape by the model; `capture` then wraps the result per Decoder. Default:
+        identity.
+        """
 
         return fn
 
     def capture(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
         """
-        Make a static-shape step callable fast: CUDA graphs on torch, `mx.compile` on MLX, `TinyJit` on tinygrad.
-        `fn` takes and returns flat tuples of arrays and must be pure apart from `kv_write`. Returned arrays are
-        only valid until the next call. The default is the identity.
+        Make a static-shape step callable fast: CUDA graphs on torch, `mx.compile` on MLX, `TinyJit` on tinygrad. `fn`
+        takes and returns flat tuples of arrays and must be pure apart from `kv_write`. Returned arrays are only valid
+        until the next call. The default is the identity.
         """
 
         return fn

@@ -218,11 +218,25 @@ class MlxOps(Ops):
             group_size=group,
             bits=bits,
         )
-        return MlxQWeight(wq, scales.astype(dtype), biases.astype(dtype), bits, group, tuple(w.shape))
+        return MlxQWeight(
+            wq,
+            scales.astype(dtype),
+            biases.astype(dtype),
+            bits,
+            group,
+            tuple(w.shape),
+        )
 
     def head_rows(self, w, n):
         if isinstance(w, MlxQWeight):
-            return MlxQWeight(w.w[:n], w.scales[:n], w.biases[:n], w.bits, w.group, (n, w.shape[1]))
+            return MlxQWeight(
+                w.w[:n],
+                w.scales[:n],
+                w.biases[:n],
+                w.bits,
+                w.group,
+                (n, w.shape[1]),
+            )
         return w[:n]
 
     def export_qweight(self, w):
@@ -274,7 +288,8 @@ class MlxOps(Ops):
         return run
 
     def sdpa(self, q, k, v, scale, past):
-        T, L = q.shape[2], k.shape[2]
+        T = q.shape[2]
+        L = k.shape[2]
         if T == 1:
             return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
         if past == 0 and T == L:

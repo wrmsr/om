@@ -1,3 +1,4 @@
+# ruff: noqa: N806 N812
 """
 Triton kernel for `TorchQWeight`: y = x @ dequant(w).T without materialising dequant(w).
 
@@ -29,6 +30,7 @@ import pathlib
 import typing as ta
 
 import torch
+
 
 try:
     import triton
@@ -396,8 +398,10 @@ TUNED: dict[tuple[int, int, int], GemvConfig] = {}
 
 
 def default_config(n: int, k: int, bits: int, dtype: torch.dtype) -> GemvConfig:
-    """Heuristic when nothing is tuned: enough programs to fill the GPU. Narrow outputs (N=5120 at
-    block_n=32 is 160 programs) get split-K so the K loop is shared across several programs."""
+    """
+    Heuristic when nothing is tuned: enough programs to fill the GPU. Narrow outputs (N=5120 at
+    block_n=32 is 160 programs) get split-K so the K loop is shared across several programs.
+    """
 
     block_n = 32 if n <= 8192 else 64
     programs = triton.cdiv(n, block_n)
@@ -515,8 +519,10 @@ def qlinear(
 
 
 def _resolve(x2, q, scale, bias, bits, group, n, k, cfg: GemvConfig) -> tuple[int, int, int]:
-    """Find (block_k, num_stages, split_k) for `cfg` that fits the GPU's shared memory: try as configured, shrink
-    the K block, then the pipeline depth. Runs once per (shape, dtype, config)."""
+    """
+    Find (block_k, num_stages, split_k) for `cfg` that fits the GPU's shared memory: try as configured, shrink
+    the K block, then the pipeline depth. Runs once per (shape, dtype, config).
+    """
 
     m = x2.shape[0]
     bk = _block_k(k, cfg.block_k)
