@@ -1,7 +1,3 @@
-"""
-TODO:
- - heterogeneous tuples
-"""
 import collections.abc
 import functools
 import typing as ta

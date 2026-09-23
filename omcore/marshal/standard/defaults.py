@@ -23,6 +23,8 @@ from ..composite.persistent import PersistentSequenceMarshalerFactory
 from ..composite.persistent import PersistentSequenceUnmarshalerFactory
 from ..composite.special import SequenceNotStrMarshalerFactory
 from ..composite.special import SequenceNotStrUnmarshalerFactory
+from ..composite.tuples import TupleMarshalerFactory
+from ..composite.tuples import TupleUnmarshalerFactory
 from ..composite.unions.literals import LiteralUnionMarshalerFactory
 from ..composite.unions.literals import LiteralUnionUnmarshalerFactory
 from ..composite.unions.primitives import PrimitiveUnionMarshalerFactory
@@ -104,6 +106,7 @@ DEFAULT_STANDARD_FACTORIES: ta.Final = DefaultStandardFactories.of_pairs([
     (PolymorphismMetadataFactory(),          PolymorphismMetadataFactory()),
     (PolymorphismMetadataUnionFactory(),     PolymorphismMetadataUnionFactory()),
     (PolymorphismSpecMarshalerFactory(),     PolymorphismSpecUnmarshalerFactory()),
+    (TupleMarshalerFactory(),                TupleUnmarshalerFactory()),
     (ObjectMarshalerFactory(),               ObjectUnmarshalerFactory()),
     # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
     (DataclassFactory(),                     DataclassFactory()),
