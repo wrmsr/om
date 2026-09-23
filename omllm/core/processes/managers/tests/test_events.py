@@ -6,7 +6,11 @@ from omcore import check
 from omcore.asyncs.asynclite import all as asl
 
 from ...types.events import ProcessEvent
+from ...types.events import ProcessExitedEvent
+from ...types.events import ProcessReapedEvent
+from ...types.events import ProcessSpawnedEvent
 from ...types.events import ScopeOpenedEvent
+from ...types.ids import ProcessId
 from ..events import ProcessEventDrain
 
 
@@ -109,3 +113,37 @@ async def test_a_failing_subscriber_does_not_stop_later_events():
     h.drain.publish_soon(_event('good'))
     await h.join()
     assert delivered == ['good']
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_held_events_wait_for_their_process_to_be_announced():
+    delivered = []
+
+    async def subscriber(event):
+        delivered.append(event)
+
+    def lifecycle(cls, process_id, **kwargs):
+        return cls(process_id=ProcessId(process_id), pid=1, scope_path=('root',), **kwargs)
+
+    h = _Harness(subscriber)
+    h.drain.enable()
+    h.drain.hold(ProcessId('p1'))
+
+    exited = lifecycle(ProcessExitedEvent, 'p1', returncode=0)
+    other = lifecycle(ProcessExitedEvent, 'p2', returncode=1)
+    h.drain.publish_soon(exited)
+    h.drain.publish_soon(other)
+    await h.join()
+    assert delivered == [other]
+
+    spawned = lifecycle(ProcessSpawnedEvent, 'p1', argv=('true',))
+    h.drain.release(ProcessId('p1'), leading=spawned)
+    await h.drain.flush()
+    assert delivered == [other, spawned, exited]
+
+    # Nothing is parked any more, and releasing again is a no-op.
+    reaped = lifecycle(ProcessReapedEvent, 'p1', returncode=0)
+    h.drain.publish_soon(reaped)
+    h.drain.release(ProcessId('p1'))
+    await h.drain.flush()
+    assert delivered == [other, spawned, exited, reaped]

@@ -12,6 +12,8 @@ from omcore.asyncs.asynclite import all as asl
 from omcore.logs import all as logs
 
 from ..types.events import ProcessEvent
+from ..types.events import ProcessLifecycleEvent
+from ..types.ids import ProcessId
 
 
 log = logs.get_module_logger(globals())
@@ -43,6 +45,7 @@ class ProcessEventDrain:
         self._asynclite = asynclite
 
         self._queue: collections.deque[ProcessEvent] = collections.deque()
+        self._held: dict[ProcessId, list[ProcessEvent]] = {}
         self._enabled = False
         self._draining = False
         self._idle = asynclite.make_event()
@@ -85,20 +88,47 @@ class ProcessEventDrain:
         self._idle = self._asynclite.make_event()
         self._spawn_task(self._drain())
 
+    def hold(self, process_id: ProcessId) -> None:
+        """
+        Parks events about a process until `release`, so a spawn still in progress can announce the process first: a
+        short-lived child's exit may well be observed - by a watcher thread, or from the other side of a connection -
+        before the spawn has finished.
+        """
+
+        self._held.setdefault(process_id, [])
+
+    def release(self, process_id: ProcessId, *, leading: ProcessEvent | None = None) -> None:
+        """Enqueues `leading`, if given, then everything parked for the process, and stops parking. Idempotent."""
+
+        held = self._held.pop(process_id, None)
+        if leading is not None:
+            self._queue.append(leading)
+        if held:
+            self._queue.extend(held)
+        self.ensure_draining()
+
     def publish_soon(self, event: ProcessEvent) -> None:
+        if isinstance(event, ProcessLifecycleEvent) and (held := self._held.get(event.process_id)) is not None:
+            held.append(event)
+            return
         self._queue.append(event)
         self.ensure_draining()
 
-    async def publish_now(self, event: ProcessEvent) -> None:
-        """Enqueues in order and waits until it (and everything before it) has been delivered."""
+    async def flush(self) -> None:
+        """Waits until everything queued so far has been delivered."""
 
-        self.publish_soon(event)
         if not self._enabled or _IN_DRAIN.get() is self:
-            # Not delivering yet, or published from within a subscriber: the running drain will get to it - waiting
-            # would deadlock.
+            # Not delivering yet, or called from within a subscriber: the running drain will get to it - waiting would
+            # deadlock.
             return
         while self.busy:
             if not self._draining:
                 self.ensure_draining()
                 continue
             await self._idle.wait()
+
+    async def publish_now(self, event: ProcessEvent) -> None:
+        """Enqueues in order and waits until it (and everything before it) has been delivered."""
+
+        self.publish_soon(event)
+        await self.flush()

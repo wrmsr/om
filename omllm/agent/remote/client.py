@@ -702,16 +702,18 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         scope._register(process)  # noqa
         self._processes[process_id] = process
 
-        for method, params in self._pending_events.pop(process_id, []):
-            self._apply_event(process, method, params)
-
-        await self._events.publish_now(processes.ProcessSpawnedEvent(
+        # Announced before anything that got ahead of the spawn reply - a short-lived child's exit, typically - is
+        # applied, so that its events follow.
+        self._events.publish_soon(processes.ProcessSpawnedEvent(
             process_id=process.id,
             pid=process.pid,
             scope_path=tuple(scope.path),
             argv=tuple(spec.argv),
             name=spec.name,
         ))
+        for method, params in self._pending_events.pop(process_id, []):
+            self._apply_event(process, method, params)
+        await self._events.flush()
         return process
 
     ##

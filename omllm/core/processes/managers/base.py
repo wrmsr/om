@@ -505,6 +505,8 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             asynclite=self._asynclite,
         )
         proc._start_watcher()  # noqa
+        # From here its exit may be observed at any moment: hold its events back until it has been announced.
+        self._events.hold(pid_id)
 
         # Raw parent fds not yet handed to a connection (the pty master is the handle's own). Whatever is still pending
         # when we bail is closed by hand; a connection hook owns its fd from the moment it is called.
@@ -548,13 +550,14 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             if scope.closing:
                 raise ScopeClosedError('/'.join(scope.path))
 
-            await self._publish_now(ProcessSpawnedEvent(
+            self._events.release(pid_id, leading=ProcessSpawnedEvent(
                 process_id=proc.id,
                 pid=proc.pid,
                 scope_path=tuple(scope.path),
                 argv=tuple(plan.spec.argv),
                 name=spec.name,
             ))
+            await self._events.flush()
 
         except Exception:
             # The child is (or will shortly be) dead or unwanted: fully close it before surfacing the error.
@@ -568,6 +571,10 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             close_fds_quietly(pending_fds)
             self._spawn_task(proc.aclose())
             raise
+
+        finally:
+            # Announced or not, nothing about it stays parked.
+            self._events.release(pid_id)
 
         return proc
 

@@ -750,6 +750,24 @@ async def test_events_order():
     assert pe[1].returncode == 0
 
 
+@pytest.mark.asyncs('asyncio')
+async def test_events_order_when_exit_is_observed_before_the_handshake():
+    # The exit watcher can report a short-lived child's exit while its spawn is still awaiting the exec handshake; the
+    # spawned event must nonetheless come first.
+    class ExitFirstManager(AsyncioProcessManager):
+        async def _read_exec_status(self, fd, timeout):
+            [proc] = self._processes.values()
+            await proc._exited_ev.wait()  # noqa: SLF001
+            return await super()._read_exec_status(fd, timeout)
+
+    events: list = []
+    async with ExitFirstManager() as m:
+        m.subscribe(events.append)
+        run = await m.root.run(_sh('true'))
+    pe = [e for e in events if getattr(e, 'process_id', None) == run.process.id]
+    assert [type(e) for e in pe] == [ProcessSpawnedEvent, ProcessExitedEvent, ProcessReapedEvent]
+
+
 ##
 # The teardown as the manager's task
 

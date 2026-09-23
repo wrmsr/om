@@ -78,6 +78,34 @@ async def test_events_are_delivered_in_order_when_a_subscriber_suspends():
 
 
 @pytest.mark.asyncs('asyncio')
+async def test_events_are_ordered_when_the_exit_arrives_before_the_spawn_reply():
+    # A short-lived child can exit, and the agent report it, before the host has even seen the spawn reply.
+    agent = ScriptedRemoteAgent()
+
+    async def exit_first(process_id):
+        await agent.notify(PROCESS_EXITED_METHOD, {'id': process_id, 'returncode': 0})
+        await agent.notify(PROCESS_OUTPUT_END_METHOD, {'id': process_id})
+
+    agent.before_spawn_reply = exit_first
+    await agent.start()
+
+    delivered = []
+    agent.client.processes.subscribe(lambda event: delivered.append(type(event).__name__))
+    process = await agent.client.processes.root.spawn(processes.ProcessSpec(['true']))
+    assert process.exited
+    assert process.output_ended
+    assert await process.wait(0) == 0
+    await process.aclose()
+    await agent.client.aclose()
+    assert [n for n in delivered if n.startswith('Process')] == [
+        'ProcessSpawnedEvent',
+        'ProcessExitedEvent',
+        'ProcessReapedEvent',
+    ]
+    await agent.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
 async def test_output_sent_before_the_close_reply_is_in_the_spool():
     # Output is applied inline, in wire order: whatever the agent sends right before its close reply is in the spool by
     # the time the close completes.

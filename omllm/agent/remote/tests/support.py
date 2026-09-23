@@ -18,8 +18,8 @@ from ..protocol import PROCESS_SPAWN_METHOD
 class ScriptedRemoteAgent:
     """
     Answers `process.spawn` with a fabricated process and records what the client asks of it. A set `spawn_gate` holds
-    spawn replies until it is released; `hang_close` never answers `process.close`; `on_close` replaces the close reply
-    entirely.
+    spawn replies until it is released; `before_spawn_reply` runs, with the new id, just before a spawn is answered;
+    `hang_close` never answers `process.close`; `on_close` replaces the close reply entirely.
     """
 
     def __init__(self) -> None:
@@ -31,6 +31,7 @@ class ScriptedRemoteAgent:
 
         self.spawn_started = asyncio.Event()
         self.spawn_gate: asyncio.Event | None = None
+        self.before_spawn_reply: ta.Callable[[str], ta.Awaitable[None]] | None = None
         self.close_requested = asyncio.Event()
         self.hang_close = False
         self.on_close: ta.Callable[[ta.Any], ta.Awaitable[ta.Any]] | None = None
@@ -55,7 +56,10 @@ class ScriptedRemoteAgent:
             await self.spawn_gate.wait()
         n = self._next_id
         self._next_id += 1
-        return {'id': f'p{n}', 'pid': 40000 + n, 'created_at': 0., 'name': params['name']}
+        process_id = f'p{n}'
+        if self.before_spawn_reply is not None:
+            await self.before_spawn_reply(process_id)
+        return {'id': process_id, 'pid': 40000 + n, 'created_at': 0., 'name': params['name']}
 
     async def _close(self, params: ta.Any) -> ta.Any:
         self.closes.append(params['id'])
