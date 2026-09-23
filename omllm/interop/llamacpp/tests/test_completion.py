@@ -1,3 +1,9 @@
+r"""
+hf download \
+  QuantFactory/Meta-Llama-3-8B-GGUF \
+  Meta-Llama-3-8B.Q8_0.gguf \
+  --revision 1ca85c857dce892b673b988ad0aa83f2cb1bbd19
+"""
 import os.path
 import typing as ta
 

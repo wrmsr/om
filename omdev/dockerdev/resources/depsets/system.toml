@@ -41,11 +41,13 @@ deps = [
   'gcc-14',
   'llvm',
   'make',
+  'nasm',
   'pkg-config',
 
   # dev libs
   'libdebuginfod-dev',
   'libncurses5-dev',
+  'libpsl-dev',
   'libreadline6-dev',
   'libssl-dev',
 
@@ -116,6 +118,15 @@ deps = [
   # crypto, auth & trust
   'gnupg',
   'gnupg-agent',
+
+  # multimedia
+  'ffmpeg',
+  'imagemagick',
+  'libavcodec-dev',
+  'libavformat-dev',
+  'libavutil-dev',
+  'libmagick++-dev',
+  'libswscale-dev',
 
   # documentation & introspection
   'file',

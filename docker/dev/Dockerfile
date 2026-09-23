@@ -68,6 +68,7 @@ DEPS="$DEPS\
   dumb-init\
   emacs\
   fd-find\
+  ffmpeg\
   file\
   flex\
   g++\
@@ -82,21 +83,28 @@ DEPS="$DEPS\
   gosu\
   graphviz\
   htop\
+  imagemagick\
   iputils-ping\
   iputils-tracepath\
   irssi\
   jq\
   less\
+  libavcodec-dev\
+  libavformat-dev\
+  libavutil-dev\
   libbz2-dev\
   libdb-dev\
   libdebuginfod-dev\
   libgdbm6\
   liblz4-dev\
+  libmagick++-dev\
   libncurses5-dev\
   libpq-dev\
+  libpsl-dev\
   libreadline6-dev\
   libsqlite3-dev\
   libssl-dev\
+  libswscale-dev\
   libxml2-dev\
   libxslt-dev\
   libyaml-dev\
@@ -116,6 +124,7 @@ DEPS="$DEPS\
   mosh\
   mysql-server\
   nano\
+  nasm\
   ncdu\
   net-tools\
   netcat-openbsd\
@@ -253,6 +262,33 @@ sudo apt-get install -y firefox ;\
 \
 echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:${distro_codename}";' |\
   sudo tee /etc/apt/apt.conf.d/51unattended-upgrades-firefox ;\
+)
+
+
+## cmake
+
+RUN \
+  --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
+  --mount=target=/var/cache/apt,type=cache,sharing=locked \
+( \
+set -ex ;\
+umask 0002 ;\
+\
+sudo apt install -y ca-certificates gpg wget ;\
+\
+test -f /usr/share/doc/kitware-archive-keyring/copyright || \
+  wget -O - 'https://apt.kitware.com/keys/kitware-archive-latest.asc' 2>/dev/null | \
+  gpg --dearmor - | \
+  sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null ;\
+\
+echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main' | \
+  sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null ;\
+\
+sudo apt update ;\
+sudo apt install -y kitware-archive-keyring ;\
+\
+sudo apt update ;\
+sudo apt install -y cmake ;\
 )
 
 

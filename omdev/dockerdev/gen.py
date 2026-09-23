@@ -90,6 +90,11 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ))
 
     ops.append(fragment_section(
+        'cmake',
+        cache_mounts=APT_CACHE_MOUNTS,
+    ))
+
+    ops.append(fragment_section(
         'docker',
         cache_mounts=APT_CACHE_MOUNTS,
     ))
