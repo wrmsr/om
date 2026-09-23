@@ -236,7 +236,10 @@ class _RemoteFsService:
         p: PathParams = unmarshal_obj(params, PathParams)
         with open(p.path, 'rb') as f:  # noqa
             data = f.read()
-        return marshal_obj(ReadFileResult(data=data, digest=_remote_fs_digest(data)))
+        return marshal_obj(ReadFileResult(
+            data=data,
+            digest=_remote_fs_digest(data),
+        ))
 
     async def write_file(self, params: ta.Any) -> ta.Any:
         p: WriteFileParams = unmarshal_obj(params, WriteFileParams)
@@ -263,7 +266,9 @@ class _RemoteFsService:
                 os.link(tmp_path, path)
                 os.unlink(tmp_path)
                 tmp_path = ''
-                return marshal_obj(WriteFileResult(created=True))
+                return marshal_obj(WriteFileResult(
+                    created=True,
+                ))
 
             if not overwrite:
                 raise FileExistsError(path)
@@ -275,7 +280,9 @@ class _RemoteFsService:
             os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
             os.replace(tmp_path, path)
             tmp_path = ''
-            return marshal_obj(WriteFileResult(created=False))
+            return marshal_obj(WriteFileResult(
+                created=False,
+            ))
 
         finally:
             if fd >= 0:
@@ -289,16 +296,19 @@ class _RemoteFsService:
 
     async def list_dir(self, params: ta.Any) -> ta.Any:
         p: PathParams = unmarshal_obj(params, PathParams)
-        return marshal_obj([
-            FsEntry(
-                name=entry.name,
-                path=entry.path,
-                is_dir=entry.is_dir(),
-                is_file=entry.is_file(),
-                is_symlink=entry.is_symlink(),
-            )
-            for entry in os.scandir(p.path)
-        ], ta.List[FsEntry])
+        return marshal_obj(
+            [
+                FsEntry(
+                    name=entry.name,
+                    path=entry.path,
+                    is_dir=entry.is_dir(),
+                    is_file=entry.is_file(),
+                    is_symlink=entry.is_symlink(),
+                )
+                for entry in os.scandir(p.path)
+            ],
+            ta.List[FsEntry],
+        )
 
     async def glob(self, params: ta.Any) -> ta.Any:
         p: GlobParams = unmarshal_obj(params, GlobParams)
@@ -320,7 +330,10 @@ class _RemoteFsService:
                 has_more = True
                 break
             entries.append(self._entry(path))
-        return marshal_obj(GlobResult(entries=entries, has_more=has_more))
+        return marshal_obj(GlobResult(
+            entries=entries,
+            has_more=has_more,
+        ))
 
 
 ##
@@ -400,7 +413,12 @@ class _RemoteServerProcess:
             self._open_readers -= 1
             if self._open_readers == 0 and not self._output_ended.is_set():
                 self._output_ended.set()
-                await self._service.notify(PROCESS_OUTPUT_END_METHOD, marshal_obj(OutputEndEvent(id=self.id)))
+                await self._service.notify(
+                    PROCESS_OUTPUT_END_METHOD,
+                    marshal_obj(OutputEndEvent(
+                        id=self.id,
+                    )),
+                )
 
     async def _connect_reader(self, file: ta.IO, fd: int) -> None:
         reader = await asyncio_open_stream_reader(file)
@@ -429,7 +447,12 @@ class _RemoteServerProcess:
         if not self._reader_tasks:
             # Nothing to read: the output is over before it began.
             self._output_ended.set()
-            self._service.queue_event(PROCESS_OUTPUT_END_METHOD, marshal_obj(OutputEndEvent(id=self.id)))
+            self._service.queue_event(
+                PROCESS_OUTPUT_END_METHOD,
+                marshal_obj(OutputEndEvent(
+                    id=self.id,
+                )),
+            )
 
     #
 
@@ -448,7 +471,11 @@ class _RemoteServerProcess:
                 return False
             await self._service.notify(
                 PROCESS_OUTPUT_METHOD,
-                marshal_obj(OutputEvent(id=self.id, fd=output_fd, data=data)),
+                marshal_obj(OutputEvent(
+                    id=self.id,
+                    fd=output_fd,
+                    data=data,
+                )),
             )
 
     def _close_pty_slave(self) -> None:
@@ -499,7 +526,11 @@ class _RemoteServerProcess:
                 return
             await self._service.notify(
                 PROCESS_OUTPUT_METHOD,
-                marshal_obj(OutputEvent(id=self.id, fd=fd, data=data)),
+                marshal_obj(OutputEvent(
+                    id=self.id,
+                    fd=fd,
+                    data=data,
+                )),
             )
 
     #
@@ -526,7 +557,10 @@ class _RemoteServerProcess:
             readable.set_result(None)
         self._service.queue_event(
             PROCESS_EXITED_METHOD,
-            marshal_obj(ExitedEvent(id=self.id, returncode=returncode)),
+            marshal_obj(ExitedEvent(
+                id=self.id,
+                returncode=returncode,
+            )),
         )
 
     def _signal(self, sig: int, process_group: bool) -> None:

@@ -123,10 +123,26 @@ class RemoteFsOps(FsOps):
             raise _translate_remote_error(e) from e
 
     async def resolve_path(self, path: str) -> str:
-        return unmarshal_obj(await self._call(FS_RESOLVE_PATH_METHOD, marshal_obj(PathParams(path))), str)
+        return unmarshal_obj(
+            await self._call(
+                FS_RESOLVE_PATH_METHOD,
+                marshal_obj(PathParams(
+                    path,
+                )),
+            ),
+            str,
+        )
 
     async def stat(self, path: str) -> FsStat:
-        r: StatResult = unmarshal_obj(await self._call(FS_STAT_METHOD, marshal_obj(PathParams(path))), StatResult)
+        r: StatResult = unmarshal_obj(
+            await self._call(
+                FS_STAT_METHOD,
+                marshal_obj(PathParams(
+                    path,
+                )),
+            ),
+            StatResult,
+        )
         return FsStat(
             path=r.path,
             size=r.size,
@@ -137,10 +153,18 @@ class RemoteFsOps(FsOps):
 
     async def read_file(self, path: str) -> FsFile:
         r: ReadFileResult = unmarshal_obj(
-            await self._call(FS_READ_FILE_METHOD, marshal_obj(PathParams(path))),
+            await self._call(
+                FS_READ_FILE_METHOD,
+                marshal_obj(PathParams(
+                    path,
+                )),
+            ),
             ReadFileResult,
         )
-        return FsFile(data=r.data, digest=r.digest)
+        return FsFile(
+            data=r.data,
+            digest=r.digest,
+        )
 
     async def write_file(
             self,
@@ -150,17 +174,30 @@ class RemoteFsOps(FsOps):
             overwrite: bool = False,
             expected_digest: str | None = None,
     ) -> FsWriteResult:
-        r: WriteFileResult = unmarshal_obj(await self._call(FS_WRITE_FILE_METHOD, marshal_obj(WriteFileParams(
-            path=path,
-            content=bytes(content),
-            overwrite=overwrite,
-            expected_digest=expected_digest,
-        ))), WriteFileResult)
-        return FsWriteResult(created=r.created)
+        r: WriteFileResult = unmarshal_obj(
+            await self._call(
+                FS_WRITE_FILE_METHOD,
+                marshal_obj(WriteFileParams(
+                    path=path,
+                    content=bytes(content),
+                    overwrite=overwrite,
+                    expected_digest=expected_digest,
+                )),
+            ),
+            WriteFileResult,
+        )
+        return FsWriteResult(
+            created=r.created,
+        )
 
     async def list_dir(self, path: str) -> ta.Sequence[FsDirEntry]:
         entries: list[FsEntry] = unmarshal_obj(
-            await self._call(FS_LIST_DIR_METHOD, marshal_obj(PathParams(path))),
+            await self._call(
+                FS_LIST_DIR_METHOD,
+                marshal_obj(PathParams(
+                    path,
+                )),
+            ),
             list[FsEntry],
         )
         return [_to_fs_dir_entry(entry) for entry in entries]
@@ -172,11 +209,17 @@ class RemoteFsOps(FsOps):
             root: str,
             max_results: int | None = None,
     ) -> FsGlobResult:
-        r: GlobResult = unmarshal_obj(await self._call(FS_GLOB_METHOD, marshal_obj(GlobParams(
-            pattern=pattern,
-            root=root,
-            max_results=max_results,
-        ))), GlobResult)
+        r: GlobResult = unmarshal_obj(
+            await self._call(
+                FS_GLOB_METHOD,
+                marshal_obj(GlobParams(
+                    pattern=pattern,
+                    root=root,
+                    max_results=max_results,
+                )),
+            ),
+            GlobResult,
+        )
         return FsGlobResult(
             entries=[_to_fs_dir_entry(entry) for entry in r.entries],
             has_more=r.has_more,
@@ -339,7 +382,11 @@ class RemoteProcess(processes.Process):
             ).process_group
         await self._manager._call(  # noqa
             PROCESS_SIGNAL_METHOD,
-            marshal_obj(SignalParams(id=self._id, signal=int(sig), process_group=process_group)),
+            marshal_obj(SignalParams(
+                id=self._id,
+                signal=int(sig),
+                process_group=process_group,
+            )),
         )
 
     async def terminate(self) -> None:
@@ -364,13 +411,21 @@ class RemoteProcess(processes.Process):
             raise BrokenPipeError('process has no open stdin')
         await self._manager._call(  # noqa
             PROCESS_WRITE_METHOD,
-            marshal_obj(WriteParams(id=self._id, data=data)),
+            marshal_obj(WriteParams(
+                id=self._id,
+                data=data,
+            )),
         )
 
     async def write_eof(self) -> None:
         if self._stdin_closed:
             return
-        await self._manager._call(PROCESS_WRITE_EOF_METHOD, marshal_obj(ProcessRefParams(id=self._id)))  # noqa
+        await self._manager._call(  # noqa
+            PROCESS_WRITE_EOF_METHOD,
+            marshal_obj(ProcessRefParams(
+                id=self._id,
+            )),
+        )
         self._stdin_closed = True
 
     @property
@@ -565,10 +620,16 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
     def _start_close(self, process: RemoteProcess, policy: TerminationPolicy) -> asyncio.Task[None]:
         async def run() -> None:
             try:
-                r: CloseResult = unmarshal_obj(await self._call(PROCESS_CLOSE_METHOD, marshal_obj(CloseParams(
-                    id=process.id,
-                    policy=self._close_policy_spec(policy),
-                ))), CloseResult)
+                r: CloseResult = unmarshal_obj(
+                    await self._call(
+                        PROCESS_CLOSE_METHOD,
+                        marshal_obj(CloseParams(
+                            id=process.id,
+                            policy=self._close_policy_spec(policy),
+                        )),
+                    ),
+                    CloseResult,
+                )
                 if r.state != 'reaped':
                     raise RuntimeError(f'Unexpected remote process close state: {r.state!r}')
                 process._on_reaped(r.returncode)  # noqa
@@ -604,10 +665,13 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
 
     async def _close_orphan(self, process_id: str) -> None:
         try:
-            await self._call(PROCESS_CLOSE_METHOD, marshal_obj(CloseParams(
-                id=process_id,
-                policy=self._close_policy_spec(TerminationPolicy()),
-            )))
+            await self._call(
+                PROCESS_CLOSE_METHOD,
+                marshal_obj(CloseParams(
+                    id=process_id,
+                    policy=self._close_policy_spec(TerminationPolicy()),
+                )),
+            )
         except RpcConnectionClosedError:
             # The agent tears down everything it still has when the connection goes.
             pass
@@ -617,7 +681,12 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
     @staticmethod
     def _stdio_spec(stdio: Stdio) -> StdioSpec:
         if isinstance(stdio, processes.PtyStdio):
-            return StdioSpec(kind='pty', rows=stdio.rows, cols=stdio.cols, term=stdio.term)
+            return StdioSpec(
+                kind='pty',
+                rows=stdio.rows,
+                cols=stdio.cols,
+                term=stdio.term,
+            )
 
         for name, value in (
                 ('stdin', stdio.stdin),
@@ -643,7 +712,11 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             if self.closed:
                 raise processes.ManagerClosedError
             raise processes.ManagerNotStartedError
-        unsupported = [option for option in options if not isinstance(option, _REMOTE_PROCESS_SUPPORTED_OPTIONS)]
+        unsupported = [
+            option
+            for option in options
+            if not isinstance(option, _REMOTE_PROCESS_SUPPORTED_OPTIONS)
+        ]
         if unsupported:
             raise ValueError(f'Unsupported remote process options: {unsupported!r}')
         if (
@@ -652,13 +725,18 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         ):
             raise ValueError(f'Unsupported remote process session mode: {session_mode.mode!r}')
 
-        spawn_call = asyncio.ensure_future(self._call(PROCESS_SPAWN_METHOD, marshal_obj(SpawnParams(
-            argv=list(spec.argv),
-            cwd=spec.cwd,
-            env=dict(spec.env) if spec.env is not None else None,
-            stdio=self._stdio_spec(spec.stdio),
-            name=spec.name,
-        ))))
+        spawn_call = asyncio.ensure_future(
+            self._call(
+                PROCESS_SPAWN_METHOD,
+                marshal_obj(SpawnParams(
+                    argv=list(spec.argv),
+                    cwd=spec.cwd,
+                    env=dict(spec.env) if spec.env is not None else None,
+                    stdio=self._stdio_spec(spec.stdio),
+                    name=spec.name,
+                )),
+            ),
+        )
         try:
             obj: SpawnResult = unmarshal_obj(await asyncio.shield(spawn_call), SpawnResult)
         except asyncio.CancelledError:
