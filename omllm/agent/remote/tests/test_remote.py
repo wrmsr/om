@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import ctypes
 import os
 import pathlib
 import shlex
@@ -16,6 +17,7 @@ from ....core.rpc.channels import AsyncioStreamRpcChannel
 from ...exec.ops import ExecParams
 from ...exec.ops import ProcessesExecOps
 from ...fs.ops import FsFileChangedError
+from .. import server as remote_server
 from ..client import RemoteAgentClient
 from ..payload import get_remote_agent_payload_src
 
@@ -69,6 +71,64 @@ async def _remote_agent() -> ta.AsyncIterator[RemoteAgentClient]:
             returncode = await proc.wait()
         stderr = (await proc.stderr.read()).decode('utf-8', 'replace')
         assert returncode == 0, stderr
+
+
+##
+
+
+def test_remote_process_wait_darwin_fallback(monkeypatch) -> None:
+    calls: list[tuple[int, bool]] = []
+
+    def fallback(pid: int, *, nohang: bool = False) -> int:
+        calls.append((pid, nohang))
+        return 7
+
+    monkeypatch.delattr(remote_server.os, 'waitid')
+    monkeypatch.setattr(remote_server.sys, 'platform', 'darwin')
+    monkeypatch.setattr(remote_server, '_remote_darwin_process_wait', fallback)
+
+    assert remote_server._remote_process_wait(123, nohang=True) == 7  # noqa: SLF001
+    assert calls == [(123, True)]
+
+
+def test_remote_darwin_process_wait_libc(monkeypatch) -> None:
+    calls: list[tuple[int, int, int]] = []
+
+    class FakeWaitid:
+        argtypes: ta.Any = None
+        restype: ta.Any = None
+        exited = True
+
+        def __call__(self, idtype: int, pid: int, info: ta.Any, options: int) -> int:
+            calls.append((idtype, pid, options))
+            if self.exited:
+                info._obj.si_pid = pid  # noqa: SLF001
+                info._obj.si_code = remote_server._REMOTE_CLD_KILLED  # noqa: SLF001
+                info._obj.si_status = 9  # noqa: SLF001
+            return 0
+
+    fake_waitid = FakeWaitid()
+
+    class FakeLibc:
+        waitid = fake_waitid
+
+    monkeypatch.setattr(ctypes, 'CDLL', lambda *_args, **_kwargs: FakeLibc())
+
+    assert remote_server._remote_darwin_process_wait(456) == -9  # noqa: SLF001
+    fake_waitid.exited = False
+    assert remote_server._remote_darwin_process_wait(456, nohang=True) is None  # noqa: SLF001
+    assert calls == [
+        (
+            remote_server._REMOTE_DARWIN_P_PID,  # noqa: SLF001
+            456,
+            remote_server._REMOTE_DARWIN_WEXITED | remote_server._REMOTE_DARWIN_WNOWAIT,  # noqa: SLF001
+        ),
+        (
+            remote_server._REMOTE_DARWIN_P_PID,  # noqa: SLF001
+            456,
+            remote_server._REMOTE_DARWIN_WEXITED | remote_server._REMOTE_DARWIN_WNOWAIT | os.WNOHANG,  # noqa: SLF001
+        ),
+    ]
 
 
 ##

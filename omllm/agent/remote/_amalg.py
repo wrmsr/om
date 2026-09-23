@@ -56,7 +56,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='7355153cae5fa40f217d732ba0b6c586506b992c'),
-            dict(path='server.py', sha1='081ea730f9f5413a695aa374ad30a6e48a65e277'),
+            dict(path='server.py', sha1='069f943bef0b72cd642037cd7a33d6592e84e4af'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -2587,6 +2587,10 @@ _REMOTE_CLD_EXITED = getattr(os, 'CLD_EXITED', 1)
 _REMOTE_CLD_KILLED = getattr(os, 'CLD_KILLED', 2)
 _REMOTE_CLD_DUMPED = getattr(os, 'CLD_DUMPED', 3)
 
+_REMOTE_DARWIN_P_PID = 1
+_REMOTE_DARWIN_WEXITED = 0x04
+_REMOTE_DARWIN_WNOWAIT = 0x20
+
 _REMOTE_PTY_CHILD_CODE = """
 import fcntl
 import json
@@ -2602,12 +2606,63 @@ os.execvpe(argv[0], argv, os.environ)
 """
 
 
-def _remote_process_returncode(info: ta.Any) -> int:
-    if info.si_code == _REMOTE_CLD_EXITED:
-        return int(info.si_status)
-    if info.si_code in (_REMOTE_CLD_KILLED, _REMOTE_CLD_DUMPED):
-        return -int(info.si_status)
-    raise RuntimeError(f'Unexpected waitid result: {info!r}')
+def _remote_process_returncode(si_code: int, si_status: int) -> int:
+    if si_code == _REMOTE_CLD_EXITED:
+        return si_status
+    if si_code in (_REMOTE_CLD_KILLED, _REMOTE_CLD_DUMPED):
+        return -si_status
+    raise RuntimeError(f'Unexpected waitid result: si_code={si_code!r}, si_status={si_status!r}')
+
+
+def _remote_darwin_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
+    # CPython did not expose os.waitid on macOS until 3.13, although libc and the kernel have long provided it. Keep
+    # the child waitable so its pid/pgid remain ours until close deliberately reaps it. The first six siginfo_t fields
+    # are fixed-width scalars on Darwin; the tail only reserves enough space for libc to fill the complete structure.
+    import ctypes
+
+    class Siginfo(ctypes.Structure):
+        _fields_ = [
+            ('si_signo', ctypes.c_int),
+            ('si_errno', ctypes.c_int),
+            ('si_code', ctypes.c_int),
+            ('si_pid', ctypes.c_int),
+            ('si_uid', ctypes.c_uint),
+            ('si_status', ctypes.c_int),
+            ('_tail', ctypes.c_ubyte * 104),
+        ]
+
+    waitid = ctypes.CDLL(None, use_errno=True).waitid
+    waitid.argtypes = (ctypes.c_int, ctypes.c_uint, ctypes.c_void_p, ctypes.c_int)
+    waitid.restype = ctypes.c_int
+
+    info = Siginfo()
+    options = _REMOTE_DARWIN_WEXITED | _REMOTE_DARWIN_WNOWAIT
+    if nohang:
+        options |= os.WNOHANG
+    ctypes.set_errno(0)
+    if waitid(_REMOTE_DARWIN_P_PID, pid, ctypes.byref(info), options):
+        errno = ctypes.get_errno()
+        raise OSError(errno, os.strerror(errno))
+    if nohang and not info.si_pid:
+        return None
+    return _remote_process_returncode(info.si_code, info.si_status)
+
+
+def _remote_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
+    waitid: ta.Any = getattr(os, 'waitid', None)
+    if waitid is None:
+        platform: ta.Any = sys.platform
+        if platform != 'darwin':
+            raise RuntimeError('waitid is unavailable')
+        return _remote_darwin_process_wait(pid, nohang=nohang)
+
+    options = os.WEXITED | os.WNOWAIT
+    if nohang:
+        options |= os.WNOHANG
+    info = waitid(os.P_PID, pid, options)
+    if info is None:
+        return None
+    return _remote_process_returncode(info.si_code, info.si_status)
 
 
 def _remote_fs_digest(data: bytes) -> str:
@@ -2944,14 +2999,7 @@ class _RemoteServerProcess:
     async def _run_wait(self) -> None:
         loop = asyncio.get_running_loop()
         try:
-            info = await loop.run_in_executor(
-                None,
-                os.waitid,
-                os.P_PID,
-                self.popen.pid,
-                os.WEXITED | os.WNOWAIT,
-            )
-            self._returncode = _remote_process_returncode(info)
+            self._returncode = await loop.run_in_executor(None, _remote_process_wait, self.popen.pid)
         except BaseException:
             if self._reaped:
                 return
@@ -2973,7 +3021,7 @@ class _RemoteServerProcess:
             if process_group:
                 try:
                     os.killpg(self.popen.pid, sig)
-                except ProcessLookupError:
+                except (PermissionError, ProcessLookupError):
                     pass
             return
 
@@ -2984,12 +3032,30 @@ class _RemoteServerProcess:
                 os.kill(self.popen.pid, sig)
             except ProcessLookupError:
                 pass
+            except PermissionError:
+                if not self._is_exited_nowait():
+                    raise
             try:
                 os.killpg(self.popen.pid, sig)
             except ProcessLookupError:
                 pass
+            except PermissionError:
+                if not self._is_exited_nowait():
+                    raise
         else:
-            os.kill(self.popen.pid, sig)
+            try:
+                os.kill(self.popen.pid, sig)
+            except PermissionError:
+                if not self._is_exited_nowait():
+                    raise
+
+    def _is_exited_nowait(self) -> bool:
+        try:
+            return _remote_process_wait(self.popen.pid, nohang=True) is not None
+        except ChildProcessError:
+            return True
+        except OSError:
+            return False
 
     async def signal(self, sig: int, process_group: bool) -> None:
         self._signal(sig, process_group)
@@ -3021,6 +3087,9 @@ class _RemoteServerProcess:
                 os.killpg(self.popen.pid, signal.SIGWINCH)
             except ProcessLookupError:
                 pass
+            except PermissionError:
+                if not self._is_exited_nowait():
+                    raise
 
     async def _wait_exited(self, timeout: ta.Optional[float]) -> bool:
         if self.exited:
