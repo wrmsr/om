@@ -34,8 +34,8 @@ from omcore import dataclasses as dc
 
 
 try:
-    import triton  # type: ignore[import-not-found]
-    import triton.language as tl  # type: ignore[import-not-found]
+    import triton  # type: ignore[import-not-found,unused-ignore]
+    import triton.language as tl  # type: ignore[import-not-found,unused-ignore]
 except ImportError:
     triton = None
     tl = None

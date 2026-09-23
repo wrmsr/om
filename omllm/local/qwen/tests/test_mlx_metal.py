@@ -9,7 +9,7 @@ import numpy as np
 try:
     import mlx.core as mx
 except ImportError:
-    mx = None  # type: ignore[assignment]
+    mx = None  # type: ignore[assignment,unused-ignore]
 
 
 ##
@@ -17,7 +17,7 @@ except ImportError:
 
 def _skip() -> bool:
     if mx is None:
-        print('mlx not installed; skipping')  # type: ignore[unreachable]
+        print('mlx not installed; skipping')  # type: ignore[unreachable,unused-ignore]
         return True
     if not mx.metal.is_available():
         print('Metal not available; skipping')
