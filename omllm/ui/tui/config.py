@@ -47,6 +47,7 @@ class Config:
     immediate: bool | None = None
 
     verbose: bool | None = None
+    yolo: bool | None = None
 
     ##
 
@@ -76,6 +77,7 @@ class Config:
         parser.add_argument('-I', '--immediate', action='store_true')
 
         parser.add_argument('-v', '--verbose', action='store_true')
+        parser.add_argument('--yolo', action='store_true')
 
         return parser
 
@@ -106,6 +108,7 @@ class Config:
             immediate=args.immediate,
 
             verbose=args.verbose,
+            yolo=args.yolo,
         )
 
     @classmethod

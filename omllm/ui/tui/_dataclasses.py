@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='992b24922370d5dee1823e8fe0e3d393e9322ccf',
+    installer_sha1='cef226d3f1193da21770183ffa2901ea379ebf76',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -53,15 +53,16 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "None, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value',"
             " None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value"
             "', None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),"
-            "), (), (False,)))"
+            "', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), "
+            "(), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
+def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -102,6 +103,8 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
         __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
         __dataclass__init__fields__16__annotation = __dataclass__spec.fields[16].annotation
         __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
+        __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
+        __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -129,6 +132,7 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
                 autoexec=self.autoexec,
                 immediate=self.immediate,
                 verbose=self.verbose,
+                yolo=self.yolo,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -155,7 +159,8 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
                 self.resume == other.resume and
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
-                self.verbose == other.verbose
+                self.verbose == other.verbose and
+                self.yolo == other.yolo
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -178,6 +183,7 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
             'autoexec',
             'immediate',
             'verbose',
+            'yolo',
         }
 
         def __setattr__(self, name, value):
@@ -219,6 +225,7 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
                 self.autoexec,
                 self.immediate,
                 self.verbose,
+                self.yolo,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -243,6 +250,7 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
             autoexec: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
             immediate: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
             verbose: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            yolo: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'cwd', cwd)
@@ -261,6 +269,7 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
             __dataclass__object_setattr(self, 'autoexec', autoexec)
             __dataclass__object_setattr(self, 'immediate', immediate)
             __dataclass__object_setattr(self, 'verbose', verbose)
+            __dataclass__object_setattr(self, 'yolo', yolo)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -284,6 +293,7 @@ def _process_dataclass__992b24922370d5dee1823e8fe0e3d393e9322ccf():
             parts.append(f"autoexec={self.autoexec!r}")
             parts.append(f"immediate={self.immediate!r}")
             parts.append(f"verbose={self.verbose!r}")
+            parts.append(f"yolo={self.yolo!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

@@ -67,17 +67,10 @@ class Shutdown:
 ##
 
 
-def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> tuple[Config, bool]:
-    import argparse
+def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
+    config = Config.parse_from_arguments(argv)
 
-    parser = argparse.ArgumentParser()
-
-    # Shoutouts to https://github.com/hyprwm/Hyprland/issues/3728
-    parser.add_argument('--i-am-very-stupid', action='store_true')
-
-    config, args = Config.parse_from_arguments_(argv, parser=parser)
-
-    if args.i_am_very_stupid:
+    if config.yolo:
         config = dc.replace(
             config,
 
@@ -86,15 +79,15 @@ def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> tuple[Config,
             fs=True,
         )
 
-    return config, args.i_am_very_stupid
+    return config
 
 
-def _very_stupid_autoexec(cwd: str) -> list[str]:
+def _yolo_autoexec(cwd: str) -> list[str]:
     return [
         '/permissions clear',
         '/permissions add allow exec {}',
         f'/permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'',
-        '/echo "YOU ARE VERY STUPID"',
+        '/echo "YOLO"',
     ]
 
 
@@ -102,7 +95,7 @@ log = logs.get_module_logger(globals())
 
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
-    config, i_am_very_stupid = _parse_config(argv)
+    config = _parse_config(argv)
 
     #
 
@@ -173,7 +166,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
             for ax in [
                     *(config.autoexec or []),
-                    *(_very_stupid_autoexec(cwd) if i_am_very_stupid else []),
+                    *(_yolo_autoexec(cwd) if config.yolo else []),
             ]:
                 pump.submit(ax)
 
