@@ -30,7 +30,7 @@ def _skip() -> bool:
         print('torch not installed; skipping')  # type: ignore
         return True
 
-    from ..backends.triton import HAVE_TRITON
+    from ..backends.torch_triton import HAVE_TRITON
 
     if not HAVE_TRITON:
         print('triton not installed; skipping')
@@ -44,7 +44,7 @@ def test_qlinear_kernel():
         return
 
     from ..backends.torch import TorchOps
-    from ..backends.triton import qlinear
+    from ..backends.torch_triton import qlinear
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     ops = TorchOps(device)
@@ -66,7 +66,7 @@ def test_qlinear_kernel():
         print(f'int{bits}: kernel matches dequant reference for M in (1, 5, 16, 33)')
 
     # the FMA formulation (registers, M <= 8) must match too, for both widths and with split-K
-    from ..backends.triton import GemvConfig
+    from ..backends.torch_triton import GemvConfig
 
     for bits in (8, 4):
         w = (rng.standard_normal((72, 512)) * 0.05).astype(np.float32)
@@ -111,7 +111,7 @@ def test_gdn_step_kernel():
         return
 
     from ..backends.torch import TorchOps
-    from ..backends.triton import gdn_step
+    from ..backends.torch_triton import gdn_step
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     ops = TorchOps(device, triton=False)  # reference path

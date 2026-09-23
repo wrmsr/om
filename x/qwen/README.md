@@ -16,6 +16,7 @@ ops.py           the backend seam: `Ops` ABC (abstract primitives + composed ref
 torch_ops.py     torch backend (F.rms_norm / SDPA / conv1d, on-device quantize, TorchQWeight)
 backends/torch_triton.py  Triton int4/int8 GEMV for TorchQWeight (decode / verify; prefill stays on dequant + cuBLAS)
 mlx_ops.py       MLX core backend (mx.fast.rms_norm / rope / sdpa, mx.quantized_matmul, MlxQWeight)
+backends/mlx_metal.py  the fused DeltaNet step as an mx.fast.metal_kernel (Metal only)
 tinygrad_ops.py  tinygrad backend (Tensor.scaled_dot_product_attention, grouped conv, TinyQWeight)
 backends.py      backend selection for the CLIs
 quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
@@ -160,6 +161,13 @@ a `[dk, block_dv]` slice of one head's state in registers for all T tokens and w
 final or per-token states. That replaces ~25 small kernels per layer (and the state's ~24 MB of round-trip
 traffic) with one, which matters because the decode graph is otherwise ~2,500 nodes of a few microseconds each.
 `test_triton.py::test_gdn_step_kernel` checks it against the composed reference under the interpreter.
+
+On MLX the same step is a custom Metal kernel (`backends/mlx_metal.py`, `MlxOps.gdn_step`): one launch per layer,
+a threadgroup per head and slice of 32 value columns with the `[dk, 32]` state tile in threadgroup memory for
+all T tokens. `MlxOps.sdpa_static` uses `mx.fast.scaled_dot_product_attention` over the static buffer (GQA and
+the boolean position mask native). Both are on when Metal is present (`MlxOps(metal=False)` forces the
+references); `tests/test_mlx_metal.py` checks them against the references on Apple silicon and is skipped
+elsewhere.
 
 What remains in the graph after the two kernels is glue -- norms, casts, gates, the attention prologue -- and
 `--compile` (`TorchOps(compile=True)`) hands each step function to `torch.compile` (`Ops.compile_fn`) before it

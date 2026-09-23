@@ -15,10 +15,10 @@ import torch.nn.functional as F
 
 from ..ops import Ops
 from ..quant import QWeight
-from .triton import HAVE_TRITON
-from .triton import gdn_step
-from .triton import load_tuned
-from .triton import qlinear
+from .torch_triton import HAVE_TRITON
+from .torch_triton import gdn_step
+from .torch_triton import load_tuned
+from .torch_triton import qlinear
 
 
 ##

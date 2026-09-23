@@ -190,7 +190,7 @@ def main() -> None:
         if args.cache_dir:
             ops.compile_cache = str(pathlib.Path(args.cache_dir) / 'torch-compile.bin')  # type: ignore[attr-defined]
     if args.triton_tuned and hasattr(ops, 'triton'):
-        from ..backends.triton import load_tuned
+        from ..backends.torch_triton import load_tuned
 
         print(f'[model] {load_tuned(args.triton_tuned)} tuned GEMV configs from {args.triton_tuned}')
 

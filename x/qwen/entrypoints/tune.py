@@ -8,8 +8,8 @@ import argparse
 
 import torch
 
-from ..backends.triton import save_tuned
-from ..backends.triton import tune
+from ..backends.torch_triton import save_tuned
+from ..backends.torch_triton import tune
 from ..model import fusion_of
 from ..model import mtp_param_names
 from ..model import required_param_names

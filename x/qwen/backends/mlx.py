@@ -75,8 +75,11 @@ class MlxQWeight:
 class MlxOps(Ops):
     name = 'mlx'
 
-    def __init__(self) -> None:
+    def __init__(self, metal: bool | None = None) -> None:
         super().__init__()
+
+        # custom Metal kernels (the fused DeltaNet step) and the fast SDPA for decode: on when Metal is present
+        self.metal = mx.metal.is_available() if metal is None else metal
 
         self.name = f'mlx:{mx.default_device()}'
 
@@ -287,9 +290,74 @@ class MlxOps(Ops):
 
         return run
 
-    def sdpa(self, q, k, v, scale, past):
+    def gdn_step(
+            self,
+            q,
+            k,
+            v,
+            a,
+            b,
+            A,
+            dt_bias,
+            state,
+            all_states,
+            eps=1e-6,
+    ):
+        if self.metal:
+            from .mlx_metal import gdn_step_metal
+
+            return gdn_step_metal(
+                q,
+                k,
+                v,
+                a,
+                b,
+                A,
+                dt_bias,
+                state,
+                all_states,
+                eps,
+            )
+        return super().gdn_step(
+            q,
+            k,
+            v,
+            a,
+            b,
+            A,
+            dt_bias,
+            state,
+            all_states,
+            eps,
+        )
+
+    def sdpa_static(
+            self,
+            q,
+            kbuf,
+            vbuf,
+            pos,
+            ar,
+            scale,
+    ):
+        # the fast SDPA takes GQA and a boolean mask natively; one kernel instead of the folded matmuls (Metal only: on
+        # the CPU device the composed version is faster)
+        if not self.metal:
+            return super().sdpa_static(
+                q,
+                kbuf,
+                vbuf,
+                pos,
+                ar,
+                scale,
+            )
         T = q.shape[2]
-        L = k.shape[2]
+        qpos = pos + mx.arange(T, dtype=mx.int32)
+        mask = ar[None, :] <= qpos[:, None]  # [T, L], True = attend
+        return mx.fast.scaled_dot_product_attention(q, kbuf, vbuf, scale=scale, mask=mask)
+
+    def sdpa(self, q, k, v, scale, past):
+        T, L = q.shape[2], k.shape[2]
         if T == 1:
             return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
         if past == 0 and T == L:
