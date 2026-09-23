@@ -3,22 +3,22 @@ Prefix snapshots: exact-prefix reuse of decode state across requests, with a dev
 
 An agent loop's next request is almost always the previous one plus the model's answer plus a tool result, so after
 every prefill and every generation the state is snapshotted under its token ids, and a new request resumes from the
-longest cached snapshot whose tokens are a prefix of its own -- prefilling only what is new. For this hybrid model
-that is the only kind of reuse possible: the DeltaNet layers' state is a fixed-size recurrence that cannot be rewound
-to an arbitrary earlier position, so snapshots are taken at request boundaries (prompt end, generation end) and
-matched whole, never split.
+longest cached snapshot whose tokens are a prefix of its own -- prefilling only what is new. For this hybrid model that
+is the only kind of reuse possible: the DeltaNet layers' state is a fixed-size recurrence that cannot be rewound to an
+arbitrary earlier position, so snapshots are taken at request boundaries (prompt end, generation end) and matched whole,
+never split.
 
 What a snapshot holds (all on the device while resident): the functional `Cache` (exact-length KV for the attention
 layers, the (conv, S) pairs for the DeltaNet ones), the target's logits for the next position and its final-normed
 hidden state at the last position (so a request that matches completely, or the draft head, need nothing recomputed),
-and the draft head's KV for the entries before the last position when the MTP head is loaded. A 27B snapshot is
-~150 MB of DeltaNet state plus 32 KB per token of KV.
+and the draft head's KV for the entries before the last position when the MTP head is loaded. A 27B snapshot is ~150 MB
+of DeltaNet state plus 32 KB per token of KV.
 
-Tiers: a device LRU with a byte budget; entries evicted from it move to a host LRU (pinned memory on torch/CUDA, so
-a 1 GB snapshot crosses PCIe in well under a second; the array itself on unified-memory or CPU backends) with its
-own budget, or are dropped. A hit on a host entry promotes it back. Matching is on token ids exactly, so a harness
-should keep the ids it was given rather than re-tokenise text (BPE is not idempotent across a boundary), and
-anything that rewrites earlier turns -- stripping reasoning blocks, editing history -- breaks the prefix.
+Tiers: a device LRU with a byte budget; entries evicted from it move to a host LRU (pinned memory on torch/CUDA, so a 1
+GB snapshot crosses PCIe in well under a second; the array itself on unified-memory or CPU backends) with its own
+budget, or are dropped. A hit on a host entry promotes it back. Matching is on token ids exactly, so a harness should
+keep the ids it was given rather than re-tokenise text (BPE is not idempotent across a boundary), and anything that
+rewrites earlier turns -- stripping reasoning blocks, editing history -- breaks the prefix.
 """
 import dataclasses as dc
 import typing as ta

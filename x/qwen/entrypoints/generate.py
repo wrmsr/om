@@ -171,8 +171,18 @@ def main() -> None:
         help='snapshot the state after the prompt and after the generation and resume later requests from the longest '
              'matching snapshot (prefixcache.py); with --follow-up, demonstrates the second turn',
     )
-    ap.add_argument('--cache-device-mib', type=int, default=4096, help='prefix cache budget on the device')
-    ap.add_argument('--cache-host-mib', type=int, default=8192, help='prefix cache budget in (pinned) host memory')
+    ap.add_argument(
+        '--cache-device-mib',
+        type=int,
+        default=4096,
+        help='prefix cache budget on the device',
+    )
+    ap.add_argument(
+        '--cache-host-mib',
+        type=int,
+        default=8192,
+        help='prefix cache budget in (pinned) host memory',
+    )
     ap.add_argument(
         '--follow-up',
         default=None,

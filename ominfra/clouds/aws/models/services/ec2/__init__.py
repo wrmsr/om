@@ -2120,6 +2120,7 @@ class ResourceType(_base.Enum):
     IPAM_POOL_ALLOCATION = 'ipam-pool-allocation'
     CAPACITY_RESERVATION_CANCELLATION_QUOTE = 'capacity-reservation-cancellation-quote'
     APPLICATION_STATUS_CHECK = 'application-status-check'
+    CAPACITY_RESERVATION_MODIFICATION_QUOTE = 'capacity-reservation-modification-quote'
 
 
 class RootDeviceType(_base.Enum):
