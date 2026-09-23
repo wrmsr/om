@@ -21,7 +21,7 @@ from ..factories.method import UnmarshalerFactoryMethodClass
 
 @dc.dataclass(frozen=True)
 class FixedTupleMarshaler(Marshaler):
-    es: tuple[Marshaler, ...]
+    es: ta.Sequence[Marshaler]
 
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         o = check.isinstance(o, tuple)
@@ -45,7 +45,7 @@ class TupleMarshalerFactory(MarshalerFactoryMethodClass):
             return None
         rty = spec
 
-        return lambda: FixedTupleMarshaler(tuple(ctx.make_marshaler(item) for item in rty.items))
+        return lambda: FixedTupleMarshaler([ctx.make_marshaler(item) for item in rty.items])
 
     @MarshalerFactoryMethodClass.make_marshaler.register
     def _make_variadic(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
@@ -67,12 +67,12 @@ class TupleMarshalerFactory(MarshalerFactoryMethodClass):
 
 @dc.dataclass(frozen=True)
 class FixedTupleUnmarshaler(Unmarshaler):
-    es: tuple[Unmarshaler, ...]
+    es: ta.Sequence[Unmarshaler]
 
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> tuple:
         if isinstance(v, str):
             raise TypeError(v)
-        items = tuple(check.isinstance(v, collections.abc.Iterable))
+        items = check.isinstance(v, collections.abc.Sequence)
         if len(items) != len(self.es):
             raise ValueError(f'Expected tuple of length {len(self.es)}, got {len(items)}')
         return tuple(e.unmarshal(ctx, item) for e, item in zip(self.es, items))
@@ -85,7 +85,7 @@ class VariadicTupleUnmarshaler(Unmarshaler):
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> tuple:
         if isinstance(v, str):
             raise TypeError(v)
-        return tuple(self.e.unmarshal(ctx, item) for item in check.isinstance(v, collections.abc.Iterable))
+        return tuple(self.e.unmarshal(ctx, item) for item in check.isinstance(v, collections.abc.Sequence))
 
 
 class TupleUnmarshalerFactory(UnmarshalerFactoryMethodClass):

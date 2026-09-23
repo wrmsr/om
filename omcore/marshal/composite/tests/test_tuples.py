@@ -34,6 +34,15 @@ def test_fixed_tuple_marshal_unmarshal():
     assert marshaler.marshal(mc, (1, 'two')) == [1, 'two']
     assert unmarshaler.unmarshal(uc, [1, 'two']) == (1, 'two')
 
+    one_item_marshaler = mfc.make_marshaler(tuple[int])
+    one_item_unmarshaler = ufc.make_unmarshaler(tuple[int])
+    assert isinstance(one_item_marshaler, FixedTupleMarshaler)
+    assert isinstance(one_item_unmarshaler, FixedTupleUnmarshaler)
+    assert one_item_marshaler.marshal(mc, (1,)) == [1]
+    assert one_item_unmarshaler.unmarshal(uc, [1]) == (1,)
+    with pytest.raises(ValueError, match='Expected tuple of length'):
+        one_item_marshaler.marshal(mc, (1, 2))
+
 
 def test_variadic_tuple_marshal_unmarshal():
     rt = make_runtime(

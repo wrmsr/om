@@ -142,6 +142,8 @@ def inject_dockerdev_secrets(
         shift_uid: tuple[int, int] | None = None,
 ) -> None:
     if secrets_file is None:
+        # NOTE: this is unusual because `expanduser` has to be done inside the container, otherwise we'd just do
+        # `get_home_paths().config_dir`.
         secrets_file = os.path.join(
             DEFAULT_HOME_DIR,
             HomePaths.config_subdir,

@@ -8,8 +8,7 @@ from omcore import lang
 from omcore import orm
 from omcore import sql
 
-from ..home.paths import DEFAULT_HOME_DIR
-from ..home.paths import HomePaths
+from ..home.paths import get_home_paths
 from .config import Config
 from .run import RunArgs
 
@@ -116,8 +115,7 @@ def write_run_to_db(
 
     if db_file is None:
         db_file = os.path.join(
-            DEFAULT_HOME_DIR,
-            HomePaths.state_subdir,
+            get_home_paths().config_dir,
             'dockerdev',
             DEFAULT_DB_FILE_NAME,
         )
@@ -138,8 +136,6 @@ def write_run_to_db(
     )
 
     async def do_write() -> None:
-        await store.ensure_schema()
-
         async with orm.session(registry, store):
             await orm.add_one(OrmRun(
                 id=orm.key(id),
