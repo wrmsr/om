@@ -26,6 +26,8 @@ from .ops import Array
 from .ops import Ops
 from .ops import Weight
 from .paramcache import ParamCache
+from .prefixcache import PrefixCache
+from .prefixcache import Snapshot
 from .quant import QUANT_BITS
 from .quant import QWeight
 from .quant import from_native
@@ -442,6 +444,7 @@ class Qwen35:
         self.dtype = dtype
         self.nbytes = sum(ops.nbytes(p) for p in params.values())
         self.last_spec: SpecDecoder | None = None  # the most recent generate(spec=k)'s decoder, for its stats
+        self.last_prefix: tuple[int, int] = (0, 0)  # (prompt tokens reused from the prefix cache, prompt length)
         self._steps: dict[tuple[int, bool, bool], ta.Callable[..., tuple[Array, ...]]] = {}  # see step_fn
         self.embed = params['embed_tokens.weight']
         self.norm_w = params['norm.weight']
@@ -704,6 +707,7 @@ class Qwen35:
         spec: int = 0,
         capacity: int | None = None,
         draft_vocab: int = 0,
+        prefix_cache: PrefixCache | None = None,
     ) -> list[int]:
         """
         Generation. Prefill goes through `forward` (chunked); decode then runs the captured static step (`static=True`,
@@ -711,8 +715,10 @@ class Qwen35:
         greedy. `spec=k` (needs the MTP head loaded) drafts k tokens per round with the draft head and verifies them in
         one target step. `capacity` pins the decode buffers' length (rounded up to a power of two); the captured /
         compiled steps are specific to it, so callers that want to reuse them across generations -- a warm-up, a server
-        -- should pass the same value every time. Default: just enough for this call. Yields token ids through on_token
-        as they are produced.
+        -- should pass the same value every time. Default: just enough for this call. With a `prefix_cache`, the
+        longest cached snapshot whose tokens are a prefix of the prompt is resumed and only the rest is prefilled, and
+        the state after the prompt and after the generation are stored for later requests (see prefixcache.py);
+        `self.last_prefix` reports (matched, prompt length). Yields token ids through on_token as they are produced.
         """
 
         capacity = max(capacity or 0, len(prompt_ids) + max_new_tokens + spec + 2)
@@ -720,8 +726,45 @@ class Qwen35:
         ops = self.ops
         sampler = sampler or Sampler()
         sampler.bind(ops, self.cfg.vocab_size)
-        cache = Cache(self.cfg)
-        logits, hidden = self.forward(np.array([prompt_ids]), cache, return_hidden=True)
+        n = len(prompt_ids)
+        snap = prefix_cache.lookup(prompt_ids) if prefix_cache is not None else None
+        mtp_kv: FullState | None = None
+        if snap is not None:
+            # resume: the snapshot's cache is a private copy; prefill only the tokens past it
+            cache = snap.cache
+            n0 = snap.n
+            self.last_prefix = (n0, n)
+            if n0 < n:
+                logits, hidden_new = self.forward(np.array([prompt_ids[n0:]]), cache, return_hidden=True)
+                hidden = ops.concat([snap.hidden, hidden_new], 1)  # positions n0-1 .. n-1
+            else:
+                logits = ops.reshape(snap.logits, (1, 1, -1))
+                hidden = snap.hidden  # position n-1
+            start = n0 - 1  # position of hidden's first row
+            mtp_kv = snap.mtp_kv  # entries 0..n0-2, or None
+        else:
+            self.last_prefix = (0, n)
+            cache = Cache(self.cfg)
+            logits, hidden = self.forward(np.array([prompt_ids]), cache, return_hidden=True)
+            start = 0
+        if prefix_cache is not None or spec:
+            if self.mtp is not None and n - 1 > start:
+                # bring the draft head's KV up to entry n-2 (entry p: hidden at p, token at p+1)
+                _, _, mtp_kv = self.mtp.prefill(
+                    np.asarray([prompt_ids[start + 1:n]], dtype=np.int32),
+                    hidden[:, :n - 1 - start],
+                    start,
+                    draft_vocab,
+                    mtp_kv,
+                )
+        if prefix_cache is not None:
+            prefix_cache.put(Snapshot(
+                tuple(int(t) for t in prompt_ids),
+                cache.snapshot(ops),
+                ops.copy(logits[:, -1]),
+                ops.copy(hidden[:, -1:]),
+                None if mtp_kv is None else (ops.copy(mtp_kv[0]), ops.copy(mtp_kv[1])),
+            ))
         out: list[int] = []
 
         def emit(tok: int) -> bool:
@@ -738,20 +781,27 @@ class Qwen35:
                 cache,
                 prompt_ids,
                 logits,
-                hidden,
+                hidden[:, -1:],
                 k=spec,
                 sampler=sampler,
                 capacity=capacity,
                 draft_vocab=draft_vocab,
+                mtp_kv=mtp_kv,
             )
             self.last_spec = spec_dec
+            processed: list[int] = []  # every committed token, including any past an EOS / the budget
             while len(out) < max_new_tokens:
-                for tok in spec_dec.round():
+                committed = spec_dec.round()
+                processed.extend(committed)
+                stop = False
+                for tok in committed:
                     if emit(tok) or len(out) >= max_new_tokens:
+                        stop = True
                         break
-                else:
-                    continue
-                break
+                if stop:
+                    break
+            if prefix_cache is not None:
+                prefix_cache.put(spec_dec.snapshot(list(prompt_ids) + processed))
             return out
 
         dec = Decoder(self, cache, capacity=capacity) if static else None
@@ -769,6 +819,8 @@ class Qwen35:
                 nxt = draw(dec.step(nxt))
             else:
                 nxt = draw(self.forward(np.array([[nxt]]), cache, last_only=True)[:, -1])
+        if prefix_cache is not None and dec is not None and dec.seq_len > n:
+            prefix_cache.put(dec.snapshot_after(list(prompt_ids) + out))
         return out
 
 
@@ -834,15 +886,17 @@ class MtpHead:
             hidden: Array,
             pos: int = 0,
             draft_vocab: int = 0,
+            state: FullState | None = None,
     ) -> tuple[Array, Array, FullState]:
         """
         Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T, hidden [B,
-        T, H] the target's hidden states at pos..pos+T-1. Returns logits, d, (k, v).
+        T, H] the target's hidden states at pos..pos+T-1, `state` the head's KV for entries 0..pos-1 (None to start
+        empty). Returns logits, d, (k, v) covering entries 0..pos+T-1.
         """
 
         ops = self.model.ops
         u = self.stem(ops, ops.array(np.asarray(toks, dtype=np.int32)), hidden)
-        u, state = self.block(ops, u, pos, None)
+        u, state = self.block(ops, u, pos, state)
         logits, d = self.head(ops, u, draft_vocab)
         return logits, d, state
 
@@ -1123,7 +1177,7 @@ class Decoder:
         self.cos_tab = ops.array(cos_np, self.model.dtype)
         self.sin_tab = ops.array(sin_np, self.model.dtype)
         self.fns: dict[tuple[int, bool, bool], ta.Callable[..., tuple[Array, ...]]] = {}
-        self.fn = self._fn(1, False, False)
+        self.fn = self._fn(1, False, True)
 
     def _fn(self, T: int, all_states: bool, return_hidden: bool) -> ta.Callable[..., tuple[Array, ...]]:
         """The captured step for a given shape, built on first use (each is one graph on CUDA)."""
@@ -1147,9 +1201,37 @@ class Decoder:
         self.ensure_capacity(self.seq_len + 1)
         ids = np.asarray([tok] if isinstance(tok, int) else tok, dtype=np.int32).reshape(-1, 1)
         out = self.fn(ops.array(ids), ops.scalar(self.seq_len), *self.tables(), *self.flat)
-        self.flat = list(out[1:])
+        self.flat = list(out[2:])
+        self.logits_last = out[0][:, 0]  # [B, V]
+        self.hidden_last = out[1][:, -1:]  # [B, 1, H]
         self.seq_len += 1
         return out[0][:, 0]
+
+    def export_cache(self) -> Cache:
+        """The functional `Cache` equivalent of the static state: exact-length KV, copied."""
+
+        ops = self.ops
+        c = Cache(self.model.cfg)
+        c.seq_len = self.seq_len
+        for i, kind in enumerate(self.model.cfg.layer_types):
+            a = self.flat[2 * i]
+            b = self.flat[2 * i + 1]
+            if kind == 'full':
+                c.layers[i] = (ops.copy(a[:, :, :self.seq_len]), ops.copy(b[:, :, :self.seq_len]))
+            else:
+                c.layers[i] = (ops.copy(a), ops.copy(b))
+        return c
+
+    def snapshot_after(self, tokens: ta.Sequence[int]) -> Snapshot:
+        """Prefix-cache snapshot of the state after the first `seq_len` of `tokens` (no draft-head KV)."""
+
+        return Snapshot(
+            tuple(int(t) for t in tokens[:self.seq_len]),
+            self.export_cache(),
+            self.ops.copy(self.logits_last),
+            self.ops.copy(self.hidden_last),
+            None,
+        )
 
     def verify(self, toks: 'list[int] | Array') -> tuple[Array, Array, list[Array]]:
         """
@@ -1227,7 +1309,15 @@ class SpecDecoder:
             sampler: Sampler,
             capacity: int | None = None,
             draft_vocab: int = 0,
+            mtp_kv: FullState | None = None,
     ) -> None:
+        """
+        `cache` holds the target's state after the n prompt tokens; `logits` its logits at the last position; `hidden`
+        [1, T, H] the target's final-normed hidden states for positions n-T..n-1 -- all n of them when starting
+        from scratch, or just the tail when `mtp_kv` already holds the draft head's KV for entries 0..n-T-1 (a prefix
+        snapshot resuming). The draft head is then prefilled over entries n-T..n-1 only.
+        """
+
         if model.mtp is None:
             raise ValueError('no MTP head loaded')
         if draft_vocab < 0 or draft_vocab > model.cfg.vocab_size:
@@ -1247,10 +1337,14 @@ class SpecDecoder:
         self.next_arr = sampler.sample(logits[:, -1])  # [1] on the device
         sampler.observe(self.next_arr)
         self.next_tok = int(ops.numpy(self.next_arr)[0])
-        # draft-head prefill: entry p uses the target hidden at p and the token at p+1, for p = 0..n-1
-        mtoks = np.asarray(list(prompt_ids[1:]) + [self.next_tok], dtype=np.int32)[None]
-        mlogits, d, (mk, mv) = self.mtp.prefill(mtoks, hidden[:, :n], 0, draft_vocab)
+        # draft-head prefill: entry p uses the target hidden at p and the token at p+1, for p = start..n-1 (start = 0
+        # from scratch; the position of the first supplied hidden row when resuming on top of `mtp_kv`)
+        start = n - hidden.shape[1]
+        mtoks = np.asarray(list(prompt_ids[start + 1:n]) + [self.next_tok], dtype=np.int32)[None]
+        mlogits, d, (mk, mv) = self.mtp.prefill(mtoks, hidden, start, draft_vocab, mtp_kv)
         self.mflat: list[Array] = [mk, mv]
+        self.logits_last = logits[:, -1]  # [1, V]: the target's logits for position n (what next_tok was drawn from)
+        self.hidden_last = hidden[:, -1:]  # [1, 1, H]: the target's hidden at position n-1
         self.mcap = 0
         self.mfns: dict[int, ta.Callable[..., tuple[Array, ...]]] = {}
         self.d_last = d[:, -1:]  # [B, 1, H]
@@ -1350,7 +1444,26 @@ class SpecDecoder:
         self.mflat = [mk, mv]
         self.mlogits_last = ml[:, m]
         self.d_last = d[:, m:m + 1]
+        self.logits_last = logits[:, m]
+        self.hidden_last = hidden[:, m:m + 1]
         self.mseq = n + m + 1
         self.rounds += 1
         self.accepted += m
         return committed
+
+    def snapshot(self, tokens: ta.Sequence[int]) -> Snapshot:
+        """
+        The state after the `dec.seq_len` processed tokens, for the prefix cache: `tokens` must be the whole sequence
+        so far (prompt + emitted), of which the first seq_len are the processed ones. Copies everything.
+        """
+
+        ops = self.ops
+        n = self.dec.seq_len
+        mk, mv = self.mflat
+        return Snapshot(
+            tuple(int(t) for t in tokens[:n]),
+            self.dec.export_cache(),
+            ops.copy(self.logits_last),
+            ops.copy(self.hidden_last),
+            (ops.copy(mk[:, :, :n - 1]), ops.copy(mv[:, :, :n - 1])),
+        )

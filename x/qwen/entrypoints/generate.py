@@ -14,6 +14,7 @@ from ..backends import default_dtype
 from ..backends import make_ops
 from ..model import Qwen35
 from ..model import Sampler
+from ..prefixcache import PrefixCache
 from ..tokenizer import Tokenizer
 from ..weights import OllamaModel
 from ..weights import describe_gguf
@@ -165,6 +166,21 @@ def main() -> None:
              'reuses them. Default: prompt + new tokens',
     )
     ap.add_argument(
+        '--prefix-cache',
+        action='store_true',
+        help='snapshot the state after the prompt and after the generation and resume later requests from the longest '
+             'matching snapshot (prefixcache.py); with --follow-up, demonstrates the second turn',
+    )
+    ap.add_argument('--cache-device-mib', type=int, default=4096, help='prefix cache budget on the device')
+    ap.add_argument('--cache-host-mib', type=int, default=8192, help='prefix cache budget in (pinned) host memory')
+    ap.add_argument(
+        '--follow-up',
+        default=None,
+        metavar='TEXT',
+        help='after the answer, send a second user turn with this text over the same conversation (the ids of the '
+             'first turn, verbatim) and report how much of it the prefix cache reused',
+    )
+    ap.add_argument(
         '--warmup',
         action='store_true',
         help='run a short throwaway generation first so graph capture / kernel compile stay out of the timing',
@@ -264,36 +280,64 @@ def main() -> None:
             if save_compile_cache(ops.compile_cache):  # type: ignore[attr-defined]
                 print(f'[gen] saved compile cache to {ops.compile_cache}')  # type: ignore[attr-defined]
 
-    streamer = Tokenizer.Streamer(tok)
-    t0 = time.time()
-    n = [0]
+    prefix_cache = None
+    if args.prefix_cache or args.follow_up:
+        prefix_cache = PrefixCache(ops, args.cache_device_mib << 20, args.cache_host_mib << 20)
 
-    def on_token(i):
-        n[0] += 1
-        sys.stdout.write(streamer.push(i))
-        sys.stdout.flush()
+    def run(ids: list[int]) -> list[int]:
+        streamer = Tokenizer.Streamer(tok)
+        t0 = time.time()
+        n = [0]
+        first = [0.0]
 
-    model.generate(
-        ids,
-        max_new_tokens=args.max_new_tokens,
-        eos_ids=eos,
-        on_token=on_token,
-        static=not args.functional,
-        sampler=sampler,
-        spec=args.spec,
-        capacity=capacity,
-        draft_vocab=args.draft_vocab,
-    )
-    sys.stdout.write(streamer.flush())
-    dt = time.time() - t0
-    print(f'\n[gen] {n[0]} tokens in {dt:.1f}s ({n[0] / dt:.1f} tok/s incl. prefill)')
-    if args.spec and model.last_spec is not None:
-        sd = model.last_spec
-        print(
-            f'[spec] {sd.rounds} rounds, {sd.accepted} drafts accepted '
-            f'({sd.accepted / max(1, sd.rounds * args.spec):.0%} of {args.spec}/round; '
-            f'{(sd.accepted + sd.rounds) / max(1, sd.rounds):.2f} tokens/round)',
+        def on_token(i):
+            if not n[0]:
+                first[0] = time.time() - t0
+            n[0] += 1
+            sys.stdout.write(streamer.push(i))
+            sys.stdout.flush()
+
+        out = model.generate(
+            ids,
+            max_new_tokens=args.max_new_tokens,
+            eos_ids=eos,
+            on_token=on_token,
+            static=not args.functional,
+            sampler=sampler,
+            spec=args.spec,
+            capacity=capacity,
+            draft_vocab=args.draft_vocab,
+            prefix_cache=prefix_cache,
         )
+        sys.stdout.write(streamer.flush())
+        dt = time.time() - t0
+        print(
+            f'\n[gen] {n[0]} tokens in {dt:.1f}s ({n[0] / dt:.1f} tok/s incl. prefill; '
+            f'first token {first[0] * 1000:.0f} ms)',
+        )
+        if prefix_cache is not None:
+            matched, total = model.last_prefix
+            print(f'[prefix] reused {matched} of {total} prompt tokens; {prefix_cache.stats()}')
+        if args.spec and model.last_spec is not None:
+            sd = model.last_spec
+            print(
+                f'[spec] {sd.rounds} rounds, {sd.accepted} drafts accepted '
+                f'({sd.accepted / max(1, sd.rounds * args.spec):.0%} of {args.spec}/round; '
+                f'{(sd.accepted + sd.rounds) / max(1, sd.rounds):.2f} tokens/round)',
+            )
+        return out
+
+    out = run(ids)
+    if args.follow_up:
+        # the second turn continues the exact ids of the first (a harness must keep ids, not re-tokenise text)
+        im_end = tok.special.get('<|im_end|>')
+        tail = list(out)
+        if tail and tail[-1] == im_end:
+            tail = tail[:-1]
+        cont = tok.apply_chat([{'role': 'user', 'content': args.follow_up}], think=args.think)
+        ids2 = ids + tail + tok.encode('<|im_end|>\n' + cont)
+        print(f'\n[gen] follow-up: {len(ids2)} prompt tokens')
+        run(ids2)
 
 
 if __name__ == '__main__':

@@ -75,6 +75,17 @@ class Ops(abc.ABC):
     def copy(self, x: Array) -> Array:
         pass
 
+    def to_host(self, x: Array) -> ta.Any:
+        """
+        Move an array to host memory for the prefix cache's host tier, in a form `from_host` brings back. Default: the
+        array itself (unified-memory and CPU backends have no tiers to speak of).
+        """
+
+        return x
+
+    def from_host(self, h: ta.Any) -> Array:
+        return h
+
     @abc.abstractmethod
     def zeros(self, shape: tuple[int, ...], dtype: ta.Any) -> Array:
         pass

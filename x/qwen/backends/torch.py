@@ -199,6 +199,14 @@ class TorchOps(Ops):
     def copy(self, x):
         return x.clone()
 
+    def to_host(self, x):
+        h = torch.empty(x.shape, dtype=x.dtype, device='cpu', pin_memory=(self.device.type == 'cuda'))
+        h.copy_(x)
+        return h
+
+    def from_host(self, h):
+        return h.to(self.device, non_blocking=True)
+
     def zeros(self, shape, dtype):
         return torch.zeros(shape, dtype=dtype, device=self.device)
 

@@ -21,6 +21,7 @@ tinygrad_ops.py  tinygrad backend (Tensor.scaled_dot_product_attention, grouped 
 backends.py      backend selection for the CLIs
 quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
 paramcache.py    on-disk cache of finished parameters (memory-mapped .npy per array), so a 27B loads in seconds
+prefixcache.py   prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
 weights.py       Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs (packed safetensors,
                  MLX int4/int8) -> canonical HF-layout params
 tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
@@ -255,10 +256,34 @@ published settings; `test_sampler.py` checks the draws against the exact distrib
 decoding reproduces greedy decoding exactly on every backend, with the real head and with oracle drafts
 corrupted at each index so every acceptance length is exercised.
 
+## Prefix snapshots
+
+An agent loop's next request is almost always the previous one plus the answer plus a tool result. With
+`--prefix-cache` (`generate(..., prefix_cache=PrefixCache(...))`) the state is snapshotted after every prompt and
+after every generation under its token ids, and a request resumes from the longest snapshot whose tokens are an
+exact prefix of its own, prefilling only the rest. A snapshot is the functional `Cache` (exact-length KV for the 16
+attention layers, the fixed-size DeltaNet states), the target's logits and final-normed hidden state at the
+boundary, and the draft head's KV when the MTP head is loaded, so a resumed request needs nothing recomputed --
+speculative decoding picks up its draft head where it left off. For a hybrid model this whole-snapshot matching is
+the only reuse there is: the DeltaNet state cannot be rewound, so snapshots are taken at request boundaries and
+matched whole.
+
+Two tiers with byte budgets (`--cache-device-mib`, `--cache-host-mib`): LRU on the device, eviction demotes to
+host memory (pinned on torch/CUDA: `Ops.to_host` / `from_host`), a hit promotes back. A 27B snapshot is ~150 MB of
+DeltaNet state plus 32 KB per token of KV; at 30k tokens that is ~1.1 GB, well under a second across PCIe.
+
+Matching is on token ids, exactly. A harness must keep the ids it was given rather than re-tokenise text (BPE is
+not idempotent across a turn boundary), and anything that rewrites earlier turns -- stripping reasoning blocks
+from previous assistant messages, which Qwen's chat template does by default; editing history -- breaks the
+prefix. `--follow-up TEXT` in `generate` demonstrates a second turn built from the first turn's ids and prints how
+much was reused. `tests/test_prefix.py` checks, on every backend, that a resumed follow-up produces exactly what a
+cold run over the full prompt produces (plain and speculative), plus demotion, promotion and eviction.
+
 ## Where to go next (in order)
 
-1. **Prefix snapshots** with a host tier (`Decoder.snapshot` + an LRU over device and pinned CPU memory, keyed
-   on token prefixes) -- what turns an agent loop's turns into a few hundred tokens of prefill.
+1. **Serving** -- a streaming HTTP endpoint with cancellation over `generate` + `PrefixCache`, holding the
+   compiled steps and the cache across requests; `preserve-thinking` in the chat template so multi-turn prefixes
+   stay exact.
 2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
    recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
 3. **Kernel tuning** — sweep `triton_block_n` / `num_warps`, add split-K for the narrow projections, and put
