@@ -338,7 +338,8 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
             env[_PyremoteBootstrapConsts.ARGV0_VAR] = exe
             env[_PyremoteBootstrapConsts.CONTEXT_NAME_VAR] = context_name
 
-            # Disable timeout
+            # Re-arm timeout. It survives the exec (with SIGALRM back at its default, terminating disposition) and
+            # bounds finalization, which cancels it.
             signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
 
             # Start repl reading stdin from r0
@@ -488,6 +489,10 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     if (mn := options.main_name_override) is not None:
         # Inspections like typing.get_type_hints need an entry in sys.modules.
         sys.modules[mn] = sys.modules['__main__']
+
+    # Cancel the bootstrap's alarm. It was re-armed right before the exec into this interpreter and survived it, and
+    # SIGALRM is at its default disposition here: left alone, it would terminate the payload TIMEOUT_S after launch.
+    signal.alarm(0)
 
     # Disarm watchdog
     try:

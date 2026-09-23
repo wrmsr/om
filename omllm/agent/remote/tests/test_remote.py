@@ -6,6 +6,7 @@ import pathlib
 import shlex
 import signal
 import sys
+import time
 import types
 import typing as ta
 
@@ -34,7 +35,7 @@ _PYTHON = str(_PYTHON_38) if _PYTHON_38.is_file() else sys.executable
 
 
 @contextlib.asynccontextmanager
-async def _remote_agent() -> ta.AsyncIterator[RemoteAgentClient]:
+async def _remote_agent(*, stderr_sink: list[str] | None = None) -> ta.AsyncIterator[RemoteAgentClient]:
     proc = await asyncio.create_subprocess_exec(
         _PYTHON,
         '-c',
@@ -72,6 +73,8 @@ async def _remote_agent() -> ta.AsyncIterator[RemoteAgentClient]:
             proc.kill()
             returncode = await proc.wait()
         stderr = (await proc.stderr.read()).decode('utf-8', 'replace')
+        if stderr_sink is not None:
+            stderr_sink.append(stderr)
         assert returncode == 0, stderr
 
 
@@ -257,12 +260,52 @@ async def test_remote_close_reprobes_a_stale_exit_belief_before_killing(tmp_path
         await service.aclose()
 
 
+async def _describe_pid(pid: int) -> str:
+    """How a pid looks from here, for diagnostics. Only ever inspected, never signaled: it may have been recycled."""
+
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return 'gone'
+    except PermissionError:
+        pass
+    try:
+        ps = await asyncio.create_subprocess_exec(
+            'ps', '-ww', '-o', 'pid=,ppid=,pgid=,stat=,args=', '-p', str(pid),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        out, _ = await asyncio.wait_for(ps.communicate(), 10.)
+    except (OSError, TimeoutError) as e:
+        return f'ALIVE (ps unavailable: {e!r})'
+    return f'ALIVE: {out.decode("utf-8", "replace").strip()}'
+
+
+def _describe_missing_termination(
+        *,
+        state_at_disconnect: str,
+        teardown_s: float,
+        pid_after: str,
+        agent_stderr: str,
+) -> str:
+    return '\n'.join([
+        'terminated file was not written (the child never ran its TERM trap). A healthy run looks like: RUNNING at',
+        'disconnect, teardown ~0.02s, child gone after, agent stderr "closed in ... returncode=0".',
+        f'  child at disconnect:       {state_at_disconnect}   (EXITED here: it died on its own first)',
+        f'  teardown after disconnect: {teardown_s:.3f}s   (> 5s: the graceful wait timed out, then SIGKILL)',
+        f'  child pid after agent:     {pid_after}   (ALIVE: orphaned - its close failed or never ran)',
+        '  agent stderr (returncode -9: SIGKILLed first; -15: TERM untrapped; other negatives: died of that signal):',
+        *[f'    {line}' for line in agent_stderr.splitlines() or ['<empty>']],
+    ])
+
+
 @pytest.mark.asyncs('asyncio')
 async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
     terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
     trap_command = f'printf terminated > {shlex.quote(terminated_path)}; exit 0'
+    agent_stderr: list[str] = []
 
-    async with _remote_agent() as client:
+    async with _remote_agent(stderr_sink=agent_stderr) as client:
         process = await client.processes.root.spawn(processes.ProcessSpec(
             [
                 'sh',
@@ -276,13 +319,54 @@ async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
         ready = await process.spool.poll(0, timeout=5.)
         assert ready.data(1) == b'ready'
 
+        # Recorded for the failure message below: together these say which way a missing trap went.
+        state_at_disconnect = (
+            f'{process.state.name}, returncode={process.returncode}, output_ended={process.output_ended}'
+        )
+        disconnected_at = time.monotonic()
         await client.peer.aclose()
         await client.wait_closed()
 
+    teardown_s = time.monotonic() - disconnected_at
+
+    if not os.path.exists(terminated_path):
+        pytest.fail(_describe_missing_termination(
+            state_at_disconnect=state_at_disconnect,
+            teardown_s=teardown_s,
+            pid_after=await _describe_pid(process.pid),
+            agent_stderr=''.join(agent_stderr),
+        ))
     assert pathlib.Path(terminated_path).read_bytes() == b'terminated'
 
 
 ##
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_remote_shutdown_kills_a_process_whose_close_fails(capsys) -> None:
+    service = remote_server._RemoteProcessService()  # noqa: SLF001
+    spawned = await service.spawn({
+        'argv': ['sleep', '30'],
+        'cwd': None,
+        'env': None,
+        'name': None,
+        'stdio': {'kind': 'pipes', 'stdin': 'devnull', 'stdout': 'pipe', 'stderr': 'pipe'},
+    })
+    process: ta.Any = service._processes[spawned['id']]  # noqa: SLF001
+
+    async def failing_close(policy):
+        raise RuntimeError('simulated close failure')
+
+    process.close = failing_close
+    await service.aclose()
+
+    assert process._reaped  # noqa: SLF001
+    assert process.returncode == -signal.SIGKILL
+    assert not service._processes  # noqa: SLF001
+    err = capsys.readouterr().err
+    assert 'close failed' in err
+    assert 'simulated close failure' in err
+    assert f'killed, returncode={-signal.SIGKILL}' in err
 
 
 def test_remote_waitstatus_to_exitcode() -> None:

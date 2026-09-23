@@ -81,6 +81,46 @@ class TestPyremote(unittest.TestCase):
     def test_debug(self) -> None:
         self._run_test(core.PyremoteBootstrapOptions(debug=True))
 
+    def _run_alarm_test(self, opts: core.PyremoteBootstrapOptions) -> None:
+        # The bootstrap arms an alarm that survives its exec into the payload interpreter (where SIGALRM is at its
+        # default, terminating disposition). Finalization must cancel it, or every payload dies TIMEOUT_S after launch.
+        with open(os.path.join(os.path.dirname(__file__), '..', 'core.py')) as f:
+            pyr_src = f.read()
+
+        payload_src = '\n'.join([
+            pyr_src,
+            'rt = pyremote_bootstrap_finalize()',
+            'rt.output.write(repr(signal.getitimer(signal.ITIMER_REAL)).encode())',
+        ])
+
+        proc = subprocess.Popen(
+            subprocess_maybe_shell_wrap_exec(
+                sys.executable,
+                '-c',
+                core.pyremote_build_bootstrap_source('test'),
+            ),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
+
+        stdin = check.not_none(proc.stdin)
+        stdout = check.not_none(proc.stdout)
+
+        core.PyremoteBootstrapDriver(payload_src, opts).run(stdout, stdin)
+        try:
+            stdin.close()
+        except BrokenPipeError:
+            pass
+
+        self.assertEqual(stdout.read(), b'(0.0, 0.0)')
+        self.assertEqual(proc.wait(), 0)
+
+    def test_alarm_cancelled(self) -> None:
+        self._run_alarm_test(core.PyremoteBootstrapOptions())
+
+    def test_alarm_cancelled_debug(self) -> None:
+        self._run_alarm_test(core.PyremoteBootstrapOptions(debug=True))
+
     def test_driver_sync_fragmented_reads(self) -> None:
         class FragmentedReader(io.BytesIO):
             def read(self, size: ta.Optional[int] = -1) -> bytes:

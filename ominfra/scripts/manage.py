@@ -99,7 +99,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/os/environ.py', sha1='52998c8802914655fe20f0a44b3f151687b12fba'),
             dict(path='../../omcore/os/linux.py', sha1='fabaaa7bdef848bcde100a917cd4e4a864970088'),
             dict(path='../../omcore/os/paths.py', sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e'),
-            dict(path='../../omcore/os/pyremote/core.py', sha1='b0baf1528b4daa0bd392ccdf34b8d34b43d4243d'),
+            dict(path='../../omcore/os/pyremote/core.py', sha1='a663184c584cf8d8449981d424337f8fbb61c7e8'),
             dict(path='../../omcore/shlex.py', sha1='a0507bf476ce0e1035b405129bac05d8d225041d'),
             dict(path='../../omdev/packaging/versions.py', sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200'),
             dict(path='config.py', sha1='6ff640634488fa142d9aadee5aec95db462ce46f'),
@@ -6498,7 +6498,8 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
             env[_PyremoteBootstrapConsts.ARGV0_VAR] = exe
             env[_PyremoteBootstrapConsts.CONTEXT_NAME_VAR] = context_name
 
-            # Disable timeout
+            # Re-arm timeout. It survives the exec (with SIGALRM back at its default, terminating disposition) and
+            # bounds finalization, which cancels it.
             signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
 
             # Start repl reading stdin from r0
@@ -6648,6 +6649,10 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     if (mn := options.main_name_override) is not None:
         # Inspections like typing.get_type_hints need an entry in sys.modules.
         sys.modules[mn] = sys.modules['__main__']
+
+    # Cancel the bootstrap's alarm. It was re-armed right before the exec into this interpreter and survived it, and
+    # SIGALRM is at its default disposition here: left alone, it would terminate the payload TIMEOUT_S after launch.
+    signal.alarm(0)
 
     # Disarm watchdog
     try:

@@ -60,7 +60,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
             dict(path='../../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
             dict(path='../../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
-            dict(path='../../../omcore/os/pyremote/core.py', sha1='b0baf1528b4daa0bd392ccdf34b8d34b43d4243d'),
+            dict(path='../../../omcore/os/pyremote/core.py', sha1='a663184c584cf8d8449981d424337f8fbb61c7e8'),
             dict(path='../../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='protocol.py', sha1='374a0c94df0b7469b6ce29c61848c83e0517f718'),
             dict(path='../../core/rpc/errors.py', sha1='41e06a92d0a0139b6fc0530fe5892071c34cfd23'),
@@ -68,7 +68,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='server.py', sha1='6eb6036e1c80dc0f2576ecd0743ddcb7182def7d'),
+            dict(path='server.py', sha1='f5c9e900b7439cd1c234517ca88e717c5ba904db'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -1629,7 +1629,8 @@ def _pyremote_bootstrap_main(context_name: str) -> None:
             env[_PyremoteBootstrapConsts.ARGV0_VAR] = exe
             env[_PyremoteBootstrapConsts.CONTEXT_NAME_VAR] = context_name
 
-            # Disable timeout
+            # Re-arm timeout. It survives the exec (with SIGALRM back at its default, terminating disposition) and
+            # bounds finalization, which cancels it.
             signal.alarm(_PyremoteBootstrapConsts.TIMEOUT_S)
 
             # Start repl reading stdin from r0
@@ -1779,6 +1780,10 @@ def pyremote_bootstrap_finalize() -> PyremotePayloadRuntime:
     if (mn := options.main_name_override) is not None:
         # Inspections like typing.get_type_hints need an entry in sys.modules.
         sys.modules[mn] = sys.modules['__main__']
+
+    # Cancel the bootstrap's alarm. It was re-armed right before the exec into this interpreter and survived it, and
+    # SIGALRM is at its default disposition here: left alone, it would terminate the payload TIMEOUT_S after launch.
+    signal.alarm(0)
 
     # Disarm watchdog
     try:
@@ -4321,6 +4326,19 @@ def _remote_waitstatus_to_exitcode(status: int) -> int:
     raise ValueError(f'Unexpected wait status: {status!r}')
 
 
+def _remote_log(msg: str, *, exc: ta.Optional[BaseException] = None) -> None:
+    """Writes a line of agent diagnostics - with a traceback, given `exc` - to stderr, which the host captures."""
+
+    try:
+        parts = [f'omllm remote agent: {msg}\n']
+        if exc is not None:
+            parts.extend(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        sys.stderr.write(''.join(parts))
+        sys.stderr.flush()
+    except Exception:  # noqa
+        pass
+
+
 class _RemoteServerProcess:
     def __init__(
             self,
@@ -4740,6 +4758,44 @@ class _RemoteServerProcess:
             )
         return await asyncio.shield(self._close_task)
 
+    async def _hard_kill(self, timeout: float) -> ta.Optional[int]:
+        """
+        Last resort once a graceful close has failed: SIGKILLs the group and the leader, closes our ends of its streams,
+        and reaps it within `timeout`, so nothing it started outlives the agent. Returns the reaped returncode, or None
+        if it could not be reaped in time.
+        """
+
+        pid = self.popen.pid
+        if not self._reaped:
+            # Only while unreaped: the pid, and so its process-group id, is still ours to signal.
+            for kill in (os.killpg, os.kill):
+                try:
+                    kill(pid, signal.SIGKILL)
+                except (PermissionError, ProcessLookupError):
+                    pass
+        self._close_streams()
+
+        deadline = time.monotonic() + timeout
+        while not self._reaped:
+            try:
+                reaped_pid, status = os.waitpid(pid, os.WNOHANG)  # noqa: ASYNC222  # WNOHANG: never blocks
+            except ChildProcessError:
+                # Reaped behind our back: there is no status left to collect.
+                self._reaped = True
+                break
+            if reaped_pid:
+                self._reaped = True
+                self._returncode = _remote_waitstatus_to_exitcode(status)
+                self._exited.set()
+                self.popen.returncode = self._returncode
+                break
+            if time.monotonic() >= deadline:
+                return None
+            await asyncio.sleep(.01)
+
+        self._service.finished(self)
+        return self._returncode
+
 
 class _RemoteProcessService:
     _DEFAULT_CLOSE_POLICY: ta.ClassVar[ClosePolicySpec] = ClosePolicySpec(
@@ -4981,6 +5037,36 @@ class _RemoteProcessService:
         p: ResizeParams = unmarshal_obj(params, ResizeParams)
         await self._lookup(p.id).resize(p.rows, p.cols)
 
+    async def _close_at_shutdown(self, process: _RemoteServerProcess) -> None:
+        """
+        Closes one process as part of agent shutdown, reporting how it went on stderr - nothing else will ever observe
+        it. A process whose graceful close fails is not left running past the agent: it is killed outright.
+        """
+
+        pid = process.popen.pid
+        exited_before = process.exited
+        start = time.monotonic()
+        try:
+            result = await process.close(self._DEFAULT_CLOSE_POLICY)
+
+        except BaseException as e:  # noqa
+            _remote_log(
+                f'process {process.id} (pid {pid}): close failed after {time.monotonic() - start:.3f}s '
+                f'(exited before close: {exited_before}), killing it: {e!r}',
+                exc=e,
+            )
+            returncode = await process._hard_kill(self._DEFAULT_CLOSE_POLICY.kill_s)  # noqa: SLF001
+            outcome = f'returncode={returncode}' if returncode is not None else 'NOT reaped'
+            _remote_log(f'process {process.id} (pid {pid}): killed, {outcome}')
+            if not isinstance(e, Exception):
+                raise
+
+        else:
+            _remote_log(
+                f'process {process.id} (pid {pid}): closed in {time.monotonic() - start:.3f}s '
+                f'(exited before close: {exited_before}), returncode={result.returncode}',
+            )
+
     async def aclose(self) -> None:
         if self._closed:
             return
@@ -4988,7 +5074,7 @@ class _RemoteProcessService:
         try:
             if self._processes:
                 await asyncio.gather(*[
-                    process.close(self._DEFAULT_CLOSE_POLICY)
+                    self._close_at_shutdown(process)
                     for process in list(self._processes.values())
                 ], return_exceptions=True)
         finally:

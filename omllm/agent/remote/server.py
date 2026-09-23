@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import typing as ta
 
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_reader
@@ -346,6 +347,19 @@ def _remote_waitstatus_to_exitcode(status: int) -> int:
     if os.WIFSIGNALED(status):
         return -os.WTERMSIG(status)
     raise ValueError(f'Unexpected wait status: {status!r}')
+
+
+def _remote_log(msg: str, *, exc: ta.Optional[BaseException] = None) -> None:
+    """Writes a line of agent diagnostics - with a traceback, given `exc` - to stderr, which the host captures."""
+
+    try:
+        parts = [f'omllm remote agent: {msg}\n']
+        if exc is not None:
+            parts.extend(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        sys.stderr.write(''.join(parts))
+        sys.stderr.flush()
+    except Exception:  # noqa
+        pass
 
 
 class _RemoteServerProcess:
@@ -767,6 +781,44 @@ class _RemoteServerProcess:
             )
         return await asyncio.shield(self._close_task)
 
+    async def _hard_kill(self, timeout: float) -> ta.Optional[int]:
+        """
+        Last resort once a graceful close has failed: SIGKILLs the group and the leader, closes our ends of its streams,
+        and reaps it within `timeout`, so nothing it started outlives the agent. Returns the reaped returncode, or None
+        if it could not be reaped in time.
+        """
+
+        pid = self.popen.pid
+        if not self._reaped:
+            # Only while unreaped: the pid, and so its process-group id, is still ours to signal.
+            for kill in (os.killpg, os.kill):
+                try:
+                    kill(pid, signal.SIGKILL)
+                except (PermissionError, ProcessLookupError):
+                    pass
+        self._close_streams()
+
+        deadline = time.monotonic() + timeout
+        while not self._reaped:
+            try:
+                reaped_pid, status = os.waitpid(pid, os.WNOHANG)  # noqa: ASYNC222  # WNOHANG: never blocks
+            except ChildProcessError:
+                # Reaped behind our back: there is no status left to collect.
+                self._reaped = True
+                break
+            if reaped_pid:
+                self._reaped = True
+                self._returncode = _remote_waitstatus_to_exitcode(status)
+                self._exited.set()
+                self.popen.returncode = self._returncode
+                break
+            if time.monotonic() >= deadline:
+                return None
+            await asyncio.sleep(.01)
+
+        self._service.finished(self)
+        return self._returncode
+
 
 class _RemoteProcessService:
     _DEFAULT_CLOSE_POLICY: ta.ClassVar[ClosePolicySpec] = ClosePolicySpec(
@@ -1008,6 +1060,36 @@ class _RemoteProcessService:
         p: ResizeParams = unmarshal_obj(params, ResizeParams)
         await self._lookup(p.id).resize(p.rows, p.cols)
 
+    async def _close_at_shutdown(self, process: _RemoteServerProcess) -> None:
+        """
+        Closes one process as part of agent shutdown, reporting how it went on stderr - nothing else will ever observe
+        it. A process whose graceful close fails is not left running past the agent: it is killed outright.
+        """
+
+        pid = process.popen.pid
+        exited_before = process.exited
+        start = time.monotonic()
+        try:
+            result = await process.close(self._DEFAULT_CLOSE_POLICY)
+
+        except BaseException as e:  # noqa
+            _remote_log(
+                f'process {process.id} (pid {pid}): close failed after {time.monotonic() - start:.3f}s '
+                f'(exited before close: {exited_before}), killing it: {e!r}',
+                exc=e,
+            )
+            returncode = await process._hard_kill(self._DEFAULT_CLOSE_POLICY.kill_s)  # noqa: SLF001
+            outcome = f'returncode={returncode}' if returncode is not None else 'NOT reaped'
+            _remote_log(f'process {process.id} (pid {pid}): killed, {outcome}')
+            if not isinstance(e, Exception):
+                raise
+
+        else:
+            _remote_log(
+                f'process {process.id} (pid {pid}): closed in {time.monotonic() - start:.3f}s '
+                f'(exited before close: {exited_before}), returncode={result.returncode}',
+            )
+
     async def aclose(self) -> None:
         if self._closed:
             return
@@ -1015,7 +1097,7 @@ class _RemoteProcessService:
         try:
             if self._processes:
                 await asyncio.gather(*[
-                    process.close(self._DEFAULT_CLOSE_POLICY)
+                    self._close_at_shutdown(process)
                     for process in list(self._processes.values())
                 ], return_exceptions=True)
         finally:
