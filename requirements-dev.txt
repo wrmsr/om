@@ -178,6 +178,8 @@ bitsandbytes==0.50.2  # @om-venv !15 !15t
 
 regex==2026.9.10
 
+gguf==0.19.0
+
 # x.server - TODO: delete
 
 h11==0.16.0

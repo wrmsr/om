@@ -127,6 +127,8 @@ class Project(ProjectBase):
             'jinja2 ~= 3.1',
 
             'pygments ~= 2.21',
+
+            'regex ~= 2026.9',
         ],
     }
 
