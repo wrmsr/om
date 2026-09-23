@@ -80,6 +80,9 @@ class MlxOps(Ops):
 
         # custom Metal kernels (the fused DeltaNet step) and the fast SDPA for decode: on when Metal is present
         self.metal = mx.metal.is_available() if metal is None else metal
+        self.gdn_variant = 'simd'  # 'simd' (registers + shuffles) | 'tg' (threadgroup-memory tile, the fallback)
+        self.gdn_tgv = 32
+        self.gdn_ks = 4
 
         self.name = f'mlx:{mx.default_device()}'
 
@@ -221,25 +224,11 @@ class MlxOps(Ops):
             group_size=group,
             bits=bits,
         )
-        return MlxQWeight(
-            wq,
-            scales.astype(dtype),
-            biases.astype(dtype),
-            bits,
-            group,
-            tuple(w.shape),
-        )
+        return MlxQWeight(wq, scales.astype(dtype), biases.astype(dtype), bits, group, tuple(w.shape))
 
     def head_rows(self, w, n):
         if isinstance(w, MlxQWeight):
-            return MlxQWeight(
-                w.w[:n],
-                w.scales[:n],
-                w.biases[:n],
-                w.bits,
-                w.group,
-                (n, w.shape[1]),
-            )
+            return MlxQWeight(w.w[:n], w.scales[:n], w.biases[:n], w.bits, w.group, (n, w.shape[1]))
         return w[:n]
 
     def export_qweight(self, w):
@@ -317,6 +306,9 @@ class MlxOps(Ops):
                 state,
                 all_states,
                 eps,
+                self.gdn_tgv,
+                self.gdn_variant,
+                self.gdn_ks,
             )
         return super().gdn_step(
             q,

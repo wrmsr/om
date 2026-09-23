@@ -1,6 +1,6 @@
 """
-The MLX Metal kernels (backends/mlx_metal.py, and MlxOps.sdpa_static on mx.fast) against the composed references. Runs
-only where Metal is available (Apple silicon); skipped elsewhere, where MlxOps uses the references anyway.
+The MLX Metal kernels (backends/mlx_metal.py, and MlxOps.sdpa_static on mx.fast) against the composed references.
+Runs only where Metal is available (Apple silicon); skipped elsewhere, where MlxOps uses the references anyway.
 
 Run:  python -m pytest x/qwen/tests/test_mlx_metal.py -q      or      python -m x.qwen.tests.test_mlx_metal
 """
@@ -17,13 +17,11 @@ except ImportError:  # pragma: no cover
 
 def _skip() -> bool:
     if mx is None:
-        print('mlx not installed; skipping')  # type: ignore
+        print('mlx not installed; skipping')
         return True
-
     if not mx.metal.is_available():
         print('Metal not available; skipping')
         return True
-
     return False
 
 
@@ -35,7 +33,6 @@ def rel_err(a, b) -> float:
 def test_gdn_step_metal():
     if _skip():
         return
-
     from ..backends.mlx import MlxOps
     from ..backends.mlx_metal import gdn_step_metal
 
@@ -54,18 +51,19 @@ def test_gdn_step_metal():
             s0 = mx.array((rng.standard_normal((B, Hv, dk, dv)) * 0.3).astype(np.float32))
             for all_states in (False, True):
                 ro, rs = ref.gdn_step(q, k, v, a, b, A, dt, s0, all_states)
-                fo, fs = gdn_step_metal(q, k, v, a, b, A, dt, s0, all_states)
-                mx.eval(ro, rs, fo, fs)
-                eo, es = rel_err(fo, ro), rel_err(fs, rs)
-                assert eo < 1e-4 and es < 1e-4, ((Hk, Hv, dk, dv), T, all_states, eo, es)
-                assert fs.shape == rs.shape
-    print('Metal DeltaNet step matches the composed reference (small and 27B-like geometries, T=1/4, all states)')
+                for variant, kw in (('tg', {}), ('simd', {'ks': 4}), ('simd', {'ks': 8, 'tgv': 16})):
+                    fo, fs = gdn_step_metal(q, k, v, a, b, A, dt, s0, all_states, variant=variant, **kw)
+                    mx.eval(ro, rs, fo, fs)
+                    eo, es = rel_err(fo, ro), rel_err(fs, rs)
+                    assert eo < 1e-4 and es < 1e-4, ((Hk, Hv, dk, dv), T, all_states, variant, kw, eo, es)
+                    assert fs.shape == rs.shape
+    print('Metal DeltaNet step (tg and simd variants) matches the composed reference (small and 27B-like '
+          'geometries, T=1/4, all states)')
 
 
 def test_sdpa_static_metal():
     if _skip():
         return
-
     from ..backends.mlx import MlxOps
 
     ops = MlxOps()
