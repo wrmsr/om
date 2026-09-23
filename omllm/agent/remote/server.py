@@ -639,9 +639,11 @@ class _RemoteServerProcess:
     async def resize(self, rows: int, cols: int) -> None:
         if self._pty_master_fd is None:
             raise RuntimeError('process does not have a pty')
+
         import fcntl
         import struct
         import termios
+
         fcntl.ioctl(self._pty_master_fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
         self._pty_winsize = (rows, cols)
         if not self.exited:
@@ -877,6 +879,7 @@ class _RemoteProcessService:
         import fcntl
         import struct
         import termios
+
         fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
 
     async def spawn(self, params: ta.Any) -> ta.Any:

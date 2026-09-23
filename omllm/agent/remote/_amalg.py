@@ -68,7 +68,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='server.py', sha1='329c0a6eda30948b8c937544c0eeba02fa892fa7'),
+            dict(path='server.py', sha1='6eb6036e1c80dc0f2576ecd0743ddcb7182def7d'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -4612,9 +4612,11 @@ class _RemoteServerProcess:
     async def resize(self, rows: int, cols: int) -> None:
         if self._pty_master_fd is None:
             raise RuntimeError('process does not have a pty')
+
         import fcntl
         import struct
         import termios
+
         fcntl.ioctl(self._pty_master_fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
         self._pty_winsize = (rows, cols)
         if not self.exited:
@@ -4850,6 +4852,7 @@ class _RemoteProcessService:
         import fcntl
         import struct
         import termios
+
         fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
 
     async def spawn(self, params: ta.Any) -> ta.Any:
