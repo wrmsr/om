@@ -583,20 +583,33 @@ class _RemoteServerProcess:
                 # No such group yet: the pty bootstrap creates its session right after exec, and a signal can race that
                 # setup. Hit the owned pid so it cannot escape, then sweep the group once more in case it came to exist
                 # in between - and already has members.
-                os.kill(pid, sig)
+                self._kill_leader(sig)
                 try:
                     os.killpg(pid, sig)
                 except ProcessLookupError:
                     pass
             except PermissionError:
-                if not self._is_exited_nowait():
-                    raise
+                # macOS/BSD can return EPERM for a group whose members are all zombies - benign for a process we still
+                # own. The confirming probe is unreliable on Darwin, so deliver to the owned leader pid directly rather
+                # than risk swallowing a signal that never reached a live leader (whose handlers would then never run).
+                self._kill_leader(sig)
         else:
-            try:
-                os.kill(pid, sig)
-            except PermissionError:
-                if not self._is_exited_nowait():
-                    raise
+            self._kill_leader(sig)
+
+    def _kill_leader(self, sig: int) -> None:
+        """
+        Delivers `sig` to the owned leader pid directly - used when the group signal cannot be, or may not have been,
+        delivered. ESRCH is benign (already gone); EPERM on our own child is a zombie on macOS/BSD, benign once its exit
+        is confirmed and a genuine error otherwise.
+        """
+
+        try:
+            os.kill(self.popen.pid, sig)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            if not self._is_exited_nowait():
+                raise
 
     def _is_exited_nowait(self) -> bool:
         try:

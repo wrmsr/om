@@ -6,6 +6,7 @@ import pathlib
 import shlex
 import signal
 import sys
+import types
 import typing as ta
 
 import pytest
@@ -287,6 +288,43 @@ async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
 def test_remote_waitstatus_to_exitcode() -> None:
     for status in (0, 7 << 8, 255 << 8, 9, 15, 0x80 | 6):
         assert remote_server._remote_waitstatus_to_exitcode(status) == os.waitstatus_to_exitcode(status)  # noqa: SLF001
+
+
+def _bare_server_process(pid: int) -> ta.Any:
+    proc: ta.Any = remote_server._RemoteServerProcess.__new__(remote_server._RemoteServerProcess)  # noqa: SLF001
+    proc._reaped = False  # noqa: SLF001
+    proc._exited = asyncio.Event()  # noqa: SLF001
+    proc.popen = types.SimpleNamespace(pid=pid)
+    return proc
+
+
+def test_remote_signal_group_eperm_falls_back_to_leader_pid(monkeypatch) -> None:
+    # A killpg that reports EPERM (which macOS/BSD can do) must not swallow the signal: it is delivered to the owned
+    # leader pid directly, so a live leader still gets its TERM (and runs its handlers).
+    proc = _bare_server_process(4321)
+    killed: list[tuple[int, int]] = []
+
+    def fake_killpg(pid: int, sig: int) -> None:
+        raise PermissionError
+
+    monkeypatch.setattr(remote_server.os, 'killpg', fake_killpg)
+    monkeypatch.setattr(remote_server.os, 'kill', lambda pid, sig: killed.append((pid, sig)))
+
+    proc._signal(signal.SIGTERM, True)  # noqa: SLF001
+    assert killed == [(4321, signal.SIGTERM)]
+
+
+def test_remote_signal_group_success_does_not_also_hit_the_pid(monkeypatch) -> None:
+    proc = _bare_server_process(4321)
+    group_signals: list[tuple[int, int]] = []
+    pid_signals: list[tuple[int, int]] = []
+
+    monkeypatch.setattr(remote_server.os, 'killpg', lambda pid, sig: group_signals.append((pid, sig)))
+    monkeypatch.setattr(remote_server.os, 'kill', lambda pid, sig: pid_signals.append((pid, sig)))
+
+    proc._signal(signal.SIGTERM, True)  # noqa: SLF001
+    assert group_signals == [(4321, signal.SIGTERM)]
+    assert pid_signals == []
 
 
 @pytest.mark.asyncs('asyncio')

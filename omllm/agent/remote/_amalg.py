@@ -68,7 +68,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='server.py', sha1='222ee558b88df1219659a61685846bed465645b8'),
+            dict(path='server.py', sha1='329c0a6eda30948b8c937544c0eeba02fa892fa7'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -4556,20 +4556,33 @@ class _RemoteServerProcess:
                 # No such group yet: the pty bootstrap creates its session right after exec, and a signal can race that
                 # setup. Hit the owned pid so it cannot escape, then sweep the group once more in case it came to exist
                 # in between - and already has members.
-                os.kill(pid, sig)
+                self._kill_leader(sig)
                 try:
                     os.killpg(pid, sig)
                 except ProcessLookupError:
                     pass
             except PermissionError:
-                if not self._is_exited_nowait():
-                    raise
+                # macOS/BSD can return EPERM for a group whose members are all zombies - benign for a process we still
+                # own. The confirming probe is unreliable on Darwin, so deliver to the owned leader pid directly rather
+                # than risk swallowing a signal that never reached a live leader (whose handlers would then never run).
+                self._kill_leader(sig)
         else:
-            try:
-                os.kill(pid, sig)
-            except PermissionError:
-                if not self._is_exited_nowait():
-                    raise
+            self._kill_leader(sig)
+
+    def _kill_leader(self, sig: int) -> None:
+        """
+        Delivers `sig` to the owned leader pid directly - used when the group signal cannot be, or may not have been,
+        delivered. ESRCH is benign (already gone); EPERM on our own child is a zombie on macOS/BSD, benign once its exit
+        is confirmed and a genuine error otherwise.
+        """
+
+        try:
+            os.kill(self.popen.pid, sig)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            if not self._is_exited_nowait():
+                raise
 
     def _is_exited_nowait(self) -> bool:
         try:
