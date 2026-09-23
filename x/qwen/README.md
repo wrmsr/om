@@ -4,9 +4,9 @@ A from-the-math implementation of the Qwen3.5 / 3.6 / 3.8 dense text models (HF 
 arch `qwen35`), written once against a small backend seam (`Ops`) and run on torch, MLX core, tinygrad, or numpy, that
 loads weights straight out of Ollama's blob store, plus a validation harness that uses `llama-server` as the oracle.
 
-Dependencies: `numpy`, `gguf` (llama.cpp's Python package, MIT), `regex`, and whichever backend you run on
-(`torch`, `mlx`, `tinygrad`). No `transformers`, no mlx-lm / mlx.nn, no `safetensors` package (there is a
-30-line reader in `weights.py`).
+Dependencies: `numpy`, `regex`, and whichever backend you run on (`torch`, `mlx`, `tinygrad`). No `transformers`, no
+mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line reader in `weights.py`), no `gguf` package (the relevant
+parts are vendored).
 
 ```
 model.py         the model, backend-free: RMSNorm, gated GQA attention w/ partial RoPE, Gated DeltaNet,
@@ -37,7 +37,7 @@ fits the same seam.
 ## Run
 
 ```bash
-pip install numpy gguf regex torch          # and/or: pip install mlx
+pip install numpy regex torch               # and/or: pip install mlx
 python -m x.qwen.tests.test_parity          # no model needed; runs every backend that imports
 python -m x.qwen.generate --model qwen3.5:0.8b -p "Why is the sky blue?"
 python -m x.qwen.generate --model qwen3.5:0.8b --backend mlx --raw -p "The capital of France is"
