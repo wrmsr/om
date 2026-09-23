@@ -218,8 +218,21 @@ SOURCE_SIMD = r'''
 def _kernel(variant: str = 'simd'):
     return mx.fast.metal_kernel(
         name=f'qwen35_gdn_step_{variant}',
-        input_names=['q', 'k', 'v', 'a', 'b', 'A', 'dt', 'S', 'consts'],
-        output_names=['out', 'S_out'],
+        input_names=[
+            'q',
+            'k',
+            'v',
+            'a',
+            'b',
+            'A',
+            'dt',
+            'S',
+            'consts',
+        ],
+        output_names=[
+            'out',
+            'S_out',
+        ],
         source=SOURCE_SIMD if variant == 'simd' else SOURCE,
     )
 

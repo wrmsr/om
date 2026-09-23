@@ -81,8 +81,8 @@ class MlxOps(Ops):
         # custom Metal kernels (the fused DeltaNet step) and the fast SDPA for decode: on when Metal is present
         self.metal = mx.metal.is_available() if metal is None else metal
         self.gdn_variant = 'simd'  # 'simd' (registers + shuffles) | 'tg' (threadgroup-memory tile, the fallback)
-        self.gdn_tgv = 32
-        self.gdn_ks = 4
+        self.gdn_tgv = 16
+        self.gdn_ks = 8
 
         self.name = f'mlx:{mx.default_device()}'
 
