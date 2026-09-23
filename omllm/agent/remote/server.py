@@ -16,6 +16,7 @@ import typing as ta
 
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_reader
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_writer
+from omcore.lite.cached import cached_nullary
 
 from ...core.rpc.errors import RpcMethodNotFoundError
 from ...core.rpc.handlers import RpcHandler
@@ -84,38 +85,51 @@ def _remote_process_returncode(si_code: int, si_status: int) -> int:
     raise RuntimeError(f'Unexpected waitid result: si_code={si_code!r}, si_status={si_status!r}')
 
 
-def _remote_darwin_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
-    # CPython did not expose os.waitid on macOS until 3.13, although libc and the kernel have long provided it. Keep
-    # the child waitable so its pid/pgid remain ours until close deliberately reaps it. The first six siginfo_t fields
-    # are fixed-width scalars on Darwin; the tail only reserves enough space for libc to fill the complete structure.
-    import ctypes
+class _RemoteDarwinProcessWaiter(ta.Protocol):
+    def __call__(self, pid: int, *, nohang: bool = False) -> ta.Optional[int]: ...
 
-    class Siginfo(ctypes.Structure):
+
+@cached_nullary
+def _remote_darwin_process_waiter() -> _RemoteDarwinProcessWaiter:
+    # CPython did not expose os.waitid on macOS until 3.13, although libc and the kernel have long provided it. Keep the
+    # child waitable so its pid/pgid remain ours until close deliberately reaps it. The first six siginfo_t fields are
+    # fixed-width scalars on Darwin; the tail only reserves enough space for libc to fill the complete structure.
+
+    import ctypes as ct
+
+    class Siginfo(ct.Structure):
         _fields_ = [
-            ('si_signo', ctypes.c_int),
-            ('si_errno', ctypes.c_int),
-            ('si_code', ctypes.c_int),
-            ('si_pid', ctypes.c_int),
-            ('si_uid', ctypes.c_uint),
-            ('si_status', ctypes.c_int),
-            ('_tail', ctypes.c_ubyte * 104),
+            ('si_signo', ct.c_int),
+            ('si_errno', ct.c_int),
+            ('si_code', ct.c_int),
+            ('si_pid', ct.c_int),
+            ('si_uid', ct.c_uint),
+            ('si_status', ct.c_int),
+            ('_tail', ct.c_ubyte * 104),
         ]
 
-    waitid = ctypes.CDLL(None, use_errno=True).waitid
-    waitid.argtypes = (ctypes.c_int, ctypes.c_uint, ctypes.c_void_p, ctypes.c_int)
-    waitid.restype = ctypes.c_int
+    _waitid = ct.CDLL(None, use_errno=True).waitid
+    _waitid.argtypes = (ct.c_int, ct.c_uint, ct.c_void_p, ct.c_int)
+    _waitid.restype = ct.c_int
 
-    info = Siginfo()
-    options = _REMOTE_DARWIN_WEXITED | _REMOTE_DARWIN_WNOWAIT
-    if nohang:
-        options |= os.WNOHANG
-    ctypes.set_errno(0)
-    if waitid(_REMOTE_DARWIN_P_PID, pid, ctypes.byref(info), options):
-        errno = ctypes.get_errno()
-        raise OSError(errno, os.strerror(errno))
-    if nohang and not info.si_pid:
-        return None
-    return _remote_process_returncode(info.si_code, info.si_status)
+    def waitpid(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
+        info = Siginfo()
+        options = _REMOTE_DARWIN_WEXITED | _REMOTE_DARWIN_WNOWAIT
+        if nohang:
+            options |= os.WNOHANG
+        ct.set_errno(0)
+        if _waitid(_REMOTE_DARWIN_P_PID, pid, ct.byref(info), options):
+            errno = ct.get_errno()
+            raise OSError(errno, os.strerror(errno))
+        if nohang and not info.si_pid:
+            return None
+        return _remote_process_returncode(info.si_code, info.si_status)
+
+    return waitpid
+
+
+def _remote_darwin_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
+    return _remote_darwin_process_waiter()(pid, nohang=nohang)
 
 
 def _remote_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:

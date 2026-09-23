@@ -28,8 +28,8 @@ class RpcHandler(Abstract):
         Offers a notification to the handler synchronously, on the receive loop, in wire order - returning False to have
         it dispatched to `handle` in its own task instead. Handling inline is what makes the stream's order the delivery
         order: a notification handled here is fully applied before anything the other side sent after it is seen. An
-        implementation must not block or suspend here, and an exception it raises is reported to the peer's
-        notification error handler.
+        implementation must not block or suspend here, and an exception it raises is reported to the peer's notification
+        error handler.
         """
 
         return False

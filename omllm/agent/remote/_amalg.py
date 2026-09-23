@@ -48,15 +48,16 @@ def __om_amalg__():  # noqa
         src_files=[
             dict(path='../../../omcore/asyncs/asyncio/streams.py', sha1='0f5b4b31c139f08110827b601ff4f0d45489fba2'),
             dict(path='../../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
+            dict(path='../../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
             dict(path='../../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='../../../omcore/os/pyremote/core.py', sha1='b0baf1528b4daa0bd392ccdf34b8d34b43d4243d'),
             dict(path='protocol.py', sha1='0820e42ac03ae29bacd92aa6dcae3be20d7b38c6'),
             dict(path='../../core/rpc/errors.py', sha1='9c59beacb63fd0f49b731f8d74b38faefdc90d22'),
-            dict(path='../../core/rpc/handlers.py', sha1='4b98aedea7327e539e22f5c17a400ac3d01a4eca'),
+            dict(path='../../core/rpc/handlers.py', sha1='6910c32940e50afb033686045241efc5a0528824'),
             dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='server.py', sha1='fe10c5faa02b91ee2714c91e6448862bc171ea8d'),
+            dict(path='server.py', sha1='46b541b42c1b3c7a93a13d1f5a64c391ebb69988'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -67,6 +68,9 @@ def __om_amalg__():  # noqa
 
 # ../../../omcore/lite/abstract.py
 T = ta.TypeVar('T')
+
+# ../../../omcore/lite/cached.py
+CallableT = ta.TypeVar('CallableT', bound=ta.Callable)
 
 # ../../../omcore/lite/check.py
 SizedT = ta.TypeVar('SizedT', bound=ta.Sized)
@@ -277,6 +281,121 @@ class Abstract:
 
         if not isinstance(cls, abc.ABCMeta):
             update_abstracts(cls, force=True)
+
+
+########################################
+# ../../../../omcore/lite/cached.py
+
+
+##
+
+
+class _AbstractCachedNullary:
+    def __init__(self, fn):
+        super().__init__()
+
+        self._fn = fn
+        self._value = self._missing = object()
+        functools.update_wrapper(self, fn)
+
+    def __call__(self, *args, **kwargs):  # noqa
+        raise TypeError
+
+    def __get__(self, instance, owner=None):  # noqa
+        if instance is None:
+            return self
+        bound = instance.__dict__[self._fn.__name__] = self.__class__(self._fn.__get__(instance, owner))
+        return bound
+
+
+##
+
+
+class _CachedNullary(_AbstractCachedNullary):
+    def __call__(self, *args, **kwargs):  # noqa
+        if self._value is self._missing:
+            self._value = self._fn()
+        return self._value
+
+
+def cached_nullary(fn: CallableT) -> CallableT:
+    return _CachedNullary(fn)  # type: ignore
+
+
+def static_init(fn: CallableT) -> CallableT:
+    fn = cached_nullary(fn)
+    fn()
+    return fn
+
+
+##
+
+
+class _AsyncCachedNullary(_AbstractCachedNullary):
+    async def __call__(self, *args, **kwargs):
+        if self._value is self._missing:
+            self._value = await self._fn()
+        return self._value
+
+
+def async_cached_nullary(fn):  # ta.Callable[..., T]) -> ta.Callable[..., T]:
+    return _AsyncCachedNullary(fn)
+
+
+##
+
+
+cached_property = functools.cached_property
+
+
+class _cached_property:  # noqa
+    """Backported to pick up https://github.com/python/cpython/commit/056dfc71dce15f81887f0bd6da09d6099d71f979 ."""
+
+    def __init__(self, func):
+        self.func = func
+        self.attrname = None  # noqa
+        self.__doc__ = func.__doc__
+        self.__module__ = func.__module__
+
+    _NOT_FOUND = object()
+
+    def __set_name__(self, owner, name):
+        if self.attrname is None:
+            self.attrname = name  # noqa
+        elif name != self.attrname:
+            raise TypeError(
+                f'Cannot assign the same cached_property to two different names ({self.attrname!r} and {name!r}).',
+            )
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        if self.attrname is None:
+            raise TypeError('Cannot use cached_property instance without calling __set_name__ on it.')
+
+        try:
+            cache = instance.__dict__
+        except AttributeError:  # not all objects have __dict__ (e.g. class defines slots)
+            raise TypeError(
+                f"No '__dict__' attribute on {type(instance).__name__!r} instance to cache {self.attrname!r} property.",
+            ) from None
+
+        val = cache.get(self.attrname, self._NOT_FOUND)
+
+        if val is self._NOT_FOUND:
+            val = self.func(instance)
+            try:
+                cache[self.attrname] = val
+            except TypeError:
+                raise TypeError(
+                    f"The '__dict__' attribute on {type(instance).__name__!r} instance does not support item "
+                    f"assignment for caching {self.attrname!r} property.",
+                ) from None
+
+        return val
+
+
+globals()['cached_property'] = _cached_property
 
 
 ########################################
@@ -1810,8 +1929,8 @@ class RpcHandler(Abstract):
         Offers a notification to the handler synchronously, on the receive loop, in wire order - returning False to have
         it dispatched to `handle` in its own task instead. Handling inline is what makes the stream's order the delivery
         order: a notification handled here is fully applied before anything the other side sent after it is seen. An
-        implementation must not block or suspend here, and an exception it raises is reported to the peer's
-        notification error handler.
+        implementation must not block or suspend here, and an exception it raises is reported to the peer's notification
+        error handler.
         """
 
         return False
@@ -2714,38 +2833,51 @@ def _remote_process_returncode(si_code: int, si_status: int) -> int:
     raise RuntimeError(f'Unexpected waitid result: si_code={si_code!r}, si_status={si_status!r}')
 
 
-def _remote_darwin_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
-    # CPython did not expose os.waitid on macOS until 3.13, although libc and the kernel have long provided it. Keep
-    # the child waitable so its pid/pgid remain ours until close deliberately reaps it. The first six siginfo_t fields
-    # are fixed-width scalars on Darwin; the tail only reserves enough space for libc to fill the complete structure.
-    import ctypes
+class _RemoteDarwinProcessWaiter(ta.Protocol):
+    def __call__(self, pid: int, *, nohang: bool = False) -> ta.Optional[int]: ...
 
-    class Siginfo(ctypes.Structure):
+
+@cached_nullary
+def _remote_darwin_process_waiter() -> _RemoteDarwinProcessWaiter:
+    # CPython did not expose os.waitid on macOS until 3.13, although libc and the kernel have long provided it. Keep the
+    # child waitable so its pid/pgid remain ours until close deliberately reaps it. The first six siginfo_t fields are
+    # fixed-width scalars on Darwin; the tail only reserves enough space for libc to fill the complete structure.
+
+    import ctypes as ct
+
+    class Siginfo(ct.Structure):
         _fields_ = [
-            ('si_signo', ctypes.c_int),
-            ('si_errno', ctypes.c_int),
-            ('si_code', ctypes.c_int),
-            ('si_pid', ctypes.c_int),
-            ('si_uid', ctypes.c_uint),
-            ('si_status', ctypes.c_int),
-            ('_tail', ctypes.c_ubyte * 104),
+            ('si_signo', ct.c_int),
+            ('si_errno', ct.c_int),
+            ('si_code', ct.c_int),
+            ('si_pid', ct.c_int),
+            ('si_uid', ct.c_uint),
+            ('si_status', ct.c_int),
+            ('_tail', ct.c_ubyte * 104),
         ]
 
-    waitid = ctypes.CDLL(None, use_errno=True).waitid
-    waitid.argtypes = (ctypes.c_int, ctypes.c_uint, ctypes.c_void_p, ctypes.c_int)
-    waitid.restype = ctypes.c_int
+    _waitid = ct.CDLL(None, use_errno=True).waitid
+    _waitid.argtypes = (ct.c_int, ct.c_uint, ct.c_void_p, ct.c_int)
+    _waitid.restype = ct.c_int
 
-    info = Siginfo()
-    options = _REMOTE_DARWIN_WEXITED | _REMOTE_DARWIN_WNOWAIT
-    if nohang:
-        options |= os.WNOHANG
-    ctypes.set_errno(0)
-    if waitid(_REMOTE_DARWIN_P_PID, pid, ctypes.byref(info), options):
-        errno = ctypes.get_errno()
-        raise OSError(errno, os.strerror(errno))
-    if nohang and not info.si_pid:
-        return None
-    return _remote_process_returncode(info.si_code, info.si_status)
+    def waitpid(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
+        info = Siginfo()
+        options = _REMOTE_DARWIN_WEXITED | _REMOTE_DARWIN_WNOWAIT
+        if nohang:
+            options |= os.WNOHANG
+        ct.set_errno(0)
+        if _waitid(_REMOTE_DARWIN_P_PID, pid, ct.byref(info), options):
+            errno = ct.get_errno()
+            raise OSError(errno, os.strerror(errno))
+        if nohang and not info.si_pid:
+            return None
+        return _remote_process_returncode(info.si_code, info.si_status)
+
+    return waitpid
+
+
+def _remote_darwin_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
+    return _remote_darwin_process_waiter()(pid, nohang=nohang)
 
 
 def _remote_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
