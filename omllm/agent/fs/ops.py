@@ -1,8 +1,8 @@
 import abc
-import glob as glob_mod
+import glob as glob_
 import hashlib
 import os
-import stat as stat_mod
+import stat as stat_
 import tempfile
 import typing as ta
 
@@ -175,9 +175,9 @@ class LocalFsOps(FsOps):
 
             size=st.st_size,
 
-            is_dir=stat_mod.S_ISDIR(st.st_mode),
-            is_file=stat_mod.S_ISREG(st.st_mode),
-            is_symlink=stat_mod.S_ISLNK(lst.st_mode),
+            is_dir=stat_.S_ISDIR(st.st_mode),
+            is_file=stat_.S_ISREG(st.st_mode),
+            is_symlink=stat_.S_ISLNK(lst.st_mode),
         )
 
     async def read_file(self, path: str) -> FsFile:
@@ -232,13 +232,13 @@ class LocalFsOps(FsOps):
 
             if not overwrite:
                 raise FileExistsError(path)
-            if not stat_mod.S_ISREG(lst.st_mode):
+            if not stat_.S_ISREG(lst.st_mode):
                 raise IsADirectoryError(path)
             if expected_digest is not None:
                 self._check_expected_digest(path, expected_digest)
 
             # Preserve the replaced file's permissions; the rename itself is atomic.
-            os.chmod(tmp_path, stat_mod.S_IMODE(lst.st_mode))
+            os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
             os.replace(tmp_path, path)
             tmp_path = ''
             return FsWriteResult(created=False)
@@ -283,7 +283,7 @@ class LocalFsOps(FsOps):
 
         entries: list[FsDirEntry] = []
         has_more = False
-        for path in glob_mod.iglob(pattern, recursive=True):
+        for path in glob_.iglob(pattern, recursive=True):
             resolved_path = await self.resolve_path(path)
             if not path_is_under(resolved_path, resolved_root):
                 continue

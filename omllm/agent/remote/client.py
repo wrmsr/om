@@ -534,7 +534,10 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
                 process._on_connection_lost('remote process teardown failed')  # noqa
                 raise
 
-        task = asyncio.create_task(run(), name=f'remote-process-close-{process.id}')
+        task = asyncio.create_task(
+            run(),
+            name=f'remote-process-close-{process.id}',
+        )
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return task
@@ -822,7 +825,10 @@ class RemoteAgentClient:
         except BaseException:
             await self._peer.aclose()
             raise
-        self._watch_task = asyncio.create_task(self._watch_connection(), name='remote-agent-connection-watch')
+        self._watch_task = asyncio.create_task(
+            self._watch_connection(),
+            name='remote-agent-connection-watch',
+        )
 
     async def wait_closed(self) -> None:
         await self._peer.wait_closed()

@@ -81,17 +81,17 @@ class RpcPeer:
         self._max_traceback_chars = max_traceback_chars
 
         self._next_id = 1
-        self._outgoing = {}  # type: ta.Dict[int, asyncio.Future]
-        self._pings = {}  # type: ta.Dict[int, asyncio.Future]
-        self._incoming = {}  # type: ta.Dict[int, asyncio.Task]
-        self._notifications = set()  # type: ta.Set[asyncio.Task]
+        self._outgoing: ta.Dict[int, asyncio.Future] = {}
+        self._pings: ta.Dict[int, asyncio.Future] = {}
+        self._incoming: ta.Dict[int, asyncio.Task] = {}
+        self._notifications: ta.Set[asyncio.Task] = set()
 
-        self._receive_task = None  # type: ta.Optional[asyncio.Task]
+        self._receive_task: ta.Optional[asyncio.Task] = None
         self._closed_event = asyncio.Event()
         self._closing = False
         self._finished = False
-        self._failure = None  # type: ta.Optional[BaseException]
-        self._background_failure = None  # type: ta.Optional[BaseException]
+        self._failure: ta.Optional[BaseException] = None
+        self._background_failure: ta.Optional[BaseException] = None
 
     @property
     def closed(self) -> bool:
@@ -235,7 +235,7 @@ class RpcPeer:
             self._abort(e)
 
     async def _handle_request(self, message: RpcRequestMessage) -> None:
-        response = None  # type: ta.Optional[RpcMessage]
+        response: ta.Optional[RpcMessage] = None
         try:
             result = await self._handler.handle(message.method, message.params)
         except asyncio.CancelledError as e:
@@ -397,7 +397,7 @@ class RpcPeer:
             self._closed_event.set()
 
     async def _run(self) -> None:
-        failure = None  # type: ta.Optional[BaseException]
+        failure: ta.Optional[BaseException] = None
         message = 'RPC connection closed by peer'
         try:
             while True:

@@ -33,7 +33,7 @@ from ..stream import OpenaiResponsesStreamBackend
 
 
 def _model():
-    return default_model_catalog()[ModelKey('openai', 'gpt-5.6-luna')]
+    return default_model_catalog()[ModelKey('openai', 'gpt-6-luna')]
 
 
 def _api_key():

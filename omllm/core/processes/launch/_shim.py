@@ -168,7 +168,7 @@ def receive_control(control_fd):  # type: (int) -> ta.Tuple[int, ta.List[int]]
     s = socket.socket(fileno=control_fd)
     try:
         buf = b''
-        n = None  # type: ta.Optional[int]
+        n: ta.Optional[int] = None
         fds = array.array('i')
         while n is None or len(fds) < n:
             msg, anc, _flags, _addr = s.recvmsg(4096, socket.CMSG_SPACE(MAX_FDS_PER_MESSAGE * fds.itemsize))

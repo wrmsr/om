@@ -14,7 +14,7 @@ import binascii
 import collections
 import dataclasses as dc
 import functools
-import glob as glob_mod
+import glob as glob_
 import hashlib
 import inspect
 import json
@@ -24,7 +24,7 @@ import pwd
 import select
 import signal
 import site
-import stat as stat_mod
+import stat as stat_
 import struct
 import subprocess
 import sys
@@ -55,8 +55,8 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/handlers.py', sha1='123f3c9e2c61649e7d65192cd0f559fefd705a57'),
             dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
-            dict(path='../../core/rpc/peers.py', sha1='7355153cae5fa40f217d732ba0b6c586506b992c'),
-            dict(path='server.py', sha1='069f943bef0b72cd642037cd7a33d6592e84e4af'),
+            dict(path='../../core/rpc/peers.py', sha1='02a6406e4f014a79482371b68c028984815efa2e'),
+            dict(path='server.py', sha1='afb6913ac557f210eea294fd2903d804b17ecd3d'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -2208,17 +2208,17 @@ class RpcPeer:
         self._max_traceback_chars = max_traceback_chars
 
         self._next_id = 1
-        self._outgoing = {}  # type: ta.Dict[int, asyncio.Future]
-        self._pings = {}  # type: ta.Dict[int, asyncio.Future]
-        self._incoming = {}  # type: ta.Dict[int, asyncio.Task]
-        self._notifications = set()  # type: ta.Set[asyncio.Task]
+        self._outgoing: ta.Dict[int, asyncio.Future] = {}
+        self._pings: ta.Dict[int, asyncio.Future] = {}
+        self._incoming: ta.Dict[int, asyncio.Task] = {}
+        self._notifications: ta.Set[asyncio.Task] = set()
 
-        self._receive_task = None  # type: ta.Optional[asyncio.Task]
+        self._receive_task: ta.Optional[asyncio.Task] = None
         self._closed_event = asyncio.Event()
         self._closing = False
         self._finished = False
-        self._failure = None  # type: ta.Optional[BaseException]
-        self._background_failure = None  # type: ta.Optional[BaseException]
+        self._failure: ta.Optional[BaseException] = None
+        self._background_failure: ta.Optional[BaseException] = None
 
     @property
     def closed(self) -> bool:
@@ -2362,7 +2362,7 @@ class RpcPeer:
             self._abort(e)
 
     async def _handle_request(self, message: RpcRequestMessage) -> None:
-        response = None  # type: ta.Optional[RpcMessage]
+        response: ta.Optional[RpcMessage] = None
         try:
             result = await self._handler.handle(message.method, message.params)
         except asyncio.CancelledError as e:
@@ -2524,7 +2524,7 @@ class RpcPeer:
             self._closed_event.set()
 
     async def _run(self) -> None:
-        failure = None  # type: ta.Optional[BaseException]
+        failure: ta.Optional[BaseException] = None
         message = 'RPC connection closed by peer'
         try:
             while True:
@@ -2732,9 +2732,9 @@ class _RemoteFsService:
         return {
             'path': path,
             'size': st.st_size,
-            'is_dir': stat_mod.S_ISDIR(st.st_mode),
-            'is_file': stat_mod.S_ISREG(st.st_mode),
-            'is_symlink': stat_mod.S_ISLNK(lst.st_mode),
+            'is_dir': stat_.S_ISDIR(st.st_mode),
+            'is_file': stat_.S_ISREG(st.st_mode),
+            'is_symlink': stat_.S_ISLNK(lst.st_mode),
         }
 
     async def read_file(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
@@ -2776,12 +2776,12 @@ class _RemoteFsService:
 
             if not overwrite:
                 raise FileExistsError(path)
-            if not stat_mod.S_ISREG(lst.st_mode):
+            if not stat_.S_ISREG(lst.st_mode):
                 raise IsADirectoryError(path)
             if expected_digest is not None:
                 self._check_expected_digest(path, expected_digest)
 
-            os.chmod(tmp_path, stat_mod.S_IMODE(lst.st_mode))
+            os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
             os.replace(tmp_path, path)
             tmp_path = ''
             return {'created': False}
@@ -2821,9 +2821,9 @@ class _RemoteFsService:
         if not _remote_path_is_under(resolved_glob_root, resolved_root):
             raise ValueError(f'glob root {resolved_glob_root!r} is outside permitted root {resolved_root!r}')
 
-        entries = []  # type: ta.List[ta.Dict[str, ta.Any]]
+        entries: ta.List[ta.Dict[str, ta.Any]] = []
         has_more = False
-        for path in glob_mod.iglob(pattern, recursive=True):
+        for path in glob_.iglob(pattern, recursive=True):
             if not _remote_path_is_under(self._resolve(path), resolved_root):
                 continue
             if max_results is not None and len(entries) >= max_results:
@@ -2857,20 +2857,20 @@ class _RemoteServerProcess:
 
         self._pty_master_fd = pty_master_fd
         self._pty_slave_fd = pty_slave_fd
-        self._pty_read_fd = None  # type: ta.Optional[int]
-        self._pty_reader_task = None  # type: ta.Optional[asyncio.Task]
+        self._pty_read_fd: ta.Optional[int] = None
+        self._pty_reader_task: ta.Optional[asyncio.Task] = None
         self._pty_winsize = pty_winsize
 
-        self._stdin = None  # type: ta.Optional[asyncio.StreamWriter]
-        self._read_transports = []  # type: ta.List[asyncio.BaseTransport]
-        self._reader_tasks = []  # type: ta.List[asyncio.Task]
-        self._output_task = None  # type: ta.Optional[asyncio.Task]
-        self._wait_task = None  # type: ta.Optional[asyncio.Task]
-        self._close_task = None  # type: ta.Optional[asyncio.Task]
+        self._stdin: ta.Optional[asyncio.StreamWriter] = None
+        self._read_transports: ta.List[asyncio.BaseTransport] = []
+        self._reader_tasks: ta.List[asyncio.Task] = []
+        self._output_task: ta.Optional[asyncio.Task] = None
+        self._wait_task: ta.Optional[asyncio.Task] = None
+        self._close_task: ta.Optional[asyncio.Task] = None
 
         self._exited = asyncio.Event()
         self._output_ended = asyncio.Event()
-        self._returncode = None  # type: ta.Optional[int]
+        self._returncode: ta.Optional[int] = None
         self._reaped = False
 
     @property
@@ -2906,8 +2906,14 @@ class _RemoteServerProcess:
             if self.popen.stdin is not None:
                 self._stdin = await asyncio_open_stream_writer(self.popen.stdin)
 
-        self._output_task = asyncio.create_task(self._run_output(), name=f'remote-output-{self.id}')
-        self._wait_task = asyncio.create_task(self._run_wait(), name=f'remote-wait-{self.id}')
+        self._output_task = asyncio.create_task(
+            self._run_output(),
+            name=f'remote-output-{self.id}',
+        )
+        self._wait_task = asyncio.create_task(
+            self._run_wait(),
+            name=f'remote-wait-{self.id}',
+        )
 
     async def _drain_pty_output(self, fd: int, output_fd: int) -> bool:
         while True:
@@ -2934,7 +2940,7 @@ class _RemoteServerProcess:
     async def _read_pty_output(self, fd: int, output_fd: int) -> None:
         loop = asyncio.get_running_loop()
         exited_task = asyncio.create_task(self._exited.wait())
-        readable = None  # type: ta.Optional[asyncio.Future]
+        readable: ta.Optional[asyncio.Future] = None
         try:
             while True:
                 readable = loop.create_future()
@@ -2945,7 +2951,7 @@ class _RemoteServerProcess:
 
                 loop.add_reader(fd, on_readable)
                 try:
-                    waiters = [readable]  # type: ta.List[asyncio.Future]
+                    waiters: ta.List[asyncio.Future] = [readable]
                     if self._pty_slave_fd is not None:
                         waiters.append(exited_task)
                     await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
@@ -3185,7 +3191,10 @@ class _RemoteServerProcess:
         if self._reaped:
             return {'returncode': self._returncode, 'state': 'reaped'}
         if self._close_task is None:
-            self._close_task = asyncio.create_task(self._run_close(policy), name=f'remote-close-{self.id}')
+            self._close_task = asyncio.create_task(
+                self._run_close(policy),
+                name=f'remote-close-{self.id}',
+            )
         return await asyncio.shield(self._close_task)
 
 
@@ -3202,8 +3211,8 @@ class _RemoteProcessService:
     def __init__(self) -> None:
         super().__init__()
 
-        self._peer = None  # type: ta.Optional[RpcPeer]
-        self._processes = {}  # type: ta.Dict[str, _RemoteServerProcess]
+        self._peer: ta.Optional[RpcPeer] = None
+        self._processes: ta.Dict[str, _RemoteServerProcess] = {}
         self._next_id = 1
         self._closed = False
 
@@ -3265,10 +3274,10 @@ class _RemoteProcessService:
         process_id = f'p{self._next_id}'
         self._next_id += 1
 
-        master = None  # type: ta.Optional[int]
-        slave = None  # type: ta.Optional[int]
-        pty_slave_fd = None  # type: ta.Optional[int]
-        pty_winsize = None  # type: ta.Optional[ta.Tuple[int, int]]
+        master: ta.Optional[int] = None
+        slave: ta.Optional[int] = None
+        pty_slave_fd: ta.Optional[int] = None
+        pty_winsize: ta.Optional[ta.Tuple[int, int]] = None
         try:
             try:
                 if kind == 'pipes':
