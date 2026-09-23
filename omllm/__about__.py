@@ -24,9 +24,12 @@ class Project(ProjectBase):
             'mlx ~= 0.32; sys_platform == "darwin"',
             'mlx-lm ~= 0.31; sys_platform == "darwin"',
 
+            'numpy ~= 2.5',
+
             'tinygrad ~= 0.14',
 
             'torch ~= 2.14',
+            'triton ~= 3.8; sys_platform == "linux"',
 
             'transformers ~= 5.17',
         ],

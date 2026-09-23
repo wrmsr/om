@@ -73,6 +73,7 @@ omllm/llm/backends/google/_dataclasses.py linguist-generated
 omllm/llm/backends/openai/_dataclasses.py linguist-generated
 omllm/llm/backends/scripted/_dataclasses.py linguist-generated
 omllm/llm/models/_dataclasses.py linguist-generated
+omllm/local/qwen/_dataclasses.py linguist-generated
 omllm/modeldb/_dataclasses.py linguist-generated
 omllm/specs/acp/_dataclasses.py linguist-generated
 omllm/specs/acp/protocol.py linguist-generated
