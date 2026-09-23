@@ -10,9 +10,13 @@
 import abc
 import asyncio
 import base64
-import binascii
 import collections
+import collections.abc
 import dataclasses as dc
+import datetime
+import decimal
+import enum
+import fractions
 import functools
 import glob as glob_
 import hashlib
@@ -32,7 +36,10 @@ import tempfile
 import threading
 import time
 import traceback
+import types
 import typing as ta
+import uuid
+import weakref
 import zlib
 
 
@@ -50,14 +57,18 @@ def __om_amalg__():  # noqa
             dict(path='../../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
             dict(path='../../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
+            dict(path='../../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
+            dict(path='../../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
+            dict(path='../../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../../omcore/os/pyremote/core.py', sha1='b0baf1528b4daa0bd392ccdf34b8d34b43d4243d'),
-            dict(path='protocol.py', sha1='0820e42ac03ae29bacd92aa6dcae3be20d7b38c6'),
-            dict(path='../../core/rpc/errors.py', sha1='9c59beacb63fd0f49b731f8d74b38faefdc90d22'),
+            dict(path='../../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
+            dict(path='protocol.py', sha1='374a0c94df0b7469b6ce29c61848c83e0517f718'),
+            dict(path='../../core/rpc/errors.py', sha1='41e06a92d0a0139b6fc0530fe5892071c34cfd23'),
             dict(path='../../core/rpc/handlers.py', sha1='6910c32940e50afb033686045241efc5a0528824'),
-            dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
+            dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='server.py', sha1='46b541b42c1b3c7a93a13d1f5a64c391ebb69988'),
+            dict(path='server.py', sha1='2b253d835dd248f965d7158c5e548a23f99c3eea'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -979,6 +990,320 @@ check = Checks()
 
 
 ########################################
+# ../../../../omcore/lite/objects.py
+
+
+##
+
+
+def deep_subclasses(cls: ta.Type[T]) -> ta.Iterator[ta.Type[T]]:
+    seen = set()
+    todo = list(reversed(cls.__subclasses__()))
+    while todo:
+        cur = todo.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        yield cur
+        todo.extend(reversed(cur.__subclasses__()))
+
+
+##
+
+
+def mro_owner_dict(
+        instance_cls: type,
+        owner_cls: ta.Optional[type] = None,
+        *,
+        bottom_up_key_order: bool = False,
+        sort_keys: bool = False,
+) -> ta.Mapping[str, ta.Tuple[type, ta.Any]]:
+    if owner_cls is None:
+        owner_cls = instance_cls
+
+    mro = instance_cls.__mro__[-2::-1]
+    try:
+        pos = mro.index(owner_cls)
+    except ValueError:
+        raise TypeError(f'Owner class {owner_cls} not in mro of instance class {instance_cls}') from None
+
+    dct: ta.Dict[str, ta.Tuple[type, ta.Any]] = {}
+    if not bottom_up_key_order:
+        for cur_cls in mro[:pos + 1][::-1]:
+            for k, v in cur_cls.__dict__.items():
+                if k not in dct:
+                    dct[k] = (cur_cls, v)
+
+    else:
+        for cur_cls in mro[:pos + 1]:
+            dct.update({k: (cur_cls, v) for k, v in cur_cls.__dict__.items()})
+
+    if sort_keys:
+        dct = dict(sorted(dct.items(), key=lambda t: t[0]))
+
+    return dct
+
+
+def mro_dict(
+        instance_cls: type,
+        owner_cls: ta.Optional[type] = None,
+        *,
+        bottom_up_key_order: bool = False,
+        sort_keys: bool = False,
+) -> ta.Mapping[str, ta.Any]:
+    return {
+        k: v
+        for k, (o, v) in mro_owner_dict(
+            instance_cls,
+            owner_cls,
+            bottom_up_key_order=bottom_up_key_order,
+            sort_keys=sort_keys,
+        ).items()
+    }
+
+
+def dir_dict(o: ta.Any) -> ta.Dict[str, ta.Any]:
+    return {
+        a: getattr(o, a)
+        for a in dir(o)
+    }
+
+
+########################################
+# ../../../../omcore/lite/reflect.py
+
+
+##
+
+
+_GENERIC_ALIAS_TYPES = (
+    ta._GenericAlias,  # type: ignore  # noqa
+    *([ta._SpecialGenericAlias] if hasattr(ta, '_SpecialGenericAlias') else []),  # noqa
+    *([types.GenericAlias] if hasattr(types, 'GenericAlias') else []),  # noqa
+)
+
+
+def is_generic_alias(obj: ta.Any, *, origin: ta.Any = None) -> bool:
+    return (
+        isinstance(obj, _GENERIC_ALIAS_TYPES) and
+        (origin is None or ta.get_origin(obj) is origin)
+    )
+
+
+# ta.get_origin returns the collections.abc class, never the typing alias.
+is_callable_alias = functools.partial(is_generic_alias, origin=ta.get_origin(ta.Callable[..., ta.Any]))
+
+
+##
+
+
+_UNION_ALIAS_ORIGINS = frozenset([
+    ta.get_origin(ta.Optional[int]),
+    *(
+        [
+            ta.get_origin(int | None),
+            ta.get_origin(getattr(ta, 'TypeVar')('_T') | None),
+        ] if sys.version_info >= (3, 10) else ()
+    ),
+])
+
+
+def is_union_alias(obj: ta.Any) -> bool:
+    return ta.get_origin(obj) in _UNION_ALIAS_ORIGINS
+
+
+#
+
+
+def is_optional_alias(spec: ta.Any) -> bool:
+    return (
+        is_union_alias(spec) and
+        len(ta.get_args(spec)) == 2 and
+        any(a in (None, type(None)) for a in ta.get_args(spec))
+    )
+
+
+def get_optional_alias_arg(spec: ta.Any) -> ta.Any:
+    [it] = [it for it in ta.get_args(spec) if it not in (None, type(None))]
+    return it
+
+
+##
+
+
+def is_new_type(spec: ta.Any) -> bool:
+    if isinstance(ta.NewType, type):
+        return isinstance(spec, ta.NewType)
+    else:
+        # Before https://github.com/python/cpython/commit/c2f33dfc83ab270412bf243fb21f724037effa1a
+        return isinstance(spec, types.FunctionType) and spec.__code__ is ta.NewType.__code__.co_consts[1]  # type: ignore  # noqa
+
+
+def get_new_type_supertype(spec: ta.Any) -> ta.Any:
+    return spec.__supertype__
+
+
+##
+
+
+def is_literal_type(spec: ta.Any) -> bool:
+    if hasattr(ta, '_LiteralGenericAlias'):
+        return isinstance(spec, ta._LiteralGenericAlias)  # noqa
+    else:
+        return (
+            isinstance(spec, ta._GenericAlias) and  # type: ignore  # noqa
+            spec.__origin__ is ta.Literal
+        )
+
+
+def get_literal_type_args(spec: ta.Any) -> ta.Iterable[ta.Any]:
+    return spec.__args__
+
+
+##
+
+
+def type_form_repr(ty: ta.Any) -> str:
+    if isinstance(ty, type):
+        return f'{ty.__module__}.{ty.__qualname__}'
+
+    elif ty is ta.Any:
+        return 'typing.Any'
+
+    elif is_optional_alias(ty):
+        ety = get_optional_alias_arg(ty)
+        return f'typing.Optional[{type_form_repr(ety)}]'
+
+    elif is_union_alias(ty):
+        args = ta.get_args(ty)
+        return f'typing.Union[{", ".join(sorted(type_form_repr(a) for a in args))}]'
+
+    elif is_callable_alias(ty):
+        ptys, rty = ta.get_args(ty)
+        return (
+            f'typing.Callable[['
+            f'{"..." if isinstance(ptys, types.EllipsisType) else ", ".join(type_form_repr(a) for a in ptys)}], '
+            f'{type_form_repr(rty)}]'
+        )
+
+    elif is_literal_type(ty):
+        args = ta.get_args(ty)
+        return f'typing.Literal[{", ".join(sorted(repr(a) for a in args))}]'
+
+    elif is_new_type(ty):
+        raise NotImplementedError
+
+    elif is_generic_alias(ty):
+        origin = ta.get_origin(ty)
+        args = ta.get_args(ty)
+        if origin is tuple and args and isinstance(args[-1], types.EllipsisType):
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args[:-1])}, ...]'
+            )
+        else:
+            return (
+                f'{type_form_repr(origin)}['
+                f'{", ".join(type_form_repr(a) for a in args)}]'
+            )
+
+    else:
+        raise TypeError(ty)
+
+
+########################################
+# ../../../../omcore/lite/strings.py
+
+
+##
+
+
+def camel_case(name: str, *, lower: bool = False) -> str:
+    if not name:
+        return ''
+    s = ''.join(map(str.capitalize, name.split('_')))  # noqa
+    if lower:
+        s = s[0].lower() + s[1:]
+    return s
+
+
+def snake_case(name: str) -> str:
+    uppers: list[int | None] = [i for i, c in enumerate(name) if c.isupper()]
+    return '_'.join([name[l:r].lower() for l, r in zip([None, *uppers], [*uppers, None])]).strip('_')
+
+
+##
+
+
+def is_dunder(name: str) -> bool:
+    return (
+        name[:2] == name[-2:] == '__' and
+        name[2:3] != '_' and
+        name[-3:-2] != '_' and
+        len(name) > 4
+    )
+
+
+def is_sunder(name: str) -> bool:
+    return (
+        len(name) > 2 and
+        name[0] == name[-1] == '_' and
+        name[1:2] != '_' and
+        name[-2:-1] != '_'
+    )
+
+
+##
+
+
+def strip_with_newline(s: str) -> str:
+    if not s:
+        return ''
+    return s.strip() + '\n'
+
+
+@ta.overload
+def split_keep_delimiter(s: str, d: str) -> ta.List[str]: ...
+
+
+@ta.overload
+def split_keep_delimiter(s: bytes, d: bytes) -> ta.List[bytes]: ...
+
+
+def split_keep_delimiter(s, d):
+    if not d:
+        raise ValueError(d)
+    dl = len(d)
+    ps = []
+    i = 0
+    while i < len(s):
+        if (n := s.find(d, i)) < i:
+            ps.append(s[i:])
+            break
+        ps.append(s[i:n + dl])
+        i = n + dl
+    return ps
+
+
+##
+
+
+FORMAT_NUM_BYTES_SUFFIXES: ta.Sequence[str] = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
+
+
+def format_num_bytes(num_bytes: int) -> str:
+    for i, suffix in enumerate(FORMAT_NUM_BYTES_SUFFIXES):
+        value = num_bytes / 1024 ** i
+        if num_bytes < 1024 ** (i + 1):
+            if value.is_integer():
+                return f'{int(value)}{suffix}'
+            else:
+                return f'{value:.2f}{suffix}'
+
+    return f'{num_bytes / 1024 ** (len(FORMAT_NUM_BYTES_SUFFIXES) - 1):.2f}{FORMAT_NUM_BYTES_SUFFIXES[-1]}'
+
+
+########################################
 # ../../../../omcore/os/pyremote/core.py
 """
 Basically (the first part of) this: https://mitogen.networkgenomics.com/howitworks.html
@@ -1729,8 +2054,828 @@ pyremote = PyremoteApi()
 
 
 ########################################
+# ../../../../omcore/lite/marshal.py
+"""
+TODO:
+ - pickle stdlib objs? have to pin to 3.8 pickle protocol, will be cross-version
+ - Options.sequence_cls = list, mapping_cls = dict, ... - def with_mutable_containers() -> Options
+"""
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class ObjMarshalOptions:
+    raw_bytes: bool = False
+    non_strict_fields: bool = False
+
+
+class ObjMarshaler(Abstract):
+    @abc.abstractmethod
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        raise NotImplementedError
+
+
+class NopObjMarshaler(ObjMarshaler):
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return o
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return o
+
+
+class ProxyObjMarshaler(ObjMarshaler):
+    def __init__(self, m: ta.Optional[ObjMarshaler] = None) -> None:
+        super().__init__()
+
+        self._m = m
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return check.not_none(self._m).marshal(o, ctx)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return check.not_none(self._m).unmarshal(o, ctx)
+
+
+class CastObjMarshaler(ObjMarshaler):
+    def __init__(self, ty: type) -> None:
+        super().__init__()
+
+        self._ty = ty
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return o
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._ty(o)
+
+
+class DynamicObjMarshaler(ObjMarshaler):
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return ctx.manager.marshal_obj(o, opts=ctx.options)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return o
+
+
+class Base64ObjMarshaler(ObjMarshaler):
+    def __init__(self, ty: type) -> None:
+        super().__init__()
+
+        self._ty = ty
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return base64.b64encode(o).decode('ascii')
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._ty(base64.b64decode(o))
+
+
+class BytesSwitchedObjMarshaler(ObjMarshaler):
+    def __init__(self, m: ObjMarshaler) -> None:
+        super().__init__()
+
+        self._m = m
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        if ctx.options.raw_bytes:
+            return o
+        return self._m.marshal(o, ctx)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        if ctx.options.raw_bytes:
+            return o
+        return self._m.unmarshal(o, ctx)
+
+
+class EnumObjMarshaler(ObjMarshaler):
+    def __init__(self, ty: type) -> None:
+        super().__init__()
+
+        self._ty = ty
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return o.name
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._ty.__members__[o]  # type: ignore
+
+
+class OptionalObjMarshaler(ObjMarshaler):
+    def __init__(self, item: ObjMarshaler) -> None:
+        super().__init__()
+
+        self._item = item
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        if o is None:
+            return None
+        return self._item.marshal(o, ctx)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        if o is None:
+            return None
+        return self._item.unmarshal(o, ctx)
+
+
+class PrimitiveUnionObjMarshaler(ObjMarshaler):
+    def __init__(
+            self,
+            pt: ta.Tuple[type, ...],
+            x: ta.Optional[ObjMarshaler] = None,
+    ) -> None:
+        super().__init__()
+
+        self._pt = pt
+        self._x = x
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        if isinstance(o, self._pt):
+            return o
+        elif self._x is not None:
+            return self._x.marshal(o, ctx)
+        else:
+            raise TypeError(o)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        if self._x is not None:
+            # The non-primitive member must be tried first - its marshaled form may itself be one of the union's
+            # primitive types (e.g. Union[str, Decimal] wires Decimal as a str), which primitive-first dispatch would
+            # shadow entirely. Such wire values are inherently ambiguous - the non-primitive parse is accepted only
+            # when it faithfully round-trips back to the wire value, so lenient member unmarshalers (e.g. a Sequence
+            # member iterating a str) don't capture values belonging to a primitive member.
+            try:
+                v = self._x.unmarshal(o, ctx)
+            except Exception:  # noqa
+                pass
+            else:
+                if not isinstance(o, self._pt):
+                    return v
+                try:
+                    if self._x.marshal(v, ctx) == o:
+                        return v
+                except Exception:  # noqa
+                    pass
+        if isinstance(o, self._pt):
+            return o
+        raise TypeError(o)
+
+
+class LiteralObjMarshaler(ObjMarshaler):
+    def __init__(
+            self,
+            item: ObjMarshaler,
+            vs: frozenset,
+    ) -> None:
+        super().__init__()
+
+        self._item = item
+        self._vs = vs
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._item.marshal(check.in_(o, self._vs), ctx)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return check.in_(self._item.unmarshal(o, ctx), self._vs)
+
+
+class MappingObjMarshaler(ObjMarshaler):
+    def __init__(
+            self,
+            ty: type,
+            km: ObjMarshaler,
+            vm: ObjMarshaler,
+    ) -> None:
+        super().__init__()
+
+        self._ty = ty
+        self._km = km
+        self._vm = vm
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return {self._km.marshal(k, ctx): self._vm.marshal(v, ctx) for k, v in o.items()}
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._ty((self._km.unmarshal(k, ctx), self._vm.unmarshal(v, ctx)) for k, v in o.items())
+
+
+class IterableObjMarshaler(ObjMarshaler):
+    def __init__(
+            self,
+            ty: type,
+            item: ObjMarshaler,
+    ) -> None:
+        super().__init__()
+
+        self._ty = ty
+        self._item = item
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return [self._item.marshal(e, ctx) for e in o]
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._ty(self._item.unmarshal(e, ctx) for e in o)
+
+
+class FieldsObjMarshaler(ObjMarshaler):
+    @dc.dataclass(frozen=True)
+    class Field:
+        att: str
+        key: str
+        m: ObjMarshaler
+
+        omit_if_none: bool = False
+
+    def __init__(
+            self,
+            ty: type,
+            fs: ta.Sequence[Field],
+            *,
+            non_strict: bool = False,
+    ) -> None:
+        super().__init__()
+
+        self._ty = ty
+        self._fs = fs
+        self._non_strict = non_strict
+
+        fs_by_att: dict = {}
+        fs_by_key: dict = {}
+        for f in self._fs:
+            check.not_in(check.non_empty_str(f.att), fs_by_att)
+            check.not_in(check.non_empty_str(f.key), fs_by_key)
+            fs_by_att[f.att] = f
+            fs_by_key[f.key] = f
+
+        self._fs_by_att: ta.Mapping[str, FieldsObjMarshaler.Field] = fs_by_att
+        self._fs_by_key: ta.Mapping[str, FieldsObjMarshaler.Field] = fs_by_key
+
+    @property
+    def ty(self) -> type:
+        return self._ty
+
+    @property
+    def fs(self) -> ta.Sequence[Field]:
+        return self._fs
+
+    #
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        d = {}
+        for f in self._fs:
+            mv = f.m.marshal(getattr(o, f.att), ctx)
+            if mv is None and f.omit_if_none:
+                continue
+            d[f.key] = mv
+        return d
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        kw = {}
+        for k, v in o.items():
+            if (f := self._fs_by_key.get(k)) is None:
+                if not (self._non_strict or ctx.options.non_strict_fields):
+                    raise KeyError(k)
+                continue
+            kw[f.att] = f.m.unmarshal(v, ctx)
+        return self._ty(**kw)
+
+
+class SingleFieldObjMarshaler(ObjMarshaler):
+    def __init__(
+            self,
+            ty: type,
+            fld: str,
+    ) -> None:
+        super().__init__()
+
+        self._ty = ty
+        self._fld = fld
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return getattr(o, self._fld)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._ty(**{self._fld: o})
+
+
+class PolymorphicObjMarshaler(ObjMarshaler):
+    class Impl(ta.NamedTuple):
+        ty: type
+        tag: str
+        m: ObjMarshaler
+
+    def __init__(
+            self,
+            impls_by_ty: ta.Mapping[type, Impl],
+            impls_by_tag: ta.Mapping[str, Impl],
+    ) -> None:
+        super().__init__()
+
+        self._impls_by_ty = impls_by_ty
+        self._impls_by_tag = impls_by_tag
+
+    @classmethod
+    def of(cls, impls: ta.Iterable[Impl]) -> 'PolymorphicObjMarshaler':
+        return cls(
+            {i.ty: i for i in impls},
+            {i.tag: i for i in impls},
+        )
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        impl = self._impls_by_ty[type(o)]
+        return {impl.tag: impl.m.marshal(o, ctx)}
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        [(t, v)] = o.items()
+        impl = self._impls_by_tag[t]
+        return impl.m.unmarshal(v, ctx)
+
+
+class DatetimeObjMarshaler(ObjMarshaler):
+    def __init__(
+            self,
+            ty: type,
+    ) -> None:
+        super().__init__()
+
+        self._ty = ty
+
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return o.isoformat()
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return self._ty.fromisoformat(o)  # type: ignore
+
+
+class DecimalObjMarshaler(ObjMarshaler):
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return str(check.isinstance(o, decimal.Decimal))
+
+    def unmarshal(self, v: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return decimal.Decimal(check.isinstance(v, str))
+
+
+class FractionObjMarshaler(ObjMarshaler):
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        fr = check.isinstance(o, fractions.Fraction)
+        return [fr.numerator, fr.denominator]
+
+    def unmarshal(self, v: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        num, denom = check.isinstance(v, list)
+        return fractions.Fraction(num, denom)
+
+
+class UuidObjMarshaler(ObjMarshaler):
+    def marshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return str(o)
+
+    def unmarshal(self, o: ta.Any, ctx: 'ObjMarshalContext') -> ta.Any:
+        return uuid.UUID(o)
+
+
+##
+
+
+_DEFAULT_OBJ_MARSHALERS: ta.Dict[ta.Any, ObjMarshaler] = {
+    **{t: NopObjMarshaler() for t in (type(None),)},
+    **{t: CastObjMarshaler(t) for t in (int, float, str, bool)},
+    **{t: BytesSwitchedObjMarshaler(Base64ObjMarshaler(t)) for t in (bytes, bytearray)},
+    **{t: IterableObjMarshaler(t, DynamicObjMarshaler()) for t in (list, tuple, set, frozenset)},
+    **{t: MappingObjMarshaler(t, DynamicObjMarshaler(), DynamicObjMarshaler()) for t in (dict,)},
+
+    **{t: DynamicObjMarshaler() for t in (ta.Any, object)},
+
+    **{t: DatetimeObjMarshaler(t) for t in (datetime.date, datetime.time, datetime.datetime)},
+    decimal.Decimal: DecimalObjMarshaler(),
+    fractions.Fraction: FractionObjMarshaler(),
+    uuid.UUID: UuidObjMarshaler(),
+}
+
+_OBJ_MARSHALER_GENERIC_MAPPING_TYPES: ta.Dict[ta.Any, type] = {
+    **{t: t for t in (dict,)},
+    **{t: dict for t in (collections.abc.Mapping, collections.abc.MutableMapping)},  # noqa
+}
+
+_OBJ_MARSHALER_GENERIC_ITERABLE_TYPES: ta.Dict[ta.Any, type] = {
+    **{t: t for t in (list, tuple, set, frozenset)},
+    collections.abc.Set: frozenset,
+    collections.abc.MutableSet: set,
+    collections.abc.Sequence: tuple,
+    collections.abc.MutableSequence: list,
+}
+
+_OBJ_MARSHALER_PRIMITIVE_TYPES: ta.Set[type] = {
+    int,
+    float,
+    bool,
+    str,
+}
+
+
+##
+
+
+_REGISTERED_OBJ_MARSHALERS_BY_TYPE: ta.MutableMapping[type, ObjMarshaler] = weakref.WeakKeyDictionary()
+
+
+def register_type_obj_marshaler(ty: type, om: ObjMarshaler) -> None:
+    _REGISTERED_OBJ_MARSHALERS_BY_TYPE[ty] = om
+
+
+def register_single_field_type_obj_marshaler(fld, ty=None):
+    def inner(ty):  # noqa
+        register_type_obj_marshaler(ty, SingleFieldObjMarshaler(ty, fld))
+        return ty
+
+    if ty is not None:
+        return inner(ty)
+    else:
+        return inner
+
+
+##
+
+
+class ObjMarshalerFieldMetadata:
+    def __new__(cls, *args, **kwargs):  # noqa
+        raise TypeError
+
+
+class OBJ_MARSHALER_FIELD_KEY(ObjMarshalerFieldMetadata):  # noqa
+    pass
+
+
+class OBJ_MARSHALER_OMIT_IF_NONE(ObjMarshalerFieldMetadata):  # noqa
+    pass
+
+
+##
+
+
+class ObjMarshalerManager(Abstract):
+    @abc.abstractmethod
+    def make_obj_marshaler(
+            self,
+            ty: ta.Any,
+            rec: ta.Callable[[ta.Any], ObjMarshaler],
+            *,
+            non_strict_fields: bool = False,
+    ) -> ObjMarshaler:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def set_obj_marshaler(
+            self,
+            ty: ta.Any,
+            m: ObjMarshaler,
+            *,
+            override: bool = False,
+    ) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_obj_marshaler(
+            self,
+            ty: ta.Any,
+            *,
+            no_cache: bool = False,
+            **kwargs: ta.Any,
+    ) -> ObjMarshaler:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def make_context(self, opts: ta.Optional[ObjMarshalOptions]) -> 'ObjMarshalContext':
+        raise NotImplementedError
+
+    #
+
+    def marshal_obj(
+            self,
+            o: ta.Any,
+            ty: ta.Any = None,
+            opts: ta.Optional[ObjMarshalOptions] = None,
+    ) -> ta.Any:
+        m = self.get_obj_marshaler(ty if ty is not None else type(o))
+        return m.marshal(o, self.make_context(opts))
+
+    def unmarshal_obj(
+            self,
+            o: ta.Any,
+            ty: ta.Union[ta.Type[T], ta.Any],
+            opts: ta.Optional[ObjMarshalOptions] = None,
+    ) -> T:
+        m = self.get_obj_marshaler(ty)
+        return m.unmarshal(o, self.make_context(opts))
+
+    def roundtrip_obj(
+            self,
+            o: ta.Any,
+            ty: ta.Any = None,
+            opts: ta.Optional[ObjMarshalOptions] = None,
+    ) -> ta.Any:
+        if ty is None:
+            ty = type(o)
+        m: ta.Any = self.marshal_obj(o, ty, opts)
+        u: ta.Any = self.unmarshal_obj(m, ty, opts)
+        return u
+
+
+#
+
+
+class ObjMarshalerManagerImpl(ObjMarshalerManager):
+    def __init__(
+            self,
+            *,
+            default_options: ObjMarshalOptions = ObjMarshalOptions(),
+
+            default_obj_marshalers: ta.Dict[ta.Any, ObjMarshaler] = _DEFAULT_OBJ_MARSHALERS,  # noqa
+            generic_mapping_types: ta.Dict[ta.Any, type] = _OBJ_MARSHALER_GENERIC_MAPPING_TYPES,  # noqa
+            generic_iterable_types: ta.Dict[ta.Any, type] = _OBJ_MARSHALER_GENERIC_ITERABLE_TYPES,  # noqa
+
+            registered_obj_marshalers: ta.Mapping[type, ObjMarshaler] = _REGISTERED_OBJ_MARSHALERS_BY_TYPE,
+    ) -> None:
+        super().__init__()
+
+        self._default_options = default_options
+
+        self._obj_marshalers = dict(default_obj_marshalers)
+        self._generic_mapping_types = generic_mapping_types
+        self._generic_iterable_types = generic_iterable_types
+        self._registered_obj_marshalers = registered_obj_marshalers
+
+        self._lock = threading.RLock()
+        self._derived_obj_marshalers: ta.Dict[ta.Any, ObjMarshaler] = {}
+        self._proxies: ta.Dict[ta.Any, ProxyObjMarshaler] = {}
+
+    #
+
+    @classmethod
+    def _is_abstract(cls, ty: type) -> bool:
+        return abc.ABC in ty.__bases__ or Abstract in ty.__bases__
+
+    @classmethod
+    def _get_field_type_hints(cls, ty: type) -> ta.Optional[ta.Mapping[str, ta.Any]]:
+        """
+        Best-effort resolution of string / forward-ref field annotations (`from __future__ import annotations` modules,
+        self-referential fields) against their defining modules' namespaces, mro-aware. Returns None on failure (e.g.
+        TYPE_CHECKING-only names, classes exec'd into namespaces absent from sys.modules) - callers fall back to the
+        raw annotations, preserving behavior for already-evaluated ones.
+        """
+
+        try:
+            return ta.get_type_hints(ty)
+        except Exception:  # noqa
+            return None
+
+    #
+
+    def make_obj_marshaler(
+            self,
+            ty: ta.Any,
+            rec: ta.Callable[[ta.Any], ObjMarshaler],
+            *,
+            non_strict_fields: bool = False,
+    ) -> ObjMarshaler:
+        if isinstance(ty, type):
+            if (reg := self._registered_obj_marshalers.get(ty)) is not None:
+                return reg
+
+            if self._is_abstract(ty):
+                tn = ty.__name__
+                impls: ta.List[ta.Tuple[type, str]] = [  # type: ignore[var-annotated]
+                    (ity, ity.__name__)
+                    for ity in deep_subclasses(ty)
+                    if not self._is_abstract(ity)
+                ]
+
+                if all(itn.endswith(tn) for _, itn in impls):
+                    impls = [
+                        (ity, snake_case(itn[:-len(tn)]))
+                        for ity, itn in impls
+                    ]
+
+                dupe_tns = sorted(
+                    dn
+                    for dn, dc in collections.Counter(itn for _, itn in impls).items()
+                    if dc > 1
+                )
+                if dupe_tns:
+                    raise KeyError(f'Duplicate impl names for {ty}: {dupe_tns}')
+
+                return PolymorphicObjMarshaler.of([
+                    PolymorphicObjMarshaler.Impl(
+                        ity,
+                        itn,
+                        rec(ity),
+                    )
+                    for ity, itn in impls
+                ])
+
+            if issubclass(ty, enum.Enum):
+                return EnumObjMarshaler(ty)
+
+            if dc.is_dataclass(ty):
+                hints = self._get_field_type_hints(ty) or {}
+                return FieldsObjMarshaler(
+                    ty,
+                    [
+                        FieldsObjMarshaler.Field(
+                            att=f.name,
+                            key=check.non_empty_str(fk),
+                            m=rec(hints.get(f.name, f.type)),
+                            omit_if_none=check.isinstance(f.metadata.get(OBJ_MARSHALER_OMIT_IF_NONE, False), bool),
+                        )
+                        for f in dc.fields(ty)
+                        # init=False fields are excluded from both directions - unmarshal passes every key as a ctor
+                        # kwarg, so marshaling them would produce round-trip-asymmetric output.
+                        if f.init
+                        if (fk := f.metadata.get(OBJ_MARSHALER_FIELD_KEY, f.name)) is not None
+                    ],
+                    non_strict=non_strict_fields,
+                )
+
+            if issubclass(ty, tuple) and hasattr(ty, '_fields'):
+                hints = self._get_field_type_hints(ty) or {}
+                return FieldsObjMarshaler(
+                    ty,
+                    [
+                        FieldsObjMarshaler.Field(
+                            att=p.name,
+                            key=p.name,
+                            # Untyped collections.namedtuple fields have empty annotations - marshal them dynamically.
+                            m=rec(hints.get(
+                                p.name,
+                                p.annotation if p.annotation is not inspect.Parameter.empty else ta.Any,
+                            )),
+                        )
+                        for p in inspect.signature(ty).parameters.values()
+                    ],
+                    non_strict=non_strict_fields,
+                )
+
+        if is_new_type(ty):
+            return rec(get_new_type_supertype(ty))
+
+        if is_literal_type(ty):
+            lvs = frozenset(get_literal_type_args(ty))
+            if None in lvs:
+                is_opt = True
+                lvs -= frozenset([None])
+            else:
+                is_opt = False
+            lty = check.single(set(map(type, lvs)))
+            lm: ObjMarshaler = LiteralObjMarshaler(rec(lty), lvs)
+            if is_opt:
+                lm = OptionalObjMarshaler(lm)
+            return lm
+
+        if is_generic_alias(ty):
+            try:
+                mt = self._generic_mapping_types[ta.get_origin(ty)]
+            except KeyError:
+                pass
+            else:
+                k, v = ta.get_args(ty)
+                return MappingObjMarshaler(mt, rec(k), rec(v))
+
+            try:
+                st = self._generic_iterable_types[ta.get_origin(ty)]
+            except KeyError:
+                pass
+            else:
+                [e] = ta.get_args(ty)
+                return IterableObjMarshaler(st, rec(e))
+
+        if is_union_alias(ty):
+            uts = frozenset(ta.get_args(ty))
+            if None in uts or type(None) in uts:
+                is_opt = True
+                uts = frozenset(ut for ut in uts if ut not in (None, type(None)))
+            else:
+                is_opt = False
+
+            um: ObjMarshaler
+            if not uts:
+                raise TypeError(ty)
+            elif len(uts) == 1:
+                um = rec(check.single(uts))
+            else:
+                pt = tuple({ut for ut in uts if ut in _OBJ_MARSHALER_PRIMITIVE_TYPES})
+                np_uts = {ut for ut in uts if ut not in _OBJ_MARSHALER_PRIMITIVE_TYPES}
+                if not np_uts:
+                    um = PrimitiveUnionObjMarshaler(pt)
+                elif len(np_uts) == 1:
+                    um = PrimitiveUnionObjMarshaler(pt, x=rec(check.single(np_uts)))
+                else:
+                    raise TypeError(ty)
+
+            if is_opt:
+                um = OptionalObjMarshaler(um)
+            return um
+
+        raise TypeError(ty)
+
+    #
+
+    def set_obj_marshaler(
+            self,
+            ty: ta.Any,
+            m: ObjMarshaler,
+            *,
+            override: bool = False,
+    ) -> None:
+        with self._lock:
+            if not override and ty in self._obj_marshalers:
+                raise KeyError(ty)
+            self._obj_marshalers[ty] = m
+
+    def get_obj_marshaler(
+            self,
+            ty: ta.Any,
+            *,
+            no_cache: bool = False,
+            **kwargs: ta.Any,
+    ) -> ObjMarshaler:
+        with self._lock:
+            ck = (ty, tuple(sorted(kwargs.items())))
+            if not no_cache:
+                # Explicitly set marshalers (and the defaults) are authoritative regardless of construction kwargs.
+                try:
+                    return self._obj_marshalers[ty]
+                except KeyError:
+                    pass
+
+                # Derived marshalers are cached under their construction kwargs - a strict marshaler must not be
+                # returned for a non-strict request, nor vice versa.
+                try:
+                    return self._derived_obj_marshalers[ck]
+                except KeyError:
+                    pass
+
+            try:
+                return self._proxies[ty]
+            except KeyError:
+                pass
+
+            rec = functools.partial(
+                self.get_obj_marshaler,
+                no_cache=no_cache,
+                **kwargs,
+            )
+
+            p = ProxyObjMarshaler()
+            self._proxies[ty] = p
+            try:
+                m = self.make_obj_marshaler(ty, rec, **kwargs)
+            finally:
+                del self._proxies[ty]
+            p._m = m  # noqa
+
+            if not no_cache:
+                self._derived_obj_marshalers[ck] = m
+            return m
+
+    def make_context(self, opts: ta.Optional[ObjMarshalOptions]) -> 'ObjMarshalContext':
+        return ObjMarshalContext(
+            options=opts or self._default_options,
+            manager=self,
+        )
+
+
+def new_obj_marshaler_manager(**kwargs: ta.Any) -> ObjMarshalerManager:
+    return ObjMarshalerManagerImpl(**kwargs)
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class ObjMarshalContext:
+    options: ObjMarshalOptions
+    manager: ObjMarshalerManager
+
+
+##
+
+
+OBJ_MARSHALER_MANAGER = new_obj_marshaler_manager()
+
+set_obj_marshaler = OBJ_MARSHALER_MANAGER.set_obj_marshaler
+get_obj_marshaler = OBJ_MARSHALER_MANAGER.get_obj_marshaler
+
+marshal_obj = OBJ_MARSHALER_MANAGER.marshal_obj
+unmarshal_obj = OBJ_MARSHALER_MANAGER.unmarshal_obj
+
+
+########################################
 # ../protocol.py
-"""JSON-compatible values shared by the host adapter and the remote agent payload."""
+"""JSON-compatible request/result/notification shapes shared by the host adapter and the remote agent payload."""
 
 
 ##
@@ -1756,99 +2901,229 @@ PROCESS_EXITED_METHOD = 'process.exited'
 
 
 ##
+# Filesystem
 
 
-def encode_remote_bytes(data: bytes) -> str:
-    return base64.b64encode(data).decode('ascii')
+@dc.dataclass(frozen=True)
+class PathParams:
+    path: str
 
 
-def decode_remote_bytes(value: ta.Any) -> bytes:
-    if not isinstance(value, str):
-        raise TypeError(f'Expected base64 string, got {type(value).__name__}')
-    try:
-        return base64.b64decode(value.encode('ascii'), validate=True)
-    except (UnicodeEncodeError, binascii.Error) as e:
-        raise ValueError('Invalid base64 data') from e
+@dc.dataclass(frozen=True)
+class StatResult:
+    path: str
+    size: int
+    is_dir: bool
+    is_file: bool
+    is_symlink: bool
+
+    def __post_init__(self) -> None:
+        check.arg(self.size >= 0)
 
 
-def check_remote_dict(
-        value: ta.Any,
-        required: ta.AbstractSet[str],
-        optional: ta.AbstractSet[str] = frozenset(),
-) -> ta.Dict[str, ta.Any]:
-    if not isinstance(value, dict):
-        raise TypeError(f'Expected object, got {type(value).__name__}')
-    keys = set(value)
-    if not required <= keys or not keys <= required | optional:
-        raise ValueError(
-            f'Invalid object fields: required {sorted(required)!r}, '
-            f'optional {sorted(optional)!r}, got {sorted(keys)!r}',
-        )
-    return value
+@dc.dataclass(frozen=True)
+class ReadFileResult:
+    data: bytes
+    digest: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.digest)
 
 
-def check_remote_str(value: ta.Any, *, non_empty: bool = False) -> str:
-    if not isinstance(value, str) or (non_empty and not value):
-        raise TypeError(f'Expected {"non-empty " if non_empty else ""}string, got {value!r}')
-    return value
+@dc.dataclass(frozen=True)
+class WriteFileParams:
+    path: str
+    content: bytes
+    overwrite: bool
+    expected_digest: ta.Optional[str]
 
 
-def check_remote_optional_str(value: ta.Any) -> ta.Optional[str]:
-    if value is None:
-        return None
-    return check_remote_str(value)
+@dc.dataclass(frozen=True)
+class WriteFileResult:
+    created: bool
 
 
-def check_remote_bool(value: ta.Any) -> bool:
-    if type(value) is not bool:
-        raise TypeError(f'Expected bool, got {value!r}')
-    return value
+@dc.dataclass(frozen=True)
+class FsEntry:
+    name: str
+    path: str
+    is_dir: bool
+    is_file: bool
+    is_symlink: bool
 
 
-def check_remote_int(value: ta.Any, *, minimum: ta.Optional[int] = None) -> int:
-    if type(value) is not int or (minimum is not None and value < minimum):
-        raise TypeError(f'Expected integer >= {minimum!r}, got {value!r}')
-    return value
+@dc.dataclass(frozen=True)
+class GlobParams:
+    pattern: str
+    root: str
+    max_results: ta.Optional[int]
+
+    def __post_init__(self) -> None:
+        if self.max_results is not None:
+            check.arg(self.max_results >= 0)
 
 
-def check_remote_optional_int(value: ta.Any, *, minimum: ta.Optional[int] = None) -> ta.Optional[int]:
-    if value is None:
-        return None
-    return check_remote_int(value, minimum=minimum)
+@dc.dataclass(frozen=True)
+class GlobResult:
+    entries: ta.List[FsEntry]
+    has_more: bool
 
 
-def check_remote_float(value: ta.Any, *, minimum: ta.Optional[float] = None) -> float:
-    if type(value) not in (int, float):
-        raise TypeError(f'Expected number, got {value!r}')
-    out = float(value)
-    if minimum is not None and out < minimum:
-        raise ValueError(f'Expected number >= {minimum!r}, got {value!r}')
-    return out
+##
+# Processes
 
 
-def check_remote_optional_float(value: ta.Any, *, minimum: ta.Optional[float] = None) -> ta.Optional[float]:
-    if value is None:
-        return None
-    return check_remote_float(value, minimum=minimum)
+@dc.dataclass(frozen=True)
+class StdioSpec:
+    kind: str
+    stdin: ta.Optional[str] = None
+    stdout: ta.Optional[str] = None
+    stderr: ta.Optional[str] = None
+    rows: ta.Optional[int] = None
+    cols: ta.Optional[int] = None
+    term: ta.Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.kind == 'pipes':
+            check.non_empty_str(self.stdin)
+            check.non_empty_str(self.stdout)
+            check.non_empty_str(self.stderr)
+        elif self.kind == 'pty':
+            check.arg(self.rows is not None and self.rows >= 1)
+            check.arg(self.cols is not None and self.cols >= 1)
+        else:
+            raise ValueError(f'Invalid remote stdio kind: {self.kind!r}')
 
 
-def check_remote_str_list(value: ta.Any, *, non_empty: bool = False) -> ta.List[str]:
-    if not isinstance(value, list) or (non_empty and not value):
-        raise TypeError(f'Expected {"non-empty " if non_empty else ""}string list, got {value!r}')
-    for item in value:
-        check_remote_str(item)
-    return value
+@dc.dataclass(frozen=True)
+class SpawnParams:
+    argv: ta.List[str]
+    cwd: ta.Optional[str]
+    env: ta.Optional[ta.Dict[str, str]]
+    stdio: StdioSpec
+    name: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        check.not_empty(self.argv)
 
 
-def check_remote_optional_str_dict(value: ta.Any) -> ta.Optional[ta.Dict[str, str]]:
-    if value is None:
-        return None
-    if not isinstance(value, dict):
-        raise TypeError(f'Expected string object, got {value!r}')
-    for key, item in value.items():
-        check_remote_str(key, non_empty=True)
-        check_remote_str(item)
-    return value
+@dc.dataclass(frozen=True)
+class SpawnResult:
+    id: str
+    pid: int
+    created_at: float
+    name: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.pid >= 1)
+        check.arg(self.created_at >= 0.)
+
+
+@dc.dataclass(frozen=True)
+class SignalParams:
+    id: str
+    signal: int
+    process_group: bool
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.signal >= 1)
+
+
+@dc.dataclass(frozen=True)
+class ClosePolicySpec:
+    signal: int
+    grace_s: float
+    kill_s: float
+    close_stdin: bool
+    process_group: bool
+    drain_s: float
+
+    def __post_init__(self) -> None:
+        check.arg(self.signal >= 1)
+        check.arg(self.grace_s >= 0.)
+        check.arg(self.kill_s >= 0.)
+        check.arg(self.drain_s >= 0.)
+
+
+@dc.dataclass(frozen=True)
+class CloseParams:
+    id: str
+    policy: ClosePolicySpec
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class CloseResult:
+    returncode: int
+    state: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.state)
+
+
+@dc.dataclass(frozen=True)
+class WriteParams:
+    id: str
+    data: bytes
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class ProcessRefParams:
+    id: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class ResizeParams:
+    id: str
+    rows: int
+    cols: int
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.rows >= 1)
+        check.arg(self.cols >= 1)
+
+
+##
+# Process notifications (agent -> host)
+
+
+@dc.dataclass(frozen=True)
+class OutputEvent:
+    id: str
+    fd: int
+    data: bytes
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.fd >= 1)
+
+
+@dc.dataclass(frozen=True)
+class OutputEndEvent:
+    id: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class ExitedEvent:
+    id: str
+    returncode: int
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
 
 
 ########################################
@@ -1880,7 +3155,7 @@ class RpcMethodNotFoundError(RpcError):
 @dc.dataclass(frozen=True)
 class RpcRemoteErrorData:
     code: str
-    remote_type: str
+    remote_type: str = dc.field(metadata={OBJ_MARSHALER_FIELD_KEY: 'type'})  # 'type' on the wire
     message: str
     traceback: ta.Optional[str] = None
 
@@ -1963,11 +3238,18 @@ class RpcRequestMessage:
     method: str
     params: ta.Any = None
 
+    def __post_init__(self) -> None:
+        check.arg(self.id > 0, RpcProtocolError)
+        check.non_empty_str(self.method, RpcProtocolError)
+
 
 @dc.dataclass(frozen=True)
 class RpcResultMessage:
     id: int
     result: ta.Any = None
+
+    def __post_init__(self) -> None:
+        check.arg(self.id > 0, RpcProtocolError)
 
 
 @dc.dataclass(frozen=True)
@@ -1975,10 +3257,16 @@ class RpcErrorMessage:
     id: int
     error: RpcRemoteErrorData
 
+    def __post_init__(self) -> None:
+        check.arg(self.id > 0, RpcProtocolError)
+
 
 @dc.dataclass(frozen=True)
 class RpcCancelMessage:
     id: int
+
+    def __post_init__(self) -> None:
+        check.arg(self.id > 0, RpcProtocolError)
 
 
 @dc.dataclass(frozen=True)
@@ -1986,15 +3274,24 @@ class RpcNotificationMessage:
     method: str
     params: ta.Any = None
 
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.method, RpcProtocolError)
+
 
 @dc.dataclass(frozen=True)
 class RpcPingMessage:
     id: int
 
+    def __post_init__(self) -> None:
+        check.arg(self.id > 0, RpcProtocolError)
+
 
 @dc.dataclass(frozen=True)
 class RpcPongMessage:
     id: int
+
+    def __post_init__(self) -> None:
+        check.arg(self.id > 0, RpcProtocolError)
 
 
 RpcMessage = ta.Union[  # ta.TypeAlias  # om-amalg-typing-no-move
@@ -2021,109 +3318,34 @@ class RpcMessageCodec(Abstract):
         raise NotImplementedError
 
 
+# The wire is a `{"type": <tag>, **fields}` object: the discriminator tag selects the message dataclass, whose fields
+# marshal/unmarshal directly. There is no field/discriminator-tagged union in the lite marshaler, so the tag is managed
+# here while the per-message field mapping (including the nested error's `remote_type` -> `type`) is the marshaler's.
+_RPC_MESSAGE_TAGS: ta.Mapping[type, str] = {
+    RpcRequestMessage: 'request',
+    RpcResultMessage: 'result',
+    RpcErrorMessage: 'error',
+    RpcCancelMessage: 'cancel',
+    RpcNotificationMessage: 'notification',
+    RpcPingMessage: 'ping',
+    RpcPongMessage: 'pong',
+}
+
+_RPC_MESSAGE_TYPES: ta.Mapping[str, type] = {tag: ty for ty, tag in _RPC_MESSAGE_TAGS.items()}
+
+
 class JsonRpcMessageCodec(RpcMessageCodec):
-    @classmethod
-    def _to_obj(cls, message: RpcMessage) -> ta.Mapping[str, ta.Any]:
-        if isinstance(message, RpcRequestMessage):
-            return {'type': 'request', 'id': message.id, 'method': message.method, 'params': message.params}
-        if isinstance(message, RpcResultMessage):
-            return {'type': 'result', 'id': message.id, 'result': message.result}
-        if isinstance(message, RpcErrorMessage):
-            return {
-                'type': 'error',
-                'id': message.id,
-                'error': {
-                    'code': message.error.code,
-                    'type': message.error.remote_type,
-                    'message': message.error.message,
-                    'traceback': message.error.traceback,
-                },
-            }
-        if isinstance(message, RpcCancelMessage):
-            return {'type': 'cancel', 'id': message.id}
-        if isinstance(message, RpcNotificationMessage):
-            return {'type': 'notification', 'method': message.method, 'params': message.params}
-        if isinstance(message, RpcPingMessage):
-            return {'type': 'ping', 'id': message.id}
-        if isinstance(message, RpcPongMessage):
-            return {'type': 'pong', 'id': message.id}
-        raise TypeError(message)
-
     @staticmethod
-    def _check_keys(dct: ta.Mapping[str, ta.Any], keys: ta.AbstractSet[str]) -> None:
-        actual = set(dct)
-        if actual != keys:
-            raise RpcProtocolError(f'Invalid RPC message fields: expected {sorted(keys)!r}, got {sorted(actual)!r}')
-
-    @staticmethod
-    def _decode_id(value: ta.Any) -> int:
-        if type(value) is not int or value <= 0:
-            raise RpcProtocolError(f'Invalid RPC message id: {value!r}')
-        return value
-
-    @staticmethod
-    def _decode_method(value: ta.Any) -> str:
-        if not isinstance(value, str) or not value:
-            raise RpcProtocolError(f'Invalid RPC method: {value!r}')
-        return value
-
-    @classmethod
-    def _from_obj(cls, obj: ta.Any) -> RpcMessage:
-        if not isinstance(obj, dict):
-            raise RpcProtocolError(f'RPC message must be an object, got {type(obj).__name__}')
-
-        message_type = obj.get('type')
-        if message_type == 'request':
-            cls._check_keys(obj, {'type', 'id', 'method', 'params'})
-            return RpcRequestMessage(
-                cls._decode_id(obj['id']),
-                cls._decode_method(obj['method']),
-                obj['params'],
-            )
-        if message_type == 'result':
-            cls._check_keys(obj, {'type', 'id', 'result'})
-            return RpcResultMessage(cls._decode_id(obj['id']), obj['result'])
-        if message_type == 'error':
-            cls._check_keys(obj, {'type', 'id', 'error'})
-            error = obj['error']
-            if not isinstance(error, dict):
-                raise RpcProtocolError(f'RPC error must be an object, got {type(error).__name__}')
-            cls._check_keys(error, {'code', 'type', 'message', 'traceback'})
-            if not isinstance(error['code'], str) or not error['code']:
-                raise RpcProtocolError(f'Invalid RPC error code: {error["code"]!r}')
-            if not isinstance(error['type'], str) or not error['type']:
-                raise RpcProtocolError(f'Invalid RPC error type: {error["type"]!r}')
-            if not isinstance(error['message'], str):
-                raise RpcProtocolError(f'Invalid RPC error message: {error["message"]!r}')
-            if error['traceback'] is not None and not isinstance(error['traceback'], str):
-                raise RpcProtocolError(f'Invalid RPC error traceback: {error["traceback"]!r}')
-            return RpcErrorMessage(
-                cls._decode_id(obj['id']),
-                RpcRemoteErrorData(
-                    code=error['code'],
-                    remote_type=error['type'],
-                    message=error['message'],
-                    traceback=error['traceback'],
-                ),
-            )
-        if message_type == 'cancel':
-            cls._check_keys(obj, {'type', 'id'})
-            return RpcCancelMessage(cls._decode_id(obj['id']))
-        if message_type == 'notification':
-            cls._check_keys(obj, {'type', 'method', 'params'})
-            return RpcNotificationMessage(cls._decode_method(obj['method']), obj['params'])
-        if message_type == 'ping':
-            cls._check_keys(obj, {'type', 'id'})
-            return RpcPingMessage(cls._decode_id(obj['id']))
-        if message_type == 'pong':
-            cls._check_keys(obj, {'type', 'id'})
-            return RpcPongMessage(cls._decode_id(obj['id']))
-        raise RpcProtocolError(f'Invalid RPC message type: {message_type!r}')
+    def _reject_json_constant(value: str) -> ta.NoReturn:
+        raise ValueError(f'Invalid JSON constant: {value}')
 
     def encode(self, message: RpcMessage) -> bytes:
         try:
-            obj = self._to_obj(message)
-            self._from_obj(obj)
+            tag = _RPC_MESSAGE_TAGS[type(message)]
+        except KeyError:
+            raise TypeError(message) from None
+        try:
+            obj = {'type': tag, **marshal_obj(message)}
             return json.dumps(
                 obj,
                 allow_nan=False,
@@ -2132,16 +3354,31 @@ class JsonRpcMessageCodec(RpcMessageCodec):
         except (RecursionError, TypeError, ValueError) as e:
             raise RpcProtocolError(f'RPC message is not JSON-compatible: {e}') from e
 
-    @staticmethod
-    def _reject_json_constant(value: str) -> ta.NoReturn:
-        raise ValueError(f'Invalid JSON constant: {value}')
-
     def decode(self, data: bytes) -> RpcMessage:
         try:
             obj = json.loads(data.decode('utf-8'), parse_constant=self._reject_json_constant)
         except (RecursionError, UnicodeDecodeError, ValueError) as e:
             raise RpcProtocolError(f'Invalid RPC JSON: {e}') from e
-        return self._from_obj(obj)
+
+        if not isinstance(obj, dict):
+            raise RpcProtocolError(f'RPC message must be an object, got {type(obj).__name__}')
+        try:
+            tag = obj.pop('type')
+        except KeyError:
+            raise RpcProtocolError('RPC message is missing its type') from None
+        try:
+            ty = _RPC_MESSAGE_TYPES[tag]
+        except KeyError:
+            raise RpcProtocolError(f'Invalid RPC message type: {tag!r}') from None
+
+        try:
+            return unmarshal_obj(obj, ty)
+        except RpcProtocolError:
+            raise
+        except Exception as e:  # noqa
+            # Any failure to build the message from its wire fields - an unknown or missing field, a bad nested shape -
+            # is a protocol error.
+            raise RpcProtocolError(f'Invalid RPC {tag} message: {e}') from e
 
 
 ########################################
@@ -2932,14 +4169,14 @@ class _RemoteFsService:
         return os.path.abspath(os.path.realpath(path))
 
     @staticmethod
-    def _entry(path: str, name: ta.Optional[str] = None) -> ta.Dict[str, ta.Any]:
-        return {
-            'name': os.path.basename(path) if name is None else name,
-            'path': path,
-            'is_dir': os.path.isdir(path),
-            'is_file': os.path.isfile(path),
-            'is_symlink': os.path.islink(path),
-        }
+    def _entry(path: str, name: ta.Optional[str] = None) -> FsEntry:
+        return FsEntry(
+            name=os.path.basename(path) if name is None else name,
+            path=path,
+            is_dir=os.path.isdir(path),
+            is_file=os.path.isfile(path),
+            is_symlink=os.path.islink(path),
+        )
 
     @staticmethod
     def _check_expected_digest(path: str, expected_digest: str) -> None:
@@ -2953,38 +4190,33 @@ class _RemoteFsService:
             raise _RemoteFsFileChangedError(f'File changed since it was read: {path!r}')
 
     async def resolve_path(self, params: ta.Any) -> str:
-        obj = check_remote_dict(params, {'path'})
-        return self._resolve(check_remote_str(obj['path']))
+        p: PathParams = unmarshal_obj(params, PathParams)
+        return self._resolve(p.path)
 
-    async def stat(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'path'})
-        path = check_remote_str(obj['path'])
-        lst = os.lstat(path)
-        st = os.stat(path)
-        return {
-            'path': path,
-            'size': st.st_size,
-            'is_dir': stat_.S_ISDIR(st.st_mode),
-            'is_file': stat_.S_ISREG(st.st_mode),
-            'is_symlink': stat_.S_ISLNK(lst.st_mode),
-        }
+    async def stat(self, params: ta.Any) -> ta.Any:
+        p: PathParams = unmarshal_obj(params, PathParams)
+        lst = os.lstat(p.path)
+        st = os.stat(p.path)
+        return marshal_obj(StatResult(
+            path=p.path,
+            size=st.st_size,
+            is_dir=stat_.S_ISDIR(st.st_mode),
+            is_file=stat_.S_ISREG(st.st_mode),
+            is_symlink=stat_.S_ISLNK(lst.st_mode),
+        ))
 
-    async def read_file(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'path'})
-        path = check_remote_str(obj['path'])
-        with open(path, 'rb') as f:  # noqa
+    async def read_file(self, params: ta.Any) -> ta.Any:
+        p: PathParams = unmarshal_obj(params, PathParams)
+        with open(p.path, 'rb') as f:  # noqa
             data = f.read()
-        return {
-            'data': encode_remote_bytes(data),
-            'digest': _remote_fs_digest(data),
-        }
+        return marshal_obj(ReadFileResult(data=data, digest=_remote_fs_digest(data)))
 
-    async def write_file(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'path', 'content', 'overwrite', 'expected_digest'})
-        path = check_remote_str(obj['path'])
-        content = decode_remote_bytes(obj['content'])
-        overwrite = check_remote_bool(obj['overwrite'])
-        expected_digest = check_remote_optional_str(obj['expected_digest'])
+    async def write_file(self, params: ta.Any) -> ta.Any:
+        p: WriteFileParams = unmarshal_obj(params, WriteFileParams)
+        path = p.path
+        content = p.content
+        overwrite = p.overwrite
+        expected_digest = p.expected_digest
 
         dst_dir = os.path.dirname(path)
         tmp_dir = tempfile.mkdtemp(prefix='.omllm-write-', dir=dst_dir)
@@ -3004,7 +4236,7 @@ class _RemoteFsService:
                 os.link(tmp_path, path)
                 os.unlink(tmp_path)
                 tmp_path = ''
-                return {'created': True}
+                return marshal_obj(WriteFileResult(created=True))
 
             if not overwrite:
                 raise FileExistsError(path)
@@ -3016,7 +4248,7 @@ class _RemoteFsService:
             os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
             os.replace(tmp_path, path)
             tmp_path = ''
-            return {'created': False}
+            return marshal_obj(WriteFileResult(created=False))
 
         finally:
             if fd >= 0:
@@ -3028,32 +4260,31 @@ class _RemoteFsService:
                     pass
             os.rmdir(tmp_dir)
 
-    async def list_dir(self, params: ta.Any) -> ta.List[ta.Dict[str, ta.Any]]:
-        obj = check_remote_dict(params, {'path'})
-        path = check_remote_str(obj['path'])
-        return [
-            {
-                'name': entry.name,
-                'path': entry.path,
-                'is_dir': entry.is_dir(),
-                'is_file': entry.is_file(),
-                'is_symlink': entry.is_symlink(),
-            }
-            for entry in os.scandir(path)
-        ]
+    async def list_dir(self, params: ta.Any) -> ta.Any:
+        p: PathParams = unmarshal_obj(params, PathParams)
+        return marshal_obj([
+            FsEntry(
+                name=entry.name,
+                path=entry.path,
+                is_dir=entry.is_dir(),
+                is_file=entry.is_file(),
+                is_symlink=entry.is_symlink(),
+            )
+            for entry in os.scandir(p.path)
+        ], ta.List[FsEntry])
 
-    async def glob(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'pattern', 'root', 'max_results'})
-        pattern = check_remote_str(obj['pattern'])
-        root = check_remote_str(obj['root'])
-        max_results = check_remote_optional_int(obj['max_results'], minimum=0)
+    async def glob(self, params: ta.Any) -> ta.Any:
+        p: GlobParams = unmarshal_obj(params, GlobParams)
+        pattern = p.pattern
+        root = p.root
+        max_results = p.max_results
 
         resolved_root = self._resolve(root)
         resolved_glob_root = self._resolve(_remote_glob_root(pattern))
         if not _remote_path_is_under(resolved_glob_root, resolved_root):
             raise ValueError(f'glob root {resolved_glob_root!r} is outside permitted root {resolved_root!r}')
 
-        entries: ta.List[ta.Dict[str, ta.Any]] = []
+        entries: ta.List[FsEntry] = []
         has_more = False
         for path in glob_.iglob(pattern, recursive=True):
             if not _remote_path_is_under(self._resolve(path), resolved_root):
@@ -3062,7 +4293,7 @@ class _RemoteFsService:
                 has_more = True
                 break
             entries.append(self._entry(path))
-        return {'entries': entries, 'has_more': has_more}
+        return marshal_obj(GlobResult(entries=entries, has_more=has_more))
 
 
 ##
@@ -3142,7 +4373,7 @@ class _RemoteServerProcess:
             self._open_readers -= 1
             if self._open_readers == 0 and not self._output_ended.is_set():
                 self._output_ended.set()
-                await self._service.notify(PROCESS_OUTPUT_END_METHOD, {'id': self.id})
+                await self._service.notify(PROCESS_OUTPUT_END_METHOD, marshal_obj(OutputEndEvent(id=self.id)))
 
     async def _connect_reader(self, file: ta.IO, fd: int) -> None:
         reader = await asyncio_open_stream_reader(file)
@@ -3171,7 +4402,7 @@ class _RemoteServerProcess:
         if not self._reader_tasks:
             # Nothing to read: the output is over before it began.
             self._output_ended.set()
-            self._service.queue_event(PROCESS_OUTPUT_END_METHOD, {'id': self.id})
+            self._service.queue_event(PROCESS_OUTPUT_END_METHOD, marshal_obj(OutputEndEvent(id=self.id)))
 
     #
 
@@ -3188,11 +4419,10 @@ class _RemoteServerProcess:
                 return False
             if not data:
                 return False
-            await self._service.notify(PROCESS_OUTPUT_METHOD, {
-                'id': self.id,
-                'fd': output_fd,
-                'data': encode_remote_bytes(data),
-            })
+            await self._service.notify(
+                PROCESS_OUTPUT_METHOD,
+                marshal_obj(OutputEvent(id=self.id, fd=output_fd, data=data)),
+            )
 
     def _close_pty_slave(self) -> None:
         if self._pty_slave_fd is not None:
@@ -3240,11 +4470,10 @@ class _RemoteServerProcess:
                 return
             if not data:
                 return
-            await self._service.notify(PROCESS_OUTPUT_METHOD, {
-                'id': self.id,
-                'fd': fd,
-                'data': encode_remote_bytes(data),
-            })
+            await self._service.notify(
+                PROCESS_OUTPUT_METHOD,
+                marshal_obj(OutputEvent(id=self.id, fd=fd, data=data)),
+            )
 
     #
 
@@ -3268,10 +4497,10 @@ class _RemoteServerProcess:
         self._exited.set()
         if (readable := self._pty_readable) is not None and not readable.done():
             readable.set_result(None)
-        self._service.queue_event(PROCESS_EXITED_METHOD, {
-            'id': self.id,
-            'returncode': returncode,
-        })
+        self._service.queue_event(
+            PROCESS_EXITED_METHOD,
+            marshal_obj(ExitedEvent(id=self.id, returncode=returncode)),
+        )
 
     def _signal(self, sig: int, process_group: bool) -> None:
         if self._reaped:
@@ -3408,13 +4637,13 @@ class _RemoteServerProcess:
             self._exited.set()
         self.popen.returncode = self._returncode
 
-    async def _run_close(self, policy: ta.Mapping[str, ta.Any]) -> ta.Dict[str, ta.Any]:
-        close_stdin = check_remote_bool(policy['close_stdin'])
-        first_signal = check_remote_int(policy['signal'], minimum=1)
-        grace_s = check_remote_float(policy['grace_s'], minimum=0.)
-        kill_s = check_remote_float(policy['kill_s'], minimum=0.)
-        process_group = check_remote_bool(policy['process_group'])
-        drain_s = check_remote_float(policy['drain_s'], minimum=0.)
+    async def _run_close(self, policy: ClosePolicySpec) -> CloseResult:
+        close_stdin = policy.close_stdin
+        first_signal = policy.signal
+        grace_s = policy.grace_s
+        kill_s = policy.kill_s
+        process_group = policy.process_group
+        drain_s = policy.drain_s
 
         if self.exited and not self._reaped and not self._is_exited_nowait():
             # We were told it exited, but a fresh probe of the (long-established, not just-forked) leader finds it still
@@ -3450,11 +4679,11 @@ class _RemoteServerProcess:
             await asyncio.gather(*self._reader_tasks, return_exceptions=True)
         self._reap()
         self._service.finished(self)
-        return {'returncode': self._returncode, 'state': 'reaped'}
+        return CloseResult(returncode=check.not_none(self._returncode), state='reaped')
 
-    async def close(self, policy: ta.Mapping[str, ta.Any]) -> ta.Dict[str, ta.Any]:
+    async def close(self, policy: ClosePolicySpec) -> CloseResult:
         if self._reaped:
-            return {'returncode': self._returncode, 'state': 'reaped'}
+            return CloseResult(returncode=check.not_none(self._returncode), state='reaped')
         if self._close_task is None:
             self._close_task = asyncio.create_task(
                 self._run_close(policy),
@@ -3464,14 +4693,14 @@ class _RemoteServerProcess:
 
 
 class _RemoteProcessService:
-    _DEFAULT_CLOSE_POLICY: ta.ClassVar[ta.Mapping[str, ta.Any]] = {
-        'signal': int(signal.SIGTERM),
-        'grace_s': 5.,
-        'kill_s': 5.,
-        'close_stdin': True,
-        'process_group': True,
-        'drain_s': 1.,
-    }
+    _DEFAULT_CLOSE_POLICY: ta.ClassVar[ClosePolicySpec] = ClosePolicySpec(
+        signal=int(signal.SIGTERM),
+        grace_s=5.,
+        kill_s=5.,
+        close_stdin=True,
+        process_group=True,
+        drain_s=1.,
+    )
 
     def __init__(self) -> None:
         super().__init__()
@@ -3549,8 +4778,7 @@ class _RemoteProcessService:
 
     #
 
-    def _lookup(self, process_id: ta.Any) -> _RemoteServerProcess:
-        process_id = check_remote_str(process_id, non_empty=True)
+    def _lookup(self, process_id: str) -> _RemoteServerProcess:
         try:
             return self._processes[process_id]
         except KeyError:
@@ -3577,16 +4805,16 @@ class _RemoteProcessService:
         import termios
         fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
 
-    async def spawn(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
+    async def spawn(self, params: ta.Any) -> ta.Any:
         if self._closed:
             raise RuntimeError('remote process service is closed')
-        obj = check_remote_dict(params, {'argv', 'cwd', 'env', 'stdio', 'name'})
-        argv = check_remote_str_list(obj['argv'], non_empty=True)
-        cwd = check_remote_optional_str(obj['cwd'])
-        env = check_remote_optional_str_dict(obj['env'])
-        name = check_remote_optional_str(obj['name'])
-        stdio = check_remote_dict(obj['stdio'], {'kind'}, {'stdin', 'stdout', 'stderr', 'rows', 'cols', 'term'})
-        kind = check_remote_str(stdio['kind'])
+        p: SpawnParams = unmarshal_obj(params, SpawnParams)
+        argv = list(p.argv)
+        cwd = p.cwd
+        env = dict(p.env) if p.env is not None else None
+        name = p.name
+        stdio = p.stdio
+        kind = stdio.kind
 
         process_id = f'p{self._next_id}'
         self._next_id += 1
@@ -3600,9 +4828,9 @@ class _RemoteProcessService:
         try:
             try:
                 if kind == 'pipes':
-                    stdin = self._stdio_value(check_remote_str(stdio['stdin']))
-                    stdout = self._stdio_value(check_remote_str(stdio['stdout']))
-                    stderr = self._stdio_value(check_remote_str(stdio['stderr']), stderr=True)
+                    stdin = self._stdio_value(check.not_none(stdio.stdin))
+                    stdout = self._stdio_value(check.not_none(stdio.stdout))
+                    stderr = self._stdio_value(check.not_none(stdio.stderr), stderr=True)
                     popen = subprocess.Popen(  # noqa: ASYNC220
                         argv,
                         cwd=cwd,
@@ -3615,9 +4843,9 @@ class _RemoteProcessService:
                     )
 
                 elif kind == 'pty':
-                    rows = check_remote_int(stdio['rows'], minimum=1)
-                    cols = check_remote_int(stdio['cols'], minimum=1)
-                    term = check_remote_optional_str(stdio['term'])
+                    rows = check.not_none(stdio.rows)
+                    cols = check.not_none(stdio.cols)
+                    term = stdio.term
                     if term is not None and (env is None or 'TERM' not in env):
                         env = dict(os.environ if env is None else env)
                         env['TERM'] = term
@@ -3676,42 +4904,32 @@ class _RemoteProcessService:
             process._close_streams()  # noqa: SLF001
             raise
 
-        return {
-            'id': process.id,
-            'pid': process.popen.pid,
-            'created_at': process.created_at,
-            'name': name,
-        }
+        return marshal_obj(SpawnResult(
+            id=process.id,
+            pid=process.popen.pid,
+            created_at=process.created_at,
+            name=name,
+        ))
 
     async def signal(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id', 'signal', 'process_group'})
-        await self._lookup(obj['id']).signal(
-            check_remote_int(obj['signal'], minimum=1),
-            check_remote_bool(obj['process_group']),
-        )
+        p: SignalParams = unmarshal_obj(params, SignalParams)
+        await self._lookup(p.id).signal(p.signal, p.process_group)
 
-    async def close(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'id', 'policy'})
-        policy = check_remote_dict(
-            obj['policy'],
-            {'signal', 'grace_s', 'kill_s', 'close_stdin', 'process_group', 'drain_s'},
-        )
-        return await self._lookup(obj['id']).close(policy)
+    async def close(self, params: ta.Any) -> ta.Any:
+        p: CloseParams = unmarshal_obj(params, CloseParams)
+        return marshal_obj(await self._lookup(p.id).close(p.policy))
 
     async def write(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id', 'data'})
-        await self._lookup(obj['id']).write(decode_remote_bytes(obj['data']))
+        p: WriteParams = unmarshal_obj(params, WriteParams)
+        await self._lookup(p.id).write(p.data)
 
     async def write_eof(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id'})
-        await self._lookup(obj['id']).write_eof()
+        p: ProcessRefParams = unmarshal_obj(params, ProcessRefParams)
+        await self._lookup(p.id).write_eof()
 
     async def resize(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id', 'rows', 'cols'})
-        await self._lookup(obj['id']).resize(
-            check_remote_int(obj['rows'], minimum=1),
-            check_remote_int(obj['cols'], minimum=1),
-        )
+        p: ResizeParams = unmarshal_obj(params, ResizeParams)
+        await self._lookup(p.id).resize(p.rows, p.cols)
 
     async def aclose(self) -> None:
         if self._closed:

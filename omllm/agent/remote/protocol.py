@@ -1,8 +1,9 @@
 # ruff: noqa: UP006 UP007 UP045
-"""JSON-compatible values shared by the host adapter and the remote agent payload."""
-import base64
-import binascii
+"""JSON-compatible request/result/notification shapes shared by the host adapter and the remote agent payload."""
+import dataclasses as dc
 import typing as ta
+
+from omcore.lite.check import check
 
 
 ##
@@ -28,96 +29,226 @@ PROCESS_EXITED_METHOD = 'process.exited'
 
 
 ##
+# Filesystem
 
 
-def encode_remote_bytes(data: bytes) -> str:
-    return base64.b64encode(data).decode('ascii')
+@dc.dataclass(frozen=True)
+class PathParams:
+    path: str
 
 
-def decode_remote_bytes(value: ta.Any) -> bytes:
-    if not isinstance(value, str):
-        raise TypeError(f'Expected base64 string, got {type(value).__name__}')
-    try:
-        return base64.b64decode(value.encode('ascii'), validate=True)
-    except (UnicodeEncodeError, binascii.Error) as e:
-        raise ValueError('Invalid base64 data') from e
+@dc.dataclass(frozen=True)
+class StatResult:
+    path: str
+    size: int
+    is_dir: bool
+    is_file: bool
+    is_symlink: bool
+
+    def __post_init__(self) -> None:
+        check.arg(self.size >= 0)
 
 
-def check_remote_dict(
-        value: ta.Any,
-        required: ta.AbstractSet[str],
-        optional: ta.AbstractSet[str] = frozenset(),
-) -> ta.Dict[str, ta.Any]:
-    if not isinstance(value, dict):
-        raise TypeError(f'Expected object, got {type(value).__name__}')
-    keys = set(value)
-    if not required <= keys or not keys <= required | optional:
-        raise ValueError(
-            f'Invalid object fields: required {sorted(required)!r}, '
-            f'optional {sorted(optional)!r}, got {sorted(keys)!r}',
-        )
-    return value
+@dc.dataclass(frozen=True)
+class ReadFileResult:
+    data: bytes
+    digest: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.digest)
 
 
-def check_remote_str(value: ta.Any, *, non_empty: bool = False) -> str:
-    if not isinstance(value, str) or (non_empty and not value):
-        raise TypeError(f'Expected {"non-empty " if non_empty else ""}string, got {value!r}')
-    return value
+@dc.dataclass(frozen=True)
+class WriteFileParams:
+    path: str
+    content: bytes
+    overwrite: bool
+    expected_digest: ta.Optional[str]
 
 
-def check_remote_optional_str(value: ta.Any) -> ta.Optional[str]:
-    if value is None:
-        return None
-    return check_remote_str(value)
+@dc.dataclass(frozen=True)
+class WriteFileResult:
+    created: bool
 
 
-def check_remote_bool(value: ta.Any) -> bool:
-    if type(value) is not bool:
-        raise TypeError(f'Expected bool, got {value!r}')
-    return value
+@dc.dataclass(frozen=True)
+class FsEntry:
+    name: str
+    path: str
+    is_dir: bool
+    is_file: bool
+    is_symlink: bool
 
 
-def check_remote_int(value: ta.Any, *, minimum: ta.Optional[int] = None) -> int:
-    if type(value) is not int or (minimum is not None and value < minimum):
-        raise TypeError(f'Expected integer >= {minimum!r}, got {value!r}')
-    return value
+@dc.dataclass(frozen=True)
+class GlobParams:
+    pattern: str
+    root: str
+    max_results: ta.Optional[int]
+
+    def __post_init__(self) -> None:
+        if self.max_results is not None:
+            check.arg(self.max_results >= 0)
 
 
-def check_remote_optional_int(value: ta.Any, *, minimum: ta.Optional[int] = None) -> ta.Optional[int]:
-    if value is None:
-        return None
-    return check_remote_int(value, minimum=minimum)
+@dc.dataclass(frozen=True)
+class GlobResult:
+    entries: ta.List[FsEntry]
+    has_more: bool
 
 
-def check_remote_float(value: ta.Any, *, minimum: ta.Optional[float] = None) -> float:
-    if type(value) not in (int, float):
-        raise TypeError(f'Expected number, got {value!r}')
-    out = float(value)
-    if minimum is not None and out < minimum:
-        raise ValueError(f'Expected number >= {minimum!r}, got {value!r}')
-    return out
+##
+# Processes
 
 
-def check_remote_optional_float(value: ta.Any, *, minimum: ta.Optional[float] = None) -> ta.Optional[float]:
-    if value is None:
-        return None
-    return check_remote_float(value, minimum=minimum)
+@dc.dataclass(frozen=True)
+class StdioSpec:
+    kind: str
+    stdin: ta.Optional[str] = None
+    stdout: ta.Optional[str] = None
+    stderr: ta.Optional[str] = None
+    rows: ta.Optional[int] = None
+    cols: ta.Optional[int] = None
+    term: ta.Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.kind == 'pipes':
+            check.non_empty_str(self.stdin)
+            check.non_empty_str(self.stdout)
+            check.non_empty_str(self.stderr)
+        elif self.kind == 'pty':
+            check.arg(self.rows is not None and self.rows >= 1)
+            check.arg(self.cols is not None and self.cols >= 1)
+        else:
+            raise ValueError(f'Invalid remote stdio kind: {self.kind!r}')
 
 
-def check_remote_str_list(value: ta.Any, *, non_empty: bool = False) -> ta.List[str]:
-    if not isinstance(value, list) or (non_empty and not value):
-        raise TypeError(f'Expected {"non-empty " if non_empty else ""}string list, got {value!r}')
-    for item in value:
-        check_remote_str(item)
-    return value
+@dc.dataclass(frozen=True)
+class SpawnParams:
+    argv: ta.List[str]
+    cwd: ta.Optional[str]
+    env: ta.Optional[ta.Dict[str, str]]
+    stdio: StdioSpec
+    name: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        check.not_empty(self.argv)
 
 
-def check_remote_optional_str_dict(value: ta.Any) -> ta.Optional[ta.Dict[str, str]]:
-    if value is None:
-        return None
-    if not isinstance(value, dict):
-        raise TypeError(f'Expected string object, got {value!r}')
-    for key, item in value.items():
-        check_remote_str(key, non_empty=True)
-        check_remote_str(item)
-    return value
+@dc.dataclass(frozen=True)
+class SpawnResult:
+    id: str
+    pid: int
+    created_at: float
+    name: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.pid >= 1)
+        check.arg(self.created_at >= 0.)
+
+
+@dc.dataclass(frozen=True)
+class SignalParams:
+    id: str
+    signal: int
+    process_group: bool
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.signal >= 1)
+
+
+@dc.dataclass(frozen=True)
+class ClosePolicySpec:
+    signal: int
+    grace_s: float
+    kill_s: float
+    close_stdin: bool
+    process_group: bool
+    drain_s: float
+
+    def __post_init__(self) -> None:
+        check.arg(self.signal >= 1)
+        check.arg(self.grace_s >= 0.)
+        check.arg(self.kill_s >= 0.)
+        check.arg(self.drain_s >= 0.)
+
+
+@dc.dataclass(frozen=True)
+class CloseParams:
+    id: str
+    policy: ClosePolicySpec
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class CloseResult:
+    returncode: int
+    state: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.state)
+
+
+@dc.dataclass(frozen=True)
+class WriteParams:
+    id: str
+    data: bytes
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class ProcessRefParams:
+    id: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class ResizeParams:
+    id: str
+    rows: int
+    cols: int
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.rows >= 1)
+        check.arg(self.cols >= 1)
+
+
+##
+# Process notifications (agent -> host)
+
+
+@dc.dataclass(frozen=True)
+class OutputEvent:
+    id: str
+    fd: int
+    data: bytes
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+        check.arg(self.fd >= 1)
+
+
+@dc.dataclass(frozen=True)
+class OutputEndEvent:
+    id: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)
+
+
+@dc.dataclass(frozen=True)
+class ExitedEvent:
+    id: str
+    returncode: int
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.id)

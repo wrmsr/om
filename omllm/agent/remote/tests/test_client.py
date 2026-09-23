@@ -3,11 +3,14 @@ import time
 
 import pytest
 
+from omcore.lite.marshal import marshal_obj
+
 from ....core import processes
 from ..protocol import PROCESS_EXITED_METHOD
 from ..protocol import PROCESS_OUTPUT_END_METHOD
 from ..protocol import PROCESS_OUTPUT_METHOD
-from ..protocol import encode_remote_bytes
+from ..protocol import OutputEndEvent
+from ..protocol import OutputEvent
 from .support import ScriptedRemoteAgent
 
 
@@ -112,12 +115,11 @@ async def test_output_sent_before_the_close_reply_is_in_the_spool():
     agent = ScriptedRemoteAgent()
 
     async def close_with_trailing_output(params):
-        await agent.notify(PROCESS_OUTPUT_METHOD, {
-            'id': params['id'],
-            'fd': 1,
-            'data': encode_remote_bytes(b'last words'),
-        })
-        await agent.notify(PROCESS_OUTPUT_END_METHOD, {'id': params['id']})
+        await agent.notify(
+            PROCESS_OUTPUT_METHOD,
+            marshal_obj(OutputEvent(id=params['id'], fd=1, data=b'last words')),
+        )
+        await agent.notify(PROCESS_OUTPUT_END_METHOD, marshal_obj(OutputEndEvent(id=params['id'])))
         return {'returncode': 3, 'state': 'reaped'}
 
     agent.on_close = close_with_trailing_output

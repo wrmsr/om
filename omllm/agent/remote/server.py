@@ -17,6 +17,9 @@ import typing as ta
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_reader
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_writer
 from omcore.lite.cached import cached_nullary
+from omcore.lite.check import check
+from omcore.lite.marshal import marshal_obj
+from omcore.lite.marshal import unmarshal_obj
 
 from ...core.rpc.errors import RpcMethodNotFoundError
 from ...core.rpc.handlers import RpcHandler
@@ -36,17 +39,26 @@ from .protocol import PROCESS_SIGNAL_METHOD
 from .protocol import PROCESS_SPAWN_METHOD
 from .protocol import PROCESS_WRITE_EOF_METHOD
 from .protocol import PROCESS_WRITE_METHOD
-from .protocol import check_remote_bool
-from .protocol import check_remote_dict
-from .protocol import check_remote_float
-from .protocol import check_remote_int
-from .protocol import check_remote_optional_int
-from .protocol import check_remote_optional_str
-from .protocol import check_remote_optional_str_dict
-from .protocol import check_remote_str
-from .protocol import check_remote_str_list
-from .protocol import decode_remote_bytes
-from .protocol import encode_remote_bytes
+from .protocol import CloseParams
+from .protocol import ClosePolicySpec
+from .protocol import CloseResult
+from .protocol import ExitedEvent
+from .protocol import FsEntry
+from .protocol import GlobParams
+from .protocol import GlobResult
+from .protocol import OutputEndEvent
+from .protocol import OutputEvent
+from .protocol import PathParams
+from .protocol import ProcessRefParams
+from .protocol import ReadFileResult
+from .protocol import ResizeParams
+from .protocol import SignalParams
+from .protocol import SpawnParams
+from .protocol import SpawnResult
+from .protocol import StatResult
+from .protocol import WriteFileParams
+from .protocol import WriteFileResult
+from .protocol import WriteParams
 
 
 ##
@@ -184,14 +196,14 @@ class _RemoteFsService:
         return os.path.abspath(os.path.realpath(path))
 
     @staticmethod
-    def _entry(path: str, name: ta.Optional[str] = None) -> ta.Dict[str, ta.Any]:
-        return {
-            'name': os.path.basename(path) if name is None else name,
-            'path': path,
-            'is_dir': os.path.isdir(path),
-            'is_file': os.path.isfile(path),
-            'is_symlink': os.path.islink(path),
-        }
+    def _entry(path: str, name: ta.Optional[str] = None) -> FsEntry:
+        return FsEntry(
+            name=os.path.basename(path) if name is None else name,
+            path=path,
+            is_dir=os.path.isdir(path),
+            is_file=os.path.isfile(path),
+            is_symlink=os.path.islink(path),
+        )
 
     @staticmethod
     def _check_expected_digest(path: str, expected_digest: str) -> None:
@@ -205,38 +217,33 @@ class _RemoteFsService:
             raise _RemoteFsFileChangedError(f'File changed since it was read: {path!r}')
 
     async def resolve_path(self, params: ta.Any) -> str:
-        obj = check_remote_dict(params, {'path'})
-        return self._resolve(check_remote_str(obj['path']))
+        p: PathParams = unmarshal_obj(params, PathParams)
+        return self._resolve(p.path)
 
-    async def stat(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'path'})
-        path = check_remote_str(obj['path'])
-        lst = os.lstat(path)
-        st = os.stat(path)
-        return {
-            'path': path,
-            'size': st.st_size,
-            'is_dir': stat_.S_ISDIR(st.st_mode),
-            'is_file': stat_.S_ISREG(st.st_mode),
-            'is_symlink': stat_.S_ISLNK(lst.st_mode),
-        }
+    async def stat(self, params: ta.Any) -> ta.Any:
+        p: PathParams = unmarshal_obj(params, PathParams)
+        lst = os.lstat(p.path)
+        st = os.stat(p.path)
+        return marshal_obj(StatResult(
+            path=p.path,
+            size=st.st_size,
+            is_dir=stat_.S_ISDIR(st.st_mode),
+            is_file=stat_.S_ISREG(st.st_mode),
+            is_symlink=stat_.S_ISLNK(lst.st_mode),
+        ))
 
-    async def read_file(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'path'})
-        path = check_remote_str(obj['path'])
-        with open(path, 'rb') as f:  # noqa
+    async def read_file(self, params: ta.Any) -> ta.Any:
+        p: PathParams = unmarshal_obj(params, PathParams)
+        with open(p.path, 'rb') as f:  # noqa
             data = f.read()
-        return {
-            'data': encode_remote_bytes(data),
-            'digest': _remote_fs_digest(data),
-        }
+        return marshal_obj(ReadFileResult(data=data, digest=_remote_fs_digest(data)))
 
-    async def write_file(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'path', 'content', 'overwrite', 'expected_digest'})
-        path = check_remote_str(obj['path'])
-        content = decode_remote_bytes(obj['content'])
-        overwrite = check_remote_bool(obj['overwrite'])
-        expected_digest = check_remote_optional_str(obj['expected_digest'])
+    async def write_file(self, params: ta.Any) -> ta.Any:
+        p: WriteFileParams = unmarshal_obj(params, WriteFileParams)
+        path = p.path
+        content = p.content
+        overwrite = p.overwrite
+        expected_digest = p.expected_digest
 
         dst_dir = os.path.dirname(path)
         tmp_dir = tempfile.mkdtemp(prefix='.omllm-write-', dir=dst_dir)
@@ -256,7 +263,7 @@ class _RemoteFsService:
                 os.link(tmp_path, path)
                 os.unlink(tmp_path)
                 tmp_path = ''
-                return {'created': True}
+                return marshal_obj(WriteFileResult(created=True))
 
             if not overwrite:
                 raise FileExistsError(path)
@@ -268,7 +275,7 @@ class _RemoteFsService:
             os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
             os.replace(tmp_path, path)
             tmp_path = ''
-            return {'created': False}
+            return marshal_obj(WriteFileResult(created=False))
 
         finally:
             if fd >= 0:
@@ -280,32 +287,31 @@ class _RemoteFsService:
                     pass
             os.rmdir(tmp_dir)
 
-    async def list_dir(self, params: ta.Any) -> ta.List[ta.Dict[str, ta.Any]]:
-        obj = check_remote_dict(params, {'path'})
-        path = check_remote_str(obj['path'])
-        return [
-            {
-                'name': entry.name,
-                'path': entry.path,
-                'is_dir': entry.is_dir(),
-                'is_file': entry.is_file(),
-                'is_symlink': entry.is_symlink(),
-            }
-            for entry in os.scandir(path)
-        ]
+    async def list_dir(self, params: ta.Any) -> ta.Any:
+        p: PathParams = unmarshal_obj(params, PathParams)
+        return marshal_obj([
+            FsEntry(
+                name=entry.name,
+                path=entry.path,
+                is_dir=entry.is_dir(),
+                is_file=entry.is_file(),
+                is_symlink=entry.is_symlink(),
+            )
+            for entry in os.scandir(p.path)
+        ], ta.List[FsEntry])
 
-    async def glob(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'pattern', 'root', 'max_results'})
-        pattern = check_remote_str(obj['pattern'])
-        root = check_remote_str(obj['root'])
-        max_results = check_remote_optional_int(obj['max_results'], minimum=0)
+    async def glob(self, params: ta.Any) -> ta.Any:
+        p: GlobParams = unmarshal_obj(params, GlobParams)
+        pattern = p.pattern
+        root = p.root
+        max_results = p.max_results
 
         resolved_root = self._resolve(root)
         resolved_glob_root = self._resolve(_remote_glob_root(pattern))
         if not _remote_path_is_under(resolved_glob_root, resolved_root):
             raise ValueError(f'glob root {resolved_glob_root!r} is outside permitted root {resolved_root!r}')
 
-        entries: ta.List[ta.Dict[str, ta.Any]] = []
+        entries: ta.List[FsEntry] = []
         has_more = False
         for path in glob_.iglob(pattern, recursive=True):
             if not _remote_path_is_under(self._resolve(path), resolved_root):
@@ -314,7 +320,7 @@ class _RemoteFsService:
                 has_more = True
                 break
             entries.append(self._entry(path))
-        return {'entries': entries, 'has_more': has_more}
+        return marshal_obj(GlobResult(entries=entries, has_more=has_more))
 
 
 ##
@@ -394,7 +400,7 @@ class _RemoteServerProcess:
             self._open_readers -= 1
             if self._open_readers == 0 and not self._output_ended.is_set():
                 self._output_ended.set()
-                await self._service.notify(PROCESS_OUTPUT_END_METHOD, {'id': self.id})
+                await self._service.notify(PROCESS_OUTPUT_END_METHOD, marshal_obj(OutputEndEvent(id=self.id)))
 
     async def _connect_reader(self, file: ta.IO, fd: int) -> None:
         reader = await asyncio_open_stream_reader(file)
@@ -423,7 +429,7 @@ class _RemoteServerProcess:
         if not self._reader_tasks:
             # Nothing to read: the output is over before it began.
             self._output_ended.set()
-            self._service.queue_event(PROCESS_OUTPUT_END_METHOD, {'id': self.id})
+            self._service.queue_event(PROCESS_OUTPUT_END_METHOD, marshal_obj(OutputEndEvent(id=self.id)))
 
     #
 
@@ -440,11 +446,10 @@ class _RemoteServerProcess:
                 return False
             if not data:
                 return False
-            await self._service.notify(PROCESS_OUTPUT_METHOD, {
-                'id': self.id,
-                'fd': output_fd,
-                'data': encode_remote_bytes(data),
-            })
+            await self._service.notify(
+                PROCESS_OUTPUT_METHOD,
+                marshal_obj(OutputEvent(id=self.id, fd=output_fd, data=data)),
+            )
 
     def _close_pty_slave(self) -> None:
         if self._pty_slave_fd is not None:
@@ -492,11 +497,10 @@ class _RemoteServerProcess:
                 return
             if not data:
                 return
-            await self._service.notify(PROCESS_OUTPUT_METHOD, {
-                'id': self.id,
-                'fd': fd,
-                'data': encode_remote_bytes(data),
-            })
+            await self._service.notify(
+                PROCESS_OUTPUT_METHOD,
+                marshal_obj(OutputEvent(id=self.id, fd=fd, data=data)),
+            )
 
     #
 
@@ -520,10 +524,10 @@ class _RemoteServerProcess:
         self._exited.set()
         if (readable := self._pty_readable) is not None and not readable.done():
             readable.set_result(None)
-        self._service.queue_event(PROCESS_EXITED_METHOD, {
-            'id': self.id,
-            'returncode': returncode,
-        })
+        self._service.queue_event(
+            PROCESS_EXITED_METHOD,
+            marshal_obj(ExitedEvent(id=self.id, returncode=returncode)),
+        )
 
     def _signal(self, sig: int, process_group: bool) -> None:
         if self._reaped:
@@ -660,13 +664,13 @@ class _RemoteServerProcess:
             self._exited.set()
         self.popen.returncode = self._returncode
 
-    async def _run_close(self, policy: ta.Mapping[str, ta.Any]) -> ta.Dict[str, ta.Any]:
-        close_stdin = check_remote_bool(policy['close_stdin'])
-        first_signal = check_remote_int(policy['signal'], minimum=1)
-        grace_s = check_remote_float(policy['grace_s'], minimum=0.)
-        kill_s = check_remote_float(policy['kill_s'], minimum=0.)
-        process_group = check_remote_bool(policy['process_group'])
-        drain_s = check_remote_float(policy['drain_s'], minimum=0.)
+    async def _run_close(self, policy: ClosePolicySpec) -> CloseResult:
+        close_stdin = policy.close_stdin
+        first_signal = policy.signal
+        grace_s = policy.grace_s
+        kill_s = policy.kill_s
+        process_group = policy.process_group
+        drain_s = policy.drain_s
 
         if self.exited and not self._reaped and not self._is_exited_nowait():
             # We were told it exited, but a fresh probe of the (long-established, not just-forked) leader finds it still
@@ -702,11 +706,11 @@ class _RemoteServerProcess:
             await asyncio.gather(*self._reader_tasks, return_exceptions=True)
         self._reap()
         self._service.finished(self)
-        return {'returncode': self._returncode, 'state': 'reaped'}
+        return CloseResult(returncode=check.not_none(self._returncode), state='reaped')
 
-    async def close(self, policy: ta.Mapping[str, ta.Any]) -> ta.Dict[str, ta.Any]:
+    async def close(self, policy: ClosePolicySpec) -> CloseResult:
         if self._reaped:
-            return {'returncode': self._returncode, 'state': 'reaped'}
+            return CloseResult(returncode=check.not_none(self._returncode), state='reaped')
         if self._close_task is None:
             self._close_task = asyncio.create_task(
                 self._run_close(policy),
@@ -716,14 +720,14 @@ class _RemoteServerProcess:
 
 
 class _RemoteProcessService:
-    _DEFAULT_CLOSE_POLICY: ta.ClassVar[ta.Mapping[str, ta.Any]] = {
-        'signal': int(signal.SIGTERM),
-        'grace_s': 5.,
-        'kill_s': 5.,
-        'close_stdin': True,
-        'process_group': True,
-        'drain_s': 1.,
-    }
+    _DEFAULT_CLOSE_POLICY: ta.ClassVar[ClosePolicySpec] = ClosePolicySpec(
+        signal=int(signal.SIGTERM),
+        grace_s=5.,
+        kill_s=5.,
+        close_stdin=True,
+        process_group=True,
+        drain_s=1.,
+    )
 
     def __init__(self) -> None:
         super().__init__()
@@ -801,8 +805,7 @@ class _RemoteProcessService:
 
     #
 
-    def _lookup(self, process_id: ta.Any) -> _RemoteServerProcess:
-        process_id = check_remote_str(process_id, non_empty=True)
+    def _lookup(self, process_id: str) -> _RemoteServerProcess:
         try:
             return self._processes[process_id]
         except KeyError:
@@ -829,16 +832,16 @@ class _RemoteProcessService:
         import termios
         fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
 
-    async def spawn(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
+    async def spawn(self, params: ta.Any) -> ta.Any:
         if self._closed:
             raise RuntimeError('remote process service is closed')
-        obj = check_remote_dict(params, {'argv', 'cwd', 'env', 'stdio', 'name'})
-        argv = check_remote_str_list(obj['argv'], non_empty=True)
-        cwd = check_remote_optional_str(obj['cwd'])
-        env = check_remote_optional_str_dict(obj['env'])
-        name = check_remote_optional_str(obj['name'])
-        stdio = check_remote_dict(obj['stdio'], {'kind'}, {'stdin', 'stdout', 'stderr', 'rows', 'cols', 'term'})
-        kind = check_remote_str(stdio['kind'])
+        p: SpawnParams = unmarshal_obj(params, SpawnParams)
+        argv = list(p.argv)
+        cwd = p.cwd
+        env = dict(p.env) if p.env is not None else None
+        name = p.name
+        stdio = p.stdio
+        kind = stdio.kind
 
         process_id = f'p{self._next_id}'
         self._next_id += 1
@@ -852,9 +855,9 @@ class _RemoteProcessService:
         try:
             try:
                 if kind == 'pipes':
-                    stdin = self._stdio_value(check_remote_str(stdio['stdin']))
-                    stdout = self._stdio_value(check_remote_str(stdio['stdout']))
-                    stderr = self._stdio_value(check_remote_str(stdio['stderr']), stderr=True)
+                    stdin = self._stdio_value(check.not_none(stdio.stdin))
+                    stdout = self._stdio_value(check.not_none(stdio.stdout))
+                    stderr = self._stdio_value(check.not_none(stdio.stderr), stderr=True)
                     popen = subprocess.Popen(  # noqa: ASYNC220
                         argv,
                         cwd=cwd,
@@ -867,9 +870,9 @@ class _RemoteProcessService:
                     )
 
                 elif kind == 'pty':
-                    rows = check_remote_int(stdio['rows'], minimum=1)
-                    cols = check_remote_int(stdio['cols'], minimum=1)
-                    term = check_remote_optional_str(stdio['term'])
+                    rows = check.not_none(stdio.rows)
+                    cols = check.not_none(stdio.cols)
+                    term = stdio.term
                     if term is not None and (env is None or 'TERM' not in env):
                         env = dict(os.environ if env is None else env)
                         env['TERM'] = term
@@ -928,42 +931,32 @@ class _RemoteProcessService:
             process._close_streams()  # noqa: SLF001
             raise
 
-        return {
-            'id': process.id,
-            'pid': process.popen.pid,
-            'created_at': process.created_at,
-            'name': name,
-        }
+        return marshal_obj(SpawnResult(
+            id=process.id,
+            pid=process.popen.pid,
+            created_at=process.created_at,
+            name=name,
+        ))
 
     async def signal(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id', 'signal', 'process_group'})
-        await self._lookup(obj['id']).signal(
-            check_remote_int(obj['signal'], minimum=1),
-            check_remote_bool(obj['process_group']),
-        )
+        p: SignalParams = unmarshal_obj(params, SignalParams)
+        await self._lookup(p.id).signal(p.signal, p.process_group)
 
-    async def close(self, params: ta.Any) -> ta.Dict[str, ta.Any]:
-        obj = check_remote_dict(params, {'id', 'policy'})
-        policy = check_remote_dict(
-            obj['policy'],
-            {'signal', 'grace_s', 'kill_s', 'close_stdin', 'process_group', 'drain_s'},
-        )
-        return await self._lookup(obj['id']).close(policy)
+    async def close(self, params: ta.Any) -> ta.Any:
+        p: CloseParams = unmarshal_obj(params, CloseParams)
+        return marshal_obj(await self._lookup(p.id).close(p.policy))
 
     async def write(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id', 'data'})
-        await self._lookup(obj['id']).write(decode_remote_bytes(obj['data']))
+        p: WriteParams = unmarshal_obj(params, WriteParams)
+        await self._lookup(p.id).write(p.data)
 
     async def write_eof(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id'})
-        await self._lookup(obj['id']).write_eof()
+        p: ProcessRefParams = unmarshal_obj(params, ProcessRefParams)
+        await self._lookup(p.id).write_eof()
 
     async def resize(self, params: ta.Any) -> None:
-        obj = check_remote_dict(params, {'id', 'rows', 'cols'})
-        await self._lookup(obj['id']).resize(
-            check_remote_int(obj['rows'], minimum=1),
-            check_remote_int(obj['cols'], minimum=1),
-        )
+        p: ResizeParams = unmarshal_obj(params, ResizeParams)
+        await self._lookup(p.id).resize(p.rows, p.cols)
 
     async def aclose(self) -> None:
         if self._closed:

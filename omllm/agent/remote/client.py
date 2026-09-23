@@ -8,6 +8,8 @@ import typing as ta
 
 from omcore import check
 from omcore.asyncs.asynclite import all as asl
+from omcore.lite.marshal import marshal_obj
+from omcore.lite.marshal import unmarshal_obj
 from omcore.logs import all as logs
 
 from ...core import processes
@@ -52,13 +54,27 @@ from .protocol import PROCESS_SIGNAL_METHOD
 from .protocol import PROCESS_SPAWN_METHOD
 from .protocol import PROCESS_WRITE_EOF_METHOD
 from .protocol import PROCESS_WRITE_METHOD
-from .protocol import check_remote_bool
-from .protocol import check_remote_dict
-from .protocol import check_remote_float
-from .protocol import check_remote_int
-from .protocol import check_remote_str
-from .protocol import decode_remote_bytes
-from .protocol import encode_remote_bytes
+from .protocol import CloseParams
+from .protocol import ClosePolicySpec
+from .protocol import CloseResult
+from .protocol import ExitedEvent
+from .protocol import FsEntry
+from .protocol import GlobParams
+from .protocol import GlobResult
+from .protocol import OutputEndEvent
+from .protocol import OutputEvent
+from .protocol import PathParams
+from .protocol import ProcessRefParams
+from .protocol import ReadFileResult
+from .protocol import ResizeParams
+from .protocol import SignalParams
+from .protocol import SpawnParams
+from .protocol import SpawnResult
+from .protocol import StatResult
+from .protocol import StdioSpec
+from .protocol import WriteFileParams
+from .protocol import WriteFileResult
+from .protocol import WriteParams
 
 
 log = logs.get_module_logger(globals())
@@ -84,14 +100,13 @@ def _translate_remote_error(exc: RpcRemoteError) -> Exception:
     return exc
 
 
-def _decode_fs_entry(value: ta.Any) -> FsDirEntry:
-    obj = check_remote_dict(value, {'name', 'path', 'is_dir', 'is_file', 'is_symlink'})
+def _to_fs_dir_entry(entry: FsEntry) -> FsDirEntry:
     return FsDirEntry(
-        name=check_remote_str(obj['name']),
-        path=check_remote_str(obj['path']),
-        is_dir=check_remote_bool(obj['is_dir']),
-        is_file=check_remote_bool(obj['is_file']),
-        is_symlink=check_remote_bool(obj['is_symlink']),
+        name=entry.name,
+        path=entry.path,
+        is_dir=entry.is_dir,
+        is_file=entry.is_file,
+        is_symlink=entry.is_symlink,
     )
 
 
@@ -108,27 +123,24 @@ class RemoteFsOps(FsOps):
             raise _translate_remote_error(e) from e
 
     async def resolve_path(self, path: str) -> str:
-        return check_remote_str(await self._call(FS_RESOLVE_PATH_METHOD, {'path': path}))
+        return unmarshal_obj(await self._call(FS_RESOLVE_PATH_METHOD, marshal_obj(PathParams(path))), str)
 
     async def stat(self, path: str) -> FsStat:
-        obj = check_remote_dict(
-            await self._call(FS_STAT_METHOD, {'path': path}),
-            {'path', 'size', 'is_dir', 'is_file', 'is_symlink'},
-        )
+        r: StatResult = unmarshal_obj(await self._call(FS_STAT_METHOD, marshal_obj(PathParams(path))), StatResult)
         return FsStat(
-            path=check_remote_str(obj['path']),
-            size=check_remote_int(obj['size'], minimum=0),
-            is_dir=check_remote_bool(obj['is_dir']),
-            is_file=check_remote_bool(obj['is_file']),
-            is_symlink=check_remote_bool(obj['is_symlink']),
+            path=r.path,
+            size=r.size,
+            is_dir=r.is_dir,
+            is_file=r.is_file,
+            is_symlink=r.is_symlink,
         )
 
     async def read_file(self, path: str) -> FsFile:
-        obj = check_remote_dict(await self._call(FS_READ_FILE_METHOD, {'path': path}), {'data', 'digest'})
-        return FsFile(
-            data=decode_remote_bytes(obj['data']),
-            digest=check_remote_str(obj['digest'], non_empty=True),
+        r: ReadFileResult = unmarshal_obj(
+            await self._call(FS_READ_FILE_METHOD, marshal_obj(PathParams(path))),
+            ReadFileResult,
         )
+        return FsFile(data=r.data, digest=r.digest)
 
     async def write_file(
             self,
@@ -138,19 +150,20 @@ class RemoteFsOps(FsOps):
             overwrite: bool = False,
             expected_digest: str | None = None,
     ) -> FsWriteResult:
-        obj = check_remote_dict(await self._call(FS_WRITE_FILE_METHOD, {
-            'path': path,
-            'content': encode_remote_bytes(bytes(content)),
-            'overwrite': overwrite,
-            'expected_digest': expected_digest,
-        }), {'created'})
-        return FsWriteResult(created=check_remote_bool(obj['created']))
+        r: WriteFileResult = unmarshal_obj(await self._call(FS_WRITE_FILE_METHOD, marshal_obj(WriteFileParams(
+            path=path,
+            content=bytes(content),
+            overwrite=overwrite,
+            expected_digest=expected_digest,
+        ))), WriteFileResult)
+        return FsWriteResult(created=r.created)
 
     async def list_dir(self, path: str) -> ta.Sequence[FsDirEntry]:
-        value = await self._call(FS_LIST_DIR_METHOD, {'path': path})
-        if not isinstance(value, list):
-            raise TypeError(f'Expected remote directory entry list, got {value!r}')
-        return [_decode_fs_entry(entry) for entry in value]
+        entries: list[FsEntry] = unmarshal_obj(
+            await self._call(FS_LIST_DIR_METHOD, marshal_obj(PathParams(path))),
+            list[FsEntry],
+        )
+        return [_to_fs_dir_entry(entry) for entry in entries]
 
     async def glob(
             self,
@@ -159,17 +172,14 @@ class RemoteFsOps(FsOps):
             root: str,
             max_results: int | None = None,
     ) -> FsGlobResult:
-        obj = check_remote_dict(await self._call(FS_GLOB_METHOD, {
-            'pattern': pattern,
-            'root': root,
-            'max_results': max_results,
-        }), {'entries', 'has_more'})
-        entries = obj['entries']
-        if not isinstance(entries, list):
-            raise TypeError(f'Expected remote glob entry list, got {entries!r}')
+        r: GlobResult = unmarshal_obj(await self._call(FS_GLOB_METHOD, marshal_obj(GlobParams(
+            pattern=pattern,
+            root=root,
+            max_results=max_results,
+        ))), GlobResult)
         return FsGlobResult(
-            entries=[_decode_fs_entry(entry) for entry in entries],
-            has_more=check_remote_bool(obj['has_more']),
+            entries=[_to_fs_dir_entry(entry) for entry in r.entries],
+            has_more=r.has_more,
         )
 
 
@@ -327,11 +337,10 @@ class RemoteProcess(processes.Process):
                 processes.TerminationPolicy,
                 processes.TerminationPolicy(),
             ).process_group
-        await self._manager._call(PROCESS_SIGNAL_METHOD, {  # noqa
-            'id': self._id,
-            'signal': sig,
-            'process_group': process_group,
-        })
+        await self._manager._call(  # noqa
+            PROCESS_SIGNAL_METHOD,
+            marshal_obj(SignalParams(id=self._id, signal=int(sig), process_group=process_group)),
+        )
 
     async def terminate(self) -> None:
         policy = self._options.get(processes.TerminationPolicy, processes.TerminationPolicy())
@@ -353,15 +362,15 @@ class RemoteProcess(processes.Process):
     async def write(self, data: bytes) -> None:
         if not self.has_stdin or self._stdin_closed:
             raise BrokenPipeError('process has no open stdin')
-        await self._manager._call(PROCESS_WRITE_METHOD, {  # noqa
-            'id': self._id,
-            'data': encode_remote_bytes(data),
-        })
+        await self._manager._call(  # noqa
+            PROCESS_WRITE_METHOD,
+            marshal_obj(WriteParams(id=self._id, data=data)),
+        )
 
     async def write_eof(self) -> None:
         if self._stdin_closed:
             return
-        await self._manager._call(PROCESS_WRITE_EOF_METHOD, {'id': self._id})  # noqa
+        await self._manager._call(PROCESS_WRITE_EOF_METHOD, marshal_obj(ProcessRefParams(id=self._id)))  # noqa
         self._stdin_closed = True
 
     @property
@@ -392,11 +401,10 @@ class RemoteProcess(processes.Process):
             raise processes.NotAPtyError(repr(self))
         if self._state.is_terminal:
             raise processes.ProcessNotAliveError(repr(self))
-        await self._manager._call(PROCESS_RESIZE_METHOD, {  # noqa
-            'id': self._id,
-            'rows': rows,
-            'cols': cols,
-        })
+        await self._manager._call(  # noqa
+            PROCESS_RESIZE_METHOD,
+            marshal_obj(ResizeParams(id=self._id, rows=rows, cols=cols)),
+        )
         self._winsize = (rows, cols)
 
     def get_winsize(self) -> tuple[int, int] | None:
@@ -539,15 +547,15 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             raise _translate_remote_error(e) from e
 
     @staticmethod
-    def _encode_policy(policy: TerminationPolicy) -> ta.Mapping[str, ta.Any]:
-        return {
-            'signal': policy.signal,
-            'grace_s': policy.grace_s,
-            'kill_s': policy.kill_s,
-            'close_stdin': policy.close_stdin,
-            'process_group': policy.process_group,
-            'drain_s': policy.drain_s,
-        }
+    def _close_policy_spec(policy: TerminationPolicy) -> ClosePolicySpec:
+        return ClosePolicySpec(
+            signal=int(policy.signal),
+            grace_s=policy.grace_s,
+            kill_s=policy.kill_s,
+            close_stdin=policy.close_stdin,
+            process_group=policy.process_group,
+            drain_s=policy.drain_s,
+        )
 
     def _process_finished(self, process: RemoteProcess) -> None:
         self._processes.pop(process.id, None)
@@ -557,14 +565,13 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
     def _start_close(self, process: RemoteProcess, policy: TerminationPolicy) -> asyncio.Task[None]:
         async def run() -> None:
             try:
-                obj = check_remote_dict(await self._call(PROCESS_CLOSE_METHOD, {
-                    'id': process.id,
-                    'policy': self._encode_policy(policy),
-                }), {'returncode', 'state'})
-                returncode = check_remote_int(obj['returncode'])
-                if check_remote_str(obj['state']) != 'reaped':
-                    raise RuntimeError(f'Unexpected remote process close state: {obj["state"]!r}')
-                process._on_reaped(returncode)  # noqa
+                r: CloseResult = unmarshal_obj(await self._call(PROCESS_CLOSE_METHOD, marshal_obj(CloseParams(
+                    id=process.id,
+                    policy=self._close_policy_spec(policy),
+                ))), CloseResult)
+                if r.state != 'reaped':
+                    raise RuntimeError(f'Unexpected remote process close state: {r.state!r}')
+                process._on_reaped(r.returncode)  # noqa
             except RpcConnectionClosedError:
                 process._on_connection_lost('RPC connection closed during process teardown')  # noqa
             except BaseException:
@@ -588,8 +595,7 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         if spawn_call.cancelled() or spawn_call.exception() is not None:
             return
         try:
-            obj = check_remote_dict(spawn_call.result(), {'id', 'pid', 'created_at', 'name'})
-            process_id = check_remote_str(obj['id'], non_empty=True)
+            process_id: str = unmarshal_obj(spawn_call.result(), SpawnResult).id
         except Exception:  # noqa
             return
         self._retired_ids.add(process_id)
@@ -598,10 +604,10 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
 
     async def _close_orphan(self, process_id: str) -> None:
         try:
-            await self._call(PROCESS_CLOSE_METHOD, {
-                'id': process_id,
-                'policy': self._encode_policy(TerminationPolicy()),
-            })
+            await self._call(PROCESS_CLOSE_METHOD, marshal_obj(CloseParams(
+                id=process_id,
+                policy=self._close_policy_spec(TerminationPolicy()),
+            )))
         except RpcConnectionClosedError:
             # The agent tears down everything it still has when the connection goes.
             pass
@@ -609,14 +615,9 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             log.exception('Error closing orphaned remote process %r', process_id)
 
     @staticmethod
-    def _encode_stdio(stdio: Stdio) -> ta.Mapping[str, ta.Any]:
+    def _stdio_spec(stdio: Stdio) -> StdioSpec:
         if isinstance(stdio, processes.PtyStdio):
-            return {
-                'kind': 'pty',
-                'rows': stdio.rows,
-                'cols': stdio.cols,
-                'term': stdio.term,
-            }
+            return StdioSpec(kind='pty', rows=stdio.rows, cols=stdio.cols, term=stdio.term)
 
         for name, value in (
                 ('stdin', stdio.stdin),
@@ -625,12 +626,12 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         ):
             if isinstance(value, int) or value == 'inherit':
                 raise ValueError(f'Remote process stdio does not support {name}={value!r}')
-        return {
-            'kind': 'pipes',
-            'stdin': stdio.stdin,
-            'stdout': stdio.stdout,
-            'stderr': stdio.stderr,
-        }
+        return StdioSpec(
+            kind='pipes',
+            stdin=ta.cast(str, stdio.stdin),
+            stdout=ta.cast(str, stdio.stdout),
+            stderr=ta.cast(str, stdio.stderr),
+        )
 
     async def spawn(
             self,
@@ -651,22 +652,22 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         ):
             raise ValueError(f'Unsupported remote process session mode: {session_mode.mode!r}')
 
-        spawn_call = asyncio.ensure_future(self._call(PROCESS_SPAWN_METHOD, {
-            'argv': list(spec.argv),
-            'cwd': spec.cwd,
-            'env': dict(spec.env) if spec.env is not None else None,
-            'stdio': self._encode_stdio(spec.stdio),
-            'name': spec.name,
-        }))
+        spawn_call = asyncio.ensure_future(self._call(PROCESS_SPAWN_METHOD, marshal_obj(SpawnParams(
+            argv=list(spec.argv),
+            cwd=spec.cwd,
+            env=dict(spec.env) if spec.env is not None else None,
+            stdio=self._stdio_spec(spec.stdio),
+            name=spec.name,
+        ))))
         try:
-            obj = check_remote_dict(await asyncio.shield(spawn_call), {'id', 'pid', 'created_at', 'name'})
+            obj: SpawnResult = unmarshal_obj(await asyncio.shield(spawn_call), SpawnResult)
         except asyncio.CancelledError:
             # The request is already on its way, and the child the agent forks for it is nobody's until the reply says
             # which id it got. Let the call finish on its own and close whatever it produced.
             spawn_call.add_done_callback(self._close_orphan_spawn)
             raise
 
-        process_id = processes.ProcessId(check_remote_str(obj['id'], non_empty=True))
+        process_id = processes.ProcessId(obj.id)
         if process_id in self._processes or process_id in self._retired_ids:
             raise RuntimeError(f'Duplicate remote process id: {process_id!r}')
 
@@ -683,18 +684,18 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         process = RemoteProcess(
             manager=self,
             process_id=process_id,
-            pid=check_remote_int(obj['pid'], minimum=1),
+            pid=obj.pid,
             spec=spec,
             options=options,
             scope=scope,
-            created_at=check_remote_float(obj['created_at'], minimum=0.),
+            created_at=obj.created_at,
             spool=spool,
         )
 
         if scope.closing:
             self._processes[process_id] = process
-            for method, params in self._pending_events.pop(process_id, []):
-                self._apply_event(process, method, params)
+            for _, event in self._pending_events.pop(process_id, []):
+                self._apply_event(process, event)
             await process.aclose()
             spool.close()
             raise processes.ScopeClosedError('/'.join(scope.path))
@@ -711,31 +712,23 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             argv=tuple(spec.argv),
             name=spec.name,
         ))
-        for method, params in self._pending_events.pop(process_id, []):
-            self._apply_event(process, method, params)
+        for _, event in self._pending_events.pop(process_id, []):
+            self._apply_event(process, event)
         await self._events.flush()
         return process
 
     ##
     # Events from the agent
 
-    def _apply_event(
-            self,
-            process: RemoteProcess,
-            method: str,
-            params: ta.Mapping[str, ta.Any],
-    ) -> None:
-        if method == PROCESS_OUTPUT_METHOD:
-            process._on_output(  # noqa
-                check_remote_int(params['fd'], minimum=1),
-                decode_remote_bytes(params['data']),
-            )
-        elif method == PROCESS_OUTPUT_END_METHOD:
+    def _apply_event(self, process: RemoteProcess, event: ta.Any) -> None:
+        if isinstance(event, OutputEvent):
+            process._on_output(event.fd, event.data)  # noqa
+        elif isinstance(event, OutputEndEvent):
             process._on_output_end()  # noqa
-        elif method == PROCESS_EXITED_METHOD:
-            process._on_exited(check_remote_int(params['returncode']))  # noqa
+        elif isinstance(event, ExitedEvent):
+            process._on_exited(event.returncode)  # noqa
         else:
-            raise ValueError(method)
+            raise TypeError(event)
 
     def handle_event(self, method: str, params: ta.Any) -> None:
         """
@@ -745,20 +738,20 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         """
 
         if method == PROCESS_OUTPUT_METHOD:
-            obj = check_remote_dict(params, {'id', 'fd', 'data'})
+            event: ta.Any = unmarshal_obj(params, OutputEvent)
         elif method == PROCESS_OUTPUT_END_METHOD:
-            obj = check_remote_dict(params, {'id'})
+            event = unmarshal_obj(params, OutputEndEvent)
         elif method == PROCESS_EXITED_METHOD:
-            obj = check_remote_dict(params, {'id', 'returncode'})
+            event = unmarshal_obj(params, ExitedEvent)
         else:
             raise ValueError(method)
 
-        process_id = check_remote_str(obj['id'], non_empty=True)
+        process_id = event.id
         if (process := self._processes.get(processes.ProcessId(process_id))) is not None:
-            self._apply_event(process, method, obj)
+            self._apply_event(process, event)
         elif process_id not in self._retired_ids:
             # Ahead of its spawn's reply: kept for registration.
-            self._pending_events.setdefault(process_id, []).append((method, obj))
+            self._pending_events.setdefault(process_id, []).append((method, event))
 
     def connection_lost(self, failure: BaseException | None) -> None:
         reason = f'RPC connection lost: {failure!r}' if failure is not None else 'RPC connection closed'

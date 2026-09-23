@@ -40,11 +40,13 @@ class TestJsonRpcMessageCodec(unittest.TestCase):
         codec = JsonRpcMessageCodec()
 
         for data in [
-            b'[]',
-            b'{"type":"wat"}',
-            b'{"type":"ping","id":true}',
-            b'{"type":"ping","id":1,"extra":2}',
-            b'{"type":"result","id":1,"result":NaN}',
+            b'[]',                                     # not an object
+            b'{"type":"wat"}',                         # unknown tag
+            b'{"type":"ping"}',                        # missing required field
+            b'{"type":"ping","id":0}',                 # invariant: id must be positive
+            b'{"type":"request","id":1,"method":""}',  # invariant: non-empty method
+            b'{"type":"ping","id":1,"extra":2}',       # unknown field
+            b'{"type":"result","id":1,"result":NaN}',  # non-finite
             b'not json',
         ]:
             with self.subTest(data=data):
@@ -57,8 +59,15 @@ class TestJsonRpcMessageCodec(unittest.TestCase):
         with self.assertRaises(RpcProtocolError):
             codec.encode(RpcResultMessage(1, dc.MISSING))
 
-    def test_rejects_invalid_outbound_envelope(self) -> None:
-        codec = JsonRpcMessageCodec()
-
+    def test_invariants_are_enforced_at_construction(self) -> None:
+        # Value invariants live in __post_init__ now, so an invalid message cannot even be built.
         with self.assertRaises(RpcProtocolError):
-            codec.encode(RpcPingMessage(0))
+            RpcPingMessage(0)
+        with self.assertRaises(RpcProtocolError):
+            RpcRequestMessage(1, '')
+
+    def test_bool_id_is_coerced_not_rejected(self) -> None:
+        # Documented consequence of marshaling: the lite marshaler coerces primitives, so a bool id becomes an int
+        # rather than being rejected. Harmless under same-code-both-ends (a bool id is never sent).
+        codec = JsonRpcMessageCodec()
+        self.assertEqual(codec.decode(b'{"type":"ping","id":true}'), RpcPingMessage(1))

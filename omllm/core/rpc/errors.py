@@ -2,6 +2,8 @@
 import dataclasses as dc
 import typing as ta
 
+from omcore.lite.marshal import OBJ_MARSHALER_FIELD_KEY
+
 
 ##
 
@@ -28,7 +30,7 @@ class RpcMethodNotFoundError(RpcError):
 @dc.dataclass(frozen=True)
 class RpcRemoteErrorData:
     code: str
-    remote_type: str
+    remote_type: str = dc.field(metadata={OBJ_MARSHALER_FIELD_KEY: 'type'})  # 'type' on the wire
     message: str
     traceback: ta.Optional[str] = None
 
