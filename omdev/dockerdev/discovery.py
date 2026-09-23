@@ -5,7 +5,7 @@ higher-level "run command X in dev container Y and stream it" API (in omllm) wil
 
 from omcore.docker import cli as docker_cli
 
-from .run import LABEL_PREFIX
+from .run import ID_LABEL
 
 
 ##
@@ -17,7 +17,7 @@ def find_dev_containers() -> list[docker_cli.PsItem]:
     return [
         pi
         for pi in docker_cli.cli_ps()
-        if LABEL_PREFIX in (pi.labels or '')
+        if ID_LABEL in (pi.labels or '')
     ]
 
 

@@ -7,6 +7,7 @@ import uuid
 import pytest
 
 from omcore import inject as inj
+from omcore import sql
 
 from .... import harness as har
 from .... import llm
@@ -47,7 +48,7 @@ async def test_sql_sessions():
             inj.override(
                 bind_headless_tui(Config(model='scripted', immediate=True, sql=True, resume=resume)),
                 bind_scripted_backend(*turns),
-                inj.bind(har.SqliteDbConfig(file_path=db_path)),
+                inj.bind(sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_path)),
             ),
 
             inj.bind(EchoTool, singleton=True),

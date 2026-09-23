@@ -92,7 +92,7 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
                         text_message('after'),
                         RuntimeError('boom'),
                     ),
-                    inj.bind(har.SqliteDbConfig(file_path=edge_db_path)),
+                    inj.bind(sql.be.sqlite.connecting.SqliteDbConfig(file_path=edge_db_path)),
                 ),
 
                 inj.bind(EchoTool, singleton=True),
@@ -109,7 +109,9 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
             schema = rep.ReplicationSchema(orm.sql_table_defs(orm.registry(*har.orm_mappers())))
             assert set(schema.table_names) == {'sessions', 'session_entries'}
 
-            async with har.asyncio_sqlite_db(har.SqliteDbConfig(file_path=edge_db_path)) as edge_db:
+            async with sql.be.sqlite.connecting.asyncio_sqlite_db(
+                    sql.be.sqlite.connecting.SqliteDbConfig(file_path=edge_db_path),
+            ) as edge_db:
                 edge = rep.Node('edge', edge_db, rep.SqliteReplicateBackend())
                 hub = rep.Node('hub', hub_sb.asyncio_db(), rep.PostgresReplicateBackend())
                 await rep.install_node(edge, schema, no_manage_base_tables=True)

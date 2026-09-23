@@ -4,6 +4,7 @@ provision - which is when a db that does not exist yet is created, schema and al
 them, when the injector's `AsyncExitStack` unwinds.
 """
 import contextlib
+import typing as ta
 
 from omcore import inject as inj
 from omcore import orm
@@ -12,10 +13,11 @@ from omcore import sql
 from ..types import SessionStorage
 from .models import orm_mappers
 from .sql import SqlOrm
-from .sqlite import SqliteDbConfig
-from .sqlite import asyncio_sqlite_db
 from .storage import OrmSessionStorage
 from .types import Orm
+
+
+SqliteDbConfig: ta.TypeAlias = sql.be.sqlite.connecting.SqliteDbConfig
 
 
 ##
@@ -44,7 +46,7 @@ async def _provide_asyncio_sqlite_orm(
         registry: orm.Registry,
         aes: contextlib.AsyncExitStack,
 ) -> SqlOrm:
-    db = await aes.enter_async_context(asyncio_sqlite_db(config))
+    db = await aes.enter_async_context(sql.be.sqlite.connecting.asyncio_sqlite_db(config))
 
     return await aes.enter_async_context(SqlOrm(
         registry=registry,

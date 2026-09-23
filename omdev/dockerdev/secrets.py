@@ -17,7 +17,7 @@ from ..home.paths import HomePaths
 from ..home.secretinject import inject_secrets
 from ..home.secrets import DEFAULT_INJECTED_SECRETS_FILE_NAME
 from ..home.secrets import load_secrets
-from .run import LABEL_PREFIX
+from .run import ID_LABEL
 
 
 ##
@@ -50,7 +50,7 @@ def _check_container_id(container_id: str) -> None:
         'docker',
         'ps',
         f'--filter=id={container_id}',
-        f'--filter=label={LABEL_PREFIX}',
+        f'--filter=label={ID_LABEL}',
         '--format=json',
     ]).decode('utf-8')
 

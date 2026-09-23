@@ -86,14 +86,6 @@ with _lang.auto_proxy_init(
         SqlOrm,
     )
 
-    from .sessions.storage.orm.sqlite import (  # noqa
-        SqliteDbConfig,
-
-        connect_sqlite,
-        sqlite_db,
-        asyncio_sqlite_db,
-    )
-
     from .sessions.storage.orm.storage import (  # noqa
         OrmSessionStorage,
     )

@@ -45,7 +45,7 @@ from omcore.argparse import all as ap
 from .build import build_image
 from .config import Config
 from .gen import gen_src
-from .run import LABEL_PREFIX
+from .run import ID_LABEL
 from .run import RunArgs
 from .run import run_image
 
@@ -176,7 +176,7 @@ class Cli(ap.Cli):
             'docker',
             'ps',
             *(self.unknown_args or []),
-            f'--filter=label={LABEL_PREFIX}',
+            f'--filter=label={ID_LABEL}',
             *(['--format=json'] if self.args.json else []),
             *(self.args.args or []),
         ])

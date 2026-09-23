@@ -49,10 +49,12 @@ import shutil
 import sys
 import tempfile
 import typing as ta
+import uuid
 
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore import marshal as msh
 from omcore.os.paths import is_path_in_dir
 from omcore.secrets import all as sec
 
@@ -60,6 +62,10 @@ from ..home.paths import get_cache_dir
 from ..home.secrets import load_secrets
 from .build import build_image
 from .config import Config
+
+
+with lang.auto_proxy_import(globals()):
+    from . import db
 
 
 ##
@@ -85,10 +91,17 @@ class RunArgs:
 
     x11: bool = False
 
-    no_default_labels: bool = False
+    id: uuid.UUID | None = None
+    no_id_label: bool = False
 
     # TODO: k=v? currently hardcodes env key as `sk.upper()`
-    inject_secrets_pats: ta.Sequence[str | re.Pattern[str]] | None = None
+    inject_secrets_pats: ta.Sequence[str | re.Pattern[str]] | None = dc.xfield(
+        default=None,
+    ) | msh.dc_field_options(
+        omit_if=lang.is_none,
+        marshal_via=msh.MarshalVia(str | None),
+        unmarshal_via=msh.UnmarshalVia(str | None),
+    )
 
     shift_uid: tuple[int, int] | None = None
 
@@ -96,12 +109,14 @@ class RunArgs:
     extra_args: ta.Sequence[str] | None = None
 
 
-LABEL_PREFIX = 'om.dockerdev'
+ID_LABEL = 'om.dockerdev'
 
 
 @dc.dataclass(frozen=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class ProcessedRunArgs:
+    id: uuid.UUID
+
     args: list[str]
 
     _: dc.KW_ONLY
@@ -114,6 +129,9 @@ def process_run_args(
         args: RunArgs,
         sha: str,
 ) -> ProcessedRunArgs:
+    if (run_id := args.id) is None:
+        run_id = uuid.uuid7()
+
     run_args: list[str] = []
 
     if args.unknown_args:
@@ -225,8 +243,8 @@ def process_run_args(
         else:
             raise OSError(sys_platform)
 
-    if not args.no_default_labels:
-        run_args.append(f'--label={LABEL_PREFIX}')
+    if not args.no_id_label:
+        run_args.append(f'--label={ID_LABEL}={run_id}')
 
     env: dict[str, str | sec.Secret] = {}
 
@@ -250,6 +268,7 @@ def process_run_args(
         run_args.append('bash')
 
     return ProcessedRunArgs(
+        run_id,
         run_args,
         env=env or None,
     )
@@ -259,6 +278,8 @@ def run_image(
         cfg: Config,
         args: RunArgs = RunArgs(),
         sha: str | None = None,
+        *,
+        write_to_db: bool = False,
 ) -> None:
     if sha is None:
         sha = build_image(
@@ -274,6 +295,17 @@ def run_image(
         args,
         sha,
     )
+
+    #
+
+    if write_to_db:
+        db.write_run_to_db(
+            id=p_args.id,
+
+            cfg=cfg,
+            sha=sha,
+            args=args,
+        )
 
     #
 

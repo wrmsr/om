@@ -3,6 +3,7 @@ import uuid
 
 from omcore import check
 from omcore import inject as inj
+from omcore import sql
 from omdev.home.paths import get_home_paths
 
 from .... import harness as har
@@ -39,7 +40,7 @@ def bind_sessions(config: Config) -> inj.Elements:
         lst.extend([
             bind_orm_session_storage(),
 
-            bind_asyncio_sqlite_orm(har.SqliteDbConfig(
+            bind_asyncio_sqlite_orm(sql.be.sqlite.connecting.SqliteDbConfig(
                 file_path=os.path.join(state_dir_path, 'sessions.db'),
             )),
         ])

@@ -1,19 +1,16 @@
-"""
-A sqlite file as the sql db of a `SqlOrm`, set up to be shared: the one file holds every session of every harness
-running on the machine, and is read - and pruned - by whatever replicates it elsewhere, all at once.
-"""
+import concurrent.futures as cf
 import contextlib
 import os.path
 import typing as ta
 
-from omcore import check
-from omcore import dataclasses as dc
-from omcore import lang
-from omcore import sql
+from .... import check
+from .... import dataclasses as dc
+from .... import lang
+from ... import api
+from .adapters import sqlite_adapter
 
 
 with lang.auto_proxy_import(globals()):
-    import concurrent.futures as cf
     import sqlite3
 
 
@@ -56,28 +53,25 @@ def connect_sqlite(config: SqliteDbConfig) -> sqlite3.Connection:
     return conn
 
 
-def sqlite_db(config: SqliteDbConfig) -> sql.Db:
-    return sql.api.DbapiDb(
-        lambda: contextlib.closing(connect_sqlite(config)),
+def sqlite_db(config: SqliteDbConfig) -> api.Db:
+    return api.DbapiDb(
+        lambda: contextlib.closing(connect_sqlite(config)),  # noqa
 
         # An orm session reads before it writes, so with other writers about its transactions have to be immediate.
-        adapter=sql.be.sqlite.adapters.sqlite_adapter(immediate=True),
+        adapter=sqlite_adapter(immediate=True),
     )
 
 
-##
-
-
 @contextlib.asynccontextmanager
-async def asyncio_sqlite_db(config: SqliteDbConfig) -> ta.AsyncIterator[sql.AsyncDb]:
+async def asyncio_sqlite_db(config: SqliteDbConfig) -> ta.AsyncIterator[api.AsyncDb]:
     """
     The db on a thread of its own, for as long as this is entered. It is one thread and not a pool of them as a sqlite
     connection is best kept to the thread which made it - and as everything sent its way then happens in the order it
     was sent, including the rollback of something cancelled midway.
     """
 
-    with cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix='sqlite-orm') as exe:
-        yield sql.api.SyncToAsyncDb(
-            sql.api.AsyncioToExecutorSyncToAsyncRunner.factory(exe),
+    with cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix=__name__) as exe:
+        yield api.SyncToAsyncDb(
+            api.AsyncioToExecutorSyncToAsyncRunner.factory(exe),
             sqlite_db(config),
         )
