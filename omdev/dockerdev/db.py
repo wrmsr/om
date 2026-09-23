@@ -54,10 +54,12 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
         orm.dataclass_mapper(
             OrmRun,
             store_name='run',
+
             field_options=dict(
                 created_at=[orm.CreatedAt()],
                 updated_at=[orm.UpdatedAt()],
-                run=[
+
+                json=[
                     orm.FieldCodec(orm.CompositeCodec(
                         orm.MarshalCodec(),
                         orm.JsonCodec(),
@@ -65,6 +67,7 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
                     orm.FieldSqlType(sql.td.Json()),
                 ],
             ),
+
             indexes=[
                 orm.index(
                     'container_id',
@@ -72,6 +75,7 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
                         orm.UniqueIndexOption(),
                     ],
                 ),
+
                 orm.index(
                     'created_at',
                     options=[
@@ -85,6 +89,9 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
 
 
 ##
+
+
+DEFAULT_DB_FILE_NAME: ta.Final = 'runs.db'
 
 
 def write_run_to_db(
@@ -110,8 +117,9 @@ def write_run_to_db(
     if db_file is None:
         db_file = os.path.join(
             DEFAULT_HOME_DIR,
-            HomePaths.config_subdir,
-            'state.db',
+            HomePaths.state_subdir,
+            'dockerdev',
+            DEFAULT_DB_FILE_NAME,
         )
 
     db = sql.be.sqlite.connecting.sqlite_db(sql.be.sqlite.connecting.SqliteDbConfig(

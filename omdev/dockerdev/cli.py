@@ -128,6 +128,8 @@ class Cli(ap.Cli):
 
         *_SHIFT_UID_ARGS,
 
+        ap.arg('--db', action='store_true'),
+
         ap.arg('args', nargs=ap.REMAINDER),
         accepts_unknown=True,
     )
@@ -161,6 +163,8 @@ class Cli(ap.Cli):
                 unknown_args=self.unknown_args,
                 extra_args=self.args.args,
             ),
+
+            write_to_db=bool(self.args.db),
         )
 
     #
