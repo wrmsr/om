@@ -4,6 +4,7 @@ import ctypes
 import os
 import pathlib
 import shlex
+import signal
 import sys
 import typing as ta
 
@@ -208,6 +209,54 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
 
 
 @pytest.mark.asyncs('asyncio')
+async def test_remote_close_reprobes_a_stale_exit_belief_before_killing(tmp_path) -> None:
+    # A stale "already exited" belief (some platforms mis-report a just-forked child) must not make close skip the
+    # graceful signal: a live process still gets its TERM, and the chance to run its trap, before any KILL. Driven in
+    # process, with the belief injected directly.
+    service = remote_server._RemoteProcessService()  # noqa: SLF001
+    service._ensure_sigchld()  # noqa: SLF001
+    terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
+    trap_command = f'printf terminated > {shlex.quote(terminated_path)}; exit 0'
+    try:
+        spawned = await service.spawn({
+            'argv': [
+                'sh',
+                '-c',
+                f'trap {shlex.quote(trap_command)} TERM; printf ready; sleep 30 & wait',
+            ],
+            'cwd': os.path.realpath(tmp_path),
+            'env': None,
+            'name': None,
+            'stdio': {'kind': 'pipes', 'stdin': 'devnull', 'stdout': 'pipe', 'stderr': 'pipe'},
+        })
+        process = service._processes[spawned['id']]  # noqa: SLF001
+        await asyncio.sleep(.2)  # let sh install its trap and reach `wait`
+        assert not process._exited.is_set()  # noqa: SLF001  # it is actually running
+
+        # Inject the stale belief the platform quirk would have produced.
+        process._returncode = 0  # noqa: SLF001
+        process._exited.set()  # noqa: SLF001
+
+        result = await service.close({
+            'id': spawned['id'],
+            'policy': {
+                'signal': int(signal.SIGTERM),
+                'grace_s': 1.5,
+                'kill_s': 1.5,
+                'close_stdin': True,
+                'process_group': True,
+                # No drain window, so only the graceful signal-and-wait (reached by re-probing the stale belief) can
+                # give the trap its chance - the sweep would otherwise SIGKILL the group right after its SIGTERM.
+                'drain_s': 0.,
+            },
+        })
+        assert result['state'] == 'reaped'
+        assert pathlib.Path(terminated_path).read_bytes() == b'terminated'
+    finally:
+        await service.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
 async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
     terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
     trap_command = f'printf terminated > {shlex.quote(terminated_path)}; exit 0'
@@ -217,7 +266,9 @@ async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
             [
                 'sh',
                 '-c',
-                f'trap {shlex.quote(trap_command)} TERM; printf ready; while :; do sleep 30; done',
+                # `sleep & wait` (not a foreground `sleep`) so the TERM trap runs out of the interruptible `wait`
+                # promptly and portably, rather than only after the foreground command is reaped.
+                f'trap {shlex.quote(trap_command)} TERM; printf ready; sleep 30 & wait',
             ],
             cwd=os.path.realpath(tmp_path),
         ))

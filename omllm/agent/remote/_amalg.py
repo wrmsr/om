@@ -56,7 +56,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/messages.py', sha1='738982ca2b771c5ed2a1498f56cc8201e03533c8'),
             dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='server.py', sha1='97ced8772a54a0cf99429d69f5c1e4393762f523'),
+            dict(path='server.py', sha1='fe10c5faa02b91ee2714c91e6448862bc171ea8d'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -3284,6 +3284,13 @@ class _RemoteServerProcess:
         process_group = check_remote_bool(policy['process_group'])
         drain_s = check_remote_float(policy['drain_s'], minimum=0.)
 
+        if self.exited and not self._reaped and not self._is_exited_nowait():
+            # We were told it exited, but a fresh probe of the (long-established, not just-forked) leader finds it still
+            # alive - a stale belief. Correct it, so the graceful signal-and-wait below runs: a live process must get
+            # its TERM (and the chance to run its handlers) before any KILL.
+            self._exited.clear()
+            self._returncode = None
+
         if not self.exited:
             if close_stdin:
                 try:
@@ -3519,10 +3526,15 @@ class _RemoteProcessService:
             pty_slave_fd=pty_slave_fd,
             pty_winsize=pty_winsize,
         )
+        # Registered before start()'s first suspension point. The SIGCHLD handler is already installed and there is no
+        # await between the fork above and here, so a fast exit's signal cannot arrive before the process is findable -
+        # no speculative waitid probe of a just-forked child (which some platforms mis-report as already exited) is
+        # needed to catch it.
+        self._processes[process_id] = process
         try:
             await process.start()
-            self._processes[process_id] = process
         except BaseException:
+            self._processes.pop(process_id, None)
             try:
                 os.kill(popen.pid, signal.SIGKILL)
             except ProcessLookupError:
@@ -3531,9 +3543,6 @@ class _RemoteProcessService:
             popen.returncode = -signal.SIGKILL
             process._close_streams()  # noqa: SLF001
             raise
-
-        # It may already have exited - before it was registered, where a SIGCHLD scan could not have found it.
-        process._poll_exit()  # noqa: SLF001
 
         return {
             'id': process.id,
