@@ -228,3 +228,53 @@ async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
         await client.wait_closed()
 
     assert pathlib.Path(terminated_path).read_bytes() == b'terminated'
+
+
+##
+
+
+def test_remote_waitstatus_to_exitcode() -> None:
+    for status in (0, 7 << 8, 255 << 8, 9, 15, 0x80 | 6):
+        assert remote_server._remote_waitstatus_to_exitcode(status) == os.waitstatus_to_exitcode(status)  # noqa: SLF001
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_remote_agent_observes_exits_with_many_live_processes() -> None:
+    # Exit observation must not cost a thread per child: with more live children than the default executor has threads,
+    # a later child's exit would otherwise go unnoticed until one of the earlier ones died.
+    async with _remote_agent() as client:
+        n = min(32, (os.cpu_count() or 1) + 4)
+        sleepers = [
+            await client.processes.root.spawn(processes.ProcessSpec(['sleep', '60']))
+            for _ in range(n)
+        ]
+        quick = await client.processes.root.spawn(processes.ProcessSpec(['true']))
+        assert await quick.wait(10.) == 0
+        await quick.aclose()
+        assert quick.state is processes.ProcessState.REAPED
+        assert len(client.processes.processes) == len(sleepers)
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_remote_agent_events_are_ordered() -> None:
+    async with _remote_agent() as client:
+        delivered: list[str] = []
+
+        async def on_event(event):
+            if isinstance(event, processes.ProcessExitedEvent):
+                await asyncio.sleep(.02)
+            delivered.append(type(event).__name__)
+
+        client.processes.subscribe(on_event)
+        process = await client.processes.root.spawn(processes.ProcessSpec(['true']))
+        assert await process.wait(5.) == 0
+        await process.aclose()
+        for _ in range(500):
+            if len([n for n in delivered if n.startswith('Process')]) >= 3:
+                break
+            await asyncio.sleep(.01)
+        assert [n for n in delivered if n.startswith('Process')] == [
+            'ProcessSpawnedEvent',
+            'ProcessExitedEvent',
+            'ProcessReapedEvent',
+        ]

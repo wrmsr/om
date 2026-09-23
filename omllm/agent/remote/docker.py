@@ -190,7 +190,7 @@ class DockerRemoteAgentConnection:
         except BaseException as e:
             if self._client is not None:
                 try:
-                    await asyncio.wait_for(self._client.aclose(), self._config.shutdown_timeout_s)
+                    await self._client.aclose(timeout_s=self._config.shutdown_timeout_s)
                 except BaseException as close_error:  # noqa: BLE001
                     e.add_note(f'Additionally failed to close remote agent client: {close_error!r}')
             returncode = await self._close_failed_start()
@@ -210,7 +210,7 @@ class DockerRemoteAgentConnection:
         error: BaseException | None = None
         if self._client is not None:
             try:
-                await asyncio.wait_for(self._client.aclose(), self._config.shutdown_timeout_s)
+                await self._client.aclose(timeout_s=self._config.shutdown_timeout_s)
             except BaseException as e:  # noqa: BLE001
                 error = e
 

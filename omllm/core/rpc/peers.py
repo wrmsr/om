@@ -1,5 +1,6 @@
 # ruff: noqa: PYI034 UP006 UP007 UP037 UP045
 import asyncio
+import collections
 import functools
 import traceback
 import typing as ta
@@ -23,6 +24,9 @@ from .messages import RpcPingMessage
 from .messages import RpcPongMessage
 from .messages import RpcRequestMessage
 from .messages import RpcResultMessage
+
+
+RpcPeerCloseCallback = ta.Callable[['RpcPeer'], None]  # ta.TypeAlias
 
 
 ##
@@ -86,8 +90,15 @@ class RpcPeer:
         self._incoming: ta.Dict[int, asyncio.Task] = {}
         self._notifications: ta.Set[asyncio.Task] = set()
 
+        # Replies the receive loop owes the other side (pongs, 'busy' errors). They go out from one short-lived task
+        # rather than being awaited in the loop itself, so a backpressured writer can never stall reading.
+        self._replies: ta.Deque[RpcMessage] = collections.deque()
+        self._reply_task: ta.Optional[asyncio.Task] = None
+
         self._receive_task: ta.Optional[asyncio.Task] = None
+        self._receive_cancelled = False
         self._closed_event = asyncio.Event()
+        self._close_callbacks: ta.List[RpcPeerCloseCallback] = []
         self._closing = False
         self._finished = False
         self._failure: ta.Optional[BaseException] = None
@@ -109,6 +120,18 @@ class RpcPeer:
     def num_incoming(self) -> int:
         return len(self._incoming)
 
+    def add_close_callback(self, callback: RpcPeerCloseCallback) -> None:
+        """
+        Registers a callback run synchronously, on the loop, as the last step of teardown: after every pending call has
+        been failed and `closed` is set, before any `wait_closed` returns. Runs right away if the peer is already
+        closed.
+        """
+
+        if self._closed_event.is_set():
+            callback(self)
+            return
+        self._close_callbacks.append(callback)
+
     def _new_id(self) -> int:
         request_id = self._next_id
         self._next_id += 1
@@ -120,11 +143,20 @@ class RpcPeer:
         if self._closing or self._finished:
             raise RpcConnectionClosedError('RPC peer is closed')
 
+    def _cancel_receive(self) -> None:
+        # At most once, and never once teardown has begun: the receive task runs the teardown itself, and a second
+        # CancelledError would land inside it, skipping the steps that release everyone waiting on this peer.
+        if self._finished or self._receive_cancelled:
+            return
+        task = self._receive_task
+        if task is not None and not task.done():
+            self._receive_cancelled = True
+            task.cancel()
+
     def _abort(self, exc: BaseException) -> None:
         if self._background_failure is None:
             self._background_failure = exc
-        if self._receive_task is not None and not self._receive_task.done():
-            self._receive_task.cancel()
+        self._cancel_receive()
 
     async def _try_send(self, message: RpcMessage) -> bool:
         if self._closing or self._finished:
@@ -143,6 +175,24 @@ class RpcPeer:
             self._abort(e)
             raise
 
+    def _queue_reply(self, message: RpcMessage) -> None:
+        self._replies.append(message)
+        if self._reply_task is None or self._reply_task.done():
+            self._reply_task = asyncio.create_task(
+                self._send_replies(),
+                name='omllm-rpc-replies',
+            )
+
+    async def _send_replies(self) -> None:
+        while self._replies:
+            if not await self._try_send(self._replies.popleft()):
+                self._replies.clear()
+                return
+
+    def _report_notification_error(self, message: RpcNotificationMessage, exc: BaseException) -> None:
+        if self._notification_error_handler is not None:
+            self._notification_error_handler(message, exc)
+
     async def start(self) -> None:
         if self._receive_task is not None or self._finished:
             raise RuntimeError('RPC peer has already been started')
@@ -153,9 +203,17 @@ class RpcPeer:
             name='omllm-rpc-receive',
         )
 
+    async def _ensure_finished(self) -> None:
+        # A receive task cancelled before it ever got to run never executed its body - and so never ran the teardown
+        # that lives in its `finally`. Whoever notices runs it instead.
+        task = self._receive_task
+        if task is not None and task.done() and not self._finished:
+            await self._finish(failure=None, message='RPC peer closed locally')
+
     async def wait_closed(self) -> None:
         if self._receive_task is None and not self._finished:
             raise RuntimeError('RPC peer has not been started')
+        await self._ensure_finished()
         await self._closed_event.wait()
 
     async def serve(self) -> None:
@@ -171,16 +229,16 @@ class RpcPeer:
         future = asyncio.get_running_loop().create_future()
         self._outgoing[request_id] = future
 
-        may_have_sent = False
         try:
-            may_have_sent = True
             await self._send(RpcRequestMessage(request_id, method, params))
             return await future
 
         except asyncio.CancelledError:
+            # Whether or not the request reached the other side, nothing waits for its reply any more: a late reply is
+            # recognized as such and dropped (see `_pop_reply_future`), and a cancel is harmless for an id it never saw.
+            self._outgoing.pop(request_id, None)
             future.cancel()
-            if may_have_sent:
-                await self._try_send(RpcCancelMessage(request_id))
+            await self._try_send(RpcCancelMessage(request_id))
             raise
 
         except BaseException:
@@ -276,15 +334,30 @@ class RpcPeer:
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa
-            if self._notification_error_handler is not None:
-                self._notification_error_handler(message, e)
+            self._report_notification_error(message, e)
+
+    def _pop_reply_future(
+            self,
+            futures: ta.Dict[int, asyncio.Future],
+            message_id: int,
+            kind: str,
+    ) -> ta.Optional[asyncio.Future]:
+        try:
+            return futures.pop(message_id)
+        except KeyError:
+            pass
+        if message_id >= self._next_id:
+            raise RpcProtocolError(f'Unexpected RPC {kind} id: {message_id}')
+        # An id this side did issue but no longer waits on: the reply to a call or ping given up on (cancelled, or
+        # timed out) that the other side answered anyway. Late, but legitimate.
+        return None
 
     async def _dispatch(self, message: RpcMessage) -> None:
         if isinstance(message, RpcRequestMessage):
             if message.id in self._incoming:
                 raise RpcProtocolError(f'Duplicate inbound RPC request id: {message.id}')
             if len(self._incoming) + len(self._notifications) >= self._max_in_flight:
-                await self._channel.send(RpcErrorMessage(
+                self._queue_reply(RpcErrorMessage(
                     message.id,
                     RpcRemoteErrorData(
                         code='busy',
@@ -302,6 +375,13 @@ class RpcPeer:
             return
 
         if isinstance(message, RpcNotificationMessage):
+            try:
+                handled = self._handler.handle_notification_inline(message.method, message.params)
+            except Exception as e:  # noqa
+                self._report_notification_error(message, e)
+                return
+            if handled:
+                return
             if len(self._incoming) + len(self._notifications) >= self._max_in_flight:
                 return
             notification_task = asyncio.create_task(
@@ -318,20 +398,14 @@ class RpcPeer:
             return
 
         if isinstance(message, RpcResultMessage):
-            try:
-                future = self._outgoing.pop(message.id)
-            except KeyError:
-                raise RpcProtocolError(f'Unexpected RPC result id: {message.id}') from None
-            if not future.done():
+            future = self._pop_reply_future(self._outgoing, message.id, 'result')
+            if future is not None and not future.done():
                 future.set_result(message.result)
             return
 
         if isinstance(message, RpcErrorMessage):
-            try:
-                future = self._outgoing.pop(message.id)
-            except KeyError:
-                raise RpcProtocolError(f'Unexpected RPC error id: {message.id}') from None
-            if not future.done():
+            future = self._pop_reply_future(self._outgoing, message.id, 'error')
+            if future is not None and not future.done():
                 if message.error.code == 'cancelled':
                     future.set_exception(RpcRemoteCancelledError(message.error))
                 else:
@@ -339,15 +413,12 @@ class RpcPeer:
             return
 
         if isinstance(message, RpcPingMessage):
-            await self._channel.send(RpcPongMessage(message.id))
+            self._queue_reply(RpcPongMessage(message.id))
             return
 
         if isinstance(message, RpcPongMessage):
-            try:
-                future = self._pings.pop(message.id)
-            except KeyError:
-                raise RpcProtocolError(f'Unexpected RPC pong id: {message.id}') from None
-            if not future.done():
+            future = self._pop_reply_future(self._pings, message.id, 'pong')
+            if future is not None and not future.done():
                 future.set_result(None)
             return
 
@@ -372,21 +443,26 @@ class RpcPeer:
         self._failure = failure
 
         try:
-            await self._channel.aclose()
-        finally:
-            current = asyncio.current_task()
-            tasks = [
-                task
-                for task in [*self._incoming.values(), *self._notifications]
-                if task is not current and not task.done()
-            ]
-            for task in tasks:
-                task.cancel()
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
+            try:
+                await self._channel.aclose()
+            finally:
+                current = asyncio.current_task()
+                tasks = [
+                    task
+                    for task in [*self._incoming.values(), *self._notifications, self._reply_task]
+                    if task is not None and task is not current and not task.done()
+                ]
+                for task in tasks:
+                    task.cancel()
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
 
+        finally:
+            # Unconditional, even if the waits above were interrupted: nothing may be left waiting on a peer that is
+            # gone.
             self._incoming.clear()
             self._notifications.clear()
+            self._replies.clear()
 
             for future in [*self._outgoing.values(), *self._pings.values()]:
                 if not future.done():
@@ -394,7 +470,16 @@ class RpcPeer:
             self._outgoing.clear()
             self._pings.clear()
 
+            # Waiters on the event only resume on a later loop iteration, so the callbacks run before any of them.
             self._closed_event.set()
+            callbacks, self._close_callbacks = self._close_callbacks, []
+            for callback in callbacks:
+                try:
+                    callback(self)
+                except Exception:  # noqa
+                    # A close callback is a courtesy to its registrant; its failure is not the peer's, and nothing here
+                    # may prevent the peer from finishing.
+                    pass
 
     async def _run(self) -> None:
         failure: ta.Optional[BaseException] = None
@@ -433,10 +518,15 @@ class RpcPeer:
         try:
             await self._channel.aclose()
         finally:
-            if not self._receive_task.done():
-                self._receive_task.cancel()
-            await self._receive_task
-            await self._closed_event.wait()
+            # The receive task runs the teardown. Closing the channel may already have woken it into that (a socket
+            # reports EOF to its own reader), in which case it is left alone - `_cancel_receive` knows.
+            self._cancel_receive()
+            receive_task = self._receive_task
+            if not receive_task.done():
+                await asyncio.wait([receive_task])
+            await self._ensure_finished()
+            if not receive_task.cancelled() and (exc := receive_task.exception()) is not None:
+                raise exc
 
     async def __aenter__(self) -> 'RpcPeer':
         await self.start()

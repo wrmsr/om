@@ -7,10 +7,13 @@ import types
 import typing as ta
 
 from omcore import check
+from omcore.asyncs.asynclite import all as asl
+from omcore.logs import all as logs
 
 from ...core import processes
 from ...core.processes.asyncio.notifier import AsyncioSpoolNotifier
 from ...core.processes.handles import Process
+from ...core.processes.managers.events import ProcessEventDrain
 from ...core.processes.scopes.policies import ScopeClosePolicy
 from ...core.processes.scopes.scope import ProcessScope
 from ...core.processes.scopes.scope import ScopeCloseResult
@@ -25,6 +28,7 @@ from ...core.rpc.channels import RpcChannel
 from ...core.rpc.errors import RpcConnectionClosedError
 from ...core.rpc.errors import RpcRemoteError
 from ...core.rpc.handlers import RpcHandler
+from ...core.rpc.messages import RpcNotificationMessage
 from ...core.rpc.peers import RpcPeer
 from ..fs.ops import FsDirEntry
 from ..fs.ops import FsFile
@@ -55,6 +59,9 @@ from .protocol import check_remote_int
 from .protocol import check_remote_str
 from .protocol import decode_remote_bytes
 from .protocol import encode_remote_bytes
+
+
+log = logs.get_module_logger(globals())
 
 
 ##
@@ -305,7 +312,7 @@ class RemoteProcess(processes.Process):
             if timeout is not None and timeout <= 0:
                 raise processes.ProcessTimeoutError(f'{self!r} did not exit within {timeout}s')
             try:
-                await asyncio.wait_for(asyncio.shield(self._exited.wait()), timeout)
+                await asyncio.wait_for(self._exited.wait(), timeout)
             except TimeoutError:
                 raise processes.ProcessTimeoutError(f'{self!r} did not exit within {timeout}s') from None
         if self._state is processes.ProcessState.POISONED:
@@ -371,7 +378,7 @@ class RemoteProcess(processes.Process):
         if timeout is not None and timeout <= 0:
             return False
         try:
-            await asyncio.wait_for(asyncio.shield(self._output_ended.wait()), timeout)
+            await asyncio.wait_for(self._output_ended.wait(), timeout)
         except TimeoutError:
             return self._output_ended.is_set()
         return True
@@ -409,6 +416,7 @@ class RemoteProcess(processes.Process):
             if policy is None:
                 policy = self._options.get(processes.TerminationPolicy, processes.TerminationPolicy())
             self._close_task = self._manager._start_close(self, policy)  # noqa
+        # The teardown is the manager's task, not the caller's: a cancelled or timed-out wait leaves it running.
         if wait_s is None:
             await asyncio.shield(self._close_task)
         else:
@@ -429,6 +437,12 @@ _REMOTE_PROCESS_SUPPORTED_OPTIONS: ta.Final = (
     processes.Tag,
 )
 
+_REMOTE_PROCESS_EVENT_METHODS: ta.Final[ta.AbstractSet[str]] = frozenset([
+    PROCESS_OUTPUT_METHOD,
+    PROCESS_OUTPUT_END_METHOD,
+    PROCESS_EXITED_METHOD,
+])
+
 
 class RemoteProcessManager(processes.ProcessManager, ScopeManager):
     def __init__(
@@ -448,6 +462,14 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         self._spools: set[processes.OutputSpool] = set()
         self._spill_dir: str | None = None
         self._own_spill_dir = False
+
+        # Events are published strictly in the order they were raised, from one drain task at a time, whether they came
+        # from a notification (exit, output end) or an async path.
+        self._events = ProcessEventDrain(
+            publish=self._publish,
+            spawn_task=self._spawn_task,
+            asynclite=asl.asyncio.All(),
+        )
 
         self._root = processes.ProcessScope(
             'root',
@@ -487,6 +509,28 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             self._spill_dir = tempfile.mkdtemp(prefix='om-remote-processes-')
             self._own_spill_dir = True
         self._state = 'started'
+        self._events.enable()
+
+    ##
+    # Tasks and events
+
+    def _spawn_task(self, coro: ta.Coroutine[ta.Any, ta.Any, ta.Any]) -> None:
+        task = asyncio.create_task(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _join_tasks(self) -> None:
+        while self._tasks:
+            await asyncio.gather(*list(self._tasks), return_exceptions=True)
+            # `gather` completes eagerly (without yielding) when every task is already done, and a finished task stays
+            # in `_tasks` until its discard callback has run - so give the loop a turn to run those.
+            await asyncio.sleep(0)
+
+    def _publish_soon(self, event: ProcessEvent) -> None:
+        self._events.publish_soon(event)
+
+    ##
+    # Remote calls
 
     async def _call(self, method: str, params: ta.Any) -> ta.Any:
         try:
@@ -494,16 +538,16 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         except RpcRemoteError as e:
             raise _translate_remote_error(e) from e
 
-    def _publish_soon(self, event: ProcessEvent) -> None:
-        async def publish() -> None:
-            try:
-                await self._publish(event)
-            except Exception:  # noqa
-                pass
-
-        task = asyncio.create_task(publish())
-        self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+    @staticmethod
+    def _encode_policy(policy: TerminationPolicy) -> ta.Mapping[str, ta.Any]:
+        return {
+            'signal': policy.signal,
+            'grace_s': policy.grace_s,
+            'kill_s': policy.kill_s,
+            'close_stdin': policy.close_stdin,
+            'process_group': policy.process_group,
+            'drain_s': policy.drain_s,
+        }
 
     def _process_finished(self, process: RemoteProcess) -> None:
         self._processes.pop(process.id, None)
@@ -515,14 +559,7 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             try:
                 obj = check_remote_dict(await self._call(PROCESS_CLOSE_METHOD, {
                     'id': process.id,
-                    'policy': {
-                        'signal': policy.signal,
-                        'grace_s': policy.grace_s,
-                        'kill_s': policy.kill_s,
-                        'close_stdin': policy.close_stdin,
-                        'process_group': policy.process_group,
-                        'drain_s': policy.drain_s,
-                    },
+                    'policy': self._encode_policy(policy),
                 }), {'returncode', 'state'})
                 returncode = check_remote_int(obj['returncode'])
                 if check_remote_str(obj['state']) != 'reaped':
@@ -541,6 +578,35 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return task
+
+    def _close_orphan_spawn(self, spawn_call: asyncio.Future) -> None:
+        """
+        Runs when a spawn whose caller gave up on it (see `spawn`) completes: whatever process the agent did start is
+        nobody's, and is closed right away.
+        """
+
+        if spawn_call.cancelled() or spawn_call.exception() is not None:
+            return
+        try:
+            obj = check_remote_dict(spawn_call.result(), {'id', 'pid', 'created_at', 'name'})
+            process_id = check_remote_str(obj['id'], non_empty=True)
+        except Exception:  # noqa
+            return
+        self._retired_ids.add(process_id)
+        self._pending_events.pop(process_id, None)
+        self._spawn_task(self._close_orphan(process_id))
+
+    async def _close_orphan(self, process_id: str) -> None:
+        try:
+            await self._call(PROCESS_CLOSE_METHOD, {
+                'id': process_id,
+                'policy': self._encode_policy(TerminationPolicy()),
+            })
+        except RpcConnectionClosedError:
+            # The agent tears down everything it still has when the connection goes.
+            pass
+        except Exception:  # noqa
+            log.exception('Error closing orphaned remote process %r', process_id)
 
     @staticmethod
     def _encode_stdio(stdio: Stdio) -> ta.Mapping[str, ta.Any]:
@@ -585,13 +651,20 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         ):
             raise ValueError(f'Unsupported remote process session mode: {session_mode.mode!r}')
 
-        obj = check_remote_dict(await self._call(PROCESS_SPAWN_METHOD, {
+        spawn_call = asyncio.ensure_future(self._call(PROCESS_SPAWN_METHOD, {
             'argv': list(spec.argv),
             'cwd': spec.cwd,
             'env': dict(spec.env) if spec.env is not None else None,
             'stdio': self._encode_stdio(spec.stdio),
             'name': spec.name,
-        }), {'id', 'pid', 'created_at', 'name'})
+        }))
+        try:
+            obj = check_remote_dict(await asyncio.shield(spawn_call), {'id', 'pid', 'created_at', 'name'})
+        except asyncio.CancelledError:
+            # The request is already on its way, and the child the agent forks for it is nobody's until the reply says
+            # which id it got. Let the call finish on its own and close whatever it produced.
+            spawn_call.add_done_callback(self._close_orphan_spawn)
+            raise
 
         process_id = processes.ProcessId(check_remote_str(obj['id'], non_empty=True))
         if process_id in self._processes or process_id in self._retired_ids:
@@ -632,7 +705,7 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         for method, params in self._pending_events.pop(process_id, []):
             self._apply_event(process, method, params)
 
-        await self._publish(processes.ProcessSpawnedEvent(
+        await self._events.publish_now(processes.ProcessSpawnedEvent(
             process_id=process.id,
             pid=process.pid,
             scope_path=tuple(scope.path),
@@ -640,6 +713,9 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             name=spec.name,
         ))
         return process
+
+    ##
+    # Events from the agent
 
     def _apply_event(
             self,
@@ -659,7 +735,13 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         else:
             raise ValueError(method)
 
-    async def handle_event(self, method: str, params: ta.Any) -> None:
+    def handle_event(self, method: str, params: ta.Any) -> None:
+        """
+        Applies a process event notification from the agent. Synchronous, and called from the peer's receive loop in
+        wire order: an output chunk is in its spool before anything the agent sent after it - the reply to a
+        `process.close` in particular - is seen.
+        """
+
         if method == PROCESS_OUTPUT_METHOD:
             obj = check_remote_dict(params, {'id', 'fd', 'data'})
         elif method == PROCESS_OUTPUT_END_METHOD:
@@ -673,6 +755,7 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         if (process := self._processes.get(processes.ProcessId(process_id))) is not None:
             self._apply_event(process, method, obj)
         elif process_id not in self._retired_ids:
+            # Ahead of its spawn's reply: kept for registration.
             self._pending_events.setdefault(process_id, []).append((method, obj))
 
     def connection_lost(self, failure: BaseException | None) -> None:
@@ -680,6 +763,9 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         for process in list(self._processes.values()):
             process._on_connection_lost(reason)  # noqa
         self._pending_events.clear()
+
+    ##
+    # Scope hooks
 
     def reparent(self, process: Process, new_scope: ProcessScope) -> None:
         remote_process = check.isinstance(process, RemoteProcess)
@@ -704,7 +790,7 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             scope: ProcessScope,
             result: ScopeCloseResult,
     ) -> None:
-        await self._publish(processes.ScopeClosedEvent(
+        await self._events.publish_now(processes.ScopeClosedEvent(
             scope_path=tuple(scope.path),
             num_processes=result.num_processes,
             num_abandoned=result.num_abandoned,
@@ -735,6 +821,9 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
                         errors.append(e)
         return ScopeCloseResult(num_processes=len(process_list), errors=errors)
 
+    ##
+    # Close
+
     async def aclose(self) -> None:
         if self._state == 'closed':
             return
@@ -744,10 +833,21 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
         self._state = 'closing'
         try:
             await self._root.aclose()
+
+        except asyncio.CancelledError:
+            # Out of time. A teardown still in flight could only be waiting on a reply from the agent, which may never
+            # come: give up on it - its handle is poisoned - rather than hold the caller for it.
+            for task in list(self._tasks):
+                task.cancel()
+            raise
+
         finally:
-            while self._tasks:
-                await asyncio.gather(*list(self._tasks), return_exceptions=True)
-                await asyncio.sleep(0)
+            while True:
+                self._events.ensure_draining()
+                await self._join_tasks()
+                if not self._events.busy:
+                    break
+
             any_spill_kept = False
             for spool in self._spools:
                 if not spool.storage.closed:
@@ -769,16 +869,16 @@ class _RemoteAgentClientHandler(RpcHandler):
 
         self.processes: RemoteProcessManager | None = None
 
-    async def handle(self, method: str, params: ta.Any) -> None:
-        if method not in (
-                PROCESS_OUTPUT_METHOD,
-                PROCESS_OUTPUT_END_METHOD,
-                PROCESS_EXITED_METHOD,
-        ):
-            raise ValueError(f'Unexpected remote agent callback: {method!r}')
+    def handle_notification_inline(self, method: str, params: ta.Any) -> bool:
+        if method not in _REMOTE_PROCESS_EVENT_METHODS:
+            return False
         if self.processes is None:
             raise RuntimeError('Remote process manager is not attached')
-        await self.processes.handle_event(method, params)
+        self.processes.handle_event(method, params)
+        return True
+
+    async def handle(self, method: str, params: ta.Any) -> None:
+        raise ValueError(f'Unexpected remote agent call: {method!r}')
 
 
 class RemoteAgentClient:
@@ -791,12 +891,16 @@ class RemoteAgentClient:
         super().__init__()
 
         self._handler = _RemoteAgentClientHandler()
-        self._peer = RpcPeer(channel, handler=self._handler)
+        self._peer = RpcPeer(
+            channel,
+            handler=self._handler,
+            notification_error_handler=self._on_notification_error,
+        )
         self._processes = RemoteProcessManager(self._peer, process_config)
         self._handler.processes = self._processes
         self._fs = RemoteFsOps(self._peer)
 
-        self._watch_task: asyncio.Task[None] | None = None
+        self._peer.add_close_callback(self._on_peer_closed)
         self._started = False
 
     @property
@@ -811,9 +915,11 @@ class RemoteAgentClient:
     def processes(self) -> RemoteProcessManager:
         return self._processes
 
-    async def _watch_connection(self) -> None:
-        await self._peer.wait_closed()
-        self._processes.connection_lost(self._peer.failure)
+    def _on_notification_error(self, message: RpcNotificationMessage, error: BaseException) -> None:
+        log.warning('Error handling remote agent event %r: %r', message.method, error)
+
+    def _on_peer_closed(self, peer: RpcPeer) -> None:
+        self._processes.connection_lost(peer.failure)
 
     async def start(self) -> None:
         if self._started:
@@ -825,25 +931,37 @@ class RemoteAgentClient:
         except BaseException:
             await self._peer.aclose()
             raise
-        self._watch_task = asyncio.create_task(
-            self._watch_connection(),
-            name='remote-agent-connection-watch',
-        )
 
     async def wait_closed(self) -> None:
         await self._peer.wait_closed()
 
-    async def aclose(self) -> None:
+    async def aclose(self, *, timeout_s: float | None = None) -> None:
+        """
+        Closes the remote processes, then the connection. `timeout_s` bounds the graceful part: if the agent has not
+        finished tearing its processes down by then - or is not answering at all - the connection is severed first,
+        which fails every outstanding call and lets the process manager finish on its own.
+        """
+
         if not self._started:
             await self._processes.aclose()
             await self._peer.aclose()
             return
+
+        closing = asyncio.ensure_future(self._processes.aclose())
         try:
-            await self._processes.aclose()
+            done, _ = await asyncio.wait([closing], timeout=timeout_s)
+        except BaseException:
+            # Cancelled while waiting: sever the connection so the manager cannot wait on the agent any longer, and
+            # still see it through.
+            await self._peer.aclose()
+            await asyncio.wait([closing])
+            raise
+        try:
+            if not done:
+                await self._peer.aclose()
+            await closing
         finally:
             await self._peer.aclose()
-            if self._watch_task is not None:
-                await self._watch_task
 
     async def __aenter__(self) -> ta.Self:
         await self.start()

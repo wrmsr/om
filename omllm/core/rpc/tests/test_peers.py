@@ -2,12 +2,15 @@
 import asyncio
 import socket
 import struct
+import typing as ta
 import unittest
 
 from ..channels import AsyncioStreamRpcChannel
 from ..errors import RpcConnectionClosedError
+from ..errors import RpcMethodNotFoundError
 from ..errors import RpcProtocolError
 from ..errors import RpcRemoteError
+from ..handlers import RpcHandler
 from ..handlers import RpcMethodHandler
 from ..peers import RpcPeer
 from .support import memory_rpc_stream_pair
@@ -289,3 +292,173 @@ class TestRpcPeer(unittest.IsolatedAsyncioTestCase):
         await left.wait_closed()
         self.assertTrue(left.closed)
         self.assertTrue(right.closed)
+
+
+##
+
+
+class _InlineNoteHandler(RpcHandler):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.notes: ta.List[ta.Any] = []
+        self.fail_on: ta.Any = None
+
+    def handle_notification_inline(self, method: str, params: ta.Any) -> bool:
+        if method != 'note':
+            return False
+        if params == self.fail_on:
+            raise ValueError(f'bad note: {params!r}')
+        self.notes.append(params)
+        return True
+
+    async def handle(self, method: str, params: ta.Any) -> ta.Any:
+        if method == 'notes':
+            return list(self.notes)
+        raise RpcMethodNotFoundError(method)
+
+
+class TestRpcPeerTeardownAndOrdering(unittest.IsolatedAsyncioTestCase):
+    async def _socket_peer_pair(self, right_handler=None):
+        left_socket, right_socket = socket.socketpair()
+        left_reader, left_writer = await asyncio.open_connection(sock=left_socket)
+        right_reader, right_writer = await asyncio.open_connection(sock=right_socket)
+        return (
+            RpcPeer(AsyncioStreamRpcChannel(left_reader, left_writer)),
+            RpcPeer(AsyncioStreamRpcChannel(right_reader, right_writer), handler=right_handler),
+        )
+
+    async def test_close_with_in_flight_handler_over_sockets(self) -> None:
+        # Closing a socket channel wakes the peer's own receive loop into its teardown before `aclose` gets around to
+        # cancelling it; that cancel must not interrupt the teardown, or nothing waiting on the peer is ever released.
+        started = asyncio.Event()
+
+        async def wait_forever(params):
+            started.set()
+            await asyncio.Event().wait()
+
+        left, right = await self._socket_peer_pair(RpcMethodHandler({'wait': wait_forever}))
+        await left.start()
+        await right.start()
+
+        call = asyncio.create_task(left.call('wait'))
+        await started.wait()
+        await asyncio.wait_for(right.aclose(), 5.)
+        self.assertTrue(right.closed)
+        await asyncio.wait_for(right.wait_closed(), 5.)
+        with self.assertRaises(RpcConnectionClosedError):
+            await asyncio.wait_for(call, 5.)
+        await left.aclose()
+
+    async def test_late_pong_to_timed_out_ping_is_ignored(self) -> None:
+        (left_reader, left_writer), (right_reader, right_writer) = memory_rpc_stream_pair()
+        left = RpcPeer(AsyncioStreamRpcChannel(left_reader, left_writer))
+        right = RpcPeer(AsyncioStreamRpcChannel(right_reader, right_writer))
+        await left.start()
+
+        # The other side is not serving yet, so its pong can only arrive after the ping has been given up on.
+        with self.assertRaises(asyncio.TimeoutError):  # noqa: UP041
+            await asyncio.wait_for(left.ping(), .05)
+        await right.start()
+        await left.ping()
+        self.assertFalse(left.closed)
+        self.assertIsNone(left.failure)
+        await asyncio.gather(left.aclose(), right.aclose())
+
+    async def test_late_result_to_cancelled_call_is_ignored(self) -> None:
+        started = asyncio.Event()
+
+        async def stubborn(params):
+            # Finishes regardless of cancellation, so its result arrives after the caller has given up on it.
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                pass
+            return params
+
+        async def identity(params):
+            return params
+
+        left, right = _peer_pair(None, RpcMethodHandler({'stubborn': stubborn, 'identity': identity}))
+        await left.start()
+        await right.start()
+        try:
+            call = asyncio.create_task(left.call('stubborn', 1))
+            await started.wait()
+            call.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await call
+            self.assertEqual(left.num_outgoing, 0)
+
+            self.assertEqual(await left.call('identity', 2), 2)
+            self.assertFalse(left.closed)
+        finally:
+            await asyncio.gather(left.aclose(), right.aclose())
+
+    async def test_reply_for_an_id_never_issued_is_a_protocol_error(self) -> None:
+        (left_reader, left_writer), (_, right_writer) = memory_rpc_stream_pair()
+        left = RpcPeer(AsyncioStreamRpcChannel(left_reader, left_writer))
+        serving = asyncio.create_task(left.serve())
+
+        payload = b'{"type":"result","id":7,"result":null}'
+        right_writer.write(struct.pack('!I', len(payload)) + payload)
+        with self.assertRaises(RpcProtocolError):
+            await serving
+        right_writer.close()
+
+    async def test_inline_notifications_are_applied_in_wire_order(self) -> None:
+        handler = _InlineNoteHandler()
+        left, right = _peer_pair(None, handler)
+        await left.start()
+        await right.start()
+        try:
+            await left.notify('note', 'a')
+            await left.notify('note', 'b')
+            # A call sent after the notifications finds them already applied: the stream's order is the delivery order.
+            self.assertEqual(await left.call('notes'), ['a', 'b'])
+        finally:
+            await asyncio.gather(left.aclose(), right.aclose())
+
+    async def test_inline_notification_error_is_reported_and_survived(self) -> None:
+        errors = []
+        handler = _InlineNoteHandler()
+        handler.fail_on = 'bad'
+
+        (left_reader, left_writer), (right_reader, right_writer) = memory_rpc_stream_pair()
+        left = RpcPeer(AsyncioStreamRpcChannel(left_reader, left_writer))
+        right = RpcPeer(
+            AsyncioStreamRpcChannel(right_reader, right_writer),
+            handler=handler,
+            notification_error_handler=lambda message, error: errors.append((message, error)),
+        )
+        await left.start()
+        await right.start()
+        try:
+            await left.notify('note', 'bad')
+            await left.notify('note', 'good')
+            self.assertEqual(await left.call('notes'), ['good'])
+            self.assertEqual(len(errors), 1)
+            self.assertEqual(errors[0][0].params, 'bad')
+            self.assertIsInstance(errors[0][1], ValueError)
+        finally:
+            await asyncio.gather(left.aclose(), right.aclose())
+
+    async def test_close_callbacks_run_before_wait_closed_returns(self) -> None:
+        seen: ta.List[ta.Any] = []
+        left, right = _peer_pair()
+        left.add_close_callback(lambda peer: seen.append(('closed', peer.closed, peer.failure)))
+        await left.start()
+        await right.start()
+
+        async def wait_and_record():
+            await left.wait_closed()
+            return list(seen)
+
+        waiter = asyncio.create_task(wait_and_record())
+        await right.aclose()
+        self.assertEqual(await waiter, [('closed', True, None)])
+
+        left.add_close_callback(lambda peer: seen.append('late'))
+        self.assertEqual(seen, [('closed', True, None), 'late'])
+        await left.aclose()

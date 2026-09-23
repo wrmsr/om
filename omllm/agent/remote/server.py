@@ -1,6 +1,7 @@
 # ruff: noqa: UP006 UP007 UP045
 """Python-3.8-compatible filesystem and process services used by the remote agent amalgam."""
 import asyncio
+import collections
 import glob as glob_
 import hashlib
 import json
@@ -305,6 +306,15 @@ class _RemoteFsService:
 ##
 
 
+def _remote_waitstatus_to_exitcode(status: int) -> int:
+    # os.waitstatus_to_exitcode is 3.9+.
+    if os.WIFEXITED(status):
+        return os.WEXITSTATUS(status)
+    if os.WIFSIGNALED(status):
+        return -os.WTERMSIG(status)
+    raise ValueError(f'Unexpected wait status: {status!r}')
+
+
 class _RemoteServerProcess:
     def __init__(
             self,
@@ -328,13 +338,13 @@ class _RemoteServerProcess:
         self._pty_slave_fd = pty_slave_fd
         self._pty_read_fd: ta.Optional[int] = None
         self._pty_reader_task: ta.Optional[asyncio.Task] = None
+        self._pty_readable: ta.Optional[asyncio.Future] = None
         self._pty_winsize = pty_winsize
 
         self._stdin: ta.Optional[asyncio.StreamWriter] = None
         self._read_transports: ta.List[asyncio.BaseTransport] = []
         self._reader_tasks: ta.List[asyncio.Task] = []
-        self._output_task: ta.Optional[asyncio.Task] = None
-        self._wait_task: ta.Optional[asyncio.Task] = None
+        self._open_readers = 0
         self._close_task: ta.Optional[asyncio.Task] = None
 
         self._exited = asyncio.Event()
@@ -350,20 +360,41 @@ class _RemoteServerProcess:
     def exited(self) -> bool:
         return self._exited.is_set()
 
+    #
+
+    def _add_reader(self, read: ta.Callable[[], ta.Coroutine[ta.Any, ta.Any, None]]) -> asyncio.Task:
+        self._open_readers += 1
+        task = asyncio.create_task(
+            self._run_reader(read),
+            name=f'remote-read-{self.id}',
+        )
+        self._reader_tasks.append(task)
+        return task
+
+    async def _run_reader(self, read: ta.Callable[[], ta.Coroutine[ta.Any, ta.Any, None]]) -> None:
+        try:
+            await read()
+        finally:
+            # The last reader to finish - at EOF, or torn down - is what ends the output. Announcing that from here,
+            # before the task completes, is what lets `_run_close` order its reply after every last byte.
+            self._open_readers -= 1
+            if self._open_readers == 0 and not self._output_ended.is_set():
+                self._output_ended.set()
+                await self._service.notify(PROCESS_OUTPUT_END_METHOD, {'id': self.id})
+
     async def _connect_reader(self, file: ta.IO, fd: int) -> None:
         reader = await asyncio_open_stream_reader(file)
         transport = reader._transport  # type: ignore[attr-defined]  # noqa
         if transport is not None:
             self._read_transports.append(transport)
-        self._reader_tasks.append(asyncio.create_task(self._read_output(reader, fd)))
+        self._add_reader(lambda: self._read_output(reader, fd))
 
     async def start(self) -> None:
         if self._pty_master_fd is not None:
             read_fd = os.dup(self._pty_master_fd)
             os.set_blocking(read_fd, False)
             self._pty_read_fd = read_fd
-            self._pty_reader_task = asyncio.create_task(self._read_pty_output(read_fd, 1))
-            self._reader_tasks.append(self._pty_reader_task)
+            self._pty_reader_task = self._add_reader(lambda: self._read_pty_output(read_fd, 1))
 
             write_file = os.fdopen(os.dup(self._pty_master_fd), 'wb', 0)
             self._stdin = await asyncio_open_stream_writer(write_file)
@@ -375,23 +406,23 @@ class _RemoteServerProcess:
             if self.popen.stdin is not None:
                 self._stdin = await asyncio_open_stream_writer(self.popen.stdin)
 
-        self._output_task = asyncio.create_task(
-            self._run_output(),
-            name=f'remote-output-{self.id}',
-        )
-        self._wait_task = asyncio.create_task(
-            self._run_wait(),
-            name=f'remote-wait-{self.id}',
-        )
+        if not self._reader_tasks:
+            # Nothing to read: the output is over before it began.
+            self._output_ended.set()
+            self._service.queue_event(PROCESS_OUTPUT_END_METHOD, {'id': self.id})
+
+    #
 
     async def _drain_pty_output(self, fd: int, output_fd: int) -> bool:
+        """Forwards whatever is queued on the master; False once the pty is finished (its last slave closed)."""
+
         while True:
             try:
                 data = os.read(fd, _REMOTE_PROCESS_OUTPUT_CHUNK_SIZE)
             except (BlockingIOError, InterruptedError):
                 return True
             except OSError:
-                # Linux pty masters report EIO when the slave closes; BSDs return EOF.
+                # Linux pty masters report EIO when the last slave closes; BSDs return EOF.
                 return False
             if not data:
                 return False
@@ -408,11 +439,19 @@ class _RemoteServerProcess:
 
     async def _read_pty_output(self, fd: int, output_fd: int) -> None:
         loop = asyncio.get_running_loop()
-        exited_task = asyncio.create_task(self._exited.wait())
-        readable: ta.Optional[asyncio.Future] = None
         try:
             while True:
-                readable = loop.create_future()
+                if not await self._drain_pty_output(fd, output_fd):
+                    return
+
+                if self.exited and self._pty_slave_fd is not None:
+                    # Keep one slave descriptor open until the leader has exited and every byte already queued on the
+                    # master has been consumed. Closing the final slave first can discard trailing pty output.
+                    self._close_pty_slave()
+                    continue
+
+                # Wait for output - or for the exit, which `_poll_exit` announces by resolving this same future.
+                readable = self._pty_readable = loop.create_future()
 
                 def on_readable() -> None:
                     if not readable.done():
@@ -420,30 +459,13 @@ class _RemoteServerProcess:
 
                 loop.add_reader(fd, on_readable)
                 try:
-                    waiters: ta.List[asyncio.Future] = [readable]
-                    if self._pty_slave_fd is not None:
-                        waiters.append(exited_task)
-                    await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+                    await readable
                 finally:
-                    loop.remove_reader(fd)
-                    if not readable.done():
-                        readable.cancel()
-
-                if not await self._drain_pty_output(fd, output_fd):
-                    return
-
-                if exited_task.done():
-                    # Keep one slave descriptor open until the leader has exited and every byte already queued on the
-                    # master has been consumed. Closing the final slave first can discard trailing pty output.
-                    self._close_pty_slave()
-                    if not await self._drain_pty_output(fd, output_fd):
-                        return
+                    self._pty_readable = None
+                    if self._pty_read_fd == fd:
+                        loop.remove_reader(fd)
 
         finally:
-            if readable is not None:
-                loop.remove_reader(fd)
-            if not exited_task.done():
-                exited_task.cancel()
             if self._pty_read_fd == fd:
                 self._pty_read_fd = None
                 os.close(fd)
@@ -453,7 +475,6 @@ class _RemoteServerProcess:
             try:
                 data = await reader.read(_REMOTE_PROCESS_OUTPUT_CHUNK_SIZE)
             except OSError:
-                # Linux pty masters report EIO when the slave closes; BSDs return EOF.
                 return
             if not data:
                 return
@@ -463,63 +484,64 @@ class _RemoteServerProcess:
                 'data': encode_remote_bytes(data),
             })
 
-    async def _run_output(self) -> None:
-        try:
-            if self._reader_tasks:
-                await asyncio.gather(*self._reader_tasks)
-        finally:
-            self._output_ended.set()
-            await self._service.notify(PROCESS_OUTPUT_END_METHOD, {'id': self.id})
+    #
 
-    async def _run_wait(self) -> None:
-        loop = asyncio.get_running_loop()
-        try:
-            self._returncode = await loop.run_in_executor(None, _remote_process_wait, self.popen.pid)
-        except BaseException:
-            if self._reaped:
-                return
-            raise
-        finally:
-            if self._returncode is not None:
-                self._exited.set()
+    def _poll_exit(self) -> None:
+        """
+        A non-blocking, non-reaping probe of the child, run from the service's SIGCHLD handler: the first to see the
+        exit records and announces it. The leader stays a zombie - its pid and pgid ours to signal - until `close` reaps
+        it.
+        """
 
-        await self._service.notify(PROCESS_EXITED_METHOD, {
+        if self._exited.is_set() or self._reaped:
+            return
+        try:
+            returncode = _remote_process_wait(self.popen.pid, nohang=True)
+        except ChildProcessError:
+            # Reaped behind our back: there is no exit status to be had, and nothing more to observe.
+            return
+        if returncode is None:
+            return
+        self._returncode = returncode
+        self._exited.set()
+        if (readable := self._pty_readable) is not None and not readable.done():
+            readable.set_result(None)
+        self._service.queue_event(PROCESS_EXITED_METHOD, {
             'id': self.id,
-            'returncode': self._returncode,
+            'returncode': returncode,
         })
 
     def _signal(self, sig: int, process_group: bool) -> None:
         if self._reaped:
             raise ProcessLookupError(self.popen.pid)
+        pid = self.popen.pid
         if self.exited:
             # The unreaped leader keeps its pid, and therefore its process-group id, from being reused.
             if process_group:
                 try:
-                    os.killpg(self.popen.pid, sig)
+                    os.killpg(pid, sig)
                 except (PermissionError, ProcessLookupError):
                     pass
             return
 
         if process_group:
-            # The pty bootstrap creates its session immediately after exec, but a signal can race that setup. Hitting
-            # the owned pid as well ensures it cannot escape before its pgid exists.
             try:
-                os.kill(self.popen.pid, sig)
+                os.killpg(pid, sig)
             except ProcessLookupError:
-                pass
-            except PermissionError:
-                if not self._is_exited_nowait():
-                    raise
-            try:
-                os.killpg(self.popen.pid, sig)
-            except ProcessLookupError:
-                pass
+                # No such group yet: the pty bootstrap creates its session right after exec, and a signal can race that
+                # setup. Hit the owned pid so it cannot escape, then sweep the group once more in case it came to exist
+                # in between - and already has members.
+                os.kill(pid, sig)
+                try:
+                    os.killpg(pid, sig)
+                except ProcessLookupError:
+                    pass
             except PermissionError:
                 if not self._is_exited_nowait():
                     raise
         else:
             try:
-                os.kill(self.popen.pid, sig)
+                os.kill(pid, sig)
             except PermissionError:
                 if not self._is_exited_nowait():
                     raise
@@ -566,13 +588,15 @@ class _RemoteServerProcess:
                 if not self._is_exited_nowait():
                     raise
 
+    #
+
     async def _wait_exited(self, timeout: ta.Optional[float]) -> bool:
         if self.exited:
             return True
         if timeout is not None and timeout <= 0:
             return False
         try:
-            await asyncio.wait_for(asyncio.shield(self._exited.wait()), timeout)
+            await asyncio.wait_for(self._exited.wait(), timeout)
         except asyncio.TimeoutError:  # noqa: UP041  # Python 3.8 compatibility.
             return self.exited
         return True
@@ -583,7 +607,7 @@ class _RemoteServerProcess:
         if timeout is not None and timeout <= 0:
             return False
         try:
-            await asyncio.wait_for(asyncio.shield(self._output_ended.wait()), timeout)
+            await asyncio.wait_for(self._output_ended.wait(), timeout)
         except asyncio.TimeoutError:  # noqa: UP041  # Python 3.8 compatibility.
             return self._output_ended.is_set()
         return True
@@ -595,14 +619,16 @@ class _RemoteServerProcess:
             transport.close()
         self._read_transports.clear()
         self._close_pty_slave()
-        if self._pty_reader_task is not None and not self._pty_reader_task.done():
-            self._pty_reader_task.cancel()
-        if self._pty_read_fd is not None:
+        if (task := self._pty_reader_task) is not None and not task.done():
+            task.cancel()
+        if (fd := self._pty_read_fd) is not None:
+            # Taken out from under the reader: unregister it here too, before the fd number can be reused.
+            self._pty_read_fd = None
+            asyncio.get_running_loop().remove_reader(fd)
             try:
-                os.close(self._pty_read_fd)
+                os.close(fd)
             except OSError:
                 pass
-            self._pty_read_fd = None
         if self._pty_master_fd is not None:
             try:
                 os.close(self._pty_master_fd)
@@ -616,7 +642,7 @@ class _RemoteServerProcess:
         _, status = os.waitpid(self.popen.pid, 0)
         self._reaped = True
         if self._returncode is None:
-            self._returncode = os.waitstatus_to_exitcode(status)
+            self._returncode = _remote_waitstatus_to_exitcode(status)
             self._exited.set()
         self.popen.returncode = self._returncode
 
@@ -650,8 +676,9 @@ class _RemoteServerProcess:
             self._signal(signal.SIGKILL, True)
 
         self._close_streams()
-        if self._output_task is not None:
-            await asyncio.gather(self._output_task, return_exceptions=True)
+        if self._reader_tasks:
+            # Every byte, and the end of output, has been sent once these are done - so the reply below comes after.
+            await asyncio.gather(*self._reader_tasks, return_exceptions=True)
         self._reap()
         self._service.finished(self)
         return {'returncode': self._returncode, 'state': 'reaped'}
@@ -685,6 +712,13 @@ class _RemoteProcessService:
         self._next_id = 1
         self._closed = False
 
+        self._sigchld_loop: ta.Optional[asyncio.AbstractEventLoop] = None
+
+        # Exit and end-of-output announcements. They originate in sync code that cannot await a send, so they are queued
+        # and sent, in order, by at most one short-lived task.
+        self._events: ta.Deque[ta.Tuple[str, ta.Any]] = collections.deque()
+        self._event_task: ta.Optional[asyncio.Task] = None
+
     def set_peer(self, peer: RpcPeer) -> None:
         if self._peer is not None:
             raise RuntimeError('peer already set')
@@ -694,12 +728,57 @@ class _RemoteProcessService:
         if self._peer is None or self._peer.closed:
             return
         try:
-            # Events are calls rather than fire-and-forget notifications. The acknowledgement makes process.close's
-            # response an ordering barrier: by the time the host sees it, every preceding output chunk is in its spool.
-            await self._peer.call(method, params)
+            # Fire-and-forget on an ordered stream that the host applies inline, in its receive loop: wire order is
+            # delivery order. Awaiting the write is what makes process.close's reply - sent after it - an ordering
+            # barrier: by the time the host sees that reply, every preceding output chunk is in its spool.
+            await self._peer.notify(method, params)
         except Exception:  # noqa
             # The peer owns the connection failure. Keep draining child pipes until server teardown reaches us.
             pass
+
+    def queue_event(self, method: str, params: ta.Any) -> None:
+        self._events.append((method, params))
+        if self._event_task is None or self._event_task.done():
+            self._event_task = asyncio.create_task(
+                self._send_events(),
+                name='remote-events',
+            )
+
+    async def _send_events(self) -> None:
+        while self._events:
+            method, params = self._events.popleft()
+            await self.notify(method, params)
+
+    #
+
+    def _ensure_sigchld(self) -> None:
+        """
+        Exits are observed by one SIGCHLD handler probing every unexited child with a non-blocking, non-reaping waitid:
+        no thread and no task per child, so nothing to saturate. It is installed before the first child exists, so no
+        exit can slip by unnoticed.
+        """
+
+        if self._sigchld_loop is not None:
+            return
+        loop = asyncio.get_running_loop()
+        loop.add_signal_handler(signal.SIGCHLD, self._on_sigchld)
+        self._sigchld_loop = loop
+
+    def _remove_sigchld(self) -> None:
+        if (loop := self._sigchld_loop) is None:
+            return
+        self._sigchld_loop = None
+        try:
+            loop.remove_signal_handler(signal.SIGCHLD)
+        except (RuntimeError, ValueError):
+            pass
+
+    def _on_sigchld(self) -> None:
+        # One signal may stand for any number of exits.
+        for process in list(self._processes.values()):
+            process._poll_exit()  # noqa: SLF001
+
+    #
 
     def _lookup(self, process_id: ta.Any) -> _RemoteServerProcess:
         process_id = check_remote_str(process_id, non_empty=True)
@@ -742,6 +821,8 @@ class _RemoteProcessService:
 
         process_id = f'p{self._next_id}'
         self._next_id += 1
+
+        self._ensure_sigchld()
 
         master: ta.Optional[int] = None
         slave: ta.Optional[int] = None
@@ -821,6 +902,9 @@ class _RemoteProcessService:
             process._close_streams()  # noqa: SLF001
             raise
 
+        # It may already have exited - before it was registered, where a SIGCHLD scan could not have found it.
+        process._poll_exit()  # noqa: SLF001
+
         return {
             'id': process.id,
             'pid': process.popen.pid,
@@ -862,11 +946,17 @@ class _RemoteProcessService:
         if self._closed:
             return
         self._closed = True
-        if self._processes:
-            await asyncio.gather(*[
-                process.close(self._DEFAULT_CLOSE_POLICY)
-                for process in list(self._processes.values())
-            ], return_exceptions=True)
+        try:
+            if self._processes:
+                await asyncio.gather(*[
+                    process.close(self._DEFAULT_CLOSE_POLICY)
+                    for process in list(self._processes.values())
+                ], return_exceptions=True)
+        finally:
+            self._remove_sigchld()
+            if (task := self._event_task) is not None and not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
 
 ##

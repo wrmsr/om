@@ -10,8 +10,6 @@ subclass (which knows how to post callbacks from the exit-watcher thread), and t
 output readers, the exec-status pipe). See `../asyncio/manager.py` for the only implementation today.
 """
 import abc
-import collections
-import contextvars
 import errno
 import os
 import shutil
@@ -58,6 +56,7 @@ from ..types.options import get_spool_policy
 from ..types.specs import ProcessSpec
 from ..types.specs import PtyStdio
 from ..types.states import ProcessState
+from .events import ProcessEventDrain
 from .process import BaseProcess
 from .process import ProcessStdinWriter
 from .spawn import make_control_socketpair
@@ -73,11 +72,6 @@ log = logs.get_module_logger(globals())
 
 
 ##
-
-
-# Set while a task is inside `_drain_events`, so a subscriber that publishes from within its own callback does not wait
-# on the very drain it is running in.
-_IN_DRAIN: contextvars.ContextVar[bool] = contextvars.ContextVar('om_processes_in_drain', default=False)
 
 
 class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
@@ -111,10 +105,11 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
 
         # Events are published strictly in the order they were raised, from one drain task at a time, whether they came
         # from a sync callback (exit watcher, reparent) or an async path.
-        self._event_queue: collections.deque[ProcessEvent] = collections.deque()
-        self._draining = False
-        self._drain_idle = asynclite.make_event()
-        self._drain_idle.set()
+        self._events = ProcessEventDrain(
+            publish=self._publish,
+            spawn_task=self._spawn_task,
+            asynclite=asynclite,
+        )
 
         self._spill_dir: str | None = None
         self._own_spill_dir = False
@@ -295,6 +290,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
         check.state(self._state == 'new')
         await self._start_runtime()
         self._runtime_ready = True
+        self._events.enable()
 
         self._posix_spawn_setsid = self.check_child_signal_disposition()
 
@@ -314,47 +310,13 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
     ##
     # Events
 
-    async def _drain_events(self) -> None:
-        tok = _IN_DRAIN.set(True)
-        try:
-            while self._event_queue:
-                e = self._event_queue.popleft()
-                try:
-                    await self._publish(e)
-                except Exception:  # noqa
-                    log.exception('processes: error publishing event %r', e)
-        finally:
-            _IN_DRAIN.reset(tok)
-            self._draining = False
-            self._drain_idle.set()
-            if self._event_queue:
-                # Raced with a late enqueue.
-                self._ensure_drain()
-
-    def _ensure_drain(self) -> None:
-        if self._draining or not self._runtime_ready:
-            return
-        self._draining = True
-        # A fresh idle event per drain: everyone waiting on the previous one has been released.
-        self._drain_idle = self._asynclite.make_event()
-        self._spawn_task(self._drain_events())
-
     def _publish_soon(self, event: ProcessEvent) -> None:
-        self._event_queue.append(event)
-        self._ensure_drain()
+        self._events.publish_soon(event)
 
     async def _publish_now(self, event: ProcessEvent) -> None:
         """Enqueues in order and waits until it (and everything before it) has been delivered."""
 
-        self._publish_soon(event)
-        if _IN_DRAIN.get():
-            # Published from within a subscriber: the running drain will get to it - waiting would deadlock.
-            return
-        while self._event_queue or self._draining:
-            if not self._draining:
-                self._ensure_drain()
-                continue
-            await self._drain_idle.wait()
+        await self._events.publish_now(event)
 
     ##
     # Handle callbacks
@@ -629,10 +591,9 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
             errors.append(e)
 
         while True:
-            if self._event_queue:
-                self._ensure_drain()
+            self._events.ensure_draining()
             await self._join_tasks()
-            if not self._event_queue and not self._draining:
+            if not self._events.busy:
                 break
 
         # The first closer to get here finishes up (this block does not suspend, so concurrent closers cannot
