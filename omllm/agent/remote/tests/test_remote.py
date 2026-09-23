@@ -3,7 +3,6 @@ import contextlib
 import ctypes
 import os
 import pathlib
-import shlex
 import signal
 import sys
 import time
@@ -12,6 +11,7 @@ import typing as ta
 
 import pytest
 
+from omcore.lite.marshal import unmarshal_obj
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
 
@@ -23,6 +23,8 @@ from ...fs.ops import FsFileChangedError
 from .. import server as remote_server
 from ..client import RemoteAgentClient
 from ..payload import get_remote_agent_payload_src
+from ..protocol import PROCESS_OUTPUT_METHOD
+from ..protocol import OutputEvent
 
 
 ##
@@ -32,6 +34,31 @@ from ..payload import get_remote_agent_payload_src
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 _PYTHON_38 = _REPO_ROOT / '.venvs' / '8' / 'bin' / 'python'
 _PYTHON = str(_PYTHON_38) if _PYTHON_38.is_file() else sys.executable
+
+
+# Darwin's Bash 3.2 can defer a TERM trap around `sleep & wait` until the sleep finishes, or even crash. Either leaves
+# the termination marker missing even when killpg succeeds. Use a single Python process to avoid that shell
+# fork/wait race, and keep the helper compatible with the Python 3.8 interpreter used for the remote agent.
+_TERMINATION_PROCESS_SRC = """
+import os
+import signal
+import sys
+
+
+def _main():
+    # Block TERM before announcing readiness: sigwait consumes it even if it arrives before the wait starts.
+    # Python handlers are deferred, so signal.signal + signal.pause would leave a smaller lost-wakeup window.
+    term_signals = {signal.SIGTERM}
+    signal.pthread_sigmask(signal.SIG_BLOCK, term_signals)
+    os.write(1, b'ready')
+    signal.sigwait(term_signals)
+    with open(sys.argv[1], 'wb') as f:
+        f.write(b'terminated')
+
+
+if __name__ == '__main__':
+    _main()
+"""
 
 
 @contextlib.asynccontextmanager
@@ -214,30 +241,35 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
 
 @pytest.mark.asyncs('asyncio')
 async def test_remote_close_reprobes_a_stale_exit_belief_before_killing(tmp_path) -> None:
-    # A stale "already exited" belief (some platforms mis-report a just-forked child) must not make close skip the
-    # graceful signal: a live process still gets its TERM, and the chance to run its trap, before any KILL. Driven in
-    # process, with the belief injected directly.
-    service = remote_server._RemoteProcessService()  # noqa: SLF001
+    # A stale "already exited" belief must not make close skip the graceful signal: a live process still gets its TERM,
+    # and the chance to write its marker, before any KILL. Driven in process, with the belief injected directly.
+    stdout = asyncio.StreamReader()
+
+    class ProcessService(remote_server._RemoteProcessService):  # noqa: SLF001
+        async def notify(self, method: str, params: ta.Any) -> None:
+            if method == PROCESS_OUTPUT_METHOD:
+                event: OutputEvent = unmarshal_obj(params, OutputEvent)
+                if event.fd == 1:
+                    stdout.feed_data(event.data)
+            await super().notify(method, params)
+
+    service = ProcessService()
     service._ensure_sigchld()  # noqa: SLF001
     terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
-    trap_command = f'printf terminated > {shlex.quote(terminated_path)}; exit 0'
     try:
         spawned = await service.spawn({
-            'argv': [
-                'sh',
-                '-c',
-                f'trap {shlex.quote(trap_command)} TERM; printf ready; sleep 30 & wait',
-            ],
+            'argv': [_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path],
             'cwd': os.path.realpath(tmp_path),
             'env': None,
             'name': None,
             'stdio': {'kind': 'pipes', 'stdin': 'devnull', 'stdout': 'pipe', 'stderr': 'pipe'},
         })
         process = service._processes[spawned['id']]  # noqa: SLF001
-        await asyncio.sleep(.2)  # let sh install its trap and reach `wait`
+        # Synchronize with signal setup instead of assuming the child has started after a fixed delay.
+        assert await asyncio.wait_for(stdout.readexactly(len(b'ready')), 5.) == b'ready'
         assert not process._exited.is_set()  # noqa: SLF001  # it is actually running
 
-        # Inject the stale belief the platform quirk would have produced.
+        # Inject the stale belief while the process is known to be alive.
         process._returncode = 0  # noqa: SLF001
         process._exited.set()  # noqa: SLF001
 
@@ -250,7 +282,7 @@ async def test_remote_close_reprobes_a_stale_exit_belief_before_killing(tmp_path
                 'close_stdin': True,
                 'process_group': True,
                 # No drain window, so only the graceful signal-and-wait (reached by re-probing the stale belief) can
-                # give the trap its chance - the sweep would otherwise SIGKILL the group right after its SIGTERM.
+                # let it write its marker - the sweep would otherwise SIGKILL the group right after its SIGTERM.
                 'drain_s': 0.,
             },
         })
@@ -289,12 +321,12 @@ def _describe_missing_termination(
         agent_stderr: str,
 ) -> str:
     return '\n'.join([
-        'terminated file was not written (the child never ran its TERM trap). A healthy run looks like: RUNNING at',
-        'disconnect, teardown ~0.02s, child gone after, agent stderr "closed in ... returncode=0".',
+        'terminated file was not written (the child did not complete its TERM shutdown). A healthy run looks like:',
+        'RUNNING at disconnect, teardown ~0.02s, child gone after, agent stderr "closed in ... returncode=0".',
         f'  child at disconnect:       {state_at_disconnect}   (EXITED here: it died on its own first)',
         f'  teardown after disconnect: {teardown_s:.3f}s   (> 5s: the graceful wait timed out, then SIGKILL)',
         f'  child pid after agent:     {pid_after}   (ALIVE: orphaned - its close failed or never ran)',
-        '  agent stderr (returncode -9: SIGKILLed first; -15: TERM untrapped; other negatives: died of that signal):',
+        '  agent stderr (returncode -9: SIGKILLed first; -15: killed by TERM; other negatives: died of that signal):',
         *[f'    {line}' for line in agent_stderr.splitlines() or ['<empty>']],
     ])
 
@@ -302,24 +334,17 @@ def _describe_missing_termination(
 @pytest.mark.asyncs('asyncio')
 async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
     terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
-    trap_command = f'printf terminated > {shlex.quote(terminated_path)}; exit 0'
     agent_stderr: list[str] = []
 
     async with _remote_agent(stderr_sink=agent_stderr) as client:
         process = await client.processes.root.spawn(processes.ProcessSpec(
-            [
-                'sh',
-                '-c',
-                # `sleep & wait` (not a foreground `sleep`) so the TERM trap runs out of the interruptible `wait`
-                # promptly and portably, rather than only after the foreground command is reaped.
-                f'trap {shlex.quote(trap_command)} TERM; printf ready; sleep 30 & wait',
-            ],
+            [_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path],
             cwd=os.path.realpath(tmp_path),
         ))
         ready = await process.spool.poll(0, timeout=5.)
         assert ready.data(1) == b'ready'
 
-        # Recorded for the failure message below: together these say which way a missing trap went.
+        # Recorded for the failure message below: together these help explain a missing termination marker.
         state_at_disconnect = (
             f'{process.state.name}, returncode={process.returncode}, output_ended={process.output_ended}'
         )
