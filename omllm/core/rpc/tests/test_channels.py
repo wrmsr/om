@@ -1,6 +1,7 @@
 # ruff: noqa: UP006 UP007 UP045
 import asyncio
 import struct
+import time
 import unittest
 
 from ..channels import AsyncioStreamRpcChannel
@@ -78,3 +79,37 @@ class TestAsyncioStreamRpcChannel(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(await receive, RpcPingMessage(1))
         await channel.aclose()
+
+
+class _NeverClosingWriter:
+    """A writer whose close never completes - like one whose peer has stopped reading with data still buffered."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.closed = False
+
+    def write(self, data: bytes) -> None:
+        pass
+
+    async def drain(self) -> None:
+        pass
+
+    def close(self) -> None:
+        self.closed = True
+
+    async def wait_closed(self) -> None:
+        await asyncio.Event().wait()
+
+
+class TestAsyncioStreamRpcChannelClose(unittest.IsolatedAsyncioTestCase):
+    async def test_close_is_bounded(self) -> None:
+        reader, _ = memory_rpc_stream()
+        writer = _NeverClosingWriter()
+        channel = AsyncioStreamRpcChannel(reader, writer, close_timeout_s=.05)
+
+        start = time.monotonic()
+        await asyncio.wait_for(channel.aclose(), 5.)
+        self.assertLess(time.monotonic() - start, 5.)
+        self.assertTrue(writer.closed)
+        self.assertTrue(channel.closed)

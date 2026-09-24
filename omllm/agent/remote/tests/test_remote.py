@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import ctypes
+import fcntl
 import os
 import pathlib
 import signal
@@ -11,6 +12,7 @@ import typing as ta
 
 import pytest
 
+from omcore import dataclasses as dc
 from omcore.lite.marshal import unmarshal_obj
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
@@ -39,10 +41,40 @@ _PYTHON = str(_PYTHON_38) if _PYTHON_38.is_file() else sys.executable
 # Darwin's Bash 3.2 can defer a TERM trap around `sleep & wait` until the sleep finishes, or even crash. Either leaves
 # the termination marker missing even when killpg succeeds. Use a single Python process to avoid that shell
 # fork/wait race, and keep the helper compatible with the Python 3.8 interpreter used for the remote agent.
+#
+# Arguments: the marker path, written once TERM arrives; then, optionally, a lock path. Given one, it takes an exclusive
+# flock on it and forks a descendant into its process group that shares the lock and ignores TERM - one only the group
+# sweep's SIGKILL can end. The lock is free again only once both are gone. Everything is in place before 'ready'.
 _TERMINATION_PROCESS_SRC = """
+import fcntl
 import os
 import signal
 import sys
+import time
+
+
+def _fork_stubborn_descendant():
+    # Fully set up - TERM ignored, our stdio let go of - before it reports in, so no TERM can reach it first.
+    r, w = os.pipe()
+    if os.fork():
+        os.close(w)
+        if os.read(r, 1) != b'+':
+            raise RuntimeError('descendant failed to start')
+        os.close(r)
+        return
+
+    try:
+        os.close(r)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        null = os.open(os.devnull, os.O_RDWR)
+        for fd in (0, 1, 2):
+            os.dup2(null, fd)
+        os.write(w, b'+')
+        os.close(w)
+        # Bounded, so one that escapes the sweep does not linger long after the test that let it.
+        time.sleep(120)
+    finally:
+        os._exit(0)
 
 
 def _main():
@@ -50,6 +82,10 @@ def _main():
     # Python handlers are deferred, so signal.signal + signal.pause would leave a smaller lost-wakeup window.
     term_signals = {signal.SIGTERM}
     signal.pthread_sigmask(signal.SIG_BLOCK, term_signals)
+    if len(sys.argv) > 2:
+        lock_fd = os.open(sys.argv[2], os.O_RDWR | os.O_CREAT, 0o600)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        _fork_stubborn_descendant()
     os.write(1, b'ready')
     signal.sigwait(term_signals)
     with open(sys.argv[1], 'wb') as f:
@@ -331,18 +367,29 @@ def _describe_missing_termination(
     ])
 
 
-@pytest.mark.asyncs('asyncio')
-async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
-    terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
-    agent_stderr: list[str] = []
+@dc.dataclass(frozen=True, kw_only=True)
+class _DisconnectRun:
+    pid: int
+    state_at_disconnect: str
+    teardown_s: float
+    agent_stderr: str
 
+
+async def _run_until_disconnect(
+        argv: ta.Sequence[str],
+        *,
+        cwd: str,
+        before_disconnect: ta.Callable[[], None] | None = None,
+) -> _DisconnectRun:
+    """Spawns `argv` through a real agent, waits for its 'ready', then drops the connection and waits the agent out."""
+
+    agent_stderr: list[str] = []
     async with _remote_agent(stderr_sink=agent_stderr) as client:
-        process = await client.processes.root.spawn(processes.ProcessSpec(
-            [_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path],
-            cwd=os.path.realpath(tmp_path),
-        ))
+        process = await client.processes.root.spawn(processes.ProcessSpec(list(argv), cwd=cwd))
         ready = await process.spool.poll(0, timeout=5.)
         assert ready.data(1) == b'ready'
+        if before_disconnect is not None:
+            before_disconnect()
 
         # Recorded for the failure message below: together these help explain a missing termination marker.
         state_at_disconnect = (
@@ -352,16 +399,77 @@ async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
         await client.peer.aclose()
         await client.wait_closed()
 
-    teardown_s = time.monotonic() - disconnected_at
+    return _DisconnectRun(
+        pid=process.pid,
+        state_at_disconnect=state_at_disconnect,
+        teardown_s=time.monotonic() - disconnected_at,
+        agent_stderr=''.join(agent_stderr),
+    )
 
+
+async def _assert_terminated_gracefully(run: _DisconnectRun, terminated_path: str) -> None:
     if not os.path.exists(terminated_path):
         pytest.fail(_describe_missing_termination(
-            state_at_disconnect=state_at_disconnect,
-            teardown_s=teardown_s,
-            pid_after=await _describe_pid(process.pid),
-            agent_stderr=''.join(agent_stderr),
+            state_at_disconnect=run.state_at_disconnect,
+            teardown_s=run.teardown_s,
+            pid_after=await _describe_pid(run.pid),
+            agent_stderr=run.agent_stderr,
         ))
     assert pathlib.Path(terminated_path).read_bytes() == b'terminated'
+
+    # A clean shutdown reports only its per-process outcomes: any traceback on the agent's stderr is a bug.
+    assert 'Traceback' not in run.agent_stderr, run.agent_stderr
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
+    root = os.path.realpath(tmp_path)
+    terminated_path = os.path.join(root, 'terminated')
+
+    run = await _run_until_disconnect([_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path], cwd=root)
+    await _assert_terminated_gracefully(run, terminated_path)
+
+
+def _lock_held(path: str) -> bool:
+    """Whether any process still holds a flock on `path`."""
+
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(fd)
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_remote_agent_disconnect_sweeps_the_process_group(tmp_path) -> None:
+    # The leader gets its graceful TERM as above and exits, leaving behind a descendant that ignores TERM: only the
+    # sweep's group SIGKILL, sent while the exited leader still holds the group id, can end it. Its end is observed
+    # through the flock it shares with the leader, which is free only once every holder is gone - no pids involved,
+    # so nothing is fooled by one being recycled.
+    root = os.path.realpath(tmp_path)
+    terminated_path = os.path.join(root, 'terminated')
+    lock_path = os.path.join(root, 'group.lock')
+
+    def check_lock_held() -> None:
+        assert _lock_held(lock_path)
+
+    run = await _run_until_disconnect(
+        [_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path, lock_path],
+        cwd=root,
+        before_disconnect=check_lock_held,
+    )
+    await _assert_terminated_gracefully(run, terminated_path)
+
+    # The SIGKILL is sent before the agent exits, but the descendant finishes dying on its own schedule.
+    deadline = time.monotonic() + 10.
+    while _lock_held(lock_path):
+        assert time.monotonic() < deadline, f'a TERM-ignoring descendant survived the group sweep:\n{run.agent_stderr}'
+        await asyncio.sleep(.01)
 
 
 ##

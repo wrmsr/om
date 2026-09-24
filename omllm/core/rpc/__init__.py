@@ -2,6 +2,7 @@
 
 
 from .channels import (  # noqa
+    DEFAULT_RPC_CLOSE_TIMEOUT_S,
     DEFAULT_RPC_MAX_FRAME_BYTES,
     AsyncioStreamRpcChannel,
     RpcChannel,

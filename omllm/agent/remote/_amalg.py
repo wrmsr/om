@@ -53,7 +53,7 @@ if sys.version_info < (3, 8):
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='../../../omcore/asyncs/asyncio/streams.py', sha1='0f5b4b31c139f08110827b601ff4f0d45489fba2'),
+            dict(path='../../../omcore/asyncs/asyncio/streams.py', sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab'),
             dict(path='../../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
             dict(path='../../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
@@ -66,7 +66,7 @@ def __om_amalg__():  # noqa
             dict(path='../../core/rpc/errors.py', sha1='41e06a92d0a0139b6fc0530fe5892071c34cfd23'),
             dict(path='../../core/rpc/handlers.py', sha1='6910c32940e50afb033686045241efc5a0528824'),
             dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
-            dict(path='../../core/rpc/channels.py', sha1='28b173f12d80f7941550c831c7451c2aaa37259c'),
+            dict(path='../../core/rpc/channels.py', sha1='8f49bf867159274422557a1f681ecdbffde5c887'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
             dict(path='server.py', sha1='f5c9e900b7439cd1c234517ca88e717c5ba904db'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
@@ -127,6 +127,32 @@ async def asyncio_open_stream_reader(
     return reader
 
 
+class AsyncioWritePipeProtocol(asyncio.streams.FlowControlMixin):
+    """
+    The protocol behind `asyncio_open_stream_writer`: flow control, plus the close waiter that
+    `StreamWriter.wait_closed` awaits through the protocol's `_get_close_waiter` hook. A bare `FlowControlMixin` raises
+    NotImplementedError there.
+    """
+
+    def __init__(self, loop: ta.Any = None) -> None:
+        super().__init__(loop=loop)
+
+        self._close_waiter: asyncio.Future = self._loop.create_future()  # type: ignore[attr-defined]
+
+    def connection_lost(self, exc: ta.Optional[Exception]) -> None:
+        if not self._close_waiter.done():
+            if exc is None:
+                self._close_waiter.set_result(None)
+            else:
+                self._close_waiter.set_exception(exc)
+                # Marked retrieved: a failed close nobody waits for is not an unhandled error.
+                self._close_waiter.exception()
+        super().connection_lost(exc)
+
+    def _get_close_waiter(self, stream: asyncio.StreamWriter) -> asyncio.Future:
+        return self._close_waiter
+
+
 async def asyncio_open_stream_writer(
         f: ta.IO,
         loop: ta.Any = None,
@@ -135,7 +161,7 @@ async def asyncio_open_stream_writer(
         loop = asyncio.get_running_loop()
 
     writer_transport, writer_protocol = await loop.connect_write_pipe(
-        lambda: asyncio.streams.FlowControlMixin(loop=loop),
+        lambda: AsyncioWritePipeProtocol(loop=loop),
         f,
     )
 
@@ -3395,6 +3421,10 @@ class JsonRpcMessageCodec(RpcMessageCodec):
 
 DEFAULT_RPC_MAX_FRAME_BYTES = 16 * 1024 * 1024
 
+# Closing only has to flush what is already buffered, which a reading peer takes in at once: one that has not done so
+# within this has stopped reading.
+DEFAULT_RPC_CLOSE_TIMEOUT_S = 1.
+
 _FRAME_HEADER = struct.Struct('!I')
 
 
@@ -3444,15 +3474,18 @@ class AsyncioStreamRpcChannel(RpcChannel):
             *,
             codec: ta.Optional[RpcMessageCodec] = None,
             max_frame_bytes: int = DEFAULT_RPC_MAX_FRAME_BYTES,
+            close_timeout_s: float = DEFAULT_RPC_CLOSE_TIMEOUT_S,
     ) -> None:
         super().__init__()
 
         check.arg(max_frame_bytes > 0)
+        check.arg(close_timeout_s > 0)
 
         self._reader = reader
         self._writer = writer
         self._codec = codec if codec is not None else JsonRpcMessageCodec()
         self._max_frame_bytes = max_frame_bytes
+        self._close_timeout_s = close_timeout_s
 
         self._read_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()
@@ -3518,7 +3551,12 @@ class AsyncioStreamRpcChannel(RpcChannel):
 
         try:
             self._writer.close()
-            await self._writer.wait_closed()
+            # Bounded: the close completes only once what is already buffered has been flushed, and a peer which has
+            # stopped reading would otherwise hold it - and whatever teardown follows it - forever. Past the bound the
+            # transport is left to finish closing, or die with its peer, on its own.
+            await asyncio.wait_for(self._writer.wait_closed(), self._close_timeout_s)
+        except asyncio.TimeoutError:  # noqa: UP041  # Python 3.8 compatibility.
+            pass
         except (BrokenPipeError, ConnectionError, OSError):
             pass
 

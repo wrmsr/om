@@ -72,7 +72,7 @@ if sys.version_info < (3, 8):
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='../../omcore/asyncs/asyncio/streams.py', sha1='0f5b4b31c139f08110827b601ff4f0d45489fba2'),
+            dict(path='../../omcore/asyncs/asyncio/streams.py', sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab'),
             dict(path='../../omcore/configs/types.py', sha1='6abb34596a340c3804dc53a813473739047b1c7d'),
             dict(path='../../omcore/formats/ini/sections.py', sha1='66a0b99ffe63766420ec18d25341699dabcfa55e'),
             dict(path='../../omcore/formats/toml/parser.py', sha1='e7534f4af180c41cedd5257e96e30d79d747b7a0'),
@@ -359,6 +359,32 @@ async def asyncio_open_stream_reader(
     return reader
 
 
+class AsyncioWritePipeProtocol(asyncio.streams.FlowControlMixin):
+    """
+    The protocol behind `asyncio_open_stream_writer`: flow control, plus the close waiter that
+    `StreamWriter.wait_closed` awaits through the protocol's `_get_close_waiter` hook. A bare `FlowControlMixin` raises
+    NotImplementedError there.
+    """
+
+    def __init__(self, loop: ta.Any = None) -> None:
+        super().__init__(loop=loop)
+
+        self._close_waiter: asyncio.Future = self._loop.create_future()  # type: ignore[attr-defined]
+
+    def connection_lost(self, exc: ta.Optional[Exception]) -> None:
+        if not self._close_waiter.done():
+            if exc is None:
+                self._close_waiter.set_result(None)
+            else:
+                self._close_waiter.set_exception(exc)
+                # Marked retrieved: a failed close nobody waits for is not an unhandled error.
+                self._close_waiter.exception()
+        super().connection_lost(exc)
+
+    def _get_close_waiter(self, stream: asyncio.StreamWriter) -> asyncio.Future:
+        return self._close_waiter
+
+
 async def asyncio_open_stream_writer(
         f: ta.IO,
         loop: ta.Any = None,
@@ -367,7 +393,7 @@ async def asyncio_open_stream_writer(
         loop = asyncio.get_running_loop()
 
     writer_transport, writer_protocol = await loop.connect_write_pipe(
-        lambda: asyncio.streams.FlowControlMixin(loop=loop),
+        lambda: AsyncioWritePipeProtocol(loop=loop),
         f,
     )
 

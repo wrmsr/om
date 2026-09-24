@@ -19,6 +19,10 @@ from .messages import RpcMessageCodec
 
 DEFAULT_RPC_MAX_FRAME_BYTES = 16 * 1024 * 1024
 
+# Closing only has to flush what is already buffered, which a reading peer takes in at once: one that has not done so
+# within this has stopped reading.
+DEFAULT_RPC_CLOSE_TIMEOUT_S = 1.
+
 _FRAME_HEADER = struct.Struct('!I')
 
 
@@ -68,15 +72,18 @@ class AsyncioStreamRpcChannel(RpcChannel):
             *,
             codec: ta.Optional[RpcMessageCodec] = None,
             max_frame_bytes: int = DEFAULT_RPC_MAX_FRAME_BYTES,
+            close_timeout_s: float = DEFAULT_RPC_CLOSE_TIMEOUT_S,
     ) -> None:
         super().__init__()
 
         check.arg(max_frame_bytes > 0)
+        check.arg(close_timeout_s > 0)
 
         self._reader = reader
         self._writer = writer
         self._codec = codec if codec is not None else JsonRpcMessageCodec()
         self._max_frame_bytes = max_frame_bytes
+        self._close_timeout_s = close_timeout_s
 
         self._read_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()
@@ -142,6 +149,11 @@ class AsyncioStreamRpcChannel(RpcChannel):
 
         try:
             self._writer.close()
-            await self._writer.wait_closed()
+            # Bounded: the close completes only once what is already buffered has been flushed, and a peer which has
+            # stopped reading would otherwise hold it - and whatever teardown follows it - forever. Past the bound the
+            # transport is left to finish closing, or die with its peer, on its own.
+            await asyncio.wait_for(self._writer.wait_closed(), self._close_timeout_s)
+        except asyncio.TimeoutError:  # noqa: UP041  # Python 3.8 compatibility.
+            pass
         except (BrokenPipeError, ConnectionError, OSError):
             pass
