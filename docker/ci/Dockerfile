@@ -16,11 +16,13 @@ RUN ( \
     curl \
     gdb \
     iputils-ping \
+    jq \
     libdb-dev \
     lldb \
     llvm \
     nginx \
     nodejs \
+    vim \
 \
   && \
 \

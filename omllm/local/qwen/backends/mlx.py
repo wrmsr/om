@@ -143,8 +143,8 @@ class MlxOps(Ops):
         return mx.array(v, dtype=mx.int32)
 
     def kv_write(self, buf, pos, x):
-        # item assignment on a preallocated buffer is what mlx-lm's KVCache does; MLX updates in place when it
-        # can and `mx.compile` treats `pos` as a runtime input (checked)
+        # item assignment on a preallocated buffer is what mlx-lm's KVCache does; MLX updates in place when it can and
+        # `mx.compile` treats `pos` as a runtime input (checked)
         buf[:, :, pos] = x[:, :, 0].astype(buf.dtype)
         return buf
 
