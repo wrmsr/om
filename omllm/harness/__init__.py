@@ -61,6 +61,10 @@ with _lang.auto_proxy_init(
         QuitCommand,
     )
 
+    from .commands.status import (  # noqa
+        StatusCommand,
+    )
+
     ##
 
     from .sessions.storage.fs import (  # noqa

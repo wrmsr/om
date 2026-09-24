@@ -245,7 +245,19 @@ RUN \
 set -ex ;\
 umask 0002 ;\
 \
-sudo add-apt-repository ppa:mozillateam/ppa ;\
+sudo mkdir -p /etc/apt/keyrings ;\
+\
+curl -fsSL \
+  'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x738BEB9321D1AAEC13EA9391AEBDF4819BE21867' |\
+  sudo tee /etc/apt/keyrings/mozillateam.asc >/dev/null ;\
+\
+echo "\
+Types: deb\n\
+URIs: https://ppa.launchpadcontent.net/mozillateam/ppa/ubuntu/\n\
+Suites: noble\n\
+Components: main\n\
+Signed-By: /etc/apt/keyrings/mozillateam.asc\n\
+" | sudo tee /etc/apt/sources.list.d/mozillateam.sources >/dev/null ;\
 \
 echo "\
 Package: *\n\
