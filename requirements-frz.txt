@@ -21,8 +21,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.5.1
 blobfile==3.3.0
-boto3==1.43.100
-botocore==1.43.100
+boto3==1.43.101
+botocore==1.43.101
 botocore-stubs==1.43.67
 brotli==1.2.0
 build==1.6.1
@@ -201,7 +201,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.3
 python-snappy==0.7.3
 pytokens==0.4.1
-pytz==2026.3.post1
+pytz==2026.4
 PyYAML==6.0.3
 rapidocr-onnxruntime==1.4.4
 readme_renderer==46.0
@@ -266,7 +266,7 @@ trio==0.34.0
 twine==7.0.0
 typer==0.27.2
 types-awscrt==0.36.2
-types-boto3==1.43.100
+types-boto3==1.43.101
 types-docutils==0.23.0.20260923
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20260724
@@ -284,7 +284,7 @@ ujson==6.0.0
 unicorn==2.1.4
 uritemplate==4.2.0
 urllib3==2.8.0
-urwid==4.1.6
+urwid==4.1.7
 urwid_readline==0.15.1
 uv==0.12.18
 uvicorn==0.53.0
