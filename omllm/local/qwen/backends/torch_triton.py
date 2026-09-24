@@ -295,7 +295,6 @@ def gdn_step(
 
 
 if HAVE_TRITON:
-
     @triton.jit
     def _qgemv_fma_kernel(
             x_ptr,
