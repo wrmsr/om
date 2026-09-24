@@ -654,7 +654,7 @@ RUN cat > /om/scripts/run-s3mock <<'EOF' && chmod 664 /om/scripts/run-s3mock
 set -euo pipefail
 set -x
 
-S3MOCK_VERSION="${S3MOCK_VERSION:-3.12.0}"
+S3MOCK_VERSION="${S3MOCK_VERSION:-5.2.3}"
 
 CACHE_DIR="${S3MOCK_CACHE_DIR:-$HOME/.cache/omdev/s3mock}"
 JAR="$CACHE_DIR/s3mock-$S3MOCK_VERSION-exec.jar"
