@@ -782,6 +782,28 @@ class OllamaTensorSource(TensorSource):
         return x
 
 
+def find_hf_checkpoint(p: pathlib.Path) -> pathlib.Path:
+    """
+    The directory holding config.json under `p`: `p` itself, the Hugging Face cache layout
+    (models--org--name/snapshots/<hash>/), or a single checkpoint directory one level down.
+    """
+
+    if (p / 'config.json').exists():
+        return p
+    cands = sorted(p.glob('snapshots/*/config.json')) + sorted(p.glob('*/snapshots/*/config.json'))
+    cands += sorted(p.glob('*/config.json'))
+    if cands:
+        if len({c.parent for c in cands}) > 1:
+            raise FileNotFoundError(
+                f'{p}: several checkpoints under it ({", ".join(str(c.parent) for c in cands)}); point at one',
+            )
+        return cands[0].parent
+    raise FileNotFoundError(
+        f'{p} is a directory without a config.json (a Hugging Face checkpoint has config.json, tokenizer.json '
+        f'and *.safetensors); pass the checkpoint directory itself, a .gguf, or an Ollama model name',
+    )
+
+
 class HFSource(OllamaTensorSource):
     """
     A Hugging Face checkpoint directory (config.json, tokenizer.json, model*.safetensors, optionally
@@ -837,8 +859,8 @@ def resolve_weights(model: str) -> pathlib.Path | OllamaModel | HFSource:
     """`model` -> a GGUF path, or the Ollama manifest for tensor-blob models."""
 
     p = pathlib.Path(model).expanduser()
-    if p.is_dir() and (p / 'config.json').exists():
-        return HFSource(p)
+    if p.is_dir():
+        return HFSource(find_hf_checkpoint(p))
     if p.is_file() and p.suffix == '.gguf':
         return p
     if p.is_file():  # maybe a raw blob: sniff magic
