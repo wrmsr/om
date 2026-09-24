@@ -649,6 +649,47 @@ exec sudo pg_ctlcluster "$PG_VERSION" main start --foreground
 EOF
 
 
+RUN cat > /om/scripts/run-s3mock <<'EOF' && chmod 664 /om/scripts/run-s3mock
+#!/bin/bash
+set -euo pipefail
+set -x
+
+S3MOCK_VERSION="${S3MOCK_VERSION:-3.12.0}"
+
+CACHE_DIR="${S3MOCK_CACHE_DIR:-$HOME/.cache/omdev/s3mock}"
+JAR="$CACHE_DIR/s3mock-$S3MOCK_VERSION-exec.jar"
+
+URL="https://repo.maven.apache.org/maven2/com/adobe/testing/s3mock/$S3MOCK_VERSION/s3mock-$S3MOCK_VERSION-exec.jar"
+
+mkdir -p "$CACHE_DIR"
+
+# Serialize first-time setup in case multiple agents race to start it.
+exec 9>"$CACHE_DIR/.lock"
+flock 9
+
+if ! test -s "$JAR"; then
+    TMP="$JAR.tmp.$$"
+    trap 'rm -f "$TMP"' EXIT
+
+    curl \
+        --fail \
+        --location \
+        --retry 3 \
+        --retry-all-errors \
+        --output "$TMP" \
+        "$URL"
+
+    mv "$TMP" "$JAR"
+    trap - EXIT
+fi
+
+flock -u 9
+exec 9>&-
+
+exec java -jar "$JAR" "$@"
+EOF
+
+
 RUN (\
 chmod a+x /om/scripts/* ;\
 )
