@@ -22,6 +22,8 @@ backends.py      backend selection for the CLIs
 quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
 paramcache.py    on-disk cache of finished parameters (memory-mapped .npy per array), so a 27B loads in seconds
 prefixcache.py   prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
+chat.py          Qwen chat format: rendering (system, tools, tool calls/results, thinking) and output parsing
+serving.py       Engine (one worker over generate + PrefixCache) and the OpenAI chat-completions HTTP server
 weights.py       Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs (packed safetensors,
                  MLX int4/int8) -> canonical HF-layout params
 tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
@@ -39,10 +41,10 @@ fits the same seam.
 
 ```bash
 pip install numpy regex torch               # and/or: pip install mlx
-python -m x.qwen.tests.test_parity          # no model needed; runs every backend that imports
-python -m x.qwen.generate --model qwen3.5:0.8b -p "Why is the sky blue?"
-python -m x.qwen.generate --model qwen3.5:0.8b --backend mlx --raw -p "The capital of France is"
-python -m x.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --dtype bf16 -p "..."
+python -m omllm.local.qwen.tests.test_parity          # no model needed; runs every backend that imports
+python -m omllm.local.qwen.generate --model qwen3.5:0.8b -p "Why is the sky blue?"
+python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend mlx --raw -p "The capital of France is"
+python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend torch --device cuda --dtype bf16 -p "..."
 ```
 
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path. `--backend`
@@ -61,7 +63,7 @@ atomically and a torn entry reads as a miss. Only worthwhile with `--quant` (an 
 of f32).
 
 ```bash
-python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --cache-dir ./.cache/qwen ...
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --cache-dir ./.cache/qwen ...
 ```
 
 ## The Ops seam
@@ -122,9 +124,9 @@ Without `--quant` every weight is expanded to the compute dtype at load: ~55 GB 
 expand them per matmul, which is what makes 3.6-27B / 3.8-27B fit on ordinary hardware:
 
 ```bash
-python -m x.qwen.generate --model qwen3.6:27b --quant int4 -p "..."      # ~15 GB of weights
-python -m x.qwen.generate --model qwen3.6:27b --quant int8 -p "..."      # ~28 GB, essentially bf16 quality
-python -m x.qwen.validate --model qwen3.5:0.8b --quant int8 -n 32        # quantized path vs llama-server
+python -m omllm.local.qwen.generate --model qwen3.6:27b --quant int4 -p "..."      # ~15 GB of weights
+python -m omllm.local.qwen.generate --model qwen3.6:27b --quant int8 -p "..."      # ~28 GB, essentially bf16 quality
+python -m omllm.local.qwen.validate --model qwen3.5:0.8b --quant int8 -n 32        # quantized path vs llama-server
 ```
 
 The scheme is asymmetric affine, one `(scale, bias)` per 64 inputs — MLX's `mx.quantize` layout — so Ollama tensor
@@ -183,8 +185,8 @@ compile; with `--cache-dir`, `--warmup` then saves
 21 s -> 4.6 s cold start on the synthetic model; compiled speculative decode reproduces plain greedy exactly).
 
 ```bash
-python -m x.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
-python -m x.qwen.entrypoints.generate ... --triton-tuned ./.cache/qwen/gemv-int4.json
+python -m omllm.local.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
+python -m omllm.local.qwen.entrypoints.generate ... --triton-tuned ./.cache/qwen/gemv-int4.json
 ```
 
 ## Validate against llama.cpp
@@ -239,8 +241,8 @@ corrections, drafts). Rollback costs nothing: the KV buffers are masked by posit
 the DeltaNet state after every token, so the state after the accepted prefix is a slice.
 
 ```bash
-python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 -p "..."
-python -m x.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 --preset thinking -p "..."
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 -p "..."
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 --preset thinking -p "..."
 ```
 
 `--draft-vocab N` drafts with the output head restricted to the first N token ids (ninfer's `--lm-head-draft`):
@@ -279,15 +281,45 @@ prefix. `--follow-up TEXT` in `generate` demonstrates a second turn built from t
 much was reused. `tests/test_prefix.py` checks, on every backend, that a resumed follow-up produces exactly what a
 cold run over the full prompt produces (plain and speculative), plus demotion, promotion and eviction.
 
+## Serving
+
+`entrypoints/serve` puts a model behind an OpenAI chat-completions endpoint (`serving.py`):
+
+```bash
+python -m omllm.local.qwen.entrypoints.serve --model qwen3.8:27b --quant int4 --spec 3 --draft-vocab 65536 \
+    --compile --warmup --cache-dir ./.cache/qwen --triton-tuned ./.cache/qwen/gemv-int4.json --port 8000
+curl -N http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/json' \
+    -d '{"messages": [{"role": "user", "content": "Why is the sky blue?"}], "stream": true}'
+```
+
+`Engine` owns the model, its compiled steps, the prefix cache and one worker thread; a bounded queue in front
+(`--max-queue`, 503 beyond it) is the admission control one user needs. A request is rendered with `chat.render_chat`
+-- system prompt, tool schemas in the `# Tools` block, assistant turns with `<think>` reasoning / content /
+`<tool_call>` blocks, tool results as `<tool_response>` blocks -- tokenised, resumed from the longest cached prefix,
+generated, and parsed back (`chat.parse_output`, incrementally `chat.StreamParser`) into `content`,
+`reasoning_content` and `tool_calls`. Streaming is SSE chunks with those as deltas; `finish_reason` is `stop`,
+`length` or `tool_calls`; `usage.prompt_tokens_reused` reports the cache. Sampling comes from `--preset` (Qwen's
+thinking preset by default) with per-request overrides (`temperature`, `top_p`, `top_k`, `min_p`, penalties,
+`seed`, `max_tokens`, `stop`, `chat_template_kwargs.enable_thinking`). A streaming client that disconnects is
+noticed on the next write and the generation stops at its next round; long prompts prefill in `--prefill-chunk`
+pieces. `GET /health` reports counts and cache stats; `--client TEXT` sends one streaming request to a running
+server.
+
+Two choices keep the prefix cache hitting across an agent's turns. Reasoning is preserved in every rendered turn
+(`preserve_thinking`; `--strip-thinking` restores the stock template's behaviour, which rewrites the history each
+turn), and the ids of every answer the server produced are memoised under the exact assistant-turn string it renders
+to and substituted when that turn comes back in a later request, so a follow-up's ids are an exact extension of
+the earlier request's ids plus its answer's -- BPE re-tokenisation of generated text would not guarantee that.
+`tests/test_chat.py` covers rendering and parsing; `tests/test_serve.py` runs the server end to end on the
+synthetic model (non-streaming, streaming, a follow-up reusing the prefix, tools, stop sequences, cancellation, the
+queue limit).
+
 ## Where to go next (in order)
 
-1. **Serving** -- a streaming HTTP endpoint with cancellation over `generate` + `PrefixCache`, holding the
-   compiled steps and the cache across requests; `preserve-thinking` in the chat template so multi-turn prefixes
-   stay exact.
-2. **Cache management** — `Cache.snapshot(ops)` is your prefix cache for the 3/4 of layers that are
-   recurrent (fixed size, no growth). Only the 16 attention layers need paged/blocked KV.
-3. **Kernel tuning** — sweep `triton_block_n` / `num_warps`, add split-K for the narrow projections, and put
-   `sdpa_static` on a length-aware kernel so decode attention stops reading the whole KV buffer.
-4. **Serving** — `Qwen35.generate` is the whole inference loop; wrap it in whatever HTTP layer you like.
+1. **fp8 KV cache** for long contexts (the bf16 KV is 32 KB per token: 8 GB at 240k), and length-bucketed
+   attention graphs so decode does not pay for the whole capacity.
+2. **Batching** — the static step is batch-1 by construction; a second concurrent conversation would want
+   B > 1 buffers and a scheduler in `Engine`, which is a different engine.
+3. **Anthropic messages dialect** in `serving.py`, if a harness needs it: same engine, a second renderer / parser.
 
 MoE variants (`qwen35moe`) and the vision tower are deliberately not supported.

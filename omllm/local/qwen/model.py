@@ -22,6 +22,8 @@ import typing as ta
 
 import numpy as np
 
+from omcore import check
+
 from .ops import Array
 from .ops import Ops
 from .ops import Weight
@@ -42,6 +44,10 @@ from .weights import TensorSource
 
 FullState = tuple[Array, Array]  # k, v: [B, n_kv, T, hd]
 LinearState = tuple[Array, Array]  # conv: [B, conv_dim, kernel-1] last inputs to the conv; state: [B, n_v, dk, dv]
+
+
+class Cancelled(Exception):  # noqa
+    """Raised out of `generate` (by its callbacks) to abandon a generation between rounds or prefill chunks."""
 
 
 class Cache:
@@ -622,6 +628,35 @@ class Qwen35:
 
     # forward
 
+    def prefill(
+            self,
+            tokens: ta.Sequence[int],
+            cache: Cache,
+            chunk: int = 4096,
+            should_stop: ta.Callable[[], bool] | None = None,
+    ) -> tuple[Array, Array]:
+        """
+        `forward` over a prompt in chunks of `chunk` tokens through the growing cache, so activation memory (the
+        [T, intermediate] tensors, ~35 KB per token for the 27B) stays bounded whatever the prompt length, and a
+        cancellation (`should_stop`) has somewhere to land. Returns the last position's logits [B, 1, V] and the
+        final-normed hidden states of every position [B, T, hidden].
+        """
+
+        ops = self.ops
+        toks = np.asarray(tokens, dtype=np.int32).reshape(1, -1)
+        T = toks.shape[1]
+        hiddens: list[Array] = []
+        logits = None
+        for start in range(0, T, max(1, chunk)):
+            if should_stop is not None and should_stop():
+                raise Cancelled
+            logits, h = self.forward(toks[:, start:start + chunk], cache, return_hidden=True)
+            hiddens.append(h)
+        return (
+            check.not_none(logits)[:, -1:],
+            (hiddens[0] if len(hiddens) == 1 else ops.concat(hiddens, 1)),
+        )
+
     def forward(
         self,
         tokens: np.ndarray,
@@ -724,6 +759,8 @@ class Qwen35:
         capacity: int | None = None,
         draft_vocab: int = 0,
         prefix_cache: PrefixCache | None = None,
+        prefill_chunk: int = 4096,
+        should_stop: ta.Callable[[], bool] | None = None,
     ) -> list[int]:
         """
         Generation. Prefill goes through `forward` (chunked); decode then runs the captured static step (`static=True`,
@@ -731,10 +768,12 @@ class Qwen35:
         greedy. `spec=k` (needs the MTP head loaded) drafts k tokens per round with the draft head and verifies them in
         one target step. `capacity` pins the decode buffers' length (rounded up to a power of two); the captured /
         compiled steps are specific to it, so callers that want to reuse them across generations -- a warm-up, a server
-        -- should pass the same value every time. Default: just enough for this call. With a `prefix_cache`, the
-        longest cached snapshot whose tokens are a prefix of the prompt is resumed and only the rest is prefilled, and
-        the state after the prompt and after the generation are stored for later requests (see prefixcache.py);
-        `self.last_prefix` reports (matched, prompt length). Yields token ids through on_token as they are produced.
+        -- should pass the same value every time. Default: just enough for this call. With a `prefix_cache`, the longest
+        cached snapshot whose tokens are a prefix of the prompt is resumed and only the rest is prefilled, and the state
+        after the prompt and after the generation are stored for later requests (see prefixcache.py); `self.last_prefix`
+        reports (matched, prompt length). The prompt is prefilled `prefill_chunk` tokens at a time. `should_stop`,
+        polled between prefill chunks and decode rounds, raises `Cancelled` when it returns True; `on_token` may raise
+        it too. Yields token ids through on_token as they are produced.
         """
 
         capacity = max(capacity or 0, len(prompt_ids) + max_new_tokens + spec + 2)
@@ -751,7 +790,7 @@ class Qwen35:
             n0 = snap.n
             self.last_prefix = (n0, n)
             if n0 < n:
-                logits, hidden_new = self.forward(np.array([prompt_ids[n0:]]), cache, return_hidden=True)
+                logits, hidden_new = self.prefill(prompt_ids[n0:], cache, prefill_chunk, should_stop)
                 hidden = ops.concat([snap.hidden, hidden_new], 1)  # positions n0-1 .. n-1
             else:
                 logits = ops.reshape(snap.logits, (1, 1, -1))
@@ -761,7 +800,7 @@ class Qwen35:
         else:
             self.last_prefix = (0, n)
             cache = Cache(self.cfg)
-            logits, hidden = self.forward(np.array([prompt_ids]), cache, return_hidden=True)
+            logits, hidden = self.prefill(prompt_ids, cache, prefill_chunk, should_stop)
             start = 0
         if prefix_cache is not None or spec:
             if self.mtp is not None and n - 1 > start:
@@ -807,6 +846,8 @@ class Qwen35:
             self.last_spec = spec_dec
             processed: list[int] = []  # every committed token, including any past an EOS / the budget
             while len(out) < max_new_tokens:
+                if should_stop is not None and should_stop():
+                    raise Cancelled
                 committed = spec_dec.round()
                 processed.extend(committed)
                 stop = False
@@ -831,6 +872,8 @@ class Qwen35:
         for _ in range(max_new_tokens):
             if emit(nxt):
                 break
+            if should_stop is not None and should_stop():
+                raise Cancelled
             if dec is not None:
                 nxt = draw(dec.step(nxt))
             else:

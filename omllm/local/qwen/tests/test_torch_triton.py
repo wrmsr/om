@@ -4,8 +4,6 @@ The Triton int4/int8 GEMV (backends/torch_triton.py) against `TorchQWeight.dequa
 
 Without a GPU this runs through Triton's numpy interpreter (`TRITON_INTERPRET=1`, set below before triton is imported),
 f32 only and slowly, so the shapes are small. On a GPU it also runs the bf16 path.
-
-Run:  python -m pytest x/qwen/tests/test_triton.py -q      or      python -m x.qwen.tests.test_triton
 """
 import os
 

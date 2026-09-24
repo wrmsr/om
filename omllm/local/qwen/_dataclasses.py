@@ -293,6 +293,91 @@ def _process_dataclass__799681b69f6a44e7ab26f91f04e7ddf81e74bf0c():
 
 
 @_register(
+    installer_sha1='9832aac84b6cbcfd6428ff7267dba9d7620bbef5',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('content', True, True, None, True, False, False, None), 'instance', 'missing"
+            "', None, False, False, False), (('reasoning', True, True, None, True, False, False, None), 'instance', 'mi"
+            "ssing', None, False, False, False), (('tool_calls', True, True, None, True, False, False, None), 'instance"
+            "', 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False"
+            ", ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.chat', 'Parsed'),
+    ),
+)
+def _process_dataclass__9832aac84b6cbcfd6428ff7267dba9d7620bbef5():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                content=self.content,
+                reasoning=self.reasoning,
+                tool_calls=self.tool_calls,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.content == other.content and
+                self.reasoning == other.reasoning and
+                self.tool_calls == other.tool_calls
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            content: __dataclass__init__fields__0__annotation,
+            reasoning: __dataclass__init__fields__1__annotation,
+            tool_calls: __dataclass__init__fields__2__annotation,
+        ) -> __dataclass__None:
+            self.content = content
+            self.reasoning = reasoning
+            self.tool_calls = tool_calls
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"content={self.content!r}")
+            parts.append(f"reasoning={self.reasoning!r}")
+            parts.append(f"tool_calls={self.tool_calls!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='56e23b89303016228a308dedebb1b271d62785d3',
     spec_keys=(
         (
@@ -559,6 +644,444 @@ def _process_dataclass__e66247fef380feb524f3d6543a3b59eabf70f441():
             parts.append(f"tier={self.tier!r}")
             parts.append(f"nbytes={self.nbytes!r}")
             parts.append(f"tick={self.tick!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='dcf48406d81f2167fe6a5494e01e66407f477a82',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('messages', True, True, None, True, False, False, None), 'instance', 'missin"
+            "g', None, False, False, False), (('tools', True, True, None, True, False, False, None), 'instance', 'missi"
+            "ng', None, False, False, False), (('stream', True, True, None, True, False, False, None), 'instance', 'mis"
+            "sing', None, False, False, False), (('max_tokens', True, True, None, True, False, False, None), 'instance'"
+            ", 'missing', None, False, False, False), (('temperature', True, True, None, True, False, False, None), 'in"
+            "stance', 'missing', None, False, False, False), (('top_k', True, True, None, True, False, False, None), 'i"
+            "nstance', 'missing', None, False, False, False), (('top_p', True, True, None, True, False, False, None), '"
+            "instance', 'missing', None, False, False, False), (('min_p', True, True, None, True, False, False, None), "
+            "'instance', 'missing', None, False, False, False), (('presence_penalty', True, True, None, True, False, Fa"
+            "lse, None), 'instance', 'missing', None, False, False, False), (('frequency_penalty', True, True, None, Tr"
+            "ue, False, False, None), 'instance', 'missing', None, False, False, False), (('seed', True, True, None, Tr"
+            "ue, False, False, None), 'instance', 'missing', None, False, False, False), (('stop', True, True, None, Tr"
+            "ue, False, False, None), 'instance', 'missing', None, False, False, False), (('enable_thinking', True, Tru"
+            "e, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('model', True, Tr"
+            "ue, None, True, False, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((Fa"
+            "lse,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.serving', 'Request'),
+    ),
+)
+def _process_dataclass__dcf48406d81f2167fe6a5494e01e66407f477a82():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                messages=self.messages,
+                tools=self.tools,
+                stream=self.stream,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                top_k=self.top_k,
+                top_p=self.top_p,
+                min_p=self.min_p,
+                presence_penalty=self.presence_penalty,
+                frequency_penalty=self.frequency_penalty,
+                seed=self.seed,
+                stop=self.stop,
+                enable_thinking=self.enable_thinking,
+                model=self.model,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.messages == other.messages and
+                self.tools == other.tools and
+                self.stream == other.stream and
+                self.max_tokens == other.max_tokens and
+                self.temperature == other.temperature and
+                self.top_k == other.top_k and
+                self.top_p == other.top_p and
+                self.min_p == other.min_p and
+                self.presence_penalty == other.presence_penalty and
+                self.frequency_penalty == other.frequency_penalty and
+                self.seed == other.seed and
+                self.stop == other.stop and
+                self.enable_thinking == other.enable_thinking and
+                self.model == other.model
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            messages: __dataclass__init__fields__00__annotation,
+            tools: __dataclass__init__fields__01__annotation,
+            stream: __dataclass__init__fields__02__annotation,
+            max_tokens: __dataclass__init__fields__03__annotation,
+            temperature: __dataclass__init__fields__04__annotation,
+            top_k: __dataclass__init__fields__05__annotation,
+            top_p: __dataclass__init__fields__06__annotation,
+            min_p: __dataclass__init__fields__07__annotation,
+            presence_penalty: __dataclass__init__fields__08__annotation,
+            frequency_penalty: __dataclass__init__fields__09__annotation,
+            seed: __dataclass__init__fields__10__annotation,
+            stop: __dataclass__init__fields__11__annotation,
+            enable_thinking: __dataclass__init__fields__12__annotation,
+            model: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+        ) -> __dataclass__None:
+            self.messages = messages
+            self.tools = tools
+            self.stream = stream
+            self.max_tokens = max_tokens
+            self.temperature = temperature
+            self.top_k = top_k
+            self.top_p = top_p
+            self.min_p = min_p
+            self.presence_penalty = presence_penalty
+            self.frequency_penalty = frequency_penalty
+            self.seed = seed
+            self.stop = stop
+            self.enable_thinking = enable_thinking
+            self.model = model
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"messages={self.messages!r}")
+            parts.append(f"tools={self.tools!r}")
+            parts.append(f"stream={self.stream!r}")
+            parts.append(f"max_tokens={self.max_tokens!r}")
+            parts.append(f"temperature={self.temperature!r}")
+            parts.append(f"top_k={self.top_k!r}")
+            parts.append(f"top_p={self.top_p!r}")
+            parts.append(f"min_p={self.min_p!r}")
+            parts.append(f"presence_penalty={self.presence_penalty!r}")
+            parts.append(f"frequency_penalty={self.frequency_penalty!r}")
+            parts.append(f"seed={self.seed!r}")
+            parts.append(f"stop={self.stop!r}")
+            parts.append(f"enable_thinking={self.enable_thinking!r}")
+            parts.append(f"model={self.model!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='c48019302faa066acad5f1cf315c314f2d11cec9',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('text', True, True, None, True, False, False, None), 'instance', 'missing', "
+            "None, False, False, False), (('ids', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('content', True, True, None, True, False, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('reasoning', True, True, None, True, False, False, None), 'instance', 'mis"
+            "sing', None, False, False, False), (('tool_calls', True, True, None, True, False, False, None), 'instance'"
+            ", 'missing', None, False, False, False), (('finish_reason', True, True, None, True, False, False, None), '"
+            "instance', 'missing', None, False, False, False), (('prompt_tokens', True, True, None, True, False, False,"
+            " None), 'instance', 'missing', None, False, False, False), (('prompt_reused', True, True, None, True, Fals"
+            "e, False, None), 'instance', 'missing', None, False, False, False), (('completion_tokens', True, True, Non"
+            "e, True, False, False, None), 'instance', 'missing', None, False, False, False), (('prefill_s', True, True"
+            ", None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('total_s', True, T"
+            "rue, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('spec_rounds', "
+            "True, True, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('spec_ac"
+            "cepted', True, True, None, True, False, False, None), 'instance', 'missing', None, False, False, False)), "
+            "False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.serving', 'Result'),
+    ),
+)
+def _process_dataclass__c48019302faa066acad5f1cf315c314f2d11cec9():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                text=self.text,
+                ids=self.ids,
+                content=self.content,
+                reasoning=self.reasoning,
+                tool_calls=self.tool_calls,
+                finish_reason=self.finish_reason,
+                prompt_tokens=self.prompt_tokens,
+                prompt_reused=self.prompt_reused,
+                completion_tokens=self.completion_tokens,
+                prefill_s=self.prefill_s,
+                total_s=self.total_s,
+                spec_rounds=self.spec_rounds,
+                spec_accepted=self.spec_accepted,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.text == other.text and
+                self.ids == other.ids and
+                self.content == other.content and
+                self.reasoning == other.reasoning and
+                self.tool_calls == other.tool_calls and
+                self.finish_reason == other.finish_reason and
+                self.prompt_tokens == other.prompt_tokens and
+                self.prompt_reused == other.prompt_reused and
+                self.completion_tokens == other.completion_tokens and
+                self.prefill_s == other.prefill_s and
+                self.total_s == other.total_s and
+                self.spec_rounds == other.spec_rounds and
+                self.spec_accepted == other.spec_accepted
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            text: __dataclass__init__fields__00__annotation,
+            ids: __dataclass__init__fields__01__annotation,
+            content: __dataclass__init__fields__02__annotation,
+            reasoning: __dataclass__init__fields__03__annotation,
+            tool_calls: __dataclass__init__fields__04__annotation,
+            finish_reason: __dataclass__init__fields__05__annotation,
+            prompt_tokens: __dataclass__init__fields__06__annotation,
+            prompt_reused: __dataclass__init__fields__07__annotation,
+            completion_tokens: __dataclass__init__fields__08__annotation,
+            prefill_s: __dataclass__init__fields__09__annotation,
+            total_s: __dataclass__init__fields__10__annotation,
+            spec_rounds: __dataclass__init__fields__11__annotation,
+            spec_accepted: __dataclass__init__fields__12__annotation,
+        ) -> __dataclass__None:
+            self.text = text
+            self.ids = ids
+            self.content = content
+            self.reasoning = reasoning
+            self.tool_calls = tool_calls
+            self.finish_reason = finish_reason
+            self.prompt_tokens = prompt_tokens
+            self.prompt_reused = prompt_reused
+            self.completion_tokens = completion_tokens
+            self.prefill_s = prefill_s
+            self.total_s = total_s
+            self.spec_rounds = spec_rounds
+            self.spec_accepted = spec_accepted
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"text={self.text!r}")
+            parts.append(f"ids={self.ids!r}")
+            parts.append(f"content={self.content!r}")
+            parts.append(f"reasoning={self.reasoning!r}")
+            parts.append(f"tool_calls={self.tool_calls!r}")
+            parts.append(f"finish_reason={self.finish_reason!r}")
+            parts.append(f"prompt_tokens={self.prompt_tokens!r}")
+            parts.append(f"prompt_reused={self.prompt_reused!r}")
+            parts.append(f"completion_tokens={self.completion_tokens!r}")
+            parts.append(f"prefill_s={self.prefill_s!r}")
+            parts.append(f"total_s={self.total_s!r}")
+            parts.append(f"spec_rounds={self.spec_rounds!r}")
+            parts.append(f"spec_accepted={self.spec_accepted!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='aeadcd505a0473f653f113d5ce934ef122ec3caa',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('temperature', True, True, None, True, False, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('top_k', True, True, None, True, False, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('top_p', True, True, None, True, False, False, None), 'instance', 'value"
+            "', None, False, False, False), (('min_p', True, True, None, True, False, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('presence_penalty', True, True, None, True, False, False, None), 'instance"
+            "', 'value', None, False, False, False), (('frequency_penalty', True, True, None, True, False, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('max_tokens', True, True, None, True, False, False, N"
+            "one), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), "
+            "(False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.serving', 'SamplingDefaults'),
+    ),
+)
+def _process_dataclass__aeadcd505a0473f653f113d5ce934ef122ec3caa():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                temperature=self.temperature,
+                top_k=self.top_k,
+                top_p=self.top_p,
+                min_p=self.min_p,
+                presence_penalty=self.presence_penalty,
+                frequency_penalty=self.frequency_penalty,
+                max_tokens=self.max_tokens,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.temperature == other.temperature and
+                self.top_k == other.top_k and
+                self.top_p == other.top_p and
+                self.min_p == other.min_p and
+                self.presence_penalty == other.presence_penalty and
+                self.frequency_penalty == other.frequency_penalty and
+                self.max_tokens == other.max_tokens
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            temperature: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            top_k: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            top_p: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            min_p: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            presence_penalty: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            frequency_penalty: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            max_tokens: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+        ) -> __dataclass__None:
+            self.temperature = temperature
+            self.top_k = top_k
+            self.top_p = top_p
+            self.min_p = min_p
+            self.presence_penalty = presence_penalty
+            self.frequency_penalty = frequency_penalty
+            self.max_tokens = max_tokens
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"temperature={self.temperature!r}")
+            parts.append(f"top_k={self.top_k!r}")
+            parts.append(f"top_p={self.top_p!r}")
+            parts.append(f"min_p={self.min_p!r}")
+            parts.append(f"presence_penalty={self.presence_penalty!r}")
+            parts.append(f"frequency_penalty={self.frequency_penalty!r}")
+            parts.append(f"max_tokens={self.max_tokens!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

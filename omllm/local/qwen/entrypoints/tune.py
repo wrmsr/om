@@ -2,8 +2,6 @@
 """
 Tune the Triton int4/int8 GEMV launch configurations for a model's projection shapes on this GPU and save them for
 `TorchOps(triton_tuned=...)` / `generate --triton-tuned`.
-
-    python -m x.qwen.entrypoints.tune --model qwen3.8:27b --quant int4 --out ./.cache/qwen/gemv-int4.json
 """
 import argparse
 
