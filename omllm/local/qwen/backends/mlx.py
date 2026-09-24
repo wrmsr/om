@@ -8,11 +8,13 @@ on-device quantize (mx.quantize). `gated_delta` uses the composed reference; an 
 step and `mx.compile` around the decode step are the next steps.
 
 MLX is lazy: nothing runs until something is evaluated. `eval()` forces it; `numpy()` does implicitly.
+
+FIXME:
+ - proper late imports, can't use omcore dataclasses until then
 """
+import dataclasses as dc
 import mlx.core as mx
 import numpy as np
-
-from omcore import dataclasses as dc
 
 from ..ops import Ops
 from ..quant import QWeight
