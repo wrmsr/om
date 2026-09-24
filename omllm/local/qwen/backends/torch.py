@@ -18,6 +18,7 @@ from omcore import dataclasses as dc
 from ..ops import Ops
 from ..quant import SEARCH_SHRINKS
 from ..quant import QWeight
+from ..quant import quantize as quantize_np
 from .torch_triton import HAVE_TRITON
 from .torch_triton import gdn_step
 from .torch_triton import load_tuned
@@ -195,6 +196,7 @@ class TorchOps(Ops):
         if triton_tuned and HAVE_TRITON:
             load_tuned(triton_tuned)  # per-shape GEMV configs written by entrypoints/tune
         self.gdn_block_dv = 32  # fused DeltaNet step: value-dim slice per program (state tile [dk, block_dv] f32)
+        self.quant_native = False  # on-device quantizer search (faster, not byte-identical across machines)
         self.gdn_num_warps = 8
 
     def dtype(self, name):
@@ -344,11 +346,16 @@ class TorchOps(Ops):
             search=True,
     ):
         """
-        On-device version of quant.quantize (same layout, same numerics up to rounding), search included. Rows are
+        Quantize + adopt. The error-minimising search runs in the canonical numpy implementation (bit-identical on every
+        machine and backend, so a parameter cache built here matches one built on a Mac) unless `quant_native` is set,
+        which uses this on-device version instead: the same algorithm, a few seconds per 27B tensor faster, but
+        reductions in GPU order, so not byte-for-byte the same codes. Plain min/max always runs on the device. Rows are
         processed in blocks of ~256 MB of float32 so a 5 GB output head does not need itself plus the search's
         temporaries resident at once.
         """
 
+        if search and not self.quant_native:
+            return self.qweight(quantize_np(w, bits, group, True), dtype)
         out, inn = w.shape
         if inn % group:
             raise ValueError(f'in_features {inn} not a multiple of group {group}')

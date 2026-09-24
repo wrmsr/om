@@ -49,10 +49,11 @@ def source_identity(src: ta.Any) -> str:
         m = _SHA_RE.search(path.name)
         if m:
             return m.group(1)[:16]
-        if path.is_dir():  # an HF checkpoint directory: the safetensors' names, sizes and mtimes
+        if path.is_dir():  # an HF checkpoint: the shards' names and sizes (not path or mtime: the same download
+            # on another machine must map to the same cache directory)
             shards = sorted(path.glob('*.safetensors'))
-            parts = [f'{p.name}|{p.stat().st_size}|{int(p.stat().st_mtime)}' for p in shards]
-            return hashlib.sha256('|'.join([str(path.resolve()), *parts]).encode()).hexdigest()[:16]
+            parts = [f'{p.name}|{p.stat().st_size}' for p in shards]
+            return hashlib.sha256('|'.join(parts).encode()).hexdigest()[:16]
         st = path.stat()
         h = hashlib.sha256(f'{path.resolve()}|{st.st_size}|{int(st.st_mtime)}'.encode()).hexdigest()
         return h[:16]
@@ -140,3 +141,28 @@ class ParamCache:
 
     def nbytes(self) -> int:
         return sum(p.stat().st_size for p in self.root.glob('*.npy'))
+
+    def checksum(self) -> str:
+        """SHA-256 over every entry (names, metadata, array bytes): equal on two machines <=> identical weights."""
+
+        h = hashlib.sha256()
+        for mp in sorted(self.root.glob('*.json')):
+            h.update(mp.name.encode())
+            h.update(mp.read_bytes())
+            for arr in sorted(self.root.glob(mp.name[:-len('.json')] + '*.npy')):
+                h.update(arr.name.encode())
+                with open(arr, 'rb') as f:
+                    while True:
+                        chunk = f.read(1 << 24)
+                        if not chunk:
+                            break
+                        h.update(chunk)
+        return h.hexdigest()
+
+
+if __name__ == '__main__':  # python -m omllm.local.qwen.paramcache CACHE_DIR/<entry>  -> its checksum
+    import sys
+
+    for d in sys.argv[1:]:
+        pc = ParamCache(pathlib.Path(d))
+        print(f'{pc.checksum()}  {d}  ({len(list(pc.root.glob("*.json")))} entries, {pc.nbytes() / 2**30:.2f} GiB)')

@@ -60,21 +60,26 @@ second 4-bit grid carries both roundings. Two knobs make the recipe ours:
 - `quant.quantize(search=True)` (the default, `--no-quant-search` to disable): per group, try several shrunken
   ranges and refit scale and bias to the resulting codes by least squares, keep the least-error candidate -- what
   llama.cpp's k-quants do. ~13-15% less squared error than min/max at int4, same bytes, nothing at inference
-  time. On torch it runs on the device; MLX and tinygrad use the numpy version (one-time, the cache keeps it).
+  time. The numpy implementation is canonical on every backend: IEEE arithmetic and numpy's fixed-order
+  reductions only, split across the machine's cores, so the same source quantizes to the same bytes on a CUDA
+  box and on a Mac -- a parameter cache built on either is byte-identical (`python -m omllm.local.qwen.paramcache
+  CACHE_DIR/<entry>` prints a checksum; `test_quant.py` checks torch- and MLX-built caches agree). About two
+  minutes for the 27B on 16 cores. `TorchOps.quant_native = True` opts into an on-device version of the same
+  search (a little faster, reductions in GPU order, so not byte-identical).
 - `--policy km` (`model.POLICIES`): llama.cpp's Q4_K_M recipe with int8 where it uses Q6_K -- attention value
   projections, the down projections of the first and last eighth of the layers, the output head. A fused group
   whose parts would differ in width is loaded unfused. About +8% bytes on the 27B. `uniform` is the default.
 
 The parameter cache keys on both (`...-int4-g64-km-s`), so recipes coexist. Which recipe is worth its bytes is
-measured, not guessed, with `entrypoints/kl`: score a reference (int8 fits on a 32 GB card and is close enough
-to lossless) over real text once, then each candidate against it -- mean KL of the next-token distributions,
-top-1 agreement, perplexities:
+measured, not guessed, with `entrypoints/kl`: score a reference over real text once (bf16 on a 128 GB Mac is the
+one to have; int8 of the 27B does not quite fit a 32 GB card next to its activations), then each candidate against
+it -- mean KL of the next-token distributions, top-1 agreement, perplexities:
 
 ```bash
-python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int8 --text code.txt --save ref-int8.npz
-python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int4 --text code.txt --ref ref-int8.npz
+python -m omllm.local.qwen.entrypoints.kl --backend mlx --model qwen3.8:27b --text code.txt --save ref-bf16.npz
+python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int4 --text code.txt --ref ref-bf16.npz
 python -m omllm.local.qwen.entrypoints.kl --model ~/hf/Qwen3.8-27B --quant int4 --policy km --text code.txt \
-    --ref ref-int8.npz
+    --ref ref-bf16.npz
 ```
 
 ## The parameter cache

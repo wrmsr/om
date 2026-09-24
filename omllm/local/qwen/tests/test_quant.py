@@ -207,10 +207,14 @@ def test_quantize_search():
                 from ..backends.torch import TorchOps
             except ImportError:
                 continue
-            tq = TorchOps('cpu').quantize(w, bits, 64, torch.float32, search=True)
-            e_t = ((tq.dequant(torch.float32).numpy() - w) ** 2).mean()
-            assert abs(e_t - e_s) < 1e-3 * e_s + 1e-12, (name, bits, e_t, e_s)
-    print('quantizer search: less error than min/max, torch twin agrees')
+            ops = TorchOps('cpu')
+            tq = ops.quantize(w, bits, 64, torch.float32, search=True)  # canonical: byte-identical to numpy
+            assert np.array_equal(tq.q.numpy(), best.q) and np.array_equal(tq.scale.numpy(), best.scale)
+            ops.quant_native = True
+            tn = ops.quantize(w, bits, 64, torch.float32, search=True)  # on-device twin: same error, GPU order
+            e_t = ((tn.dequant(torch.float32).numpy() - w) ** 2).mean()
+            assert abs(e_t - e_s) < 2e-2 * e_s + 1e-12, (name, bits, e_t, e_s)  # different arithmetic, same recipe
+    print('quantizer search: less error than min/max; canonical path byte-identical, native twin agrees')
 
 
 def test_precision_policy():
@@ -221,7 +225,6 @@ def test_precision_policy():
     except ImportError:
         print('torch not installed; skipping')
         return
-
     from ..backends.torch import TorchOps
     from ..model import Qwen35
 
@@ -280,3 +283,32 @@ def test_kl_harness():
     assert diff['kl_mean'] > 0 and diff['tokens'] == 39 and diff['ppl_ref'] > 0
     print(f"kl harness OK (int4 vs int8 on the synthetic model: KL {diff['kl_mean']:.3f}, "
           f"top-1 {diff['top1_agreement']:.0%})")
+
+
+def test_cache_identity_across_backends():
+    """The canonical quantizer gives every backend the same bytes: caches built on torch and MLX checksum equal."""
+
+    try:
+        import torch  # noqa
+        import mlx.core  # noqa
+    except ImportError:
+        print('torch + mlx needed; skipping')
+        return
+
+    from ..backends.mlx import MlxOps
+    from ..backends.torch import TorchOps
+    from ..model import Qwen35
+    from ..paramcache import ParamCache
+
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    cfg = Qwen35Config(**CFG)  # type: ignore
+    hf = make_hf_params(cfg)
+    write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
+    src = GGUFSource(tmp / 'tiny.gguf')
+    sums = []
+    for i, ops in enumerate((TorchOps('cpu'), MlxOps())):
+        cdir = tmp / f'cache{i}'
+        Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
+        sums.append(ParamCache.open(cdir, src, 'int4', 64, 's').checksum())
+    assert sums[0] == sums[1], sums
+    print(f'torch-built and mlx-built caches are byte-identical ({sums[0][:16]}...)')

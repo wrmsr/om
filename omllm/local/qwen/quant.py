@@ -13,6 +13,7 @@ model lands at ~28 GB (int8) or ~15 GB (int4).
 """
 import numpy as np
 
+from omcore import check
 from omcore import dataclasses as dc
 
 
@@ -78,22 +79,31 @@ def pack(values: np.ndarray, bits: int) -> np.ndarray:
 # range-shrink candidates tried per group by the error-minimising quantizer (1.0 is plain min/max)
 SEARCH_SHRINKS = (1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.85, 0.825, 0.8)
 
+# rows per work item when a tensor is quantized on several threads (numpy releases the GIL inside its loops)
+SEARCH_ROW_BLOCK = 256
+
 
 def quantize(
         w: np.ndarray,
         bits: int,
         group: int = DEFAULT_GROUP,
         search: bool = True,
+        threads: int | None = None,
 ) -> QWeight:
     """
     Asymmetric affine quantization of a 2-D weight along its input dim, `group` inputs per scale.
 
-    search=False is plain min/max round-to-nearest. search=True (the default) does what llama.cpp's k-quants do
-    per group: try several shrunken ranges (more resolution for the bulk, the extremes clip), and for each one
-    re-fit scale and bias to the resulting codes by least squares -- the optimal affine map for those codes is a
-    linear regression of the weights on their codes -- keeping the candidate with the least squared error, then
-    one more round of codes + refit from the winner. Typically a third less error than min/max at the same
-    bytes, for nothing at inference time. Vectorised over all groups; a few passes over the tensor.
+    search=False is plain min/max round-to-nearest. search=True (the default) does what llama.cpp's k-quants do per
+    group: try several shrunken ranges (more resolution for the bulk, the extremes clip), and for each one re-fit scale
+    and bias to the resulting codes by least squares -- the optimal affine map for those codes is a linear regression of
+    the weights on their codes -- keeping the candidate with the least squared error, then one more round of codes +
+    refit from the winner. ~13-15% less error than min/max at int4 for the same bytes, nothing at inference time.
+
+    This numpy implementation is the canonical one: every backend uses it for the search (torch can opt into an
+    on-device version, see TorchOps.quant_native), and it uses only IEEE arithmetic and numpy's fixed-order reductions,
+    so the same source quantizes to the same bytes on every machine -- a parameter cache built on a CUDA box and one
+    built on a Mac are identical (`python -m ...paramcache DIR` prints a checksum to prove it). Rows are independent, so
+    the work is split into blocks across `threads` (default: the machine's cores).
     """
 
     if w.ndim != 2:
@@ -103,8 +113,32 @@ def quantize(
         raise ValueError(f'in_features {inn} not a multiple of group {group}')
     if bits not in (4, 8):
         raise ValueError(bits)
+    if search and out > SEARCH_ROW_BLOCK:
+        import concurrent.futures as cf
+        import os
+
+        n_threads = threads if threads is not None else max(1, min(32, os.cpu_count() or 1))
+        blocks = list(range(0, out, SEARCH_ROW_BLOCK))
+        if n_threads > 1 and len(blocks) > 1:
+            with cf.ThreadPoolExecutor(n_threads) as ex:
+                parts = list(ex.map(lambda r: _quantize_rows(w[r:r + SEARCH_ROW_BLOCK], bits, group, True), blocks))
+        else:
+            parts = [_quantize_rows(w[r:r + SEARCH_ROW_BLOCK], bits, group, True) for r in blocks]
+        return QWeight(
+            np.concatenate([p.q for p in parts], 0),
+            np.concatenate([p.scale for p in parts], 0),
+            np.concatenate([p.bias for p in parts], 0),
+            bits,
+            group,
+            (out, inn),
+        )
+    return _quantize_rows(w, bits, group, search)
+
+
+def _quantize_rows(w: np.ndarray, bits: int, group: int, search: bool) -> QWeight:
+    out, inn = w.shape
     qmax = (1 << bits) - 1
-    g = w.astype(np.float32).reshape(out, inn // group, group)
+    g = np.ascontiguousarray(w, dtype=np.float32).reshape(out, inn // group, group)
     lo = g.min(-1)
     hi = g.max(-1)
     scale = (hi - lo) / qmax
@@ -114,53 +148,65 @@ def quantize(
         q = np.rint((g - bias[..., None]) / scale[..., None])
         q = np.clip(q, 0, qmax).astype(np.uint8).reshape(out, inn)
         return QWeight(pack(q, bits), scale, bias, bits, group, (out, inn))
+    n = np.float32(group)
+    sx = g.sum(-1)
+    tmp = np.empty_like(g)
+    np.multiply(g, g, out=tmp)
+    sxx = tmp.sum(-1)
+    q = np.empty_like(g)
     best_err = None
     best_q = None
     best_s = scale
     best_b = bias
-    mid = (hi + lo) * 0.5
-    half = (hi - lo) * 0.5
+    mid = (hi + lo) * np.float32(0.5)
+    half = (hi - lo) * np.float32(0.5)
+
+    def codes(s, b):
+        # q = clip(rint((g - b) / s)) with in-place passes: one multiply, one subtract, rint, clip
+        inv = (np.float32(1) / s).astype(np.float32)
+        np.multiply(g, inv[..., None], out=q)
+        np.subtract(q, (b * inv)[..., None], out=q)
+        np.rint(q, out=q)
+        np.clip(q, 0, qmax, out=q)
+
+    def refit(s0, b0):
+        # least-squares (scale, bias) for the codes in q, and the error from the sufficient statistics alone
+        sq = q.sum(-1)
+        np.multiply(q, q, out=tmp)
+        sqq = tmp.sum(-1)
+        np.multiply(q, g, out=tmp)
+        sqx = tmp.sum(-1)
+        den = n * sqq - sq * sq
+        ok = den > np.float32(1e-6)
+        s = np.where(ok, (n * sqx - sq * sx) / np.where(ok, den, np.float32(1)), s0).astype(np.float32)
+        b = np.where(ok, (sx - s * sq) / n, b0).astype(np.float32)
+        err = sxx - 2 * s * sqx - 2 * b * sx + s * s * sqq + 2 * s * b * sq + n * b * b
+        return s, b, err
+
     for shrink in SEARCH_SHRINKS:
-        s = np.maximum(2 * half * shrink / qmax, 1e-12).astype(np.float32)
-        b = (mid - half * shrink).astype(np.float32)
-        q = np.clip(np.rint((g - b[..., None]) / s[..., None]), 0, qmax)
-        s2, b2, err = _refit(g, q, s, b)
+        s = np.maximum(2 * half * np.float32(shrink) / qmax, np.float32(1e-12)).astype(np.float32)
+        b = (mid - half * np.float32(shrink)).astype(np.float32)
+        codes(s, b)
+        s2, b2, err = refit(s, b)
         if best_err is None:
             best_err = err
-            best_q = q
+            best_q = q.copy()
             best_s = s2
             best_b = b2
         else:
             better = err < best_err
             best_err = np.where(better, err, best_err)
-            best_q = np.where(better[..., None], q, best_q)  # type: ignore[arg-type]
+            best_q = np.where(better[..., None], q, check.not_none(best_q))
             best_s = np.where(better, s2, best_s)
             best_b = np.where(better, b2, best_b)
-    # one more round from the winner: re-code with the refitted map, refit again, keep if it helps
-    q = np.clip(np.rint((g - best_b[..., None]) / best_s[..., None]), 0, qmax)
-    s2, b2, err = _refit(g, q, best_s, best_b)
+    codes(best_s, best_b)
+    s2, b2, err = refit(best_s, best_b)
     better = err < best_err
-    best_q = np.where(better[..., None], q, best_q)  # type: ignore[arg-type]
+    best_q = np.where(better[..., None], q, check.not_none(best_q))
     best_s = np.where(better, s2, best_s).astype(np.float32)
     best_b = np.where(better, b2, best_b).astype(np.float32)
     q8 = best_q.astype(np.uint8).reshape(out, inn)
     return QWeight(pack(q8, bits), best_s, best_b, bits, group, (out, inn))
-
-
-def _refit(g: np.ndarray, q: np.ndarray, s0: np.ndarray, b0: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Least-squares (scale, bias) per group for fixed codes q, falling back to (s0, b0) where q is constant."""
-
-    n = q.shape[-1]
-    sq = q.sum(-1)
-    sqq = (q * q).sum(-1)
-    sx = g.sum(-1)
-    sqx = (q * g).sum(-1)
-    den = n * sqq - sq * sq
-    ok = den > 1e-6
-    s = np.where(ok, (n * sqx - sq * sx) / np.where(ok, den, 1), s0)
-    b = np.where(ok, (sx - s * sq) / n, b0)
-    err = ((g - (q * s[..., None] + b[..., None])) ** 2).sum(-1)
-    return s.astype(np.float32), b.astype(np.float32), err
 
 
 def from_native(values: np.ndarray, scale: np.ndarray, bias: np.ndarray, bits: int, group: int) -> QWeight:
