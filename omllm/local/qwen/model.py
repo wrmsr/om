@@ -436,6 +436,30 @@ FUSIONS: tuple[tuple[str, tuple[str, ...], int | None], ...] = (
 )
 
 
+# Per-tensor precision policies: name -> bits override (None = the model's width). 'km' is llama.cpp's Q4_K_M recipe
+# with int8 where it uses Q6_K: attention value projections everywhere, the down projections of the first and last
+# eighth of the layers, and the output head. (The a/b projections are int8 under every policy, via FUSIONS.)
+def _policy_uniform(name: str, cfg: ta.Any) -> int | None:
+    return None
+
+
+def _policy_km(name: str, cfg: ta.Any) -> int | None:
+    if name.endswith('self_attn.v_proj.weight') or name == 'lm_head.weight':
+        return 8
+    if name.endswith('mlp.down_proj.weight') and name.startswith('layers.'):
+        i = int(name.split('.')[1])
+        n = cfg.num_layers
+        if i < (n + 7) // 8 or i >= n - (n + 7) // 8:
+            return 8
+    return None
+
+
+POLICIES: dict[str, ta.Callable[[str, ta.Any], int | None]] = {
+    'uniform': _policy_uniform,
+    'km': _policy_km,
+}
+
+
 def fusion_of(name: str) -> tuple[str, list[str], int | None] | None:
     """For a canonical part name, the (fused name, all part names, bits override) it belongs to."""
 
@@ -490,9 +514,15 @@ class Qwen35:
         verbose: bool = True,
         mtp: bool = False,
         cache_dir: str | pathlib.Path | None = None,
+        policy: str | ta.Callable[[str, ta.Any], int | None] = 'uniform',
+        quant_search: bool = True,
     ) -> Qwen35:
         """
         dtype: 'bf16' | 'f16' | 'f32' (compute dtype; norms, A, dt_bias, conv stay f32).
+        policy: per-tensor precision, a name in POLICIES ('uniform', 'km') or a callable (name, cfg) -> bits | None;
+               a fused group whose parts would differ in width is loaded unfused.
+        quant_search: error-minimising scale search when quantizing (quant.quantize); off = plain min/max. Both
+               are part of the parameter cache's key.
         quant: None, 'int8' or 'int4' (weight-only affine, see quant.py). If the source already holds MLX-quantized
                tensors at the requested width they are re-packed as-is; otherwise weights are quantized.
         mtp:   also load the multi-token-prediction draft head (needs `num_mtp_layers >= 1` in the source).
@@ -523,7 +553,27 @@ class Qwen35:
             raise KeyError(f'source is missing {len(missing)} tensors, e.g. {missing[:5]}')
         if 'lm_head.weight' in available and not cfg.tied_embeddings:
             names.append('lm_head.weight')
-        cache = ParamCache.open(cache_dir, src, quant, group) if cache_dir is not None else None
+        pol = POLICIES[policy] if isinstance(policy, str) else policy
+        pol_name = policy if isinstance(policy, str) else getattr(policy, '__name__', 'custom')
+        variant = '-'.join(v for v in (pol_name if pol_name != 'uniform' else '', 's' if quant_search else '') if v)
+        cache = ParamCache.open(cache_dir, src, quant, group, variant) if cache_dir is not None else None
+
+        def bits_for(n: str) -> int | None:
+            if bits is None:
+                return None
+            return pol(n, cfg) or bits
+
+        def quantize_and_cache(arr: np.ndarray, n: str, b: int) -> Weight:
+            if cache is not None:
+                try:  # quantize on the device (fast) and export; fall back to the numpy quantizer
+                    p = ops.quantize(arr, b, group, dt, quant_search)
+                    qw = ops.export_qweight(p)
+                except NotImplementedError:
+                    qw = quantize_np(arr, b, group, quant_search)
+                    p = ops.qweight(qw, dt)
+                cache.put(n, qw)
+                return p
+            return ops.quantize(arr, b, group, dt, quant_search)
         n_native = n_quant = 0
         for n_i, name in enumerate(names):
             p: Weight | None = None
@@ -533,13 +583,23 @@ class Qwen35:
                 fused_name, parts, fbits = fusion
                 if fused_name in params:
                     continue
-                if all(pn in available for pn in parts):
-                    fb = None if bits is None else (fbits or bits)
-                    params[fused_name] = cls._load_fused(src, ops, cache, fused_name, parts, fb, group, dt)
+                if all(pn in available for pn in parts) and len({bits_for(pn) for pn in parts}) == 1:
+                    fb = None if bits is None else (fbits or bits_for(name))
+                    params[fused_name] = cls._load_fused(
+                        src,
+                        ops,
+                        cache,
+                        fused_name,
+                        parts,
+                        fb,
+                        group,
+                        dt,
+                        quantize_and_cache,
+                    )
                     if fb is not None:
                         n_quant += 1
                     continue
-                # a part without its siblings (unusual source): fall through and load it on its own
+                # a part without its siblings, or parts the policy gives different widths: loaded on their own
             cached = cache.get(name) if cache is not None else None
             if isinstance(cached, QWeight):
                 p = ops.qweight(cached, dt)
@@ -547,7 +607,7 @@ class Qwen35:
                 p = ops.weight(cached, f32 if keep_f32 else dt)
             if p is None and bits is not None and not keep_f32 and not any(s in name for s in NO_QUANT):
                 nq = src.get_quant(name)
-                if nq is not None and nq.bits == bits:
+                if nq is not None and nq.bits == bits_for(name):
                     qw = from_native(nq.values, nq.scale, nq.bias, nq.bits, nq.group)
                     if cache is not None:
                         cache.put(name, qw)
@@ -560,16 +620,7 @@ class Qwen35:
                         cache.put(name, arr)
                     p = ops.weight(arr, f32)
                 elif bits is not None and is_quantizable(name, arr.shape, group):
-                    if cache is not None:
-                        try:  # quantize on the device (fast) and export; fall back to the numpy quantizer
-                            p = ops.quantize(arr, bits, group, dt)
-                            qw = ops.export_qweight(p)
-                        except NotImplementedError:
-                            qw = quantize_np(arr, bits, group)
-                            p = ops.qweight(qw, dt)
-                        cache.put(name, qw)
-                    else:
-                        p = ops.quantize(arr, bits, group, dt)
+                    p = quantize_and_cache(arr, name, bits_for(name) or bits)
                     n_quant += 1
                 else:
                     if cache is not None:
@@ -580,13 +631,24 @@ class Qwen35:
                 print(f'\r[model] loading tensors {n_i + 1}/{len(names)}', end='', flush=True)
         model = cls(cfg, params, ops, dt)
         if verbose:
-            q_note = f', {n_native} re-packed + {n_quant} quantized to {quant}' if bits else ''
+            recipe = f'{pol_name}, search' if quant_search else pol_name
+            q_note = f', {n_native} re-packed + {n_quant} quantized to {quant} ({recipe})' if bits else ''
             c_note = f'; cache {cache.root}: {cache.hits} hit / {cache.misses} miss' if cache is not None else ''
             print(f'\n[model] {model.nbytes / 2**30:.2f} GiB of weights on {ops.name}{q_note}{c_note}')
         return model
 
     @staticmethod
-    def _load_fused(src, ops, cache, fused_name, parts, fbits, group, dt) -> Weight:
+    def _load_fused(
+            src,
+            ops,
+            cache,
+            fused_name,
+            parts,
+            fbits,
+            group,
+            dt,
+            quantize_and_cache,
+    ) -> Weight:
         """
         Load `parts`, stack them along the output dim, quantize (fbits) or adopt dense; cached under the fused name.
         Sources that hold the parts already quantized at the same width are re-packed row-wise without requantization.
@@ -612,16 +674,7 @@ class Qwen35:
                 return ops.qweight(qw, dt)
         arr = np.concatenate([np.asarray(src.get(pn), dtype=np.float32) for pn in parts], 0)
         if fbits is not None and arr.ndim == 2 and arr.shape[1] % group == 0:  # (NO_QUANT is about int4; fbits decides)
-            if cache is not None:
-                try:
-                    p = ops.quantize(arr, fbits, group, dt)
-                    qw = ops.export_qweight(p)
-                except NotImplementedError:
-                    qw = quantize_np(arr, fbits, group)
-                    p = ops.qweight(qw, dt)
-                cache.put(fused_name, qw)
-                return p
-            return ops.quantize(arr, fbits, group, dt)
+            return quantize_and_cache(arr, fused_name, fbits)
         if cache is not None:
             cache.put(fused_name, arr)
         return ops.weight(arr, dt)

@@ -148,6 +148,8 @@ def main() -> None:
         default=None,
         help='directory for the finished-parameter cache (paramcache.py); e.g. ./.cache/qwen. First load fills it',
     )
+    ap.add_argument('--policy', choices=['uniform', 'km'], default='uniform', help='per-tensor precision policy')
+    ap.add_argument('--no-quant-search', action='store_true', help='plain min/max quantization')
     ap.add_argument(
         '--triton-tuned',
         default=None,
@@ -224,7 +226,7 @@ def main() -> None:
     if args.info:
         r = resolve_weights(args.model)
         if not isinstance(r, OllamaModel):
-            print(describe_gguf(r))
+            print(describe_gguf(r))  # type: ignore[arg-type]
         src = open_source(args.model)  # raises with a diagnostic if the mapping fails
         print(f'[model] {src.config.summary()}')
         for sn in src.names():
@@ -241,6 +243,8 @@ def main() -> None:
         quant=args.quant,
         mtp=args.spec > 0,
         cache_dir=args.cache_dir,
+        policy=args.policy,
+        quant_search=not args.no_quant_search,
     )
     print(f'[model] loaded on {ops.name} as {dtype} in {time.time() - t0:.1f}s')
     sampler = Sampler(

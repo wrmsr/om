@@ -20,7 +20,7 @@ def add_model_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument(
         '--model',
         required=True,
-        help='Ollama model name (qwen3.8:27b) or path to a .gguf / blob',
+        help='Ollama model name (qwen3.8:27b), a path to a .gguf / blob, or a Hugging Face checkpoint directory',
     )
     ap.add_argument(
         '--backend',
@@ -83,8 +83,12 @@ def add_model_args(ap: argparse.ArgumentParser) -> None:
     )
 
 
-def load_model(args: argparse.Namespace) -> tuple[ta.Any, ta.Any, Tokenizer, Qwen35]:
-    """(ops, source, tokenizer, model) from the options above."""
+def load_model(
+        args: argparse.Namespace,
+        policy: str = 'uniform',
+        quant_search: bool = True,
+) -> tuple[ta.Any, ta.Any, Tokenizer, Qwen35]:
+    """(ops, source, tokenizer, model) from the options above (and the quantization recipe, see Qwen35.from_source)."""
 
     ops = make_ops(args.backend, args.device)
     dtype = args.dtype or default_dtype(ops)
@@ -109,6 +113,8 @@ def load_model(args: argparse.Namespace) -> tuple[ta.Any, ta.Any, Tokenizer, Qwe
         quant=args.quant,
         mtp=args.spec > 0,
         cache_dir=args.cache_dir,
+        policy=policy,
+        quant_search=quant_search,
     )
     print(f'[model] loaded on {ops.name} as {dtype} in {time.time() - t0:.1f}s')
     return ops, src, tok, model

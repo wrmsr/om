@@ -105,6 +105,8 @@ def main() -> None:
         action='store_true',
         help='capture / compile the decode steps before listening',
     )
+    ap.add_argument('--policy', choices=['uniform', 'km'], default='uniform', help='per-tensor precision policy')
+    ap.add_argument('--no-quant-search', action='store_true', help='plain min/max quantization')
     add_model_args(ap)
     args = ap.parse_args()
 
@@ -114,7 +116,7 @@ def main() -> None:
         print(json.dumps({k: v for k, v in res.items() if k != 'message'}, indent=1))
         return
 
-    ops, src, tok, model = load_model(args)
+    ops, src, tok, model = load_model(args, policy=args.policy, quant_search=not args.no_quant_search)
     defaults = SamplingDefaults(max_tokens=args.max_tokens)
     if args.preset == 'non-thinking':
         defaults = SamplingDefaults(0.7, 20, 0.8, 0.0, 1.5, 0.0, args.max_tokens)

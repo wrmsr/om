@@ -339,7 +339,7 @@ def write_safetensors(path, tensors: dict, metadata: dict | None = None):
     header, blobs, off = {}, [], 0
     for n, a in tensors.items():
         a = np.ascontiguousarray(a)
-        dt = {np.dtype('float32'): 'F32', np.dtype('uint32'): 'U32'}[a.dtype]
+        dt = {np.dtype('float32'): 'F32', np.dtype('uint32'): 'U32', np.dtype('uint16'): 'BF16'}[a.dtype]
         header[n] = {
             'dtype': dt,
             'shape': list(a.shape),
@@ -357,42 +357,9 @@ def write_safetensors(path, tensors: dict, metadata: dict | None = None):
             f.write(b)
 
 
-def write_ollama_tensor_model(root: pathlib.Path, cfg: Qwen35Config, hf: dict):
-    (root / 'blobs').mkdir(parents=True)
-    layers = []
-    n = 0
-    for k, v in hf.items():
-        hf_name = 'model.language_model.' + k if k != 'lm_head.weight' and not k.startswith('mtp.') else k
-        digest = f'sha256:{n:064x}'
-        n += 1
-        p = root / 'blobs' / digest.replace(':', '-')
-        if (
-                v.ndim == 2 and
-                v.shape[1] % 64 == 0 and
-                'norm' not in k and
-                'embed' not in k
-        ):
-            packed, s, b = mlx_affine_quant(v, 8, 64)
-            write_safetensors(
-                p,
-                {
-                    hf_name: packed,
-                    hf_name + '.scale': s,
-                    hf_name + '.bias': b,
-                },
-                {
-                    'quant_type': 'int8',
-                    'group_size': '64',
-                },
-            )
-        else:
-            write_safetensors(p, {hf_name: v})
-        layers.append({
-            'mediaType': MT_TENSOR,
-            'digest': digest,
-            'size': p.stat().st_size,
-            'name': hf_name,
-        })
+def hf_config_and_tokenizer(cfg: Qwen35Config) -> tuple[dict, dict]:
+    """The config.json and tokenizer.json of a synthetic HF checkpoint."""
+
     hfcfg = {
         'architectures': ['Qwen3_5ForConditionalGeneration'],
         'model_type': 'qwen3_5',
@@ -452,6 +419,69 @@ def write_ollama_tensor_model(root: pathlib.Path, cfg: Qwen35Config, hf: dict):
             ],
         },
     }
+    return hfcfg, tj
+
+
+def write_hf_checkpoint(root: pathlib.Path, cfg: Qwen35Config, hf: dict) -> pathlib.Path:
+    """A Hugging Face checkpoint directory: config.json, tokenizer.json, two bf16 safetensors shards + index."""
+
+    root.mkdir(parents=True, exist_ok=True)
+    hfcfg, tj = hf_config_and_tokenizer(cfg)
+    (root / 'config.json').write_text(json.dumps(hfcfg))
+    (root / 'tokenizer.json').write_text(json.dumps(tj))
+    items = list(hf.items())
+    shards = [items[: len(items) // 2], items[len(items) // 2:]]
+    weight_map = {}
+    for si, part in enumerate(shards):
+        fn = f'model-0000{si + 1}-of-00002.safetensors'
+        tensors = {}
+        for k, v in part:
+            hf_name = 'model.language_model.' + k if k != 'lm_head.weight' and not k.startswith('mtp.') else k
+            bits = np.asarray(v, dtype=np.float32).view(np.uint32)
+            tensors[hf_name] = ((bits + 0x7FFF + ((bits >> 16) & 1)) >> 16).astype(np.uint16)  # f32 -> bf16 (RNE)
+            weight_map[hf_name] = fn
+        write_safetensors(root / fn, tensors)
+    (root / 'model.safetensors.index.json').write_text(json.dumps({'weight_map': weight_map}))
+    return root
+
+
+def write_ollama_tensor_model(root: pathlib.Path, cfg: Qwen35Config, hf: dict):
+    (root / 'blobs').mkdir(parents=True)
+    layers = []
+    n = 0
+    for k, v in hf.items():
+        hf_name = 'model.language_model.' + k if k != 'lm_head.weight' and not k.startswith('mtp.') else k
+        digest = f'sha256:{n:064x}'
+        n += 1
+        p = root / 'blobs' / digest.replace(':', '-')
+        if (
+                v.ndim == 2 and
+                v.shape[1] % 64 == 0 and
+                'norm' not in k and
+                'embed' not in k
+        ):
+            packed, s, b = mlx_affine_quant(v, 8, 64)
+            write_safetensors(
+                p,
+                {
+                    hf_name: packed,
+                    hf_name + '.scale': s,
+                    hf_name + '.bias': b,
+                },
+                {
+                    'quant_type': 'int8',
+                    'group_size': '64',
+                },
+            )
+        else:
+            write_safetensors(p, {hf_name: v})
+        layers.append({
+            'mediaType': MT_TENSOR,
+            'digest': digest,
+            'size': p.stat().st_size,
+            'name': hf_name,
+        })
+    hfcfg, tj = hf_config_and_tokenizer(cfg)
     for fname, obj in [('config.json', hfcfg), ('tokenizer.json', tj)]:
         digest = f'sha256:{n:064x}'
         n += 1
@@ -597,6 +627,36 @@ def _test_ollama_tensor_blobs(tmp_path=None):
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     assert tok.encode('hello<|im_end|>')[-1] == 258
     print('ollama tensor blobs OK')
+
+
+def test_hf_checkpoint(tmp_path):
+    _test_hf_checkpoint(tmp_path)
+
+
+def _test_hf_checkpoint(tmp_path=None):
+    """A bf16 HF directory through open_source: same names, config and (to bf16 precision) values as the GGUF."""
+
+    from ..weights import HFSource
+    from ..weights import open_source
+
+    tmp_path = pathlib.Path(tmp_path or tempfile.mkdtemp())
+    cfg = Qwen35Config(**CFG)  # type: ignore
+    hf = make_hf_params(cfg)
+    eff = effective(hf)
+    root = write_hf_checkpoint(tmp_path / 'hf', cfg, hf)
+    src = open_source(str(root))
+    assert isinstance(src, HFSource) and src.config.extra['format'] == 'hf'
+    assert src.config.layer_types == cfg.layer_types and src.config.num_mtp_layers == cfg.num_mtp_layers
+    assert set(src.names()) == set(eff.keys()), set(src.names()) ^ set(eff.keys())
+    for k in eff:
+        got = src.get(k)
+        assert got.shape == eff[k].shape, (k, got.shape, eff[k].shape)
+        err = np.abs(got - eff[k]).max() / (np.abs(eff[k]).max() + 1e-9)
+        assert err < 1e-2, (k, err)  # bf16 storage
+        assert src.get_quant(k) is None
+    tok = Tokenizer.from_spec(src.tokenizer_spec)
+    assert tok.encode('hello<|im_end|>')[-1] == 258
+    print('hf checkpoint OK')
 
 
 def test_model():

@@ -154,7 +154,7 @@ def test_param_cache():
     a = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False)
     b = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # fills
     c = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # hits
-    root = ParamCache.open(cdir, src, 'int4', 64).root
+    root = ParamCache.open(cdir, src, 'int4', 64, 's').root  # (default: search on, uniform policy)
     n_meta = len(list(root.glob('*.json')))
     from ..model import fusion_of
 
@@ -182,3 +182,101 @@ def test_param_cache():
     assert (root / (victim + '.q.npy')).exists()
     assert source_identity(src) == source_identity(GGUFSource(tmp / 'tiny.gguf'))
     print(f'param cache OK ({n_meta} entries, {ParamCache(root).nbytes() / 1e6:.2f} MB)')
+
+
+def test_quantize_search():
+    """The error-minimising quantizer beats min/max on every row-group family and the torch twin agrees."""
+
+    rng = np.random.default_rng(3)
+    ws = {
+        'gaussian': rng.standard_normal((64, 512)).astype(np.float32) * 0.02,
+        'heavy': (rng.standard_t(3, (64, 512)) * 0.02).astype(np.float32),
+    }
+    for name, w in ws.items():
+        for bits in (4, 8):
+            rtn = quantize(w, bits, 64, search=False)
+            best = quantize(w, bits, 64, search=True)
+            e_r = ((rtn.dequantize() - w) ** 2).mean()
+            e_s = ((best.dequantize() - w) ** 2).mean()
+            assert e_s < e_r, (name, bits, e_s, e_r)
+            if bits == 4:
+                assert e_s < 0.92 * e_r, (name, e_s / e_r)
+            try:
+                import torch
+
+                from ..backends.torch import TorchOps
+            except ImportError:
+                continue
+            tq = TorchOps('cpu').quantize(w, bits, 64, torch.float32, search=True)
+            e_t = ((tq.dequant(torch.float32).numpy() - w) ** 2).mean()
+            assert abs(e_t - e_s) < 1e-3 * e_s + 1e-12, (name, bits, e_t, e_s)
+    print('quantizer search: less error than min/max, torch twin agrees')
+
+
+def test_precision_policy():
+    """'km' keeps v_proj / edge down_proj / lm_head at int8 (unfusing qkv), loads through the cache, and runs."""
+
+    try:
+        import torch  # noqa
+    except ImportError:
+        print('torch not installed; skipping')
+        return
+
+    from ..backends.torch import TorchOps
+    from ..model import Qwen35
+
+    ops = TorchOps('cpu')
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    cfg = Qwen35Config(**CFG)  # type: ignore
+    hf = make_hf_params(cfg)
+    write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
+    src = GGUFSource(tmp / 'tiny.gguf')
+    ids = np.random.default_rng(0).integers(0, 256, (1, 6))
+    ref = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+    for cache_dir in (None, tmp / 'cache'):
+        m = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, policy='km', cache_dir=cache_dir)
+        attn = m.blocks[3].mixer
+        assert attn.wqkv is None and attn.wv.bits == 8 and attn.wq.bits == 4  # type: ignore
+        down_bits = [m.blocks[i].mlp.wd.bits for i in (0, 1, 3)]
+        assert down_bits == [8, 4, 8], down_bits
+        assert m.lm_head.bits == 8  # type: ignore
+        assert m.blocks[0].mixer.w_ab.bits == 8 and m.blocks[0].mixer.w_qkvz.bits == 4  # type: ignore
+        err = np.abs(ops.numpy(m.forward(ids)) - ops.numpy(ref.forward(ids))).max()
+        assert np.isfinite(err)
+    m2 = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, policy='km', cache_dir=tmp / 'cache')
+    assert torch.equal(m2.lm_head.q, m.lm_head.q)  # type: ignore
+    print('precision policy km OK (cached and uncached)')
+
+
+def test_kl_harness():
+    """entrypoints.kl: log-probs of a model vs itself is 0 KL / 100% agreement; int4 vs int8 is > 0."""
+
+    try:
+        import torch  # noqa
+    except ImportError:
+        print('torch not installed; skipping')
+        return
+
+    from ..backends.torch import TorchOps
+    from ..entrypoints.kl import compare
+    from ..entrypoints.kl import logprobs
+    from ..model import Qwen35
+
+    ops = TorchOps('cpu')
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    cfg = Qwen35Config(**CFG)  # type: ignore
+    hf = make_hf_params(cfg)
+    write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
+    src = GGUFSource(tmp / 'tiny.gguf')
+    ids = np.random.default_rng(1).integers(0, 256, 40).tolist()
+    m8 = Qwen35.from_source(src, ops, dtype='f32', quant='int8', verbose=False)
+    m4 = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False)
+    lp8 = logprobs(m8, ids, chunk=16)
+    lp8b = logprobs(m8, ids, chunk=40)  # chunking must not change the numbers
+    assert np.abs(lp8.astype(np.float32) - lp8b.astype(np.float32)).max() < 1e-2
+    same = compare(lp8, lp8, ids)
+    assert same['kl_mean'] < 1e-6 and same['top1_agreement'] == 1.0
+    diff = compare(lp8, logprobs(m4, ids, chunk=16), ids)
+    assert diff['kl_mean'] > 0 and diff['tokens'] == 39 and diff['ppl_ref'] > 0
+    print(f"kl harness OK (int4 vs int8 on the synthetic model: KL {diff['kl_mean']:.3f}, "
+          f"top-1 {diff['top1_agreement']:.0%})")

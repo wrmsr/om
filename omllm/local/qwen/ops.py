@@ -232,10 +232,17 @@ class Ops(abc.ABC):
 
         return w[:n]
 
-    def quantize(self, w: np.ndarray, bits: int, group: int, dtype: ta.Any) -> Weight:
-        """Quantize + adopt. Backends may override to quantize on-device."""
+    def quantize(
+            self,
+            w: np.ndarray,
+            bits: int,
+            group: int,
+            dtype: ta.Any,
+            search: bool = True,
+    ) -> Weight:
+        """Quantize + adopt (see quant.quantize for `search`). Backends may override to quantize on-device."""
 
-        return self.qweight(quantize_np(w, bits, group), dtype)
+        return self.qweight(quantize_np(w, bits, group, search), dtype)
 
     def export_qweight(self, w: Weight) -> QWeight:
         """

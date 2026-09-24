@@ -50,6 +50,33 @@ python -m omllm.local.qwen.generate --model qwen3.5:0.8b --backend torch --devic
 `--model` accepts an Ollama name (`qwen3.5:0.8b`, `qwen3.8:27b`), a `.gguf` path, or a blob path. `--backend`
 defaults to mlx on macOS when it is installed, torch otherwise; `numpy` is the (slow) reference.
 
+## Quantizing it yourself
+
+`--model` also takes a Hugging Face checkpoint directory (`HFSource`: config.json, tokenizer.json, the bf16
+safetensors shards), so the original weights can be quantized here instead of requantizing Ollama's k-quants --
+which our loader has to do, since it runs its own int4/int8 format: a Q4_K tensor dequantized and snapped to a
+second 4-bit grid carries both roundings. Two knobs make the recipe ours:
+
+- `quant.quantize(search=True)` (the default, `--no-quant-search` to disable): per group, try several shrunken
+  ranges and refit scale and bias to the resulting codes by least squares, keep the least-error candidate -- what
+  llama.cpp's k-quants do. ~13-15% less squared error than min/max at int4, same bytes, nothing at inference
+  time. On torch it runs on the device; MLX and tinygrad use the numpy version (one-time, the cache keeps it).
+- `--policy km` (`model.POLICIES`): llama.cpp's Q4_K_M recipe with int8 where it uses Q6_K -- attention value
+  projections, the down projections of the first and last eighth of the layers, the output head. A fused group
+  whose parts would differ in width is loaded unfused. About +8% bytes on the 27B. `uniform` is the default.
+
+The parameter cache keys on both (`...-int4-g64-km-s`), so recipes coexist. Which recipe is worth its bytes is
+measured, not guessed, with `entrypoints/kl`: score a reference (int8 fits on a 32 GB card and is close enough
+to lossless) over real text once, then each candidate against it -- mean KL of the next-token distributions,
+top-1 agreement, perplexities:
+
+```bash
+python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int8 --text code.txt --save ref-int8.npz
+python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int4 --text code.txt --ref ref-int8.npz
+python -m omllm.local.qwen.entrypoints.kl --model ~/hf/Qwen3.8-27B --quant int4 --policy km --text code.txt \
+    --ref ref-int8.npz
+```
+
 ## The parameter cache
 
 Loading a 27B from an Ollama GGUF costs about two minutes of gguf-py's numpy k-quant dequantization plus the

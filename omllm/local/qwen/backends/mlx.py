@@ -19,6 +19,7 @@ import numpy as np
 
 from ..ops import Ops
 from ..quant import QWeight
+from ..quant import quantize as quantize_np
 
 
 ##
@@ -221,7 +222,10 @@ class MlxOps(Ops):
             bits,
             group,
             dtype,
+            search=True,
     ):
+        if search:  # mx.quantize is min/max round-to-nearest; the error-minimising search runs in numpy
+            return self.qweight(quantize_np(w, bits, group, True), dtype)
         wq, scales, biases = mx.quantize(
             self.array(w, mx.float32),
             group_size=group,

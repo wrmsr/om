@@ -49,6 +49,10 @@ def source_identity(src: ta.Any) -> str:
         m = _SHA_RE.search(path.name)
         if m:
             return m.group(1)[:16]
+        if path.is_dir():  # an HF checkpoint directory: the safetensors' names, sizes and mtimes
+            shards = sorted(path.glob('*.safetensors'))
+            parts = [f'{p.name}|{p.stat().st_size}|{int(p.stat().st_mtime)}' for p in shards]
+            return hashlib.sha256('|'.join([str(path.resolve()), *parts]).encode()).hexdigest()[:16]
         st = path.stat()
         h = hashlib.sha256(f'{path.resolve()}|{st.st_size}|{int(st.st_mtime)}'.encode()).hexdigest()
         return h[:16]
@@ -70,8 +74,18 @@ class ParamCache:
     misses: int = 0
 
     @classmethod
-    def open(cls, cache_dir: str | pathlib.Path, src: ta.Any, quant: str | None, group: int) -> ParamCache:
-        root = pathlib.Path(cache_dir).expanduser() / f'{source_identity(src)}-{quant or "none"}-g{group}'
+    def open(
+            cls,
+            cache_dir: str | pathlib.Path,
+            src: ta.Any,
+            quant: str | None,
+            group: int,
+            variant: str = '',
+    ) -> ParamCache:
+        """`variant` tags the quantizer / precision policy so different recipes for one blob keep separate entries."""
+
+        tag = f'-{variant}' if variant else ''
+        root = pathlib.Path(cache_dir).expanduser() / f'{source_identity(src)}-{quant or "none"}-g{group}{tag}'
         root.mkdir(parents=True, exist_ok=True)
         return cls(root)
 

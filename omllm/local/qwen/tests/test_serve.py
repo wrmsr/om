@@ -161,7 +161,7 @@ def test_serve():
         def slow():
             results.append(_post(
                 base + '/v1/chat/completions',
-                {'messages': [{'role': 'user', 'content': 'q'}], 'max_tokens': 40},
+                {'messages': [{'role': 'user', 'content': 'q'}], 'max_tokens': 400},
             ))
 
         threads = [threading.Thread(target=slow) for _ in range(2)]

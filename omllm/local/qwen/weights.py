@@ -782,14 +782,63 @@ class OllamaTensorSource(TensorSource):
         return x
 
 
+class HFSource(OllamaTensorSource):
+    """
+    A Hugging Face checkpoint directory (config.json, tokenizer.json, model*.safetensors, optionally
+    model.safetensors.index.json) -- the original bf16 weights, for quantizing ourselves instead of requantizing
+    someone else's k-quants. Same names, config and transforms as the Ollama tensor-blob format, which is these
+    files split per tensor.
+    """
+
+    def __init__(self, path: str | pathlib.Path) -> None:
+        self.path = pathlib.Path(path).expanduser()
+        if not (self.path / 'config.json').exists():
+            raise FileNotFoundError(f'{self.path}: no config.json')
+        cfg = json.loads((self.path / 'config.json').read_text())
+        self.hf_config = cfg
+        self.config = self._build_config(cfg)
+        self.config.extra['format'] = 'hf'
+        tj = self.path / 'tokenizer.json'
+        tc = self.path / 'tokenizer_config.json'
+        self.tokenizer_spec = {
+            'kind': 'hf',
+            'tokenizer_json': json.loads(tj.read_text()) if tj.exists() else None,
+            'tokenizer_config': json.loads(tc.read_text()) if tc.exists() else None,
+            'eos_id': cfg.get('eos_token_id'),
+        }
+        # canonical name -> (file, raw name)
+        self._where: dict[str, tuple[pathlib.Path, str]] = {}
+        index = self.path / 'model.safetensors.index.json'
+        if index.exists():
+            wm = json.loads(index.read_text())['weight_map']
+            files = {self.path / fn for fn in wm.values()}
+        else:
+            files = set(self.path.glob('*.safetensors'))
+        self._st: dict[pathlib.Path, SafetensorsFile] = {}
+        for fp in sorted(files):
+            st = SafetensorsFile(fp)
+            self._st[fp] = st
+            for raw in st.names():
+                self._where[self._canon_name(raw)] = (fp, raw)
+        if not self._where:
+            raise FileNotFoundError(f'{self.path}: no *.safetensors')
+        self._layers = {n: {'name': raw} for n, (fp, raw) in self._where.items()}  # what names()/get_quant() read
+
+    def _raw(self, canon: str):
+        fp, raw = self._where[canon]
+        return self._st[fp].get(raw), None  # never natively quantized
+
+
 ##
 # Entry point
 
 
-def resolve_weights(model: str) -> pathlib.Path | OllamaModel:
+def resolve_weights(model: str) -> pathlib.Path | OllamaModel | HFSource:
     """`model` -> a GGUF path, or the Ollama manifest for tensor-blob models."""
 
     p = pathlib.Path(model).expanduser()
+    if p.is_dir() and (p / 'config.json').exists():
+        return HFSource(p)
     if p.is_file() and p.suffix == '.gguf':
         return p
     if p.is_file():  # maybe a raw blob: sniff magic
@@ -814,6 +863,8 @@ def open_source(model: str) -> TensorSource:
     """`model` is an Ollama model name (qwen3.5:0.8b), a path to a .gguf, or a path to an Ollama manifest."""
 
     r = resolve_weights(model)
+    if isinstance(r, HFSource):
+        return r
     if isinstance(r, OllamaModel):
         return OllamaTensorSource(r)
     return GGUFSource(r)

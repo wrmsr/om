@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from omcore import dataclasses as dc
 
 from ..ops import Ops
+from ..quant import SEARCH_SHRINKS
 from ..quant import QWeight
 from .torch_triton import HAVE_TRITON
 from .torch_triton import gdn_step
@@ -141,6 +142,22 @@ def save_compile_cache(path: str) -> bool:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(blob)
     return True
+
+
+def _refit_torch(g, q, s0, b0):
+    """Least-squares (scale, bias) per group for fixed codes q (torch twin of quant._refit)."""
+
+    n = q.shape[-1]
+    sq = q.sum(-1)
+    sqq = (q * q).sum(-1)
+    sx = g.sum(-1)
+    sqx = (q * g).sum(-1)
+    den = n * sqq - sq * sq
+    ok = den > 1e-6
+    s = torch.where(ok, (n * sqx - sq * sx) / torch.where(ok, den, torch.ones_like(den)), s0)
+    b = torch.where(ok, (sx - s * sq) / n, b0)
+    err = ((g - (q * s[..., None] + b[..., None])) ** 2).sum(-1)
+    return s, b, err
 
 
 class TorchOps(Ops):
@@ -323,8 +340,9 @@ class TorchOps(Ops):
             bits,
             group,
             dtype,
+            search=True,
     ):
-        """On-device version of quant.quantize (same layout, same numerics up to rounding)."""
+        """On-device version of quant.quantize (same layout, same numerics up to rounding), search included."""
 
         out, inn = w.shape
         if inn % group:
@@ -335,13 +353,45 @@ class TorchOps(Ops):
         hi = g.amax(-1)
         scale = (hi - lo) / qmax
         scale = torch.where(scale == 0, torch.ones_like(scale), scale)
-        q = torch.round((g - lo[..., None]) / scale[..., None]).clamp_(0, qmax).to(torch.uint8).reshape(out, inn)
+        bias = lo
+        if search:
+            mid = (hi + lo) * 0.5
+            half = (hi - lo) * 0.5
+            best_err = None
+            best_q = None
+            best_s = scale
+            best_b = bias
+            for shrink in SEARCH_SHRINKS:
+                s = torch.clamp(2 * half * shrink / qmax, min=1e-12)
+                b = mid - half * shrink
+                q = torch.round((g - b[..., None]) / s[..., None]).clamp_(0, qmax)
+                s2, b2, err = _refit_torch(g, q, s, b)
+                if best_err is None:
+                    best_err = err
+                    best_q = q
+                    best_s = s2
+                    best_b = b2
+                else:
+                    better = err < best_err
+                    best_err = torch.where(better, err, best_err)
+                    best_q = torch.where(better[..., None], q, best_q)  # type: ignore[arg-type]
+                    best_s = torch.where(better, s2, best_s)
+                    best_b = torch.where(better, b2, best_b)
+            q = torch.round((g - best_b[..., None]) / best_s[..., None]).clamp_(0, qmax)
+            s2, b2, err = _refit_torch(g, q, best_s, best_b)
+            better = err < best_err
+            qf = torch.where(better[..., None], q, best_q)  # type: ignore[arg-type]
+            scale = torch.where(better, s2, best_s)
+            bias = torch.where(better, b2, best_b)
+        else:
+            qf = torch.round((g - bias[..., None]) / scale[..., None]).clamp_(0, qmax)
+        q = qf.to(torch.uint8).reshape(out, inn)
         if bits == 4:
             q = q[:, 0::2] | (q[:, 1::2] << 4)
         return TorchQWeight(
             q.contiguous(),
             scale.to(dtype),
-            lo.to(dtype),
+            bias.to(dtype),
             bits,
             group,
             (out, inn),
