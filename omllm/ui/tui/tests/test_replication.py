@@ -85,7 +85,7 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
         async with headless_tui(
                 inj.override(
-                    bind_headless_tui(Config(model='scripted', immediate=True, sql=True)),
+                    bind_headless_tui(Config(model='scripted', immediate=True)),
                     bind_scripted_backend(
                         text_message('before'),
                         tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'x'})),

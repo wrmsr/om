@@ -39,7 +39,7 @@ class Config:
     backend_model_id: str | None = None
 
     in_memory: bool | None = None
-    sql: bool | None = None
+    jsonl: bool | None = None
     resume: uuid.UUID | None = None
 
     autoexec: lang.SequenceNotStr[str] | None = None
@@ -69,7 +69,7 @@ class Config:
         parser.add_argument('--backend-model-id')
 
         parser.add_argument('--in-memory', action='store_true')
-        parser.add_argument('--sql', action='store_true')
+        parser.add_argument('--jsonl', action='store_true')
         parser.add_argument('--resume', type=uuid.UUID, metavar='SESSION_ID')
 
         parser.add_argument('-X', '--autoexec', action='append')
@@ -100,7 +100,7 @@ class Config:
             backend_model_id=args.backend_model_id,
 
             in_memory=args.in_memory,
-            sql=args.sql,
+            jsonl=args.jsonl,
             resume=args.resume,
 
             autoexec=args.autoexec,

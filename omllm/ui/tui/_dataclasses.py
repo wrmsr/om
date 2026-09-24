@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='cef226d3f1193da21770183ffa2901ea379ebf76',
+    installer_sha1='91680b877508bcce8412bc28c1a9fea3377090be',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -48,21 +48,21 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "ne, False, False, False), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, "
             "False, False, False), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value"
             "', None, False, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('sql', True, True, None, True, True, False, None), 'instance', 'value',"
-            " None, False, False, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value',"
-            " None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), "
-            "(), (False,)))"
+            "ue', None, False, False, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),)"
+            ", (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
+def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -127,7 +127,7 @@ def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
                 url=self.url,
                 backend_model_id=self.backend_model_id,
                 in_memory=self.in_memory,
-                sql=self.sql,
+                jsonl=self.jsonl,
                 resume=self.resume,
                 autoexec=self.autoexec,
                 immediate=self.immediate,
@@ -155,7 +155,7 @@ def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
                 self.url == other.url and
                 self.backend_model_id == other.backend_model_id and
                 self.in_memory == other.in_memory and
-                self.sql == other.sql and
+                self.jsonl == other.jsonl and
                 self.resume == other.resume and
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
@@ -178,7 +178,7 @@ def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
             'url',
             'backend_model_id',
             'in_memory',
-            'sql',
+            'jsonl',
             'resume',
             'autoexec',
             'immediate',
@@ -220,7 +220,7 @@ def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
                 self.url,
                 self.backend_model_id,
                 self.in_memory,
-                self.sql,
+                self.jsonl,
                 self.resume,
                 self.autoexec,
                 self.immediate,
@@ -245,7 +245,7 @@ def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
             url: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
             backend_model_id: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
             in_memory: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            sql: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            jsonl: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
             resume: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
             autoexec: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
             immediate: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
@@ -264,7 +264,7 @@ def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
             __dataclass__object_setattr(self, 'url', url)
             __dataclass__object_setattr(self, 'backend_model_id', backend_model_id)
             __dataclass__object_setattr(self, 'in_memory', in_memory)
-            __dataclass__object_setattr(self, 'sql', sql)
+            __dataclass__object_setattr(self, 'jsonl', jsonl)
             __dataclass__object_setattr(self, 'resume', resume)
             __dataclass__object_setattr(self, 'autoexec', autoexec)
             __dataclass__object_setattr(self, 'immediate', immediate)
@@ -288,7 +288,7 @@ def _process_dataclass__cef226d3f1193da21770183ffa2901ea379ebf76():
             parts.append(f"url={self.url!r}")
             parts.append(f"backend_model_id={self.backend_model_id!r}")
             parts.append(f"in_memory={self.in_memory!r}")
-            parts.append(f"sql={self.sql!r}")
+            parts.append(f"jsonl={self.jsonl!r}")
             parts.append(f"resume={self.resume!r}")
             parts.append(f"autoexec={self.autoexec!r}")
             parts.append(f"immediate={self.immediate!r}")

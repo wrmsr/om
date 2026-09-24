@@ -23,7 +23,7 @@ async def test_fs_session_resume():
 
         def bind(*turns, resume=None):
             return inj.override(
-                bind_headless_tui(Config(model='scripted', immediate=True, resume=resume)),
+                bind_headless_tui(Config(model='scripted', immediate=True, jsonl=True, resume=resume)),
                 bind_scripted_backend(*turns),
                 inj.bind(har.FsSessionStorage.Config(dir_path=session_dir)),
             )

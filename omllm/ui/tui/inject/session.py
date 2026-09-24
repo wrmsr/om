@@ -30,22 +30,18 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     #
 
-    check.arg(not (config.in_memory and config.sql), 'Session storage is in memory or in sql, not both')
+    check.arg(not (config.in_memory and config.jsonl), 'Session storage is in memory or in jsonl, not both')
     check.arg(not (config.in_memory and config.resume is not None), 'An in-memory session cannot be resumed')
 
     state_dir_path = os.path.join(get_home_paths().state_dir, 'llm')
 
-    if config.sql:
-        # One db for every session, unlike the directory each gets otherwise.
+    if config.in_memory:
         lst.extend([
-            bind_orm_session_storage(),
-
-            bind_asyncio_sqlite_orm(sql.be.sqlite.connecting.SqliteDbConfig(
-                file_path=os.path.join(state_dir_path, 'sessions.db'),
-            )),
+            inj.bind(har.InMemorySessionStorage()),
+            inj.bind(har.SessionStorage, to_key=har.InMemorySessionStorage),
         ])
 
-    elif not config.in_memory:
+    elif config.jsonl:
         lst.extend([
             inj.bind(har.FsSessionStorage.Config(
                 dir_path=os.path.join(state_dir_path, 'sessions', str(session_id.v)),
@@ -59,9 +55,13 @@ def bind_sessions(config: Config) -> inj.Elements:
         ])
 
     else:
+        # One db for every session, unlike the directory each gets otherwise.
         lst.extend([
-            inj.bind(har.InMemorySessionStorage()),
-            inj.bind(har.SessionStorage, to_key=har.InMemorySessionStorage),
+            bind_orm_session_storage(),
+
+            bind_asyncio_sqlite_orm(sql.be.sqlite.connecting.SqliteDbConfig(
+                file_path=os.path.join(state_dir_path, 'sessions.db'),
+            )),
         ])
 
     #
