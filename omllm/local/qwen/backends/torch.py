@@ -12,6 +12,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from omcore import check
 from omcore import dataclasses as dc
 
 from ..ops import Ops
@@ -342,13 +343,37 @@ class TorchOps(Ops):
             dtype,
             search=True,
     ):
-        """On-device version of quant.quantize (same layout, same numerics up to rounding), search included."""
+        """
+        On-device version of quant.quantize (same layout, same numerics up to rounding), search included. Rows are
+        processed in blocks of ~256 MB of float32 so a 5 GB output head does not need itself plus the search's
+        temporaries resident at once.
+        """
 
         out, inn = w.shape
         if inn % group:
             raise ValueError(f'in_features {inn} not a multiple of group {group}')
+        rows = max(64, (256 << 20) // (inn * 4))
+        if out > rows:
+            parts = [
+                self.quantize(
+                    w[r:r + rows],
+                    bits,
+                    group,
+                    dtype,
+                    search,
+                )
+                for r in range(0, out, rows)
+            ]
+            return TorchQWeight(
+                torch.cat([p.q for p in parts], 0),
+                torch.cat([p.scale for p in parts], 0),
+                torch.cat([p.bias for p in parts], 0),
+                bits,
+                group,
+                (out, inn),
+            )
         qmax = (1 << bits) - 1
-        g = self.array(w, torch.float32).reshape(out, inn // group, group)
+        g = self.array(np.ascontiguousarray(w), torch.float32).reshape(out, inn // group, group)
         lo = g.amin(-1)
         hi = g.amax(-1)
         scale = (hi - lo) / qmax
@@ -374,13 +399,13 @@ class TorchOps(Ops):
                 else:
                     better = err < best_err
                     best_err = torch.where(better, err, best_err)
-                    best_q = torch.where(better[..., None], q, best_q)  # type: ignore[arg-type]
+                    best_q = torch.where(better[..., None], q, check.not_none(best_q))
                     best_s = torch.where(better, s2, best_s)
                     best_b = torch.where(better, b2, best_b)
             q = torch.round((g - best_b[..., None]) / best_s[..., None]).clamp_(0, qmax)
             s2, b2, err = _refit_torch(g, q, best_s, best_b)
             better = err < best_err
-            qf = torch.where(better[..., None], q, best_q)  # type: ignore[arg-type]
+            qf = torch.where(better[..., None], q, check.not_none(best_q))
             scale = torch.where(better, s2, best_s)
             bias = torch.where(better, b2, best_b)
         else:

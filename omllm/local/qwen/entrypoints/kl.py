@@ -3,13 +3,18 @@
 Measure what a quantization recipe costs: KL divergence of a model's next-token distributions from a reference model's,
 over real text, plus top-1 agreement and each model's perplexity.
 
-Two 27B models do not fit on one 32 GB GPU together, so it runs in two passes: the reference (int8 is close enough to
-lossless to stand in for bf16, and fits) saves its log-probabilities; the candidate loads them and compares.
+Two models do not fit on one GPU together, so it runs in two passes: the reference saves its log-probabilities, the
+candidate loads them and compares. The reference should be as close to bf16 as the hardware allows: the unquantized 27B
+needs ~55 GB and fits a 128 GB Mac (`--backend mlx --dtype bf16`, no --quant); int8 (~29 GB) does not quite fit a 32 GB
+card next to its activations, so a 5090 alone has to make do with int8 on a smaller model or a bf16 reference scored
+elsewhere (the .npz is ~1 GB for 2048 tokens; backends round bf16 slightly differently, which adds a small floor that
+every candidate shares).
 
+    python -m omllm.local.qwen.entrypoints.kl --backend mlx --model qwen3.8:27b --text some.txt --save ref-bf16.npz
     python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int8 --text some.txt --save ref-int8.npz
-    python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int4 --text some.txt --ref ref-int8.npz python
-    -m omllm.local.qwen.entrypoints.kl --model /path/to/hf/Qwen3.8-27B --quant int4 --policy km \\
-        --text some.txt --ref ref-int8.npz
+    python -m omllm.local.qwen.entrypoints.kl --model qwen3.8:27b --quant int4 --text some.txt --ref ref-bf16.npz
+    python -m omllm.local.qwen.entrypoints.kl --model /path/to/hf/Qwen3.8-27B --quant int4 --policy km \\
+        --text some.txt --ref ref-bf16.npz
 
 `--text` is any file (a few of your own source files concatenated make a fair test for a coding agent); `--n-tokens`
 (default 2048) of it are scored, teacher-forced. Numbers: mean KL in nats (0.01 is barely noticeable, 0.05 is the
