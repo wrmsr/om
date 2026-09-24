@@ -22,10 +22,16 @@ Rules for code that runs on any backend (i.e. all of model.py):
 import abc
 import typing as ta
 
-import numpy as np
+from omcore import lang
 
 from .quant import QWeight
 from .quant import quantize as quantize_np
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
 
 
 ##
@@ -590,7 +596,7 @@ class NumpyOps(Ops):
 
     name = 'numpy'
 
-    def __init__(self, precision: ta.Any = np.float64) -> None:
+    def __init__(self, precision: ta.Any = 'float64') -> None:
         super().__init__()
 
         self.precision = np.dtype(precision)

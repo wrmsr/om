@@ -4,8 +4,9 @@ Tune the Triton int4/int8 GEMV launch configurations for a model's projection sh
 `TorchOps(triton_tuned=...)` / `generate --triton-tuned`.
 """
 import argparse
+import typing as ta
 
-import torch
+from omcore import lang
 
 from ..backends.torch_triton import save_tuned
 from ..backends.torch_triton import tune
@@ -14,6 +15,12 @@ from ..model import mtp_param_names
 from ..model import required_param_names
 from ..quant import QUANT_BITS
 from ..weights import open_source
+
+
+if ta.TYPE_CHECKING:
+    import torch
+else:
+    torch = lang.proxy_import('torch')
 
 
 ##

@@ -26,9 +26,10 @@ import json
 import math
 import sys
 import time
+import typing as ta
 import urllib.request
 
-import numpy as np
+from omcore import lang
 
 from ..backends import BACKENDS
 from ..backends import make_ops
@@ -38,6 +39,12 @@ from ..tokenizer import Tokenizer
 from ..weights import MT_GGUF
 from ..weights import open_source
 from ..weights import resolve_ollama
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
 
 
 ##

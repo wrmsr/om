@@ -7,13 +7,11 @@ Overrides: rms_norm (F.rms_norm), sdpa (flash/SDPA), conv1d_causal (F.conv1d), o
 without touching model.py).
 """
 import pathlib
-
-import numpy as np
-import torch
-import torch.nn.functional as F
+import typing as ta
 
 from omcore import check
 from omcore import dataclasses as dc
+from omcore import lang
 
 from ..ops import Ops
 from ..quant import SEARCH_SHRINKS
@@ -25,15 +23,28 @@ from .torch_triton import load_tuned
 from .torch_triton import qlinear
 
 
+if ta.TYPE_CHECKING:
+    import numpy as np  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import torch  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import torch.nn.functional as F  # type: ignore[import-not-found,import-untyped,unused-ignore]
+else:
+    np = lang.proxy_import('numpy')
+    torch = lang.proxy_import('torch')
+    F = lang.proxy_import('torch.nn.functional')
+
+
 ##
 
 
-DTYPES = {
-    'f32': torch.float32,
-    'f16': torch.float16,
-    'bf16': torch.bfloat16,
-    'i32': torch.int32,
-}
+def dtypes() -> dict[str, ta.Any]:
+    """Compute dtype names -> torch dtypes (a function: torch is imported lazily)."""
+
+    return {
+        'f32': torch.float32,
+        'f16': torch.float16,
+        'bf16': torch.bfloat16,
+        'i32': torch.int32,
+    }
 
 
 @dc.dataclass()
@@ -200,7 +211,7 @@ class TorchOps(Ops):
         self.gdn_num_warps = 8
 
     def dtype(self, name):
-        return DTYPES[name]
+        return dtypes()[name]
 
     def array(self, a, dtype=None):
         a = np.ascontiguousarray(a)

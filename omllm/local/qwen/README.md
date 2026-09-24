@@ -98,6 +98,19 @@ of f32).
 python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --cache-dir ./.cache/qwen ...
 ```
 
+## Lazy imports
+
+Every third-party import outside `tests/` -- numpy included -- is an `omcore.lang.proxy_import`, resolved on first
+attribute access, so every module is importable with none of numpy / torch / mlx / tinygrad / triton installed,
+and importing a backend module imports nothing but the package (`backends.available_backends` reports what is
+installed with `lang.can_import`, without importing it). The consequences to keep in mind when editing: nothing
+third-party may be evaluated at import time -- no module-level dtype tables (they are functions: `dtypes()`,
+`_st_dtypes()`), no default argument values, no decorators (the Triton kernels are plain functions that
+`torch_triton._kernels` jits on first use, replacing the `triton` / `tl` proxies in the module globals with the
+real modules then, because Triton resolves `tl` through the kernel's globals). Annotations are fine: they are lazy
+on 3.14, which this package targets (no `from __future__ import annotations`). The vendored `gguf/` package still
+imports numpy eagerly and is itself imported lazily, inside the functions that read a GGUF.
+
 ## The Ops seam
 
 `model.py` touches the world only through an `Ops` instance: plain array algebra (reshape, slicing, `+ * @`,

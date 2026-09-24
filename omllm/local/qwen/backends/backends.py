@@ -2,6 +2,8 @@
 """Backend selection for the CLIs."""
 import platform
 
+from omcore import lang
+
 from ..ops import NumpyOps
 from ..ops import Ops
 
@@ -17,16 +19,20 @@ BACKENDS = (
 )
 
 
+def available_backends() -> list[str]:
+    """The backends whose library is installed (found, not imported: every backend module imports lazily)."""
+
+    out = []
+    for name, lib in (('torch', 'torch'), ('mlx', 'mlx'), ('tinygrad', 'tinygrad')):
+        if lang.can_import(lib):
+            out.append(name)
+    out.append('numpy')
+    return out
+
+
 def default_backend() -> str:
-    if platform.system() == 'Darwin':
-        try:
-            import mlx.core  # noqa
-
-            return 'mlx'
-
-        except ImportError:
-            pass
-
+    if platform.system() == 'Darwin' and lang.can_import('mlx'):
+        return 'mlx'
     return 'torch'
 
 

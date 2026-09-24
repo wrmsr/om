@@ -44,10 +44,15 @@ import pathlib
 import struct
 import typing as ta
 
-import numpy as np
-
 from omcore import check
 from omcore import dataclasses as dc
+from omcore import lang
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
 
 
 ##
@@ -204,19 +209,22 @@ def resolve_ollama(name: str) -> OllamaModel:
 # Packed safetensors reader (no `safetensors` package needed)
 
 
-_ST_DTYPES = {
-    'F32': np.float32,
-    'F16': np.float16,
-    'BF16': None,
-    'F64': np.float64,
-    'I8': np.int8,
-    'U8': np.uint8,
-    'I16': np.int16,
-    'I32': np.int32,
-    'I64': np.int64,
-    'U32': np.uint32,
-    'BOOL': np.bool_,
-}
+def _st_dtypes() -> dict[str, ta.Any]:
+    """safetensors dtype names -> numpy dtypes (a function: numpy is imported lazily)."""
+
+    return {
+        'F32': np.float32,
+        'F16': np.float16,
+        'BF16': None,
+        'F64': np.float64,
+        'I8': np.int8,
+        'U8': np.uint8,
+        'I16': np.int16,
+        'I32': np.int32,
+        'I64': np.int64,
+        'U32': np.uint32,
+        'BOOL': np.bool_,
+    }
 
 
 def bf16_to_f32(raw: np.ndarray) -> np.ndarray:
@@ -246,7 +254,7 @@ class SafetensorsFile:
         shape = tuple(info['shape'])
         if dt == 'BF16':
             return bf16_to_f32(np.frombuffer(buf, dtype=np.uint16)).reshape(shape)
-        arr = np.frombuffer(buf, dtype=_ST_DTYPES[dt]).reshape(shape)
+        arr = np.frombuffer(buf, dtype=_st_dtypes()[dt]).reshape(shape)
         return arr
 
 

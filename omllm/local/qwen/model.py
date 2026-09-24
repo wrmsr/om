@@ -20,9 +20,8 @@ import math
 import pathlib
 import typing as ta
 
-import numpy as np
-
 from omcore import check
+from omcore import lang
 
 from .ops import Array
 from .ops import Ops
@@ -36,6 +35,12 @@ from .quant import from_native
 from .quant import quantize as quantize_np
 from .weights import Qwen35Config
 from .weights import TensorSource
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
 
 
 ##

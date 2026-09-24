@@ -24,11 +24,16 @@ import pathlib
 import re
 import typing as ta
 
-import numpy as np
-
 from omcore import dataclasses as dc
+from omcore import lang
 
 from .quant import QWeight
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
 
 
 ##

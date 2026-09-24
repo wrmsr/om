@@ -15,8 +15,15 @@ dv] or per-token [T, B, Hv, dk, dv] state.
 Only runs where Metal is available; `tests/test_mlx_metal.py` checks it against the composed reference there.
 """
 import functools
+import typing as ta
 
-import mlx.core as mx
+from omcore import lang
+
+
+if ta.TYPE_CHECKING:
+    import mlx.core as mx  # type: ignore[import-not-found,import-untyped,unused-ignore]
+else:
+    mx = lang.proxy_import('mlx.core')
 
 
 ##

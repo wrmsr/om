@@ -12,24 +12,33 @@ reference. Quantized weights are unpacked and expanded per matmul (as on torch).
 import math
 import typing as ta
 
-import numpy as np
-import tinygrad as tg
-
 from omcore import dataclasses as dc
+from omcore import lang
 
 from ..ops import Ops
 from ..quant import QWeight
 
 
+if ta.TYPE_CHECKING:
+    import numpy as np  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import tinygrad as tg  # type: ignore[import-not-found,import-untyped,unused-ignore]
+else:
+    np = lang.proxy_import('numpy')
+    tg = lang.proxy_import('tinygrad')
+
+
 ##
 
 
-DTYPES = {
-    'f32': tg.dtypes.float32,
-    'f16': tg.dtypes.float16,
-    'bf16': tg.dtypes.bfloat16,
-    'i32': tg.dtypes.int32,
-}
+def dtypes() -> dict[str, ta.Any]:
+    """Compute dtype names -> tinygrad dtypes (a function: tinygrad is imported lazily)."""
+
+    return {
+        'f32': tg.dtypes.float32,
+        'f16': tg.dtypes.float16,
+        'bf16': tg.dtypes.bfloat16,
+        'i32': tg.dtypes.int32,
+    }
 
 
 @dc.dataclass()
@@ -75,7 +84,7 @@ class TinygradOps(Ops):
         self.name = f'tinygrad:{self.device}'
 
     def dtype(self, name):
-        return DTYPES[name]
+        return dtypes()[name]
 
     def array(self, a, dtype=None):
         a = np.ascontiguousarray(a)

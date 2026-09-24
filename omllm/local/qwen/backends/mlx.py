@@ -8,29 +8,37 @@ on-device quantize (mx.quantize). `gated_delta` uses the composed reference; an 
 step and `mx.compile` around the decode step are the next steps.
 
 MLX is lazy: nothing runs until something is evaluated. `eval()` forces it; `numpy()` does implicitly.
-
-FIXME:
- - proper late imports, can't use omcore dataclasses until then
 """
-import dataclasses as dc
+import typing as ta
 
-import mlx.core as mx
-import numpy as np
+from omcore import dataclasses as dc
+from omcore import lang
 
 from ..ops import Ops
 from ..quant import QWeight
 from ..quant import quantize as quantize_np
 
 
+if ta.TYPE_CHECKING:
+    import mlx.core as mx  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import numpy as np  # type: ignore[import-not-found,import-untyped,unused-ignore]
+else:
+    mx = lang.proxy_import('mlx.core')
+    np = lang.proxy_import('numpy')
+
+
 ##
 
 
-DTYPES = {
-    'f32': mx.float32,
-    'f16': mx.float16,
-    'bf16': mx.bfloat16,
-    'i32': mx.int32,
-}
+def dtypes() -> dict[str, ta.Any]:
+    """Compute dtype names -> mlx dtypes (a function: mlx is imported lazily)."""
+
+    return {
+        'f32': mx.float32,
+        'f16': mx.float16,
+        'bf16': mx.bfloat16,
+        'i32': mx.int32,
+    }
 
 
 @dc.dataclass()
@@ -91,7 +99,7 @@ class MlxOps(Ops):
         self.name = f'mlx:{mx.default_device()}'
 
     def dtype(self, name):
-        return DTYPES[name]
+        return dtypes()[name]
 
     def array(self, a, dtype=None):
         a = np.ascontiguousarray(a)

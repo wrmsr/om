@@ -11,10 +11,17 @@ A `QWeight` is plain numpy; each backend adopts it into its own container (see `
 int8 = 1 byte, int4 = 0.5 byte, plus 2 * sizeof(dtype) / group for scale + bias (~0.06 byte at group 64, bf16). A 27B
 model lands at ~28 GB (int8) or ~15 GB (int4).
 """
-import numpy as np
+import typing as ta
 
 from omcore import check
 from omcore import dataclasses as dc
+from omcore import lang
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
 
 
 ##

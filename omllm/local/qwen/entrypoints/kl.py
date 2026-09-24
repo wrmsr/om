@@ -22,13 +22,20 @@ neighbourhood of a good 4-bit, 0.2+ is degraded), top-1 agreement, perplexities.
 """
 import argparse
 import time
+import typing as ta
 
-import numpy as np
+from omcore import lang
 
 from ..model import Cache
 from ..model import Qwen35
 from .common import add_model_args
 from .common import load_model
+
+
+if ta.TYPE_CHECKING:
+    import numpy as np
+else:
+    np = lang.proxy_import('numpy')
 
 
 ##

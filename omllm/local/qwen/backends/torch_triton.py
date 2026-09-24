@@ -24,186 +24,206 @@ f32 does not fit -- keep BLOCK_K at 128 and let f32 use 2 stages.
 With `TRITON_INTERPRET=1` the kernel runs on CPU through Triton's numpy interpreter (slow, f32 only), which is
 how `tests/test_triton.py` checks it without a GPU.
 """
+import functools
 import json
 import pathlib
+import types
 import typing as ta
 
-import torch
-
 from omcore import dataclasses as dc
+from omcore import lang
 
 
-try:
+if ta.TYPE_CHECKING:
+    import torch  # type: ignore[import-not-found,import-untyped,unused-ignore]
     import triton  # type: ignore[import-not-found,import-untyped,unused-ignore]
     import triton.language as tl  # type: ignore[import-not-found,import-untyped,unused-ignore]
-except ImportError:
-    triton = None
-    tl = None
+else:
+    torch = lang.proxy_import('torch')
+    triton = lang.proxy_import('triton')
+    tl = lang.proxy_import('triton.language')
 
 
 ##
 
 
-HAVE_TRITON = triton is not None
+HAVE_TRITON = lang.can_import('triton')  # found, not imported: the kernels are jitted on first use
 
 # (N, K, bits, dtype, config) -> (block_k, num_stages, split_k) that launched successfully; filled by `_resolve`, which
 # is the only place a launch may fail and be retried smaller (keeps try/except out of the traced hot path)
 _RESOLVED: dict[tuple[ta.Any, ...], tuple[int, int, int]] = {}
 
 
-if HAVE_TRITON:
-    @triton.jit
-    def _qlinear_kernel(
-            x_ptr,
-            q_ptr,
-            s_ptr,
-            b_ptr,
-            y_ptr,
-            M,
-            N,
-            K,
-            stride_xm,
-            stride_ym,
-            BITS: tl.constexpr,
-            GROUP: tl.constexpr,
-            BLOCK_M: tl.constexpr,
-            BLOCK_N: tl.constexpr,
-            BLOCK_K: tl.constexpr,
-            SPLIT_K: tl.constexpr,
-            IEEE: tl.constexpr,
-    ):
-        pid_n = tl.program_id(0)
-        pid_m = tl.program_id(1)
-        pid_s = tl.program_id(2)  # split-K slice; partial sums land in y[pid_s]
-        rm = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
-        rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-        m_mask = rm < M
-        n_mask = rn < N
-        n_groups = K // GROUP
-        k_lo = pid_s * (K // SPLIT_K)
-        k_hi = k_lo + K // SPLIT_K
-        acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+def _qlinear_kernel(
+        x_ptr,
+        q_ptr,
+        s_ptr,
+        b_ptr,
+        y_ptr,
+        M,
+        N,
+        K,
+        stride_xm,
+        stride_ym,
+        BITS: tl.constexpr,
+        GROUP: tl.constexpr,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+        SPLIT_K: tl.constexpr,
+        IEEE: tl.constexpr,
+):
+    pid_n = tl.program_id(0)
+    pid_m = tl.program_id(1)
+    pid_s = tl.program_id(2)  # split-K slice; partial sums land in y[pid_s]
+    rm = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    m_mask = rm < M
+    n_mask = rn < N
+    n_groups = K // GROUP
+    k_lo = pid_s * (K // SPLIT_K)
+    k_hi = k_lo + K // SPLIT_K
+    acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
 
-        G: tl.constexpr = BLOCK_K // GROUP  # groups per K block
-        rg = tl.arange(0, G)
+    G: tl.constexpr = BLOCK_K // GROUP  # groups per K block
+    rg = tl.arange(0, G)
 
-        if BITS == 4:
-            KB: tl.constexpr = BLOCK_K // 2  # packed bytes per row per block
-            GB: tl.constexpr = GROUP // 2  # packed bytes per group
-            rb = tl.arange(0, KB)
-            for k0 in range(k_lo, k_hi, BLOCK_K):
-                kb = k0 // 2 + rb  # byte columns
-                ke = k0 + 2 * rb  # even element columns; odd = ke + 1
-                gcol = k0 // GROUP + rg  # [G] group columns of the scale plane
-                q = tl.load(q_ptr + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
-                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                s = s.to(tl.float32)[:, :, None]  # [BLOCK_N, G, 1]
-                b = b.to(tl.float32)[:, :, None]
-                lo = tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b
-                hi = tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b
-                lo = tl.reshape(lo, (BLOCK_N, KB))  # w[:, even]
-                hi = tl.reshape(hi, (BLOCK_N, KB))  # w[:, odd]
-                xe = tl.load(x_ptr + rm[:, None] * stride_xm + ke[None, :], mask=m_mask[:, None], other=0.0)
-                xo = tl.load(x_ptr + rm[:, None] * stride_xm + (ke + 1)[None, :], mask=m_mask[:, None], other=0.0)
-                if IEEE:
-                    acc = tl.dot(xe, tl.trans(lo.to(xe.dtype)), acc, input_precision='ieee')
-                    acc = tl.dot(xo, tl.trans(hi.to(xo.dtype)), acc, input_precision='ieee')
-                else:
-                    acc = tl.dot(xe, tl.trans(lo.to(xe.dtype)), acc)
-                    acc = tl.dot(xo, tl.trans(hi.to(xo.dtype)), acc)
-        else:
-            rk0 = tl.arange(0, BLOCK_K)
-            for k0 in range(k_lo, k_hi, BLOCK_K):
-                rk = k0 + rk0
-                gcol = k0 // GROUP + rg
-                q = tl.load(q_ptr + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
-                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                s = s.to(tl.float32)[:, :, None]
-                b = b.to(tl.float32)[:, :, None]
-                w = tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b
-                w = tl.reshape(w, (BLOCK_N, BLOCK_K))
-                xt = tl.load(x_ptr + rm[:, None] * stride_xm + rk[None, :], mask=m_mask[:, None], other=0.0)
-                if IEEE:
-                    acc = tl.dot(xt, tl.trans(w.to(xt.dtype)), acc, input_precision='ieee')
-                else:
-                    acc = tl.dot(xt, tl.trans(w.to(xt.dtype)), acc)
+    if BITS == 4:
+        KB: tl.constexpr = BLOCK_K // 2  # packed bytes per row per block
+        GB: tl.constexpr = GROUP // 2  # packed bytes per group
+        rb = tl.arange(0, KB)
+        for k0 in range(k_lo, k_hi, BLOCK_K):
+            kb = k0 // 2 + rb  # byte columns
+            ke = k0 + 2 * rb  # even element columns; odd = ke + 1
+            gcol = k0 // GROUP + rg  # [G] group columns of the scale plane
+            q = tl.load(q_ptr + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
+            s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            s = s.to(tl.float32)[:, :, None]  # [BLOCK_N, G, 1]
+            b = b.to(tl.float32)[:, :, None]
+            lo = tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b
+            hi = tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b
+            lo = tl.reshape(lo, (BLOCK_N, KB))  # w[:, even]
+            hi = tl.reshape(hi, (BLOCK_N, KB))  # w[:, odd]
+            xe = tl.load(x_ptr + rm[:, None] * stride_xm + ke[None, :], mask=m_mask[:, None], other=0.0)
+            xo = tl.load(x_ptr + rm[:, None] * stride_xm + (ke + 1)[None, :], mask=m_mask[:, None], other=0.0)
+            if IEEE:
+                acc = tl.dot(xe, tl.trans(lo.to(xe.dtype)), acc, input_precision='ieee')
+                acc = tl.dot(xo, tl.trans(hi.to(xo.dtype)), acc, input_precision='ieee')
+            else:
+                acc = tl.dot(xe, tl.trans(lo.to(xe.dtype)), acc)
+                acc = tl.dot(xo, tl.trans(hi.to(xo.dtype)), acc)
+    else:
+        rk0 = tl.arange(0, BLOCK_K)
+        for k0 in range(k_lo, k_hi, BLOCK_K):
+            rk = k0 + rk0
+            gcol = k0 // GROUP + rg
+            q = tl.load(q_ptr + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
+            s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            s = s.to(tl.float32)[:, :, None]
+            b = b.to(tl.float32)[:, :, None]
+            w = tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b
+            w = tl.reshape(w, (BLOCK_N, BLOCK_K))
+            xt = tl.load(x_ptr + rm[:, None] * stride_xm + rk[None, :], mask=m_mask[:, None], other=0.0)
+            if IEEE:
+                acc = tl.dot(xt, tl.trans(w.to(xt.dtype)), acc, input_precision='ieee')
+            else:
+                acc = tl.dot(xt, tl.trans(w.to(xt.dtype)), acc)
 
-        y = acc.to(y_ptr.dtype.element_ty)
-        y_base = y_ptr + pid_s * M * stride_ym
-        tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=m_mask[:, None] & n_mask[None, :])
+    y = acc.to(y_ptr.dtype.element_ty)
+    y_base = y_ptr + pid_s * M * stride_ym
+    tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=m_mask[:, None] & n_mask[None, :])
 
 
-if HAVE_TRITON:
-    @triton.jit
-    def _gdn_step_kernel(
-            q_ptr,
-            k_ptr,
-            v_ptr,
-            a_ptr,
-            b_ptr,
-            A_ptr,
-            dt_ptr,
-            s_in_ptr,
-            out_ptr,
-            s_out_ptr,
-            sq_b,
-            sq_t,
-            sq_h,
-            sv_b,
-            sv_t,
-            sv_h,
-            sa_b,
-            sa_t,
-            ss_b,
-            ss_h,
-            so_b,
-            so_t,
-            so_h,
-            ss_out_t,
-            Hv,
-            R,
-            T: tl.constexpr,
-            DK: tl.constexpr,
-            DV: tl.constexpr,
-            BLOCK_DV: tl.constexpr,
-            ALL_STATES: tl.constexpr,
-            EPS: tl.constexpr,
-            QSCALE: tl.constexpr,
-    ):
-        pid = tl.program_id(0)  # b * Hv + h
-        pid_v = tl.program_id(1)  # slice of the value dim
-        bidx = pid // Hv
-        h = pid % Hv
-        kh = h // R  # the key head this value head reads
-        rk = tl.arange(0, DK)
-        rv = pid_v * BLOCK_DV + tl.arange(0, BLOCK_DV)
-        s_off = bidx * ss_b + h * ss_h + rk[:, None] * DV + rv[None, :]
-        S = tl.load(s_in_ptr + s_off)  # [DK, BLOCK_DV] float32, held in registers for all T tokens
-        A_h = tl.load(A_ptr + h)
-        dt_h = tl.load(dt_ptr + h)
-        for t in tl.static_range(T):
-            qv = tl.load(q_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
-            kv = tl.load(k_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
-            qn = qv * tl.rsqrt(tl.sum(qv * qv, 0) + EPS) * QSCALE
-            kn = kv * tl.rsqrt(tl.sum(kv * kv, 0) + EPS)
-            vt = tl.load(v_ptr + bidx * sv_b + t * sv_t + h * sv_h + rv).to(tl.float32)
-            a_t = tl.load(a_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
-            b_t = tl.load(b_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
-            beta = tl.sigmoid(b_t)
-            xg = a_t + dt_h
-            sp = tl.where(xg > 20.0, xg, tl.log(1.0 + tl.exp(tl.minimum(xg, 20.0))))
-            S = S * tl.exp(A_h * sp)  # decay
-            mem = tl.sum(S * kn[:, None], 0)  # k^T S -> [BLOCK_DV]
-            delta = (vt - mem) * beta
-            S = S + kn[:, None] * delta[None, :]  # rank-1 update
-            o = tl.sum(S * qn[:, None], 0)  # q^T S
-            tl.store(out_ptr + bidx * so_b + t * so_t + h * so_h + rv, o)
-            if ALL_STATES:
-                tl.store(s_out_ptr + t * ss_out_t + s_off, S)
-        if not ALL_STATES:
-            tl.store(s_out_ptr + s_off, S)
+def _gdn_step_kernel(
+        q_ptr,
+        k_ptr,
+        v_ptr,
+        a_ptr,
+        b_ptr,
+        A_ptr,
+        dt_ptr,
+        s_in_ptr,
+        out_ptr,
+        s_out_ptr,
+        sq_b,
+        sq_t,
+        sq_h,
+        sv_b,
+        sv_t,
+        sv_h,
+        sa_b,
+        sa_t,
+        ss_b,
+        ss_h,
+        so_b,
+        so_t,
+        so_h,
+        ss_out_t,
+        Hv,
+        R,
+        T: tl.constexpr,
+        DK: tl.constexpr,
+        DV: tl.constexpr,
+        BLOCK_DV: tl.constexpr,
+        ALL_STATES: tl.constexpr,
+        EPS: tl.constexpr,
+        QSCALE: tl.constexpr,
+):
+    pid = tl.program_id(0)  # b * Hv + h
+    pid_v = tl.program_id(1)  # slice of the value dim
+    bidx = pid // Hv
+    h = pid % Hv
+    kh = h // R  # the key head this value head reads
+    rk = tl.arange(0, DK)
+    rv = pid_v * BLOCK_DV + tl.arange(0, BLOCK_DV)
+    s_off = bidx * ss_b + h * ss_h + rk[:, None] * DV + rv[None, :]
+    S = tl.load(s_in_ptr + s_off)  # [DK, BLOCK_DV] float32, held in registers for all T tokens
+    A_h = tl.load(A_ptr + h)
+    dt_h = tl.load(dt_ptr + h)
+    for t in tl.static_range(T):
+        qv = tl.load(q_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
+        kv = tl.load(k_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
+        qn = qv * tl.rsqrt(tl.sum(qv * qv, 0) + EPS) * QSCALE
+        kn = kv * tl.rsqrt(tl.sum(kv * kv, 0) + EPS)
+        vt = tl.load(v_ptr + bidx * sv_b + t * sv_t + h * sv_h + rv).to(tl.float32)
+        a_t = tl.load(a_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
+        b_t = tl.load(b_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
+        beta = tl.sigmoid(b_t)
+        xg = a_t + dt_h
+        sp = tl.where(xg > 20.0, xg, tl.log(1.0 + tl.exp(tl.minimum(xg, 20.0))))
+        S = S * tl.exp(A_h * sp)  # decay
+        mem = tl.sum(S * kn[:, None], 0)  # k^T S -> [BLOCK_DV]
+        delta = (vt - mem) * beta
+        S = S + kn[:, None] * delta[None, :]  # rank-1 update
+        o = tl.sum(S * qn[:, None], 0)  # q^T S
+        tl.store(out_ptr + bidx * so_b + t * so_t + h * so_h + rv, o)
+        if ALL_STATES:
+            tl.store(s_out_ptr + t * ss_out_t + s_off, S)
+    if not ALL_STATES:
+        tl.store(s_out_ptr + s_off, S)
+
+
+@functools.lru_cache(maxsize=1)
+def _kernels() -> types.SimpleNamespace:
+    """
+    The jitted kernels, built on first use: `triton.jit` is applied here rather than as decorators so importing
+    this module imports neither triton nor torch (the kernel bodies above are plain functions until then). Triton
+    resolves `tl` through the kernel function's globals and wants the real `triton.language` module there (the
+    interpreter checks identity), so the proxies are replaced by the modules at this point.
+    """
+
+    import importlib
+
+    g = globals()
+    g['triton'] = importlib.import_module('triton')
+    g['tl'] = importlib.import_module('triton.language')
+    return types.SimpleNamespace(
+        qlinear=triton.jit(_qlinear_kernel),
+        fma=triton.jit(_qgemv_fma_kernel),
+        gdn=triton.jit(_gdn_step_kernel),
+    )
 
 
 def gdn_step(
@@ -255,7 +275,7 @@ def gdn_step(
     if dv % block_dv:
         raise ValueError(f'dv={dv} is not a multiple of block_dv={block_dv}')
     grid = (B * Hv, dv // block_dv)
-    _gdn_step_kernel[grid](
+    _kernels().gdn[grid](
         q,
         k,
         v,
@@ -294,85 +314,83 @@ def gdn_step(
     return out, s_out
 
 
-if HAVE_TRITON:
-    @triton.jit
-    def _qgemv_fma_kernel(
-            x_ptr,
-            q_ptr,
-            s_ptr,
-            b_ptr,
-            y_ptr,
-            M,
-            N,
-            K,
-            stride_xm,
-            stride_ym,
-            BITS: tl.constexpr,
-            GROUP: tl.constexpr,
-            BLOCK_M: tl.constexpr,
-            BLOCK_N: tl.constexpr,
-            BLOCK_K: tl.constexpr,
-            SPLIT_K: tl.constexpr,
-    ):
-        """
-        The same GEMV as _qlinear_kernel without tensor cores: for M <= BLOCK_M (<= 8) rows the products are plain
-        FMAs reduced along K in registers, so the dequantized weight tile never goes through shared memory -- what
-        every int4 GEMV in llama.cpp / exllama does for small M. Which formulation streams faster on a given GPU
-        is for the tuner to decide (GemvConfig.fma). Rows are accumulated into a [BLOCK_M, BLOCK_N] tile with a
-        masked add per row (Triton has no row assignment; a per-row list does not survive its loops).
-        """
+def _qgemv_fma_kernel(
+        x_ptr,
+        q_ptr,
+        s_ptr,
+        b_ptr,
+        y_ptr,
+        M,
+        N,
+        K,
+        stride_xm,
+        stride_ym,
+        BITS: tl.constexpr,
+        GROUP: tl.constexpr,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+        SPLIT_K: tl.constexpr,
+):
+    """
+    The same GEMV as _qlinear_kernel without tensor cores: for M <= BLOCK_M (<= 8) rows the products are plain
+    FMAs reduced along K in registers, so the dequantized weight tile never goes through shared memory -- what
+    every int4 GEMV in llama.cpp / exllama does for small M. Which formulation streams faster on a given GPU
+    is for the tuner to decide (GemvConfig.fma). Rows are accumulated into a [BLOCK_M, BLOCK_N] tile with a
+    masked add per row (Triton has no row assignment; a per-row list does not survive its loops).
+    """
 
-        pid_n = tl.program_id(0)
-        pid_s = tl.program_id(1)
-        rm = tl.arange(0, BLOCK_M)
-        rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-        n_mask = rn < N
-        n_groups = K // GROUP
-        k_lo = pid_s * (K // SPLIT_K)
-        k_hi = k_lo + K // SPLIT_K
-        G: tl.constexpr = BLOCK_K // GROUP
-        rg = tl.arange(0, G)
-        acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
-        if BITS == 4:
-            KB: tl.constexpr = BLOCK_K // 2
-            GB: tl.constexpr = GROUP // 2
-            rb = tl.arange(0, KB)
-            for k0 in range(k_lo, k_hi, BLOCK_K):
-                kb = k0 // 2 + rb
-                ke = k0 + 2 * rb
-                gcol = k0 // GROUP + rg
-                q = tl.load(q_ptr + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
-                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                s = s.to(tl.float32)[:, :, None]
-                b = b.to(tl.float32)[:, :, None]
-                lo = tl.reshape(tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
-                hi = tl.reshape(tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
-                for mi in tl.static_range(BLOCK_M):
-                    xm = (ke < K) & (mi < M)
-                    xe = tl.load(x_ptr + mi * stride_xm + ke, mask=xm, other=0.0).to(tl.float32)
-                    xo = tl.load(x_ptr + mi * stride_xm + ke + 1, mask=xm, other=0.0).to(tl.float32)
-                    row = tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)  # [BLOCK_N]
-                    acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
-        else:
-            rk0 = tl.arange(0, BLOCK_K)
-            for k0 in range(k_lo, k_hi, BLOCK_K):
-                rk = k0 + rk0
-                gcol = k0 // GROUP + rg
-                q = tl.load(q_ptr + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
-                s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
-                s = s.to(tl.float32)[:, :, None]
-                b = b.to(tl.float32)[:, :, None]
-                w = tl.reshape(tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b, (BLOCK_N, BLOCK_K))
-                for mi in tl.static_range(BLOCK_M):
-                    xm = (rk < K) & (mi < M)
-                    xt = tl.load(x_ptr + mi * stride_xm + rk, mask=xm, other=0.0).to(tl.float32)
-                    row = tl.sum(w * xt[None, :], 1)
-                    acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
-        y_base = y_ptr + pid_s * M * stride_ym
-        y = acc.to(y_ptr.dtype.element_ty)
-        tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=(rm[:, None] < M) & n_mask[None, :])
+    pid_n = tl.program_id(0)
+    pid_s = tl.program_id(1)
+    rm = tl.arange(0, BLOCK_M)
+    rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    n_mask = rn < N
+    n_groups = K // GROUP
+    k_lo = pid_s * (K // SPLIT_K)
+    k_hi = k_lo + K // SPLIT_K
+    G: tl.constexpr = BLOCK_K // GROUP
+    rg = tl.arange(0, G)
+    acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+    if BITS == 4:
+        KB: tl.constexpr = BLOCK_K // 2
+        GB: tl.constexpr = GROUP // 2
+        rb = tl.arange(0, KB)
+        for k0 in range(k_lo, k_hi, BLOCK_K):
+            kb = k0 // 2 + rb
+            ke = k0 + 2 * rb
+            gcol = k0 // GROUP + rg
+            q = tl.load(q_ptr + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
+            s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            s = s.to(tl.float32)[:, :, None]
+            b = b.to(tl.float32)[:, :, None]
+            lo = tl.reshape(tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+            hi = tl.reshape(tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+            for mi in tl.static_range(BLOCK_M):
+                xm = (ke < K) & (mi < M)
+                xe = tl.load(x_ptr + mi * stride_xm + ke, mask=xm, other=0.0).to(tl.float32)
+                xo = tl.load(x_ptr + mi * stride_xm + ke + 1, mask=xm, other=0.0).to(tl.float32)
+                row = tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)  # [BLOCK_N]
+                acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
+    else:
+        rk0 = tl.arange(0, BLOCK_K)
+        for k0 in range(k_lo, k_hi, BLOCK_K):
+            rk = k0 + rk0
+            gcol = k0 // GROUP + rg
+            q = tl.load(q_ptr + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
+            s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            s = s.to(tl.float32)[:, :, None]
+            b = b.to(tl.float32)[:, :, None]
+            w = tl.reshape(tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b, (BLOCK_N, BLOCK_K))
+            for mi in tl.static_range(BLOCK_M):
+                xm = (rk < K) & (mi < M)
+                xt = tl.load(x_ptr + mi * stride_xm + rk, mask=xm, other=0.0).to(tl.float32)
+                row = tl.sum(w * xt[None, :], 1)
+                acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
+    y_base = y_ptr + pid_s * M * stride_ym
+    y = acc.to(y_ptr.dtype.element_ty)
+    tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=(rm[:, None] < M) & n_mask[None, :])
 
 
 def _block_k(k: int, cap: int = 128) -> int:
@@ -479,7 +497,7 @@ def qlinear(
     y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x.dtype, device=x.device)
     if cfg.fma and m <= 8:
         grid = (triton.cdiv(n, cfg.block_n), split)
-        _qgemv_fma_kernel[grid](
+        _kernels().fma[grid](
             x2,
             q,
             scale,
@@ -506,7 +524,7 @@ def qlinear(
         triton.cdiv(m, 16),
         split,
     )
-    _qlinear_kernel[grid](
+    _kernels().qlinear[grid](
         x2,
         q,
         scale,
@@ -558,7 +576,7 @@ def _resolve(
         grid = (triton.cdiv(n, cfg.block_n), triton.cdiv(m, 16), split)
         try:
             if cfg.fma and m <= 8:
-                _qgemv_fma_kernel[(triton.cdiv(n, cfg.block_n), split)](
+                _kernels().fma[(triton.cdiv(n, cfg.block_n), split)](
                     x2,
                     q,
                     scale,
@@ -579,7 +597,7 @@ def _resolve(
                     num_stages=num_stages,
                 )
                 return bk, num_stages, split
-            _qlinear_kernel[grid](
+            _kernels().qlinear[grid](
                 x2,
                 q,
                 scale,
@@ -648,7 +666,7 @@ def time_graphed(fn: ta.Callable[[int], ta.Any], reps: int = 10, iters: int = 5)
 def tune(
         shapes: ta.Iterable[tuple[int, int]],
         bits: int,
-        dtype: torch.dtype = torch.bfloat16,
+        dtype: ta.Any = None,
         m: int = 1,
         group: int = 64,
         device: str = 'cuda',
@@ -662,6 +680,8 @@ def tune(
     for the ~9 distinct shapes of a model.
     """
 
+    if dtype is None:
+        dtype = torch.bfloat16
     import itertools
 
     out: dict[tuple[int, int, int], GemvConfig] = {}
