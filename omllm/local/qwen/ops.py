@@ -502,14 +502,13 @@ class Ops(abc.ABC):
         kb = k * beta[..., None]
         vb = v * beta[..., None]
         A = (kb @ self.transpose(k, (0, 1, 2, 4, 3))) * decay * strict  # strictly lower
-        N = -A
-        Tm = eye + N
-        P = N
-        m = 1
-        while (1 << m) < C:
-            P = P @ P
-            Tm = Tm @ (eye + P)
-            m += 1
+        # (I + A)^-1 by forward substitution, row by row: T_i = e_i - A_i,<i @ T_<i. The Neumann product
+        # (I+N)(I+N^2)(I+N^4)... is the same matrix in exact arithmetic but squares the intermediate powers, and
+        # with correlated keys and beta near 1 (a repeated token) those powers are huge with cancelling signs:
+        # unusable even in float64. Substitution reuses computed rows and is as stable as the recurrence itself.
+        Tm = eye[0:1] + A[..., 0:1, :] * 0  # T_0 = e_0, broadcast to [B,H,n,1,C]
+        for i in range(1, C):
+            Tm = self.concat([Tm, eye[i:i + 1] - A[..., i:i + 1, :i] @ Tm], -2)  # append T_i; Tm has i rows
         W = Tm @ (kb * self.exp(gcum)[..., None])  # [B,H,n,C,dk]
         U = Tm @ vb  # [B,H,n,C,dv]
 

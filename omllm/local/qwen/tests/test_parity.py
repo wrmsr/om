@@ -123,6 +123,32 @@ def test_forward_parity():
         print(f'{ops.name}: incremental decode + snapshot OK (rel err {e:.1e})')
 
 
+def test_gated_delta_stability():
+    """
+    The chunked form must stay accurate where the WY inverse is ill-conditioned: identical keys, beta = 1, no decay (a
+    repeated token). The Neumann-product inverse it used to compute was off by 1e6 there even in float64; forward
+    substitution is as stable as the recurrence.
+    """
+
+    ops = NumpyOps(precision='float32')
+    rng = np.random.default_rng(0)
+    B, H, T, dk, dv = 1, 2, 256, 32, 32
+    base = rng.standard_normal(dk).astype(np.float32)
+    base /= np.linalg.norm(base)
+    k = np.broadcast_to(base, (B, H, T, dk)).copy()
+    q = (rng.standard_normal((B, H, T, dk)) * dk ** -0.5).astype(np.float32)
+    v = rng.standard_normal((B, H, T, dv)).astype(np.float32)
+    g = np.zeros((B, H, T), np.float32)
+    beta = np.ones((B, H, T), np.float32)
+    s0 = np.zeros((B, H, dk, dv), np.float32)
+    o_rec, s_rec = ops.gated_delta_recurrent(q, k, v, g, beta, s0)
+    o_ch, s_ch = ops.gated_delta_chunked(q, k, v, g, beta, s0)
+    assert np.isfinite(o_ch).all() and np.isfinite(s_ch).all()
+    e = np.abs(o_ch - o_rec).max() / np.abs(o_rec).max()
+    assert e < 1e-4, e
+    print(f'chunked DeltaNet on identical keys / beta 1 / no decay: rel err {e:.1e} (float32)')
+
+
 def test_gated_delta_parity():
     """
     Chunked (several chunks, padded tail, non-zero initial state) == the numpy f64 recurrence, per backend; and
