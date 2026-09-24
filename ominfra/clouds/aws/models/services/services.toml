@@ -41,9 +41,16 @@ operations = [
 
 [services.s3]
 operations = [
+  'AbortMultipartUpload',
+  'CompleteMultipartUpload',
+  'CopyObject',
+  'CreateMultipartUpload',
   'DeleteObject',
+  'DeleteObjects',
   'GetObject',
+  'HeadObject',
   'ListBuckets',
+  'ListMultipartUploads',
   'ListObjectsV2',
   'PutObject',
 ]
