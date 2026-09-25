@@ -20,6 +20,7 @@ from ..quant import quantize as quantize_np
 from .torch_triton import HAVE_TRITON
 from .torch_triton import attn_decode
 from .torch_triton import attn_prefill
+from .torch_triton import ensure_kernels
 from .torch_triton import gdn_step
 from .torch_triton import load_tuned
 from .torch_triton import qlinear
@@ -175,6 +176,27 @@ def _refit_torch(g, q, s0, b0):
     return s, b, err
 
 
+class _DeferredCompile:
+    """
+    `torch.compile(fn)` that runs `fn` once eagerly first. The eager run is where the Triton wrappers resolve their
+    launch configurations (the shared-memory ladders in torch_triton, try/except and all) and populate their caches; by
+    the time dynamo traces, every wrapper takes its straight-line path and each `kernel[grid]` launch is a plain
+    user-defined Triton kernel to it -- no graph breaks, no per-shape retracing of Triton's launcher. CudaGraphStep's
+    warm-up runs make the first (eager) and second (compiling) calls before capture.
+    """
+
+    def __init__(self, fn):
+        self.fn = fn
+        self.compiled = None
+
+    def __call__(self, *args):
+        if self.compiled is None:
+            out = self.fn(*args)
+            self.compiled = torch.compile(self.fn, dynamic=False)
+            return out
+        return self.compiled(*args)
+
+
 class TorchOps(Ops):
     name = 'torch'
 
@@ -208,6 +230,8 @@ class TorchOps(Ops):
         # proportional to the sequence); without them the Decoder buckets the buffer by powers of two
         self.attn_bucketed = not self.triton
         self.attn_splits = 32
+        if self.triton:
+            ensure_kernels()  # jit now (imports triton): the wrappers must find real JITFunctions when traced
         self.triton_max_m = triton_max_m
         self.triton_block_n = triton_block_n
         if triton_tuned and HAVE_TRITON:
@@ -583,7 +607,7 @@ class TorchOps(Ops):
         if self.compile_cache and not self._cache_loaded:
             self._cache_loaded = True
             load_compile_cache(self.compile_cache)
-        return torch.compile(fn, dynamic=False)
+        return _DeferredCompile(fn)
 
     def capture(self, fn):
         mode = self.capture_mode

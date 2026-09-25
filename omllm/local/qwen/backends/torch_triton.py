@@ -24,10 +24,8 @@ f32 does not fit -- keep BLOCK_K at 128 and let f32 use 2 stages.
 With `TRITON_INTERPRET=1` the kernel runs on CPU through Triton's numpy interpreter (slow, f32 only), which is
 how `tests/test_triton.py` checks it without a GPU.
 """
-import functools
 import json
 import pathlib
-import types
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -302,7 +300,6 @@ def attn_decode(
         pos: torch.Tensor,
         scale: float,
         splits: int = 32,
-        block_n: int = 64,
         num_warps: int = 4,
 ) -> torch.Tensor:
     """
@@ -326,38 +323,48 @@ def attn_decode(
     m = torch.empty((B, KV, splits, block_m), dtype=torch.float32, device=q.device)
     l = torch.empty_like(m)
     o = torch.empty((B, KV, splits, block_m, D), dtype=torch.float32, device=q.device)
-    _kernels().attn[(B * KV, splits)](
-        q,
-        kbuf,
-        vbuf,
-        pos,
-        m,
-        l,
-        o,
-        q.stride(0),
-        q.stride(1),
-        q.stride(2),
-        kbuf.stride(0),
-        kbuf.stride(1),
-        kbuf.stride(2),
-        o.stride(0),
-        o.stride(1),
-        o.stride(2),
-        o.stride(3),
-        m.stride(0),
-        m.stride(1),
-        m.stride(2),
-        scale,
-        T,
-        G,
-        KV,
-        BLOCK_M=block_m,
-        BLOCK_N=block_n,
-        D=D,
-        SPLITS=splits,
-        IEEE=(q.dtype == torch.float32),
-        num_warps=num_warps,
-    )
+    ensure_kernels()
+
+    def launch(block_m_: int, block_n_: int, num_stages: int) -> None:
+        _attn_jit[(B * KV, splits)](
+            q,
+            kbuf,
+            vbuf,
+            pos,
+            m,
+            l,
+            o,
+            q.stride(0),
+            q.stride(1),
+            q.stride(2),
+            kbuf.stride(0),
+            kbuf.stride(1),
+            kbuf.stride(2),
+            o.stride(0),
+            o.stride(1),
+            o.stride(2),
+            o.stride(3),
+            m.stride(0),
+            m.stride(1),
+            m.stride(2),
+            scale,
+            T,
+            G,
+            KV,
+            BLOCK_M=block_m_,
+            BLOCK_N=block_n_,
+            D=D,
+            SPLITS=splits,
+            IEEE=(q.dtype == torch.float32),
+            num_warps=num_warps,
+            num_stages=num_stages,
+        )
+
+    cfg = _ATTN_CFG.get(('decode', D, q.dtype))
+    if cfg is None:
+        _resolve_attn('decode', (D, q.dtype), launch)
+    else:
+        launch(*cfg)
     # merge the splits: softmax over all keys = weighted combination of the per-split partials
     mx = m.amax(2, keepdim=True)  # [B, KV, 1, BM]
     w = torch.exp(m - mx)  # [B, KV, S, BM]; a split with no keys has m = -inf -> weight 0
@@ -439,8 +446,6 @@ def attn_prefill(
         v: torch.Tensor,
         scale: float,
         past: int,
-        block_m: int = 64,
-        block_n: int = 64,
         num_warps: int = 4,
 ) -> torch.Tensor:
     """
@@ -457,54 +462,106 @@ def attn_prefill(
     k = k.contiguous()
     v = v.contiguous()
     out = torch.empty_like(q)
-    grid = (triton.cdiv(T, block_m), B * H)
     # batch and head folded: q / out [B*H, T, D]; k / v [B*KV, L, D]; kv row of head bh is bh // G because
     # (b*H + h) // G == b*KV + h // G when H == KV*G
-    _kernels().attn_prefill[grid](
-        q,
-        k,
-        v,
-        out,
-        q.stride(1),
-        q.stride(2),
-        k.stride(1),
-        k.stride(2),
-        out.stride(1),
-        out.stride(2),
-        scale,
-        T,
-        past,
-        G,
-        BLOCK_M=block_m,
-        BLOCK_N=block_n,
-        D=D,
-        IEEE=(q.dtype == torch.float32),
-        num_warps=num_warps,
-    )
+    ensure_kernels()
+
+    def launch(block_m_: int, block_n_: int, num_stages: int) -> None:
+        _attn_prefill_jit[(triton.cdiv(T, block_m_), B * H)](
+            q,
+            k,
+            v,
+            out,
+            q.stride(1),
+            q.stride(2),
+            k.stride(1),
+            k.stride(2),
+            out.stride(1),
+            out.stride(2),
+            scale,
+            T,
+            past,
+            G,
+            BLOCK_M=block_m_,
+            BLOCK_N=block_n_,
+            D=D,
+            IEEE=(q.dtype == torch.float32),
+            num_warps=num_warps,
+            num_stages=num_stages,
+        )
+
+    cfg = _ATTN_CFG.get(('prefill', D, q.dtype))
+    if cfg is None:
+        _resolve_attn('prefill', (D, q.dtype), launch)
+    else:
+        launch(*cfg)
     return out
 
 
-@functools.lru_cache(maxsize=1)
-def _kernels() -> types.SimpleNamespace:
+# The jitted kernels, module globals so that torch.compile sees plain `JITFunction` objects when it traces the wrappers
+# below (it then lowers `kernel[grid](...)` as a user-defined Triton kernel; anything less direct -- a factory call, an
+# attribute of a namespace -- it traces as Python and recompiles per shape). None until `ensure_kernels`, which TorchOps
+# calls when it is constructed with Triton on, so importing this module still imports neither triton nor torch.
+_qlinear_jit: ta.Any = None
+_fma_jit: ta.Any = None
+_gdn_jit: ta.Any = None
+_attn_jit: ta.Any = None
+_attn_prefill_jit: ta.Any = None
+
+
+def ensure_kernels() -> None:
     """
-    The jitted kernels, built on first use: `triton.jit` is applied here rather than as decorators so importing
-    this module imports neither triton nor torch (the kernel bodies above are plain functions until then). Triton
-    resolves `tl` through the kernel function's globals and wants the real `triton.language` module there (the
-    interpreter checks identity), so the proxies are replaced by the modules at this point.
+    Jit the kernels (once). `triton.jit` is applied here rather than as decorators so the kernel bodies above are plain
+    functions until this runs. Triton resolves `tl` through the kernel function's globals and wants the real
+    `triton.language` module there (the interpreter checks identity), so the proxies are replaced by the modules at this
+    point.
     """
 
+    global _qlinear_jit, _fma_jit, _gdn_jit, _attn_jit, _attn_prefill_jit
+
+    if _qlinear_jit is not None:
+        return
     import importlib
 
     g = globals()
     g['triton'] = importlib.import_module('triton')
     g['tl'] = importlib.import_module('triton.language')
-    return types.SimpleNamespace(
-        qlinear=triton.jit(_qlinear_kernel),
-        fma=triton.jit(_qgemv_fma_kernel),
-        gdn=triton.jit(_gdn_step_kernel),
-        attn=triton.jit(_attn_decode_kernel),
-        attn_prefill=triton.jit(_attn_prefill_kernel),
-    )
+    _fma_jit = triton.jit(_qgemv_fma_kernel)
+    _gdn_jit = triton.jit(_gdn_step_kernel)
+    _attn_jit = triton.jit(_attn_decode_kernel)
+    _attn_prefill_jit = triton.jit(_attn_prefill_kernel)
+    _qlinear_jit = triton.jit(_qlinear_kernel)  # last: it is the "built" flag
+
+
+# attention launch configurations that fit the GPU's shared memory, resolved per (kind, head_dim, dtype) on first use:
+# the tiles are [BLOCK, D] and D = 256 is big, so the first choice can exceed consumer Blackwell's 99 KB
+_ATTN_CFG: dict[tuple[str, int, ta.Any], tuple[int, int, int]] = {}
+_ATTN_LADDER: dict[str, tuple[tuple[int, int, int], ...]] = {
+    # (block_m, block_n, num_stages), largest first
+    'decode': ((32, 64, 2), (32, 32, 2), (32, 32, 1), (32, 16, 1)),
+    'prefill': ((64, 64, 2), (64, 32, 2), (32, 32, 2), (32, 32, 1), (32, 16, 1)),
+}
+
+
+def _resolve_attn(
+        kind: str,
+        key: tuple[int, ta.Any],
+        launch: ta.Callable[[int, int, int], None],
+) -> tuple[int, int, int]:
+    """
+    First use of an attention kernel for (head_dim, dtype): walk the ladder until a configuration launches (the
+    successful attempt does the work), remember it. try/except lives here, off the hot path torch.compile traces (by
+    then the entry exists: TorchOps.compile_fn runs every step once eagerly before compiling).
+    """
+
+    for cfg in _ATTN_LADDER[kind]:
+        try:
+            launch(*cfg)
+        except triton.runtime.errors.OutOfResources:
+            continue
+        _ATTN_CFG[(kind, *key)] = cfg
+        return cfg
+    raise RuntimeError(f'no {kind} attention configuration fits this GPU for head_dim {key[0]}')
 
 
 def gdn_step(
@@ -556,7 +613,8 @@ def gdn_step(
     if dv % block_dv:
         raise ValueError(f'dv={dv} is not a multiple of block_dv={block_dv}')
     grid = (B * Hv, dv // block_dv)
-    _kernels().gdn[grid](
+    ensure_kernels()
+    _gdn_jit[grid](
         q,
         k,
         v,
@@ -614,11 +672,11 @@ def _qgemv_fma_kernel(
         SPLIT_K: tl.constexpr,
 ):
     """
-    The same GEMV as _qlinear_kernel without tensor cores: for M <= BLOCK_M (<= 8) rows the products are plain
-    FMAs reduced along K in registers, so the dequantized weight tile never goes through shared memory -- what
-    every int4 GEMV in llama.cpp / exllama does for small M. Which formulation streams faster on a given GPU
-    is for the tuner to decide (GemvConfig.fma). Rows are accumulated into a [BLOCK_M, BLOCK_N] tile with a
-    masked add per row (Triton has no row assignment; a per-row list does not survive its loops).
+    The same GEMV as _qlinear_kernel without tensor cores: for M <= BLOCK_M (<= 8) rows the products are plain FMAs
+    reduced along K in registers, so the dequantized weight tile never goes through shared memory -- what every int4
+    GEMV in llama.cpp / exllama does for small M. Which formulation streams faster on a given GPU is for the tuner to
+    decide (GemvConfig.fma). Rows are accumulated into a [BLOCK_M, BLOCK_N] tile with a masked add per row (Triton has
+    no row assignment; a per-row list does not survive its loops).
     """
 
     pid_n = tl.program_id(0)
@@ -697,8 +755,8 @@ TUNED: dict[tuple[int, int, int], GemvConfig] = {}
 
 def default_config(n: int, k: int, bits: int, dtype: torch.dtype) -> GemvConfig:
     """
-    Heuristic when nothing is tuned: enough programs to fill the GPU. Narrow outputs (N=5120 at
-    block_n=32 is 160 programs) get split-K so the K loop is shared across several programs.
+    Heuristic when nothing is tuned: enough programs to fill the GPU. Narrow outputs (N=5120 at block_n=32 is 160
+    programs) get split-K so the K loop is shared across several programs.
     """
 
     block_n = 32 if n <= 8192 else 64
@@ -743,14 +801,15 @@ def qlinear(
     """
     x [..., K] @ w.T -> [..., N] in x's dtype, w given as packed codes + per-group scale/bias.
 
-    The launch configuration comes from `config`, else `TUNED[(N, K, bits)]` (see `tune`), else
-    `default_config`. split_k > 1 runs the K loop on several programs and sums float32 partials (one extra
-    tiny kernel); it is what makes the narrow projections (o_proj, down_proj, out_proj: N=5120) fill the GPU.
-    `block_n` overrides that one field of the config (kept for TorchOps.triton_block_n).
+    The launch configuration comes from `config`, else `TUNED[(N, K, bits)]` (see `tune`), else `default_config`.
+    split_k > 1 runs the K loop on several programs and sums float32 partials (one extra tiny kernel); it is what makes
+    the narrow projections (o_proj, down_proj, out_proj: N=5120) fill the GPU. `block_n` overrides that one field of the
+    config (kept for TorchOps.triton_block_n).
     """
 
     if not HAVE_TRITON:
         raise RuntimeError('triton is not installed')
+    ensure_kernels()
     n, k = shape
     cfg = config or TUNED.get((n, k, bits)) or default_config(n, k, bits, x.dtype)
     if block_n is not None:
@@ -778,7 +837,7 @@ def qlinear(
     y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x.dtype, device=x.device)
     if cfg.fma and m <= 8:
         grid = (triton.cdiv(n, cfg.block_n), split)
-        _kernels().fma[grid](
+        _fma_jit[grid](
             x2,
             q,
             scale,
@@ -805,7 +864,7 @@ def qlinear(
         triton.cdiv(m, 16),
         split,
     )
-    _kernels().qlinear[grid](
+    _qlinear_jit[grid](
         x2,
         q,
         scale,
@@ -857,7 +916,7 @@ def _resolve(
         grid = (triton.cdiv(n, cfg.block_n), triton.cdiv(m, 16), split)
         try:
             if cfg.fma and m <= 8:
-                _kernels().fma[(triton.cdiv(n, cfg.block_n), split)](
+                _fma_jit[(triton.cdiv(n, cfg.block_n), split)](
                     x2,
                     q,
                     scale,
@@ -878,7 +937,7 @@ def _resolve(
                     num_stages=num_stages,
                 )
                 return bk, num_stages, split
-            _kernels().qlinear[grid](
+            _qlinear_jit[grid](
                 x2,
                 q,
                 scale,
@@ -954,11 +1013,10 @@ def tune(
         log: ta.Callable[[str], None] | None = print,
 ) -> dict[tuple[int, int, int], GemvConfig]:
     """
-    Sweep launch configurations per (N, K) on the current GPU, keep the fastest in TUNED and return them.
-    Prints achieved GB/s of packed-weight traffic per shape (the number to compare against the card's
-    bandwidth). Timing is by CUDA-graph replay (see `time_graphed`), so it reflects what the decode graph
-    sees. Each configuration is a Triton compile (~1 s), so the sweep is kept to ~16-64 per shape: a few minutes
-    for the ~9 distinct shapes of a model.
+    Sweep launch configurations per (N, K) on the current GPU, keep the fastest in TUNED and return them. Prints
+    achieved GB/s of packed-weight traffic per shape (the number to compare against the card's bandwidth). Timing is by
+    CUDA-graph replay (see `time_graphed`), so it reflects what the decode graph sees. Each configuration is a Triton
+    compile (~1 s), so the sweep is kept to ~16-64 per shape: a few minutes for the ~9 distinct shapes of a model.
     """
 
     if dtype is None:

@@ -106,8 +106,10 @@ and importing a backend module imports nothing but the package (`backends.availa
 installed with `lang.can_import`, without importing it). The consequences to keep in mind when editing: nothing
 third-party may be evaluated at import time -- no module-level dtype tables (they are functions: `dtypes()`,
 `_st_dtypes()`), no default argument values, no decorators (the Triton kernels are plain functions that
-`torch_triton._kernels` jits on first use, replacing the `triton` / `tl` proxies in the module globals with the
-real modules then, because Triton resolves `tl` through the kernel's globals). Annotations are fine: they are lazy
+`torch_triton.ensure_kernels` jits into module globals -- `TorchOps` calls it when constructed with Triton on --
+replacing the `triton` / `tl` proxies in the module globals with the real modules then, because Triton resolves
+`tl` through the kernel's globals; and they must be plain module globals, not a factory's return value, or
+torch.compile traces Triton's launcher as Python instead of lowering the launch as a user-defined kernel). Annotations are fine: they are lazy
 on 3.14, which this package targets (no `from __future__ import annotations`). The vendored `gguf/` package still
 imports numpy eagerly and is itself imported lazily, inside the functions that read a GGUF.
 
@@ -219,7 +221,7 @@ elsewhere.
 
 What remains in the graph after the two kernels is glue -- norms, casts, gates, the attention prologue -- and
 `--compile` (`TorchOps(compile=True)`) hands each step function to `torch.compile` (`Ops.compile_fn`) before it
-is graph-captured, so inductor fuses that glue into a few generated kernels. Step functions take everything as
+is graph-captured, so inductor fuses that glue into a few generated kernels. The compiled step runs once eagerly first (`_DeferredCompile`), which is when the Triton wrappers resolve their launch configurations, so dynamo then traces straight-line code. Step functions take everything as
 arguments (tables, buffers), are built once per shape and cached on the model, so every Decoder -- warm-up, each
 `generate`, the draft head's -- reuses the same compiled function instead of re-tracing 64 layers (that
 re-trace was ~20 s a pop). Compiled and captured steps are specific to the buffer capacity, so `--capacity`
