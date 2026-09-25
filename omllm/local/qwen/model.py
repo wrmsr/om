@@ -136,11 +136,15 @@ class Attention:
             cos: Array,
             sin: Array,
             state: FullState,
+            bucket: int = 0,
     ) -> tuple[Array, FullState]:
         """
         T tokens against fixed-capacity KV buffers. x: [B, T, hidden] at positions pos..pos+T-1; pos: 0-d int
         array; ar: arange(L); cos, sin: [T, rope_dim] rows for those positions; state: (kbuf, vbuf)
-        [B, KV, L, D]. Every shape is static in `pos`; T == 1 is decode, T == k + 1 speculative verify.
+        [B, KV, L, D]. Every shape is static in `pos`; T == 1 is decode, T == k + 1 speculative verify. `bucket`
+        > 0 attends over only the first that many positions of the buffers (the Decoder picks a power of two
+        covering pos + T, so the attention's cost follows the sequence rather than the capacity); 0 = the whole
+        buffer (backends whose kernel reads `pos` itself).
         """
 
         c = self.cfg
@@ -163,7 +167,10 @@ class Attention:
         for i in range(T):
             kbuf = ops.kv_write(kbuf, pos + i, k[:, :, i:i + 1])
             vbuf = ops.kv_write(vbuf, pos + i, v[:, :, i:i + 1])
-        o = ops.sdpa_static(q, kbuf, vbuf, pos, ar, self.scale)  # [B,H,T,D]
+        if bucket and bucket < kbuf.shape[2]:
+            o = ops.sdpa_static(q, kbuf[:, :, :bucket], vbuf[:, :, :bucket], pos, ar[:bucket], self.scale)
+        else:
+            o = ops.sdpa_static(q, kbuf, vbuf, pos, ar, self.scale)  # [B,H,T,D]
         o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, T, H * D))
         o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, T, H * D)))), o.dtype)
         return ops.linear(o, self.wo), (kbuf, vbuf)
@@ -312,12 +319,13 @@ class Block:
             sin: Array,
             state: ta.Any,
             all_states: bool = False,
+            bucket: int = 0,
     ) -> tuple[Array, ta.Any]:
         """Static-shape step for T tokens (no taps: a captured step cannot leave the device)."""
 
         h = ops.rms_norm(x, self.ln1, self.eps)
         if self.kind == 'full':
-            m, state = ta.cast(Attention, self.mixer).decode(ops, h, pos, ar, cos, sin, state)
+            m, state = ta.cast(Attention, self.mixer).decode(ops, h, pos, ar, cos, sin, state, bucket)
         else:
             m, state = ta.cast(GatedDeltaNet, self.mixer)(ops, h, state, all_states)  # T tokens: fixed-shape
         x = x + m
@@ -496,7 +504,7 @@ class Qwen35:
         self.nbytes = sum(ops.nbytes(p) for p in params.values())
         self.last_spec: SpecDecoder | None = None  # the most recent generate(spec=k)'s decoder, for its stats
         self.last_prefix: tuple[int, int] = (0, 0)  # (prompt tokens reused from the prefix cache, prompt length)
-        self._steps: dict[tuple[int, bool, bool], ta.Callable[..., tuple[Array, ...]]] = {}  # see step_fn
+        self._steps: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]] = {}  # see step_fn
         self.embed = params['embed_tokens.weight']
         self.norm_w = params['norm.weight']
         self.lm_head = params.get('lm_head.weight', self.embed)
@@ -757,6 +765,7 @@ class Qwen35:
             T: int,
             all_states: bool = False,
             return_hidden: bool = False,
+            bucket: int = 0,
     ) -> ta.Callable[..., tuple[Array, ...]]:
         """
         The static T-token step: `fn(toks, pos, ar, cos_tab, sin_tab, *flat_state) -> (logits, [hidden,] *flat_state)`.
@@ -767,16 +776,23 @@ class Qwen35:
         from the host. Returns logits [B, T, V] float32 (and, with return_hidden, the final-normed hidden [B, T, hidden]
         the draft head conditions on); with all_states the DeltaNet entries come back stacked per token. Pure apart from
         `kv_write`, so a backend may capture it. T == 1 is decode; T == k + 1 with all_states is speculative verify.
-        Built (and `Ops.compile_fn`ed) once per (T, all_states, return_hidden) and cached on the model.
+        `bucket` is the attention window in positions (see Attention.decode; 0 = the whole buffer). Built (and
+        `Ops.compile_fn`ed) once per (T, all_states, return_hidden, bucket) and cached on the model.
         """
 
-        key = (T, all_states, return_hidden)
+        key = (T, all_states, return_hidden, bucket)
         fn = self._steps.get(key)
         if fn is None:
-            fn = self._steps[key] = self.ops.compile_fn(self._build_step(T, all_states, return_hidden))
+            fn = self._steps[key] = self.ops.compile_fn(self._build_step(T, all_states, return_hidden, bucket))
         return fn
 
-    def _build_step(self, T: int, all_states: bool, return_hidden: bool) -> ta.Callable[..., tuple[Array, ...]]:
+    def _build_step(
+            self,
+            T: int,
+            all_states: bool,
+            return_hidden: bool,
+            bucket: int,
+    ) -> ta.Callable[..., tuple[Array, ...]]:
         ops, c = self.ops, self.cfg
 
         def fn(toks, pos, ar, cos_tab, sin_tab, *flat):
@@ -788,7 +804,7 @@ class Qwen35:
             x = ops.embedding(toks, self.embed, self.dtype)
             out: list[Array] = []
             for i, blk in enumerate(self.blocks):
-                x, st = blk.decode(ops, x, pos, ar, cos, sin, (flat[2 * i], flat[2 * i + 1]), all_states)
+                x, st = blk.decode(ops, x, pos, ar, cos, sin, (flat[2 * i], flat[2 * i + 1]), all_states, bucket)
                 out.extend(st)
             x = ops.rms_norm(x, self.norm_w, c.rms_eps)
             logits = ops.f32(ops.linear(x, self.lm_head))
@@ -969,7 +985,7 @@ class MtpHead:
         self.hnorm = params['mtp.pre_fc_norm_hidden.weight']
         self.norm_w = params['mtp.norm.weight']
         self.block = Block(self.cfg, self.cfg.num_layers, 'full', block_params(params, 'mtp.layers.0.'))
-        self._steps: dict[tuple[int, int], ta.Callable[..., tuple[Array, ...]]] = {}
+        self._steps: dict[tuple[int, int, int], ta.Callable[..., tuple[Array, ...]]] = {}
         self._heads: dict[int, Weight] = {}
 
     def stem(self, ops: Ops, toks: Array, hidden: Array) -> Array:
@@ -1017,14 +1033,14 @@ class MtpHead:
         logits, d = self.head(ops, u, draft_vocab)
         return logits, d, state
 
-    def step_fn(self, T: int, draft_vocab: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
+    def step_fn(self, T: int, draft_vocab: int = 0, bucket: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
         """
         Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, ar, cos_tab, sin_tab, kbuf, vbuf) -> (logits, d, kbuf,
         vbuf)`; built and compiled once per (T, draft_vocab), cached on the head. With draft_vocab the logits cover only
         the first that many ids (see `head`).
         """
 
-        key = (T, draft_vocab)
+        key = (T, draft_vocab, bucket)
         fn = self._steps.get(key)
         if fn is None:
             ops = self.model.ops
@@ -1032,7 +1048,9 @@ class MtpHead:
             def raw(toks, hidden, pos, ar, cos_tab, sin_tab, kbuf, vbuf):
                 rows = ops.reshape(pos, (1,)) + ar[:T]
                 u = self.stem(ops, toks, hidden)
-                u, (kbuf, vbuf) = self.block.decode(ops, u, pos, ar, cos_tab[rows], sin_tab[rows], (kbuf, vbuf))
+                u, (kbuf, vbuf) = self.block.decode(
+                    ops, u, pos, ar, cos_tab[rows], sin_tab[rows], (kbuf, vbuf), False, bucket,
+                )
                 logits, d = self.head(ops, u, draft_vocab)
                 return logits, d, kbuf, vbuf
 
@@ -1248,7 +1266,15 @@ class Decoder:
     `capacity` positions, the DeltaNet (conv, S) pairs are carried as-is, and the position becomes a 0-d device array.
     `step(tok)` runs the captured `decode_fn`; the only host<->device traffic per token is the token id in and the
     logits out. When the sequence reaches capacity the buffers are doubled and the step re-captured.
+
+    Attention over the buffers is length-bucketed: on backends whose `sdpa_static` reads the whole buffer it is
+    given (`ops.attn_bucketed`), the step is captured per power-of-two window covering the positions in use, from
+    `MIN_BUCKET` up to the capacity, so a decode step's attention cost follows the sequence rather than the
+    capacity; a new window is a new (cheap) capture as the sequence crosses each power of two. Backends whose
+    attention kernel reads `pos` itself run one step for the whole capacity.
     """
+
+    MIN_BUCKET = 1024
 
     def __init__(self, model: Qwen35, cache: Cache, capacity: int | None = None) -> None:
         if model.ops.taps is not None:
@@ -1294,15 +1320,24 @@ class Decoder:
         cos_np, sin_np = ops.rope_tables(0, capacity, c.rope_dim, c.rope_theta)
         self.cos_tab = ops.array(cos_np, self.model.dtype)
         self.sin_tab = ops.array(sin_np, self.model.dtype)
-        self.fns: dict[tuple[int, bool, bool], ta.Callable[..., tuple[Array, ...]]] = {}
-        self.fn = self._fn(1, False, True)
+        self.fns: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]] = {}
+
+    def bucket(self, n: int) -> int:
+        """The attention window for a step whose last position is n - 1: 0 (whole buffer) unless the backend buckets."""
+
+        if not self.ops.attn_bucketed:
+            return 0
+        b = self.MIN_BUCKET
+        while b < n:
+            b *= 2
+        return min(b, self.capacity)
 
     def _fn(self, T: int, all_states: bool, return_hidden: bool) -> ta.Callable[..., tuple[Array, ...]]:
-        """The captured step for a given shape, built on first use (each is one graph on CUDA)."""
+        """The captured step for a given shape and the current attention window, built on first use."""
 
-        key = (T, all_states, return_hidden)
+        key = (T, all_states, return_hidden, self.bucket(self.seq_len + T))
         if key not in self.fns:
-            self.fns[key] = self.ops.capture(self.model.step_fn(T, all_states, return_hidden))
+            self.fns[key] = self.ops.capture(self.model.step_fn(T, all_states, return_hidden, key[3]))
         return self.fns[key]
 
     def tables(self) -> tuple[Array, Array, Array]:
@@ -1318,7 +1353,7 @@ class Decoder:
         ops = self.ops
         self.ensure_capacity(self.seq_len + 1)
         ids = np.asarray([tok] if isinstance(tok, int) else tok, dtype=np.int32).reshape(-1, 1)
-        out = self.fn(ops.array(ids), ops.scalar(self.seq_len), *self.tables(), *self.flat)
+        out = self._fn(1, False, True)(ops.array(ids), ops.scalar(self.seq_len), *self.tables(), *self.flat)
         self.flat = list(out[2:])
         self.logits_last = out[0][:, 0]  # [B, V]
         self.hidden_last = out[1][:, -1:]  # [B, 1, H]
@@ -1464,7 +1499,7 @@ class SpecDecoder:
         self.logits_last = logits[:, -1]  # [1, V]: the target's logits for position n (what next_tok was drawn from)
         self.hidden_last = hidden[:, -1:]  # [1, 1, H]: the target's hidden at position n-1
         self.mcap = 0
-        self.mfns: dict[int, ta.Callable[..., tuple[Array, ...]]] = {}
+        self.mfns: dict[tuple[int, int], ta.Callable[..., tuple[Array, ...]]] = {}
         self.d_last = d[:, -1:]  # [B, 1, H]
         self.mlogits_last = mlogits[:, -1]  # [1, V] on the device
         self.mseq = n  # draft-head entries with true hidden states
@@ -1490,10 +1525,13 @@ class SpecDecoder:
         self.mcap = cap
         self.mfns = {}
 
-    def _mfn(self, T: int) -> ta.Callable[..., tuple[Array, ...]]:
-        if T not in self.mfns:
-            self.mfns[T] = self.ops.capture(self.mtp.step_fn(T, self.draft_vocab))
-        return self.mfns[T]
+    def _mfn(self, T: int, n_last: int) -> ta.Callable[..., tuple[Array, ...]]:
+        """The draft head's captured T-entry step for a round whose last entry is at position n_last - 1."""
+
+        key = (T, self.dec.bucket(n_last))
+        if key not in self.mfns:
+            self.mfns[key] = self.ops.capture(self.mtp.step_fn(T, self.draft_vocab, key[1]))
+        return self.mfns[key]
 
     def round(self) -> list[int]:
         """One draft / verify / commit cycle; returns the committed tokens (1..k+1 of them)."""
@@ -1525,7 +1563,7 @@ class SpecDecoder:
                 q = ops.concat([q, ops.zeros((1, V - q.shape[1]), f32)], -1)
             qrows.append(q)
             if j < k - 1:
-                ml, hid, mk, mv = self._mfn(1)(
+                ml, hid, mk, mv = self._mfn(1, n + j)(
                     ops.reshape(d, (1, 1)), hid, ops.scalar(n + j), *self.dec.tables(), *self.mflat,
                 )
                 self.mflat = [mk, mv]
@@ -1558,7 +1596,7 @@ class SpecDecoder:
         # at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh overwrites before
         # anything attends to them
         rtoks = ops.reshape(ops.concat([drafts_arr[:m], ops.cast(new_arr, i32), drafts_arr[m:]], 0)[:k + 1], (1, k + 1))
-        ml, d, mk, mv = self._mfn(k + 1)(rtoks, hidden, ops.scalar(n), *self.dec.tables(), *self.mflat)
+        ml, d, mk, mv = self._mfn(k + 1, n + k + 1)(rtoks, hidden, ops.scalar(n), *self.dec.tables(), *self.mflat)
         self.mflat = [mk, mv]
         self.mlogits_last = ml[:, m]
         self.d_last = d[:, m:m + 1]

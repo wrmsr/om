@@ -142,6 +142,78 @@ def test_gdn_step_kernel():
     print('fused DeltaNet step matches the reference (T=1, 4; final and all states)')
 
 
+def test_attn_decode_kernel():
+    """
+    The length-aware decode attention against the composed Ops.sdpa_static: GQA fold order, per-token causal masks for T
+    = 1 and 4, several `pos` (including ones that leave most splits without a key block, and one where a query row has
+    no allowed key in a block), splits 1 / 4 / 32, and only the positions in use read.
+    """
+
+    if _skip():
+        return
+
+    from ..backends.torch import TorchOps
+    from ..backends.torch_triton import attn_decode
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    ops = TorchOps(device, triton=False)  # composed reference
+    torch.manual_seed(0)
+    B, H, KV, D, L = 1, 6, 2, 32, 512
+    kbuf = torch.randn(B, KV, L, D, device=device)
+    vbuf = torch.randn(B, KV, L, D, device=device)
+    ar = ops.arange(L)
+    scale = D ** -0.5
+    for T in (1, 4):
+        q = torch.randn(B, H, T, D, device=device)
+        for p in (0, 1, 5, 63, 64, 200, L - T):
+            pos = ops.scalar(p)
+            ref = ops.sdpa_static(q, kbuf, vbuf, pos, ar, scale)
+            for splits in (1, 4, 32):
+                out = attn_decode(q, kbuf, vbuf, pos, scale, splits=splits)
+                e = ((out - ref).abs().max() / ref.abs().max()).item()
+                assert e < 1e-4, (T, p, splits, e)
+    # positions past pos + T - 1 are never read: poison them and nothing changes
+    q = torch.randn(B, H, 4, D, device=device)
+    pos = ops.scalar(100)
+    ref = attn_decode(q, kbuf, vbuf, pos, scale)
+    kb2 = kbuf.clone()
+    vb2 = vbuf.clone()
+    kb2[:, :, 104:] = float('nan')
+    vb2[:, :, 104:] = float('nan')
+    out = attn_decode(q, kb2, vb2, pos, scale)
+    assert torch.isfinite(out).all() and torch.equal(out, ref)
+    print('length-aware decode attention matches the composed reference (T=1/4, GQA, splits 1/4/32)')
+
+
+def test_attn_prefill_kernel():
+    """
+    The flash-attention prefill kernel against the composed Ops.sdpa: GQA, causal with a KV offset, T that is
+    not a multiple of the query block, keys spanning several key blocks.
+    """
+
+    if _skip():
+        return
+
+    from ..backends.torch import TorchOps
+    from ..backends.torch_triton import attn_prefill
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    ops = TorchOps(device, triton=False)
+    torch.manual_seed(1)
+    B, H, KV, D = 2, 6, 2, 32
+    scale = D ** -0.5
+    for past, T in ((0, 1), (0, 70), (37, 5), (37, 130), (200, 64)):
+        L = past + T
+        q = torch.randn(B, H, T, D, device=device)
+        k = torch.randn(B, KV, L, D, device=device)
+        v = torch.randn(B, KV, L, D, device=device)
+        ref = ops.sdpa(q, k, v, scale, past)
+        out = attn_prefill(q, k, v, scale, past)
+        e = ((out - ref).abs().max() / ref.abs().max()).item()
+        assert e < 1e-4, (past, T, e)
+    print('flash-attention prefill kernel matches the composed reference (GQA, KV offset, ragged blocks)')
+
+
 def test_model_decode_with_kernel():
     """A quantized model's static decode step gives the same logits with and without the kernel."""
 

@@ -77,9 +77,11 @@ def add_model_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument(
         '--capacity',
         type=int,
-        default=8192,
-        help='decode buffer length (KV positions), rounded up to a power of two; the captured / compiled steps '
-             'are specific to it',
+        default=32768,
+        help='decode buffer length (KV positions), rounded up to a power of two; the captured / compiled steps are '
+             'specific to it, so pin it to the longest context you will run (the model supports 262144: 8.6 GB of KV '
+             'for the 27B, plus the same again per prefix-cache snapshot of a full context). Attention only reads '
+             'the positions in use, so a large capacity costs memory, not time',
     )
 
 

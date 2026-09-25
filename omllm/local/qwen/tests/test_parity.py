@@ -234,6 +234,44 @@ def test_static_decode_parity():
             ops.capture_mode = 'auto'
 
 
+def test_attention_buckets():
+    """
+    On backends that bucket the attention window, a step is captured per power of two and the sequence crosses several
+    of them: results must equal the golden throughout, and the captured steps must be exactly the buckets visited.
+    (MIN_BUCKET is lowered so the synthetic model crosses buckets in a few tokens.)
+    """
+
+    from ..model import Decoder
+
+    cfg, hf, src = synthetic_source()
+    gold = Qwen35.from_source(src, NumpyOps(), dtype='f32', verbose=False)
+    ids = np.random.default_rng(9).integers(0, 256, (1, 40))
+    gl = gold.forward(ids)
+    saved = Decoder.MIN_BUCKET
+    Decoder.MIN_BUCKET = 8
+    try:
+        for ops in backends():
+            if not ops.attn_bucketed:
+                continue
+            if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
+                ops.capture_mode = 'static'  # type: ignore
+            model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+            cache = Cache(cfg)
+            model.forward(ids[:, :5], cache)
+            dec = Decoder(model, cache, capacity=64)
+            outs = [ops.numpy(dec.step(int(t))) for t in ids[0, 5:]]
+            lg = np.concatenate(outs, 0)
+            e = rel_err(lg, gl[0, 5:])
+            assert e < 1e-4, (ops.name, e)
+            buckets = sorted({k[3] for k in dec.fns})
+            assert buckets == [8, 16, 32, 64], (ops.name, buckets)
+            if hasattr(ops, 'capture_mode'):
+                ops.capture_mode = 'auto'
+            print(f'{ops.name}: bucketed decode == golden across windows {buckets} (rel err {e:.1e})')
+    finally:
+        Decoder.MIN_BUCKET = saved
+
+
 def test_spec_decode_parity():
     """
     Speculative decoding must reproduce plain greedy decoding token for token whatever the drafts are. Checked with the

@@ -536,6 +536,11 @@ class Ops(abc.ABC):
             out = out[:, :, :T]
         return out, S
 
+    # False when `sdpa_static` does work proportional to `pos` on its own (a length-aware kernel reading `pos` inside
+    # one fixed graph); True when it reads whatever buffer it is given, so the Decoder should hand it a
+    # power-of-two-sized slice ("bucket") and capture a step per bucket
+    attn_bucketed: bool = True
+
     def sdpa_static(self, q: Array, kbuf: Array, vbuf: Array, pos: Array, ar: Array, scale: float) -> Array:
         """
         Attention for T new tokens against a fixed-capacity KV buffer. q: [B, H, T, D] for positions pos..pos+T-1; kbuf,

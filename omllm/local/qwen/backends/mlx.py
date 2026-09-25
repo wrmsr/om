@@ -364,10 +364,9 @@ class MlxOps(Ops):
         return mx.fast.scaled_dot_product_attention(q, kbuf, vbuf, scale=scale, mask=mask)
 
     def sdpa(self, q, k, v, scale, past):
-        T, L = q.shape[2], k.shape[2]
+        T = q.shape[2]
         if T == 1:
             return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
-        if past == 0 and T == L:
-            return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask='causal')
-        mask = mx.array(np.tril(np.ones((T, L), dtype=bool), k=past))
-        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+        # 'causal' aligns bottom-right when there are more keys than queries -- query i sees keys <= past + i --
+        # so a chunk of a long prompt needs no [T, L] mask (checked: equals the explicit tril mask)
+        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask='causal')

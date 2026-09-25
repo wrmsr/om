@@ -264,6 +264,28 @@ The canonical parameter scheme is HF's layout with *effective* values (see the d
 Ollama's newer tensor-blob format needs none of that (HF names, HF layout), only the `1 + w` and
 `-exp(A_log)` normalisation and MLX affine dequant.
 
+## Long contexts: attention that reads only what is in use
+
+The KV buffers are allocated at `--capacity` positions, but a decode step's attention no longer reads all of them.
+On torch with Triton, `sdpa_static` is a length-aware flash-decoding kernel (`torch_triton.attn_decode`): the
+number of key blocks comes from `pos` at run time inside one fixed CUDA graph, 32 programs per kv head split the
+sequence and their partial softmaxes are merged, so the cost follows the sequence and a capacity of 262144 costs
+memory (32 KB per position: 8.6 GB for the 27B) and nothing else. Backends whose attention reads whatever buffer
+it is given (`Ops.attn_bucketed`: MLX, tinygrad, torch without Triton) get the same effect by bucketing: the
+`Decoder` captures a step per power-of-two window from 1024 up to the capacity and hands attention the slice
+covering the positions in use, so crossing 4096 -> 8192 tokens is one cheap re-capture (an `mx.compile` trace on
+MLX) rather than a bigger graph for every token. Either way the captured / compiled steps are specific to the
+capacity, so pin it (`--capacity`) to the longest context you will run instead of letting it grow, which
+re-captures (and with `--compile` recompiles) at every doubling.
+
+Prefill over a long prompt had the same problem at the other end: a chunk of T queries against L keys built a
+[T, L] mask, which PyTorch's SDPA cannot flash-attend and which reaches gigabytes near the full context. On torch
+with Triton, `sdpa` is a flash-attention forward with the KV offset (`torch_triton.attn_prefill`): causal with
+`query i sees keys <= past + i`, key blocks above the diagonal never touched, GQA by index. On MLX the fast SDPA's
+`'causal'` mask aligns bottom-right when there are more keys than queries, which is exactly that. Both kernels
+are checked against the composed references under the Triton interpreter (`test_torch_triton.py`), and
+`test_parity.py::test_attention_buckets` walks a sequence across four bucket boundaries against the golden.
+
 ## Speculative decoding (MTP)
 
 The 27B checkpoints carry a one-layer multi-token-prediction head (`blk.64` / `nextn.*` in the GGUF, `mtp.*` in
@@ -361,8 +383,8 @@ queue limit).
 
 ## Where to go next (in order)
 
-1. **fp8 KV cache** for long contexts (the bf16 KV is 32 KB per token: 8 GB at 240k), and length-bucketed
-   attention graphs so decode does not pay for the whole capacity.
+1. **fp8 KV cache** -- the bf16 KV is 32 KB per token, 8.6 GB at the full 262144; halving it is the difference
+   between a full-context conversation and a full-context conversation plus its prefix snapshots on a 32 GB card.
 2. **Batching** — the static step is batch-1 by construction; a second concurrent conversation would want
    B > 1 buffers and a scheduler in `Engine`, which is a different engine.
 3. **Anthropic messages dialect** in `serving.py`, if a harness needs it: same engine, a second renderer / parser.

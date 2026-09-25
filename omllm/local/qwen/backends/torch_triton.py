@@ -205,6 +205,285 @@ def _gdn_step_kernel(
         tl.store(s_out_ptr + s_off, S)
 
 
+def _attn_decode_kernel(
+        q_ptr,
+        k_ptr,
+        v_ptr,
+        pos_ptr,
+        m_ptr,
+        l_ptr,
+        o_ptr,
+        stride_qb,
+        stride_qh,
+        stride_qt,
+        stride_kb,
+        stride_kh,
+        stride_kl,
+        stride_ob,
+        stride_oh,
+        stride_os,
+        stride_om,
+        stride_mb,
+        stride_mh,
+        stride_ms,
+        scale,
+        T,
+        G,
+        KV,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        D: tl.constexpr,
+        SPLITS: tl.constexpr,
+        IEEE: tl.constexpr,
+):
+    """
+    Decode attention over the static KV buffer that reads only the positions in use: the number of key blocks comes from
+    `pos` (a device scalar) at run time, so one fixed CUDA graph serves every sequence length and the work grows with
+    the sequence, not the capacity. One program per (batch, kv head, split): its rows are that kv head's G query heads x
+    T tokens (row g*T + t), it walks its share of the key blocks up to pos + T with an online softmax, and writes
+    partial (max, sum, acc); the wrapper merges the SPLITS partials (flash-decoding). Query row (g, t) may see keys <=
+    pos + t.
+    """
+
+    pid = tl.program_id(0)
+    s = tl.program_id(1)
+    b = pid // KV
+    kvh = pid % KV
+    rm = tl.arange(0, BLOCK_M)
+    rd = tl.arange(0, D)
+    g_of = rm // T
+    t_of = rm % T
+    row_ok = rm < G * T
+    q_off = b * stride_qb + (kvh * G + g_of)[:, None] * stride_qh + t_of[:, None] * stride_qt + rd[None, :]
+    q = tl.load(q_ptr + q_off, mask=row_ok[:, None], other=0.0)  # [BLOCK_M, D]
+    pos = tl.load(pos_ptr)
+    n_valid = pos + T
+    n_blocks = (n_valid + BLOCK_N - 1) // BLOCK_N
+    per = (n_blocks + SPLITS - 1) // SPLITS
+    blk_lo = s * per
+    blk_hi = tl.minimum(blk_lo + per, n_blocks)
+    m_i = tl.full([BLOCK_M], float('-inf'), tl.float32)
+    l_i = tl.zeros([BLOCK_M], tl.float32)
+    acc = tl.zeros([BLOCK_M, D], tl.float32)
+    kv_base = b * stride_kb + kvh * stride_kh
+    for blk in range(blk_lo, blk_hi):
+        j = blk * BLOCK_N + tl.arange(0, BLOCK_N)
+        kmask = j < n_valid
+        kv_off = kv_base + j[:, None] * stride_kl + rd[None, :]
+        k = tl.load(k_ptr + kv_off, mask=kmask[:, None], other=0.0)  # [BLOCK_N, D]
+        if IEEE:
+            sc = tl.dot(q, tl.trans(k), input_precision='ieee') * scale
+        else:
+            sc = tl.dot(q, tl.trans(k)) * scale
+        allowed = (j[None, :] <= (pos + t_of)[:, None]) & kmask[None, :]
+        sc = tl.where(allowed, sc, float('-inf'))
+        m_new = tl.maximum(m_i, tl.max(sc, 1))
+        m_safe = tl.where(m_new == float('-inf'), 0.0, m_new)  # rows with no key yet: keep p = 0, alpha = 0
+        alpha = tl.exp(m_i - m_safe)
+        p = tl.exp(sc - m_safe[:, None])
+        l_i = l_i * alpha + tl.sum(p, 1)
+        v = tl.load(v_ptr + kv_off, mask=kmask[:, None], other=0.0)
+        if IEEE:
+            acc = acc * alpha[:, None] + tl.dot(p.to(v.dtype), v, input_precision='ieee')
+        else:
+            acc = acc * alpha[:, None] + tl.dot(p.to(v.dtype), v)
+        m_i = m_new
+    mo = b * stride_mb + kvh * stride_mh + s * stride_ms + rm
+    tl.store(m_ptr + mo, m_i)
+    tl.store(l_ptr + mo, l_i)
+    oo = b * stride_ob + kvh * stride_oh + s * stride_os + rm[:, None] * stride_om + rd[None, :]
+    tl.store(o_ptr + oo, acc)
+
+
+def attn_decode(
+        q: torch.Tensor,
+        kbuf: torch.Tensor,
+        vbuf: torch.Tensor,
+        pos: torch.Tensor,
+        scale: float,
+        splits: int = 32,
+        block_n: int = 64,
+        num_warps: int = 4,
+) -> torch.Tensor:
+    """
+    Ops.sdpa_static on the length-aware kernel: q [B, H, T, D] for positions pos..pos+T-1, kbuf / vbuf [B, KV, L, D]
+    (positions 0..pos+T-1 valid), pos a 0-d int device tensor -> [B, H, T, D] in q's dtype. G*T query rows must fit
+    BLOCK_M = 32 (24 heads / 4 = 6 per kv head, so T <= 5). The partials of the `splits` programs per head are merged
+    here with a few torch ops (graph-capturable).
+    """
+
+    B, H, T, D = q.shape
+    KV = kbuf.shape[1]
+    G = H // KV
+    block_m = 32
+    if G * T > block_m:
+        raise ValueError(f'{G} query heads x {T} tokens exceed the {block_m} rows the decode attention kernel holds')
+    if D & (D - 1):
+        raise ValueError(f'head_dim {D} must be a power of two')
+    q = q.contiguous()
+    if kbuf.stride(-1) != 1 or vbuf.stride(-1) != 1:
+        raise ValueError('KV buffers must be contiguous along head_dim')
+    m = torch.empty((B, KV, splits, block_m), dtype=torch.float32, device=q.device)
+    l = torch.empty_like(m)
+    o = torch.empty((B, KV, splits, block_m, D), dtype=torch.float32, device=q.device)
+    _kernels().attn[(B * KV, splits)](
+        q,
+        kbuf,
+        vbuf,
+        pos,
+        m,
+        l,
+        o,
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        kbuf.stride(0),
+        kbuf.stride(1),
+        kbuf.stride(2),
+        o.stride(0),
+        o.stride(1),
+        o.stride(2),
+        o.stride(3),
+        m.stride(0),
+        m.stride(1),
+        m.stride(2),
+        scale,
+        T,
+        G,
+        KV,
+        BLOCK_M=block_m,
+        BLOCK_N=block_n,
+        D=D,
+        SPLITS=splits,
+        IEEE=(q.dtype == torch.float32),
+        num_warps=num_warps,
+    )
+    # merge the splits: softmax over all keys = weighted combination of the per-split partials
+    mx = m.amax(2, keepdim=True)  # [B, KV, 1, BM]
+    w = torch.exp(m - mx)  # [B, KV, S, BM]; a split with no keys has m = -inf -> weight 0
+    lsum = (w * l).sum(2)  # [B, KV, BM]
+    out = (w[..., None] * o).sum(2) / lsum[..., None]  # [B, KV, BM, D]
+    out = out[:, :, :G * T].reshape(B, KV, G, T, D).reshape(B, H, T, D)
+    return out.to(q.dtype)
+
+
+def _attn_prefill_kernel(
+        q_ptr,
+        k_ptr,
+        v_ptr,
+        o_ptr,
+        stride_qh,
+        stride_qt,
+        stride_kh,
+        stride_kl,
+        stride_oh,
+        stride_ot,
+        scale,
+        T,
+        past,
+        G,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        D: tl.constexpr,
+        IEEE: tl.constexpr,
+):
+    """
+    Prefill attention (flash-attention forward) for T new queries against past + T keys, causal with the offset: query i
+    sees keys j <= past + i. One program per (batch*head, block of BLOCK_M queries); it walks the key blocks up to its
+    diagonal with an online softmax and never touches the blocks above it, so a chunk of a long prompt costs O(T * (past
+    + T)) reads and no [T, L] mask is ever materialised. Batch and head are one folded axis (the wrapper passes
+    strides); head h reads kv head h // G.
+    """
+
+    pid_m = tl.program_id(0)
+    bh = tl.program_id(1)
+    bkv = bh // G  # kv row of this head: (b*H + h) // G == b*KV + h // G when heads are folded as b*H + h
+    rm = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    rd = tl.arange(0, D)
+    q_ok = rm < T
+    q = tl.load(q_ptr + bh * stride_qh + rm[:, None] * stride_qt + rd[None, :], mask=q_ok[:, None], other=0.0)
+    m_i = tl.full([BLOCK_M], float('-inf'), tl.float32)
+    l_i = tl.zeros([BLOCK_M], tl.float32)
+    acc = tl.zeros([BLOCK_M, D], tl.float32)
+    n_keys = past + tl.minimum((pid_m + 1) * BLOCK_M, T)  # the last query of this block sees keys < n_keys
+    for start in range(0, n_keys, BLOCK_N):
+        j = start + tl.arange(0, BLOCK_N)
+        kmask = j < n_keys
+        kv_off = bkv * stride_kh + j[:, None] * stride_kl + rd[None, :]
+        k = tl.load(k_ptr + kv_off, mask=kmask[:, None], other=0.0)
+        if IEEE:
+            sc = tl.dot(q, tl.trans(k), input_precision='ieee') * scale
+        else:
+            sc = tl.dot(q, tl.trans(k)) * scale
+        allowed = (j[None, :] <= (past + rm)[:, None]) & kmask[None, :]
+        sc = tl.where(allowed, sc, float('-inf'))
+        m_new = tl.maximum(m_i, tl.max(sc, 1))
+        m_safe = tl.where(m_new == float('-inf'), 0.0, m_new)
+        alpha = tl.exp(m_i - m_safe)
+        p = tl.exp(sc - m_safe[:, None])
+        l_i = l_i * alpha + tl.sum(p, 1)
+        v = tl.load(v_ptr + kv_off, mask=kmask[:, None], other=0.0)
+        if IEEE:
+            acc = acc * alpha[:, None] + tl.dot(p.to(v.dtype), v, input_precision='ieee')
+        else:
+            acc = acc * alpha[:, None] + tl.dot(p.to(v.dtype), v)
+        m_i = m_new
+    out = acc / l_i[:, None]
+    o_off = bh * stride_oh + rm[:, None] * stride_ot + rd[None, :]
+    tl.store(o_ptr + o_off, out.to(o_ptr.dtype.element_ty), mask=q_ok[:, None])
+
+
+def attn_prefill(
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        scale: float,
+        past: int,
+        block_m: int = 64,
+        block_n: int = 64,
+        num_warps: int = 4,
+) -> torch.Tensor:
+    """
+    Ops.sdpa for prefill on the flash-attention kernel: q [B, H, T, D], k / v [B, KV, past + T, D] -> [B, H, T, D],
+    query i attending keys <= past + i. Requires D a power of two (<= 256) and the tensors contiguous along D.
+    """
+
+    B, H, T, D = q.shape
+    KV = k.shape[1]
+    G = H // KV
+    if D & (D - 1):
+        raise ValueError(f'head_dim {D} must be a power of two')
+    q = q.contiguous()
+    k = k.contiguous()
+    v = v.contiguous()
+    out = torch.empty_like(q)
+    grid = (triton.cdiv(T, block_m), B * H)
+    # batch and head folded: q / out [B*H, T, D]; k / v [B*KV, L, D]; kv row of head bh is bh // G because
+    # (b*H + h) // G == b*KV + h // G when H == KV*G
+    _kernels().attn_prefill[grid](
+        q,
+        k,
+        v,
+        out,
+        q.stride(1),
+        q.stride(2),
+        k.stride(1),
+        k.stride(2),
+        out.stride(1),
+        out.stride(2),
+        scale,
+        T,
+        past,
+        G,
+        BLOCK_M=block_m,
+        BLOCK_N=block_n,
+        D=D,
+        IEEE=(q.dtype == torch.float32),
+        num_warps=num_warps,
+    )
+    return out
+
+
 @functools.lru_cache(maxsize=1)
 def _kernels() -> types.SimpleNamespace:
     """
@@ -223,6 +502,8 @@ def _kernels() -> types.SimpleNamespace:
         qlinear=triton.jit(_qlinear_kernel),
         fma=triton.jit(_qgemv_fma_kernel),
         gdn=triton.jit(_gdn_step_kernel),
+        attn=triton.jit(_attn_decode_kernel),
+        attn_prefill=triton.jit(_attn_prefill_kernel),
     )
 
 

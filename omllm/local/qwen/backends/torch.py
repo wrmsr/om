@@ -18,6 +18,8 @@ from ..quant import SEARCH_SHRINKS
 from ..quant import QWeight
 from ..quant import quantize as quantize_np
 from .torch_triton import HAVE_TRITON
+from .torch_triton import attn_decode
+from .torch_triton import attn_prefill
 from .torch_triton import gdn_step
 from .torch_triton import load_tuned
 from .torch_triton import qlinear
@@ -202,6 +204,10 @@ class TorchOps(Ops):
         # fused int4/int8 GEMV for quantized weights when the token count is small (decode / verify); prefill stays on
         # dequant + cuBLAS. None: on when cuda and triton import. True on CPU needs TRITON_INTERPRET=1.
         self.triton = (self.device.type == 'cuda' and HAVE_TRITON) if triton is None else (triton and HAVE_TRITON)
+        # with the Triton kernels the decode attention reads `pos` itself (one graph for the whole capacity, cost
+        # proportional to the sequence); without them the Decoder buckets the buffer by powers of two
+        self.attn_bucketed = not self.triton
+        self.attn_splits = 32
         self.triton_max_m = triton_max_m
         self.triton_block_n = triton_block_n
         if triton_tuned and HAVE_TRITON:
@@ -539,6 +545,11 @@ class TorchOps(Ops):
         xf = x.float()
         return F.rms_norm(xf, (xf.shape[-1],), weight=w.float(), eps=eps).to(x.dtype)
 
+    def sdpa_static(self, q, kbuf, vbuf, pos, ar, scale):
+        if self.triton:
+            return attn_decode(q, kbuf, vbuf, pos, scale, self.attn_splits)
+        return super().sdpa_static(q, kbuf, vbuf, pos, ar, scale)
+
     def sdpa(
             self,
             q,
@@ -550,11 +561,16 @@ class TorchOps(Ops):
         B, H, T, D = q.shape
         KV = k.shape[1]
         L = k.shape[2]
+        if self.triton and T > 1:
+            # flash-attention with the KV offset: no [T, L] mask, no key blocks above the diagonal, GQA by index
+            return attn_prefill(q, k, v, scale, past)
         if KV != H:
             k = k.repeat_interleave(H // KV, dim=1)
             v = v.repeat_interleave(H // KV, dim=1)
         if T == 1:
             return F.scaled_dot_product_attention(q, k, v, scale=scale)
+        if past == 0:
+            return F.scaled_dot_product_attention(q, k, v, is_causal=True, scale=scale)
         mask = torch.ones(T, L, dtype=torch.bool, device=q.device).tril(diagonal=past)
         return F.scaled_dot_product_attention(q, k, v, attn_mask=mask, scale=scale)
 
