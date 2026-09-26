@@ -20,50 +20,6 @@ from omcore.lite.check import check
 ##
 
 
-UNSIGNED_PAYLOAD = 'UNSIGNED-PAYLOAD'
-STREAMING_PAYLOAD = 'STREAMING-AWS4-HMAC-SHA256-PAYLOAD'
-
-_AWS_URI_UNRESERVED = frozenset(b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~')
-
-
-def aws_uri_encode(s: str, *, encode_slash: bool) -> str:
-    """
-    AWS's UriEncode: every byte of the UTF-8 encoding outside the unreserved set becomes an uppercase %XX, with '/'
-    left alone only when encode_slash is false. URLs sent to AWS should be built with exactly this encoding so the wire
-    form and the canonical form coincide.
-    """
-
-    out: ta.List[str] = []
-    for b in s.encode('utf-8'):
-        if b in _AWS_URI_UNRESERVED or (b == 0x2f and not encode_slash):
-            out.append(chr(b))
-        else:
-            out.append(f'%{b:02X}')
-    return ''.join(out)
-
-
-def _remove_dot_segments(path: str) -> str:
-    """RFC 3986 section 5.2.4, plus collapsing of repeated slashes, as AWS services other than S3 require."""
-
-    if not path:
-        return ''
-    out: ta.List[str] = []
-    for seg in path.split('/'):
-        if not seg or seg == '.':
-            continue
-        if seg == '..':
-            if out:
-                out.pop()
-        else:
-            out.append(seg)
-    first = '/' if path[0] == '/' else ''
-    last = '/' if path[-1] == '/' and out else ''
-    return first + '/'.join(out) + last
-
-
-##
-
-
 class AwsSigner:
     def __init__(
             self,
@@ -120,21 +76,61 @@ class AwsSigner:
 
     #
 
+    UNSIGNED_PAYLOAD = 'UNSIGNED-PAYLOAD'
+    STREAMING_PAYLOAD = 'STREAMING-AWS4-HMAC-SHA256-PAYLOAD'
+
+    _URI_UNRESERVED = frozenset(b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~')
+
+    @classmethod
+    def uri_encode(cls, s: str, *, encode_slash: bool) -> str:
+        """
+        AWS's UriEncode: every byte of the UTF-8 encoding outside the unreserved set becomes an uppercase %XX, with '/'
+        left alone only when encode_slash is false. URLs sent to AWS should be built with exactly this encoding so the
+        wire form and the canonical form coincide.
+        """
+
+        out: ta.List[str] = []
+        for b in s.encode('utf-8'):
+            if b in cls._URI_UNRESERVED or (b == 0x2f and not encode_slash):
+                out.append(chr(b))
+            else:
+                out.append(f'%{b:02X}')
+        return ''.join(out)
+
+    @staticmethod
+    def _remove_dot_segments(path: str) -> str:
+        """RFC 3986 section 5.2.4, plus collapsing of repeated slashes, as AWS services other than S3 require."""
+
+        if not path:
+            return ''
+        out: ta.List[str] = []
+        for seg in path.split('/'):
+            if not seg or seg == '.':
+                continue
+            if seg == '..':
+                if out:
+                    out.pop()
+            else:
+                out.append(seg)
+        first = '/' if path[0] == '/' else ''
+        last = '/' if path[-1] == '/' and out else ''
+        return first + '/'.join(out) + last
+
     @staticmethod
     def _as_bytes(data: ta.Union[str, bytes]) -> bytes:
         return data if isinstance(data, bytes) else data.encode('utf-8')
 
-    @staticmethod
-    def _sha256(data: ta.Union[str, bytes]) -> str:
-        return hashlib.sha256(AwsSigner._as_bytes(data)).hexdigest()
+    @classmethod
+    def _sha256(cls, data: ta.Union[str, bytes]) -> str:
+        return hashlib.sha256(cls._as_bytes(data)).hexdigest()
 
-    @staticmethod
-    def _sha256_sign(key: bytes, msg: ta.Union[str, bytes]) -> bytes:
-        return hmac.new(key, AwsSigner._as_bytes(msg), hashlib.sha256).digest()
+    @classmethod
+    def _sha256_sign(cls, key: bytes, msg: ta.Union[str, bytes]) -> bytes:
+        return hmac.new(key, cls._as_bytes(msg), hashlib.sha256).digest()
 
-    @staticmethod
-    def _sha256_sign_hex(key: bytes, msg: ta.Union[str, bytes]) -> str:
-        return hmac.new(key, AwsSigner._as_bytes(msg), hashlib.sha256).hexdigest()
+    @classmethod
+    def _sha256_sign_hex(cls, key: bytes, msg: ta.Union[str, bytes]) -> str:
+        return hmac.new(key, cls._as_bytes(msg), hashlib.sha256).hexdigest()
 
     _EMPTY_SHA256: str
 
@@ -166,14 +162,14 @@ class AwsSigner:
         if not path:
             path = '/'
         if self._service_name != 's3':
-            path = _remove_dot_segments(path) or '/'
-        enc = '/'.join(aws_uri_encode(urllib.parse.unquote(s), encode_slash=True) for s in path.split('/'))
+            path = self._remove_dot_segments(path) or '/'
+        enc = '/'.join(self.uri_encode(urllib.parse.unquote(s), encode_slash=True) for s in path.split('/'))
         if self._service_name == 's3':
             return enc
-        return aws_uri_encode(enc, encode_slash=False)
+        return self.uri_encode(enc, encode_slash=False)
 
-    @staticmethod
-    def _canonical_query(query: str) -> str:
+    @classmethod
+    def _canonical_query(cls, query: str) -> str:
         # Deliberately urllib.parse.unquote rather than unquote_plus / parse_qsl, which would turn '+' into a space.
         pairs: ta.List[ta.Tuple[str, str]] = []
         for part in query.split('&'):
@@ -181,8 +177,8 @@ class AwsSigner:
                 continue
             k, _, v = part.partition('=')
             pairs.append((
-                aws_uri_encode(urllib.parse.unquote(k), encode_slash=True),
-                aws_uri_encode(urllib.parse.unquote(v), encode_slash=True),
+                cls.uri_encode(urllib.parse.unquote(k), encode_slash=True),
+                cls.uri_encode(urllib.parse.unquote(v), encode_slash=True),
             ))
         return '&'.join(f'{k}={v}' for k, v in sorted(pairs))
 
@@ -490,7 +486,7 @@ class V4AwsSigner(AwsSigner):
 
         signed = self._sign(
             req,
-            payload_hash=STREAMING_PAYLOAD,
+            payload_hash=self.STREAMING_PAYLOAD,
             emit_content_sha256=True,
             extra_headers=extra,
             utcnow=utcnow,

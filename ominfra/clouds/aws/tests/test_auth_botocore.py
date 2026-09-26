@@ -47,7 +47,7 @@ QUERIES = [
 
 
 def _enc_path(key):
-    return '/' + auth.aws_uri_encode(key, encode_slash=False)
+    return '/' + auth.AwsSigner.uri_encode(key, encode_slash=False)
 
 
 def _ours(*, service, url, method='GET', headers=None, body=b'', token=None, payload_hash=None, sign_payload=True):
@@ -127,7 +127,7 @@ def test_bodies_headers_tokens():
         body=b'hello world',
     )
     _check(service='s3', url=url, method='PUT', body=b'hello', token='sessiontoken/abc=')  # noqa: S106
-    _check(service='s3', url=url, method='PUT', body=b'hello', payload_hash=auth.UNSIGNED_PAYLOAD)
+    _check(service='s3', url=url, method='PUT', body=b'hello', payload_hash=auth.AwsSigner.UNSIGNED_PAYLOAD)
     _check(
         service='ec2',
         url='https://ec2.us-west-1.amazonaws.com/',
@@ -146,7 +146,7 @@ def test_returned_headers():
     creds = auth.AwsSigner.Credentials('AKID', 'secret', 'tok')
     h = auth.V4AwsSigner(creds, 'us-east-1', 's3').sign(
         auth.AwsSigner.Request(method='GET', url='https://b.s3.amazonaws.com/k'),
-        payload_hash=auth.UNSIGNED_PAYLOAD,
+        payload_hash=auth.AwsSigner.UNSIGNED_PAYLOAD,
         utcnow=UTCNOW,
     )
     assert h['X-Amz-Content-SHA256'] == ['UNSIGNED-PAYLOAD']
