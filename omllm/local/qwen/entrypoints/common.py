@@ -75,6 +75,13 @@ def add_model_args(ap: argparse.ArgumentParser) -> None:
         help='torch.compile the captured steps (fuses the small ops between the big kernels); slow first run',
     )
     ap.add_argument(
+        '--kv-dtype',
+        choices=['bf16', 'fp8'],
+        default='bf16',
+        help='KV cache format (torch): bf16 (32 KB per position on the 27B) or fp8 e4m3 codes with per-position '
+             'scales (16 KB) -- half the memory for the live buffers and for prefix snapshots, measured by kl',
+    )
+    ap.add_argument(
         '--capacity',
         type=int,
         default=32768,
@@ -100,6 +107,11 @@ def load_model(
         ops.compile = True
         if args.cache_dir:
             ops.compile_cache = str(pathlib.Path(args.cache_dir) / 'torch-compile.bin')  # type: ignore[attr-defined]
+    if getattr(args, 'kv_dtype', 'bf16') != 'bf16':
+        if not hasattr(ops, 'kv_dtype'):
+            print(f'[model] --kv-dtype {args.kv_dtype} is a torch backend option; the KV cache stays in the compute dtype')  # noqa
+        else:
+            ops.kv_dtype = args.kv_dtype
     if args.triton_tuned and hasattr(ops, 'triton'):
         from ..backends.torch_triton import load_tuned
 

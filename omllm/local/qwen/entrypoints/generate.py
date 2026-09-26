@@ -149,6 +149,7 @@ def main() -> None:
         help='directory for the finished-parameter cache (paramcache.py); e.g. ./.cache/qwen. First load fills it',
     )
     ap.add_argument('--policy', choices=['uniform', 'km'], default='uniform', help='per-tensor precision policy')
+    ap.add_argument('--kv-dtype', choices=['bf16', 'fp8'], default='bf16', help='KV cache format (torch): see serve')
     ap.add_argument('--no-quant-search', action='store_true', help='plain min/max quantization')
     ap.add_argument(
         '--triton-tuned',
@@ -218,6 +219,11 @@ def main() -> None:
         ops.compile = True
         if args.cache_dir:
             ops.compile_cache = str(pathlib.Path(args.cache_dir) / 'torch-compile.bin')  # type: ignore[attr-defined]
+    if args.kv_dtype != 'bf16':
+        if not hasattr(ops, 'kv_dtype'):
+            print(f'[model] --kv-dtype {args.kv_dtype} is a torch backend option; the KV cache stays in the compute dtype')  # noqa
+        else:
+            ops.kv_dtype = args.kv_dtype
     if args.triton_tuned and hasattr(ops, 'triton'):
         from ..backends.torch_triton import load_tuned
 

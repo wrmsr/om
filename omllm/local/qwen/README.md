@@ -288,6 +288,23 @@ with Triton, `sdpa` is a flash-attention forward with the KV offset (`torch_trit
 are checked against the composed references under the Triton interpreter (`test_torch_triton.py`), and
 `test_parity.py::test_attention_buckets` walks a sequence across four bucket boundaries against the golden.
 
+## fp8 KV cache
+
+`--kv-dtype fp8` (torch; `TorchOps(kv_dtype='fp8')`) keeps the attention layers' KV as e4m3 codes with one float32
+scale per position and kv head instead of bf16: 16 KB per position on the 27B instead of 32, so the full 262144
+window is 4.3 GB and a prefix snapshot of a full-context conversation is 4.3 GB rather than 8.6, and the decode
+attention streams half the bytes at long contexts. It is a launch-time choice -- quality (bf16, the default) or
+memory -- and `kl --kv-dtype fp8` puts a number on what it costs on your text.
+
+The KV state became a backend-defined tuple for this (`Ops.kv_arity`, `kv_new` / `kv_concat` / `kv_slice` /
+`kv_pad` / `kv_write_state` / `sdpa_state` / `sdpa_static_state`): (k, v) by default, four arrays on torch at fp8,
+and model code never looks inside. Both Triton attention kernels take an `FP8` mode (codes dequantised on load,
+the score column scaled by the key's scale, the value row by its own), verified exact against the composed
+references on dequantised buffers and, without Triton, a dequantising fallback keeps the mode runnable anywhere.
+Prefix snapshots carry their format and convert on the way in (`kv_adapt`): a bf16 snapshot resumed by an fp8
+server is quantised, an fp8 one resumed by a bf16 server is dequantised, so flipping the flag between launches
+does not lose the cache. MLX stays bf16 (no fp8 there, and the memory is not the constraint).
+
 ## Speculative decoding (MTP)
 
 The 27B checkpoints carry a one-layer multi-token-prediction head (`blk.64` / `nextn.*` in the GGUF, `mtp.*` in
@@ -385,8 +402,8 @@ queue limit).
 
 ## Where to go next (in order)
 
-1. **fp8 KV cache** -- the bf16 KV is 32 KB per token, 8.6 GB at the full 262144; halving it is the difference
-   between a full-context conversation and a full-context conversation plus its prefix snapshots on a 32 GB card.
+1. **Length-bucketed draft-head KV and int8 KV** -- the draft head's buffers could bucket like the target's, and
+   int8 with the same scales is the other half-size option where fp8 is unavailable.
 2. **Batching** — the static step is batch-1 by construction; a second concurrent conversation would want
    B > 1 buffers and a scheduler in `Engine`, which is a different engine.
 3. **Anthropic messages dialect** in `serving.py`, if a harness needs it: same engine, a second renderer / parser.

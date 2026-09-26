@@ -38,7 +38,7 @@ class Snapshot:
     cache: ta.Any  # model.Cache with seq_len == n
     logits: Array  # [1, V] float32: the target's logits for position n
     hidden: Array  # [1, 1, hidden]: the target's final-normed hidden state at position n-1
-    mtp_kv: tuple[Array, Array] | None  # draft-head KV for entries 0..n-2, when the head is loaded
+    mtp_kv: tuple[Array, ...] | None  # draft-head KV state for entries 0..n-2, when the head is loaded
 
     @property
     def n(self) -> int:
@@ -64,7 +64,7 @@ class Snapshot:
             cache,
             fn(self.logits),
             fn(self.hidden),
-            None if self.mtp_kv is None else (fn(self.mtp_kv[0]), fn(self.mtp_kv[1])),
+            None if self.mtp_kv is None else tuple(fn(a) for a in self.mtp_kv),
         )
 
     def nbytes(self, ops: Ops) -> int:

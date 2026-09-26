@@ -1,4 +1,4 @@
-# ruff: noqa: N803 N806 N812
+# ruff: noqa: N802 N803 N806 N812
 """
 torch backend for `Ops`.
 
@@ -210,6 +210,7 @@ class TorchOps(Ops):
             triton_tuned: str | None = None,
             compile: bool = False,  # noqa
             compile_cache: str | None = None,
+            kv_dtype: str = 'bf16',
     ) -> None:
         super().__init__()
 
@@ -230,6 +231,11 @@ class TorchOps(Ops):
         # proportional to the sequence); without them the Decoder buckets the buffer by powers of two
         self.attn_bucketed = not self.triton
         self.attn_splits = 32
+        # KV cache format: 'bf16' (the compute dtype, two arrays per attention layer) or 'fp8' (e4m3 codes with a
+        # float32 scale per position and kv head, four arrays: half the bytes, the same for prefix snapshots)
+        if kv_dtype not in ('bf16', 'fp8'):
+            raise ValueError(kv_dtype)
+        self.kv_dtype = kv_dtype
         if self.triton:
             ensure_kernels()  # jit now (imports triton): the wrappers must find real JITFunctions when traced
         self.triton_max_m = triton_max_m
@@ -573,6 +579,112 @@ class TorchOps(Ops):
         if self.triton:
             return attn_decode(q, kbuf, vbuf, pos, scale, self.attn_splits)
         return super().sdpa_static(q, kbuf, vbuf, pos, ar, scale)
+
+    # KV state format (see Ops.kv_arity): fp8 e4m3 codes + per-position scales when kv_dtype == 'fp8'
+
+    FP8_MAX = 448.0  # e4m3's largest finite value
+
+    @property
+    def FP8(self):  # (a property: torch is imported lazily, so no class attribute may touch it)
+        return torch.float8_e4m3fn
+
+    @property
+    def kv_arity(self):  # type: ignore[override]
+        return 4 if self.kv_dtype == 'fp8' else 2
+
+    def _fp8_quant(self, x):
+        """[B, KV, T, D] -> (e4m3 codes, float32 scales [B, KV, T]) with one scale per position and kv head."""
+
+        xf = x.float()
+        amax = xf.abs().amax(-1)
+        scale = (amax / self.FP8_MAX).clamp_min(1e-12)
+        q = (xf / scale[..., None]).to(self.FP8)
+        return q, scale
+
+    def _fp8_dequant(self, q, scale, dtype):
+        return (q.to(torch.float32) * scale[..., None]).to(dtype)
+
+    def kv_new(self, k, v):
+        if self.kv_dtype != 'fp8':
+            return (k, v)
+        kq, ks = self._fp8_quant(k)
+        vq, vs = self._fp8_quant(v)
+        return (kq, ks, vq, vs)
+
+    def kv_adapt(self, state, dtype=None):
+        """A state in this backend's format: (k, v) -> fp8 codes + scales, or fp8 -> (k, v) in `dtype`."""
+
+        if len(state) == self.kv_arity:
+            return state
+        if self.kv_dtype == 'fp8' and len(state) == 2:
+            return self.kv_new(state[0], state[1])
+        if self.kv_dtype == 'bf16' and len(state) == 4:
+            dt = dtype if dtype is not None else (torch.bfloat16 if self.device.type != 'cpu' else torch.float32)
+            return (self._fp8_dequant(state[0], state[1], dt), self._fp8_dequant(state[2], state[3], dt))
+        raise ValueError(f'cannot adapt a {len(state)}-array KV state to kv_dtype={self.kv_dtype}')
+
+    def kv_concat(self, state, k, v):
+        if self.kv_dtype != 'fp8':
+            return super().kv_concat(state, k, v)
+        if len(state) != 4:
+            state = self.kv_adapt(state)
+        kq, ks = self._fp8_quant(k)
+        vq, vs = self._fp8_quant(v)
+        return (
+            torch.cat([state[0], kq], 2),
+            torch.cat([state[1], ks], 2),
+            torch.cat([state[2], vq], 2),
+            torch.cat([state[3], vs], 2),
+        )
+
+    def kv_pad(self, state, capacity):
+        out = []
+        for a in state:
+            n = a.shape[2]
+            if n < capacity:
+                shape = list(a.shape)
+                shape[2] = capacity - n
+                if a.dtype == self.FP8:
+                    pad = torch.zeros(shape, dtype=torch.uint8, device=a.device).view(self.FP8)
+                else:
+                    pad = torch.zeros(shape, dtype=a.dtype, device=a.device)
+                a = torch.cat([a, pad], 2)
+            elif n > capacity:
+                raise ValueError(f'KV longer ({n}) than capacity ({capacity})')
+            out.append(a)
+        return tuple(out)
+
+    def kv_write_state(self, state, pos, k, v):
+        if self.kv_dtype != 'fp8':
+            return super().kv_write_state(state, pos, k, v)
+        kq, ks = self._fp8_quant(k)
+        vq, vs = self._fp8_quant(v)
+        idx = pos.reshape(1).to(torch.int64)
+        kbuf, ksb, vbuf, vsb = state
+        # in place, through a byte view (index_copy_ is not implemented for float8 everywhere); same objects out
+        kbuf.view(torch.uint8).index_copy_(2, idx, kq.view(torch.uint8))
+        vbuf.view(torch.uint8).index_copy_(2, idx, vq.view(torch.uint8))
+        ksb.index_copy_(2, idx, ks)
+        vsb.index_copy_(2, idx, vs)
+        return (kbuf, ksb, vbuf, vsb)
+
+    def sdpa_state(self, q, state, scale, past):
+        if len(state) == 2:
+            return self.sdpa(q, state[0], state[1], scale, past)
+        kq, ks, vq, vs = state
+        if self.triton and q.shape[2] > 1:
+            return attn_prefill(q, kq, vq, scale, past, ks=ks, vs=vs)
+        return self.sdpa(q, self._fp8_dequant(kq, ks, q.dtype), self._fp8_dequant(vq, vs, q.dtype), scale, past)
+
+    def sdpa_static_state(self, q, state, pos, ar, scale):
+        if len(state) == 2:
+            return self.sdpa_static(q, state[0], state[1], pos, ar, scale)
+        kq, ks, vq, vs = state
+        if self.triton:
+            return attn_decode(q, kq, vq, pos, scale, self.attn_splits, ks=ks, vs=vs)
+        kd = self._fp8_dequant(kq, ks, q.dtype)
+        vd = self._fp8_dequant(vq, vs, q.dtype)
+        return super().sdpa_static(q, kd, vd, pos, ar, scale)
 
     def sdpa(
             self,

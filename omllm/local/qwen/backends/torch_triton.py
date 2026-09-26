@@ -28,6 +28,7 @@ import json
 import pathlib
 import typing as ta
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
@@ -207,6 +208,8 @@ def _attn_decode_kernel(
         q_ptr,
         k_ptr,
         v_ptr,
+        ks_ptr,
+        vs_ptr,
         pos_ptr,
         m_ptr,
         l_ptr,
@@ -224,6 +227,8 @@ def _attn_decode_kernel(
         stride_mb,
         stride_mh,
         stride_ms,
+        stride_sb,
+        stride_sh,
         scale,
         T,
         G,
@@ -233,6 +238,7 @@ def _attn_decode_kernel(
         D: tl.constexpr,
         SPLITS: tl.constexpr,
         IEEE: tl.constexpr,
+        FP8: tl.constexpr,
 ):
     """
     Decode attention over the static KV buffer that reads only the positions in use: the number of key blocks comes from
@@ -240,7 +246,8 @@ def _attn_decode_kernel(
     the sequence, not the capacity. One program per (batch, kv head, split): its rows are that kv head's G query heads x
     T tokens (row g*T + t), it walks its share of the key blocks up to pos + T with an online softmax, and writes
     partial (max, sum, acc); the wrapper merges the SPLITS partials (flash-decoding). Query row (g, t) may see keys <=
-    pos + t.
+    pos + t. With FP8 the buffers hold e4m3 codes and ks / vs the per-position scales: a key's score is the dot with
+    its codes times its scale, a value is its codes times its scale.
     """
 
     pid = tl.program_id(0)
@@ -269,10 +276,15 @@ def _attn_decode_kernel(
         kmask = j < n_valid
         kv_off = kv_base + j[:, None] * stride_kl + rd[None, :]
         k = tl.load(k_ptr + kv_off, mask=kmask[:, None], other=0.0)  # [BLOCK_N, D]
+        if FP8:
+            k = k.to(q.dtype)
         if IEEE:
             sc = tl.dot(q, tl.trans(k), input_precision='ieee') * scale
         else:
             sc = tl.dot(q, tl.trans(k)) * scale
+        if FP8:
+            ksc = tl.load(ks_ptr + b * stride_sb + kvh * stride_sh + j, mask=kmask, other=0.0)
+            sc = sc * ksc[None, :]
         allowed = (j[None, :] <= (pos + t_of)[:, None]) & kmask[None, :]
         sc = tl.where(allowed, sc, float('-inf'))
         m_new = tl.maximum(m_i, tl.max(sc, 1))
@@ -281,6 +293,9 @@ def _attn_decode_kernel(
         p = tl.exp(sc - m_safe[:, None])
         l_i = l_i * alpha + tl.sum(p, 1)
         v = tl.load(v_ptr + kv_off, mask=kmask[:, None], other=0.0)
+        if FP8:
+            vsc = tl.load(vs_ptr + b * stride_sb + kvh * stride_sh + j, mask=kmask, other=0.0)
+            v = (v.to(tl.float32) * vsc[:, None]).to(q.dtype)
         if IEEE:
             acc = acc * alpha[:, None] + tl.dot(p.to(v.dtype), v, input_precision='ieee')
         else:
@@ -301,12 +316,15 @@ def attn_decode(
         scale: float,
         splits: int = 32,
         num_warps: int = 4,
+        ks: torch.Tensor | None = None,
+        vs: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """
     Ops.sdpa_static on the length-aware kernel: q [B, H, T, D] for positions pos..pos+T-1, kbuf / vbuf [B, KV, L, D]
     (positions 0..pos+T-1 valid), pos a 0-d int device tensor -> [B, H, T, D] in q's dtype. G*T query rows must fit
     BLOCK_M = 32 (24 heads / 4 = 6 per kv head, so T <= 5). The partials of the `splits` programs per head are merged
-    here with a few torch ops (graph-capturable).
+    here with a few torch ops (graph-capturable). With ks / vs ([B, KV, L] float32 scales) the buffers are fp8 e4m3
+    codes.
     """
 
     B, H, T, D = q.shape
@@ -323,6 +341,13 @@ def attn_decode(
     m = torch.empty((B, KV, splits, block_m), dtype=torch.float32, device=q.device)
     l = torch.empty_like(m)
     o = torch.empty((B, KV, splits, block_m, D), dtype=torch.float32, device=q.device)
+    fp8 = ks is not None
+    if fp8:
+        check.not_none(vs)
+        ks = ks.contiguous()
+        vs = vs.contiguous()
+    else:
+        ks = vs = m  # unread
     ensure_kernels()
 
     def launch(block_m_: int, block_n_: int, num_stages: int) -> None:
@@ -330,6 +355,8 @@ def attn_decode(
             q,
             kbuf,
             vbuf,
+            ks,
+            vs,
             pos,
             m,
             l,
@@ -347,6 +374,8 @@ def attn_decode(
             m.stride(0),
             m.stride(1),
             m.stride(2),
+            ks.stride(0) if fp8 else 0,
+            ks.stride(1) if fp8 else 0,
             scale,
             T,
             G,
@@ -356,13 +385,14 @@ def attn_decode(
             D=D,
             SPLITS=splits,
             IEEE=(q.dtype == torch.float32),
+            FP8=fp8,
             num_warps=num_warps,
             num_stages=num_stages,
         )
 
-    cfg = _ATTN_CFG.get(('decode', D, q.dtype))
+    cfg = _ATTN_CFG.get(('decode', D, q.dtype, fp8))
     if cfg is None:
-        _resolve_attn('decode', (D, q.dtype), launch)
+        _resolve_attn('decode', (D, q.dtype, fp8), launch)
     else:
         launch(*cfg)
     # merge the splits: softmax over all keys = weighted combination of the per-split partials
@@ -378,6 +408,8 @@ def _attn_prefill_kernel(
         q_ptr,
         k_ptr,
         v_ptr,
+        ks_ptr,
+        vs_ptr,
         o_ptr,
         stride_qh,
         stride_qt,
@@ -385,6 +417,7 @@ def _attn_prefill_kernel(
         stride_kl,
         stride_oh,
         stride_ot,
+        stride_sh,
         scale,
         T,
         past,
@@ -393,6 +426,7 @@ def _attn_prefill_kernel(
         BLOCK_N: tl.constexpr,
         D: tl.constexpr,
         IEEE: tl.constexpr,
+        FP8: tl.constexpr,
 ):
     """
     Prefill attention (flash-attention forward) for T new queries against past + T keys, causal with the offset: query i
@@ -418,10 +452,15 @@ def _attn_prefill_kernel(
         kmask = j < n_keys
         kv_off = bkv * stride_kh + j[:, None] * stride_kl + rd[None, :]
         k = tl.load(k_ptr + kv_off, mask=kmask[:, None], other=0.0)
+        if FP8:
+            k = k.to(q.dtype)
         if IEEE:
             sc = tl.dot(q, tl.trans(k), input_precision='ieee') * scale
         else:
             sc = tl.dot(q, tl.trans(k)) * scale
+        if FP8:
+            ksc = tl.load(ks_ptr + bkv * stride_sh + j, mask=kmask, other=0.0)
+            sc = sc * ksc[None, :]
         allowed = (j[None, :] <= (past + rm)[:, None]) & kmask[None, :]
         sc = tl.where(allowed, sc, float('-inf'))
         m_new = tl.maximum(m_i, tl.max(sc, 1))
@@ -430,6 +469,9 @@ def _attn_prefill_kernel(
         p = tl.exp(sc - m_safe[:, None])
         l_i = l_i * alpha + tl.sum(p, 1)
         v = tl.load(v_ptr + kv_off, mask=kmask[:, None], other=0.0)
+        if FP8:
+            vsc = tl.load(vs_ptr + bkv * stride_sh + j, mask=kmask, other=0.0)
+            v = (v.to(tl.float32) * vsc[:, None]).to(q.dtype)
         if IEEE:
             acc = acc * alpha[:, None] + tl.dot(p.to(v.dtype), v, input_precision='ieee')
         else:
@@ -447,10 +489,13 @@ def attn_prefill(
         scale: float,
         past: int,
         num_warps: int = 4,
+        ks: torch.Tensor | None = None,
+        vs: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """
     Ops.sdpa for prefill on the flash-attention kernel: q [B, H, T, D], k / v [B, KV, past + T, D] -> [B, H, T, D],
-    query i attending keys <= past + i. Requires D a power of two (<= 256) and the tensors contiguous along D.
+    query i attending keys <= past + i. Requires D a power of two (<= 256) and the tensors contiguous along D. With
+    ks / vs ([B, KV, past + T] float32) k / v are fp8 e4m3 codes with per-position scales.
     """
 
     B, H, T, D = q.shape
@@ -462,6 +507,13 @@ def attn_prefill(
     k = k.contiguous()
     v = v.contiguous()
     out = torch.empty_like(q)
+    fp8 = ks is not None
+    if fp8:
+        check.not_none(vs)
+        ks = ks.contiguous()
+        vs = vs.contiguous()
+    else:
+        ks = vs = out  # unread
     # batch and head folded: q / out [B*H, T, D]; k / v [B*KV, L, D]; kv row of head bh is bh // G because
     # (b*H + h) // G == b*KV + h // G when H == KV*G
     ensure_kernels()
@@ -471,6 +523,8 @@ def attn_prefill(
             q,
             k,
             v,
+            ks,
+            vs,
             out,
             q.stride(1),
             q.stride(2),
@@ -478,6 +532,7 @@ def attn_prefill(
             k.stride(2),
             out.stride(1),
             out.stride(2),
+            ks.stride(1) if fp8 else 0,
             scale,
             T,
             past,
@@ -486,13 +541,14 @@ def attn_prefill(
             BLOCK_N=block_n_,
             D=D,
             IEEE=(q.dtype == torch.float32),
+            FP8=fp8,
             num_warps=num_warps,
             num_stages=num_stages,
         )
 
-    cfg = _ATTN_CFG.get(('prefill', D, q.dtype))
+    cfg = _ATTN_CFG.get(('prefill', D, q.dtype, fp8))
     if cfg is None:
-        _resolve_attn('prefill', (D, q.dtype), launch)
+        _resolve_attn('prefill', (D, q.dtype, fp8), launch)
     else:
         launch(*cfg)
     return out
@@ -535,7 +591,7 @@ def ensure_kernels() -> None:
 
 # attention launch configurations that fit the GPU's shared memory, resolved per (kind, head_dim, dtype) on first use:
 # the tiles are [BLOCK, D] and D = 256 is big, so the first choice can exceed consumer Blackwell's 99 KB
-_ATTN_CFG: dict[tuple[str, int, ta.Any], tuple[int, int, int]] = {}
+_ATTN_CFG: dict[tuple[ta.Any, ...], tuple[int, int, int]] = {}
 _ATTN_LADDER: dict[str, tuple[tuple[int, int, int], ...]] = {
     # (block_m, block_n, num_stages), largest first
     'decode': ((32, 64, 2), (32, 32, 2), (32, 32, 1), (32, 16, 1)),
@@ -545,7 +601,7 @@ _ATTN_LADDER: dict[str, tuple[tuple[int, int, int], ...]] = {
 
 def _resolve_attn(
         kind: str,
-        key: tuple[int, ta.Any],
+        key: tuple[ta.Any, ...],
         launch: ta.Callable[[int, int, int], None],
 ) -> tuple[int, int, int]:
     """

@@ -536,6 +536,75 @@ class Ops(abc.ABC):
             out = out[:, :, :T]
         return out, S
 
+    # The attention layers' KV state is a tuple of `kv_arity` arrays whose meaning only the backend knows: the default
+    # is (k, v) in the compute dtype, [B, KV, L, D] each; a backend may store something else (torch: fp8 codes plus
+    # per-token scales, four arrays). Model code goes through these methods and never looks inside.
+    kv_arity: int = 2
+
+    def kv_new(self, k: Array, v: Array) -> tuple[Array, ...]:
+        """A state holding the given [B, KV, T, D] keys and values."""
+
+        return (k, v)
+
+    def kv_adapt(self, state: tuple[Array, ...], dtype: ta.Any = None) -> tuple[Array, ...]:
+        """
+        A state in this backend's format (converting one made with another format, e.g. a prefix snapshot
+        taken at another KV dtype; `dtype` is the compute dtype for a conversion that needs one). Default: only the
+        (k, v) format exists.
+        """
+
+        if len(state) != self.kv_arity:
+            raise ValueError(f'cannot adapt a {len(state)}-array KV state to this backend')
+        return state
+
+    def kv_len(self, state: tuple[Array, ...]) -> int:
+        return state[0].shape[2]
+
+    def kv_concat(self, state: tuple[Array, ...], k: Array, v: Array) -> tuple[Array, ...]:
+        """The state extended by new keys and values along the sequence (functional prefill)."""
+
+        return (self.concat([state[0], k], 2), self.concat([state[1], v], 2))
+
+    def kv_slice(self, state: tuple[Array, ...], n: int) -> tuple[Array, ...]:
+        """Copies of the first n positions."""
+
+        return tuple(self.copy(a[:, :, :n]) for a in state)
+
+    def kv_window(self, state: tuple[Array, ...], n: int) -> tuple[Array, ...]:
+        """Views of the first n positions (no copy), for bucketed attention."""
+
+        return tuple(a[:, :, :n] for a in state)
+
+    def kv_pad(self, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+        """The state zero-padded to `capacity` positions."""
+
+        out = []
+        for a in state:
+            n = a.shape[2]
+            if n < capacity:
+                shape = list(a.shape)
+                shape[2] = capacity - n
+                a = self.concat([a, self.zeros(tuple(shape), a.dtype)], 2)
+            elif n > capacity:
+                raise ValueError(f'KV longer ({n}) than capacity ({capacity})')
+            out.append(a)
+        return tuple(out)
+
+    def kv_write_state(self, state: tuple[Array, ...], pos: Array, k: Array, v: Array) -> tuple[Array, ...]:
+        """The static-buffer write of one position's k, v ([B, KV, 1, D]) at `pos` (see kv_write)."""
+
+        return (self.kv_write(state[0], pos, k), self.kv_write(state[1], pos, v))
+
+    def sdpa_state(self, q: Array, state: tuple[Array, ...], scale: float, past: int) -> Array:
+        """Prefill attention of q [B, H, T, D] over a state holding past + T positions."""
+
+        return self.sdpa(q, state[0], state[1], scale, past)
+
+    def sdpa_static_state(self, q: Array, state: tuple[Array, ...], pos: Array, ar: Array, scale: float) -> Array:
+        """Decode attention of q over the static buffers (see sdpa_static)."""
+
+        return self.sdpa_static(q, state[0], state[1], pos, ar, scale)
+
     # False when `sdpa_static` does work proportional to `pos` on its own (a length-aware kernel reading `pos` inside
     # one fixed graph); True when it reads whatever buffer it is given, so the Decoder should hand it a
     # power-of-two-sized slice ("bucket") and capture a step per bucket

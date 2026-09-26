@@ -214,6 +214,53 @@ def test_attn_prefill_kernel():
     print('flash-attention prefill kernel matches the composed reference (GQA, KV offset, ragged blocks)')
 
 
+def test_attn_fp8_kernels():
+    """
+    Both attention kernels on fp8 e4m3 codes + per-position scales equal the composed references run on the
+    dequantized keys and values (the kernels' scale handling is exact), and fp8 is a small perturbation of bf16.
+    """
+
+    if _skip():
+        return
+    from ..backends.torch import TorchOps
+    from ..backends.torch_triton import attn_decode
+    from ..backends.torch_triton import attn_prefill
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    ops = TorchOps(device, triton=False, kv_dtype='fp8')
+    torch.manual_seed(2)
+    B, H, KV, D, L = 1, 6, 2, 32, 300
+    scale = D ** -0.5
+    k = torch.randn(B, KV, L, D, device=device) * 3
+    v = torch.randn(B, KV, L, D, device=device) * 3
+    kq, ks = ops._fp8_quant(k)  # noqa
+    vq, vs = ops._fp8_quant(v)  # noqa
+    kd = ops._fp8_dequant(kq, ks, torch.float32)  # noqa
+    vd = ops._fp8_dequant(vq, vs, torch.float32)  # noqa
+    # decode
+    ar = ops.arange(L)
+    for T in (1, 4):
+        q = torch.randn(B, H, T, D, device=device)
+        for p in (0, 70, L - T):
+            pos = ops.scalar(p)
+            ref = ops.sdpa_static(q, kd, vd, pos, ar, scale)
+            out = attn_decode(q, kq, vq, pos, scale, splits=4, ks=ks, vs=vs)
+            e = ((out - ref).abs().max() / ref.abs().max()).item()
+            assert e < 1e-4, ('decode', T, p, e)
+            full = ops.sdpa_static(q, k, v, pos, ar, scale)
+            e_q = ((out - full).abs().max() / full.abs().max()).item()
+            assert e_q < 1e-1, ('decode vs bf16', T, p, e_q)  # e4m3 rounding
+    # prefill with an fp8 past
+    for past, T in ((0, 50), (100, 37)):
+        q = torch.randn(B, H, T, D, device=device)
+        ref = ops.sdpa(q, kd[:, :, :past + T], vd[:, :, :past + T], scale, past)
+        n = past + T
+        out = attn_prefill(q, kq[:, :, :n], vq[:, :, :n], scale, past, ks=ks[:, :, :n], vs=vs[:, :, :n])
+        e = ((out - ref).abs().max() / ref.abs().max()).item()
+        assert e < 1e-4, ('prefill', past, T, e)
+    print('fp8 KV attention kernels match the dequantized references (decode T=1/4, prefill with fp8 past)')
+
+
 def test_model_decode_with_kernel():
     """A quantized model's static decode step gives the same logits with and without the kernel."""
 

@@ -47,7 +47,7 @@ else:
 # Cache
 
 
-FullState = tuple[Array, Array]  # k, v: [B, n_kv, T, hd]
+FullState = tuple[Array, ...]  # the backend's KV state: (k, v) [B, n_kv, T, hd] by default; see Ops.kv_arity
 LinearState = tuple[Array, Array]  # conv: [B, conv_dim, kernel-1] last inputs to the conv; state: [B, n_v, dk, dv]
 
 
@@ -119,13 +119,15 @@ class Attention:
         k = ops.rope(k, pos, c.rope_dim, c.rope_theta)
         past = 0
         if state is not None:
-            past = state[0].shape[2]
-            k = ops.concat([state[0], k], 2)
-            v = ops.concat([state[1], v], 2)
-        o = ops.sdpa(q, k, v, self.scale, past)  # [B,H,T,D]
+            state = ops.kv_adapt(state)
+            past = ops.kv_len(state)
+            state = ops.kv_concat(state, k, v)
+        else:
+            state = ops.kv_new(k, v)
+        o = ops.sdpa_state(q, state, self.scale, past)  # [B,H,T,D]
         o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, T, H * D))
         o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, T, H * D)))), o.dtype)
-        return ops.linear(o, self.wo), (k, v)
+        return ops.linear(o, self.wo), state
 
     def decode(
             self,
@@ -163,17 +165,15 @@ class Attention:
         v = ops.transpose(v, (0, 2, 1, 3))
         q = ops.rope_with(q, cos, sin)
         k = ops.rope_with(k, cos, sin)
-        kbuf, vbuf = state
         for i in range(T):
-            kbuf = ops.kv_write(kbuf, pos + i, k[:, :, i:i + 1])
-            vbuf = ops.kv_write(vbuf, pos + i, v[:, :, i:i + 1])
-        if bucket and bucket < kbuf.shape[2]:
-            o = ops.sdpa_static(q, kbuf[:, :, :bucket], vbuf[:, :, :bucket], pos, ar[:bucket], self.scale)
+            state = ops.kv_write_state(state, pos + i, k[:, :, i:i + 1], v[:, :, i:i + 1])
+        if bucket and bucket < ops.kv_len(state):
+            o = ops.sdpa_static_state(q, ops.kv_window(state, bucket), pos, ar[:bucket], self.scale)
         else:
-            o = ops.sdpa_static(q, kbuf, vbuf, pos, ar, self.scale)  # [B,H,T,D]
+            o = ops.sdpa_static_state(q, state, pos, ar, self.scale)  # [B,H,T,D]
         o = ops.reshape(ops.transpose(o, (0, 2, 1, 3)), (B, T, H * D))
         o = o * ops.cast(ops.sigmoid(ops.f32(ops.reshape(gate, (B, T, H * D)))), o.dtype)
-        return ops.linear(o, self.wo), (kbuf, vbuf)
+        return ops.linear(o, self.wo), state
 
 
 class GatedDeltaNet:
@@ -786,6 +786,20 @@ class Qwen35:
             fn = self._steps[key] = self.ops.compile_fn(self._build_step(T, all_states, return_hidden, bucket))
         return fn
 
+    def state_offsets(self) -> list[tuple[int, int]]:
+        """
+        (start, count) of each layer's arrays in a flat state: the backend's KV arity for attention layers
+        (Ops.kv_arity), (conv, S) for DeltaNet layers.
+        """
+
+        out = []
+        o = 0
+        for kind in self.cfg.layer_types:
+            n = self.ops.kv_arity if kind == 'full' else 2
+            out.append((o, n))
+            o += n
+        return out
+
     def _build_step(
             self,
             T: int,
@@ -794,6 +808,7 @@ class Qwen35:
             bucket: int,
     ) -> ta.Callable[..., tuple[Array, ...]]:
         ops, c = self.ops, self.cfg
+        offsets = self.state_offsets()
 
         def fn(toks, pos, ar, cos_tab, sin_tab, *flat):
             # index with a 1-element array, not the 0-d one: torch turns a 0-d tensor index into `.item()`, a
@@ -804,7 +819,8 @@ class Qwen35:
             x = ops.embedding(toks, self.embed, self.dtype)
             out: list[Array] = []
             for i, blk in enumerate(self.blocks):
-                x, st = blk.decode(ops, x, pos, ar, cos, sin, (flat[2 * i], flat[2 * i + 1]), all_states, bucket)
+                o, n = offsets[i]
+                x, st = blk.decode(ops, x, pos, ar, cos, sin, tuple(flat[o:o + n]), all_states, bucket)
                 out.extend(st)
             x = ops.rms_norm(x, self.norm_w, c.rms_eps)
             logits = ops.f32(ops.linear(x, self.lm_head))
@@ -892,7 +908,7 @@ class Qwen35:
                 cache.snapshot(ops),
                 ops.copy(logits[:, -1]),
                 ops.copy(hidden[:, -1:]),
-                None if mtp_kv is None else (ops.copy(mtp_kv[0]), ops.copy(mtp_kv[1])),
+                None if mtp_kv is None else tuple(ops.copy(a) for a in mtp_kv),
             ))
         out: list[int] = []
 
@@ -1045,14 +1061,12 @@ class MtpHead:
         if fn is None:
             ops = self.model.ops
 
-            def raw(toks, hidden, pos, ar, cos_tab, sin_tab, kbuf, vbuf):
+            def raw(toks, hidden, pos, ar, cos_tab, sin_tab, *kv):
                 rows = ops.reshape(pos, (1,)) + ar[:T]
                 u = self.stem(ops, toks, hidden)
-                u, (kbuf, vbuf) = self.block.decode(
-                    ops, u, pos, ar, cos_tab[rows], sin_tab[rows], (kbuf, vbuf), False, bucket,
-                )
+                u, kv = self.block.decode(ops, u, pos, ar, cos_tab[rows], sin_tab[rows], tuple(kv), False, bucket)
                 logits, d = self.head(ops, u, draft_vocab)
-                return logits, d, kbuf, vbuf
+                return (logits, d, *kv)
 
             fn = self._steps[key] = ops.compile_fn(raw)
         return fn
@@ -1286,7 +1300,9 @@ class Decoder:
         if self.capacity <= self.seq_len:
             self.capacity = _pow2_at_least(self.seq_len + 1)
         self.flat: list[Array] = []
-        for st in cache.layers:
+        for st, kind in zip(cache.layers, model.cfg.layer_types):
+            if st is not None and kind == 'full':
+                st = model.ops.kv_adapt(st, model.dtype)
             if st is None:
                 raise ValueError('cache has no state; run a prefill first')
             self.flat.extend(st)
@@ -1298,17 +1314,11 @@ class Decoder:
         ops = self.ops
         c = self.model.cfg
         flat: list[Array] = []
-        for i, kind in enumerate(c.layer_types):
-            a, b = self.flat[2 * i], self.flat[2 * i + 1]
+        for (o, n), kind in zip(self.model.state_offsets(), c.layer_types):
+            st = tuple(self.flat[o:o + n])
             if kind == 'full':
-                B, KV, T, D = a.shape
-                if T < capacity:
-                    pad = ops.zeros((B, KV, capacity - T, D), a.dtype)
-                    a = ops.concat([a, pad], 2)
-                    b = ops.concat([b, pad], 2)
-                elif T > capacity:
-                    raise ValueError(f'KV longer ({T}) than capacity ({capacity})')
-            flat.extend([a, b])
+                st = ops.kv_pad(st, capacity)
+            flat.extend(st)
         self.flat = flat
 
     def _alloc(self, capacity: int, first: bool = False) -> None:
@@ -1366,13 +1376,12 @@ class Decoder:
         ops = self.ops
         c = Cache(self.model.cfg)
         c.seq_len = self.seq_len
-        for i, kind in enumerate(self.model.cfg.layer_types):
-            a = self.flat[2 * i]
-            b = self.flat[2 * i + 1]
+        for i, ((o, n), kind) in enumerate(zip(self.model.state_offsets(), self.model.cfg.layer_types)):
+            st = tuple(self.flat[o:o + n])
             if kind == 'full':
-                c.layers[i] = (ops.copy(a[:, :, :self.seq_len]), ops.copy(b[:, :, :self.seq_len]))
+                c.layers[i] = ops.kv_slice(st, self.seq_len)
             else:
-                c.layers[i] = (ops.copy(a), ops.copy(b))
+                c.layers[i] = tuple(ops.copy(a) for a in st)
         return c
 
     def snapshot_after(self, tokens: ta.Sequence[int]) -> Snapshot:
@@ -1409,12 +1418,12 @@ class Decoder:
         """
 
         flat: list[Array] = []
-        for i, kind in enumerate(self.model.cfg.layer_types):
-            a, b = flat_all[2 * i], flat_all[2 * i + 1]
+        for (o, n), kind in zip(self.model.state_offsets(), self.model.cfg.layer_types):
+            st = flat_all[o:o + n]
             if kind == 'full':
-                flat.extend([a, b])
+                flat.extend(st)
             else:
-                flat.extend([a[n_accept - 1], b[n_accept - 1]])
+                flat.extend(a[n_accept - 1] for a in st)
         self.flat = flat
         self.seq_len += n_accept
 
@@ -1426,7 +1435,11 @@ class Decoder:
     def restore(self, snap: tuple[int, list[Array]]) -> None:
         self.seq_len, flat = snap
         self.flat = [self.ops.copy(a) for a in flat]
-        snap_cap = max(a.shape[2] for a, kind in zip(self.flat[::2], self.model.cfg.layer_types) if kind == 'full')
+        snap_cap = max(
+            self.ops.kv_len(tuple(self.flat[o:o + n]))
+            for (o, n), kind in zip(self.model.state_offsets(), self.model.cfg.layer_types)
+            if kind == 'full'
+        )
         if snap_cap > self.capacity:
             self._alloc(snap_cap)  # snapshot taken after a growth; the step must be re-captured for its shapes
         else:
@@ -1494,8 +1507,8 @@ class SpecDecoder:
         # from scratch; the position of the first supplied hidden row when resuming on top of `mtp_kv`)
         start = n - hidden.shape[1]
         mtoks = np.asarray([*prompt_ids[start + 1:n], self.next_tok], dtype=np.int32)[None]
-        mlogits, d, (mk, mv) = self.mtp.prefill(mtoks, hidden, start, draft_vocab, mtp_kv)
-        self.mflat: list[Array] = [mk, mv]
+        mlogits, d, mkv = self.mtp.prefill(mtoks, hidden, start, draft_vocab, mtp_kv)
+        self.mflat: list[Array] = list(mkv)
         self.logits_last = logits[:, -1]  # [1, V]: the target's logits for position n (what next_tok was drawn from)
         self.hidden_last = hidden[:, -1:]  # [1, 1, H]: the target's hidden at position n-1
         self.mcap = 0
@@ -1515,13 +1528,7 @@ class SpecDecoder:
         cap = self.dec.capacity
         if cap == self.mcap:
             return
-        mk, mv = self.mflat
-        B, KV, T, D = mk.shape
-        if T < cap:
-            pad = ops.zeros((B, KV, cap - T, D), mk.dtype)
-            mk = ops.concat([mk, pad], 2)
-            mv = ops.concat([mv, pad], 2)
-        self.mflat = [mk, mv]
+        self.mflat = list(ops.kv_pad(tuple(self.mflat), cap))
         self.mcap = cap
         self.mfns = {}
 
@@ -1563,10 +1570,10 @@ class SpecDecoder:
                 q = ops.concat([q, ops.zeros((1, V - q.shape[1]), f32)], -1)
             qrows.append(q)
             if j < k - 1:
-                ml, hid, mk, mv = self._mfn(1, n + j)(
+                ml, hid, *mkv = self._mfn(1, n + j)(
                     ops.reshape(d, (1, 1)), hid, ops.scalar(n + j), *self.dec.tables(), *self.mflat,
                 )
-                self.mflat = [mk, mv]
+                self.mflat = list(mkv)
                 ml = ml[:, -1]
         if self.draft_fn is not None:  # test hook: given drafts count as certain (q = one-hot at the draft)
             darr = [ops.array(np.asarray([t], dtype=np.int32)) for t in self.draft_fn(n, self.next_tok, k)]
@@ -1596,8 +1603,8 @@ class SpecDecoder:
         # at n+m, token at n+m+1 = the new next token); entries past it are junk that the next refresh overwrites before
         # anything attends to them
         rtoks = ops.reshape(ops.concat([drafts_arr[:m], ops.cast(new_arr, i32), drafts_arr[m:]], 0)[:k + 1], (1, k + 1))
-        ml, d, mk, mv = self._mfn(k + 1, n + k + 1)(rtoks, hidden, ops.scalar(n), *self.dec.tables(), *self.mflat)
-        self.mflat = [mk, mv]
+        ml, d, *mkv = self._mfn(k + 1, n + k + 1)(rtoks, hidden, ops.scalar(n), *self.dec.tables(), *self.mflat)
+        self.mflat = list(mkv)
         self.mlogits_last = ml[:, m]
         self.d_last = d[:, m:m + 1]
         self.logits_last = logits[:, m]
@@ -1615,11 +1622,10 @@ class SpecDecoder:
 
         ops = self.ops
         n = self.dec.seq_len
-        mk, mv = self.mflat
         return Snapshot(
             tuple(int(t) for t in tokens[:n]),
             self.dec.export_cache(),
             ops.copy(self.logits_last),
             ops.copy(self.hidden_last),
-            (ops.copy(mk[:, :, :n - 1]), ops.copy(mv[:, :, :n - 1])),
+            ops.kv_slice(tuple(self.mflat), n - 1),
         )
