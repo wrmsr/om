@@ -44,7 +44,9 @@ operations = [
   'AbortMultipartUpload',
   'CompleteMultipartUpload',
   'CopyObject',
+  'CreateBucket',
   'CreateMultipartUpload',
+  'DeleteBucket',
   'DeleteObject',
   'DeleteObjects',
   'GetObject',
@@ -53,4 +55,5 @@ operations = [
   'ListMultipartUploads',
   'ListObjectsV2',
   'PutObject',
+  'UploadPart',
 ]

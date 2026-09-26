@@ -1,4 +1,4 @@
-# ruff: noqa: UP043 UP045
+# ruff: noqa: UP006 UP043 UP045
 # @om-lite
 import http.client
 import typing as ta
@@ -18,6 +18,31 @@ from .sync import StreamHttpClientResponse
 
 
 ##
+
+
+class _ErrorTranslatingReader:
+    """Translates the errors urllib can raise mid-body - which it otherwise leaks raw - into HttpClientError."""
+
+    _ERRORS: ta.ClassVar[ta.Tuple[ta.Type[BaseException], ...]] = (
+        TimeoutError,
+        ConnectionError,
+        http.client.IncompleteRead,
+    )
+
+    def __init__(self, u: ta.Any) -> None:
+        self._u = u
+
+    def read1(self, n: int = -1, /) -> bytes:
+        try:
+            return self._u.read1(n)
+        except self._ERRORS as e:
+            raise HttpClientError from e
+
+    def read(self, n: int = -1, /) -> bytes:
+        try:
+            return self._u.read(n)
+        except self._ERRORS as e:
+            raise HttpClientError from e
 
 
 class UrllibHttpClient(HttpClient):
@@ -46,6 +71,8 @@ class UrllibHttpClient(HttpClient):
         )
 
     def _stream_request(self, ctx: HttpClientContext, req: HttpClientRequest) -> StreamHttpClientResponse:
+        # urllib never decodes Content-Encoding, so req.no_decompress is always honored.
+
         try:
             resp = urllib.request.urlopen(  # noqa
                 self._build_request(req),
@@ -77,7 +104,7 @@ class UrllibHttpClient(HttpClient):
                 underlying=resp,
                 # urllib responses do *not* guarantee returning exactly `n` bytes from `.read(n)`, so we need to buffer.
                 _stream=ByteStreamBufferBytesReaderAdapter.wrap(
-                    resp,
+                    _ErrorTranslatingReader(resp),
                     SegmentedByteStreamBuffer(chunk_size=16 * 1024),
                 ),
                 _closer=resp.close,

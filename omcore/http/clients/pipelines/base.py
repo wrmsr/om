@@ -185,6 +185,8 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
             raise_immediately: bool = False,
 
             request_timeout_s: ta.Optional[float] = None,
+
+            no_decompress: bool = False,
     ) -> IoPipeline.Spec:
         return IoPipeline.Spec(
             [
@@ -200,7 +202,7 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
 
                 IoPipelineHttpClientResponseDecoder(),
                 *([IoPipelineHttpResponseDechunker()] if not self._aggregate_responses else []),
-                IoPipelineHttpResponseDecompressor(),
+                *([IoPipelineHttpResponseDecompressor()] if not no_decompress else []),
                 *([IoPipelineHttpResponseAggregatorDecoder()] if self._aggregate_responses else []),
 
                 IoPipelineHttpRequestCompressor(),
@@ -266,6 +268,7 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
                 req.timeout_s
                 if req.timeout_s is not None else self._config.request_timeout_s
             ),
+            'no_decompress': req.no_decompress,
         }
 
         pipeline_spec = self._build_pipeline_spec(

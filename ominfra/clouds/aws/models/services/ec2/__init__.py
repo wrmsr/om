@@ -2376,6 +2376,7 @@ class Address(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -2761,6 +2762,7 @@ class CreateSecurityGroupResult(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -3830,6 +3832,7 @@ class KeyPairInfo(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -4567,6 +4570,7 @@ class TagSpecification(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='Tag',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -4852,6 +4856,7 @@ class Filter(
     values: ValueStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Values',
         serialization_name='Value',
+        list_member_name='item',
         value_type=_base.ListValueType(str),
         shape_name='ValueStringList',
     ))
@@ -4925,6 +4930,7 @@ class GpuDeviceInfo(
     workloads: WorkloadsList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Workloads',
         serialization_name='workloadSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Workload),
         shape_name='WorkloadsList',
     ))
@@ -5184,6 +5190,7 @@ class NetworkCardInfo(
     interface_types: NetworkCardInterfaceTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='InterfaceTypes',
         serialization_name='interfaceTypeSet',
+        list_member_name='item',
         value_type=_base.ListValueType(NetworkCardInterfaceType),
         shape_name='NetworkCardInterfaceTypeList',
     ))
@@ -5260,6 +5267,7 @@ class NitroTpmInfo(
     supported_versions: NitroTpmSupportedVersionsList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedVersions',
         serialization_name='supportedVersions',
+        list_member_name='item',
         value_type=_base.ListValueType(NitroTpmSupportedVersionType),
         shape_name='NitroTpmSupportedVersionsList',
     ))
@@ -5273,6 +5281,7 @@ class PlacementGroupInfo(
     supported_strategies: PlacementGroupStrategyList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedStrategies',
         serialization_name='supportedStrategies',
+        list_member_name='item',
         value_type=_base.ListValueType(PlacementGroupStrategy),
         shape_name='PlacementGroupStrategyList',
     ))
@@ -5291,6 +5300,7 @@ class ProcessorInfo(
     supported_architectures: ArchitectureTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedArchitectures',
         serialization_name='supportedArchitectures',
+        list_member_name='item',
         value_type=_base.ListValueType(ArchitectureType),
         shape_name='ArchitectureTypeList',
     ))
@@ -5304,6 +5314,7 @@ class ProcessorInfo(
     supported_features: SupportedAdditionalProcessorFeatureList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedFeatures',
         serialization_name='supportedFeatures',
+        list_member_name='item',
         value_type=_base.ListValueType(SupportedAdditionalProcessorFeature),
         shape_name='SupportedAdditionalProcessorFeatureList',
     ))
@@ -5328,6 +5339,7 @@ class RebootInstancesRequest(
     instance_ids: InstanceIdStringList = _dc.field(metadata=_base.field_metadata(
         member_name='InstanceIds',
         serialization_name='InstanceId',
+        list_member_name='InstanceId',
         value_type=_base.ListValueType(InstanceId),
         shape_name='InstanceIdStringList',
     ))
@@ -5398,6 +5410,7 @@ class StartInstancesRequest(
     instance_ids: InstanceIdStringList = _dc.field(metadata=_base.field_metadata(
         member_name='InstanceIds',
         serialization_name='InstanceId',
+        list_member_name='InstanceId',
         value_type=_base.ListValueType(InstanceId),
         shape_name='InstanceIdStringList',
     ))
@@ -5423,6 +5436,7 @@ class StopInstancesRequest(
     instance_ids: InstanceIdStringList = _dc.field(metadata=_base.field_metadata(
         member_name='InstanceIds',
         serialization_name='InstanceId',
+        list_member_name='InstanceId',
         value_type=_base.ListValueType(InstanceId),
         shape_name='InstanceIdStringList',
     ))
@@ -5499,6 +5513,7 @@ class TerminateInstancesRequest(
     instance_ids: InstanceIdStringList = _dc.field(metadata=_base.field_metadata(
         member_name='InstanceIds',
         serialization_name='InstanceId',
+        list_member_name='InstanceId',
         value_type=_base.ListValueType(InstanceId),
         shape_name='InstanceIdStringList',
     ))
@@ -5551,6 +5566,7 @@ class VCpuInfo(
     valid_cores: CoreCountList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ValidCores',
         serialization_name='validCores',
+        list_member_name='item',
         value_type=_base.ListValueType(CoreCount),
         shape_name='CoreCountList',
     ))
@@ -5558,6 +5574,7 @@ class VCpuInfo(
     valid_threads_per_core: ThreadsPerCoreList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ValidThreadsPerCore',
         serialization_name='validThreadsPerCore',
+        list_member_name='item',
         value_type=_base.ListValueType(ThreadsPerCore),
         shape_name='ThreadsPerCoreList',
     ))
@@ -5702,6 +5719,7 @@ class CreateRouteTableRequest(
     tag_specifications: TagSpecificationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='TagSpecifications',
         serialization_name='TagSpecification',
+        list_member_name='item',
         value_type=_base.ListValueType(TagSpecification),
         shape_name='TagSpecificationList',
     ))
@@ -5748,6 +5766,7 @@ class CreateSecurityGroupRequest(
     tag_specifications: TagSpecificationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='TagSpecifications',
         serialization_name='TagSpecification',
+        list_member_name='item',
         value_type=_base.ListValueType(TagSpecification),
         shape_name='TagSpecificationList',
     ))
@@ -5767,6 +5786,7 @@ class DescribeAddressesResult(
     addresses: AddressList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Addresses',
         serialization_name='addressesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Address),
         shape_name='AddressList',
     ))
@@ -5780,6 +5800,7 @@ class DescribeKeyPairsResult(
     key_pairs: KeyPairList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='KeyPairs',
         serialization_name='keySet',
+        list_member_name='item',
         value_type=_base.ListValueType(KeyPairInfo),
         shape_name='KeyPairList',
     ))
@@ -5835,6 +5856,7 @@ class EbsInfo(
     ebs_cards: EbsCardInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='EbsCards',
         serialization_name='ebsCardSet',
+        list_member_name='item',
         value_type=_base.ListValueType(EbsCardInfo),
         shape_name='EbsCardInfoList',
     ))
@@ -5953,6 +5975,7 @@ class InstanceNetworkInterfaceSpecification(
     groups: SecurityGroupIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Groups',
         serialization_name='SecurityGroupId',
+        list_member_name='SecurityGroupId',
         value_type=_base.ListValueType(SecurityGroupId),
         shape_name='SecurityGroupIdStringList',
     ))
@@ -5966,6 +5989,7 @@ class InstanceNetworkInterfaceSpecification(
     ipv6_addresses: InstanceIpv6AddressList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Addresses',
         serialization_name='ipv6AddressesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceIpv6Address),
         shape_name='InstanceIpv6AddressList',
     ))
@@ -5985,6 +6009,7 @@ class InstanceNetworkInterfaceSpecification(
     private_ip_addresses: PrivateIpAddressSpecificationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PrivateIpAddresses',
         serialization_name='privateIpAddressesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(PrivateIpAddressSpecification),
         shape_name='PrivateIpAddressSpecificationList',
     ))
@@ -6019,6 +6044,7 @@ class InstanceNetworkInterfaceSpecification(
     ipv4_prefixes: Ipv4PrefixList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv4Prefixes',
         serialization_name='Ipv4Prefix',
+        list_member_name='item',
         value_type=_base.ListValueType(Ipv4PrefixSpecificationRequest),
         shape_name='Ipv4PrefixList',
     ))
@@ -6031,6 +6057,7 @@ class InstanceNetworkInterfaceSpecification(
     ipv6_prefixes: Ipv6PrefixList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Prefixes',
         serialization_name='Ipv6Prefix',
+        list_member_name='item',
         value_type=_base.ListValueType(Ipv6PrefixSpecificationRequest),
         shape_name='Ipv6PrefixList',
     ))
@@ -6096,6 +6123,7 @@ class InstanceSecondaryInterface(
     private_ip_addresses: InstanceSecondaryInterfacePrivateIpAddressList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PrivateIpAddresses',
         serialization_name='privateIpAddressSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceSecondaryInterfacePrivateIpAddress),
         shape_name='InstanceSecondaryInterfacePrivateIpAddressList',
     ))
@@ -6149,6 +6177,7 @@ class InstanceSecondaryInterfaceSpecificationRequest(
     private_ip_addresses: InstanceSecondaryInterfacePrivateIpAddressListRequest | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PrivateIpAddresses',
         serialization_name='PrivateIpAddress',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceSecondaryInterfacePrivateIpAddressRequest),
         shape_name='InstanceSecondaryInterfacePrivateIpAddressListRequest',
     ))
@@ -6191,6 +6220,7 @@ class InstanceStorageInfo(
     disks: DiskInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Disks',
         serialization_name='disks',
+        list_member_name='item',
         value_type=_base.ListValueType(DiskInfo),
         shape_name='DiskInfoList',
     ))
@@ -6216,6 +6246,7 @@ class InstanceTypeSpecification(
     supported_instance_types: SupportedInstanceTypeSet | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedInstanceTypes',
         serialization_name='supportedInstanceTypeSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceTypeItem),
         shape_name='SupportedInstanceTypeSet',
     ))
@@ -6223,6 +6254,7 @@ class InstanceTypeSpecification(
     unsupported_instance_types: UnsupportedInstanceTypeSet | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='UnsupportedInstanceTypes',
         serialization_name='unsupportedInstanceTypeSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceTypeItem),
         shape_name='UnsupportedInstanceTypeSet',
     ))
@@ -6236,6 +6268,7 @@ class InternetGateway(
     attachments: InternetGatewayAttachmentList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Attachments',
         serialization_name='attachmentSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InternetGatewayAttachment),
         shape_name='InternetGatewayAttachmentList',
     ))
@@ -6255,6 +6288,7 @@ class InternetGateway(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -6286,6 +6320,7 @@ class IpPermission(
     user_id_group_pairs: UserIdGroupPairList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='UserIdGroupPairs',
         serialization_name='groups',
+        list_member_name='item',
         value_type=_base.ListValueType(UserIdGroupPair),
         shape_name='UserIdGroupPairList',
     ))
@@ -6293,6 +6328,7 @@ class IpPermission(
     ip_ranges: IpRangeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='IpRanges',
         serialization_name='ipRanges',
+        list_member_name='item',
         value_type=_base.ListValueType(IpRange),
         shape_name='IpRangeList',
     ))
@@ -6300,6 +6336,7 @@ class IpPermission(
     ipv6_ranges: Ipv6RangeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Ranges',
         serialization_name='ipv6Ranges',
+        list_member_name='item',
         value_type=_base.ListValueType(Ipv6Range),
         shape_name='Ipv6RangeList',
     ))
@@ -6307,6 +6344,7 @@ class IpPermission(
     prefix_list_ids: PrefixListIdList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PrefixListIds',
         serialization_name='prefixListIds',
+        list_member_name='item',
         value_type=_base.ListValueType(PrefixListId),
         shape_name='PrefixListIdList',
     ))
@@ -6438,6 +6476,7 @@ class VpcEncryptionControl(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -6454,6 +6493,7 @@ class DescribeAddressesRequest(
     public_ips: PublicIpStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PublicIps',
         serialization_name='PublicIp',
+        list_member_name='PublicIp',
         value_type=_base.ListValueType(str),
         shape_name='PublicIpStringList',
     ))
@@ -6467,6 +6507,7 @@ class DescribeAddressesRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6474,6 +6515,7 @@ class DescribeAddressesRequest(
     allocation_ids: AllocationIdList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='AllocationIds',
         serialization_name='AllocationId',
+        list_member_name='AllocationId',
         value_type=_base.ListValueType(AllocationId),
         shape_name='AllocationIdList',
     ))
@@ -6487,6 +6529,7 @@ class DescribeImagesRequest(
     executable_users: ExecutableByStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ExecutableUsers',
         serialization_name='ExecutableBy',
+        list_member_name='ExecutableBy',
         value_type=_base.ListValueType(str),
         shape_name='ExecutableByStringList',
     ))
@@ -6494,6 +6537,7 @@ class DescribeImagesRequest(
     image_ids: ImageIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ImageIds',
         serialization_name='ImageId',
+        list_member_name='ImageId',
         value_type=_base.ListValueType(ImageId),
         shape_name='ImageIdStringList',
     ))
@@ -6501,6 +6545,7 @@ class DescribeImagesRequest(
     owners: OwnerStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Owners',
         serialization_name='Owner',
+        list_member_name='Owner',
         value_type=_base.ListValueType(str),
         shape_name='OwnerStringList',
     ))
@@ -6534,6 +6579,7 @@ class DescribeImagesRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6559,6 +6605,7 @@ class DescribeInstanceTypesRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6587,6 +6634,7 @@ class DescribeInstancesRequest(
     instance_ids: InstanceIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='InstanceIds',
         serialization_name='InstanceId',
+        list_member_name='InstanceId',
         value_type=_base.ListValueType(InstanceId),
         shape_name='InstanceIdStringList',
     ))
@@ -6605,6 +6653,7 @@ class DescribeInstancesRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6646,6 +6695,7 @@ class DescribeInternetGatewaysRequest(
     internet_gateway_ids: InternetGatewayIdList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='InternetGatewayIds',
         serialization_name='internetGatewayId',
+        list_member_name='item',
         value_type=_base.ListValueType(InternetGatewayId),
         shape_name='InternetGatewayIdList',
     ))
@@ -6653,6 +6703,7 @@ class DescribeInternetGatewaysRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6666,6 +6717,7 @@ class DescribeKeyPairsRequest(
     key_names: KeyNameStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='KeyNames',
         serialization_name='KeyName',
+        list_member_name='KeyName',
         value_type=_base.ListValueType(KeyPairName),
         shape_name='KeyNameStringList',
     ))
@@ -6673,6 +6725,7 @@ class DescribeKeyPairsRequest(
     key_pair_ids: KeyPairIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='KeyPairIds',
         serialization_name='KeyPairId',
+        list_member_name='KeyPairId',
         value_type=_base.ListValueType(KeyPairId),
         shape_name='KeyPairIdStringList',
     ))
@@ -6691,6 +6744,7 @@ class DescribeKeyPairsRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6725,6 +6779,7 @@ class DescribeNetworkInterfacesRequest(
     network_interface_ids: NetworkInterfaceIdList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='NetworkInterfaceIds',
         serialization_name='NetworkInterfaceId',
+        list_member_name='item',
         value_type=_base.ListValueType(NetworkInterfaceId),
         shape_name='NetworkInterfaceIdList',
     ))
@@ -6732,6 +6787,7 @@ class DescribeNetworkInterfacesRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6761,6 +6817,7 @@ class DescribeRouteTablesRequest(
     route_table_ids: RouteTableIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='RouteTableIds',
         serialization_name='RouteTableId',
+        list_member_name='item',
         value_type=_base.ListValueType(RouteTableId),
         shape_name='RouteTableIdStringList',
     ))
@@ -6768,6 +6825,7 @@ class DescribeRouteTablesRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6781,6 +6839,7 @@ class DescribeSecurityGroupsRequest(
     group_ids: GroupIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='GroupIds',
         serialization_name='GroupId',
+        list_member_name='groupId',
         value_type=_base.ListValueType(SecurityGroupId),
         shape_name='GroupIdStringList',
     ))
@@ -6788,6 +6847,7 @@ class DescribeSecurityGroupsRequest(
     group_names: GroupNameStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='GroupNames',
         serialization_name='GroupName',
+        list_member_name='GroupName',
         value_type=_base.ListValueType(SecurityGroupName),
         shape_name='GroupNameStringList',
     ))
@@ -6811,6 +6871,7 @@ class DescribeSecurityGroupsRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6824,6 +6885,7 @@ class DescribeSubnetsRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6831,6 +6893,7 @@ class DescribeSubnetsRequest(
     subnet_ids: SubnetIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SubnetIds',
         serialization_name='SubnetId',
+        list_member_name='SubnetId',
         value_type=_base.ListValueType(SubnetId),
         shape_name='SubnetIdStringList',
     ))
@@ -6860,6 +6923,7 @@ class DescribeVpcsRequest(
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
         serialization_name='Filter',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -6867,6 +6931,7 @@ class DescribeVpcsRequest(
     vpc_ids: VpcIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='VpcIds',
         serialization_name='VpcId',
+        list_member_name='VpcId',
         value_type=_base.ListValueType(VpcId),
         shape_name='VpcIdStringList',
     ))
@@ -6896,6 +6961,7 @@ class FpgaInfo(
     fpgas: FpgaDeviceInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Fpgas',
         serialization_name='fpgas',
+        list_member_name='item',
         value_type=_base.ListValueType(FpgaDeviceInfo),
         shape_name='FpgaDeviceInfoList',
     ))
@@ -6915,6 +6981,7 @@ class GpuInfo(
     gpus: GpuDeviceInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Gpus',
         serialization_name='gpus',
+        list_member_name='item',
         value_type=_base.ListValueType(GpuDeviceInfo),
         shape_name='GpuDeviceInfoList',
     ))
@@ -6946,6 +7013,7 @@ class Image(
     block_device_mappings: BlockDeviceMappingList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='BlockDeviceMappings',
         serialization_name='blockDeviceMapping',
+        list_member_name='item',
         value_type=_base.ListValueType(BlockDeviceMapping),
         shape_name='BlockDeviceMappingList',
     ))
@@ -7007,6 +7075,7 @@ class Image(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -7092,6 +7161,7 @@ class Image(
     image_watermarks: ImageWatermarkList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ImageWatermarks',
         serialization_name='imageWatermarkSet',
+        list_member_name='item',
         value_type=_base.ListValueType(ImageWatermark),
         shape_name='ImageWatermarkList',
     ))
@@ -7141,6 +7211,7 @@ class Image(
     product_codes: ProductCodeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ProductCodes',
         serialization_name='productCodes',
+        list_member_name='item',
         value_type=_base.ListValueType(ProductCode),
         shape_name='ProductCodeList',
     ))
@@ -7224,6 +7295,7 @@ class InstanceNetworkInterface(
     groups: GroupIdentifierList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Groups',
         serialization_name='groupSet',
+        list_member_name='item',
         value_type=_base.ListValueType(GroupIdentifier),
         shape_name='GroupIdentifierList',
     ))
@@ -7231,6 +7303,7 @@ class InstanceNetworkInterface(
     ipv6_addresses: InstanceIpv6AddressList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Addresses',
         serialization_name='ipv6AddressesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceIpv6Address),
         shape_name='InstanceIpv6AddressList',
     ))
@@ -7268,6 +7341,7 @@ class InstanceNetworkInterface(
     private_ip_addresses: InstancePrivateIpAddressList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PrivateIpAddresses',
         serialization_name='privateIpAddressesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstancePrivateIpAddress),
         shape_name='InstancePrivateIpAddressList',
     ))
@@ -7305,6 +7379,7 @@ class InstanceNetworkInterface(
     ipv4_prefixes: InstanceIpv4PrefixList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv4Prefixes',
         serialization_name='ipv4PrefixSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceIpv4Prefix),
         shape_name='InstanceIpv4PrefixList',
     ))
@@ -7312,6 +7387,7 @@ class InstanceNetworkInterface(
     ipv6_prefixes: InstanceIpv6PrefixList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Prefixes',
         serialization_name='ipv6PrefixSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceIpv6Prefix),
         shape_name='InstanceIpv6PrefixList',
     ))
@@ -7348,6 +7424,7 @@ class MediaAcceleratorInfo(
     accelerators: MediaDeviceInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Accelerators',
         serialization_name='accelerators',
+        list_member_name='item',
         value_type=_base.ListValueType(MediaDeviceInfo),
         shape_name='MediaDeviceInfoList',
     ))
@@ -7391,6 +7468,7 @@ class NetworkInfo(
     network_cards: NetworkCardInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='NetworkCards',
         serialization_name='networkCards',
+        list_member_name='item',
         value_type=_base.ListValueType(NetworkCardInfo),
         shape_name='NetworkCardInfoList',
     ))
@@ -7446,6 +7524,7 @@ class NetworkInfo(
     bandwidth_weightings: BandwidthWeightingTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='BandwidthWeightings',
         serialization_name='bandwidthWeightings',
+        list_member_name='item',
         value_type=_base.ListValueType(BandwidthWeightingType),
         shape_name='BandwidthWeightingTypeList',
     ))
@@ -7519,6 +7598,7 @@ class NetworkInterface(
     groups: GroupIdentifierList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Groups',
         serialization_name='groupSet',
+        list_member_name='item',
         value_type=_base.ListValueType(GroupIdentifier),
         shape_name='GroupIdentifierList',
     ))
@@ -7532,6 +7612,7 @@ class NetworkInterface(
     ipv6_addresses: NetworkInterfaceIpv6AddressesList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Addresses',
         serialization_name='ipv6AddressesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(NetworkInterfaceIpv6Address),
         shape_name='NetworkInterfaceIpv6AddressesList',
     ))
@@ -7587,6 +7668,7 @@ class NetworkInterface(
     private_ip_addresses: NetworkInterfacePrivateIpAddressList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PrivateIpAddresses',
         serialization_name='privateIpAddressesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(NetworkInterfacePrivateIpAddress),
         shape_name='NetworkInterfacePrivateIpAddressList',
     ))
@@ -7594,6 +7676,7 @@ class NetworkInterface(
     ipv4_prefixes: Ipv4PrefixesList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv4Prefixes',
         serialization_name='ipv4PrefixSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Ipv4PrefixSpecification),
         shape_name='Ipv4PrefixesList',
     ))
@@ -7601,6 +7684,7 @@ class NetworkInterface(
     ipv6_prefixes: Ipv6PrefixesList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Prefixes',
         serialization_name='ipv6PrefixSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Ipv6PrefixSpecification),
         shape_name='Ipv6PrefixesList',
     ))
@@ -7638,6 +7722,7 @@ class NetworkInterface(
     tag_set: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='TagSet',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -7675,6 +7760,7 @@ class NetworkInterface(
     associated_subnets: AssociatedSubnetList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='AssociatedSubnets',
         serialization_name='associatedSubnetSet',
+        list_member_name='item',
         value_type=_base.ListValueType(SubnetId),
         shape_name='AssociatedSubnetList',
     ))
@@ -7694,6 +7780,7 @@ class NeuronInfo(
     neuron_devices: NeuronDeviceInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='NeuronDevices',
         serialization_name='neuronDevices',
+        list_member_name='item',
         value_type=_base.ListValueType(NeuronDeviceInfo),
         shape_name='NeuronDeviceInfoList',
     ))
@@ -7713,6 +7800,7 @@ class RouteTable(
     associations: RouteTableAssociationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Associations',
         serialization_name='associationSet',
+        list_member_name='item',
         value_type=_base.ListValueType(RouteTableAssociation),
         shape_name='RouteTableAssociationList',
     ))
@@ -7720,6 +7808,7 @@ class RouteTable(
     propagating_vgws: PropagatingVgwList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='PropagatingVgws',
         serialization_name='propagatingVgwSet',
+        list_member_name='item',
         value_type=_base.ListValueType(PropagatingVgw),
         shape_name='PropagatingVgwList',
     ))
@@ -7733,6 +7822,7 @@ class RouteTable(
     routes: RouteList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Routes',
         serialization_name='routeSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Route),
         shape_name='RouteList',
     ))
@@ -7740,6 +7830,7 @@ class RouteTable(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -7765,6 +7856,7 @@ class StartInstancesResult(
     starting_instances: InstanceStateChangeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='StartingInstances',
         serialization_name='instancesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceStateChange),
         shape_name='InstanceStateChangeList',
     ))
@@ -7778,6 +7870,7 @@ class StopInstancesResult(
     stopping_instances: InstanceStateChangeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='StoppingInstances',
         serialization_name='instancesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceStateChange),
         shape_name='InstanceStateChangeList',
     ))
@@ -7827,6 +7920,7 @@ class Subnet(
     ipv6_cidr_block_association_set: SubnetIpv6CidrBlockAssociationSet | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6CidrBlockAssociationSet',
         serialization_name='ipv6CidrBlockAssociationSet',
+        list_member_name='item',
         value_type=_base.ListValueType(SubnetIpv6CidrBlockAssociation),
         shape_name='SubnetIpv6CidrBlockAssociationSet',
     ))
@@ -7834,6 +7928,7 @@ class Subnet(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -7937,6 +8032,7 @@ class TerminateInstancesResult(
     terminating_instances: InstanceStateChangeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='TerminatingInstances',
         serialization_name='instancesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceStateChange),
         shape_name='InstanceStateChangeList',
     ))
@@ -7962,6 +8058,7 @@ class Vpc(
     ipv6_cidr_block_association_set: VpcIpv6CidrBlockAssociationSet | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6CidrBlockAssociationSet',
         serialization_name='ipv6CidrBlockAssociationSet',
+        list_member_name='item',
         value_type=_base.ListValueType(VpcIpv6CidrBlockAssociation),
         shape_name='VpcIpv6CidrBlockAssociationSet',
     ))
@@ -7969,6 +8066,7 @@ class Vpc(
     cidr_block_association_set: VpcCidrBlockAssociationSet | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='CidrBlockAssociationSet',
         serialization_name='cidrBlockAssociationSet',
+        list_member_name='item',
         value_type=_base.ListValueType(VpcCidrBlockAssociation),
         shape_name='VpcCidrBlockAssociationSet',
     ))
@@ -7988,6 +8086,7 @@ class Vpc(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -8049,6 +8148,7 @@ class DescribeInternetGatewaysResult(
     internet_gateways: InternetGatewayList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='InternetGateways',
         serialization_name='internetGatewaySet',
+        list_member_name='item',
         value_type=_base.ListValueType(InternetGateway),
         shape_name='InternetGatewayList',
     ))
@@ -8091,6 +8191,7 @@ class InstanceTypeInfo(
     supported_usage_classes: UsageClassTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedUsageClasses',
         serialization_name='supportedUsageClasses',
+        list_member_name='item',
         value_type=_base.ListValueType(UsageClassType),
         shape_name='UsageClassTypeList',
     ))
@@ -8098,6 +8199,7 @@ class InstanceTypeInfo(
     supported_root_device_types: RootDeviceTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedRootDeviceTypes',
         serialization_name='supportedRootDeviceTypes',
+        list_member_name='item',
         value_type=_base.ListValueType(RootDeviceType),
         shape_name='RootDeviceTypeList',
     ))
@@ -8105,6 +8207,7 @@ class InstanceTypeInfo(
     supported_virtualization_types: VirtualizationTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedVirtualizationTypes',
         serialization_name='supportedVirtualizationTypes',
+        list_member_name='item',
         value_type=_base.ListValueType(VirtualizationType),
         shape_name='VirtualizationTypeList',
     ))
@@ -8214,6 +8317,7 @@ class InstanceTypeInfo(
     supported_boot_modes: BootModeTypeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SupportedBootModes',
         serialization_name='supportedBootModes',
+        list_member_name='item',
         value_type=_base.ListValueType(BootModeType),
         shape_name='BootModeTypeList',
     ))
@@ -8280,6 +8384,7 @@ class RunInstancesRequest(
     block_device_mappings: BlockDeviceMappingRequestList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='BlockDeviceMappings',
         serialization_name='BlockDeviceMapping',
+        list_member_name='BlockDeviceMapping',
         value_type=_base.ListValueType(BlockDeviceMapping),
         shape_name='BlockDeviceMappingRequestList',
     ))
@@ -8302,6 +8407,7 @@ class RunInstancesRequest(
     ipv6_addresses: InstanceIpv6AddressList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Ipv6Addresses',
         serialization_name='Ipv6Address',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceIpv6Address),
         shape_name='InstanceIpv6AddressList',
     ))
@@ -8344,6 +8450,7 @@ class RunInstancesRequest(
     security_group_ids: SecurityGroupIdStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SecurityGroupIds',
         serialization_name='SecurityGroupId',
+        list_member_name='SecurityGroupId',
         value_type=_base.ListValueType(SecurityGroupId),
         shape_name='SecurityGroupIdStringList',
     ))
@@ -8351,6 +8458,7 @@ class RunInstancesRequest(
     security_groups: SecurityGroupStringList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SecurityGroups',
         serialization_name='SecurityGroup',
+        list_member_name='SecurityGroup',
         value_type=_base.ListValueType(SecurityGroupName),
         shape_name='SecurityGroupStringList',
     ))
@@ -8367,6 +8475,7 @@ class RunInstancesRequest(
 
     elastic_gpu_specification: ElasticGpuSpecifications | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ElasticGpuSpecification',
+        list_member_name='item',
         value_type=_base.ListValueType(ElasticGpuSpecification),
         shape_name='ElasticGpuSpecifications',
     ))
@@ -8374,6 +8483,7 @@ class RunInstancesRequest(
     elastic_inference_accelerators: ElasticInferenceAccelerators | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ElasticInferenceAccelerators',
         serialization_name='ElasticInferenceAccelerator',
+        list_member_name='item',
         value_type=_base.ListValueType(ElasticInferenceAccelerator),
         shape_name='ElasticInferenceAccelerators',
     ))
@@ -8381,6 +8491,7 @@ class RunInstancesRequest(
     tag_specifications: TagSpecificationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='TagSpecifications',
         serialization_name='TagSpecification',
+        list_member_name='item',
         value_type=_base.ListValueType(TagSpecification),
         shape_name='TagSpecificationList',
     ))
@@ -8418,6 +8529,7 @@ class RunInstancesRequest(
     license_specifications: LicenseSpecificationListRequest | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='LicenseSpecifications',
         serialization_name='LicenseSpecification',
+        list_member_name='item',
         value_type=_base.ListValueType(LicenseConfigurationRequest),
         shape_name='LicenseSpecificationListRequest',
     ))
@@ -8465,6 +8577,7 @@ class RunInstancesRequest(
     secondary_interfaces: InstanceSecondaryInterfaceSpecificationListRequest | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SecondaryInterfaces',
         serialization_name='SecondaryInterface',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceSecondaryInterfaceSpecificationRequest),
         shape_name='InstanceSecondaryInterfaceSpecificationListRequest',
     ))
@@ -8508,6 +8621,7 @@ class RunInstancesRequest(
     network_interfaces: InstanceNetworkInterfaceSpecificationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='NetworkInterfaces',
         serialization_name='networkInterface',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceNetworkInterfaceSpecification),
         shape_name='InstanceNetworkInterfaceSpecificationList',
     ))
@@ -8539,6 +8653,7 @@ class SecurityGroup(
     ip_permissions_egress: IpPermissionList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='IpPermissionsEgress',
         serialization_name='ipPermissionsEgress',
+        list_member_name='item',
         value_type=_base.ListValueType(IpPermission),
         shape_name='IpPermissionList',
     ))
@@ -8546,6 +8661,7 @@ class SecurityGroup(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -8583,6 +8699,7 @@ class SecurityGroup(
     ip_permissions: IpPermissionList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='IpPermissions',
         serialization_name='ipPermissions',
+        list_member_name='item',
         value_type=_base.ListValueType(IpPermission),
         shape_name='IpPermissionList',
     ))
@@ -8607,6 +8724,7 @@ class DescribeImagesResult(
     images: ImageList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Images',
         serialization_name='imagesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Image),
         shape_name='ImageList',
     ))
@@ -8620,6 +8738,7 @@ class DescribeNetworkInterfacesResult(
     network_interfaces: NetworkInterfaceList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='NetworkInterfaces',
         serialization_name='networkInterfaceSet',
+        list_member_name='item',
         value_type=_base.ListValueType(NetworkInterface),
         shape_name='NetworkInterfaceList',
     ))
@@ -8639,6 +8758,7 @@ class DescribeRouteTablesResult(
     route_tables: RouteTableList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='RouteTables',
         serialization_name='routeTableSet',
+        list_member_name='item',
         value_type=_base.ListValueType(RouteTable),
         shape_name='RouteTableList',
     ))
@@ -8664,6 +8784,7 @@ class DescribeSubnetsResult(
     subnets: SubnetList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Subnets',
         serialization_name='subnetSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Subnet),
         shape_name='SubnetList',
     ))
@@ -8683,6 +8804,7 @@ class DescribeVpcsResult(
     vpcs: VpcList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Vpcs',
         serialization_name='vpcSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Vpc),
         shape_name='VpcList',
     ))
@@ -8702,6 +8824,7 @@ class Instance(
     block_device_mappings: InstanceBlockDeviceMappingList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='BlockDeviceMappings',
         serialization_name='blockDeviceMapping',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceBlockDeviceMapping),
         shape_name='InstanceBlockDeviceMappingList',
     ))
@@ -8745,6 +8868,7 @@ class Instance(
     elastic_gpu_associations: ElasticGpuAssociationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ElasticGpuAssociations',
         serialization_name='elasticGpuAssociationSet',
+        list_member_name='item',
         value_type=_base.ListValueType(ElasticGpuAssociation),
         shape_name='ElasticGpuAssociationList',
     ))
@@ -8752,6 +8876,7 @@ class Instance(
     elastic_inference_accelerator_associations: ElasticInferenceAcceleratorAssociationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ElasticInferenceAcceleratorAssociations',
         serialization_name='elasticInferenceAcceleratorAssociationSet',
+        list_member_name='item',
         value_type=_base.ListValueType(ElasticInferenceAcceleratorAssociation),
         shape_name='ElasticInferenceAcceleratorAssociationList',
     ))
@@ -8759,6 +8884,7 @@ class Instance(
     network_interfaces: InstanceNetworkInterfaceList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='NetworkInterfaces',
         serialization_name='networkInterfaceSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceNetworkInterface),
         shape_name='InstanceNetworkInterfaceList',
     ))
@@ -8784,6 +8910,7 @@ class Instance(
     security_groups: GroupIdentifierList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SecurityGroups',
         serialization_name='groupSet',
+        list_member_name='item',
         value_type=_base.ListValueType(GroupIdentifier),
         shape_name='GroupIdentifierList',
     ))
@@ -8815,6 +8942,7 @@ class Instance(
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
         serialization_name='tagSet',
+        list_member_name='item',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -8858,6 +8986,7 @@ class Instance(
     licenses: LicenseList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Licenses',
         serialization_name='licenseSet',
+        list_member_name='item',
         value_type=_base.ListValueType(LicenseConfiguration),
         shape_name='LicenseList',
     ))
@@ -8943,6 +9072,7 @@ class Instance(
     secondary_interfaces: InstanceSecondaryInterfaceList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SecondaryInterfaces',
         serialization_name='secondaryInterfaceSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceSecondaryInterface),
         shape_name='InstanceSecondaryInterfaceList',
     ))
@@ -8998,6 +9128,7 @@ class Instance(
     product_codes: ProductCodeList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ProductCodes',
         serialization_name='productCodes',
+        list_member_name='item',
         value_type=_base.ListValueType(ProductCode),
         shape_name='ProductCodeList',
     ))
@@ -9082,6 +9213,7 @@ class DescribeInstanceTypesResult(
     instance_types: InstanceTypeInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='InstanceTypes',
         serialization_name='instanceTypeSet',
+        list_member_name='item',
         value_type=_base.ListValueType(InstanceTypeInfo),
         shape_name='InstanceTypeInfoList',
     ))
@@ -9107,6 +9239,7 @@ class DescribeSecurityGroupsResult(
     security_groups: SecurityGroupList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='SecurityGroups',
         serialization_name='securityGroupInfo',
+        list_member_name='item',
         value_type=_base.ListValueType(SecurityGroup),
         shape_name='SecurityGroupList',
     ))
@@ -9141,6 +9274,7 @@ class Reservation(
     groups: GroupIdentifierList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Groups',
         serialization_name='groupSet',
+        list_member_name='item',
         value_type=_base.ListValueType(GroupIdentifier),
         shape_name='GroupIdentifierList',
     ))
@@ -9148,6 +9282,7 @@ class Reservation(
     instances: InstanceList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Instances',
         serialization_name='instancesSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Instance),
         shape_name='InstanceList',
     ))
@@ -9170,6 +9305,7 @@ class DescribeInstancesResult(
     reservations: ReservationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Reservations',
         serialization_name='reservationSet',
+        list_member_name='item',
         value_type=_base.ListValueType(Reservation),
         shape_name='ReservationList',
     ))
@@ -9369,129 +9505,173 @@ CREATE_ROUTE = _base.Operation(
     name='CreateRoute',
     input=CreateRouteRequest,
     output=CreateRouteResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 CREATE_ROUTE_TABLE = _base.Operation(
     name='CreateRouteTable',
     input=CreateRouteTableRequest,
     output=CreateRouteTableResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 CREATE_SECURITY_GROUP = _base.Operation(
     name='CreateSecurityGroup',
     input=CreateSecurityGroupRequest,
     output=CreateSecurityGroupResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DELETE_ROUTE = _base.Operation(
     name='DeleteRoute',
     input=DeleteRouteRequest,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DELETE_ROUTE_TABLE = _base.Operation(
     name='DeleteRouteTable',
     input=DeleteRouteTableRequest,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DELETE_SECURITY_GROUP = _base.Operation(
     name='DeleteSecurityGroup',
     input=DeleteSecurityGroupRequest,
     output=DeleteSecurityGroupResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_ADDRESSES = _base.Operation(
     name='DescribeAddresses',
     input=DescribeAddressesRequest,
     output=DescribeAddressesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_IMAGES = _base.Operation(
     name='DescribeImages',
     input=DescribeImagesRequest,
     output=DescribeImagesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_INSTANCE_TYPES = _base.Operation(
     name='DescribeInstanceTypes',
     input=DescribeInstanceTypesRequest,
     output=DescribeInstanceTypesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_INSTANCES = _base.Operation(
     name='DescribeInstances',
     input=DescribeInstancesRequest,
     output=DescribeInstancesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_INTERNET_GATEWAYS = _base.Operation(
     name='DescribeInternetGateways',
     input=DescribeInternetGatewaysRequest,
     output=DescribeInternetGatewaysResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_KEY_PAIRS = _base.Operation(
     name='DescribeKeyPairs',
     input=DescribeKeyPairsRequest,
     output=DescribeKeyPairsResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_NETWORK_INTERFACES = _base.Operation(
     name='DescribeNetworkInterfaces',
     input=DescribeNetworkInterfacesRequest,
     output=DescribeNetworkInterfacesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_ROUTE_TABLES = _base.Operation(
     name='DescribeRouteTables',
     input=DescribeRouteTablesRequest,
     output=DescribeRouteTablesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_SECURITY_GROUPS = _base.Operation(
     name='DescribeSecurityGroups',
     input=DescribeSecurityGroupsRequest,
     output=DescribeSecurityGroupsResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_SUBNETS = _base.Operation(
     name='DescribeSubnets',
     input=DescribeSubnetsRequest,
     output=DescribeSubnetsResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_VPCS = _base.Operation(
     name='DescribeVpcs',
     input=DescribeVpcsRequest,
     output=DescribeVpcsResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 REBOOT_INSTANCES = _base.Operation(
     name='RebootInstances',
     input=RebootInstancesRequest,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 RUN_INSTANCES = _base.Operation(
     name='RunInstances',
     input=RunInstancesRequest,
     output=Reservation,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 START_INSTANCES = _base.Operation(
     name='StartInstances',
     input=StartInstancesRequest,
     output=StartInstancesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 STOP_INSTANCES = _base.Operation(
     name='StopInstances',
     input=StopInstancesRequest,
     output=StopInstancesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 TERMINATE_INSTANCES = _base.Operation(
     name='TerminateInstances',
     input=TerminateInstancesRequest,
     output=TerminateInstancesResult,
+    http_method='POST',
+    http_request_uri='/',
 )
 
 

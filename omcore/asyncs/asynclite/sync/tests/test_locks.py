@@ -134,3 +134,50 @@ class TestSyncLocks(SyncIsolatedAsyncTestCase):
         lock_release.set()
         thread.join()
         self.assertFalse(lock.locked())
+
+    def _held_by_other_thread(self, lock):
+        acquired = threading.Event()
+        release = threading.Event()
+
+        def holder():
+            sync_await(lock.acquire())
+            acquired.set()
+            release.wait()
+            lock.release()
+
+        thread = threading.Thread(target=holder)
+        thread.start()
+        acquired.wait()
+        return release, thread
+
+    def test_acquire_timeout_uncontended(self):
+        lock = SyncAsyncliteLocks().make_lock()
+        sync_await(lock.acquire(timeout=1.))
+        self.assertTrue(lock.locked())
+        lock.release()
+        sync_await(lock.acquire(timeout=0))
+        self.assertTrue(lock.locked())
+        lock.release()
+
+    def test_acquire_zero_timeout_when_held(self):
+        lock = SyncAsyncliteLocks().make_lock()
+        release, thread = self._held_by_other_thread(lock)
+        try:
+            with self.assertRaises(TimeoutError):
+                sync_await(lock.acquire(timeout=0))
+        finally:
+            release.set()
+            thread.join()
+        self.assertFalse(lock.locked())
+
+    def test_acquire_positive_timeout_when_held(self):
+        lock = SyncAsyncliteLocks().make_lock()
+        release, thread = self._held_by_other_thread(lock)
+        try:
+            with self.assertRaises(TimeoutError):
+                sync_await(lock.acquire(timeout=.01))
+        finally:
+            release.set()
+            thread.join()
+        sync_await(lock.acquire(timeout=1.))
+        lock.release()

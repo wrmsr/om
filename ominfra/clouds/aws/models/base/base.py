@@ -73,10 +73,19 @@ def common_metadata(
 ##
 
 
+class PAYLOAD_MEMBER(lang.Marker):  # noqa
+    pass
+
+
 def shape_metadata(
+        *,
+        payload_member: str | None = None,
         **kwargs: ta.Any,
 ) -> dict[ta.Any, ta.Any]:
     md = {**common_metadata(**kwargs)}
+
+    if payload_member is not None:
+        md[PAYLOAD_MEMBER] = payload_member
 
     return md
 
@@ -99,6 +108,18 @@ class ShapeInfo:
     @property
     def metadata(self) -> ta.Mapping[ta.Any, ta.Any]:
         return self._metadata
+
+    @property
+    def payload_member(self) -> str | None:
+        """The member name of the field which is the whole HTTP body, if any."""
+
+        return self._metadata.get(PAYLOAD_MEMBER)
+
+    @cached.property
+    def payload_field(self) -> dc.Field | None:
+        if (pm := self.payload_member) is None:
+            return None
+        return self.fields_by_member_name[pm]
 
     #
 
@@ -138,6 +159,7 @@ class Shape:
             cls,
             *,
             shape_name: str | None = None,
+            payload_member: str | None = None,
             **kwargs: ta.Any,
     ) -> None:
         super().__init_subclass__(**kwargs)
@@ -146,7 +168,10 @@ class Shape:
 
         info = ShapeInfo(
             cls,
-            shape_metadata(**kwargs),
+            shape_metadata(
+                shape_name=shape_name,
+                payload_member=payload_member,
+            ),
         )
 
         cls.__shape__ = info
@@ -167,6 +192,37 @@ class VALUE_TYPE(lang.Marker):  # noqa
     pass
 
 
+# Where a member travels in a REST request or response: 'uri', 'querystring', 'header', 'headers' (a prefixed map of
+# headers), or 'statusCode'. Absent means the body.
+class LOCATION(lang.Marker):  # noqa
+    pass
+
+
+class XML_NAMESPACE(lang.Marker):  # noqa
+    pass
+
+
+class XML_FLATTENED(lang.Marker):  # noqa
+    pass
+
+
+class XML_ATTRIBUTE(lang.Marker):  # noqa
+    pass
+
+
+# The element name of the items of a non-flattened list.
+class LIST_MEMBER_NAME(lang.Marker):  # noqa
+    pass
+
+
+class TIMESTAMP_FORMAT(lang.Marker):  # noqa
+    pass
+
+
+class STREAMING(lang.Marker):  # noqa
+    pass
+
+
 #
 
 
@@ -175,6 +231,13 @@ def field_metadata(
         member_name: str | None = None,
         serialization_name: str | None = None,
         value_type: ValueType | None = None,
+        location: str | None = None,
+        xml_namespace: str | None = None,
+        xml_flattened: bool = False,
+        xml_attribute: bool = False,
+        list_member_name: str | None = None,
+        timestamp_format: str | None = None,
+        streaming: bool = False,
         **kwargs: ta.Any,
 ) -> dict[ta.Any, ta.Any]:
     md = {**common_metadata(**kwargs)}
@@ -185,6 +248,20 @@ def field_metadata(
         md[SERIALIZATION_NAME] = serialization_name
     if value_type is not None:
         md[VALUE_TYPE] = value_type
+    if location is not None:
+        md[LOCATION] = location
+    if xml_namespace is not None:
+        md[XML_NAMESPACE] = xml_namespace
+    if xml_flattened:
+        md[XML_FLATTENED] = True
+    if xml_attribute:
+        md[XML_ATTRIBUTE] = True
+    if list_member_name is not None:
+        md[LIST_MEMBER_NAME] = list_member_name
+    if timestamp_format is not None:
+        md[TIMESTAMP_FORMAT] = timestamp_format
+    if streaming:
+        md[STREAMING] = True
 
     return md
 
@@ -200,3 +277,7 @@ class Operation:
     output: type[Shape] | None = None
 
     errors: ta.Sequence[type[Shape]] | None = None
+
+    http_method: str | None = None
+    http_request_uri: str | None = None  # e.g. '/{Bucket}/{Key+}', or '/{Bucket}?list-type=2'
+    http_response_code: int | None = None

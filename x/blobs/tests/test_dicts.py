@@ -6,6 +6,7 @@ from ..errors import BlobAlreadyExistsError
 from ..errors import BlobNotFoundError
 from ..errors import BlobNotModifiedError
 from ..errors import BlobPreconditionFailedError
+from ..errors import BlobStreamLengthError
 from ..errors import InvalidBlobKeyError
 from ..errors import UnsupportedBlobOperationError
 from ..types import BlobPrefix
@@ -66,11 +67,60 @@ def test_writer_needs_explicit_commit():
     assert s.get('w').data == b'y'
 
 
+def test_writer_unusable_after_exit_or_commit():
+    s = DictBlobStore()
+    with s.open_writer('w') as w:
+        w.write(b'x')
+    with pytest.raises(RuntimeError):
+        w.commit()
+    with pytest.raises(BlobNotFoundError):
+        s.head('w')
+
+    with s.open_writer('w') as w:
+        w.commit()
+        with pytest.raises(RuntimeError):
+            w.write(b'x')
+        with pytest.raises(RuntimeError):
+            w.commit()
+
+
 def test_capabilities_and_keys():
     s = DictBlobStore(capabilities=BlobCapability.PUT_IF_ABSENT)
     v = s.put('a', b'', cond=IfAbsent())
     with pytest.raises(UnsupportedBlobOperationError):
         s.put('a', b'', cond=IfMatch(v))
-    for k in ['', '/a', 'a/', 'a//b', 'a/../b', 'a\x00', 'x' * 1025, '\ud800']:
+    for k in ['', '/a', 'a/', 'a//b', 'a/../b', 'a\x00', 'x' * 1025, '\ud800', 'a\ufffe', 'a\uffff']:
         with pytest.raises(InvalidBlobKeyError):
             s.put(k, b'')
+
+
+def test_copy_onto_self():
+    s = DictBlobStore()
+    s.put('a', b'x')
+    with pytest.raises(ValueError):  # noqa
+        s.copy('a', 'a')
+
+
+def test_put_stream():
+    s = DictBlobStore()
+    v = s.put_stream('a', [b'ab', b'', b'cd'], length=4, cond=IfAbsent())
+    assert s.get('a').data == b'abcd'
+    assert s.head('a').version == v
+    with pytest.raises(BlobStreamLengthError):
+        s.put_stream('b', [b'abc'], length=4)
+    with pytest.raises(BlobNotFoundError):
+        s.head('b')
+    with pytest.raises(BlobAlreadyExistsError):
+        s.put_stream('a', [b'x'], cond=IfAbsent())
+
+
+def test_delete_many():
+    s = DictBlobStore()
+    for k in ['a', 'b', 'c']:
+        s.put(k, b'')
+    s.delete_many(['a', 'c', 'missing'])
+    assert [i.key for i in s.list()] == ['b']
+    with pytest.raises(InvalidBlobKeyError):
+        s.delete_many(['b', 'bad//key'])
+    assert [i.key for i in s.list()] == ['b']
+    s.delete_many([])

@@ -245,7 +245,7 @@ def _process_dataclass__edd5e277cf4541cff403b200e1ce8c2d0d89bda7():
 
 
 @_register(
-    installer_sha1='4e737a67e6857acb5f80d8f9e6f412754dc9f100',
+    installer_sha1='1881ea96a7c61442e67ba5e518295b2a1d34b270',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, True, False, False, False, False, False, False, False, Fal"
@@ -253,15 +253,18 @@ def _process_dataclass__edd5e277cf4541cff403b200e1ce8c2d0d89bda7():
             "ne, False, False, False), (('input', True, True, None, True, True, False, None), 'instance', 'value', None"
             ", False, False, False), (('output', True, True, None, True, True, False, None), 'instance', 'value', None,"
             " False, False, False), (('errors', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (F"
-            "alse,)))"
+            "False, False, False), (('http_method', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('http_request_uri', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('http_response_code', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, F"
+            "alse, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.base.base', 'Operation'),
     ),
 )
-def _process_dataclass__4e737a67e6857acb5f80d8f9e6f412754dc9f100():
+def _process_dataclass__1881ea96a7c61442e67ba5e518295b2a1d34b270():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -275,6 +278,12 @@ def _process_dataclass__4e737a67e6857acb5f80d8f9e6f412754dc9f100():
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -289,6 +298,9 @@ def _process_dataclass__4e737a67e6857acb5f80d8f9e6f412754dc9f100():
                 input=self.input,
                 output=self.output,
                 errors=self.errors,
+                http_method=self.http_method,
+                http_request_uri=self.http_request_uri,
+                http_response_code=self.http_response_code,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -298,6 +310,9 @@ def _process_dataclass__4e737a67e6857acb5f80d8f9e6f412754dc9f100():
             'input',
             'output',
             'errors',
+            'http_method',
+            'http_request_uri',
+            'http_response_code',
         }
 
         def __setattr__(self, name, value):
@@ -327,11 +342,17 @@ def _process_dataclass__4e737a67e6857acb5f80d8f9e6f412754dc9f100():
             input: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             output: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             errors: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            http_method: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            http_request_uri: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            http_response_code: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'name', name)
             __dataclass__object_setattr(self, 'input', input)
             __dataclass__object_setattr(self, 'output', output)
             __dataclass__object_setattr(self, 'errors', errors)
+            __dataclass__object_setattr(self, 'http_method', http_method)
+            __dataclass__object_setattr(self, 'http_request_uri', http_request_uri)
+            __dataclass__object_setattr(self, 'http_response_code', http_response_code)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -342,6 +363,9 @@ def _process_dataclass__4e737a67e6857acb5f80d8f9e6f412754dc9f100():
             parts.append(f"input={self.input!r}")
             parts.append(f"output={self.output!r}")
             parts.append(f"errors={self.errors!r}")
+            parts.append(f"http_method={self.http_method!r}")
+            parts.append(f"http_request_uri={self.http_request_uri!r}")
+            parts.append(f"http_response_code={self.http_response_code!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

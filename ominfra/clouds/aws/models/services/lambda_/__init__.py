@@ -373,7 +373,7 @@ class EnvironmentError_(
     ))
 
 
-EnvironmentVariables: _ta.TypeAlias = _ta.Mapping[EnvironmentVariableName, EnvironmentVariableName]
+EnvironmentVariables: _ta.TypeAlias = _ta.Mapping[EnvironmentVariableName, EnvironmentVariableValue]
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -474,24 +474,28 @@ class ListFunctionsRequest(
     master_region: MasterRegion | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='MasterRegion',
         serialization_name='MasterRegion',
+        location='querystring',
         shape_name='MasterRegion',
     ))
 
     function_version: FunctionVersion | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='FunctionVersion',
         serialization_name='FunctionVersion',
+        location='querystring',
         shape_name='FunctionVersion',
     ))
 
     marker: str | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Marker',
         serialization_name='Marker',
+        location='querystring',
         shape_name='String',
     ))
 
     max_items: MaxListItems | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='MaxItems',
         serialization_name='MaxItems',
+        location='querystring',
         shape_name='MaxListItems',
     ))
 
@@ -608,6 +612,7 @@ class TooManyRequestsException(
     retry_after_seconds: str | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='retryAfterSeconds',
         serialization_name='Retry-After',
+        location='header',
         shape_name='String',
     ))
 
@@ -1047,6 +1052,9 @@ LIST_FUNCTIONS = _base.Operation(
         ServiceException,
         TooManyRequestsException,
     ],
+    http_method='GET',
+    http_request_uri='/2015-03-31/functions',
+    http_response_code=200,
 )
 
 

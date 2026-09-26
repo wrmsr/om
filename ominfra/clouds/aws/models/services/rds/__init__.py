@@ -691,6 +691,7 @@ class TagSpecification(
 
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
+        list_member_name='Tag',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -784,6 +785,7 @@ class Filter(
 
     values: FilterValueList = _dc.field(metadata=_base.field_metadata(
         member_name='Values',
+        list_member_name='Value',
         value_type=_base.ListValueType(str),
         shape_name='FilterValueList',
     ))
@@ -886,12 +888,14 @@ class CreateDBInstanceMessage(
 
     db_security_groups: DBSecurityGroupNameList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='DBSecurityGroups',
+        list_member_name='DBSecurityGroupName',
         value_type=_base.ListValueType(str),
         shape_name='DBSecurityGroupNameList',
     ))
 
     vpc_security_group_ids: VpcSecurityGroupIdList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='VpcSecurityGroupIds',
+        list_member_name='VpcSecurityGroupId',
         value_type=_base.ListValueType(str),
         shape_name='VpcSecurityGroupIdList',
     ))
@@ -983,6 +987,7 @@ class CreateDBInstanceMessage(
 
     tags: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Tags',
+        list_member_name='Tag',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -1106,6 +1111,7 @@ class CreateDBInstanceMessage(
 
     processor_features: ProcessorFeatureList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ProcessorFeatures',
+        list_member_name='ProcessorFeature',
         value_type=_base.ListValueType(ProcessorFeature),
         shape_name='ProcessorFeatureList',
     ))
@@ -1183,6 +1189,7 @@ class CreateDBInstanceMessage(
 
     tag_specifications: TagSpecificationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='TagSpecifications',
+        list_member_name='item',
         value_type=_base.ListValueType(TagSpecification),
         shape_name='TagSpecificationList',
     ))
@@ -1280,6 +1287,7 @@ class PendingModifiedValues(
 
     processor_features: ProcessorFeatureList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ProcessorFeatures',
+        list_member_name='ProcessorFeature',
         value_type=_base.ListValueType(ProcessorFeature),
         shape_name='ProcessorFeatureList',
     ))
@@ -1351,6 +1359,7 @@ class DBSubnetGroup(
 
     subnets: SubnetList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Subnets',
+        list_member_name='Subnet',
         value_type=_base.ListValueType(Subnet),
         shape_name='SubnetList',
     ))
@@ -1379,6 +1388,7 @@ class DescribeDBInstancesMessage(
 
     filters: FilterList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='Filters',
+        list_member_name='Filter',
         value_type=_base.ListValueType(Filter),
         shape_name='FilterList',
     ))
@@ -1456,18 +1466,21 @@ class DBInstance(
 
     db_security_groups: DBSecurityGroupMembershipList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='DBSecurityGroups',
+        list_member_name='DBSecurityGroup',
         value_type=_base.ListValueType(DBSecurityGroupMembership),
         shape_name='DBSecurityGroupMembershipList',
     ))
 
     vpc_security_groups: VpcSecurityGroupMembershipList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='VpcSecurityGroups',
+        list_member_name='VpcSecurityGroupMembership',
         value_type=_base.ListValueType(VpcSecurityGroupMembership),
         shape_name='VpcSecurityGroupMembershipList',
     ))
 
     db_parameter_groups: DBParameterGroupStatusList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='DBParameterGroups',
+        list_member_name='DBParameterGroup',
         value_type=_base.ListValueType(DBParameterGroupStatus),
         shape_name='DBParameterGroupStatusList',
     ))
@@ -1524,12 +1537,14 @@ class DBInstance(
 
     read_replica_db_instance_identifiers: ReadReplicaDBInstanceIdentifierList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ReadReplicaDBInstanceIdentifiers',
+        list_member_name='ReadReplicaDBInstanceIdentifier',
         value_type=_base.ListValueType(str),
         shape_name='ReadReplicaDBInstanceIdentifierList',
     ))
 
     read_replica_db_cluster_identifiers: ReadReplicaDBClusterIdentifierList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ReadReplicaDBClusterIdentifiers',
+        list_member_name='ReadReplicaDBClusterIdentifier',
         value_type=_base.ListValueType(str),
         shape_name='ReadReplicaDBClusterIdentifierList',
     ))
@@ -1556,6 +1571,7 @@ class DBInstance(
 
     option_group_memberships: OptionGroupMembershipList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='OptionGroupMemberships',
+        list_member_name='OptionGroupMembership',
         value_type=_base.ListValueType(OptionGroupMembership),
         shape_name='OptionGroupMembershipList',
     ))
@@ -1582,6 +1598,7 @@ class DBInstance(
 
     status_infos: DBInstanceStatusInfoList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='StatusInfos',
+        list_member_name='DBInstanceStatusInfo',
         value_type=_base.ListValueType(DBInstanceStatusInfo),
         shape_name='DBInstanceStatusInfoList',
     ))
@@ -1633,6 +1650,7 @@ class DBInstance(
 
     domain_memberships: DomainMembershipList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='DomainMemberships',
+        list_member_name='DomainMembership',
         value_type=_base.ListValueType(DomainMembership),
         shape_name='DomainMembershipList',
     ))
@@ -1705,6 +1723,7 @@ class DBInstance(
 
     processor_features: ProcessorFeatureList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ProcessorFeatures',
+        list_member_name='ProcessorFeature',
         value_type=_base.ListValueType(ProcessorFeature),
         shape_name='ProcessorFeatureList',
     ))
@@ -1716,6 +1735,7 @@ class DBInstance(
 
     associated_roles: DBInstanceRoles | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='AssociatedRoles',
+        list_member_name='DBInstanceRole',
         value_type=_base.ListValueType(DBInstanceRole),
         shape_name='DBInstanceRoles',
     ))
@@ -1732,6 +1752,7 @@ class DBInstance(
 
     tag_list: _base.TagList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='TagList',
+        list_member_name='Tag',
         value_type=_base.ListValueType(_base.Tag),
         shape_name='TagList',
     ))
@@ -1788,6 +1809,7 @@ class DBInstance(
 
     db_instance_automated_backups_replications: DBInstanceAutomatedBackupsReplicationList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='DBInstanceAutomatedBackupsReplications',
+        list_member_name='DBInstanceAutomatedBackupsReplication',
         value_type=_base.ListValueType(DBInstanceAutomatedBackupsReplication),
         shape_name='DBInstanceAutomatedBackupsReplicationList',
     ))
@@ -1949,6 +1971,7 @@ class DBInstanceMessage(
 
     db_instances: DBInstanceList | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='DBInstances',
+        list_member_name='DBInstance',
         value_type=_base.ListValueType(DBInstance),
         shape_name='DBInstanceList',
     ))
@@ -2053,6 +2076,8 @@ CREATE_DB_INSTANCE = _base.Operation(
         TenantDatabaseQuotaExceededFault,
         VpcEncryptionControlViolationException,
     ],
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DELETE_DB_INSTANCE = _base.Operation(
@@ -2068,6 +2093,8 @@ DELETE_DB_INSTANCE = _base.Operation(
         KMSKeyNotAccessibleFault,
         SnapshotQuotaExceededFault,
     ],
+    http_method='POST',
+    http_request_uri='/',
 )
 
 DESCRIBE_DB_INSTANCES = _base.Operation(
@@ -2077,6 +2104,8 @@ DESCRIBE_DB_INSTANCES = _base.Operation(
     errors=[
         DBInstanceNotFoundFault,
     ],
+    http_method='POST',
+    http_request_uri='/',
 )
 
 REBOOT_DB_INSTANCE = _base.Operation(
@@ -2088,6 +2117,8 @@ REBOOT_DB_INSTANCE = _base.Operation(
         InvalidDBInstanceStateFault,
         KMSKeyNotAccessibleFault,
     ],
+    http_method='POST',
+    http_request_uri='/',
 )
 
 START_DB_INSTANCE = _base.Operation(
@@ -2108,6 +2139,8 @@ START_DB_INSTANCE = _base.Operation(
         KMSKeyNotAccessibleFault,
         VpcEncryptionControlViolationException,
     ],
+    http_method='POST',
+    http_request_uri='/',
 )
 
 STOP_DB_INSTANCE = _base.Operation(
@@ -2121,6 +2154,8 @@ STOP_DB_INSTANCE = _base.Operation(
         InvalidDBInstanceStateFault,
         SnapshotQuotaExceededFault,
     ],
+    http_method='POST',
+    http_request_uri='/',
 )
 
 

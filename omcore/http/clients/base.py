@@ -48,6 +48,9 @@ class HttpClientRequest:
 
     timeout_s: ta.Optional[float] = None
 
+    # When set, the response body is returned exactly as received, without decoding any Content-Encoding.
+    no_decompress: bool = False
+
     #
 
     def __post_init__(self) -> None:
@@ -61,6 +64,7 @@ class HttpClientRequest:
         (o.headers_, dict(display='headers', repr_fn=AttrOps.truthy_repr)),
         (o.data, dict(repr_fn=lambda v: '...' if v is not None else None)),
         (o.timeout_s, dict(repr_fn=AttrOps.opt_repr)),
+        (o.no_decompress, dict(repr_fn=AttrOps.truthy_repr)),
     )).repr
 
     #

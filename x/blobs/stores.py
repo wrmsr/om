@@ -20,7 +20,8 @@ from .types import IfMatch
 class BlobWriter(lang.Abstract):
     """
     Nothing is visible until commit(), which applies the writer's precondition atomically. Leaving the open_writer
-    context without committing discards everything written - on a normal exit too, not just on an exception.
+    context without committing discards everything written - on a normal exit too, not just on an exception. Writers
+    are not thread-safe, and are unusable after commit or after their context exits.
     """
 
     @abc.abstractmethod
@@ -35,7 +36,11 @@ class BlobWriter(lang.Abstract):
 class BlobStore(lang.Abstract):
     """
     A flat keyspace of immutable, atomically replaced objects. '/' means nothing except to list_shallow. Listings are
-    in code point order, which is UTF-8 byte order, which is what S3 and R2 use.
+    in code point order, which is UTF-8 byte order, which is what S3 and R2 use. Listings are not snapshots: concurrent
+    mutations may or may not be reflected.
+
+    Stores are thread-safe. Key validation, capability checks, and other static argument checks all happen before any
+    IO.
     """
 
     @abc.abstractmethod
@@ -69,17 +74,42 @@ class BlobStore(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def put_stream(
+            self,
+            key: str,
+            source: ta.Iterable[bytes],
+            *,
+            length: int | None = None,
+            cond: BlobWritePrecondition | None = None,
+    ) -> BlobVersion:
+        """
+        Consumes the whole source. If length is given and does not match, raises BlobStreamLengthError and publishes
+        nothing. The precondition is evaluated at the end, as with open_writer's commit.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def open_writer(self, key: str, *, cond: BlobWritePrecondition | None = None) -> ta.ContextManager[BlobWriter]:
         raise NotImplementedError
 
     @abc.abstractmethod
     def copy(self, src: str, dst: str, *, cond: BlobWritePrecondition | None = None) -> BlobVersion:
-        """The precondition applies to dst."""
+        """The precondition applies to dst. Copying a key onto itself raises ValueError."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
     def delete(self, key: str, *, cond: IfMatch | None = None) -> None:
         """Unconditionally deleting a missing key is a no-op, as on S3."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def delete_many(self, keys: ta.Iterable[str]) -> None:
+        """
+        Unconditional, ignores missing keys, not atomic, and in no particular order. All keys are validated before any
+        IO. Every key is attempted, then BlobDeleteManyError is raised if any failed.
+        """
 
         raise NotImplementedError

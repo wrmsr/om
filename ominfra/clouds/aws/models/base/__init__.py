@@ -27,6 +27,7 @@ from .base import (  # noqa
     SHAPE_NAME,
     common_metadata,
 
+    PAYLOAD_MEMBER,
     shape_metadata,
     ShapeInfo,
     Shape,
@@ -34,6 +35,13 @@ from .base import (  # noqa
     MEMBER_NAME,
     SERIALIZATION_NAME,
     VALUE_TYPE,
+    LOCATION,
+    XML_NAMESPACE,
+    XML_FLATTENED,
+    XML_ATTRIBUTE,
+    LIST_MEMBER_NAME,
+    TIMESTAMP_FORMAT,
+    STREAMING,
     field_metadata,
 
     Operation,

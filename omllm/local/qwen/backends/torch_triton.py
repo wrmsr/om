@@ -343,9 +343,8 @@ def attn_decode(
     o = torch.empty((B, KV, splits, block_m, D), dtype=torch.float32, device=q.device)
     fp8 = ks is not None
     if fp8:
-        check.not_none(vs)
-        ks = ks.contiguous()
-        vs = vs.contiguous()
+        ks = check.not_none(ks).contiguous()
+        vs = check.not_none(vs).contiguous()
     else:
         ks = vs = m  # unread
     ensure_kernels()
@@ -509,9 +508,8 @@ def attn_prefill(
     out = torch.empty_like(q)
     fp8 = ks is not None
     if fp8:
-        check.not_none(vs)
-        ks = ks.contiguous()
-        vs = vs.contiguous()
+        ks = check.not_none(ks).contiguous()
+        vs = check.not_none(vs).contiguous()
     else:
         ks = vs = out  # unread
     # batch and head folded: q / out [B*H, T, D]; k / v [B*KV, L, D]; kv row of head bh is bh // G because

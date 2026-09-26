@@ -19,10 +19,12 @@ class SyncAsyncliteLock(AsyncliteLock, SyncAsyncliteObject):
         self._u = u
 
     async def acquire(self, *, timeout: ta.Optional[float] = None) -> None:
-        if timeout is not None and timeout > 0:
-            a = self._u.acquire(blocking=False, timeout=timeout)
+        if timeout is None:
+            a = self._u.acquire()
+        elif timeout <= 0:
+            a = self._u.acquire(blocking=False)
         else:
-            a = self._u.acquire(blocking=True)
+            a = self._u.acquire(timeout=timeout)
 
         if not a:
             raise TimeoutError

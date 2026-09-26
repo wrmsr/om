@@ -40,6 +40,8 @@ class HttpxHttpClient(HttpClient):
                 return next(self.it)
             except StopIteration:
                 return b''
+            except httpx.TransportError as e:
+                raise HttpClientError from e
 
     def _stream_request(self, ctx: HttpClientContext, req: HttpClientRequest) -> StreamHttpClientResponse:
         try:
@@ -64,7 +66,7 @@ class HttpxHttpClient(HttpClient):
                 request=req,
                 underlying=resp,
                 _stream=ByteStreamBufferBytesReaderAdapter.wrap(
-                    self._StreamAdapter(resp.iter_bytes()),
+                    self._StreamAdapter(resp.iter_raw() if req.no_decompress else resp.iter_bytes()),
                     SegmentedByteStreamBuffer(chunk_size=16 * 1024),
                 ),
                 _closer=resp_close,  # type: ignore
@@ -92,6 +94,8 @@ class HttpxAsyncHttpClient(AsyncHttpClient):
                 return await anext(self.it)
             except StopAsyncIteration:
                 return b''
+            except httpx.TransportError as e:
+                raise HttpClientError from e
 
     async def _stream_request(self, ctx: HttpClientContext, req: HttpClientRequest) -> AsyncStreamHttpClientResponse:
         es = contextlib.AsyncExitStack()
@@ -107,7 +111,7 @@ class HttpxAsyncHttpClient(AsyncHttpClient):
                 timeout=req.timeout_s,
             ))
 
-            it = resp.aiter_bytes()
+            it = resp.aiter_raw() if req.no_decompress else resp.aiter_bytes()
 
             # FIXME:
             #  this has a tendency to raise `RuntimeError: async generator ignored GeneratorExit` when all of the

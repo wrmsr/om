@@ -357,6 +357,9 @@ class ModelGen:
                 f'shape_name={shape.name!r}',
             ]
 
+            if (pm := shape.serialization.get('payload')) is not None:
+                mds.append(f'payload_member={pm!r}')
+
             lines.extend([
                 '@_dc.dataclass(frozen=True, kw_only=True)',
                 f'class {san_name}(',
@@ -376,8 +379,31 @@ class ModelGen:
                     f'member_name={mn!r}',
                 ]
 
-                if msn := ms.serialization.get('name'):
+                ser = ms.serialization
+
+                if msn := ser.get('name'):
                     mds.append(f'serialization_name={msn!r}')
+
+                if loc := ser.get('location'):
+                    mds.append(f'location={loc!r}')
+
+                if (xns := ser.get('xmlNamespace')) is not None:
+                    mds.append(f'xml_namespace={xns["uri"]!r}')
+
+                if ser.get('flattened'):
+                    mds.append('xml_flattened=True')
+
+                if ser.get('xmlAttribute'):
+                    mds.append('xml_attribute=True')
+
+                if isinstance(ms, botocore.model.ListShape) and (lmn := ms.member.serialization.get('name')):
+                    mds.append(f'list_member_name={lmn!r}')
+
+                if tsf := ser.get('timestampFormat'):
+                    mds.append(f'timestamp_format={tsf!r}')
+
+                if ser.get('streaming'):
+                    mds.append('streaming=True')
 
                 if isinstance(ms, botocore.model.MapShape):
                     ka = self.get_type_ann(
@@ -456,7 +482,7 @@ class ModelGen:
                 kn,
                 unquoted_names=unquoted_names,
             )
-            vn = shape.key.name
+            vn = shape.value.name
             va2 = self.get_type_ann(
                 vn,
                 unquoted_names=unquoted_names,
@@ -557,6 +583,14 @@ class ModelGen:
             for osn in sorted(es.name for es in operation.error_shapes):
                 fls.append(f'    {osn},')
             fls.append('],')
+
+        http = operation.http
+        if (hm := http.get('method')) is not None:
+            fls.append(f'http_method={hm!r},')
+        if (hru := http.get('requestUri')) is not None:
+            fls.append(f'http_request_uri={hru!r},')
+        if (hrc := http.get('responseCode')) is not None:
+            fls.append(f'http_response_code={int(hrc)!r},')
 
         lines = [
             f'{dcn} = _base.Operation(',

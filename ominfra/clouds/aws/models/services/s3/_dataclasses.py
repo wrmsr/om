@@ -430,6 +430,220 @@ def _process_dataclass__7cb9c7535ada86244fa778228a8f0759842ec829():
 
 
 @_register(
+    installer_sha1='23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (()"
+            ",), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'BucketAlreadyExists'),
+        ('ominfra.clouds.aws.models.services.s3', 'BucketAlreadyOwnedByYou'),
+        ('ominfra.clouds.aws.models.services.s3', 'EncryptionTypeMismatch'),
+        ('ominfra.clouds.aws.models.services.s3', 'InvalidRequest'),
+        ('ominfra.clouds.aws.models.services.s3', 'InvalidWriteOffset'),
+        ('ominfra.clouds.aws.models.services.s3', 'NoSuchBucket'),
+        ('ominfra.clouds.aws.models.services.s3', 'NoSuchKey'),
+        ('ominfra.clouds.aws.models.services.s3', 'NoSuchUpload'),
+        ('ominfra.clouds.aws.models.services.s3', 'ObjectNotInActiveTierError'),
+        ('ominfra.clouds.aws.models.services.s3', 'TooManyParts'),
+    ),
+)
+def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__()  # noqa
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return True
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash(())
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+        ) -> __dataclass__None:
+            pass
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            return f"{self.__class__.__qualname__}()"
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='f9d89fdf672616bdbc1c7766d64f846134954a9a',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('data_redundancy', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, False, False, False), (('type', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()),"
+            " ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'BucketInfo'),
+    ),
+)
+def _process_dataclass__f9d89fdf672616bdbc1c7766d64f846134954a9a():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                data_redundancy=self.data_redundancy,
+                type=self.type,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.data_redundancy == other.data_redundancy and
+                self.type == other.type
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'data_redundancy',
+            'type',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.data_redundancy,
+                self.type,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            data_redundancy: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            type: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'data_redundancy', data_redundancy)
+            __dataclass__object_setattr(self, 'type', type)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"data_redundancy={self.data_redundancy!r}")
+            parts.append(f"type={self.type!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='225541fce628820ca9d5ba9bb35962e5f9422532',
     spec_keys=(
         (
@@ -2499,6 +2713,467 @@ def _process_dataclass__58b46da8cc7bcdc791391bac8a58e6ec4d63dfb3():
 
 
 @_register(
+    installer_sha1='bb05a39a69386136ba762cd7fefa6e0fecce5158',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('location_constraint', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('location', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('bucket', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('tags', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, "
+            "()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'CreateBucketConfiguration'),
+    ),
+)
+def _process_dataclass__bb05a39a69386136ba762cd7fefa6e0fecce5158():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                location_constraint=self.location_constraint,
+                location=self.location,
+                bucket=self.bucket,
+                tags=self.tags,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.location_constraint == other.location_constraint and
+                self.location == other.location and
+                self.bucket == other.bucket and
+                self.tags == other.tags
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'location_constraint',
+            'location',
+            'bucket',
+            'tags',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.location_constraint,
+                self.location,
+                self.bucket,
+                self.tags,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            location_constraint: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            location: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            bucket: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            tags: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'location_constraint', location_constraint)
+            __dataclass__object_setattr(self, 'location', location)
+            __dataclass__object_setattr(self, 'bucket', bucket)
+            __dataclass__object_setattr(self, 'tags', tags)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"location_constraint={self.location_constraint!r}")
+            parts.append(f"location={self.location!r}")
+            parts.append(f"bucket={self.bucket!r}")
+            parts.append(f"tags={self.tags!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='c3b577508b8041fa7689c51b36285f4614cca4c7',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('location', True, True, None, True, True, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('bucket_arn', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), "
+            "((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'CreateBucketOutput'),
+    ),
+)
+def _process_dataclass__c3b577508b8041fa7689c51b36285f4614cca4c7():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                location=self.location,
+                bucket_arn=self.bucket_arn,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.location == other.location and
+                self.bucket_arn == other.bucket_arn
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'location',
+            'bucket_arn',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.location,
+                self.bucket_arn,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            location: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            bucket_arn: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'location', location)
+            __dataclass__object_setattr(self, 'bucket_arn', bucket_arn)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"location={self.location!r}")
+            parts.append(f"bucket_arn={self.bucket_arn!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='0ee064154efad577a7a2971a9655a09877e940ff',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('acl', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('bucket', True, True, None, True, True, False, None), 'instance', 'missing', "
+            "None, False, False, False), (('create_bucket_configuration', True, True, None, True, True, False, None), '"
+            "instance', 'value', None, False, False, False), (('grant_full_control', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('grant_read', True, True, None, True, True, F"
+            "alse, None), 'instance', 'value', None, False, False, False), (('grant_read_acp', True, True, None, True, "
+            "True, False, None), 'instance', 'value', None, False, False, False), (('grant_write', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('grant_write_acp', True, True, "
+            "None, True, True, False, None), 'instance', 'value', None, False, False, False), (('object_lock_enabled_fo"
+            "r_bucket', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
+            "'object_ownership', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
+            "alse), (('bucket_namespace', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
+            " False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)"
+            "))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'CreateBucketRequest'),
+    ),
+)
+def _process_dataclass__0ee064154efad577a7a2971a9655a09877e940ff():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                acl=self.acl,
+                bucket=self.bucket,
+                create_bucket_configuration=self.create_bucket_configuration,
+                grant_full_control=self.grant_full_control,
+                grant_read=self.grant_read,
+                grant_read_acp=self.grant_read_acp,
+                grant_write=self.grant_write,
+                grant_write_acp=self.grant_write_acp,
+                object_lock_enabled_for_bucket=self.object_lock_enabled_for_bucket,
+                object_ownership=self.object_ownership,
+                bucket_namespace=self.bucket_namespace,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.acl == other.acl and
+                self.bucket == other.bucket and
+                self.create_bucket_configuration == other.create_bucket_configuration and
+                self.grant_full_control == other.grant_full_control and
+                self.grant_read == other.grant_read and
+                self.grant_read_acp == other.grant_read_acp and
+                self.grant_write == other.grant_write and
+                self.grant_write_acp == other.grant_write_acp and
+                self.object_lock_enabled_for_bucket == other.object_lock_enabled_for_bucket and
+                self.object_ownership == other.object_ownership and
+                self.bucket_namespace == other.bucket_namespace
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'acl',
+            'bucket',
+            'create_bucket_configuration',
+            'grant_full_control',
+            'grant_read',
+            'grant_read_acp',
+            'grant_write',
+            'grant_write_acp',
+            'object_lock_enabled_for_bucket',
+            'object_ownership',
+            'bucket_namespace',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.acl,
+                self.bucket,
+                self.create_bucket_configuration,
+                self.grant_full_control,
+                self.grant_read,
+                self.grant_read_acp,
+                self.grant_write,
+                self.grant_write_acp,
+                self.object_lock_enabled_for_bucket,
+                self.object_ownership,
+                self.bucket_namespace,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            acl: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            bucket: __dataclass__init__fields__02__annotation,
+            create_bucket_configuration: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            grant_full_control: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            grant_read: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            grant_read_acp: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            grant_write: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            grant_write_acp: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            object_lock_enabled_for_bucket: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            object_ownership: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            bucket_namespace: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'acl', acl)
+            __dataclass__object_setattr(self, 'bucket', bucket)
+            __dataclass__object_setattr(self, 'create_bucket_configuration', create_bucket_configuration)
+            __dataclass__object_setattr(self, 'grant_full_control', grant_full_control)
+            __dataclass__object_setattr(self, 'grant_read', grant_read)
+            __dataclass__object_setattr(self, 'grant_read_acp', grant_read_acp)
+            __dataclass__object_setattr(self, 'grant_write', grant_write)
+            __dataclass__object_setattr(self, 'grant_write_acp', grant_write_acp)
+            __dataclass__object_setattr(self, 'object_lock_enabled_for_bucket', object_lock_enabled_for_bucket)
+            __dataclass__object_setattr(self, 'object_ownership', object_ownership)
+            __dataclass__object_setattr(self, 'bucket_namespace', bucket_namespace)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"acl={self.acl!r}")
+            parts.append(f"bucket={self.bucket!r}")
+            parts.append(f"create_bucket_configuration={self.create_bucket_configuration!r}")
+            parts.append(f"grant_full_control={self.grant_full_control!r}")
+            parts.append(f"grant_read={self.grant_read!r}")
+            parts.append(f"grant_read_acp={self.grant_read_acp!r}")
+            parts.append(f"grant_write={self.grant_write!r}")
+            parts.append(f"grant_write_acp={self.grant_write_acp!r}")
+            parts.append(f"object_lock_enabled_for_bucket={self.object_lock_enabled_for_bucket!r}")
+            parts.append(f"object_ownership={self.object_ownership!r}")
+            parts.append(f"bucket_namespace={self.bucket_namespace!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='46ea6e29b35965175cff1d8dd04727a0d52f2a8d',
     spec_keys=(
         (
@@ -3291,6 +3966,122 @@ def _process_dataclass__b1ee0e21166aae7399d2b120f44e6b2d1205fe76():
 
 
 @_register(
+    installer_sha1='9d67605a5e943dd9bf366ea4b3e5f56d7c530a8c',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('bucket', True, True, None, True, True, False, None), 'instance', 'missin"
+            "g', None, False, False, False), (('expected_bucket_owner', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, F"
+            "alse, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'DeleteBucketRequest'),
+    ),
+)
+def _process_dataclass__9d67605a5e943dd9bf366ea4b3e5f56d7c530a8c():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                bucket=self.bucket,
+                expected_bucket_owner=self.expected_bucket_owner,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.bucket == other.bucket and
+                self.expected_bucket_owner == other.expected_bucket_owner
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'bucket',
+            'expected_bucket_owner',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.bucket,
+                self.expected_bucket_owner,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            bucket: __dataclass__init__fields__1__annotation,
+            expected_bucket_owner: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'bucket', bucket)
+            __dataclass__object_setattr(self, 'expected_bucket_owner', expected_bucket_owner)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"bucket={self.bucket!r}")
+            parts.append(f"expected_bucket_owner={self.expected_bucket_owner!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='c640380b71d419edae0169b8ff4814a922fbf32c',
     spec_keys=(
         (
@@ -4035,101 +4826,6 @@ def _process_dataclass__b4fcdb3b6ee90c312490879f5af3942ad2a54137():
                 f"{', '.join(parts)}"
                 f")"
             )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    installer_sha1='23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
-            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
-            "', None, False, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (()"
-            ",), (), (False,)))"
-        ),
-    ),
-    cls_names=(
-        ('ominfra.clouds.aws.models.services.s3', 'EncryptionTypeMismatch'),
-        ('ominfra.clouds.aws.models.services.s3', 'InvalidRequest'),
-        ('ominfra.clouds.aws.models.services.s3', 'InvalidWriteOffset'),
-        ('ominfra.clouds.aws.models.services.s3', 'NoSuchBucket'),
-        ('ominfra.clouds.aws.models.services.s3', 'NoSuchKey'),
-        ('ominfra.clouds.aws.models.services.s3', 'NoSuchUpload'),
-        ('ominfra.clouds.aws.models.services.s3', 'ObjectNotInActiveTierError'),
-        ('ominfra.clouds.aws.models.services.s3', 'TooManyParts'),
-    ),
-)
-def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__()  # noqa
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return True
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            '__shape__',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash(())
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-        ) -> __dataclass__None:
-            pass
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            return f"{self.__class__.__qualname__}()"
 
         __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
 
@@ -7056,6 +7752,123 @@ def _process_dataclass__2dd2e9589095a8478c7afbe700b7b310f1acc4ac():
 
 
 @_register(
+    installer_sha1='05f6a19655be55cf13bec38a3f9d9b8c0b67856c',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('type', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('name', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (),"
+            " (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'LocationInfo'),
+    ),
+)
+def _process_dataclass__05f6a19655be55cf13bec38a3f9d9b8c0b67856c():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                type=self.type,
+                name=self.name,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.type == other.type and
+                self.name == other.name
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'type',
+            'name',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.type,
+                self.name,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            type: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            name: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'type', type)
+            __dataclass__object_setattr(self, 'name', name)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"type={self.type!r}")
+            parts.append(f"name={self.name!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='218cf0285f0e639a9dfaf14a750f02fef7425459',
     spec_keys=(
         (
@@ -8695,6 +9508,598 @@ def _process_dataclass__d7980ccc967cc6aa3b0dac11b6f68deda60cbdb7():
             parts = []
             parts.append(f"is_restore_in_progress={self.is_restore_in_progress!r}")
             parts.append(f"restore_expiry_date={self.restore_expiry_date!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='7028cae771a7289e3734bbb7aac4e12aeba9a4cf',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('server_side_encryption', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('etag', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('checksum_crc32', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('checksum_crc32c', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('checksum_crc64nvme', True, True, None, True, "
+            "True, False, None), 'instance', 'value', None, False, False, False), (('checksum_sha1', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('checksum_sha256', True, True"
+            ", None, True, True, False, None), 'instance', 'value', None, False, False, False), (('checksum_sha512', Tr"
+            "ue, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('checksum_md5"
+            "', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('checksu"
+            "m_xxhash64', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), "
+            "(('checksum_xxhash3', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
+            " False), (('checksum_xxhash128', True, True, None, True, True, False, None), 'instance', 'value', None, Fa"
+            "lse, False, False), (('sse_customer_algorithm', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('sse_customer_key_md5', True, True, None, True, True, False, None), '"
+            "instance', 'value', None, False, False, False), (('sse_kms_key_id', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('bucket_key_enabled', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('request_charged', True, True, None, T"
+            "rue, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (Fals"
+            "e,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'UploadPartOutput'),
+    ),
+)
+def _process_dataclass__7028cae771a7289e3734bbb7aac4e12aeba9a4cf():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
+        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
+        __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
+        __dataclass__init__fields__16__annotation = __dataclass__spec.fields[16].annotation
+        __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
+        __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
+        __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                server_side_encryption=self.server_side_encryption,
+                etag=self.etag,
+                checksum_crc32=self.checksum_crc32,
+                checksum_crc32c=self.checksum_crc32c,
+                checksum_crc64nvme=self.checksum_crc64nvme,
+                checksum_sha1=self.checksum_sha1,
+                checksum_sha256=self.checksum_sha256,
+                checksum_sha512=self.checksum_sha512,
+                checksum_md5=self.checksum_md5,
+                checksum_xxhash64=self.checksum_xxhash64,
+                checksum_xxhash3=self.checksum_xxhash3,
+                checksum_xxhash128=self.checksum_xxhash128,
+                sse_customer_algorithm=self.sse_customer_algorithm,
+                sse_customer_key_md5=self.sse_customer_key_md5,
+                sse_kms_key_id=self.sse_kms_key_id,
+                bucket_key_enabled=self.bucket_key_enabled,
+                request_charged=self.request_charged,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.server_side_encryption == other.server_side_encryption and
+                self.etag == other.etag and
+                self.checksum_crc32 == other.checksum_crc32 and
+                self.checksum_crc32c == other.checksum_crc32c and
+                self.checksum_crc64nvme == other.checksum_crc64nvme and
+                self.checksum_sha1 == other.checksum_sha1 and
+                self.checksum_sha256 == other.checksum_sha256 and
+                self.checksum_sha512 == other.checksum_sha512 and
+                self.checksum_md5 == other.checksum_md5 and
+                self.checksum_xxhash64 == other.checksum_xxhash64 and
+                self.checksum_xxhash3 == other.checksum_xxhash3 and
+                self.checksum_xxhash128 == other.checksum_xxhash128 and
+                self.sse_customer_algorithm == other.sse_customer_algorithm and
+                self.sse_customer_key_md5 == other.sse_customer_key_md5 and
+                self.sse_kms_key_id == other.sse_kms_key_id and
+                self.bucket_key_enabled == other.bucket_key_enabled and
+                self.request_charged == other.request_charged
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'server_side_encryption',
+            'etag',
+            'checksum_crc32',
+            'checksum_crc32c',
+            'checksum_crc64nvme',
+            'checksum_sha1',
+            'checksum_sha256',
+            'checksum_sha512',
+            'checksum_md5',
+            'checksum_xxhash64',
+            'checksum_xxhash3',
+            'checksum_xxhash128',
+            'sse_customer_algorithm',
+            'sse_customer_key_md5',
+            'sse_kms_key_id',
+            'bucket_key_enabled',
+            'request_charged',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.server_side_encryption,
+                self.etag,
+                self.checksum_crc32,
+                self.checksum_crc32c,
+                self.checksum_crc64nvme,
+                self.checksum_sha1,
+                self.checksum_sha256,
+                self.checksum_sha512,
+                self.checksum_md5,
+                self.checksum_xxhash64,
+                self.checksum_xxhash3,
+                self.checksum_xxhash128,
+                self.sse_customer_algorithm,
+                self.sse_customer_key_md5,
+                self.sse_kms_key_id,
+                self.bucket_key_enabled,
+                self.request_charged,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            server_side_encryption: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            etag: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            checksum_crc32: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            checksum_crc32c: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            checksum_crc64nvme: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            checksum_sha1: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            checksum_sha256: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            checksum_sha512: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            checksum_md5: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            checksum_xxhash64: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            checksum_xxhash3: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            checksum_xxhash128: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            sse_customer_algorithm: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            sse_customer_key_md5: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            sse_kms_key_id: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            bucket_key_enabled: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            request_charged: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'server_side_encryption', server_side_encryption)
+            __dataclass__object_setattr(self, 'etag', etag)
+            __dataclass__object_setattr(self, 'checksum_crc32', checksum_crc32)
+            __dataclass__object_setattr(self, 'checksum_crc32c', checksum_crc32c)
+            __dataclass__object_setattr(self, 'checksum_crc64nvme', checksum_crc64nvme)
+            __dataclass__object_setattr(self, 'checksum_sha1', checksum_sha1)
+            __dataclass__object_setattr(self, 'checksum_sha256', checksum_sha256)
+            __dataclass__object_setattr(self, 'checksum_sha512', checksum_sha512)
+            __dataclass__object_setattr(self, 'checksum_md5', checksum_md5)
+            __dataclass__object_setattr(self, 'checksum_xxhash64', checksum_xxhash64)
+            __dataclass__object_setattr(self, 'checksum_xxhash3', checksum_xxhash3)
+            __dataclass__object_setattr(self, 'checksum_xxhash128', checksum_xxhash128)
+            __dataclass__object_setattr(self, 'sse_customer_algorithm', sse_customer_algorithm)
+            __dataclass__object_setattr(self, 'sse_customer_key_md5', sse_customer_key_md5)
+            __dataclass__object_setattr(self, 'sse_kms_key_id', sse_kms_key_id)
+            __dataclass__object_setattr(self, 'bucket_key_enabled', bucket_key_enabled)
+            __dataclass__object_setattr(self, 'request_charged', request_charged)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"server_side_encryption={self.server_side_encryption!r}")
+            parts.append(f"etag={self.etag!r}")
+            parts.append(f"checksum_crc32={self.checksum_crc32!r}")
+            parts.append(f"checksum_crc32c={self.checksum_crc32c!r}")
+            parts.append(f"checksum_crc64nvme={self.checksum_crc64nvme!r}")
+            parts.append(f"checksum_sha1={self.checksum_sha1!r}")
+            parts.append(f"checksum_sha256={self.checksum_sha256!r}")
+            parts.append(f"checksum_sha512={self.checksum_sha512!r}")
+            parts.append(f"checksum_md5={self.checksum_md5!r}")
+            parts.append(f"checksum_xxhash64={self.checksum_xxhash64!r}")
+            parts.append(f"checksum_xxhash3={self.checksum_xxhash3!r}")
+            parts.append(f"checksum_xxhash128={self.checksum_xxhash128!r}")
+            parts.append(f"sse_customer_algorithm={self.sse_customer_algorithm!r}")
+            parts.append(f"sse_customer_key_md5={self.sse_customer_key_md5!r}")
+            parts.append(f"sse_kms_key_id={self.sse_kms_key_id!r}")
+            parts.append(f"bucket_key_enabled={self.bucket_key_enabled!r}")
+            parts.append(f"request_charged={self.request_charged!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='f37c8e29ece5155b8039181753c674b59dcb058c',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('body', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('bucket', True, True, None, True, True, False, None), 'instance', 'missing',"
+            " None, False, False, False), (('content_length', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('content_md5', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False), (('checksum_algorithm', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('checksum_crc32', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('checksum_crc32c', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('checksum_crc64nvme', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('checksum_sha1', True, True"
+            ", None, True, True, False, None), 'instance', 'value', None, False, False, False), (('checksum_sha256', Tr"
+            "ue, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('checksum_sha"
+            "512', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('chec"
+            "ksum_md5', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
+            "'checksum_xxhash64', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('checksum_xxhash3', True, True, None, True, True, False, None), 'instance', 'value', None, False"
+            ", False, False), (('checksum_xxhash128', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('key', True, True, None, True, True, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('part_number', True, True, None, True, True, False, None), 'instance', 'missin"
+            "g', None, False, False, False), (('upload_id', True, True, None, True, True, False, None), 'instance', 'mi"
+            "ssing', None, False, False, False), (('sse_customer_algorithm', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('sse_customer_key', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('sse_customer_key_md5', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('request_payer', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', None, False, False, False), (('expected_bucket_owner', "
+            "True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()"
+            "), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.s3', 'UploadPartRequest'),
+    ),
+)
+def _process_dataclass__f37c8e29ece5155b8039181753c674b59dcb058c():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
+        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
+        __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
+        __dataclass__init__fields__16__annotation = __dataclass__spec.fields[16].annotation
+        __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
+        __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
+        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
+        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
+        __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
+        __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
+        __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
+        __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
+        __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                body=self.body,
+                bucket=self.bucket,
+                content_length=self.content_length,
+                content_md5=self.content_md5,
+                checksum_algorithm=self.checksum_algorithm,
+                checksum_crc32=self.checksum_crc32,
+                checksum_crc32c=self.checksum_crc32c,
+                checksum_crc64nvme=self.checksum_crc64nvme,
+                checksum_sha1=self.checksum_sha1,
+                checksum_sha256=self.checksum_sha256,
+                checksum_sha512=self.checksum_sha512,
+                checksum_md5=self.checksum_md5,
+                checksum_xxhash64=self.checksum_xxhash64,
+                checksum_xxhash3=self.checksum_xxhash3,
+                checksum_xxhash128=self.checksum_xxhash128,
+                key=self.key,
+                part_number=self.part_number,
+                upload_id=self.upload_id,
+                sse_customer_algorithm=self.sse_customer_algorithm,
+                sse_customer_key=self.sse_customer_key,
+                sse_customer_key_md5=self.sse_customer_key_md5,
+                request_payer=self.request_payer,
+                expected_bucket_owner=self.expected_bucket_owner,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.body == other.body and
+                self.bucket == other.bucket and
+                self.content_length == other.content_length and
+                self.content_md5 == other.content_md5 and
+                self.checksum_algorithm == other.checksum_algorithm and
+                self.checksum_crc32 == other.checksum_crc32 and
+                self.checksum_crc32c == other.checksum_crc32c and
+                self.checksum_crc64nvme == other.checksum_crc64nvme and
+                self.checksum_sha1 == other.checksum_sha1 and
+                self.checksum_sha256 == other.checksum_sha256 and
+                self.checksum_sha512 == other.checksum_sha512 and
+                self.checksum_md5 == other.checksum_md5 and
+                self.checksum_xxhash64 == other.checksum_xxhash64 and
+                self.checksum_xxhash3 == other.checksum_xxhash3 and
+                self.checksum_xxhash128 == other.checksum_xxhash128 and
+                self.key == other.key and
+                self.part_number == other.part_number and
+                self.upload_id == other.upload_id and
+                self.sse_customer_algorithm == other.sse_customer_algorithm and
+                self.sse_customer_key == other.sse_customer_key and
+                self.sse_customer_key_md5 == other.sse_customer_key_md5 and
+                self.request_payer == other.request_payer and
+                self.expected_bucket_owner == other.expected_bucket_owner
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'body',
+            'bucket',
+            'content_length',
+            'content_md5',
+            'checksum_algorithm',
+            'checksum_crc32',
+            'checksum_crc32c',
+            'checksum_crc64nvme',
+            'checksum_sha1',
+            'checksum_sha256',
+            'checksum_sha512',
+            'checksum_md5',
+            'checksum_xxhash64',
+            'checksum_xxhash3',
+            'checksum_xxhash128',
+            'key',
+            'part_number',
+            'upload_id',
+            'sse_customer_algorithm',
+            'sse_customer_key',
+            'sse_customer_key_md5',
+            'request_payer',
+            'expected_bucket_owner',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.body,
+                self.bucket,
+                self.content_length,
+                self.content_md5,
+                self.checksum_algorithm,
+                self.checksum_crc32,
+                self.checksum_crc32c,
+                self.checksum_crc64nvme,
+                self.checksum_sha1,
+                self.checksum_sha256,
+                self.checksum_sha512,
+                self.checksum_md5,
+                self.checksum_xxhash64,
+                self.checksum_xxhash3,
+                self.checksum_xxhash128,
+                self.key,
+                self.part_number,
+                self.upload_id,
+                self.sse_customer_algorithm,
+                self.sse_customer_key,
+                self.sse_customer_key_md5,
+                self.request_payer,
+                self.expected_bucket_owner,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            body: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            bucket: __dataclass__init__fields__02__annotation,
+            content_length: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            content_md5: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            checksum_algorithm: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            checksum_crc32: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            checksum_crc32c: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            checksum_crc64nvme: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            checksum_sha1: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            checksum_sha256: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            checksum_sha512: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            checksum_md5: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            checksum_xxhash64: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            checksum_xxhash3: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            checksum_xxhash128: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            key: __dataclass__init__fields__16__annotation,
+            part_number: __dataclass__init__fields__17__annotation,
+            upload_id: __dataclass__init__fields__18__annotation,
+            sse_customer_algorithm: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            sse_customer_key: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            sse_customer_key_md5: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            request_payer: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
+            expected_bucket_owner: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'body', body)
+            __dataclass__object_setattr(self, 'bucket', bucket)
+            __dataclass__object_setattr(self, 'content_length', content_length)
+            __dataclass__object_setattr(self, 'content_md5', content_md5)
+            __dataclass__object_setattr(self, 'checksum_algorithm', checksum_algorithm)
+            __dataclass__object_setattr(self, 'checksum_crc32', checksum_crc32)
+            __dataclass__object_setattr(self, 'checksum_crc32c', checksum_crc32c)
+            __dataclass__object_setattr(self, 'checksum_crc64nvme', checksum_crc64nvme)
+            __dataclass__object_setattr(self, 'checksum_sha1', checksum_sha1)
+            __dataclass__object_setattr(self, 'checksum_sha256', checksum_sha256)
+            __dataclass__object_setattr(self, 'checksum_sha512', checksum_sha512)
+            __dataclass__object_setattr(self, 'checksum_md5', checksum_md5)
+            __dataclass__object_setattr(self, 'checksum_xxhash64', checksum_xxhash64)
+            __dataclass__object_setattr(self, 'checksum_xxhash3', checksum_xxhash3)
+            __dataclass__object_setattr(self, 'checksum_xxhash128', checksum_xxhash128)
+            __dataclass__object_setattr(self, 'key', key)
+            __dataclass__object_setattr(self, 'part_number', part_number)
+            __dataclass__object_setattr(self, 'upload_id', upload_id)
+            __dataclass__object_setattr(self, 'sse_customer_algorithm', sse_customer_algorithm)
+            __dataclass__object_setattr(self, 'sse_customer_key', sse_customer_key)
+            __dataclass__object_setattr(self, 'sse_customer_key_md5', sse_customer_key_md5)
+            __dataclass__object_setattr(self, 'request_payer', request_payer)
+            __dataclass__object_setattr(self, 'expected_bucket_owner', expected_bucket_owner)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"body={self.body!r}")
+            parts.append(f"bucket={self.bucket!r}")
+            parts.append(f"content_length={self.content_length!r}")
+            parts.append(f"content_md5={self.content_md5!r}")
+            parts.append(f"checksum_algorithm={self.checksum_algorithm!r}")
+            parts.append(f"checksum_crc32={self.checksum_crc32!r}")
+            parts.append(f"checksum_crc32c={self.checksum_crc32c!r}")
+            parts.append(f"checksum_crc64nvme={self.checksum_crc64nvme!r}")
+            parts.append(f"checksum_sha1={self.checksum_sha1!r}")
+            parts.append(f"checksum_sha256={self.checksum_sha256!r}")
+            parts.append(f"checksum_sha512={self.checksum_sha512!r}")
+            parts.append(f"checksum_md5={self.checksum_md5!r}")
+            parts.append(f"checksum_xxhash64={self.checksum_xxhash64!r}")
+            parts.append(f"checksum_xxhash3={self.checksum_xxhash3!r}")
+            parts.append(f"checksum_xxhash128={self.checksum_xxhash128!r}")
+            parts.append(f"key={self.key!r}")
+            parts.append(f"part_number={self.part_number!r}")
+            parts.append(f"upload_id={self.upload_id!r}")
+            parts.append(f"sse_customer_algorithm={self.sse_customer_algorithm!r}")
+            parts.append(f"sse_customer_key={self.sse_customer_key!r}")
+            parts.append(f"sse_customer_key_md5={self.sse_customer_key_md5!r}")
+            parts.append(f"request_payer={self.request_payer!r}")
+            parts.append(f"expected_bucket_owner={self.expected_bucket_owner!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
