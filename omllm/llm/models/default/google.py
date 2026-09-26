@@ -7,6 +7,7 @@ import typing as ta
 from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
+from ...types.options import ReasoningEffort
 from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
@@ -24,6 +25,12 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Gemini 3 Flash Preview',
         backend='google-generative',
+        reasoning_efforts=frozenset({
+            ReasoningEffort.MINIMAL,
+            ReasoningEffort.LOW,
+            ReasoningEffort.MEDIUM,
+            ReasoningEffort.HIGH,
+        }),
         # Gemini 2.5+ prompt caching is implicit and needs no generation-request field. Explicit caching instead uses
         # separately managed cachedContents resources, which are intentionally outside request Options for now.
         cache=CacheCapabilities(

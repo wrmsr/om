@@ -151,8 +151,7 @@ class Session(
             input: str | agn.Message | ta.Sequence[agn.Message],  # noqa
     ) -> None:
         """
-        Queues input for the run in progress. Nothing in the ui routes here yet: a `/steer` command is to, which needs
-        the ui to dispatch commands while a turn runs rather than queue them behind it.
+        Queues input for the run in progress. The harness's `/steer` command exposes the same agent inbox directly.
         """
 
         self._agent.steer(input)

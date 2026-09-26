@@ -1,6 +1,5 @@
 import asyncio
 
-from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import lang
 
@@ -14,6 +13,7 @@ from ..config import Config
 from ..config import TargetCwd
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
+from ..setup import AgentInitializer
 from .input import InputManager
 from .input import bind_input
 from .output import bind_output
@@ -52,7 +52,6 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         configure_tui_logging(ui_id)
 
         agent = await injector[agn.Agent]
-        tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
         input_manager = await injector[InputManager]
         text_displayer = await injector[ui.TextDisplayer]
@@ -64,22 +63,10 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
 
-        await agent.update_state(
-            lambda state: dc.replace(
-                state,
-                context=dc.replace(
-                    state.context,
-                    system_prompt='\n\n'.join([
-                        f'Current working directory: {cwd}',
-                    ]),
-                    tools=tool_set,
-                ),
-                tool_env=agn.ToolEnvironment(
-                    cwd=cwd,
-                    processes=proc_scope,
-                ),
-            ),
-        )
+        await (await injector[AgentInitializer]).initialize(tool_env=agn.ToolEnvironment(
+            cwd=cwd,
+            processes=proc_scope,
+        ))
 
         if config.resume is not None:
             await display_transcript(await session.resume(), text_displayer)

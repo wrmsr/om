@@ -11,6 +11,7 @@ from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
 from ...tests.tools import bare_tool
 from ...types.contexts import Context
+from ...types.events import TurnEndEvent
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
@@ -41,7 +42,7 @@ def _calls(*ns):
     return tool_call_message(*[llm.ToolCall(f't{n}', 'act', {'n': n}) for n in ns])
 
 
-async def _run(backend, tools, inbox, *, config=None):
+async def _run(backend, tools, inbox, *, config=None, subscriber=None):
     loop = TurnLoop(
         new_messages=[llm.UserMessage('go')],
         config=config,
@@ -50,6 +51,7 @@ async def _run(backend, tools, inbox, *, config=None):
         group_runner=AsyncioGroupRunner(),
         llm_backend=backend,
         inbox=inbox,
+        subscriber=subscriber,
     )
     return await loop.run()
 
@@ -167,3 +169,44 @@ async def test_leftovers_wait_when_the_run_ends_short():
 
     assert result.reason is AgentEndReason.LENGTH
     assert [check.isinstance(m, llm.UserMessage).content for m in inbox.take_follow_ups()] == ['and then?']
+
+
+@pytest.mark.asyncs('asyncio')
+@pytest.mark.parametrize('max_turns', [None, 1])
+async def test_steering_during_final_text_is_consumed_unless_turn_limited(max_turns):
+    inbox = ListTurnInbox()
+    seen = []
+    backend = scripted_backend(
+        llm.BackendScriptTurn(
+            text_message('first'),
+            expect=lambda _: inbox.add_steering(llm.UserMessage('correction')),
+        ),
+        llm.BackendScriptTurn(text_message('corrected'), expect=lambda inv: seen.append(inv.context)),
+    )
+    result = await _run(backend, [], inbox, config=TurnConfig(max_turns=max_turns))
+    assert result.reason is AgentEndReason.COMPLETED
+    if max_turns is None:
+        assert 'correction' in str(seen[0].messages)
+        assert not inbox.has_steering()
+    else:
+        assert not seen
+        assert inbox.has_steering()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_steering_during_turn_end_still_reaches_this_prompt():
+    inbox = ListTurnInbox()
+    seen = []
+    backend = scripted_backend(
+        text_message('first'),
+        llm.BackendScriptTurn(text_message('corrected'), expect=lambda inv: seen.append(inv.context)),
+    )
+
+    def subscriber(event):
+        if isinstance(event, TurnEndEvent) and backend.invocations == 1:
+            inbox.add_steering(llm.UserMessage('correction'))
+
+    result = await _run(backend, [], inbox, subscriber=subscriber)
+    assert result.reason is AgentEndReason.COMPLETED
+    assert 'correction' in str(seen[0].messages)
+    assert not inbox.has_steering()

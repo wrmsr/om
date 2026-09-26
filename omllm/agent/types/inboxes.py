@@ -14,8 +14,9 @@ class TurnInbox(lang.Abstract):
     Messages which arrive while a run is in progress, held until the loop can take them.
 
     Steering is taken at the start of every turn - in practice, once the current tool batch has finished, or straight
-    away if a run is only just starting. Follow-ups are taken only when the model would otherwise have ended the run,
-    and extend it. Whatever is left when a run ends any other way waits for the next one.
+    away if a run is only just starting. Steering arriving during a final text response extends the run as well.
+    Follow-ups are taken only when the model would otherwise have ended the run, after pending steering. Whatever is
+    left when a run ends any other way waits for the next one.
     """
 
     @abc.abstractmethod

@@ -68,6 +68,7 @@ class Agent(
         self._state = State()
 
         self._running = False
+        self._prompting = False
 
         self._inbox = ListTurnInbox()
 
@@ -76,6 +77,12 @@ class Agent(
         """Whether a run, or an exclusive state update, is in progress."""
 
         return self._running
+
+    @property
+    def is_prompting(self) -> bool:
+        """Whether a prompt is active, excluding exclusive state updates and terminal event delivery."""
+
+        return self._prompting
 
     @property
     def state(self) -> State:
@@ -164,10 +171,16 @@ class Agent(
 
     #
 
+    async def _on_prompt_event(self, event: Event) -> None:
+        if isinstance(event, AgentEndEvent):
+            # A terminal publish may await subscribers, but the run can no longer consume input sent to its inbox.
+            self._prompting = False
+        await self._publish(event)
+
     async def _prompt(self, new_messages: ta.Sequence[Message]) -> TurnResult:
         in_state = self._state
 
-        capture = _TerminalEventCapture(self._publish)
+        capture = _TerminalEventCapture(self._on_prompt_event)
 
         try:
             result = await self._turn_runner.run_turn(TurnParams(
@@ -205,4 +218,8 @@ class Agent(
         async with self._exclusive():
             new_messages = self._coerce_messages(input)
 
-            return await self._prompt(new_messages)
+            self._prompting = True
+            try:
+                return await self._prompt(new_messages)
+            finally:
+                self._prompting = False

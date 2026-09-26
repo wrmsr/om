@@ -1920,7 +1920,7 @@ def _process_dataclass__bc02c695271bc73a188d8cf86151ad8ebdc355d9():
 
 
 @_register(
-    installer_sha1='f0acfc34177132e5691e6fa7cb1903196c74e4a3',
+    installer_sha1='310cc65a84bae9ea8451bfed57a5a0e20498bcd4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1929,41 +1929,47 @@ def _process_dataclass__bc02c695271bc73a188d8cf86151ad8ebdc355d9():
             "ne, False, False, False), (('name', True, True, None, True, True, False, None), 'instance', 'value', None,"
             " False, False, False), (('compat', True, True, None, True, True, False, None), 'instance', 'value', None, "
             "False, False, False), (('cache', True, True, None, True, True, False, None), 'instance', 'value', None, Fa"
-            "lse, False, False), (('limits', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
-            "se, False, False), (('pricing', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
-            "se, False, False), (('http', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('default_options', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), ("
-            "False,)))"
+            "lse, False, False), (('reasoning_efforts', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('reasoning_efforts_with_tools', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('limits', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('pricing', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('http', True, True, None, True, True, False, None), 'i"
+            "nstance', 'value', None, False, False, False), (('default_options', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), ("
+            "False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.llm.types.models', 'Model'),
     ),
 )
-def _process_dataclass__f0acfc34177132e5691e6fa7cb1903196c74e4a3():
+def _process_dataclass__310cc65a84bae9ea8451bfed57a5a0e20498bcd4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
         __dataclass__ctx,
         __dataclass__globals,
     ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
-        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
-        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
-        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
-        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
-        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
-        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
-        __dataclass__init__fields__8__annotation = __dataclass__spec.fields[8].annotation
-        __dataclass__init__fields__8__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -1980,6 +1986,8 @@ def _process_dataclass__f0acfc34177132e5691e6fa7cb1903196c74e4a3():
                 name=self.name,
                 compat=self.compat,
                 cache=self.cache,
+                reasoning_efforts=self.reasoning_efforts,
+                reasoning_efforts_with_tools=self.reasoning_efforts_with_tools,
                 limits=self.limits,
                 pricing=self.pricing,
                 http=self.http,
@@ -1999,6 +2007,8 @@ def _process_dataclass__f0acfc34177132e5691e6fa7cb1903196c74e4a3():
                 self.name == other.name and
                 self.compat == other.compat and
                 self.cache == other.cache and
+                self.reasoning_efforts == other.reasoning_efforts and
+                self.reasoning_efforts_with_tools == other.reasoning_efforts_with_tools and
                 self.limits == other.limits and
                 self.pricing == other.pricing and
                 self.http == other.http and
@@ -2013,6 +2023,8 @@ def _process_dataclass__f0acfc34177132e5691e6fa7cb1903196c74e4a3():
             'name',
             'compat',
             'cache',
+            'reasoning_efforts',
+            'reasoning_efforts_with_tools',
             'limits',
             'pricing',
             'http',
@@ -2046,6 +2058,8 @@ def _process_dataclass__f0acfc34177132e5691e6fa7cb1903196c74e4a3():
                 self.name,
                 self.compat,
                 self.cache,
+                self.reasoning_efforts,
+                self.reasoning_efforts_with_tools,
                 self.limits,
                 self.pricing,
                 self.http,
@@ -2057,21 +2071,25 @@ def _process_dataclass__f0acfc34177132e5691e6fa7cb1903196c74e4a3():
         def __init__(
             self,
             *,
-            key: __dataclass__init__fields__0__annotation,
-            backend: __dataclass__init__fields__1__annotation,
-            name: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            compat: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            cache: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            limits: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            pricing: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
-            http: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
-            default_options: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
+            key: __dataclass__init__fields__00__annotation,
+            backend: __dataclass__init__fields__01__annotation,
+            name: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            compat: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            cache: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            reasoning_efforts: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            reasoning_efforts_with_tools: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            limits: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            pricing: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            http: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            default_options: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'key', key)
             __dataclass__object_setattr(self, 'backend', backend)
             __dataclass__object_setattr(self, 'name', name)
             __dataclass__object_setattr(self, 'compat', compat)
             __dataclass__object_setattr(self, 'cache', cache)
+            __dataclass__object_setattr(self, 'reasoning_efforts', reasoning_efforts)
+            __dataclass__object_setattr(self, 'reasoning_efforts_with_tools', reasoning_efforts_with_tools)
             __dataclass__object_setattr(self, 'limits', limits)
             __dataclass__object_setattr(self, 'pricing', pricing)
             __dataclass__object_setattr(self, 'http', http)
@@ -2092,6 +2110,10 @@ def _process_dataclass__f0acfc34177132e5691e6fa7cb1903196c74e4a3():
                 parts.append(f"compat={s}")
             if (s := __dataclass__repr__default_fn(self.cache)) is not None:
                 parts.append(f"cache={s}")
+            if (s := __dataclass__repr__default_fn(self.reasoning_efforts)) is not None:
+                parts.append(f"reasoning_efforts={s}")
+            if (s := __dataclass__repr__default_fn(self.reasoning_efforts_with_tools)) is not None:
+                parts.append(f"reasoning_efforts_with_tools={s}")
             if (s := __dataclass__repr__default_fn(self.limits)) is not None:
                 parts.append(f"limits={s}")
             if (s := __dataclass__repr__default_fn(self.pricing)) is not None:
@@ -2627,24 +2649,25 @@ def _process_dataclass__f1940bdce2f09a064f1feae555b3d46ca457813e():
 
 
 @_register(
-    installer_sha1='bbccde3b52ad38ec46049d2a3a191c4c342e029f',
+    installer_sha1='d2ab7a668058a4fe241651d81e6f984e78cb900b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('ZERO', True, True, None, True, None, False, None), 'class_var', 'missing', No"
             "ne, False, False, False), (('max_tokens', True, True, None, True, True, False, None), 'instance', 'value',"
             " None, False, False, False), (('thinking', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('cache_key', True, True, None, True, True, False, None), 'instance', 'valu"
-            "e', None, False, False, False), (('cache_retention', True, True, None, True, True, False, None), 'instance"
-            "', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, "
-            "()), ((),), (), (False,)))"
+            ", None, False, False, False), (('reasoning_effort', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, True, False, False), (('cache_key', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False), (('cache_retention', True, True, None, True, True, False, None), '"
+            "instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False,"
+            " False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.llm.types.options', 'Options'),
     ),
 )
-def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
+def _process_dataclass__d2ab7a668058a4fe241651d81e6f984e78cb900b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2658,8 +2681,12 @@ def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__3__validate = __dataclass__spec.fields[3].validate
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__FieldFnValidationError = __dataclass__globals['__dataclass__FieldFnValidationError']
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -2672,6 +2699,7 @@ def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
             return __class__(  # noqa
                 max_tokens=self.max_tokens,
                 thinking=self.thinking,
+                reasoning_effort=self.reasoning_effort,
                 cache_key=self.cache_key,
                 cache_retention=self.cache_retention,
             )
@@ -2686,6 +2714,7 @@ def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
             return (
                 self.max_tokens == other.max_tokens and
                 self.thinking == other.thinking and
+                self.reasoning_effort == other.reasoning_effort and
                 self.cache_key == other.cache_key and
                 self.cache_retention == other.cache_retention
             )
@@ -2696,6 +2725,7 @@ def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
             'ZERO',
             'max_tokens',
             'thinking',
+            'reasoning_effort',
             'cache_key',
             'cache_retention',
         }
@@ -2724,6 +2754,7 @@ def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
             return hash((
                 self.max_tokens,
                 self.thinking,
+                self.reasoning_effort,
                 self.cache_key,
                 self.cache_retention,
             ))
@@ -2735,11 +2766,20 @@ def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
             *,
             max_tokens: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             thinking: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            cache_key: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            cache_retention: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            reasoning_effort: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            cache_key: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            cache_retention: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
+            if not __dataclass__init__fields__3__validate(reasoning_effort): 
+                raise __dataclass__FieldFnValidationError(
+                    obj=self,
+                    fn=__dataclass__init__fields__3__validate,
+                    field='reasoning_effort',
+                    value=reasoning_effort,
+                )
             __dataclass__object_setattr(self, 'max_tokens', max_tokens)
             __dataclass__object_setattr(self, 'thinking', thinking)
+            __dataclass__object_setattr(self, 'reasoning_effort', reasoning_effort)
             __dataclass__object_setattr(self, 'cache_key', cache_key)
             __dataclass__object_setattr(self, 'cache_retention', cache_retention)
 
@@ -2750,6 +2790,7 @@ def _process_dataclass__bbccde3b52ad38ec46049d2a3a191c4c342e029f():
             parts = []
             parts.append(f"max_tokens={self.max_tokens!r}")
             parts.append(f"thinking={self.thinking!r}")
+            parts.append(f"reasoning_effort={self.reasoning_effort!r}")
             parts.append(f"cache_key={self.cache_key!r}")
             parts.append(f"cache_retention={self.cache_retention!r}")
             return (

@@ -9,6 +9,7 @@ from ...types.models import Model
 from ...types.models import ModelKey
 from ...types.options import CacheRetention
 from ...types.options import Options
+from ...types.options import ReasoningEffort
 from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
@@ -18,6 +19,14 @@ from ..modeldb import modeldb_token_pricing
 
 
 _BASE_URL = 'https://api.anthropic.com/v1'
+
+_REASONING_EFFORTS = frozenset({
+    ReasoningEffort.LOW,
+    ReasoningEffort.MEDIUM,
+    ReasoningEffort.HIGH,
+    ReasoningEffort.XHIGH,
+    ReasoningEffort.MAX,
+})
 
 _DEFAULT_HTTP = Model.Http(
     base_url=_BASE_URL,
@@ -36,6 +45,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Claude Fable 5.1',
         backend='anthropic-messages',
+        reasoning_efforts=_REASONING_EFFORTS,
         cache=CacheCapabilities(
             control_style='anthropic',
             retentions=frozenset({
@@ -58,6 +68,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Claude Opus 5.5',
         backend='anthropic-messages',
+        reasoning_efforts=_REASONING_EFFORTS,
         cache=CacheCapabilities(
             control_style='anthropic',
             retentions=frozenset({
@@ -80,6 +91,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Claude Sonnet 5',
         backend='anthropic-messages',
+        reasoning_efforts=_REASONING_EFFORTS,
         cache=CacheCapabilities(
             control_style='anthropic',
             retentions=frozenset({

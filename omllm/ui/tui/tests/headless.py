@@ -16,6 +16,7 @@ from ....core import ui
 from ..config import Config
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
+from ..setup import AgentInitializer
 
 
 ##
@@ -76,21 +77,12 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
     ) as injector:
         # What a frontend's main does with its injector, short of running anything on a terminal.
         agent = await injector[agn.Agent]
-        tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
 
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
 
-        await agent.update_state(
-            lambda state: dc.replace(
-                state,
-                context=dc.replace(
-                    state.context,
-                    tools=tool_set,
-                ),
-            ),
-        )
+        await (await injector[AgentInitializer]).initialize()
 
         config = await injector[Config]
         if config.resume is not None:

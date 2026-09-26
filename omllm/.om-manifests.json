@@ -108,7 +108,7 @@
     "module": ".agent.web.backends.duckduckgo.search",
     "attr": null,
     "file": "omllm/agent/web/backends/duckduckgo/search.py",
-    "line": 16,
+    "line": 37,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.agent.web.backends.duckduckgo.search",
@@ -367,7 +367,7 @@
     "module": ".llm.models.default.anthropic",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/anthropic.py",
-    "line": 123,
+    "line": 135,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -427,7 +427,7 @@
     "module": ".llm.models.default.google",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/google.py",
-    "line": 42,
+    "line": 49,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -493,7 +493,7 @@
     "module": ".llm.models.default.openai",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/default/openai.py",
-    "line": 142,
+    "line": 159,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [

@@ -13,6 +13,7 @@ from ....types.messages import AiMessage
 from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
+from ....types.models import validate_reasoning_effort
 from ....types.options import CacheRetention
 from ....types.options import Options
 
@@ -87,7 +88,12 @@ class RequestPreparer:
         if self._options.max_tokens is not None:
             raw_request['max_tokens'] = self._options.max_tokens
 
-        if self._options.thinking:
+        effort = self._options.reasoning_effort
+        if effort is not None:
+            validate_reasoning_effort(self._model, effort, with_tools=bool(self._context.tools))
+            raw_request['output_config'] = {'effort': effort.value}
+
+        if self._options.thinking or (effort is not None and self._options.thinking is None):
             raw_request['thinking'] = {'type': 'adaptive'}
 
         self._add_cache_options(raw_request)

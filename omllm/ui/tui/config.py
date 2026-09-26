@@ -7,6 +7,8 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore import typedvalues as tv
 
+from ... import llm
+
 
 with lang.auto_proxy_import(globals()):
     import argparse
@@ -24,6 +26,13 @@ class TargetCwd(tv.UniqueScalarTypedValue[str], final=True):
 @dc.dataclass(frozen=True, kw_only=True)
 class Config:
     model: str | None = None
+
+    effort: llm.ReasoningEffort | None = None
+    thinking: bool | None = None
+
+    system_prompt: str | None = None
+    skills_dirs: lang.SequenceNotStr[str] | None = None
+    no_skills: bool = False
 
     cwd: str | None = None
     container: str | None = None
@@ -54,6 +63,11 @@ class Config:
     @classmethod
     def configure_argument_parser(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         parser.add_argument('-m', '--model')
+        parser.add_argument('--effort', type=llm.ReasoningEffort, choices=list(llm.ReasoningEffort))
+        parser.add_argument('--thinking', action=argparse.BooleanOptionalAction, default=None)
+        parser.add_argument('--system-prompt', help='Additional host-supplied system instructions')
+        parser.add_argument('--skills-dir', dest='skills_dirs', action='append', help='Host skills root; repeatable')
+        parser.add_argument('--no-skills', action='store_true')
 
         parser.add_argument('-C', '--cwd')
         parser.add_argument('--container')
@@ -85,6 +99,11 @@ class Config:
     def build_kwargs_from_parsed_arguments(cls, args: argparse.Namespace) -> dict[str, ta.Any]:
         return dict(
             model=args.model,
+            effort=args.effort,
+            thinking=args.thinking,
+            system_prompt=args.system_prompt,
+            skills_dirs=args.skills_dirs,
+            no_skills=args.no_skills,
 
             cwd=args.cwd,
             container=args.container,

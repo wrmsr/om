@@ -28,7 +28,11 @@ def bind_backends(config: Config) -> inj.Elements:
             backend_cls = llm.ScriptedStreamBackend
 
         backend = backend_cls(
-            llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted'),
+            llm.Model(
+                key=llm.ModelKey('scripted', 'scripted'),
+                backend='scripted',
+                reasoning_efforts=frozenset(llm.ReasoningEffort),
+            ),
         )
 
     else:

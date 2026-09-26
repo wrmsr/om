@@ -32,37 +32,42 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='91680b877508bcce8412bc28c1a9fea3377090be',
+    installer_sha1='be44221c7b9ca0c2f91c7972392911375a7f76cf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('model', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('cwd', True, True, None, True, True, False, None), 'instance', 'value', None, Fa"
-            "lse, False, False), (('container', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('eval', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
-            "se, False, False), (('exec', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('allow_ripgrep_execs', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False), (('fs', True, True, None, True, True, False, None), 'instance', 'value', None,"
-            " False, False, False), (('allow_fs_reads', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', No"
-            "ne, False, False, False), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),)"
-            ", (), (False,)))"
+            ", False, False, False), (('effort', True, True, None, True, True, False, None), 'instance', 'value', None,"
+            " False, False, False), (('thinking', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('system_prompt', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('skills_dirs', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('no_skills', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('cwd', True, True, None, True, True, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('container', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('eval', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('exec', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('allow_ripgrep_execs', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False), (('fs', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('allow_fs_reads', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False), (('web', True, True, None, True, True, False, None), 'instance',"
+            " 'value', None, False, False, False), (('url', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('backend_model_id', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('in_memory', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('jsonl', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('resume', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False"
+            ", ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
+def _process_dataclass__be44221c7b9ca0c2f91c7972392911375a7f76cf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -105,6 +110,16 @@ def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
         __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
         __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
         __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
+        __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
+        __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
+        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
+        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
+        __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
+        __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
+        __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -116,6 +131,11 @@ def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
                 raise TypeError(self)
             return __class__(  # noqa
                 model=self.model,
+                effort=self.effort,
+                thinking=self.thinking,
+                system_prompt=self.system_prompt,
+                skills_dirs=self.skills_dirs,
+                no_skills=self.no_skills,
                 cwd=self.cwd,
                 container=self.container,
                 eval=self.eval,
@@ -144,6 +164,11 @@ def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
                 return NotImplemented
             return (
                 self.model == other.model and
+                self.effort == other.effort and
+                self.thinking == other.thinking and
+                self.system_prompt == other.system_prompt and
+                self.skills_dirs == other.skills_dirs and
+                self.no_skills == other.no_skills and
                 self.cwd == other.cwd and
                 self.container == other.container and
                 self.eval == other.eval and
@@ -167,6 +192,11 @@ def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
 
         __dataclass___frozen_fields = {
             'model',
+            'effort',
+            'thinking',
+            'system_prompt',
+            'skills_dirs',
+            'no_skills',
             'cwd',
             'container',
             'eval',
@@ -209,6 +239,11 @@ def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
         def __hash__(self):
             return hash((
                 self.model,
+                self.effort,
+                self.thinking,
+                self.system_prompt,
+                self.skills_dirs,
+                self.no_skills,
                 self.cwd,
                 self.container,
                 self.eval,
@@ -234,25 +269,35 @@ def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
             self,
             *,
             model: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
-            cwd: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
-            container: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
-            eval: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
-            exec: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
-            allow_ripgrep_execs: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
-            fs: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
-            allow_fs_reads: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            web: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            url: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            backend_model_id: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            in_memory: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            jsonl: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            resume: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            autoexec: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
-            immediate: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
-            verbose: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
-            yolo: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            effort: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            thinking: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            system_prompt: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            skills_dirs: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            no_skills: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            cwd: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            container: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            eval: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            exec: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            allow_ripgrep_execs: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            fs: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            allow_fs_reads: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            web: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            url: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            backend_model_id: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            in_memory: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            jsonl: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            resume: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            autoexec: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            immediate: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            verbose: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            yolo: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
+            __dataclass__object_setattr(self, 'effort', effort)
+            __dataclass__object_setattr(self, 'thinking', thinking)
+            __dataclass__object_setattr(self, 'system_prompt', system_prompt)
+            __dataclass__object_setattr(self, 'skills_dirs', skills_dirs)
+            __dataclass__object_setattr(self, 'no_skills', no_skills)
             __dataclass__object_setattr(self, 'cwd', cwd)
             __dataclass__object_setattr(self, 'container', container)
             __dataclass__object_setattr(self, 'eval', eval)
@@ -277,6 +322,11 @@ def _process_dataclass__91680b877508bcce8412bc28c1a9fea3377090be():
         def __repr__(self):
             parts = []
             parts.append(f"model={self.model!r}")
+            parts.append(f"effort={self.effort!r}")
+            parts.append(f"thinking={self.thinking!r}")
+            parts.append(f"system_prompt={self.system_prompt!r}")
+            parts.append(f"skills_dirs={self.skills_dirs!r}")
+            parts.append(f"no_skills={self.no_skills!r}")
             parts.append(f"cwd={self.cwd!r}")
             parts.append(f"container={self.container!r}")
             parts.append(f"eval={self.eval!r}")

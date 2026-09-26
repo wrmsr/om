@@ -65,6 +65,7 @@ async def test_prompt_returns_result_and_applies_state():
     assert result.reason is AgentEndReason.COMPLETED
     assert _message_types(agent) == [llm.UserMessage, llm.AiMessage]
     assert not agent.is_running
+    assert not agent.is_prompting
 
     # The next prompt builds on the last.
     await agent.prompt('more')
@@ -95,12 +96,14 @@ async def test_cancelled_prompt_raises_and_still_applies_state():
     task = asyncio.create_task(agent.prompt('hi'))
     await backend.started.wait()
     assert agent.is_running
+    assert agent.is_prompting
 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
 
     assert not agent.is_running
+    assert not agent.is_prompting
     assert _message_types(agent) == [llm.UserMessage, InfoAgentMessage]
     assert agent.state.context.messages[-1].info == 'Turn cancelled.'
     assert len(updates) == 1
@@ -126,6 +129,8 @@ async def test_state_is_applied_when_a_cancel_lands_in_a_later_subscriber():
 
     task = asyncio.create_task(agent.prompt('hi'))
     await stalling.stalled.wait()
+    assert agent.is_running
+    assert not agent.is_prompting
     task.cancel()
 
     # The terminal publish is shielded: the cancellation waits for the subscriber rather than being thrown into it.

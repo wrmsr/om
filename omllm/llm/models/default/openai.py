@@ -8,6 +8,7 @@ from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
 from ...types.options import CacheRetention
+from ...types.options import ReasoningEffort
 from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
@@ -17,6 +18,15 @@ from ..modeldb import modeldb_token_pricing
 
 
 _BASE_URL = 'https://api.openai.com/v1'
+
+_REASONING_EFFORTS = frozenset({
+    ReasoningEffort.NONE,
+    ReasoningEffort.LOW,
+    ReasoningEffort.MEDIUM,
+    ReasoningEffort.HIGH,
+    ReasoningEffort.XHIGH,
+    ReasoningEffort.MAX,
+})
 
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
@@ -31,6 +41,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT 6 Astra',
         backend='openai-responses',
+        reasoning_efforts=_REASONING_EFFORTS - {ReasoningEffort.NONE},
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({
@@ -52,6 +63,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT 6 Sol',
         backend='openai-responses',
+        reasoning_efforts=_REASONING_EFFORTS,
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({
@@ -73,6 +85,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT 6 Luna',
         backend='openai-responses',
+        reasoning_efforts=_REASONING_EFFORTS,
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({
@@ -97,6 +110,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT 5.6 Terra',
         backend='openai-responses',
+        reasoning_efforts=_REASONING_EFFORTS,
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({
@@ -121,6 +135,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT 5.4 Nano',
         backend='openai-completions',
+        reasoning_efforts=_REASONING_EFFORTS - {ReasoningEffort.MAX},
+        # This endpoint rejects function tools combined with non-none effort (verified against the live API).
+        reasoning_efforts_with_tools=frozenset({ReasoningEffort.NONE}),
         cache=CacheCapabilities(
             control_style='openai_legacy',
             retentions=frozenset({

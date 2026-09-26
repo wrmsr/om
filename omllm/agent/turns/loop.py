@@ -510,18 +510,14 @@ class TurnLoop:
         elif not tool_calls:
             # Tool calls are executed on their presence, not on the stop reason: a provider reporting a plain stop
             # alongside calls still expects their results on the next request.
-            if (
-                    self._can_continue() and
-                    self._inbox is not None and
-                    (follow_ups := self._inbox.take_follow_ups())
-            ):
-                # The model was done, but the user was not.
-                await self._append(*follow_ups)
-
-                end_reason = None
-
-            else:
-                end_reason = AgentEndReason.COMPLETED
+            end_reason = AgentEndReason.COMPLETED
+            if self._can_continue() and self._inbox is not None:
+                if self._inbox.has_steering():
+                    # Taken at the top of the next turn, ahead of any queued follow-up.
+                    end_reason = None
+                elif follow_ups := self._inbox.take_follow_ups():
+                    await self._append(*follow_ups)
+                    end_reason = None
 
         elif not self._can_continue():
             await self._append(*self._unexecuted_tool_call_results('the turn limit was reached'))
@@ -534,6 +530,16 @@ class TurnLoop:
             end_reason = None
 
         await self._publish_turn_end(message)
+
+        # A subscriber may have suspended while publishing the final text's turn end. Steering received before the
+        # prompt closes still belongs to this run, even if the model itself had already finished.
+        if (
+                end_reason is AgentEndReason.COMPLETED and
+                self._can_continue() and
+                self._inbox is not None and
+                self._inbox.has_steering()
+        ):
+            return None
 
         return end_reason
 

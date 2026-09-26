@@ -15,6 +15,7 @@ from ....types.messages import AiMessage
 from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
+from ....types.models import validate_reasoning_effort
 from ....types.options import CacheRetention
 from ....types.options import Options
 
@@ -109,6 +110,10 @@ class RequestPreparer:
             raw_request[self._compat.max_tokens_field or 'max_completion_tokens'] = self._options.max_tokens
 
         self._add_cache_options(raw_request)
+
+        if (effort := self._options.reasoning_effort) is not None:
+            validate_reasoning_effort(self._model, effort, with_tools=bool(self._context.tools))
+            raw_request['reasoning_effort'] = effort.value
 
         #
 
