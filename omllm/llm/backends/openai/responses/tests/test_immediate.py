@@ -4,17 +4,17 @@ from omcore import lang
 from omcore.http import all as http
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.openai import RESPONSES_TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.options import Options
 from ..immediate import OpenaiResponsesImmediateBackend
 
 
 class TestOpenaiBackend:
     @pytest.fixture(params=[
-        (ModelKey('openai', 'gpt-6-luna'), 'openai_api_key'),
+        (RESPONSES_TEST_MODEL_KEY, 'openai_api_key'),
     ])
     def model(self, request):
         return request.param
@@ -31,7 +31,7 @@ class TestOpenaiBackend:
         model_key, api_key_name = model
 
         svc = OpenaiResponsesImmediateBackend(
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 
@@ -58,7 +58,7 @@ class TestOpenaiBackend:
         model_key, api_key_name = model
 
         svc = OpenaiResponsesImmediateBackend(
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
             http_client=http.SyncAsyncHttpClient(http.client()),
         )

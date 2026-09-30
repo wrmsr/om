@@ -8,8 +8,8 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
-from .....types.models import ModelKey
+from .....models.providers import provider_model_catalog
+from .....models.providers.openai import RESPONSES_TEST_MODEL_KEY
 from .....types.options import CacheRetention
 from .....types.options import Options
 from ....tests import caching
@@ -26,7 +26,7 @@ _MIN_CACHEABLE_PROMPT_TOKENS = 1024
 @pytest.mark.timeout(180)
 async def test_openai_prompt_caching(harness):
     svc = OpenaiResponsesImmediateBackend(
-        default_model_catalog()[ModelKey('openai', 'gpt-6-luna')],  # noqa
+        provider_model_catalog()[RESPONSES_TEST_MODEL_KEY],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('openai_api_key'),
     )
 

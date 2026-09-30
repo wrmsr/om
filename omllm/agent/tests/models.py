@@ -1,6 +1,9 @@
 import typing as ta
 
 from ... import llm
+from ...llm.models.providers.anthropic import TEST_MODEL_KEY as ANTHROPIC_TEST_MODEL_KEY
+from ...llm.models.providers.google import TEST_MODEL_KEY as GOOGLE_TEST_API_KEY
+from ...llm.models.providers.openai import COMPLETIONS_TEST_MODEL_KEY as OPENAI_TEST_MODEL_KEY
 
 
 ##
@@ -13,19 +16,19 @@ class ModelForTest(ta.NamedTuple):
 
 
 OPENAI = ModelForTest(
-    llm.ModelKey('openai', 'gpt-5.4-nano'),
+    OPENAI_TEST_MODEL_KEY,
     'openai_api_key',
     llm.OpenaiCompletionsStreamBackend,
 )
 
 ANTHROPIC = ModelForTest(
-    llm.ModelKey('anthropic', 'claude-sonnet-5'),
+    ANTHROPIC_TEST_MODEL_KEY,
     'anthropic_api_key',
     llm.AnthropicMessagesStreamBackend,
 )
 
 GOOGLE = ModelForTest(
-    llm.ModelKey('google', 'gemini-3-flash-preview'),
+    GOOGLE_TEST_API_KEY,
     'gemini_api_key',
     llm.GoogleGenerativeStreamBackend,
 )

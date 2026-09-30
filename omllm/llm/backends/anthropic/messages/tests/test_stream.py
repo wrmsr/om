@@ -2,11 +2,11 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.anthropic import TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import AiMessage
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.options import Options
 from ..stream import AnthropicMessagesStreamBackend
 
@@ -14,12 +14,12 @@ from ..stream import AnthropicMessagesStreamBackend
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.online
 async def test_anthropic_chat_stream_model_async(harness):
-    model = (ModelKey('anthropic', 'claude-sonnet-5'), 'anthropic_api_key')
+    model = (TEST_MODEL_KEY, 'anthropic_api_key')
 
     model_key, api_key_name = model
 
     svc = AnthropicMessagesStreamBackend(
-        default_model_catalog()[model_key],  # noqa
+        provider_model_catalog()[model_key],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
     )
 

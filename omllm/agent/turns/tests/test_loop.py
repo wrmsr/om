@@ -243,7 +243,7 @@ async def _test_loop(
         model: ModelForTest,
 ) -> None:
     svc = model.stream_backend_cls(
-        llm.default_model_catalog()[model.model_key],  # noqa
+        llm.provider_model_catalog()[model.model_key],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
     )
 
@@ -285,7 +285,7 @@ async def test_loop_google(harness):
 
 async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
     svc = model.stream_backend_cls(
-        llm.default_model_catalog()[model.model_key],  # noqa
+        llm.provider_model_catalog()[model.model_key],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
     )
 

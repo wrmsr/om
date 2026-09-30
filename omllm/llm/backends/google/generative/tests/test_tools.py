@@ -4,14 +4,14 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.google import TEST_MODEL_KEY
 from .....types.backends import ImmediateBackend
 from .....types.content import TextContent
 from .....types.content import ToolCall
 from .....types.context import Context
 from .....types.messages import ToolResultMessage
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.tools import Tool
 from .....types.tools import ToolDtype
 from .....types.tools import ToolParam
@@ -34,10 +34,10 @@ async def test_google_tools(
         harness,
         svc_cls,
 ):
-    model_key, api_key_name = (ModelKey('google', 'gemini-3-flash-preview'), 'gemini_api_key')
+    model_key, api_key_name = (TEST_MODEL_KEY, 'gemini_api_key')
 
-    svc: ImmediateBackend = svc_cls(
-        default_model_catalog()[model_key],  # noqa
+    svc: ImmediateBackend = svc_cls(  # noqa
+        provider_model_catalog()[model_key],
         api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
     )
 

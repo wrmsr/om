@@ -3,14 +3,14 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
-from .....types.models import ModelKey
+from .....models.providers import provider_model_catalog
+from .....models.providers.google import TEST_MODEL_KEY
 from ....tests import caching
 from ..immediate import GoogleGenerativeImmediateBackend
 
 
-# Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all
-# google-online tests serialize onto one worker.
+# Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all google-online tests
+# serialize onto one worker.
 pytestmark = pytest.mark.xdist_group('google-online')
 
 
@@ -24,12 +24,12 @@ _MIN_ASSERTED_CACHED_TOKENS = 1024
 @pytest.mark.timeout(180)
 async def test_google_prompt_caching(harness):
     svc = GoogleGenerativeImmediateBackend(
-        default_model_catalog()[ModelKey('google', 'gemini-3-flash-preview')],  # noqa
+        provider_model_catalog()[TEST_MODEL_KEY],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('gemini_api_key'),
     )
 
-    # Gemini 2.5+ caching is implicit with no request controls at all - Options stay None - and best-effort, so the
-    # hit steps may retry until a hit is reported. Only cache reads are reported - there is no write count.
+    # Gemini 2.5+ caching is implicit with no request controls at all - Options stay None - and best-effort, so the hit
+    # steps may retry until a hit is reported. Only cache reads are reported - there is no write count.
     usages = await caching.run_caching_scenario(
         svc,
         None,
@@ -41,10 +41,9 @@ async def test_google_prompt_caching(harness):
 
     prime, full, partial = usages.prime, usages.full, usages.partial
 
-    # Gemini's implicit cache is best-effort with no client-side controls at all, and under load it sometimes
-    # declines to hit for an entire scenario - every attempt of every step reporting no cached count whatsoever.
-    # That environmental blackout is distinguishable from a plumbing regression by its totality, and skips rather
-    # than fails.
+    # Gemini's implicit cache is best-effort with no client-side controls at all, and under load it sometimes declines
+    # to hit for an entire scenario - every attempt of every step reporting no cached count whatsoever. That
+    # environmental blackout is distinguishable from a plumbing regression by its totality, and skips rather than fails.
     if full.cache_read is None and partial.cache_read is None:
         pytest.skip('gemini implicit cache reported no hits at all')
 

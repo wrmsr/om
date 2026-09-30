@@ -5,7 +5,23 @@ from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import lang
 
-from .. import llm
+from ..types.models import ModelKey
+
+
+##
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class DefaultModel:
+    name: str
+    aliases: lang.SequenceNotStr | None = None
+
+    key: ModelKey
+
+    api_key_name: str | None = None
+
+    include_platforms: ta.AbstractSet[str] | None = None
+    exclude_platforms: ta.AbstractSet[str] | None = None
 
 
 ##
@@ -14,160 +30,147 @@ from .. import llm
 DEFAULT_MODEL_NAME: ta.Final = 'gpt'
 
 
-@dc.dataclass(frozen=True, kw_only=True)
-class Model:
-    name: str
-    aliases: lang.SequenceNotStr | None = None
-
-    key: llm.ModelKey
-
-    api_key_name: str | None = None
-
-    include_platforms: ta.AbstractSet[str] | None = None
-    exclude_platforms: ta.AbstractSet[str] | None = None
-
-
-ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
+ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
 
     ##
     # anthropic
 
-    Model(
+    DefaultModel(
         name='claude-fable',
-        key=llm.ModelKey('anthropic', 'claude-fable-5.1'),
+        key=ModelKey('anthropic', 'claude-fable-5.1'),
         api_key_name='anthropic_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='claude-opus',
-        key=llm.ModelKey('anthropic', 'claude-opus-5.5'),
+        key=ModelKey('anthropic', 'claude-opus-5.5'),
         api_key_name='anthropic_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='claude-sonnet',
         aliases=['claude'],
-        key=llm.ModelKey('anthropic', 'claude-sonnet-5'),
+        key=ModelKey('anthropic', 'claude-sonnet-5-5'),
         api_key_name='anthropic_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='claude-haiku',
-        key=llm.ModelKey('anthropic', 'claude-haiku-4-5-20251001'),
+        key=ModelKey('anthropic', 'claude-haiku-4-5-20251001'),
         api_key_name='anthropic_api_key',
     ),
 
     ##
     # cerebras
 
-    Model(
+    DefaultModel(
         name='cerebras-gpt',
         aliases=['cerebras'],
-        key=llm.ModelKey('cerebras', 'gpt-oss-120b'),
+        key=ModelKey('cerebras', 'gpt-oss-120b'),
         api_key_name='cerebras_api_key',
     ),
 
     ##
     # google
 
-    Model(
+    DefaultModel(
         name='gemini-flash',
         aliases=['google'],
-        key=llm.ModelKey('google', 'gemini-3-flash-preview'),
+        key=ModelKey('google', 'gemini-3.8-flash'),
         api_key_name='gemini_api_key',
     ),
 
     ##
     # groq
 
-    Model(
+    DefaultModel(
         name='groq',
-        key=llm.ModelKey('groq', 'openai/gpt-oss-120b'),
+        key=ModelKey('groq', 'openai/gpt-oss-120b'),
         api_key_name='groq_api_key',
     ),
 
     ##
     # ollama
 
-    Model(
+    DefaultModel(
         name='ollama-qwen',
         aliases=['qwen'],
-        key=llm.ModelKey('ollama', 'qwen3.8:27b'),
+        key=ModelKey('ollama', 'qwen3.8:27b'),
         exclude_platforms={'darwin'},
     ),
 
-    Model(
+    DefaultModel(
         name='ollama-qwen',
         aliases=['qwen'],
-        key=llm.ModelKey('ollama', 'qwen3.8:27b-mlx'),
+        key=ModelKey('ollama', 'qwen3.8:27b-mlx'),
         include_platforms={'darwin'},
     ),
 
     ##
     # openai
 
-    Model(
+    DefaultModel(
         name='gpt-sol',
-        key=llm.ModelKey('openai', 'gpt-6-sol'),
+        key=ModelKey('openai', 'gpt-6.1-sol'),
         api_key_name='openai_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='gpt-terra',
-        key=llm.ModelKey('openai', 'gpt-5.6-terra'),
+        key=ModelKey('openai', 'gpt-5.6-terra'),
         api_key_name='openai_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='gpt-luna',
         aliases=['gpt'],
-        key=llm.ModelKey('openai', 'gpt-6-luna'),
+        key=ModelKey('openai', 'gpt-6-luna'),
         api_key_name='openai_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='gpt-nano',
-        key=llm.ModelKey('openai', 'gpt-5.4-nano'),
+        key=ModelKey('openai', 'gpt-5.4-nano'),
         api_key_name='openai_api_key',
     ),
 
     ##
     # openrouter
 
-    Model(
+    DefaultModel(
         name='deepseek-pro',
-        key=llm.ModelKey('openrouter', 'deepseek/deepseek-v4-pro-0813'),
+        key=ModelKey('openrouter', 'deepseek/deepseek-v4-pro-0813'),
         api_key_name='openrouter_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='deepseek-flash',
         aliases=['deepseek'],
-        key=llm.ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'),
+        key=ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'),
         api_key_name='openrouter_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='kimi',
-        key=llm.ModelKey('openrouter', 'moonshotai/kimi-k3'),
+        key=ModelKey('openrouter', 'moonshotai/kimi-k3'),
         api_key_name='openrouter_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='glm',
-        key=llm.ModelKey('openrouter', 'z-ai/glm-5.3'),
+        key=ModelKey('openrouter', 'z-ai/glm-5.3'),
         api_key_name='openrouter_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='ling',
-        key=llm.ModelKey('openrouter', 'inclusionai/ling-3.0-flash'),
+        key=ModelKey('openrouter', 'inclusionai/ling-3.0-flash'),
         api_key_name='openrouter_api_key',
     ),
 
-    Model(
+    DefaultModel(
         name='mercury',
-        key=llm.ModelKey('openrouter', 'inception/mercury-2.5'),
+        key=ModelKey('openrouter', 'inception/mercury-2.5'),
         api_key_name='openrouter_api_key',
     ),
 
@@ -178,16 +181,16 @@ ALL_MODELS: ta.Final[ta.Sequence[Model]] = [
 
 
 @lang.cached_function
-def models_by_name(
+def default_models_by_name(
         *,
         platform: str | None = None,
-) -> ta.Mapping[str, Model]:
+) -> ta.Mapping[str, DefaultModel]:
     if platform is None:
         platform = sys.platform
 
     return col.make_map((
         (n, m)
-        for m in ALL_MODELS
+        for m in ALL_DEFAULT_MODELS
         if (ip := m.include_platforms) is None or platform in ip
         if (ep := m.exclude_platforms) is None or platform not in ep
         for n in [m.name, *(m.aliases or [])]

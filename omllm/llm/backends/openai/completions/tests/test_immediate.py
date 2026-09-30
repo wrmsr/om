@@ -4,7 +4,8 @@ from omcore import lang
 from omcore.http import all as http
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import UserMessage
 from .....types.models import ModelKey
@@ -25,7 +26,7 @@ class BaseBackendTest:
         model_key, api_key_name = model
 
         svc = OpenaiCompletionsImmediateBackend(
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
         )
 
@@ -52,7 +53,7 @@ class BaseBackendTest:
         model_key, api_key_name = model
 
         svc = OpenaiCompletionsImmediateBackend(
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
             http_client=http.SyncAsyncHttpClient(http.client()),
         )
@@ -71,14 +72,14 @@ class BaseBackendTest:
 
 class TestOpenaiBackend(BaseBackendTest):
     @pytest.fixture(params=[
-        (ModelKey('openai', 'gpt-5.4-nano'), 'openai_api_key'),
+        (COMPLETIONS_TEST_MODEL_KEY, 'openai_api_key'),
     ])
     def model(self, request):
         return request.param
 
 
-# Openrouter routes across upstream providers of varying speed - an uncapped generation can exceed the default
-# per-test timeout on a slow one.
+# Openrouter routes across upstream providers of varying speed - an uncapped generation can exceed the default per-test
+# timeout on a slow one.
 @pytest.mark.timeout(180)
 class TestOpenrouterBackend(BaseBackendTest):
     @pytest.fixture(params=[
@@ -109,7 +110,7 @@ class TestOllamaBackend(BaseBackendTest):
         (ModelKey('ollama', 'qwen3.5:2b'), None),
     ])
     def model(self, request):
-        from .....models.default.ollama import _BASE_URL
+        from .....models.providers.ollama import _BASE_URL
 
         try:
             http.request(_BASE_URL)

@@ -20,7 +20,7 @@ with lang.auto_proxy_import(globals()):
 
 
 @lang.cached_function(lock=True)
-def default_models() -> ta.Sequence[Model]:
+def provider_models() -> ta.Sequence[Model]:
     return [
         *anthropic.MODELS,
         *cerebras.MODELS,
@@ -33,5 +33,5 @@ def default_models() -> ta.Sequence[Model]:
 
 
 @lang.cached_function(lock=True)
-def default_model_catalog() -> ModelCatalog:
-    return ModelCatalog(default_models())
+def provider_model_catalog() -> ModelCatalog:
+    return ModelCatalog(provider_models())

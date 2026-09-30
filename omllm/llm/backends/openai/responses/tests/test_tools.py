@@ -4,7 +4,8 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.openai import RESPONSES_TEST_MODEL_KEY
 from .....types.backends import ImmediateBackend
 from .....types.content import TextContent
 from .....types.content import ThinkingContent
@@ -12,7 +13,6 @@ from .....types.content import ToolCall
 from .....types.context import Context
 from .....types.messages import ToolResultMessage
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.options import Options
 from .....types.tools import Tool
 from .....types.tools import ToolDtype
@@ -23,7 +23,7 @@ from ..stream import OpenaiResponsesStreamBackend
 
 class TestOpenaiTools:
     @pytest.fixture(params=[
-        (ModelKey('openai', 'gpt-6-luna'), 'openai_api_key'),
+        (RESPONSES_TEST_MODEL_KEY, 'openai_api_key'),
     ])
     def model(self, request):
         return request.param
@@ -45,7 +45,7 @@ class TestOpenaiTools:
         model_key, api_key_name = model
 
         svc: ImmediateBackend = svc_cls(  # noqa
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 

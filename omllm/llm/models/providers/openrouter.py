@@ -100,6 +100,21 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
     ),
 
+    Model(
+        key=ModelKey(
+            provider='openrouter',
+            id='z-ai/glm-5.3-flash',
+        ),
+        name='GLM 5.3 Flash',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'z-ai/glm-5.3-flash'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
     ##
     # ling
 
@@ -131,6 +146,42 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         compat=_COMPAT,
         cache=_CACHE,
         limits=modeldb_model_limits('openrouter', 'inception/mercury-2.5'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    ##
+    # mimo
+
+    Model(
+        key=ModelKey(
+            provider='openrouter',
+            id='xiaomi/mimo-v2.6-pro',
+        ),
+        name='MiMo 2.6 Pro',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'xiaomi/mimo-v2.6-pro'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    ##
+    # qwen
+
+    Model(
+        key=ModelKey(
+            provider='openrouter',
+            id='qwen/qwen3.8-flash',
+        ),
+        name='Qwen 3.8 Flash',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'qwen/qwen3.8-flash'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),

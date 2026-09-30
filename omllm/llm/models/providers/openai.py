@@ -48,9 +48,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='openai',
-            id='gpt-6-sol',
+            id='gpt-6.1-sol',
         ),
-        name='GPT 6 Sol',
+        name='GPT 6.1 Sol',
         backend='openai-responses',
         cache=CacheCapabilities(
             control_style='openai_ttl',
@@ -59,18 +59,18 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             }),
             key=True,
         ),
-        limits=modeldb_model_limits('openai', 'gpt-6-sol'),
-        pricing=modeldb_token_pricing('openai', 'gpt-6-sol'),
+        limits=modeldb_model_limits('openai', 'gpt-6.1-sol'),
+        pricing=modeldb_token_pricing('openai', 'gpt-6.1-sol'),
         http=Model.Http(
             base_url=_BASE_URL,
         ),
     ),
 
     Model(
-        key=ModelKey(
+        key=(RESPONSES_TEST_MODEL_KEY := ModelKey(
             provider='openai',
             id='gpt-6-luna',
-        ),
+        )),
         name='GPT 6 Luna',
         backend='openai-responses',
         cache=CacheCapabilities(
@@ -115,10 +115,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     # 5.4
 
     Model(
-        key=ModelKey(
+        key=(COMPLETIONS_TEST_MODEL_KEY := ModelKey(
             provider='openai',
             id='gpt-5.4-nano',
-        ),
+        )),
         name='GPT 5.4 Nano',
         backend='openai-completions',
         cache=CacheCapabilities(

@@ -74,11 +74,11 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     Model(
-        key=ModelKey(
+        key=(TEST_MODEL_KEY := ModelKey(
             provider='anthropic',
-            id='claude-sonnet-5',
-        ),
-        name='Claude Sonnet 5',
+            id='claude-sonnet-5-5',
+        )),
+        name='Claude Sonnet 5.5',
         backend='anthropic-messages',
         cache=CacheCapabilities(
             control_style='anthropic',
@@ -87,8 +87,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
-        limits=modeldb_model_limits('anthropic', 'claude-sonnet-5'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-sonnet-5'),
+        limits=modeldb_model_limits('anthropic', 'claude-sonnet-5-5'),
+        pricing=modeldb_token_pricing('anthropic', 'claude-sonnet-5-5'),
         http=_DEFAULT_HTTP,
         default_options=Options(
             max_tokens=128000,

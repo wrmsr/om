@@ -81,9 +81,18 @@ with _lang.auto_proxy_init(
         ModelCatalog,
     )
 
-    from .models.default import (  # noqa
-        default_models,
-        default_model_catalog,
+    from .models.defaults import (  # noqa
+        DefaultModel,
+
+        DEFAULT_MODEL_NAME,
+        ALL_DEFAULT_MODELS,
+
+        default_models_by_name,
+    )
+
+    from .models.providers import (  # noqa
+        provider_models,
+        provider_model_catalog,
     )
 
     from .models.modeldb import (  # noqa

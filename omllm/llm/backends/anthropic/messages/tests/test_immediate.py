@@ -2,10 +2,10 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.anthropic import TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.options import Options
 from ..immediate import AnthropicMessagesImmediateBackend
 
@@ -23,7 +23,7 @@ class BaseBackendTest:
         model_key, api_key_name = model
 
         svc = AnthropicMessagesImmediateBackend(
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 
@@ -44,7 +44,7 @@ class BaseBackendTest:
 
 class TestAnthropicBackend(BaseBackendTest):
     @pytest.fixture(params=[
-        (ModelKey('anthropic', 'claude-sonnet-5'), 'anthropic_api_key'),
+        (TEST_MODEL_KEY, 'anthropic_api_key'),
     ])
     def model(self, request):
         return request.param

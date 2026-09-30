@@ -7,7 +7,8 @@ from omcore.formats.json import all as json
 from omcore.http import all as http
 from omcore.secrets import all as sec
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.openai import RESPONSES_TEST_MODEL_KEY
 from .....types.content import TextContent
 from .....types.content import ThinkingContent
 from .....types.content import ToolCall
@@ -17,7 +18,6 @@ from .....types.messages import AiMessage
 from .....types.messages import ToolResultMessage
 from .....types.messages import UserMessage
 from .....types.models import CacheCapabilities
-from .....types.models import ModelKey
 from .....types.options import CacheRetention
 from .....types.options import Options
 from ....scripted.http import ScriptedHttpError
@@ -33,7 +33,7 @@ from ..stream import OpenaiResponsesStreamBackend
 
 
 def _model():
-    return default_model_catalog()[ModelKey('openai', 'gpt-6-luna')]
+    return provider_model_catalog()[RESPONSES_TEST_MODEL_KEY]
 
 
 def _api_key():
@@ -172,8 +172,8 @@ def test_unsigned_replay_request_translation():
 
     raw_input = RequestPreparer(_model(), context).raw_request()['input']
 
-    # Unsigned thinking cannot be represented and is dropped; unsigned text downgrades to a plain assistant message;
-    # an unsigned tool call replays without item identity.
+    # Unsigned thinking cannot be represented and is dropped; unsigned text downgrades to a plain assistant message; an
+    # unsigned tool call replays without item identity.
     assert raw_input == [
         {'role': 'user', 'content': [{'type': 'input_text', 'text': 'hello'}]},
         {'role': 'assistant', 'content': [{'type': 'output_text', 'text': 'answer'}]},

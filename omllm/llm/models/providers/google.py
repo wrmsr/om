@@ -18,19 +18,19 @@ from ..modeldb import modeldb_token_pricing
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
     Model(
-        key=ModelKey(
+        key=(TEST_MODEL_KEY := ModelKey(
             provider='google',
-            id='gemini-3-flash-preview',
-        ),
-        name='Gemini 3 Flash Preview',
+            id='gemini-3.8-flash',
+        )),
+        name='Gemini 3.8 Flash',
         backend='google-generative',
         # Gemini 2.5+ prompt caching is implicit and needs no generation-request field. Explicit caching instead uses
         # separately managed cachedContents resources, which are intentionally outside request Options for now.
         cache=CacheCapabilities(
             control_style='google_implicit',
         ),
-        limits=modeldb_model_limits('google', 'gemini-3-flash-preview'),
-        pricing=modeldb_token_pricing('google', 'gemini-3-flash-preview'),
+        limits=modeldb_model_limits('google', 'gemini-3.8-flash'),
+        pricing=modeldb_token_pricing('google', 'gemini-3.8-flash'),
         http=Model.Http(
             base_url='https://generativelanguage.googleapis.com/v1beta',
         ),

@@ -2,16 +2,16 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.google import TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.options import Options
 from ..immediate import GoogleGenerativeImmediateBackend
 
 
-# Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all
-# google-online tests serialize onto one worker.
+# Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all google-online tests
+# serialize onto one worker.
 pytestmark = pytest.mark.xdist_group('google-online')
 
 
@@ -28,7 +28,7 @@ class BaseBackendTest:
         model_key, api_key_name = model
 
         svc = GoogleGenerativeImmediateBackend(
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 
@@ -49,7 +49,7 @@ class BaseBackendTest:
 
 class TestGoogleBackend(BaseBackendTest):
     @pytest.fixture(params=[
-        (ModelKey('google', 'gemini-3-flash-preview'), 'gemini_api_key'),
+        (TEST_MODEL_KEY, 'gemini_api_key'),
     ])
     def model(self, request):
         return request.param

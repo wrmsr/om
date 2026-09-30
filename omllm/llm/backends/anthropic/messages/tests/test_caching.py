@@ -3,8 +3,8 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
-from .....types.models import ModelKey
+from .....models.providers import provider_model_catalog
+from .....models.providers.anthropic import TEST_MODEL_KEY
 from .....types.options import CacheRetention
 from .....types.options import Options
 from ....tests import caching
@@ -16,7 +16,7 @@ from ..immediate import AnthropicMessagesImmediateBackend
 @pytest.mark.timeout(180)
 async def test_anthropic_prompt_caching(harness):
     svc = AnthropicMessagesImmediateBackend(
-        default_model_catalog()[ModelKey('anthropic', 'claude-sonnet-5')],  # noqa
+        provider_model_catalog()[TEST_MODEL_KEY],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('anthropic_api_key'),
     )
 

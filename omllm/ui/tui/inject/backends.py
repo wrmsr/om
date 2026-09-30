@@ -7,8 +7,6 @@ from omdev.home.secrets import load_secrets
 from .... import agent as agn
 from .... import llm
 from ....core import registry as reg
-from ...models import DEFAULT_MODEL_NAME
-from ...models import models_by_name
 from ..config import Config
 
 
@@ -20,7 +18,7 @@ def bind_backends(config: Config) -> inj.Elements:
 
     backend_cls: ta.Any
     backend: ta.Any
-    if (config.model or DEFAULT_MODEL_NAME) == 'scripted':
+    if (config.model or llm.DEFAULT_MODEL_NAME) == 'scripted':
         # Offline development / testing: the scripted backend's built-in canned responses, no keys or network.
         if config.immediate:
             backend_cls = llm.ScriptedImmediateBackend
@@ -32,8 +30,8 @@ def bind_backends(config: Config) -> inj.Elements:
         )
 
     else:
-        model = models_by_name()[config.model or DEFAULT_MODEL_NAME]
-        llm_model = llm.default_model_catalog()[model.key]
+        model = llm.default_models_by_name()[config.model or llm.DEFAULT_MODEL_NAME]
+        llm_model = llm.provider_model_catalog()[model.key]
         api_key_name = model.api_key_name
 
         if config.immediate:

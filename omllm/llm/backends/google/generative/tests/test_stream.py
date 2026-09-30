@@ -2,29 +2,29 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.google import TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import AiMessage
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.options import Options
 from ..stream import GoogleGenerativeStreamBackend
 
 
-# Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all
-# google-online tests serialize onto one worker.
+# Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all google-online tests
+# serialize onto one worker.
 pytestmark = pytest.mark.xdist_group('google-online')
 
 
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.online
 async def test_google_chat_stream_model_async(harness):
-    model = (ModelKey('google', 'gemini-3-flash-preview'), 'gemini_api_key')
+    model = (TEST_MODEL_KEY, 'gemini_api_key')
 
     model_key, api_key_name = model
 
     svc = GoogleGenerativeStreamBackend(
-        default_model_catalog()[model_key],  # noqa
+        provider_model_catalog()[model_key],  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
     )
 

@@ -364,9 +364,9 @@
     }
   },
   {
-    "module": ".llm.models.default.anthropic",
+    "module": ".llm.models.providers.anthropic",
     "attr": "_MANIFEST",
-    "file": "omllm/llm/models/default/anthropic.py",
+    "file": "omllm/llm/models/providers/anthropic.py",
     "line": 123,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
@@ -385,8 +385,8 @@
           },
           {
             "provider": "anthropic",
-            "id": "claude-sonnet-5",
-            "name": "Claude Sonnet 5",
+            "id": "claude-sonnet-5-5",
+            "name": "Claude Sonnet 5.5",
             "backend": "anthropic-messages"
           },
           {
@@ -400,9 +400,9 @@
     }
   },
   {
-    "module": ".llm.models.default.cerebras",
+    "module": ".llm.models.providers.cerebras",
     "attr": "_MANIFEST",
-    "file": "omllm/llm/models/default/cerebras.py",
+    "file": "omllm/llm/models/providers/cerebras.py",
     "line": 56,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
@@ -424,17 +424,17 @@
     }
   },
   {
-    "module": ".llm.models.default.google",
+    "module": ".llm.models.providers.google",
     "attr": "_MANIFEST",
-    "file": "omllm/llm/models/default/google.py",
+    "file": "omllm/llm/models/providers/google.py",
     "line": 42,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "google",
-            "id": "gemini-3-flash-preview",
-            "name": "Gemini 3 Flash Preview",
+            "id": "gemini-3.8-flash",
+            "name": "Gemini 3.8 Flash",
             "backend": "google-generative"
           }
         ]
@@ -442,9 +442,9 @@
     }
   },
   {
-    "module": ".llm.models.default.groq",
+    "module": ".llm.models.providers.groq",
     "attr": "_MANIFEST",
-    "file": "omllm/llm/models/default/groq.py",
+    "file": "omllm/llm/models/providers/groq.py",
     "line": 39,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
@@ -460,9 +460,9 @@
     }
   },
   {
-    "module": ".llm.models.default.ollama",
+    "module": ".llm.models.providers.ollama",
     "attr": "_MANIFEST",
-    "file": "omllm/llm/models/default/ollama.py",
+    "file": "omllm/llm/models/providers/ollama.py",
     "line": 68,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
@@ -490,9 +490,9 @@
     }
   },
   {
-    "module": ".llm.models.default.openai",
+    "module": ".llm.models.providers.openai",
     "attr": "_MANIFEST",
-    "file": "omllm/llm/models/default/openai.py",
+    "file": "omllm/llm/models/providers/openai.py",
     "line": 142,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
@@ -505,8 +505,8 @@
           },
           {
             "provider": "openai",
-            "id": "gpt-6-sol",
-            "name": "GPT 6 Sol",
+            "id": "gpt-6.1-sol",
+            "name": "GPT 6.1 Sol",
             "backend": "openai-responses"
           },
           {
@@ -532,10 +532,10 @@
     }
   },
   {
-    "module": ".llm.models.default.openrouter",
+    "module": ".llm.models.providers.openrouter",
     "attr": "_MANIFEST",
-    "file": "omllm/llm/models/default/openrouter.py",
-    "line": 142,
+    "file": "omllm/llm/models/providers/openrouter.py",
+    "line": 193,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -565,6 +565,12 @@
           },
           {
             "provider": "openrouter",
+            "id": "z-ai/glm-5.3-flash",
+            "name": "GLM 5.3 Flash",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "openrouter",
             "id": "inclusionai/ling-3.0-flash",
             "name": "Ling 3.0 Flash",
             "backend": "openai-completions"
@@ -573,6 +579,18 @@
             "provider": "openrouter",
             "id": "inception/mercury-2.5",
             "name": "Mercury 2.5",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "openrouter",
+            "id": "xiaomi/mimo-v2.6-pro",
+            "name": "MiMo 2.6 Pro",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "openrouter",
+            "id": "qwen/qwen3.8-flash",
+            "name": "Qwen 3.8 Flash",
             "backend": "openai-completions"
           }
         ]

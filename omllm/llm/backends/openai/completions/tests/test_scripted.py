@@ -7,7 +7,8 @@ from omcore.formats.json import all as json
 from omcore.http import all as http
 from omcore.secrets import all as sec
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
 from .....types.content import TextContent
 from .....types.content import ThinkingContent
 from .....types.content import ToolCall
@@ -15,7 +16,6 @@ from .....types.context import Context
 from .....types.errors import TransientBackendError
 from .....types.messages import UserMessage
 from .....types.models import CacheCapabilities
-from .....types.models import ModelKey
 from .....types.options import CacheRetention
 from .....types.options import Options
 from ....scripted.http import ScriptedHttpError
@@ -30,7 +30,7 @@ from ..stream import OpenaiCompletionsStreamBackend
 
 
 def _model():
-    return default_model_catalog()[ModelKey('openai', 'gpt-5.4-nano')]
+    return provider_model_catalog()[COMPLETIONS_TEST_MODEL_KEY]
 
 
 def _api_key():

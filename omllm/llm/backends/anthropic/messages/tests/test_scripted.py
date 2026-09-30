@@ -6,13 +6,13 @@ from omcore.formats.json import all as json
 from omcore.http import all as http
 from omcore.secrets import all as sec
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.anthropic import TEST_MODEL_KEY
 from .....types.content import TextContent
 from .....types.content import ThinkingContent
 from .....types.content import ToolCall
 from .....types.context import Context
 from .....types.messages import UserMessage
-from .....types.models import ModelKey
 from .....types.options import CacheRetention
 from .....types.options import Options
 from ....scripted.http import ScriptedHttpResponse
@@ -23,7 +23,7 @@ from ..stream import AnthropicMessagesStreamBackend
 
 
 def _model():
-    return default_model_catalog()[ModelKey('anthropic', 'claude-sonnet-5')]
+    return provider_model_catalog()[TEST_MODEL_KEY]
 
 
 def _api_key():

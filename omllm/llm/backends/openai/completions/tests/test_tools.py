@@ -5,7 +5,8 @@ from omcore import dataclasses as dc
 from omcore.http import all as http
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.default import default_model_catalog
+from .....models.providers import provider_model_catalog
+from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
 from .....types.backends import ImmediateBackend
 from .....types.content import TextContent
 from .....types.content import ToolCall
@@ -36,7 +37,7 @@ class BaseToolsTest:
         model_key, api_key_name = model
 
         svc: ImmediateBackend = svc_cls(  # noqa
-            default_model_catalog()[model_key],  # noqa
+            provider_model_catalog()[model_key],  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 
@@ -83,7 +84,7 @@ class BaseToolsTest:
 
 class TestOpenaiTools(BaseToolsTest):
     @pytest.fixture(params=[
-        (ModelKey('openai', 'gpt-5.4-nano'), 'openai_api_key'),
+        (COMPLETIONS_TEST_MODEL_KEY, 'openai_api_key'),
     ])
     def model(self, request):
         return request.param
@@ -110,7 +111,7 @@ class TestOllamaTools(BaseToolsTest):
         (ModelKey('ollama', 'qwen3.5:2b'), None),
     ])
     def model(self, request):
-        from .....models.default.ollama import _BASE_URL
+        from .....models.providers.ollama import _BASE_URL
 
         try:
             http.request(_BASE_URL)
