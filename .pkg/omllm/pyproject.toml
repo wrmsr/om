@@ -40,7 +40,7 @@ interop = [
     'tinygrad ~= 0.14',
     'torch ~= 2.14',
     'triton ~= 3.8; sys_platform == "linux"',
-    'transformers ~= 5.17',
+    'transformers ~= 5.18',
 ]
 search = [
     'ddgs ~= 9.16',
@@ -55,7 +55,7 @@ all = [
     'tinygrad ~= 0.14',
     'torch ~= 2.14',
     'triton ~= 3.8; sys_platform == "linux"',
-    'transformers ~= 5.17',
+    'transformers ~= 5.18',
     'ddgs ~= 9.16',
 ]
 

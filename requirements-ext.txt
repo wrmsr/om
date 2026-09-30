@@ -19,8 +19,8 @@ google-cloud-compute==1.54.0
 
 matplotlib==3.11.2
 
-torch==2.14.0
-torchvision==0.29.0
+torch==2.14.1
+torchvision==0.29.1
 # torchcodec==0.7.0
 
 diffusers==0.40.0  # @om-venv !14t !14dt !15t
@@ -58,7 +58,7 @@ basedpyright==1.40.1
 
 blobfile==3.3.0
 
-pydantic-monty==0.0.23
+pydantic-monty==1.0.0
 
 
 ##

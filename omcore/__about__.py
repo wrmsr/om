@@ -89,7 +89,7 @@ class Project(ProjectBase):
         ],
 
         'sqlalchemy': [
-            'sqlalchemy[asyncio] ~= 2.0',
+            'sqlalchemy[asyncio] ~= 2.1',
         ],
 
         'sqldrivers': [

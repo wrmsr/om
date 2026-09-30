@@ -63,7 +63,7 @@ secrets = [
     'pynacl ~= 1.6',
 ]
 sqlalchemy = [
-    'sqlalchemy[asyncio] ~= 2.0',
+    'sqlalchemy[asyncio] ~= 2.1',
 ]
 sqldrivers = [
     'pg8000 ~= 1.31',
@@ -125,7 +125,7 @@ all = [
     'asn1crypto ~= 1.5',
     'cryptography ~= 50.0',
     'pynacl ~= 1.6',
-    'sqlalchemy[asyncio] ~= 2.0',
+    'sqlalchemy[asyncio] ~= 2.1',
     'pg8000 ~= 1.31',
     'psycopg2 ~= 2.9',
     'psycopg ~= 3.3',
