@@ -24,7 +24,7 @@ brotli==1.2.0  # !! USES_GIL - https://github.com/google/brotli/commit/51be27dbd
 
 ### db:
 
-sqlalchemy[asyncio]==2.1.1
+sqlalchemy[asyncio]==2.1.2
 
 ## sql
 
@@ -57,7 +57,7 @@ cloudpickle==3.1.2
 
 ## other
 
-cbor2==6.1.4
+cbor2==6.1.5
 
 # msgpack
 

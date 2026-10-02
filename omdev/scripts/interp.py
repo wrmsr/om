@@ -94,7 +94,7 @@ def __om_amalg__():  # noqa
             dict(path='pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
             dict(path='providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
-            dict(path='pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
+            dict(path='pyenv/provider.py', sha1='5f67d16ef12e21499a65017d5432a1e76e9fe522'),
             dict(path='uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
             dict(path='pyenv/inject.py', sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b'),
             dict(path='inject.py', sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143'),
@@ -6576,7 +6576,7 @@ class PyenvInterpProvider(InterpProvider):
         lst = await self._get_installable_versions(spec)
 
         if self._options.try_update and not any(v in spec for v in lst):
-            if self._pyenv.update():
+            if await self._pyenv.update():
                 lst = await self._get_installable_versions(spec)
 
         return lst

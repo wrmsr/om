@@ -125,7 +125,7 @@ class PyenvInterpProvider(InterpProvider):
         lst = await self._get_installable_versions(spec)
 
         if self._options.try_update and not any(v in spec for v in lst):
-            if self._pyenv.update():
+            if await self._pyenv.update():
                 lst = await self._get_installable_versions(spec)
 
         return lst

@@ -1,4 +1,4 @@
-FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
+FROM ubuntu:24.04@sha256:a853f94d226358a79c740cfc7bce0c289748f3fe3488d921d038ccd752c61b60
 
 
 ## locale
@@ -476,7 +476,7 @@ done ;\
 RUN \
   --mount=target=/om/.pyenv_cache,type=cache,sharing=locked,uid=4317,gid=4317 \
 ( \
-export PYENV_VERSIONS='3.8.20 3.13.15 3.14.7 3.14.7t 3.15.0rc2 3.15.0rc2t' ;\
+export PYENV_VERSIONS='3.8.20 3.13.16 3.14.8 3.14.8t 3.15.0rc2 3.15.0rc2t' ;\
 \
 set -ex ;\
 umask 0002 ;\

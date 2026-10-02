@@ -27,6 +27,7 @@ def gen_class_dot(roots: ta.Iterable[type]) -> dot.Graph:
         for base in cur.__bases__:
             if issubclass(base, root_tup):
                 stmts.append(dot.Edge(str(id(base)), str(id(cur))))
+        sub: ta.Any
         for sub in cur.__subclasses__():
             if issubclass(sub, root_tup):
                 if sub not in seen:

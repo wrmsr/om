@@ -22,7 +22,7 @@ class Project(ProjectBase):
             'llama-cpp-python ~= 0.3',
 
             'mlx ~= 0.32; sys_platform == "darwin"',
-            'mlx-lm ~= 0.31; sys_platform == "darwin"',
+            'mlx-lm ~= 0.32; sys_platform == "darwin"',
 
             'numpy ~= 2.5',
 

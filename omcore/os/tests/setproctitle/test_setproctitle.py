@@ -92,7 +92,7 @@ print(os.popen("lsappinfo find name=QwErTyZxCvB 2> /dev/null").read())
 def test_prctl():
     """Check that prctl is called on supported platforms."""
 
-    linux_version = []
+    linux_version: list = []
     if sys.platform in ('linux', 'linux2'):
         try:
             f = os.popen('uname -r')  # noqa

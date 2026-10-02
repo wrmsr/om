@@ -37,7 +37,7 @@ class Project(ProjectBase):
         ],
 
         'mypy': [
-            'mypy ~= 2.3',
+            'mypy ~= 2.4',
         ],
 
         'ocr': [

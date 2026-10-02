@@ -1,4 +1,4 @@
-FROM python:3.14.7-trixie
+FROM python:3.14.8-trixie
 
 RUN ( \
   rm -f /etc/apt/apt.conf.d/docker-clean && \

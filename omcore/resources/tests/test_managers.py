@@ -149,6 +149,6 @@ async def test_async_exit_keyed():
         assert arc2.state == 'exited'
         assert rc.state == 'entered'  # type: ignore[unreachable]
 
-    assert arc.state == 'exited'  # type: ignore[unreachable]
+    assert arc.state == 'exited'
     assert arc2.state == 'exited'
     assert rc.state == 'exited'

@@ -205,7 +205,7 @@ class Outcome(Abstract, ta.Generic[ValueT_co]):
 class Value(Outcome[ValueT_co], ta.Generic[ValueT_co]):
     """Concrete :class:`Outcome` subclass representing a regular value."""
 
-    _value: ValueT_co  # type: ignore[misc]  # FIXME: Cannot use a covariant type variable as a parameter
+    _value: ValueT_co
 
     def __repr__(self) -> str:
         return f'Value({self._value!r})'

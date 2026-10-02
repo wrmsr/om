@@ -188,7 +188,7 @@ def __om_amalg__():  # noqa
             dict(path='system/commands.py', sha1='53e4480c1d8288aded3682191f6c2f9765412c65'),
             dict(path='system/config.py', sha1='fd1ebc2cf36fd312ff69d1af100a7e9c638f1fcc'),
             dict(path='../../omdev/interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
-            dict(path='../../omdev/interp/pyenv/provider.py', sha1='2d9ef6be0b9dd151361a6e8604a682fa74f9920c'),
+            dict(path='../../omdev/interp/pyenv/provider.py', sha1='5f67d16ef12e21499a65017d5432a1e76e9fe522'),
             dict(path='../../omdev/interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
             dict(path='bootstrap.py', sha1='e66138947a41e8a49576885cf4b1390315d44f88'),
             dict(path='system/inject.py', sha1='0e7370ec9926baca33e62183a10d4e1ad476a6a1'),
@@ -18836,7 +18836,7 @@ class PyenvInterpProvider(InterpProvider):
         lst = await self._get_installable_versions(spec)
 
         if self._options.try_update and not any(v in spec for v in lst):
-            if self._pyenv.update():
+            if await self._pyenv.update():
                 lst = await self._get_installable_versions(spec)
 
         return lst
