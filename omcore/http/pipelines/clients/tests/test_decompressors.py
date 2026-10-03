@@ -17,6 +17,10 @@ from .....io.pipelines.yielding import NeverIoPipelineYieldPolicy
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
+from ...compression.codings import IoPipelineHttpCompressionCodingUnavailableError
+from ...compression.codings import IoPipelineHttpDecompressionError
+from ...compression.codings import IoPiplineHttpDecompressorCoding
+from ...compression.decompressors import IoPipelineHttpDecompressionBudgetError
 from ...compression.decompressors import IoPipelineHttpDecompressionConfig
 from ...responses import IoPipelineHttpResponseAborted
 from ...responses import IoPipelineHttpResponseBodyData
@@ -407,11 +411,29 @@ class TestGzipDecompressorFlow(unittest.TestCase):
             dfl = check.isinstance(out, IoPipelineMessages.Defer)
             channel.run_deferred(dfl)
 
-        [out_head, *out_data, out_err] = ibq.drain()
+        [out_head, *out_data, out_aborted] = ibq.drain()
         self.assertIs(self.head, out_head)
-        err = check.isinstance(out_err, IoPipelineMessages.Error)
-        self.assertIsInstance(err.exc, ValueError)
-        self.assertIn('expansion ratio exceeds limit', repr(err.exc))
+        aborted = check.isinstance(out_aborted, IoPipelineHttpResponseAborted)
+        self.assertIsInstance(aborted.reason, IoPipelineHttpDecompressionBudgetError)
+        self.assertIn('expansion ratio exceeds limit', aborted.reason_str)
+
+        # The rest of the bomb is discarded, and the stage is clean for the next message.
+        channel.feed_in(IoPipelineHttpResponseBodyData(bomb_data))
+        channel.feed_in(IoPipelineHttpResponseEnd())
+        run_deferred_work(channel)
+        self.assertEqual(ibq.drain(), [])
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'fine')))
+        channel.feed_in(end := IoPipelineHttpResponseEnd())
+        run_deferred_work(channel)
+        [out_head, out_body, out_end] = ibq.drain()
+        self.assertIs(out_head, self.head)
+        self.assertEqual(
+            ByteStreamBuffers.to_bytes(check.isinstance(out_body, IoPipelineHttpResponseBodyData).data, strict=True),
+            b'fine',
+        )
+        self.assertIs(out_end, end)
 
     # def test_manual_read_backpressure_with_defer(self):
     #     """Test that manual read (auto_read=False) correctly stalls the defer loop."""
@@ -573,9 +595,11 @@ class TestGzipDecompressorStreamIntegrity(unittest.TestCase):
         channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'first-member-') + b'JUNKJUNKJUNK'))
         channel.feed_in(end)
 
-        messages = ibq.drain()
-        self.assertNotIn(end, messages)
-        check.isinstance(messages[-1], IoPipelineHttpResponseAborted)
+        [out_head, out_body, out_aborted] = ibq.drain()
+        self.assertIs(out_head, self.head)
+        self.assertEqual(self._body_bytes([out_body]), b'first-member-')
+        aborted = check.isinstance(out_aborted, IoPipelineHttpResponseAborted)
+        self.assertIn('after end of compressed stream', aborted.reason_str)
 
     _IGNORE_TRAILING: ta.ClassVar[IoPipelineHttpDecompressionConfig] = dc.replace(
         IoPipelineHttpDecompressionConfig.DEFAULT,
@@ -621,6 +645,206 @@ class TestGzipDecompressorStreamIntegrity(unittest.TestCase):
         self.assertNotIn(end, messages)
         aborted = check.isinstance(messages[-1], IoPipelineHttpResponseAborted)
         self.assertIn('truncated', aborted.reason_str)
+
+
+class UnavailableDecompressorCoding(IoPiplineHttpDecompressorCoding):
+    def __init__(self) -> None:
+        super().__init__()
+
+        raise IoPipelineHttpCompressionCodingUnavailableError('nope')
+
+    def decompress(self, data, max_bytes=None, /):
+        raise NotImplementedError
+
+    def needs_input(self):
+        raise NotImplementedError
+
+    def eof(self):
+        raise NotImplementedError
+
+    def unused_data(self):
+        raise NotImplementedError
+
+
+class TestGzipDecompressorAborts(unittest.TestCase):
+    """A bad body aborts its message and nothing more: the stage must come out clean, ready for the next one."""
+
+    head = IoPipelineHttpResponseHead(
+        status=200,
+        reason='OK',
+        headers=HttpHeaders({'content-encoding': 'gzip'}),
+    )
+
+    def _new(self, config=IoPipelineHttpDecompressionConfig.DEFAULT, codings=None):
+        handler = IoPipelineHttpResponseDecompressor(codings, config)
+        channel = IoPipeline.new([
+            handler,
+            ibq := InboundQueueIoPipelineHandler(),
+        ])
+        return handler, channel, ibq
+
+    def _assert_next_message_decodes(self, channel, ibq):
+        head = IoPipelineHttpResponseHead(
+            status=200,
+            reason='OK',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'next message')))
+        channel.feed_in(end)
+        run_deferred_work(channel)
+
+        [out_head, out_body, out_end] = ibq.drain()
+        self.assertIs(out_head, head)
+        self.assertEqual(
+            ByteStreamBuffers.to_bytes(check.isinstance(out_body, IoPipelineHttpResponseBodyData).data, strict=True),
+            b'next message',
+        )
+        self.assertIs(out_end, end)
+
+    def test_junk_body_aborts_immediately_and_discards_rest_of_message(self):
+        handler, channel, ibq = self._new()
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(b'JUNKJUNKJUNK'))
+
+        # The abort surfaces as the message's own representation, never as a raw pipeline Error.
+        [out_head, out_aborted] = ibq.drain()
+        self.assertIs(out_head, self.head)
+        aborted = check.isinstance(out_aborted, IoPipelineHttpResponseAborted)
+        self.assertIsInstance(aborted.reason, IoPipelineHttpDecompressionError)
+        self.assertIsNone(handler._decompressor)
+
+        # Upstream is still framing the message - none of the rest of it may leak through, least of all as plaintext.
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'would be plaintext')))
+        channel.feed_in(end)
+        self.assertEqual(ibq.drain(), [])
+
+        self._assert_next_message_decodes(channel, ibq)
+
+    def test_bad_trailer_aborts(self):
+        data = bytearray(gzip_bytes(b'a body whose crc does not match' * 8))
+        data[-5] ^= 0xFF  # inside the crc32
+        handler, channel, ibq = self._new()
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(bytes(data)))
+        channel.feed_in(end)
+
+        messages = ibq.drain()
+        self.assertIs(messages[0], self.head)
+        self.assertNotIn(end, messages)
+        aborted = check.isinstance(messages[-1], IoPipelineHttpResponseAborted)
+        self.assertIsInstance(aborted.reason, IoPipelineHttpDecompressionError)
+        self.assertNotIn('after end of compressed stream', aborted.reason_str)
+
+        self._assert_next_message_decodes(channel, ibq)
+
+    def test_abort_releases_parked_final_input(self):
+        config = dc.replace(
+            IoPipelineHttpDecompressionConfig.DEFAULT,
+            max_steps_per_call=2,
+            max_decomp_chunk=8,
+        )
+        compressed_data = gzip_bytes(b'a truncated body must not look like a complete one' * 8)
+        handler, channel, ibq = self._new(config)
+        end = IoPipelineHttpResponseEnd()
+        final_input = IoPipelineMessages.FinalInput()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data[:len(compressed_data) // 2]))
+        channel.feed_in(end)
+        channel.feed_in(final_input)
+        run_deferred_work(channel)
+
+        messages = ibq.drain()
+        self.assertNotIn(end, messages)
+        aborted = check.isinstance(messages[-2], IoPipelineHttpResponseAborted)
+        self.assertIn('truncated', aborted.reason_str)
+        self.assertIs(messages[-1], final_input)
+        self.assertIsNone(handler._pending_final_input)
+
+    def test_upstream_abort_resets_stage(self):
+        handler, channel, ibq = self._new()
+        upstream_aborted = IoPipelineHttpResponseAborted('EOF before HTTP body complete')
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'cut short by the connection' * 8)[:10]))
+        channel.feed_in(upstream_aborted)
+
+        self.assertEqual(ibq.drain(), [self.head, upstream_aborted])
+        self.assertIsNone(handler._decompressor)
+
+        self._assert_next_message_decodes(channel, ibq)
+
+    def test_head_mid_message_aborts_previous(self):
+        handler, channel, ibq = self._new()
+        head2 = IoPipelineHttpResponseHead(
+            status=200,
+            reason='OK',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        end2 = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'never finished' * 8)[:10]))
+        channel.feed_in(head2)
+        channel.feed_in(IoPipelineHttpResponseBodyData(gzip_bytes(b'second')))
+        channel.feed_in(end2)
+
+        [out_head, out_aborted, out_head2, out_body2, out_end2] = ibq.drain()
+        self.assertIs(out_head, self.head)
+        aborted = check.isinstance(out_aborted, IoPipelineHttpResponseAborted)
+        self.assertIn('unexpected message sequence', aborted.reason_str)
+        self.assertIs(out_head2, head2)
+        self.assertEqual(
+            ByteStreamBuffers.to_bytes(check.isinstance(out_body2, IoPipelineHttpResponseBodyData).data, strict=True),
+            b'second',
+        )
+        self.assertIs(out_end2, end2)
+
+    def test_unavailable_coding_passes_through(self):
+        handler, channel, ibq = self._new(codings={'gzip': UnavailableDecompressorCoding})
+        body = IoPipelineHttpResponseBodyData(gzip_bytes(b'still compressed'))
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(body)
+        channel.feed_in(end)
+
+        self.assertEqual(ibq.drain(), [self.head, body, end])
+
+    def test_abort_in_manual_read_mode(self):
+        handler = IoPipelineHttpResponseDecompressor()
+        capture = CaptureReadsIoPipelineHandler()
+        channel = IoPipeline.new(
+            [
+                handler,
+                capture,
+            ],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(b'JUNKJUNKJUNK'))
+        channel.feed_in(end)
+
+        # Like a head, an abort is not held for a read token.
+        [out_head, out_aborted] = capture.messages
+        self.assertIs(out_head, self.head)
+        check.isinstance(out_aborted, IoPipelineHttpResponseAborted)
+        self.assertEqual(channel.output.drain(), [])
+
+        # With nothing left of the message a read request passes straight through to the transport.
+        request_read(channel, capture)
+        self.assertEqual(len(capture.messages), 2)
+        [out_ready] = channel.output.drain()
+        self.assertIsInstance(out_ready, IoPipelineFlowMessages.ReadyForInput)
 
 
 class TestGzipDecompressorAutoReadFinalInput(unittest.TestCase):

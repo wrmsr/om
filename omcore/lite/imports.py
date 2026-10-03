@@ -1,6 +1,24 @@
 # ruff: noqa: UP006 UP007 UP045
+import importlib.util
 import types
 import typing as ta
+
+
+##
+
+
+def can_import(name: str, package: ta.Optional[str] = None) -> bool:
+    """
+    Whether the named module could be imported, without importing it. Unlike wrapping an import in `except ImportError`
+    this does not also swallow import failures raised from within the module's own body.
+    """
+
+    try:
+        spec = importlib.util.find_spec(name, package)
+    except ImportError:
+        return False
+    else:
+        return spec is not None
 
 
 ##

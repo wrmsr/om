@@ -30,6 +30,8 @@ import enum
 import fractions
 import functools
 import hashlib
+import importlib
+import importlib.util
 import inspect
 import io
 import itertools
@@ -83,6 +85,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
             dict(path='../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='../../omcore/lite/contextmanagers.py', sha1='b3275ca829d21eb598092c1448bedd70b72dfd04'),
+            dict(path='../../omcore/lite/imports.py', sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1'),
             dict(path='../../omcore/lite/injectinspect.py', sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd'),
             dict(path='../../omcore/lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
             dict(path='../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
@@ -109,7 +112,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/argparse/parsers.py', sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223'),
             dict(path='../../omcore/asyncs/asyncio/channels.py', sha1='805e4623aa13feaa506862b19498239a2022fe9f'),
             dict(path='../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
-            dict(path='../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
+            dict(path='../../omcore/formats/yaml/backends.py', sha1='52ac78eaf9285fcfcaf12b7a4ce1f706b66f1a92'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
             dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
             dict(path='../../omcore/lite/maybes.py', sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f'),
@@ -4630,6 +4633,71 @@ aclosing = AsyncClosingManager
 
 
 ########################################
+# ../../../omcore/lite/imports.py
+
+
+##
+
+
+def can_import(name: str, package: ta.Optional[str] = None) -> bool:
+    """
+    Whether the named module could be imported, without importing it. Unlike wrapping an import in `except ImportError`
+    this does not also swallow import failures raised from within the module's own body.
+    """
+
+    try:
+        spec = importlib.util.find_spec(name, package)
+    except ImportError:
+        return False
+    else:
+        return spec is not None
+
+
+##
+
+
+def import_module(dotted_path: str) -> types.ModuleType:
+    if not dotted_path:
+        raise ImportError(dotted_path)
+    mod = __import__(dotted_path, globals(), locals(), [])
+    for name in dotted_path.split('.')[1:]:
+        try:
+            mod = getattr(mod, name)
+        except AttributeError:
+            raise AttributeError(f'Module {mod!r} has no attribute {name!r}') from None
+    return mod
+
+
+def import_module_attr(dotted_path: str) -> ta.Any:
+    module_name, _, class_name = dotted_path.rpartition('.')
+    mod = import_module(module_name)
+    try:
+        return getattr(mod, class_name)
+    except AttributeError:
+        raise AttributeError(f'Module {module_name!r} has no attr {class_name!r}') from None
+
+
+def import_attr(dotted_path: str) -> ta.Any:
+    import importlib  # noqa
+    parts = dotted_path.split('.')
+    mod: ta.Any = None
+    mod_pos = 0
+    while mod_pos < len(parts):
+        mod_name = '.'.join(parts[:mod_pos + 1])
+        try:
+            mod = importlib.import_module(mod_name)
+        except ImportError:
+            break
+        mod_pos += 1
+    if mod is None:
+        raise ImportError(dotted_path)
+    obj = mod
+    for att_pos in range(mod_pos, len(parts)):
+        obj = getattr(obj, parts[att_pos])
+    return obj
+
+
+########################################
 # ../../../omcore/lite/injectinspect.py
 
 
@@ -7987,12 +8055,12 @@ class FirstAvailableYamlBackend(YamlBackend):
 class PyyamlYamlBackend(YamlBackend):
     @cached_nullary
     def _import(self) -> ta.Optional[ta.Any]:
-        try:
-            import yaml  # noqa
-        except ImportError:
+        if not can_import('yaml'):
             return None
-        else:
-            return yaml
+
+        import yaml  # noqa
+
+        return yaml
 
     def is_available(self) -> bool:
         return self._import() is not None
@@ -8010,12 +8078,12 @@ class PyyamlYamlBackend(YamlBackend):
 class RelativeImportGoyamlYamlBackend(YamlBackend):
     @cached_nullary
     def _import(self) -> ta.Optional[ta.Any]:
-        try:
-            mod = __import__('goyaml.backend', globals=globals(), level=1)
-        except ImportError:
+        # Relative so the subpackage may be absent from a trimmed distribution. Without a package (amalgamated code)
+        # it cannot be resolved at all.
+        if not (pkg := __package__) or not can_import('.goyaml.backend', pkg):
             return None
-        else:
-            return mod.backend
+
+        return importlib.import_module('.goyaml.backend', pkg)
 
     def is_available(self) -> bool:
         return self._import() is not None

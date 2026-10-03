@@ -47,6 +47,7 @@ import hashlib
 import heapq
 import http
 import http.client
+import importlib.util
 import inspect
 import io
 import itertools
@@ -109,6 +110,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='../../omcore/lite/contextmanagers.py', sha1='b3275ca829d21eb598092c1448bedd70b72dfd04'),
             dict(path='../../omcore/lite/dataclasses.py', sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e'),
+            dict(path='../../omcore/lite/imports.py', sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1'),
             dict(path='../../omcore/lite/injectinspect.py', sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd'),
             dict(path='../../omcore/lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
             dict(path='../../omcore/lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
@@ -134,7 +136,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
-            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='ec9a1a38b6d2c1f180d2ada694171e5943f96260'),  # noqa
             dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
@@ -201,7 +203,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='2843fd0f3eeacfb0d257ef0dd889067319ece5eb'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='1c97c61c6dfb64d2ca3613a8cb9170dfc33d9177'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
             dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
@@ -2851,6 +2853,71 @@ def dataclass_field_required(name: str) -> ta.Callable[[], ta.Any]:
     def inner() -> ta.NoReturn:
         raise DataclassFieldRequiredError(name)
     return inner
+
+
+########################################
+# ../../../omcore/lite/imports.py
+
+
+##
+
+
+def can_import(name: str, package: ta.Optional[str] = None) -> bool:
+    """
+    Whether the named module could be imported, without importing it. Unlike wrapping an import in `except ImportError`
+    this does not also swallow import failures raised from within the module's own body.
+    """
+
+    try:
+        spec = importlib.util.find_spec(name, package)
+    except ImportError:
+        return False
+    else:
+        return spec is not None
+
+
+##
+
+
+def import_module(dotted_path: str) -> types.ModuleType:
+    if not dotted_path:
+        raise ImportError(dotted_path)
+    mod = __import__(dotted_path, globals(), locals(), [])
+    for name in dotted_path.split('.')[1:]:
+        try:
+            mod = getattr(mod, name)
+        except AttributeError:
+            raise AttributeError(f'Module {mod!r} has no attribute {name!r}') from None
+    return mod
+
+
+def import_module_attr(dotted_path: str) -> ta.Any:
+    module_name, _, class_name = dotted_path.rpartition('.')
+    mod = import_module(module_name)
+    try:
+        return getattr(mod, class_name)
+    except AttributeError:
+        raise AttributeError(f'Module {module_name!r} has no attr {class_name!r}') from None
+
+
+def import_attr(dotted_path: str) -> ta.Any:
+    import importlib  # noqa
+    parts = dotted_path.split('.')
+    mod: ta.Any = None
+    mod_pos = 0
+    while mod_pos < len(parts):
+        mod_name = '.'.join(parts[:mod_pos + 1])
+        try:
+            mod = importlib.import_module(mod_name)
+        except ImportError:
+            break
+        mod_pos += 1
+    if mod is None:
+        raise ImportError(dotted_path)
+    obj = mod
+    for att_pos in range(mod_pos, len(parts)):
+        obj = getattr(obj, parts[att_pos])
+    return obj
 
 
 ########################################
@@ -7248,7 +7315,25 @@ def parse_http_trailers(
 ##
 
 
+class IoPipelineHttpCompressionCodingUnavailableError(Exception):
+    """Raised constructing a coding whose backing library is not importable."""
+
+
+class IoPipelineHttpDecompressionError(Exception):
+    """
+    Malformed compressed input. Decompressor codings raise this in place of their backing library's own error, after
+    which they are spent.
+    """
+
+
+##
+
+
 class IoPiplineHttpCompressorCoding(Abstract):
+    @classmethod
+    def is_available(cls) -> bool:
+        return True
+
     @abc.abstractmethod
     def compress(
             self,
@@ -7275,6 +7360,19 @@ IoPiplineHttpCompressorCodings = ta.Mapping[  # ta.TypeAlias  # om-amalg-typing-
 
 
 class IoPiplineHttpDecompressorCoding(Abstract):
+    """
+    An incremental decompressor for one content coding, shaped after the stdlib's bz2 / lzma / zstd decompressor
+    objects rather than zlib's.
+
+    `decompress` returns at most `max_bytes` of output. When more was ready than fit, `needs_input` is False and
+    `decompress` must be called with empty data to drain it before being given any further input. There is no separate
+    finishing step: once `eof` all output has been returned, and a stream which never reaches `eof` was truncated.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return True
+
     @abc.abstractmethod
     def decompress(
             self,
@@ -7282,15 +7380,19 @@ class IoPiplineHttpDecompressorCoding(Abstract):
             max_bytes: ta.Optional[int] = None,
             /,
     ) -> ta.Optional[BytesLike]:
+        """Raises IoPipelineHttpDecompressionError on malformed input."""
+
         raise NotImplementedError
 
     @abc.abstractmethod
-    def unconsumed_tail(self) -> ta.Optional[BytesLike]:
+    def needs_input(self) -> bool:
+        """False while output is pending which the last `decompress` could not return within its `max_bytes`."""
+
         raise NotImplementedError
 
     @abc.abstractmethod
     def eof(self) -> bool:
-        """Whether the end of the compressed stream has been reached."""
+        """Whether the end of the compressed stream has been reached and all of its output returned."""
 
         raise NotImplementedError
 
@@ -7298,13 +7400,10 @@ class IoPiplineHttpDecompressorCoding(Abstract):
     def unused_data(self) -> ta.Optional[BytesLike]:
         """
         Bytes found past the end of the compressed stream. Only meaningful once `eof` - for codings whose streams are
-        concatenable (notably gzip, per RFC 1952 §2.2) these are the start of the following member.
+        concatenable (notably gzip, per RFC 1952 §2.2) these are the start of the following member. None for codings
+        which cannot separate them.
         """
 
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def finish(self) -> ta.Optional[BytesLike]:
         raise NotImplementedError
 
 
@@ -7349,10 +7448,19 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
             max_bytes: ta.Optional[int] = None,
             /,
     ) -> ta.Optional[BytesLike]:
-        return self._z.decompress(data, max_bytes or 0)
+        # Input zlib could not fit the output of within the limit is handed back as unconsumed_tail rather than kept,
+        # so it is re-fed here - which is why no new input may be given until it has been drained.
+        if (tail := self._z.unconsumed_tail):
+            check.arg(not data)
+            data = tail
 
-    def unconsumed_tail(self) -> ta.Optional[BytesLike]:
-        return self._z.unconsumed_tail
+        try:
+            return self._z.decompress(data, max_bytes or 0)
+        except zlib.error as e:
+            raise IoPipelineHttpDecompressionError(str(e)) from e
+
+    def needs_input(self) -> bool:
+        return not self._z.unconsumed_tail
 
     def eof(self) -> bool:
         return self._z.eof
@@ -7360,20 +7468,214 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
     def unused_data(self) -> ta.Optional[BytesLike]:
         return self._z.unused_data
 
+
+##
+
+
+@cached_nullary
+def _can_import_brotli() -> bool:
+    return can_import('brotli')
+
+
+class BrotliIoPiplineHttpCompressorCoding(IoPiplineHttpCompressorCoding):
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_brotli()
+
+    def __init__(self, *, quality: ta.Optional[int] = None) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('brotli')
+
+        import brotli  # noqa
+
+        self._c = brotli.Compressor(**(dict(quality=quality) if quality is not None else {}))
+
+    def compress(
+            self,
+            data: BytesLike,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        return self._c.process(data)
+
+    def flush(self) -> ta.Optional[BytesLike]:
+        return self._c.flush() or None
+
     def finish(self) -> ta.Optional[BytesLike]:
-        return self._z.flush()
+        return self._c.finish()
+
+
+class BrotliIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
+    """
+    Two of brotli's quirks are hidden here. Its output limit is soft - it stops growing its buffer only once at or past
+    the limit, overshooting by up to an internal block - so the excess is withheld and returned by later drain calls.
+    And `can_accept_more_data` reports only withheld *input*, saying nothing of pending output, so a call which reached
+    its limit without finishing is taken to mean more is pending.
+
+    Brotli has no notion of data past the end of a stream: trailing bytes are a decode error, lost output and all.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_brotli()
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('brotli')
+
+        import brotli  # noqa
+
+        self._brotli = brotli
+        self._d = brotli.Decompressor()
+
+        self._withheld: ta.Optional[memoryview] = None
+        self._more = False
+
+    def decompress(
+            self,
+            data: BytesLike,
+            max_bytes: ta.Optional[int] = None,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        if (w := self._withheld) is not None:
+            check.arg(not data)
+            if max_bytes and len(w) > max_bytes:
+                self._withheld = w[max_bytes:]
+                return w[:max_bytes]
+            self._withheld = None
+            return w
+
+        try:
+            if max_bytes:
+                out = self._d.process(data, output_buffer_limit=max_bytes)
+            else:
+                out = self._d.process(data)
+        except self._brotli.error as e:
+            raise IoPipelineHttpDecompressionError(str(e)) from e
+
+        if not max_bytes:
+            self._more = False
+            return out
+
+        self._more = len(out) >= max_bytes and not self._d.is_finished()
+        if len(out) > max_bytes:
+            mv = memoryview(out)
+            self._withheld = mv[max_bytes:]
+            return mv[:max_bytes]
+        return out
+
+    def needs_input(self) -> bool:
+        return self._withheld is None and not self._more and self._d.can_accept_more_data()
+
+    def eof(self) -> bool:
+        return self._withheld is None and self._d.is_finished()
+
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        return None
+
+
+##
+
+
+@cached_nullary
+def _can_import_zstd() -> bool:
+    return can_import('compression.zstd')
+
+
+class ZstdIoPiplineHttpCompressorCoding(IoPiplineHttpCompressorCoding):
+    """Via the stdlib `compression.zstd` module, present from python 3.14."""
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_zstd()
+
+    def __init__(self, *, level: ta.Optional[int] = None) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('compression.zstd')
+
+        from compression import zstd  # noqa
+
+        self._c = zstd.ZstdCompressor(level=level)
+
+    def compress(
+            self,
+            data: BytesLike,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        return self._c.compress(data)
+
+    def flush(self) -> ta.Optional[BytesLike]:
+        return self._c.flush(self._c.FLUSH_BLOCK) or None
+
+    def finish(self) -> ta.Optional[BytesLike]:
+        return self._c.flush(self._c.FLUSH_FRAME)
+
+
+class ZstdIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
+    """Via the stdlib `compression.zstd` module, present from python 3.14."""
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_zstd()
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('compression.zstd')
+
+        from compression import zstd  # noqa
+
+        self._zstd = zstd
+        self._d = zstd.ZstdDecompressor()
+
+    def decompress(
+            self,
+            data: BytesLike,
+            max_bytes: ta.Optional[int] = None,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        try:
+            # A max_length of 0 means zero bytes, not unlimited.
+            return self._d.decompress(data, max_bytes or -1)
+        except (self._zstd.ZstdError, EOFError) as e:
+            raise IoPipelineHttpDecompressionError(str(e)) from e
+
+    def needs_input(self) -> bool:
+        # Past the end of a frame zstd keeps reporting needs_input False yet raises EOFError if drained.
+        return self._d.eof or self._d.needs_input
+
+    def eof(self) -> bool:
+        return self._d.eof
+
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        return self._d.unused_data
 
 
 ##
 
 
 class DefaultIoPiplineHttpCompressionCodings(NamespaceClass):
+    """
+    Keyed by content-coding name. Codings whose backing library is absent raise
+    IoPipelineHttpCompressionCodingUnavailableError on construction - `is_available` tells in advance.
+    """
+
     COMPRESSOR: ta.Final[IoPiplineHttpCompressorCodings] = {
         'gzip': ZlibIoPiplineHttpCompressorCoding,
+        'br': BrotliIoPiplineHttpCompressorCoding,
+        'zstd': ZstdIoPiplineHttpCompressorCoding,
     }
 
     DECOMPRESSOR: ta.Final[IoPiplineHttpDecompressorCodings] = {
         'gzip': ZlibIoPiplineHttpDecompressorCoding,
+        'br': BrotliIoPiplineHttpDecompressorCoding,
+        'zstd': ZstdIoPiplineHttpDecompressorCoding,
     }
 
 
@@ -26962,6 +27264,13 @@ class IoPipelineHttpObjectCompressor(
 ##
 
 
+class IoPipelineHttpDecompressionBudgetError(IoPipelineHttpDecompressionError):
+    """A configured decompression limit was exceeded - most likely a zip bomb."""
+
+
+##
+
+
 @dc.dataclass(frozen=True)
 class IoPipelineHttpDecompressionConfig:
     DEFAULT: ta.ClassVar['IoPipelineHttpDecompressionConfig']
@@ -26981,9 +27290,10 @@ class IoPipelineHttpDecompressionConfig:
     # What to do with bytes following a complete compressed stream.
     #
     # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes
-    # them as such. They may however also be junk, in which case 'member' surfaces the resulting decode failure -
-    # urllib3 instead tolerates trailing bytes and silently stops at the first member's end. That leniency is exactly
-    # what makes a truncated-to-one-member body indistinguishable from a complete one, so it is not the default.
+    # them as such. They may however also be junk, in which case 'member' aborts the message - urllib3 instead
+    # tolerates trailing bytes and silently stops at the first member's end. That leniency is exactly what makes a
+    # truncated-to-one-member body indistinguishable from a complete one, so it is not the default. Codings which
+    # cannot separate trailing bytes from their stream at all (brotli) fail on them regardless of this setting.
     trailing_data: ta.Literal['member', 'ignore'] = 'member'
 
     def __post_init__(self) -> None:
@@ -27022,6 +27332,15 @@ class IoPipelineHttpObjectDecompressor(
     InboundBytesBufferingIoPipelineHandler,
     Abstract,
 ):
+    """
+    Inbound handler decompressing message bodies according to their content-encoding.
+
+    A body found to be malformed, truncated, or over budget aborts its message: an Aborted is emitted in place of its
+    End, everything buffered is dropped, and whatever remains of that message - further body data, its End, or an
+    abort of upstream's own - is discarded. The stage is then ready for the next head, as framing upstream is
+    unaffected.
+    """
+
     def __init__(
             self,
             codings: ta.Optional[IoPiplineHttpDecompressorCodings] = None,
@@ -27038,6 +27357,10 @@ class IoPipelineHttpObjectDecompressor(
         self._coding: ta.Optional[ta.Callable[[], IoPiplineHttpDecompressorCoding]] = None
         self._decompressor: ta.Optional[IoPiplineHttpDecompressorCoding] = None
 
+        # True while the current decompressor is a follow-on member which has yet to produce anything, as what it is
+        # being fed may just be junk.
+        self._fresh_member = False
+
         # Statistics for budget checks
         self._in_total_bytes = 0
         self._out_total_bytes = 0
@@ -27051,8 +27374,10 @@ class IoPipelineHttpObjectDecompressor(
         # Flow Control and Deferral State
         self._read_requested = False
         self._pending_end: ta.Optional[IoPipelineHttpMessageEnd] = None
-        self._finished = False
         self._pending_final_input: ta.Optional[IoPipelineMessages.FinalInput] = None
+
+        # Set by an abort: the rest of the current message is dropped.
+        self._discarding = False
 
     #
 
@@ -27064,6 +27389,7 @@ class IoPipelineHttpObjectDecompressor(
     def _reset(self, *, preserve_pending_final_input: bool = False) -> None:
         self._coding = None
         self._decompressor = None
+        self._fresh_member = False
 
         self._in_total_bytes = 0
         self._out_total_bytes = 0
@@ -27075,18 +27401,21 @@ class IoPipelineHttpObjectDecompressor(
 
         self._read_requested = False
         self._pending_end = None
-        self._finished = False
         if not preserve_pending_final_input:
             self._pending_final_input = None
 
+        self._discarding = False
+
     def _check_budgets(self) -> None:
         if (mdt := self._config.max_decomp_total) is not None and self._out_total_bytes > mdt:
-            raise ValueError('decompressor output exceeds limit (possible zip bomb)')
+            raise IoPipelineHttpDecompressionBudgetError('decompressor output exceeds limit (possible zip bomb)')
 
         if (mer := self._config.max_expansion_ratio) is not None:
             slack = self._config.max_decomp_chunk
             if self._out_total_bytes > (max(1, self._in_total_bytes) * mer + slack):
-                raise ValueError('decompressor expansion ratio exceeds limit (possible zip bomb)')
+                raise IoPipelineHttpDecompressionBudgetError(
+                    'decompressor expansion ratio exceeds limit (possible zip bomb)',
+                )
 
     def _new_decompressor(self) -> IoPiplineHttpDecompressorCoding:
         if (coding := self._coding) is None:
@@ -27097,6 +27426,15 @@ class IoPipelineHttpObjectDecompressor(
         if (flow := ctx.services.find(IoPipelineFlow)) is None:
             return True
         return flow.is_auto_read()
+
+    def _abort(self, ctx: IoPipelineHandlerContext, reason: ta.Union[str, BaseException]) -> bool:
+        """Always returns True: the abort stands in for the message's End, satisfying any pending read."""
+
+        aborted = self._make_aborted(reason)
+        self._reset(preserve_pending_final_input=True)
+        self._discarding = True
+        ctx.feed_in(aborted)
+        return True
 
     def _emit_out_pending(self, ctx: IoPipelineHandlerContext) -> bool:
         """Returns True if at least one message was emitted."""
@@ -27122,9 +27460,22 @@ class IoPipelineHttpObjectDecompressor(
     def _pump(self, ctx: IoPipelineHandlerContext) -> bool:
         """Returns True if it effectively satisfied a read request."""
 
-        z = self._decompressor
-        if z is None:
+        if self._decompressor is None:
             return False
+
+        try:
+            return self._pump_decompressor(ctx)
+
+        except IoPipelineHttpDecompressionError as e:
+            if self._fresh_member:
+                # In 'member' mode bytes following a complete stream are only found to not be another member once a
+                # decompressor chokes on them.
+                return self._abort(ctx, f'invalid data after end of compressed stream: {e}')
+
+            return self._abort(ctx, e)
+
+    def _pump_decompressor(self, ctx: IoPipelineHandlerContext) -> bool:
+        z = check.not_none(self._decompressor)
 
         should_yield = self._yield_policy.new_turn()
 
@@ -27138,7 +27489,19 @@ class IoPipelineHttpObjectDecompressor(
             return False
 
         # 3. Decompression Loop
-        while self._in_pending:
+        while self._in_pending or not z.needs_input():
+            if z.eof():
+                # The current decompressor is spent, and there is more: either the rest of the chunk which ended its
+                # stream, or a later chunk entirely. Fed any more it would refuse it one way or another.
+                if self._config.trailing_data == 'ignore':
+                    self._in_pending.clear()
+                    self._in_pending_bytes = 0
+                    break
+
+                # A following member.
+                z = self._decompressor = self._new_decompressor()
+                self._fresh_member = True
+
             # Enforce output buffer budget
             if (mop := self._config.max_out_pending) is not None:
                 if self._out_pending_bytes >= mop:
@@ -27149,12 +27512,17 @@ class IoPipelineHttpObjectDecompressor(
                 self._defer_resume(ctx)
                 return False  # We haven't satisfied it yet, we deferred.
 
-            chunk = self._in_pending.popleft()
-            cl = len(chunk)
-            self._in_pending_bytes -= cl
+            if not z.needs_input():
+                # Output which did not fit the last step's chunk limit must be drained before any more input is given.
+                chunk: BytesLike = b''
+            else:
+                chunk = self._in_pending.popleft()
+                self._in_pending_bytes -= len(chunk)
 
             out = z.decompress(chunk, self._config.max_decomp_chunk)
             if out:
+                self._fresh_member = False
+
                 ol = len(out)
                 self._out_total_bytes += ol
                 self._out_pending.append(out)
@@ -27165,58 +27533,20 @@ class IoPipelineHttpObjectDecompressor(
                     if not self._is_auto_read(ctx):
                         return True  # Satisfied!
 
-            if z.eof():
-                # The current decompressor is spent: everything past its trailer lands in unused_data and it would
-                # silently return nothing forever. Note that eof must be checked *before* unconsumed_tail - zlib
-                # mirrors the leftover into both when the output limit was hit on the same call that ended the stream.
-                if (ud := z.unused_data()):
-                    self._in_pending.appendleft(ud)
-                    self._in_pending_bytes += len(ud)
+            elif not chunk and not z.eof() and not z.needs_input():
+                raise RuntimeError('decompressor coding made no progress')
 
-                if self._config.trailing_data == 'ignore':
-                    self._in_pending.clear()
-                    self._in_pending_bytes = 0
-                    break
+            if z.eof() and (ud := z.unused_data()):
+                # Whatever followed the end of the stream within this chunk - the loop decides what to make of it.
+                self._in_pending.appendleft(ud)
+                self._in_pending_bytes += len(ud)
 
-                if not self._in_pending:
-                    break
-
-                # A following member, concatenated either within this chunk or starting at the next one.
-                z = self._decompressor = self._new_decompressor()
-
-            elif (ut := z.unconsumed_tail()):
-                self._in_pending.appendleft(ut)
-                self._in_pending_bytes += len(ut)
-                if not out:
-                    break
-
-        # 4. Finish and deliver the HTTP message end.
-        if not self._in_pending and self._pending_end is not None:
-            if not self._finished:
-                # Shares the turn's budget with the decompress loop above.
-                if should_yield():
-                    self._defer_resume(ctx)
-                    return False
-
-                out = z.finish()
-                self._finished = True
-
-                if not z.eof() and self._in_total_bytes:
-                    # `finish` does not fail on an incomplete stream, so nothing else would notice a body truncated
-                    # mid-stream - including gzip's own crc/length check, which lives in the trailer.
-                    aborted = self._make_aborted('truncated compressed message body')
-                    self._reset(preserve_pending_final_input=True)
-                    ctx.feed_in(aborted)
-                    return True
-
-                if out:
-                    ol = len(out)
-                    self._out_total_bytes += ol
-                    self._out_pending.append(out)
-                    self._out_pending_bytes += ol
-                    self._check_budgets()
-                    if self._emit_out_pending(ctx) and not self._is_auto_read(ctx):
-                        return True
+        # 4. Deliver the HTTP message end.
+        if self._pending_end is not None and not self._in_pending and z.needs_input():
+            if not z.eof() and self._in_total_bytes:
+                # Nothing else would notice a body truncated mid-stream - including gzip's own crc/length check, which
+                # lives in the trailer.
+                return self._abort(ctx, 'truncated compressed message body')
 
             if self._out_pending:
                 return False
@@ -27277,17 +27607,18 @@ class IoPipelineHttpObjectDecompressor(
         ctx.feed_in(msg)
 
     def _on_inbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
-        if self._decompressor is not None:
-            ctx.feed_in(self._make_aborted('unexpected message sequence'))
-            return
-
         enc = msg.headers.lower.get('content-encoding', ())
 
         # TODO: spec is actually an ordered stack lol
         for coding_name, coding in self._codings.items():
             if coding_name.lower() in enc:
+                try:
+                    self._decompressor = coding()
+                except IoPipelineHttpCompressionCodingUnavailableError:
+                    # As with a coding not in the mapping at all the body passes through still encoded, its header
+                    # intact for the application to see.
+                    break
                 self._coding = coding
-                self._decompressor = coding()
                 break
 
         ctx.feed_in(msg)
@@ -27302,7 +27633,6 @@ class IoPipelineHttpObjectDecompressor(
             self._in_total_bytes += mvl
             self._in_pending.append(mv)
             self._in_pending_bytes += mvl
-            self._check_budgets()
 
         self._pump(ctx)
 
@@ -27314,6 +27644,12 @@ class IoPipelineHttpObjectDecompressor(
         self._pending_end = msg
         self._pump(ctx)
 
+    def _on_inbound_aborted(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageAborted) -> None:
+        # Upstream gave up on the message partway: whatever was decoded of it so far is moot.
+        self._reset(preserve_pending_final_input=True)
+        ctx.feed_in(msg)
+        self._release_pending_final_input(ctx)
+
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineMessages.FinalInput):
             self._on_inbound_final_input(ctx, msg)
@@ -27322,13 +27658,26 @@ class IoPipelineHttpObjectDecompressor(
             self._on_inbound_flush_input(ctx, msg)
 
         elif isinstance(msg, self._head_type):
+            if self._decompressor is not None:
+                self._abort(ctx, 'unexpected message sequence')
+            self._discarding = False
             self._on_inbound_head(ctx, msg)
 
         elif isinstance(msg, self._body_data_type):
-            self._on_inbound_body_data(ctx, msg)
+            if not self._discarding:
+                self._on_inbound_body_data(ctx, msg)
 
         elif isinstance(msg, self._end_type):
-            self._on_inbound_end(ctx, msg)
+            if self._discarding:
+                self._discarding = False
+            else:
+                self._on_inbound_end(ctx, msg)
+
+        elif isinstance(msg, self._aborted_type):
+            if self._discarding:
+                self._discarding = False
+            else:
+                self._on_inbound_aborted(ctx, msg)
 
         else:
             ctx.feed_in(msg)

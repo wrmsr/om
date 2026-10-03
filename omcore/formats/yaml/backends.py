@@ -1,11 +1,13 @@
 # ruff: noqa: UP006 UP007 UP045
 # @om-lite
 import abc
+import importlib
 import typing as ta
 
 from ...lite.abstract import Abstract
 from ...lite.cached import cached_nullary
 from ...lite.check import check
+from ...lite.imports import can_import
 
 
 ##
@@ -65,12 +67,12 @@ class FirstAvailableYamlBackend(YamlBackend):
 class PyyamlYamlBackend(YamlBackend):
     @cached_nullary
     def _import(self) -> ta.Optional[ta.Any]:
-        try:
-            import yaml  # noqa
-        except ImportError:
+        if not can_import('yaml'):
             return None
-        else:
-            return yaml
+
+        import yaml  # noqa
+
+        return yaml
 
     def is_available(self) -> bool:
         return self._import() is not None
@@ -88,12 +90,12 @@ class PyyamlYamlBackend(YamlBackend):
 class RelativeImportGoyamlYamlBackend(YamlBackend):
     @cached_nullary
     def _import(self) -> ta.Optional[ta.Any]:
-        try:
-            mod = __import__('goyaml.backend', globals=globals(), level=1)
-        except ImportError:
+        # Relative so the subpackage may be absent from a trimmed distribution. Without a package (amalgamated code)
+        # it cannot be resolved at all.
+        if not (pkg := __package__) or not can_import('.goyaml.backend', pkg):
             return None
-        else:
-            return mod.backend
+
+        return importlib.import_module('.goyaml.backend', pkg)
 
     def is_available(self) -> bool:
         return self._import() is not None
