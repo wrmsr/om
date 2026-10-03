@@ -25,6 +25,20 @@ def bind_agent_tool_class(tool_cls: type[agn.ToolClass]) -> inj.Elements:
     return agent_tools().bind_item(to_fn=inj.target(o=tool_cls)(lambda o: o.tool()))
 
 
+AgentToolSets = ta.NewType('AgentToolSets', ta.Sequence[agn.ToolSet])
+
+
+@lang.cached_function
+def agent_tool_sets() -> inj.ItemsBinderHelper[agn.ToolSet]:
+    """Tool sets discovered at provisioning time, alongside individually bound tools."""
+
+    return inj.items_binder_helper[agn.ToolSet](AgentToolSets)
+
+
+def _provide_tool_set(tools: AgentTools, tool_sets: AgentToolSets) -> agn.ToolSet:
+    return agn.ToolSet([*tools, *(t for ts in tool_sets for t in ts)])
+
+
 ##
 
 
@@ -124,12 +138,9 @@ def bind_tools(config: Config) -> inj.Elements:
 
     lst.extend([
         agent_tools().bind_items_provider(singleton=True),
+        agent_tool_sets().bind_items_provider(singleton=True),
 
-        inj.bind(
-            agn.ToolSet,
-            to_fn=inj.target(ats=AgentTools)(lambda ats: agn.ToolSet(ats)),
-            singleton=True,
-        ),
+        inj.bind(agn.ToolSet, to_fn=_provide_tool_set, singleton=True),
     ])
 
     return inj.as_elements(*lst)

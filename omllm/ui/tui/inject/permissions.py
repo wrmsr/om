@@ -4,6 +4,7 @@ from omcore import check
 from omcore import inject as inj
 
 from .... import agent as agn
+from ....agent.web.permissions import RegexUrlPermissionMatcher
 from ..config import Config
 from ..config import TargetCwd
 
@@ -60,6 +61,12 @@ def _provide_permissions_manager(config: Config, cwd: TargetCwd) -> agn.Standard
                     agn.PermissionState.ASK,
                 ),
             ])
+
+    if config.web:
+        permission_rules.append(agn.PermissionRule(
+            RegexUrlPermissionMatcher(r'https?://.*', methods=['GET']),
+            agn.PermissionState.ASK,
+        ))
 
     return agn.StandardPermissionsManager(permission_rules)
 

@@ -8,6 +8,7 @@ from omcore import marshal as msh
 from .compat import Compat
 from .options import CacheRetention
 from .options import Options
+from .options import ReasoningEffort
 
 
 type TokenPricingProvider = ta.Callable[[], TokenPricing | None]
@@ -137,6 +138,11 @@ class Model:
 
     cache: CacheCapabilities | None = None
 
+    # Exact levels accepted by this model on its configured backend. Unspecified models do not advertise effort control.
+    reasoning_efforts: ta.AbstractSet[ReasoningEffort] | None = None
+    # An optional further restriction when tools are supplied; None imposes no additional restriction.
+    reasoning_efforts_with_tools: ta.AbstractSet[ReasoningEffort] | None = None
+
     #
 
     # Static token limits, or a deferred provider of them. As with pricing, catalog definitions use deferred modeldb
@@ -186,3 +192,20 @@ def resolve_model_limits(model: Model) -> ModelLimits | None:
     if callable(limits):
         limits = limits()
     return check.isinstance(limits, (ModelLimits, None))
+
+
+def supported_reasoning_efforts(model: Model, *, with_tools: bool = False) -> ta.AbstractSet[ReasoningEffort]:
+    levels = model.reasoning_efforts or frozenset()
+    if with_tools and model.reasoning_efforts_with_tools is not None:
+        levels = levels & model.reasoning_efforts_with_tools
+    return levels
+
+
+def validate_reasoning_effort(model: Model, effort: ReasoningEffort | None, *, with_tools: bool = False) -> None:
+    levels = supported_reasoning_efforts(model, with_tools=with_tools)
+    if effort is not None and effort not in levels:
+        supported = ', '.join(e.value for e in ReasoningEffort if e in levels) or 'unavailable'
+        qualifier = ' with tools' if with_tools else ''
+        raise ValueError(
+            f'Model {model.key!r} does not support effort {effort!s}{qualifier}. Supported levels: {supported}',
+        )

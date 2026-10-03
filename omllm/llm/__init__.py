@@ -189,6 +189,8 @@ with _lang.auto_proxy_init(
         ModelLimitsProvider,
         ModelLimits,
         resolve_model_limits,
+        supported_reasoning_efforts,
+        validate_reasoning_effort,
 
         TokenPricingProvider,
         TokenPricing,
@@ -198,6 +200,8 @@ with _lang.auto_proxy_init(
     )
 
     from .types.options import (  # noqa
+        ReasoningEffort,
+
         CacheRetention,
 
         Options,

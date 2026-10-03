@@ -51,7 +51,7 @@ class Session(
         return self._id
 
     async def resume(self) -> ta.Sequence[agn.Message]:
-        check.state(not self._agent.is_running)
+        check.state(not self._agent.is_busy)
         check.state(not self._agent.state.context.messages, 'Cannot resume into a non-empty agent transcript')
         check.state(not self._agent.state.context.projection, 'Cannot resume into a projected agent transcript')
 
@@ -151,8 +151,7 @@ class Session(
             input: str | agn.Message | ta.Sequence[agn.Message],  # noqa
     ) -> None:
         """
-        Queues input for the run in progress. Nothing in the ui routes here yet: a `/steer` command is to, which needs
-        the ui to dispatch commands while a turn runs rather than queue them behind it.
+        Queues input for the run in progress. The harness's `/steer` command exposes the same agent inbox directly.
         """
 
         self._agent.steer(input)

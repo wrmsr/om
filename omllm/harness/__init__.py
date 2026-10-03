@@ -42,6 +42,10 @@ with _lang.auto_proxy_init(
         CompactCommand,
     )
 
+    from .commands.effort import (  # noqa
+        EffortCommand,
+    )
+
     from .commands.manager import (  # noqa
         RunCommandResult,
         CommandsManager,
@@ -63,6 +67,58 @@ with _lang.auto_proxy_init(
 
     from .commands.status import (  # noqa
         StatusCommand,
+    )
+
+    from .commands.skills import (  # noqa
+        SkillsCommand,
+    )
+
+    from .commands.steer import (  # noqa
+        SteerCommand,
+    )
+
+    ##
+
+    from .prompts.base import (  # noqa
+        PromptContext,
+        PromptContributor,
+        PromptContributors,
+    )
+
+    from .prompts.builders import (  # noqa
+        PromptBuilder,
+    )
+
+    from .prompts.standard import (  # noqa
+        CodingPromptContributor,
+        ToolsPromptContributor,
+        TextPromptContributor,
+    )
+
+    ##
+
+    from .skills.catalogs import (  # noqa
+        Skill,
+        SkillDiagnostic,
+        SkillNotFoundError,
+        SkillCatalog,
+    )
+
+    from .skills.loading import (  # noqa
+        LocalSkillLoader,
+        LoadSkillsJob,
+    )
+
+    from .skills.prompts import (  # noqa
+        SkillsPromptContributor,
+    )
+
+    from .skills.reading import (  # noqa
+        SkillReader,
+    )
+
+    from .skills.tools import (  # noqa
+        ReadSkillTool,
     )
 
     ##

@@ -24,6 +24,7 @@ from ...types import UiId
 from ..config import Config
 from ..config import TargetCwd
 from ..inject import AgentEventSubscribers
+from ..setup import AgentInitializer
 from .app import MinituiChatApp
 from .inject import bind_minitui
 from .output import AgentEventRenderer
@@ -107,7 +108,6 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         configure_tui_logging(ui_id)
 
         agent = await injector[agn.Agent]
-        tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
         commands_manager = await injector[har.CommandsManager]
         driver = await injector[mt.AsyncioDriver]
@@ -125,7 +125,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             for name, cmd in sorted(commands_manager.get_commands().items())
         ])
 
-        pump = PromptPump(session=session, app=app)
+        pump = PromptPump(session=session, app=app, commands=commands_manager)
         app.on_submit = pump.submit
         app.on_cancel = pump.cancel_current
 
@@ -141,25 +141,10 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             for el in await injector[AgentEventSubscribers]:
                 agent.subscribe(el)
 
-            await agent.update_state(
-                lambda state: dc.replace(
-                    state,
-                    context=dc.replace(
-                        state.context,
-                        system_prompt='\n\n'.join([
-                            f'Current working directory: {cwd}',
-                        ]),
-                        tools=tool_set,
-                    ),
-                    tool_env=agn.ToolEnvironment(
-                        cwd=cwd,
-                        processes=proc_scope,
-                    ),
-                    turn_config=agn.TurnConfig(
-                        llm_retry=agn.LlmRetryConfig(),
-                    ),
-                ),
-            )
+            await (await injector[AgentInitializer]).initialize(tool_env=agn.ToolEnvironment(
+                cwd=cwd,
+                processes=proc_scope,
+            ))
 
             if config.resume is not None:
                 event_renderer.display_transcript(await session.resume())

@@ -21,6 +21,10 @@ with _lang.auto_proxy_init(globals()):
         harness_commands,
     )
 
+    from .prompts import (  # noqa
+        prompt_contributors,
+    )
+
     from .inject import (  # noqa
         bind_tui,
     )

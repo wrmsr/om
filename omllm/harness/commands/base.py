@@ -46,6 +46,12 @@ class Command(lang.Abstract):
     def description(self) -> str | None:
         return None
 
+    @property
+    def runs_while_busy(self) -> bool:
+        """Whether a frontend may dispatch this command alongside a running prompt."""
+
+        return False
+
     @abc.abstractmethod
     def run(self, ctx: CommandContext, argv: list[str]) -> ta.Awaitable[None]:
         raise NotImplementedError

@@ -37,6 +37,13 @@ class CommandsManager:
     def get_commands(self) -> ta.Mapping[str, Command]:
         return self._commands_by_name
 
+    def can_run_while_busy(self, text: str) -> bool:
+        # Only the command name is needed here. Parsing the arguments remains run_command_text's responsibility, so
+        # a malformed steering command still reports its error immediately rather than waiting behind the prompt.
+        name = text.split(maxsplit=1)[0].lower() if text.strip() else ''
+        command = self._commands_by_name.get(name)
+        return command is not None and command.runs_while_busy
+
     async def run_command_text(self, text: str) -> RunCommandResult:
         try:
             parts = shlex.split(text)

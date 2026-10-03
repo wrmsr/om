@@ -10,6 +10,7 @@ from ....types.messages import AiMessage
 from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
+from ....types.models import validate_reasoning_effort
 from ....types.options import Options
 from .tools import build_tool_spec_schema
 
@@ -57,10 +58,18 @@ class RequestPreparer:
         if self._options.max_tokens is not None:
             raw_generation_config['maxOutputTokens'] = self._options.max_tokens
 
-        if self._options.thinking:
-            raw_generation_config['thinkingConfig'] = {
-                'includeThoughts': True,
-            }
+        raw_thinking: dict[str, ta.Any] = {}
+        if (effort := self._options.reasoning_effort) is not None:
+            validate_reasoning_effort(self._model, effort, with_tools=bool(self._context.tools))
+            raw_thinking['thinkingLevel'] = effort.value.upper()
+
+        # includeThoughts controls the returned summaries, not whether the model reasons. In particular, False does
+        # not disable Gemini 3's thinking, and minimal is a real level rather than an alias for off.
+        if self._options.thinking is not None:
+            raw_thinking['includeThoughts'] = self._options.thinking
+
+        if raw_thinking:
+            raw_generation_config['thinkingConfig'] = raw_thinking
 
         if raw_generation_config:
             raw_request['generationConfig'] = raw_generation_config

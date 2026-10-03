@@ -12,6 +12,20 @@ from omcore import dataclasses as dc
 
 
 @ta.final
+class ReasoningEffort(enum.StrEnum):
+    NONE = 'none'
+    MINIMAL = 'minimal'
+    LOW = 'low'
+    MEDIUM = 'medium'
+    HIGH = 'high'
+    XHIGH = 'xhigh'
+    MAX = 'max'
+
+
+##
+
+
+@ta.final
 class CacheRetention(enum.Enum):
     """Exact cache retention policies supported by one or more model providers."""
 
@@ -34,6 +48,13 @@ class Options:
     max_tokens: int | None = None
 
     thinking: bool | None = None
+
+    # How much work the model should do, independently of whether readable thoughts are requested. None uses the
+    # provider default; ReasoningEffort.NONE explicitly requests no reasoning where supported.
+    reasoning_effort: ReasoningEffort | None = dc.xfield(
+        None,
+        validate=lambda v: v is None or isinstance(v, ReasoningEffort),
+    )
 
     # A stable opaque key used to improve matching by providers which support caller-supplied cache keys.
     cache_key: str | None = None

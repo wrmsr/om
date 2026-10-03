@@ -14,6 +14,7 @@ from ....types.messages import AiMessage
 from ....types.messages import ToolResultMessage
 from ....types.messages import UserMessage
 from ....types.models import Model
+from ....types.models import validate_reasoning_effort
 from ....types.options import CacheRetention
 from ....types.options import Options
 from .signatures import parse_text_signature
@@ -151,9 +152,17 @@ class RequestPreparer:
         if self._options.max_tokens is not None:
             raw_request['max_output_tokens'] = self._options.max_tokens
 
+        raw_reasoning: dict[str, ta.Any] = {}
+        if (effort := self._options.reasoning_effort) is not None:
+            validate_reasoning_effort(self._model, effort, with_tools=bool(self._context.tools))
+            raw_reasoning['effort'] = effort.value
+
         if self._options.thinking:
             # Reasoning itself is not opt-in - this only requests readable summaries of it.
-            raw_request['reasoning'] = {'summary': 'auto'}
+            raw_reasoning['summary'] = 'auto'
+
+        if raw_reasoning:
+            raw_request['reasoning'] = raw_reasoning
 
         self._add_cache_options(raw_request)
 
