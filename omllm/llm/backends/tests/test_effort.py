@@ -4,8 +4,11 @@ from omcore import dataclasses as dc
 from omcore import marshal as msh
 
 from ...models.providers import provider_model_catalog
+from ...models.providers.anthropic import TEST_MODEL_KEY as ANTHROPIC_TEST_MODEL_KEY
+from ...models.providers.google import TEST_MODEL_KEY as GOOGLE_TEST_API_KEY
+from ...models.providers.openai import COMPLETIONS_TEST_MODEL_KEY as OPENAI_COMPLETIONS_TEST_MODEL_KEY
+from ...models.providers.openai import RESPONSES_TEST_MODEL_KEY as OPENAI_RESPONSES_TEST_MODEL_KEY
 from ...types.context import Context
-from ...types.models import ModelKey
 from ...types.options import Options
 from ...types.options import ReasoningEffort
 from ...types.tools import Tool
@@ -19,15 +22,35 @@ from ..openai.responses.requests import RequestPreparer as ResponsesRequestPrepa
 
 
 @pytest.mark.parametrize(('key', 'preparer', 'expected'), [
-    (ModelKey('openai', 'gpt-6-luna'), ResponsesRequestPreparer, {'reasoning': {'effort': 'low'}}),
-    (ModelKey('openai', 'gpt-5.4-nano'), CompletionsRequestPreparer, {'reasoning_effort': 'low'}),
-    (ModelKey('anthropic', 'claude-sonnet-5'), AnthropicRequestPreparer, {
-        'output_config': {'effort': 'low'},
-        'thinking': {'type': 'adaptive'},
-    }),
-    (ModelKey('google', 'gemini-3-flash-preview'), GoogleRequestPreparer, {
-        'generationConfig': {'thinkingConfig': {'thinkingLevel': 'LOW'}},
-    }),
+    (
+        OPENAI_RESPONSES_TEST_MODEL_KEY,
+        ResponsesRequestPreparer,
+        {
+            'reasoning': {'effort': 'low'},
+        },
+    ),
+    (
+        OPENAI_COMPLETIONS_TEST_MODEL_KEY,
+        CompletionsRequestPreparer,
+        {
+            'reasoning_effort': 'low',
+        },
+    ),
+    (
+        ANTHROPIC_TEST_MODEL_KEY,
+        AnthropicRequestPreparer,
+        {
+            'output_config': {'effort': 'low'},
+            'thinking': {'type': 'adaptive'},
+        },
+    ),
+    (
+        GOOGLE_TEST_API_KEY,
+        GoogleRequestPreparer,
+        {
+            'generationConfig': {'thinkingConfig': {'thinkingLevel': 'LOW'}},
+        },
+    ),
 ])
 def test_effort_request_shapes_and_defaults(key, preparer, expected):
     model = provider_model_catalog()[key]
@@ -48,7 +71,7 @@ def test_effort_request_shapes_and_defaults(key, preparer, expected):
 
 @pytest.mark.parametrize('thinking', [None, False, True])
 def test_gemini_effort_and_returned_thoughts_are_independent(thinking):
-    model = provider_model_catalog()[ModelKey('google', 'gemini-3-flash-preview')]
+    model = provider_model_catalog()[GOOGLE_TEST_API_KEY]
     raw = GoogleRequestPreparer(model, Context(), Options(
         reasoning_effort=ReasoningEffort.MINIMAL,
         thinking=thinking,
@@ -64,7 +87,7 @@ def test_gemini_effort_and_returned_thoughts_are_independent(thinking):
 
 
 def test_openai_effort_preserves_summary_request():
-    model = provider_model_catalog()[ModelKey('openai', 'gpt-6-luna')]
+    model = provider_model_catalog()[OPENAI_RESPONSES_TEST_MODEL_KEY]
     raw = ResponsesRequestPreparer(model, Context(), Options(
         reasoning_effort=ReasoningEffort.HIGH,
         thinking=True,
@@ -74,7 +97,7 @@ def test_openai_effort_preserves_summary_request():
 
 
 def test_completions_rejects_tool_effort_combinations_before_sending():
-    model = provider_model_catalog()[ModelKey('openai', 'gpt-5.4-nano')]
+    model = provider_model_catalog()[OPENAI_COMPLETIONS_TEST_MODEL_KEY]
     context = Context(tools=[Tool(name='act')])
     with pytest.raises(ValueError, match='does not support effort low with tools'):
         CompletionsRequestPreparer(model, context, Options(reasoning_effort=ReasoningEffort.LOW)).raw_request()
