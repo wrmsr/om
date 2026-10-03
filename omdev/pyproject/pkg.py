@@ -880,12 +880,27 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
                 for ext_inc in ext_cfg.include or []:
                     pkg_incs.add(importlib.util.resolve_name(ext_inc, ext_name))
 
+            def is_empty_init_py(fp: str) -> bool:
+                if os.path.basename(fp) != '__init__.py':
+                    return False
+                with open(fp) as f:
+                    src = f.read()
+                lines = [
+                    l
+                    for l in src.splitlines()
+                    if (s := l.strip()) and
+                    not s.startswith('#')
+                ]
+                return not bool(lines)
+
             ext_files = [
                 fp
                 for fn in sorted(os.listdir(ext_dir))
                 if os.path.isfile(fp := os.path.join(ext_dir, fn)) and
-                fp.endswith('.py')
+                fp.endswith('.py') and
+                not is_empty_init_py(fp)
             ]
+
             ext_lines.extend([
                 '[',
                 *[

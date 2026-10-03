@@ -5,7 +5,6 @@ import setuptools as st
 st.setup(
     ext_modules=mcb.mypycify(
         [
-            'omcore/reflect/core/__init__.py',
             'omcore/reflect/core/_mypycshim.py',
             'omcore/reflect/core/compat.py',
             'omcore/reflect/core/constraints.py',

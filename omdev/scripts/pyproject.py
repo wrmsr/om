@@ -157,7 +157,7 @@ def __om_amalg__():  # noqa
             dict(path='../interp/providers/system.py', sha1='5b337476498d3187d4a8774f04f9e634f60972fb'),
             dict(path='../interp/pyenv/install.py', sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81'),
             dict(path='../interp/uv/provider.py', sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c'),
-            dict(path='pkg.py', sha1='a40d375780dfb76be218dd880c6d6f080ceffde8'),
+            dict(path='pkg.py', sha1='6cdba8bece4ee9eaef720c8f100b78add8058229'),
             dict(path='../interp/providers/inject.py', sha1='558f0761ce1bd375136f9e733c8674895eec9e62'),
             dict(path='../interp/pyenv/provider.py', sha1='5f67d16ef12e21499a65017d5432a1e76e9fe522'),
             dict(path='../interp/uv/inject.py', sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23'),
@@ -15231,12 +15231,27 @@ class _PyprojectMypycPackageGenerator(_PyprojectExtensionPackageGenerator):
                 for ext_inc in ext_cfg.include or []:
                     pkg_incs.add(importlib.util.resolve_name(ext_inc, ext_name))
 
+            def is_empty_init_py(fp: str) -> bool:
+                if os.path.basename(fp) != '__init__.py':
+                    return False
+                with open(fp) as f:
+                    src = f.read()
+                lines = [
+                    l
+                    for l in src.splitlines()
+                    if (s := l.strip()) and
+                    not s.startswith('#')
+                ]
+                return not bool(lines)
+
             ext_files = [
                 fp
                 for fn in sorted(os.listdir(ext_dir))
                 if os.path.isfile(fp := os.path.join(ext_dir, fn)) and
-                fp.endswith('.py')
+                fp.endswith('.py') and
+                not is_empty_init_py(fp)
             ]
+
             ext_lines.extend([
                 '[',
                 *[
