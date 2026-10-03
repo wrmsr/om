@@ -138,6 +138,7 @@ class ManifestBuilder:
         self._module_dumper_payload_src = module_dumper_payload_src
 
         self._sem = asyncio.Semaphore(concurrency)
+        self._num_dumped = 0
 
     #
 
@@ -280,7 +281,7 @@ class ManifestBuilder:
             *,
             shell_wrap: bool = True,
             warn_threshold_s: float | None = 1.,
-    ):
+    ) -> ta.Any:
         dumper_payload_src: str
         if self._module_dumper_payload_src is not None:
             dumper_payload_src = self._module_dumper_payload_src
@@ -291,6 +292,9 @@ class ManifestBuilder:
             dumper_payload_src,
             f'_ModuleManifestDumper({fm.mod_name!r})({", ".join(repr(tgt) for tgt in targets)})\n',
         ])
+
+        n = self._num_dumped  # noqa
+        self._num_dumped += 1
 
         args = [
             sys.executable,
