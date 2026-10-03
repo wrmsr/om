@@ -136,7 +136,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
-            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='ec9a1a38b6d2c1f180d2ada694171e5943f96260'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3'),  # noqa
             dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
@@ -203,7 +203,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='1c97c61c6dfb64d2ca3613a8cb9170dfc33d9177'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='56c33baa20fd8d2a20d53036ed4cc3f0f7ea0aa3'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
             dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
@@ -7448,8 +7448,8 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
             max_bytes: ta.Optional[int] = None,
             /,
     ) -> ta.Optional[BytesLike]:
-        # Input zlib could not fit the output of within the limit is handed back as unconsumed_tail rather than kept,
-        # so it is re-fed here - which is why no new input may be given until it has been drained.
+        # Input zlib could not fit the output of within the limit is handed back as unconsumed_tail rather than kept, so
+        # it is re-fed here - which is why no new input may be given until it has been drained.
         if (tail := self._z.unconsumed_tail):
             check.arg(not data)
             data = tail
@@ -27289,11 +27289,11 @@ class IoPipelineHttpDecompressionConfig:
 
     # What to do with bytes following a complete compressed stream.
     #
-    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes
-    # them as such. They may however also be junk, in which case 'member' aborts the message - urllib3 instead
-    # tolerates trailing bytes and silently stops at the first member's end. That leniency is exactly what makes a
-    # truncated-to-one-member body indistinguishable from a complete one, so it is not the default. Codings which
-    # cannot separate trailing bytes from their stream at all (brotli) fail on them regardless of this setting.
+    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes them
+    # as such. They may however also be junk, in which case 'member' aborts the message - urllib3 instead tolerates
+    # trailing bytes and silently stops at the first member's end. That leniency is exactly what makes a
+    # truncated-to-one-member body indistinguishable from a complete one, so it is not the default. Codings which cannot
+    # separate trailing bytes from their stream at all (brotli) fail on them regardless of this setting.
     trailing_data: ta.Literal['member', 'ignore'] = 'member'
 
     def __post_init__(self) -> None:

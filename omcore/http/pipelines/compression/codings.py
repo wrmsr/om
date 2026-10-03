@@ -148,8 +148,8 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
             max_bytes: ta.Optional[int] = None,
             /,
     ) -> ta.Optional[BytesLike]:
-        # Input zlib could not fit the output of within the limit is handed back as unconsumed_tail rather than kept,
-        # so it is re-fed here - which is why no new input may be given until it has been drained.
+        # Input zlib could not fit the output of within the limit is handed back as unconsumed_tail rather than kept, so
+        # it is re-fed here - which is why no new input may be given until it has been drained.
         if (tail := self._z.unconsumed_tail):
             check.arg(not data)
             data = tail

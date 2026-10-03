@@ -57,11 +57,11 @@ class IoPipelineHttpDecompressionConfig:
 
     # What to do with bytes following a complete compressed stream.
     #
-    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes
-    # them as such. They may however also be junk, in which case 'member' aborts the message - urllib3 instead
-    # tolerates trailing bytes and silently stops at the first member's end. That leniency is exactly what makes a
-    # truncated-to-one-member body indistinguishable from a complete one, so it is not the default. Codings which
-    # cannot separate trailing bytes from their stream at all (brotli) fail on them regardless of this setting.
+    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes them
+    # as such. They may however also be junk, in which case 'member' aborts the message - urllib3 instead tolerates
+    # trailing bytes and silently stops at the first member's end. That leniency is exactly what makes a
+    # truncated-to-one-member body indistinguishable from a complete one, so it is not the default. Codings which cannot
+    # separate trailing bytes from their stream at all (brotli) fail on them regardless of this setting.
     trailing_data: ta.Literal['member', 'ignore'] = 'member'
 
     def __post_init__(self) -> None:
