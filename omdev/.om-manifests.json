@@ -235,7 +235,7 @@
     "module": ".py.classdot",
     "attr": "_CLI_MODULE",
     "file": "omdev/py/classdot.py",
-    "line": 63,
+    "line": 64,
     "value": {
       "!.cli.types.CliModule": {
         "name": "py/classdot",

@@ -27,6 +27,7 @@ class InstallOpts:
     cli_ver: ta.Optional[str] = None
 
     py_ver: str = DEFAULT_PY_VER
+    py_ft: bool = False
 
     extras: ta.Sequence[str] = dc.field(default_factory=list)
 
@@ -83,7 +84,7 @@ class UvxInstallManager(InstallManager):
             'uv', 'tool',
             'install',
             '--refresh',
-            f'--python={opts.py_ver}+gil',
+            f'--python={opts.py_ver}+{"freethreaded" if opts.py_ft else "gil"}',
             _format_install_cli_pkg(opts),
             *itertools.chain.from_iterable(['--with', e] for e in (opts.extras or [])),
         ])
@@ -122,7 +123,7 @@ class PipxInstallManager(InstallManager):
         subprocess.check_call([
             'pipx',
             'install',
-            f'--python={opts.py_ver}',
+            f'--python={opts.py_ver}{"t" if opts.py_ft else ""}',
             _format_install_cli_pkg(opts),
             *itertools.chain.from_iterable(['--preinstall', e] for e in (opts.extras or [])),
         ])
@@ -152,6 +153,7 @@ def _main() -> None:
     parser.add_argument('-c', '--cli', default=DEFAULT_CLI_PKG)
     parser.add_argument('-V', '--version')
     parser.add_argument('-p', '--python', default=DEFAULT_PY_VER)
+    parser.add_argument('--ft', action='store_true')
     parser.add_argument('-m', '--manager')
     parser.add_argument('extra', nargs='*')
     args = parser.parse_args()
@@ -184,6 +186,7 @@ def _main() -> None:
         cli_pkg=cli,
         cli_ver=args.version,
         py_ver=py,
+        py_ft=bool(args.ft),
         extras=args.extra,
     ))
 
