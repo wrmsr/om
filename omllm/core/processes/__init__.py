@@ -39,6 +39,7 @@ with _lang.auto_proxy_init(
     from .managers.types import (  # noqa
         ManagerConfig,
         ProcessManager,
+        RootProcessScope,
     )
 
     from .scopes.policies import (  # noqa

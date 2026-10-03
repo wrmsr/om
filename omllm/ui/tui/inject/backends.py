@@ -8,6 +8,7 @@ from .... import agent as agn
 from .... import llm
 from ....core import registry as reg
 from ..config import Config
+from ..types import InitialLlmOptions
 
 
 ##
@@ -15,6 +16,8 @@ from ..config import Config
 
 def bind_backends(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
+
+    #
 
     backend_cls: ta.Any
     backend: ta.Any
@@ -26,7 +29,11 @@ def bind_backends(config: Config) -> inj.Elements:
             backend_cls = llm.ScriptedStreamBackend
 
         backend = backend_cls(
-            llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted'),
+            llm.Model(
+                key=llm.ModelKey('scripted', 'scripted'),
+                backend='scripted',
+                reasoning_efforts=frozenset(llm.ReasoningEffort),
+            ),
         )
 
     else:
@@ -57,5 +64,14 @@ def bind_backends(config: Config) -> inj.Elements:
             llm.ImmediateBackend: {None: backend},  # type: ignore[type-abstract]
         }),
     ))
+
+    #
+
+    lst.append(inj.bind(InitialLlmOptions, to_const=InitialLlmOptions(llm.Options(
+        reasoning_effort=config.effort,
+        thinking=config.thinking,
+    ))))
+
+    #
 
     return inj.as_elements(*lst)

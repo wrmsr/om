@@ -1,11 +1,10 @@
-import os.path
 import typing as ta
 import uuid
 
-from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
-from omcore import typedvalues as tv
+
+from ... import llm
 
 
 with lang.auto_proxy_import(globals()):
@@ -15,15 +14,12 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-class TargetCwd(tv.UniqueScalarTypedValue[str], final=True):
-    def __post_init__(self) -> None:
-        check.non_empty_str(self.v)
-        check.arg(os.path.isabs(self.v))
-
-
 @dc.dataclass(frozen=True, kw_only=True)
 class Config:
     model: str | None = None
+
+    effort: llm.ReasoningEffort | None = None
+    thinking: bool | None = None
 
     cwd: str | None = None
     container: str | None = None
@@ -55,6 +51,9 @@ class Config:
     def configure_argument_parser(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         parser.add_argument('-m', '--model')
 
+        parser.add_argument('--effort', type=llm.ReasoningEffort, choices=list(llm.ReasoningEffort))
+        parser.add_argument('--thinking', action=argparse.BooleanOptionalAction, default=None)
+
         parser.add_argument('-C', '--cwd')
         parser.add_argument('--container')
 
@@ -85,6 +84,9 @@ class Config:
     def build_kwargs_from_parsed_arguments(cls, args: argparse.Namespace) -> dict[str, ta.Any]:
         return dict(
             model=args.model,
+
+            effort=args.effort,
+            thinking=args.thinking,
 
             cwd=args.cwd,
             container=args.container,

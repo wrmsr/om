@@ -534,20 +534,20 @@ class RemoteProcessManager(processes.ProcessManager, ScopeManager):
             asynclite=asl.asyncio.All(),
         )
 
-        self._root = processes.ProcessScope(
+        self._root = processes.RootProcessScope(processes.ProcessScope(
             'root',
             parent=None,
             manager=self,
             options=self._config.default_options,
             close_policy=self._config.close_policy,
-        )
+        ))
 
     @property
     def config(self) -> processes.ManagerConfig:
         return self._config
 
     @property
-    def root(self) -> processes.ProcessScope:
+    def root(self) -> processes.RootProcessScope:
         return self._root
 
     @property

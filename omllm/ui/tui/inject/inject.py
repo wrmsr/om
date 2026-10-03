@@ -8,6 +8,7 @@ from .commands import bind_commands
 from .permissions import bind_permissions
 from .session import bind_sessions
 from .tools import bind_tools
+from .web import bind_web
 
 
 ##
@@ -25,6 +26,7 @@ def bind_tui(config: Config) -> inj.Elements:
         bind_permissions(config),
         bind_sessions(config),
         bind_tools(config),
+        bind_web(config),
     ]
 
     return inj.as_elements(*lst)

@@ -34,6 +34,9 @@ def bind_commands(config: Config) -> inj.Elements:
 
         inj.bind(har.StatusCommand, singleton=True),
         harness_commands().bind_item(to_key=har.StatusCommand),
+
+        inj.bind(har.SteerCommand, singleton=True),
+        harness_commands().bind_item(to_key=har.SteerCommand),
     ])
 
     if config.exec:

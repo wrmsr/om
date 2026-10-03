@@ -9,7 +9,7 @@ from .... import agent as agn
 from .... import harness as har
 from ....core import processes
 from ..config import Config
-from ..config import TargetCwd
+from ..types import TargetCwd
 from .headless import bind_headless_tui
 from .headless import headless_tui
 

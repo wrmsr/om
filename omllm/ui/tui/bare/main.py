@@ -1,19 +1,17 @@
 import asyncio
 
-from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import lang
 
 from .... import agent as agn
 from .... import harness as har
-from ....core import processes
 from ....core import ui
 from ...logs import configure_tui_logging
 from ...types import UiId
 from ..config import Config
-from ..config import TargetCwd
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
+from ..setup import AgentSetup
 from .input import InputManager
 from .input import bind_input
 from .output import bind_output
@@ -52,34 +50,14 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         configure_tui_logging(ui_id)
 
         agent = await injector[agn.Agent]
-        tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
         input_manager = await injector[InputManager]
         text_displayer = await injector[ui.TextDisplayer]
 
-        cwd = (await injector[TargetCwd]).v
-
-        proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
-
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
 
-        await agent.update_state(
-            lambda state: dc.replace(
-                state,
-                context=dc.replace(
-                    state.context,
-                    system_prompt='\n\n'.join([
-                        f'Current working directory: {cwd}',
-                    ]),
-                    tools=tool_set,
-                ),
-                tool_env=agn.ToolEnvironment(
-                    cwd=cwd,
-                    processes=proc_scope,
-                ),
-            ),
-        )
+        await (await injector[AgentSetup]).run()
 
         if config.resume is not None:
             await display_transcript(await session.resume(), text_displayer)

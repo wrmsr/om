@@ -65,6 +65,10 @@ with _lang.auto_proxy_init(
         StatusCommand,
     )
 
+    from .commands.steer import (  # noqa
+        SteerCommand,
+    )
+
     ##
 
     from .sessions.storage.fs import (  # noqa

@@ -3,12 +3,12 @@ Injector wiring. The `ProcessManager` is bound as an async-managed singleton: it
 `aclose()`d when the injector's `AsyncExitStack` unwinds - so nothing keeps a module-global handle to it, and a new
 manager can be created and torn down cleanly per injector.
 """
-
 from omcore import inject as inj
 
 from .asyncio.manager import AsyncioProcessManager
 from .managers.types import ManagerConfig
 from .managers.types import ProcessManager
+from .managers.types import RootProcessScope
 
 
 ##
@@ -20,6 +20,8 @@ def bind_process_manager(
     lst: list[inj.Elemental] = []
 
     lst.append(inj.bind(config if config is not None else ManagerConfig()))
+
+    lst.append(inj.bind(RootProcessScope, to_fn=inj.KwargsTarget.of(lambda pm: pm.root, pm=ProcessManager)))
 
     lst.extend([
         inj.bind(

@@ -11,6 +11,7 @@ from ....core.asyncs.base import AsyncGroupRunner
 from ....core.asyncs.inject import bind_job_runner
 from ....core.eventbus import EventSubscriber
 from ..config import Config
+from ..setup import AgentSetup
 
 
 ##
@@ -147,5 +148,13 @@ def bind_agent(config: Config) -> inj.Elements:
     lst.extend([
         inj.bind(agn.Agent, singleton=True),
     ])
+
+    #
+
+    lst.extend([
+        inj.bind(AgentSetup, singleton=True),
+    ])
+
+    #
 
     return inj.as_elements(*lst)

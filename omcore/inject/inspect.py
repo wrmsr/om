@@ -93,7 +93,7 @@ class Kwargs(ta.Sequence[Kwarg], lang.Final):
     def __iter__(self) -> ta.Iterator[Kwarg]:
         return iter(self.seq)
 
-    def __contains__(self, value: str | Key | Kwarg, /) -> bool:  # type: ignore[override]
+    def __contains__(self, value: str | Key | Kwarg, /) -> bool:  # type: ignore[override]  # noqa
         if isinstance(value, str):
             return value in self.by_name
         elif isinstance(value, Key):

@@ -20,6 +20,9 @@ from ..types.ids import ProcessId
 from ..types.options import ProcessOption
 
 
+RootProcessScope = ta.NewType('RootProcessScope', ProcessScope)
+
+
 ##
 
 
@@ -52,7 +55,7 @@ class ProcessManager(EventPublisher[ProcessEvent], lang.Abstract):
 
     @property
     @abc.abstractmethod
-    def root(self) -> ProcessScope:
+    def root(self) -> RootProcessScope:
         raise NotImplementedError
 
     @property

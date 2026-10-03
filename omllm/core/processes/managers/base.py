@@ -66,6 +66,7 @@ from .stdio import close_fds_quietly
 from .stdio import setup_stdio
 from .types import ManagerConfig
 from .types import ProcessManager
+from .types import RootProcessScope
 
 
 log = logs.get_module_logger(globals())
@@ -114,13 +115,13 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
         self._spill_dir: str | None = None
         self._own_spill_dir = False
 
-        self._root = ProcessScope(
+        self._root = RootProcessScope(ProcessScope(
             'root',
             parent=None,
             manager=self,
             options=self._config.default_options,
             close_policy=self._config.close_policy,
-        )
+        ))
 
     def __repr__(self) -> str:
         return lang.attr_repr(self, '_state', with_id=True)
@@ -215,7 +216,7 @@ class BaseProcessManager(ProcessManager, ScopeManager, lang.Abstract):
         return self._config
 
     @property
-    def root(self) -> ProcessScope:
+    def root(self) -> RootProcessScope:
         return self._root
 
     @property

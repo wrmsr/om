@@ -12,6 +12,8 @@ from .input import CardPermissionAsker
 from .output import AgentEventRenderer
 from .output import MinituiTextDisplayer
 from .output import VerboseEventRenderer
+from .promptpump import PromptPump
+from .shutdown import Shutdown
 
 
 ##
@@ -74,6 +76,9 @@ def bind_minitui(config: Config) -> inj.Elements:
 
         inj.bind(AppQuitSignal, singleton=True),
         inj.bind(ui.QuitSignal, to_key=AppQuitSignal),
+
+        inj.bind(PromptPump, singleton=True),
+        inj.bind(Shutdown, singleton=True),
     ]
 
     return inj.as_elements(*lst)

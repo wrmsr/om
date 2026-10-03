@@ -18,50 +18,17 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from .... import harness as har
-from ....core import processes
 from ...logs import configure_tui_logging
 from ...types import UiId
 from ..config import Config
-from ..config import TargetCwd
 from ..inject import AgentEventSubscribers
+from ..setup import AgentSetup
+from ..types import TargetCwd
 from .app import MinituiChatApp
 from .inject import bind_minitui
 from .output import AgentEventRenderer
 from .promptpump import PromptPump
-
-
-##
-
-
-class Shutdown:
-    """
-    The quit sequence: drain the pump first - cancelling any in-flight turn while the driver is still bound, so the
-    abort's cards and marker reach scrollback - then stop the driver. Runs as its own task because `/quit` arrives from
-    inside the pump's own task, which cannot await its own teardown.
-    """
-
-    def __init__(
-            self,
-            *,
-            pump: PromptPump,
-            driver: mt.AsyncioDriver,
-    ) -> None:
-        super().__init__()
-
-        self._pump = pump
-        self._driver = driver
-
-        self._task: asyncio.Task | None = None
-
-    async def _run(self) -> None:
-        try:
-            await self._pump.aclose()
-        finally:
-            self._driver.stop()
-
-    def request(self) -> None:
-        if self._task is None:
-            self._task = asyncio.get_running_loop().create_task(self._run())
+from .shutdown import Shutdown
 
 
 ##
@@ -107,7 +74,6 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         configure_tui_logging(ui_id)
 
         agent = await injector[agn.Agent]
-        tool_set = await injector[agn.ToolSet]
         session = await injector[har.Session]
         commands_manager = await injector[har.CommandsManager]
         driver = await injector[mt.AsyncioDriver]
@@ -116,8 +82,6 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
         cwd = check.non_empty_str((await injector[TargetCwd]).v)
 
-        proc_scope = (await injector[processes.ProcessManager]).root if config.exec else None
-
         #
 
         app.set_commands([
@@ -125,11 +89,11 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             for name, cmd in sorted(commands_manager.get_commands().items())
         ])
 
-        pump = PromptPump(session=session, app=app)
+        pump = await injector[PromptPump]
         app.on_submit = pump.submit
         app.on_cancel = pump.cancel_current
 
-        shutdown = Shutdown(pump=pump, driver=driver)
+        shutdown = await injector[Shutdown]
         app.on_quit = shutdown.request
 
         # The driver starts before any agent activity: its run prologue prepares the surface, and everything the setup
@@ -141,25 +105,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             for el in await injector[AgentEventSubscribers]:
                 agent.subscribe(el)
 
-            await agent.update_state(
-                lambda state: dc.replace(
-                    state,
-                    context=dc.replace(
-                        state.context,
-                        system_prompt='\n\n'.join([
-                            f'Current working directory: {cwd}',
-                        ]),
-                        tools=tool_set,
-                    ),
-                    tool_env=agn.ToolEnvironment(
-                        cwd=cwd,
-                        processes=proc_scope,
-                    ),
-                    turn_config=agn.TurnConfig(
-                        llm_retry=agn.LlmRetryConfig(),
-                    ),
-                ),
-            )
+            await (await injector[AgentSetup]).run()
 
             if config.resume is not None:
                 event_renderer.display_transcript(await session.resume())
