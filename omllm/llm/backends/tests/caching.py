@@ -6,13 +6,13 @@ Drives a three-step scenario against a live backend and returns the reported tok
 - 'prime': a cold request whose large system prompt carries a run-unique nonce, guaranteeing no previous run's cache
   entry (which may outlive a test session) can be hit.
 - 'full': the identical request again - a full cache hit over the primed prefix.
-- 'partial': the conversation extended with the prime response and a new user message - a partial hit which reuses
-  the primed prefix while the extension goes uncached.
+- 'partial': the conversation extended with the prime response and a new user message - a partial hit which reuses the
+  primed prefix while the extension goes uncached.
 
 Implicit provider caches (OpenAI, Gemini, OpenRouter upstreams) are best-effort: a hit may take a retry or two to
-appear, so the hit steps re-request (bounded) until a sufficient cache read is reported, and the caller asserts on
-the final usages. The min_cache_read bar exists because a load-balanced upstream can report a trivial partial-block
-hit (observed: 64 tokens) which would otherwise end the retries early with a read no caller assertion accepts.
+appear, so the hit steps re-request (bounded) until a sufficient cache read is reported, and the caller asserts on the
+final usages. The min_cache_read bar exists because a load-balanced upstream can report a trivial partial-block hit
+(observed: 64 tokens) which would otherwise end the retries early with a read no caller assertion accepts.
 """
 import asyncio
 import typing as ta

@@ -67,15 +67,22 @@ class Agent(
 
         self._state = State()
 
-        self._running = False
+        self._is_busy = False
+        self._is_turn_running = False
 
         self._inbox = ListTurnInbox()
 
     @property
-    def is_running(self) -> bool:
+    def is_busy(self) -> bool:
         """Whether a run, or an exclusive state update, is in progress."""
 
-        return self._running
+        return self._is_busy
+
+    @property
+    def is_turn_running(self) -> bool:
+        """Whether a prompt is active, excluding exclusive state updates and terminal event delivery."""
+
+        return self._is_turn_running
 
     @property
     def state(self) -> State:
@@ -97,14 +104,14 @@ class Agent(
 
     @contextlib.asynccontextmanager
     async def _exclusive(self) -> ta.AsyncIterator[None]:
-        if self._running:
+        if self._is_busy:
             raise AgentBusyError
 
-        self._running = True
+        self._is_busy = True
         try:
             yield
         finally:
-            self._running = False
+            self._is_busy = False
 
     async def update_state_exclusively(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> None:
         """
@@ -164,10 +171,17 @@ class Agent(
 
     #
 
+    async def _on_turn_event(self, event: Event) -> None:
+        if isinstance(event, AgentEndEvent):
+            # A terminal publish may await subscribers, but the run can no longer consume input sent to its inbox.
+            self._is_turn_running = False
+
+        await self._publish(event)
+
     async def _prompt(self, new_messages: ta.Sequence[Message]) -> TurnResult:
         in_state = self._state
 
-        capture = _TerminalEventCapture(self._publish)
+        capture = _TerminalEventCapture(self._on_turn_event)
 
         try:
             result = await self._turn_runner.run_turn(TurnParams(
@@ -205,4 +219,8 @@ class Agent(
         async with self._exclusive():
             new_messages = self._coerce_messages(input)
 
-            return await self._prompt(new_messages)
+            self._is_turn_running = True
+            try:
+                return await self._prompt(new_messages)
+            finally:
+                self._is_turn_running = False

@@ -103,7 +103,7 @@ async def test_compaction_on_request_updates_the_state_and_reports_what_changed(
     assert reduction.reason == 'manual'
     assert reduction.compacted
     assert backend.invocations == 1
-    assert not agent.is_running
+    assert not agent.is_busy
 
     projection = check.not_none(agent.state.context.projection)
     assert projection.summary == 'Summary.'
@@ -133,7 +133,7 @@ class _HoldingCompactor(ContextCompactor):
         self.was_running: bool | None = None
 
     async def compact(self, context, *, backend, target_tokens, reason, instructions=None):
-        self.was_running = self._agent.is_running
+        self.was_running = self._agent.is_busy
 
         with pytest.raises(AgentBusyError):
             await self._agent.prompt('not now')
@@ -151,7 +151,7 @@ async def test_the_agent_is_held_against_prompts_for_the_duration():
 
     assert reduction is not None
     assert compactor.was_running
-    assert not agent.is_running
+    assert not agent.is_busy
     assert check.not_none(agent.state.context.projection).summary == 'Held.'
     assert backend.invocations == 0
 
@@ -171,7 +171,7 @@ async def test_compaction_during_a_run_is_refused():
     with pytest.raises(asyncio.CancelledError):
         await task
 
-    assert not agent.is_running
+    assert not agent.is_busy
 
 
 @pytest.mark.asyncs('asyncio')
@@ -182,5 +182,5 @@ async def test_without_a_compactor_there_is_nothing_to_run():
     with pytest.raises(NoContextCompactorError):
         await _runner(backend).run_compaction(agent)
 
-    assert not agent.is_running
+    assert not agent.is_busy
     assert agent.state.context.projection is None

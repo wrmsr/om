@@ -51,7 +51,7 @@ class Session(
         return self._id
 
     async def resume(self) -> ta.Sequence[agn.Message]:
-        check.state(not self._agent.is_running)
+        check.state(not self._agent.is_turn_running)
         check.state(not self._agent.state.context.messages, 'Cannot resume into a non-empty agent transcript')
         check.state(not self._agent.state.context.projection, 'Cannot resume into a projected agent transcript')
 
