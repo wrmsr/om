@@ -17,10 +17,7 @@ from ......agent.tests.scripted import scripted_backend
 from ......agent.tests.scripted import text_message
 from ......agent.tests.scripted import tool_call_message
 from ......agent.tests.tools import EchoTool
-from ......core import ui
 from ......core.asyncs.asyncio import AsyncioGroupRunner
-from .....commands.base import Commands
-from .....commands.manager import CommandsManager
 from ....entries import MessageSessionEntry
 from ....session import Session
 from ....types import SessionId

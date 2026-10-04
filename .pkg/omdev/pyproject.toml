@@ -35,7 +35,7 @@ omllm = [
     'omllm == 0.0.61',
 ]
 black = [
-    'black ~= 26.5',
+    'black ~= 26.10',
 ]
 c = [
     'pycparser ~= 3.0',
@@ -96,7 +96,7 @@ cli = [
 all = [
     'ominfra == 0.0.61',
     'omllm == 0.0.61',
-    'black ~= 26.5',
+    'black ~= 26.10',
     'pycparser ~= 3.0',
     'pcpp ~= 1.30',
     'docutils ~= 0.23',
