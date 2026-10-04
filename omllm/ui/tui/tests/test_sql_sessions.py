@@ -64,12 +64,12 @@ async def test_sql_sessions():
         assert isinstance(storage, har.OrmSessionStorage)
         assert isinstance(await tui.injector[har.Orm], har.SqlOrm)
 
-        await tui.session.prompt('hi')
-        await tui.session.prompt('again')
+        await tui.agent.prompt('hi')
+        await tui.agent.prompt('again')
         assert (await tui.injector[EchoTool]).calls == ['x']
 
         # A command is the session's business but not the transcript's, so none of storage's either.
-        await tui.session.prompt('/echo hi')
+        await (await tui.commands.parse('echo hi')).run()
 
         assert len(await storage.get_entries()) == 6
         await check_stored_transcript(storage, tui.agent)
@@ -80,7 +80,7 @@ async def test_sql_sessions():
     async with headless_tui(bind(text_message('hello'))) as tui:
         assert tui.session.id != first_session_id
 
-        await tui.session.prompt('hi')
+        await tui.agent.prompt('hi')
 
         await check_stored_transcript(await tui.injector[har.OrmSessionStorage], tui.agent)
 
@@ -93,7 +93,7 @@ async def test_sql_sessions():
         resumed_storage = await tui.injector[har.OrmSessionStorage]
         assert len(await resumed_storage.get_entries()) == 6
 
-        await tui.session.prompt('resuming')
+        await tui.agent.prompt('resuming')
 
         assert len(tui.agent.state.context.messages or ()) == 8
         await check_stored_transcript(resumed_storage, tui.agent)

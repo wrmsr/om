@@ -53,6 +53,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         session = await injector[har.Session]
         input_manager = await injector[InputManager]
         text_displayer = await injector[ui.TextDisplayer]
+        commands = await injector[har.CommandsManager]
 
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
@@ -64,8 +65,22 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
         #
 
+        async def prompt(input: str) -> None:
+            if not input:
+                return
+
+            if input[0] == '/':
+                try:
+                    await (await commands.parse(input[1:])).run()
+                except har.ParseCommandError as e:
+                    if e.message is not None:
+                        await text_displayer.display_text(e.message)
+                return
+
+            await agent.prompt(input)
+
         for ax in config.autoexec or []:
-            await session.prompt(ax)
+            await prompt(ax)
 
         while True:
             try:
@@ -73,7 +88,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             except EOFError:
                 break
 
-            await session.prompt(entry)
+            await prompt(entry)
 
 
 def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:

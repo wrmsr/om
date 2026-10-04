@@ -82,9 +82,9 @@ async def test_idle_steering_does_not_leak_into_a_later_prompt():
         bind_headless_tui(Config(model='scripted', in_memory=True)),
         inj.bind(ui.TextDisplayer, to_const=display),
     )) as tui:
-        await tui.session.prompt('/steer stray')
+        await (await tui.commands.parse('steer stray')).run()
         assert 'No prompt is running' in display.lines[-1]
-        await tui.session.prompt('hello')
+        await tui.agent.prompt('hello')
         assert 'stray' not in str(tui.agent.state.context.messages)
 
 
@@ -97,7 +97,7 @@ async def test_steer_rejects_exclusive_updates_and_terminal_delivery():
     )) as tui:
         async def update(state):
             assert tui.agent.is_busy and not tui.agent.is_turn_running
-            await tui.session.prompt('/steer during-update')
+            await (await tui.commands.parse('steer during-update')).run()
             return state
 
         await tui.agent.update_state_exclusively(update)
@@ -106,12 +106,12 @@ async def test_steer_rejects_exclusive_updates_and_terminal_delivery():
         async def on_event(event):
             if isinstance(event, agn.AgentEndEvent):
                 assert tui.agent.is_busy and not tui.agent.is_turn_running
-                await tui.session.prompt('/steer during-terminal-event')
+                await (await tui.commands.parse('steer during-terminal-event')).run()
 
         tui.agent.subscribe(on_event)
-        await tui.session.prompt('first')
+        await tui.agent.prompt('first')
         assert 'No prompt is running' in display.lines[-1]
-        await tui.session.prompt('second')
+        await tui.agent.prompt('second')
         assert 'during-update' not in str(tui.agent.state.context.messages)
         assert 'during-terminal-event' not in str(tui.agent.state.context.messages)
 

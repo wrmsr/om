@@ -67,6 +67,7 @@ class HeadlessTui:
 
     agent: agn.Agent
     session: har.Session
+    commands: har.CommandsManager
 
 
 @contextlib.asynccontextmanager
@@ -78,6 +79,7 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
         # What a frontend's main does with its injector, short of running anything on a terminal.
         agent = await injector[agn.Agent]
         session = await injector[har.Session]
+        commands = await injector[har.CommandsManager]
 
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
@@ -92,4 +94,5 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
             injector=injector,
             agent=agent,
             session=session,
+            commands=commands,
         )

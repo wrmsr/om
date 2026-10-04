@@ -31,9 +31,9 @@ async def test_compact_command_through_the_tuis_wiring():
                 llm.BackendScriptTurn(text_message('again'), expect=expect),
             ),
     )) as tui:
-        await tui.session.prompt('hi')
+        await tui.agent.prompt('hi')
 
-        await tui.session.prompt('/compact')
+        await (await tui.commands.parse('compact')).run()
 
         projection = check.not_none(tui.agent.state.context.projection)
         assert projection.summary == 'The user said hi.'
@@ -47,7 +47,7 @@ async def test_compact_command_through_the_tuis_wiring():
             har.ContextProjectionSessionEntry,
         ]
 
-        await tui.session.prompt('and again')
+        await tui.agent.prompt('and again')
 
         [llm_context] = seen
         assert [type(m) for m in llm_context.messages or []] == [llm.UserMessage, llm.AiMessage, llm.UserMessage]

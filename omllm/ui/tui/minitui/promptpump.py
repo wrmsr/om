@@ -1,5 +1,9 @@
 import asyncio
 
+from omcore import check
+
+from ....core import ui
+from .... import agent as agn
 from .... import harness as har
 from .app import MinituiChatApp
 
@@ -13,34 +17,52 @@ class PromptPump:
     def __init__(
             self,
             *,
-            session: har.Session,
+            agent: agn.Agent,
             app: MinituiChatApp,
             commands: har.CommandsManager | None = None,
+            text_displayer: ui.TextDisplayer | None = None,
     ) -> None:
         super().__init__()
 
-        self._session = session
+        self._agent = agent
         self._app = app
         self._commands = commands
+        self._text_displayer = text_displayer
 
         self._queue: list[str] = []
         self._task: asyncio.Task | None = None
         self._closing = False
         self._command_tasks: set[asyncio.Task] = set()
 
+    async def _prompt(self, input: str) -> None:
+        if not input:
+            return
+
+        if input[0] == '/':
+            try:
+                await (await check.not_none(self._commands).parse(input[1:])).run()
+            except har.ParseCommandError as e:
+                if e.message is not None and (td := self._text_displayer) is not None:
+                    await td.display_text(e.message)
+            return
+
+        await self._agent.prompt(input)
+
     def submit(self, text: str) -> None:
         if self._closing or not text.strip():
             return
 
-        if (
-                self._task is not None and
-                text.startswith('/') and
-                self._commands is not None
-        ):
-            task = asyncio.get_running_loop().create_task(self._run_one(text))
-            self._command_tasks.add(task)
-            task.add_done_callback(self._command_tasks.discard)
-            return
+        # FIXME: lol
+        # if (
+        #         self._task is not None and
+        #         text.startswith('/') and
+        #         self._commands is not None and
+        #         self._commands.can_run_while_busy(text[1:])
+        # ):
+        #     task = asyncio.get_running_loop().create_task(self._run_one(text))
+        #     self._command_tasks.add(task)
+        #     task.add_done_callback(self._command_tasks.discard)
+        #     return
 
         if not text.startswith('/'):
             self._app.show_user_message(text)
@@ -65,7 +87,7 @@ class PromptPump:
             if text.startswith('/'):
                 self._app.show_command_echo(text)
 
-            await self._session.prompt(text)
+            await self._prompt(text)
 
         except Exception as e:  # noqa: BLE001
             self._app.display_text(f'error: {e!r}', 'error')

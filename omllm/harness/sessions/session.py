@@ -6,7 +6,6 @@ from omcore import dataclasses as dc
 
 from ... import agent as agn
 from ...core.eventbus import EventPublisher
-from ..commands.manager import CommandsManager
 from .entries import ContextProjectionSessionEntry
 from .entries import MessageSessionEntry
 from .events import AgentSessionEvent
@@ -26,14 +25,12 @@ class Session(
             *,
             agent: agn.Agent,
             storage: SessionStorage,
-            commands_manager: CommandsManager,
             id: SessionId | None = None,  # noqa
     ) -> None:
         super().__init__()
 
         self._agent = agent
         self._storage = storage
-        self._commands_manager = commands_manager
         self._id = check.isinstance(id, SessionId) if id is not None else SessionId(uuid.uuid7())
 
         # How much of the run in progress has been stored: messages are stored as they are announced, and the run's
@@ -51,7 +48,7 @@ class Session(
         return self._id
 
     async def resume(self) -> ta.Sequence[agn.Message]:
-        check.state(not self._agent.is_turn_running)
+        check.state(not self._agent.is_busy)
         check.state(not self._agent.state.context.messages, 'Cannot resume into a non-empty agent transcript')
         check.state(not self._agent.state.context.projection, 'Cannot resume into a projected agent transcript')
 
@@ -132,27 +129,3 @@ class Session(
 
         elif isinstance(agn_event, agn.StateUpdateEvent):
             await self._store_projection(agn_event.new_state.context.projection)
-
-    async def prompt(
-            self,
-            input: str,  # noqa
-    ) -> None:
-        if not input:
-            return
-
-        if input.startswith('/'):
-            await self._commands_manager.run_command_text(input[1:])
-            return
-
-        await self._agent.prompt(input)
-
-    def steer(
-            self,
-            input: str | agn.Message | ta.Sequence[agn.Message],  # noqa
-    ) -> None:
-        """
-        Queues input for the run in progress. Nothing in the ui routes here yet: a `/steer` command is to, which needs
-        the ui to dispatch commands while a turn runs rather than queue them behind it.
-        """
-
-        self._agent.steer(input)

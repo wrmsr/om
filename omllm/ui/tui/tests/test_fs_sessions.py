@@ -29,14 +29,14 @@ async def test_fs_session_resume():
             )
 
         async with headless_tui(bind(text_message('hello'))) as tui:
-            await tui.session.prompt('hi')
+            await tui.agent.prompt('hi')
             session_id = tui.session.id
 
         async with headless_tui(bind(text_message('continued'), resume=session_id.v)) as tui:
             assert tui.session.id == session_id
             assert len(tui.agent.state.context.messages or ()) == 2
 
-            await tui.session.prompt('again')
+            await tui.agent.prompt('again')
 
             assert len(tui.agent.state.context.messages or ()) == 4
             storage = await tui.injector[har.FsSessionStorage]

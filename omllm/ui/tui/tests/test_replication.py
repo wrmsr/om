@@ -99,7 +99,7 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
                 bind_agent_tool_class(EchoTool),
         ) as tui:
             # The harness was here first: its db exists, with a turn in it, before anyone thinks to replicate it.
-            await tui.session.prompt('hi')
+            await tui.agent.prompt('hi')
 
             #
 
@@ -134,8 +134,8 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
                     # What follows them goes while the worker runs, on the same loop the turns themselves are on: one
                     # with a tool call in it, then one which fails.
-                    await tui.session.prompt('again')
-                    await tui.session.prompt('and again')
+                    await tui.agent.prompt('again')
+                    await tui.agent.prompt('and again')
 
                     await wait_until(lambda: hub_has(8))
 

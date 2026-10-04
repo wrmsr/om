@@ -1,4 +1,5 @@
 import abc
+import enum
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -36,6 +37,11 @@ class CommandContext:
     print: CommandContextPrinter
 
 
+class RunCommandResult(enum.StrEnum):
+    SUCCESS = 'success'
+    FAILURE = 'failure'
+
+
 class Command(lang.Abstract):
     @property
     @abc.abstractmethod
@@ -46,8 +52,12 @@ class Command(lang.Abstract):
     def description(self) -> str | None:
         return None
 
+    @property
+    def can_run_while_busy(self) -> bool:
+        return False
+
     @abc.abstractmethod
-    def run(self, ctx: CommandContext, argv: list[str]) -> ta.Awaitable[None]:
+    def run(self, ctx: CommandContext, argv: list[str]) -> ta.Awaitable[RunCommandResult | None]:
         raise NotImplementedError
 
 

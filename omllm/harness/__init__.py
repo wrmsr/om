@@ -28,6 +28,7 @@ with _lang.auto_proxy_init(
 
         CommandContextPrinter,
         CommandContext,
+        RunCommandResult,
         Command,
         Commands,
     )
@@ -43,7 +44,8 @@ with _lang.auto_proxy_init(
     )
 
     from .commands.manager import (  # noqa
-        RunCommandResult,
+        ParsedCommand,
+        ParseCommandError,
         CommandsManager,
     )
 

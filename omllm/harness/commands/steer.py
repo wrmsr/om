@@ -19,7 +19,7 @@ class SteerCommand(CommandClass):
         return 'Sends instructions to the running agent at its next turn boundary.'
 
     @property
-    def runs_while_busy(self) -> bool:
+    def can_run_while_busy(self) -> bool:
         return True
 
     def _configure_parser(self, parser: ap.ArgumentParser) -> None:
