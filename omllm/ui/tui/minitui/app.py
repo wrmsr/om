@@ -18,6 +18,7 @@ from omcore.text import highlights as hl
 from omdev import minitui as mt
 
 from ....core import ui
+from ..rendering import render_text_rows
 
 
 CardRows: ta.TypeAlias = tuple[tuple[mt.Segment, ...], ...]
@@ -309,6 +310,13 @@ class MinituiChatApp(mt.App):
         for row in mt.split_segment_lines([(text, style)]):
             out.extend(mt.wrap_segments(row, self.width) if row else [[]])
         self.display_rows(out)
+
+    def display_ui_text(self, *texts: ui.CanText) -> None:
+        rendering = ui.StyledTextRenderer().render(*texts)
+        rows = render_text_rows(rendering, self.width)
+        if rows and not rows[-1]:
+            rows = rows[:-1]
+        self.display_rows(rows)
 
     ##
     # Chat flow

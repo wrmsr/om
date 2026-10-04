@@ -45,7 +45,7 @@ class CommandsManager:
     def get_commands(self) -> ta.Mapping[str, Command]:
         return self._commands_by_name
 
-    async def parse(self, text: str) -> ParsedCommand:
+    def parse(self, text: str) -> ParsedCommand:
         try:
             parts = shlex.split(text)
         except ValueError as e:

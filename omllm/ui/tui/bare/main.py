@@ -71,7 +71,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
             if input[0] == '/':
                 try:
-                    await (await commands.parse(input[1:])).run()
+                    await commands.parse(input[1:]).run()
                 except har.ParseCommandError as e:
                     if e.message is not None:
                         await text_displayer.display_text(e.message)

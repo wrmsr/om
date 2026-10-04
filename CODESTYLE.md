@@ -236,6 +236,7 @@
       return (t,)
     ```
 
+
 ### Classes
 
 - Ensure constructors call `super().__init__()`, even if they don't appear to inherit from anything at their definition
@@ -506,6 +507,7 @@
 - In non-lite code use `uuid.uuid7()` by default for uuid generation. In lite code use `uuid.uuid4()`.
 - Do **NOT** programmatically modify `sys.path`, EVEN TEMPORARILY. If you're thinking about doing this for a test, you
   should be spawning a temporary subprocess with a modified `PYTHONPATH` env var.
+- Usually prefer to use `collections.deque` for queues rather than `list`.
 
 
 ### C/C++ Extensions

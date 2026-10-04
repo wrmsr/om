@@ -1,4 +1,7 @@
+# ruff: noqa: A001 A002
 import asyncio
+import collections
+import typing as ta
 
 from omcore import check
 
@@ -6,6 +9,9 @@ from .... import agent as agn
 from .... import harness as har
 from ....core import ui
 from .app import MinituiChatApp
+
+
+Input: ta.TypeAlias = str | har.ParsedCommand
 
 
 ##
@@ -29,51 +35,44 @@ class PromptPump:
         self._commands = commands
         self._text_displayer = text_displayer
 
-        self._queue: list[str] = []
+        self._queue: collections.deque[Input] = collections.deque()
         self._task: asyncio.Task | None = None
         self._closing = False
         self._command_tasks: set[asyncio.Task] = set()
-
-    async def _prompt(self, input: str) -> None:  # noqa
-        if not input:
-            return
-
-        if input[0] == '/':
-            try:
-                await (await check.not_none(self._commands).parse(input[1:])).run()
-            except har.ParseCommandError as e:
-                if e.message is not None and (td := self._text_displayer) is not None:
-                    await td.display_text(e.message)
-            return
-
-        await self._agent.prompt(input)
 
     def submit(self, text: str) -> None:
         if self._closing or not text.strip():
             return
 
-        if (
-                self._task is not None and
-                text.startswith('/') and
-                self._commands is not None and
-                self._commands.can_run_while_busy(text[1:])
-        ):
-            task = asyncio.get_running_loop().create_task(self._run_one(text))
-            self._command_tasks.add(task)
-            task.add_done_callback(self._command_tasks.discard)
-            return
+        input: Input
 
-        if not text.startswith('/'):
+        if text.startswith('/'):
+            try:
+                input = check.not_none(self._commands).parse(text[1:])
+            except har.ParseCommandError as e:
+                if e.message is not None:
+                    self._app.display_ui_text(e.message)
+                return
+
+            if self._task is not None and input.command.can_run_while_busy:
+                task = asyncio.get_running_loop().create_task(self._run_one(text))
+                self._command_tasks.add(task)
+                task.add_done_callback(self._command_tasks.discard)
+                return
+
+        else:
             self._app.show_user_message(text)
 
-        self._queue.append(text)
+            input = text
+
+        self._queue.append(input)
         self._maybe_start()
 
     def _maybe_start(self) -> None:
         if self._closing or self._task is not None or not self._queue:
             return
 
-        text = self._queue.pop(0)
+        text = self._queue.pop()
         task = asyncio.get_running_loop().create_task(self._run_one(text))
         self._task = task
 
@@ -81,12 +80,16 @@ class PromptPump:
         # step never runs its body at all, and the pump must not wedge on it.
         task.add_done_callback(self._on_task_done)
 
-    async def _run_one(self, text: str) -> None:
+    async def _run_one(self, input: Input) -> None:
         try:
-            if text.startswith('/'):
-                self._app.show_command_echo(text)
+            if isinstance(input, str):
+                await self._agent.prompt(input)
 
-            await self._prompt(text)
+            elif isinstance(input, har.ParsedCommand):
+                await input.run()
+
+            else:
+                raise TypeError(input)
 
         except Exception as e:  # noqa: BLE001
             self._app.display_text(f'error: {e!r}', 'error')

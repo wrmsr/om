@@ -14,7 +14,6 @@ from .... import agent as agn
 from .... import llm
 from ....core import ui
 from ..config import Config
-from ..rendering import render_text_rows
 from .app import MinituiChatApp
 from .toolcards import tool_call_summary
 from .toolcards import tool_card_key
@@ -51,11 +50,7 @@ class MinituiTextDisplayer(ui.TextDisplayer):
         self._app = app
 
     async def display_text(self, *texts: ui.CanText) -> None:
-        rendering = ui.StyledTextRenderer().render(*texts)
-        rows = render_text_rows(rendering, self._app.width)
-        if rows and not rows[-1]:
-            rows = rows[:-1]
-        self._app.display_rows(rows)
+        self._app.display_ui_text(*texts)
 
 
 ##

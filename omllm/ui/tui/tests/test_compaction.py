@@ -37,7 +37,7 @@ async def test_compact_command_through_the_tuis_wiring():
     )) as tui:
         await tui.agent.prompt('hi')
 
-        await (await tui.commands.parse('compact')).run()
+        await tui.commands.parse('compact').run()
 
         projection = check.not_none(tui.agent.state.context.projection)
         assert projection.summary == 'The user said hi.'
