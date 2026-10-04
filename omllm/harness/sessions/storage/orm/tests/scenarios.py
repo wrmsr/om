@@ -55,7 +55,6 @@ async def scripted_session(
     session = Session(
         agent=agent,
         storage=storage,
-        commands_manager=CommandsManager(commands=Commands([]), text_displayer=ui.NopTextDisplayer()),
         id=session_id,
     )
 
@@ -96,7 +95,7 @@ async def check_orm_session_storage(orm_: Orm) -> None:
     async with orm_.new_session():
         assert await orm.get(OrmSession, session.id.v) is None
 
-    await session.prompt('hi')
+    await agent.prompt('hi')
     assert echo.calls == ['x']
     assert [type(m) for m in transcript(agent)] == [
         llm.UserMessage,
@@ -107,8 +106,8 @@ async def check_orm_session_storage(orm_: Orm) -> None:
     await check_stored_transcript(storage, agent)
 
     # A later run adds to what is there, and one which fails is stored as far as it got.
-    await session.prompt('again')
-    await session.prompt('and again')
+    await agent.prompt('again')
+    await agent.prompt('and again')
     assert isinstance(transcript(agent)[-1], agn.InfoAgentMessage)
     await check_stored_transcript(storage, agent)
 
@@ -133,7 +132,7 @@ async def check_orm_session_storage(orm_: Orm) -> None:
 
     # Another session in the same orm keeps to itself.
     other_session, other_agent, other_storage = await scripted_session(orm_, text_message('hello'))
-    await other_session.prompt('hi')
+    await other_agent.prompt('hi')
     await check_stored_transcript(other_storage, other_agent)
     assert len(await other_storage.get_entries()) == 2
     await check_stored_transcript(storage, agent)

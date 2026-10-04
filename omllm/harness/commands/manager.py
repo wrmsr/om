@@ -7,8 +7,8 @@ from omcore import dataclasses as dc
 from ...core import ui
 from .base import Command
 from .base import CommandContext
-from .base import Commands
 from .base import CommandError
+from .base import Commands
 from .base import RunCommandResult
 
 
@@ -21,7 +21,7 @@ class ParsedCommand:
     run: ta.Callable[[], ta.Awaitable[RunCommandResult]]
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass()
 class ParseCommandError(CommandError):
     message: ui.CanText | None = None
 
@@ -49,7 +49,7 @@ class CommandsManager:
         try:
             parts = shlex.split(text)
         except ValueError as e:
-            raise ParseCommandError(f'Invalid command syntax: {e}')
+            raise ParseCommandError(f'Invalid command syntax: {e}') from e
 
         if not parts:
             raise ParseCommandError('Empty command')

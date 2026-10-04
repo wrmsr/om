@@ -65,7 +65,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
         #
 
-        async def prompt(input: str) -> None:
+        async def prompt(input: str) -> None:  # noqa
             if not input:
                 return
 

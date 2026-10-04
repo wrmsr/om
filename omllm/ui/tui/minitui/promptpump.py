@@ -2,9 +2,9 @@ import asyncio
 
 from omcore import check
 
-from ....core import ui
 from .... import agent as agn
 from .... import harness as har
+from ....core import ui
 from .app import MinituiChatApp
 
 
@@ -34,7 +34,7 @@ class PromptPump:
         self._closing = False
         self._command_tasks: set[asyncio.Task] = set()
 
-    async def _prompt(self, input: str) -> None:
+    async def _prompt(self, input: str) -> None:  # noqa
         if not input:
             return
 
@@ -52,17 +52,16 @@ class PromptPump:
         if self._closing or not text.strip():
             return
 
-        # FIXME: lol
-        # if (
-        #         self._task is not None and
-        #         text.startswith('/') and
-        #         self._commands is not None and
-        #         self._commands.can_run_while_busy(text[1:])
-        # ):
-        #     task = asyncio.get_running_loop().create_task(self._run_one(text))
-        #     self._command_tasks.add(task)
-        #     task.add_done_callback(self._command_tasks.discard)
-        #     return
+        if (
+                self._task is not None and
+                text.startswith('/') and
+                self._commands is not None and
+                self._commands.can_run_while_busy(text[1:])
+        ):
+            task = asyncio.get_running_loop().create_task(self._run_one(text))
+            self._command_tasks.add(task)
+            task.add_done_callback(self._command_tasks.discard)
+            return
 
         if not text.startswith('/'):
             self._app.show_user_message(text)

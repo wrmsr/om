@@ -86,7 +86,7 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
                 text_message('done'),
             ),
         )) as tui:
-            await tui.session.prompt('Fetch and search.')
+            await tui.agent.prompt('Fetch and search.')
             messages = check.not_none(tui.agent.state.context.messages)
             results = {m.tool_name: m for m in messages if isinstance(m, llm.ToolResultMessage)}
             assert all(not r.is_error for r in results.values())

@@ -23,7 +23,7 @@ class Project(ProjectBase):
         #
 
         'black': [
-            'black ~= 26.5',
+            'black ~= 26.10',
         ],
 
         'c': [

@@ -66,7 +66,7 @@ async def test_sqlite_db_is_created_shareable_and_reopens():
             assert tables == {'sessions', 'session_entries'}
 
         session, agent, storage = await scripted_session(sql_orm, text_message('hello'), text_message('hello again'))
-        await session.prompt('hi')
+        await agent.prompt('hi')
 
     # What was stored is there for whoever opens the db next, and they add to it rather than start over.
     async with (
@@ -78,7 +78,7 @@ async def test_sqlite_db_is_created_shareable_and_reopens():
         await check_stored_transcript(storage, agent)
 
         other_session, other_agent, other_storage = await scripted_session(sql_orm, text_message('hello'))
-        await other_session.prompt('hi')
+        await other_agent.prompt('hi')
         await check_stored_transcript(other_storage, other_agent)
 
     with sqlite3.connect(config.file_path) as conn:

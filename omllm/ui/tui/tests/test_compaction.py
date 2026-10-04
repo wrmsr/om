@@ -24,7 +24,11 @@ async def test_compact_command_through_the_tuis_wiring():
         seen.append(invocation.context)
 
     async with headless_tui(inj.override(
-            bind_headless_tui(Config(model='scripted', immediate=True, in_memory=True)),
+            bind_headless_tui(Config(
+                model='scripted',
+                immediate=True,
+                in_memory=True,
+            )),
             bind_scripted_backend(
                 text_message('hello'),
                 text_message('The user said hi.'),

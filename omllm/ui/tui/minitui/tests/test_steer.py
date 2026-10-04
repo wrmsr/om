@@ -40,7 +40,10 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
         for text in ['first', 'steered', 'followup']
     ], stream=True, gate=gate)
     display = RecordingTextDisplayer()
-    config = Config(model='scripted', in_memory=True)
+    config = Config(
+        model='scripted',
+        in_memory=True,
+    )
     async with headless_tui(inj.override(
         bind_headless_tui(config),
         inj.bind(ui.TextDisplayer, to_const=display),
@@ -49,10 +52,18 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
         })),
     )) as tui:
         app, _ = make_app()
-        renderer = AgentEventRenderer(app=app, text_displayer=display, config=config)
+        renderer = AgentEventRenderer(
+            app=app,
+            text_displayer=display,
+            config=config,
+        )
         tui.agent.subscribe(renderer.on_agent_event)
         commands = await tui.injector[har.CommandsManager]
-        pump = PromptPump(session=tui.session, app=app, commands=commands)
+        pump = PromptPump(
+            agent=tui.agent,
+            app=app,
+            commands=commands,
+        )
         try:
             pump.submit('initial')
             await started.wait()
@@ -79,7 +90,10 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
 async def test_idle_steering_does_not_leak_into_a_later_prompt():
     display = RecordingTextDisplayer()
     async with headless_tui(inj.override(
-        bind_headless_tui(Config(model='scripted', in_memory=True)),
+        bind_headless_tui(Config(
+            model='scripted',
+            in_memory=True,
+        )),
         inj.bind(ui.TextDisplayer, to_const=display),
     )) as tui:
         await (await tui.commands.parse('steer stray')).run()
@@ -92,7 +106,10 @@ async def test_idle_steering_does_not_leak_into_a_later_prompt():
 async def test_steer_rejects_exclusive_updates_and_terminal_delivery():
     display = RecordingTextDisplayer()
     async with headless_tui(inj.override(
-        bind_headless_tui(Config(model='scripted', in_memory=True)),
+        bind_headless_tui(Config(
+            model='scripted',
+            in_memory=True,
+        )),
         inj.bind(ui.TextDisplayer, to_const=display),
     )) as tui:
         async def update(state):
@@ -141,14 +158,21 @@ async def test_shutdown_owns_immediate_command_tasks(start_command):
     backend = scripted_backend(text_message('blocked'), stream=True, gate=gate)
     display = BlockingDisplay()
     async with headless_tui(inj.override(
-        bind_headless_tui(Config(model='scripted', in_memory=True)),
+        bind_headless_tui(Config(
+            model='scripted',
+            in_memory=True,
+        )),
         inj.bind(ui.TextDisplayer, to_const=display),
         inj.bind(agn.BackendManager, to_const=agn.DictBackendManager({
             llm.ImmediateBackend: {None: backend},  # type: ignore[type-abstract]
         })),
     )) as tui:
         app, _ = make_app()
-        pump = PromptPump(session=tui.session, app=app, commands=await tui.injector[har.CommandsManager])
+        pump = PromptPump(
+            agent=tui.agent,
+            app=app,
+            commands=await tui.injector[har.CommandsManager],
+        )
         try:
             pump.submit('initial')
             await started.wait()

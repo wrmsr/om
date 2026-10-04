@@ -105,6 +105,8 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
         cache_mounts=APT_CACHE_MOUNTS,
     ))
 
+    ops.append(fragment_section('deadsnakes'))
+
     ##
     # langs
 

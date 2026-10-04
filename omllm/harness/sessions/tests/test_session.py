@@ -96,7 +96,6 @@ async def _session(backend, tools=(), storage=None, agent=None):
     session = Session(
         agent=agent,
         storage=storage,
-        commands_manager=_commands_manager(),
     )
     return session, storage
 

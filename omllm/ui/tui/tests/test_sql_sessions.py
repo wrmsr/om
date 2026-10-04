@@ -33,10 +33,18 @@ def test_config_arguments():
     assert Config.parse_from_arguments(['--resume', str(session_id)]).resume == session_id
 
     with pytest.raises(RuntimeError):  # noqa
-        bind_headless_tui(Config(model='scripted', jsonl=True, in_memory=True))
+        bind_headless_tui(Config(
+            model='scripted',
+            jsonl=True,
+            in_memory=True,
+        ))
 
     with pytest.raises(RuntimeError):  # noqa
-        bind_headless_tui(Config(model='scripted', in_memory=True, resume=session_id))
+        bind_headless_tui(Config(
+            model='scripted',
+            in_memory=True,
+            resume=session_id,
+        ))
 
 
 @pytest.mark.asyncs('asyncio')
@@ -46,7 +54,11 @@ async def test_sql_sessions():
     def bind(*turns, resume=None):
         return inj.as_elements(
             inj.override(
-                bind_headless_tui(Config(model='scripted', immediate=True, resume=resume)),
+                bind_headless_tui(Config(
+                    model='scripted',
+                    immediate=True,
+                    resume=resume,
+                )),
                 bind_scripted_backend(*turns),
                 inj.bind(sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_path)),
             ),

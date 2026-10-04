@@ -147,6 +147,7 @@ DEPS="$DEPS\
   redis\
   ripgrep\
   ruby\
+  runsc\
   silversearcher-ag\
   socat\
   software-properties-common\
@@ -341,6 +342,17 @@ echo "deb [signed-by=/usr/share/keyrings/azul.gpg] https://repos.azul.com/zulu/d
 \
 sudo apt-get update ;\
 sudo apt-get install -y ${JDKS} ;\
+)
+
+
+## deadsnakes
+
+RUN (\
+set -ex ;\
+umask 0002 ;\
+\
+sudo add-apt-repository ppa:deadsnakes/ppa &&\
+sudo apt update ;\
 )
 
 
