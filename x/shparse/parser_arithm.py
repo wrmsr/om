@@ -1,3 +1,4 @@
+# ruff: noqa: SLF001
 # Copyright (c) 2016, Daniel Martí. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -17,7 +18,6 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# ruff: noqa: SLF001
 import typing as ta
 
 from omcore import check
@@ -45,8 +45,7 @@ if ta.TYPE_CHECKING:
 ##
 
 
-# compact specifies whether we allow spaces between expressions.
-# This is true for let
+# compact specifies whether we allow spaces between expressions. This is true for let
 def arithm_expr(p: Parser, compact: bool) -> ArithmExpr | None:
     return arithm_expr_comma(p, compact)
 
@@ -58,20 +57,29 @@ def arithm_expr_comma(p: Parser, compact: bool) -> ArithmExpr | None:
 
 
 def arithm_expr_assign(p: Parser, compact: bool) -> ArithmExpr | None:
-    # Assign is different from the other binary operators because it's
-    # right-associative and needs to check that it's placed after a name
+    # Assign is different from the other binary operators because it's right-associative and needs to check that it's
+    # placed after a name
     value = arithm_expr_ternary(p, compact)
     try:
         op = BinAritOperator(p.tok)
     except ValueError:
         return value
     if op in (
-        BinAritOperator.ADD_ASSGN, BinAritOperator.SUB_ASSGN, BinAritOperator.MUL_ASSGN,
-        BinAritOperator.QUO_ASSGN, BinAritOperator.REM_ASSGN, BinAritOperator.AND_ASSGN,
-        BinAritOperator.OR_ASSGN, BinAritOperator.XOR_ASSGN, BinAritOperator.SHL_ASSGN,
-        BinAritOperator.SHR_ASSGN, BinAritOperator.ASSGN,
-        BinAritOperator.AND_BOOL_ASSGN, BinAritOperator.OR_BOOL_ASSGN,
-        BinAritOperator.XOR_BOOL_ASSGN, BinAritOperator.POW_ASSGN,
+        BinAritOperator.ADD_ASSGN,
+        BinAritOperator.SUB_ASSGN,
+        BinAritOperator.MUL_ASSGN,
+        BinAritOperator.QUO_ASSGN,
+        BinAritOperator.REM_ASSGN,
+        BinAritOperator.AND_ASSGN,
+        BinAritOperator.OR_ASSGN,
+        BinAritOperator.XOR_ASSGN,
+        BinAritOperator.SHL_ASSGN,
+        BinAritOperator.SHR_ASSGN,
+        BinAritOperator.ASSGN,
+        BinAritOperator.AND_BOOL_ASSGN,
+        BinAritOperator.OR_BOOL_ASSGN,
+        BinAritOperator.XOR_BOOL_ASSGN,
+        BinAritOperator.POW_ASSGN,
     ):
         tok = p.tok
         if compact and p.spaced:

@@ -135,10 +135,41 @@ _PARAM_EXP_REPL = 1 << 18
 _PARAM_EXP_EXP = 1 << 19
 _ARRAY_ELEMS = 1 << 20
 
-_ALL_KEEP_SPACES = _RUNE_BY_RUNE | _PARAM_EXP_REPL | _DBL_QUOTES | _HDOC_BODY | _HDOC_BODY_TABS | _PARAM_EXP_EXP
-_ALL_REG_TOKENS = _NO_STATE | _UNQUOTED_WORD_CONT | _SUB_CMD | _SUB_CMD_BCKQUO | _SUB_CMD_BRACES | _HDOC_WORD | _SWITCH_CASE | _ARRAY_ELEMS | _TEST_EXPR  # noqa
-_ALL_ARITHM_EXPR = _ARITHM_EXPR | _ARITHM_EXPR_LET | _ARITHM_EXPR_CMD | _PARAM_EXP_ARITHM | _PARAM_EXP_SLICE
-_ALL_PARAM_EXP = _PARAM_EXP_ARITHM | _PARAM_EXP_SLICE | _PARAM_EXP_REPL | _PARAM_EXP_EXP
+_ALL_KEEP_SPACES = (
+    _RUNE_BY_RUNE |
+    _PARAM_EXP_REPL |
+    _DBL_QUOTES |
+    _HDOC_BODY |
+    _HDOC_BODY_TABS |
+    _PARAM_EXP_EXP
+)
+
+_ALL_REG_TOKENS = (
+    _NO_STATE |
+    _UNQUOTED_WORD_CONT |
+    _SUB_CMD |
+    _SUB_CMD_BCKQUO |
+    _SUB_CMD_BRACES |
+    _HDOC_WORD |
+    _SWITCH_CASE |
+    _ARRAY_ELEMS |
+    _TEST_EXPR
+)
+
+_ALL_ARITHM_EXPR = (
+    _ARITHM_EXPR |
+    _ARITHM_EXPR_LET |
+    _ARITHM_EXPR_CMD |
+    _PARAM_EXP_ARITHM |
+    _PARAM_EXP_SLICE
+)
+
+_ALL_PARAM_EXP = (
+    _PARAM_EXP_ARITHM |
+    _PARAM_EXP_SLICE |
+    _PARAM_EXP_REPL |
+    _PARAM_EXP_EXP
+)
 
 _RECOVERED_POS = RECOVERED_POS
 
@@ -261,8 +292,7 @@ class LangError(Exception):
 ##
 
 
-# IsKeyword returns True if the given word is a language keyword
-# in POSIX Shell or Bash.
+# IsKeyword returns True if the given word is a language keyword in POSIX Shell or Bash.
 def is_keyword(word: str) -> bool:
     # This list has been copied from the bash 5.1 source code, file y.tab.c +4460
     if word in (
@@ -516,7 +546,7 @@ class Parser:
         self._raise_error()
         return expr
 
-    # -- Lexer methods (delegated to lexer.py functions) --
+    # Lexer methods (delegated to lexer.py functions)
 
     def rune(self) -> str:
         """Advance to next character in source. Returns the new p.r."""
@@ -613,7 +643,7 @@ class Parser:
     def _comment(self, hash_pos: Pos, text: str) -> Comment:
         return Comment(hash=hash_pos, text=text)
 
-    # -- Parser helper methods --
+    # Parser helper methods
 
     def lit(self, pos: Pos, val: str) -> Lit:
         l = Lit(value_pos=pos, value_end=self.next_pos(), value=val)
@@ -825,7 +855,7 @@ class Parser:
             lang_used=self.lang,
         ))
 
-    # -- Statement parsing --
+    # Statement parsing
 
     def stmts(self, *stops: str) -> list[Stmt]:
         result: list[Stmt] = []
@@ -1050,8 +1080,8 @@ class Parser:
             if old.quote == _DBL_QUOTES:
                 self.open_bquote_dbls += 1
 
-            # The lexer didn't call p.rune for us, so that it could have
-            # the right p.openBquotes to properly handle backslashes.
+            # The lexer didn't call p.rune for us, so that it could have the right p.openBquotes to properly handle
+            # backslashes.
             self.rune()
 
             self.next()
@@ -1172,8 +1202,8 @@ class Parser:
             pe.flags = self.lit(self.pos, self.val)
             self.rune()
 
-        # Zsh-only prefixes that change how the parameter is expanded.
-        # They may appear in any combination, like ${=^name}.
+        # Zsh-only prefixes that change how the parameter is expanded. They may appear in any combination, like
+        # ${=^name}.
         while lang_in(self.lang, LANG_ZSH):
             if self.r not in ('=', '~', '^'):
                 break
@@ -1318,10 +1348,21 @@ class Parser:
             else:
                 pe.exp = self._param_exp_exp()
         elif self.tok in (
-            Token.PLUS, Token.COL_PLUS, Token.MINUS, Token.COL_MINUS,
-            Token.QUEST, Token.COL_QUEST, Token.ASSGN, Token.COL_ASSGN,
-            Token.PERC, Token.DBL_PERC, Token.HASH, Token.DBL_HASH, Token.COL_HASH,
-            Token.COL_PIPE, Token.COL_STAR,
+            Token.PLUS,
+            Token.COL_PLUS,
+            Token.MINUS,
+            Token.COL_MINUS,
+            Token.QUEST,
+            Token.COL_QUEST,
+            Token.ASSGN,
+            Token.COL_ASSGN,
+            Token.PERC,
+            Token.DBL_PERC,
+            Token.HASH,
+            Token.DBL_HASH,
+            Token.COL_HASH,
+            Token.COL_PIPE,
+            Token.COL_STAR,
         ):
             pe.exp = self._param_exp_exp()
         elif self.tok == Token.EOF_:
@@ -1516,9 +1557,20 @@ class Parser:
 
     def stop_token(self) -> bool:
         if self.tok in (
-            Token.EOF_, Token.NEWL_, Token.SEMICOLON, Token.AND, Token.OR,
-            Token.AND_AND, Token.OR_OR, Token.OR_AND, Token.AND_PIPE, Token.AND_BANG,
-            Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR,
+            Token.EOF_,
+            Token.NEWL_,
+            Token.SEMICOLON,
+            Token.AND,
+            Token.OR,
+            Token.AND_AND,
+            Token.OR_OR,
+            Token.OR_AND,
+            Token.AND_PIPE,
+            Token.AND_BANG,
+            Token.DBL_SEMICOLON,
+            Token.SEMI_AND,
+            Token.DBL_SEMI_AND,
+            Token.SEMI_OR,
             Token.RIGHT_PAREN,
         ):
             return True
@@ -1640,10 +1692,21 @@ class Parser:
     def peek_redir(self) -> bool:
         return self.tok in (
             Token.LIT_REDIR_,
-            Token.RDR_OUT, Token.APP_OUT, Token.RDR_IN, Token.RDR_IN_OUT,
-            Token.DPL_IN, Token.DPL_OUT, Token.RDR_CLOB, Token.APP_CLOB,
-            Token.HDOC, Token.DASH_HDOC, Token.WORD_HDOC,
-            Token.RDR_ALL, Token.RDR_ALL_CLOB, Token.APP_ALL, Token.APP_ALL_CLOB,
+            Token.RDR_OUT,
+            Token.APP_OUT,
+            Token.RDR_IN,
+            Token.RDR_IN_OUT,
+            Token.DPL_IN,
+            Token.DPL_OUT,
+            Token.RDR_CLOB,
+            Token.APP_CLOB,
+            Token.HDOC,
+            Token.DASH_HDOC,
+            Token.WORD_HDOC,
+            Token.RDR_ALL,
+            Token.RDR_ALL_CLOB,
+            Token.APP_ALL,
+            Token.APP_ALL_CLOB,
         )
 
     def do_redirect(self, s: Stmt) -> None:
@@ -1657,7 +1720,9 @@ class Parser:
         if r.op in (RedirOperator.RDR_ALL, RedirOperator.APP_ALL):
             self.check_lang(self.pos, LANG_BASH_LIKE | LANG_MIR_BSD_KORN | LANG_ZSH, '%#q redirects', r.op)
         elif r.op in (
-            RedirOperator.APP_CLOB, RedirOperator.RDR_ALL_CLOB, RedirOperator.APP_ALL_CLOB,
+            RedirOperator.APP_CLOB,
+            RedirOperator.RDR_ALL_CLOB,
+            RedirOperator.APP_ALL_CLOB,
         ):
             self.check_lang(self.pos, LANG_ZSH, '%#q redirects', r.op)
         self.next()
@@ -1838,12 +1903,23 @@ class Parser:
                     self.call_expr(s, w, False)
         elif self.tok in (
             Token.LIT_,
-            Token.DOLL_BRACE, Token.DOLL_DBL_PAREN, Token.DOLL_PAREN,
-            Token.DOLLAR, Token.CMD_IN, Token.ASSGN_PAREN, Token.CMD_OUT,
-            Token.SGL_QUOTE, Token.DOLL_SGL_QUOTE,
-            Token.DBL_QUOTE, Token.DOLL_DBL_QUOTE, Token.DOLL_BRACK,
-            Token.GLOB_QUEST, Token.GLOB_STAR, Token.GLOB_PLUS,
-            Token.GLOB_AT, Token.GLOB_EXCL,
+            Token.DOLL_BRACE,
+            Token.DOLL_DBL_PAREN,
+            Token.DOLL_PAREN,
+            Token.DOLLAR,
+            Token.CMD_IN,
+            Token.ASSGN_PAREN,
+            Token.CMD_OUT,
+            Token.SGL_QUOTE,
+            Token.DOLL_SGL_QUOTE,
+            Token.DBL_QUOTE,
+            Token.DOLL_DBL_QUOTE,
+            Token.DOLL_BRACK,
+            Token.GLOB_QUEST,
+            Token.GLOB_STAR,
+            Token.GLOB_PLUS,
+            Token.GLOB_AT,
+            Token.GLOB_EXCL,
         ):
             if self.has_valid_ident():
                 self.call_expr(s, None, True)
@@ -2101,7 +2177,10 @@ class Parser:
             ci.stmts, ci.last = self.stmt_list(stop)
             self.post_nested(old)
             if ta.cast(Token, self.tok) not in (
-                Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR,
+                Token.DBL_SEMICOLON,
+                Token.SEMI_AND,
+                Token.DBL_SEMI_AND,
+                Token.SEMI_OR,
             ):
                 ci.op = CaseOperator.BREAK
                 items.append(ci)
@@ -2187,14 +2266,18 @@ class Parser:
             self.quote = _TEST_EXPR_REGEXP
             # fallthrough to default
             if not isinstance(b.x, Word):
-                self.pos_err(b.op_pos, 'expected %#q, %#q or %#q after complex expr',
-                             BinTestOperator.AND_TEST, BinTestOperator.OR_TEST, Token.DBL_RIGHT_BRACK)
+                self.pos_err(
+                    b.op_pos, 'expected %#q, %#q or %#q after complex expr',
+                    BinTestOperator.AND_TEST, BinTestOperator.OR_TEST, Token.DBL_RIGHT_BRACK,
+                )
             self.next()
             b.y = self.follow_word_tok(Token(binary_op.value), b.op_pos)
         else:
             if not isinstance(b.x, Word):
-                self.pos_err(b.op_pos, 'expected %#q, %#q or %#q after complex expr',
-                             BinTestOperator.AND_TEST, BinTestOperator.OR_TEST, Token.DBL_RIGHT_BRACK)
+                self.pos_err(
+                    b.op_pos, 'expected %#q, %#q or %#q after complex expr',
+                    BinTestOperator.AND_TEST, BinTestOperator.OR_TEST, Token.DBL_RIGHT_BRACK,
+                )
             self.next()
             b.y = self.follow_word_tok(Token(binary_op.value), b.op_pos)
         return b
@@ -2220,14 +2303,30 @@ class Parser:
                 self.follow_err_exp(u.op_pos, u.op)
             return u
         elif self.tok in (
-            Token.TS_EXISTS, Token.TS_REG_FILE, Token.TS_DIRECT,
-            Token.TS_CHAR_SP, Token.TS_BLCK_SP, Token.TS_NM_PIPE,
-            Token.TS_SOCKET, Token.TS_SMB_LINK, Token.TS_STICKY,
-            Token.TS_GID_SET, Token.TS_UID_SET, Token.TS_GRP_OWN,
-            Token.TS_USR_OWN, Token.TS_MODIF, Token.TS_READ,
-            Token.TS_WRITE, Token.TS_EXEC, Token.TS_NO_EMPTY,
-            Token.TS_FD_TERM, Token.TS_EMP_STR, Token.TS_NEMP_STR,
-            Token.TS_OPT_SET, Token.TS_VAR_SET, Token.TS_REF_VAR,
+            Token.TS_EXISTS,
+            Token.TS_REG_FILE,
+            Token.TS_DIRECT,
+            Token.TS_CHAR_SP,
+            Token.TS_BLCK_SP,
+            Token.TS_NM_PIPE,
+            Token.TS_SOCKET,
+            Token.TS_SMB_LINK,
+            Token.TS_STICKY,
+            Token.TS_GID_SET,
+            Token.TS_UID_SET,
+            Token.TS_GRP_OWN,
+            Token.TS_USR_OWN,
+            Token.TS_MODIF,
+            Token.TS_READ,
+            Token.TS_WRITE,
+            Token.TS_EXEC,
+            Token.TS_NO_EMPTY,
+            Token.TS_FD_TERM,
+            Token.TS_EMP_STR,
+            Token.TS_NEMP_STR,
+            Token.TS_OPT_SET,
+            Token.TS_VAR_SET,
+            Token.TS_REF_VAR,
         ):
             unary_op = UnTestOperator(self.tok)
             u = UnaryTest(op_pos=self.pos, op=unary_op)
@@ -2287,9 +2386,22 @@ class Parser:
             return True
         if tok == Token.LIT_WORD_:
             return val in (
-                '{', 'if', 'while', 'until', 'for', 'case', '[[',
-                'coproc', 'let', 'function', 'declare', 'local',
-                'export', 'readonly', 'typeset', 'nameref',
+                '{',
+                'if',
+                'while',
+                'until',
+                'for',
+                'case',
+                '[[',
+                'coproc',
+                'let',
+                'function',
+                'declare',
+                'local',
+                'export',
+                'readonly',
+                'typeset',
+                'nameref',
             )
         return False
 
@@ -2388,9 +2500,20 @@ class Parser:
             ce.assigns.append(self.get_assign(True))
         while True:
             if self.tok in (
-                Token.EOF_, Token.NEWL_, Token.SEMICOLON, Token.AND, Token.OR,
-                Token.AND_AND, Token.OR_OR, Token.OR_AND, Token.AND_PIPE, Token.AND_BANG,
-                Token.DBL_SEMICOLON, Token.SEMI_AND, Token.DBL_SEMI_AND, Token.SEMI_OR,
+                Token.EOF_,
+                Token.NEWL_,
+                Token.SEMICOLON,
+                Token.AND,
+                Token.OR,
+                Token.AND_AND,
+                Token.OR_OR,
+                Token.OR_AND,
+                Token.AND_PIPE,
+                Token.AND_BANG,
+                Token.DBL_SEMICOLON,
+                Token.SEMI_AND,
+                Token.DBL_SEMI_AND,
+                Token.SEMI_OR,
             ):
                 break
             elif self.tok == Token.LIT_WORD_:
@@ -2416,12 +2539,23 @@ class Parser:
                     break
                 ce.args.append(self.word_any_number())
             elif self.tok in (
-                Token.DOLL_BRACE, Token.DOLL_DBL_PAREN, Token.DOLL_PAREN,
-                Token.DOLLAR, Token.CMD_IN, Token.ASSGN_PAREN, Token.CMD_OUT,
-                Token.SGL_QUOTE, Token.DOLL_SGL_QUOTE,
-                Token.DBL_QUOTE, Token.DOLL_DBL_QUOTE, Token.DOLL_BRACK,
-                Token.GLOB_QUEST, Token.GLOB_STAR, Token.GLOB_PLUS,
-                Token.GLOB_AT, Token.GLOB_EXCL,
+                Token.DOLL_BRACE,
+                Token.DOLL_DBL_PAREN,
+                Token.DOLL_PAREN,
+                Token.DOLLAR,
+                Token.CMD_IN,
+                Token.ASSGN_PAREN,
+                Token.CMD_OUT,
+                Token.SGL_QUOTE,
+                Token.DOLL_SGL_QUOTE,
+                Token.DBL_QUOTE,
+                Token.DOLL_DBL_QUOTE,
+                Token.DOLL_BRACK,
+                Token.GLOB_QUEST,
+                Token.GLOB_STAR,
+                Token.GLOB_PLUS,
+                Token.GLOB_AT,
+                Token.GLOB_EXCL,
             ):
                 ce.args.append(self.word_any_number())
             elif self.tok == Token.DBL_LEFT_PAREN:

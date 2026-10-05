@@ -52,29 +52,23 @@ QUOTE_ERR_RANGE = 'rune out of range'
 QUOTE_ERR_MKSH  = 'mksh cannot escape codepoints above 16 bits'
 
 
-# Quote returns a quoted version of the input string,
-# so that the quoted version is expanded or interpreted
-# as the original string in the given language variant.
+# Quote returns a quoted version of the input string, so that the quoted version is expanded or interpreted as the
+# original string in the given language variant.
 #
-# Quoting is necessary when using arbitrary literal strings
-# as words in a shell script or command.
-# Without quoting, one can run into syntax errors,
-# as well as the possibility of running unintended code.
+# Quoting is necessary when using arbitrary literal strings as words in a shell script or command. Without quoting, one
+# can run into syntax errors, as well as the possibility of running unintended code.
 #
-# An error is returned when a string cannot be quoted for a variant.
-# For instance, POSIX lacks escape sequences for non-printable characters,
-# and no language variant can represent a string containing null bytes.
-# In such cases, the returned error type will be *QuoteError.
+# An error is returned when a string cannot be quoted for a variant. For instance, POSIX lacks escape sequences for
+# non-printable characters, and no language variant can represent a string containing null bytes. In such cases, the
+# returned error type will be *QuoteError.
 #
-# The quoting strategy is chosen on a best-effort basis,
-# to minimize the amount of extra bytes necessary.
+# The quoting strategy is chosen on a best-effort basis, to minimize the amount of extra bytes necessary.
 #
-# Some strings do not require any quoting and are returned unchanged.
-# Those strings can be directly surrounded in single quotes as well.
+# Some strings do not require any quoting and are returned unchanged. Those strings can be directly surrounded in single
+# quotes as well.
 def quote(s: str, l: LangVariant) -> str | Error:
     if not s:
-        # Special case; an empty string must always be quoted,
-        # as otherwise it expands to zero fields.
+        # Special case; an empty string must always be quoted, as otherwise it expands to zero fields.
         return "''"
 
     shell_chars = False
@@ -114,11 +108,8 @@ def quote(s: str, l: LangVariant) -> str | Error:
         # Nothing to quote; avoid allocating.
         return s
 
-    # Single quotes are usually best,
-    # as they don't require any escaping of characters.
-    # If we have any invalid utf8 or non-printable runes,
-    # use $'' so that we can escape them.
-    # Note that we can't use double quotes for those.
+    # Single quotes are usually best, as they don't require any escaping of characters. If we have any invalid utf8 or
+    # non-printable runes, use $'' so that we can escape them. Note that we can't use double quotes for those.
     b = io.StringIO()
     if non_printable:
         b.write("$'")
@@ -151,8 +142,8 @@ def quote(s: str, l: LangVariant) -> str | Error:
             elif codepoint < 0x80:
                 # \xXX, fixed at two hexadecimal characters.
                 b.write(f'\\x{codepoint:02x}')
-                # Unfortunately, mksh allows \x to consume more hex characters.
-                # Ensure that we don't allow it to read more than two.
+                # Unfortunately, mksh allows \x to consume more hex characters. Ensure that we don't allow it to read
+                # more than two.
                 if lang_in(l, LANG_MIR_BSD_KORN):
                     next_requote_if_hex = True
             elif 0xD800 <= codepoint <= 0xDFFF:
@@ -160,8 +151,8 @@ def quote(s: str, l: LangVariant) -> str | Error:
             elif lang_in(l, LANG_MIR_BSD_KORN) and codepoint > 0xFFFD:
                 # From the CAVEATS section in R59's man page:
                 #
-                # mksh currently uses OPTU-16 internally, which is the same as
-                # UTF-8 and CESU-8 with 0000..FFFD being valid codepoints.
+                # mksh currently uses OPTU-16 internally, which is the same as UTF-8 and CESU-8 with 0000..FFFD being
+                # valid codepoints.
                 return QuoteError(offs, QUOTE_ERR_MKSH)
             elif codepoint < 0x10000:
                 # \uXXXX, fixed at four hexadecimal characters.
@@ -179,8 +170,7 @@ def quote(s: str, l: LangVariant) -> str | Error:
     if "'" not in s:
         return "'" + s + "'"
 
-    # The string contains single quotes,
-    # so fall back to double quotes.
+    # The string contains single quotes, so fall back to double quotes.
     b.write('"')
     for r in s:
         if r in ('"', '\\', '`', '$'):

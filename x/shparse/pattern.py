@@ -20,8 +20,7 @@
 # Copyright (c) 2017, Daniel Martí <mvdan@mvdan.cc>
 # See LICENSE for licensing information
 
-# Package pattern allows working with shell pattern matching notation, also
-# known as wildcards or globbing.
+# Package pattern allows working with shell pattern matching notation, also known as wildcards or globbing.
 #
 # For reference, see
 # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_13.
@@ -34,15 +33,15 @@ from omcore import dataclasses as dc
 ##
 
 
-# Mode can be used to supply a number of options to the package's functions.
-# Not all functions change their behavior with all of the options below.
-SHORTEST = 1 << 0           # prefer the shortest match.
+# Mode can be used to supply a number of options to the package's functions. Not all functions change their behavior
+# with all of the options below.
+SHORTEST = 1 << 0            # prefer the shortest match.
 FILENAMES = 1 << 1           # "*" and "?" don't match slashes; only "**" does
 ENTIRE_STRING = 1 << 2       # match the entire string using ^$ delimiters
 NO_GLOB_CASE = 1 << 3        # case-insensitive match ((?i) in the regexp); shopt "nocaseglob"
 NO_GLOB_STAR = 1 << 4        # do not support "**"; negated shopt "globstar"
 GLOB_LEADING_DOT = 1 << 5    # let wildcards match leading dots in filenames; shopt "dotglob"
-EXTENDED_OPERATORS = 1 << 6   # support extended pattern matching operators; shopt "extglob"
+EXTENDED_OPERATORS = 1 << 6  # support extended pattern matching operators; shopt "extglob"
 
 
 _PYTHON_CHAR_CLASSES = {
@@ -78,18 +77,17 @@ class PatternSyntaxError(Exception):
         self.err = err
 
 
-# NegExtGlobGroup represents the byte offset range of a single !(expr) group
-# within a pattern string. Start is the offset of '!', End is one past ')'.
+# NegExtGlobGroup represents the byte offset range of a single !(expr) group within a pattern string. Start is the
+# offset of '!', End is one past ')'.
 @dc.dataclass(frozen=True)
 class NegExtGlobGroup:
     start: int
     end: int
 
 
-# NegExtGlobError is returned by Regexp when an extglob negation operator
-# !(pattern-list) is encountered, as Go's regexp package does not support
-# negative lookahead. Callers can handle this by negating the result of
-# matching the inner pattern.
+# NegExtGlobError is returned by Regexp when an extglob negation operator !(pattern-list) is encountered, as Go's regexp
+# package does not support negative lookahead. Callers can handle this by negating the result of matching the inner
+# pattern.
 class NegExtGlobError(Exception):
     def __init__(self, groups: list[NegExtGlobGroup]) -> None:
         super().__init__('extglob !(...) is not supported in this scenario')
@@ -138,10 +136,9 @@ def _regexp_next(sb: io.StringIO, sl: _StringLexer, mode: int) -> object | None:
 
     c = sl.next()
     if mode & EXTENDED_OPERATORS != 0:
-        # Handle extended pattern matching operators separately,
-        # given that they can be one of many two-character prefixes.
-        # Note that we recurse into the same function in a loop,
-        # as each of the patterns in the list separated by '|' is a regular pattern.
+        # Handle extended pattern matching operators separately, given that they can be one of many two-character
+        # prefixes. Note that we recurse into the same function in a loop, as each of the patterns in the list separated
+        # by '|' is a regular pattern.
         if c in ('!', '?', '*', '+', '@'):
             op = c
             if sl.peek_next() == '(':
@@ -327,8 +324,20 @@ def _char_class(s: str) -> tuple[int, PatternSyntaxError | None]:
     name = s[1:end]
     consumed = len(name) + 3
     if name not in (
-        'alnum', 'alpha', 'ascii', 'blank', 'cntrl', 'digit', 'graph',
-        'lower', 'print', 'punct', 'space', 'upper', 'word', 'xdigit',
+        'alnum',
+        'alpha',
+        'ascii',
+        'blank',
+        'cntrl',
+        'digit',
+        'graph',
+        'lower',
+        'print',
+        'punct',
+        'space',
+        'upper',
+        'word',
+        'xdigit',
     ):
         return consumed, PatternSyntaxError(f'invalid character class: {name!r}')
     return consumed, None
@@ -397,19 +406,16 @@ def _replace_posix_classes(expression: str) -> str:
     return result.getvalue()
 
 
-# Regexp turns a shell pattern into a regular expression that can be used with
-# re.compile. It will raise an error if the input pattern was incorrect.
-# Otherwise, the returned expression can be passed to re.compile.
+# Regexp turns a shell pattern into a regular expression that can be used with re.compile. It will raise an error if the
+# input pattern was incorrect. Otherwise, the returned expression can be passed to re.compile.
 #
 # For example, regexp('foo*bar?', 0) returns 'foo.*bar.'.
 #
-# Note that this function (and quote_meta) should not be directly used with file
-# paths if Windows is supported, as the path separator on that platform is the
-# same character as the escaping character for shell patterns.
+# Note that this function (and quote_meta) should not be directly used with file paths if Windows is supported, as the
+# path separator on that platform is the same character as the escaping character for shell patterns.
 def regexp(pat: str, mode: int) -> str:
-    # If there are no special pattern matching or regular expression characters,
-    # and we don't need to insert extras for the modes affecting non-special characters,
-    # we can directly return the input string as a short-cut.
+    # If there are no special pattern matching or regular expression characters, and we don't need to insert extras for
+    # the modes affecting non-special characters, we can directly return the input string as a short-cut.
     if mode & (ENTIRE_STRING | NO_GLOB_CASE) == 0:
         needs_escaping = False
         for r in pat:
@@ -426,8 +432,8 @@ def regexp(pat: str, mode: int) -> str:
     sb.write('(?s')
     if mode & NO_GLOB_CASE != 0:
         sb.write('i')
-    # Note: Go's regexp.Shortest flag (?U) has no direct Python equivalent;
-    # Python uses *? for non-greedy. We skip writing 'U' as Python re doesn't support it.
+    # Note: Go's regexp.Shortest flag (?U) has no direct Python equivalent; Python uses *? for non-greedy. We skip
+    # writing 'U' as Python re doesn't support it.
     sb.write(')')
     if mode & ENTIRE_STRING != 0:
         sb.write('^')
@@ -453,16 +459,13 @@ def regexp(pat: str, mode: int) -> str:
     return expression
 
 
-# HasMeta returns whether a string contains any unescaped pattern
-# metacharacters: '*', '?', or '['. When the function returns false, the given
-# pattern can only match at most one string.
+# HasMeta returns whether a string contains any unescaped pattern metacharacters: '*', '?', or '['. When the function
+# returns false, the given pattern can only match at most one string.
 #
-# For example, has_meta(r'foo\*bar') returns False, but has_meta('foo*bar')
-# returns True.
+# For example, has_meta(r'foo\*bar') returns False, but has_meta('foo*bar') returns True.
 #
-# This can be useful to avoid extra work, like regexp. Note that this
-# function cannot be used to avoid quote_meta, as backslashes are quoted by
-# that function but ignored here.
+# This can be useful to avoid extra work, like regexp. Note that this function cannot be used to avoid quote_meta, as
+# backslashes are quoted by that function but ignored here.
 #
 # The mode parameter is unused, and will be removed in v4.
 def has_meta(pat: str, mode: int = 0) -> bool:
@@ -482,8 +485,8 @@ def has_meta(pat: str, mode: int = 0) -> bool:
     return False
 
 
-# QuoteMeta returns a string that quotes all pattern metacharacters in the
-# given text. The returned string is a pattern that matches the literal text.
+# QuoteMeta returns a string that quotes all pattern metacharacters in the given text. The returned string is a pattern
+# that matches the literal text.
 #
 # For example, quote_meta('foo*bar?') returns r'foo\*bar\?'.
 #

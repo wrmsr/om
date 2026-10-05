@@ -52,16 +52,15 @@ def _is_int64(value: str) -> bool:
     return _INT64_MIN <= number <= _INT64_MAX
 
 
-# SplitBraces parses brace expansions within a word's literal parts.
-# If any valid brace expansions are found, they are replaced with BraceExp nodes,
-# and the function returns True.
-# Otherwise, the word is left untouched and the function returns False.
+# SplitBraces parses brace expansions within a word's literal parts. If any valid brace expansions are found, they are
+# replaced with BraceExp nodes, and the function returns True. Otherwise, the word is left untouched and the function
+# returns False.
 #
-# For example, a literal word "foo{bar,baz}" will result in a word containing
-# the literal "foo", and a brace expansion with the elements "bar" and "baz".
+# For example, a literal word "foo{bar,baz}" will result in a word containing the literal "foo", and a brace expansion
+# with the elements "bar" and "baz".
 #
-# It does not return an error; malformed brace expansions are simply skipped.
-# For example, the literal word "a{b" is left unchanged.
+# It does not return an error; malformed brace expansions are simply skipped. For example, the literal word "a{b" is
+# left unchanged.
 def split_braces(word: Word) -> bool:
     if not any(isinstance(part, Lit) and '{' in part.value for part in word.parts):
         # In the common case where a word has no braces, skip any allocs.

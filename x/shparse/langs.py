@@ -1,4 +1,3 @@
-
 from .errors import Error
 from .errors import GenericError
 
@@ -6,8 +5,8 @@ from .errors import GenericError
 ##
 
 
-# LangVariant describes a shell language variant to use when tokenizing and
-# parsing shell code. The zero value is [LANG_BASH].
+# LangVariant describes a shell language variant to use when tokenizing and parsing shell code. The zero value is
+# [LANG_BASH].
 class LangVariant(int):
     __slots__ = ()
 
@@ -25,8 +24,8 @@ class LangVariant(int):
 # an unsigned integer is clearer, and being agnostic to uint size avoids issues.
 
 
-# LANG_BASH corresponds to the GNU Bash language, as described in its
-# manual at https:#www.gnu.org/software/bash/manual/bash.html.
+# LANG_BASH corresponds to the GNU Bash language, as described in its manual at
+# https:#www.gnu.org/software/bash/manual/bash.html.
 #
 # We currently follow Bash version 5.2.
 #
@@ -39,46 +38,42 @@ LANG_BASH = LangVariant(1 << 0)  # 1
 # Its string representation is "posix" or "sh".
 LANG_POSIX = LangVariant(1 << 1)  # 2
 
-# LANG_MIR_BSD_KORN corresponds to the MirBSD Korn Shell, also known as
-# mksh, as described at http:#www.mirbsd.org/htman/i386/man1/mksh.htm.
-# Note that it shares some features with Bash, due to the shared
-# ancestry that is ksh.
+# LANG_MIR_BSD_KORN corresponds to the MirBSD Korn Shell, also known as mksh, as described at
+# http:#www.mirbsd.org/htman/i386/man1/mksh.htm. Note that it shares some features with Bash, due to the shared ancestry
+# that is ksh.
 #
 # We currently follow mksh version 59.
 #
 # Its string representation is "mksh".
 LANG_MIR_BSD_KORN = LangVariant(1 << 2)  # 4
 
-# LANG_BATS corresponds to the Bash Automated Testing System language,
-# as described at https:#github.com/bats-core/bats-core. Note that
-# it's just a small extension of the Bash language.
+# LANG_BATS corresponds to the Bash Automated Testing System language, as described at
+# https:#github.com/bats-core/bats-core. Note that it's just a small extension of the Bash language.
 #
 # Its string representation is "bats".
 LANG_BATS = LangVariant(1 << 3)  # 8
 
 # LANG_ZSH corresponds to the Z shell, as described at https:#www.zsh.org/.
 #
-# Note that its support in the syntax package is experimental and
-# incomplete for now. See https:#github.com/mvdan/sh/issues/120.
+# Note that its support in the syntax package is experimental and incomplete for now. See
+# https:#github.com/mvdan/sh/issues/120.
 #
 # We currently follow Zsh version 5.9.
 #
 # Its string representation is "zsh".
 LANG_ZSH = LangVariant(1 << 4)  # 16
 
-# LANG_AUTO corresponds to automatic language detection,
-# commonly used by end-user applications like shfmt,
-# which can guess a file's language variant given its filename or shebang.
+# LANG_AUTO corresponds to automatic language detection, commonly used by end-user applications like shfmt, which can
+# guess a file's language variant given its filename or shebang.
 #
 # At this time, [Variant] does not support LANG_AUTO.
 LANG_AUTO = LangVariant(1 << 5)  # 32
 
-# LANG_BASH_LEGACY is what [LANG_BASH] used to be, when it was zero.
-# We still support it for the sake of backwards compatibility.
+# LANG_BASH_LEGACY is what [LANG_BASH] used to be, when it was zero. We still support it for the sake of backwards
+# compatibility.
 LANG_BASH_LEGACY = LangVariant(0)
 
-# LANG_RESOLVED_VARIANTS contains all known variants except [LANG_AUTO],
-# which is meant to resolve to another variant.
+# LANG_RESOLVED_VARIANTS contains all known variants except [LANG_AUTO], which is meant to resolve to another variant.
 LANG_RESOLVED_VARIANTS = LANG_BASH | LANG_POSIX | LANG_MIR_BSD_KORN | LANG_BATS | LANG_ZSH
 
 # LANG_RESOLVED_VARIANTS_COUNT is LANG_RESOLVED_VARIANTS.count() as a constant.

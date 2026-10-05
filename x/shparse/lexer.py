@@ -1,3 +1,4 @@
+# ruff: noqa: SIM116 SLF001
 # Copyright (c) 2016, Daniel Martí. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -17,7 +18,6 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# ruff: noqa: SIM116, SLF001
 import typing as ta
 
 from omcore import check
@@ -39,8 +39,8 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
-# Sentinel rune values. These strings are longer than one character, so they
-# cannot collide with any rune read from valid shell source.
+# Sentinel rune values. These strings are longer than one character, so they cannot collide with any rune read from
+# valid shell source.
 _EOF_RUNE = '\U0010ffff<eof>'
 _ESC_NEWL = '\U0010ffff<escaped-newline>'
 
@@ -172,8 +172,8 @@ def next_(p: parser.Parser) -> None:
                 return
             p.tok = reg_token(p, r)
         elif r == '#':
-            # If we're parsing $foo#bar, ${foo}#bar, 'foo'#bar, or "foo"#bar,
-            # #bar is a continuation of the same word, not a comment.
+            # If we're parsing $foo#bar, ${foo}#bar, 'foo'#bar, or "foo"#bar, #bar is a continuation of the same word,
+            # not a comment.
             if not p.spaced and p.quote in (p._UNQUOTED_WORD_CONT, p._TEST_EXPR):
                 advance_lit_none(p, r)
                 return
@@ -266,8 +266,8 @@ def next_(p: parser.Parser) -> None:
         p.tok = Token.EOF_
 
 
-# extended_glob determines whether we're parsing a Bash extended globbing expression.
-# For example, whether `*` or `@` are followed by `(` to form `@(foo)`.
+# extended_glob determines whether we're parsing a Bash extended globbing expression. For example, whether `*` or `@`
+# are followed by `(` to form `@(foo)`.
 def extended_glob(p: parser.Parser) -> bool:
     if lang_in(p.lang, LANG_ZSH):
         return False
@@ -275,12 +275,10 @@ def extended_glob(p: parser.Parser) -> bool:
         # We don't support e.g. `function @() { ... }` at the moment, but we could.
         return False
     if p.peek() == '(':
-        # NOTE: empty pattern list is a valid globbing syntax like `@()`,
-        # but we'll operate on the "likelihood" that it is a function;
-        # only tokenize if its a non-empty pattern list.
-        # We do this after peeking for just one byte, so that the input `echo *`
-        # followed by a newline does not hang an interactive shell parser until
-        # another byte is input.
+        # NOTE: empty pattern list is a valid globbing syntax like `@()`, but we'll operate on the "likelihood" that it
+        # is a function; only tokenize if its a non-empty pattern list. We do this after peeking for just one byte, so
+        # that the input `echo *` followed by a newline does not hang an interactive shell parser until another byte is
+        # input.
         _, p2 = p.peek_two()
         return p2 != ')'
     return False
@@ -294,8 +292,7 @@ def reg_token(p: parser.Parser, r: str) -> Token:
         p.rune()
         return Token.DBL_QUOTE
     elif r == '`':
-        # Don't call p.rune, as we need to work out p.openBquotes to
-        # properly handle backslashes in the lexer.
+        # Don't call p.rune, as we need to work out p.openBquotes to properly handle backslashes in the lexer.
         return Token.BCK_QUOTE
     elif r == '&':
         pr = p.rune()
@@ -464,8 +461,7 @@ def dq_token(p: parser.Parser, r: str) -> Token:
         p.rune()
         return Token.DBL_QUOTE
     elif r == '`':
-        # Don't call p.rune, as we need to work out p.openBquotes to
-        # properly handle backslashes in the lexer.
+        # Don't call p.rune, as we need to work out p.openBquotes to properly handle backslashes in the lexer.
         return Token.BCK_QUOTE
     elif r == '$':
         pr = p.rune()
@@ -564,8 +560,7 @@ def param_token(p: parser.Parser, r: str) -> Token:
         p.rune()
         return Token.STAR
 
-    # This func gets called by the parser in runeByRune mode;
-    # we need to handle EOF and unexpected runes.
+    # This func gets called by the parser in runeByRune mode; we need to handle EOF and unexpected runes.
     elif r == _EOF_RUNE:
         return Token.EOF_
     else:
@@ -804,8 +799,8 @@ def advance_lit_other(p: parser.Parser, r: str) -> None:
     p.tok, p.val = tok, end_lit(p)
 
 
-# zshNumRange peeks at the bytes after '<' to check for a zsh numeric
-# range glob pattern like <->, <5->, <-10>, or <5-10>.
+# zshNumRange peeks at the bytes after '<' to check for a zsh numeric range glob pattern like <->, <5->, <-10>, or
+# <5-10>.
 def zsh_num_range(p: parser.Parser) -> bool:
     # Peeking a handful of bytes here should be enough.
     rest = p.src[p.bsp:]
@@ -894,9 +889,8 @@ def advance_lit_dquote(p: parser.Parser, r: str) -> None:
 
 
 def advance_lit_hdoc(p: parser.Parser, r: str) -> None:
-    # Unlike the rest of nextKeepSpaces quote states, we handle escaped
-    # newlines here. If lastTok==_Lit, then we know we're following an
-    # escaped newline, so the first line can't end the heredoc.
+    # Unlike the rest of nextKeepSpaces quote states, we handle escaped newlines here. If lastTok==_Lit, then we know
+    # we're following an escaped newline, so the first line can't end the heredoc.
     last_tok = p.tok
     while r == _ESC_NEWL:
         r = p.rune()
@@ -931,8 +925,7 @@ def advance_lit_hdoc(p: parser.Parser, r: str) -> None:
                         p.val = end_lit(p)
                         return
                 elif l_start == 0 and last_tok == Token.LIT_:
-                    # This line starts right after an escaped
-                    # newline, so it should never end the heredoc.
+                    # This line starts right after an escaped newline, so it should never end the heredoc.
                     pass
                 elif l_start >= 0:
                     # Compare the current line with the stop word.

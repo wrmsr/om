@@ -43,14 +43,13 @@ from .tokens import UnTestOperator
 # Node represents a syntax tree node.
 @dc.dataclass()
 class Node(lang.Abstract):
-    # Pos returns the position of the first character of the node. Comments
-    # are ignored, except if the node is a [*File].
+    # Pos returns the position of the first character of the node. Comments are ignored, except if the node is a
+    # [*File].
     def pos(self) -> Pos:
         raise NotImplementedError
 
-    # End returns the position of the character immediately after the node.
-    # If the character is a newline, the line number won't cross into the
-    # next line. Comments are ignored, except if the node is a [*File].
+    # End returns the position of the character immediately after the node. If the character is a newline, the line
+    # number won't cross into the next line. Comments are ignored, except if the node is a [*File].
     def end(self) -> Pos:
         raise NotImplementedError
 
@@ -104,29 +103,28 @@ class Pos:
     offs: int = 0
     line_col: int = 0
 
-    # Offset returns the byte offset of the position in the original source file.
-    # Byte offsets start at 0. Invalid positions always report the offset 0.
+    # Offset returns the byte offset of the position in the original source file. Byte offsets start at 0. Invalid
+    # positions always report the offset 0.
     #
-    # Offset has basic protection against overflows; if an input is too large,
-    # offset numbers will stop increasing past a very large number.
+    # Offset has basic protection against overflows; if an input is too large, offset numbers will stop increasing past
+    # a very large number.
     def offset(self) -> int:
         if self.offs > OFFSET_MAX:
             return 0 # invalid
         return self.offs
 
-    # Line returns the line number of the position, starting at 1.
-    # Invalid positions always report the line number 0.
+    # Line returns the line number of the position, starting at 1. Invalid positions always report the line number 0.
     #
-    # Line is protected against overflows; if an input has too many lines, extra
-    # lines will have a line number of 0, rendered as "?" by [Pos.String].
+    # Line is protected against overflows; if an input has too many lines, extra lines will have a line number of 0,
+    # rendered as "?" by [Pos.String].
     def line(self) -> int:
         return self.line_col >> COL_BIT_SIZE
 
-    # Col returns the column number of the position, starting at 1. It counts in
-    # bytes. Invalid positions always report the column number 0.
+    # Col returns the column number of the position, starting at 1. It counts in bytes. Invalid positions always report
+    # the column number 0.
     #
-    # Col is protected against overflows; if an input line has too many columns,
-    # extra columns will have a column number of 0, rendered as "?" by [Pos.String].
+    # Col is protected against overflows; if an input line has too many columns, extra columns will have a column number
+    # of 0, rendered as "?" by [Pos.String].
     def col(self) -> int:
         return self.line_col & COL_BIT_MASK
 
@@ -145,38 +143,35 @@ class Pos:
             b.write('?')
         return b.getvalue()
 
-    # IsValid reports whether the position contains useful position information.
-    # Some positions returned via [Parse] may be invalid: for example, [Stmt.Semicolon]
-    # will only be valid if a statement contained a closing token such as ';'.
+    # IsValid reports whether the position contains useful position information. Some positions returned via [Parse] may
+    # be invalid: for example, [Stmt.Semicolon] will only be valid if a statement contained a closing token such as ';'.
     #
-    # Recovered positions, as reported by [Pos.IsRecovered], are not considered valid
-    # given that they don't contain position information.
+    # Recovered positions, as reported by [Pos.IsRecovered], are not considered valid given that they don't contain
+    # position information.
     def is_valid(self) -> bool:
         return self.offs <= OFFSET_MAX and self.line_col != 0
 
-    # IsRecovered reports whether the position that the token or node belongs to
-    # was missing in the original input and recovered via [RecoverErrors].
+    # IsRecovered reports whether the position that the token or node belongs to was missing in the original input and
+    # recovered via [RecoverErrors].
     def is_recovered(self) -> bool:
         return self == RECOVERED_POS
 
-    # After reports whether the position p is after p2. It is a more expressive
-    # version of p.Offset() > p2.Offset().
-    # It always returns false if p is an invalid position.
+    # After reports whether the position p is after p2. It is a more expressive version of p.Offset() > p2.Offset(). It
+    # always returns false if p is an invalid position.
     def after(self, p2: Pos) -> bool:
         if not self.is_valid():
             return False
         return self.offs > p2.offs
 
 
-# Offsets use 32 bits for a reasonable amount of precision.
-# We reserve a few of the highest values to represent types of invalid positions.
-# We leave some space before the real uint32 maximum so that we can easily detect
-# when arithmetic on invalid positions is done by mistake.
+# Offsets use 32 bits for a reasonable amount of precision. We reserve a few of the highest values to represent types of
+# invalid positions. We leave some space before the real uint32 maximum so that we can easily detect when arithmetic on
+# invalid positions is done by mistake.
 OFFSET_RECOVERED = (1 << 32) - 1 - 10
 OFFSET_MAX       = (1 << 32) - 1 - 11
 
-# We used to split line and column numbers evenly in 16 bits, but line numbers
-# are significantly more important in practice. Use more bits for them.
+# We used to split line and column numbers evenly in 16 bits, but line numbers are significantly more important in
+# practice. Use more bits for them.
 
 LINE_BIT_SIZE = 18
 LINE_MAX      = (1 << LINE_BIT_SIZE) - 1
@@ -189,15 +184,14 @@ COL_BIT_MASK = COL_MAX
 RECOVERED_POS = Pos(offs=OFFSET_RECOVERED)
 
 
-# TODO(v4): consider using uint32 for Offset/Line/Col to better represent bit sizes.
-# Or go with int64, which more closely resembles portable "sizes" elsewhere.
-# The latter is probably nicest, as then we can change the number of internal
-# bits later, and we can also do overflow checks for the user in NewPos.
+# TODO(v4): consider using uint32 for Offset/Line/Col to better represent bit sizes. Or go with int64, which more
+# closely resembles portable "sizes" elsewhere. The latter is probably nicest, as then we can change the number of
+# internal bits later, and we can also do overflow checks for the user in NewPos.
 
 # NewPos creates a position with the given offset, line, and column.
 #
-# Note that [Pos] uses a limited number of bits to store these numbers.
-# If line or column overflow their allocated space, they are replaced with 0.
+# Note that [Pos] uses a limited number of bits to store these numbers. If line or column overflow their allocated
+# space, they are replaced with 0.
 def new_pos(offset: int, line: int, column: int) -> Pos:
     # Basic protection against offset overflow;
     # note that an offset of 0 is valid, so we leave the maximum.
@@ -246,9 +240,8 @@ class Comment(Node):
         return pos_add_col(self.hash, 1 + len(self.text.encode()))
 
 
-# Stmt represents a statement, also known as a "complete command". It is
-# compromised of a command and other components that may come before or after
-# it.
+# Stmt represents a statement, also known as a "complete command". It is compromised of a command and other components
+# that may come before or after it.
 @dc.dataclass()
 class Stmt(Node):
     comments: list[Comment] = dc.field(default_factory=list)
@@ -283,8 +276,7 @@ class Stmt(Node):
         return end
 
 
-# Command represents all nodes that are simple or compound commands, including
-# function declarations.
+# Command represents all nodes that are simple or compound commands, including function declarations.
 #
 # These are:
 # - [*CallExpr]
@@ -309,15 +301,13 @@ class Command(Node, lang.Abstract):
 
 # Assign represents an assignment to a variable.
 #
-# Here and elsewhere, Index can mean either an index expression into an indexed
-# array, or a string key into an associative array.
+# Here and elsewhere, Index can mean either an index expression into an indexed array, or a string key into an
+# associative array.
 #
-# If Index is non-nil, the value will be a word and not an array as nested
-# arrays are not allowed.
+# If Index is non-nil, the value will be a word and not an array as nested arrays are not allowed.
 #
-# If Naked is true and Name is nil, the assignment is part of a [DeclClause] and
-# the argument (in the Value field) will be evaluated at run-time. This
-# includes parameter expansions, which may expand to assignments or options.
+# If Naked is true and Name is nil, the assignment is part of a [DeclClause] and the argument (in the Value field) will
+# be evaluated at run-time. This includes parameter expansions, which may expand to assignments or options.
 @dc.dataclass()
 class Assign(Node):
     append: bool = False  # +=
@@ -366,11 +356,10 @@ class Redirect(Node):
         return check.not_none(self.word).end()
 
 
-# CallExpr represents a command execution or function call, otherwise known as
-# a "simple command".
+# CallExpr represents a command execution or function call, otherwise known as a "simple command".
 #
-# If Args is empty, Assigns apply to the shell environment. Otherwise, they are
-# variables that cannot be arrays and which only apply to the call.
+# If Args is empty, Assigns apply to the shell environment. Otherwise, they are variables that cannot be arrays and
+# which only apply to the call.
 @dc.dataclass()
 class CallExpr(Command):
     assigns: list[Assign] = dc.field(default_factory=list)  # a=x b=y args
@@ -387,8 +376,7 @@ class CallExpr(Command):
         return self.args[-1].end()
 
 
-# Subshell represents a series of commands that should be executed in a nested
-# shell environment.
+# Subshell represents a series of commands that should be executed in a nested shell environment.
 @dc.dataclass()
 class Subshell(Command):
     lparen: Pos = dc.field(default_factory=Pos)
@@ -404,8 +392,8 @@ class Subshell(Command):
         return pos_add_col(self.rparen, 1)
 
 
-# Block represents a series of commands that should be executed in a nested
-# scope. It is essentially a list of statements within curly braces.
+# Block represents a series of commands that should be executed in a nested scope. It is essentially a list of
+# statements within curly braces.
 @dc.dataclass()
 class Block(Command):
     lbrace: Pos = dc.field(default_factory=Pos)
@@ -464,8 +452,7 @@ class WhileClause(Command):
         return pos_add_col(self.done_pos, 4)
 
 
-# ForClause represents a for or a select clause. The latter is only present in
-# Bash.
+# ForClause represents a for or a select clause. The latter is only present in Bash.
 @dc.dataclass()
 class ForClause(Command):
     for_pos: Pos = dc.field(default_factory=Pos)
@@ -491,9 +478,8 @@ class Loop(Node, lang.Abstract):
     pass
 
 
-# WordIter represents the iteration of a variable over a series of words in a
-# for clause. If InPos is an invalid position, the "in" token was missing, so
-# the iteration is over the shell's positional parameters.
+# WordIter represents the iteration of a variable over a series of words in a for clause. If InPos is an invalid
+# position, the "in" token was missing, so the iteration is over the shell's positional parameters.
 @dc.dataclass()
 class WordIter(Loop):
     name: Lit | None = None
@@ -509,8 +495,7 @@ class WordIter(Loop):
         return pos_max(check.not_none(self.name).end(), pos_add_col(self.in_pos, 2))
 
 
-# CStyleLoop represents the behavior of a for clause similar to the C
-# language.
+# CStyleLoop represents the behavior of a for clause similar to the C language.
 #
 # This node will only appear with [LANG_BASH].
 @dc.dataclass()
@@ -552,8 +537,7 @@ class FuncDecl(Command):
     rsrv_word: bool = False  # non-posix "function f" style
     parens: bool = False     # with () parentheses, can only be false when RsrvWord==true
 
-    # Only one of these is set at a time.
-    # Neither is set when declaring an anonymous func with [LANG_ZSH].
+    # Only one of these is set at a time. Neither is set when declaring an anonymous func with [LANG_ZSH].
     # TODO(v4): join these, even if it's mildly annoying to non-Zsh users.
     name: Lit | None = None
     names: list[Lit] = dc.field(default_factory=list)  # When declaring many func names with [LANG_ZSH].
@@ -592,9 +576,8 @@ class TestExpr(Node, lang.Abstract):
     pass
 
 
-# Word represents a shell word, containing one or more word parts contiguous to
-# each other. The word is delimited by word boundaries, such as spaces,
-# newlines, semicolons, or parentheses.
+# Word represents a shell word, containing one or more word parts contiguous to each other. The word is delimited by
+# word boundaries, such as spaces, newlines, semicolons, or parentheses.
 @dc.dataclass()
 class Word(ArithmExpr, TestExpr):
     parts: list[WordPart] = dc.field(default_factory=list)
@@ -605,17 +588,14 @@ class Word(ArithmExpr, TestExpr):
     def end(self) -> Pos:
         return self.parts[-1].end()
 
-    # Lit returns the word as a string when it is a simple literal,
-    # made up of [*Lit] word parts only.
-    # An empty string is returned otherwise.
+    # Lit returns the word as a string when it is a simple literal, made up of [*Lit] word parts only. An empty string
+    # is returned otherwise.
     #
-    # For example, the word "foo" will return "foo",
-    # but the word "foo${bar}" will return "".
+    # For example, the word "foo" will return "foo", but the word "foo${bar}" will return "".
     def lit(self) -> str:
-        # In the usual case, we'll have either a single part that's a literal,
-        # or one of the parts being a non-literal. Using strings.Join instead
-        # of a strings.Builder avoids extra work in these cases, since a single
-        # part is a shortcut, and many parts don't incur string copies.
+        # In the usual case, we'll have either a single part that's a literal, or one of the parts being a non-literal.
+        # Using strings.Join instead of a strings.Builder avoids extra work in these cases, since a single part is a
+        # shortcut, and many parts don't incur string copies.
         lits: list[str] = []
         for part in self.parts:
             if not isinstance(part, Lit):
@@ -642,9 +622,8 @@ class WordPart(Node, lang.Abstract):
 
 # Lit represents a string literal.
 #
-# Note that a parsed string literal may not appear as-is in the original source
-# code, as it is possible to split literals by escaping newlines. The splitting
-# is lost, but the end position is not.
+# Note that a parsed string literal may not appear as-is in the original source code, as it is possible to split
+# literals by escaping newlines. The splitting is lost, but the end position is not.
 @dc.dataclass(kw_only=True)
 class Lit(WordPart):
     value_pos: Pos = dc.field(default_factory=Pos)
@@ -734,8 +713,8 @@ class ParamExp(WordPart):
     width: bool = False   # mksh's ${%a}
     is_set: bool = False  # ${+a} with [LANG_ZSH]
 
-    # Zsh expansion prefixes that override shell options for this expansion.
-    # They can stack with one another and with the operators above.
+    # Zsh expansion prefixes that override shell options for this expansion. They can stack with one another and with
+    # the operators above.
     split: OptState = OptState.OPT_UNSET       # ${=a} / ${==a} word splitting with [LANG_ZSH]
     glob_subst: OptState = OptState.OPT_UNSET  # ${~a} / ${~~a} glob substitution with [LANG_ZSH]
     rc_expand: OptState = OptState.OPT_UNSET   # ${^a} / ${^^a} array expansion with [LANG_ZSH]
@@ -751,17 +730,16 @@ class ParamExp(WordPart):
     index: ArithmExpr | None = None  # ${a[i]}, ${a["k"]}, or a ${a[i,j]} slice with [LANG_ZSH]
 
     # Only one of these is set at a time.
-    # TODO(v4): consider joining these in a single "expansion" field/type,
-    # because it should be impossible for multiple to be set at once,
-    # and a flat structure like this takes up more space.
+    # TODO(v4): consider joining these in a single "expansion" field/type, because it should be impossible for multiple
+    # to be set at once, and a flat structure like this takes up more space.
     modifiers: list[Lit] = dc.field(default_factory=list)  # ${a:h2} with [LANG_ZSH]
     slice: Slice | None = None                      # ${a:x:y}
     repl: Replace | None = None                    # ${a/x/y}
     names: ParNamesOperator | None = None                  # ${!prefix*} or ${!prefix@}
     exp: Expansion | None = None                   # ${a:-b}, ${a#b}, etc
 
-    # simple returns true if the parameter expansion is of the form $name or ${name},
-    # only expanding a name without any further logic.
+    # simple returns true if the parameter expansion is of the form $name or ${name}, only expanding a name without any
+    # further logic.
     def simple(self) -> bool:
         return (
             self.param is not None and
@@ -803,8 +781,8 @@ class ParamExp(WordPart):
 
 # Slice represents a character slicing expression inside a [ParamExp].
 #
-# This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
-# [LANG_ZSH] uses a [BinaryArithm] with [Comma] in [ParamExp.Index] instead.
+# This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN]. [LANG_ZSH] uses a [BinaryArithm] with [Comma] in
+# [ParamExp.Index] instead.
 @dc.dataclass()
 class Slice:
     offset: ArithmExpr | None = None
@@ -819,8 +797,7 @@ class Replace:
     with_: Word | None = None
 
 
-# Expansion represents string manipulation in a [ParamExp] other than those
-# covered by [Replace].
+# Expansion represents string manipulation in a [ParamExp] other than those covered by [Replace].
 @dc.dataclass()
 class Expansion:
     op: ParExpOperator | None = None
@@ -866,12 +843,10 @@ class ArithmCmd(Command):
 
 # BinaryArithm represents a binary arithmetic expression.
 #
-# If Op is any assign operator, X will be a word with a single [*Lit] whose value
-# is a valid name.
+# If Op is any assign operator, X will be a word with a single [*Lit] whose value is a valid name.
 #
-# Ternary operators like "a ? b : c" are fit into this structure. Thus, if
-# Op==[TernQuest], Y will be a [*BinaryArithm] with Op==[TernColon].
-# [TernColon] does not appear in any other scenario.
+# Ternary operators like "a ? b : c" are fit into this structure. Thus, if Op==[TernQuest], Y will be a [*BinaryArithm]
+# with Op==[TernColon]. [TernColon] does not appear in any other scenario.
 @dc.dataclass()
 class BinaryArithm(ArithmExpr):
     op_pos: Pos = dc.field(default_factory=Pos)
@@ -886,11 +861,9 @@ class BinaryArithm(ArithmExpr):
         return check.not_none(self.y).end()
 
 
-# UnaryArithm represents an unary arithmetic expression. The unary operator
-# may come before or after the sub-expression.
+# UnaryArithm represents an unary arithmetic expression. The unary operator may come before or after the sub-expression.
 #
-# If Op is [Inc] or [Dec], X will be a word with a single [*Lit] whose value is a
-# valid name.
+# If Op is [Inc] or [Dec], X will be a word with a single [*Lit] whose value is a valid name.
 @dc.dataclass()
 class UnaryArithm(ArithmExpr):
     op_pos: Pos = dc.field(default_factory=Pos)
@@ -924,8 +897,7 @@ class ParenArithm(ArithmExpr):
         return pos_add_col(self.rparen, 1)
 
 
-# FlagsArithm represents zsh subscript flags attached to an arithmetic expression,
-# such as ${array[(flags)expr]}.
+# FlagsArithm represents zsh subscript flags attached to an arithmetic expression, such as ${array[(flags)expr]}.
 #
 # This node will only appear with [LANG_ZSH].
 @dc.dataclass()
@@ -1014,8 +986,7 @@ class BinaryTest(TestExpr):
         return check.not_none(self.y).end()
 
 
-# UnaryTest represents a unary test expression. The unary operator may come
-# before or after the sub-expression.
+# UnaryTest represents a unary test expression. The unary operator may come before or after the sub-expression.
 @dc.dataclass()
 class UnaryTest(TestExpr):
     op_pos: Pos = dc.field(default_factory=Pos)
@@ -1046,14 +1017,13 @@ class ParenTest(TestExpr):
 
 # DeclClause represents a Bash declare clause.
 #
-# Args can contain a mix of regular and naked assignments. The naked
-# assignments can represent either options or variable names.
+# Args can contain a mix of regular and naked assignments. The naked assignments can represent either options or
+# variable names.
 #
 # This node will only appear with [LANG_BASH].
 @dc.dataclass()
 class DeclClause(Command):
-    # Variant is one of "declare", "local", "export", "readonly",
-    # "typeset", or "nameref".
+    # Variant is one of "declare", "local", "export", "readonly", "typeset", or "nameref".
     variant: Lit | None = None
     args: list[Assign] = dc.field(default_factory=list)
 
@@ -1106,9 +1076,8 @@ class ArrayElem(Node):
         return pos_add_col(check.not_none(self.index).end(), 2)
 
 
-# ExtGlob represents a Bash extended globbing expression. Note that these are
-# parsed independently of whether or not `shopt -s extglob` has been used,
-# as the parser runs statically and independently of any interpreter.
+# ExtGlob represents a Bash extended globbing expression. Note that these are parsed independently of whether or not
+# `shopt -s extglob` has been used, as the parser runs statically and independently of any interpreter.
 #
 # This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
 @dc.dataclass()
@@ -1143,8 +1112,7 @@ class ProcSubst(WordPart):
         return pos_add_col(self.rparen, 1)
 
 
-# TimeClause represents a Bash time clause. PosixFormat corresponds to the -p
-# flag.
+# TimeClause represents a Bash time clause. PosixFormat corresponds to the -p flag.
 #
 # This node will only appear with [LANG_BASH] and [LANG_MIR_BSD_KORN].
 @dc.dataclass()

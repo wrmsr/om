@@ -73,10 +73,8 @@ from .nodes import WordIter
 ##
 
 
-# walk traverses a syntax tree in depth-first order: It starts by calling
-# f(node); node must not be nil. If f returns true, Walk invokes f
-# recursively for each of the non-nil children of node, followed by
-# f(nil).
+# walk traverses a syntax tree in depth-first order: It starts by calling f(node); node must not be nil. If f returns
+# true, Walk invokes f recursively for each of the non-nil children of node, followed by f(nil).
 def walk(node: Node, f: ta.Callable[[Node | None], bool]) -> None:
     if not f(node):
         return
@@ -271,8 +269,8 @@ def preorder(node: Node) -> ta.Iterator[Node]:
     yield from nodes
 
 
-# DebugPrint prints the provided syntax tree, spanning multiple lines and with
-# indentation. Can be useful to investigate the content of a syntax tree.
+# DebugPrint prints the provided syntax tree, spanning multiple lines and with indentation. Can be useful to investigate
+# the content of a syntax tree.
 def debug_print(out: ta.TextIO, node: Node) -> None:
     """Write a multiline representation of a syntax tree."""
 
