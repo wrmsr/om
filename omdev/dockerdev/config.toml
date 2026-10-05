@@ -9,6 +9,8 @@ dep_sets = [
     'x11',
 ]
 
+cuda_version = '13.4'
+
 jdks = [
     'zulu21-ca-jdk',
     'zulu25-ca-jdk',

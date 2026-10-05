@@ -89,6 +89,13 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
         cache_mounts=APT_CACHE_MOUNTS,
     ))
 
+    if cfg.cuda_version is not None:
+        ops.append(fragment_section(
+            'cuda',
+            static_env={'CUDA_VERSION': cfg.cuda_version},
+            cache_mounts=APT_CACHE_MOUNTS,
+        ))
+
     ops.append(fragment_section(
         'cmake',
         cache_mounts=APT_CACHE_MOUNTS,
