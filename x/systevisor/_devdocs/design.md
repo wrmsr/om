@@ -102,7 +102,8 @@ a signal lease. Reap polling remains active when configured even if no managed r
 races and already-zombied adoptees.
 
 systemd sees Systevisor as one `Type=notify` service and receives readiness/stopping datagrams. Its generated unit uses
-`KillMode=process`, leaving delegation and draining to Systevisor rather than exposing children as platform units.
+`KillMode=mixed`: stopping is delegated to Systevisor by signalling it alone, while anything it leaves behind - because
+it was killed, or could not run - is still the platform's to clean up rather than left running unsupervised.
 launchd likewise receives a single direct-exec plist. Neither adapter projects the internal unit graph outward.
 
 ## Observation and isolation
@@ -242,6 +243,10 @@ their results are facts. Transient command probes use the same owned child machi
 process purpose, and occupy a reserved internal run namespace. Network probes use nonblocking connects and the omcore
 fdio/HTTP pipelines. Runtime timeouts close or signal only capabilities held by the probe runner.
 
+A probe never resolves a name. There is no nonblocking resolver to hand and one thread to block, so probe hosts are IP
+literals, with `localhost` accepted as the IPv4 loopback; anything else is rejected when the configuration is
+validated, and the runtime asks only for numeric addresses so that no path can turn into a lookup.
+
 ## Self-update and handoff
 
 Self-update is an in-place `exec` of one generated amalgamated artifact into another. The candidate is first run as an
@@ -261,3 +266,14 @@ rebinds disposable HTTP listeners, and completes the still-pending update operat
 execs the digest-pinned previous artifact with the same manifest; a successful rollback records the update operation
 as failed while preserving the manager PID and children. Accepted HTTP connections are deliberately disposable and
 clients reconnect. Only generated self-contained amalgamations are accepted as the running and candidate artifacts.
+
+What an exec does and does not carry decides how the window around it is closed. Handlers do not survive it but the
+signal mask does, so every signal is blocked before the exec and released only once the image on the other side has
+installed its handlers; a signal sent in between is delivered late instead of meeting its default disposition. The
+same ordering applies to a cold start, where handlers are installed before the configuration is applied and so before
+anything is spawned. The probe is given the exact resume command line and refuses a candidate that would not parse it,
+since an image that dies in its argument parser never reaches any recovery of its own. When reconstruction fails and
+the previous image cannot be gone back to either, the image that is left proves its ownership of the handed-off
+children again and stops them. Past that - an image that cannot run at all after the exec - nothing inside the
+process can help, and no helper process could adopt the children either: only their parent can wait on them. That
+case is deliberately left to whatever supervises the manager.

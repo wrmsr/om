@@ -1071,6 +1071,29 @@ class SystevisorEngine:
             if instance.unit_name == unit_name
         )
 
+    # A note on `priority`, because it is easy to assume it does more than it does.
+    #
+    # `priority` decides the order in which units are *considered* within a single step, and nothing else: lower
+    # priorities are spawned first by `_start_order`, higher priorities are signalled first by `_stop_order`. It is
+    # never waited on. Every unit that is free to start is started in the same step, and every unit that is free to
+    # stop is signalled in the same step, however far apart their priorities are.
+    #
+    # This is deliberately not what Supervisor does. Supervisor has no dependencies, so priority is its only ordering
+    # tool, and it makes stops sequential: one priority group is stopped and waited for before the next is signalled.
+    # Here, anything that must be waited on is a dependency - `requires`, `wants`, `after`, `before` - and it is the
+    # dependency graph that makes one unit wait for another to start or to exit (see `_blocking_dependency` and
+    # `_stop_instances`). Priority only breaks ties among units the graph leaves unordered.
+    #
+    # The consequences worth knowing before changing this:
+    #
+    #  - A config ported from Supervisor that relies on priority alone for its stop order gets every stop signal at
+    #    once. The port has to express that order as `after` edges.
+    #  - Making priority something that is waited on would have to be done for starts as well, or the two directions
+    #    would disagree, and it would make a shutdown take the sum of every priority group's stop timeout even between
+    #    units that have nothing to do with each other.
+    #  - If it is ever wanted, the place for it is as implied ordering edges fed into the same waiting that
+    #    dependencies use, not a second mechanism beside it.
+
     def _stop_order(self) -> ta.Sequence[SystevisorInstanceState]:
         return tuple(sorted(
             self._state.instances.values(),

@@ -112,10 +112,10 @@ def __om_amalg__():  # noqa
             dict(path='core/identities.py', sha1='f5c1cb45d31f760208253877ad8d791d77d9471b'),
             dict(path='core/signals.py', sha1='89a31442ba066a40a3e981d7f093e0411d6e4763'),
             dict(path='core/states.py', sha1='ef98dea5e06abdfabf5d23b5a361170ae6040bf3'),
-            dict(path='platforms/services.py', sha1='b1d597cb3d302dfb4b0d503e0d5f4bc07f8d280b'),
-            dict(path='runtime/events.py', sha1='fcd03ef65d1c84b7db2696e8959575c399d4b72e'),
+            dict(path='platforms/services.py', sha1='a11b1b6165dd9200a01de526a995313a20381c3d'),
+            dict(path='runtime/events.py', sha1='72fe89ded0b44adbff3b5bda67b606979b163851'),
             dict(path='scheduling/cron.py', sha1='5f52089d3e68bd432ebc4e86e7e77d8c956e9ab2'),
-            dict(path='selfupdate/models.py', sha1='5e1cfadd817810d5606588a8480cdff7a4a38223'),
+            dict(path='selfupdate/models.py', sha1='ae48d20260e7e0e75b676429fbd35658ce3d063c'),
             dict(path='../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
             dict(path='../../omcore/formats/yaml/backends.py', sha1='52ac78eaf9285fcfcaf12b7a4ce1f706b66f1a92'),
             dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
@@ -133,7 +133,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='981628a9bb285cdb3398cb28cfec73acbe59feb0'),
+            dict(path='configs/models.py', sha1='5dccab4dacda35f3a123357dadb4944be4299e9f'),
             dict(path='runtime/clocks.py', sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6'),
             dict(path='../../omcore/configs/formats.py', sha1='b0707d98865d269785703cae4186d38d52d0414d'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
@@ -150,7 +150,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='configs/marshal.py', sha1='aab859569796010711a63bffd68474321e93c41f'),
-            dict(path='configs/validation.py', sha1='1fb67115462b1ee07f22682247e97040a22107d0'),
+            dict(path='configs/validation.py', sha1='3861d8e3e1412d06b50f7d0ab22f0e85eba98543'),
             dict(path='control/jsoncodec.py', sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4'),
             dict(path='control/operations.py', sha1='f912fa9b9dea5e9677232da26b21df5178f6fd47'),
             dict(path='core/changes.py', sha1='2cbd01de924b248be7c91fa4a8bd758049c036f0'),
@@ -176,7 +176,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
-            dict(path='platforms/runtime.py', sha1='30ef286f32995fa3453f36b305f5dbcd7c137cef'),
+            dict(path='platforms/runtime.py', sha1='f5d784ac7fc74494a759f872638111fbdf8adc14'),
             dict(path='../../omcore/formats/yaml/goyaml/decoding.py', sha1='73e387af353d56ed6c3f817e490038aa1ba940c8'),
             dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
             dict(path='../../omcore/http/pipelines/clients/requests.py', sha1='60607306046abc3d5bb0c2e0b40e61251151ae13'),  # noqa
@@ -201,30 +201,30 @@ def __om_amalg__():  # noqa
             dict(path='runtime/fdio.py', sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090'),
             dict(path='runtime/logs.py', sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f'),
             dict(path='runtime/processes.py', sha1='4650bea43d3fc006bcbac4da147829c26800cff4'),
-            dict(path='core/engine.py', sha1='bc8a8d10d50cbdd7df46bb9ab1cf5b96f2328f6a'),
+            dict(path='core/engine.py', sha1='17910ac700fe8e0db0777d3a87a0370e9f67fc96'),
             dict(path='resources/cgroups.py', sha1='c2ec9703d68dcb767a918c56636ab351f6831148'),
             dict(path='resources/namespaces.py', sha1='4e87cab38547e636cc91a5f9b845bda8e2924795'),
             dict(path='resources/sampling.py', sha1='6fa61546905963453297514ada59d9d09cb66dd1'),
             dict(path='resources/sockets.py', sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911'),
             dict(path='runtime/emergencies.py', sha1='fb903ba3cd32d441e35b90bb008e4c35ba5b73b1'),
-            dict(path='runtime/health.py', sha1='86b5de90036278757a1767fabe8711cc10dc1a52'),
+            dict(path='runtime/health.py', sha1='cc729b15308376a700d23522a4fcbb2f60b19c2a'),
             dict(path='runtime/coordinator.py', sha1='6bc659bf69f73861fd2d5be110748e3151ac1600'),
-            dict(path='selfupdate/codec.py', sha1='ccb4e0ab853d02de75c5a5290e9148c27ea16005'),
+            dict(path='selfupdate/codec.py', sha1='ea7b257f9901639be2b0d7d172cda5f3331d750d'),
             dict(path='control/configs.py', sha1='750c44ed70324939e257f91d170757d6262f3244'),
             dict(path='runtime/inject.py', sha1='5d0aff306d333f058fc9bfdbfae9837d716c1e83'),
-            dict(path='selfupdate/restore.py', sha1='ffd90696e2e447bda4f769cefbaad3c33fe88737'),
             dict(path='control/manager.py', sha1='52f762caa1ed7806d3e54b3a88c02679d3d36e01'),
             dict(path='control/service.py', sha1='e2916518e8ce8e2badbe89eb6fe9fc0ad7be037a'),
             dict(path='resources/runtime.py', sha1='224bf2d85f5392f097403f2865ee4465971605b8'),
-            dict(path='selfupdate/runtime.py', sha1='2eae4abfa5343b794f3c43e82a867be2345f3751'),
+            dict(path='selfupdate/runtime.py', sha1='5a50b8aef80636e7dd61d10b95cd326e4c6e2dba'),
             dict(path='resources/inject.py', sha1='63dcae28924f1511893593d24c567ba61ecb96de'),
             dict(path='scheduling/runtime.py', sha1='beb4eb40e8c1ea1caf98291e8ed21afb5c4f7af0'),
             dict(path='selfupdate/inject.py', sha1='7765c7ba3b8dda9ca7e908af2d33f153213a06c0'),
+            dict(path='selfupdate/restore.py', sha1='1bf720f6774cea4077b2ba5e03c95ed821f3edf9'),
             dict(path='control/api.py', sha1='8ecab21b05576295d7acd0eaa6cb5931d175e795'),
             dict(path='control/http.py', sha1='e2151e319f030dc27172f87f4e2a4d7660364c10'),
             dict(path='control/plane.py', sha1='cd5a557b7b75a17470e06195df8e0ab87f4b158c'),
             dict(path='control/inject.py', sha1='338d7037d4d60b5ff58e4cb38817a2e56dc6347a'),
-            dict(path='main.py', sha1='feaf3b62147845ab22c3a35fa7566295e6e6cb12'),
+            dict(path='main.py', sha1='c6b0f671d72ac7de6c2adec259ec66209874f3b7'),
             dict(path='__main__.py', sha1='7f67abe616ff38fa814292fe452159be5cf04acb'),
         ],
     )
@@ -6575,6 +6575,7 @@ class SystevisorServiceTemplateConfig:
     identifier: str = 'systevisor'
     recursive: bool = False
     state_directory: ta.Optional[str] = None
+    stop_timeout_secs: ta.Optional[float] = None
 
     def argv(self) -> ta.Sequence[str]:
         argv = [self.executable, 'serve']
@@ -6605,7 +6606,10 @@ def systevisor_render_systemd_service(config: SystevisorServiceTemplateConfig) -
         'NotifyAccess=main',
         f'ExecStart={exec_start}',
         'Restart=on-failure',
-        'KillMode=process',
+        # A stop signals the manager alone, which stops its children in order and by their own policies. Whatever is
+        # left if it dies or overruns the stop timeout is killed by systemd rather than left running under nothing.
+        'KillMode=mixed',
+        *([f'TimeoutStopSec={config.stop_timeout_secs:g}'] if config.stop_timeout_secs is not None else []),
         '',
         '[Install]',
         'WantedBy=multi-user.target',
@@ -6838,6 +6842,11 @@ class SystevisorEventBus:
             else:
                 stream._publish(event)
 
+        # TODO: A subscriber that raises once is dropped for good, and nothing that depends on it is told. Most callers
+        #   also discard the failures returned here, so the drop is usually not even logged. The consequences are quiet
+        #   and specific: lose the control service and every later operation stays pending; lose the reload hook and
+        #   SIGHUP stops doing anything. This needs a decision - keep the subscriber and report, mark it failed where
+        #   an operator will see it, or treat it as fatal like any other failure in a part that drives the engine.
         failures: ta.List[SystevisorEventCallbackFailure] = []
         for subscription_id, callback in tuple(self._callbacks.items()):
             try:
@@ -7054,6 +7063,7 @@ class SystevisorSelfUpdateProbeRequest:
     source_sha256: str
     config: ta.Mapping[str, ta.Any]
     config_digest: str
+    resume_argv: ta.Sequence[str] = ()
 
 
 @dc.dataclass(frozen=True)
@@ -15434,6 +15444,7 @@ class SystevisorUnitConfig:
     replicas: int = 1
     replica_start: int = 0
     autostart: bool = True
+    # Orders units within a step and is never waited on - see the note on priority in the engine.
     priority: int = 999
     identity: SystevisorIdentityConfig = dc.field(default_factory=SystevisorIdentityConfig)
     restart: SystevisorRestartConfig = dc.field(default_factory=SystevisorRestartConfig)
@@ -19086,6 +19097,12 @@ def _systevisor_config_validation_error(
     )
 
 
+_SYSTEVISOR_CONFIG_VALIDATION_HEALTH_HOST_MESSAGE = (
+    'health probe hosts must be an IP address or localhost: the manager has one thread, and resolving a name on it '
+    'would hold up every unit for as long as the resolver took'
+)
+
+
 def _systevisor_config_validation_is_loopback(host: str) -> bool:
     # Decided from the text alone: resolving a name here would make validity depend on the resolver, so any name but
     # the conventional one counts as reachable from elsewhere, as does a wildcard or empty address.
@@ -19095,6 +19112,16 @@ def _systevisor_config_validation_is_loopback(host: str) -> bool:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
         return False
+
+
+def _systevisor_config_validation_is_numeric_host(host: ta.Optional[str]) -> bool:
+    if host == 'localhost':
+        return True
+    try:
+        ipaddress.ip_address(host or '')
+    except ValueError:
+        return False
+    return True
 
 
 def _systevisor_config_validation_graph(config: SystevisorConfig) -> ta.Mapping[str, ta.Set[str]]:
@@ -19683,6 +19710,13 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                         *probe_path,
                         'url',
                     ))
+                elif not _systevisor_config_validation_is_numeric_host(urllib.parse.urlsplit(probe.url).hostname):
+                    errors.append(_systevisor_config_validation_error(
+                        'unresolved_health_host',
+                        _SYSTEVISOR_CONFIG_VALIDATION_HEALTH_HOST_MESSAGE,
+                        *probe_path,
+                        'url',
+                    ))
                 if not probe.method or any(character.isspace() for character in probe.method):
                     errors.append(_systevisor_config_validation_error(
                         'invalid_health_method',
@@ -19713,6 +19747,13 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                         'tcp health probe ports must be between 1 and 65535',
                         *probe_path,
                         'port',
+                    ))
+                elif not _systevisor_config_validation_is_numeric_host(probe.host):
+                    errors.append(_systevisor_config_validation_error(
+                        'unresolved_health_host',
+                        _SYSTEVISOR_CONFIG_VALIDATION_HEALTH_HOST_MESSAGE,
+                        *probe_path,
+                        'host',
                     ))
             if probe.kind is SystevisorHealthProbeKind.LOG_ACTIVITY:
                 if probe.channel is None or probe.max_quiet_secs is None:
@@ -31833,14 +31874,12 @@ class SystevisorPidFileManager:
             )
         try:
             fd_stat = os.fstat(fd)
-            path_stat = os.stat(state.path)
         except OSError as exc:
             raise SystevisorPlatformError(f'could not validate inherited pidfile: {exc}') from exc
-        expected_identity = (state.device, state.inode)
-        if (
-                (fd_stat.st_dev, fd_stat.st_ino) != expected_identity or
-                (path_stat.st_dev, path_stat.st_ino) != expected_identity
-        ):
+        # The descriptor is the capability, and it is what has to be the same file. The path is only a pointer to
+        # it: a manager outlives its pidfile being removed or replaced, and so does a handoff. Closing never unlinks a
+        # path which no longer names this file.
+        if (fd_stat.st_dev, fd_stat.st_ino) != (state.device, state.inode):
             raise SystevisorPlatformError('inherited pidfile identity changed')
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -40474,6 +40513,29 @@ class SystevisorEngine:
             if instance.unit_name == unit_name
         )
 
+    # A note on `priority`, because it is easy to assume it does more than it does.
+    #
+    # `priority` decides the order in which units are *considered* within a single step, and nothing else: lower
+    # priorities are spawned first by `_start_order`, higher priorities are signalled first by `_stop_order`. It is
+    # never waited on. Every unit that is free to start is started in the same step, and every unit that is free to
+    # stop is signalled in the same step, however far apart their priorities are.
+    #
+    # This is deliberately not what Supervisor does. Supervisor has no dependencies, so priority is its only ordering
+    # tool, and it makes stops sequential: one priority group is stopped and waited for before the next is signalled.
+    # Here, anything that must be waited on is a dependency - `requires`, `wants`, `after`, `before` - and it is the
+    # dependency graph that makes one unit wait for another to start or to exit (see `_blocking_dependency` and
+    # `_stop_instances`). Priority only breaks ties among units the graph leaves unordered.
+    #
+    # The consequences worth knowing before changing this:
+    #
+    #  - A config ported from Supervisor that relies on priority alone for its stop order gets every stop signal at
+    #    once. The port has to express that order as `after` edges.
+    #  - Making priority something that is waited on would have to be done for starts as well, or the two directions
+    #    would disagree, and it would make a shutdown take the sum of every priority group's stop timeout even between
+    #    units that have nothing to do with each other.
+    #  - If it is ever wanted, the place for it is as implied ordering edges fed into the same waiting that
+    #    dependencies use, not a second mechanism beside it.
+
     def _stop_order(self) -> ta.Sequence[SystevisorInstanceState]:
         return tuple(sorted(
             self._state.instances.values(),
@@ -42596,10 +42658,13 @@ class SystevisorFdioHealthProbeRunner(SystevisorHealthProbeRunner, FdioHandler):
             self._finish(check, False, 'probe address is incomplete')
             return
         try:
+            # Numeric only, so this can never become a lookup: there is one thread, and a resolver that stalls would
+            # stall every unit's supervision with it. `localhost` is the one name accepted, as the IPv4 loopback.
             family, socket_type, protocol, _, address = socket.getaddrinfo(
-                host,
+                '127.0.0.1' if host == 'localhost' else host,
                 port,
                 type=socket.SOCK_STREAM,
+                flags=socket.AI_NUMERICHOST,
             )[0]
             sock = socket.socket(family, socket_type, protocol)
             sock.setblocking(False)
@@ -43263,6 +43328,11 @@ def systevisor_self_update_source_sha256(path: str) -> str:
     return digest.hexdigest()
 
 
+# TODO: This is a format check and must not be mistaken for a trust check. Anything carrying these two markers is
+#   accepted as a candidate, and an accepted candidate is exec'd as the manager. That is tolerable only on the terms
+#   the control socket is currently deployed under: it is to be treated like the Docker daemon socket, where whoever
+#   can reach it can already run code as the manager. Before that access is ever widened this needs a real mechanism -
+#   a pinned digest or signature, or an allow-listed directory with ownership and mode checks.
 def systevisor_self_update_is_amalgamated_source(path: str) -> bool:
     try:
         with open(path, 'rb') as source_file:
@@ -43964,6 +44034,11 @@ def systevisor_self_update_probe_request_from_obj(value: ta.Any) -> SystevisorSe
         source_sha256=_systevisor_self_update_string(obj.get('source_sha256'), 'probe source digest'),
         config=_systevisor_self_update_mapping(obj.get('config'), 'probe configuration'),
         config_digest=_systevisor_self_update_string(obj.get('config_digest'), 'probe config digest'),
+        # Absent from a request written by an image that predates the check.
+        resume_argv=tuple(
+            _systevisor_self_update_string(item, 'probe resume argument')
+            for item in _systevisor_self_update_sequence(obj.get('resume_argv', []), 'probe resume arguments')
+        ),
     )
 
 
@@ -44476,196 +44551,6 @@ def systevisor_bind_runtime() -> InjectorBindings:
         inj.bind(_systevisor_runtime_inject_provide_emergency_stop, singleton=True),
     ]
     return inj.as_bindings(*bindings)
-
-
-########################################
-# ../selfupdate/restore.py
-
-
-##
-
-
-@dc.dataclass(frozen=True)
-class SystevisorDecodedHandoff:
-    manifest: SystevisorHandoffManifest
-    snapshot: SystevisorConfigSnapshot
-    engine: SystevisorEngineState
-    processes: ta.Sequence[SystevisorOwnedProcessState]
-    logs: ta.Sequence[SystevisorLogChannelState]
-    output_fds: ta.Sequence[SystevisorRuntimeOutputFd]
-    event_bus: SystevisorEventBusState
-    operations: SystevisorOperationStoreState
-    manager_runtime: SystevisorManagerRuntimeState
-    pid_file_fd: ta.Optional[int]
-    inherited_sockets: ta.Sequence[SystevisorInheritedSocket]
-    cgroups: ta.Sequence[SystevisorCgroupRunState]
-
-
-def systevisor_decode_handoff(
-        manifest: SystevisorHandoffManifest,
-        current_source_path: str,
-        *,
-        previous_source: bool = False,
-) -> SystevisorDecodedHandoff:
-    current_source = os.path.realpath(current_source_path)
-    expected_source = manifest.previous_source_path if previous_source else manifest.source_path
-    expected_digest = manifest.previous_source_sha256 if previous_source else manifest.source_sha256
-    if current_source != expected_source:
-        raise SystevisorSelfUpdateCodecError(
-            f'resume source path mismatch: {current_source!r} != {expected_source!r}',
-        )
-    if systevisor_self_update_source_sha256(current_source) != expected_digest:
-        raise SystevisorSelfUpdateCodecError('resume source digest mismatch')
-    if manifest.manager_pid != os.getpid():
-        raise SystevisorSelfUpdateCodecError(
-            f'handoff belongs to manager pid {manifest.manager_pid}, not {os.getpid()}',
-        )
-    if manifest.mode not in {'serve', 'run'}:
-        raise SystevisorSelfUpdateCodecError(f'invalid handoff mode: {manifest.mode!r}')
-    if (manifest.mode == 'run') != (manifest.startup_collection is not None):
-        raise SystevisorSelfUpdateCodecError('handoff mode and startup collection do not match')
-    systevisor_validate_handoff_fds(manifest.fds)
-
-    snapshot = systevisor_decode_snapshot(
-        manifest.config,
-        manifest.config_digest,
-        manifest.source_paths,
-        manifest.provenance,
-    )
-    engine = systevisor_decode_engine_state(manifest.engine, snapshot)
-    processes = tuple(systevisor_decode_owned_process_state(value) for value in manifest.processes)
-
-    logs: ta.List[SystevisorLogChannelState] = []
-    output_fds: ta.List[SystevisorRuntimeOutputFd] = []
-    for value in manifest.logs:
-        log_state, fd = systevisor_decode_log_channel_state(value)
-        logs.append(log_state)
-        if fd is not None:
-            output_fds.append(SystevisorRuntimeOutputFd(log_state.run_id, log_state.stream, fd))
-    event_bus = systevisor_decode_event_bus_state(manifest.event_bus)
-    operations = systevisor_decode_operation_store_state(manifest.operations)
-    manager_runtime = systevisor_decode_manager_runtime_state(manifest.manager_runtime)
-    inherited_sockets = tuple(
-        systevisor_decode_inherited_socket(value)
-        for value in manifest.inherited_sockets
-    )
-    cgroups = tuple(systevisor_decode_cgroup_state(value) for value in manifest.cgroups)
-
-    expected_fds: ta.Dict[ta.Tuple[SystevisorHandoffFdKind, str], int] = {}
-    for process in processes:
-        if process.pidfd is not None:
-            expected_fds[(SystevisorHandoffFdKind.PROCESS_PIDFD, str(int(process.run_id)))] = process.pidfd
-    for output in output_fds:
-        kind = (
-            SystevisorHandoffFdKind.PROCESS_STDOUT
-            if output.stream is SystevisorLogStream.STDOUT else
-            SystevisorHandoffFdKind.PROCESS_STDERR
-        )
-        key = (kind, str(int(output.run_id)))
-        if key in expected_fds:
-            raise SystevisorSelfUpdateCodecError(f'duplicate semantic handoff descriptor: {kind.value}:{key[1]}')
-        expected_fds[key] = output.fd
-    pid_file_fd: ta.Optional[int] = None
-    if manager_runtime.pid_file is not None:
-        pid_items = [
-            item
-            for item in manifest.fds
-            if item.kind is SystevisorHandoffFdKind.PID_FILE and item.owner == 'manager'
-        ]
-        if len(pid_items) != 1:
-            raise SystevisorSelfUpdateCodecError('pidfile handoff descriptor is missing or duplicated')
-        pid_file_fd = pid_items[0].fd
-        expected_fds[(SystevisorHandoffFdKind.PID_FILE, 'manager')] = pid_file_fd
-    for inherited in inherited_sockets:
-        key = (SystevisorHandoffFdKind.ACTIVATION_SOCKET, inherited.name)
-        if key in expected_fds:
-            raise SystevisorSelfUpdateCodecError(f'duplicate activation socket: {inherited.name!r}')
-        expected_fds[key] = inherited.fd
-
-    actual_fds = {(item.kind, item.owner): item.fd for item in manifest.fds}
-    if actual_fds != expected_fds:
-        missing = sorted(f'{kind.value}:{owner}' for kind, owner in set(expected_fds) - set(actual_fds))
-        extra = sorted(f'{kind.value}:{owner}' for kind, owner in set(actual_fds) - set(expected_fds))
-        raise SystevisorSelfUpdateCodecError(
-            f'handoff descriptor semantics do not match state; missing={missing!r}; extra={extra!r}',
-        )
-
-    update_operation = next(
-        (operation for operation in operations.operations if operation.operation_id == manifest.operation_id),
-        None,
-    )
-    if (
-            update_operation is None or
-            update_operation.kind != 'manager.self_update' or
-            update_operation.status is not SystevisorOperationStatus.PENDING
-    ):
-        raise SystevisorSelfUpdateCodecError('pending self-update operation is absent from handoff')
-
-    return SystevisorDecodedHandoff(
-        manifest=manifest,
-        snapshot=snapshot,
-        engine=engine,
-        processes=processes,
-        logs=tuple(logs),
-        output_fds=tuple(output_fds),
-        event_bus=event_bus,
-        operations=operations,
-        manager_runtime=manager_runtime,
-        pid_file_fd=pid_file_fd,
-        inherited_sockets=inherited_sockets,
-        cgroups=cgroups,
-    )
-
-
-def systevisor_restore_handoff_cloexec(handoff: SystevisorDecodedHandoff) -> None:
-    systevisor_validate_handoff_fds(handoff.manifest.fds)
-    for item in handoff.manifest.fds:
-        flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
-        fcntl.fcntl(item.fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
-
-
-def systevisor_cleanup_handoff_files(manifest_path: str) -> None:
-    workspace = os.path.dirname(os.path.abspath(manifest_path))
-    for name in ('probe-request.json', 'probe-result.json', 'resume-error.json', 'handoff.json'):
-        path = os.path.join(workspace, name)
-        try:
-            os.unlink(path)
-        except FileNotFoundError:
-            pass
-    try:
-        os.rmdir(workspace)
-    except OSError:
-        pass
-
-
-def systevisor_rollback_handoff(
-        manifest: SystevisorHandoffManifest,
-        manifest_path: str,
-        message: str,
-) -> ta.NoReturn:
-    if systevisor_self_update_source_sha256(
-            manifest.previous_source_path,
-    ) != manifest.previous_source_sha256:
-        raise SystevisorSelfUpdateCodecError('previous source changed before rollback')
-    error_path = os.path.join(os.path.dirname(os.path.abspath(manifest_path)), 'resume-error.json')
-    systevisor_self_update_atomic_write_json(error_path, {'message': message})
-    systevisor_validate_handoff_fds(manifest.fds)
-    for item in manifest.fds:
-        flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
-        fcntl.fcntl(item.fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-    os.execve(
-        sys.executable,
-        (
-            sys.executable,
-            manifest.previous_source_path,
-            '_self-update-rollback',
-            '--manifest',
-            manifest_path,
-            '--error-file',
-            error_path,
-        ),
-        os.environ,
-    )
 
 
 ########################################
@@ -45435,6 +45320,20 @@ class SystevisorPosixSelfUpdateExecBackend(SystevisorSelfUpdateExecBackend):
         os.execve(executable, tuple(argv), dict(environment))
 
 
+def systevisor_self_update_resume_argv(manifest_path: str) -> ta.Sequence[str]:
+    return ('_self-update-resume', '--manifest', manifest_path)
+
+
+def systevisor_self_update_block_signals() -> ta.AbstractSet[int]:
+    """
+    Held from just before an exec until the image on the other side has its handlers installed. A signal mask survives
+    exec but handlers do not, so a signal arriving in between would otherwise meet its default disposition and kill
+    the manager while it is the only thing that knows its children. Blocked, it stays pending and is handled normally.
+    """
+
+    return signal.pthread_sigmask(signal.SIG_BLOCK, signal.valid_signals())
+
+
 def systevisor_exec_handoff(
         manifest: SystevisorHandoffManifest,
         manifest_path: str,
@@ -45448,23 +45347,25 @@ def systevisor_exec_handoff(
     )
     systevisor_validate_handoff_fds(manifest.fds)
     saved_fd_flags: ta.Dict[int, int] = {}
+    saved_signal_mask: ta.Optional[ta.AbstractSet[int]] = None
     try:
         for item in manifest.fds:
             flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
             saved_fd_flags[item.fd] = flags
             fcntl.fcntl(item.fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+        saved_signal_mask = systevisor_self_update_block_signals()
         backend.execve(
             sys.executable,
             (
                 sys.executable,
                 manifest.source_path,
-                '_self-update-resume',
-                '--manifest',
-                manifest_path,
+                *systevisor_self_update_resume_argv(manifest_path),
             ),
             os.environ,
         )
     except BaseException:
+        if saved_signal_mask is not None:
+            signal.pthread_sigmask(signal.SIG_SETMASK, saved_signal_mask)
         for fd, flags in saved_fd_flags.items():
             try:
                 fcntl.fcntl(fd, fcntl.F_SETFD, flags)
@@ -45691,6 +45592,7 @@ class SystevisorSelfUpdateManager(FdioHandler):
             source_sha256=source_digest,
             config=systevisor_marshal_config_obj(snapshot.config, SystevisorConfig),
             config_digest=snapshot.digest,
+            resume_argv=systevisor_self_update_resume_argv(request.manifest_path),
         )
         try:
             systevisor_self_update_atomic_write_json(
@@ -45737,7 +45639,16 @@ class SystevisorSelfUpdateManager(FdioHandler):
             self._fail(request.probe_exec_error)
             return
         if observed.return_code != 0:
-            self._fail(f'candidate probe exited with status {observed.return_code}')
+            # A probe that got far enough to say why it refused is worth quoting.
+            rejection: ta.Optional[SystevisorSelfUpdateProbeResult]
+            try:
+                rejection = systevisor_self_update_probe_result_from_obj(
+                    systevisor_self_update_read_json(request.probe_result_path),
+                )
+            except Exception:  # noqa: BLE001
+                rejection = None
+            reason = f': {rejection.message}' if rejection is not None and rejection.message else ''
+            self._fail(f'candidate probe exited with status {observed.return_code}{reason}')
             return
         try:
             result = systevisor_self_update_probe_result_from_obj(
@@ -45986,6 +45897,8 @@ def systevisor_run_self_update_probe(
         request_path: str,
         result_path: str,
         current_source_path: str,
+        *,
+        parse_argv: ta.Optional[ta.Callable[[ta.Sequence[str]], ta.Any]] = None,
 ) -> int:
     source_digest = ''
     try:
@@ -46006,6 +45919,15 @@ def systevisor_run_self_update_probe(
             raise SystevisorSelfUpdateCodecError(
                 '; '.join(f'{diagnostic.code}: {diagnostic.message}' for diagnostic in diagnostics),
             )
+        if request.resume_argv and parse_argv is not None:
+            # The running image is about to exec this one with exactly these arguments, and an image that cannot even
+            # parse them dies before any of its own recovery can run.
+            try:
+                parse_argv(request.resume_argv)
+            except (Exception, SystemExit) as exc:  # noqa: BLE001
+                raise SystevisorSelfUpdateCodecError(
+                    f'candidate does not accept the resume command line {list(request.resume_argv)!r}',
+                ) from exc
         result = SystevisorSelfUpdateProbeResult(
             schema_version=SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION,
             accepted=True,
@@ -46544,6 +46466,197 @@ def systevisor_bind_self_update() -> InjectorBindings:
         inj.bind(SystevisorPosixSelfUpdateExecBackend, singleton=True),
         inj.bind(SystevisorSelfUpdateExecBackend, to_key=SystevisorPosixSelfUpdateExecBackend),
         inj.bind(SystevisorSelfUpdateManager, singleton=True),
+    )
+
+
+########################################
+# ../selfupdate/restore.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class SystevisorDecodedHandoff:
+    manifest: SystevisorHandoffManifest
+    snapshot: SystevisorConfigSnapshot
+    engine: SystevisorEngineState
+    processes: ta.Sequence[SystevisorOwnedProcessState]
+    logs: ta.Sequence[SystevisorLogChannelState]
+    output_fds: ta.Sequence[SystevisorRuntimeOutputFd]
+    event_bus: SystevisorEventBusState
+    operations: SystevisorOperationStoreState
+    manager_runtime: SystevisorManagerRuntimeState
+    pid_file_fd: ta.Optional[int]
+    inherited_sockets: ta.Sequence[SystevisorInheritedSocket]
+    cgroups: ta.Sequence[SystevisorCgroupRunState]
+
+
+def systevisor_decode_handoff(
+        manifest: SystevisorHandoffManifest,
+        current_source_path: str,
+        *,
+        previous_source: bool = False,
+) -> SystevisorDecodedHandoff:
+    current_source = os.path.realpath(current_source_path)
+    expected_source = manifest.previous_source_path if previous_source else manifest.source_path
+    expected_digest = manifest.previous_source_sha256 if previous_source else manifest.source_sha256
+    if current_source != expected_source:
+        raise SystevisorSelfUpdateCodecError(
+            f'resume source path mismatch: {current_source!r} != {expected_source!r}',
+        )
+    if systevisor_self_update_source_sha256(current_source) != expected_digest:
+        raise SystevisorSelfUpdateCodecError('resume source digest mismatch')
+    if manifest.manager_pid != os.getpid():
+        raise SystevisorSelfUpdateCodecError(
+            f'handoff belongs to manager pid {manifest.manager_pid}, not {os.getpid()}',
+        )
+    if manifest.mode not in {'serve', 'run'}:
+        raise SystevisorSelfUpdateCodecError(f'invalid handoff mode: {manifest.mode!r}')
+    if (manifest.mode == 'run') != (manifest.startup_collection is not None):
+        raise SystevisorSelfUpdateCodecError('handoff mode and startup collection do not match')
+    systevisor_validate_handoff_fds(manifest.fds)
+
+    snapshot = systevisor_decode_snapshot(
+        manifest.config,
+        manifest.config_digest,
+        manifest.source_paths,
+        manifest.provenance,
+    )
+    engine = systevisor_decode_engine_state(manifest.engine, snapshot)
+    processes = tuple(systevisor_decode_owned_process_state(value) for value in manifest.processes)
+
+    logs: ta.List[SystevisorLogChannelState] = []
+    output_fds: ta.List[SystevisorRuntimeOutputFd] = []
+    for value in manifest.logs:
+        log_state, fd = systevisor_decode_log_channel_state(value)
+        logs.append(log_state)
+        if fd is not None:
+            output_fds.append(SystevisorRuntimeOutputFd(log_state.run_id, log_state.stream, fd))
+    event_bus = systevisor_decode_event_bus_state(manifest.event_bus)
+    operations = systevisor_decode_operation_store_state(manifest.operations)
+    manager_runtime = systevisor_decode_manager_runtime_state(manifest.manager_runtime)
+    inherited_sockets = tuple(
+        systevisor_decode_inherited_socket(value)
+        for value in manifest.inherited_sockets
+    )
+    cgroups = tuple(systevisor_decode_cgroup_state(value) for value in manifest.cgroups)
+
+    expected_fds: ta.Dict[ta.Tuple[SystevisorHandoffFdKind, str], int] = {}
+    for process in processes:
+        if process.pidfd is not None:
+            expected_fds[(SystevisorHandoffFdKind.PROCESS_PIDFD, str(int(process.run_id)))] = process.pidfd
+    for output in output_fds:
+        kind = (
+            SystevisorHandoffFdKind.PROCESS_STDOUT
+            if output.stream is SystevisorLogStream.STDOUT else
+            SystevisorHandoffFdKind.PROCESS_STDERR
+        )
+        key = (kind, str(int(output.run_id)))
+        if key in expected_fds:
+            raise SystevisorSelfUpdateCodecError(f'duplicate semantic handoff descriptor: {kind.value}:{key[1]}')
+        expected_fds[key] = output.fd
+    pid_file_fd: ta.Optional[int] = None
+    if manager_runtime.pid_file is not None:
+        pid_items = [
+            item
+            for item in manifest.fds
+            if item.kind is SystevisorHandoffFdKind.PID_FILE and item.owner == 'manager'
+        ]
+        if len(pid_items) != 1:
+            raise SystevisorSelfUpdateCodecError('pidfile handoff descriptor is missing or duplicated')
+        pid_file_fd = pid_items[0].fd
+        expected_fds[(SystevisorHandoffFdKind.PID_FILE, 'manager')] = pid_file_fd
+    for inherited in inherited_sockets:
+        key = (SystevisorHandoffFdKind.ACTIVATION_SOCKET, inherited.name)
+        if key in expected_fds:
+            raise SystevisorSelfUpdateCodecError(f'duplicate activation socket: {inherited.name!r}')
+        expected_fds[key] = inherited.fd
+
+    actual_fds = {(item.kind, item.owner): item.fd for item in manifest.fds}
+    if actual_fds != expected_fds:
+        missing = sorted(f'{kind.value}:{owner}' for kind, owner in set(expected_fds) - set(actual_fds))
+        extra = sorted(f'{kind.value}:{owner}' for kind, owner in set(actual_fds) - set(expected_fds))
+        raise SystevisorSelfUpdateCodecError(
+            f'handoff descriptor semantics do not match state; missing={missing!r}; extra={extra!r}',
+        )
+
+    update_operation = next(
+        (operation for operation in operations.operations if operation.operation_id == manifest.operation_id),
+        None,
+    )
+    if (
+            update_operation is None or
+            update_operation.kind != 'manager.self_update' or
+            update_operation.status is not SystevisorOperationStatus.PENDING
+    ):
+        raise SystevisorSelfUpdateCodecError('pending self-update operation is absent from handoff')
+
+    return SystevisorDecodedHandoff(
+        manifest=manifest,
+        snapshot=snapshot,
+        engine=engine,
+        processes=processes,
+        logs=tuple(logs),
+        output_fds=tuple(output_fds),
+        event_bus=event_bus,
+        operations=operations,
+        manager_runtime=manager_runtime,
+        pid_file_fd=pid_file_fd,
+        inherited_sockets=inherited_sockets,
+        cgroups=cgroups,
+    )
+
+
+def systevisor_restore_handoff_cloexec(handoff: SystevisorDecodedHandoff) -> None:
+    systevisor_validate_handoff_fds(handoff.manifest.fds)
+    for item in handoff.manifest.fds:
+        flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
+        fcntl.fcntl(item.fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+
+
+def systevisor_cleanup_handoff_files(manifest_path: str) -> None:
+    workspace = os.path.dirname(os.path.abspath(manifest_path))
+    for name in ('probe-request.json', 'probe-result.json', 'resume-error.json', 'handoff.json'):
+        path = os.path.join(workspace, name)
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+    try:
+        os.rmdir(workspace)
+    except OSError:
+        pass
+
+
+def systevisor_rollback_handoff(
+        manifest: SystevisorHandoffManifest,
+        manifest_path: str,
+        message: str,
+) -> ta.NoReturn:
+    if systevisor_self_update_source_sha256(
+            manifest.previous_source_path,
+    ) != manifest.previous_source_sha256:
+        raise SystevisorSelfUpdateCodecError('previous source changed before rollback')
+    error_path = os.path.join(os.path.dirname(os.path.abspath(manifest_path)), 'resume-error.json')
+    systevisor_self_update_atomic_write_json(error_path, {'message': message})
+    systevisor_validate_handoff_fds(manifest.fds)
+    for item in manifest.fds:
+        flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
+        fcntl.fcntl(item.fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+    systevisor_self_update_block_signals()
+    os.execve(
+        sys.executable,
+        (
+            sys.executable,
+            manifest.previous_source_path,
+            '_self-update-rollback',
+            '--manifest',
+            manifest_path,
+            '--error-file',
+            error_path,
+        ),
+        os.environ,
     )
 
 
@@ -47684,10 +47797,14 @@ class SystevisorMainServerContext:
             self.control_plane = self._injector.provide(SystevisorControlPlane)
             coordinator.engine.state.startup_collection = startup_collection
 
-        result = controller.apply_compiled(compiled, initial=True)
-        if result.attempt.applied:
+        if compiled.snapshot is not None:
+            # Before the configuration is applied, because applying it spawns. A signal that arrives while the first
+            # children are being started then waits in the handler for the first poll and is acted on - a shutdown
+            # stops what was started - rather than meeting its default disposition and killing the manager under them.
             controller.install_signal_reload()
             coordinator.install_signal_handler()
+        result = controller.apply_compiled(compiled, initial=True)
+        if result.attempt.applied:
             ta.cast(SystevisorManagerRuntime, self.manager_runtime).ready()
         return result
 
@@ -47741,12 +47858,18 @@ class SystevisorMainServerContext:
         coordinator.rehydrate_process_runtime(handoff.output_fds)
         controller.install_signal_reload()
         coordinator.install_signal_handler()
+        # The previous image blocked every signal before the exec so that none could arrive before this point.
+        # Whatever was sent meanwhile is delivered now, to handlers that exist.
+        signal.pthread_sigmask(signal.SIG_SETMASK, ())
         systevisor_restore_handoff_cloexec(handoff)
         manager_runtime.ready()
         if completion_error is None:
             self.self_update.complete_resume(manifest.operation_id, manifest.source_sha256)
         else:
             self.self_update.fail_resume(manifest.operation_id, completion_error)
+
+    def owns_processes(self) -> bool:
+        return self.coordinator is not None and self._injector.provide(SystevisorProcessManager).has_processes()
 
     def note_stopping(self) -> None:
         if self.manager_runtime is not None:
@@ -47917,9 +48040,22 @@ def _systevisor_main_run(args: argparse.Namespace) -> int:
         context.close()
 
 
+def _systevisor_main_stop_handed_off(handoff: SystevisorDecodedHandoff) -> None:
+    # This image could not take over and there is no other left to hand back to, but the children named in the handoff
+    # are still its own, which is all it takes to stop them rather than leave them with nothing supervising them.
+    # Ownership is proven afresh first, and a process it cannot be proven for is left alone.
+    try:
+        process_manager = SystevisorProcessManager()
+        process_manager.rehydrate(handoff.processes, handoff.engine)
+        SystevisorEmergencyStop(process_manager, SystevisorSystemClock()).run()
+    except Exception:  # noqa: BLE001
+        _SYSTEVISOR_MAIN_LOG.exception('Systevisor could not stop the processes it was handed')
+
+
 def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False) -> int:
     context: ta.Optional[SystevisorMainServerContext] = None
     manifest = None
+    handoff: ta.Optional[SystevisorDecodedHandoff] = None
     try:
         # Only reconstruction may fall back to the previous artifact. Once the handoff has been consumed this is an
         # ordinary manager again, and a later failure is its own rather than a reason to exec an image it has left.
@@ -47960,6 +48096,8 @@ def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False)
                 'error': error,
                 'message': message,
             }, SystevisorJsonCodec(), 2)
+            if handoff is not None and (context is None or not context.owns_processes()):
+                _systevisor_main_stop_handed_off(handoff)
             return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
 
         try:
@@ -47981,6 +48119,7 @@ def _systevisor_main_service_template(args: argparse.Namespace) -> int:
         identifier=args.identifier,
         recursive=args.recursive,
         state_directory=args.state_directory,
+        stop_timeout_secs=args.stop_timeout,
     )
     rendered = (
         systevisor_render_systemd_service(config)
@@ -48113,6 +48252,11 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
     service_template.add_argument('--identifier', default='systevisor')
     service_template.add_argument('--recursive', action='store_true')
     service_template.add_argument('--state-directory')
+    service_template.add_argument(
+        '--stop-timeout',
+        type=float,
+        help='seconds a stop may take, which should cover the longest chain of unit stop timeouts',
+    )
 
     for command in (
             'status',
@@ -48178,7 +48322,12 @@ def systevisor_main(argv: ta.Optional[ta.Sequence[str]] = None) -> int:
     if args.command == 'run':
         return _systevisor_main_run(args)
     if args.command == '_self-update-probe':
-        return systevisor_run_self_update_probe(args.request, args.result, os.path.realpath(sys.argv[0]))
+        return systevisor_run_self_update_probe(
+            args.request,
+            args.result,
+            os.path.realpath(sys.argv[0]),
+            parse_argv=_systevisor_main_parser().parse_args,
+        )
     if args.command == '_self-update-resume':
         return _systevisor_main_resume(args)
     if args.command == '_self-update-rollback':

@@ -33,6 +33,7 @@ from .codec import systevisor_self_update_source_sha256
 from .codec import systevisor_validate_handoff_fds
 from .models import SystevisorHandoffFdKind
 from .models import SystevisorHandoffManifest
+from .runtime import systevisor_self_update_block_signals
 
 
 ##
@@ -206,6 +207,7 @@ def systevisor_rollback_handoff(
     for item in manifest.fds:
         flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
         fcntl.fcntl(item.fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+    systevisor_self_update_block_signals()
     os.execve(
         sys.executable,
         (

@@ -45,6 +45,7 @@ class SystevisorSelfUpdateProbeRequest:
     source_sha256: str
     config: ta.Mapping[str, ta.Any]
     config_digest: str
+    resume_argv: ta.Sequence[str] = ()
 
 
 @dc.dataclass(frozen=True)

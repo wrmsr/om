@@ -240,14 +240,12 @@ class SystevisorPidFileManager:
             )
         try:
             fd_stat = os.fstat(fd)
-            path_stat = os.stat(state.path)
         except OSError as exc:
             raise SystevisorPlatformError(f'could not validate inherited pidfile: {exc}') from exc
-        expected_identity = (state.device, state.inode)
-        if (
-                (fd_stat.st_dev, fd_stat.st_ino) != expected_identity or
-                (path_stat.st_dev, path_stat.st_ino) != expected_identity
-        ):
+        # The descriptor is the capability, and it is what has to be the same file. The path is only a pointer to
+        # it: a manager outlives its pidfile being removed or replaced, and so does a handoff. Closing never unlinks a
+        # path which no longer names this file.
+        if (fd_stat.st_dev, fd_stat.st_ino) != (state.device, state.inode):
             raise SystevisorPlatformError('inherited pidfile identity changed')
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)

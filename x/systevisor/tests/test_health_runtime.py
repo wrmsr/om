@@ -210,7 +210,7 @@ class TestSystevisorHealthRuntime(unittest.TestCase):
                 name='http',
                 role=SystevisorHealthRole.READINESS,
                 kind=SystevisorHealthProbeKind.HTTP,
-                url=f'http://127.0.0.1:{port}/ready?full=1',
+                url=f'http://localhost:{port}/ready?full=1',
                 expected_statuses=(204,),
             ),
             SystevisorHealthProbeConfig(
@@ -240,3 +240,41 @@ class TestSystevisorHealthRuntime(unittest.TestCase):
         )
         for connection in connections:
             connection.close()
+
+    def test_probe_of_a_name_fails_at_once_instead_of_resolving_it(self) -> None:
+        fixture = SystevisorHealthRuntimeFixture()
+        self.addCleanup(fixture.close)
+        lookups: ta.List[ta.Tuple[ta.Any, ...]] = []
+        resolve = socket.getaddrinfo
+
+        def recording_getaddrinfo(*args: ta.Any, **kwargs: ta.Any) -> ta.Any:
+            lookups.append((args, kwargs))
+            return resolve(*args, **kwargs)
+
+        socket.getaddrinfo = recording_getaddrinfo
+        self.addCleanup(setattr, socket, 'getaddrinfo', resolve)
+
+        snapshot = systevisor_build_config_snapshot(SystevisorConfig(units={
+            'web': SystevisorUnitConfig(
+                exec=SystevisorExecConfig(argv=('/bin/sleep', '60')),
+                restart=SystevisorRestartConfig(start_secs=0.),
+                health=(
+                    SystevisorHealthProbeConfig(
+                        name='named',
+                        role=SystevisorHealthRole.READINESS,
+                        kind=SystevisorHealthProbeKind.TCP,
+                        host='database.internal',
+                        port=5432,
+                        failure_threshold=1,
+                    ),
+                ),
+            ),
+        }), (), ())
+        fixture.coordinator.submit(SystevisorApplySnapshotCommand(snapshot))
+        instance = fixture.coordinator.engine.state.instances[SystevisorInstanceId('web:0')]
+        fixture.poll_until(lambda: instance.health['named'].status is SystevisorHealthStatus.FAILING)
+
+        # Every address the probe machinery handed to the resolver was flagged as one that needs no resolving.
+        self.assertTrue(lookups)
+        for _, kwargs in lookups:
+            self.assertEqual(kwargs.get('flags'), socket.AI_NUMERICHOST)

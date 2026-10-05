@@ -117,9 +117,11 @@ A start or restart operation fails as soon as a run it is waiting on gets as far
 unexpectedly, even though the unit's restart policy goes on retrying; it does not stay `pending` on a unit that is
 flapping. One blocked on a dependency that never becomes ready still waits indefinitely.
 
-The API has no authentication, so reaching it is the whole of its access control. Keep it on the Unix socket with a
-suitable mode. A TCP listener is accepted on loopback only; binding anything else requires `api.allow_remote: true`,
-which should be read as "everyone who can reach this port may stop every unit and replace the manager".
+The API has no authentication, so reaching it is the whole of its access control. Treat the Unix socket exactly as
+you would the Docker daemon socket: whoever can open it can stop every unit and, through self-update, have the manager
+exec a file of their choosing as itself. Give it the mode and ownership that implies. A TCP listener is accepted on
+loopback only; binding anything else requires `api.allow_remote: true`, which hands the same power to everyone who can
+reach the port.
 
 ## Reload and failed configuration
 
@@ -231,12 +233,24 @@ activation sockets, events, and operations survive. Control connections/listener
 the client reconnects. A reconstruction failure execs the pinned previous artifact and marks the operation failed.
 Do not modify either source path during the operation; digest changes fail closed.
 
+Signals sent to the manager during the handoff are not lost and cannot kill it: they are held across the exec and
+acted on once the new image is running. A candidate is refused by its own probe if it would not accept the command
+line it is about to be exec'd with. If a new image can neither complete the resume nor hand back to the previous one,
+it stops the children it was handed and exits 2 rather than leaving them running. What no image can do anything about
+is being unable to run at all after the exec; that case belongs to the service manager or container around it, as
+described under host integration. Candidates are checked for format, not for trust - see the note on the control
+socket above.
+
 ## Host integration
 
 Use `service-template systemd` or `service-template launchd` to print an opaque service definition. The command never
-installs or activates it. systemd should own only Systevisor, use `Type=notify`, and retain `KillMode=process` so the
-manager can drain children itself. Container deployments should run the artifact directly as PID 1 without dumb-init;
-subreaper/unknown-child cleanup and configured signal delegation are built in.
+installs or activates it. systemd should own only Systevisor and use `Type=notify` with `KillMode=mixed`: a stop
+signals the manager alone, which stops its children in order and by their own policies, and systemd kills whatever is
+left if the manager dies or overruns the stop timeout. That last part is what stands behind the manager when it cannot
+help itself - killed outright, or replaced by an image that never gets as far as running - so do not weaken it to
+`KillMode=process`. Pass `--stop-timeout SECONDS` to set `TimeoutStopSec` to at least the longest chain of unit stop
+timeouts. Container deployments should run the artifact directly as PID 1 without dumb-init; subreaper/unknown-child
+cleanup and configured signal delegation are built in, and the kernel plays the same last-resort part there.
 
 Cgroups require a pre-delegated cgroup-v2 root, writable by the manager and not shared with another one; Systevisor
 does not edit ancestor delegation or use `cgroup.kill`. Run groups are named `sv-<pid>.<start>-<run>-<instance digest>`

@@ -148,6 +148,11 @@ def systevisor_self_update_source_sha256(path: str) -> str:
     return digest.hexdigest()
 
 
+# TODO: This is a format check and must not be mistaken for a trust check. Anything carrying these two markers is
+#   accepted as a candidate, and an accepted candidate is exec'd as the manager. That is tolerable only on the terms
+#   the control socket is currently deployed under: it is to be treated like the Docker daemon socket, where whoever
+#   can reach it can already run code as the manager. Before that access is ever widened this needs a real mechanism -
+#   a pinned digest or signature, or an allow-listed directory with ownership and mode checks.
 def systevisor_self_update_is_amalgamated_source(path: str) -> bool:
     try:
         with open(path, 'rb') as source_file:
@@ -849,6 +854,11 @@ def systevisor_self_update_probe_request_from_obj(value: ta.Any) -> SystevisorSe
         source_sha256=_systevisor_self_update_string(obj.get('source_sha256'), 'probe source digest'),
         config=_systevisor_self_update_mapping(obj.get('config'), 'probe configuration'),
         config_digest=_systevisor_self_update_string(obj.get('config_digest'), 'probe config digest'),
+        # Absent from a request written by an image that predates the check.
+        resume_argv=tuple(
+            _systevisor_self_update_string(item, 'probe resume argument')
+            for item in _systevisor_self_update_sequence(obj.get('resume_argv', []), 'probe resume arguments')
+        ),
     )
 
 

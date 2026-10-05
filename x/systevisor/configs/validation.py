@@ -3,6 +3,7 @@ import ipaddress
 import logging
 import os
 import typing as ta
+import urllib.parse
 
 from ..core.identities import systevisor_is_valid_name
 from ..core.signals import SystevisorSignalNameError
@@ -40,6 +41,12 @@ def _systevisor_config_validation_error(
     )
 
 
+_SYSTEVISOR_CONFIG_VALIDATION_HEALTH_HOST_MESSAGE = (
+    'health probe hosts must be an IP address or localhost: the manager has one thread, and resolving a name on it '
+    'would hold up every unit for as long as the resolver took'
+)
+
+
 def _systevisor_config_validation_is_loopback(host: str) -> bool:
     # Decided from the text alone: resolving a name here would make validity depend on the resolver, so any name but
     # the conventional one counts as reachable from elsewhere, as does a wildcard or empty address.
@@ -49,6 +56,16 @@ def _systevisor_config_validation_is_loopback(host: str) -> bool:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
         return False
+
+
+def _systevisor_config_validation_is_numeric_host(host: ta.Optional[str]) -> bool:
+    if host == 'localhost':
+        return True
+    try:
+        ipaddress.ip_address(host or '')
+    except ValueError:
+        return False
+    return True
 
 
 def _systevisor_config_validation_graph(config: SystevisorConfig) -> ta.Mapping[str, ta.Set[str]]:
@@ -637,6 +654,13 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                         *probe_path,
                         'url',
                     ))
+                elif not _systevisor_config_validation_is_numeric_host(urllib.parse.urlsplit(probe.url).hostname):
+                    errors.append(_systevisor_config_validation_error(
+                        'unresolved_health_host',
+                        _SYSTEVISOR_CONFIG_VALIDATION_HEALTH_HOST_MESSAGE,
+                        *probe_path,
+                        'url',
+                    ))
                 if not probe.method or any(character.isspace() for character in probe.method):
                     errors.append(_systevisor_config_validation_error(
                         'invalid_health_method',
@@ -667,6 +691,13 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                         'tcp health probe ports must be between 1 and 65535',
                         *probe_path,
                         'port',
+                    ))
+                elif not _systevisor_config_validation_is_numeric_host(probe.host):
+                    errors.append(_systevisor_config_validation_error(
+                        'unresolved_health_host',
+                        _SYSTEVISOR_CONFIG_VALIDATION_HEALTH_HOST_MESSAGE,
+                        *probe_path,
+                        'host',
                     ))
             if probe.kind is SystevisorHealthProbeKind.LOG_ACTIVITY:
                 if probe.channel is None or probe.max_quiet_secs is None:

@@ -190,6 +190,11 @@ class SystevisorEventBus:
             else:
                 stream._publish(event)
 
+        # TODO: A subscriber that raises once is dropped for good, and nothing that depends on it is told. Most callers
+        #   also discard the failures returned here, so the drop is usually not even logged. The consequences are quiet
+        #   and specific: lose the control service and every later operation stays pending; lose the reload hook and
+        #   SIGHUP stops doing anything. This needs a decision - keep the subscriber and report, mark it failed where
+        #   an operator will see it, or treat it as fatal like any other failure in a part that drives the engine.
         failures: ta.List[SystevisorEventCallbackFailure] = []
         for subscription_id, callback in tuple(self._callbacks.items()):
             try:

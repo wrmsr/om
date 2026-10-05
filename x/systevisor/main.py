@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import os
+import signal
 import sys
 import typing as ta
 import urllib.parse
@@ -38,6 +39,7 @@ from .resources.cgroups import SystevisorCgroupManager
 from .resources.inject import systevisor_bind_resources
 from .resources.runtime import SystevisorResourceObserver
 from .resources.sockets import SystevisorInheritedSocketRegistry
+from .runtime.clocks import SystevisorSystemClock
 from .runtime.coordinator import SystevisorRuntimeCoordinator
 from .runtime.emergencies import SystevisorEmergencyStop
 from .runtime.inject import systevisor_bind_runtime
@@ -173,10 +175,14 @@ class SystevisorMainServerContext:
             self.control_plane = self._injector.provide(SystevisorControlPlane)
             coordinator.engine.state.startup_collection = startup_collection
 
-        result = controller.apply_compiled(compiled, initial=True)
-        if result.attempt.applied:
+        if compiled.snapshot is not None:
+            # Before the configuration is applied, because applying it spawns. A signal that arrives while the first
+            # children are being started then waits in the handler for the first poll and is acted on - a shutdown
+            # stops what was started - rather than meeting its default disposition and killing the manager under them.
             controller.install_signal_reload()
             coordinator.install_signal_handler()
+        result = controller.apply_compiled(compiled, initial=True)
+        if result.attempt.applied:
             ta.cast(SystevisorManagerRuntime, self.manager_runtime).ready()
         return result
 
@@ -230,12 +236,18 @@ class SystevisorMainServerContext:
         coordinator.rehydrate_process_runtime(handoff.output_fds)
         controller.install_signal_reload()
         coordinator.install_signal_handler()
+        # The previous image blocked every signal before the exec so that none could arrive before this point.
+        # Whatever was sent meanwhile is delivered now, to handlers that exist.
+        signal.pthread_sigmask(signal.SIG_SETMASK, ())
         systevisor_restore_handoff_cloexec(handoff)
         manager_runtime.ready()
         if completion_error is None:
             self.self_update.complete_resume(manifest.operation_id, manifest.source_sha256)
         else:
             self.self_update.fail_resume(manifest.operation_id, completion_error)
+
+    def owns_processes(self) -> bool:
+        return self.coordinator is not None and self._injector.provide(SystevisorProcessManager).has_processes()
 
     def note_stopping(self) -> None:
         if self.manager_runtime is not None:
@@ -406,9 +418,22 @@ def _systevisor_main_run(args: argparse.Namespace) -> int:
         context.close()
 
 
+def _systevisor_main_stop_handed_off(handoff: SystevisorDecodedHandoff) -> None:
+    # This image could not take over and there is no other left to hand back to, but the children named in the handoff
+    # are still its own, which is all it takes to stop them rather than leave them with nothing supervising them.
+    # Ownership is proven afresh first, and a process it cannot be proven for is left alone.
+    try:
+        process_manager = SystevisorProcessManager()
+        process_manager.rehydrate(handoff.processes, handoff.engine)
+        SystevisorEmergencyStop(process_manager, SystevisorSystemClock()).run()
+    except Exception:  # noqa: BLE001
+        _SYSTEVISOR_MAIN_LOG.exception('Systevisor could not stop the processes it was handed')
+
+
 def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False) -> int:
     context: ta.Optional[SystevisorMainServerContext] = None
     manifest = None
+    handoff: ta.Optional[SystevisorDecodedHandoff] = None
     try:
         # Only reconstruction may fall back to the previous artifact. Once the handoff has been consumed this is an
         # ordinary manager again, and a later failure is its own rather than a reason to exec an image it has left.
@@ -449,6 +474,8 @@ def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False)
                 'error': error,
                 'message': message,
             }, SystevisorJsonCodec(), 2)
+            if handoff is not None and (context is None or not context.owns_processes()):
+                _systevisor_main_stop_handed_off(handoff)
             return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
 
         try:
@@ -470,6 +497,7 @@ def _systevisor_main_service_template(args: argparse.Namespace) -> int:
         identifier=args.identifier,
         recursive=args.recursive,
         state_directory=args.state_directory,
+        stop_timeout_secs=args.stop_timeout,
     )
     rendered = (
         systevisor_render_systemd_service(config)
@@ -602,6 +630,11 @@ def _systevisor_main_parser() -> argparse.ArgumentParser:
     service_template.add_argument('--identifier', default='systevisor')
     service_template.add_argument('--recursive', action='store_true')
     service_template.add_argument('--state-directory')
+    service_template.add_argument(
+        '--stop-timeout',
+        type=float,
+        help='seconds a stop may take, which should cover the longest chain of unit stop timeouts',
+    )
 
     for command in (
             'status',
@@ -667,7 +700,12 @@ def systevisor_main(argv: ta.Optional[ta.Sequence[str]] = None) -> int:
     if args.command == 'run':
         return _systevisor_main_run(args)
     if args.command == '_self-update-probe':
-        return systevisor_run_self_update_probe(args.request, args.result, os.path.realpath(sys.argv[0]))
+        return systevisor_run_self_update_probe(
+            args.request,
+            args.result,
+            os.path.realpath(sys.argv[0]),
+            parse_argv=_systevisor_main_parser().parse_args,
+        )
     if args.command == '_self-update-resume':
         return _systevisor_main_resume(args)
     if args.command == '_self-update-rollback':

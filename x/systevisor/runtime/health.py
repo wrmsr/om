@@ -373,10 +373,13 @@ class SystevisorFdioHealthProbeRunner(SystevisorHealthProbeRunner, FdioHandler):
             self._finish(check, False, 'probe address is incomplete')
             return
         try:
+            # Numeric only, so this can never become a lookup: there is one thread, and a resolver that stalls would
+            # stall every unit's supervision with it. `localhost` is the one name accepted, as the IPv4 loopback.
             family, socket_type, protocol, _, address = socket.getaddrinfo(
-                host,
+                '127.0.0.1' if host == 'localhost' else host,
                 port,
                 type=socket.SOCK_STREAM,
+                flags=socket.AI_NUMERICHOST,
             )[0]
             sock = socket.socket(family, socket_type, protocol)
             sock.setblocking(False)

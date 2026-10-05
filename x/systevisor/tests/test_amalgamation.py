@@ -8,11 +8,11 @@ import types
 import typing as ta
 import unittest
 
+from .utils import SYSTEVISOR_TEST_ARTIFACT_PATH
+from .utils import systevisor_test_artifact_source
 
-_SYSTEVISOR_TEST_AMALG_ROOT = os.path.dirname(os.path.dirname(__file__))
-_SYSTEVISOR_TEST_AMALG_MAIN = os.path.join(_SYSTEVISOR_TEST_AMALG_ROOT, '__main__.py')
-_SYSTEVISOR_TEST_AMALG_ARTIFACT = os.path.join(_SYSTEVISOR_TEST_AMALG_ROOT, '_bin', 'systevisor.py')
-_SYSTEVISOR_TEST_AMALG_REPO_ROOT = os.path.abspath(os.path.join(_SYSTEVISOR_TEST_AMALG_ROOT, '..', '..'))
+
+_SYSTEVISOR_TEST_AMALG_ARTIFACT = SYSTEVISOR_TEST_ARTIFACT_PATH
 _SYSTEVISOR_TEST_AMALG_STDLIB_ROOTS = {
     'abc',
     'argparse',
@@ -71,26 +71,12 @@ _SYSTEVISOR_TEST_AMALG_STDLIB_ROOTS = {
 }
 
 
-def _systevisor_test_generate_amalgamation() -> str:
-    from omdev.amalg.gen.gen import AmalgGenerator
-
-    return AmalgGenerator(
-        _SYSTEVISOR_TEST_AMALG_MAIN,
-        mounts={'omcore': os.path.join(_SYSTEVISOR_TEST_AMALG_REPO_ROOT, 'omcore')},
-        output_dir=os.path.dirname(_SYSTEVISOR_TEST_AMALG_ARTIFACT),
-    ).gen_amalg()
-
-
 class TestSystevisorAmalgamation(unittest.TestCase):
     _source: ta.ClassVar[str]
 
     @classmethod
     def setUpClass(cls) -> None:
-        if sys.version_info >= (3, 9):
-            cls._source = _systevisor_test_generate_amalgamation()
-        else:
-            with open(_SYSTEVISOR_TEST_AMALG_ARTIFACT) as artifact_file:
-                cls._source = artifact_file.read()
+        cls._source = systevisor_test_artifact_source()
 
     def test_is_self_contained_and_loadable(self) -> None:
         tree = ast.parse(self._source, filename='systevisor.py')

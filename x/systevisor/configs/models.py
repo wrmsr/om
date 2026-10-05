@@ -257,6 +257,7 @@ class SystevisorUnitConfig:
     replicas: int = 1
     replica_start: int = 0
     autostart: bool = True
+    # Orders units within a step and is never waited on - see the note on priority in the engine.
     priority: int = 999
     identity: SystevisorIdentityConfig = dc.field(default_factory=SystevisorIdentityConfig)
     restart: SystevisorRestartConfig = dc.field(default_factory=SystevisorRestartConfig)

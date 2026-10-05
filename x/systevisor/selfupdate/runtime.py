@@ -4,6 +4,7 @@ import abc
 import dataclasses as dc
 import fcntl
 import os
+import signal
 import stat
 import sys
 import tempfile
@@ -98,6 +99,20 @@ class SystevisorPosixSelfUpdateExecBackend(SystevisorSelfUpdateExecBackend):
         os.execve(executable, tuple(argv), dict(environment))
 
 
+def systevisor_self_update_resume_argv(manifest_path: str) -> ta.Sequence[str]:
+    return ('_self-update-resume', '--manifest', manifest_path)
+
+
+def systevisor_self_update_block_signals() -> ta.AbstractSet[int]:
+    """
+    Held from just before an exec until the image on the other side has its handlers installed. A signal mask survives
+    exec but handlers do not, so a signal arriving in between would otherwise meet its default disposition and kill
+    the manager while it is the only thing that knows its children. Blocked, it stays pending and is handled normally.
+    """
+
+    return signal.pthread_sigmask(signal.SIG_BLOCK, signal.valid_signals())
+
+
 def systevisor_exec_handoff(
         manifest: SystevisorHandoffManifest,
         manifest_path: str,
@@ -111,23 +126,25 @@ def systevisor_exec_handoff(
     )
     systevisor_validate_handoff_fds(manifest.fds)
     saved_fd_flags: ta.Dict[int, int] = {}
+    saved_signal_mask: ta.Optional[ta.AbstractSet[int]] = None
     try:
         for item in manifest.fds:
             flags = fcntl.fcntl(item.fd, fcntl.F_GETFD)
             saved_fd_flags[item.fd] = flags
             fcntl.fcntl(item.fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+        saved_signal_mask = systevisor_self_update_block_signals()
         backend.execve(
             sys.executable,
             (
                 sys.executable,
                 manifest.source_path,
-                '_self-update-resume',
-                '--manifest',
-                manifest_path,
+                *systevisor_self_update_resume_argv(manifest_path),
             ),
             os.environ,
         )
     except BaseException:
+        if saved_signal_mask is not None:
+            signal.pthread_sigmask(signal.SIG_SETMASK, saved_signal_mask)
         for fd, flags in saved_fd_flags.items():
             try:
                 fcntl.fcntl(fd, fcntl.F_SETFD, flags)
@@ -354,6 +371,7 @@ class SystevisorSelfUpdateManager(FdioHandler):
             source_sha256=source_digest,
             config=systevisor_marshal_config_obj(snapshot.config, SystevisorConfig),
             config_digest=snapshot.digest,
+            resume_argv=systevisor_self_update_resume_argv(request.manifest_path),
         )
         try:
             systevisor_self_update_atomic_write_json(
@@ -400,7 +418,16 @@ class SystevisorSelfUpdateManager(FdioHandler):
             self._fail(request.probe_exec_error)
             return
         if observed.return_code != 0:
-            self._fail(f'candidate probe exited with status {observed.return_code}')
+            # A probe that got far enough to say why it refused is worth quoting.
+            rejection: ta.Optional[SystevisorSelfUpdateProbeResult]
+            try:
+                rejection = systevisor_self_update_probe_result_from_obj(
+                    systevisor_self_update_read_json(request.probe_result_path),
+                )
+            except Exception:  # noqa: BLE001
+                rejection = None
+            reason = f': {rejection.message}' if rejection is not None and rejection.message else ''
+            self._fail(f'candidate probe exited with status {observed.return_code}{reason}')
             return
         try:
             result = systevisor_self_update_probe_result_from_obj(
@@ -649,6 +676,8 @@ def systevisor_run_self_update_probe(
         request_path: str,
         result_path: str,
         current_source_path: str,
+        *,
+        parse_argv: ta.Optional[ta.Callable[[ta.Sequence[str]], ta.Any]] = None,
 ) -> int:
     source_digest = ''
     try:
@@ -669,6 +698,15 @@ def systevisor_run_self_update_probe(
             raise SystevisorSelfUpdateCodecError(
                 '; '.join(f'{diagnostic.code}: {diagnostic.message}' for diagnostic in diagnostics),
             )
+        if request.resume_argv and parse_argv is not None:
+            # The running image is about to exec this one with exactly these arguments, and an image that cannot even
+            # parse them dies before any of its own recovery can run.
+            try:
+                parse_argv(request.resume_argv)
+            except (Exception, SystemExit) as exc:  # noqa: BLE001
+                raise SystevisorSelfUpdateCodecError(
+                    f'candidate does not accept the resume command line {list(request.resume_argv)!r}',
+                ) from exc
         result = SystevisorSelfUpdateProbeResult(
             schema_version=SYSTEVISOR_SELF_UPDATE_SCHEMA_VERSION,
             accepted=True,

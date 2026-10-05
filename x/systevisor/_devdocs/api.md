@@ -8,7 +8,8 @@ request ownership and failure handling small while persistent application-level 
 chunked responses.
 
 Nothing in the API authenticates a caller: access is whatever the transport allows. For the Unix socket that is its
-mode and ownership. A TCP listener on a loopback address (`127.0.0.0/8`, `::1`, or the name `localhost`) is accepted
+mode and ownership, and it is to be treated like the Docker daemon socket - access to it is equivalent to running code
+as the manager. A TCP listener on a loopback address (`127.0.0.0/8`, `::1`, or the name `localhost`) is accepted
 as configured; any other `tcp_host` - a routable or wildcard address, or a name that would have to be resolved - is
 rejected with `remote_api_not_allowed` unless `api.allow_remote` is set.
 

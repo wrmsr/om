@@ -256,6 +256,26 @@ class TestSystevisorConfigs(unittest.TestCase):
         ):
             self.assertEqual({item.code for item in compile_web(invalid).diagnostics}, {'invalid_shape'}, invalid)
 
+    def test_health_probe_hosts_must_not_need_resolving(self) -> None:
+        def codes(probe: dict) -> set:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                path = pathlib.Path(temp_dir) / 'config.json'
+                path.write_text(json.dumps({'units': {'web': {
+                    'exec': {'argv': ['web']},
+                    'health': [dict(probe, name='ready', role='readiness')],
+                }}}))
+                return {item.code for item in SystevisorConfigCompiler().compile([str(path)]).diagnostics}
+
+        for host in ('127.0.0.1', '10.1.2.3', '::1', 'localhost'):
+            self.assertEqual(codes({'kind': 'tcp', 'host': host, 'port': 80}), set(), host)
+        for url in ('http://127.0.0.1:8000/ready', 'http://[::1]:8000/ready', 'http://localhost/ready'):
+            self.assertEqual(codes({'kind': 'http', 'url': url}), set(), url)
+
+        for host in ('database.internal', 'example.com', '127.1', ''):
+            self.assertEqual(codes({'kind': 'tcp', 'host': host, 'port': 80}), {'unresolved_health_host'}, host)
+        for url in ('http://web.internal:8000/ready', 'http:///ready'):
+            self.assertEqual(codes({'kind': 'http', 'url': url}), {'unresolved_health_host'}, url)
+
     def test_control_api_beyond_loopback_requires_an_explicit_opt_in(self) -> None:
         def codes(api: dict) -> set:
             with tempfile.TemporaryDirectory() as temp_dir:

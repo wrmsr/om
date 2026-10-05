@@ -146,7 +146,13 @@ class TestSystevisorPlatforms(unittest.TestCase):
 
         systemd = systevisor_render_systemd_service(config)
         self.assertIn('Type=notify', systemd)
-        self.assertIn('KillMode=process', systemd)
+        # Only the manager is signalled to stop, but nothing it leaves behind is left running.
+        self.assertIn('KillMode=mixed', systemd)
+        self.assertNotIn('TimeoutStopSec', systemd)
+        self.assertIn(
+            'TimeoutStopSec=150',
+            systevisor_render_systemd_service(dc.replace(config, stop_timeout_secs=150.)),
+        )
         self.assertIn('config %%.yml', systemd)
         plist = plistlib.loads(systevisor_render_launchd_plist(config).encode('utf-8'))
         self.assertEqual(plist['Label'], 'com.example.systevisor')

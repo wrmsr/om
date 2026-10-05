@@ -15,6 +15,7 @@ class SystevisorServiceTemplateConfig:
     identifier: str = 'systevisor'
     recursive: bool = False
     state_directory: ta.Optional[str] = None
+    stop_timeout_secs: ta.Optional[float] = None
 
     def argv(self) -> ta.Sequence[str]:
         argv = [self.executable, 'serve']
@@ -45,7 +46,10 @@ def systevisor_render_systemd_service(config: SystevisorServiceTemplateConfig) -
         'NotifyAccess=main',
         f'ExecStart={exec_start}',
         'Restart=on-failure',
-        'KillMode=process',
+        # A stop signals the manager alone, which stops its children in order and by their own policies. Whatever is
+        # left if it dies or overruns the stop timeout is killed by systemd rather than left running under nothing.
+        'KillMode=mixed',
+        *([f'TimeoutStopSec={config.stop_timeout_secs:g}'] if config.stop_timeout_secs is not None else []),
         '',
         '[Install]',
         'WantedBy=multi-user.target',
