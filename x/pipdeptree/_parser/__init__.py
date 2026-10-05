@@ -1,1 +1,1 @@
-from .format import distribution_to_specifier
+from .format import distribution_to_specifier  # noqa

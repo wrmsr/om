@@ -45,7 +45,12 @@ class WarningPrinter:
         self._has_warned = True
         print(line, file=sys.stderr)  # noqa: T201
 
-    def print_multi_line(self, summary: str, print_func: ta.Callable[[], None], ignore_fail: bool = False) -> None:  # noqa: FBT001, FBT002
+    def print_multi_line(
+            self,
+            summary: str,
+            print_func: ta.Callable[[], None],
+            ignore_fail: bool = False,
+    ) -> None:
         """
         Print a multi-line warning, delegating most of the printing logic to the caller.
 

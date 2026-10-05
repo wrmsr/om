@@ -31,6 +31,9 @@ dependencies = [
 omdev = [
     'omdev == 0.0.62',
 ]
+ominfra = [
+    'ominfra == 0.0.62',
+]
 ssh = [
     'paramiko ~= 5.0',
     'asyncssh ~= 2.24',
@@ -41,6 +44,7 @@ wiki = [
 ]
 all = [
     'omdev == 0.0.62',
+    'ominfra == 0.0.62',
     'paramiko ~= 5.0',
     'asyncssh ~= 2.24',
     'mwparserfromhell ~= 0.7',

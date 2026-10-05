@@ -1,4 +1,4 @@
-from .dag import PackageDAG
-from .dag import ReversedPackageDAG
-from .package import DistPackage
-from .package import ReqPackage
+from .dag import PackageDAG  # noqa
+from .dag import ReversedPackageDAG  # noqa
+from .package import DistPackage  # noqa
+from .package import ReqPackage  # noqa

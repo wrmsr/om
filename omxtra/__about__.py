@@ -16,6 +16,10 @@ class Project(ProjectBase):
             f'omdev == {__version__}',
         ],
 
+        'ominfra': [
+            f'ominfra == {__version__}',
+        ],
+
         'ssh': [
             'paramiko ~= 5.0',  # !! LGPL
 

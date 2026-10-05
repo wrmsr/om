@@ -51,7 +51,7 @@ def _get_bzr_remote_url(repo_root: str) -> str | None:
         stripped = line.strip()
         for prefix in ('checkout of branch: ', 'parent branch: '):
             if stripped.startswith(prefix):
-                return stripped[len(prefix) :].strip() or None
+                return stripped[len(prefix):].strip() or None
     return None
 
 

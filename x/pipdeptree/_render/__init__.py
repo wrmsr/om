@@ -40,7 +40,7 @@ def render(options: Options, tree: PackageDAG) -> None:
     elif output_format.startswith('graphviz-'):
         render_graphviz(
             tree,
-            output_format=output_format[len('graphviz-') :],
+            output_format=output_format[len('graphviz-'):],
             reverse=options.reverse,
             max_depth=options.depth,
             context=options.context,

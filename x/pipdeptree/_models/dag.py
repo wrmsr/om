@@ -8,7 +8,6 @@ import sys
 import typing as ta
 
 from omcore import check
-
 from omdev.packaging.names import canonicalize_name
 from omdev.packaging.requirements import Requirement
 

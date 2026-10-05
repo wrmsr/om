@@ -245,4 +245,4 @@ def _redact_url(url: str, info: VcsInfo | ArchiveInfo | DirInfo) -> str:
         return url
     if _ENV_VAR_RE.match(userinfo):
         return url
-    return f"{match.group('scheme')}{url[match.end() :]}"
+    return f"{match.group('scheme')}{url[match.end():]}"

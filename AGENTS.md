@@ -18,7 +18,7 @@
           """My init method"""
           super().__init__()
   ```
-  Do NOT do that because the docstrings are missing blank after them! It SHOULD look like this:
+  Do NOT do that because the docstrings are missing blank lines after them! It SHOULD look like this:
   ```python
   class MyClass:
       """Some docstring"""
@@ -32,8 +32,8 @@
   interest. They tend to be huge and will waste your context, they exist solely to speed up imports and assist
   debugging, and the codebase behaves the same without them.
 - And it's mentioned in `CODESTYLE.md` but again for emphasis: **DO NOT** use `pathlib` by default! Use old school
-  `os.path` by default, unless there's a *good reason* to also support `pathlib` (such as dep interop). Our internal
-  code does not pass around `pathlib.Path`, it passes around `str`'s, so it's almost never necessary to support
+  `os.path` by default, unless there's a *good **specific** reason* to also support `pathlib` (such as dep interop). Our
+  internal code does not pass around `pathlib.Path`, it passes around `str`'s, so it's almost never necessary to support
   `pathlib` even optionally.
 
 

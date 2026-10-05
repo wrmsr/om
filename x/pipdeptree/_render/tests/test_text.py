@@ -624,8 +624,8 @@ def test_render_text_edge_scoped_extra_only_under_requesting_parent(
 ) -> None:
     render_text(_socks_dag(make_mock_dist), max_depth=float('inf'), encoding='utf-8', list_all=False)
     lines = capsys.readouterr().out.splitlines()
-    requests_block = lines[lines.index('requests==2.33.1') : lines.index('selenium==4.35.0')]
-    selenium_block = lines[lines.index('selenium==4.35.0') :]
+    requests_block = lines[lines.index('requests==2.33.1'):lines.index('selenium==4.35.0')]
+    selenium_block = lines[lines.index('selenium==4.35.0'):]
     assert not any('pysocks' in line for line in requests_block)
     assert any('pysocks' in line for line in selenium_block)
 
