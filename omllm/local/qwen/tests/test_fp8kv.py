@@ -49,6 +49,7 @@ def _skip() -> bool:
 def test_fp8_decode():
     if _skip():
         return
+
     import torch
 
     from ..backends.torch import TorchOps
@@ -87,6 +88,7 @@ def test_fp8_spec_and_snapshots():
 
     if _skip():
         return
+
     from ..backends.torch import TorchOps
 
     os.environ.setdefault('TRITON_INTERPRET', '1')

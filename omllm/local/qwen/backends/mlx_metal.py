@@ -303,7 +303,7 @@ def gdn_step_metal(
         template = [('T', f32), ('DK', dk), ('DV', dv), ('TGV', tgv), ('ALL', bool(all_states))]
         grid = (B * Hv * dv, 1, 1)
         threadgroup = (tgv, 1, 1)
-    out, s_out = _kernel(variant)(
+    out, s_out = _kernel(variant)(  # noqa
         inputs=inputs,
         template=template,
         grid=grid,

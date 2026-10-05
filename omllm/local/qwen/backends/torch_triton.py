@@ -820,7 +820,13 @@ def default_config(n: int, k: int, bits: int, dtype: torch.dtype) -> GemvConfig:
     split = 1
     while programs * split < 512 and split < 8 and k % (_block_k(k) * split * 2) == 0:
         split *= 2
-    return GemvConfig(block_n, _block_k(k), 4, 2 if dtype == torch.float32 else 3, split)
+    return GemvConfig(
+        block_n,
+        _block_k(k),
+        4,
+        2 if dtype == torch.float32 else 3,
+        split,
+    )
 
 
 def load_tuned(path: str | pathlib.Path) -> int:
@@ -1124,7 +1130,14 @@ def tune(
                 continue
             if fma and (bn > 64 or bk > 128 or m > 8):
                 continue  # the FMA tile lives in registers: [bn, bk] f32 per plane
-            cfg = GemvConfig(bn, bk, nw, ns, sk, fma)
+            cfg = GemvConfig(
+                bn,
+                bk,
+                nw,
+                ns,
+                sk,
+                fma,
+            )
             try:
                 y = qlinear(
                     x,

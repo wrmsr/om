@@ -69,7 +69,10 @@ class TinyQWeight:
         if out <= chunk_rows:
             return x @ self.dequant(x.dtype).T
         return tg.Tensor.cat(
-            *[x @ self.dequant(x.dtype, slice(i, i + chunk_rows)).T for i in range(0, out, chunk_rows)],
+            *[
+                x @ self.dequant(x.dtype, slice(i, i + chunk_rows)).T
+                for i in range(0, out, chunk_rows)
+            ],
             dim=-1,
         )
 
@@ -144,8 +147,8 @@ class TinygradOps(Ops):
     def scalar(self, v):
         return tg.Tensor([v], dtype=tg.dtypes.int32).to(self.device).reshape(()).contiguous().realize()
 
-    # kv_write: the reference masked blend. tinygrad's `__setitem__` bakes a tensor index into the JIT-recorded
-    # kernels (verified: replays keep writing the captured position), so the functional form is the safe one.
+    # kv_write: the reference masked blend. tinygrad's `__setitem__` bakes a tensor index into the JIT-recorded kernels
+    # (verified: replays keep writing the captured position), so the functional form is the safe one.
 
     def cumsum(self, x, axis):
         return x.cumsum(axis)
@@ -210,7 +213,14 @@ class TinygradOps(Ops):
 
     def head_rows(self, w, n):
         if isinstance(w, TinyQWeight):
-            return TinyQWeight(w.q[:n], w.scale[:n], w.bias[:n], w.bits, w.group, (n, w.shape[1]))
+            return TinyQWeight(
+                w.q[:n],
+                w.scale[:n],
+                w.bias[:n],
+                w.bits,
+                w.group,
+                (n, w.shape[1]),
+            )
         return w[:n]
 
     def export_qweight(self, w):

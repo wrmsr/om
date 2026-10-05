@@ -239,11 +239,25 @@ class MlxOps(Ops):
             group_size=group,
             bits=bits,
         )
-        return MlxQWeight(wq, scales.astype(dtype), biases.astype(dtype), bits, group, tuple(w.shape))
+        return MlxQWeight(
+            wq,
+            scales.astype(dtype),
+            biases.astype(dtype),
+            bits,
+            group,
+            tuple(w.shape),
+        )
 
     def head_rows(self, w, n):
         if isinstance(w, MlxQWeight):
-            return MlxQWeight(w.w[:n], w.scales[:n], w.biases[:n], w.bits, w.group, (n, w.shape[1]))
+            return MlxQWeight(
+                w.w[:n],
+                w.scales[:n],
+                w.biases[:n],
+                w.bits,
+                w.group,
+                (n, w.shape[1]),
+            )
         return w[:n]
 
     def export_qweight(self, w):

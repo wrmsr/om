@@ -47,6 +47,7 @@ def test_serve():
     except ImportError:
         print('torch not installed; skipping')
         return
+
     cfg, hf, src = synthetic_source()
     ops = TorchOps('cpu', capture_mode='static')
     model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)

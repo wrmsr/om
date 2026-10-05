@@ -581,8 +581,22 @@ class TorchOps(Ops):
 
     def sdpa_static(self, q, kbuf, vbuf, pos, ar, scale):
         if self.triton:
-            return attn_decode(q, kbuf, vbuf, pos, scale, self.attn_splits)
-        return super().sdpa_static(q, kbuf, vbuf, pos, ar, scale)
+            return attn_decode(
+                q,
+                kbuf,
+                vbuf,
+                pos,
+                scale,
+                self.attn_splits,
+            )
+        return super().sdpa_static(
+            q,
+            kbuf,
+            vbuf,
+            pos,
+            ar,
+            scale,
+        )
 
     # KV state format (see Ops.kv_arity): fp8 e4m3 codes + per-position scales when kv_dtype == 'fp8'
 
@@ -678,11 +692,31 @@ class TorchOps(Ops):
 
     def sdpa_state(self, q, state, scale, past):
         if len(state) == 2:
-            return self.sdpa(q, state[0], state[1], scale, past)
+            return self.sdpa(
+                q,
+                state[0],
+                state[1],
+                scale,
+                past,
+            )
         kq, ks, vq, vs = state
         if self.triton and q.shape[2] > 1:
-            return attn_prefill(q, kq, vq, scale, past, ks=ks, vs=vs)
-        return self.sdpa(q, self._fp8_dequant(kq, ks, q.dtype), self._fp8_dequant(vq, vs, q.dtype), scale, past)
+            return attn_prefill(
+                q,
+                kq,
+                vq,
+                scale,
+                past,
+                ks=ks,
+                vs=vs,
+            )
+        return self.sdpa(
+            q,
+            self._fp8_dequant(kq, ks, q.dtype),
+            self._fp8_dequant(vq, vs, q.dtype),
+            scale,
+            past,
+        )
 
     def sdpa_static_state(self, q, state, pos, ar, scale):
         if len(state) == 2:
