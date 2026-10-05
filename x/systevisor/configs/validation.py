@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP007 UP045
+import ipaddress
 import logging
 import os
 import typing as ta
@@ -37,6 +38,17 @@ def _systevisor_config_validation_error(
         message=message,
         object_path=object_path,
     )
+
+
+def _systevisor_config_validation_is_loopback(host: str) -> bool:
+    # Decided from the text alone: resolving a name here would make validity depend on the resolver, so any name but
+    # the conventional one counts as reachable from elsewhere, as does a wildcard or empty address.
+    if host == 'localhost':
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def _systevisor_config_validation_graph(config: SystevisorConfig) -> ta.Mapping[str, ta.Set[str]]:
@@ -210,6 +222,21 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'incomplete_tcp_listener',
             'api tcp_host and tcp_port must be set together',
             'api',
+        ))
+    if (
+            config.api.tcp_host is not None and
+            not config.api.allow_remote and
+            not _systevisor_config_validation_is_loopback(config.api.tcp_host)
+    ):
+        errors.append(_systevisor_config_validation_error(
+            'remote_api_not_allowed',
+            (
+                f'api tcp_host {config.api.tcp_host!r} is reachable beyond loopback and the control API has no '
+                f'authentication: anyone who can connect can stop every unit or replace the manager. Set api '
+                f'allow_remote to accept that'
+            ),
+            'api',
+            'tcp_host',
         ))
     if config.api.tcp_port is not None and not 0 < config.api.tcp_port < 65536:
         errors.append(_systevisor_config_validation_error(

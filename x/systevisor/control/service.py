@@ -226,6 +226,8 @@ class SystevisorControlService:
                 engine_event.run_id is not None
         ):
             self._last_exited_run_ids[engine_event.instance_id] = engine_event.run_id
+            if engine_event.data.get('from_state') == 'running' and not engine_event.data.get('expected'):
+                self._fail_starts(engine_event)
         if (
                 engine_event.kind is SystevisorEventKind.COMMAND_REJECTED and
                 engine_event.request_id is not None
@@ -240,6 +242,33 @@ class SystevisorControlService:
                 self._goals.pop(operation.operation_id, None)
         for operation_id in tuple(self._goals):
             self._refresh(operation_id)
+
+    def _fail_starts(self, exited: SystevisorEvent) -> None:
+        # A run which got as far as running and then died without meeting the goal is that attempt's answer. The unit's
+        # own restart policy may well try again, but by the time anyone looks the instance is already on its way back
+        # up, and an operation left to wait for a state it cannot observe would never finish.
+        instance_id = exited.instance_id
+        if instance_id is None:
+            return
+        for operation_id, goal in tuple(self._goals.items()):
+            if goal.collection_name is not None or instance_id not in goal.instance_ids:
+                continue
+            if goal.kind is SystevisorControlGoalKind.RESTART:
+                if exited.run_id == goal.initial_run_ids.get(instance_id):
+                    continue
+            elif goal.kind is not SystevisorControlGoalKind.START:
+                continue
+            operation = self._operations.get(operation_id)
+            if operation is not None and operation.status is SystevisorOperationStatus.PENDING:
+                self._operations.finish(
+                    operation,
+                    SystevisorOperationStatus.FAILED,
+                    message=(
+                        f'{instance_id} exited with status {exited.data.get("return_code")} '
+                        f'before the operation completed'
+                    ),
+                )
+            self._goals.pop(operation_id, None)
 
     def _goal_instances(self, goal: SystevisorControlGoal) -> ta.Sequence[SystevisorInstanceState]:
         state = self._coordinator.engine.state

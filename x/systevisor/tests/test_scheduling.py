@@ -282,6 +282,28 @@ class TestSystevisorScheduler(unittest.TestCase):
         self.assertEqual(state.fire_count, 2)
         self.assertEqual(state.skip_count, 3)
 
+    def test_unreadable_state_is_set_aside_and_schedules_start_from_now(self) -> None:
+        for damaged in (b'', b'{"schema_version": 1, "sched', b'\xff\xfe\x00', b'{"schema_version": 99}', b'[]'):
+            with self.subTest(damaged=damaged), tempfile.TemporaryDirectory() as temp_dir:
+                path = os.path.join(temp_dir, 'schedules.json')
+                with open(path, 'wb') as state_file:
+                    state_file.write(damaged)
+                clock = SystevisorFakeClock(wall_time=_SYSTEVISOR_TEST_SCHEDULE_EPOCH)
+                store = SystevisorJsonScheduleStateStore()
+                scheduler, control, event_bus = _systevisor_test_scheduler(clock, store)
+
+                scheduler.prepare(_systevisor_test_schedule_snapshot(state_directory=temp_dir)).commit()
+
+                self.assertEqual(
+                    scheduler.states['job-every-minute'].next_due_wall_time,
+                    _SYSTEVISOR_TEST_SCHEDULE_EPOCH + 60.,
+                )
+                with open(f'{path}.damaged', 'rb') as discarded_file:
+                    self.assertEqual(discarded_file.read(), damaged)
+                self.assertEqual(set(store.load(path)), {'job-every-minute'})
+                [discarded] = [event for event in event_bus.journal() if event.topic == 'schedule.state_discarded']
+                self.assertEqual(discarded.payload['discarded_path'], f'{path}.damaged')
+
     def test_json_store_atomically_round_trips(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = os.path.join(temp_dir, 'schedules.json')

@@ -214,6 +214,12 @@ reported, and where the engine is waiting on an outcome it is fed the failure as
 ownership bookkeeping are not: a step that raised may have applied half a transition, so the coordinator records it,
 refuses further input, and the manager stops.
 
+The reactor gives each handler the same choice. The fdio manager hands whatever a handler's callback raised to that
+handler's own `on_error`; returning contains the failure there and the poll goes on to the other handlers, while the
+default re-raises and aborts the poll. Control connections, health probe connections, and an output pipe that can no
+longer be read contain themselves. The handlers that drive the engine do not override it, so their failures remain
+the manager's.
+
 Stopping is the one thing that must not depend on what failed. Every exit path closes through an emergency stop that
 uses only the process manager - each owned run gets its unit's stop signal and timeout, then a kill - with no engine,
 reactor, ordering, or event involved. An orderly shutdown has nothing left for it to do.

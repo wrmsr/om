@@ -113,6 +113,14 @@ Mutations return operation records. `pending` means reconnect to `/v1/operations
 HTTP handlers never wait for a process transition. A unit is addressed by name, an instance by `{unit}:{slot}`, and an
 execution by its monotonic run ID. No API accepts a PID or PGID.
 
+A start or restart operation fails as soon as a run it is waiting on gets as far as `running` and then exits
+unexpectedly, even though the unit's restart policy goes on retrying; it does not stay `pending` on a unit that is
+flapping. One blocked on a dependency that never becomes ready still waits indefinitely.
+
+The API has no authentication, so reaching it is the whole of its access control. Keep it on the Unix socket with a
+suitable mode. A TCP listener is accepted on loopback only; binding anything else requires `api.allow_remote: true`,
+which should be read as "everyone who can reach this port may stop every unit and replace the manager".
+
 ## Reload and failed configuration
 
 `check` compiles current sources without applying; `reload` prepares all runtime consumers and then atomically commits
@@ -215,6 +223,10 @@ fires the most recent `max_catch_up` in order. However long the gap, this is a b
 If the clock is set back by up to three hours, schedules wait for it to pass where they had reached rather than fire
 again. A larger step back is treated as a correction: schedules resume from the new time and a `schedule.clock_stepped`
 event records it. A cron expression naming a date that never occurs is rejected when the configuration is checked.
+
+Schedule state in `schedules.json` is a convenience, not a requirement. If it cannot be read at startup it is moved
+aside to `schedules.json.damaged`, a `schedule.state_discarded` event is published, and schedules begin again from the
+present with their counters reset; nothing missed before that point is caught up.
 
 ## Manager failure
 

@@ -92,6 +92,12 @@ class SystevisorControlTestFixture:
                     'kind': 'oneshot',
                     'restart': {'start_secs': 0},
                 },
+                'failing': {
+                    'exec': {'argv': ['/bin/sh', '-c', 'exit 3']},
+                    'autostart': False,
+                    'kind': 'oneshot',
+                    'restart': {'start_secs': 0},
+                },
             },
             'collections': {
                 'stack': {'units': ['idle']},
@@ -245,6 +251,24 @@ class TestSystevisorControl(unittest.TestCase):
             self.fixture.coordinator.poll(timeout=.5)
 
         self.assertIs(operation.status, SystevisorOperationStatus.SUCCEEDED)
+        self.assertFalse(self.fixture.process_manager.has_processes())
+
+    def test_start_whose_run_dies_is_failed_rather_than_left_pending(self) -> None:
+        self.assertTrue(self.fixture.config_controller.reload(initial=True).attempt.applied)
+        operation = self.fixture.control.set_unit('failing', True)
+        deadline = time.monotonic() + 5.
+        while operation.status is SystevisorOperationStatus.PENDING and time.monotonic() < deadline:
+            self.fixture.coordinator.poll(timeout=.5)
+
+        # The unit's restart policy is already retrying it, so its state alone would never show the failure.
+        self.assertIs(operation.status, SystevisorOperationStatus.FAILED)
+        self.assertEqual(operation.message, 'failing:0 exited with status 3 before the operation completed')
+        instance = self.fixture.coordinator.engine.state.instances[SystevisorInstanceId('failing:0')]
+        self.assertIsNot(instance.process_state, SystevisorProcessState.FATAL)
+
+        self.fixture.control.set_unit('failing', False)
+        while self.fixture.process_manager.has_processes() and time.monotonic() < deadline:
+            self.fixture.coordinator.poll(timeout=.5)
         self.assertFalse(self.fixture.process_manager.has_processes())
 
     def test_collection_operation_waits_for_ready_and_is_visible_in_api(self) -> None:

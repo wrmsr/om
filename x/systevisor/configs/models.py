@@ -352,6 +352,7 @@ class SystevisorApiConfig:
     unix_socket_mode: int = 0o600
     tcp_host: ta.Optional[str] = None
     tcp_port: ta.Optional[int] = None
+    allow_remote: bool = False
     event_backlog: int = 4096
     stream_queue_bytes: int = 1024 * 1024
 

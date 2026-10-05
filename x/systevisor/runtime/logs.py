@@ -363,6 +363,10 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
             self._callback(data)
 
     def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
+        # A pipe that can no longer be read is this channel's loss alone. Anything else is a fault in handling what
+        # was read, which is not this handler's to absorb.
+        if not isinstance(exc, OSError):
+            super().on_error(exc)
         self.close()
 
 

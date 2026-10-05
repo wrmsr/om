@@ -39,6 +39,7 @@ _SYSTEVISOR_TEST_AMALG_STDLIB_ROOTS = {
     'http',
     'importlib',
     'inspect',
+    'ipaddress',
     'io',
     'json',
     'logging',

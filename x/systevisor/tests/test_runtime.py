@@ -486,6 +486,19 @@ class TestSystevisorLogRetention(unittest.TestCase):
         first_handler.close()
         self.assertEqual(self._retained(), [3])
 
+    def test_unreadable_pipe_ends_its_channel_but_a_handling_fault_does_not_hide_there(self) -> None:
+        handler, write_fd = self._run(1)
+        self.addCleanup(os.close, write_fd)
+
+        with self.assertRaises(ValueError):
+            handler.on_error(ValueError('fault while handling output'))
+        self.assertFalse(handler.closed)
+
+        handler.on_error(OSError(errno.EIO, os.strerror(errno.EIO)))
+        self.assertTrue(handler.closed)
+        self.manager.retire_process(SystevisorRunId(1))
+        self.assertEqual(self._retained(), [1])
+
     def test_running_instance_is_never_evicted_and_retention_is_live(self) -> None:
         handler, write_fd = self._run(1)
         self.addCleanup(os.close, write_fd)

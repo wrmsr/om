@@ -124,6 +124,3 @@ class SystevisorSignalFdioHandler(FdioHandler):
         os.close(self._read_fd)
         os.close(self._write_fd)
         self._closed = True
-
-    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
-        self.close()

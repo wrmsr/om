@@ -13,6 +13,7 @@ import typing as ta
 from omcore.io.fdio.handlers import FdioHandler
 from omcore.io.fdio.manager import FdioManager
 from omcore.lite.abstract import Abstract
+from omcore.logs.modules import get_module_logger
 
 from ..configs.models import SystevisorScheduleActionConfig
 from ..configs.models import SystevisorScheduleActionKind
@@ -35,6 +36,8 @@ from .cron import systevisor_parse_cron
 
 ##
 
+
+_SYSTEVISOR_SCHEDULER_LOG = get_module_logger(globals())
 
 _SYSTEVISOR_SCHEDULER_STATE_SCHEMA_VERSION = 1
 _SYSTEVISOR_SCHEDULER_WALL_RECHECK_SECS = 60.
@@ -102,8 +105,21 @@ class SystevisorScheduleStateStore(Abstract):
     def save(self, path: str, states: ta.Mapping[str, SystevisorSchedulePersistentState]) -> None:
         raise NotImplementedError
 
+    def discard(self, path: str) -> ta.Optional[str]:
+        """Sets aside state which could not be loaded, returning where it went if it was kept."""
+
+        return None
+
 
 class SystevisorJsonScheduleStateStore(SystevisorScheduleStateStore):
+    def discard(self, path: str) -> ta.Optional[str]:
+        discarded_path = f'{path}.damaged'
+        try:
+            os.replace(path, discarded_path)
+        except OSError:
+            return None
+        return discarded_path
+
     def load(self, path: str) -> ta.Mapping[str, SystevisorSchedulePersistentState]:
         try:
             with open(path) as state_file:
@@ -187,17 +203,19 @@ class SystevisorPreparedSchedulerChange(SystevisorConfigPreparedChange):
             states: ta.Mapping[str, SystevisorScheduleState],
             crons: ta.Mapping[str, SystevisorCronExpression],
             state_path: ta.Optional[str],
+            load_error: ta.Optional[str] = None,
     ) -> None:
         self._scheduler = scheduler
         self._states = states
         self._crons = crons
         self._state_path = state_path
+        self._load_error = load_error
         self._finished = False
 
     def commit(self) -> None:
         if self._finished:
             raise RuntimeError('scheduler change is already finished')
-        self._scheduler._commit(self._states, self._crons, self._state_path)  # noqa: SLF001
+        self._scheduler._commit(self._states, self._crons, self._state_path, self._load_error)  # noqa: SLF001
         self._finished = True
 
     def rollback(self) -> None:
@@ -252,11 +270,17 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
             snapshot.config.manager.state_directory
         )
         state_path = os.path.join(state_directory, 'schedules.json') if state_directory is not None else None
-        persisted = (
-            self._persistent_states() if self._states else
-            self._state_store.load(state_path) if state_path is not None else
-            {}
-        )
+        persisted: ta.Mapping[str, SystevisorSchedulePersistentState] = {}
+        load_error: ta.Optional[str] = None
+        if self._states:
+            persisted = self._persistent_states()
+        elif state_path is not None:
+            try:
+                persisted = self._state_store.load(state_path)
+            except Exception as exc:  # noqa: BLE001
+                # What the schedules last did is worth keeping but not worth refusing to start every unit over. They
+                # begin again from now, and the state that could not be read is set aside when this is committed.
+                load_error = f'{type(exc).__name__}: {exc}'
         now = self._clock.wall_time()
         baseline = math.floor(now / 60.) * 60.
         states: ta.Dict[str, SystevisorScheduleState] = {}
@@ -293,17 +317,30 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
                 skip_count=previous.skip_count,
             )
             crons[name] = cron
-        return SystevisorPreparedSchedulerChange(self, states, crons, state_path)
+        return SystevisorPreparedSchedulerChange(self, states, crons, state_path, load_error)
 
     def _commit(
             self,
             states: ta.Mapping[str, SystevisorScheduleState],
             crons: ta.Mapping[str, SystevisorCronExpression],
             state_path: ta.Optional[str],
+            load_error: ta.Optional[str] = None,
     ) -> None:
         self._states = dict(states)
         self._crons = dict(crons)
         self._state_path = state_path
+        if load_error is not None and state_path is not None:
+            discarded_path = self._state_store.discard(state_path)
+            _SYSTEVISOR_SCHEDULER_LOG.warning(
+                'Systevisor schedule state at %s could not be loaded and was discarded: %s',
+                state_path,
+                load_error,
+            )
+            self._event_bus.publish('schedule.state_discarded', {
+                'path': state_path,
+                'discarded_path': discarded_path,
+                'message': load_error,
+            }, self._clock.monotonic())
         self._persist()
 
     def _persist(self) -> None:

@@ -37,6 +37,7 @@ import importlib
 import importlib.util
 import inspect
 import io
+import ipaddress
 import json
 import logging
 import logging.handlers
@@ -121,7 +122,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3'),  # noqa
-            dict(path='../../omcore/io/fdio/handlers.py', sha1='941023cfaa2dc5f68662ea7ed22fc2a3b29a09d0'),
+            dict(path='../../omcore/io/fdio/handlers.py', sha1='58f59c24f21ed88a67a31021735c5fad24103fb5'),
             dict(path='../../omcore/io/fdio/pollers.py', sha1='85c73f794f2ccb5d002bf0f63bd9acd35c3539cb'),
             dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
@@ -132,13 +133,13 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='57240194d266d4604fc8c09a168bfc58ebbd75f6'),
+            dict(path='configs/models.py', sha1='5cf4887a525b7208e44e98871d8defb8766bc7d0'),
             dict(path='runtime/clocks.py', sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6'),
             dict(path='../../omcore/configs/formats.py', sha1='b0707d98865d269785703cae4186d38d52d0414d'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
             dict(path='../../omcore/io/fdio/kqueue.py', sha1='0a4c1e2b846ac4a32afab4ff8814ea9d9f526905'),
-            dict(path='../../omcore/io/fdio/manager.py', sha1='8135a9ec6bc1e3b122cff093a2f9bbfc1a156691'),
+            dict(path='../../omcore/io/fdio/manager.py', sha1='8304ca98bfebd17f95d18bcaedfbc4ccdbac9d04'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
             dict(path='../../omcore/io/pipelines/flow/types.py', sha1='d7182502ec64e84607e4f9cacb32472072307752'),
@@ -149,11 +150,11 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='configs/marshal.py', sha1='80978d50109521a8e2b24c29a9b0ec9d17811da7'),
-            dict(path='configs/validation.py', sha1='a671e917349efecc7a2c579d11de85a8813f1d75'),
+            dict(path='configs/validation.py', sha1='1fb67115462b1ee07f22682247e97040a22107d0'),
             dict(path='control/jsoncodec.py', sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4'),
             dict(path='control/operations.py', sha1='f912fa9b9dea5e9677232da26b21df5178f6fd47'),
             dict(path='core/changes.py', sha1='2cbd01de924b248be7c91fa4a8bd758049c036f0'),
-            dict(path='runtime/signals.py', sha1='c321a5945b48a216a82a0e7ca4e91aae6d1db46a'),
+            dict(path='runtime/signals.py', sha1='17499b8801f10b963e531de5dfb8087348d228ff'),
             dict(path='../../omcore/formats/yaml/goyaml/ast.py', sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631'),
             dict(path='../../omcore/formats/yaml/goyaml/scanning.py', sha1='58956f9159780d5532d2d61fb6f11c8ac946003d'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
@@ -197,8 +198,8 @@ def __om_amalg__():  # noqa
             dict(path='core/inputs.py', sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a'),
             dict(path='core/state.py', sha1='6a368ad6c88a9d71cda3417bf2eb19e4c42cf238'),
             dict(path='core/events.py', sha1='37526d652d6e8bc851b49b7417967e6fba6be4c2'),
-            dict(path='runtime/fdio.py', sha1='618ebd90f4e1867bf900b19020256d4b3c80ad9f'),
-            dict(path='runtime/logs.py', sha1='711c2d1da2f33776b7c6902037db2bd51d2e316a'),
+            dict(path='runtime/fdio.py', sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090'),
+            dict(path='runtime/logs.py', sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f'),
             dict(path='runtime/processes.py', sha1='4650bea43d3fc006bcbac4da147829c26800cff4'),
             dict(path='core/engine.py', sha1='85cee9ab5c2d0b120c1d1b09bfab36d2dd7c2090'),
             dict(path='resources/cgroups.py', sha1='c2ec9703d68dcb767a918c56636ab351f6831148'),
@@ -213,14 +214,14 @@ def __om_amalg__():  # noqa
             dict(path='runtime/inject.py', sha1='5d0aff306d333f058fc9bfdbfae9837d716c1e83'),
             dict(path='selfupdate/restore.py', sha1='ffd90696e2e447bda4f769cefbaad3c33fe88737'),
             dict(path='control/manager.py', sha1='52f762caa1ed7806d3e54b3a88c02679d3d36e01'),
-            dict(path='control/service.py', sha1='937696bbef2e453b89c3d65a696f97ad1c55c1f4'),
+            dict(path='control/service.py', sha1='e2916518e8ce8e2badbe89eb6fe9fc0ad7be037a'),
             dict(path='resources/runtime.py', sha1='224bf2d85f5392f097403f2865ee4465971605b8'),
             dict(path='selfupdate/runtime.py', sha1='2eae4abfa5343b794f3c43e82a867be2345f3751'),
             dict(path='resources/inject.py', sha1='63dcae28924f1511893593d24c567ba61ecb96de'),
-            dict(path='scheduling/runtime.py', sha1='ef838f832bba844b31568c25b314b29eb08bc4b9'),
+            dict(path='scheduling/runtime.py', sha1='beb4eb40e8c1ea1caf98291e8ed21afb5c4f7af0'),
             dict(path='selfupdate/inject.py', sha1='7765c7ba3b8dda9ca7e908af2d33f153213a06c0'),
             dict(path='control/api.py', sha1='8ecab21b05576295d7acd0eaa6cb5931d175e795'),
-            dict(path='control/http.py', sha1='f07c61f653c6faf272ece42db3da5e468a03c674'),
+            dict(path='control/http.py', sha1='e2151e319f030dc27172f87f4e2a4d7660364c10'),
             dict(path='control/plane.py', sha1='cd5a557b7b75a17470e06195df8e0ab87f4b158c'),
             dict(path='control/inject.py', sha1='338d7037d4d60b5ff58e4cb38817a2e56dc6347a'),
             dict(path='main.py', sha1='feaf3b62147845ab22c3a35fa7566295e6e6cb12'),
@@ -10695,7 +10696,13 @@ class FdioHandler(Abstract):
         raise TypeError
 
     def on_error(self, exc: ta.Optional[BaseException] = None) -> None:  # noqa
-        pass
+        """
+        Called by the manager with whatever one of this handler's other callbacks raised. Returning normally contains
+        the failure to this handler, and the poll carries on with the rest; the default re-raises, aborting the poll.
+        """
+
+        if exc is not None:
+            raise exc
 
     def on_timeout(self) -> None:
         """Run work whose `next_deadline()` is due."""
@@ -15521,6 +15528,7 @@ class SystevisorApiConfig:
     unix_socket_mode: int = 0o600
     tcp_host: ta.Optional[str] = None
     tcp_port: ta.Optional[int] = None
+    allow_remote: bool = False
     event_backlog: int = 4096
     stream_queue_bytes: int = 1024 * 1024
 
@@ -17234,6 +17242,13 @@ class FdioManager:
     def _is_registered(self, h: FdioHandler) -> bool:
         return self._handlers.get(id(h)) is h
 
+    @staticmethod
+    def _dispatch(h: FdioHandler, fn: ta.Callable[[], None]) -> None:
+        try:
+            fn()
+        except Exception as e:  # noqa
+            h.on_error(e)
+
     def poll(self, *, timeout: ta.Optional[float] = None) -> None:
         """Wait for descriptor readiness or the earliest handler deadline, then dispatch all work that is ready."""
 
@@ -17247,16 +17262,16 @@ class FdioManager:
 
         for f in pr.r:
             if self._is_registered(h := rd[f]) and not h.closed:
-                h.on_readable()
+                self._dispatch(h, h.on_readable)
         for f in pr.w:
             if self._is_registered(h := wd[f]) and not h.closed:
-                h.on_writable()
+                self._dispatch(h, h.on_writable)
 
         for h in list(self._handlers.values()):
             if not self._is_registered(h) or h.closed:
                 continue
             if (deadline := h.next_deadline()) is not None and deadline <= time.monotonic():
-                h.on_timeout()
+                self._dispatch(h, h.on_timeout)
 
         self._handlers = {id(h): h for h in self._handlers.values() if not h.closed}
 
@@ -19011,6 +19026,17 @@ def _systevisor_config_validation_error(
     )
 
 
+def _systevisor_config_validation_is_loopback(host: str) -> bool:
+    # Decided from the text alone: resolving a name here would make validity depend on the resolver, so any name but
+    # the conventional one counts as reachable from elsewhere, as does a wildcard or empty address.
+    if host == 'localhost':
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def _systevisor_config_validation_graph(config: SystevisorConfig) -> ta.Mapping[str, ta.Set[str]]:
     graph: ta.Dict[str, ta.Set[str]] = {unit_name: set() for unit_name in config.units}
     for unit_name, unit in config.units.items():
@@ -19182,6 +19208,21 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'incomplete_tcp_listener',
             'api tcp_host and tcp_port must be set together',
             'api',
+        ))
+    if (
+            config.api.tcp_host is not None and
+            not config.api.allow_remote and
+            not _systevisor_config_validation_is_loopback(config.api.tcp_host)
+    ):
+        errors.append(_systevisor_config_validation_error(
+            'remote_api_not_allowed',
+            (
+                f'api tcp_host {config.api.tcp_host!r} is reachable beyond loopback and the control API has no '
+                f'authentication: anyone who can connect can stop every unit or replace the manager. Set api '
+                f'allow_remote to accept that'
+            ),
+            'api',
+            'tcp_host',
         ))
     if config.api.tcp_port is not None and not 0 < config.api.tcp_port < 65536:
         errors.append(_systevisor_config_validation_error(
@@ -20147,9 +20188,6 @@ class SystevisorSignalFdioHandler(FdioHandler):
         os.close(self._read_fd)
         os.close(self._write_fd)
         self._closed = True
-
-    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
-        self.close()
 
 
 ########################################
@@ -37226,9 +37264,6 @@ class SystevisorProcessExecFdioHandler(FdioHandler):
         if self._callback():
             self._closed = True
 
-    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
-        self._closed = True
-
 
 class SystevisorProcessPidfdFdioHandler(FdioHandler):
     def __init__(self, fd: int, callback: ta.Callable[[], None]) -> None:
@@ -37250,10 +37285,6 @@ class SystevisorProcessPidfdFdioHandler(FdioHandler):
         return not self._closed
 
     def on_readable(self) -> None:
-        self._closed = True
-        self._callback()
-
-    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
         self._closed = True
         self._callback()
 
@@ -37644,6 +37675,10 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
             self._callback(data)
 
     def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
+        # A pipe that can no longer be read is this channel's loss alone. Anything else is a fault in handling what
+        # was read, which is not this handler's to absorb.
+        if not isinstance(exc, OSError):
+            super().on_error(exc)
         self.close()
 
 
@@ -44629,6 +44664,8 @@ class SystevisorControlService:
                 engine_event.run_id is not None
         ):
             self._last_exited_run_ids[engine_event.instance_id] = engine_event.run_id
+            if engine_event.data.get('from_state') == 'running' and not engine_event.data.get('expected'):
+                self._fail_starts(engine_event)
         if (
                 engine_event.kind is SystevisorEventKind.COMMAND_REJECTED and
                 engine_event.request_id is not None
@@ -44643,6 +44680,33 @@ class SystevisorControlService:
                 self._goals.pop(operation.operation_id, None)
         for operation_id in tuple(self._goals):
             self._refresh(operation_id)
+
+    def _fail_starts(self, exited: SystevisorEvent) -> None:
+        # A run which got as far as running and then died without meeting the goal is that attempt's answer. The unit's
+        # own restart policy may well try again, but by the time anyone looks the instance is already on its way back
+        # up, and an operation left to wait for a state it cannot observe would never finish.
+        instance_id = exited.instance_id
+        if instance_id is None:
+            return
+        for operation_id, goal in tuple(self._goals.items()):
+            if goal.collection_name is not None or instance_id not in goal.instance_ids:
+                continue
+            if goal.kind is SystevisorControlGoalKind.RESTART:
+                if exited.run_id == goal.initial_run_ids.get(instance_id):
+                    continue
+            elif goal.kind is not SystevisorControlGoalKind.START:
+                continue
+            operation = self._operations.get(operation_id)
+            if operation is not None and operation.status is SystevisorOperationStatus.PENDING:
+                self._operations.finish(
+                    operation,
+                    SystevisorOperationStatus.FAILED,
+                    message=(
+                        f'{instance_id} exited with status {exited.data.get("return_code")} '
+                        f'before the operation completed'
+                    ),
+                )
+            self._goals.pop(operation_id, None)
 
     def _goal_instances(self, goal: SystevisorControlGoal) -> ta.Sequence[SystevisorInstanceState]:
         state = self._coordinator.engine.state
@@ -45763,6 +45827,8 @@ def systevisor_bind_resources() -> InjectorBindings:
 ##
 
 
+_SYSTEVISOR_SCHEDULER_LOG = get_module_logger(globals())
+
 _SYSTEVISOR_SCHEDULER_STATE_SCHEMA_VERSION = 1
 _SYSTEVISOR_SCHEDULER_WALL_RECHECK_SECS = 60.
 
@@ -45829,8 +45895,21 @@ class SystevisorScheduleStateStore(Abstract):
     def save(self, path: str, states: ta.Mapping[str, SystevisorSchedulePersistentState]) -> None:
         raise NotImplementedError
 
+    def discard(self, path: str) -> ta.Optional[str]:
+        """Sets aside state which could not be loaded, returning where it went if it was kept."""
+
+        return None
+
 
 class SystevisorJsonScheduleStateStore(SystevisorScheduleStateStore):
+    def discard(self, path: str) -> ta.Optional[str]:
+        discarded_path = f'{path}.damaged'
+        try:
+            os.replace(path, discarded_path)
+        except OSError:
+            return None
+        return discarded_path
+
     def load(self, path: str) -> ta.Mapping[str, SystevisorSchedulePersistentState]:
         try:
             with open(path) as state_file:
@@ -45914,17 +45993,19 @@ class SystevisorPreparedSchedulerChange(SystevisorConfigPreparedChange):
             states: ta.Mapping[str, SystevisorScheduleState],
             crons: ta.Mapping[str, SystevisorCronExpression],
             state_path: ta.Optional[str],
+            load_error: ta.Optional[str] = None,
     ) -> None:
         self._scheduler = scheduler
         self._states = states
         self._crons = crons
         self._state_path = state_path
+        self._load_error = load_error
         self._finished = False
 
     def commit(self) -> None:
         if self._finished:
             raise RuntimeError('scheduler change is already finished')
-        self._scheduler._commit(self._states, self._crons, self._state_path)  # noqa: SLF001
+        self._scheduler._commit(self._states, self._crons, self._state_path, self._load_error)  # noqa: SLF001
         self._finished = True
 
     def rollback(self) -> None:
@@ -45979,11 +46060,17 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
             snapshot.config.manager.state_directory
         )
         state_path = os.path.join(state_directory, 'schedules.json') if state_directory is not None else None
-        persisted = (
-            self._persistent_states() if self._states else
-            self._state_store.load(state_path) if state_path is not None else
-            {}
-        )
+        persisted: ta.Mapping[str, SystevisorSchedulePersistentState] = {}
+        load_error: ta.Optional[str] = None
+        if self._states:
+            persisted = self._persistent_states()
+        elif state_path is not None:
+            try:
+                persisted = self._state_store.load(state_path)
+            except Exception as exc:  # noqa: BLE001
+                # What the schedules last did is worth keeping but not worth refusing to start every unit over. They
+                # begin again from now, and the state that could not be read is set aside when this is committed.
+                load_error = f'{type(exc).__name__}: {exc}'
         now = self._clock.wall_time()
         baseline = math.floor(now / 60.) * 60.
         states: ta.Dict[str, SystevisorScheduleState] = {}
@@ -46020,17 +46107,30 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
                 skip_count=previous.skip_count,
             )
             crons[name] = cron
-        return SystevisorPreparedSchedulerChange(self, states, crons, state_path)
+        return SystevisorPreparedSchedulerChange(self, states, crons, state_path, load_error)
 
     def _commit(
             self,
             states: ta.Mapping[str, SystevisorScheduleState],
             crons: ta.Mapping[str, SystevisorCronExpression],
             state_path: ta.Optional[str],
+            load_error: ta.Optional[str] = None,
     ) -> None:
         self._states = dict(states)
         self._crons = dict(crons)
         self._state_path = state_path
+        if load_error is not None and state_path is not None:
+            discarded_path = self._state_store.discard(state_path)
+            _SYSTEVISOR_SCHEDULER_LOG.warning(
+                'Systevisor schedule state at %s could not be loaded and was discarded: %s',
+                state_path,
+                load_error,
+            )
+            self._event_bus.publish('schedule.state_discarded', {
+                'path': state_path,
+                'discarded_path': discarded_path,
+                'message': load_error,
+            }, self._clock.monotonic())
         self._persist()
 
     def _persist(self) -> None:
@@ -46862,29 +46962,16 @@ class SystevisorHttpConnectionFdioHandler(IoPipelineDriverSocketFdioHandler):
     peer that simply went away would otherwise take the manager down with it.
     """
 
-    def _systevisor_io(self, method: ta.Callable[[], None]) -> None:
-        try:
-            method()
-        except OSError as exc:
+    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
+        if isinstance(exc, OSError):
             _SYSTEVISOR_HTTP_LOG.debug('Systevisor control connection ended: %s: %s', type(exc).__name__, exc)
-        except Exception:  # noqa: BLE001
-            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection failed')
         else:
-            return
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection failed', exc_info=exc)
 
         try:
             self.close()
         except Exception:  # noqa: BLE001
             _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection did not close cleanly')
-
-    def on_readable(self) -> None:
-        self._systevisor_io(super().on_readable)
-
-    def on_writable(self) -> None:
-        self._systevisor_io(super().on_writable)
-
-    def on_timeout(self) -> None:
-        self._systevisor_io(super().on_timeout)
 
 
 class SystevisorHttpListenerFdioHandler(ServerSocketFdioHandler):

@@ -77,9 +77,6 @@ class SystevisorProcessExecFdioHandler(FdioHandler):
         if self._callback():
             self._closed = True
 
-    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
-        self._closed = True
-
 
 class SystevisorProcessPidfdFdioHandler(FdioHandler):
     def __init__(self, fd: int, callback: ta.Callable[[], None]) -> None:
@@ -101,10 +98,6 @@ class SystevisorProcessPidfdFdioHandler(FdioHandler):
         return not self._closed
 
     def on_readable(self) -> None:
-        self._closed = True
-        self._callback()
-
-    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
         self._closed = True
         self._callback()
 

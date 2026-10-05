@@ -62,7 +62,7 @@ One unit may appear in more than one collection, which deliberately avoids Super
 | `silent` | inverse of `manager.log.stderr` | File and journald sinks remain independent. |
 | `groups`, `processes` | top-level `collections`, `units` mappings | Directory sources allow one definition per file. |
 | `group_config_dirs` | repeated config paths and `--recursive` directory discovery | Deterministic extension-filtered JSON/TOML/YAML composition with provenance. |
-| `http_port` | `api.tcp_host`, `api.tcp_port` | TCP is explicit; there is no HTML or XML-RPC surface. |
+| `http_port` | `api.tcp_host`, `api.tcp_port`, `api.allow_remote` | TCP is explicit and unauthenticated, so any address beyond loopback must also be opted into; there is no HTML or XML-RPC surface. |
 | `http_socket_path` | `api.unix_socket`, `.unix_socket_mode` | Unix JSON-over-HTTP is the intended default. |
 
 ## Intentionally absent Supervisor surfaces

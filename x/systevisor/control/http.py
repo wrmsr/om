@@ -253,29 +253,16 @@ class SystevisorHttpConnectionFdioHandler(IoPipelineDriverSocketFdioHandler):
     peer that simply went away would otherwise take the manager down with it.
     """
 
-    def _systevisor_io(self, method: ta.Callable[[], None]) -> None:
-        try:
-            method()
-        except OSError as exc:
+    def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
+        if isinstance(exc, OSError):
             _SYSTEVISOR_HTTP_LOG.debug('Systevisor control connection ended: %s: %s', type(exc).__name__, exc)
-        except Exception:  # noqa: BLE001
-            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection failed')
         else:
-            return
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection failed', exc_info=exc)
 
         try:
             self.close()
         except Exception:  # noqa: BLE001
             _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection did not close cleanly')
-
-    def on_readable(self) -> None:
-        self._systevisor_io(super().on_readable)
-
-    def on_writable(self) -> None:
-        self._systevisor_io(super().on_writable)
-
-    def on_timeout(self) -> None:
-        self._systevisor_io(super().on_timeout)
 
 
 class SystevisorHttpListenerFdioHandler(ServerSocketFdioHandler):

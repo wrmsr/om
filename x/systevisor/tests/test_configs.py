@@ -210,6 +210,32 @@ class TestSystevisorConfigs(unittest.TestCase):
         self.assertFalse(result.is_valid)
         self.assertIn('invalid_self_update_policy', {item.code for item in result.diagnostics})
 
+    def test_control_api_beyond_loopback_requires_an_explicit_opt_in(self) -> None:
+        def codes(api: dict) -> set:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                path = pathlib.Path(temp_dir) / 'config.json'
+                path.write_text(json.dumps({'api': api}))
+                return {item.code for item in SystevisorConfigCompiler().compile([str(path)]).diagnostics}
+
+        for host in ('127.0.0.1', '127.8.9.10', '::1', 'localhost'):
+            self.assertEqual(codes({'tcp_host': host, 'tcp_port': 9001}), set(), host)
+
+        # Wildcards, routable addresses, and anything that would have to be resolved to find out.
+        for host in (
+                '0.0.0.0',  # noqa: S104
+                '::',
+                '',
+                '10.0.0.5',
+                '192.168.1.20',
+                '2001:db8::1',
+                'supervisor.internal',
+                '127.1',
+        ):
+            self.assertEqual(codes({'tcp_host': host, 'tcp_port': 9001}), {'remote_api_not_allowed'}, host)
+            self.assertEqual(codes({'tcp_host': host, 'tcp_port': 9001, 'allow_remote': True}), set(), host)
+
+        self.assertEqual(codes({'unix_socket': '/run/systevisor.sock'}), set())
+
     def test_automatic_child_log_directory_is_explicit_and_absolute(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
