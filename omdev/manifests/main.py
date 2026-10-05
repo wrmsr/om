@@ -14,6 +14,54 @@ from .building import check_package_manifests
 ##
 
 
+# ##
+# # UGH
+#
+# import os
+# import sys
+# import threading
+# import time
+#
+#
+# _real_waitid = os.waitid
+# _real_waitpid = os.waitpid
+#
+#
+# def waitid(*args):
+#     t0 = time.monotonic()
+#     try:
+#         return _real_waitid(*args)
+#     finally:
+#         dt = time.monotonic() - t0
+#         if dt > .05:
+#             print(
+#                 f'{threading.current_thread().name}: '
+#                 f'waitid{args} took {dt:.3f}s',
+#                 file=sys.stderr,
+#             )
+#
+#
+# def waitpid(*args):
+#     t0 = time.monotonic()
+#     try:
+#         return _real_waitpid(*args)
+#     finally:
+#         dt = time.monotonic() - t0
+#         if dt > .05:
+#             print(
+#                 f'{threading.current_thread().name}: '
+#                 f'waitpid{args} took {dt:.3f}s',
+#                 file=sys.stderr,
+#             )
+#
+#
+# os.waitid = waitid
+# os.waitpid = waitpid
+
+
+##
+
+
 def _get_base_dir(args) -> str:
     if args.base is not None:
         base = args.base
