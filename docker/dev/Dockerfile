@@ -554,7 +554,7 @@ curl -LsSf 'https://raw.githubusercontent.com/wrmsr/om/master/omdev/cli/install.
   'pip' \
 ;\
 \
-om cli python -m omdev.imports.pycz \
+bash --login -c 'om $@' - cli python -m omdev.imports.pycz \
   omcore \
   omdev \
   ominfra \
