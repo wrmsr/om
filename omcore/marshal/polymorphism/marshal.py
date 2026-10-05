@@ -127,11 +127,15 @@ class FieldPolymorphismMarshaler(_BasePolymorphismMarshaler):
             lz=lz,
         )
 
-        self._tf = tf
+        self._tag_field = tf
+
+    @property
+    def tag_field(self) -> str:
+        return self._tag_field
 
     def marshal(self, ctx: MarshalContext, o: ta.Any | None) -> Value:
         tag, mv = self._do_marshal(ctx, o)
-        return {self._tf: tag, **mv}  # type: ignore
+        return {self._tag_field: tag, **mv}  # type: ignore
 
 
 def make_polymorphism_marshaler(

@@ -247,17 +247,30 @@ class _Proxy(ta.Generic[T]):
             raise TypeError('recursive proxy already set')
         self.__obj = obj
 
+    def get_target(self) -> T:
+        return self._obj
+
     @classmethod
     def _new(cls) -> tuple[ta.Any, ta.Callable[[ta.Any], None]]:
         return (p := cls()), p._set_obj  # noqa
 
 
-class _ProxyMarshaler(_Proxy[Marshaler], Marshaler):
+class RecursiveProxyMarshaler(_Proxy[Marshaler], Marshaler):
+    """
+    Stands in for a marshaler which (transitively) refers to itself while it is still under construction. Once
+    construction completes `get_target` returns the real marshaler.
+    """
+
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         return self._obj.marshal(ctx, o)
 
 
-class _ProxyUnmarshaler(_Proxy[Unmarshaler], Unmarshaler):
+class RecursiveProxyUnmarshaler(_Proxy[Unmarshaler], Unmarshaler):
+    """
+    Stands in for an unmarshaler which (transitively) refers to itself while it is still under construction. Once
+    construction completes `get_target` returns the real unmarshaler.
+    """
+
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any:
         return self._obj.unmarshal(ctx, v)
 
@@ -294,7 +307,7 @@ class RuntimeImpl(Runtime):
             Marshaler,
         ] = RuntimeImpl._Side(  # noqa
             marshaler_factory,
-            _ProxyMarshaler._new,  # noqa
+            RecursiveProxyMarshaler._new,  # noqa
             lambda fac, ctx, spec: fac.make_marshaler(
                 check.isinstance(ctx, MarshalFactoryContext),
                 spec,
@@ -307,7 +320,7 @@ class RuntimeImpl(Runtime):
             Unmarshaler,
         ] = RuntimeImpl._Side(  # noqa
             unmarshaler_factory,
-            _ProxyUnmarshaler._new,  # noqa
+            RecursiveProxyUnmarshaler._new,  # noqa
             lambda fac, ctx, spec: fac.make_unmarshaler(
                 check.isinstance(ctx, UnmarshalFactoryContext),
                 spec,

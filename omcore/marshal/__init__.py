@@ -23,6 +23,9 @@ with _lang.auto_proxy_init(
     # api / lightweight imports
 
     from .api._runtime import (  # noqa
+        RecursiveProxyMarshaler,
+        RecursiveProxyUnmarshaler,
+
         make_runtime,
     )
 
@@ -238,6 +241,16 @@ with _lang.auto_proxy_init(
         IterableUnmarshaler,
     )
 
+    from .composite.literals import (  # noqa
+        LiteralMarshaler,
+        LiteralUnmarshaler,
+    )
+
+    from .composite.mappings import (  # noqa
+        MappingMarshaler,
+        MappingUnmarshaler,
+    )
+
     from .composite.optionals import (  # noqa
         OptionalMarshaler,
         OptionalUnmarshaler,
@@ -249,6 +262,14 @@ with _lang.auto_proxy_init(
 
         PersistentMappingMarshaler,
         PersistentMappingUnmarshaler,
+    )
+
+    from .composite.tuples import (  # noqa
+        FixedTupleMarshaler,
+        FixedTupleUnmarshaler,
+
+        VariadicTupleMarshaler,
+        VariadicTupleUnmarshaler,
     )
 
     from .composite.unions.literals import (  # noqa
@@ -344,6 +365,8 @@ with _lang.auto_proxy_init(
 
     from .polymorphism.marshal import (  # noqa
         PolymorphismMarshaler,
+        WrapperPolymorphismMarshaler,
+        FieldPolymorphismMarshaler,
         PolymorphismMarshalerFactory,
         PolymorphismSpecMarshalerFactory,
         make_polymorphism_marshaler,
@@ -369,6 +392,8 @@ with _lang.auto_proxy_init(
 
     from .polymorphism.unmarshal import (  # noqa
         PolymorphismUnmarshaler,
+        WrapperPolymorphismUnmarshaler,
+        FieldPolymorphismUnmarshaler,
         PolymorphismUnmarshalerFactory,
         PolymorphismSpecUnmarshalerFactory,
         make_polymorphism_unmarshaler,

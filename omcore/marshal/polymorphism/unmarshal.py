@@ -71,11 +71,15 @@ class FieldPolymorphismUnmarshaler(_BasePolymorphismUnmarshaler):
     ) -> None:
         super().__init__(m)
 
-        self._tf = tf
+        self._tag_field = tf
+
+    @property
+    def tag_field(self) -> str:
+        return self._tag_field
 
     def unmarshal(self, ctx: UnmarshalContext, v: Value) -> ta.Any | None:
         ma = dict(check.isinstance(v, collections.abc.Mapping))
-        tag = ma.pop(self._tf)
+        tag = ma.pop(self._tag_field)
         return self._do_unmarshal(ctx, tag, ma)
 
 
