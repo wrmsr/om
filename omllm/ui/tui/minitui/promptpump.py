@@ -7,7 +7,6 @@ from omcore import check
 
 from .... import agent as agn
 from .... import harness as har
-from ....core import ui
 from .app import MinituiChatApp
 
 
@@ -26,14 +25,12 @@ class PromptPump:
             agent: agn.Agent,
             app: MinituiChatApp,
             commands: har.CommandsManager | None = None,
-            text_displayer: ui.TextDisplayer | None = None,
     ) -> None:
         super().__init__()
 
         self._agent = agent
         self._app = app
         self._commands = commands
-        self._text_displayer = text_displayer
 
         self._queue: collections.deque[Input] = collections.deque()
         self._task: asyncio.Task | None = None
@@ -47,6 +44,13 @@ class PromptPump:
         input: Input
 
         if text.startswith('/'):
+            # Echoed as it is submitted rather than as it runs, so that pressing enter is seen to have registered even
+            # when the command then has to wait its turn.
+            # TODO: show a command (or a prompt) which is queued but not yet run as such - slightly grayed, say - until
+            # it does. What is committed to scrollback cannot be restyled, so it would likely have to sit in the live
+            # region until then, and only move down into scrollback as it runs.
+            self._app.show_command_echo(text)
+
             try:
                 input = check.not_none(self._commands).parse(text[1:])
             except har.ParseCommandError as e:
@@ -55,7 +59,7 @@ class PromptPump:
                 return
 
             if self._task is not None and input.command.can_run_while_busy:
-                task = asyncio.get_running_loop().create_task(self._run_one(text))
+                task = asyncio.get_running_loop().create_task(self._run_one(input))
                 self._command_tasks.add(task)
                 task.add_done_callback(self._command_tasks.discard)
                 return
@@ -72,8 +76,8 @@ class PromptPump:
         if self._closing or self._task is not None or not self._queue:
             return
 
-        text = self._queue.pop()
-        task = asyncio.get_running_loop().create_task(self._run_one(text))
+        input = self._queue.popleft()
+        task = asyncio.get_running_loop().create_task(self._run_one(input))
         self._task = task
 
         # Slot bookkeeping lives in a done callback rather than in _run_one's finally: a task cancelled before its first

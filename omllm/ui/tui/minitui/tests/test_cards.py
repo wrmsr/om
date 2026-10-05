@@ -1,21 +1,26 @@
-import typing as ta
-
 import pytest
 
 from omdev import minitui as mt
 
 from ..... import agent as agn
-from ..... import harness as har
 from ..... import llm
+from .....agent.tests.scripted import scripted_backend
+from .....agent.tests.scripted import text_message
+from ...config import Config
 from ..app import AppKey
-from ..main import PromptPump
+from ..output import AgentEventRenderer
+from ..output import MinituiTextDisplayer
+from ..promptpump import PromptPump
 from ..toolcards import tool_call_summary
 from ..toolcards import tool_card_key
-from .utils import BlockingSession
+from .utils import FirstInvocationGate
 from .utils import app_key
 from .utils import commit_texts
 from .utils import frame_lines
+from .utils import make_agent
 from .utils import make_app
+from .utils import settle_idle
+from .utils import user_texts
 
 
 ##
@@ -142,40 +147,51 @@ def test_aborted_turn_cancels_permissions_and_finalizes_cards(cancelled, status)
 @pytest.mark.asyncs('asyncio')
 async def test_key_cancels_current_prompt_and_runs_next():
     app, _ = make_app()
-    session = BlockingSession()
-    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    gate = FirstInvocationGate()
+    agent = await make_agent(scripted_backend(text_message('one'), text_message('two'), stream=True, gate=gate))
+    agent.subscribe(renderer.on_agent_event)
+    pump = PromptPump(agent=agent, app=app)
     app.on_cancel = pump.cancel_current
 
     pump.submit('first')
-    await session.first_started.wait()
+    await gate.started.wait()
     pump.submit('second')
 
-    app.begin_ai_turn()
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
 
-    await session.first_stopped.wait()
-    await session.second_done.wait()
-    assert session.prompts == ['first', 'second']
+    await gate.stopped.wait()
+    await settle_idle(agent, lambda: len(user_texts(agent)) == 2)
+
+    # The cancelled prompt stays in the transcript as far as it got, and the one queued behind it ran to its answer.
+    assert user_texts(agent) == ['first', 'second']
+    assert [type(m) for m in agent.state.context.messages or ()] == [
+        llm.UserMessage,
+        agn.InfoAgentMessage,
+        llm.UserMessage,
+        llm.AiMessage,
+    ]
+    assert not app.is_busy
     assert not pump.cancel_current()
 
-    app.end_ai_turn()
     await pump.aclose()
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_prompt_pump_shutdown_drops_queued_prompts():
     app, _ = make_app()
-    session = BlockingSession()
-    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+    gate = FirstInvocationGate()
+    agent = await make_agent(scripted_backend(text_message('one'), text_message('two'), stream=True, gate=gate))
+    pump = PromptPump(agent=agent, app=app)
 
     pump.submit('first')
-    await session.first_started.wait()
+    await gate.started.wait()
     pump.submit('second')
     await pump.aclose()
 
-    assert session.prompts == ['first']
-    assert session.first_stopped.is_set()
+    assert user_texts(agent) == ['first']
+    assert gate.stopped.is_set()
 
 
 def test_tool_card_key_uses_llm_call_identity():

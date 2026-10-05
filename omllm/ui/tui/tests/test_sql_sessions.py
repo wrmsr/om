@@ -80,7 +80,7 @@ async def test_sql_sessions():
         await tui.agent.prompt('again')
         assert (await tui.injector[EchoTool]).calls == ['x']
 
-        # A command is the session's business but not the transcript's, so none of storage's either.
+        # A command is not the transcript's business, so none of storage's either.
         await tui.commands.parse('echo hi').run()
 
         assert len(await storage.get_entries()) == 6

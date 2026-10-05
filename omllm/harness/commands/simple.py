@@ -9,6 +9,10 @@ from .classes import CommandClass
 
 
 class EchoCommand(CommandClass):
+    @property
+    def can_run_while_busy(self) -> bool:
+        return True
+
     def _configure_parser(self, parser: argparse.ArgumentParser) -> None:
         super()._configure_parser(parser)
 

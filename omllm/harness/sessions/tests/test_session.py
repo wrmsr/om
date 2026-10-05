@@ -13,10 +13,7 @@ from ....agent.tests.scripted import text_message
 from ....agent.tests.scripted import tool_call_message
 from ....agent.tests.tools import EchoTool
 from ....agent.tests.tools import bare_tool
-from ....core import ui
 from ....core.asyncs.asyncio import AsyncioGroupRunner
-from ...commands.base import Commands
-from ...commands.manager import CommandsManager
 from ..entries import ContextProjectionSessionEntry
 from ..entries import MessageSessionEntry
 from ..session import Session
@@ -81,10 +78,6 @@ def _agent(backend, context_lifecycle_manager=None):
     )
 
 
-def _commands_manager():
-    return CommandsManager(commands=Commands([]), text_displayer=ui.NopTextDisplayer())
-
-
 async def _session(backend, tools=(), storage=None, agent=None):
     if agent is None:
         agent = _agent(backend)
@@ -97,7 +90,7 @@ async def _session(backend, tools=(), storage=None, agent=None):
         agent=agent,
         storage=storage,
     )
-    return session, storage
+    return session, agent, storage
 
 
 def _stored_types(storage):
@@ -130,7 +123,7 @@ async def test_resume_restores_and_repairs_transcript():
             llm.UserMessage,
         ]
 
-    session, _ = await _session(
+    session, agent, _ = await _session(
         scripted_backend(llm.BackendScriptTurn(text_message('continued'), expect=expect)),
         storage=storage,
     )
@@ -151,20 +144,20 @@ async def test_resume_restores_and_repairs_transcript():
     assert 'interrupted' in repair_result.content[0].text
     assert len(storage.entries) == 5
 
-    resumed_again, _ = await _session(scripted_backend(text_message('unused')), storage=storage)
+    resumed_again, _, _ = await _session(scripted_backend(text_message('unused')), storage=storage)
     assert len(await resumed_again.resume()) == 5
     assert len(storage.entries) == 5
 
-    await session.prompt('continue')
+    await agent.prompt('continue')
 
     assert len(storage.entries) == 7
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_completed_run_is_stored():
-    session, storage = await _session(scripted_backend(text_message('hello')))
+    _, agent, storage = await _session(scripted_backend(text_message('hello')))
 
-    await session.prompt('hi')
+    await agent.prompt('hi')
 
     assert _stored_types(storage) == [llm.UserMessage, llm.AiMessage]
 
@@ -172,7 +165,7 @@ async def test_completed_run_is_stored():
 @pytest.mark.asyncs('asyncio')
 async def test_messages_are_stored_as_they_land_once_each():
     echo = EchoTool()
-    session, storage = await _session(
+    _, agent, storage = await _session(
         scripted_backend(
             tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'x'})),
             text_message('ok'),
@@ -180,21 +173,21 @@ async def test_messages_are_stored_as_they_land_once_each():
         [echo.tool()],
     )
 
-    await session.prompt('hi')
+    await agent.prompt('hi')
 
     assert _stored_types(storage) == [llm.UserMessage, llm.AiMessage, llm.ToolResultMessage, llm.AiMessage]
 
     # A second run starts its own count.
-    await session.prompt('again')
+    await agent.prompt('again')
 
     assert len(storage.entries) == 6
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_failed_run_is_stored():
-    session, storage = await _session(scripted_backend(RuntimeError('boom')))
+    _, agent, storage = await _session(scripted_backend(RuntimeError('boom')))
 
-    await session.prompt('hi')
+    await agent.prompt('hi')
 
     assert _stored_types(storage) == [llm.UserMessage, agn.InfoAgentMessage]
     assert 'boom' in storage.entries[-1].message.info
@@ -203,9 +196,9 @@ async def test_failed_run_is_stored():
 @pytest.mark.asyncs('asyncio')
 async def test_cancelled_run_is_stored():
     backend = _BlockingBackend()
-    session, storage = await _session(backend)
+    _, agent, storage = await _session(backend)
 
-    task = asyncio.create_task(session.prompt('hi'))
+    task = asyncio.create_task(agent.prompt('hi'))
     await backend.started.wait()
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -217,12 +210,12 @@ async def test_cancelled_run_is_stored():
 @pytest.mark.asyncs('asyncio')
 async def test_cancelled_mid_tool_stores_the_repair_tail_once():
     executor = _BlockingExecutor()
-    session, storage = await _session(
+    _, agent, storage = await _session(
         scripted_backend(tool_call_message(llm.ToolCall('t1', 'block', {}))),
         [bare_tool('block', executor)],
     )
 
-    task = asyncio.create_task(session.prompt('hi'))
+    task = asyncio.create_task(agent.prompt('hi'))
     await executor.started.wait()
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -270,12 +263,12 @@ def _entry_types(storage):
 @pytest.mark.asyncs('asyncio')
 async def test_a_runs_reduction_is_stored_as_it_happens_and_restored_on_resume():
     manager = agn.StandardContextLifecycleManager(compactor=_FixedCompactor())
-    session, storage = await _session(
+    _, agent, storage = await _session(
         backend := _pressed_backend(text_message('hello')),
         agent=_agent(backend, manager),
     )
 
-    await session.prompt('hi')
+    await agent.prompt('hi')
 
     # The reduction landed between the prompt and the answer, and so does its entry.
     assert _entry_types(storage) == [MessageSessionEntry, ContextProjectionSessionEntry, MessageSessionEntry]
@@ -285,13 +278,13 @@ async def test_a_runs_reduction_is_stored_as_it_happens_and_restored_on_resume()
 
     # Resumed, the projection stands over the messages, and is not stored over again.
     agent = _agent(backend := _pressed_backend(text_message('again')), manager)
-    resumed, _ = await _session(backend, storage=storage, agent=agent)
+    resumed, _, _ = await _session(backend, storage=storage, agent=agent)
     assert len(await resumed.resume()) == 2
     assert agent.state.context.projection == projection
     assert len(storage.entries) == 3
 
     # The next run's reduction lands the same way, after what came before.
-    await resumed.prompt('more')
+    await agent.prompt('more')
 
     assert _entry_types(storage) == [
         MessageSessionEntry,
@@ -308,9 +301,9 @@ async def test_a_runs_reduction_is_stored_as_it_happens_and_restored_on_resume()
 @pytest.mark.asyncs('asyncio')
 async def test_a_projection_arriving_by_state_update_is_stored_once():
     agent = _agent(backend := scripted_backend(text_message('hello')))
-    session, storage = await _session(backend, agent=agent)
+    _, _, storage = await _session(backend, agent=agent)
 
-    await session.prompt('hi')
+    await agent.prompt('hi')
     assert _entry_types(storage) == [MessageSessionEntry, MessageSessionEntry]
 
     # What a compaction on request does to the state.
@@ -326,7 +319,7 @@ async def test_a_projection_arriving_by_state_update_is_stored_once():
 
     # A resumed session takes the projection with the messages.
     resumed_agent = _agent(scripted_backend(text_message('unused')))
-    resumed, _ = await _session(None, storage=storage, agent=resumed_agent)
+    resumed, _, _ = await _session(None, storage=storage, agent=resumed_agent)
     await resumed.resume()
     assert resumed_agent.state.context.projection == projection
     assert len(storage.entries) == 3

@@ -7,7 +7,6 @@ import typing as ta
 
 import pytest
 
-from omcore.asyncs.asynclite import all as asl
 from omdev import minitui as mt
 
 from ..... import agent as agn
@@ -15,25 +14,27 @@ from ..... import harness as har
 from ..... import llm
 from .....agent.eval.permissions import EvalLanguage
 from .....agent.eval.permissions import EvalPermissionTarget
-from .....core.asyncs.asyncio import AsyncioGroupRunner
+from .....agent.tests.scripted import scripted_backend
+from .....agent.tests.scripted import text_message
 from ...config import Config
 from ..app import AppKey
 from ..app import AppQuitSignal
 from ..app import MinituiChatApp
 from ..input import CardPermissionAsker
-from ..main import PromptPump
-from ..main import Shutdown
 from ..output import AgentEventRenderer
 from ..output import MinituiTextDisplayer
-from .utils import BlockingSession
+from ..promptpump import PromptPump
+from ..shutdown import Shutdown
 from .utils import Driver
-from .utils import FailingSession
-from .utils import RecordingSession
+from .utils import FirstInvocationGate
 from .utils import app_key
 from .utils import commit_texts
 from .utils import frame_lines
+from .utils import make_agent
 from .utils import make_app
 from .utils import settle
+from .utils import settle_idle
+from .utils import user_texts
 
 
 ##
@@ -298,58 +299,145 @@ async def test_abort_withdraws_active_and_queued_asks_as_errors():
 # The pump
 
 
-class _ReportingSession:
-    def __init__(self, app):
-        super().__init__()
-
-        self._app = app
-        self.prompts = []
-
-    async def prompt(self, text):
-        self.prompts.append(text)
-        self._app.display_text(f'result: {text}')
+def _commands(app, *commands):
+    return har.CommandsManager(
+        commands=har.Commands(list(commands)),
+        text_displayer=MinituiTextDisplayer(app=app),
+    )
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_queued_commands_echo_when_they_run():
+async def test_commands_echo_as_submitted_and_run_in_order():
     app, driver = make_app()
-    session = _ReportingSession(app)
-    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+    agent = await make_agent(scripted_backend())
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, har.EchoCommand()))
 
-    pump.submit('/first')
-    pump.submit('/second')
+    pump.submit('/echo first')
+    pump.submit('/echo second')
 
-    assert commit_texts(driver) == []
-    await settle(lambda: len(session.prompts) == 2)
+    # Each is echoed as it is submitted, ahead of either getting to run.
     assert commit_texts(driver) == [
-        '/first\n',
-        'result: /first\n',
-        '/second\n',
-        'result: /second\n',
+        '/echo first\n',
+        '/echo second\n',
     ]
+
+    await settle(lambda: len(driver.commits) == 4)
+    assert commit_texts(driver) == [
+        '/echo first\n',
+        '/echo second\n',
+        'first\n',
+        'second\n',
+    ]
+    await pump.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_echo_runs_while_a_prompt_does_and_what_cannot_waits_for_it():
+    app, driver = make_app()
+    gate = FirstInvocationGate()
+    backend = scripted_backend(text_message('one'), stream=True, gate=gate)
+    agent = await make_agent(backend)
+    compact = har.CompactCommand(
+        agent=agent,
+        compaction=agn.ContextCompactionRunner(
+            backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
+        ),
+    )
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, har.EchoCommand(), compact))
+
+    pump.submit('first')
+    await gate.started.wait()
+    driver.commits.clear()
+
+    # A compaction needs the agent to itself, and so queues behind the prompt. An echo needs nothing, and so does not.
+    pump.submit('/compact')
+    pump.submit('/echo now')
+    await settle(lambda: len(driver.commits) == 3)
+    assert commit_texts(driver) == [
+        '/compact\n',
+        '/echo now\n',
+        'now\n',
+    ]
+    assert agent.is_busy
+
+    # With the prompt out of its way the compaction gets its turn, and finds the agent free rather than busy.
+    assert pump.cancel_current()
+    await settle_idle(agent, lambda: len(driver.commits) == 4)
+    assert commit_texts(driver)[3] == 'Context compaction is not available.\n'
+    await pump.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_unknown_command_is_echoed_and_reported_without_being_queued():
+    app, driver = make_app()
+    agent = await make_agent(scripted_backend())
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, har.EchoCommand()))
+
+    pump.submit('/nope')
+
+    assert commit_texts(driver) == [
+        '/nope\n',
+        'Unknown command: nope\n',
+    ]
+    assert not pump.cancel_current()
+    await pump.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_queued_prompts_run_in_submission_order():
+    app, _ = make_app()
+    agent = await make_agent(scripted_backend(text_message('one'), text_message('two'), text_message('three')))
+    pump = PromptPump(agent=agent, app=app)
+
+    # Two are queued behind the first before the loop has turned.
+    pump.submit('first')
+    pump.submit('second')
+    pump.submit('third')
+
+    await settle_idle(agent, lambda: len(user_texts(agent)) == 3)
+
+    assert user_texts(agent) == ['first', 'second', 'third']
     await pump.aclose()
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_failed_prompt_displays_error_and_runs_next():
     app, driver = make_app()
-    session = FailingSession(RuntimeError('boom'))
-    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    agent = await make_agent(scripted_backend(text_message('one'), text_message('two')))
+
+    # A run's own failures come back from the agent as results. What raises out of a prompt is a subscriber failing
+    # where the loop is no longer there to catch it: this one fails the first run's end event ahead of the renderer,
+    # which then never sees that turn end.
+    failures = [RuntimeError('boom')]
+
+    def fail_first_end(ev):
+        if isinstance(ev, agn.AgentEndEvent) and failures:
+            raise failures.pop()
+
+    agent.subscribe(fail_first_end)
+    agent.subscribe(renderer.on_agent_event)
+    pump = PromptPump(agent=agent, app=app)
 
     pump.submit('first')
     pump.submit('second')
-    await session.second_done.wait()
+    await settle_idle(agent, lambda: len(user_texts(agent)) == 2)
 
-    assert session.prompts == ['first', 'second']
-    assert any('error: RuntimeError' in c for c in commit_texts(driver))
+    assert user_texts(agent) == ['first', 'second']
+
+    # The pump said what the prompt raised, and then closed the turn the renderer had been left holding open.
+    committed = commit_texts(driver)
+    error_index = next(i for i, c in enumerate(committed) if 'error: RuntimeError' in c)
+    assert committed[error_index + 1] == '✗ failed\n'
+    assert not app.is_busy
     await pump.aclose()
 
 
 @pytest.mark.asyncs('asyncio')
 async def test_cancel_before_prompt_task_starts_does_not_wedge_pump():
     app, _ = make_app()
-    session = RecordingSession()
-    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+    agent = await make_agent(scripted_backend(text_message('one')))
+    pump = PromptPump(agent=agent, app=app)
     app.on_cancel = pump.cancel_current
 
     # Enter then ctrl+q arriving in one input read: dispatched back to back before the loop turns.
@@ -357,15 +445,16 @@ async def test_cancel_before_prompt_task_starts_does_not_wedge_pump():
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
     pump.submit('second')
 
-    await settle(lambda: 'second' in session.prompts)
+    await settle_idle(agent, lambda: bool(user_texts(agent)))
 
-    assert session.prompts == ['second']
+    # The cancelled prompt never got as far as the agent.
+    assert user_texts(agent) == ['second']
     assert not pump.cancel_current()
     await pump.aclose()
 
 
 ##
-# End to end through a real turn loop
+# End to end through a real agent
 
 
 class _BlockingTool:
@@ -412,35 +501,8 @@ def _tool_call_backend(call_id, name):
     ]))
 
 
-class _TurnLoopSession:
-    """Runs a real TurnLoop per prompt so a cancel unwinds the actual agent path into the renderer."""
-
-    def __init__(self, *, backend, tools, subscriber) -> None:
-        super().__init__()
-
-        self._backend = backend
-        self._tools = tools
-        self._subscriber = subscriber
-
-        self.finished = asyncio.Event()
-
-    async def prompt(self, text):
-        loop = agn.TurnLoop(
-            new_messages=[llm.UserMessage(text)],
-            context=agn.Context(tools=agn.ToolSet(list(self._tools))),
-            subscriber=self._subscriber,
-            cancellation=asl.asyncio.Cancellation(),
-            group_runner=AsyncioGroupRunner(),
-            llm_backend=self._backend,
-        )
-        try:
-            await loop.run()
-        finally:
-            self.finished.set()
-
-
-def _wire(app, session):
-    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+def _wire(app, agent):
+    pump = PromptPump(agent=agent, app=app)
     app.on_submit = pump.submit
     app.on_cancel = pump.cancel_current
     return pump
@@ -451,12 +513,9 @@ async def test_cancel_key_unwinds_running_tool_into_cancelled_card():
     app, driver = make_app()
     renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
     tool = _BlockingTool()
-    session = _TurnLoopSession(
-        backend=_tool_call_backend('t1', 'block'),
-        tools=[tool.tool()],
-        subscriber=renderer.on_agent_event,
-    )
-    pump = _wire(app, session)
+    agent = await make_agent(_tool_call_backend('t1', 'block'), tools=[tool.tool()])
+    agent.subscribe(renderer.on_agent_event)
+    pump = _wire(app, agent)
 
     pump.submit('go')
     await tool.started.wait()
@@ -466,7 +525,7 @@ async def test_cancel_key_unwinds_running_tool_into_cancelled_card():
     driver.commits.clear()
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
-    await session.finished.wait()
+    await settle_idle(agent)
 
     assert not app.is_busy
     committed = commit_texts(driver)
@@ -505,12 +564,9 @@ async def test_cancel_key_shows_cancelling_until_the_turn_ends():
     app, driver = make_app()
     renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
     tool = _LingeringTool()
-    session = _TurnLoopSession(
-        backend=_tool_call_backend('t1', 'linger'),
-        tools=[tool.tool()],
-        subscriber=renderer.on_agent_event,
-    )
-    pump = _wire(app, session)
+    agent = await make_agent(_tool_call_backend('t1', 'linger'), tools=[tool.tool()])
+    agent.subscribe(renderer.on_agent_event)
+    pump = _wire(app, agent)
 
     pump.submit('go')
     await tool.started.wait()
@@ -531,7 +587,7 @@ async def test_cancel_key_shows_cancelling_until_the_turn_ends():
     assert (app.is_busy, app.is_cancelling) == (True, True)
 
     tool.release.set()
-    await session.finished.wait()
+    await settle_idle(agent)
 
     assert (app.is_busy, app.is_cancelling) == (False, False)
     lines = frame_lines(app)
@@ -548,15 +604,16 @@ async def test_cancel_key_during_model_call_ends_turn_idle():
     app, _ = make_app()
     renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
     backend = _BlockingBackend()
-    session = _TurnLoopSession(backend=backend, tools=[], subscriber=renderer.on_agent_event)
-    pump = _wire(app, session)
+    agent = await make_agent(backend)
+    agent.subscribe(renderer.on_agent_event)
+    pump = _wire(app, agent)
 
     pump.submit('go')
     await backend.started.wait()
     assert any(' streaming ' in line for line in frame_lines(app))
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
-    await session.finished.wait()
+    await settle_idle(agent)
 
     assert not app.is_busy
     assert any(' idle ' in line for line in frame_lines(app))
@@ -596,8 +653,9 @@ async def test_cancel_landing_in_end_event_publish_still_closes_turn():
         await stalling(ev)
         await renderer.on_agent_event(ev)
 
-    session = _TurnLoopSession(backend=_text_backend('done'), tools=[], subscriber=subscriber)
-    pump = _wire(app, session)
+    agent = await make_agent(_text_backend('done'))
+    agent.subscribe(subscriber)
+    pump = _wire(app, agent)
 
     pump.submit('go')
     await stalling.stalled.wait()
@@ -611,7 +669,7 @@ async def test_cancel_landing_in_end_event_publish_still_closes_turn():
     still_busy = app.is_busy
 
     stalling.release.set()
-    await session.finished.wait()
+    await settle_idle(agent)
 
     assert still_busy
 
@@ -674,12 +732,12 @@ async def test_cancel_key_unwinds_parallel_asks_as_cancellations_before_the_turn
             at_end.append((list(alpha.seen), list(beta.seen)))
         await renderer.on_agent_event(ev)
 
-    session = _TurnLoopSession(
-        backend=_tool_calls_backend(('t1', 'alpha'), ('t2', 'beta')),
+    agent = await make_agent(
+        _tool_calls_backend(('t1', 'alpha'), ('t2', 'beta')),
         tools=[alpha.tool(), beta.tool()],
-        subscriber=subscriber,
     )
-    pump = _wire(app, session)
+    agent.subscribe(subscriber)
+    pump = _wire(app, agent)
 
     pump.submit('go')
     await alpha.started.wait()
@@ -689,7 +747,7 @@ async def test_cancel_key_unwinds_parallel_asks_as_cancellations_before_the_turn
     driver.commits.clear()
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.CANCEL)))
-    await session.finished.wait()
+    await settle_idle(agent)
 
     # Both asks - the active one and the queued one - unwound inside their own tasks as cancellations of those tasks,
     # not as withdrawn asks, and had done so by the time the turn ended: nothing was left for the app to withdraw.
@@ -790,24 +848,25 @@ async def test_quit_signal_routes_through_hook():
 
 @pytest.mark.asyncs('asyncio')
 async def test_quit_drains_pump_before_stopping_driver():
-    session = BlockingSession()
-    driver = _QuitDriver(lambda d: session.first_stopped.is_set())
+    gate = FirstInvocationGate()
+    driver = _QuitDriver(lambda d: gate.stopped.is_set())
     app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
-    pump = PromptPump(session=ta.cast(har.Session, session), app=app)
+    agent = await make_agent(scripted_backend(text_message('one'), text_message('two'), stream=True, gate=gate))
+    pump = PromptPump(agent=agent, app=app)
     shutdown = Shutdown(pump=pump, driver=ta.cast(mt.AsyncioDriver, driver))
     app.on_quit = shutdown.request
 
     pump.submit('first')
-    await session.first_started.wait()
+    await gate.started.wait()
     pump.submit('second')
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))
     app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))  # a repeat is a no-op, not a second shutdown
-    await settle(lambda: driver.stopped)
+    await settle_idle(agent, lambda: driver.stopped)
 
     assert driver.stopped
     assert driver.at_stop is True
-    assert session.prompts == ['first']
+    assert user_texts(agent) == ['first']
 
 
 @pytest.mark.asyncs('asyncio')
@@ -816,12 +875,9 @@ async def test_input_eof_mid_turn_commits_cancelled_cards_before_driver_stops():
     app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
     renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
     tool = _BlockingTool()
-    session = _TurnLoopSession(
-        backend=_tool_call_backend('t1', 'block'),
-        tools=[tool.tool()],
-        subscriber=renderer.on_agent_event,
-    )
-    pump = _wire(app, session)
+    agent = await make_agent(_tool_call_backend('t1', 'block'), tools=[tool.tool()])
+    agent.subscribe(renderer.on_agent_event)
+    pump = _wire(app, agent)
     shutdown = Shutdown(pump=pump, driver=ta.cast(mt.AsyncioDriver, driver))
     app.on_quit = shutdown.request
 
@@ -832,7 +888,7 @@ async def test_input_eof_mid_turn_commits_cancelled_cards_before_driver_stops():
     # The input ends mid-turn. It is the driver's event, not its decision: the turn is cancelled and its abort reaches
     # scrollback while the driver is still bound, and only then does the driver stop.
     app.handle_event(mt.InputEofEvent())
-    await settle(lambda: driver.stopped)
+    await settle_idle(agent, lambda: driver.stopped)
 
     assert driver.stopped
     assert any('block  cancelled' in c for c in driver.at_stop)
@@ -846,12 +902,9 @@ async def test_quit_commits_cancelled_cards_before_driver_stops():
     app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
     renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
     tool = _BlockingTool()
-    session = _TurnLoopSession(
-        backend=_tool_call_backend('t1', 'block'),
-        tools=[tool.tool()],
-        subscriber=renderer.on_agent_event,
-    )
-    pump = _wire(app, session)
+    agent = await make_agent(_tool_call_backend('t1', 'block'), tools=[tool.tool()])
+    agent.subscribe(renderer.on_agent_event)
+    pump = _wire(app, agent)
     shutdown = Shutdown(pump=pump, driver=ta.cast(mt.AsyncioDriver, driver))
     app.on_quit = shutdown.request
 
@@ -860,7 +913,7 @@ async def test_quit_commits_cancelled_cards_before_driver_stops():
     driver.commits.clear()
 
     await AppQuitSignal(app=app).quit()
-    await settle(lambda: driver.stopped)
+    await settle_idle(agent, lambda: driver.stopped)
 
     assert driver.stopped
     assert any('block  cancelled' in c for c in driver.at_stop)

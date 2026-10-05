@@ -2,8 +2,8 @@
 The minitui chat surface: a commit-model inline TUI (streamed markdown scrollback above a live tail, vim-powered
 input, warm-window tool cards).
 
-This module is pure UI - it knows nothing of agents or sessions. `main` wires `on_submit` to the harness session,
-`output` drives the streaming / display methods from agent events, and `input` drives the permission-card flow. All
+This module is pure UI - it knows nothing of agents or sessions. `main` wires `on_submit` to the prompt pump, `output`
+drives the streaming / display methods from agent events, and `input` drives the permission-card flow. All
 methods here are loop-side (the agent shares the asyncio loop with the driver); none block.
 """
 import collections
