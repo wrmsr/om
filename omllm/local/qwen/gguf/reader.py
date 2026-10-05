@@ -136,6 +136,8 @@ class GGUFReader:
     }
 
     def __init__(self, path: os.PathLike[str] | str, mode: ta.Literal['r', 'r+', 'c'] = 'r') -> None:
+        super().__init__()
+
         self.data = np.memmap(path, mode=mode)
         offs = 0
 

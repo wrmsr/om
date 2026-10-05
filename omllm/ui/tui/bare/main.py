@@ -1,5 +1,6 @@
 import asyncio
 
+from omcore import check
 from omcore import inject as inj
 from omcore import lang
 
@@ -12,6 +13,8 @@ from ..config import Config
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
 from ..setup import AgentSetup
+from ..types import TargetCwd
+from ..yolo import yolo_autoexec
 from .input import InputManager
 from .input import bind_input
 from .output import bind_output
@@ -55,6 +58,10 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         text_displayer = await injector[ui.TextDisplayer]
         commands = await injector[har.CommandsManager]
 
+        cwd = check.non_empty_str((await injector[TargetCwd]).v)
+
+        #
+
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
 
@@ -79,7 +86,10 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
             await agent.prompt(input)
 
-        for ax in config.autoexec or []:
+        for ax in [
+            *(yolo_autoexec(cwd) if config.yolo else []),
+            *(config.autoexec or []),
+        ]:
             await prompt(ax)
 
         while True:

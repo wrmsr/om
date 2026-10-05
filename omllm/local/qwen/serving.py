@@ -37,6 +37,8 @@ from .chat import StreamParser
 from .chat import parse_output
 from .chat import render_assistant_turn
 from .chat import render_chat
+from .grammar import JsonConstraint
+from .grammar import ToolConstraint
 from .model import Cancelled
 from .model import Qwen35
 from .model import Sampler
@@ -74,6 +76,8 @@ class Request:
     stop: list[str]
     enable_thinking: bool
     model: str | None = None
+    tool_choice: ta.Any = 'auto'  # 'auto' | 'none' | 'required' | {'type': 'function', 'function': {'name': ...}}
+    response_format: ta.Any = None  # {'type': 'json_object'} | {'type': 'json_schema', 'json_schema': {'schema': ..}}
 
     @classmethod
     def from_json(cls, body: dict, defaults: SamplingDefaults, enable_thinking: bool) -> Request:
@@ -101,6 +105,8 @@ class Request:
             stop=[str(s) for s in stop],
             enable_thinking=bool(think),
             model=body.get('model'),
+            tool_choice=body.get('tool_choice', 'auto'),
+            response_format=body.get('response_format'),
         )
 
 
@@ -125,6 +131,8 @@ class Job:
     """One request in flight: the engine pushes events into `events`; a handler drains them."""
 
     def __init__(self, req: Request) -> None:
+        super().__init__()
+
         self.req = req
         self.id = 'chatcmpl-' + uuid.uuid4().hex[:24]
         self.created = int(time.time())
@@ -159,6 +167,8 @@ class Engine:
             model_name: str = 'qwen',
             log: ta.Callable[[str], None] | None = print,
     ) -> None:
+        super().__init__()
+
         self.model = model
         self.tok = tok
         self.spec = spec
@@ -326,6 +336,8 @@ class Engine:
             if not first_token:
                 first_token.append(time.time() - t0)
             out_ids.append(i)
+            if i in self.eos:  # the end of turn is not content (it would otherwise decode to '<|im_end|>')
+                return
             piece = streamer.push(i)
             if piece:
                 pieces.append(piece)
@@ -340,6 +352,20 @@ class Engine:
                 if req.stream:
                     deliver(parser.feed(piece))
 
+        # tools present: every tool call the model opens is grammar-constrained to the declared schemas, and tool_choice
+        # 'none' / 'required' / a named function forbids or forces one (grammar.py). Without tools, response_format
+        # json_object / json_schema constrains the content to one JSON value instead.
+        constraint: ta.Any = None
+        if req.tools:
+            constraint = ToolConstraint(tok, req.tools, req.tool_choice or 'auto', thinking=req.enable_thinking)
+        elif isinstance(req.response_format, dict):
+            rf = req.response_format
+            if rf.get('type') in ('json_object', 'json_schema'):
+                schema: ta.Any = {}
+                if rf.get('type') == 'json_schema':
+                    js = rf.get('json_schema') or {}
+                    schema = js.get('schema', js) if isinstance(js, dict) else {}
+                constraint = JsonConstraint(tok, schema, thinking=req.enable_thinking)
         try:
             model.generate(
                 ids,
@@ -353,6 +379,7 @@ class Engine:
                 prefix_cache=self.prefix_cache,
                 prefill_chunk=self.prefill_chunk,
                 should_stop=lambda: job.cancelled,
+                constraint=constraint,
             )
         except Cancelled:
             if not stopped_at:
@@ -478,6 +505,7 @@ class ChatServer(http.server.ThreadingHTTPServer):
 
     def __init__(self, addr: tuple[str, int], engine: Engine) -> None:
         super().__init__(addr, Handler)
+
         self.engine = engine
 
 
@@ -588,7 +616,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     ok = send(eng.chunk_json(job, {'content': ev[2]}))
                 elif kind == 'reasoning':
                     ok = send(eng.chunk_json(job, {'reasoning_content': ev[2]}))
-                else:
+                else:  # a tool-call head or an arguments piece, already in the OpenAI delta shape
                     tc = dict(ev[2])
                     tc['index'] = tc.get('index', 0)
                     ok = send(eng.chunk_json(job, {'tool_calls': [tc]}))
@@ -667,8 +695,21 @@ def client(
             if d.get('content'):
                 content.append(d['content'])
                 write(d['content'])
-            if d.get('tool_calls'):
-                tool_calls.extend(d['tool_calls'])
+            for tc in d.get('tool_calls') or []:  # merge argument pieces into their call by index
+                i = tc.get('index', len(tool_calls))
+                while len(tool_calls) <= i:
+                    tool_calls.append({
+                        'id': f'call_{len(tool_calls)}',
+                        'type': 'function',
+                        'function': {'name': '', 'arguments': ''},
+                    })
+                cur = tool_calls[i]
+                if tc.get('id'):
+                    cur['id'] = tc['id']
+                fn = tc.get('function') or {}
+                if fn.get('name'):
+                    cur['function']['name'] = fn['name']
+                cur['function']['arguments'] += fn.get('arguments') or ''
             if ch.get('finish_reason'):
                 finish = ch['finish_reason']
             if obj.get('usage'):

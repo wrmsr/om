@@ -86,6 +86,8 @@ class PrefixCache:
             device_bytes: int,
             host_bytes: int = 0,
     ) -> None:
+        super().__init__()
+
         self.ops = ops
         self.device_bytes = device_bytes
         self.host_bytes = host_bytes

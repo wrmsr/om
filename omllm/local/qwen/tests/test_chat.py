@@ -1,8 +1,6 @@
 """
 chat.py: rendering (system, tools, tool calls / results, thinking preserved or stripped) and parsing (final and
 streaming) of Qwen's chat format.
-
-Run:  python -m pytest omllm/local/qwen/tests/test_chat.py -q      or      python -m omllm.local.qwen.tests.test_chat
 """
 import json
 
@@ -98,8 +96,17 @@ def test_parse_output():
 
 def test_stream_parser():
     text = (
-        '<think>\nlet me\nsee\n</think>\n\nHello <b> world\n'
-        '<tool_call>\n{"name": "f", "arguments": {}}\n</tool_call>'
+        '<think>\n'
+        'let me\nsee\n'
+        '</think>\n'
+        '\n'
+        'Hello <b> world\n'
+        '<tool_call>\n'
+        '{"name": "f", "arguments": {}}\n'
+        '</tool_call>'
+        '<tool_call>\n'
+        '{"name": "shell", "arguments": {"command": "echo \\"}\\" {} }", "n": [1, {"a": 2}]}}\n'
+        '</tool_call>'
     )
     for step in (1, 3, 7, len(text)):
         sp = StreamParser()
@@ -109,16 +116,20 @@ def test_stream_parser():
         events += sp.finish()
         reasoning = ''.join(p for k, p in events if k == 'reasoning')
         content = ''.join(p for k, p in events if k == 'content')
-        calls = [p for k, p in events if k == 'tool_call']
         assert reasoning.rstrip('\n') == 'let me\nsee', (step, reasoning)
         assert content == 'Hello <b> world\n', (step, content)
-        assert len(calls) == 1 and calls[0]['function']['name'] == 'f', (step, calls)
-
-
-if __name__ == '__main__':
-    test_render_basic()
-    test_render_tools_and_calls()
-    test_render_thinking_policy()
-    test_parse_output()
-    test_stream_parser()
-    print('chat rendering / parsing OK')
+        # tool calls stream as a head (id, name, empty arguments) followed by argument pieces, merged by index
+        calls: dict[int, dict] = {}
+        for k, p in events:
+            if k != 'tool_call':
+                continue
+            cur = calls.setdefault(p['index'], {'id': None, 'name': '', 'arguments': ''})
+            if p.get('id'):
+                assert cur['id'] is None, (step, 'two heads')  # the head comes once
+                cur['id'] = p['id']
+                cur['name'] = p['function']['name']
+            cur['arguments'] += p['function'].get('arguments') or ''
+        assert [calls[i]['name'] for i in sorted(calls)] == ['f', 'shell'], (step, calls)
+        assert json.loads(calls[0]['arguments']) == {} and calls[0]['id'] == 'call_0', (step, calls[0])
+        assert json.loads(calls[1]['arguments']) == {'command': 'echo "}" {} }', 'n': [1, {'a': 2}]}, (step, calls[1])
+        assert not calls[1]['arguments'][0].isspace() and calls[1]['arguments'].endswith('}'), (step, calls[1])

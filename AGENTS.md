@@ -5,6 +5,7 @@
 - First, read `README.md` and `CODESTYLE.md` to understand the repo. Read and understand these files *in entirety* - if
   your reading is truncated, continue through the whole file.
 
+
 ### DO-NOTS
 
 - Do NOT remove an `@om-lite` marker from a source file if one is present. If the file is marked as lite, it is used in
@@ -30,6 +31,11 @@
 - **DO NOT** read `_dataclasses.py` files - these are mechanically generated code for dataclasses and contain nothing of
   interest. They tend to be huge and will waste your context, they exist solely to speed up imports and assist
   debugging, and the codebase behaves the same without them.
+- And it's mentioned in `CODESTYLE.md` but again for emphasis: **DO NOT** use `pathlib` by default! Use old school
+  `os.path` by default, unless there's a *good reason* to also support `pathlib` (such as dep interop). Our internal
+  code does not pass around `pathlib.Path`, it passes around `str`'s, so it's almost never necessary to support
+  `pathlib` even optionally.
+
 
 ### Running stuff
 
@@ -45,6 +51,7 @@
 - Note that if you're in a docker sandbox (which is highly likely) you will not have access to docker compose services
   like mysql and postgres, causing relevant tests to fail with a failure to connect. As long as you're not working on
   immediately relevant code (sql code specifically) then this is fine and can be ignored.
+
 
 ### Makefile targets
 
@@ -66,3 +73,24 @@
 - Note that if you're working on something in the `x/` directory, which is *not* a proper top-level `om*` package, the
   `make` commands like `fix` and `check` will *not* operate on the code you're modifying. In this case you must manually
   run the tools via `./python -m ruff check x/<wherever>` and `./python -m mypy x/<wherever>` and such.
+
+
+### `dockerdev`
+
+You may or may not be running inside a `dockerdev` container instance - our codebase-internal general-purpose dev docker
+image. Do not assume that you are by default: just because you're running in docker doesn't mean you're in a `dockerdev`
+container - the user must specifically say you are. **If** you are:
+
+- You have *lots* of installed tools available to you, and may use them all freely.
+- Your git credentials are placeholders, and you may be on `master`, but you should still generally commit as you go
+  anyway.
+  - Code changes made in this session will be extracted from it externally: this session has no `git push` capability to
+    anything.
+  - Even if the exact git history of this session doesn't survive the container it's still useful within it.
+- Unless otherwise noted you do **NOT** have access to the docker compose services used by external dev and the ci
+  harness. By default you may ignore relevant test errors, but should generally avoid running relevant tests to begin
+  with.
+  - As an alternative there are various `~/scripts/run-*` scripts available to launch various services (namely:
+    postgres, mysql, s3mock) - you may use these instead.
+    - Note that they all launch interactively, *not* in the background - you are responsible for managing their
+      lifetimes.

@@ -24,6 +24,7 @@ paramcache.py    on-disk cache of finished parameters (memory-mapped .npy per ar
 prefixcache.py   prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
 chat.py          Qwen chat format: rendering (system, tools, tool calls/results, thinking) and output parsing
 serving.py       Engine (one worker over generate + PrefixCache) and the OpenAI chat-completions HTTP server
+grammar.py       constrained decoding: tool-call / JSON-mode grammar -> per-step token masks, tool_choice
 weights.py       Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs (packed safetensors,
                  MLX int4/int8) -> canonical HF-layout params
 tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
@@ -366,6 +367,45 @@ from previous assistant messages, which Qwen's chat template does by default; ed
 prefix. `--follow-up TEXT` in `generate` demonstrates a second turn built from the first turn's ids and prints how
 much was reused. `tests/test_prefix.py` checks, on every backend, that a resumed follow-up produces exactly what a
 cold run over the full prompt produces (plain and speculative), plus demotion, promotion and eviction.
+
+## Tool calls that are always well-formed
+
+With tools in the request, every `<tool_call>` the model opens is decoded under a grammar (`grammar.py`): the
+tokens that follow are restricted to those that keep the text a valid prefix of
+`{"name": <a declared function>, "arguments": <JSON matching that function's parameters>}` followed by the
+closing tag, so a call that comes back names a real tool and carries arguments of the declared types with every
+required key present -- no more silently dropped malformed calls. `tool_choice` rides on the same machinery:
+`"none"` forbids opening a call, `"required"` or a named function forces one as soon as the model is out of its
+reasoning block. Supported schema features: object (properties, required, additionalProperties), string (enum),
+integer, number, boolean, null, array (items), anyOf / oneOf, const, and untyped values.
+
+The grammar is a byte-level prefix acceptor (a small NFA over immutable frames, so states are hashable) and a
+byte trie over the vocabulary; the allowed tokens in a state are the trie's complete tokens reachable while the
+acceptor stays alive, memoised per state, with the "inside a free string" state short-circuited to a precomputed
+set of plain tokens plus a walk over only the tokens containing a quote, a backslash or a control byte. The
+`Sampler` applies the set as a logit mask, and under speculative decoding every verify row gets the mask for its
+own position: a draft that breaks the grammar has zero target probability there and is rejected like any other
+mismatch, the correction coming from the masked distribution, so the output distribution is exactly the masked
+target's. Detection is on bytes, so it works whether `<tool_call>` is one token or several. Streaming delivers a
+call's head (id, name) as soon as the name is known and then the arguments' JSON text in pieces, the OpenAI delta
+shape, instead of holding the call until its closing tag. `test_grammar.py` fuzzes the masks (random walks always
+end in a valid call) and runs the synthetic model -- random weights -- through the Engine with `tool_choice:
+required`: valid calls come out, with and without speculative decoding, because the grammar leaves no other
+choice.
+
+JSON mode is the same machinery pointed at the content instead of a call: `response_format` `json_object` or
+`json_schema` (without tools) constrains the text after the reasoning block to one JSON value of the schema and
+then the end of turn, so `json.loads` on the content cannot fail. Tools take precedence when both are given.
+
+`entrypoints/agent` is a small local agent for exercising all of this end to end: a tool loop (shell with a
+y/N prompt, read / write file, list_dir, grep over a working directory) driving the server over the OpenAI
+protocol, printing per turn what the server reported -- prompt tokens, how many the prefix cache reused, time --
+which is how to see that an agent loop stays warm across turns:
+
+```bash
+python -m omllm.local.qwen.entrypoints.agent --url http://localhost:8000 --cwd ~/src/thing \
+    "Find where the config is parsed and add a --verbose flag"
+```
 
 ## Serving
 

@@ -74,6 +74,8 @@ class Tokenizer:
             add_bos: bool = False,
             chat_template: str | None = None,
     ) -> None:
+        super().__init__()
+
         self.tokens = tokens
         self.vocab = {t: i for i, t in enumerate(tokens)}
         self.ranks = {pair: i for i, pair in enumerate(merges)}
@@ -276,6 +278,8 @@ class Tokenizer:
         """Incremental decoder that only emits complete UTF-8 sequences."""
 
         def __init__(self, tok: Tokenizer) -> None:
+            super().__init__()
+
             self.tok, self.buf = tok, b''
 
         def push(self, i: int) -> str:

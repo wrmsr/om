@@ -115,6 +115,6 @@ async def test_live_search_and_fetch_through_the_tui_tools():
         search = await tools['web_search'].executor(agn.ToolContext(args={'query': 'Python official documentation'}))
         assert search.error is None, search.error
         assert 'https://' in search.content.text
-        fetch = await tools['web_fetch'].executor(agn.ToolContext(args={'url': 'https://example.com/'}))
+        fetch = await tools['web_fetch'].executor(agn.ToolContext(args={'url': 'https://pypi.org/'}))
         assert fetch.error is None, fetch.error
-        assert 'Example Domain' in fetch.content.text
+        assert 'Python Software Foundation' in fetch.content.text

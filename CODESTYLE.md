@@ -472,6 +472,8 @@
   with no external dependencies present.
   - Be sure async tests are put in a `IsolatedAsyncioTestCase` subclass.
   - It is equally fine to use both bare `assert` statements and `unittest` assert helpers like `assertCountEqual`.
+- Do **not** use 'sleep' to simulate lock-step execution, timeouts, or other test conditions. Tests should strive to
+  deterministically complete as quickly as possible via explicit synchronization.
 - In general, prefer to write tests in a way that they can be run in parallel.
 - Avoid mocks - prefer to structure code such that a 'simple' but still functioning implementation of an interface can
   be used where a mock would otherwise. For example, for a some `UserService` interface with an `add_user` method, for
@@ -488,8 +490,6 @@
   - With multiple concurrent actors this may be achieved through 'lock-step' execution: with for example 2 related
     actors running concurrently which encounter a shared point of synchronization, run a test twice, once with the first
     actor running first, and once with the second actor running first.
-- Do **not** use 'sleep' to simulate lock-step execution, timeouts, or other test conditions. Tests should strive to
-  deterministically complete as quickly as possible via explicit synchronization.
 
 
 ### Runtime

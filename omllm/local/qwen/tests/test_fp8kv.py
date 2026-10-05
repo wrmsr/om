@@ -1,9 +1,7 @@
 """
 The fp8 KV cache (TorchOps kv_dtype='fp8'): the static decoder holds e4m3 codes + scales, kernels and the composed
-fallback agree, the whole decode / speculative / prefix-cache machinery runs on the four-array state, snapshots
-convert between formats, and the quantization error is small.
-
-Run:  python -m pytest omllm/local/qwen/tests/test_fp8kv.py -q      or      python -m omllm.local.qwen.tests.test_fp8kv
+fallback agree, the whole decode / speculative / prefix-cache machinery runs on the four-array state, snapshots convert
+between formats, and the quantization error is small.
 """
 import os
 
@@ -97,8 +95,3 @@ def test_fp8_spec_and_snapshots():
     snap16 = next(e.snap for e in pc16.entries.values() if len(e.snap.tokens) == len(p1) + len(extra))
     assert len(snap16.cache.layers[3]) == 2  # the bf16 decoder's own snapshot is in its format
     print('fp8 spec decode + prefix snapshots OK (fp8 -> fp8 exact, fp8 -> bf16 converts)')
-
-
-if __name__ == '__main__':
-    test_fp8_decode()
-    test_fp8_spec_and_snapshots()

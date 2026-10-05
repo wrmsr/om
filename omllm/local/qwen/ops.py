@@ -48,10 +48,12 @@ DTYPE_NAMES = (
 )
 
 
-class Ops(abc.ABC):
+class Ops(lang.Abstract):
     name: str = '?'
 
     def __init__(self) -> None:
+        super().__init__()
+
         self.taps: dict[str, np.ndarray] | None = None  # set to {} to record `tap()`ed activations
 
     # dtypes
@@ -548,9 +550,9 @@ class Ops(abc.ABC):
 
     def kv_adapt(self, state: tuple[Array, ...], dtype: ta.Any = None) -> tuple[Array, ...]:
         """
-        A state in this backend's format (converting one made with another format, e.g. a prefix snapshot
-        taken at another KV dtype; `dtype` is the compute dtype for a conversion that needs one). Default: only the
-        (k, v) format exists.
+        A state in this backend's format (converting one made with another format, e.g. a prefix snapshot taken at
+        another KV dtype; `dtype` is the compute dtype for a conversion that needs one). Default: only the (k, v) format
+        exists.
         """
 
         if len(state) != self.kv_arity:

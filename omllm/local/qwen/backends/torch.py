@@ -96,6 +96,8 @@ class CudaGraphStep:
     """
 
     def __init__(self, fn, use_graph: bool = True) -> None:
+        super().__init__()
+
         self.fn = fn
         self.use_graph = use_graph  # False: same static-input protocol, no graph (testable on CPU)
         self.graph: torch.cuda.CUDAGraph | None = None
@@ -186,6 +188,8 @@ class _DeferredCompile:
     """
 
     def __init__(self, fn):
+        super().__init__()
+
         self.fn = fn
         self.compiled = None
 

@@ -1,9 +1,7 @@
 """
-serving.py end to end on the synthetic model: non-streaming and streaming chat completions over HTTP, a follow-up
-turn reusing the prefix cache, tool rendering, stop sequences, cancellation of a streaming client, and the queue
-limit. torch CPU (static-input protocol) with speculative decoding.
-
-Run:  python -m pytest omllm/local/qwen/tests/test_serve.py -q      or      python -m omllm.local.qwen.tests.test_serve
+serving.py end to end on the synthetic model: non-streaming and streaming chat completions over HTTP, a follow-up turn
+reusing the prefix cache, tool rendering, stop sequences, cancellation of a streaming client, and the queue limit. torch
+CPU (static-input protocol) with speculative decoding.
 """
 import json
 import socket
@@ -183,7 +181,3 @@ def test_serve():
         f'{engine.n_cancelled} cancelled; '
         f'{engine.prefix_cache.stats()}',  # type: ignore
     )
-
-
-if __name__ == '__main__':
-    test_serve()

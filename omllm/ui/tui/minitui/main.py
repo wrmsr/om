@@ -24,6 +24,7 @@ from ..config import Config
 from ..inject import AgentEventSubscribers
 from ..setup import AgentSetup
 from ..types import TargetCwd
+from ..yolo import yolo_autoexec
 from .app import MinituiChatApp
 from .inject import bind_minitui
 from .output import AgentEventRenderer
@@ -47,15 +48,6 @@ def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
         )
 
     return config
-
-
-def _yolo_autoexec(cwd: str) -> list[str]:
-    return [
-        '/permissions clear',
-        '/permissions add allow exec {}',
-        f'/permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'',
-        '/echo "YOLO"',
-    ]
 
 
 log = logs.get_module_logger(globals())
@@ -96,6 +88,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         shutdown = await injector[Shutdown]
         app.on_quit = shutdown.request
 
+        #
+
         # The driver starts before any agent activity: its run prologue prepares the surface, and everything the setup
         # below causes to display (e.g. verbose-mode StateUpdateEvents) buffers until then.
         driver_task = asyncio.get_running_loop().create_task(driver.run(app))
@@ -111,8 +105,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                 event_renderer.display_transcript(await session.resume())
 
             for ax in [
+                    *(yolo_autoexec(cwd) if config.yolo else []),
                     *(config.autoexec or []),
-                    *(_yolo_autoexec(cwd) if config.yolo else []),
             ]:
                 pump.submit(ax)
 
