@@ -665,9 +665,13 @@ class TorchOps(Ops):
         vq, vs = self._fp8_quant(v)
         idx = pos.reshape(1).to(torch.int64)
         kbuf, ksb, vbuf, vsb = state
-        # in place, through a byte view (index_copy_ is not implemented for float8 everywhere); same objects out
-        kbuf.view(torch.uint8).index_copy_(2, idx, kq.view(torch.uint8))
-        vbuf.view(torch.uint8).index_copy_(2, idx, vq.view(torch.uint8))
+        # In place, same objects out. Item assignment with a 1-element index is an index_put_ on the fp8 buffer itself,
+        # which is the one indexed write that works here: index_copy_ has no float8 kernel (cpu or cuda), and writing
+        # through a uint8 view of the buffer breaks torch.compile - inductor stores the view's bytes through the
+        # buffer's own fp8-typed pointer, and Triton has no int -> fp8 value cast ('cannot cast uint8[..] to
+        # fp8e4nv').
+        kbuf[:, :, idx] = kq
+        vbuf[:, :, idx] = vq
         ksb.index_copy_(2, idx, ks)
         vsb.index_copy_(2, idx, vs)
         return (kbuf, ksb, vbuf, vsb)

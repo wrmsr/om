@@ -357,8 +357,8 @@ passes. Each has a test or a bench signal noted; keep them in mind at every step
 - The captured step is keyed by (T, all_states, return_hidden, bucket) and the capacity; a different capacity
   is a different graph and, with compile, a different compile. The warm-up must use the serving capacity.
 - `kv_write` is in place and returns the same buffer object. `CudaGraphStep` skips copying static inputs whose
-  object identity is unchanged; the fp8 format writes through a byte view for the same reason. Breaking the
-  aliasing silently adds a full KV copy per step.
+  object identity is unchanged; the fp8 format writes in place for the same reason, by item assignment on the fp8
+  buffer itself. Breaking the aliasing silently adds a full KV copy per step.
 - Nothing inside a step may allocate from the host or index with a 0-d tensor (that is a `.item()` and illegal
   under capture); positions are indexed with a 1-element array.
 - Compile runs once eagerly before tracing (`_DeferredCompile`) so that the Triton wrappers resolve their launch
@@ -367,6 +367,10 @@ passes. Each has a test or a bench signal noted; keep them in mind at every step
   warning).
 - User-defined Triton kernels inside the compiled step must not take float scalar arguments — torch.compile passes them
   as fp64.
+- Nothing inside the compiled step may write through a dtype view of one of its arguments (`buf.view(torch.uint8)`
+  as the target of an in-place op): inductor stores the view-typed value through the buffer's own typed pointer, and
+  for a uint8 view of an fp8 buffer Triton refuses the store (`cannot cast uint8[..] to fp8e4nv`). Reading through
+  such a view is fine. `test_torch_triton.py::test_fp8_compiled_write` pins the fp8 write on CUDA.
 
 ### 5.2 One host sync per round
 

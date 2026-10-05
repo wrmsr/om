@@ -261,6 +261,66 @@ def test_attn_fp8_kernels():
     print('fp8 KV attention kernels match the dequantized references (decode T=1/4, prefill with fp8 past)')
 
 
+def test_fp8_compiled_write():
+    """
+    The static-buffer write of fp8 codes under torch.compile, in the eager-first protocol the decode steps use: the
+    compiled write equals the eager one, in place, with the same buffer objects out. CUDA only: the compiled write goes
+    through inductor's Triton codegen, which cannot store through a dtype view of a step argument (writing the codes
+    through a uint8 view of the buffer failed there with 'cannot cast uint8[..] to fp8e4nv'). Skipped when the Triton
+    interpreter is on, which inductor's generated kernels cannot run under.
+    """
+
+    if _skip():
+        return
+
+    if not torch.cuda.is_available() or os.environ.get('TRITON_INTERPRET') == '1':
+        print('needs cuda and compiled (not interpreted) triton; skipping')
+        return
+
+    from ..backends.torch import TorchOps
+
+    B, KV, L, D = 1, 2, 16, 32
+    gen = torch.Generator().manual_seed(0)
+
+    def rows(t):
+        # integers e4m3 holds exactly, each row carrying the 448 that pins its scale to 1, so the codes do not depend
+        # on how eager torch and Triton round
+        x = torch.randint(-15, 16, (B, KV, t, D), generator=gen).to(torch.float32)
+        x[..., 0] = 448.0
+        return x.to('cuda', torch.bfloat16)
+
+    k0 = rows(3)
+    v0 = rows(3)
+    ks = [rows(1), rows(1)]  # written at positions 3 and 4
+    vs = [rows(1), rows(1)]
+
+    def run(ops):
+        state = ops.kv_pad(ops.kv_new(k0, v0), L)
+
+        def write(pos, k, v, *st):
+            return ops.kv_write_state(st, pos, k, v)
+
+        step = ops.compile_fn(write)  # with compile on: the first call runs eagerly, the second is the compiled one
+        for n, (k, v) in enumerate(zip(ks, vs)):
+            out = step(ops.scalar(3 + n), k, v, *state)
+            assert all(o is s for o, s in zip(out, state)), n
+        return state
+
+    ref = run(TorchOps('cuda', triton=False, kv_dtype='fp8'))
+    ops = TorchOps('cuda', triton=False, kv_dtype='fp8', compile=True)
+    got = run(ops)
+    assert [a.dtype for a in got] == [torch.float8_e4m3fn, torch.float32] * 2
+    for i in (0, 2):
+        assert torch.equal(got[i].view(torch.uint8), ref[i].view(torch.uint8)), i
+        assert torch.allclose(got[i + 1], ref[i + 1], rtol=1e-6), i
+        assert not got[i].view(torch.uint8)[:, :, 5:].any(), i  # the padding past the written positions is untouched
+    for i, parts in ((0, [k0, *ks]), (2, [v0, *vs])):
+        want = torch.cat(parts, 2).float()
+        have = ops._fp8_dequant(got[i][:, :, :5], got[i + 1][:, :, :5], torch.float32)  # noqa
+        assert torch.allclose(have, want, rtol=1e-5), i
+    print('fp8 static-buffer write: compiled == eager, in place')
+
+
 def test_model_decode_with_kernel():
     """A quantized model's static decode step gives the same logits with and without the kernel."""
 
