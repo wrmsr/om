@@ -73,6 +73,7 @@ class SystevisorInstanceState:
     deadline_kind: ta.Optional[SystevisorDeadlineKind] = None
     deadline_at: ta.Optional[float] = None
     restart_requested: bool = False
+    resume_manual: bool = False
     blocked_reason: ta.Optional[str] = None
     start_stable: bool = False
     health: ta.MutableMapping[str, SystevisorHealthProbeState] = dc.field(default_factory=dict)
@@ -80,7 +81,7 @@ class SystevisorInstanceState:
 
 @dc.dataclass()
 class SystevisorEngineState:
-    state_schema_version: int = 3
+    state_schema_version: int = 4
     snapshot: ta.Optional[SystevisorConfigSnapshot] = None
     config_generation: int = 0
     instances: ta.MutableMapping[SystevisorInstanceId, SystevisorInstanceState] = dc.field(default_factory=dict)

@@ -1,11 +1,14 @@
 import json
 import pathlib
 import tempfile
+import typing as ta
 import unittest
 
 from ..configs.compiling import SystevisorConfigCompiler
 from ..configs.diagnostics import SystevisorConfigDiagnosticStage
 from ..configs.models import SystevisorDependencyCondition
+from ..configs.models import SystevisorDependencyFollow
+from ..configs.models import SystevisorRequirementConfig
 from ..configs.models import SystevisorRestartMode
 from ..configs.models import SystevisorScheduleActionKind
 from ..core.identities import SystevisorInstanceId
@@ -63,7 +66,7 @@ class TestSystevisorConfigs(unittest.TestCase):
         self.assertEqual(snapshot.config.schedules['db-cycle'].action.kind, SystevisorScheduleActionKind.RESTART)
         self.assertEqual(
             snapshot.config.units['web'].dependencies.requires,
-            {'db': SystevisorDependencyCondition.RUNNING},
+            {'db': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.RUNNING)},
         )
         self.assertEqual(len(snapshot.source_paths), 3)
         self.assertTrue(any(
@@ -209,6 +212,49 @@ class TestSystevisorConfigs(unittest.TestCase):
 
         self.assertFalse(result.is_valid)
         self.assertIn('invalid_self_update_policy', {item.code for item in result.diagnostics})
+
+    def test_requirement_is_a_bare_condition_or_an_object_that_can_follow(self) -> None:
+        def compile_web(requires: dict) -> ta.Any:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                path = pathlib.Path(temp_dir) / 'config.json'
+                path.write_text(json.dumps({'units': {
+                    'db': {'exec': {'argv': ['db']}},
+                    'migrations': {'exec': {'argv': ['migrate']}, 'kind': 'oneshot'},
+                    'web': {'exec': {'argv': ['web']}, 'dependencies': {'requires': requires}},
+                }}))
+                return SystevisorConfigCompiler().compile([str(path)])
+
+        result = compile_web({
+            'db': {'condition': 'ready', 'follow': ['restart', 'stop', 'stop']},
+            'migrations': 'completed',
+        })
+        self.assertEqual(result.snapshot.config.units['web'].dependencies.requires, {
+            'db': SystevisorRequirementConfig(
+                condition=SystevisorDependencyCondition.READY,
+                follow=(SystevisorDependencyFollow.STOP, SystevisorDependencyFollow.RESTART),
+            ),
+            'migrations': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.COMPLETED),
+        })
+
+        # Saying nothing more than the condition is the same configuration however it is written.
+        bare = compile_web({'db': 'ready'})
+        self.assertEqual(compile_web({'db': {'condition': 'ready'}}).snapshot.digest, bare.snapshot.digest)
+        self.assertEqual(
+            compile_web({'db': {'condition': 'ready', 'follow': []}}).snapshot.digest,
+            bare.snapshot.digest,
+        )
+        self.assertNotEqual(
+            compile_web({'db': {'condition': 'ready', 'follow': ['stop']}}).snapshot.digest,
+            bare.snapshot.digest,
+        )
+
+        for invalid in (
+                {'db': {'follow': ['stop']}},
+                {'db': {'condition': 'ready', 'follow': ['crash']}},
+                {'db': {'condition': 'ready', 'follow': 'stop'}},
+                {'db': {'condition': 'ready', 'folow': ['stop']}},
+        ):
+            self.assertEqual({item.code for item in compile_web(invalid).diagnostics}, {'invalid_shape'}, invalid)
 
     def test_control_api_beyond_loopback_requires_an_explicit_opt_in(self) -> None:
         def codes(api: dict) -> set:

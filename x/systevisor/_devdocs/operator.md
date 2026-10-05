@@ -155,8 +155,40 @@ that is also stopping has exited; `units` shows a waiting instance still `runnin
 example, `web:stopping`. Each unit's `stop.timeout_secs` starts when it is signalled, so allow the sum along the
 longest dependency chain when setting a host stop deadline such as systemd `TimeoutStopSec` or `docker stop -t`.
 
-Stopping a single unit never stops or waits for the units that depend on it. `priority` only orders units within the
-same step; express anything that must be waited on as a dependency.
+Stopping a single unit does not stop or wait for the units that depend on it, unless they follow it as described
+below. `priority` only orders units within the same step; express anything that must be waited on as a dependency.
+
+## Following a requirement
+
+By default `requires` only gates a start and orders a stop. A requirement can instead be written as an object that
+also says what the dependent follows; the bare condition remains valid and means it follows nothing:
+
+```yaml
+units:
+  web:
+    dependencies:
+      requires:
+        db:
+          condition: ready
+          follow: [stop, restart]
+        cache:
+          condition: running
+        migrations: completed
+```
+
+- `stop`: while `db` is down on purpose - stopped by an operator, with its collection, or by its own health check -
+  `web` is held down too. It is stopped first, shows `desired_origin: follow` and `blocked_reason: db:stopped`, and
+  returns to what it was otherwise asked to be as soon as `db` is wanted again. A following unit also stops keeping
+  its requirement up: stopping a collection that contains `db` stops `db`, where a unit that merely requires it would
+  have kept it running.
+- `restart`: when `db` is restarted by an operator, by a restart-required config change, or by its liveness check,
+  `web` is restarted with it: stopped first, then started once `db` meets the edge's condition again.
+- `failure`: while `db` has failed for good - it is `fatal`, or exited and will not be restarted - `web` is held down
+  with `blocked_reason: db:failed`, and returns once `db` is running again.
+
+A requirement that crashes and is restarted by its own restart policy is none of these, and nothing follows it.
+Followers follow followers, so a chain goes down from its far end. Holding only ever makes a unit inactive: starting a
+held unit records the request and it starts when the hold ends; stopping it by hand keeps it stopped afterwards.
 
 ## Restart pacing
 

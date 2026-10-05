@@ -27,6 +27,7 @@ class SystevisorEventKind(enum.Enum):
     STALE_FACT_IGNORED = 'stale_fact_ignored'
     SHUTDOWN_STARTED = 'shutdown_started'
     SIGNAL_FORWARDED = 'signal_forwarded'
+    RESTART_FOLLOWED = 'restart_followed'
     HEALTH_PROBE_STARTED = 'health_probe_started'
     HEALTH_PROBE_RESULT = 'health_probe_result'
     HEALTH_CHANGED = 'health_changed'

@@ -29,6 +29,7 @@ class SystevisorDesiredOrigin(enum.Enum):
     MANUAL = 'manual'
     SHUTDOWN = 'shutdown'
     HEALTH = 'health'
+    FOLLOW = 'follow'
 
 
 class SystevisorDeadlineKind(enum.Enum):

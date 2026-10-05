@@ -46,6 +46,12 @@ class SystevisorDependencyCondition(enum.Enum):
     COMPLETED = 'completed'
 
 
+class SystevisorDependencyFollow(enum.Enum):
+    STOP = 'stop'
+    RESTART = 'restart'
+    FAILURE = 'failure'
+
+
 class SystevisorHealthRole(enum.Enum):
     STARTUP = 'startup'
     READINESS = 'readiness'
@@ -207,8 +213,15 @@ class SystevisorStdioConfig:
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorRequirementConfig:
+    condition: SystevisorDependencyCondition
+    follow: ta.Sequence[SystevisorDependencyFollow] = ()
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorDependenciesConfig:
-    requires: ta.Mapping[str, SystevisorDependencyCondition] = dc.field(default_factory=dict)
+    requires: ta.Mapping[str, SystevisorRequirementConfig] = dc.field(default_factory=dict)
     wants: ta.Sequence[str] = ()
     after: ta.Sequence[str] = ()
     before: ta.Sequence[str] = ()

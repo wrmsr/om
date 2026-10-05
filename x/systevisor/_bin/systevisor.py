@@ -111,7 +111,7 @@ def __om_amalg__():  # noqa
             dict(path='configs/diagnostics.py', sha1='5ada212c224431ef9ce73239a6a22c7df7d71280'),
             dict(path='core/identities.py', sha1='f5c1cb45d31f760208253877ad8d791d77d9471b'),
             dict(path='core/signals.py', sha1='89a31442ba066a40a3e981d7f093e0411d6e4763'),
-            dict(path='core/states.py', sha1='edb8f94711b2a05a494781522c6f3b69c083dc9d'),
+            dict(path='core/states.py', sha1='ef98dea5e06abdfabf5d23b5a361170ae6040bf3'),
             dict(path='platforms/services.py', sha1='b1d597cb3d302dfb4b0d503e0d5f4bc07f8d280b'),
             dict(path='runtime/events.py', sha1='fcd03ef65d1c84b7db2696e8959575c399d4b72e'),
             dict(path='scheduling/cron.py', sha1='5f52089d3e68bd432ebc4e86e7e77d8c956e9ab2'),
@@ -133,7 +133,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='5cf4887a525b7208e44e98871d8defb8766bc7d0'),
+            dict(path='configs/models.py', sha1='981628a9bb285cdb3398cb28cfec73acbe59feb0'),
             dict(path='runtime/clocks.py', sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6'),
             dict(path='../../omcore/configs/formats.py', sha1='b0707d98865d269785703cae4186d38d52d0414d'),
             dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
@@ -149,7 +149,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/inject.py', sha1='863e777b377faeeacd8061532d009cc1f23e4a07'),
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
-            dict(path='configs/marshal.py', sha1='80978d50109521a8e2b24c29a9b0ec9d17811da7'),
+            dict(path='configs/marshal.py', sha1='aab859569796010711a63bffd68474321e93c41f'),
             dict(path='configs/validation.py', sha1='1fb67115462b1ee07f22682247e97040a22107d0'),
             dict(path='control/jsoncodec.py', sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4'),
             dict(path='control/operations.py', sha1='f912fa9b9dea5e9677232da26b21df5178f6fd47'),
@@ -196,12 +196,12 @@ def __om_amalg__():  # noqa
             dict(path='configs/compiling.py', sha1='a748251b2dc5d8b464b9ca4b4e4dbd8743b5f3d7'),
             dict(path='core/effects.py', sha1='a761ee40562f18064f5357f2dd0533ee4e628f05'),
             dict(path='core/inputs.py', sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a'),
-            dict(path='core/state.py', sha1='6a368ad6c88a9d71cda3417bf2eb19e4c42cf238'),
-            dict(path='core/events.py', sha1='37526d652d6e8bc851b49b7417967e6fba6be4c2'),
+            dict(path='core/state.py', sha1='dc415dc57d3dfd8499e2e49e25e5203b4bd17e49'),
+            dict(path='core/events.py', sha1='4986afdaaab96ba06bb894dbe279276b874a32df'),
             dict(path='runtime/fdio.py', sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090'),
             dict(path='runtime/logs.py', sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f'),
             dict(path='runtime/processes.py', sha1='4650bea43d3fc006bcbac4da147829c26800cff4'),
-            dict(path='core/engine.py', sha1='85cee9ab5c2d0b120c1d1b09bfab36d2dd7c2090'),
+            dict(path='core/engine.py', sha1='bc8a8d10d50cbdd7df46bb9ab1cf5b96f2328f6a'),
             dict(path='resources/cgroups.py', sha1='c2ec9703d68dcb767a918c56636ab351f6831148'),
             dict(path='resources/namespaces.py', sha1='4e87cab38547e636cc91a5f9b845bda8e2924795'),
             dict(path='resources/sampling.py', sha1='6fa61546905963453297514ada59d9d09cb66dd1'),
@@ -209,7 +209,7 @@ def __om_amalg__():  # noqa
             dict(path='runtime/emergencies.py', sha1='fb903ba3cd32d441e35b90bb008e4c35ba5b73b1'),
             dict(path='runtime/health.py', sha1='86b5de90036278757a1767fabe8711cc10dc1a52'),
             dict(path='runtime/coordinator.py', sha1='6bc659bf69f73861fd2d5be110748e3151ac1600'),
-            dict(path='selfupdate/codec.py', sha1='3f7848c3a536a6ea5ed33c199af75767e129c6e7'),
+            dict(path='selfupdate/codec.py', sha1='ccb4e0ab853d02de75c5a5290e9148c27ea16005'),
             dict(path='control/configs.py', sha1='750c44ed70324939e257f91d170757d6262f3244'),
             dict(path='runtime/inject.py', sha1='5d0aff306d333f058fc9bfdbfae9837d716c1e83'),
             dict(path='selfupdate/restore.py', sha1='ffd90696e2e447bda4f769cefbaad3c33fe88737'),
@@ -6520,6 +6520,7 @@ class SystevisorDesiredOrigin(enum.Enum):
     MANUAL = 'manual'
     SHUTDOWN = 'shutdown'
     HEALTH = 'health'
+    FOLLOW = 'follow'
 
 
 class SystevisorDeadlineKind(enum.Enum):
@@ -15222,6 +15223,12 @@ class SystevisorDependencyCondition(enum.Enum):
     COMPLETED = 'completed'
 
 
+class SystevisorDependencyFollow(enum.Enum):
+    STOP = 'stop'
+    RESTART = 'restart'
+    FAILURE = 'failure'
+
+
 class SystevisorHealthRole(enum.Enum):
     STARTUP = 'startup'
     READINESS = 'readiness'
@@ -15383,8 +15390,15 @@ class SystevisorStdioConfig:
 
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
+class SystevisorRequirementConfig:
+    condition: SystevisorDependencyCondition
+    follow: ta.Sequence[SystevisorDependencyFollow] = ()
+
+
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class SystevisorDependenciesConfig:
-    requires: ta.Mapping[str, SystevisorDependencyCondition] = dc.field(default_factory=dict)
+    requires: ta.Mapping[str, SystevisorRequirementConfig] = dc.field(default_factory=dict)
     wants: ta.Sequence[str] = ()
     after: ta.Sequence[str] = ()
     before: ta.Sequence[str] = ()
@@ -18968,8 +18982,48 @@ class SystevisorConfigEnumObjMarshaler(ObjMarshaler):
                 raise ValueError(f'invalid {self._enum_type.__name__}: {value!r}') from exc
 
 
+class SystevisorConfigRequirementObjMarshaler(ObjMarshaler):
+    """
+    A requirement is written either as its bare condition or, to say more, as an object. The bare form stays the
+    canonical one whenever it says everything, so a config that follows nothing marshals - and digests - as it did
+    before requirements could carry anything else.
+    """
+
+    def marshal(self, value: ta.Any, context: ObjMarshalContext) -> ta.Any:
+        condition = context.manager.marshal_obj(value.condition, SystevisorDependencyCondition)
+        if not value.follow:
+            return condition
+        return {
+            'condition': condition,
+            'follow': [context.manager.marshal_obj(item, SystevisorDependencyFollow) for item in value.follow],
+        }
+
+    def unmarshal(self, value: ta.Any, context: ObjMarshalContext) -> ta.Any:
+        if isinstance(value, str):
+            value = {'condition': value}
+        if not isinstance(value, ta.Mapping):
+            raise TypeError(value)
+        unknown = sorted(set(value) - {'condition', 'follow'})
+        if unknown:
+            raise ValueError(f'unknown requirement field(s): {", ".join(map(str, unknown))}')
+        if 'condition' not in value:
+            raise ValueError('a requirement needs a condition')
+        raw_follow = value.get('follow', ())
+        if isinstance(raw_follow, str) or not isinstance(raw_follow, ta.Sequence):
+            raise TypeError(raw_follow)
+        follow: ta.Set[SystevisorDependencyFollow] = {
+            context.manager.unmarshal_obj(item, SystevisorDependencyFollow)
+            for item in raw_follow
+        }
+        return SystevisorRequirementConfig(
+            condition=context.manager.unmarshal_obj(value['condition'], SystevisorDependencyCondition),
+            follow=tuple(item for item in SystevisorDependencyFollow if item in follow),
+        )
+
+
 _SYSTEVISOR_CONFIG_ENUM_TYPES = (
     SystevisorDependencyCondition,
+    SystevisorDependencyFollow,
     SystevisorHealthProbeKind,
     SystevisorHealthRecovery,
     SystevisorHealthRole,
@@ -18991,6 +19045,12 @@ for _systevisor_config_marshal_enum_type in _SYSTEVISOR_CONFIG_ENUM_TYPES:
         _systevisor_config_marshal_enum_type,
         SystevisorConfigEnumObjMarshaler(_systevisor_config_marshal_enum_type),
     )
+
+
+_SYSTEVISOR_CONFIG_OBJ_MARSHALER_MANAGER.set_obj_marshaler(
+    SystevisorRequirementConfig,
+    SystevisorConfigRequirementObjMarshaler(),
+)
 
 
 def systevisor_marshal_config_obj(value: ta.Any, value_type: ta.Any = None) -> ta.Any:
@@ -37117,6 +37177,7 @@ class SystevisorInstanceState:
     deadline_kind: ta.Optional[SystevisorDeadlineKind] = None
     deadline_at: ta.Optional[float] = None
     restart_requested: bool = False
+    resume_manual: bool = False
     blocked_reason: ta.Optional[str] = None
     start_stable: bool = False
     health: ta.MutableMapping[str, SystevisorHealthProbeState] = dc.field(default_factory=dict)
@@ -37124,7 +37185,7 @@ class SystevisorInstanceState:
 
 @dc.dataclass()
 class SystevisorEngineState:
-    state_schema_version: int = 3
+    state_schema_version: int = 4
     snapshot: ta.Optional[SystevisorConfigSnapshot] = None
     config_generation: int = 0
     instances: ta.MutableMapping[SystevisorInstanceId, SystevisorInstanceState] = dc.field(default_factory=dict)
@@ -37162,6 +37223,7 @@ class SystevisorEventKind(enum.Enum):
     STALE_FACT_IGNORED = 'stale_fact_ignored'
     SHUTDOWN_STARTED = 'shutdown_started'
     SIGNAL_FORWARDED = 'signal_forwarded'
+    RESTART_FOLLOWED = 'restart_followed'
     HEALTH_PROBE_STARTED = 'health_probe_started'
     HEALTH_PROBE_RESULT = 'health_probe_result'
     HEALTH_CHANGED = 'health_changed'
@@ -39411,6 +39473,24 @@ _SYSTEVISOR_ENGINE_TERMINAL_PROCESS_STATES = frozenset({
     SystevisorProcessState.FATAL,
 })
 
+# Desires worked out afresh on every reconciliation, as against ones an operator or a health check put there to stay.
+_SYSTEVISOR_ENGINE_RECOMPUTED_ORIGINS = frozenset({
+    SystevisorDesiredOrigin.CONFIG,
+    SystevisorDesiredOrigin.COLLECTION,
+    SystevisorDesiredOrigin.DEPENDENCY,
+    SystevisorDesiredOrigin.FOLLOW,
+})
+
+# Reasons for being inactive that mean someone or something decided so, as against simply not having been asked for.
+_SYSTEVISOR_ENGINE_DELIBERATE_ORIGINS = frozenset({
+    SystevisorDesiredOrigin.MANUAL,
+    SystevisorDesiredOrigin.COLLECTION,
+    SystevisorDesiredOrigin.HEALTH,
+    SystevisorDesiredOrigin.SHUTDOWN,
+})
+
+_SYSTEVISOR_ENGINE_HELD_REASON_SUFFIXES = (':stopped', ':failed')
+
 
 class SystevisorEngine:
     def __init__(self, state: ta.Optional[SystevisorEngineState] = None) -> None:
@@ -39511,11 +39591,13 @@ class SystevisorEngine:
             now: float,
             *,
             request_id: ta.Optional[str] = None,
+            resume_manual: bool = False,
     ) -> None:
         previous = instance.desired_state
         previous_origin = instance.desired_origin
         instance.desired_state = desired_state
         instance.desired_origin = desired_origin
+        instance.resume_manual = resume_manual
         if previous is not desired_state or previous_origin is not desired_origin:
             self._emit_event(
                 SystevisorEventKind.DESIRED_CHANGED,
@@ -39697,11 +39779,14 @@ class SystevisorEngine:
             desired_state, desired_origin = self._configured_desired_from_snapshot(spec, command.snapshot)
             self._new_instance(spec, desired_state, desired_origin, now)
 
+        restarting_units: ta.Set[SystevisorUnitName] = set()
         for instance_id in sorted(retained_ids):
             instance = self._state.instances[instance_id]
             new_spec = command.snapshot.instances[instance_id]
             change = systevisor_classify_unit_change(instance.desired_spec.unit, new_spec.unit)
             instance.desired_spec = new_spec
+            if change.kind is SystevisorUnitChangeKind.RESTART:
+                restarting_units.add(instance.unit_name)
 
             if instance.desired_origin in {
                     SystevisorDesiredOrigin.CONFIG,
@@ -39711,6 +39796,9 @@ class SystevisorEngine:
                 self._change_desired(instance, desired_state, desired_origin, now)
 
             self._apply_unit_change(instance, change, now)
+
+        # Only once every retained instance carries its new spec, so that who follows whom is read from one generation.
+        self._propagate_restart(sorted(restarting_units), now)
 
         for instance_id in sorted(removed_ids):
             instance = self._state.instances[instance_id]
@@ -39869,6 +39957,7 @@ class SystevisorEngine:
         )
         instance.restart_requested = True
         instance.unstable_restarts = 0
+        self._propagate_restart((instance.unit_name,), now)
         if instance.process_state in _SYSTEVISOR_ENGINE_TERMINAL_PROCESS_STATES or (
                 instance.process_state is SystevisorProcessState.BACKOFF
         ):
@@ -40314,6 +40403,7 @@ class SystevisorEngine:
         )
         if recovery is SystevisorHealthRecovery.RESTART:
             instance.restart_requested = True
+            self._propagate_restart((instance.unit_name,), now)
         elif recovery is SystevisorHealthRecovery.STOP:
             self._change_desired(
                 instance,
@@ -40404,51 +40494,168 @@ class SystevisorEngine:
             ),
         ))
 
-    def _reconcile_dependency_desires(self, snapshot: SystevisorConfigSnapshot, now: float) -> None:
-        configurable_origins = {
-            SystevisorDesiredOrigin.CONFIG,
-            SystevisorDesiredOrigin.COLLECTION,
-            SystevisorDesiredOrigin.DEPENDENCY,
-        }
-        base: ta.Dict[
-            SystevisorInstanceId,
-            ta.Tuple[SystevisorDesiredState, SystevisorDesiredOrigin],
-        ] = {}
-        active_units: ta.Set[SystevisorUnitName] = set()
+    def _followers(
+            self,
+            follow: SystevisorDependencyFollow,
+    ) -> ta.Mapping[SystevisorUnitName, ta.AbstractSet[SystevisorUnitName]]:
+        followers: ta.Dict[SystevisorUnitName, ta.Set[SystevisorUnitName]] = {}
         for instance in self._state.instances.values():
-            if instance.desired_state is SystevisorDesiredState.REMOVED:
-                continue
-            if instance.desired_origin in configurable_origins:
-                configured = self._configured_desired_from_snapshot(instance.desired_spec, snapshot)
-                base[instance.instance_id] = configured
-                if configured[0] is SystevisorDesiredState.ACTIVE:
-                    active_units.add(instance.unit_name)
-            elif instance.desired_state is SystevisorDesiredState.ACTIVE:
-                active_units.add(instance.unit_name)
+            for name, requirement in instance.desired_spec.unit.dependencies.requires.items():
+                if follow in requirement.follow:
+                    followers.setdefault(SystevisorUnitName(name), set()).add(instance.unit_name)
+        return followers
 
-        pending = sorted(active_units)
+    def _propagate_restart(self, unit_names: ta.Iterable[SystevisorUnitName], now: float) -> None:
+        # A unit which follows a requirement's restarts goes down and comes back with it. Being a dependent it is
+        # stopped first, and its own start then waits on the requirement being back the way it requires.
+        pending = list(unit_names)
+        if not pending:
+            return
+        followers = self._followers(SystevisorDependencyFollow.RESTART)
+        seen = set(pending)
         while pending:
-            unit_name = pending.pop(0)
-            unit = snapshot.config.units.get(unit_name)
-            if unit is None:
-                continue
-            for dependency_name in (*unit.dependencies.requires, *unit.dependencies.wants):
-                dependency = SystevisorUnitName(dependency_name)
-                if self._state.unit_desired_overrides.get(dependency) is False or dependency in active_units:
+            requirement_name = pending.pop(0)
+            for follower_name in sorted(followers.get(requirement_name, ())):
+                if follower_name in seen:
                     continue
-                active_units.add(dependency)
-                pending.append(dependency)
+                seen.add(follower_name)
+                followed = False
+                for instance in self._instances_for_unit(follower_name):
+                    if (
+                            instance.desired_state is SystevisorDesiredState.ACTIVE and
+                            instance.process_state in {SystevisorProcessState.STARTING, SystevisorProcessState.RUNNING}
+                    ):
+                        instance.restart_requested = True
+                        followed = True
+                        self._emit_event(
+                            SystevisorEventKind.RESTART_FOLLOWED,
+                            now,
+                            instance=instance,
+                            data={'requirement': requirement_name},
+                        )
+                if followed:
+                    pending.append(follower_name)
 
-        for instance in self._state.instances.values():
-            base_desired = base.get(instance.instance_id)
-            if base_desired is None:
-                continue
-            desired_state, desired_origin = base_desired
-            if desired_state is not SystevisorDesiredState.ACTIVE and instance.unit_name in active_units:
-                desired_state = SystevisorDesiredState.ACTIVE
-                desired_origin = SystevisorDesiredOrigin.DEPENDENCY
+    def _reconcile_dependency_desires(self, snapshot: SystevisorConfigSnapshot, now: float) -> None:
+        """
+        Settles what every instance is wanted to be doing. Three things bear on it beyond the instance's own base
+        desire: an active unit claims the units it requires or wants, which activates ones that were simply not asked
+        for; a unit whose requirement is down on purpose, or has failed, is held down if it follows that; and a held
+        unit claims nothing, which can in turn bring down what only it was keeping up. Holds only ever accumulate as
+        this is iterated, so it settles.
+        """
+
+        instances = [
+            instance
+            for instance in self._state.instances.values()
+            if instance.desired_state is not SystevisorDesiredState.REMOVED
+        ]
+        by_unit: ta.Dict[SystevisorUnitName, ta.List[SystevisorInstanceState]] = {}
+        base: ta.Dict[SystevisorInstanceId, ta.Tuple[SystevisorDesiredState, SystevisorDesiredOrigin]] = {}
+        for instance in instances:
+            by_unit.setdefault(instance.unit_name, []).append(instance)
+            if instance.desired_origin not in _SYSTEVISOR_ENGINE_RECOMPUTED_ORIGINS:
+                base[instance.instance_id] = (instance.desired_state, instance.desired_origin)
+            elif instance.desired_origin is SystevisorDesiredOrigin.FOLLOW and instance.resume_manual:
+                base[instance.instance_id] = (SystevisorDesiredState.ACTIVE, SystevisorDesiredOrigin.MANUAL)
+            else:
+                base[instance.instance_id] = self._configured_desired_from_snapshot(instance.desired_spec, snapshot)
+
+        overrides = self._state.unit_desired_overrides
+        failed_units = {
+            unit_name
+            for unit_name, unit_instances in by_unit.items()
+            if any(self._collection_member_failure(instance) is not None for instance in unit_instances)
+        }
+        hard_claims: ta.Set[SystevisorUnitName] = set()
+        soft_claims: ta.Set[SystevisorUnitName] = set()
+
+        def wanted(instance: SystevisorInstanceState) -> ta.Tuple[SystevisorDesiredState, SystevisorDesiredOrigin]:
+            # What the instance would be asked to do were its own unit not held.
+            state, origin = base[instance.instance_id]
+            if (
+                    state is not SystevisorDesiredState.ACTIVE and
+                    instance.desired_origin in _SYSTEVISOR_ENGINE_RECOMPUTED_ORIGINS and
+                    overrides.get(instance.unit_name) is not False
+            ):
+                # A claim through an edge that follows stops only reaches a unit nobody asked for. One which was
+                # stopped on purpose stays stopped, and the claimant goes down with it instead.
+                if instance.unit_name in hard_claims or (
+                        instance.unit_name in soft_claims and
+                        origin is SystevisorDesiredOrigin.CONFIG
+                ):
+                    return SystevisorDesiredState.ACTIVE, SystevisorDesiredOrigin.DEPENDENCY
+            return state, origin
+
+        def unit_wanted(unit_name: SystevisorUnitName) -> bool:
+            return any(wanted(instance)[0] is SystevisorDesiredState.ACTIVE for instance in by_unit.get(unit_name, ()))
+
+        held: ta.Dict[SystevisorUnitName, str] = {}
+
+        def down_on_purpose(unit_name: SystevisorUnitName) -> bool:
+            if unit_name in held:
+                return True
+            return any(
+                wanted(instance)[0] is not SystevisorDesiredState.ACTIVE and
+                base[instance.instance_id][1] in _SYSTEVISOR_ENGINE_DELIBERATE_ORIGINS
+                for instance in by_unit.get(unit_name, ())
+            )
+
+        while True:
+            hard_claims.clear()
+            soft_claims.clear()
+            pending = sorted(unit_name for unit_name in by_unit if unit_name not in held and unit_wanted(unit_name))
+            claiming = set(pending)
+            while pending:
+                unit = snapshot.config.units.get(pending.pop(0))
+                if unit is None:
+                    continue
+                edges = [
+                    (SystevisorUnitName(name), SystevisorDependencyFollow.STOP in requirement.follow)
+                    for name, requirement in unit.dependencies.requires.items()
+                ]
+                edges.extend((SystevisorUnitName(name), False) for name in unit.dependencies.wants)
+                for dependency, follows_stop in edges:
+                    if overrides.get(dependency) is False:
+                        continue
+                    (soft_claims if follows_stop else hard_claims).add(dependency)
+                    if dependency not in claiming and dependency not in held and unit_wanted(dependency):
+                        claiming.add(dependency)
+                        pending.append(dependency)
+
+            newly_held: ta.Dict[SystevisorUnitName, str] = {}
+            for unit_name in sorted(by_unit):
+                unit = snapshot.config.units.get(unit_name)
+                if unit_name in held or unit is None or not unit_wanted(unit_name):
+                    continue
+                for name, requirement in sorted(unit.dependencies.requires.items()):
+                    dependency = SystevisorUnitName(name)
+                    if SystevisorDependencyFollow.STOP in requirement.follow and down_on_purpose(dependency):
+                        newly_held[unit_name] = f'{name}:stopped'
+                        break
+                    if SystevisorDependencyFollow.FAILURE in requirement.follow and dependency in failed_units:
+                        newly_held[unit_name] = f'{name}:failed'
+                        break
+            if not newly_held:
+                break
+            held.update(newly_held)
+
+        for instance in instances:
+            desired_state, desired_origin = wanted(instance)
+            held_reason = held.get(instance.unit_name)
+            resume_manual = False
+            if held_reason is not None and desired_state is SystevisorDesiredState.ACTIVE:
+                resume_manual = desired_origin is SystevisorDesiredOrigin.MANUAL
+                desired_state, desired_origin = SystevisorDesiredState.INACTIVE, SystevisorDesiredOrigin.FOLLOW
+            else:
+                held_reason = None
+
             previous_desired_state = instance.desired_state
-            self._change_desired(instance, desired_state, desired_origin, now)
+            if (
+                    (desired_state, desired_origin) != (instance.desired_state, instance.desired_origin) or
+                    resume_manual != instance.resume_manual
+            ):
+                self._change_desired(instance, desired_state, desired_origin, now, resume_manual=resume_manual)
             if (
                     previous_desired_state is not SystevisorDesiredState.ACTIVE and
                     desired_state is SystevisorDesiredState.ACTIVE and
@@ -40458,6 +40665,13 @@ class SystevisorEngine:
                 instance.unstable_restarts = 0
                 instance.completed_successfully = False
                 self._transition(instance, SystevisorProcessState.STOPPED, now, 'configured_reactivation')
+
+            if held_reason is not None:
+                self._update_blocked_reason(instance, held_reason, now)
+            elif instance.blocked_reason is not None and instance.blocked_reason.endswith(
+                    _SYSTEVISOR_ENGINE_HELD_REASON_SUFFIXES,
+            ):
+                self._update_blocked_reason(instance, None, now)
 
     def _dependency_condition_met(
             self,
@@ -40502,9 +40716,9 @@ class SystevisorEngine:
 
     def _blocking_dependency(self, instance: SystevisorInstanceState) -> ta.Optional[str]:
         dependencies = instance.desired_spec.unit.dependencies
-        for dependency_name, condition in sorted(dependencies.requires.items()):
-            if not self._dependency_condition_met(dependency_name, condition):
-                return f'{dependency_name}:{condition.value}'
+        for dependency_name, requirement in sorted(dependencies.requires.items()):
+            if not self._dependency_condition_met(dependency_name, requirement.condition):
+                return f'{dependency_name}:{requirement.condition.value}'
 
         ordering_names = set(dependencies.wants)
         ordering_names.update(dependencies.after)
@@ -40516,6 +40730,21 @@ class SystevisorEngine:
         for dependency_name in sorted(ordering_names):
             if not self._ordering_dependency_settled(dependency_name):
                 return f'{dependency_name}:ordering'
+        return None
+
+    def _restarting_follower(
+            self,
+            instance: SystevisorInstanceState,
+            restart_followers: ta.Mapping[SystevisorUnitName, ta.AbstractSet[SystevisorUnitName]],
+    ) -> ta.Optional[str]:
+        # A requirement that was already down when it was restarted has no stop of its own to order behind its
+        # followers', so its start waits for theirs instead.
+        for follower_name in sorted(restart_followers.get(instance.unit_name, ())):
+            if any(
+                    follower.restart_requested and follower.process_state in _SYSTEVISOR_ENGINE_LIVE_PROCESS_STATES
+                    for follower in self._instances_for_unit(follower_name)
+            ):
+                return f'{follower_name}:restarting'
         return None
 
     def _update_blocked_reason(
@@ -40794,12 +41023,19 @@ class SystevisorEngine:
 
         self._stop_instances(now)
 
+        restart_followers = (
+            self._followers(SystevisorDependencyFollow.RESTART)
+            if any(instance.restart_requested for instance in self._state.instances.values()) else
+            {}
+        )
         for instance in self._start_order():
             if (
                     instance.desired_state is SystevisorDesiredState.ACTIVE and
                     instance.process_state is SystevisorProcessState.STOPPED
             ):
                 blocked_reason = self._blocking_dependency(instance)
+                if blocked_reason is None:
+                    blocked_reason = self._restarting_follower(instance, restart_followers)
                 self._update_blocked_reason(instance, blocked_reason, now)
                 if blocked_reason is None:
                     self._spawn(instance, now)
@@ -43190,6 +43426,7 @@ def systevisor_encode_engine_state(state: SystevisorEngineState) -> ta.Mapping[s
                 'deadline_kind': None if instance.deadline_kind is None else instance.deadline_kind.value,
                 'deadline_at': instance.deadline_at,
                 'restart_requested': instance.restart_requested,
+                'resume_manual': instance.resume_manual,
                 'blocked_reason': instance.blocked_reason,
                 'start_stable': instance.start_stable,
                 'health': [
@@ -43268,6 +43505,7 @@ def _systevisor_self_update_decode_instance(value: ta.Any) -> SystevisorInstance
         ),
         deadline_at=_systevisor_self_update_optional_float(obj.get('deadline_at'), 'deadline at'),
         restart_requested=_systevisor_self_update_bool(obj.get('restart_requested'), 'restart requested'),
+        resume_manual=_systevisor_self_update_bool(obj.get('resume_manual'), 'resume manual'),
         blocked_reason=_systevisor_self_update_optional_string(obj.get('blocked_reason'), 'blocked reason'),
         start_stable=_systevisor_self_update_bool(obj.get('start_stable'), 'start stable'),
         health={item.name: item for item in health},
@@ -43310,7 +43548,7 @@ def systevisor_decode_engine_state(
 ) -> SystevisorEngineState:
     obj = _systevisor_self_update_mapping(value, 'engine state')
     schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'engine schema version')
-    if schema_version != 3:
+    if schema_version != 4:
         raise SystevisorSelfUpdateCodecError(f'unsupported engine state schema: {schema_version}')
     instances = tuple(
         _systevisor_self_update_decode_instance(item)

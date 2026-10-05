@@ -311,6 +311,7 @@ def systevisor_encode_engine_state(state: SystevisorEngineState) -> ta.Mapping[s
                 'deadline_kind': None if instance.deadline_kind is None else instance.deadline_kind.value,
                 'deadline_at': instance.deadline_at,
                 'restart_requested': instance.restart_requested,
+                'resume_manual': instance.resume_manual,
                 'blocked_reason': instance.blocked_reason,
                 'start_stable': instance.start_stable,
                 'health': [
@@ -389,6 +390,7 @@ def _systevisor_self_update_decode_instance(value: ta.Any) -> SystevisorInstance
         ),
         deadline_at=_systevisor_self_update_optional_float(obj.get('deadline_at'), 'deadline at'),
         restart_requested=_systevisor_self_update_bool(obj.get('restart_requested'), 'restart requested'),
+        resume_manual=_systevisor_self_update_bool(obj.get('resume_manual'), 'resume manual'),
         blocked_reason=_systevisor_self_update_optional_string(obj.get('blocked_reason'), 'blocked reason'),
         start_stable=_systevisor_self_update_bool(obj.get('start_stable'), 'start stable'),
         health={item.name: item for item in health},
@@ -431,7 +433,7 @@ def systevisor_decode_engine_state(
 ) -> SystevisorEngineState:
     obj = _systevisor_self_update_mapping(value, 'engine state')
     schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'engine schema version')
-    if schema_version != 3:
+    if schema_version != 4:
         raise SystevisorSelfUpdateCodecError(f'unsupported engine state schema: {schema_version}')
     instances = tuple(
         _systevisor_self_update_decode_instance(item)

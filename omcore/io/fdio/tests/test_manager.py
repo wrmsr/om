@@ -267,6 +267,60 @@ class TestFdioManager(unittest.TestCase):
             second_peer.close()
             poller.close()
 
+    def test_handler_failure_aborts_the_poll_unless_its_on_error_contains_it(self) -> None:
+        class FailingFdioHandler(TestSocketFdioHandler):
+            __test__ = False
+
+            def on_readable(self) -> None:
+                raise ValueError('read failed')
+
+            def on_timeout(self) -> None:
+                self.deadline = None
+                raise ValueError('timeout failed')
+
+        class ContainingFdioHandler(FailingFdioHandler):
+            __test__ = False
+
+            def on_error(self, exc: ta.Optional[BaseException] = None) -> None:
+                self.events.append(('error', str(exc)))
+
+        for failing_type, contained in (
+                (FailingFdioHandler, False),
+                (ContainingFdioHandler, True),
+        ):
+            with self.subTest(failing_type=failing_type.__name__):
+                failing_sock, failing_peer = socket.socketpair()
+                healthy_sock, healthy_peer = socket.socketpair()
+                poller = SelectFdioPoller()
+                failing = failing_type(failing_sock)
+                failing.read_interest = True
+                failing.deadline = time.monotonic()
+                healthy = TestSocketFdioHandler(healthy_sock)
+                healthy.read_interest = True
+                healthy.deadline = time.monotonic()
+                manager = FdioManager(poller)
+                manager.register(failing)
+                manager.register(healthy)
+                try:
+                    failing_peer.sendall(b'x')
+                    healthy_peer.sendall(b'hello')
+
+                    if not contained:
+                        with self.assertRaises(ValueError):
+                            manager.poll(timeout=.5)
+                        continue
+                    manager.poll(timeout=.5)
+
+                    # One handler failing twice over cost the other neither its read nor its timeout.
+                    self.assertEqual(failing.events, [('error', 'read failed'), ('error', 'timeout failed')])
+                    self.assertEqual(healthy.events, [('read', b'hello'), ('timeout', None)])
+                finally:
+                    failing.close()
+                    healthy.close()
+                    failing_peer.close()
+                    healthy_peer.close()
+                    poller.close()
+
     def test_server_socket_accepts_connection(self) -> None:
         accepted: ta.List[ta.Tuple[socket.socket, ta.Any]] = []
         server = ServerSocketFdioHandler(

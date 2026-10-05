@@ -10,6 +10,7 @@ from ..configs.models import SystevisorExecConfig
 from ..configs.models import SystevisorHealthProbeConfig
 from ..configs.models import SystevisorHealthRecovery
 from ..configs.models import SystevisorHealthRole
+from ..configs.models import SystevisorRequirementConfig
 from ..configs.models import SystevisorRestartConfig
 from ..configs.models import SystevisorUnitConfig
 from ..configs.snapshots import systevisor_build_config_snapshot
@@ -97,7 +98,7 @@ class TestSystevisorHealthEngine(unittest.TestCase):
             web=_systevisor_test_health_unit(
                 'web',
                 dependencies=SystevisorDependenciesConfig(
-                    requires={'database': SystevisorDependencyCondition.READY},
+                    requires={'database': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.READY)},
                 ),
             ),
         )

@@ -55,7 +55,13 @@ class FdioHandler(Abstract):
         raise TypeError
 
     def on_error(self, exc: ta.Optional[BaseException] = None) -> None:  # noqa
-        pass
+        """
+        Called by the manager with whatever one of this handler's other callbacks raised. Returning normally contains
+        the failure to this handler, and the poll carries on with the rest; the default re-raises, aborting the poll.
+        """
+
+        if exc is not None:
+            raise exc
 
     def on_timeout(self) -> None:
         """Run work whose `next_deadline()` is due."""

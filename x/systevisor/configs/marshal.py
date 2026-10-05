@@ -8,10 +8,12 @@ from omcore.lite.marshal import ObjMarshalerManager
 from omcore.lite.marshal import new_obj_marshaler_manager
 
 from .models import SystevisorDependencyCondition
+from .models import SystevisorDependencyFollow
 from .models import SystevisorHealthProbeKind
 from .models import SystevisorHealthRecovery
 from .models import SystevisorHealthRole
 from .models import SystevisorOutputMode
+from .models import SystevisorRequirementConfig
 from .models import SystevisorRestartMode
 from .models import SystevisorScheduleActionKind
 from .models import SystevisorScheduleConcurrencyPolicy
@@ -49,8 +51,48 @@ class SystevisorConfigEnumObjMarshaler(ObjMarshaler):
                 raise ValueError(f'invalid {self._enum_type.__name__}: {value!r}') from exc
 
 
+class SystevisorConfigRequirementObjMarshaler(ObjMarshaler):
+    """
+    A requirement is written either as its bare condition or, to say more, as an object. The bare form stays the
+    canonical one whenever it says everything, so a config that follows nothing marshals - and digests - as it did
+    before requirements could carry anything else.
+    """
+
+    def marshal(self, value: ta.Any, context: ObjMarshalContext) -> ta.Any:
+        condition = context.manager.marshal_obj(value.condition, SystevisorDependencyCondition)
+        if not value.follow:
+            return condition
+        return {
+            'condition': condition,
+            'follow': [context.manager.marshal_obj(item, SystevisorDependencyFollow) for item in value.follow],
+        }
+
+    def unmarshal(self, value: ta.Any, context: ObjMarshalContext) -> ta.Any:
+        if isinstance(value, str):
+            value = {'condition': value}
+        if not isinstance(value, ta.Mapping):
+            raise TypeError(value)
+        unknown = sorted(set(value) - {'condition', 'follow'})
+        if unknown:
+            raise ValueError(f'unknown requirement field(s): {", ".join(map(str, unknown))}')
+        if 'condition' not in value:
+            raise ValueError('a requirement needs a condition')
+        raw_follow = value.get('follow', ())
+        if isinstance(raw_follow, str) or not isinstance(raw_follow, ta.Sequence):
+            raise TypeError(raw_follow)
+        follow: ta.Set[SystevisorDependencyFollow] = {
+            context.manager.unmarshal_obj(item, SystevisorDependencyFollow)
+            for item in raw_follow
+        }
+        return SystevisorRequirementConfig(
+            condition=context.manager.unmarshal_obj(value['condition'], SystevisorDependencyCondition),
+            follow=tuple(item for item in SystevisorDependencyFollow if item in follow),
+        )
+
+
 _SYSTEVISOR_CONFIG_ENUM_TYPES = (
     SystevisorDependencyCondition,
+    SystevisorDependencyFollow,
     SystevisorHealthProbeKind,
     SystevisorHealthRecovery,
     SystevisorHealthRole,
@@ -72,6 +114,12 @@ for _systevisor_config_marshal_enum_type in _SYSTEVISOR_CONFIG_ENUM_TYPES:
         _systevisor_config_marshal_enum_type,
         SystevisorConfigEnumObjMarshaler(_systevisor_config_marshal_enum_type),
     )
+
+
+_SYSTEVISOR_CONFIG_OBJ_MARSHALER_MANAGER.set_obj_marshaler(
+    SystevisorRequirementConfig,
+    SystevisorConfigRequirementObjMarshaler(),
+)
 
 
 def systevisor_marshal_config_obj(value: ta.Any, value_type: ta.Any = None) -> ta.Any:

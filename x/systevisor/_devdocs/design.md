@@ -27,6 +27,14 @@ collection contributes no claim; a manually stopped or failed collection contrib
 instance overrides win. Dependency claims are a recomputed transitive closure and disappear when their final active
 dependent disappears.
 
+A requirement edge may additionally be followed, which is a hold rather than a claim. A unit following an edge's
+stops is held inactive while the required unit is down on purpose, and its claim through that edge reaches only a
+unit nobody had asked for, never one that was stopped. A unit following an edge's failures is held while the required
+unit has failed for good. A held unit claims nothing, which can bring down what only it was keeping up and so hold
+others; holds only accumulate as this is iterated, so it settles. A hold overrides even a manual start, but remembers
+it. Following an edge's restarts is not a desire at all: it marks the follower for restart at the moment its
+requirement is deliberately restarted, and stop ordering and the edge's own start condition do the rest.
+
 ## Configuration transaction
 
 Sources are discovered deterministically, parsed by extension, merged with strict duplicate rules, explicitly
@@ -201,8 +209,10 @@ Stops are the reverse of starts. A unit is signalled only once every unit that d
 both ends are stopping together: manager shutdown, a collection stop, removal by reload, or two units restarting for
 the same config change. Each unit's stop timeout starts when it is signalled, so a chain takes the sum of its links.
 
-A dependent which is staying up does not hold its dependency, and stopping a dependency does not stop its dependents:
-`requires` gates a start and orders a stop, nothing more. Priority orders units within a step and is not waited on.
+A dependent which is staying up does not hold its dependency, and stopping a dependency does not stop its dependents
+unless they follow that edge: by itself `requires` gates a start and orders a stop, nothing more. A requirement
+restarted while it had nothing running has no stop to order behind its followers', so its start waits for theirs
+instead. Priority orders units within a step and is not waited on.
 Ordering is read from each instance's own spec, so an instance removed by a reload still stops according to the
 configuration it was started under. The emergency stop below has no ordering at all.
 

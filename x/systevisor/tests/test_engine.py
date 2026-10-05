@@ -7,7 +7,9 @@ from omcore.lite.marshal import OBJ_MARSHALER_MANAGER
 from ..configs.models import SystevisorConfig
 from ..configs.models import SystevisorDependenciesConfig
 from ..configs.models import SystevisorDependencyCondition
+from ..configs.models import SystevisorDependencyFollow
 from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorRequirementConfig
 from ..configs.models import SystevisorRestartConfig
 from ..configs.models import SystevisorRestartMode
 from ..configs.models import SystevisorSignalScope
@@ -34,6 +36,8 @@ from ..core.inputs import SystevisorShutdownCommand
 from ..core.inputs import SystevisorSpawnSucceededFact
 from ..core.state import SystevisorEngineState
 from ..core.states import SystevisorDeadlineKind
+from ..core.states import SystevisorDesiredOrigin
+from ..core.states import SystevisorDesiredState
 from ..core.states import SystevisorProcessState
 from ..core.states import SystevisorSignalReason
 from .fakes import SystevisorEngineHarness
@@ -107,7 +111,7 @@ class TestSystevisorEngine(unittest.TestCase):
             web=_systevisor_test_engine_unit(
                 'web',
                 dependencies=SystevisorDependenciesConfig(
-                    requires={'database': SystevisorDependencyCondition.RUNNING},
+                    requires={'database': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.RUNNING)},
                 ),
                 priority=20,
             ),
@@ -397,7 +401,7 @@ class TestSystevisorEngine(unittest.TestCase):
                 replicas=2,
                 restart=SystevisorRestartConfig(start_secs=0.),
                 dependencies=SystevisorDependenciesConfig(
-                    requires={'database': SystevisorDependencyCondition.RUNNING},
+                    requires={'database': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.RUNNING)},
                 ),
             ),
             worker=_systevisor_test_engine_unit('worker', dependencies=SystevisorDependenciesConfig(wants=('web',))),
@@ -433,7 +437,7 @@ class TestSystevisorEngine(unittest.TestCase):
         spawns = self._start_all(harness, _systevisor_test_engine_snapshot(
             database=_systevisor_test_engine_unit('database'),
             web=_systevisor_test_engine_unit('web', dependencies=SystevisorDependenciesConfig(
-                requires={'database': SystevisorDependencyCondition.RUNNING},
+                requires={'database': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.RUNNING)},
             )),
         ))
 
@@ -470,6 +474,243 @@ class TestSystevisorEngine(unittest.TestCase):
         assert third.run_id is not None
         output = harness.submit(SystevisorProcessExitedFact(third.run_id, 0))
         self.assertEqual(len(_systevisor_test_engine_effects(output, SystevisorSignalProcessEffect)), 2)
+
+    def _signalled(self, spawns: ta.Mapping[str, ta.Any], output: ta.Any) -> ta.AbstractSet[str]:
+        return {
+            next(instance_id for instance_id, spawn in spawns.items() if spawn.run_id == effect.run_id)
+            for effect in _systevisor_test_engine_effects(output, SystevisorSignalProcessEffect)
+        }
+
+    def _respawned(self, harness: SystevisorEngineHarness, spawns: ta.Dict[str, ta.Any], output: ta.Any) -> ta.Any:
+        # Confirms whatever the engine just asked to have spawned, and returns the output of the last confirmation.
+        for spawn in _systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect):
+            spawns[spawn.instance_id] = spawn
+            output = self._respawned(harness, spawns, harness.succeed_spawn(spawn))
+        return output
+
+    def _following_snapshot(self, *follow: SystevisorDependencyFollow, **units: SystevisorUnitConfig) -> ta.Any:
+        return _systevisor_test_engine_snapshot(
+            database=_systevisor_test_engine_unit('database'),
+            web=_systevisor_test_engine_unit('web', dependencies=SystevisorDependenciesConfig(requires={
+                'database': SystevisorRequirementConfig(
+                    condition=SystevisorDependencyCondition.RUNNING,
+                    follow=follow,
+                ),
+            })),
+            bystander=_systevisor_test_engine_unit('bystander', dependencies=SystevisorDependenciesConfig(requires={
+                'database': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.RUNNING),
+            })),
+            **units,
+        )
+
+    def test_follower_goes_down_with_a_requirement_stopped_on_purpose_and_returns_with_it(self) -> None:
+        harness = SystevisorEngineHarness()
+        spawns = dict(self._start_all(harness, self._following_snapshot(
+            SystevisorDependencyFollow.STOP,
+            frontend=_systevisor_test_engine_unit('frontend', dependencies=SystevisorDependenciesConfig(requires={
+                'web': SystevisorRequirementConfig(
+                    condition=SystevisorDependencyCondition.RUNNING,
+                    follow=(SystevisorDependencyFollow.STOP,),
+                ),
+            })),
+        )))
+        instances = harness.engine.state.instances
+        web = instances[SystevisorInstanceId('web:0')]
+        frontend = instances[SystevisorInstanceId('frontend:0')]
+        bystander = instances[SystevisorInstanceId('bystander:0')]
+        bystander_run_id = bystander.run_id
+
+        # The whole chain that follows is held, and stops from its far end; what merely requires it carries on.
+        output = harness.submit(SystevisorSetUnitDesiredCommand(SystevisorUnitName('database'), False))
+        self.assertEqual(self._signalled(spawns, output), {'frontend:0'})
+        self.assertEqual(
+            (web.desired_state, web.desired_origin, web.blocked_reason),
+            (SystevisorDesiredState.INACTIVE, SystevisorDesiredOrigin.FOLLOW, 'frontend:stopping'),
+        )
+        self.assertEqual(frontend.blocked_reason, 'web:stopped')
+        self.assertEqual(self._signalled(spawns, harness.exit_spawn(spawns['frontend:0'], 0)), {'web:0'})
+        self.assertEqual(web.blocked_reason, 'database:stopped')
+        self.assertEqual(self._signalled(spawns, harness.exit_spawn(spawns['web:0'], 0)), {'database:0'})
+        harness.exit_spawn(spawns['database:0'], 0)
+        self.assertEqual(bystander.desired_state, SystevisorDesiredState.ACTIVE)
+        self.assertEqual(bystander.process_state, SystevisorProcessState.RUNNING)
+
+        # Wanting the requirement again is all it takes: the followers return to what they were configured to be.
+        output = harness.submit(SystevisorSetUnitDesiredCommand(SystevisorUnitName('database'), True))
+        self.assertEqual((web.desired_state, web.desired_origin), (
+            SystevisorDesiredState.ACTIVE,
+            SystevisorDesiredOrigin.CONFIG,
+        ))
+        self._respawned(harness, spawns, output)
+        self.assertEqual(
+            {instance.process_state for instance in instances.values()},
+            {SystevisorProcessState.RUNNING},
+        )
+        self.assertIsNone(web.blocked_reason)
+        self.assertEqual(bystander.run_id, bystander_run_id)
+
+    def test_held_follower_keeps_what_the_operator_last_asked_of_it(self) -> None:
+        harness = SystevisorEngineHarness()
+        snapshot = _systevisor_test_engine_snapshot(
+            database=_systevisor_test_engine_unit('database'),
+            web=SystevisorUnitConfig(
+                exec=SystevisorExecConfig(argv=('web',)),
+                autostart=False,
+                restart=SystevisorRestartConfig(start_secs=0.),
+                dependencies=SystevisorDependenciesConfig(requires={
+                    'database': SystevisorRequirementConfig(
+                        condition=SystevisorDependencyCondition.RUNNING,
+                        follow=(SystevisorDependencyFollow.STOP,),
+                    ),
+                }),
+            ),
+        )
+        spawns: ta.Dict[str, ta.Any] = {}
+        self._respawned(harness, spawns, harness.submit(SystevisorApplySnapshotCommand(snapshot)))
+        web = harness.engine.state.instances[SystevisorInstanceId('web:0')]
+        self._respawned(harness, spawns, harness.submit(SystevisorSetInstanceDesiredCommand(web.instance_id, True)))
+        self.assertEqual(web.process_state, SystevisorProcessState.RUNNING)
+
+        # Started by hand, and not by anything in the configuration: being held must not forget that.
+        harness.submit(SystevisorSetUnitDesiredCommand(SystevisorUnitName('database'), False))
+        harness.exit_spawn(spawns['web:0'], 0)
+        harness.exit_spawn(spawns['database:0'], 0)
+        self.assertEqual(web.desired_origin, SystevisorDesiredOrigin.FOLLOW)
+        self._respawned(
+            harness,
+            spawns,
+            harness.submit(SystevisorSetUnitDesiredCommand(SystevisorUnitName('database'), True)),
+        )
+        self.assertEqual(web.process_state, SystevisorProcessState.RUNNING)
+        self.assertEqual(web.desired_origin, SystevisorDesiredOrigin.MANUAL)
+
+        # Stopped by hand while held, it stays stopped when the hold ends.
+        harness.submit(SystevisorSetUnitDesiredCommand(SystevisorUnitName('database'), False))
+        harness.exit_spawn(spawns['web:0'], 0)
+        harness.exit_spawn(spawns['database:0'], 0)
+        harness.submit(SystevisorSetInstanceDesiredCommand(web.instance_id, False))
+        self._respawned(
+            harness,
+            spawns,
+            harness.submit(SystevisorSetUnitDesiredCommand(SystevisorUnitName('database'), True)),
+        )
+        self.assertEqual(web.process_state, SystevisorProcessState.STOPPED)
+        self.assertEqual(web.desired_origin, SystevisorDesiredOrigin.MANUAL)
+
+    def test_follower_restarts_with_its_requirement(self) -> None:
+        harness = SystevisorEngineHarness()
+        spawns = dict(self._start_all(harness, self._following_snapshot(SystevisorDependencyFollow.RESTART)))
+        instances = harness.engine.state.instances
+        before = {instance_id: spawn.run_id for instance_id, spawn in spawns.items()}
+
+        output = harness.submit(SystevisorRestartInstanceCommand(SystevisorInstanceId('database:0')))
+        self.assertIn(SystevisorEventKind.RESTART_FOLLOWED, {event.kind for event in output.events})
+        self.assertEqual(self._signalled(spawns, output), {'web:0'})
+        output = harness.exit_spawn(spawns['web:0'], 0)
+        self.assertEqual(self._signalled(spawns, output), {'database:0'})
+        self.assertEqual(_systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect), [])
+        self._respawned(harness, spawns, harness.exit_spawn(spawns['database:0'], 0))
+
+        self.assertEqual(
+            {instance.process_state for instance in instances.values()},
+            {SystevisorProcessState.RUNNING},
+        )
+        after = {instance_id: spawn.run_id for instance_id, spawn in spawns.items()}
+        self.assertNotEqual(after['database:0'], before['database:0'])
+        self.assertNotEqual(after['web:0'], before['web:0'])
+        self.assertEqual(after['bystander:0'], before['bystander:0'])
+
+        # A restart-required change to the requirement's configuration is a restart like any other.
+        changed = self._following_snapshot(SystevisorDependencyFollow.RESTART)
+        changed = _systevisor_test_engine_snapshot(**{
+            **changed.config.units,
+            'database': _systevisor_test_engine_unit('database-v2'),
+        })
+        output = harness.submit(SystevisorApplySnapshotCommand(changed))
+        self.assertEqual(self._signalled(spawns, output), {'web:0'})
+
+    def test_rerun_of_a_completed_requirement_waits_for_its_follower_to_stop(self) -> None:
+        harness = SystevisorEngineHarness()
+        spawns: ta.Dict[str, ta.Any] = {}
+        output = harness.submit(SystevisorApplySnapshotCommand(_systevisor_test_engine_snapshot(
+            migrate=_systevisor_test_engine_unit('migrate'),
+            web=_systevisor_test_engine_unit('web', dependencies=SystevisorDependenciesConfig(requires={
+                'migrate': SystevisorRequirementConfig(
+                    condition=SystevisorDependencyCondition.COMPLETED,
+                    follow=(SystevisorDependencyFollow.RESTART,),
+                ),
+            })),
+        )))
+        self._respawned(harness, spawns, output)
+        self._respawned(harness, spawns, harness.exit_spawn(spawns['migrate:0'], 0))
+        migrate = harness.engine.state.instances[SystevisorInstanceId('migrate:0')]
+        web = harness.engine.state.instances[SystevisorInstanceId('web:0')]
+        self.assertEqual(web.process_state, SystevisorProcessState.RUNNING)
+        first_web_run_id = web.run_id
+
+        # The requirement has nothing running to stop, so nothing would otherwise order it behind its follower.
+        output = harness.submit(SystevisorRestartInstanceCommand(migrate.instance_id))
+        self.assertEqual(self._signalled(spawns, output), {'web:0'})
+        self.assertEqual(_systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect), [])
+        self.assertEqual(migrate.blocked_reason, 'web:restarting')
+
+        output = harness.exit_spawn(spawns['web:0'], 0)
+        self.assertEqual(
+            [spawn.instance_id for spawn in _systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect)],
+            ['migrate:0'],
+        )
+        self._respawned(harness, spawns, output)
+        self.assertEqual(web.blocked_reason, 'migrate:completed')
+        self._respawned(harness, spawns, harness.exit_spawn(spawns['migrate:0'], 0))
+        self.assertEqual(web.process_state, SystevisorProcessState.RUNNING)
+        self.assertNotEqual(web.run_id, first_web_run_id)
+
+    def test_follower_is_held_while_a_requirement_has_failed(self) -> None:
+        harness = SystevisorEngineHarness()
+        snapshot = self._following_snapshot(SystevisorDependencyFollow.FAILURE)
+        snapshot = _systevisor_test_engine_snapshot(**{
+            **snapshot.config.units,
+            'database': _systevisor_test_engine_unit('database', restart_mode=SystevisorRestartMode.NEVER),
+        })
+        spawns = dict(self._start_all(harness, snapshot))
+        instances = harness.engine.state.instances
+        web = instances[SystevisorInstanceId('web:0')]
+        bystander = instances[SystevisorInstanceId('bystander:0')]
+
+        # Gone, and not coming back by itself.
+        output = harness.exit_spawn(spawns['database:0'], 1)
+        self.assertEqual(self._signalled(spawns, output), {'web:0'})
+        self.assertEqual(
+            (web.desired_state, web.desired_origin, web.blocked_reason),
+            (SystevisorDesiredState.INACTIVE, SystevisorDesiredOrigin.FOLLOW, 'database:failed'),
+        )
+        self.assertEqual(bystander.process_state, SystevisorProcessState.RUNNING)
+        harness.exit_spawn(spawns['web:0'], 0)
+        self.assertEqual(web.process_state, SystevisorProcessState.STOPPED)
+
+        self._respawned(
+            harness,
+            spawns,
+            harness.submit(SystevisorRestartInstanceCommand(SystevisorInstanceId('database:0'))),
+        )
+        self.assertEqual(web.process_state, SystevisorProcessState.RUNNING)
+        self.assertEqual(web.desired_origin, SystevisorDesiredOrigin.CONFIG)
+
+    def test_requirement_that_restarts_itself_is_not_a_failure_and_is_not_followed(self) -> None:
+        harness = SystevisorEngineHarness()
+        spawns = dict(self._start_all(harness, self._following_snapshot(
+            SystevisorDependencyFollow.STOP,
+            SystevisorDependencyFollow.RESTART,
+            SystevisorDependencyFollow.FAILURE,
+        )))
+        web = harness.engine.state.instances[SystevisorInstanceId('web:0')]
+
+        # A crash its own restart policy recovers from is neither a stop, a restart on purpose, nor gone for good.
+        output = harness.exit_spawn(spawns['database:0'], 1)
+        self.assertEqual(self._signalled(spawns, output), set())
+        self.assertEqual(web.process_state, SystevisorProcessState.RUNNING)
+        self.assertEqual(web.desired_origin, SystevisorDesiredOrigin.CONFIG)
+        self.assertFalse(web.restart_requested)
 
     def test_unknown_and_duplicate_facts_are_observable(self) -> None:
         harness = SystevisorEngineHarness()
@@ -538,7 +779,9 @@ class TestSystevisorEngine(unittest.TestCase):
             web=_systevisor_test_engine_unit(
                 'web',
                 dependencies=SystevisorDependenciesConfig(
-                    requires={'migrate': SystevisorDependencyCondition.COMPLETED},
+                    requires={
+                        'migrate': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.COMPLETED),
+                    },
                 ),
             ),
         )))

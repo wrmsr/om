@@ -1,4 +1,5 @@
 # ruff: noqa: PT009 UP006 UP007 UP045
+import typing as ta
 import unittest
 
 from omcore.lite.marshal import OBJ_MARSHALER_MANAGER
@@ -7,7 +8,9 @@ from ..configs.models import SystevisorCollectionConfig
 from ..configs.models import SystevisorConfig
 from ..configs.models import SystevisorDependenciesConfig
 from ..configs.models import SystevisorDependencyCondition
+from ..configs.models import SystevisorDependencyFollow
 from ..configs.models import SystevisorExecConfig
+from ..configs.models import SystevisorRequirementConfig
 from ..configs.models import SystevisorRestartConfig
 from ..configs.models import SystevisorRestartMode
 from ..configs.models import SystevisorUnitConfig
@@ -207,7 +210,7 @@ class TestSystevisorCollections(unittest.TestCase):
             autostart=False,
             restart=SystevisorRestartConfig(mode=SystevisorRestartMode.NEVER, start_secs=0.),
             dependencies=SystevisorDependenciesConfig(
-                requires={'database': SystevisorDependencyCondition.RUNNING},
+                requires={'database': SystevisorRequirementConfig(condition=SystevisorDependencyCondition.RUNNING)},
             ),
         )
         snapshot = _systevisor_test_collection_snapshot(
@@ -235,6 +238,54 @@ class TestSystevisorCollections(unittest.TestCase):
         output = harness.exit_spawn(web_spawn, 0)
         signals = _systevisor_test_collection_effects(output, SystevisorSignalProcessEffect)
         self.assertEqual([signal.run_id for signal in signals], [database_spawn.run_id])
+
+    def test_claim_through_a_following_edge_does_not_keep_up_what_its_collection_stopped(self) -> None:
+        def stop_the_database_collection(*follow: SystevisorDependencyFollow) -> ta.Tuple[ta.Any, ta.Any, ta.Any]:
+            harness = SystevisorEngineHarness()
+            snapshot = _systevisor_test_collection_snapshot(
+                {
+                    'database': _systevisor_test_collection_unit('database'),
+                    'web': SystevisorUnitConfig(
+                        exec=SystevisorExecConfig(argv=('web',)),
+                        restart=SystevisorRestartConfig(mode=SystevisorRestartMode.NEVER, start_secs=0.),
+                        dependencies=SystevisorDependenciesConfig(requires={
+                            'database': SystevisorRequirementConfig(
+                                condition=SystevisorDependencyCondition.RUNNING,
+                                follow=follow,
+                            ),
+                        }),
+                    ),
+                },
+                {'data': SystevisorCollectionConfig(units=('database',), autostart=True)},
+            )
+            output = harness.submit(SystevisorApplySnapshotCommand(snapshot))  # type: ignore[arg-type]
+            database_spawn = _systevisor_test_collection_effects(output, SystevisorSpawnProcessEffect)[0]
+            output = harness.succeed_spawn(database_spawn)
+            web_spawn = _systevisor_test_collection_effects(output, SystevisorSpawnProcessEffect)[0]
+            harness.succeed_spawn(web_spawn)
+            output = harness.submit(SystevisorSetCollectionDesiredCommand(SystevisorCollectionName('data'), False))
+            return (
+                harness.engine.state.instances[database_spawn.instance_id],
+                harness.engine.state.instances[web_spawn.instance_id],
+                _systevisor_test_collection_effects(output, SystevisorSignalProcessEffect),
+            )
+
+        # A unit outside the collection which simply requires the database keeps it up, as it always has.
+        database, web, signals = stop_the_database_collection()
+        self.assertEqual(signals, [])
+        self.assertEqual(
+            (database.desired_state, database.desired_origin),
+            (SystevisorDesiredState.ACTIVE, SystevisorDesiredOrigin.DEPENDENCY),
+        )
+
+        # One which follows its stops goes down with it instead.
+        database, web, signals = stop_the_database_collection(SystevisorDependencyFollow.STOP)
+        self.assertEqual([signal.run_id for signal in signals], [web.run_id])
+        self.assertEqual(database.desired_state, SystevisorDesiredState.INACTIVE)
+        self.assertEqual(
+            (web.desired_state, web.desired_origin, web.blocked_reason),
+            (SystevisorDesiredState.INACTIVE, SystevisorDesiredOrigin.FOLLOW, 'database:stopped'),
+        )
 
     def test_collection_state_roundtrips(self) -> None:
         harness = SystevisorEngineHarness()

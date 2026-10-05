@@ -60,6 +60,13 @@ class FdioManager:
     def _is_registered(self, h: FdioHandler) -> bool:
         return self._handlers.get(id(h)) is h
 
+    @staticmethod
+    def _dispatch(h: FdioHandler, fn: ta.Callable[[], None]) -> None:
+        try:
+            fn()
+        except Exception as e:  # noqa
+            h.on_error(e)
+
     def poll(self, *, timeout: ta.Optional[float] = None) -> None:
         """Wait for descriptor readiness or the earliest handler deadline, then dispatch all work that is ready."""
 
@@ -73,15 +80,15 @@ class FdioManager:
 
         for f in pr.r:
             if self._is_registered(h := rd[f]) and not h.closed:
-                h.on_readable()
+                self._dispatch(h, h.on_readable)
         for f in pr.w:
             if self._is_registered(h := wd[f]) and not h.closed:
-                h.on_writable()
+                self._dispatch(h, h.on_writable)
 
         for h in list(self._handlers.values()):
             if not self._is_registered(h) or h.closed:
                 continue
             if (deadline := h.next_deadline()) is not None and deadline <= time.monotonic():
-                h.on_timeout()
+                self._dispatch(h, h.on_timeout)
 
         self._handlers = {id(h): h for h in self._handlers.values() if not h.closed}
