@@ -18,6 +18,25 @@ from .test_parity import synthetic_source
 ##
 
 
+# These tests run the Triton kernels on CPU through Triton's interpreter, which each of them switches on for the rest of
+# the process (TRITON_INTERPRET=1). Triton reads that switch every time a kernel is jitted, and it jits its own `tl`
+# helpers (tl.sigmoid, ...) when it is first imported, so interpreted and compiled Triton cannot share a process:
+#
+#  - If Triton was already imported compiled (a kernel launched on CUDA, or torch.compile on CUDA, earlier in the
+#    process), our kernels are jitted here as interpreted functions that call compiled `tl` helpers, and these tests
+#    fail with "Cannot call @triton.jit'd outside of the scope of a kernel".
+#  - If these tests run first on a CUDA machine, test_torch_triton.py's kernels then run interpreted on CUDA tensors,
+#    which the interpreter does not support: bf16 comes out as garbage (test_qlinear_kernel) and some arguments cannot
+#    be moved to the host ("'ConstTensorWrapper' object has no attribute 'untyped_storage'": test_gdn_step_kernel,
+#    test_model_decode_with_kernel).
+#
+# So on a CUDA machine this module and test_torch_triton.py must run in separate pytest processes, and one process
+# running both fails. Without CUDA both modules are interpreted throughout and the conflict does not arise.
+#
+# TODO: run these tests' bodies in a subprocess with TRITON_INTERPRET=1 in its environment instead of setting it in this
+#  process, so that neither the order nor the grouping of tests in a pytest run matters.
+
+
 def _skip() -> bool:
     try:
         import torch  # noqa

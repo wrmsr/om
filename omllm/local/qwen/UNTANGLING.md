@@ -367,10 +367,12 @@ passes. Each has a test or a bench signal noted; keep them in mind at every step
   warning).
 - User-defined Triton kernels inside the compiled step must not take float scalar arguments — torch.compile passes them
   as fp64.
-- Nothing inside the compiled step may write through a dtype view of one of its arguments (`buf.view(torch.uint8)`
-  as the target of an in-place op): inductor stores the view-typed value through the buffer's own typed pointer, and
-  for a uint8 view of an fp8 buffer Triton refuses the store (`cannot cast uint8[..] to fp8e4nv`). Reading through
-  such a view is fine. `test_torch_triton.py::test_fp8_compiled_write` pins the fp8 write on CUDA.
+- Nothing inside the compiled step may make an indexed write through a dtype view of one of its arguments
+  (`buf.view(torch.uint8).index_copy_(...)`): inductor stores the view-typed value through the buffer's own typed
+  pointer. For a uint8 view of an fp8 buffer Triton refuses the store (`cannot cast uint8[..] to fp8e4nv`); for
+  pairs it can convert by value, such as an int32 view of a float32 buffer, the result is silently wrong. Reading
+  through such a view is fine. `x/torch_/dtypeviewrepro.py` reproduces the bug on its own;
+  `test_torch_triton.py::test_fp8_compiled_write` pins the fp8 write on CUDA.
 
 ### 5.2 One host sync per round
 
