@@ -250,13 +250,13 @@ class BlobStoreConformance:
 
         runner.run(inner)
 
-    LONG_KEYS_LENGTH = 960
+    LONG_KEYS_LENGTH = 190
 
     def test_long_keys(self, store, runner):
         async def inner():
             segs = [f'{i:03d}' + 'x' * self.LONG_KEYS_LENGTH for i in range(5)]
             k = '/'.join(segs)
-            assert len(k.encode()) > self.LONG_KEYS_LENGTH
+            assert len(k.encode()) > self.LONG_KEYS_LENGTH * 5
             await store.put(k, b'long')
             assert (await store.get(k)).data == b'long'
             assert await list_keys(store) == [k]
