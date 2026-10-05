@@ -108,6 +108,8 @@ class BlobStoreConformance:
     many_keys: ta.ClassVar[int] = 25
     xfail_astral_ordering: ta.ClassVar[bool] = False
     xfail_conditional_races: ta.ClassVar[bool] = False  # for backends whose preconditions are not atomic under races
+    # For backends whose reads can transiently fail while racing an overwrite of the same key.
+    transient_read_errors: ta.ClassVar[tuple[type[BaseException], ...]] = ()
 
     @pytest.fixture
     def store(self) -> AsyncBlobStore:
@@ -814,11 +816,20 @@ class BlobStoreConformance:
                     await store.put('k', content(i))
 
             async def reader():
-                for _ in range(rounds):
-                    b = await store.get('k')
+                reads = 0
+                transients = 0
+                while reads < rounds:
+                    try:
+                        b = await store.get('k')
+                    except self.transient_read_errors:
+                        transients += 1
+                        if transients > rounds:
+                            raise
+                        continue
                     assert len(b.data) == size
                     assert len(set(b.data)) == 1
                     assert b.info.size == size
+                    reads += 1
 
             results = await runner.gather([writer] + [reader for _ in range(max(1, self.concurrency - 1))])
             assert all(r is None for r in results), results

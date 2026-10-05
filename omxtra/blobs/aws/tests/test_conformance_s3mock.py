@@ -8,6 +8,7 @@ from omcore.http import all as http
 
 from ...adapters import AsyncToSyncBlobStore
 from ...adapters import SyncToAsyncBlobStore
+from ...errors import BlobTransportError
 from ...prefixes import PrefixedBlobStore
 from ...tests.conformance import BlobStoreConformance
 from ...tests.runners import SyncAwaitScenarioRunner
@@ -39,6 +40,13 @@ class TestS3MockConformance(BlobStoreConformance):
     xfail_astral_ordering = True  # s3mock sorts listings by UTF-16 code units
     xfail_conditional_races = True  # s3mock checks preconditions non-atomically: racing writers can both win
 
+    # s3mock bug: a GetObject racing an overwrite of the same key can fail - usually with a 500, occasionally with a 200
+    # whose body is cut off. The overwrite replaces the object's data file non-atomically, and the GetObject only opens
+    # it once it is streaming the response body, by which time it may momentarily not exist (a server-side
+    # NoSuchFileException in ObjectController.getObject). Real S3 overwrites are atomic, and retrying the read succeeds.
+    # Both failures surface as BlobTransportError. See x/s3mockrepro.py for a standalone reproduction.
+    transient_read_errors = (BlobTransportError,)
+
     @pytest.fixture(params=S3_TEST_CLIENTS, ids=lambda c: c.id)
     def s3_client(self, request):
         c = request.param
@@ -62,6 +70,7 @@ class TestS3MockAdapterRoundTripConformance(BlobStoreConformance):
     large_size = 11 * MIB
     xfail_astral_ordering = True
     xfail_conditional_races = True
+    transient_read_errors = (BlobTransportError,)  # as above
 
     @pytest.fixture
     def store(self, harness):

@@ -238,7 +238,6 @@ def test_concurrent_readers(store, runner_cls):
     async def writer():
         try:
             db = await LsmDb.open(store, 'db', options=opts)
-            states[db.manifest_id] = {}
             model: dict[bytes, bytes] = {}
             for i in range(30):
                 for j in range(5):
@@ -276,6 +275,8 @@ def test_concurrent_readers(store, runner_cls):
     async def inner():
         db = await LsmDb.open(store, 'db', options=opts)
         states[db.manifest_id] = {}
+        # Opening the writer commits its takeover manifest, which readers may see before the writer could record it.
+        states[db.manifest_id + 1] = {}
         await db.close()
         results = await runner.gather([writer, reader, reader])
         for res in results:
