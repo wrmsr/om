@@ -32,6 +32,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 import typing as ta
 
@@ -130,12 +131,14 @@ class ManifestBuilder:
             *,
             subprocess_kwargs: ta.Mapping[str, ta.Any] | None = None,
             module_dumper_payload_src: str | None = None,
+            profile: bool = False,
     ) -> None:
         super().__init__()
 
         self._base_dir = base_dir
         self._subprocess_kwargs = subprocess_kwargs
         self._module_dumper_payload_src = module_dumper_payload_src
+        self._profile = profile
 
         self._sem = asyncio.Semaphore(concurrency)
         self._num_dumped = 0
@@ -237,7 +240,7 @@ class ManifestBuilder:
                 )
 
                 origins.append(origin)
-                targets.append({
+                targets.append({  # noqa
                     'origin': dc.asdict(origin),  # noqa
                     'kind': 'inline',
                     'cls_mod_name': cls_mod_name,
@@ -258,7 +261,7 @@ class ManifestBuilder:
                 )
 
                 origins.append(origin)
-                targets.append({
+                targets.append({  # noqa
                     'origin': dc.asdict(origin),  # noqa
                     'kind': 'attr',
                     'attr': attr_name,
@@ -282,19 +285,35 @@ class ManifestBuilder:
             shell_wrap: bool = True,
             warn_threshold_s: float | None = 1.,
     ) -> ta.Any:
+        n = self._num_dumped  # noqa
+        self._num_dumped += 1
+
         dumper_payload_src: str
         if self._module_dumper_payload_src is not None:
             dumper_payload_src = self._module_dumper_payload_src
         else:
             dumper_payload_src = _module_manifest_dumper_payload_src()
 
+        runner_src = f'_ModuleManifestDumper({fm.mod_name!r})({", ".join(repr(tgt) for tgt in targets)})'
+
         subproc_src = '\n\n'.join([
             dumper_payload_src,
-            f'_ModuleManifestDumper({fm.mod_name!r})({", ".join(repr(tgt) for tgt in targets)})\n',
+            runner_src,
         ])
 
-        n = self._num_dumped  # noqa
-        self._num_dumped += 1
+        if self._profile:
+            ps_fd, ps_fp = tempfile.mkstemp(suffix='.pstats')
+            os.close(ps_fd)
+
+            subproc_src = '\n'.join([
+                'import cProfile',
+                'with cProfile.Profile() as prof:',
+                *[
+                    f'    {l}'
+                    for l in subproc_src.splitlines()
+                ],
+                f'prof.dump_stats({ps_fp!r})',
+            ])
 
         args = [
             sys.executable,
@@ -319,7 +338,10 @@ class ManifestBuilder:
 
         end_time = time.time()
 
-        if warn_threshold_s is not None and (elapsed_time := (end_time - start_time)) >= warn_threshold_s:
+        elapsed_time = (end_time - start_time)
+        if self._profile:
+            log.info('Manifest extraction for %s took %.2f s, profile written to %s', fm.file, elapsed_time, ps_fp)  # noqa
+        elif warn_threshold_s is not None and elapsed_time >= warn_threshold_s:
             log.warning('Manifest extraction took a long time: %s, %.2f s', fm.file, elapsed_time)
 
         sp_lines = subproc_out.decode().strip().splitlines()

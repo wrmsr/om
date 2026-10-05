@@ -32,6 +32,7 @@ def _gen_cmd(args) -> None:
     builder = ManifestBuilder(
         base_dir,
         jobs,
+        profile=bool(args.profile),
     )
 
     async def do():
@@ -70,6 +71,7 @@ def _main(argv=None) -> None:
     parser_gen.add_argument('-w', '--write', action='store_true')
     parser_gen.add_argument('-q', '--quiet', action='store_true')
     parser_gen.add_argument('-j', '--jobs', type=int)
+    parser_gen.add_argument('--profile', action='store_true')
     parser_gen.add_argument('package', nargs='*')
     parser_gen.set_defaults(func=_gen_cmd)
 
