@@ -8,6 +8,7 @@ import socket
 import pytest
 
 from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from .....tests.utils import stalled_tcp_listener
 from ...errors import Error
 from ...errors import OperationalError
 from ...protocol.session import ProtocolSession
@@ -19,10 +20,6 @@ from ..handlers import make_pipeline_spec
 from ..sync import SyncConnection
 from .utils import make_handshake_packet
 from .utils import tcp_socketpair
-
-
-# An address from a reserved range assumed to blackhole (rather than reject) connection attempts.
-UNROUTABLE_HOST = '10.255.255.1'
 
 
 def _kwargs(db, **over):
@@ -97,15 +94,36 @@ def test_connect_timeout_sync(databases):
         con.close()
 
 
-def test_connect_timeout_sync_unreachable():
-    with pytest.raises(OperationalError, match="Can't connect"):
-        SyncConnection(user='u', host=UNROUTABLE_HOST, connect_timeout=.2)
+def test_connect_timeout_sync_stalled():
+    with stalled_tcp_listener() as (host, port):
+        with pytest.raises(OperationalError, match="Can't connect") as exc:
+            SyncConnection(user='u', host=host, port=port, connect_timeout=.2, read_timeout=.5)
+    assert isinstance(exc.value.__cause__, TimeoutError)
 
 
-def test_connect_timeout_asyncio_unreachable():
+def test_connect_timeout_asyncio_stalled():
     async def main():
-        with pytest.raises(OperationalError, match='timed out'):
-            await AsyncioConnection.connect(user='u', host=UNROUTABLE_HOST, connect_timeout=.2)
+        with stalled_tcp_listener() as (host, port):
+            with pytest.raises(OperationalError, match=r"Can't connect.*timed out") as exc:
+                await asyncio.wait_for(
+                    AsyncioConnection.connect(user='u', host=host, port=port, connect_timeout=.2, read_timeout=.5),
+                    timeout=1.,
+                )
+        assert exc.value.args[0] == 2003
+        assert isinstance(exc.value.__cause__, TimeoutError)
+
+    asyncio.run(main())
+
+
+def test_connect_asyncio_refused():
+    async def main():
+        with socket.socket() as bound:
+            bound.bind(('127.0.0.1', 0))
+            host, port = bound.getsockname()
+            with pytest.raises(OperationalError, match="Can't connect") as exc:
+                await AsyncioConnection.connect(user='u', host=host, port=port, connect_timeout=.2)
+        assert exc.value.args[0] == 2003
+        assert isinstance(exc.value.__cause__, ConnectionRefusedError)
 
     asyncio.run(main())
 

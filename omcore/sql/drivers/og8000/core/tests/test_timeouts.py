@@ -8,6 +8,7 @@ import socket
 import pytest
 
 from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from .....tests.utils import stalled_tcp_listener
 from ...errors import InterfaceError
 from ...protocol.session import ProtocolSession
 from ..asyncio import AsyncioCoreConnection
@@ -16,10 +17,6 @@ from ..handlers import OperationRequest
 from ..handlers import OperationTimeoutsIoPipelineHandler
 from ..handlers import make_pipeline_spec
 from ..sync import SyncCoreConnection
-
-
-# An address from a reserved range assumed to blackhole (rather than reject) connection attempts.
-UNROUTABLE_HOST = '10.255.255.1'
 
 
 ##
@@ -75,15 +72,34 @@ def test_connect_timeout_sync(db_kwargs):
         assert con.execute_simple('select 1').rows == [[1]]
 
 
-def test_connect_timeout_sync_unreachable():
-    with pytest.raises(InterfaceError, match="Can't create a connection"):
-        SyncCoreConnection(user='u', host=UNROUTABLE_HOST, connect_timeout=.2)
+def test_connect_timeout_sync_stalled():
+    with stalled_tcp_listener() as (host, port):
+        with pytest.raises(InterfaceError, match="Can't create a connection") as exc:
+            SyncCoreConnection(user='u', host=host, port=port, connect_timeout=.2, read_timeout=.5)
+    assert isinstance(exc.value.__cause__, TimeoutError)
 
 
-def test_connect_timeout_asyncio_unreachable():
+def test_connect_timeout_asyncio_stalled():
     async def main():
-        with pytest.raises(InterfaceError, match='timed out'):
-            await AsyncioCoreConnection.connect(user='u', host=UNROUTABLE_HOST, connect_timeout=.2)
+        with stalled_tcp_listener() as (host, port):
+            with pytest.raises(InterfaceError, match=r"Can't create a connection.*timed out") as exc:
+                await asyncio.wait_for(
+                    AsyncioCoreConnection.connect(user='u', host=host, port=port, connect_timeout=.2, read_timeout=.5),
+                    timeout=1.,
+                )
+        assert isinstance(exc.value.__cause__, TimeoutError)
+
+    asyncio.run(main())
+
+
+def test_connect_asyncio_refused():
+    async def main():
+        with socket.socket() as bound:
+            bound.bind(('127.0.0.1', 0))
+            host, port = bound.getsockname()
+            with pytest.raises(InterfaceError, match="Can't create a connection") as exc:
+                await AsyncioCoreConnection.connect(user='u', host=host, port=port, connect_timeout=.2)
+        assert isinstance(exc.value.__cause__, ConnectionRefusedError)
 
     asyncio.run(main())
 

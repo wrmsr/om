@@ -65,8 +65,9 @@ class AsyncioConnection(BaseConnection):
                     reader, writer = await asyncio.open_unix_connection(unix_socket)
                 else:
                     reader, writer = await asyncio.open_connection(host or 'localhost', port)
-        except TimeoutError as e:
-            raise OperationalError(2003, f"Can't connect to MySQL server on {host!r} (timed out)") from e
+        except OSError as e:
+            detail = 'timed out' if isinstance(e, TimeoutError) else str(e)
+            raise OperationalError(2003, f"Can't connect to MySQL server on {host!r} ({detail})") from e
 
         conn = cls(reader, writer, server_hostname=host, connect_timeout=connect_timeout, **kwargs)
         if unix_socket is not None:

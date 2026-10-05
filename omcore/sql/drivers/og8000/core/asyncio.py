@@ -84,10 +84,13 @@ class AsyncioCoreConnection(BaseCoreConnection):
                     reader, writer = await asyncio.open_connection(host, port)
                 else:
                     raise InterfaceError('one of host or unix_sock must be provided')
-        except TimeoutError as e:
+        except OSError as e:
+            if isinstance(e, TimeoutError) and connect_timeout is not None:
+                detail = f'timed out after {connect_timeout:g} seconds'
+            else:
+                detail = str(e)
             raise InterfaceError(
-                f"Can't create a connection to host {host} and port {port} "
-                f'(timed out after {connect_timeout:g} seconds).',
+                f"Can't create a connection to host {host} and port {port} ({detail}).",
             ) from e
 
         conn = cls(
