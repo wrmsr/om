@@ -78,17 +78,17 @@ def add_model_args(ap: argparse.ArgumentParser) -> None:
         '--kv-dtype',
         choices=['bf16', 'fp8'],
         default='bf16',
-        help='KV cache format (torch): bf16 (32 KB per position on the 27B) or fp8 e4m3 codes with per-position '
-             'scales (16 KB) -- half the memory for the live buffers and for prefix snapshots, measured by kl',
+        help='KV cache format (torch): bf16 (64 KB per position on the 27B) or fp8 e4m3 codes with per-position '
+             'scales (32 KB) -- half the memory for the live buffers and for prefix snapshots, measured by kl',
     )
     ap.add_argument(
         '--capacity',
         type=int,
         default=32768,
         help='decode buffer length (KV positions), rounded up to a power of two; the captured / compiled steps are '
-             'specific to it, so pin it to the longest context you will run (the model supports 262144: 8.6 GB of KV '
-             'for the 27B, plus the same again per prefix-cache snapshot of a full context). Attention only reads '
-             'the positions in use, so a large capacity costs memory, not time',
+             'specific to it, so pin it to the longest context you will run (the model supports 262144: 17 GB of KV '
+             'for the 27B at bf16, 8.6 GB at --kv-dtype fp8, plus the same again per prefix-cache snapshot of a '
+             'full context). Attention only reads the positions in use, so a large capacity costs memory, not time',
     )
 
 

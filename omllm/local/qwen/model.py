@@ -21,6 +21,7 @@ import pathlib
 import typing as ta
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 
 from .grammar import MaskCache
@@ -538,7 +539,7 @@ class Qwen35:
         self.ops = ops
         self.dtype = dtype
         self.nbytes = sum(ops.nbytes(p) for p in params.values())
-        self.last_spec: SpecDecoder | None = None  # the most recent generate(spec=k)'s decoder, for its stats
+        self.last_spec: SpecStats | None = None  # statistics of the most recent generate(spec=k)
         self.last_prefix: tuple[int, int] = (0, 0)  # (prompt tokens reused from the prefix cache, prompt length)
         self._steps: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]] = {}  # see step_fn
         self.embed = params['embed_tokens.weight']
@@ -1054,7 +1055,6 @@ class Qwen35:
                 constraint=constraint,
             )
 
-            self.last_spec = spec_dec
             processed: list[int] = []  # every committed token, including any past an EOS / the budget
 
             while len(out) < max_new_tokens:
@@ -1076,14 +1076,15 @@ class Qwen35:
             if prefix_cache is not None:
                 prefix_cache.put(spec_dec.snapshot(list(prompt_ids) + processed))
 
+            self.last_spec = spec_dec.stats()
             return out
 
         dec = Decoder(self, cache, capacity=capacity) if static else None
 
-        masks = MaskCache(ops, self.cfg.vocab_size) if constraint is not None else None
+        masks = MaskCache(ops, self.cfg.vocab_size)  # allocates nothing until a constraint hands it a real set
 
         def draw(row: Array) -> int:  # row: [1, V] on the device -> one token id; only that id leaves the device
-            mask = check.not_none(masks).mask(constraint.allowed()) if constraint is not None else None
+            mask = masks.mask(constraint.allowed() if constraint is not None else None)
             t = sampler.sample(row, mask)
             sampler.observe(t)
             tid = int(ops.numpy(t)[0])
@@ -1662,6 +1663,18 @@ class Decoder:
 # Speculative decoding
 
 
+@dc.dataclass(frozen=True)
+class SpecStats:
+    """
+    What a speculative generation reports afterwards (Qwen35.last_spec): never the decoder itself, whose
+    capacity-sized buffers would otherwise stay alive until the next generation.
+    """
+
+    k: int
+    rounds: int
+    accepted: int
+
+
 class SpecDecoder:
     """
     MTP speculative decoding, batch 1: each round drafts `k` tokens with the draft head (the first from the head's last
@@ -1718,8 +1731,8 @@ class SpecDecoder:
         # a grammar.ToolConstraint: masks the next-token distributions (the draft's first pick, every verify row for
         # its own position, the corrections) so what is committed always obeys it; see grammar.py
         self.constraint = constraint
-        self.masks = MaskCache(ops, model.cfg.vocab_size) if constraint is not None else None
-        mask0 = check.not_none(self.masks).mask(constraint.allowed()) if constraint is not None else None
+        self.masks = MaskCache(ops, model.cfg.vocab_size)  # allocates nothing until handed a real set
+        mask0 = self.masks.mask(constraint.allowed() if constraint is not None else None)
         self.next_arr = sampler.sample(logits[:, -1], mask0)  # [1] on the device
         sampler.observe(self.next_arr)
         self.next_tok = int(ops.numpy(self.next_arr)[0])
@@ -1789,7 +1802,7 @@ class SpecDecoder:
 
         if cons is not None:  # the first draft respects the grammar; later ones are verified against it instead
             a0 = cons.allowed()
-            mask0 = check.not_none(self.masks).mask(a0)
+            mask0 = self.masks.mask(a0)
             if mask0 is not None and ml.shape[1] < V:
                 mask0 = mask0[:ml.shape[1]]
 
@@ -1840,7 +1853,7 @@ class SpecDecoder:
                     break
                 look.feed(d)
                 sets.append(look.allowed())
-            row_mask = check.not_none(self.masks).rows(sets[:k + 1])
+            row_mask = self.masks.rows(sets[:k + 1])
 
         p_rows = sampler.probs(logits[0], row_mask)  # [k+1, V]; row i is the target's distribution for position n+i+1
         accept, corr = speculative_accept(ops, sampler, p_rows, ops.concat(qrows, 0), drafts_arr, ops.concat(qds, 0))
@@ -1881,6 +1894,9 @@ class SpecDecoder:
         self.accepted += m
 
         return committed
+
+    def stats(self) -> SpecStats:
+        return SpecStats(self.k, self.rounds, self.accepted)
 
     def snapshot(self, tokens: ta.Sequence[int]) -> Snapshot:
         """

@@ -157,7 +157,7 @@ and `ops.capture` makes it fast:
 T = k + 1 variant used by speculative decoding, below); `snapshot()` / `restore()` are the
 prefix-cache primitives (restore re-pads or re-captures across a capacity change); when the sequence reaches
 `capacity` the buffers double and the step is re-captured. Attention reads the full buffer every step, so cost
-tracks the power-of-two capacity, not the live length -- at 32 KB/token that is ~1 GB per step at 32k, fine
+tracks the power-of-two capacity, not the live length -- at 64 KB/token that is ~2 GB per step at 32k, fine
 against 15 GB of weights. `test_parity.py::test_static_decode_parity` checks the step against the golden forward on
 every backend, through a growth and a restore. `--functional` in `generate` selects the old path for comparison.
 
@@ -273,7 +273,7 @@ The KV buffers are allocated at `--capacity` positions, but a decode step's atte
 On torch with Triton, `sdpa_static` is a length-aware flash-decoding kernel (`torch_triton.attn_decode`): the
 number of key blocks comes from `pos` at run time inside one fixed CUDA graph, 32 programs per kv head split the
 sequence and their partial softmaxes are merged, so the cost follows the sequence and a capacity of 262144 costs
-memory (32 KB per position: 8.6 GB for the 27B) and nothing else. Backends whose attention reads whatever buffer
+memory (64 KB per position: 17 GB for the 27B) and nothing else. Backends whose attention reads whatever buffer
 it is given (`Ops.attn_bucketed`: MLX, tinygrad, torch without Triton) get the same effect by bucketing: the
 `Decoder` captures a step per power-of-two window from 1024 up to the capacity and hands attention the slice
 covering the positions in use, so crossing 4096 -> 8192 tokens is one cheap re-capture (an `mx.compile` trace on
@@ -292,8 +292,9 @@ are checked against the composed references under the Triton interpreter (`test_
 ## fp8 KV cache
 
 `--kv-dtype fp8` (torch; `TorchOps(kv_dtype='fp8')`) keeps the attention layers' KV as e4m3 codes with one float32
-scale per position and kv head instead of bf16: 16 KB per position on the 27B instead of 32, so the full 262144
-window is 4.3 GB and a prefix snapshot of a full-context conversation is 4.3 GB rather than 8.6, and the decode
+scale per position and kv head instead of bf16: 32 KB per position on the 27B instead of 64, so the full 262144
+window is 8.6 GB instead of 17 (which does not fit beside the weights on a 32 GB card at all) and a prefix
+snapshot of a full-context conversation is 8.6 GB rather than 17, and the decode
 attention streams half the bytes at long contexts. It is a launch-time choice -- quality (bf16, the default) or
 memory -- and `kl --kv-dtype fp8` puts a number on what it costs on your text.
 
@@ -359,7 +360,7 @@ matched whole.
 
 Two tiers with byte budgets (`--cache-device-mib`, `--cache-host-mib`): LRU on the device, eviction demotes to
 host memory (pinned on torch/CUDA: `Ops.to_host` / `from_host`), a hit promotes back. A 27B snapshot is ~150 MB of
-DeltaNet state plus 32 KB per token of KV; at 30k tokens that is ~1.1 GB, well under a second across PCIe.
+DeltaNet state plus 64 KB per token of KV; at 30k tokens that is ~2.1 GB, about a second across PCIe.
 
 Matching is on token ids, exactly. A harness must keep the ids it was given rather than re-tokenise text (BPE is
 not idempotent across a turn boundary), and anything that rewrites earlier turns -- stripping reasoning blocks
