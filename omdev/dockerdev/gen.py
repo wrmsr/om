@@ -46,7 +46,7 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     #     Copy(src='docker/.timestamp', dst='/'),
     # ]))
 
-    home = f'/{cfg.user or "root"}'
+    home = '/om'
 
     ops.append(Section('locale', [
         Env([
@@ -69,20 +69,19 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
         ),
     ]))
 
-    if cfg.user is not None:
-        ops.append(Section('user', [
-            Run(
-                WithStaticEnv(
-                    Resource('fragments/user.sh'),
-                    {
-                        'NEW_USER': cfg.user,
-                        'NEW_UID': str(cfg.uid),
-                        'NEW_GID': str(cfg.gid),
-                    },
-                ),
+    ops.append(Section('user', [
+        Run(
+            WithStaticEnv(
+                Resource('fragments/user.sh'),
+                {
+                    'NEW_USER': 'om',
+                    'NEW_UID': str(cfg.uid),
+                    'NEW_GID': str(cfg.gid),
+                },
             ),
-            User(cfg.user),
-        ]))
+        ),
+        User('om'),
+    ]))
 
     ops.append(fragment_section(
         'firefox',

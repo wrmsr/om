@@ -57,6 +57,7 @@ from omcore import lang
 from omcore import marshal as msh
 from omcore.os.paths import is_path_in_dir
 from omcore.secrets import all as sec
+from omcore.shlex import shlex_maybe_quote
 
 from ..home.paths import get_cache_dir
 from ..home.secrets import load_secrets
@@ -111,6 +112,8 @@ class RunArgs:
 
 ID_LABEL = 'om.dockerdev'
 
+CACHE_VOLUME = 'om-dockerdev-cache'
+
 
 @dc.dataclass(frozen=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
@@ -154,15 +157,34 @@ def process_run_args(
     if args.mount_docker_sock:
         run_args.append('--mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock')
 
-    if args.mount_caches:
-        cache_dir = os.path.join(get_cache_dir(), 'dockerdev')
-        for cl, cr in (cfg.cache_mounts or {}).items():
-            cld = os.path.join(cache_dir, cl)
-            check.state(is_path_in_dir(cache_dir, cld))
-            os.makedirs(cld, exist_ok=True)
-            run_args.append(f'--mount=type=bind,src={cld},dst={cr}')
-
     autoexecs: list[str] = []
+    setenv: dict[str, str] = {}
+
+    if args.mount_caches:
+        host_platform = sys.platform
+        if host_platform == 'linux':
+            cache_dir = os.path.join(get_cache_dir(), 'dockerdev')
+            for cl, cr in (cfg.cache_mounts or {}).items():
+                cld = os.path.join(cache_dir, cl)
+                check.state(is_path_in_dir(cache_dir, cld))
+                os.makedirs(cld, exist_ok=True)
+                run_args.append(f'--mount=type=bind,src={cld},dst={cr}')
+
+        elif host_platform == 'darwin':
+            if cfg.cache_mounts:
+                run_args.append(f'--mount=type=volume,src={CACHE_VOLUME},dst=/cache')
+                autoexecs.append(f'sudo chown om:om /cache')
+                for cl, cr in cfg.cache_mounts.items():
+                    autoexecs.extend([
+                        f'if ! [ -d /cache/{cl} ] ; then mkdir -p /cache/{cl} ; fi',
+                        f'rm -rf {cr} || true',
+                        f'ln -s /cache/{cl} {cr}',
+                    ])
+                    if cr == '/om/.cache/uv':
+                        setenv['UV_LINK_MODE'] = 'symlink'
+
+        else:
+            raise OSError(host_platform)
 
     if args.mount_git or args.clone_mount_git:
         git_path = os.path.join(os.getcwd(), '.git')
@@ -197,10 +219,19 @@ def process_run_args(
                 '#!/bin/sh',
                 'set -e',
                 *autoexecs,
-                'exec "$@"',
+                ' '.join([
+                    *[
+                        f'{shlex_maybe_quote(k)}={shlex_maybe_quote(v)}'
+                        for k, v in setenv.items()
+                    ],
+                    'exec "$@"',
+                ]),
             ]))
         os.chmod(tmp_ep, 0o755)  # noqa
         entrypoint = '/dockerdev/autoexec.sh'
+
+    else:
+        check.empty(setenv)
 
     if args.shift_uid is not None:
         su_uid, su_gid = args.shift_uid
@@ -216,7 +247,7 @@ def process_run_args(
             f'--env={k}={v}' for k, v in {
                 'SHIFTUID_EXTERNAL_UID': str(su_uid),
                 'SHIFTUID_EXTERNAL_GID': str(su_gid),
-                'SHIFTUID_INTERNAL_USER': check.non_empty_str(cfg.user),
+                'SHIFTUID_INTERNAL_USER': 'om',
                 'SHIFTUID_INTERNAL_ENTRYPOINT': entrypoint or '',
             }.items()
         ])

@@ -16,7 +16,6 @@ class Config:
     base_image: str
     base_image_id: str | None = None
 
-    user: str | None = None
     uid: int = DEFAULT_UID
     gid: int = DEFAULT_GID
 
