@@ -229,7 +229,6 @@ def _attn_decode_kernel(
         stride_ms,
         stride_sb,
         stride_sh,
-        scale,
         T,
         G,
         KV,
@@ -238,6 +237,7 @@ def _attn_decode_kernel(
         D: tl.constexpr,
         SPLITS: tl.constexpr,
         IEEE: tl.constexpr,
+        SCALE: tl.constexpr,
         FP8: tl.constexpr,
 ):
     """
@@ -246,8 +246,10 @@ def _attn_decode_kernel(
     the sequence, not the capacity. One program per (batch, kv head, split): its rows are that kv head's G query heads x
     T tokens (row g*T + t), it walks its share of the key blocks up to pos + T with an online softmax, and writes
     partial (max, sum, acc); the wrapper merges the SPLITS partials (flash-decoding). Query row (g, t) may see keys <=
-    pos + t. With FP8 the buffers hold e4m3 codes and ks / vs the per-position scales: a key's score is the dot with
-    its codes times its scale, a value is its codes times its scale.
+    pos + t. With FP8 the buffers hold e4m3 codes and ks / vs the per-position scales: a key's score is the dot with its
+    codes times its scale, a value is its codes times its scale. SCALE is a constexpr rather than a runtime float: eager
+    Triton types a Python float argument as fp32 but torch.compile passes one as fp64, which changed the running max's
+    dtype mid-loop and failed compilation; a literal is fp32 wherever it meets fp32.
     """
 
     pid = tl.program_id(0)
@@ -279,9 +281,9 @@ def _attn_decode_kernel(
         if FP8:
             k = k.to(q.dtype)
         if IEEE:
-            sc = tl.dot(q, tl.trans(k), input_precision='ieee') * scale
+            sc = tl.dot(q, tl.trans(k), input_precision='ieee') * SCALE
         else:
-            sc = tl.dot(q, tl.trans(k)) * scale
+            sc = tl.dot(q, tl.trans(k)) * SCALE
         if FP8:
             ksc = tl.load(ks_ptr + b * stride_sb + kvh * stride_sh + j, mask=kmask, other=0.0)
             sc = sc * ksc[None, :]
@@ -375,7 +377,6 @@ def attn_decode(
             m.stride(2),
             ks.stride(0) if fp8 else 0,
             ks.stride(1) if fp8 else 0,
-            scale,
             T,
             G,
             KV,
@@ -384,6 +385,7 @@ def attn_decode(
             D=D,
             SPLITS=splits,
             IEEE=(q.dtype == torch.float32),
+            SCALE=float(scale),
             FP8=fp8,
             num_warps=num_warps,
             num_stages=num_stages,
@@ -417,7 +419,6 @@ def _attn_prefill_kernel(
         stride_oh,
         stride_ot,
         stride_sh,
-        scale,
         T,
         past,
         G,
@@ -425,6 +426,7 @@ def _attn_prefill_kernel(
         BLOCK_N: tl.constexpr,
         D: tl.constexpr,
         IEEE: tl.constexpr,
+        SCALE: tl.constexpr,
         FP8: tl.constexpr,
 ):
     """
@@ -454,9 +456,9 @@ def _attn_prefill_kernel(
         if FP8:
             k = k.to(q.dtype)
         if IEEE:
-            sc = tl.dot(q, tl.trans(k), input_precision='ieee') * scale
+            sc = tl.dot(q, tl.trans(k), input_precision='ieee') * SCALE
         else:
-            sc = tl.dot(q, tl.trans(k)) * scale
+            sc = tl.dot(q, tl.trans(k)) * SCALE
         if FP8:
             ksc = tl.load(ks_ptr + bkv * stride_sh + j, mask=kmask, other=0.0)
             sc = sc * ksc[None, :]
@@ -531,7 +533,6 @@ def attn_prefill(
             out.stride(1),
             out.stride(2),
             ks.stride(1) if fp8 else 0,
-            scale,
             T,
             past,
             G,
@@ -539,6 +540,7 @@ def attn_prefill(
             BLOCK_N=block_n_,
             D=D,
             IEEE=(q.dtype == torch.float32),
+            SCALE=float(scale),
             FP8=fp8,
             num_warps=num_warps,
             num_stages=num_stages,
