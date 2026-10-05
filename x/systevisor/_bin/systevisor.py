@@ -16,6 +16,7 @@ import collections.abc
 import configparser
 import contextlib
 import contextvars
+import copy
 import ctypes
 import ctypes as ct
 import dataclasses as dc
@@ -26,11 +27,14 @@ import errno
 import fcntl
 import fractions
 import functools
+import glob
 import grp
 import hashlib
 import heapq
 import http
 import http.client
+import importlib
+import importlib.util
 import inspect
 import io
 import json
@@ -57,6 +61,7 @@ import time
 import traceback
 import types
 import typing as ta
+import unicodedata
 import urllib.parse
 import uuid
 import weakref
@@ -77,6 +82,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/configs/types.py', sha1='6abb34596a340c3804dc53a813473739047b1c7d'),
             dict(path='../../omcore/formats/ini/sections.py', sha1='66a0b99ffe63766420ec18d25341699dabcfa55e'),
             dict(path='../../omcore/formats/toml/parser.py', sha1='e7534f4af180c41cedd5257e96e30d79d747b7a0'),
+            dict(path='../../omcore/formats/yaml/goyaml/gostd.py', sha1='34b51b06f942650ae8528eea69af9202a007065e'),
             dict(path='../../omcore/http/statuses.py', sha1='675eff6e1638e48aebb7aeae422e426c21a612d2'),
             dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
             dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
@@ -88,6 +94,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
             dict(path='../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
             dict(path='../../omcore/lite/dataclasses.py', sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e'),
+            dict(path='../../omcore/lite/imports.py', sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1'),
             dict(path='../../omcore/lite/injectinspect.py', sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd'),
             dict(path='../../omcore/lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
             dict(path='../../omcore/lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
@@ -109,10 +116,11 @@ def __om_amalg__():  # noqa
             dict(path='scheduling/cron.py', sha1='d6d32c783750b1f502805e63ace3793a9767afc2'),
             dict(path='selfupdate/models.py', sha1='5e1cfadd817810d5606588a8480cdff7a4a38223'),
             dict(path='../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
-            dict(path='../../omcore/formats/yaml/backends.py', sha1='b6bdba7cc029eaa23f6d029731a12db355d32bf9'),
+            dict(path='../../omcore/formats/yaml/backends.py', sha1='52ac78eaf9285fcfcaf12b7a4ce1f706b66f1a92'),
+            dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
-            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='0a249bfaede012e18fea8cd3b0f239c985a6cfec'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3'),  # noqa
             dict(path='../../omcore/io/fdio/handlers.py', sha1='941023cfaa2dc5f68662ea7ed22fc2a3b29a09d0'),
             dict(path='../../omcore/io/fdio/pollers.py', sha1='85c73f794f2ccb5d002bf0f63bd9acd35c3539cb'),
             dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
@@ -124,9 +132,10 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
             dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='807982304f503c1a033d3210ac2b259067b12797'),
+            dict(path='configs/models.py', sha1='57240194d266d4604fc8c09a168bfc58ebbd75f6'),
             dict(path='runtime/clocks.py', sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6'),
             dict(path='../../omcore/configs/formats.py', sha1='b0707d98865d269785703cae4186d38d52d0414d'),
+            dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
             dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
             dict(path='../../omcore/io/fdio/kqueue.py', sha1='0a4c1e2b846ac4a32afab4ff8814ea9d9f526905'),
             dict(path='../../omcore/io/fdio/manager.py', sha1='8135a9ec6bc1e3b122cff093a2f9bbfc1a156691'),
@@ -140,23 +149,25 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='configs/marshal.py', sha1='80978d50109521a8e2b24c29a9b0ec9d17811da7'),
-            dict(path='configs/validation.py', sha1='236478ad23e56afc82c86d7734aae3c3f4f5ce37'),
+            dict(path='configs/validation.py', sha1='c0d8eb7234cabe674c31326fabd0ea27819e8c6e'),
             dict(path='control/jsoncodec.py', sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4'),
             dict(path='control/operations.py', sha1='f912fa9b9dea5e9677232da26b21df5178f6fd47'),
             dict(path='core/changes.py', sha1='2cbd01de924b248be7c91fa4a8bd758049c036f0'),
             dict(path='runtime/signals.py', sha1='c321a5945b48a216a82a0e7ca4e91aae6d1db46a'),
+            dict(path='../../omcore/formats/yaml/goyaml/ast.py', sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631'),
+            dict(path='../../omcore/formats/yaml/goyaml/scanning.py', sha1='58956f9159780d5532d2d61fb6f11c8ac946003d'),
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
             dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
             dict(path='../../omcore/io/streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
             dict(path='../../omcore/io/streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
-            dict(path='../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
+            dict(path='../../omcore/logs/base.py', sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4'),
             dict(path='../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='configs/sources.py', sha1='f5b50687c85168c5cb72d2623ad89ee08be57573'),
+            dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='2843fd0f3eeacfb0d257ef0dd889067319ece5eb'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='56c33baa20fd8d2a20d53036ed4cc3f0f7ea0aa3'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
             dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
@@ -164,38 +175,42 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
             dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
             dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
-            dict(path='configs/snapshots.py', sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0'),
-            dict(path='platforms/runtime.py', sha1='bff09383cf571670df20d7fdab08610b05066e2b'),
+            dict(path='platforms/runtime.py', sha1='30ef286f32995fa3453f36b305f5dbcd7c137cef'),
+            dict(path='../../omcore/formats/yaml/goyaml/decoding.py', sha1='73e387af353d56ed6c3f817e490038aa1ba940c8'),
             dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
             dict(path='../../omcore/http/pipelines/clients/requests.py', sha1='60607306046abc3d5bb0c2e0b40e61251151ae13'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5'),  # noqa
             dict(path='../../omcore/io/pipelines/bytes/decoders.py', sha1='95cfd81b143427f3dbe12777a728208c3a4daafa'),
             dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='configs/compiling.py', sha1='a748251b2dc5d8b464b9ca4b4e4dbd8743b5f3d7'),
-            dict(path='core/effects.py', sha1='a761ee40562f18064f5357f2dd0533ee4e628f05'),
-            dict(path='core/inputs.py', sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a'),
-            dict(path='core/state.py', sha1='1cd3d62be5c0f59bb3a803fd73e1b450c2e53027'),
             dict(path='platforms/inject.py', sha1='89ea3048c6ee58d40e3a5835cb85c7757591a12d'),
+            dict(path='../../omcore/formats/yaml/goyaml/backend.py', sha1='465f043f9e1def50013a414abdbec1c37436790d'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
             dict(path='../../omcore/io/pipelines/drivers/fdio.py', sha1='bfd36823fcfff9eb6448d5d093eacd122849c0fa'),
             dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ec00345d6192983625190ddb9da1dbd713f16130'),
-            dict(path='core/events.py', sha1='37526d652d6e8bc851b49b7417967e6fba6be4c2'),
-            dict(path='runtime/fdio.py', sha1='618ebd90f4e1867bf900b19020256d4b3c80ad9f'),
-            dict(path='runtime/logs.py', sha1='64e8f73ea76c1e568d0d8b50e5f75a133955b812'),
-            dict(path='runtime/processes.py', sha1='a7060c49bbcc72d335f87db3b02c021dd5a7698f'),
             dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
             dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
-            dict(path='core/engine.py', sha1='9ffc587d7ef4fc47a7d7d26cb31d2734b66d0f02'),
+            dict(path='configs/sources.py', sha1='e97b968cb81f2f9deb973d162f8a69b772209ded'),
+            dict(path='configs/snapshots.py', sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0'),
+            dict(path='control/client.py', sha1='cb4d78120e7b95e3f8ac7621356c78e73442295b'),
+            dict(path='configs/compiling.py', sha1='a748251b2dc5d8b464b9ca4b4e4dbd8743b5f3d7'),
+            dict(path='core/effects.py', sha1='a761ee40562f18064f5357f2dd0533ee4e628f05'),
+            dict(path='core/inputs.py', sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a'),
+            dict(path='core/state.py', sha1='6a368ad6c88a9d71cda3417bf2eb19e4c42cf238'),
+            dict(path='core/events.py', sha1='37526d652d6e8bc851b49b7417967e6fba6be4c2'),
+            dict(path='runtime/fdio.py', sha1='618ebd90f4e1867bf900b19020256d4b3c80ad9f'),
+            dict(path='runtime/logs.py', sha1='711c2d1da2f33776b7c6902037db2bd51d2e316a'),
+            dict(path='runtime/processes.py', sha1='ddd0bf5f17a21f297a4004c77dd82b34c60cd470'),
+            dict(path='core/engine.py', sha1='249019e7712c046c56a0358fdd6f45c4b029308e'),
             dict(path='resources/cgroups.py', sha1='89b8073cb37ab5cfa695f1c68adc1cf70ad79176'),
             dict(path='resources/namespaces.py', sha1='4e87cab38547e636cc91a5f9b845bda8e2924795'),
             dict(path='resources/sampling.py', sha1='6fa61546905963453297514ada59d9d09cb66dd1'),
             dict(path='resources/sockets.py', sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911'),
-            dict(path='control/client.py', sha1='cb4d78120e7b95e3f8ac7621356c78e73442295b'),
+            dict(path='runtime/emergencies.py', sha1='fb903ba3cd32d441e35b90bb008e4c35ba5b73b1'),
             dict(path='runtime/health.py', sha1='86b5de90036278757a1767fabe8711cc10dc1a52'),
-            dict(path='selfupdate/codec.py', sha1='91dc9153e3c34f18002b7de27a3c05dc2fe69f2c'),
-            dict(path='runtime/coordinator.py', sha1='1de8e7c0add09c046d8724b23718b9c1868a62a8'),
+            dict(path='runtime/coordinator.py', sha1='6bc659bf69f73861fd2d5be110748e3151ac1600'),
+            dict(path='selfupdate/codec.py', sha1='3f7848c3a536a6ea5ed33c199af75767e129c6e7'),
             dict(path='control/configs.py', sha1='750c44ed70324939e257f91d170757d6262f3244'),
-            dict(path='runtime/inject.py', sha1='6a2182d011c28814b7f319b378ecb812e619559a'),
+            dict(path='runtime/inject.py', sha1='5d0aff306d333f058fc9bfdbfae9837d716c1e83'),
             dict(path='selfupdate/restore.py', sha1='ffd90696e2e447bda4f769cefbaad3c33fe88737'),
             dict(path='control/manager.py', sha1='52f762caa1ed7806d3e54b3a88c02679d3d36e01'),
             dict(path='control/service.py', sha1='937696bbef2e453b89c3d65a696f97ad1c55c1f4'),
@@ -205,10 +220,10 @@ def __om_amalg__():  # noqa
             dict(path='scheduling/runtime.py', sha1='7a580aafaba94fbbcc5ac16068d7bba97d0d658b'),
             dict(path='selfupdate/inject.py', sha1='7765c7ba3b8dda9ca7e908af2d33f153213a06c0'),
             dict(path='control/api.py', sha1='8ecab21b05576295d7acd0eaa6cb5931d175e795'),
-            dict(path='control/http.py', sha1='7f6f5a3f0503368df4ac4e3b22af7dbf5ffa62f7'),
+            dict(path='control/http.py', sha1='f07c61f653c6faf272ece42db3da5e468a03c674'),
             dict(path='control/plane.py', sha1='cd5a557b7b75a17470e06195df8e0ab87f4b158c'),
             dict(path='control/inject.py', sha1='338d7037d4d60b5ff58e4cb38817a2e56dc6347a'),
-            dict(path='main.py', sha1='bd69037cb36e15ca90dbe2aed2b57c0ae1f3ef57'),
+            dict(path='main.py', sha1='feaf3b62147845ab22c3a35fa7566295e6e6cb12'),
             dict(path='__main__.py', sha1='7f67abe616ff38fa814292fe452159be5cf04acb'),
         ],
     )
@@ -259,6 +274,9 @@ SocketAddress = ta.Any  # ta.TypeAlias
 
 # ../../omcore/formats/toml/writer.py
 TomlHeaderPath = ta.Union[str, 'TomlRaw', ta.Sequence[ta.Union[str, 'TomlRaw']]]  # ta.TypeAlias
+
+# ../../omcore/formats/yaml/goyaml/errors.py
+YamlErrorOr = ta.Union['YamlError', T]  # ta.TypeAlias
 
 # ../../omcore/http/headers.py
 StrOrBytes = ta.Union[str, bytes]  # ta.TypeAlias
@@ -2880,6 +2898,342 @@ def toml_parse_document(
 
 
 ########################################
+# ../../../omcore/formats/yaml/goyaml/gostd.py
+"""
+Python equivalents of go standard library functions used by the go-yaml translation, for the cases where python's own
+builtins subtly differ from the go semantics the translation must preserve:
+
+ - `str.lstrip` / `str.rstrip` treat their argument as a character set and strip repeatedly, while go's
+   `strings.TrimPrefix` / `strings.TrimSuffix` remove one exact affix at most once.
+ - `int()` / `float()` are more lenient than go's `strconv` parsers (surrounding whitespace, unicode digits, no 64-bit
+   range errors), and `strconv` range errors carry a clamped value that callers like `strconv.Atoi` still use.
+ - `str()` formats floats and bools differently than `fmt.Sprint` (`str(True)` vs `'true'`, `str(1.0)` vs `'1'`, and
+   go's scientific-notation cutoff of decimal exponent >= 6 or < -4).
+ - `chr()` raises on out-of-range code points and passes lone surrogates through, while go's `string(rune(n))`
+   substitutes U+FFFD.
+ - `base64.b64decode` discards non-alphabet characters and raises on malformed input, while go's
+   `base64.StdEncoding.DecodeString` ignores only CR/LF and returns the data decoded before the first error.
+
+All semantics here were verified empirically against go 1.26.
+"""
+
+
+##
+# strings
+
+
+def yaml_go_trim_prefix(s: str, prefix: str) -> str:
+    # strings.TrimPrefix
+    if prefix and s.startswith(prefix):
+        return s[len(prefix):]
+    return s
+
+
+def yaml_go_trim_suffix(s: str, suffix: str) -> str:
+    # strings.TrimSuffix
+    if suffix and s.endswith(suffix):
+        return s[:len(s) - len(suffix)]
+    return s
+
+
+##
+# strconv errors
+
+
+class YamlGoStrconvError(Exception):
+    pass
+
+
+class YamlGoStrconvSyntaxError(YamlGoStrconvError):  # strconv.ErrSyntax
+    pass
+
+
+class YamlGoStrconvRangeError(YamlGoStrconvError):
+    """strconv.ErrRange. Carries the clamped value strconv returns alongside the error."""
+
+    def __init__(self, value: ta.Any) -> None:
+        super().__init__(value)
+
+        self.value = value
+
+
+##
+# strconv parsing
+
+
+def _yaml_go_digit_val(c: str) -> int:
+    o = ord(c)
+    if 0x30 <= o <= 0x39:
+        return o - 0x30
+    if 0x61 <= o <= 0x66:
+        return o - 0x61 + 10
+    if 0x41 <= o <= 0x46:
+        return o - 0x41 + 10
+    return -1
+
+
+def _yaml_go_parse_base_digits(s: str, base: int) -> ta.Union[int, YamlGoStrconvError]:
+    if not s:
+        return YamlGoStrconvSyntaxError()
+
+    n = 0
+    for c in s:
+        d = _yaml_go_digit_val(c)
+        if d < 0 or d >= base:
+            return YamlGoStrconvSyntaxError()
+        n = n * base + d
+
+    return n
+
+
+def yaml_go_parse_uint(s: str, base: int, bit_size: int = 64) -> ta.Union[int, YamlGoStrconvError]:
+    """strconv.ParseUint with an explicit (non-zero) base: no sign, no underscores, ascii digits only."""
+
+    n = _yaml_go_parse_base_digits(s, base)
+    if isinstance(n, YamlGoStrconvError):
+        return n
+
+    hi = (1 << bit_size) - 1
+    if n > hi:
+        return YamlGoStrconvRangeError(hi)
+
+    return n
+
+
+def yaml_go_parse_int(s: str, base: int, bit_size: int = 64) -> ta.Union[int, YamlGoStrconvError]:
+    """strconv.ParseInt with an explicit (non-zero) base: optional sign, no underscores, ascii digits only."""
+
+    if not s:
+        return YamlGoStrconvSyntaxError()
+
+    neg = False
+    t = s
+    if t[0] in ('+', '-'):
+        neg = t[0] == '-'
+        t = t[1:]
+
+    n = _yaml_go_parse_base_digits(t, base)
+    if isinstance(n, YamlGoStrconvError):
+        return n
+
+    if neg:
+        n = -n
+
+    lo = -(1 << (bit_size - 1))
+    hi = (1 << (bit_size - 1)) - 1
+    if n < lo:
+        return YamlGoStrconvRangeError(lo)
+    if n > hi:
+        return YamlGoStrconvRangeError(hi)
+
+    return n
+
+
+def yaml_go_atoi(s: str) -> ta.Union[int, YamlGoStrconvError]:
+    # strconv.Atoi
+    return yaml_go_parse_int(s, 10, 64)
+
+
+# Unsigned decimal float syntax per go: underscores permitted only between digits, in the mantissa and the exponent.
+_YAML_GO_PARSE_FLOAT_DEC_PAT = r'(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)(?:[eE][+-]?\d(?:_?\d)*)?'
+
+# Hex float syntax per go: requires the 0x prefix and a mandatory (decimal) p exponent.
+_YAML_GO_PARSE_FLOAT_HEX_DIG = r'[0-9a-fA-F]'
+_YAML_GO_PARSE_FLOAT_HEX_PAT = (
+    r'0[xX]'
+    r'(?:H(?:_?H)*(?:\.(?:H(?:_?H)*)?)?|\.H(?:_?H)*)'
+    r'[pP][+-]?\d(?:_?\d)*'
+).replace('H', _YAML_GO_PARSE_FLOAT_HEX_DIG)
+
+_YAML_GO_PARSE_FLOAT_PAT = re.compile(f'(?:{_YAML_GO_PARSE_FLOAT_DEC_PAT}|{_YAML_GO_PARSE_FLOAT_HEX_PAT})')
+
+
+def yaml_go_parse_float(s: str) -> ta.Union[float, YamlGoStrconvError]:
+    """
+    strconv.ParseFloat(s, 64): strict ascii syntax, case-insensitive inf/infinity (signed) and nan (unsigned)
+    specials, hex floats with a mandatory p exponent, underscores only between digits. Overflow returns the clamped
+    +/-inf via a range error; underflow to zero is not an error (verified against go).
+    """
+
+    if not s:
+        return YamlGoStrconvSyntaxError()
+
+    if s.lower() == 'nan':
+        return math.nan
+
+    neg = False
+    t = s
+    if t[0] in ('+', '-'):
+        neg = t[0] == '-'
+        t = t[1:]
+
+    if t.lower() in ('inf', 'infinity'):
+        return -math.inf if neg else math.inf
+
+    if _YAML_GO_PARSE_FLOAT_PAT.fullmatch(t) is None:
+        return YamlGoStrconvSyntaxError()
+
+    u = ('-' if neg else '') + t.replace('_', '')
+    if t[:2].lower() == '0x':
+        try:
+            v = float.fromhex(u)
+        except OverflowError:
+            return YamlGoStrconvRangeError(-math.inf if neg else math.inf)
+    else:
+        v = float(u)
+
+    if math.isinf(v):
+        return YamlGoStrconvRangeError(v)
+
+    return v
+
+
+##
+# float formatting
+
+
+def _yaml_go_split_decimal(r: str) -> ta.Tuple[str, int]:
+    """Splits a python fixed or scientific float repr (sans sign) into (significant digits, decimal exponent)."""
+
+    if 'e' in r:
+        mant, _, es = r.partition('e')
+        exp = int(es)
+    else:
+        mant, exp = r, 0
+
+    if '.' in mant:
+        ip, fp = mant.split('.')
+    else:
+        ip, fp = mant, ''
+
+    digits = (ip + fp).lstrip('0')
+    if not digits:
+        return '0', 0
+
+    e = len(ip) - 1 + exp - (len(ip + fp) - len(digits))
+    digits = digits.rstrip('0') or '0'
+    return digits, e
+
+
+def yaml_go_format_float(f: float) -> str:
+    """
+    fmt.Sprint of a float64 - shortest round-trip digits, scientific notation when the decimal exponent is >= 6 or
+    < -4, and go's spellings for the specials.
+    """
+
+    if math.isnan(f):
+        return 'NaN'
+    if math.isinf(f):
+        return '+Inf' if f > 0 else '-Inf'
+
+    r = repr(f)
+    neg = r.startswith('-')
+    if neg:
+        r = r[1:]
+
+    digits, e = _yaml_go_split_decimal(r)
+    sign = '-' if neg else ''
+
+    if e < -4 or e >= 6:
+        mant = digits[0] if len(digits) == 1 else f'{digits[0]}.{digits[1:]}'
+        return f'{sign}{mant}e{"+" if e >= 0 else "-"}{abs(e):02d}'
+
+    if e >= len(digits) - 1:
+        return sign + digits + '0' * (e - (len(digits) - 1))
+    if e >= 0:
+        return f'{sign}{digits[:e + 1]}.{digits[e + 1:]}'
+    return f'{sign}0.{"0" * (-e - 1)}{digits}'
+
+
+def yaml_go_sprint(v: ta.Any) -> str:
+    """fmt.Sprint for the scalar values the decoder can produce."""
+
+    if v is None:
+        return '<nil>'
+    if isinstance(v, bool):
+        return 'true' if v else 'false'
+    if isinstance(v, float):
+        return yaml_go_format_float(v)
+    if isinstance(v, str):
+        return v
+    if isinstance(v, int):
+        return str(v)
+    return str(v)
+
+
+##
+# runes
+
+
+def yaml_go_rune_str(n: int) -> str:
+    """string(rune(n)): int32 truncation, with invalid code points and surrogates replaced by U+FFFD."""
+
+    n &= 0xFFFFFFFF
+    if n >= 1 << 31:
+        n -= 1 << 32
+    if n < 0 or n > 0x10FFFF or 0xD800 <= n <= 0xDFFF:
+        return '�'
+    return chr(n)
+
+
+##
+# base64
+
+
+_YAML_GO_B64_STD_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+_YAML_GO_B64_STD_ALPHABET_MAP: ta.Mapping[str, int] = {c: i for i, c in enumerate(_YAML_GO_B64_STD_ALPHABET)}
+
+
+def yaml_go_b64_std_decode(s: str) -> bytes:
+    """
+    base64.StdEncoding.DecodeString with the error discarded: CR/LF are ignored, and on malformed input the data
+    successfully decoded before the error is returned (go returns the partial result alongside the error).
+    """
+
+    out = bytearray()
+    q: ta.List[int] = []
+    pad = 0
+    done = False
+
+    for c in s:
+        if c in ('\r', '\n'):
+            continue
+        if done:
+            # data after a padding-terminated quantum
+            return bytes(out)
+
+        if c == '=':
+            if len(q) < 2:
+                return bytes(out)
+            pad += 1
+            q.append(0)
+            if len(q) == 4:
+                bits = (q[0] << 18) | (q[1] << 12) | (q[2] << 6) | q[3]
+                bs = bytes([(bits >> 16) & 0xFF, (bits >> 8) & 0xFF, bits & 0xFF])
+                out += bs[:3 - pad]
+                done = True
+            continue
+
+        if pad:
+            # non-padding character inside a padded quantum
+            return bytes(out)
+
+        v = _YAML_GO_B64_STD_ALPHABET_MAP.get(c)
+        if v is None:
+            return bytes(out)
+
+        q.append(v)
+        if len(q) == 4:
+            bits = (q[0] << 18) | (q[1] << 12) | (q[2] << 6) | q[3]
+            out += bytes([(bits >> 16) & 0xFF, (bits >> 8) & 0xFF, bits & 0xFF])
+            q = []
+
+    # an unpadded trailing quantum is an error in go's StdEncoding; the full quanta decoded so far are returned
+    return bytes(out)
+
+
+########################################
 # ../../../omcore/http/statuses.py
 
 
@@ -4549,6 +4903,71 @@ def dataclass_field_required(name: str) -> ta.Callable[[], ta.Any]:
     def inner() -> ta.NoReturn:
         raise DataclassFieldRequiredError(name)
     return inner
+
+
+########################################
+# ../../../omcore/lite/imports.py
+
+
+##
+
+
+def can_import(name: str, package: ta.Optional[str] = None) -> bool:
+    """
+    Whether the named module could be imported, without importing it. Unlike wrapping an import in `except ImportError`
+    this does not also swallow import failures raised from within the module's own body.
+    """
+
+    try:
+        spec = importlib.util.find_spec(name, package)
+    except ImportError:
+        return False
+    else:
+        return spec is not None
+
+
+##
+
+
+def import_module(dotted_path: str) -> types.ModuleType:
+    if not dotted_path:
+        raise ImportError(dotted_path)
+    mod = __import__(dotted_path, globals(), locals(), [])
+    for name in dotted_path.split('.')[1:]:
+        try:
+            mod = getattr(mod, name)
+        except AttributeError:
+            raise AttributeError(f'Module {mod!r} has no attribute {name!r}') from None
+    return mod
+
+
+def import_module_attr(dotted_path: str) -> ta.Any:
+    module_name, _, class_name = dotted_path.rpartition('.')
+    mod = import_module(module_name)
+    try:
+        return getattr(mod, class_name)
+    except AttributeError:
+        raise AttributeError(f'Module {module_name!r} has no attr {class_name!r}') from None
+
+
+def import_attr(dotted_path: str) -> ta.Any:
+    import importlib  # noqa
+    parts = dotted_path.split('.')
+    mod: ta.Any = None
+    mod_pos = 0
+    while mod_pos < len(parts):
+        mod_name = '.'.join(parts[:mod_pos + 1])
+        try:
+            mod = importlib.import_module(mod_name)
+        except ImportError:
+            break
+        mod_pos += 1
+    if mod is None:
+        raise ImportError(dotted_path)
+    obj = mod
+    for att_pos in range(mod_pos, len(parts)):
+        obj = getattr(obj, parts[att_pos])
+    return obj
 
 
 ########################################
@@ -6903,12 +7322,12 @@ class FirstAvailableYamlBackend(YamlBackend):
 class PyyamlYamlBackend(YamlBackend):
     @cached_nullary
     def _import(self) -> ta.Optional[ta.Any]:
-        try:
-            import yaml  # noqa
-        except ImportError:
+        if not can_import('yaml'):
             return None
-        else:
-            return yaml
+
+        import yaml  # noqa
+
+        return yaml
 
     def is_available(self) -> bool:
         return self._import() is not None
@@ -6926,12 +7345,12 @@ class PyyamlYamlBackend(YamlBackend):
 class RelativeImportGoyamlYamlBackend(YamlBackend):
     @cached_nullary
     def _import(self) -> ta.Optional[ta.Any]:
-        try:
-            mod = __import__('goyaml.backend', globals=globals(), level=1)
-        except ImportError:
+        # Relative so the subpackage may be absent from a trimmed distribution. Without a package (amalgamated code)
+        # it cannot be resolved at all.
+        if not (pkg := __package__) or not can_import('.goyaml.backend', pkg):
             return None
-        else:
-            return mod.backend
+
+        return importlib.import_module('.goyaml.backend', pkg)
 
     def is_available(self) -> bool:
         return self._import() is not None
@@ -6961,6 +7380,47 @@ class DEFAULT_YAML_BACKEND:  # noqa
         PyyamlYamlBackend(),
         RelativeImportGoyamlYamlBackend(),
     ])
+
+
+########################################
+# ../../../omcore/formats/yaml/goyaml/errors.py
+
+
+##
+
+
+class YamlError(Exception, Abstract):
+    @property
+    @abc.abstractmethod
+    def message(self) -> str:
+        raise NotImplementedError
+
+
+class EofYamlError(YamlError):
+    @property
+    def message(self) -> str:
+        return 'eof'
+
+
+@dc.dataclass()
+class GenericYamlError(YamlError):
+    obj: ta.Union[str, Exception]
+
+    @property
+    def message(self) -> str:
+        if isinstance(self.obj, str):
+            return self.obj
+        else:
+            return str(self.obj)
+
+
+def yaml_error(obj: ta.Union[YamlError, str, Exception]) -> YamlError:
+    if isinstance(obj, YamlError):
+        return obj
+    elif isinstance(obj, (str, Exception)):
+        return GenericYamlError(obj)
+    else:
+        raise TypeError(obj)
 
 
 ########################################
@@ -9780,7 +10240,25 @@ def parse_http_trailers(
 ##
 
 
+class IoPipelineHttpCompressionCodingUnavailableError(Exception):
+    """Raised constructing a coding whose backing library is not importable."""
+
+
+class IoPipelineHttpDecompressionError(Exception):
+    """
+    Malformed compressed input. Decompressor codings raise this in place of their backing library's own error, after
+    which they are spent.
+    """
+
+
+##
+
+
 class IoPiplineHttpCompressorCoding(Abstract):
+    @classmethod
+    def is_available(cls) -> bool:
+        return True
+
     @abc.abstractmethod
     def compress(
             self,
@@ -9807,6 +10285,19 @@ IoPiplineHttpCompressorCodings = ta.Mapping[  # ta.TypeAlias  # om-amalg-typing-
 
 
 class IoPiplineHttpDecompressorCoding(Abstract):
+    """
+    An incremental decompressor for one content coding, shaped after the stdlib's bz2 / lzma / zstd decompressor
+    objects rather than zlib's.
+
+    `decompress` returns at most `max_bytes` of output. When more was ready than fit, `needs_input` is False and
+    `decompress` must be called with empty data to drain it before being given any further input. There is no separate
+    finishing step: once `eof` all output has been returned, and a stream which never reaches `eof` was truncated.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return True
+
     @abc.abstractmethod
     def decompress(
             self,
@@ -9814,15 +10305,19 @@ class IoPiplineHttpDecompressorCoding(Abstract):
             max_bytes: ta.Optional[int] = None,
             /,
     ) -> ta.Optional[BytesLike]:
+        """Raises IoPipelineHttpDecompressionError on malformed input."""
+
         raise NotImplementedError
 
     @abc.abstractmethod
-    def unconsumed_tail(self) -> ta.Optional[BytesLike]:
+    def needs_input(self) -> bool:
+        """False while output is pending which the last `decompress` could not return within its `max_bytes`."""
+
         raise NotImplementedError
 
     @abc.abstractmethod
     def eof(self) -> bool:
-        """Whether the end of the compressed stream has been reached."""
+        """Whether the end of the compressed stream has been reached and all of its output returned."""
 
         raise NotImplementedError
 
@@ -9830,13 +10325,10 @@ class IoPiplineHttpDecompressorCoding(Abstract):
     def unused_data(self) -> ta.Optional[BytesLike]:
         """
         Bytes found past the end of the compressed stream. Only meaningful once `eof` - for codings whose streams are
-        concatenable (notably gzip, per RFC 1952 §2.2) these are the start of the following member.
+        concatenable (notably gzip, per RFC 1952 §2.2) these are the start of the following member. None for codings
+        which cannot separate them.
         """
 
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def finish(self) -> ta.Optional[BytesLike]:
         raise NotImplementedError
 
 
@@ -9881,10 +10373,19 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
             max_bytes: ta.Optional[int] = None,
             /,
     ) -> ta.Optional[BytesLike]:
-        return self._z.decompress(data, max_bytes or 0)
+        # Input zlib could not fit the output of within the limit is handed back as unconsumed_tail rather than kept, so
+        # it is re-fed here - which is why no new input may be given until it has been drained.
+        if (tail := self._z.unconsumed_tail):
+            check.arg(not data)
+            data = tail
 
-    def unconsumed_tail(self) -> ta.Optional[BytesLike]:
-        return self._z.unconsumed_tail
+        try:
+            return self._z.decompress(data, max_bytes or 0)
+        except zlib.error as e:
+            raise IoPipelineHttpDecompressionError(str(e)) from e
+
+    def needs_input(self) -> bool:
+        return not self._z.unconsumed_tail
 
     def eof(self) -> bool:
         return self._z.eof
@@ -9892,20 +10393,214 @@ class ZlibIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
     def unused_data(self) -> ta.Optional[BytesLike]:
         return self._z.unused_data
 
+
+##
+
+
+@cached_nullary
+def _can_import_brotli() -> bool:
+    return can_import('brotli')
+
+
+class BrotliIoPiplineHttpCompressorCoding(IoPiplineHttpCompressorCoding):
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_brotli()
+
+    def __init__(self, *, quality: ta.Optional[int] = None) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('brotli')
+
+        import brotli  # noqa
+
+        self._c = brotli.Compressor(**(dict(quality=quality) if quality is not None else {}))
+
+    def compress(
+            self,
+            data: BytesLike,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        return self._c.process(data)
+
+    def flush(self) -> ta.Optional[BytesLike]:
+        return self._c.flush() or None
+
     def finish(self) -> ta.Optional[BytesLike]:
-        return self._z.flush()
+        return self._c.finish()
+
+
+class BrotliIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
+    """
+    Two of brotli's quirks are hidden here. Its output limit is soft - it stops growing its buffer only once at or past
+    the limit, overshooting by up to an internal block - so the excess is withheld and returned by later drain calls.
+    And `can_accept_more_data` reports only withheld *input*, saying nothing of pending output, so a call which reached
+    its limit without finishing is taken to mean more is pending.
+
+    Brotli has no notion of data past the end of a stream: trailing bytes are a decode error, lost output and all.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_brotli()
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('brotli')
+
+        import brotli  # noqa
+
+        self._brotli = brotli
+        self._d = brotli.Decompressor()
+
+        self._withheld: ta.Optional[memoryview] = None
+        self._more = False
+
+    def decompress(
+            self,
+            data: BytesLike,
+            max_bytes: ta.Optional[int] = None,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        if (w := self._withheld) is not None:
+            check.arg(not data)
+            if max_bytes and len(w) > max_bytes:
+                self._withheld = w[max_bytes:]
+                return w[:max_bytes]
+            self._withheld = None
+            return w
+
+        try:
+            if max_bytes:
+                out = self._d.process(data, output_buffer_limit=max_bytes)
+            else:
+                out = self._d.process(data)
+        except self._brotli.error as e:
+            raise IoPipelineHttpDecompressionError(str(e)) from e
+
+        if not max_bytes:
+            self._more = False
+            return out
+
+        self._more = len(out) >= max_bytes and not self._d.is_finished()
+        if len(out) > max_bytes:
+            mv = memoryview(out)
+            self._withheld = mv[max_bytes:]
+            return mv[:max_bytes]
+        return out
+
+    def needs_input(self) -> bool:
+        return self._withheld is None and not self._more and self._d.can_accept_more_data()
+
+    def eof(self) -> bool:
+        return self._withheld is None and self._d.is_finished()
+
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        return None
+
+
+##
+
+
+@cached_nullary
+def _can_import_zstd() -> bool:
+    return can_import('compression.zstd')
+
+
+class ZstdIoPiplineHttpCompressorCoding(IoPiplineHttpCompressorCoding):
+    """Via the stdlib `compression.zstd` module, present from python 3.14."""
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_zstd()
+
+    def __init__(self, *, level: ta.Optional[int] = None) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('compression.zstd')
+
+        from compression import zstd  # noqa
+
+        self._c = zstd.ZstdCompressor(level=level)
+
+    def compress(
+            self,
+            data: BytesLike,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        return self._c.compress(data)
+
+    def flush(self) -> ta.Optional[BytesLike]:
+        return self._c.flush(self._c.FLUSH_BLOCK) or None
+
+    def finish(self) -> ta.Optional[BytesLike]:
+        return self._c.flush(self._c.FLUSH_FRAME)
+
+
+class ZstdIoPiplineHttpDecompressorCoding(IoPiplineHttpDecompressorCoding):
+    """Via the stdlib `compression.zstd` module, present from python 3.14."""
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return _can_import_zstd()
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        if not self.is_available():
+            raise IoPipelineHttpCompressionCodingUnavailableError('compression.zstd')
+
+        from compression import zstd  # noqa
+
+        self._zstd = zstd
+        self._d = zstd.ZstdDecompressor()
+
+    def decompress(
+            self,
+            data: BytesLike,
+            max_bytes: ta.Optional[int] = None,
+            /,
+    ) -> ta.Optional[BytesLike]:
+        try:
+            # A max_length of 0 means zero bytes, not unlimited.
+            return self._d.decompress(data, max_bytes or -1)
+        except (self._zstd.ZstdError, EOFError) as e:
+            raise IoPipelineHttpDecompressionError(str(e)) from e
+
+    def needs_input(self) -> bool:
+        # Past the end of a frame zstd keeps reporting needs_input False yet raises EOFError if drained.
+        return self._d.eof or self._d.needs_input
+
+    def eof(self) -> bool:
+        return self._d.eof
+
+    def unused_data(self) -> ta.Optional[BytesLike]:
+        return self._d.unused_data
 
 
 ##
 
 
 class DefaultIoPiplineHttpCompressionCodings(NamespaceClass):
+    """
+    Keyed by content-coding name. Codings whose backing library is absent raise
+    IoPipelineHttpCompressionCodingUnavailableError on construction - `is_available` tells in advance.
+    """
+
     COMPRESSOR: ta.Final[IoPiplineHttpCompressorCodings] = {
         'gzip': ZlibIoPiplineHttpCompressorCoding,
+        'br': BrotliIoPiplineHttpCompressorCoding,
+        'zstd': ZstdIoPiplineHttpCompressorCoding,
     }
 
     DECOMPRESSOR: ta.Final[IoPiplineHttpDecompressorCodings] = {
         'gzip': ZlibIoPiplineHttpDecompressorCoding,
+        'br': BrotliIoPiplineHttpDecompressorCoding,
+        'zstd': ZstdIoPiplineHttpDecompressorCoding,
     }
 
 
@@ -14761,6 +15456,7 @@ class SystevisorManagerConfig:
     pid_file: ta.Optional[str] = None
     state_directory: ta.Optional[str] = None
     child_log_directory: ta.Optional[str] = None
+    retained_child_log_runs: int = 2
     min_fds: int = 1024
     min_procs: int = 200
     cleanup_auto_logs: bool = True
@@ -15174,6 +15870,1073 @@ DEFAULT_CONFIG_RENDERERS: ta.Sequence[ConfigRenderer] = [
 ]
 
 DEFAULT_CONFIG_RENDERER = SwitchedConfigRenderer(DEFAULT_CONFIG_RENDERERS)
+
+
+########################################
+# ../../../omcore/formats/yaml/goyaml/tokens.py
+##
+# MIT License
+#
+# Copyright (c) 2019 Masaaki Goshima
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+# persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+# Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+##
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class YamlSyntaxError(YamlError):
+    msg: str
+    token: ta.Optional['YamlToken']
+
+    @property
+    def message(self) -> str:
+        return self.msg
+
+
+##
+
+
+class YamlChars:
+    # SEQUENCE_ENTRY character for sequence entry
+    SEQUENCE_ENTRY = '-'
+    # MAPPING_KEY character for mapping key
+    MAPPING_KEY = '?'
+    # MAPPING_VALUE character for mapping value
+    MAPPING_VALUE = ':'
+    # COLLECT_ENTRY character for collect entry
+    COLLECT_ENTRY = ','
+    # SEQUENCE_START character for sequence start
+    SEQUENCE_START = '['
+    # SEQUENCE_END character for sequence end
+    SEQUENCE_END = ']'
+    # MAPPING_START character for mapping start
+    MAPPING_START = '{'
+    # MAPPING_END character for mapping end
+    MAPPING_END = '}'
+    # COMMENT character for comment
+    COMMENT = '#'
+    # ANCHOR character for anchor
+    ANCHOR = '&'
+    # ALIAS character for alias
+    ALIAS = '*'
+    # TAG character for tag
+    TAG = '!'
+    # LITERAL character for literal
+    LITERAL = '|'
+    # FOLDED character for folded
+    FOLDED = '>'
+    # SINGLE_QUOTE character for single quote
+    SINGLE_QUOTE = '\''
+    # DOUBLE_QUOTE character for double quote
+    DOUBLE_QUOTE = '"'
+    # DIRECTIVE character for directive
+    DIRECTIVE = '%'
+    # SPACE character for space
+    SPACE = ' '
+    # LINE_BREAK character for line break
+    LINE_BREAK = '\n'
+
+
+class YamlTokenType(enum.Enum):
+    # UNKNOWN reserve for invalid type
+    UNKNOWN = enum.auto()
+    # DOCUMENT_HEADER type for DocumentHeader token
+    DOCUMENT_HEADER = enum.auto()
+    # DOCUMENT_END type for DocumentEnd token
+    DOCUMENT_END = enum.auto()
+    # SEQUENCE_ENTRY type for SequenceEntry token
+    SEQUENCE_ENTRY = enum.auto()
+    # MAPPING_KEY type for MappingKey token
+    MAPPING_KEY = enum.auto()
+    # MAPPING_VALUE type for MappingValue token
+    MAPPING_VALUE = enum.auto()
+    # MERGE_KEY type for MergeKey token
+    MERGE_KEY = enum.auto()
+    # COLLECT_ENTRY type for CollectEntry token
+    COLLECT_ENTRY = enum.auto()
+    # SEQUENCE_START type for SequenceStart token
+    SEQUENCE_START = enum.auto()
+    # SEQUENCE_END type for SequenceEnd token
+    SEQUENCE_END = enum.auto()
+    # MAPPING_START type for MappingStart token
+    MAPPING_START = enum.auto()
+    # MAPPING_END type for MappingEnd token
+    MAPPING_END = enum.auto()
+    # COMMENT type for Comment token
+    COMMENT = enum.auto()
+    # ANCHOR type for Anchor token
+    ANCHOR = enum.auto()
+    # ALIAS type for Alias token
+    ALIAS = enum.auto()
+    # TAG type for Tag token
+    TAG = enum.auto()
+    # LITERAL type for Literal token
+    LITERAL = enum.auto()
+    # FOLDED type for Folded token
+    FOLDED = enum.auto()
+    # SINGLE_QUOTE type for SingleQuote token
+    SINGLE_QUOTE = enum.auto()
+    # DOUBLE_QUOTE type for DoubleQuote token
+    DOUBLE_QUOTE = enum.auto()
+    # DIRECTIVE type for Directive token
+    DIRECTIVE = enum.auto()
+    # SPACE type for Space token
+    SPACE = enum.auto()
+    # NULL type for Null token
+    NULL = enum.auto()
+    # IMPLICIT_NULL type for implicit Null token.
+    # This is used when explicit keywords such as null or ~ are not specified. It is distinguished during encoding and
+    # output as an empty string.
+    IMPLICIT_NULL = enum.auto()
+    # INFINITY type for Infinity token
+    INFINITY = enum.auto()
+    # NAN type for Nan token
+    NAN = enum.auto()
+    # INTEGER type for Integer token
+    INTEGER = enum.auto()
+    # BINARY_INTEGER type for BinaryInteger token
+    BINARY_INTEGER = enum.auto()
+    # OCTET_INTEGER type for OctetInteger token
+    OCTET_INTEGER = enum.auto()
+    # HEX_INTEGER type for HexInteger token
+    HEX_INTEGER = enum.auto()
+    # FLOAT type for Float token
+    FLOAT = enum.auto()
+    # STRING type for String token
+    STRING = enum.auto()
+    # BOOL type for Bool token
+    BOOL = enum.auto()
+    # INVALID type for invalid token
+    INVALID = enum.auto()
+
+
+class YamlCharType(enum.Enum):
+    # INDICATOR type of indicator character
+    INDICATOR = enum.auto()
+    # WHITE-SPACE type of white space character
+    WHITESPACE = enum.auto()
+    # MISCELLANEOUS type of miscellaneous character
+    MISCELLANEOUS = enum.auto()
+    # ESCAPED type of escaped character
+    ESCAPED = enum.auto()
+    # INVALID type for an invalid token.
+    INVALID = enum.auto()
+
+
+class YamlIndicator(enum.Enum):
+    # NOT not an indicator
+    NOT = enum.auto()
+    # BLOCK_STRUCTURE indicator for block structure ( '-', '?', ':' )
+    BLOCK_STRUCTURE = enum.auto()
+    # FLOW_COLLECTION indicator for flow collection ( '[', ']', '{', '}', ',' )
+    FLOW_COLLECTION = enum.auto()
+    # COMMENT indicator for comment ( '#' )
+    COMMENT = enum.auto()
+    # NODE_PROPERTY indicator for node property ( '!', '&', '*' )
+    NODE_PROPERTY = enum.auto()
+    # BLOCK_SCALAR indicator for block scalar ( '|', '>' )
+    BLOCK_SCALAR = enum.auto()
+    # QUOTED_SCALAR indicator for quoted scalar ( ''', '"' )
+    QUOTED_SCALAR = enum.auto()
+    # DIRECTIVE indicator for directive ( '%' )
+    DIRECTIVE = enum.auto()
+    # INVALID_USE_OF_RESERVED indicator for invalid use of reserved keyword ( '@', '`' )
+    INVALID_USE_OF_RESERVED = enum.auto()
+
+
+##
+
+
+class YamlKeywords:
+    def __new__(cls, *args, **kwargs):  # noqa
+        raise TypeError
+
+    RESERVED_NULL_KEYWORDS = (
+        'null',
+        'Null',
+        'NULL',
+        '~',
+    )
+
+    RESERVED_BOOL_KEYWORDS = (
+        'true',
+        'True',
+        'TRUE',
+        'false',
+        'False',
+        'FALSE',
+    )
+
+    # For compatibility with other YAML 1.1 parsers.
+    # Note that we use these solely for encoding the bool value with quotes. go-yaml should not treat these as reserved
+    # keywords at parsing time. as go-yaml is supposed to be compliant only with YAML 1.2.
+    RESERVED_LEGACY_BOOL_KEYWORDS = (
+        'y',
+        'Y',
+        'yes',
+        'Yes',
+        'YES',
+        'n',
+        'N',
+        'no',
+        'No',
+        'NO',
+        'on',
+        'On',
+        'ON',
+        'off',
+        'Off',
+        'OFF',
+    )
+
+    RESERVED_INF_KEYWORDS = (
+        '.inf',
+        '.Inf',
+        '.INF',
+        '-.inf',
+        '-.Inf',
+        '-.INF',
+    )
+
+    RESERVED_NAN_KEYWORDS = (
+        '.nan',
+        '.NaN',
+        '.NAN',
+    )
+
+    RESERVED_KEYWORD_MAP: ta.ClassVar[ta.Mapping[str, ta.Callable[[str, str, 'YamlPosition'], 'YamlToken']]]
+    RESERVED_ENC_KEYWORD_MAP: ta.ClassVar[ta.Mapping[str, ta.Callable[[str, str, 'YamlPosition'], 'YamlToken']]]
+
+
+def _yaml_reserved_keyword_token(typ: YamlTokenType, value: str, org: str, pos: 'YamlPosition') -> 'YamlToken':
+    return YamlToken(
+        type=typ,
+        char_type=YamlCharType.MISCELLANEOUS,
+        indicator=YamlIndicator.NOT,
+        value=value,
+        origin=org,
+        position=pos,
+    )
+
+
+YamlKeywords.RESERVED_KEYWORD_MAP = {
+    **{keyword: functools.partial(_yaml_reserved_keyword_token, YamlTokenType.NULL) for keyword in YamlKeywords.RESERVED_NULL_KEYWORDS},  # noqa
+    **{keyword: functools.partial(_yaml_reserved_keyword_token, YamlTokenType.BOOL) for keyword in YamlKeywords.RESERVED_BOOL_KEYWORDS},  # noqa
+    **{keyword: functools.partial(_yaml_reserved_keyword_token, YamlTokenType.INFINITY) for keyword in YamlKeywords.RESERVED_INF_KEYWORDS},  # noqa
+    **{keyword: functools.partial(_yaml_reserved_keyword_token, YamlTokenType.NAN) for keyword in YamlKeywords.RESERVED_NAN_KEYWORDS},  # noqa
+}
+
+
+# RESERVED_ENC_KEYWORD_MAP contains is the keyword map used at encoding time.
+# This is supposed to be a superset of RESERVED_KEYWORD_MAP, and used to quote legacy keywords present in YAML 1.1 or
+# lesser for compatibility reasons, even though this library is supposed to be YAML 1.2-compliant.
+YamlKeywords.RESERVED_ENC_KEYWORD_MAP = {
+    **{keyword: functools.partial(_yaml_reserved_keyword_token, YamlTokenType.NULL) for keyword in YamlKeywords.RESERVED_NULL_KEYWORDS},  # noqa
+    **{keyword: functools.partial(_yaml_reserved_keyword_token, YamlTokenType.BOOL) for keyword in YamlKeywords.RESERVED_BOOL_KEYWORDS},  # noqa
+    **{keyword: functools.partial(_yaml_reserved_keyword_token, YamlTokenType.BOOL) for keyword in YamlKeywords.RESERVED_LEGACY_BOOL_KEYWORDS},  # noqa
+}
+
+
+##
+
+
+YamlReservedTagKeyword = str  # ta.TypeAlias  # om-amalg-typing-no-move
+
+
+class YamlReservedTagKeywords:
+    # INTEGER `!!int` tag
+    INTEGER = '!!int'
+    # FLOAT `!!float` tag
+    FLOAT = '!!float'
+    # NULL `!!null` tag
+    NULL = '!!null'
+    # SEQUENCE `!!seq` tag
+    SEQUENCE = '!!seq'
+    # MAPPING `!!map` tag
+    MAPPING = '!!map'
+    # STRING `!!str` tag
+    STRING = '!!str'
+    # BINARY `!!binary` tag
+    BINARY = '!!binary'
+    # ORDERED_MAP `!!omap` tag
+    ORDERED_MAP = '!!omap'
+    # SET `!!set` tag
+    SET = '!!set'
+    # TIMESTAMP `!!timestamp` tag
+    TIMESTAMP = '!!timestamp'
+    # BOOLEAN `!!bool` tag
+    BOOLEAN = '!!bool'
+    # MERGE `!!merge` tag
+    MERGE = '!!merge'
+
+
+# RESERVED_TAG_KEYWORD_MAP map for reserved tag keywords
+YAML_RESERVED_TAG_KEYWORD_MAP: ta.Mapping[YamlReservedTagKeyword, ta.Callable[[str, str, 'YamlPosition'], 'YamlToken']] = {  # noqa
+    YamlReservedTagKeywords.INTEGER: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.FLOAT: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.NULL: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.SEQUENCE: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.MAPPING: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.STRING: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.BINARY: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.ORDERED_MAP: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.SET: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.TIMESTAMP: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.BOOLEAN: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+    YamlReservedTagKeywords.MERGE: lambda value, org, pos: YamlToken(
+        type=YamlTokenType.TAG,
+        char_type=YamlCharType.INDICATOR,
+        indicator=YamlIndicator.NODE_PROPERTY,
+        value=value,
+        origin=org,
+        position=pos,
+    ),
+}
+
+
+##
+
+
+class YamlNumberType(enum.Enum):
+    DECIMAL = 'decimal'
+    BINARY = 'binary'
+    OCTET = 'octet'
+    HEX = 'hex'
+    FLOAT = 'float'
+
+
+@dc.dataclass()
+class YamlNumberValue:
+    type: YamlNumberType
+    value: ta.Any
+    text: str
+
+
+def yaml_to_number(value: str) -> ta.Optional[YamlNumberValue]:
+    num = _yaml_to_number(value)
+    if isinstance(num, YamlError):
+        return None
+
+    return num
+
+
+def _yaml_is_number(value: str) -> bool:
+    num = _yaml_to_number(value)
+    if isinstance(num, YamlError):
+        # var numErr *strconv.NumError
+        # if errors.As(err, &numErr) && errors.Is(numErr.Err, strconv.ErrRange) {
+        #     return true
+        if isinstance(num, GenericYamlError) and isinstance(num.obj, YamlGoStrconvRangeError):
+            return True
+
+        return False
+
+    return num is not None
+
+
+def _yaml_to_number(value: str) -> YamlErrorOr[ta.Optional[YamlNumberValue]]:
+    if not value:
+        return None
+
+    if value.startswith('_'):
+        return None
+
+    dot_count = value.count('.')
+    if dot_count > 1:
+        return None
+
+    is_negative = value.startswith('-')
+    normalized = yaml_go_trim_prefix(yaml_go_trim_prefix(value, '+'), '-').replace('_', '')
+
+    typ: YamlNumberType
+    base = 0
+
+    if normalized.startswith('0x'):
+        normalized = yaml_go_trim_prefix(normalized, '0x')
+        base = 16
+        typ = YamlNumberType.HEX
+    elif normalized.startswith('0o'):
+        normalized = yaml_go_trim_prefix(normalized, '0o')
+        base = 8
+        typ = YamlNumberType.OCTET
+    elif normalized.startswith('0b'):
+        normalized = yaml_go_trim_prefix(normalized, '0b')
+        base = 2
+        typ = YamlNumberType.BINARY
+    elif normalized.startswith('0') and len(normalized) > 1 and dot_count == 0:
+        base = 8
+        typ = YamlNumberType.OCTET
+    elif dot_count == 1:
+        typ = YamlNumberType.FLOAT
+    else:
+        typ = YamlNumberType.DECIMAL
+        base = 10
+
+    text = normalized
+    if is_negative:
+        text = '-' + text
+
+    v: ta.Any
+    if typ == YamlNumberType.FLOAT:
+        f = yaml_go_parse_float(text)
+        if isinstance(f, YamlGoStrconvError):
+            return yaml_error(f)
+        v = f
+    elif is_negative:
+        i = yaml_go_parse_int(text, base, 64)
+        if isinstance(i, YamlGoStrconvError):
+            return yaml_error(i)
+        v = i
+    else:
+        u = yaml_go_parse_uint(text, base, 64)
+        if isinstance(u, YamlGoStrconvError):
+            return yaml_error(u)
+        v = u
+
+    return YamlNumberValue(
+        type=typ,
+        value=v,
+        text=text,
+    )
+
+
+##
+
+
+# This is a subset of the formats permitted by the regular expression defined at http:#yaml.org/type/timestamp.html.
+# Note that time.Parse cannot handle: "2001-12-14 21:59:43.10 -5" from the examples.
+#
+# The go implementation matches against the following time.Parse layouts:
+#
+#     time.RFC3339Nano ("2006-01-02T15:04:05.999999999Z07:00")
+#     "2006-01-02t15:04:05.999999999Z07:00"  # RFC3339Nano with lower-case "t"
+#     time.DateTime ("2006-01-02 15:04:05")
+#     time.DateOnly ("2006-01-02")
+#     # Not in examples, but to preserve backward compatibility by quoting time values
+#     "15:4"
+#
+# strptime cannot reproduce time.Parse's semantics (its zero-padded fields require exactly two digits while the "15"
+# hour field accepts one or two, fractional seconds are optional with any number of digits and either '.' or ',' as
+# the separator, and the "Z07:00" zone matches a literal upper-case 'Z' or a strict "+hh:mm" numeric offset with
+# hh <= 24 and mm <= 59), so the shapes are matched with regexes and the field ranges validated separately. All of
+# the above was verified empirically against go.
+_YAML_RFC3339_TIMESTAMP_PAT = re.compile(
+    r'(\d{4})-(\d{2})-(\d{2})[Tt](\d{1,2}):(\d{2}):(\d{2})(?:[.,]\d+)?(?:Z|([+-])(\d{2}):(\d{2}))',
+)
+# time.Parse permits a fractional second after the seconds field even when the layout has none.
+_YAML_DATE_TIME_TIMESTAMP_PAT = re.compile(r'(\d{4})-(\d{2})-(\d{2}) (\d{1,2}):(\d{2}):(\d{2})(?:[.,]\d+)?')
+_YAML_DATE_ONLY_TIMESTAMP_PAT = re.compile(r'(\d{4})-(\d{2})-(\d{2})')
+_YAML_HOUR_MINUTE_TIMESTAMP_PAT = re.compile(r'(\d{1,2}):(\d{1,2})')
+
+
+def _yaml_is_valid_date(y: int, mo: int, d: int) -> bool:
+    try:
+        # go's time package permits year zero; substitute another leap year for the day-range check.
+        datetime.date(y if y > 0 else 4, mo, d)
+    except ValueError:
+        return False
+    return True
+
+
+def _yaml_is_timestamp(value: str) -> bool:
+    if (m := _YAML_RFC3339_TIMESTAMP_PAT.fullmatch(value)) is not None:
+        y, mo, d, h, mi, s = (int(g) for g in m.group(1, 2, 3, 4, 5, 6))
+        if not _yaml_is_valid_date(y, mo, d):
+            return False
+        if h > 23 or mi > 59 or s > 59:
+            return False
+        if m.group(7) is not None and (int(m.group(8)) > 24 or int(m.group(9)) > 59):
+            return False
+        return True
+
+    if (m := _YAML_DATE_TIME_TIMESTAMP_PAT.fullmatch(value)) is not None:
+        y, mo, d, h, mi, s = (int(g) for g in m.group(1, 2, 3, 4, 5, 6))
+        return _yaml_is_valid_date(y, mo, d) and h <= 23 and mi <= 59 and s <= 59
+
+    if (m := _YAML_DATE_ONLY_TIMESTAMP_PAT.fullmatch(value)) is not None:
+        y, mo, d = (int(g) for g in m.group(1, 2, 3))
+        return _yaml_is_valid_date(y, mo, d)
+
+    if (m := _YAML_HOUR_MINUTE_TIMESTAMP_PAT.fullmatch(value)) is not None:
+        h, mi = (int(g) for g in m.group(1, 2))
+        return h <= 23 and mi <= 59
+
+    return False
+
+
+##
+
+
+# is_need_quoted checks whether the value needs quote for passed string or not
+def _yaml_is_need_quoted(value: str) -> bool:
+    if not value:
+        return True
+
+    if value in YamlKeywords.RESERVED_ENC_KEYWORD_MAP:
+        return True
+
+    if _yaml_is_number(value):
+        return True
+
+    if value == '-':
+        return True
+
+    if value[0] in ('*', '&', '[', '{', '}', ']', ',', '!', '|', '>', '%', '\'', '"', '@', ' ', '`', ':'):
+        return True
+
+    if value[-1] in (':', ' '):
+        return True
+
+    if _yaml_is_timestamp(value):
+        return True
+
+    for i, c in enumerate(value):
+        if c in ('#', '\\'):
+            return True
+        elif c in (':', '-'):
+            if i + 1 < len(value) and value[i + 1] == ' ':
+                return True
+
+    return False
+
+
+# literal_block_header detect literal block scalar header
+def yaml_literal_block_header(value: str) -> str:
+    lbc = yaml_detect_line_break_char(value)
+
+    if lbc not in value:
+        return ''
+    elif value.endswith(lbc + lbc):
+        return '|+'
+    elif value.endswith(lbc):
+        return '|'
+    else:
+        return '|-'
+
+
+##
+
+
+# new create reserved keyword token or number token and other string token.
+def yaml_new_token(value: str, org: str, pos: 'YamlPosition') -> 'YamlToken':
+    fn = YamlKeywords.RESERVED_KEYWORD_MAP.get(value)
+    if fn is not None:
+        return fn(value, org, pos)
+
+    if (num := yaml_to_number(value)) is not None:
+        tk = YamlToken(
+            type=YamlTokenType.INTEGER,
+            char_type=YamlCharType.MISCELLANEOUS,
+            indicator=YamlIndicator.NOT,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+        if num.type == YamlNumberType.FLOAT:
+            tk.type = YamlTokenType.FLOAT
+        elif num.type == YamlNumberType.BINARY:
+            tk.type = YamlTokenType.BINARY_INTEGER
+        elif num.type == YamlNumberType.OCTET:
+            tk.type = YamlTokenType.OCTET_INTEGER
+        elif num.type == YamlNumberType.HEX:
+            tk.type = YamlTokenType.HEX_INTEGER
+        return tk
+
+    return YamlTokenMakers.new_string(value, org, pos)
+
+
+# Position type for position in YAML document
+@dc.dataclass()
+class YamlPosition:
+    line: int
+    column: int
+    offset: int
+    indent_num: int
+    indent_level: int
+
+    # String position to text
+    def __str__(self) -> str:
+        return f'[level:{self.indent_level:d},line:{self.line:d},column:{self.column:d},offset:{self.offset:d}]'
+
+
+# Token type for token
+@dc.dataclass()
+@ta.final
+class YamlToken:
+    # Type is a token type.
+    type: YamlTokenType
+    # CharType is a character type.
+    char_type: YamlCharType
+    # Indicator is an indicator type.
+    indicator: YamlIndicator
+    # Value is a string extracted with only meaningful characters, with spaces and such removed.
+    value: str
+    # Origin is a string that stores the original text as-is.
+    origin: str
+    # Error keeps error message for InvalidToken.
+    error: ta.Optional[YamlError] = None
+    # Position is a token position.
+    position: YamlPosition = dc.field(default_factory=dataclass_field_required('position'))
+    # Next is a next token reference.
+    next: ta.Optional['YamlToken'] = dc.field(default=None, repr=False)
+    # Prev is a previous token reference.
+    prev: ta.Optional['YamlToken'] = dc.field(default=None, repr=False)
+
+    # previous_type previous token type
+    def previous_type(self) -> YamlTokenType:
+        if self.prev is not None:
+            return self.prev.type
+
+        return YamlTokenType.UNKNOWN
+
+    # next_type next token type
+    def next_type(self) -> YamlTokenType:
+        if self.next is not None:
+            return self.next.type
+
+        return YamlTokenType.UNKNOWN
+
+    # add_column append column number to current position of column
+    @classmethod
+    def add_column(cls, t: ta.Optional['YamlToken'], col: int) -> None:
+        if t is None:
+            return
+
+        t.position.column += col
+
+    # clone copy token ( preserve Prev/Next reference )
+    @classmethod
+    def clone(cls, t: ta.Optional['YamlToken']) -> ta.Optional['YamlToken']:
+        if t is None:
+            return None
+
+        copied = copy.copy(t)
+        if t.position is not None:
+            pos = copy.copy(t.position)
+            copied.position = pos
+
+        return copied
+
+
+##
+
+
+# Tokens type of token collection
+class YamlTokens(ta.List[YamlToken]):
+    def invalid_token(self) -> ta.Optional[YamlToken]:
+        for tt in self:
+            if tt.type == YamlTokenType.INVALID:
+                return tt
+        return None
+
+    def _add(self, tk: YamlToken) -> None:
+        if not self:
+            self.append(tk)
+        else:
+            last = self[-1]
+            last.next = tk
+            tk.prev = last
+            self.append(tk)
+
+    # add append new some tokens
+    def add(self, *tks: YamlToken) -> None:
+        for tk in tks:
+            self._add(tk)
+
+
+##
+
+
+class YamlTokenMakers:  # noqa
+    def __new__(cls, *args, **kwargs):  # noqa
+        raise TypeError
+
+    # new_string create token for String
+    @staticmethod
+    def new_string(value: str, org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.STRING,
+            char_type=YamlCharType.MISCELLANEOUS,
+            indicator=YamlIndicator.NOT,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+
+    # new_sequence_entry create token for SequenceEntry
+    @staticmethod
+    def new_sequence_entry(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.SEQUENCE_ENTRY,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.BLOCK_STRUCTURE,
+            value=YamlChars.SEQUENCE_ENTRY,
+            origin=org,
+            position=pos,
+        )
+
+    # new_mapping_key create token for MappingKey
+    @staticmethod
+    def new_mapping_key(pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.MAPPING_KEY,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.BLOCK_STRUCTURE,
+            value=YamlChars.MAPPING_KEY,
+            origin=YamlChars.MAPPING_KEY,
+            position=pos,
+        )
+
+    # new_mapping_value create token for MappingValue
+    @staticmethod
+    def new_mapping_value(pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.MAPPING_VALUE,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.BLOCK_STRUCTURE,
+            value=YamlChars.MAPPING_VALUE,
+            origin=YamlChars.MAPPING_VALUE,
+            position=pos,
+        )
+
+    # new_collect_entry create token for CollectEntry
+    @staticmethod
+    def new_collect_entry(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.COLLECT_ENTRY,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.FLOW_COLLECTION,
+            value=YamlChars.COLLECT_ENTRY,
+            origin=org,
+            position=pos,
+        )
+
+    # new_sequence_start create token for SequenceStart
+    @staticmethod
+    def new_sequence_start(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.SEQUENCE_START,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.FLOW_COLLECTION,
+            value=YamlChars.SEQUENCE_START,
+            origin=org,
+            position=pos,
+        )
+
+    # new_sequence_end create token for SequenceEnd
+    @staticmethod
+    def new_sequence_end(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.SEQUENCE_END,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.FLOW_COLLECTION,
+            value=YamlChars.SEQUENCE_END,
+            origin=org,
+            position=pos,
+        )
+
+    # new_mapping_start create token for MappingStart
+    @staticmethod
+    def new_mapping_start(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.MAPPING_START,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.FLOW_COLLECTION,
+            value=YamlChars.MAPPING_START,
+            origin=org,
+            position=pos,
+        )
+
+    # new_mapping_end create token for MappingEnd
+    @staticmethod
+    def new_mapping_end(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.MAPPING_END,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.FLOW_COLLECTION,
+            value=YamlChars.MAPPING_END,
+            origin=org,
+            position=pos,
+        )
+
+    # new_comment create token for Comment
+    @staticmethod
+    def new_comment(value: str, org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.COMMENT,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.COMMENT,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+
+    # new_anchor create token for Anchor
+    @staticmethod
+    def new_anchor(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.ANCHOR,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.NODE_PROPERTY,
+            value=YamlChars.ANCHOR,
+            origin=org,
+            position=pos,
+        )
+
+    # new_alias create token for Alias
+    @staticmethod
+    def new_alias(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.ALIAS,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.NODE_PROPERTY,
+            value=YamlChars.ALIAS,
+            origin=org,
+            position=pos,
+        )
+
+    # new_tag create token for Tag
+    @staticmethod
+    def new_tag(value: str, org: str, pos: YamlPosition) -> YamlToken:
+        fn = YAML_RESERVED_TAG_KEYWORD_MAP.get(value)
+        if fn is not None:
+            return fn(value, org, pos)
+
+        return YamlToken(
+            type=YamlTokenType.TAG,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.NODE_PROPERTY,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+
+    # new_literal create token for Literal
+    @staticmethod
+    def new_literal(value: str, org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.LITERAL,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.BLOCK_SCALAR,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+
+    # new_folded create token for Folded
+    @staticmethod
+    def new_folded(value: str, org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.FOLDED,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.BLOCK_SCALAR,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+
+    # new_single_quote create token for SingleQuote
+    @staticmethod
+    def new_single_quote(value: str, org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.SINGLE_QUOTE,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.QUOTED_SCALAR,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+
+    # new_double_quote create token for DoubleQuote
+    @staticmethod
+    def new_double_quote(value: str, org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.DOUBLE_QUOTE,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.QUOTED_SCALAR,
+            value=value,
+            origin=org,
+            position=pos,
+        )
+
+    # new_directive create token for Directive
+    @staticmethod
+    def new_directive(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.DIRECTIVE,
+            char_type=YamlCharType.INDICATOR,
+            indicator=YamlIndicator.DIRECTIVE,
+            value=YamlChars.DIRECTIVE,
+            origin=org,
+            position=pos,
+        )
+
+    # new_space create token for Space
+    @staticmethod
+    def new_space(pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.SPACE,
+            char_type=YamlCharType.WHITESPACE,
+            indicator=YamlIndicator.NOT,
+            value=YamlChars.SPACE,
+            origin=YamlChars.SPACE,
+            position=pos,
+        )
+
+    # new_merge_key create token for MergeKey
+    @staticmethod
+    def new_merge_key(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.MERGE_KEY,
+            char_type=YamlCharType.MISCELLANEOUS,
+            indicator=YamlIndicator.NOT,
+            value='<<',
+            origin=org,
+            position=pos,
+        )
+
+    # new_document_header create token for DocumentHeader
+    @staticmethod
+    def new_document_header(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.DOCUMENT_HEADER,
+            char_type=YamlCharType.MISCELLANEOUS,
+            indicator=YamlIndicator.NOT,
+            value='---',
+            origin=org,
+            position=pos,
+        )
+
+    # new_document_end create token for DocumentEnd
+    @staticmethod
+    def new_document_end(org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.DOCUMENT_END,
+            char_type=YamlCharType.MISCELLANEOUS,
+            indicator=YamlIndicator.NOT,
+            value='...',
+            origin=org,
+            position=pos,
+        )
+
+    @staticmethod
+    def new_invalid(err: YamlError, org: str, pos: YamlPosition) -> YamlToken:
+        return YamlToken(
+            type=YamlTokenType.INVALID,
+            char_type=YamlCharType.INVALID,
+            indicator=YamlIndicator.NOT,
+            value=org,
+            origin=org,
+            error=err,
+            position=pos,
+        )
+
+
+##
+
+
+# detect_line_break_char detect line break character in only one inside scalar content scope.
+def yaml_detect_line_break_char(src: str) -> str:
+    nc = src.count('\n')
+    rc = src.count('\r')
+    rnc = src.count('\r\n')
+    if nc == rnc and rc == rnc:
+        return '\r\n'
+    elif rc > nc:
+        return '\r'
+    else:
+        return '\n'
 
 
 ########################################
@@ -17274,6 +19037,14 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'umask',
         ))
 
+    if config.manager.retained_child_log_runs < 0:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_child_log_retention',
+            'manager retained_child_log_runs must be non-negative',
+            'manager',
+            'retained_child_log_runs',
+        ))
+
     if config.manager.min_fds < 0 or config.manager.min_procs < 0:
         errors.append(_systevisor_config_validation_error(
             'invalid_resource_minimum',
@@ -18337,6 +20108,4183 @@ class SystevisorSignalFdioHandler(FdioHandler):
 
 
 ########################################
+# ../../../omcore/formats/yaml/goyaml/ast.py
+##
+# MIT License
+#
+# Copyright (c) 2019 Masaaki Goshima
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+# persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+# Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+##
+
+
+##
+
+
+@dc.dataclass()
+class UnexpectedNodeTypeYamlError(YamlError):
+    actual: 'YamlNodeType'
+    expected: 'YamlNodeType'
+    token: YamlToken
+
+    @property
+    def message(self) -> str:
+        return f'unexpected node type: expected {self.expected.name}, got {self.actual.name}, at {self.token.position}'
+
+
+##
+
+
+class YamlAstErrors:
+    def __new__(cls, *args, **kwargs):  # noqa
+        raise TypeError
+
+    INVALID_TOKEN_TYPE = yaml_error('invalid token type')
+    INVALID_ANCHOR_NAME = yaml_error('invalid anchor name')
+    INVALID_ALIAS_NAME = yaml_error('invalid alias name')
+
+
+class YamlNodeType(enum.Enum):
+    # UNKNOWN type identifier for default
+    UNKNOWN = enum.auto()
+    # DOCUMENT type identifier for document node
+    DOCUMENT = enum.auto()
+    # NULL type identifier for null node
+    NULL = enum.auto()
+    # BOOL type identifier for boolean node
+    BOOL = enum.auto()
+    # INTEGER type identifier for integer node
+    INTEGER = enum.auto()
+    # FLOAT type identifier for float node
+    FLOAT = enum.auto()
+    # INFINITY type identifier for infinity node
+    INFINITY = enum.auto()
+    # NAN type identifier for nan node
+    NAN = enum.auto()
+    # STRING type identifier for string node
+    STRING = enum.auto()
+    # MERGE_KEY type identifier for merge key node
+    MERGE_KEY = enum.auto()
+    # LITERAL type identifier for literal node
+    LITERAL = enum.auto()
+    # MAPPING type identifier for mapping node
+    MAPPING = enum.auto()
+    # MAPPING_KEY type identifier for mapping key node
+    MAPPING_KEY = enum.auto()
+    # MAPPING_VALUE type identifier for mapping value node
+    MAPPING_VALUE = enum.auto()
+    # SEQUENCE type identifier for sequence node
+    SEQUENCE = enum.auto()
+    # SEQUENCE_ENTRY type identifier for sequence entry node
+    SEQUENCE_ENTRY = enum.auto()
+    # ANCHOR type identifier for anchor node
+    ANCHOR = enum.auto()
+    # ALIAS type identifier for alias node
+    ALIAS = enum.auto()
+    # DIRECTIVE type identifier for directive node
+    DIRECTIVE = enum.auto()
+    # TAG type identifier for tag node
+    TAG = enum.auto()
+    # COMMENT type identifier for comment node
+    COMMENT = enum.auto()
+    # COMMENT_GROUP type identifier for comment group node
+    COMMENT_GROUP = enum.auto()
+
+
+# String node type identifier to YAML Structure name based on https://yaml.org/spec/1.2/spec.html
+YAML_NODE_TYPE_YAML_NAMES: ta.Mapping[YamlNodeType, str] = {
+    YamlNodeType.UNKNOWN: 'unknown',
+    YamlNodeType.DOCUMENT: 'document',
+    YamlNodeType.NULL: 'null',
+    YamlNodeType.BOOL: 'boolean',
+    YamlNodeType.INTEGER: 'int',
+    YamlNodeType.FLOAT: 'float',
+    YamlNodeType.INFINITY: 'inf',
+    YamlNodeType.NAN: 'nan',
+    YamlNodeType.STRING: 'string',
+    YamlNodeType.MERGE_KEY: 'merge key',
+    YamlNodeType.LITERAL: 'scalar',
+    YamlNodeType.MAPPING: 'mapping',
+    YamlNodeType.MAPPING_KEY: 'key',
+    YamlNodeType.MAPPING_VALUE: 'value',
+    YamlNodeType.SEQUENCE: 'sequence',
+    YamlNodeType.SEQUENCE_ENTRY: 'value',
+    YamlNodeType.ANCHOR: 'anchor',
+    YamlNodeType.ALIAS: 'alias',
+    YamlNodeType.DIRECTIVE: 'directive',
+    YamlNodeType.TAG: 'tag',
+    YamlNodeType.COMMENT: 'comment',
+    YamlNodeType.COMMENT_GROUP: 'comment',
+}
+
+
+##
+
+
+# Node type of node
+class YamlNode(Abstract):
+    # io.Reader
+
+    def __str__(self) -> ta.NoReturn:
+        raise TypeError
+
+    @abc.abstractmethod
+    def string(self) -> str:
+        # FIXME: migrate off - ensure all sprintfy things explicitly call .string()
+        raise NotImplementedError
+
+    # get_token returns token instance
+    @abc.abstractmethod
+    def get_token(self) -> ta.Optional[YamlToken]:
+        raise NotImplementedError
+
+    # type returns type of node
+    @abc.abstractmethod
+    def type(self) -> YamlNodeType:
+        raise NotImplementedError
+
+    # add_column add column number to child nodes recursively
+    @abc.abstractmethod
+    def add_column(self, column: int) -> None:
+        raise NotImplementedError
+
+    # set_comment set comment token to node
+    @abc.abstractmethod
+    def set_comment(self, node: ta.Optional['CommentGroupYamlNode']) -> ta.Optional[YamlError]:
+        raise NotImplementedError
+
+    # comment returns comment token instance
+    @abc.abstractmethod
+    def get_comment(self) -> ta.Optional['CommentGroupYamlNode']:
+        raise NotImplementedError
+
+    # get_path returns YAMLPath for the current node
+    @abc.abstractmethod
+    def get_path(self) -> str:
+        raise NotImplementedError
+
+    # set_path set YAMLPath for the current node
+    @abc.abstractmethod
+    def set_path(self, path: str) -> None:
+        raise NotImplementedError
+
+    # marshal_yaml
+    @abc.abstractmethod
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        raise NotImplementedError
+
+    # already read length
+    @abc.abstractmethod
+    def read_len(self) -> int:
+        raise NotImplementedError
+
+    # append read length
+    @abc.abstractmethod
+    def append_read_len(self, n: int) -> None:
+        raise NotImplementedError
+
+    # clean read length
+    @abc.abstractmethod
+    def clear_len(self) -> None:
+        raise NotImplementedError
+
+
+# MapKeyNode type for map key node
+class MapKeyYamlNode(YamlNode, Abstract):
+    @abc.abstractmethod
+    def is_merge_key(self) -> bool:
+        raise NotImplementedError
+
+    # String node to text without comment
+    @abc.abstractmethod
+    def string_without_comment(self) -> str:
+        raise NotImplementedError
+
+
+# ScalarNode type for scalar node
+class ScalarYamlNode(MapKeyYamlNode, Abstract):
+    @abc.abstractmethod
+    def get_value(self) -> ta.Any:
+        raise NotImplementedError
+
+
+##
+
+
+@dc.dataclass()
+class BaseYamlNode(YamlNode, Abstract):
+    path: str = ''
+    comment: ta.Optional['CommentGroupYamlNode'] = None
+    cur_read: int = 0
+
+    def read_len(self) -> int:
+        return self.cur_read
+
+    def clear_len(self) -> None:
+        self.cur_read = 0
+
+    def append_read_len(self, l: int) -> None:
+        self.cur_read += l
+
+    # get_path returns YAMLPath for the current node.
+    @ta.final
+    def get_path(self: ta.Optional['BaseYamlNode']) -> str:
+        if self is None:
+            return ''
+        return self.path
+
+    # set_path set YAMLPath for the current node.
+    @ta.final
+    def set_path(self: ta.Optional['BaseYamlNode'], path: str) -> None:
+        if self is None:
+            return
+        self.path = path
+
+    # get_comment returns comment token instance
+    def get_comment(self) -> ta.Optional['CommentGroupYamlNode']:
+        return self.comment
+
+    # set_comment set comment token
+    def set_comment(self, node: ta.Optional['CommentGroupYamlNode']) -> ta.Optional[YamlError]:
+        self.comment = node
+        return None
+
+
+def yaml_add_comment_string(base: str, node: 'CommentGroupYamlNode') -> str:
+    return f'{base} {node.string()}'
+
+
+##
+
+
+def yaml_read_node(p: str, node: YamlNode) -> YamlErrorOr[int]:
+    s = node.string()
+    read_len = node.read_len()
+    remain = len(s) - read_len
+    if remain == 0:
+        node.clear_len()
+        return EofYamlError()
+
+    size = min(remain, len(p))
+    for idx, b in enumerate(s[read_len:read_len + size]):
+        p[idx] = b  # type: ignore[index]  # FIXME: lol
+
+    node.append_read_len(size)
+    return size
+
+
+def yaml_check_line_break(t: YamlToken) -> bool:
+    if t.prev is not None:
+        lbc = '\n'
+        prev = t.prev
+        adjustment = 0
+        # if the previous type is sequence entry use the previous type for that
+        if prev.type == YamlTokenType.SEQUENCE_ENTRY:
+            # as well as switching to previous type count any new lines in origin to account for:
+            # -
+            #   b: c
+            adjustment = t.origin.rstrip(lbc).count(lbc)
+            if prev.prev is not None:
+                prev = prev.prev
+
+        line_diff = t.position.line - prev.position.line - 1
+        if line_diff > 0:
+            if prev.type == YamlTokenType.STRING:
+                # Remove any line breaks included in multiline string
+                adjustment += prev.origin.strip().rstrip(lbc).count(lbc)
+
+            # Due to the way that comment parsing works its assumed that when a null value does not have new line in
+            # origin it was squashed therefore difference is ignored.
+            # foo:
+            #  bar:
+            #  # comment
+            #  baz: 1
+            # becomes
+            # foo:
+            #  bar: null # comment
+            #
+            #  baz: 1
+            if prev.type in (YamlTokenType.NULL, YamlTokenType.IMPLICIT_NULL):
+                return prev.origin.count(lbc) > 0
+
+            if line_diff - adjustment > 0:
+                return True
+
+    return False
+
+
+##
+
+
+class YamlAsts:
+    # Null create node for null value
+    @classmethod
+    def null(cls, tk: YamlToken) -> 'NullYamlNode':
+        return NullYamlNode(
+            token=tk,
+        )
+
+    _BOOL_TRUE_STRS: ta.ClassVar[ta.AbstractSet[str]] = {'1', 't', 'T', 'true', 'TRUE', 'True'}
+    _BOOL_FALSE_STRS: ta.ClassVar[ta.AbstractSet[str]] = {'0', 'f', 'F', 'false', 'FALSE', 'False'}
+
+    @classmethod
+    def _parse_bool(cls, s: str) -> bool:
+        if s in cls._BOOL_TRUE_STRS:
+            return True
+        if s in cls._BOOL_FALSE_STRS:
+            return False
+        raise ValueError(f'"{s}" is not a valid boolean string')
+
+    # bool_ create node for boolean value
+    @classmethod
+    def bool_(cls, tk: YamlToken) -> 'BoolYamlNode':
+        try:
+            b = cls._parse_bool(tk.value)
+        except ValueError:
+            b = False
+        return BoolYamlNode(
+            token=tk,
+            value=b,
+        )
+
+    # integer create node for integer value
+    @classmethod
+    def integer(cls, tk: YamlToken) -> 'IntegerYamlNode':
+        v: ta.Any = None
+        if (num := yaml_to_number(tk.value)) is not None:
+            v = num.value
+
+        return IntegerYamlNode(
+            token=tk,
+            value=v,
+        )
+
+    # float_ create node for float value
+    @classmethod
+    def float_(cls, tk: YamlToken) -> 'FloatYamlNode':
+        v: float = 0.
+        if (num := yaml_to_number(tk.value)) is not None and num.type == YamlNumberType.FLOAT:
+            if isinstance(num.value, float):
+                v = num.value
+
+        return FloatYamlNode(
+            token=tk,
+            value=v,
+        )
+
+    # infinity create node for .inf or -.inf value
+    @classmethod
+    def infinity(cls, tk: YamlToken) -> 'InfinityYamlNode':
+        if tk.value in ('.inf', '.Inf', '.INF'):
+            value = float('inf')
+        elif tk.value in ('-.inf', '-.Inf', '-.INF'):
+            value = float('-inf')
+        else:
+            value = 0.0
+        node = InfinityYamlNode(
+            token=tk,
+            value=value,
+        )
+        return node
+
+    # nan create node for .nan value
+    @classmethod
+    def nan(cls, tk: YamlToken) -> 'NanYamlNode':
+        return NanYamlNode(
+            token=tk,
+        )
+
+    # string create node for string value
+    @classmethod
+    def string(cls, tk: YamlToken) -> 'StringYamlNode':
+        return StringYamlNode(
+            token=tk,
+            value=tk.value,
+        )
+
+    # comment create node for comment
+    @classmethod
+    def comment(cls, tk: ta.Optional[YamlToken]) -> 'CommentYamlNode':
+        return CommentYamlNode(
+            token=tk,
+        )
+
+    @classmethod
+    def comment_group(cls, comments: ta.Iterable[ta.Optional[YamlToken]]) -> 'CommentGroupYamlNode':
+        nodes: ta.List[CommentYamlNode] = []
+        for c in comments:
+            nodes.append(cls.comment(c))
+
+        return CommentGroupYamlNode(
+            comments=nodes,
+        )
+
+    # merge_key create node for merge key ( << )
+    @classmethod
+    def merge_key(cls, tk: YamlToken) -> 'MergeKeyYamlNode':
+        return MergeKeyYamlNode(
+            token=tk,
+        )
+
+    # mapping create node for map
+    @classmethod
+    def mapping(cls, tk: YamlToken, is_flow_style: bool, *values: 'MappingValueYamlNode') -> 'MappingYamlNode':
+        node = MappingYamlNode(
+            start=tk,
+            is_flow_style=is_flow_style,
+            values=[],
+        )
+        node.values.extend(values)
+        return node
+
+    # mapping_value create node for mapping value
+    @classmethod
+    def mapping_value(cls, tk: YamlToken, key: 'MapKeyYamlNode', value: YamlNode) -> 'MappingValueYamlNode':
+        return MappingValueYamlNode(
+            start=tk,
+            key=key,
+            value=value,
+        )
+
+    # mapping_key create node for map key ( '?' ).
+    @classmethod
+    def mapping_key(cls, tk: YamlToken) -> 'MappingKeyYamlNode':
+        return MappingKeyYamlNode(
+            start=tk,
+        )
+
+    # sequence create node for sequence
+    @classmethod
+    def sequence(cls, tk: YamlToken, is_flow_style: bool) -> 'SequenceYamlNode':
+        return SequenceYamlNode(
+            start=tk,
+            is_flow_style=is_flow_style,
+            values=[],
+        )
+
+    @classmethod
+    def anchor(cls, tk: YamlToken) -> 'AnchorYamlNode':
+        return AnchorYamlNode(
+            start=tk,
+        )
+
+    @classmethod
+    def alias(cls, tk: YamlToken) -> 'AliasYamlNode':
+        return AliasYamlNode(
+            start=tk,
+        )
+
+    @classmethod
+    def document(cls, tk: ta.Optional[YamlToken], body: ta.Optional[YamlNode]) -> 'DocumentYamlNode':
+        return DocumentYamlNode(
+            start=tk,
+            body=body,
+        )
+
+    @classmethod
+    def directive(cls, tk: YamlToken) -> 'DirectiveYamlNode':
+        return DirectiveYamlNode(
+            start=tk,
+        )
+
+    @classmethod
+    def literal(cls, tk: YamlToken) -> 'LiteralYamlNode':
+        return LiteralYamlNode(
+            start=tk,
+        )
+
+    @classmethod
+    def tag(cls, tk: YamlToken) -> 'TagYamlNode':
+        return TagYamlNode(
+            start=tk,
+        )
+
+
+##
+
+
+# File contains all documents in YAML file
+@dc.dataclass()
+class YamlFile:
+    name: str = ''
+    docs: ta.List['DocumentYamlNode'] = dc.field(default_factory=list)
+
+    # read implements (io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        for doc in self.docs:
+            n = doc.read(p)
+            if isinstance(n, EofYamlError):
+                continue
+            return n
+        return EofYamlError()
+
+    # string all documents to text
+    def string(self) -> str:
+        docs: ta.List[str] = []
+        for doc in self.docs:
+            docs.append(doc.string())
+        if len(docs) > 0:
+            return '\n'.join(docs) + '\n'
+        else:
+            return ''
+
+
+##
+
+
+# DocumentNode type of Document
+@dc.dataclass()
+class DocumentYamlNode(BaseYamlNode):
+    start: ta.Optional[YamlToken] = dc.field(default_factory=dataclass_field_required('start'))  # position of DocumentHeader ( `---` )  # noqa
+    end: ta.Optional[YamlToken] = None  # position of DocumentEnd ( `...` )
+    body: ta.Optional[YamlNode] = dc.field(default_factory=dataclass_field_required('body'))
+
+    # read implements (io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns DocumentNodeType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.DOCUMENT
+
+    # get_token returns token instance
+    def get_token(self) -> ta.Optional[YamlToken]:
+        return check.not_none(self.body).get_token()
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        if self.body is not None:
+            self.body.add_column(col)
+
+    # string document to text
+    def string(self) -> str:
+        doc: ta.List[str] = []
+        if self.start is not None:
+            doc.append(self.start.value)
+        if self.body is not None:
+            doc.append(self.body.string())
+        if self.end is not None:
+            doc.append(self.end.value)
+        return '\n'.join(doc)
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+##
+
+
+# NullNode type of null node
+@dc.dataclass()
+class NullYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns NullType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.NULL
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # get_value returns nil value
+    def get_value(self) -> ta.Any:
+        return None
+
+    # String returns `null` text
+    def string(self) -> str:
+        if self.token.type == YamlTokenType.IMPLICIT_NULL:
+            if self.comment is not None:
+                return self.comment.string()
+            return ''
+        if self.comment is not None:
+            return yaml_add_comment_string('null', self.comment)
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return 'null'
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+# IntegerNode type of integer node
+@dc.dataclass()
+class IntegerYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+    value: ta.Any = dc.field(default_factory=dataclass_field_required('value'))  # int64 or uint64 value
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns IntegerType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.INTEGER
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # get_value returns int64 value
+    def get_value(self) -> ta.Any:
+        return self.value
+
+    # String int64 to text
+    def string(self) -> str:
+        if self.comment is not None:
+            return yaml_add_comment_string(self.token.value, self.comment)
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return self.token.value
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+# FloatNode type of float node
+@dc.dataclass()
+class FloatYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+    precision: int = 0
+    value: float = dc.field(default_factory=dataclass_field_required('value'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns FloatType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.FLOAT
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # get_value returns float64 value
+    def get_value(self) -> ta.Any:
+        return self.value
+
+    # String float64 to text
+    def string(self) -> str:
+        if self.comment is not None:
+            return yaml_add_comment_string(self.token.value, self.comment)
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return self.token.value
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+def _yaml_go_is_print(char_ord):
+    """
+    Approximates Go's unicode.IsPrint logic. A rune is printable if it is a letter, mark, number, punctuation, symbol,
+    or ASCII space. (Corresponds to Unicode categories L, M, N, P, S, plus U+0020 SPACE).
+    """
+
+    if char_ord == 0x20:  # ASCII space
+        return True
+    # Check if the character is in categories L, M, N, P, S (Graphic characters)
+    category = unicodedata.category(chr(char_ord))
+    if category.startswith(('L', 'M', 'N', 'P', 'S')):
+        return True
+    return False
+
+
+def _yaml_strconv_quote(s: str) -> str:
+    """Produces a double-quoted string literal with Go-style escapes, similar to Go's strconv.Quote."""
+
+    res = ['"']
+    for char_val in s:
+        char_ord = ord(char_val)
+
+        if char_val == '"':
+            res.append('\\"')
+        elif char_val == '\\':
+            res.append('\\\\')
+        elif char_val == '\a':
+            res.append('\\a')
+        elif char_val == '\b':
+            res.append('\\b')
+        elif char_val == '\f':
+            res.append('\\f')
+        elif char_val == '\n':
+            res.append('\\n')
+        elif char_val == '\r':
+            res.append('\\r')
+        elif char_val == '\t':
+            res.append('\\t')
+        elif char_val == '\v':
+            res.append('\\v')
+        elif char_ord < 0x20 or char_ord == 0x7F:  # C0 controls and DEL
+            res.append(f'\\x{char_ord:02x}')
+        elif 0x20 <= char_ord < 0x7F:  # Printable ASCII (already handled \, ")
+            res.append(char_val)
+        # Unicode characters (char_ord >= 0x80) and C1 controls (0x80-0x9F)
+        elif _yaml_go_is_print(char_ord):
+            res.append(char_val)
+        elif char_ord <= 0xFFFF:
+            res.append(f'\\u{char_ord:04x}')
+        else:
+            res.append(f'\\U{char_ord:08x}')
+
+    res.append('"')
+    return ''.join(res)
+
+
+##
+
+
+# StringNode type of string node
+@dc.dataclass()
+class StringYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+    value: str = dc.field(default_factory=dataclass_field_required('value'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns StringType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.STRING
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # get_value returns string value
+    def get_value(self) -> ta.Any:
+        return self.value
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+    # string string value to text with quote or literal header if required
+    def string(self) -> str:
+        if self.token.type == YamlTokenType.SINGLE_QUOTE:
+            quoted = _yaml_escape_single_quote(self.value)
+            if self.comment is not None:
+                return yaml_add_comment_string(quoted, self.comment)
+            return quoted
+        elif self.token.type == YamlTokenType.DOUBLE_QUOTE:
+            quoted = _yaml_strconv_quote(self.value)
+            if self.comment is not None:
+                return yaml_add_comment_string(quoted, self.comment)
+            return quoted
+
+        lbc = yaml_detect_line_break_char(self.value)
+        if lbc in self.value:
+            # This block assumes that the line breaks in this inside scalar content and the Outside scalar content are
+            # the same. It works mostly, but inconsistencies occur if line break characters are mixed.
+            header = yaml_literal_block_header(self.value)
+            space = ' ' * (self.token.position.column - 1)
+            indent = ' ' * self.token.position.indent_num
+            values: ta.List[str] = []
+            for v in self.value.split(lbc):
+                values.append(f'{space}{indent}{v}')
+            block = yaml_go_trim_suffix(
+                yaml_go_trim_suffix(lbc.join(values), f'{lbc}{indent}{space}'),
+                f'{indent}{space}',
+            )
+            return f'{header}{lbc}{block}'
+        elif len(self.value) > 0 and (self.value[0] == '{' or self.value[0] == '['):
+            return f"'{self.value}'"
+        if self.comment is not None:
+            return yaml_add_comment_string(self.value, self.comment)
+        return self.value
+
+    def string_without_comment(self) -> str:
+        if self.token.type == YamlTokenType.SINGLE_QUOTE:
+            quoted = f"'{self.value}'"
+            return quoted
+        elif self.token.type == YamlTokenType.DOUBLE_QUOTE:
+            quoted = _yaml_strconv_quote(self.value)
+            return quoted
+
+        lbc = yaml_detect_line_break_char(self.value)
+        if lbc in self.value:
+            # This block assumes that the line breaks in this inside scalar content and the Outside scalar content are
+            # the same. It works mostly, but inconsistencies occur if line break characters are mixed.
+            header = yaml_literal_block_header(self.value)
+            space = ' ' * (self.token.position.column - 1)
+            indent = ' ' * self.token.position.indent_num
+            values: ta.List[str] = []
+            for v in self.value.split(lbc):
+                values.append(f'{space}{indent}{v}')
+            block = yaml_go_trim_suffix(
+                yaml_go_trim_suffix(lbc.join(values), f'{lbc}{indent}{space}'),
+                f'  {space}',
+            )
+            return f'{header}{lbc}{block}'
+        elif len(self.value) > 0 and (self.value[0] == '{' or self.value[0] == '['):
+            return f"'{self.value}'"
+        return self.value
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+# escape_single_quote escapes s to a single quoted scalar.
+# https://yaml.org/spec/1.2.2/#732-single-quoted-style
+def _yaml_escape_single_quote(s: str) -> str:
+    sb = io.StringIO()
+    # growLen = len(s) + # s includes also one ' from the doubled pair
+    #     2 + # opening and closing '
+    #     strings.Count(s, "'") # ' added by ReplaceAll
+    # sb.Grow(growLen)
+    sb.write("'")
+    sb.write(s.replace("'", "''"))
+    sb.write("'")
+    return sb.getvalue()
+
+
+##
+
+
+# LiteralNode type of literal node
+@dc.dataclass()
+class LiteralYamlNode(ScalarYamlNode, BaseYamlNode):
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    value: ta.Optional['StringYamlNode'] = None
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns LiteralType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.LITERAL
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        if self.value is not None:
+            self.value.add_column(col)
+
+    # get_value returns string value
+    def get_value(self) -> ta.Any:
+        return self.string()
+
+    # String literal to text
+    def string(self) -> str:
+        origin = check.not_none(check.not_none(self.value).get_token()).origin
+        lit = origin.rstrip(' ').rstrip('\n')
+        if self.comment is not None:
+            return f'{self.start.value} {self.comment.string()}\n{lit}'
+        return f'{self.start.value}\n{lit}'
+
+    def string_without_comment(self) -> str:
+        return self.string()
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+# MergeKeyNode type of merge key node
+@dc.dataclass()
+class MergeKeyYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns MergeKeyType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.MERGE_KEY
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # get_value returns '<<' value
+    def get_value(self) -> ta.Any:
+        return self.token.value
+
+    # String returns '<<' value
+    def string(self) -> str:
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return self.token.value
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return True
+
+
+##
+
+
+# BoolNode type of boolean node
+@dc.dataclass()
+class BoolYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+    value: bool = dc.field(default_factory=dataclass_field_required('value'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns BoolType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.BOOL
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # get_value returns boolean value
+    def get_value(self) -> ta.Any:
+        return self.value
+
+    # String boolean to text
+    def string(self) -> str:
+        if self.comment is not None:
+            return yaml_add_comment_string(self.token.value, self.comment)
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return self.token.value
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+# InfinityNode type of infinity node
+@dc.dataclass()
+class InfinityYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+    value: float = dc.field(default_factory=dataclass_field_required('value'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns InfinityType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.INFINITY
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # get_value returns math.Inf(0) or math.Inf(-1)
+    def get_value(self) -> ta.Any:
+        return self.value
+
+    # String infinity to text
+    def string(self) -> str:
+        if self.comment is not None:
+            return yaml_add_comment_string(self.token.value, self.comment)
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return self.token.value
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+# NanNode type of nan node
+@dc.dataclass()
+class NanYamlNode(ScalarYamlNode, BaseYamlNode):
+    token: YamlToken = dc.field(default_factory=dataclass_field_required('token'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns NanType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.NAN
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # get_value returns math.NaN()
+    def get_value(self) -> ta.Any:
+        return float('nan')
+
+    # String returns .nan
+    def string(self) -> str:
+        if self.comment is not None:
+            return yaml_add_comment_string(self.token.value, self.comment)
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return self.token.value
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+# MapNode interface of MappingValueNode / MappingNode
+class MapYamlNode(Abstract):
+    @abc.abstractmethod
+    def map_range(self) -> 'MapYamlNodeIter':
+        raise NotImplementedError
+
+
+YAML_START_RANGE_INDEX = -1
+
+
+# MapNodeIter is an iterator for ranging over a MapNode
+@dc.dataclass()
+class MapYamlNodeIter:
+    values: ta.List['MappingValueYamlNode']
+    idx: int
+
+    # next advances the map iterator and reports whether there is another entry.
+    # It returns false when the iterator is exhausted.
+    def next(self) -> bool:
+        self.idx += 1
+        nxt = self.idx < len(self.values)
+        return nxt
+
+    # key returns the key of the iterator's current map node entry.
+    def key(self) -> MapKeyYamlNode:
+        return self.values[self.idx].key
+
+    # value returns the value of the iterator's current map node entry.
+    def value(self) -> YamlNode:
+        return self.values[self.idx].value
+
+    # key_value returns the MappingValueNode of the iterator's current map node entry.
+    def key_value(self) -> 'MappingValueYamlNode':
+        return self.values[self.idx]
+
+
+#
+
+
+# MappingNode type of mapping node
+@dc.dataclass()
+class MappingYamlNode(MapYamlNode, BaseYamlNode):
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    end: ta.Optional[YamlToken] = None
+    is_flow_style: bool = dc.field(default_factory=dataclass_field_required('is_flow_style'))
+    values: ta.List['MappingValueYamlNode'] = dc.field(default_factory=dataclass_field_required('values'))
+    foot_comment: ta.Optional['CommentGroupYamlNode'] = None
+
+    def start_pos(self) -> YamlPosition:
+        if len(self.values) == 0:
+            return self.start.position
+        return check.not_none(self.values[0].key.get_token()).position
+
+    # merge merge key/value of map.
+    def merge(self, target: 'MappingYamlNode') -> None:
+        key_to_map_value_map: ta.Dict[str, MappingValueYamlNode] = {}
+        for value in self.values:
+            key = value.key.string()
+            key_to_map_value_map[key] = value
+        column = self.start_pos().column - target.start_pos().column
+        target.add_column(column)
+        for value in target.values:
+            map_value = key_to_map_value_map.get(value.key.string())
+            if map_value is not None:
+                map_value.value = value.value
+            else:
+                self.values.append(value)
+
+    # set_is_flow_style set value to is_flow_style field recursively.
+    def set_is_flow_style(self, is_flow: bool) -> None:
+        self.is_flow_style = is_flow
+        for value in self.values:
+            value.set_is_flow_style(is_flow)
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns MappingType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.MAPPING
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        YamlToken.add_column(self.end, col)
+        for value in self.values:
+            value.add_column(col)
+
+    def flow_style_string(self, comment_mode: bool) -> str:
+        values: ta.List[str] = []
+        for value in self.values:
+            values.append(value.string().lstrip(' '))
+        map_text = f'{{{", ".join(values)}}}'
+        if comment_mode and self.comment is not None:
+            return yaml_add_comment_string(map_text, self.comment)
+        return map_text
+
+    def block_style_string(self, comment_mode: bool) -> str:
+        values: ta.List[str] = []
+        for value0 in self.values:
+            values.append(value0.string())
+        map_text = '\n'.join(values)
+        if comment_mode and self.comment is not None:
+            value1 = values[0]
+            space_num = 0
+            for i in range(len(value1)):
+                if value1[i] != ' ':
+                    break
+                space_num += 1
+            comment = self.comment.string_with_space(space_num)
+            return f'{comment}\n{map_text}'
+        return map_text
+
+    # String mapping values to text
+    def string(self) -> str:
+        if len(self.values) == 0:
+            if self.comment is not None:
+                return yaml_add_comment_string('{}', self.comment)
+            return '{}'
+
+        comment_mode = True
+        if self.is_flow_style or len(self.values) == 0:
+            return self.flow_style_string(comment_mode)
+
+        return self.block_style_string(comment_mode)
+
+    # map_range implements MapNode protocol
+    def map_range(self) -> MapYamlNodeIter:
+        return MapYamlNodeIter(
+            idx=YAML_START_RANGE_INDEX,
+            values=self.values,
+        )
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+##
+
+
+# MappingKeyNode type of tag node
+@dc.dataclass()
+class MappingKeyYamlNode(MapKeyYamlNode, BaseYamlNode):
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    value: ta.Optional[YamlNode] = None
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns MappingKeyType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.MAPPING_KEY
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        if self.value is not None:
+            self.value.add_column(col)
+
+    # String tag to text
+    def string(self) -> str:
+        return self.string_without_comment()
+
+    def string_without_comment(self) -> str:
+        return f'{self.start.value} {check.not_none(self.value).string()}'
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        if self.value is None:
+            return False
+        key = self.value
+        if not isinstance(key, MapKeyYamlNode):
+            return False
+        return key.is_merge_key()
+
+
+##
+
+
+# MappingValueNode type of mapping value
+@dc.dataclass()
+class MappingValueYamlNode(MapYamlNode, BaseYamlNode):
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))  # delimiter token ':'.
+    collect_entry: ta.Optional[YamlToken] = None  # collect entry token ','.
+    key: MapKeyYamlNode = dc.field(default_factory=dataclass_field_required('key'))
+    value: YamlNode = dc.field(default_factory=dataclass_field_required('value'))
+    foot_comment: ta.Optional['CommentGroupYamlNode'] = None
+    is_flow_style: bool = False
+
+    # Replace replace value node.
+    def replace(self, value: YamlNode) -> ta.Optional[YamlError]:
+        column = check.not_none(self.value.get_token()).position.column - check.not_none(value.get_token()).position.column  # noqa
+        value.add_column(column)
+        self.value = value
+        return None
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns MappingValueType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.MAPPING_VALUE
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        if self.key is not None:
+            self.key.add_column(col)
+        if self.value is not None:
+            self.value.add_column(col)
+
+    # set_is_flow_style set value to is_flow_style field recursively.
+    def set_is_flow_style(self, is_flow: bool) -> None:
+        self.is_flow_style = is_flow
+        if isinstance(self.value, MappingYamlNode):
+            self.value.set_is_flow_style(is_flow)
+        elif isinstance(self.value, MappingValueYamlNode):
+            self.value.set_is_flow_style(is_flow)
+        elif isinstance(self.value, SequenceYamlNode):
+            self.value.set_is_flow_style(is_flow)
+
+    # String mapping value to text
+    def string(self) -> str:
+        text: str
+        if self.comment is not None:
+            text = f'{self.comment.string_with_space(check.not_none(self.key.get_token()).position.column - 1)}\n{self.to_string()}'  # noqa
+        else:
+            text = self.to_string()
+
+        if self.foot_comment is not None:
+            text += f'\n{self.foot_comment.string_with_space(check.not_none(self.key.get_token()).position.column - 1)}'
+
+        return text
+
+    def to_string(self) -> str:
+        space = ' ' * (check.not_none(self.key.get_token()).position.column - 1)
+        if yaml_check_line_break(check.not_none(self.key.get_token())):
+            space = f'\n{space}'
+
+        key_indent_level = check.not_none(self.key.get_token()).position.indent_level
+        value_indent_level = check.not_none(self.value.get_token()).position.indent_level
+        key_comment = self.key.get_comment()
+
+        if isinstance(self.value, ScalarYamlNode):
+            value = self.value.string()
+            if value == '':
+                # implicit null value.
+                return f'{space}{self.key.string()}:'
+            return f'{space}{self.key.string()}: {value}'
+
+        elif key_indent_level < value_indent_level and not self.is_flow_style:
+            value_str = self.value.string()
+            # For flow-style values indented on the next line, we need to add the proper indentation
+            if isinstance(self.value, MappingYamlNode) and self.value.is_flow_style:
+                value_indent = ' ' * (self.value.get_token().position.column - 1)
+                value_str = value_indent + value_str
+            elif isinstance(self.value, SequenceYamlNode) and self.value.is_flow_style:
+                value_indent = ' ' * (self.value.get_token().position.column - 1)
+                value_str = value_indent + value_str
+            if key_comment is not None:
+                return f'{space}{self.key.string_without_comment()}: {key_comment.string()}\n{value_str}'
+
+            return f'{space}{self.key.string()}:\n{value_str}'
+
+        elif isinstance(self.value, MappingYamlNode) and (self.value.is_flow_style or len(self.value.values) == 0):
+            return f'{space}{self.key.string()}: {self.value.string()}'
+
+        elif isinstance(self.value, SequenceYamlNode) and (self.value.is_flow_style or len(self.value.values) == 0):
+            return f'{space}{self.key.string()}: {self.value.string()}'
+
+        elif isinstance(self.value, AnchorYamlNode):
+            return f'{space}{self.key.string()}: {self.value.string()}'
+
+        elif isinstance(self.value, AliasYamlNode):
+            return f'{space}{self.key.string()}: {self.value.string()}'
+
+        elif isinstance(self.value, TagYamlNode):
+            return f'{space}{self.key.string()}: {self.value.string()}'
+
+        if key_comment is not None:
+            return f'{space}{self.key.string_without_comment()}: {key_comment.string()}\n{self.value.string()}'
+
+        if isinstance(self.value, MappingYamlNode) and self.value.comment is not None:
+            return f'{space}{self.key.string()}: {self.value.string().lstrip(" ")}'
+
+        return f'{space}{self.key.string()}:\n{self.value.string()}'
+
+    # map_range implements MapNode protocol
+    def map_range(self) -> MapYamlNodeIter:
+        return MapYamlNodeIter(
+            idx=YAML_START_RANGE_INDEX,
+            values=[self],
+        )
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+##
+
+
+# ArrayNode interface of SequenceNode
+class ArrayYamlNode(YamlNode, Abstract):
+    @abc.abstractmethod
+    def array_range(self) -> ta.Optional['ArrayYamlNodeIter']:
+        raise NotImplementedError
+
+
+# ArrayNodeIter is an iterator for ranging over a ArrayNode
+@dc.dataclass()
+class ArrayYamlNodeIter:
+    values: ta.List[YamlNode]
+    idx: int
+
+    # next advances the array iterator and reports whether there is another entry.
+    # It returns false when the iterator is exhausted.
+    def next(self) -> bool:
+        self.idx += 1
+        nxt = self.idx < len(self.values)
+        return nxt
+
+    # Value returns the value of the iterator's current array entry.
+    def value(self) -> YamlNode:
+        return self.values[self.idx]
+
+    # len returns length of array
+    def len(self) -> int:
+        return len(self.values)
+
+
+##
+
+
+# SequenceNode type of sequence node
+@dc.dataclass()
+class SequenceYamlNode(BaseYamlNode, ArrayYamlNode):
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    end: ta.Optional[YamlToken] = None
+    is_flow_style: bool = dc.field(default_factory=dataclass_field_required('is_flow_style'))
+    values: ta.List[ta.Optional[YamlNode]] = dc.field(default_factory=dataclass_field_required('values'))
+    value_head_comments: ta.List[ta.Optional['CommentGroupYamlNode']] = dc.field(default_factory=list)
+    entries: ta.List['SequenceEntryYamlNode'] = dc.field(default_factory=list)
+    foot_comment: ta.Optional['CommentGroupYamlNode'] = None
+
+    # replace replace value node.
+    def replace(self, idx: int, value: YamlNode) -> ta.Optional[YamlError]:
+        if len(self.values) <= idx:
+            return yaml_error(f'invalid index for sequence: sequence length is {len(self.values):d}, but specified {idx:d} index')  # noqa
+
+        column = check.not_none(check.not_none(self.values[idx]).get_token()).position.column - check.not_none(value.get_token()).position.column  # noqa
+        value.add_column(column)
+        self.values[idx] = value
+        return None
+
+    # merge merge sequence value.
+    def merge(self, target: 'SequenceYamlNode') -> None:
+        column = self.start.position.column - target.start.position.column
+        target.add_column(column)
+        self.values.extend(target.values)
+        if len(target.value_head_comments) == 0:
+            self.value_head_comments.extend([None] * len(target.values))
+            return
+
+        self.value_head_comments.extend(target.value_head_comments)
+
+    # set_is_flow_style set value to is_flow_style field recursively.
+    def set_is_flow_style(self, is_flow: bool) -> None:
+        self.is_flow_style = is_flow
+        for value in self.values:
+            if isinstance(value, MappingYamlNode):
+                value.set_is_flow_style(is_flow)
+            elif isinstance(value, MappingValueYamlNode):
+                value.set_is_flow_style(is_flow)
+            elif isinstance(value, SequenceYamlNode):
+                value.set_is_flow_style(is_flow)
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns SequenceType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.SEQUENCE
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        YamlToken.add_column(self.end, col)
+        for value in self.values:
+            check.not_none(value).add_column(col)
+
+    def flow_style_string(self) -> str:
+        values: ta.List[str] = []
+        for value in self.values:
+            values.append(check.not_none(value).string())
+
+        seq_text = f'[{", ".join(values)}]'
+        if self.comment is not None:
+            return yaml_add_comment_string(seq_text, self.comment)
+
+        return seq_text
+
+    def block_style_string(self) -> str:
+        space = ' ' * (self.start.position.column - 1)
+        values: ta.List[str] = []
+        if self.comment is not None:
+            values.append(self.comment.string_with_space(self.start.position.column - 1))
+
+        for idx, value in enumerate(self.values):
+            if value is None:
+                continue
+
+            value_str = value.string()
+            new_line_prefix = ''
+            if value_str.startswith('\n'):
+                value_str = value_str[1:]
+                new_line_prefix = '\n'
+
+            splitted_values = value_str.split('\n')
+            trimmed_first_value = splitted_values[0].lstrip(' ')
+            diff_length = len(splitted_values[0]) - len(trimmed_first_value)
+            if (
+                    (len(splitted_values) > 1 and value.type() == YamlNodeType.STRING) or
+                    value.type() == YamlNodeType.LITERAL
+            ):
+                # If multi-line string, the space characters for indent have already been added, so delete them.
+                prefix = space + '  '
+                for i in range(1, len(splitted_values)):
+                    splitted_values[i] = yaml_go_trim_prefix(splitted_values[i], prefix)
+
+            new_values: ta.List[str] = [trimmed_first_value]
+            for i in range(1, len(splitted_values)):
+                if len(splitted_values[i]) <= diff_length:
+                    # this line is \n or white space only
+                    new_values.append('')
+                    continue
+
+                trimmed = splitted_values[i][diff_length:]
+                new_values.append(f'{space}  {trimmed}')
+
+            new_value = '\n'.join(new_values)
+            if len(self.value_head_comments) == len(self.values) and self.value_head_comments[idx] is not None:
+                values.append(
+                    f'{new_line_prefix}'
+                    f'{check.not_none(self.value_head_comments[idx]).string_with_space(self.start.position.column - 1)}',  # noqa
+                )
+                new_line_prefix = ''
+
+            values.append(f'{new_line_prefix}{space}- {new_value}')
+
+        if self.foot_comment is not None:
+            values.append(self.foot_comment.string_with_space(self.start.position.column - 1))
+
+        return '\n'.join(values)
+
+    # String sequence to text
+    def string(self) -> str:
+        if self.is_flow_style or len(self.values) == 0:
+            return self.flow_style_string()
+        return self.block_style_string()
+
+    # array_range implements ArrayNode protocol
+    def array_range(self) -> ta.Optional[ArrayYamlNodeIter]:
+        return ArrayYamlNodeIter(
+            idx=YAML_START_RANGE_INDEX,
+            values=ta.cast('ta.List[YamlNode]', self.values),
+        )
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+##
+
+
+# SequenceEntryNode is the sequence entry.
+@dc.dataclass()
+class SequenceEntryYamlNode(BaseYamlNode):
+    head_comment: ta.Optional['CommentGroupYamlNode'] = dc.field(default_factory=dataclass_field_required('head_commend'))  # head comment.  # noqa
+    line_comment: ta.Optional['CommentGroupYamlNode'] = None  # line comment e.g.) - # comment.
+    start: ta.Optional[YamlToken] = dc.field(default_factory=dataclass_field_required('start'))  # entry token.
+    value: YamlNode = dc.field(default_factory=dataclass_field_required('value'))  # value node.
+
+    # String node to text
+    def string(self) -> str:
+        return ''  # TODO
+
+    # get_token returns token instance
+    def get_token(self) -> ta.Optional[YamlToken]:
+        return self.start
+
+    # type returns type of node
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.SEQUENCE_ENTRY
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+
+    # set_comment set line comment.
+    def set_comment(self, node: ta.Optional['CommentGroupYamlNode']) -> ta.Optional[YamlError]:
+        self.line_comment = node
+        return None
+
+    # comment returns comment token instance
+    def get_comment(self) -> ta.Optional['CommentGroupYamlNode']:
+        return self.line_comment
+
+    # marshal_yaml
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+
+# sequence_entry creates SequenceEntryNode instance.
+def yaml_sequence_entry(
+        start: ta.Optional[YamlToken],
+        value: YamlNode,
+        head_comment: ta.Optional['CommentGroupYamlNode'],
+) -> SequenceEntryYamlNode:
+    return SequenceEntryYamlNode(
+        head_comment=head_comment,
+        start=start,
+        value=value,
+    )
+
+
+# SequenceMergeValue creates SequenceMergeValueNode instance.
+def yaml_sequence_merge_value(*values: MapYamlNode) -> 'SequenceMergeValueYamlNode':
+    return SequenceMergeValueYamlNode(
+        values=list(values),
+    )
+
+
+##
+
+
+# SequenceMergeValueNode is used to convert the Sequence node specified for the merge key into a MapNode format.
+@dc.dataclass()
+class SequenceMergeValueYamlNode(MapYamlNode):
+    values: ta.List[MapYamlNode] = dc.field(default_factory=dataclass_field_required('values'))
+
+    # map_range returns MapNodeIter instance.
+    def map_range(self) -> MapYamlNodeIter:
+        ret = MapYamlNodeIter(values=[], idx=YAML_START_RANGE_INDEX)
+        for value in self.values:
+            it = value.map_range()
+            ret.values.extend(it.values)
+        return ret
+
+
+##
+
+
+# AnchorNode type of anchor node
+@dc.dataclass()
+class AnchorYamlNode(ScalarYamlNode, BaseYamlNode):
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    name: ta.Optional[YamlNode] = None
+    value: ta.Optional[YamlNode] = None
+
+    def string_without_comment(self) -> str:
+        return check.not_none(self.value).string()
+
+    def set_name(self, name: str) -> ta.Optional[YamlError]:
+        if self.name is None:
+            return YamlAstErrors.INVALID_ANCHOR_NAME
+        s = self.name
+        if not isinstance(s, StringYamlNode):
+            return YamlAstErrors.INVALID_ANCHOR_NAME
+        s.value = name
+        return None
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns AnchorType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.ANCHOR
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    def get_value(self) -> ta.Any:
+        return check.not_none(check.not_none(self.value).get_token()).value
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        if self.name is not None:
+            self.name.add_column(col)
+        if self.value is not None:
+            self.value.add_column(col)
+
+    # String anchor to text
+    def string(self) -> str:
+        anchor = '&' + check.not_none(self.name).string()
+        value = check.not_none(self.value).string()
+        if isinstance(self.value, SequenceYamlNode) and not self.value.is_flow_style:
+            return f'{anchor}\n{value}'
+        elif isinstance(self.value, MappingYamlNode) and not self.value.is_flow_style:
+            return f'{anchor}\n{value}'
+        if value == '':
+            # implicit null value.
+            return anchor
+        return f'{anchor} {value}'
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        if self.value is None:
+            return False
+        key = self.value
+        if not isinstance(key, MapKeyYamlNode):
+            return False
+        return key.is_merge_key()
+
+
+##
+
+
+# AliasNode type of alias node
+@dc.dataclass()
+class AliasYamlNode(ScalarYamlNode, BaseYamlNode):
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    value: ta.Optional[YamlNode] = None
+
+    def string_without_comment(self) -> str:
+        return check.not_none(self.value).string()
+
+    def set_name(self, name: str) -> ta.Optional[YamlError]:
+        if self.value is None:
+            return YamlAstErrors.INVALID_ALIAS_NAME
+        if not isinstance(self.value, StringYamlNode):
+            return YamlAstErrors.INVALID_ALIAS_NAME
+        self.value.value = name
+        return None
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns AliasType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.ALIAS
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    def get_value(self) -> ta.Any:
+        return check.not_none(check.not_none(self.value).get_token()).value
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        if self.value is not None:
+            self.value.add_column(col)
+
+    # String alias to text
+    def string(self) -> str:
+        return f'*{check.not_none(self.value).string()}'
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        return False
+
+
+##
+
+
+# DirectiveNode type of directive node
+@dc.dataclass()
+class DirectiveYamlNode(BaseYamlNode):
+    # Start is '%' token.
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    # Name is directive name e.g.) "YAML" or "TAG".
+    name: ta.Optional[YamlNode] = None
+    # Values is directive values e.g.) "1.2" or "!!" and "tag:clarkevans.com,2002:app/".
+    values: ta.List[YamlNode] = dc.field(default_factory=list)
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns DirectiveType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.DIRECTIVE
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        if self.name is not None:
+            self.name.add_column(col)
+        for value in self.values:
+            value.add_column(col)
+
+    # String directive to text
+    def string(self) -> str:
+        values: ta.List[str] = []
+        for val in self.values:
+            values.append(val.string())
+        return ' '.join(['%' + check.not_none(self.name).string(), *values])
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+##
+
+
+# TagNode type of tag node
+@dc.dataclass()
+class TagYamlNode(ScalarYamlNode, BaseYamlNode, ArrayYamlNode):
+    directive: ta.Optional[DirectiveYamlNode] = None
+    start: YamlToken = dc.field(default_factory=dataclass_field_required('start'))
+    value: ta.Optional[YamlNode] = None
+
+    def get_value(self) -> ta.Any:
+        if not isinstance(self.value, ScalarYamlNode):
+            return None
+        return self.value.get_value()
+
+    def string_without_comment(self) -> str:
+        return check.not_none(self.value).string()
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns TagType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.TAG
+
+    # get_token returns token instance
+    def get_token(self) -> YamlToken:
+        return self.start
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.start, col)
+        if self.value is not None:
+            self.value.add_column(col)
+
+    # String tag to text
+    def string(self) -> str:
+        value = check.not_none(self.value).string()
+        if isinstance(self.value, SequenceYamlNode) and not self.value.is_flow_style:
+            return f'{self.start.value}\n{value}'
+        elif isinstance(self.value, MappingYamlNode) and not self.value.is_flow_style:
+            return f'{self.start.value}\n{value}'
+
+        return f'{self.start.value} {value}'
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+    # is_merge_key returns whether it is a MergeKey node.
+    def is_merge_key(self) -> bool:
+        if self.value is None:
+            return False
+        key = self.value
+        if not isinstance(key, MapKeyYamlNode):
+            return False
+        return key.is_merge_key()
+
+    def array_range(self) -> ta.Optional[ArrayYamlNodeIter]:
+        arr = self.value
+        if not isinstance(arr, ArrayYamlNode):
+            return None
+        return arr.array_range()
+
+
+##
+
+
+# CommentNode type of comment node
+@dc.dataclass()
+class CommentYamlNode(BaseYamlNode):
+    token: ta.Optional[YamlToken] = dc.field(default_factory=dataclass_field_required('token'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns CommentType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.COMMENT
+
+    # get_token returns token instance
+    def get_token(self) -> ta.Optional[YamlToken]:
+        return self.token
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        YamlToken.add_column(self.token, col)
+
+    # String comment to text
+    def string(self) -> str:
+        return f'#{check.not_none(self.token).value}'
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+##
+
+
+# CommentGroupNode type of comment node
+@dc.dataclass()
+class CommentGroupYamlNode(BaseYamlNode):
+    comments: ta.List[CommentYamlNode] = dc.field(default_factory=dataclass_field_required('comments'))
+
+    # read implements(io.Reader).Read
+    def read(self, p: str) -> YamlErrorOr[int]:
+        return yaml_read_node(p, self)
+
+    # type returns CommentType
+    def type(self) -> YamlNodeType:
+        return YamlNodeType.COMMENT
+
+    # get_token returns token instance
+    def get_token(self) -> ta.Optional[YamlToken]:
+        if len(self.comments) > 0:
+            return self.comments[0].token
+        return None
+
+    # add_column add column number to child nodes recursively
+    def add_column(self, col: int) -> None:
+        for comment in self.comments:
+            comment.add_column(col)
+
+    # String comment to text
+    def string(self) -> str:
+        values: ta.List[str] = []
+        for comment in self.comments:
+            values.append(comment.string())
+        return '\n'.join(values)
+
+    def string_with_space(self, col: int) -> str:
+        values: ta.List[str] = []
+        space = ' ' * col
+        for comment in self.comments:
+            spc = space
+            if yaml_check_line_break(check.not_none(comment.token)):
+                spc = f'\n{spc}'
+            values.append(spc + comment.string())
+        return '\n'.join(values)
+
+    # marshal_yaml encodes to a YAML text
+    def marshal_yaml(self) -> YamlErrorOr[str]:
+        return self.string()
+
+
+##
+
+
+# Visitor has Visit method that is invokded for each node encountered by walk.
+# If the result visitor w is not nil, walk visits each of the children of node with the visitor w,
+# followed by a call of w.visit(nil).
+class YamlAstVisitor(Abstract):
+    @abc.abstractmethod
+    def visit(self, node: YamlNode) -> ta.Optional['YamlAstVisitor']:
+        raise NotImplementedError
+
+
+# walk traverses an AST in depth-first order: It starts by calling v.visit(node); node must not be nil.
+# If the visitor w returned by v.visit(node) is not nil,
+# walk is invoked recursively with visitor w for each of the non-nil children of node,
+# followed by a call of w.visit(nil).
+def yaml_ast_walk(v: YamlAstVisitor, node: YamlNode) -> None:
+    if (v_ := v.visit(node)) is None:
+        return
+    v = v_
+
+    n = node
+    if isinstance(n, CommentYamlNode):
+        pass
+    elif isinstance(n, NullYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, IntegerYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, FloatYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, StringYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, MergeKeyYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, BoolYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, InfinityYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, NanYamlNode):
+        yaml_ast_walk_comment(v, n)
+    if isinstance(n, LiteralYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, check.not_none(n.value))
+    if isinstance(n, DirectiveYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, check.not_none(n.name))
+        for value0 in n.values:
+            yaml_ast_walk(v, value0)
+    if isinstance(n, TagYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, check.not_none(n.value))
+    if isinstance(n, DocumentYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, check.not_none(n.body))
+    if isinstance(n, MappingYamlNode):
+        yaml_ast_walk_comment(v, n)
+        for value1 in n.values:
+            yaml_ast_walk(v, value1)
+    if isinstance(n, MappingKeyYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, check.not_none(n.value))
+    if isinstance(n, MappingValueYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, n.key)
+        yaml_ast_walk(v, n.value)
+    if isinstance(n, SequenceYamlNode):
+        yaml_ast_walk_comment(v, n)
+        for value2 in n.values:
+            yaml_ast_walk(v, check.not_none(value2))
+    if isinstance(n, AnchorYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, check.not_none(n.name))
+        yaml_ast_walk(v, check.not_none(n.value))
+    if isinstance(n, AliasYamlNode):
+        yaml_ast_walk_comment(v, n)
+        yaml_ast_walk(v, check.not_none(n.value))
+
+
+def yaml_ast_walk_comment(v: YamlAstVisitor, base: ta.Optional[BaseYamlNode]) -> None:
+    if base is None:
+        return
+    if base.comment is None:
+        return
+    yaml_ast_walk(v, base.comment)
+
+
+#
+
+
+@dc.dataclass()
+class FilterYamlAstWalker(YamlAstVisitor):
+    typ: YamlNodeType = dc.field(default_factory=dataclass_field_required('typ'))
+    results: ta.List[YamlNode] = dc.field(default_factory=list)
+
+    def visit(self, n: YamlNode) -> YamlAstVisitor:
+        if self.typ == n.type():
+            self.results.append(n)
+        return self
+
+
+#
+
+
+@dc.dataclass()
+class YamlParentFinder:
+    target: YamlNode
+
+    def walk(self, parent: YamlNode, node: ta.Optional[YamlNode]) -> ta.Optional[YamlNode]:
+        if self.target is node:
+            return parent
+
+        n = node
+        if isinstance(n, CommentYamlNode):
+            return None
+        if isinstance(n, NullYamlNode):
+            return None
+        if isinstance(n, IntegerYamlNode):
+            return None
+        if isinstance(n, FloatYamlNode):
+            return None
+        if isinstance(n, StringYamlNode):
+            return None
+        if isinstance(n, MergeKeyYamlNode):
+            return None
+        if isinstance(n, BoolYamlNode):
+            return None
+        if isinstance(n, InfinityYamlNode):
+            return None
+        if isinstance(n, NanYamlNode):
+            return None
+        if isinstance(n, LiteralYamlNode):
+            return self.walk(n, n.value)
+        if isinstance(n, DirectiveYamlNode):
+            if (found := self.walk(n, n.name)) is not None:
+                return found
+            for value0 in n.values:
+                if (found := self.walk(n, value0)) is not None:
+                    return found
+        if isinstance(n, TagYamlNode):
+            return self.walk(n, n.value)
+        if isinstance(n, DocumentYamlNode):
+            return self.walk(n, n.body)
+        if isinstance(n, MappingYamlNode):
+            for value1 in n.values:
+                if (found := self.walk(n, value1)) is not None:
+                    return found
+        if isinstance(n, MappingKeyYamlNode):
+            return self.walk(n, n.value)
+        if isinstance(n, MappingValueYamlNode):
+            if (found := self.walk(n, n.key)) is not None:
+                return found
+            return self.walk(n, n.value)
+        if isinstance(n, SequenceYamlNode):
+            for value2 in n.values:
+                if (found := self.walk(n, value2)) is not None:
+                    return found
+        if isinstance(n, AnchorYamlNode):
+            if (found := self.walk(n, n.name)) is not None:
+                return found
+            return self.walk(n, n.value)
+        if isinstance(n, AliasYamlNode):
+            return self.walk(n, n.value)
+        return None
+
+
+# Parent get parent node from child node.
+def yaml_parent(root: YamlNode, child: YamlNode) -> ta.Optional[YamlNode]:
+    finder = YamlParentFinder(target=child)
+    return finder.walk(root, root)
+
+
+#
+
+
+# Filter returns a list of nodes that match the given type.
+def yaml_filter(typ: YamlNodeType, node: YamlNode) -> ta.List[YamlNode]:
+    walker = FilterYamlAstWalker(typ=typ)
+    yaml_ast_walk(walker, node)
+    return walker.results
+
+
+# FilterFile returns a list of nodes that match the given type.
+def yaml_filter_file(typ: YamlNodeType, file: YamlFile) -> ta.List[YamlNode]:
+    results: ta.List[YamlNode] = []
+    for doc in file.docs:
+        walker = FilterYamlAstWalker(typ=typ)
+        yaml_ast_walk(walker, doc)
+        results.extend(walker.results)
+    return results
+
+
+#
+
+
+@dc.dataclass()
+class InvalidMergeTypeYamlError(YamlError):
+    dst: YamlNode
+    src: YamlNode
+
+    @property
+    def message(self) -> str:
+        return f'cannot merge {self.src.type()} into {self.dst.type()}'
+
+
+# Merge merge document, map, sequence node.
+def yaml_ast_merge(dst: YamlNode, src: YamlNode) -> ta.Optional[YamlError]:
+    if isinstance(src, DocumentYamlNode):
+        doc: DocumentYamlNode = src
+        src = ta.cast(YamlNode, doc.body)
+
+    err = InvalidMergeTypeYamlError(dst=dst, src=src)
+    if dst.type() == YamlNodeType.DOCUMENT:
+        node0: DocumentYamlNode = check.isinstance(dst, DocumentYamlNode)
+        return yaml_ast_merge(check.not_none(node0.body), src)
+    if dst.type() == YamlNodeType.MAPPING:
+        node1: MappingYamlNode = check.isinstance(dst, MappingYamlNode)
+        if not isinstance(src, MappingYamlNode):
+            return err
+        target0: MappingYamlNode = src
+        node1.merge(target0)
+        return None
+    if dst.type() == YamlNodeType.SEQUENCE:
+        node2: SequenceYamlNode = check.isinstance(dst, SequenceYamlNode)
+        if not isinstance(src, SequenceYamlNode):
+            return err
+        target1: SequenceYamlNode = src
+        node2.merge(target1)
+        return None
+    return err
+
+
+########################################
+# ../../../omcore/formats/yaml/goyaml/scanning.py
+##
+# MIT License
+#
+# Copyright (c) 2019 Masaaki Goshima
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+# persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+# Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+##
+
+
+##
+
+
+@dc.dataclass()
+class InvalidTokenYamlError(YamlError):
+    token: YamlToken
+
+    @property
+    def message(self) -> str:
+        return check.not_none(self.token.error).message
+
+
+def _yaml_err_invalid_token(tk: YamlToken) -> InvalidTokenYamlError:
+    return InvalidTokenYamlError(
+        token=tk,
+    )
+
+
+##
+
+
+# Context at scanning
+@dc.dataclass()
+class YamlScanningContext:
+    idx: int = 0
+    size: int = 0
+    not_space_char_pos: int = 0
+    not_space_org_char_pos: int = 0
+    src: ta.List[str] = dc.field(default_factory=list)
+    buf: ta.List[str] = dc.field(default_factory=list)
+    obuf: ta.List[str] = dc.field(default_factory=list)
+    tokens: YamlTokens = dc.field(default_factory=YamlTokens)
+    mstate: ta.Optional['YamlMultiLineState'] = None
+
+    def clear(self) -> None:
+        self.reset_buffer()
+        self.mstate = None
+
+    def reset(self, src: ta.List[str]) -> None:
+        self.idx = 0
+        self.size = len(src)
+        self.src = list(src)
+        self.tokens = YamlTokens()
+        self.reset_buffer()
+        self.mstate = None
+
+    def reset_buffer(self) -> None:
+        self.buf = []
+        self.obuf = []
+        self.not_space_char_pos = 0
+        self.not_space_org_char_pos = 0
+
+    def break_multi_line(self) -> None:
+        self.mstate = None
+
+    def get_multi_line_state(self) -> ta.Optional['YamlMultiLineState']:
+        return self.mstate
+
+    def set_literal(self, last_delim_column: int, opt: str) -> None:
+        mstate = YamlMultiLineState(
+            is_literal=True,
+            opt=opt,
+        )
+        indent = _yaml_first_line_indent_column_by_opt(opt)
+        if indent > 0:
+            mstate.first_line_indent_column = last_delim_column + indent
+        self.mstate = mstate
+
+    def set_folded(self, last_delim_column: int, opt: str) -> None:
+        mstate = YamlMultiLineState(
+            is_folded=True,
+            opt=opt,
+        )
+        indent = _yaml_first_line_indent_column_by_opt(opt)
+        if indent > 0:
+            mstate.first_line_indent_column = last_delim_column + indent
+        self.mstate = mstate
+
+    def set_raw_folded(self, column: int) -> None:
+        mstate = YamlMultiLineState(
+            is_raw_folded=True,
+        )
+        mstate.update_indent_column(column)
+        self.mstate = mstate
+
+    def add_token(self, tk: ta.Optional[YamlToken]) -> None:
+        if tk is None:
+            return
+        self.tokens.append(tk)  # FIXME: .add??
+
+    def add_buf(self, r: str) -> None:
+        if len(self.buf) == 0 and (r == ' ' or r == '\t'):
+            return
+        self.buf += r
+        if r != ' ' and r != '\t':
+            self.not_space_char_pos = len(self.buf)
+
+    def add_buf_with_tab(self, r: str) -> None:
+        if len(self.buf) == 0 and r == ' ':
+            return
+        self.buf += r
+        if r != ' ':
+            self.not_space_char_pos = len(self.buf)
+
+    def add_origin_buf(self, r: str) -> None:
+        self.obuf += r
+        if r != ' ' and r != '\t':
+            self.not_space_org_char_pos = len(self.obuf)
+
+    def remove_right_space_from_buf(self) -> None:
+        trimmed_buf = self.obuf[:self.not_space_org_char_pos]
+        buflen = len(trimmed_buf)
+        diff = len(self.obuf) - buflen
+        if diff > 0:
+            self.obuf = self.obuf[:buflen]
+            self.buf = list(self.buffered_src())
+
+    def is_eos(self) -> bool:
+        return len(self.src) - 1 <= self.idx
+
+    def is_next_eos(self) -> bool:
+        return len(self.src) <= self.idx + 1
+
+    def next(self) -> bool:
+        return self.idx < self.size
+
+    def source(self, s: int, e: int) -> str:
+        return ''.join(self.src[s:e])
+
+    def previous_char(self) -> str:
+        if self.idx > 0:
+            return self.src[self.idx - 1]
+        return ''
+
+    def current_char(self) -> str:
+        if self.size > self.idx:
+            return self.src[self.idx]
+        return ''
+
+    def next_char(self) -> str:
+        if self.size > self.idx + 1:
+            return self.src[self.idx + 1]
+        return ''
+
+    def repeat_num(self, r: str) -> int:
+        cnt = 0
+        for i in range(self.idx, self.size):
+            if self.src[i] == r:
+                cnt += 1
+            else:
+                break
+        return cnt
+
+    def progress(self, num: int) -> None:
+        self.idx += num
+
+    def exists_buffer(self) -> bool:
+        return len(self.buffered_src()) != 0
+
+    def is_multi_line(self) -> bool:
+        return self.mstate is not None
+
+    def buffered_src(self) -> ta.List[str]:
+        src = self.buf[:self.not_space_char_pos]
+
+        if self.is_multi_line():
+            mstate = check.not_none(self.get_multi_line_state())
+
+            # remove end '\n' character and trailing empty lines.
+            # https://yaml.org/spec/1.2.2/#8112-block-chomping-indicator
+            if mstate.has_trim_all_end_newline_opt():
+                # If the '-' flag is specified, all trailing newline characters will be removed.
+                src = list(''.join(src).rstrip('\n'))
+
+            elif not mstate.has_keep_all_end_newline_opt():
+                # Normally, all but one of the trailing newline characters are removed.
+                new_line_char_count = 0
+                for i in range(len(src) - 1, -1, -1):
+                    if src[i] == '\n':
+                        new_line_char_count += 1
+                        continue
+                    break
+
+                removed_new_line_char_count = new_line_char_count - 1
+                while removed_new_line_char_count > 0:
+                    src = list(yaml_go_trim_suffix(''.join(src), '\n'))
+                    removed_new_line_char_count -= 1
+
+            # If the text ends with a space character, remove all of them.
+            if mstate.has_trim_all_end_newline_opt():
+                src = list(''.join(src).rstrip(' '))
+
+            if src == ['\n']:
+                # If the content consists only of a newline, it can be considered as the document ending without any
+                # specified value, so it is treated as an empty string.
+                src = []
+
+            if mstate.has_keep_all_end_newline_opt() and len(src) == 0:
+                src = ['\n']
+
+        return src
+
+    def buffered_token(self, pos: YamlPosition) -> ta.Optional[YamlToken]:
+        if self.idx == 0:
+            return None
+
+        source = self.buffered_src()
+        if len(source) == 0:
+            self.buf = self.buf[:0]  # clear value's buffer only.
+            return None
+
+        tk: ta.Optional[YamlToken]
+        if self.is_multi_line():
+            tk = YamlTokenMakers.new_string(''.join(source), ''.join(self.obuf), pos)
+        else:
+            tk = yaml_new_token(''.join(source), ''.join(self.obuf), pos)
+
+        self.set_token_type_by_prev_tag(tk)
+        self.reset_buffer()
+        return tk
+
+    def set_token_type_by_prev_tag(self, tk: ta.Optional[YamlToken]) -> None:
+        last_tk = self.last_token()
+        if last_tk is None:
+            return
+
+        if last_tk.type != YamlTokenType.TAG:
+            return
+
+        tag = last_tk.value
+        if tag not in YAML_RESERVED_TAG_KEYWORD_MAP:
+            check.not_none(tk).type = YamlTokenType.STRING
+
+    def last_token(self) -> ta.Optional[YamlToken]:
+        if len(self.tokens) != 0:
+            return self.tokens[-1]
+
+        return None
+
+    @staticmethod
+    def new(src: ta.List[str]) -> 'YamlScanningContext':
+        ctx = YamlScanningContext()
+        ctx.reset(src)
+        return ctx
+
+
+##
+
+
+@dc.dataclass()
+class YamlMultiLineState:
+    opt: str = ''
+    first_line_indent_column: int = 0
+    prev_line_indent_column: int = 0
+    line_indent_column: int = 0
+    last_not_space_only_line_indent_column: int = 0
+    space_only_indent_column: int = 0
+    folded_new_line: bool = False
+    is_raw_folded: bool = False
+    is_literal: bool = False
+    is_folded: bool = False
+
+    def last_delim_column(self) -> int:
+        if self.first_line_indent_column == 0:
+            return 0
+        return self.first_line_indent_column - 1
+
+    def update_indent_column(self, column: int) -> None:
+        if self.first_line_indent_column == 0:
+            self.first_line_indent_column = column
+        if self.line_indent_column == 0:
+            self.line_indent_column = column
+
+    def update_space_only_indent_column(self, column: int) -> None:
+        if self.first_line_indent_column != 0:
+            return
+        self.space_only_indent_column = column
+
+    def validate_indent_after_space_only(self, column: int) -> ta.Optional[YamlError]:
+        if self.first_line_indent_column != 0:
+            return None
+        if self.space_only_indent_column > column:
+            return yaml_error('invalid number of indent is specified after space only')
+        return None
+
+    def validate_indent_column(self) -> ta.Optional[YamlError]:
+        if _yaml_first_line_indent_column_by_opt(self.opt) == 0:
+            return None
+        if self.first_line_indent_column > self.line_indent_column:
+            return yaml_error('invalid number of indent is specified in the multi-line header')
+        return None
+
+    def update_new_line_state(self) -> None:
+        self.prev_line_indent_column = self.line_indent_column
+        if self.line_indent_column != 0:
+            self.last_not_space_only_line_indent_column = self.line_indent_column
+        self.folded_new_line = True
+        self.line_indent_column = 0
+
+    def is_indent_column(self, column: int) -> bool:
+        if self.first_line_indent_column == 0:
+            return column == 1
+        return self.first_line_indent_column > column
+
+    def add_indent(self, ctx: YamlScanningContext, column: int) -> None:
+        if self.first_line_indent_column == 0:
+            return
+
+        # If the first line of the document has already been evaluated, the number is treated as the threshold, since
+        # the `first_line_indent_column` is a positive number.
+        if column < self.first_line_indent_column:
+            return
+
+        # `c.folded_new_line` is a variable that is set to True for every newline.
+        if not self.is_literal and self.folded_new_line:
+            self.folded_new_line = False
+
+        # Since add_buf ignore space character, add to the buffer directly.
+        ctx.buf += ' '
+        ctx.not_space_char_pos = len(ctx.buf)
+
+    # update_new_line_in_folded if Folded or RawFolded context and the content on the current line starts at the same
+    # column as the previous line, treat the new-line-char as a space.
+    def update_new_line_in_folded(self, ctx: YamlScanningContext, column: int) -> None:
+        if self.is_literal:
+            return
+
+        # Folded or RawFolded.
+
+        if not self.folded_new_line:
+            return
+
+        last_char = ''
+        prev_last_char = ''
+        if len(ctx.buf) != 0:
+            last_char = ctx.buf[-1]
+        if len(ctx.buf) > 1:
+            prev_last_char = ctx.buf[-2]
+
+        if self.line_indent_column == self.prev_line_indent_column:
+            # ---
+            # >
+            #  a
+            #  b
+            if last_char == '\n':
+                ctx.buf[-1] = ' '
+
+        elif self.prev_line_indent_column == 0 and self.last_not_space_only_line_indent_column == column:
+            # if previous line is indent-space and new-line-char only, prev_line_indent_column is zero. In this case,
+            # last new-line-char is removed.
+            # ---
+            # >
+            #  a
+            #
+            #  b
+            if last_char == '\n' and prev_last_char == '\n':
+                ctx.buf = ctx.buf[:len(ctx.buf) - 1]
+                ctx.not_space_char_pos = len(ctx.buf)
+
+        self.folded_new_line = False
+
+    def has_trim_all_end_newline_opt(self) -> bool:
+        return self.opt.startswith('-') or self.opt.endswith('-') or self.is_raw_folded
+
+    def has_keep_all_end_newline_opt(self) -> bool:
+        return self.opt.startswith('+') or self.opt.endswith('+')
+
+
+##
+
+
+def _yaml_first_line_indent_column_by_opt(opt: str) -> int:
+    opt = yaml_go_trim_prefix(opt, '-')
+    opt = yaml_go_trim_prefix(opt, '+')
+    opt = yaml_go_trim_suffix(opt, '-')
+    opt = yaml_go_trim_suffix(opt, '+')
+    i = yaml_go_parse_int(opt, 10, 64)
+    if isinstance(i, YamlGoStrconvRangeError):
+        return i.value
+    if isinstance(i, YamlGoStrconvError):
+        return 0
+    return i
+
+
+##
+
+
+class YamlIndentState(enum.Enum):
+    # EQUAL equals previous indent
+    EQUAL = enum.auto()
+    # UP more indent than previous
+    UP = enum.auto()
+    # DOWN less indent than previous
+    DOWN = enum.auto()
+    # KEEP uses not indent token
+    KEEP = enum.auto()
+
+
+# Scanner holds the scanner's internal state while processing a given text. It can be allocated as part of another data
+# structure but must be initialized via init before use.
+@dc.dataclass()
+class YamlScanner:
+    source: ta.List[str] = dc.field(default_factory=list)
+    source_pos: int = 0
+    source_size: int = 0
+    # line number. This number starts from 1.
+    line: int = 0
+    # column number. This number starts from 1.
+    column: int = 0
+    # offset represents the offset from the beginning of the source.
+    offset: int = 0
+    # last_delim_column is the last column needed to compare indent is retained.
+    last_delim_column: int = 0
+    # indent_num indicates the number of spaces used for indentation.
+    indent_num: int = 0
+    # prev_line_indent_num indicates the number of spaces used for indentation at previous line.
+    prev_line_indent_num: int = 0
+    # indent_level indicates the level of indent depth. This value does not match the column value.
+    indent_level: int = 0
+    is_first_char_at_line: bool = False
+    is_anchor: bool = False
+    is_alias: bool = False
+    is_directive: bool = False
+    started_flow_sequence_num: int = 0
+    started_flow_map_num: int = 0
+    indent_state: YamlIndentState = YamlIndentState.EQUAL
+    saved_pos: ta.Optional[YamlPosition] = None
+
+    def pos(self) -> YamlPosition:
+        return YamlPosition(
+            line=self.line,
+            column=self.column,
+            offset=self.offset,
+            indent_num=self.indent_num,
+            indent_level=self.indent_level,
+        )
+
+    def buffered_token(self, ctx: YamlScanningContext) -> ta.Optional[YamlToken]:
+        if self.saved_pos is not None:
+            tk = ctx.buffered_token(self.saved_pos)
+            self.saved_pos = None
+            return tk
+
+        line = self.line
+        column = self.column - len(ctx.buf)
+        level = self.indent_level
+        if ctx.is_multi_line():
+            line -= self.new_line_count(ctx.buf)
+            column = ''.join(ctx.obuf).find(''.join(ctx.buf)) + 1
+            # Since we are in a literal, folded or raw folded we can use the indent level from the last token.
+            last = ctx.last_token()
+            if last is not None:  # The last token should never be None here.
+                level = last.position.indent_level + 1
+
+        return ctx.buffered_token(YamlPosition(
+            line=line,
+            column=column,
+            offset=self.offset - len(ctx.buf),
+            indent_num=self.indent_num,
+            indent_level=level,
+        ))
+
+    def progress_column(self, ctx: YamlScanningContext, num: int) -> None:
+        self.column += num
+        self.offset += num
+        self.progress(ctx, num)
+
+    def progress_only(self, ctx: YamlScanningContext, num: int) -> None:
+        self.offset += num
+        self.progress(ctx, num)
+
+    def progress_line(self, ctx: YamlScanningContext) -> None:
+        self.prev_line_indent_num = self.indent_num
+        self.column = 1
+        self.line += 1
+        self.offset += 1
+        self.indent_num = 0
+        self.is_first_char_at_line = True
+        self.is_anchor = False
+        self.is_alias = False
+        self.is_directive = False
+        self.progress(ctx, 1)
+
+    def progress(self, ctx: YamlScanningContext, num: int) -> None:
+        ctx.progress(num)
+        self.source_pos += num
+
+    def is_new_line_char(self, c: str) -> bool:
+        if c == '\n':
+            return True
+        if c == '\r':
+            return True
+        return False
+
+    def new_line_count(self, src: ta.List[str]) -> int:
+        size = len(src)
+        cnt = 0
+        i = -1
+        while True:
+            i += 1
+            if not (i < size):
+                break
+            c = src[i]
+            if c == '\r':
+                if i + 1 < size and src[i + 1] == '\n':
+                    i += 1
+                cnt += 1
+            elif c == '\n':
+                cnt += 1
+        return cnt
+
+    def update_indent_level(self) -> None:
+        if self.prev_line_indent_num < self.indent_num:
+            self.indent_level += 1
+        elif self.prev_line_indent_num > self.indent_num:
+            if self.indent_level > 0:
+                self.indent_level -= 1
+
+    def update_indent_state(self, ctx: YamlScanningContext) -> None:
+        if self.last_delim_column == 0:
+            return
+
+        if self.last_delim_column < self.column:
+            self.indent_state = YamlIndentState.UP
+        else:
+            # If last_delim_column and self.column are the same, treat as Down state since it is the same column as
+            # delimiter.
+            self.indent_state = YamlIndentState.DOWN
+
+    def update_indent(self, ctx: YamlScanningContext, c: str) -> None:
+        if self.is_first_char_at_line and self.is_new_line_char(c):
+            return
+        if self.is_first_char_at_line and c == ' ':
+            self.indent_num += 1
+            return
+        if self.is_first_char_at_line and c == '\t':
+            # Found tab indent. In this case, scan_tab returns error.
+            return
+        if not self.is_first_char_at_line:
+            self.indent_state = YamlIndentState.KEEP
+            return
+        self.update_indent_level()
+        self.update_indent_state(ctx)
+        self.is_first_char_at_line = False
+
+    def is_changed_to_indent_state_down(self) -> bool:
+        return self.indent_state == YamlIndentState.DOWN
+
+    def is_changed_to_indent_state_up(self) -> bool:
+        return self.indent_state == YamlIndentState.UP
+
+    def add_buffered_token_if_exists(self, ctx: YamlScanningContext) -> None:
+        ctx.add_token(self.buffered_token(ctx))
+
+    def break_multi_line(self, ctx: YamlScanningContext) -> None:
+        ctx.break_multi_line()
+
+    def scan_single_quote(self, ctx: YamlScanningContext) -> YamlErrorOr[YamlToken]:
+        ctx.add_origin_buf("'")
+        srcpos = self.pos()
+        start_index = ctx.idx + 1
+        src = ctx.src
+        size = len(src)
+        value: ta.List[str] = []
+        is_first_line_char = False
+        is_new_line = False
+
+        idx = start_index - 1
+        while True:
+            idx += 1
+            if not (idx < size):
+                break
+
+            if not is_new_line:
+                self.progress_column(ctx, 1)
+            else:
+                is_new_line = False
+
+            c = src[idx]
+            ctx.add_origin_buf(c)
+            if self.is_new_line_char(c):
+                not_space_idx = -1
+                for i in range(len(value) - 1, -1, -1):
+                    if value[i] == ' ':
+                        continue
+                    not_space_idx = i
+                    break
+
+                if len(value) > not_space_idx:
+                    value = value[:not_space_idx + 1]
+                if is_first_line_char:
+                    value += '\n'
+                else:
+                    value += ' '
+
+                is_first_line_char = True
+                is_new_line = True
+                self.progress_line(ctx)
+                if idx + 1 < size:
+                    if (err := self.validate_document_separator_marker(ctx, src[idx + 1:])) is not None:
+                        return err
+
+                continue
+
+            if is_first_line_char and c == ' ':
+                continue
+
+            if is_first_line_char and c == '\t':
+                if self.last_delim_column >= self.column:
+                    return _yaml_err_invalid_token(
+                        YamlTokenMakers.new_invalid(
+                            yaml_error('tab character cannot be used for indentation in single-quoted text'),
+                            ''.join(ctx.obuf),
+                            self.pos(),
+                        ),
+                    )
+
+                continue
+
+            if c != "'":
+                value += c
+                is_first_line_char = False
+                continue
+
+            if idx + 1 < len(ctx.src) and ctx.src[idx + 1] == '\'':
+                # '' handle as ' character
+                value += c
+                ctx.add_origin_buf(c)
+                idx += 1
+                self.progress_column(ctx, 1)
+                continue
+
+            self.progress_column(ctx, 1)
+            return YamlTokenMakers.new_single_quote(''.join(value), ''.join(ctx.obuf), srcpos)
+
+        self.progress_column(ctx, 1)
+        return _yaml_err_invalid_token(
+            YamlTokenMakers.new_invalid(
+                yaml_error('could not find end character of single-quoted text'),
+                ''.join(ctx.obuf),
+                srcpos,
+            ),
+        )
+
+    def scan_double_quote(self, ctx: YamlScanningContext) -> YamlErrorOr[YamlToken]:
+        ctx.add_origin_buf('"')
+        srcpos = self.pos()
+        start_index = ctx.idx + 1
+        src = ctx.src
+        size = len(src)
+        value: ta.List[str] = []
+        is_first_line_char = False
+        is_new_line = False
+
+        idx = start_index - 1
+        while True:
+            idx += 1
+            if not (idx < size):
+                break
+
+            if not is_new_line:
+                self.progress_column(ctx, 1)
+            else:
+                is_new_line = False
+
+            c = src[idx]
+            ctx.add_origin_buf(c)
+            if self.is_new_line_char(c):
+                not_space_idx = -1
+                for i in range(len(value) - 1, -1, -1):
+                    if value[i] == ' ':
+                        continue
+                    not_space_idx = i
+                    break
+
+                if len(value) > not_space_idx:
+                    value = value[:not_space_idx + 1]
+
+                if is_first_line_char:
+                    value += '\n'
+                else:
+                    value += ' '
+
+                is_first_line_char = True
+                is_new_line = True
+                self.progress_line(ctx)
+                if idx + 1 < size:
+                    if (err := self.validate_document_separator_marker(ctx, src[idx + 1:])) is not None:
+                        return err
+
+                continue
+
+            if is_first_line_char and c == ' ':
+                continue
+
+            if is_first_line_char and c == '\t':
+                if self.last_delim_column >= self.column:
+                    return _yaml_err_invalid_token(
+                        YamlTokenMakers.new_invalid(
+                            yaml_error('tab character cannot be used for indentation in double-quoted text'),
+                            ''.join(ctx.obuf),
+                            self.pos(),
+                        ),
+                    )
+
+                continue
+
+            if c == '\\':
+                is_first_line_char = False
+                if idx + 1 >= size:
+                    value += c
+                    continue
+
+                next_char = src[idx + 1]
+                progress = 0
+
+                if next_char == '0':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += chr(0)
+                elif next_char == 'a':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x07'
+                elif next_char == 'b':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x08'
+                elif next_char == 't':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x09'
+                elif next_char == 'n':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x0A'
+                elif next_char == 'v':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x0B'
+                elif next_char == 'f':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x0C'
+                elif next_char == 'r':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x0D'
+                elif next_char == 'e':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x1B'
+                elif next_char == ' ':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x20'
+                elif next_char == '"':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x22'
+                elif next_char == '/':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x2F'
+                elif next_char == '\\':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x5C'
+                elif next_char == 'N':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\x85'
+                elif next_char == '_':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\xA0'
+                elif next_char == 'L':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\u2028'
+                elif next_char == 'P':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += '\u2029'
+
+                elif next_char == 'x':
+                    if idx + 3 >= size:
+                        progress = 1
+                        ctx.add_origin_buf(next_char)
+                        value += next_char
+                    else:
+                        progress = 3
+                        code_num = _yaml_hex_runes_to_int(src[idx + 2: idx + progress + 1])
+                        value += yaml_go_rune_str(code_num)
+
+                elif next_char == 'u':
+                    # \u0000 style must have 5 characters at least.
+                    if idx + 5 >= size:
+                        return _yaml_err_invalid_token(
+                            YamlTokenMakers.new_invalid(
+                                yaml_error('not enough length for escaped UTF-16 character'),
+                                ''.join(ctx.obuf),
+                                self.pos(),
+                            ),
+                        )
+
+                    progress = 5
+                    code_num = _yaml_hex_runes_to_int(src[idx + 2: idx + 6])
+
+                    # handle surrogate pairs.
+                    if code_num >= 0xD800 and code_num <= 0xDBFF:
+                        high = code_num
+
+                        # \u0000\u0000 style must have 11 characters at least.
+                        if idx + 11 >= size:
+                            return _yaml_err_invalid_token(
+                                YamlTokenMakers.new_invalid(
+                                    yaml_error('not enough length for escaped UTF-16 surrogate pair'),
+                                    ''.join(ctx.obuf),
+                                    self.pos(),
+                                ),
+                            )
+
+                        if src[idx + 6] != '\\' or src[idx + 7] != 'u':
+                            return _yaml_err_invalid_token(
+                                YamlTokenMakers.new_invalid(
+                                    yaml_error('found unexpected character after high surrogate for UTF-16 surrogate pair'),  # noqa
+                                    ''.join(ctx.obuf),
+                                    self.pos(),
+                                ),
+                            )
+
+                        low = _yaml_hex_runes_to_int(src[idx + 8: idx + 12])
+                        if low < 0xDC00 or low > 0xDFFF:
+                            return _yaml_err_invalid_token(
+                                YamlTokenMakers.new_invalid(
+                                    yaml_error('found unexpected low surrogate after high surrogate'),
+                                    ''.join(ctx.obuf),
+                                    self.pos(),
+                                ),
+                            )
+
+                        code_num = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000
+                        progress += 6
+
+                    value += yaml_go_rune_str(code_num)
+
+                elif next_char == 'U':
+                    # \U00000000 style must have 9 characters at least.
+                    if idx + 9 >= size:
+                        return _yaml_err_invalid_token(
+                            YamlTokenMakers.new_invalid(
+                                yaml_error('not enough length for escaped UTF-32 character'),
+                                ''.join(ctx.obuf),
+                                self.pos(),
+                            ),
+                        )
+
+                    progress = 9
+                    code_num = _yaml_hex_runes_to_int(src[idx + 2: idx + 10])
+                    value += yaml_go_rune_str(code_num)
+
+                elif next_char == '\n':
+                    is_first_line_char = True
+                    is_new_line = True
+                    ctx.add_origin_buf(next_char)
+                    self.progress_column(ctx, 1)
+                    self.progress_line(ctx)
+                    idx += 1
+                    continue
+
+                elif next_char == '\r':
+                    is_first_line_char = True
+                    is_new_line = True
+                    ctx.add_origin_buf(next_char)
+                    self.progress_line(ctx)
+                    progress = 1
+                    # Skip \n after \r in CRLF sequences
+                    if idx + 2 < size and src[idx + 2] == '\n':
+                        ctx.add_origin_buf('\n')
+                        progress = 2
+
+                elif next_char == '\t':
+                    progress = 1
+                    ctx.add_origin_buf(next_char)
+                    value += next_char
+
+                else:
+                    self.progress_column(ctx, 1)
+                    return _yaml_err_invalid_token(
+                        YamlTokenMakers.new_invalid(
+                            yaml_error(f'found unknown escape character {next_char!r}'),
+                            ''.join(ctx.obuf),
+                            self.pos(),
+                        ),
+                    )
+
+                idx += progress
+                self.progress_column(ctx, progress)
+                continue
+
+            if c == '\t':
+                found_not_space_char = False
+                progress = 0
+
+                for i in range(idx + 1, size):
+                    if src[i] == ' ' or src[i] == '\t':
+                        progress += 1
+                        continue
+
+                    if self.is_new_line_char(src[i]):
+                        break
+
+                    found_not_space_char = True
+
+                if found_not_space_char:
+                    value += c
+                    if src[idx + 1] != '"':
+                        self.progress_column(ctx, 1)
+
+                else:
+                    idx += progress
+                    self.progress_column(ctx, progress)
+
+                continue
+
+            if c != '"':
+                value += c
+                is_first_line_char = False
+                continue
+
+            self.progress_column(ctx, 1)
+            return YamlTokenMakers.new_double_quote(''.join(value), ''.join(ctx.obuf), srcpos)
+
+        self.progress_column(ctx, 1)
+        return _yaml_err_invalid_token(
+            YamlTokenMakers.new_invalid(
+                yaml_error('could not find end character of double-quoted text'),
+                ''.join(ctx.obuf),
+                srcpos,
+            ),
+        )
+
+    def validate_document_separator_marker(self, ctx: YamlScanningContext, src: ta.List[str]) -> ta.Optional[YamlError]:
+        if self.found_document_separator_marker(src):
+            return _yaml_err_invalid_token(
+                YamlTokenMakers.new_invalid(
+                    yaml_error('found unexpected document separator'),
+                    ''.join(ctx.obuf),
+                    self.pos(),
+                ),
+            )
+
+        return None
+
+    def found_document_separator_marker(self, src: ta.List[str]) -> bool:
+        if len(src) < 3:
+            return False
+
+        marker = ''
+        if len(src) == 3:
+            marker = ''.join(src)
+        else:
+            marker = _yaml_trim_right_func(''.join(src[:4]), lambda r: r == ' ' or r == '\t' or r == '\n' or r == '\r')
+
+        return marker == '---' or marker == '...'
+
+    def scan_quote(self, ctx: YamlScanningContext, ch: str) -> YamlErrorOr[bool]:
+        if ctx.exists_buffer():
+            return False
+
+        if ch == "'":
+            tk = self.scan_single_quote(ctx)
+            if isinstance(tk, YamlError):
+                return tk
+
+            ctx.add_token(tk)
+
+        else:
+            tk = self.scan_double_quote(ctx)
+            if isinstance(tk, YamlError):
+                return tk
+
+            ctx.add_token(tk)
+
+        ctx.clear()
+        return True
+
+    def scan_white_space(self, ctx: YamlScanningContext) -> bool:
+        if ctx.is_multi_line():
+            return False
+
+        if not self.is_anchor and not self.is_directive and not self.is_alias and not self.is_first_char_at_line:
+            return False
+
+        if self.is_first_char_at_line:
+            self.progress_column(ctx, 1)
+            ctx.add_origin_buf(' ')
+            return True
+
+        if self.is_directive:
+            self.add_buffered_token_if_exists(ctx)
+            self.progress_column(ctx, 1)
+            ctx.add_origin_buf(' ')
+            return True
+
+        self.add_buffered_token_if_exists(ctx)
+        self.is_anchor = False
+        self.is_alias = False
+        return True
+
+    def is_merge_key(self, ctx: YamlScanningContext) -> bool:
+        if ctx.repeat_num('<') != 2:
+            return False
+
+        src = ctx.src
+        size = len(src)
+        for idx in range(ctx.idx + 2, size):
+            c = src[idx]
+            if c == ' ':
+                continue
+
+            if c != ':':
+                return False
+
+            if idx + 1 < size:
+                nc = src[idx + 1]
+                if nc == ' ' or self.is_new_line_char(nc):
+                    return True
+
+        return False
+
+    def scan_tag(self, ctx: YamlScanningContext) -> YamlErrorOr[bool]:
+        if ctx.exists_buffer() or self.is_directive:
+            return False
+
+        ctx.add_origin_buf('!')
+        self.progress(ctx, 1)  # skip '!' character
+
+        progress = 0
+        for idx, c in enumerate(ctx.src[ctx.idx:]):
+            progress = idx + 1
+
+            if c == ' ':
+                ctx.add_origin_buf(c)
+                value = ctx.source(ctx.idx - 1, ctx.idx + idx)
+                ctx.add_token(YamlTokenMakers.new_tag(value, ''.join(ctx.obuf), self.pos()))
+                self.progress_column(ctx, len(value))
+                ctx.clear()
+                return True
+
+            elif c == ',':
+                if self.started_flow_sequence_num > 0 or self.started_flow_map_num > 0:
+                    value = ctx.source(ctx.idx - 1, ctx.idx + idx)
+                    ctx.add_token(YamlTokenMakers.new_tag(value, ''.join(ctx.obuf), self.pos()))
+                    # progress column before collect-entry for scanning it at scan_flow_entry function.
+                    self.progress_column(ctx, len(value) - 1)
+                    ctx.clear()
+                    return True
+                else:
+                    ctx.add_origin_buf(c)
+
+            elif c in ('\n', '\r'):
+                ctx.add_origin_buf(c)
+                value = ctx.source(ctx.idx - 1, ctx.idx + idx)
+                ctx.add_token(YamlTokenMakers.new_tag(value, ''.join(ctx.obuf), self.pos()))
+                # progress column before new-line-char for scanning new-line-char at scan_new_line function.
+                self.progress_column(ctx, len(value) - 1)
+                ctx.clear()
+                return True
+
+            elif c in ('{', '}'):
+                ctx.add_origin_buf(c)
+                self.progress_column(ctx, progress)
+                invalid_tk = YamlTokenMakers.new_invalid(
+                    yaml_error(f'found invalid tag character {c!r}'),
+                    ''.join(ctx.obuf),
+                    self.pos(),
+                )
+                return _yaml_err_invalid_token(invalid_tk)
+
+            else:
+                ctx.add_origin_buf(c)
+
+        self.progress_column(ctx, progress)
+        ctx.clear()
+        return True
+
+    def scan_comment(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer():
+            c = ctx.previous_char()
+            if c != ' ' and c != '\t' and not self.is_new_line_char(c):
+                return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('#')
+        self.progress(ctx, 1)  # skip '#' character
+
+        for idx, c in enumerate(ctx.src[ctx.idx:]):
+            ctx.add_origin_buf(c)
+            if not self.is_new_line_char(c):
+                continue
+            if ctx.previous_char() == '\\':
+                continue
+
+            value = ctx.source(ctx.idx, ctx.idx + idx)
+            progress = len(value)
+            ctx.add_token(YamlTokenMakers.new_comment(''.join(value), ''.join(ctx.obuf), self.pos()))
+            self.progress_column(ctx, progress)
+            self.progress_line(ctx)
+            ctx.clear()
+            return True
+
+        # document ends with comment.
+        value = ''.join(ctx.src[ctx.idx:])
+        ctx.add_token(YamlTokenMakers.new_comment(value, ''.join(ctx.obuf), self.pos()))
+        progress = len(value)
+        self.progress_column(ctx, progress)
+        self.progress_line(ctx)
+        ctx.clear()
+        return True
+
+    def scan_multi_line(self, ctx: YamlScanningContext, c: str) -> ta.Optional[YamlError]:
+        state = check.not_none(ctx.get_multi_line_state())
+        ctx.add_origin_buf(c)
+
+        # normalize CR and CRLF to LF
+        if c == '\r':
+            if ctx.next_char() == '\n':
+                ctx.add_origin_buf('\n')
+                self.progress(ctx, 1)
+                self.offset += 1
+
+            c = '\n'
+
+        if ctx.is_eos():
+            if self.is_first_char_at_line and c == ' ':
+                state.add_indent(ctx, self.column)
+            else:
+                ctx.add_buf(c)
+
+            state.update_indent_column(self.column)
+            if (err := state.validate_indent_column()) is not None:
+                invalid_tk = YamlTokenMakers.new_invalid(yaml_error(str(err)), ''.join(ctx.obuf), self.pos())
+                self.progress_column(ctx, 1)
+                return _yaml_err_invalid_token(invalid_tk)
+
+            value = ctx.buffered_src()
+            ctx.add_token(YamlTokenMakers.new_string(''.join(value), ''.join(ctx.obuf), self.pos()))
+            ctx.clear()
+            self.progress_column(ctx, 1)
+
+        elif self.is_new_line_char(c):
+            ctx.add_buf(c)
+            state.update_space_only_indent_column(self.column - 1)
+            state.update_new_line_state()
+            self.progress_line(ctx)
+            if ctx.next():
+                if self.found_document_separator_marker(ctx.src[ctx.idx:]):
+                    value = ctx.buffered_src()
+                    ctx.add_token(YamlTokenMakers.new_string(''.join(value), ''.join(ctx.obuf), self.pos()))
+                    ctx.clear()
+                    self.break_multi_line(ctx)
+
+        elif self.is_first_char_at_line and c == ' ':
+            state.add_indent(ctx, self.column)
+            self.progress_column(ctx, 1)
+
+        elif self.is_first_char_at_line and c == '\t' and state.is_indent_column(self.column):
+            err = _yaml_err_invalid_token(
+                YamlTokenMakers.new_invalid(
+                    yaml_error('found a tab character where an indentation space is expected'),
+                    ''.join(ctx.obuf),
+                    self.pos(),
+                ),
+            )
+            self.progress_column(ctx, 1)
+            return err
+
+        elif c == '\t' and not state.is_indent_column(self.column):
+            ctx.add_buf_with_tab(c)
+            self.progress_column(ctx, 1)
+
+        else:
+            if (err := state.validate_indent_after_space_only(self.column)) is not None:
+                invalid_tk = YamlTokenMakers.new_invalid(yaml_error(str(err)), ''.join(ctx.obuf), self.pos())
+                self.progress_column(ctx, 1)
+                return _yaml_err_invalid_token(invalid_tk)
+
+            state.update_indent_column(self.column)
+            if (err := state.validate_indent_column()) is not None:
+                invalid_tk = YamlTokenMakers.new_invalid(yaml_error(str(err)), ''.join(ctx.obuf), self.pos())
+                self.progress_column(ctx, 1)
+                return _yaml_err_invalid_token(invalid_tk)
+
+            if (col := state.last_delim_column()) > 0:
+                self.last_delim_column = col
+
+            state.update_new_line_in_folded(ctx, self.column)
+            ctx.add_buf_with_tab(c)
+            self.progress_column(ctx, 1)
+
+        return None
+
+    def scan_new_line(self, ctx: YamlScanningContext, c: str) -> None:
+        if len(ctx.buf) > 0 and self.saved_pos is None:
+            buf_len = len(ctx.buffered_src())
+            self.saved_pos = self.pos()
+            self.saved_pos.column -= buf_len
+            self.saved_pos.offset -= buf_len
+
+        # if the following case, origin buffer has unnecessary two spaces.
+        # So, `removeRightSpaceFromOriginBuf` remove them, also fix column number too.
+        # ---
+        # a:[space][space]
+        #   b: c
+        ctx.remove_right_space_from_buf()
+
+        # There is no problem that we ignore CR which followed by LF and normalize it to LF, because of following
+        # YAML1.2 spec.
+        # > Line breaks inside scalar content must be normalized by the YAML processor. Each such line break must be
+        #   parsed into a single line feed character.
+        # > Outside scalar content, YAML allows any line break to be used to terminate lines.
+        # > -- https://yaml.org/spec/1.2/spec.html
+        if c == '\r' and ctx.next_char() == '\n':
+            ctx.add_origin_buf('\r')
+            self.progress(ctx, 1)
+            self.offset += 1
+            c = '\n'
+
+        if ctx.is_eos():
+            self.add_buffered_token_if_exists(ctx)
+        elif self.is_anchor or self.is_alias or self.is_directive:
+            self.add_buffered_token_if_exists(ctx)
+
+        if ctx.exists_buffer() and self.is_first_char_at_line:
+            if ctx.buf[-1] == ' ':
+                ctx.buf[-1] = '\n'
+            else:
+                ctx.buf += '\n'
+        else:
+            ctx.add_buf(' ')
+
+        ctx.add_origin_buf(c)
+        self.progress_line(ctx)
+
+    def is_flow_mode(self) -> bool:
+        if self.started_flow_sequence_num > 0:
+            return True
+
+        if self.started_flow_map_num > 0:
+            return True
+
+        return False
+
+    def scan_flow_map_start(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer() and not self.is_flow_mode():
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('{')
+        ctx.add_token(YamlTokenMakers.new_mapping_start(''.join(ctx.obuf), self.pos()))
+        self.started_flow_map_num += 1
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_flow_map_end(self, ctx: YamlScanningContext) -> bool:
+        if self.started_flow_map_num <= 0:
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('}')
+        ctx.add_token(YamlTokenMakers.new_mapping_end(''.join(ctx.obuf), self.pos()))
+        self.started_flow_map_num -= 1
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_flow_array_start(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer() and not self.is_flow_mode():
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('[')
+        ctx.add_token(YamlTokenMakers.new_sequence_start(''.join(ctx.obuf), self.pos()))
+        self.started_flow_sequence_num += 1
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_flow_array_end(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer() and self.started_flow_sequence_num <= 0:
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf(']')
+        ctx.add_token(YamlTokenMakers.new_sequence_end(''.join(ctx.obuf), self.pos()))
+        self.started_flow_sequence_num -= 1
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_flow_entry(self, ctx: YamlScanningContext, c: str) -> bool:
+        if self.started_flow_sequence_num <= 0 and self.started_flow_map_num <= 0:
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf(c)
+        ctx.add_token(YamlTokenMakers.new_collect_entry(''.join(ctx.obuf), self.pos()))
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_map_delim(self, ctx: YamlScanningContext) -> YamlErrorOr[bool]:
+        nc = ctx.next_char()
+        if self.is_directive or self.is_anchor or self.is_alias:
+            return False
+
+        if (
+                self.started_flow_map_num <= 0 and
+                nc != ' ' and
+                nc != '\t' and
+                not self.is_new_line_char(nc) and
+                not ctx.is_next_eos()
+        ):
+            return False
+
+        if self.started_flow_map_num > 0 and nc == '/':
+            # like http://
+            return False
+
+        if self.started_flow_map_num > 0:
+            tk = ctx.last_token()
+            if tk is not None and tk.type == YamlTokenType.MAPPING_VALUE:
+                return False
+
+        if yaml_go_trim_prefix(''.join(ctx.obuf), ' ').startswith('\t') and not ''.join(ctx.buf).startswith('\t'):
+            invalid_tk = YamlTokenMakers.new_invalid(
+                yaml_error('tab character cannot use as a map key directly'),
+                ''.join(ctx.obuf),
+                self.pos(),
+            )
+            self.progress_column(ctx, 1)
+            return _yaml_err_invalid_token(invalid_tk)
+
+        # mapping value
+        tk = self.buffered_token(ctx)
+        if tk is not None:
+            self.last_delim_column = tk.position.column
+            ctx.add_token(tk)
+
+        elif (tk := ctx.last_token()) is not None:
+            # If the map key is quote, the buffer does not exist because it has already been cut into tokens.
+            # Therefore, we need to check the last token.
+            if tk.indicator == YamlIndicator.QUOTED_SCALAR:
+                self.last_delim_column = tk.position.column
+
+        ctx.add_token(YamlTokenMakers.new_mapping_value(self.pos()))
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_document_start(self, ctx: YamlScanningContext) -> bool:
+        if self.indent_num != 0:
+            return False
+
+        if self.column != 1:
+            return False
+
+        if ctx.repeat_num('-') != 3:
+            return False
+
+        if ctx.size > ctx.idx + 3:
+            c = ctx.src[ctx.idx + 3]
+            if c != ' ' and c != '\t' and c != '\n' and c != '\r':
+                return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_token(YamlTokenMakers.new_document_header(''.join(ctx.obuf) + '---', self.pos()))
+        self.progress_column(ctx, 3)
+        ctx.clear()
+        self.clear_state()
+        return True
+
+    def scan_document_end(self, ctx: YamlScanningContext) -> bool:
+        if self.indent_num != 0:
+            return False
+
+        if self.column != 1:
+            return False
+
+        if ctx.repeat_num('.') != 3:
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_token(YamlTokenMakers.new_document_end(''.join(ctx.obuf) + '...', self.pos()))
+        self.progress_column(ctx, 3)
+        ctx.clear()
+        return True
+
+    def scan_merge_key(self, ctx: YamlScanningContext) -> bool:
+        if not self.is_merge_key(ctx):
+            return False
+
+        self.last_delim_column = self.column
+        ctx.add_token(YamlTokenMakers.new_merge_key(''.join(ctx.obuf) + '<<', self.pos()))
+        self.progress_column(ctx, 2)
+        ctx.clear()
+        return True
+
+    def scan_raw_folded_char(self, ctx: YamlScanningContext) -> bool:
+        if not ctx.exists_buffer():
+            return False
+
+        if not self.is_changed_to_indent_state_up():
+            return False
+
+        ctx.set_raw_folded(self.column)
+        ctx.add_buf('-')
+        ctx.add_origin_buf('-')
+        self.progress_column(ctx, 1)
+        return True
+
+    def scan_sequence(self, ctx: YamlScanningContext) -> YamlErrorOr[bool]:
+        if ctx.exists_buffer():
+            return False
+
+        nc = ctx.next_char()
+        if nc != '' and nc != ' ' and nc != '\t' and not self.is_new_line_char(nc):
+            return False
+
+        if yaml_go_trim_prefix(''.join(ctx.obuf), ' ').startswith('\t'):
+            invalid_tk = YamlTokenMakers.new_invalid(
+                yaml_error('tab character cannot use as a sequence delimiter'),
+                ''.join(ctx.obuf),
+                self.pos(),
+            )
+            self.progress_column(ctx, 1)
+            return _yaml_err_invalid_token(invalid_tk)
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('-')
+        tk = YamlTokenMakers.new_sequence_entry(''.join(ctx.obuf), self.pos())
+        self.last_delim_column = tk.position.column
+        ctx.add_token(tk)
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_multi_line_header(self, ctx: YamlScanningContext) -> YamlErrorOr[bool]:
+        if ctx.exists_buffer():
+            return False
+
+        if (err := self.scan_multi_line_header_option(ctx)) is not None:
+            return err
+
+        self.progress_line(ctx)
+        return True
+
+    def validate_multi_line_header_option(self, opt: str) -> ta.Optional[YamlError]:
+        if len(opt) == 0:
+            return None
+
+        org_opt = opt
+        opt = yaml_go_trim_prefix(opt, '-')
+        opt = yaml_go_trim_prefix(opt, '+')
+        opt = yaml_go_trim_suffix(opt, '-')
+        opt = yaml_go_trim_suffix(opt, '+')
+        if len(opt) == 0:
+            return None
+
+        if opt == '0':
+            return yaml_error(f'invalid header option: {org_opt!r}')
+
+        i = yaml_go_parse_int(opt, 10, 64)
+        if isinstance(i, YamlGoStrconvError):
+            return yaml_error(f'invalid header option: {org_opt!r}')
+
+        if i > 9:
+            return yaml_error(f'invalid header option: {org_opt!r}')
+
+        return None
+
+    def scan_multi_line_header_option(self, ctx: YamlScanningContext) -> ta.Optional[YamlError]:
+        header = ctx.current_char()
+        ctx.add_origin_buf(header)
+        self.progress(ctx, 1)  # skip '|' or '>' character
+
+        progress = 0
+        crlf = False
+        for idx, c in enumerate(ctx.src[ctx.idx:]):
+            progress = idx
+            ctx.add_origin_buf(c)
+            if self.is_new_line_char(c):
+                next_idx = ctx.idx + idx + 1
+                if c == '\r' and next_idx < len(ctx.src) and ctx.src[next_idx] == '\n':
+                    crlf = True
+                    continue  # process \n in the next iteration
+
+                break
+
+        end_pos = ctx.idx + progress
+        if crlf:
+            # Exclude \r
+            end_pos = end_pos - 1
+
+        value = ctx.source(ctx.idx, end_pos).rstrip(' ')
+        comment_value_index = value.find('#')
+        opt = value
+        if comment_value_index > 0:
+            opt = value[:comment_value_index]
+
+        opt = _yaml_trim_right_func(opt, lambda r: r == ' ' or r == '\t')
+
+        if len(opt) != 0:
+            if (err := self.validate_multi_line_header_option(opt)) is not None:
+                invalid_tk = YamlTokenMakers.new_invalid(yaml_error(str(err)), ''.join(ctx.obuf), self.pos())
+                self.progress_column(ctx, progress)
+                return _yaml_err_invalid_token(invalid_tk)
+
+        if self.column == 1:
+            self.last_delim_column = 1
+
+        try:
+            comment_index = ctx.obuf.index('#')
+        except ValueError:
+            comment_index = -1
+        header_buf = ''.join(ctx.obuf)
+        if comment_index > 0:
+            header_buf = header_buf[:comment_index]
+
+        if header == '|':
+            ctx.add_token(YamlTokenMakers.new_literal('|' + opt, header_buf, self.pos()))
+            ctx.set_literal(self.last_delim_column, opt)
+        elif header == '>':
+            ctx.add_token(YamlTokenMakers.new_folded('>' + opt, header_buf, self.pos()))
+            ctx.set_folded(self.last_delim_column, opt)
+
+        if comment_index > 0:
+            comment = value[comment_value_index + 1:]
+            self.offset += len(header_buf)
+            self.column += len(header_buf)
+            ctx.add_token(YamlTokenMakers.new_comment(comment, ''.join(ctx.obuf[len(header_buf):]), self.pos()))
+
+        self.indent_state = YamlIndentState.KEEP
+        ctx.reset_buffer()
+        self.progress_column(ctx, progress)
+        return None
+
+    def scan_map_key(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer():
+            return False
+
+        nc = ctx.next_char()
+        if nc != ' ' and nc != '\t':
+            return False
+
+        tk = YamlTokenMakers.new_mapping_key(self.pos())
+        self.last_delim_column = tk.position.column
+        ctx.add_token(tk)
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return True
+
+    def scan_directive(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer():
+            return False
+        if self.indent_num != 0:
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('%')
+        ctx.add_token(YamlTokenMakers.new_directive(''.join(ctx.obuf), self.pos()))
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        self.is_directive = True
+        return True
+
+    def scan_anchor(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer():
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('&')
+        ctx.add_token(YamlTokenMakers.new_anchor(''.join(ctx.obuf), self.pos()))
+        self.progress_column(ctx, 1)
+        self.is_anchor = True
+        ctx.clear()
+        return True
+
+    def scan_alias(self, ctx: YamlScanningContext) -> bool:
+        if ctx.exists_buffer():
+            return False
+
+        self.add_buffered_token_if_exists(ctx)
+        ctx.add_origin_buf('*')
+        ctx.add_token(YamlTokenMakers.new_alias(''.join(ctx.obuf), self.pos()))
+        self.progress_column(ctx, 1)
+        self.is_alias = True
+        ctx.clear()
+        return True
+
+    def scan_reserved_char(self, ctx: YamlScanningContext, c: str) -> ta.Optional[YamlError]:
+        if ctx.exists_buffer():
+            return None
+
+        ctx.add_buf(c)
+        ctx.add_origin_buf(c)
+        err = _yaml_err_invalid_token(
+            YamlTokenMakers.new_invalid(
+                yaml_error(f'{c!r} is a reserved character'),
+                ''.join(ctx.obuf),
+                self.pos(),
+            ),
+        )
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return err
+
+    def scan_tab(self, ctx: YamlScanningContext, c: str) -> ta.Optional[YamlError]:
+        if self.started_flow_sequence_num > 0 or self.started_flow_map_num > 0:
+            # tabs character is allowed in flow mode.
+            return None
+
+        if not self.is_first_char_at_line:
+            return None
+
+        ctx.add_buf(c)
+        ctx.add_origin_buf(c)
+        err = _yaml_err_invalid_token(
+            YamlTokenMakers.new_invalid(
+                yaml_error("found character '\t' that cannot start any token"),
+                ''.join(ctx.obuf),
+                self.pos(),
+            ),
+        )
+        self.progress_column(ctx, 1)
+        ctx.clear()
+        return err
+
+    def _scan(self, ctx: YamlScanningContext) -> ta.Optional[YamlError]:
+        while ctx.next():
+            c = ctx.current_char()
+            # First, change the IndentState.
+            # If the target character is the first character in a line, IndentState is Up/Down/Equal state.
+            # The second and subsequent letters are Keep.
+            self.update_indent(ctx, c)
+
+            # If IndentState is down, tokens are split, so the buffer accumulated until that point needs to be cutted as
+            # a token.
+            if self.is_changed_to_indent_state_down():
+                self.add_buffered_token_if_exists(ctx)
+
+            if ctx.is_multi_line():
+                if self.is_changed_to_indent_state_down():
+                    if (tk := ctx.last_token()) is not None:
+                        # If literal/folded content is empty, no string token is added.
+                        # Therefore, add an empty string token.
+                        # But if literal/folded token column is 1, it is invalid at down state.
+                        if tk.position.column == 1:
+                            return yaml_error(_yaml_err_invalid_token(
+                                YamlTokenMakers.new_invalid(
+                                    yaml_error('could not find multi-line content'),
+                                    ''.join(ctx.obuf),
+                                    self.pos(),
+                                ),
+                            ))
+
+                        if tk.type != YamlTokenType.STRING:
+                            ctx.add_token(YamlTokenMakers.new_string('', '', self.pos()))
+
+                    self.break_multi_line(ctx)
+
+                else:
+                    if (err := self.scan_multi_line(ctx, c)) is not None:
+                        return err
+
+                    continue
+
+            if c == '{':
+                if self.scan_flow_map_start(ctx):
+                    continue
+
+            elif c == '}':
+                if self.scan_flow_map_end(ctx):
+                    continue
+
+            elif c == '.':
+                if self.scan_document_end(ctx):
+                    continue
+
+            elif c == '<':
+                if self.scan_merge_key(ctx):
+                    continue
+
+            elif c == '-':
+                if self.scan_document_start(ctx):
+                    continue
+
+                if self.scan_raw_folded_char(ctx):
+                    continue
+
+                scanned = self.scan_sequence(ctx)
+                if isinstance(scanned, YamlError):
+                    return scanned
+
+                if scanned:
+                    continue
+
+            elif c == '[':
+                if self.scan_flow_array_start(ctx):
+                    continue
+
+            elif c == ']':
+                if self.scan_flow_array_end(ctx):
+                    continue
+
+            elif c == ',':
+                if self.scan_flow_entry(ctx, c):
+                    continue
+
+            elif c == ':':
+                scanned = self.scan_map_delim(ctx)
+                if isinstance(scanned, YamlError):
+                    return scanned
+
+                if scanned:
+                    continue
+
+            elif c in ('|', '>'):
+                scanned = self.scan_multi_line_header(ctx)
+                if isinstance(scanned, YamlError):
+                    return scanned
+
+                if scanned:
+                    continue
+
+            elif c == '!':
+                scanned = self.scan_tag(ctx)
+                if isinstance(scanned, YamlError):
+                    return scanned
+
+                if scanned:
+                    continue
+
+            elif c == '%':
+                if self.scan_directive(ctx):
+                    continue
+
+            elif c == '?':
+                if self.scan_map_key(ctx):
+                    continue
+
+            elif c == '&':
+                if self.scan_anchor(ctx):
+                    continue
+
+            elif c == '*':
+                if self.scan_alias(ctx):
+                    continue
+
+            elif c == '#':
+                if self.scan_comment(ctx):
+                    continue
+
+            elif c in ("'", '"'):
+                scanned = self.scan_quote(ctx, c)
+                if isinstance(scanned, YamlError):
+                    return scanned
+
+                if scanned:
+                    continue
+
+            elif c in ('\r', '\n'):
+                self.scan_new_line(ctx, c)
+                continue
+
+            elif c == ' ':
+                if self.scan_white_space(ctx):
+                    continue
+
+            elif c in ('@', '`'):
+                if (err := self.scan_reserved_char(ctx, c)) is not None:
+                    return err
+
+            elif c == '\t':
+                if ctx.exists_buffer() and self.last_delim_column == 0:
+                    # tab indent for plain text (yaml-test-suite's spec-example-7-12-plain-lines).
+                    self.indent_num += 1
+                    ctx.add_origin_buf(c)
+                    self.progress_only(ctx, 1)
+                    continue
+
+                if self.last_delim_column < self.column:
+                    self.indent_num += 1
+                    ctx.add_origin_buf(c)
+                    self.progress_only(ctx, 1)
+                    continue
+
+                if (err := self.scan_tab(ctx, c)) is not None:
+                    return err
+
+            ctx.add_buf(c)
+            ctx.add_origin_buf(c)
+            self.progress_column(ctx, 1)
+
+        self.add_buffered_token_if_exists(ctx)
+        return None
+
+    # init prepares the scanner s to tokenize the text src by setting the scanner at the beginning of src.
+    def init(self, text: str) -> None:
+        src = text
+        self.source = list(src)
+        self.source_pos = 0
+        self.source_size = len(src)
+        self.line = 1
+        self.column = 1
+        self.offset = 1
+        self.is_first_char_at_line = True
+        self.clear_state()
+
+    def clear_state(self) -> None:
+        self.prev_line_indent_num = 0
+        self.last_delim_column = 0
+        self.indent_level = 0
+        self.indent_num = 0
+
+    # scan scans the next token and returns the token collection. The source end is indicated by io.EOF.
+    def scan(self) -> ta.Tuple[ta.Optional[YamlTokens], ta.Optional[YamlError]]:
+        if self.source_pos >= self.source_size:
+            return None, EofYamlError()
+
+        ctx = YamlScanningContext.new(self.source[self.source_pos:])
+
+        lst = YamlTokens()
+        err = self._scan(ctx)
+        lst.extend(ctx.tokens)
+
+        if err is not None:
+            # var invalidTokenErr *InvalidTokenError
+            if isinstance(err, InvalidTokenYamlError):
+                lst.append(err.token)
+            return lst, err
+
+        return lst, None
+
+
+# Tokenize split to token instances from string
+def yaml_tokenize(src: str) -> YamlTokens:
+    s = YamlScanner()
+    s.init(src)
+
+    tks = YamlTokens()
+    while True:
+        sub_tokens, err = s.scan()
+        if isinstance(err, EofYamlError):
+            break
+
+        tks.add(*check.not_none(sub_tokens))
+
+    return tks
+
+
+##
+
+
+def _yaml_hex_to_int(s: str) -> int:
+    if len(s) != 1:
+        raise ValueError(s)
+    b = s[0]
+    if 'A' <= b <= 'F':
+        return ord(b) - ord('A') + 10
+    if 'a' <= b <= 'f':
+        return ord(b) - ord('a') + 10
+    return ord(b) - ord('0')
+
+
+def _yaml_hex_runes_to_int(b: ta.List[str]) -> int:
+    n = 0
+    for i in range(len(b)):
+        n += _yaml_hex_to_int(b[i]) << ((len(b) - i - 1) * 4)
+    return n
+
+
+def _yaml_trim_right_func(s: str, predicate: ta.Callable[[str], bool]) -> str:
+    if not s:
+        return s
+
+    i = len(s) - 1
+    while i >= 0 and predicate(s[i]):
+        i -= 1
+
+    return s[:i + 1]
+
+
+########################################
 # ../../../omcore/http/pipelines/objects.py
 
 
@@ -19387,7 +25335,7 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
             if isinstance(arg0 := args[0], BaseException):
                 if exc_info is not True:  # noqa
                     raise TypeError(f'exc_info={exc_info!r} is not allowed when exc={arg0!r} is passed')
-            args, exc_info = ((),), arg0
+                args, exc_info = ((),), arg0
 
         return self._log(
             CaptureLoggingContextImpl(
@@ -20292,160 +26240,2406 @@ def configure_standard_logging(
 
 
 ########################################
-# ../configs/sources.py
+# ../../../omcore/formats/yaml/goyaml/parsing.py
+##
+# MIT License
+#
+# Copyright (c) 2019 Masaaki Goshima
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+# persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+# Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+##
 
 
 ##
 
 
-_SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS = frozenset({'.json', '.toml', '.yaml', '.yml'})
+# context context at parsing
+@dc.dataclass()
+class YamlParsingContext:
+    token_ref: ta.Optional['YamlParseTokenRef'] = None
+    path: str = dc.field(default_factory=dataclass_field_required('path'))
+    is_flow: bool = False
 
+    def current_token(self) -> ta.Optional['YamlParseToken']:
+        ref = check.not_none(self.token_ref)
 
-@dc.dataclass(frozen=True)
-class SystevisorConfigSourceDocument:
-    path: str
-    data: ta.Mapping[str, ta.Any]
+        if ref.idx >= ref.size:
+            return None
 
+        return ref.tokens[ref.idx]
 
-@dc.dataclass(frozen=True)
-class SystevisorConfigProvenance:
-    object_path: ta.Sequence[str]
-    source: str
+    def is_comment(self) -> bool:
+        return YamlParseToken.type(self.current_token()) == YamlTokenType.COMMENT
 
+    def next_token(self) -> ta.Optional['YamlParseToken']:
+        ref = check.not_none(self.token_ref)
 
-class SystevisorConfigSourceError(Exception):
-    def __init__(self, path: str, message: str) -> None:
-        super().__init__(message)
+        if ref.idx + 1 >= ref.size:
+            return None
 
-        self.path = path
-        self.message = message
+        return ref.tokens[ref.idx + 1]
 
+    def next_not_comment_token(self) -> ta.Optional['YamlParseToken']:
+        ref = check.not_none(self.token_ref)
 
-class SystevisorConfigMergeError(Exception):
-    def __init__(self, object_path: ta.Sequence[str], first_source: str, second_source: str) -> None:
-        super().__init__('.'.join(object_path))
+        for i in range(ref.idx + 1, ref.size):
+            tk = ref.tokens[i]
+            if tk.type() == YamlTokenType.COMMENT:
+                continue
+            return tk
 
-        self.object_path = tuple(object_path)
-        self.first_source = first_source
-        self.second_source = second_source
+        return None
 
+    def is_token_not_found(self) -> bool:
+        return self.current_token() is None
 
-def systevisor_discover_config_files(paths: ta.Iterable[str], *, recursive: bool = False) -> ta.Sequence[str]:
-    discovered: ta.List[str] = []
-    seen: ta.Set[str] = set()
+    def with_group(self, g: 'YamlParseTokenGroup') -> 'YamlParsingContext':
+        ctx = copy.copy(self)
+        ctx.token_ref = YamlParseTokenRef(
+            tokens=g.tokens,
+            size=len(g.tokens),
+        )
+        return ctx
 
-    for input_path in paths:
-        path = os.path.abspath(input_path)
-        if os.path.isfile(path):
-            if os.path.splitext(path)[1].lower() not in _SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS:
-                raise SystevisorConfigSourceError(path, 'unsupported config source extension')
-            candidates = [path]
-        elif os.path.isdir(path):
-            if recursive:
-                candidates = []
-                for directory, directory_names, file_names in os.walk(path):
-                    directory_names.sort()
-                    candidates.extend(os.path.join(directory, file_name) for file_name in sorted(file_names))
-            else:
-                candidates = [os.path.join(path, file_name) for file_name in sorted(os.listdir(path))]
+    def with_child(self, path: str) -> 'YamlParsingContext':
+        ctx = copy.copy(self)
+        ctx.path = self.path + '.' + yaml_normalize_path(path)
+        return ctx
+
+    def with_index(self, idx: int) -> 'YamlParsingContext':
+        ctx = copy.copy(self)
+        ctx.path = self.path + '[' + str(idx) + ']'
+        return ctx
+
+    def with_flow(self, is_flow: bool) -> 'YamlParsingContext':
+        ctx = copy.copy(self)
+        ctx.is_flow = is_flow
+        return ctx
+
+    @staticmethod
+    def new() -> 'YamlParsingContext':
+        return YamlParsingContext(
+            path='$',
+        )
+
+    def go_next(self) -> None:
+        ref = check.not_none(self.token_ref)
+        if ref.size <= ref.idx + 1:
+            ref.idx = ref.size
         else:
-            raise SystevisorConfigSourceError(path, 'config source does not exist')
+            ref.idx += 1
 
-        for candidate in candidates:
-            if not os.path.isfile(candidate):
-                continue
-            if os.path.splitext(candidate)[1].lower() not in _SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS:
-                continue
-            canonical = os.path.realpath(candidate)
-            if canonical in seen:
-                continue
-            seen.add(canonical)
-            discovered.append(candidate)
+    def next(self) -> bool:
+        return check.not_none(self.token_ref).idx < check.not_none(self.token_ref).size
 
-    return tuple(discovered)
+    def insert_null_token(self, tk: 'YamlParseToken') -> 'YamlParseToken':
+        null_token = self.create_implicit_null_token(tk)
+        self.insert_token(null_token)
+        self.go_next()
+
+        return null_token
+
+    def add_null_value_token(self, tk: 'YamlParseToken') -> 'YamlParseToken':
+        null_token = self.create_implicit_null_token(tk)
+        raw_tk = null_token.raw_token()
+
+        # add space for map or sequence value.
+        check.not_none(raw_tk).position.column += 1
+
+        self.add_token(null_token)
+        self.go_next()
+
+        return null_token
+
+    def create_implicit_null_token(self, base: 'YamlParseToken') -> 'YamlParseToken':
+        pos = copy.copy(check.not_none(base.raw_token()).position)
+        pos.column += 1
+        tk = yaml_new_token('null', ' null', pos)
+        tk.type = YamlTokenType.IMPLICIT_NULL
+        return YamlParseToken(token=tk)
+
+    def insert_token(self, tk: 'YamlParseToken') -> None:
+        ref = check.not_none(self.token_ref)
+        idx = ref.idx
+        if ref.size < idx:
+            return
+
+        if ref.size == idx:
+            cur_token = ref.tokens[ref.size - 1]
+            check.not_none(tk.raw_token()).next = cur_token.raw_token()
+            check.not_none(cur_token.raw_token()).prev = tk.raw_token()
+
+            ref.tokens.append(tk)
+            ref.size = len(ref.tokens)
+            return
+
+        cur_token = ref.tokens[idx]
+        check.not_none(tk.raw_token()).next = cur_token.raw_token()
+        check.not_none(cur_token.raw_token()).prev = tk.raw_token()
+
+        ref.tokens = [*ref.tokens[:idx + 1], *ref.tokens[idx:]]
+        ref.tokens[idx] = tk
+        ref.size = len(ref.tokens)
+
+    def add_token(self, tk: 'YamlParseToken') -> None:
+        ref = check.not_none(self.token_ref)
+        last_tk = check.not_none(ref.tokens[ref.size - 1])
+        if last_tk.group is not None:
+            last_tk = check.not_none(last_tk.group.last())
+
+        check.not_none(last_tk.raw_token()).next = tk.raw_token()
+        check.not_none(tk.raw_token()).prev = last_tk.raw_token()
+
+        ref.tokens.append(tk)
+        ref.size = len(ref.tokens)
 
 
-def systevisor_load_config_document(path: str) -> SystevisorConfigSourceDocument:
-    try:
-        data = DEFAULT_CONFIG_FILE_LOADER.load_file(path).as_map()
-    except Exception as exc:
-        raise SystevisorConfigSourceError(path, str(exc)) from exc
-
-    return SystevisorConfigSourceDocument(path=path, data=dict(data))
+@dc.dataclass()
+class YamlParseTokenRef:
+    tokens: ta.List['YamlParseToken']
+    size: int
+    idx: int = 0
 
 
-def _systevisor_config_sources_record_provenance(
-        value: ta.Any,
-        object_path: ta.Tuple[str, ...],
-        source: str,
-        provenance: ta.MutableMapping[ta.Tuple[str, ...], str],
-) -> None:
-    if isinstance(value, dict):
-        if not value:
-            provenance[object_path] = source
-        for key, child in value.items():
-            _systevisor_config_sources_record_provenance(child, (*object_path, str(key)), source, provenance)
-    else:
-        provenance[object_path] = source
+##
 
 
-def _systevisor_config_sources_merge_value(
-        target: ta.MutableMapping[str, ta.Any],
-        value: ta.Mapping[str, ta.Any],
-        object_path: ta.Tuple[str, ...],
-        source: str,
-        provenance: ta.MutableMapping[ta.Tuple[str, ...], str],
-) -> None:
-    for key, incoming in value.items():
-        if not isinstance(key, str):
-            raise TypeError(f'config mapping key must be a string at {object_path!r}: {key!r}')
+YAML_PATH_SPECIAL_CHARS = (
+    '$',
+    '*',
+    '.',
+    '[',
+    ']',
+)
 
-        child_path = (*object_path, key)
-        if key not in target:
-            if isinstance(incoming, dict):
-                child: ta.MutableMapping[str, ta.Any] = {}
-                target[key] = child
-                _systevisor_config_sources_merge_value(child, incoming, child_path, source, provenance)
-                if not incoming:
-                    provenance[child_path] = source
+
+def yaml_contains_path_special_char(path: str) -> bool:
+    return any(char in path for char in YAML_PATH_SPECIAL_CHARS)
+
+
+def yaml_normalize_path(path: str) -> str:
+    if yaml_contains_path_special_char(path):
+        return f"'{path}'"
+
+    return path
+
+
+##
+
+
+# Option represents parser's option.
+YamlOption = ta.Callable[['YamlParser'], None]  # ta.TypeAlias  # om-amalg-typing-no-move
+
+
+# AllowDuplicateMapKey allow the use of keys with the same name in the same map, but by default, this is not permitted.
+def yaml_allow_duplicate_map_key() -> YamlOption:
+    def fn(p: 'YamlParser') -> None:
+        p.allow_duplicate_map_key = True
+
+    return fn
+
+
+##
+
+
+class YamlParseTokenGroupType(enum.Enum):
+    NONE = enum.auto()
+    DIRECTIVE = enum.auto()
+    DIRECTIVE_NAME = enum.auto()
+    DOCUMENT = enum.auto()
+    DOCUMENT_BODY = enum.auto()
+    ANCHOR = enum.auto()
+    ANCHOR_NAME = enum.auto()
+    ALIAS = enum.auto()
+    LITERAL = enum.auto()
+    FOLDED = enum.auto()
+    SCALAR_TAG = enum.auto()
+    MAP_KEY = enum.auto()
+    MAP_KEY_VALUE = enum.auto()
+
+
+@dc.dataclass()
+class YamlParseToken:
+    token: ta.Optional[YamlToken] = None
+    group: ta.Optional['YamlParseTokenGroup'] = None
+    line_comment: ta.Optional[YamlToken] = None
+
+    def raw_token(self: ta.Optional['YamlParseToken']) -> ta.Optional[YamlToken]:
+        if self is None:
+            return None
+        if self.token is not None:
+            return self.token
+        return check.not_none(self.group).raw_token()
+
+    def type(self: ta.Optional['YamlParseToken']) -> YamlTokenType:
+        if self is None:
+            return YamlTokenType.UNKNOWN
+        if self.token is not None:
+            return self.token.type
+        return check.not_none(self.group).token_type()
+
+    def group_type(self: ta.Optional['YamlParseToken']) -> YamlParseTokenGroupType:
+        if self is None:
+            return YamlParseTokenGroupType.NONE
+        if self.token is not None:
+            return YamlParseTokenGroupType.NONE
+        return check.not_none(self.group).type
+
+    def line(self: ta.Optional['YamlParseToken']) -> int:
+        if self is None:
+            return 0
+        if self.token is not None:
+            return self.token.position.line
+        return check.not_none(self.group).line()
+
+    def column(self: ta.Optional['YamlParseToken']) -> int:
+        if self is None:
+            return 0
+        if self.token is not None:
+            return self.token.position.column
+        return check.not_none(self.group).column()
+
+    def set_group_type(self, typ: YamlParseTokenGroupType) -> None:
+        if self.group is None:
+            return
+        self.group.type = typ
+
+
+##
+
+
+@dc.dataclass()
+class YamlParseTokenGroup:
+    type: YamlParseTokenGroupType = YamlParseTokenGroupType.NONE
+    tokens: ta.List[YamlParseToken] = dc.field(default_factory=dataclass_field_required('tokens'))
+
+    def first(self) -> ta.Optional[YamlParseToken]:
+        if len(self.tokens) == 0:
+            return None
+        return self.tokens[0]
+
+    def last(self) -> ta.Optional[YamlParseToken]:
+        if len(self.tokens) == 0:
+            return None
+        return self.tokens[len(self.tokens) - 1]
+
+    def raw_token(self) -> ta.Optional[YamlToken]:
+        if len(self.tokens) == 0:
+            return None
+        return self.tokens[0].raw_token()
+
+    def line(self) -> int:
+        if len(self.tokens) == 0:
+            return 0
+        return self.tokens[0].line()
+
+    def column(self) -> int:
+        if len(self.tokens) == 0:
+            return 0
+        return self.tokens[0].column()
+
+    def token_type(self) -> YamlTokenType:
+        if len(self.tokens) == 0:
+            return YamlTokenType.UNKNOWN
+        return self.tokens[0].type()
+
+
+def yaml_create_grouped_tokens(tokens: YamlTokens) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    tks = yaml_new_tokens(tokens)
+
+    tks = yaml_create_line_comment_token_groups(tks)
+
+    tks_ = yaml_create_literal_and_folded_token_groups(tks)
+    if isinstance(tks_, YamlError):
+        return tks_
+    tks = tks_
+
+    tks_ = yaml_create_anchor_and_alias_token_groups(tks)
+    if isinstance(tks_, YamlError):
+        return tks_
+    tks = tks_
+
+    tks_ = yaml_create_scalar_tag_token_groups(tks)
+    if isinstance(tks_, YamlError):
+        return tks_
+    tks = tks_
+
+    tks_ = yaml_create_anchor_with_scalar_tag_token_groups(tks)
+    if isinstance(tks_, YamlError):
+        return tks_
+    tks = tks_
+
+    tks_ = yaml_create_map_key_token_groups(tks)
+    if isinstance(tks_, YamlError):
+        return tks_
+    tks = tks_
+
+    tks = yaml_create_map_key_value_token_groups(tks)
+
+    tks_ = yaml_create_directive_token_groups(tks)
+    if isinstance(tks_, YamlError):
+        return tks_
+    tks = tks_
+
+    tks_ = yaml_create_document_tokens(tks)
+    if isinstance(tks_, YamlError):
+        return tks_
+    tks = tks_
+
+    return tks
+
+
+def yaml_new_tokens(tks: YamlTokens) -> ta.List[YamlParseToken]:
+    ret: ta.List[YamlParseToken] = []
+    for tk in tks:
+        ret.append(YamlParseToken(token=tk))
+    return ret
+
+
+def yaml_create_line_comment_token_groups(tokens: ta.List[YamlParseToken]) -> ta.List[YamlParseToken]:
+    ret: ta.List[YamlParseToken] = []
+    for i in range(len(tokens)):
+        tk = tokens[i]
+        if tk.type() == YamlTokenType.COMMENT:
+            if i > 0 and tokens[i - 1].line() == tk.line():
+                tokens[i - 1].line_comment = tk.raw_token()
             else:
-                target[key] = incoming
-                _systevisor_config_sources_record_provenance(incoming, child_path, source, provenance)
-            continue
+                ret.append(tk)
+        else:
+            ret.append(tk)
+    return ret
 
-        current = target[key]
-        if isinstance(current, dict) and isinstance(incoming, dict):
-            _systevisor_config_sources_merge_value(current, incoming, child_path, source, provenance)
-            continue
 
-        first_source = provenance.get(child_path)
-        if first_source is None:
-            first_source = next(
-                (
-                    value_source
-                    for value_path, value_source in provenance.items()
-                    if value_path[:len(child_path)] == child_path
+def yaml_create_literal_and_folded_token_groups(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:  # noqa
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.type() == YamlTokenType.LITERAL:
+            tks: ta.List[YamlParseToken] = [tk]
+            if i + 1 < len(tokens):
+                tks.append(tokens[i + 1])
+            ret.append(YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.LITERAL,
+                    tokens=tks,
                 ),
-                '<unknown>',
+            ))
+            i += 1
+        elif tk.type() == YamlTokenType.FOLDED:
+            tks = [tk]
+            if i + 1 < len(tokens):
+                tks.append(tokens[i + 1])
+            ret.append(YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.FOLDED,
+                    tokens=tks,
+                ),
+            ))
+            i += 1
+        else:
+            ret.append(tk)
+    return ret
+
+
+def yaml_create_anchor_and_alias_token_groups(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.type() == YamlTokenType.ANCHOR:
+            if i + 1 >= len(tokens):
+                return YamlSyntaxError('undefined anchor name', tk.raw_token())
+            if i + 2 >= len(tokens):
+                return YamlSyntaxError('undefined anchor value', tk.raw_token())
+            anchor_name = YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.ANCHOR_NAME,
+                    tokens=[tk, tokens[i + 1]],
+                ),
             )
-        raise SystevisorConfigMergeError(child_path, first_source, source)
+            value_tk = tokens[i + 2]
+            if tk.line() == value_tk.line() and value_tk.type() == YamlTokenType.SEQUENCE_ENTRY:
+                return YamlSyntaxError(
+                    'sequence entries are not allowed after anchor on the same line',
+                    value_tk.raw_token(),
+                )
+            if tk.line() == value_tk.line() and yaml_is_scalar_type(value_tk):
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.ANCHOR,
+                        tokens=[anchor_name, value_tk],
+                    ),
+                ))
+                i += 1
+            else:
+                ret.append(anchor_name)
+            i += 1
+        elif tk.type() == YamlTokenType.ALIAS:
+            if i + 1 == len(tokens):
+                return YamlSyntaxError('undefined alias name', tk.raw_token())
+            ret.append(YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.ALIAS,
+                    tokens=[tk, tokens[i + 1]],
+                ),
+            ))
+            i += 1
+        else:
+            ret.append(tk)
+    return ret
 
 
-def systevisor_merge_config_documents(
-        documents: ta.Iterable[SystevisorConfigSourceDocument],
-) -> ta.Tuple[ta.Mapping[str, ta.Any], ta.Sequence[SystevisorConfigProvenance]]:
-    merged: ta.MutableMapping[str, ta.Any] = {}
-    provenance: ta.MutableMapping[ta.Tuple[str, ...], str] = {}
-    for document in documents:
-        _systevisor_config_sources_merge_value(merged, document.data, (), document.path, provenance)
+def yaml_create_scalar_tag_token_groups(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.type() != YamlTokenType.TAG:
+            ret.append(tk)
+            continue
+        tag = check.not_none(tk.raw_token())
+        if tag.value.startswith('!!'):
+            # secondary tag.
+            if tag.value in (
+                    YamlReservedTagKeywords.INTEGER,
+                    YamlReservedTagKeywords.FLOAT,
+                    YamlReservedTagKeywords.STRING,
+                    YamlReservedTagKeywords.BINARY,
+                    YamlReservedTagKeywords.TIMESTAMP,
+                    YamlReservedTagKeywords.BOOLEAN,
+                    YamlReservedTagKeywords.NULL,
+            ):
+                if len(tokens) <= i + 1:
+                    ret.append(tk)
+                    continue
+                if tk.line() != tokens[i + 1].line():
+                    ret.append(tk)
+                    continue
+                if tokens[i + 1].group_type() == YamlParseTokenGroupType.ANCHOR_NAME:
+                    ret.append(tk)
+                    continue
+                if yaml_is_scalar_type(tokens[i + 1]):
+                    ret.append(YamlParseToken(
+                        group=YamlParseTokenGroup(
+                            type=YamlParseTokenGroupType.SCALAR_TAG,
+                            tokens=[tk, tokens[i + 1]],
+                        ),
+                    ))
+                    i += 1
+                else:
+                    ret.append(tk)
+            elif tag.value == YamlReservedTagKeywords.MERGE:
+                if len(tokens) <= i + 1:
+                    ret.append(tk)
+                    continue
+                if tk.line() != tokens[i + 1].line():
+                    ret.append(tk)
+                    continue
+                if tokens[i + 1].group_type() == YamlParseTokenGroupType.ANCHOR_NAME:
+                    ret.append(tk)
+                    continue
+                if tokens[i + 1].type() != YamlTokenType.MERGE_KEY:
+                    return YamlSyntaxError('could not find merge key', tokens[i + 1].raw_token())
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.SCALAR_TAG,
+                        tokens=[tk, tokens[i + 1]],
+                    ),
+                ))
+                i += 1
+            else:
+                ret.append(tk)
+        else:
+            if len(tokens) <= i + 1:
+                ret.append(tk)
+                continue
+            if tk.line() != tokens[i + 1].line():
+                ret.append(tk)
+                continue
+            if tokens[i + 1].group_type() == YamlParseTokenGroupType.ANCHOR_NAME:
+                ret.append(tk)
+                continue
+            if yaml_is_flow_type(tokens[i + 1]):
+                ret.append(tk)
+                continue
+            ret.append(YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.SCALAR_TAG,
+                    tokens=[tk, tokens[i + 1]],
+                ),
+            ))
+            i += 1
+    return ret
 
-    return (
-        dict(merged),
-        tuple(
-            SystevisorConfigProvenance(object_path=object_path, source=source)
-            for object_path, source in sorted(provenance.items())
+
+def yaml_create_anchor_with_scalar_tag_token_groups(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:  # noqa
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.group_type() == YamlParseTokenGroupType.ANCHOR_NAME:
+            if i + 1 >= len(tokens):
+                return YamlSyntaxError('undefined anchor value', tk.raw_token())
+            value_tk = tokens[i + 1]
+            if tk.line() == value_tk.line() and value_tk.group_type() == YamlParseTokenGroupType.SCALAR_TAG:
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.ANCHOR,
+                        tokens=[tk, tokens[i + 1]],
+                    ),
+                ))
+                i += 1
+            else:
+                ret.append(tk)
+        else:
+            ret.append(tk)
+    return ret
+
+
+def yaml_create_map_key_token_groups(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    tks = yaml_create_map_key_by_mapping_key(tokens)
+    if isinstance(tks, YamlError):
+        return tks
+    return yaml_create_map_key_by_mapping_value(tks)
+
+
+def yaml_create_map_key_by_mapping_key(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.type() == YamlTokenType.MAPPING_KEY:
+            if i + 1 >= len(tokens):
+                return YamlSyntaxError('undefined map key', tk.raw_token())
+            ret.append(YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.MAP_KEY,
+                    tokens=[tk, tokens[i + 1]],
+                ),
+            ))
+            i += 1
+        else:
+            ret.append(tk)
+    return ret
+
+
+def yaml_create_map_key_by_mapping_value(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.type() == YamlTokenType.MAPPING_VALUE:
+            if i == 0:
+                return YamlSyntaxError('unexpected key name', tk.raw_token())
+            map_key_tk = tokens[i - 1]
+            if yaml_is_not_map_key_type(map_key_tk):
+                return YamlSyntaxError('found an invalid key for this map', tokens[i].raw_token())
+            new_tk = YamlParseToken(
+                token=map_key_tk.token,
+                group=map_key_tk.group,
+            )
+            map_key_tk.token = None
+            map_key_tk.group = YamlParseTokenGroup(
+                type=YamlParseTokenGroupType.MAP_KEY,
+                tokens=[new_tk, tk],
+            )
+        else:
+            ret.append(tk)
+    return ret
+
+
+def yaml_create_map_key_value_token_groups(tokens: ta.List[YamlParseToken]) -> ta.List[YamlParseToken]:
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.group_type() == YamlParseTokenGroupType.MAP_KEY:
+            if len(tokens) <= i + 1:
+                ret.append(tk)
+                continue
+            value_tk = tokens[i + 1]
+            if tk.line() != value_tk.line():
+                ret.append(tk)
+                continue
+            if value_tk.group_type() == YamlParseTokenGroupType.ANCHOR_NAME:
+                ret.append(tk)
+                continue
+            if (
+                    value_tk.type() == YamlTokenType.TAG and
+                    value_tk.group_type() != YamlParseTokenGroupType.SCALAR_TAG
+            ):
+                ret.append(tk)
+                continue
+
+            if yaml_is_scalar_type(value_tk) or value_tk.type() == YamlTokenType.TAG:
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.MAP_KEY_VALUE,
+                        tokens=[tk, value_tk],
+                    ),
+                ))
+                i += 1
+            else:
+                ret.append(tk)
+                continue
+        else:
+            ret.append(tk)
+    return ret
+
+
+def yaml_create_directive_token_groups(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.type() == YamlTokenType.DIRECTIVE:
+            if i + 1 >= len(tokens):
+                return YamlSyntaxError('undefined directive value', tk.raw_token())
+            directive_name = YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.DIRECTIVE_NAME,
+                    tokens=[tk, tokens[i + 1]],
+                ),
+            )
+            i += 1
+            value_tks: ta.List[YamlParseToken] = []
+            for j in range(i + 1, len(tokens)):
+                if tokens[j].line() != tk.line():
+                    break
+                value_tks.append(tokens[j])
+                i += 1
+            if i + 1 >= len(tokens) or tokens[i + 1].type() != YamlTokenType.DOCUMENT_HEADER:
+                return YamlSyntaxError('unexpected directive value. document not started', tk.raw_token())
+            if len(value_tks) != 0:
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.DIRECTIVE,
+                        tokens=[directive_name, *value_tks],
+                    ),
+                ))
+            else:
+                ret.append(directive_name)
+        else:
+            ret.append(tk)
+    return ret
+
+
+def yaml_create_document_tokens(tokens: ta.List[YamlParseToken]) -> YamlErrorOr[ta.List[YamlParseToken]]:
+    ret: ta.List[YamlParseToken] = []
+    i = -1
+    while True:
+        i += 1
+        if not (i < len(tokens)):
+            break
+        tk = tokens[i]
+        if tk.type() == YamlTokenType.DOCUMENT_HEADER:
+            if i != 0:
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(tokens=tokens[:i]),
+                ))
+            if i + 1 == len(tokens):
+                # if current token is last token, add DocumentHeader only tokens to ret.
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.DOCUMENT,
+                        tokens=[tk],
+                    ),
+                ))
+                return ret
+            if tokens[i + 1].type() == YamlTokenType.DOCUMENT_HEADER:
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.DOCUMENT,
+                        tokens=[tk],
+                    ),
+                ))
+                return ret
+            if tokens[i].line() == tokens[i + 1].line():
+                if tokens[i + 1].group_type() in (
+                        YamlParseTokenGroupType.MAP_KEY,
+                        YamlParseTokenGroupType.MAP_KEY_VALUE,
+                ):
+                    return YamlSyntaxError(
+                        'value cannot be placed after document separator',
+                        tokens[i + 1].raw_token(),
+                    )
+                if tokens[i + 1].type() == YamlTokenType.SEQUENCE_ENTRY:
+                    return YamlSyntaxError(
+                        'value cannot be placed after document separator',
+                        tokens[i + 1].raw_token(),
+                    )
+            tks = yaml_create_document_tokens(tokens[i + 1:])
+            if isinstance(tks, YamlError):
+                return tks
+            if len(tks) != 0:
+                tks[0].set_group_type(YamlParseTokenGroupType.DOCUMENT)
+                check.not_none(tks[0].group).tokens = [tk, *check.not_none(tks[0].group).tokens]
+                ret.extend(tks)
+                return ret
+            ret.append(YamlParseToken(
+                group=YamlParseTokenGroup(
+                    type=YamlParseTokenGroupType.DOCUMENT,
+                    tokens=[tk],
+                ),
+            ))
+            return ret
+        elif tk.type() == YamlTokenType.DOCUMENT_END:
+            if i != 0:
+                ret.append(YamlParseToken(
+                    group=YamlParseTokenGroup(
+                        type=YamlParseTokenGroupType.DOCUMENT,
+                        tokens=tokens[0: i + 1],
+                    ),
+                ))
+            if i + 1 == len(tokens):
+                return ret
+            if yaml_is_scalar_type(tokens[i + 1]):
+                return YamlSyntaxError('unexpected end content', tokens[i + 1].raw_token())
+
+            tks = yaml_create_document_tokens(tokens[i + 1:])
+            if isinstance(tks, YamlError):
+                return tks
+            ret.extend(tks)
+            return ret
+    ret.append(YamlParseToken(
+        group=YamlParseTokenGroup(
+            type=YamlParseTokenGroupType.DOCUMENT,
+            tokens=tokens,
         ),
+    ))
+    return ret
+
+
+def yaml_is_scalar_type(tk: YamlParseToken) -> bool:
+    if tk.group_type() in (YamlParseTokenGroupType.MAP_KEY, YamlParseTokenGroupType.MAP_KEY_VALUE):
+        return False
+    typ = tk.type()
+    return typ in (
+        YamlTokenType.ANCHOR,
+        YamlTokenType.ALIAS,
+        YamlTokenType.LITERAL,
+        YamlTokenType.FOLDED,
+        YamlTokenType.NULL,
+        YamlTokenType.IMPLICIT_NULL,
+        YamlTokenType.BOOL,
+        YamlTokenType.INTEGER,
+        YamlTokenType.BINARY_INTEGER,
+        YamlTokenType.OCTET_INTEGER,
+        YamlTokenType.HEX_INTEGER,
+        YamlTokenType.FLOAT,
+        YamlTokenType.INFINITY,
+        YamlTokenType.NAN,
+        YamlTokenType.STRING,
+        YamlTokenType.SINGLE_QUOTE,
+        YamlTokenType.DOUBLE_QUOTE,
     )
+
+
+def yaml_is_not_map_key_type(tk: YamlParseToken) -> bool:
+    typ = tk.type()
+    return typ in (
+        YamlTokenType.DIRECTIVE,
+        YamlTokenType.DOCUMENT_HEADER,
+        YamlTokenType.DOCUMENT_END,
+        YamlTokenType.COLLECT_ENTRY,
+        YamlTokenType.MAPPING_START,
+        YamlTokenType.MAPPING_VALUE,
+        YamlTokenType.MAPPING_END,
+        YamlTokenType.SEQUENCE_START,
+        YamlTokenType.SEQUENCE_ENTRY,
+        YamlTokenType.SEQUENCE_END,
+    )
+
+
+def yaml_is_flow_type(tk: YamlParseToken) -> bool:
+    typ = tk.type()
+    return typ in (
+        YamlTokenType.MAPPING_START,
+        YamlTokenType.MAPPING_END,
+        YamlTokenType.SEQUENCE_START,
+        YamlTokenType.SEQUENCE_ENTRY,
+    )
+
+
+##
+
+
+class YamlNodeMakers:
+    def __new__(cls, *args, **kwargs):  # noqa
+        raise TypeError
+
+    @staticmethod
+    def new_mapping_node(
+            ctx: YamlParsingContext,
+            tk: YamlParseToken,
+            is_flow: bool,
+            *values: MappingValueYamlNode,
+    ) -> YamlErrorOr[MappingYamlNode]:
+        node = YamlAsts.mapping(check.not_none(tk.raw_token()), is_flow, *values)
+        node.set_path(ctx.path)
+        return node
+
+    @staticmethod
+    def new_mapping_value_node(
+            ctx: YamlParsingContext,
+            colon_tk: YamlParseToken,
+            entry_tk: ta.Optional[YamlParseToken],
+            key: MapKeyYamlNode,
+            value: YamlNode,
+    ) -> YamlErrorOr[MappingValueYamlNode]:
+        node = YamlAsts.mapping_value(check.not_none(colon_tk.raw_token()), key, value)
+        node.set_path(ctx.path)
+        node.collect_entry = YamlParseToken.raw_token(entry_tk)
+        if check.not_none(key.get_token()).position.line == check.not_none(value.get_token()).position.line:
+            # originally key was commented, but now that null value has been added, value must be commented.
+            if (err := yaml_set_line_comment(ctx, value, colon_tk)) is not None:
+                return err
+            # set line comment by colon_tk or entry_tk.
+            if (err := yaml_set_line_comment(ctx, value, entry_tk)) is not None:
+                return err
+        else:
+            if (err := yaml_set_line_comment(ctx, key, colon_tk)) is not None:
+                return err
+            # set line comment by colon_tk or entry_tk.
+            if (err := yaml_set_line_comment(ctx, key, entry_tk)) is not None:
+                return err
+        return node
+
+    @staticmethod
+    def new_mapping_key_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[MappingKeyYamlNode]:  # noqa
+        node = YamlAsts.mapping_key(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_anchor_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[AnchorYamlNode]:
+        node = YamlAsts.anchor(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_alias_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[AliasYamlNode]:
+        node = YamlAsts.alias(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_directive_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[DirectiveYamlNode]:  # noqa
+        node = YamlAsts.directive(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_merge_key_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[MergeKeyYamlNode]:  # noqa
+        node = YamlAsts.merge_key(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_null_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[NullYamlNode]:
+        node = YamlAsts.null(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_bool_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[BoolYamlNode]:
+        node = YamlAsts.bool_(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_integer_node(ctx: YamlParsingContext, tk: YamlParseToken) -> YamlErrorOr[IntegerYamlNode]:
+        node = YamlAsts.integer(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_float_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[FloatYamlNode]:
+        node = YamlAsts.float_(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_infinity_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[InfinityYamlNode]:  # noqa
+        node = YamlAsts.infinity(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_nan_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[NanYamlNode]:
+        node = YamlAsts.nan(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_string_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[StringYamlNode]:
+        node = YamlAsts.string(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_literal_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[LiteralYamlNode]:
+        node = YamlAsts.literal(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_tag_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[TagYamlNode]:
+        node = YamlAsts.tag(check.not_none(YamlParseToken.raw_token(tk)))
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_sequence_node(ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken], is_flow: bool) -> YamlErrorOr[SequenceYamlNode]:  # noqa
+        node = YamlAsts.sequence(check.not_none(YamlParseToken.raw_token(tk)), is_flow)
+        node.set_path(ctx.path)
+        if (err := yaml_set_line_comment(ctx, node, tk)) is not None:
+            return err
+        return node
+
+    @staticmethod
+    def new_tag_default_scalar_value_node(ctx: YamlParsingContext, tag: YamlToken) -> YamlErrorOr[ScalarYamlNode]:
+        pos = copy.copy(tag.position)
+        pos.column += 1
+
+        tk: YamlErrorOr[YamlParseToken]
+        node: YamlErrorOr[ScalarYamlNode]
+
+        if tag.value == YamlReservedTagKeywords.INTEGER:
+            tk = YamlParseToken(token=yaml_new_token('0', '0', pos))
+            n0 = YamlNodeMakers.new_integer_node(ctx, tk)
+            if isinstance(n0, YamlError):
+                return n0
+            node = n0
+        elif tag.value == YamlReservedTagKeywords.FLOAT:
+            tk = YamlParseToken(token=yaml_new_token('0', '0', pos))
+            n1 = YamlNodeMakers.new_float_node(ctx, tk)
+            if isinstance(n1, YamlError):
+                return n1
+            node = n1
+        elif tag.value in (
+                YamlReservedTagKeywords.STRING,
+                YamlReservedTagKeywords.BINARY,
+                YamlReservedTagKeywords.TIMESTAMP,
+        ):
+            tk = YamlParseToken(token=yaml_new_token('', '', pos))
+            n2 = YamlNodeMakers.new_string_node(ctx, tk)
+            if isinstance(n2, YamlError):
+                return n2
+            node = n2
+        elif tag.value == YamlReservedTagKeywords.BOOLEAN:
+            tk = YamlParseToken(token=yaml_new_token('false', 'false', pos))
+            n3 = YamlNodeMakers.new_bool_node(ctx, tk)
+            if isinstance(n3, YamlError):
+                return n3
+            node = n3
+        elif tag.value == YamlReservedTagKeywords.NULL:
+            tk = YamlParseToken(token=yaml_new_token('null', 'null', pos))
+            n4 = YamlNodeMakers.new_null_node(ctx, tk)
+            if isinstance(n4, YamlError):
+                return n4
+            node = n4
+        else:
+            return YamlSyntaxError(f'cannot assign default value for {tag.value!r} tag', tag)
+        ctx.insert_token(tk)
+        ctx.go_next()
+        return node
+
+
+def yaml_set_line_comment(ctx: YamlParsingContext, node: YamlNode, tk: ta.Optional[YamlParseToken]) -> ta.Optional[YamlError]:  # noqa
+    if tk is None or tk.line_comment is None:
+        return None
+    comment = YamlAsts.comment_group([tk.line_comment])
+    comment.set_path(ctx.path)
+    if (err := node.set_comment(comment)) is not None:
+        return err
+    return None
+
+
+def yaml_set_head_comment(cm: ta.Optional[CommentGroupYamlNode], value: YamlNode) -> ta.Optional[YamlError]:
+    if cm is None:
+        return None
+    n = value
+    if isinstance(n, MappingYamlNode):
+        if len(n.values) != 0 and value.get_comment() is None:
+            cm.set_path(n.values[0].get_path())
+            return n.values[0].set_comment(cm)
+    elif isinstance(n, MappingValueYamlNode):
+        cm.set_path(n.get_path())
+        return n.set_comment(cm)
+    cm.set_path(value.get_path())
+    return value.set_comment(cm)
+
+
+##
+
+
+YamlParseMode = int  # ta.TypeAlias  # om-amalg-typing-no-move
+
+YAML_PARSE_COMMENTS = YamlParseMode(1)  # parse comments and add them to AST
+
+
+# ParseBytes parse from byte slice, and returns YamlFile
+def yaml_parse_str(
+        s: str,
+        mode: YamlParseMode = YamlParseMode(0),
+        *opts: YamlOption,
+) -> YamlErrorOr[YamlFile]:
+    tokens = yaml_tokenize(s)
+    f = yaml_parse(tokens, mode, *opts)
+    if isinstance(f, YamlError):
+        return f
+    return f
+
+
+# Parse parse from token instances, and returns YamlFile
+def yaml_parse(
+        tokens: YamlTokens,
+        mode: YamlParseMode = YamlParseMode(0),
+        *opts: YamlOption,
+) -> YamlErrorOr[YamlFile]:
+    if (tk := tokens.invalid_token()) is not None:
+        return YamlSyntaxError(check.not_none(tk.error).message, tk)
+    p = YamlParser.new_parser(tokens, mode, opts)
+    if isinstance(p, YamlError):
+        return p
+    f = p.parse(YamlParsingContext.new())
+    if isinstance(f, YamlError):
+        return f
+    return f
+
+
+#
+
+
+YamlVersion = str  # ta.TypeAlias  # om-amalg-typing-no-move
+
+YAML10 = YamlVersion('1.0')
+YAML11 = YamlVersion('1.1')
+YAML12 = YamlVersion('1.2')
+YAML13 = YamlVersion('1.3')
+
+YAML_VERSION_MAP: ta.Mapping[str, YamlVersion] = {
+    '1.0': YAML10,
+    '1.1': YAML11,
+    '1.2': YAML12,
+    '1.3': YAML13,
+}
+
+
+#
+
+@dc.dataclass()
+class YamlParser:
+    tokens: ta.List[YamlParseToken]
+    path_map: ta.Dict[str, YamlNode]
+    yaml_version: YamlVersion = YamlVersion('')
+    allow_duplicate_map_key: bool = False
+    secondary_tag_directive: ta.Optional[DirectiveYamlNode] = None
+
+    @staticmethod
+    def new_parser(
+            tokens: YamlTokens,
+            mode: YamlParseMode,
+            opts: ta.Iterable[YamlOption],
+    ) -> YamlErrorOr['YamlParser']:
+        filtered_tokens: ta.List[YamlToken] = []
+        if mode & YAML_PARSE_COMMENTS != 0:
+            filtered_tokens = tokens
+        else:
+            for tk in tokens:
+                if tk.type == YamlTokenType.COMMENT:
+                    continue
+                # keep prev/next reference between tokens containing comments
+                # https://github.com/goccy/go-yaml/issues/254
+                filtered_tokens.append(tk)
+        tks = yaml_create_grouped_tokens(YamlTokens(filtered_tokens))
+        if isinstance(tks, YamlError):
+            return tks
+        p = YamlParser(
+            tokens=tks,
+            path_map={},
+        )
+        for opt in opts:
+            opt(p)
+        return p
+
+    def parse(self, ctx: YamlParsingContext) -> YamlErrorOr[YamlFile]:
+        file = YamlFile(docs=[])
+        for token in self.tokens:
+            doc = self.parse_document(ctx, check.not_none(token.group))
+            if isinstance(doc, YamlError):
+                return doc
+            file.docs.append(doc)
+        return file
+
+    def parse_document(
+            self,
+            ctx: YamlParsingContext,
+            doc_group: YamlParseTokenGroup,
+    ) -> YamlErrorOr[DocumentYamlNode]:
+        if len(doc_group.tokens) == 0:
+            return YamlAsts.document(doc_group.raw_token(), None)
+
+        self.path_map: ta.Dict[str, YamlNode] = {}
+
+        tokens = doc_group.tokens
+        start: ta.Optional[YamlToken] = None
+        end: ta.Optional[YamlToken] = None
+        if YamlParseToken.type(doc_group.first()) == YamlTokenType.DOCUMENT_HEADER:
+            start = YamlParseToken.raw_token(doc_group.first())
+            tokens = tokens[1:]
+
+        clear_yaml_version = False
+        try:
+            if YamlParseToken.type(doc_group.last()) == YamlTokenType.DOCUMENT_END:
+                end = YamlParseToken.raw_token(doc_group.last())
+                tokens = tokens[:len(tokens) - 1]
+                # clear yaml version value if DocumentEnd token (...) is specified.
+                clear_yaml_version = True
+
+            if len(tokens) == 0:
+                return YamlAsts.document(doc_group.raw_token(), None)
+
+            body = self.parse_document_body(ctx.with_group(YamlParseTokenGroup(
+                type=YamlParseTokenGroupType.DOCUMENT_BODY,
+                tokens=tokens,
+            )))
+            if isinstance(body, YamlError):
+                return body
+            node = YamlAsts.document(start, body)
+            node.end = end
+            return node
+
+        finally:
+            if clear_yaml_version:
+                self.yaml_version = ''
+
+    def parse_document_body(self, ctx: YamlParsingContext) -> YamlErrorOr[YamlNode]:
+        node = self.parse_token(ctx, ctx.current_token())
+        if isinstance(node, YamlError):
+            return node
+        if ctx.next():
+            return YamlSyntaxError('value is not allowed in this context', YamlParseToken.raw_token(ctx.current_token()))  # noqa
+        return node
+
+    def parse_token(self, ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[YamlNode]:
+        if YamlParseToken.group_type(tk) in (
+                YamlParseTokenGroupType.MAP_KEY,
+                YamlParseTokenGroupType.MAP_KEY_VALUE,
+        ):
+            return self.parse_map(ctx)
+
+        elif YamlParseToken.group_type(tk) == YamlParseTokenGroupType.DIRECTIVE:
+            node0 = self.parse_directive(
+                ctx.with_group(check.not_none(check.not_none(tk).group)),
+                check.not_none(check.not_none(tk).group),
+            )
+            if isinstance(node0, YamlError):
+                return node0
+            ctx.go_next()
+            return node0
+
+        elif YamlParseToken.group_type(tk) == YamlParseTokenGroupType.DIRECTIVE_NAME:
+            node1 = self.parse_directive_name(ctx.with_group(check.not_none(check.not_none(tk).group)))
+            if isinstance(node1, YamlError):
+                return node1
+            ctx.go_next()
+            return node1
+
+        elif YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR:
+            node2 = self.parse_anchor(
+                ctx.with_group(check.not_none(check.not_none(tk).group)),
+                check.not_none(check.not_none(tk).group),
+            )
+            if isinstance(node2, YamlError):
+                return node2
+            ctx.go_next()
+            return node2
+
+        elif YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR_NAME:
+            anchor = self.parse_anchor_name(ctx.with_group(check.not_none(check.not_none(tk).group)))
+            if isinstance(anchor, YamlError):
+                return anchor
+            ctx.go_next()
+            if ctx.is_token_not_found():
+                return YamlSyntaxError('could not find anchor value', YamlParseToken.raw_token(tk))
+            value = self.parse_token(ctx, ctx.current_token())
+            if isinstance(value, YamlError):
+                return value
+            if isinstance(value, AnchorYamlNode):
+                return YamlSyntaxError('anchors cannot be used consecutively', value.get_token())
+            anchor.value = value
+            return anchor
+
+        elif YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ALIAS:
+            node3 = self.parse_alias(ctx.with_group(check.not_none(check.not_none(tk).group)))
+            if isinstance(node3, YamlError):
+                return node3
+            ctx.go_next()
+            return node3
+
+        elif YamlParseToken.group_type(tk) in (
+                YamlParseTokenGroupType.LITERAL,
+                YamlParseTokenGroupType.FOLDED,
+        ):
+            node4 = self.parse_literal(ctx.with_group(check.not_none(check.not_none(tk).group)))
+            if isinstance(node4, YamlError):
+                return node4
+            ctx.go_next()
+            return node4
+
+        elif YamlParseToken.group_type(tk) == YamlParseTokenGroupType.SCALAR_TAG:
+            node5 = self.parse_tag(ctx.with_group(check.not_none(check.not_none(tk).group)))
+            if isinstance(node5, YamlError):
+                return node5
+            ctx.go_next()
+            return node5
+
+        if YamlParseToken.type(tk) == YamlTokenType.COMMENT:
+            return ta.cast('YamlErrorOr[YamlNode]', check.not_none(self.parse_comment(ctx)))
+
+        elif YamlParseToken.type(tk) == YamlTokenType.TAG:
+            return self.parse_tag(ctx)
+
+        elif YamlParseToken.type(tk) == YamlTokenType.MAPPING_START:
+            return self.parse_flow_map(ctx.with_flow(True))
+
+        elif YamlParseToken.type(tk) == YamlTokenType.SEQUENCE_START:
+            return self.parse_flow_sequence(ctx.with_flow(True))
+
+        elif YamlParseToken.type(tk) == YamlTokenType.SEQUENCE_ENTRY:
+            return self.parse_sequence(ctx)
+
+        elif YamlParseToken.type(tk) == YamlTokenType.SEQUENCE_END:
+            # SequenceEndType is always validated in parse_flow_sequence.
+            # Therefore, if this is found in other cases, it is treated as a syntax error.
+            return YamlSyntaxError("could not find '[' character corresponding to ']'", YamlParseToken.raw_token(tk))
+
+        elif YamlParseToken.type(tk) == YamlTokenType.MAPPING_END:
+            # MappingEndType is always validated in parse_flow_map.
+            # Therefore, if this is found in other cases, it is treated as a syntax error.
+            return YamlSyntaxError("could not find '{' character corresponding to '}'", YamlParseToken.raw_token(tk))
+
+        elif YamlParseToken.type(tk) == YamlTokenType.MAPPING_VALUE:
+            return YamlSyntaxError('found an invalid key for this map', YamlParseToken.raw_token(tk))
+
+        node6 = self.parse_scalar_value(ctx, tk)
+        if isinstance(node6, YamlError):
+            return node6
+
+        ctx.go_next()
+        return check.not_none(node6)
+
+    def parse_scalar_value(self, ctx: YamlParsingContext, tk: ta.Optional[YamlParseToken]) -> YamlErrorOr[ta.Optional[ScalarYamlNode]]:  # noqa
+        tk = check.not_none(tk)
+        if tk.group is not None:
+            if tk.group_type() == YamlParseTokenGroupType.ANCHOR:
+                return self.parse_anchor(ctx.with_group(tk.group), tk.group)
+
+            elif tk.group_type() == YamlParseTokenGroupType.ANCHOR_NAME:
+                anchor = self.parse_anchor_name(ctx.with_group(tk.group))
+                if isinstance(anchor, YamlError):
+                    return anchor
+                ctx.go_next()
+                if ctx.is_token_not_found():
+                    return YamlSyntaxError('could not find anchor value', tk.raw_token())
+                value = self.parse_token(ctx, ctx.current_token())
+                if isinstance(value, YamlError):
+                    return value
+                if isinstance(value, AnchorYamlNode):
+                    return YamlSyntaxError('anchors cannot be used consecutively', value.get_token())
+                anchor.value = value
+                return anchor
+
+            elif tk.group_type() == YamlParseTokenGroupType.ALIAS:
+                return self.parse_alias(ctx.with_group(tk.group))
+
+            elif tk.group_type() in (
+                    YamlParseTokenGroupType.LITERAL,
+                    YamlParseTokenGroupType.FOLDED,
+            ):
+                return self.parse_literal(ctx.with_group(tk.group))
+
+            elif tk.group_type() == YamlParseTokenGroupType.SCALAR_TAG:
+                return self.parse_tag(ctx.with_group(tk.group))
+
+            else:
+                return YamlSyntaxError('unexpected scalar value', tk.raw_token())
+
+        if tk.type() == YamlTokenType.MERGE_KEY:
+            return YamlNodeMakers.new_merge_key_node(ctx, tk)
+
+        if tk.type() in (YamlTokenType.NULL, YamlTokenType.IMPLICIT_NULL):
+            return YamlNodeMakers.new_null_node(ctx, tk)
+
+        if tk.type() == YamlTokenType.BOOL:
+            return YamlNodeMakers.new_bool_node(ctx, tk)
+
+        if tk.type() in (
+                YamlTokenType.INTEGER,
+                YamlTokenType.BINARY_INTEGER,
+                YamlTokenType.OCTET_INTEGER,
+                YamlTokenType.HEX_INTEGER,
+        ):
+            return YamlNodeMakers.new_integer_node(ctx, tk)
+
+        if tk.type() == YamlTokenType.FLOAT:
+            return YamlNodeMakers.new_float_node(ctx, tk)
+
+        if tk.type() == YamlTokenType.INFINITY:
+            return YamlNodeMakers.new_infinity_node(ctx, tk)
+
+        if tk.type() == YamlTokenType.NAN:
+            return YamlNodeMakers.new_nan_node(ctx, tk)
+
+        if tk.type() in (
+                YamlTokenType.STRING,
+                YamlTokenType.SINGLE_QUOTE,
+                YamlTokenType.DOUBLE_QUOTE,
+        ):
+            return YamlNodeMakers.new_string_node(ctx, tk)
+
+        if tk.type() == YamlTokenType.TAG:
+            # this case applies when it is a scalar tag and its value does not exist.
+            # Examples of cases where the value does not exist include cases like `key: !!str,` or `!!str : value`.
+            return self.parse_scalar_tag(ctx)
+
+        return YamlSyntaxError('unexpected scalar value type', tk.raw_token())
+
+    def parse_flow_map(self, ctx: YamlParsingContext) -> YamlErrorOr[MappingYamlNode]:
+        node = YamlNodeMakers.new_mapping_node(ctx, check.not_none(ctx.current_token()), True)
+        if isinstance(node, YamlError):
+            return node
+        ctx.go_next()  # skip MappingStart token
+
+        is_first = True
+        while ctx.next():
+            tk = ctx.current_token()
+            if YamlParseToken.type(tk) == YamlTokenType.MAPPING_END:
+                node.end = YamlParseToken.raw_token(tk)
+                break
+
+            entry_tk: ta.Optional[YamlParseToken] = None
+            if YamlParseToken.type(tk) == YamlTokenType.COLLECT_ENTRY:
+                entry_tk = tk
+                ctx.go_next()
+            elif not is_first:
+                return YamlSyntaxError("',' or '}' must be specified", YamlParseToken.raw_token(tk))
+
+            # go scopes this shadow to the if statement; the outer tk must survive for the err_tk fallback below.
+            if YamlParseToken.type(tk2 := ctx.current_token()) == YamlTokenType.MAPPING_END:
+                # this case is here: "{ elem, }".
+                # In this case, ignore the last element and break mapping parsing.
+                node.end = YamlParseToken.raw_token(tk2)
+                break
+
+            map_key_tk = ctx.current_token()
+            if YamlParseToken.group_type(map_key_tk) == YamlParseTokenGroupType.MAP_KEY_VALUE:
+                value0 = self.parse_map_key_value(
+                    ctx.with_group(check.not_none(check.not_none(map_key_tk).group)),
+                    check.not_none(check.not_none(map_key_tk).group),
+                    entry_tk,
+                )
+                if isinstance(value0, YamlError):
+                    return value0
+                node.values.append(value0)
+                ctx.go_next()
+
+            elif YamlParseToken.group_type(map_key_tk) == YamlParseTokenGroupType.MAP_KEY:
+                key0 = self.parse_map_key(
+                    ctx.with_group(check.not_none(check.not_none(map_key_tk).group)),
+                    check.not_none(check.not_none(map_key_tk).group),
+                )
+                if isinstance(key0, YamlError):
+                    return key0
+                ctx2 = ctx.with_child(self.map_key_text(key0))
+                colon_tk = check.not_none(check.not_none(map_key_tk).group).last()
+
+                if self.is_flow_map_delim(ctx2.next_token()):
+                    value1 = YamlNodeMakers.new_null_node(ctx2, ctx2.insert_null_token(check.not_none(colon_tk)))
+                    if isinstance(value1, YamlError):
+                        return value1
+                    map_value = YamlNodeMakers.new_mapping_value_node(
+                        ctx2,
+                        check.not_none(colon_tk),
+                        entry_tk,
+                        key0,
+                        value1,
+                    )
+                    if isinstance(map_value, YamlError):
+                        return map_value
+                    node.values.append(map_value)
+                    ctx2.go_next()
+
+                else:
+                    ctx2.go_next()
+                    if ctx2.is_token_not_found():
+                        return YamlSyntaxError('could not find map value', YamlParseToken.raw_token(colon_tk))
+                    value2 = self.parse_token(ctx2, ctx2.current_token())
+                    if isinstance(value2, YamlError):
+                        return value2
+                    map_value = YamlNodeMakers.new_mapping_value_node(
+                        ctx2,
+                        check.not_none(colon_tk),
+                        entry_tk,
+                        key0,
+                        value2,
+                    )
+                    if isinstance(map_value, YamlError):
+                        return map_value
+                    node.values.append(map_value)
+
+            else:
+                if not self.is_flow_map_delim(ctx.next_token()):
+                    err_tk = map_key_tk
+                    if err_tk is None:
+                        err_tk = tk
+                    return YamlSyntaxError('could not find flow map content', YamlParseToken.raw_token(err_tk))
+
+                key1 = self.parse_scalar_value(ctx, map_key_tk)
+                if isinstance(key1, YamlError):
+                    return key1
+
+                value3 = YamlNodeMakers.new_null_node(ctx, ctx.insert_null_token(check.not_none(map_key_tk)))
+                if isinstance(value3, YamlError):
+                    return value3
+
+                map_value = YamlNodeMakers.new_mapping_value_node(
+                    ctx,
+                    check.not_none(map_key_tk),
+                    entry_tk,
+                    check.not_none(key1),
+                    value3,
+                )
+                if isinstance(map_value, YamlError):
+                    return map_value
+
+                node.values.append(map_value)
+                ctx.go_next()
+
+            is_first = False
+
+        if node.end is None:
+            return YamlSyntaxError("could not find flow mapping end token '}'", node.start)
+
+        # set line comment if exists. e.g.) } # comment
+        if (err := yaml_set_line_comment(ctx, node, ctx.current_token())) is not None:
+            return err
+
+        ctx.go_next()  # skip mapping end token.
+        return node
+
+    def is_flow_map_delim(self, tk: ta.Optional[YamlParseToken]) -> bool:
+        typ = YamlParseToken.type(tk)
+        return typ == YamlTokenType.MAPPING_END or typ == YamlTokenType.COLLECT_ENTRY
+
+    def parse_map(self, ctx: YamlParsingContext) -> YamlErrorOr[MappingYamlNode]:
+        key_tk = check.not_none(ctx.current_token())
+        if key_tk.group is None:
+            return YamlSyntaxError('unexpected map key', YamlParseToken.raw_token(key_tk))
+
+        key_value_node: MappingValueYamlNode
+        if YamlParseToken.group_type(key_tk) == YamlParseTokenGroupType.MAP_KEY_VALUE:
+            node0 = self.parse_map_key_value(
+                ctx.with_group(check.not_none(key_tk.group)),
+                check.not_none(key_tk.group),
+                None,
+            )
+            if isinstance(node0, YamlError):
+                return node0
+
+            key_value_node = node0
+            ctx.go_next()
+            if (err := self.validate_map_key_value_next_token(ctx, key_tk, ctx.current_token())) is not None:
+                return err
+
+        else:
+            key = self.parse_map_key(ctx.with_group(check.not_none(key_tk.group)), check.not_none(key_tk.group))
+            if isinstance(key, YamlError):
+                return key
+            ctx.go_next()
+
+            value_tk = ctx.current_token()
+            if (
+                    YamlParseToken.line(key_tk) == YamlParseToken.line(value_tk) and
+                    YamlParseToken.type(value_tk) == YamlTokenType.SEQUENCE_ENTRY
+            ):
+                return YamlSyntaxError(
+                    'block sequence entries are not allowed in this context',
+                    YamlParseToken.raw_token(value_tk),
+                )
+
+            ctx2 = ctx.with_child(self.map_key_text(key))
+            value = self.parse_map_value(ctx2, key, check.not_none(check.not_none(key_tk.group).last()))
+            if isinstance(value, YamlError):
+                return value
+
+            node1 = YamlNodeMakers.new_mapping_value_node(
+                ctx2,
+                check.not_none(check.not_none(key_tk.group).last()),
+                None,
+                key,
+                value,
+            )
+            if isinstance(node1, YamlError):
+                return node1
+
+            key_value_node = node1
+
+        map_node = YamlNodeMakers.new_mapping_node(
+            ctx,
+            YamlParseToken(token=key_value_node.get_token()),
+            False,
+            key_value_node,
+        )
+        if isinstance(map_node, YamlError):
+            return map_node
+
+        tk: ta.Optional[YamlParseToken]
+        if ctx.is_comment():
+            tk = ctx.next_not_comment_token()
+        else:
+            tk = ctx.current_token()
+
+        while YamlParseToken.column(tk) == YamlParseToken.column(key_tk):
+            typ = YamlParseToken.type(tk)
+            if ctx.is_flow and typ == YamlTokenType.SEQUENCE_END:
+                # [
+                # key: value
+                # ] <=
+                break
+            if not self.is_map_token(check.not_none(tk)):
+                return YamlSyntaxError('non-map value is specified', YamlParseToken.raw_token(tk))
+            cm = self.parse_head_comment(ctx)
+            if typ == YamlTokenType.MAPPING_END:
+                # a: {
+                #  b: c
+                # } <=
+                ctx.go_next()
+                break
+            node2 = self.parse_map(ctx)
+            if isinstance(node2, YamlError):
+                return node2
+            if len(node2.values) != 0:
+                if (err := yaml_set_head_comment(cm, node2.values[0])) is not None:
+                    return err
+            map_node.values.extend(node2.values)
+            if node2.foot_comment is not None:
+                map_node.values[len(map_node.values) - 1].foot_comment = node2.foot_comment
+            tk = ctx.current_token()
+
+        if ctx.is_comment():
+            if YamlParseToken.column(key_tk) <= YamlParseToken.column(ctx.current_token()):
+                # If the comment is in the same or deeper column as the last element column in map value,
+                # treat it as a footer comment for the last element.
+                if len(map_node.values) == 1:
+                    map_node.values[0].foot_comment = self.parse_foot_comment(ctx, YamlParseToken.column(key_tk))
+                    BaseYamlNode.set_path(map_node.values[0].foot_comment, map_node.values[0].key.get_path())
+                else:
+                    map_node.foot_comment = self.parse_foot_comment(ctx, YamlParseToken.column(key_tk))
+                    BaseYamlNode.set_path(map_node.foot_comment, map_node.get_path())
+
+        return map_node
+
+    def validate_map_key_value_next_token(self, ctx: YamlParsingContext, key_tk, tk: ta.Optional[YamlParseToken]) -> ta.Optional[YamlError]:  # noqa
+        if tk is None:
+            return None
+        if tk.column() <= key_tk.column():
+            return None
+        if ctx.is_comment():
+            return None
+        if (
+                ctx.is_flow and
+                (tk.type() == YamlTokenType.COLLECT_ENTRY or tk.type() == YamlTokenType.SEQUENCE_END)
+        ):
+            return None
+        # a: b
+        #  c <= this token is invalid.
+        return YamlSyntaxError('value is not allowed in this context. map key-value is pre-defined', tk.raw_token())
+
+    def is_map_token(self, tk: YamlParseToken) -> bool:
+        if tk.group is None:
+            return tk.type() == YamlTokenType.MAPPING_START or tk.type() == YamlTokenType.MAPPING_END
+        g = tk.group
+        return g.type == YamlParseTokenGroupType.MAP_KEY or g.type == YamlParseTokenGroupType.MAP_KEY_VALUE
+
+    def parse_map_key_value(
+            self,
+            ctx: YamlParsingContext,
+            g: YamlParseTokenGroup,
+            entry_tk: ta.Optional[YamlParseToken],
+    ) -> YamlErrorOr[MappingValueYamlNode]:
+        if g.type != YamlParseTokenGroupType.MAP_KEY_VALUE:
+            return YamlSyntaxError('unexpected map key-value pair', g.raw_token())
+        if check.not_none(g.first()).group is None:
+            return YamlSyntaxError('unexpected map key', g.raw_token())
+        key_group = check.not_none(check.not_none(g.first()).group)
+        key = self.parse_map_key(ctx.with_group(key_group), key_group)
+        if isinstance(key, YamlError):
+            return key
+
+        c = ctx.with_child(self.map_key_text(key))
+        value = self.parse_token(c, g.last())
+        if isinstance(value, YamlError):
+            return value
+        return YamlNodeMakers.new_mapping_value_node(c, check.not_none(key_group.last()), entry_tk, key, value)
+
+    def parse_map_key(self, ctx: YamlParsingContext, g: YamlParseTokenGroup) -> YamlErrorOr[MapKeyYamlNode]:
+        if g.type != YamlParseTokenGroupType.MAP_KEY:
+            return YamlSyntaxError('unexpected map key', g.raw_token())
+
+        if YamlParseToken.type(g.first()) == YamlTokenType.MAPPING_KEY:
+            map_key_tk = check.not_none(g.first())
+            if map_key_tk.group is not None:
+                ctx = ctx.with_group(map_key_tk.group)
+            key0 = YamlNodeMakers.new_mapping_key_node(ctx, map_key_tk)
+            if isinstance(key0, YamlError):
+                return key0
+            ctx.go_next()  # skip mapping key token
+            if ctx.is_token_not_found():
+                return YamlSyntaxError('could not find value for mapping key', YamlParseToken.raw_token(map_key_tk))
+
+            scalar0 = self.parse_scalar_value(ctx, ctx.current_token())
+            if isinstance(scalar0, YamlError):
+                return scalar0
+            key0.value = scalar0
+            key_text = self.map_key_text(scalar0)
+            key_path = ctx.with_child(key_text).path
+            key0.set_path(key_path)
+            if (err := self.validate_map_key(
+                    ctx,
+                    check.not_none(key0.get_token()),
+                    key_path,
+                    check.not_none(g.last()),
+            )) is not None:
+                return err
+            self.path_map[key_path] = key0
+            return key0
+        if YamlParseToken.type(g.last()) != YamlTokenType.MAPPING_VALUE:
+            return YamlSyntaxError("expected map key-value delimiter ':'", YamlParseToken.raw_token(g.last()))
+
+        scalar1 = self.parse_scalar_value(ctx, g.first())
+        if isinstance(scalar1, YamlError):
+            return scalar1
+        if not isinstance(scalar1, MapKeyYamlNode):
+            # FIXME: not possible
+            return YamlSyntaxError(
+                'cannot take map-key node',
+                check.not_none(scalar1).get_token(),
+            )
+        key1: MapKeyYamlNode = ta.cast(MapKeyYamlNode, scalar1)
+        key_text = self.map_key_text(key1)
+        key_path = ctx.with_child(key_text).path
+        key1.set_path(key_path)
+        if (err := self.validate_map_key(
+                ctx,
+                check.not_none(key1.get_token()),
+                key_path,
+                check.not_none(g.last()),
+        )) is not None:
+            return err
+        self.path_map[key_path] = key1
+        return key1
+
+    def validate_map_key(
+            self,
+            ctx: YamlParsingContext,
+            tk: YamlToken,
+            key_path: str,
+            colon_tk: YamlParseToken,
+    ) -> ta.Optional[YamlError]:
+        if not self.allow_duplicate_map_key:
+            if (n := self.path_map.get(key_path)) is not None:
+                pos = check.not_none(n.get_token()).position
+                return YamlSyntaxError(
+                    f'mapping key {tk.value!r} already defined at [{pos.line:d}:{pos.column:d}]',
+                    tk,
+                )
+        origin = self.remove_left_white_space(tk.origin)
+        if ctx.is_flow:
+            if tk.type == YamlTokenType.STRING:
+                origin = self.remove_right_white_space(origin)
+                if tk.position.line + self.new_line_character_num(origin) != colon_tk.line():
+                    return YamlSyntaxError('map key definition includes an implicit line break', tk)
+            return None
+        if (
+                tk.type != YamlTokenType.STRING and
+                tk.type != YamlTokenType.SINGLE_QUOTE and
+                tk.type != YamlTokenType.DOUBLE_QUOTE
+        ):
+            return None
+        if self.exists_new_line_character(origin):
+            return YamlSyntaxError('unexpected key name', tk)
+        return None
+
+    def remove_left_white_space(self, src: str) -> str:
+        # CR or LF or CRLF
+        return src.lstrip(' \r\n')
+
+    def remove_right_white_space(self, src: str) -> str:
+        # CR or LF or CRLF
+        return src.rstrip(' \r\n')
+
+    def exists_new_line_character(self, src: str) -> bool:
+        return self.new_line_character_num(src) > 0
+
+    def new_line_character_num(self, src: str) -> int:
+        num = 0
+        i = -1
+        while True:
+            i += 1
+            if not (i < len(src)):
+                break
+            if src[i] == '\r':
+                if len(src) > i + 1 and src[i + 1] == '\n':
+                    i += 1
+                num += 1
+            elif src[i] == '\n':
+                num += 1
+        return num
+
+    def map_key_text(self, n: ta.Optional[YamlNode]) -> str:
+        if n is None:
+            return ''
+        nn = n
+        if isinstance(nn, MappingKeyYamlNode):
+            return self.map_key_text(nn.value)
+        if isinstance(nn, TagYamlNode):
+            return self.map_key_text(nn.value)
+        if isinstance(nn, AnchorYamlNode):
+            return self.map_key_text(nn.value)
+        if isinstance(nn, AliasYamlNode):
+            return ''
+        return check.not_none(n.get_token()).value
+
+    def parse_map_value(
+            self,
+            ctx: YamlParsingContext,
+            key: MapKeyYamlNode,
+            colon_tk: YamlParseToken,
+    ) -> YamlErrorOr[YamlNode]:
+        tk = ctx.current_token()
+        if tk is None:
+            return YamlNodeMakers.new_null_node(ctx, ctx.add_null_value_token(colon_tk))
+
+        if ctx.is_comment():
+            tk = ctx.next_not_comment_token()
+        key_col = check.not_none(key.get_token()).position.column
+        key_line = check.not_none(key.get_token()).position.line
+
+        if (
+            YamlParseToken.column(tk) != key_col and
+            YamlParseToken.line(tk) == key_line and
+            (
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.MAP_KEY or
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.MAP_KEY_VALUE
+            )
+        ):
+            # a: b:
+            #    ^
+            #
+            # a: b: c
+            #    ^
+            return YamlSyntaxError('mapping value is not allowed in this context', YamlParseToken.raw_token(tk))
+
+        if YamlParseToken.column(tk) == key_col and self.is_map_token(check.not_none(tk)):
+            # in this case,
+            # ----
+            # key: <value does not defined>
+            # next
+            return YamlNodeMakers.new_null_node(ctx, ctx.insert_null_token(colon_tk))
+
+        if (
+                YamlParseToken.line(tk) == key_line and
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR_NAME and
+                YamlParseToken.column(ctx.next_token()) == key_col and
+                self.is_map_token(check.not_none(ctx.next_token()))
+        ):
+            # in this case,
+            # ----
+            # key: &anchor
+            # next
+            group = YamlParseTokenGroup(
+                type=YamlParseTokenGroupType.ANCHOR,
+                tokens=[check.not_none(tk), ctx.create_implicit_null_token(check.not_none(tk))],
+            )
+            anchor = self.parse_anchor(ctx.with_group(group), group)
+            if isinstance(anchor, YamlError):
+                return anchor
+            ctx.go_next()
+            return anchor
+
+        if (
+                YamlParseToken.column(tk) <= key_col and
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR_NAME
+        ):
+            # key: <value does not defined>
+            # &anchor
+            return YamlSyntaxError('anchor is not allowed in this context', YamlParseToken.raw_token(tk))
+        if YamlParseToken.column(tk) <= key_col and YamlParseToken.type(tk) == YamlTokenType.TAG:
+            # key: <value does not defined>
+            # !!tag
+            return YamlSyntaxError('tag is not allowed in this context', YamlParseToken.raw_token(tk))
+
+        if YamlParseToken.column(tk) < key_col:
+            # in this case,
+            # ----
+            #   key: <value does not defined>
+            # next
+            return YamlNodeMakers.new_null_node(ctx, ctx.insert_null_token(colon_tk))
+
+        if (
+                YamlParseToken.line(tk) == key_line and
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR_NAME and
+                YamlParseToken.column(ctx.next_token()) < key_col
+        ):
+            # in this case,
+            # ----
+            #   key: &anchor
+            # next
+            group = YamlParseTokenGroup(
+                type=YamlParseTokenGroupType.ANCHOR,
+                tokens=[check.not_none(tk), ctx.create_implicit_null_token(check.not_none(tk))],
+            )
+            anchor = self.parse_anchor(ctx.with_group(group), group)
+            if isinstance(anchor, YamlError):
+                return anchor
+            ctx.go_next()
+            return anchor
+
+        value = self.parse_token(ctx, ctx.current_token())
+        if isinstance(value, YamlError):
+            return value
+        if (err := self.validate_anchor_value_in_map_or_seq(value, key_col)) is not None:
+            return err
+        return value
+
+    def validate_anchor_value_in_map_or_seq(self, value: YamlNode, col: int) -> ta.Optional[YamlError]:
+        if not isinstance(value, AnchorYamlNode):
+            return None
+        anchor: AnchorYamlNode = value
+        if not isinstance(anchor.value, TagYamlNode):
+            return None
+        tag: TagYamlNode = anchor.value
+        anchor_tk = anchor.get_token()
+        tag_tk = tag.get_token()
+
+        if anchor_tk.position.line == tag_tk.position.line:
+            # key:
+            #   &anchor !!tag
+            #
+            # - &anchor !!tag
+            return None
+
+        if tag_tk.position.column <= col:
+            # key: &anchor
+            # !!tag
+            #
+            # - &anchor
+            # !!tag
+            return YamlSyntaxError('tag is not allowed in this context', tag_tk)
+        return None
+
+    def parse_anchor(self, ctx: YamlParsingContext, g: YamlParseTokenGroup) -> YamlErrorOr[AnchorYamlNode]:
+        anchor_name_group = check.not_none(check.not_none(g.first()).group)
+        anchor = self.parse_anchor_name(ctx.with_group(anchor_name_group))
+        if isinstance(anchor, YamlError):
+            return anchor
+        ctx.go_next()
+        if ctx.is_token_not_found():
+            return YamlSyntaxError('could not find anchor value', anchor.get_token())
+
+        value = self.parse_token(ctx, ctx.current_token())
+        if isinstance(value, YamlError):
+            return value
+        if isinstance(value, AnchorYamlNode):
+            return YamlSyntaxError('anchors cannot be used consecutively', value.get_token())
+        anchor.value = value
+        return anchor
+
+    def parse_anchor_name(self, ctx: YamlParsingContext) -> YamlErrorOr[AnchorYamlNode]:
+        anchor = YamlNodeMakers.new_anchor_node(ctx, ctx.current_token())
+        if isinstance(anchor, YamlError):
+            return anchor
+        ctx.go_next()
+        if ctx.is_token_not_found():
+            return YamlSyntaxError('could not find anchor value', anchor.get_token())
+
+        anchor_name = self.parse_scalar_value(ctx, ctx.current_token())
+        if isinstance(anchor_name, YamlError):
+            return anchor_name
+        if anchor_name is None:
+            return YamlSyntaxError(
+                'unexpected anchor. anchor name is not scalar value',
+                YamlParseToken.raw_token(ctx.current_token()),
+            )
+        anchor.name = anchor_name
+        return anchor
+
+    def parse_alias(self, ctx: YamlParsingContext) -> YamlErrorOr[AliasYamlNode]:
+        alias = YamlNodeMakers.new_alias_node(ctx, ctx.current_token())
+        if isinstance(alias, YamlError):
+            return alias
+        ctx.go_next()
+        if ctx.is_token_not_found():
+            return YamlSyntaxError('could not find alias value', alias.get_token())
+
+        alias_name = self.parse_scalar_value(ctx, ctx.current_token())
+        if isinstance(alias_name, YamlError):
+            return alias_name
+        if alias_name is None:
+            return YamlSyntaxError(
+                'unexpected alias. alias name is not scalar value',
+                YamlParseToken.raw_token(ctx.current_token()),
+            )
+        alias.value = alias_name
+        return alias
+
+    def parse_literal(self, ctx: YamlParsingContext) -> YamlErrorOr[LiteralYamlNode]:
+        node = YamlNodeMakers.new_literal_node(ctx, ctx.current_token())
+        if isinstance(node, YamlError):
+            return node
+        ctx.go_next()  # skip literal/folded token
+
+        tk = ctx.current_token()
+        if tk is None:
+            value0 = YamlNodeMakers.new_string_node(
+                ctx,
+                YamlParseToken(token=yaml_new_token('', '', node.start.position)),
+            )
+            if isinstance(value0, YamlError):
+                return value0
+            node.value = value0
+            return node
+        value1 = self.parse_token(ctx, tk)
+        if isinstance(value1, YamlError):
+            return value1
+        if not isinstance(s := value1, StringYamlNode):
+            return YamlSyntaxError('unexpected token. required string token', value1.get_token())
+        node.value = s
+        return node
+
+    def parse_scalar_tag(self, ctx: YamlParsingContext) -> YamlErrorOr[TagYamlNode]:
+        tag = self.parse_tag(ctx)
+        if isinstance(tag, YamlError):
+            return tag
+        if tag.value is None:
+            return YamlSyntaxError('specified not scalar tag', tag.get_token())
+        if not isinstance(tag.value, ScalarYamlNode):
+            return YamlSyntaxError('specified not scalar tag', tag.get_token())
+        return tag
+
+    def parse_tag(self, ctx: YamlParsingContext) -> YamlErrorOr[TagYamlNode]:
+        tag_tk = ctx.current_token()
+        tag_raw_tk = YamlParseToken.raw_token(tag_tk)
+        node = YamlNodeMakers.new_tag_node(ctx, tag_tk)
+        if isinstance(node, YamlError):
+            return node
+        ctx.go_next()
+
+        comment = self.parse_head_comment(ctx)
+
+        tag_value: YamlNode
+        if self.secondary_tag_directive is not None:
+            value0 = YamlNodeMakers.new_string_node(ctx, ctx.current_token())
+            if isinstance(value0, YamlError):
+                return value0
+            tag_value = value0
+            node.directive = self.secondary_tag_directive
+        else:
+            value1 = self.parse_tag_value(ctx, check.not_none(tag_raw_tk), ctx.current_token())
+            if isinstance(value1, YamlError):
+                return value1
+            tag_value = check.not_none(value1)
+        if (err := yaml_set_head_comment(comment, tag_value)) is not None:
+            return err
+        node.value = tag_value
+        return node
+
+    def parse_tag_value(
+            self,
+            ctx: YamlParsingContext,
+            tag_raw_tk: YamlToken,
+            tk: ta.Optional[YamlParseToken],
+    ) -> YamlErrorOr[ta.Optional[YamlNode]]:
+        if tk is None:
+            return YamlNodeMakers.new_null_node(ctx, ctx.create_implicit_null_token(YamlParseToken(token=tag_raw_tk)))
+        if tag_raw_tk.value in (
+                YamlReservedTagKeywords.MAPPING,
+                YamlReservedTagKeywords.SET,
+        ):
+            if not self.is_map_token(tk):
+                return YamlSyntaxError('could not find map', tk.raw_token())
+            if tk.type() == YamlTokenType.MAPPING_START:
+                return self.parse_flow_map(ctx.with_flow(True))
+            return self.parse_map(ctx)
+        elif tag_raw_tk.value in (
+                YamlReservedTagKeywords.INTEGER,
+                YamlReservedTagKeywords.FLOAT,
+                YamlReservedTagKeywords.STRING,
+                YamlReservedTagKeywords.BINARY,
+                YamlReservedTagKeywords.TIMESTAMP,
+                YamlReservedTagKeywords.BOOLEAN,
+                YamlReservedTagKeywords.NULL,
+        ):
+            if tk.group_type() == YamlParseTokenGroupType.LITERAL or tk.group_type() == YamlParseTokenGroupType.FOLDED:
+                return self.parse_literal(ctx.with_group(check.not_none(tk.group)))
+            elif tk.type() == YamlTokenType.COLLECT_ENTRY or tk.type() == YamlTokenType.MAPPING_VALUE:
+                return YamlNodeMakers.new_tag_default_scalar_value_node(ctx, tag_raw_tk)
+            scalar = self.parse_scalar_value(ctx, tk)
+            if isinstance(scalar, YamlError):
+                return scalar
+            ctx.go_next()
+            return scalar
+        elif tag_raw_tk.value in (
+                YamlReservedTagKeywords.SEQUENCE,
+                YamlReservedTagKeywords.ORDERED_MAP,
+        ):
+            if tk.type() == YamlTokenType.SEQUENCE_START:
+                return self.parse_flow_sequence(ctx.with_flow(True))
+            return self.parse_sequence(ctx)
+        return self.parse_token(ctx, tk)
+
+    def parse_flow_sequence(self, ctx: YamlParsingContext) -> YamlErrorOr[SequenceYamlNode]:
+        node = YamlNodeMakers.new_sequence_node(ctx, ctx.current_token(), True)
+        if isinstance(node, YamlError):
+            return node
+        ctx.go_next()  # skip SequenceStart token
+
+        is_first = True
+        while ctx.next():
+            tk = ctx.current_token()
+            if YamlParseToken.type(tk) == YamlTokenType.SEQUENCE_END:
+                node.end = YamlParseToken.raw_token(tk)
+                break
+
+            entry_tk: ta.Optional[YamlParseToken] = None
+            if YamlParseToken.type(tk) == YamlTokenType.COLLECT_ENTRY:
+                if is_first:
+                    return YamlSyntaxError("expected sequence element, but found ','", YamlParseToken.raw_token(tk))
+                entry_tk = tk
+                ctx.go_next()
+            elif not is_first:
+                return YamlSyntaxError("',' or ']' must be specified", YamlParseToken.raw_token(tk))
+
+            if YamlParseToken.type(tk := ctx.current_token()) == YamlTokenType.SEQUENCE_END:
+                # this case is here: "[ elem, ]".
+                # In this case, ignore the last element and break sequence parsing.
+                node.end = YamlParseToken.raw_token(tk)
+                break
+
+            if ctx.is_token_not_found():
+                break
+
+            ctx2 = ctx.with_index(len(node.values))
+            value = self.parse_token(ctx2, ctx2.current_token())
+            if isinstance(value, YamlError):
+                return value
+            node.values.append(value)
+            seq_entry = yaml_sequence_entry(
+                entry_tk.raw_token() if entry_tk is not None else None,
+                value,
+                None,
+            )
+            if (err := yaml_set_line_comment(ctx2, seq_entry, entry_tk)) is not None:
+                return err
+            seq_entry.set_path(ctx2.path)
+            node.entries.append(seq_entry)
+
+            is_first = False
+        if node.end is None:
+            return YamlSyntaxError("sequence end token ']' not found", node.start)
+
+        # set ine comment if exists. e.g.) ] # comment
+        if (err := yaml_set_line_comment(ctx, node, ctx.current_token())) is not None:
+            return err
+        ctx.go_next()  # skip sequence end token.
+        return node
+
+    def parse_sequence(self, ctx: YamlParsingContext) -> YamlErrorOr[SequenceYamlNode]:
+        seq_tk = ctx.current_token()
+        seq_node = YamlNodeMakers.new_sequence_node(ctx, seq_tk, False)
+        if isinstance(seq_node, YamlError):
+            return seq_node
+
+        tk = seq_tk
+        while (
+                YamlParseToken.type(tk) == YamlTokenType.SEQUENCE_ENTRY and
+                YamlParseToken.column(tk) == YamlParseToken.column(seq_tk)
+        ):
+            entry_tk = tk  # go shadows seqTk with the current entry token here
+            head_comment = self.parse_head_comment(ctx)
+            ctx.go_next()  # skip sequence entry token
+
+            ctx2 = ctx.with_index(len(seq_node.values))
+            value = self.parse_sequence_value(ctx2, check.not_none(entry_tk))
+            if isinstance(value, YamlError):
+                return value
+            seq_entry = yaml_sequence_entry(YamlParseToken.raw_token(entry_tk), value, head_comment)
+            if (err := yaml_set_line_comment(ctx2, seq_entry, entry_tk)) is not None:
+                return err
+            seq_entry.set_path(ctx2.path)
+            seq_node.value_head_comments.append(head_comment)
+            seq_node.values.append(value)
+            seq_node.entries.append(seq_entry)
+
+            if ctx2.is_comment():
+                tk = ctx2.next_not_comment_token()
+            else:
+                tk = ctx2.current_token()
+        if ctx.is_comment():
+            if YamlParseToken.column(seq_tk) <= YamlParseToken.column(ctx.current_token()):
+                # If the comment is in the same or deeper column as the last element column in sequence value,
+                # treat it as a footer comment for the last element.
+                seq_node.foot_comment = self.parse_foot_comment(ctx, YamlParseToken.column(seq_tk))
+                if len(seq_node.values) != 0:
+                    check.not_none(seq_node.foot_comment).set_path(
+                        check.not_none(seq_node.values[len(seq_node.values) - 1]).get_path(),
+                    )
+        return seq_node
+
+    def parse_sequence_value(self, ctx: YamlParsingContext, seq_tk: YamlParseToken) -> YamlErrorOr[YamlNode]:
+        tk = ctx.current_token()
+        if tk is None:
+            return YamlNodeMakers.new_null_node(ctx, ctx.add_null_value_token(seq_tk))
+
+        if ctx.is_comment():
+            tk = ctx.next_not_comment_token()
+        seq_col = seq_tk.column()
+        seq_line = seq_tk.line()
+
+        if YamlParseToken.column(tk) == seq_col and YamlParseToken.type(tk) == YamlTokenType.SEQUENCE_ENTRY:
+            # in this case,
+            # ----
+            # - <value does not defined>
+            # -
+            return YamlNodeMakers.new_null_node(ctx, ctx.insert_null_token(seq_tk))
+
+        if (
+                YamlParseToken.line(tk) == seq_line and
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR_NAME and
+                YamlParseToken.column(ctx.next_token()) == seq_col and
+                YamlParseToken.type(ctx.next_token()) == YamlTokenType.SEQUENCE_ENTRY
+        ):
+            # in this case,
+            # ----
+            # - &anchor
+            # -
+            group = YamlParseTokenGroup(
+                type=YamlParseTokenGroupType.ANCHOR,
+                tokens=[check.not_none(tk), ctx.create_implicit_null_token(check.not_none(tk))],
+            )
+            anchor = self.parse_anchor(ctx.with_group(group), group)
+            if isinstance(anchor, YamlError):
+                return anchor
+            ctx.go_next()
+            return anchor
+
+        if (
+                YamlParseToken.column(tk) <= seq_col and
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR_NAME
+        ):
+            # - <value does not defined>
+            # &anchor
+            return YamlSyntaxError('anchor is not allowed in this sequence context', YamlParseToken.raw_token(tk))
+        if YamlParseToken.column(tk) <= seq_col and YamlParseToken.type(tk) == YamlTokenType.TAG:
+            # - <value does not defined>
+            # !!tag
+            return YamlSyntaxError('tag is not allowed in this sequence context', YamlParseToken.raw_token(tk))
+
+        if (
+                YamlParseToken.column(tk) < seq_col or
+                (YamlParseToken.column(tk) == seq_col and YamlParseToken.line(tk) != seq_line)
+        ):
+            # in this case,
+            # ----
+            #   - <value does not defined>
+            # next
+            return YamlNodeMakers.new_null_node(ctx, ctx.insert_null_token(seq_tk))
+
+        if (
+                YamlParseToken.line(tk) == seq_line and
+                YamlParseToken.group_type(tk) == YamlParseTokenGroupType.ANCHOR_NAME and
+                YamlParseToken.column(ctx.next_token()) < seq_col
+        ):
+            # in this case,
+            # ----
+            #   - &anchor
+            # next
+            group = YamlParseTokenGroup(
+                type=YamlParseTokenGroupType.ANCHOR,
+                tokens=[check.not_none(tk), ctx.create_implicit_null_token(check.not_none(tk))],
+            )
+            anchor = self.parse_anchor(ctx.with_group(group), group)
+            if isinstance(anchor, YamlError):
+                return anchor
+            ctx.go_next()
+            return anchor
+
+        value = self.parse_token(ctx, ctx.current_token())
+        if isinstance(value, YamlError):
+            return value
+        if (err := self.validate_anchor_value_in_map_or_seq(value, seq_col)) is not None:
+            return err
+        return value
+
+    def parse_directive(self, ctx: YamlParsingContext, g: YamlParseTokenGroup) -> YamlErrorOr[DirectiveYamlNode]:
+        directive_name_group = check.not_none(check.not_none(g.first()).group)
+        directive = self.parse_directive_name(ctx.with_group(directive_name_group))
+        if isinstance(directive, YamlError):
+            return directive
+
+        if check.not_none(directive.name).string() == 'YAML':
+            if len(g.tokens) != 2:
+                return YamlSyntaxError('unexpected format YAML directive', YamlParseToken.raw_token(g.first()))
+            value_tk = g.tokens[1]
+            value_raw_tk = check.not_none(value_tk.raw_token())
+            value0 = value_raw_tk.value
+            ver = YAML_VERSION_MAP.get(value0)
+            if ver is None:
+                return YamlSyntaxError(f'unknown YAML version {value0!r}', value_raw_tk)
+            if self.yaml_version != '':
+                return YamlSyntaxError('YAML version has already been specified', value_raw_tk)
+            self.yaml_version = ver
+            version_node = YamlNodeMakers.new_string_node(ctx, value_tk)
+            if isinstance(version_node, YamlError):
+                return version_node
+            directive.values.append(version_node)
+
+        elif check.not_none(directive.name).string() == 'TAG':
+            if len(g.tokens) != 3:
+                return YamlSyntaxError('unexpected format TAG directive', YamlParseToken.raw_token(g.first()))
+            tag_key = YamlNodeMakers.new_string_node(ctx, g.tokens[1])
+            if isinstance(tag_key, YamlError):
+                return tag_key
+            if tag_key.value == '!!':
+                self.secondary_tag_directive = directive
+            tag_value = YamlNodeMakers.new_string_node(ctx, g.tokens[2])
+            if isinstance(tag_value, YamlError):
+                return tag_value
+            directive.values.extend([tag_key, tag_value])
+
+        elif len(g.tokens) > 1:
+            for tk in g.tokens[1:]:
+                value1 = YamlNodeMakers.new_string_node(ctx, tk)
+                if isinstance(value1, YamlError):
+                    return value1
+                directive.values.append(value1)
+
+        return directive
+
+    def parse_directive_name(self, ctx: YamlParsingContext) -> YamlErrorOr[DirectiveYamlNode]:
+        directive = YamlNodeMakers.new_directive_node(ctx, ctx.current_token())
+        if isinstance(directive, YamlError):
+            return directive
+        ctx.go_next()
+        if ctx.is_token_not_found():
+            return YamlSyntaxError('could not find directive value', directive.get_token())
+
+        directive_name = self.parse_scalar_value(ctx, ctx.current_token())
+        if isinstance(directive_name, YamlError):
+            return directive_name
+        if directive_name is None:
+            return YamlSyntaxError(
+                'unexpected directive. directive name is not scalar value',
+                YamlParseToken.raw_token(ctx.current_token()),
+            )
+        directive.name = directive_name
+        return directive
+
+    def parse_comment(self, ctx: YamlParsingContext) -> YamlErrorOr[ta.Optional[YamlNode]]:
+        cm = self.parse_head_comment(ctx)
+        if ctx.is_token_not_found():
+            return cm
+        node = self.parse_token(ctx, ctx.current_token())
+        if isinstance(node, YamlError):
+            return node
+        if (err := yaml_set_head_comment(cm, node)) is not None:
+            return err
+        return node
+
+    def parse_head_comment(self, ctx: YamlParsingContext) -> ta.Optional[CommentGroupYamlNode]:
+        tks: ta.List[ta.Optional[YamlToken]] = []
+        while ctx.is_comment():
+            tks.append(YamlParseToken.raw_token(ctx.current_token()))
+            ctx.go_next()
+        if len(tks) == 0:
+            return None
+        return YamlAsts.comment_group(tks)
+
+    def parse_foot_comment(self, ctx: YamlParsingContext, col: int) -> ta.Optional[CommentGroupYamlNode]:
+        tks: ta.List[ta.Optional[YamlToken]] = []
+        while ctx.is_comment() and col <= YamlParseToken.column(ctx.current_token()):
+            tks.append(YamlParseToken.raw_token(ctx.current_token()))
+            ctx.go_next()
+        if len(tks) == 0:
+            return None
+        return YamlAsts.comment_group(tks)
 
 
 ########################################
@@ -20825,6 +29019,13 @@ class IoPipelineHttpObjectCompressor(
 ##
 
 
+class IoPipelineHttpDecompressionBudgetError(IoPipelineHttpDecompressionError):
+    """A configured decompression limit was exceeded - most likely a zip bomb."""
+
+
+##
+
+
 @dc.dataclass(frozen=True)
 class IoPipelineHttpDecompressionConfig:
     DEFAULT: ta.ClassVar['IoPipelineHttpDecompressionConfig']
@@ -20843,10 +29044,11 @@ class IoPipelineHttpDecompressionConfig:
 
     # What to do with bytes following a complete compressed stream.
     #
-    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes
-    # them as such. They may however also be junk, in which case 'member' surfaces the resulting decode failure -
-    # urllib3 instead tolerates trailing bytes and silently stops at the first member's end. That leniency is exactly
-    # what makes a truncated-to-one-member body indistinguishable from a complete one, so it is not the default.
+    # For gzip these are legitimately the next member of a multi-member stream (RFC 1952 §2.2), so 'member' decodes them
+    # as such. They may however also be junk, in which case 'member' aborts the message - urllib3 instead tolerates
+    # trailing bytes and silently stops at the first member's end. That leniency is exactly what makes a
+    # truncated-to-one-member body indistinguishable from a complete one, so it is not the default. Codings which cannot
+    # separate trailing bytes from their stream at all (brotli) fail on them regardless of this setting.
     trailing_data: ta.Literal['member', 'ignore'] = 'member'
 
     def __post_init__(self) -> None:
@@ -20885,6 +29087,15 @@ class IoPipelineHttpObjectDecompressor(
     InboundBytesBufferingIoPipelineHandler,
     Abstract,
 ):
+    """
+    Inbound handler decompressing message bodies according to their content-encoding.
+
+    A body found to be malformed, truncated, or over budget aborts its message: an Aborted is emitted in place of its
+    End, everything buffered is dropped, and whatever remains of that message - further body data, its End, or an
+    abort of upstream's own - is discarded. The stage is then ready for the next head, as framing upstream is
+    unaffected.
+    """
+
     def __init__(
             self,
             codings: ta.Optional[IoPiplineHttpDecompressorCodings] = None,
@@ -20901,6 +29112,10 @@ class IoPipelineHttpObjectDecompressor(
         self._coding: ta.Optional[ta.Callable[[], IoPiplineHttpDecompressorCoding]] = None
         self._decompressor: ta.Optional[IoPiplineHttpDecompressorCoding] = None
 
+        # True while the current decompressor is a follow-on member which has yet to produce anything, as what it is
+        # being fed may just be junk.
+        self._fresh_member = False
+
         # Statistics for budget checks
         self._in_total_bytes = 0
         self._out_total_bytes = 0
@@ -20914,8 +29129,10 @@ class IoPipelineHttpObjectDecompressor(
         # Flow Control and Deferral State
         self._read_requested = False
         self._pending_end: ta.Optional[IoPipelineHttpMessageEnd] = None
-        self._finished = False
         self._pending_final_input: ta.Optional[IoPipelineMessages.FinalInput] = None
+
+        # Set by an abort: the rest of the current message is dropped.
+        self._discarding = False
 
     #
 
@@ -20927,6 +29144,7 @@ class IoPipelineHttpObjectDecompressor(
     def _reset(self, *, preserve_pending_final_input: bool = False) -> None:
         self._coding = None
         self._decompressor = None
+        self._fresh_member = False
 
         self._in_total_bytes = 0
         self._out_total_bytes = 0
@@ -20938,18 +29156,21 @@ class IoPipelineHttpObjectDecompressor(
 
         self._read_requested = False
         self._pending_end = None
-        self._finished = False
         if not preserve_pending_final_input:
             self._pending_final_input = None
 
+        self._discarding = False
+
     def _check_budgets(self) -> None:
         if (mdt := self._config.max_decomp_total) is not None and self._out_total_bytes > mdt:
-            raise ValueError('decompressor output exceeds limit (possible zip bomb)')
+            raise IoPipelineHttpDecompressionBudgetError('decompressor output exceeds limit (possible zip bomb)')
 
         if (mer := self._config.max_expansion_ratio) is not None:
             slack = self._config.max_decomp_chunk
             if self._out_total_bytes > (max(1, self._in_total_bytes) * mer + slack):
-                raise ValueError('decompressor expansion ratio exceeds limit (possible zip bomb)')
+                raise IoPipelineHttpDecompressionBudgetError(
+                    'decompressor expansion ratio exceeds limit (possible zip bomb)',
+                )
 
     def _new_decompressor(self) -> IoPiplineHttpDecompressorCoding:
         if (coding := self._coding) is None:
@@ -20960,6 +29181,15 @@ class IoPipelineHttpObjectDecompressor(
         if (flow := ctx.services.find(IoPipelineFlow)) is None:
             return True
         return flow.is_auto_read()
+
+    def _abort(self, ctx: IoPipelineHandlerContext, reason: ta.Union[str, BaseException]) -> bool:
+        """Always returns True: the abort stands in for the message's End, satisfying any pending read."""
+
+        aborted = self._make_aborted(reason)
+        self._reset(preserve_pending_final_input=True)
+        self._discarding = True
+        ctx.feed_in(aborted)
+        return True
 
     def _emit_out_pending(self, ctx: IoPipelineHandlerContext) -> bool:
         """Returns True if at least one message was emitted."""
@@ -20985,9 +29215,22 @@ class IoPipelineHttpObjectDecompressor(
     def _pump(self, ctx: IoPipelineHandlerContext) -> bool:
         """Returns True if it effectively satisfied a read request."""
 
-        z = self._decompressor
-        if z is None:
+        if self._decompressor is None:
             return False
+
+        try:
+            return self._pump_decompressor(ctx)
+
+        except IoPipelineHttpDecompressionError as e:
+            if self._fresh_member:
+                # In 'member' mode bytes following a complete stream are only found to not be another member once a
+                # decompressor chokes on them.
+                return self._abort(ctx, f'invalid data after end of compressed stream: {e}')
+
+            return self._abort(ctx, e)
+
+    def _pump_decompressor(self, ctx: IoPipelineHandlerContext) -> bool:
+        z = check.not_none(self._decompressor)
 
         should_yield = self._yield_policy.new_turn()
 
@@ -21001,7 +29244,19 @@ class IoPipelineHttpObjectDecompressor(
             return False
 
         # 3. Decompression Loop
-        while self._in_pending:
+        while self._in_pending or not z.needs_input():
+            if z.eof():
+                # The current decompressor is spent, and there is more: either the rest of the chunk which ended its
+                # stream, or a later chunk entirely. Fed any more it would refuse it one way or another.
+                if self._config.trailing_data == 'ignore':
+                    self._in_pending.clear()
+                    self._in_pending_bytes = 0
+                    break
+
+                # A following member.
+                z = self._decompressor = self._new_decompressor()
+                self._fresh_member = True
+
             # Enforce output buffer budget
             if (mop := self._config.max_out_pending) is not None:
                 if self._out_pending_bytes >= mop:
@@ -21012,12 +29267,17 @@ class IoPipelineHttpObjectDecompressor(
                 self._defer_resume(ctx)
                 return False  # We haven't satisfied it yet, we deferred.
 
-            chunk = self._in_pending.popleft()
-            cl = len(chunk)
-            self._in_pending_bytes -= cl
+            if not z.needs_input():
+                # Output which did not fit the last step's chunk limit must be drained before any more input is given.
+                chunk: BytesLike = b''
+            else:
+                chunk = self._in_pending.popleft()
+                self._in_pending_bytes -= len(chunk)
 
             out = z.decompress(chunk, self._config.max_decomp_chunk)
             if out:
+                self._fresh_member = False
+
                 ol = len(out)
                 self._out_total_bytes += ol
                 self._out_pending.append(out)
@@ -21028,58 +29288,20 @@ class IoPipelineHttpObjectDecompressor(
                     if not self._is_auto_read(ctx):
                         return True  # Satisfied!
 
-            if z.eof():
-                # The current decompressor is spent: everything past its trailer lands in unused_data and it would
-                # silently return nothing forever. Note that eof must be checked *before* unconsumed_tail - zlib
-                # mirrors the leftover into both when the output limit was hit on the same call that ended the stream.
-                if (ud := z.unused_data()):
-                    self._in_pending.appendleft(ud)
-                    self._in_pending_bytes += len(ud)
+            elif not chunk and not z.eof() and not z.needs_input():
+                raise RuntimeError('decompressor coding made no progress')
 
-                if self._config.trailing_data == 'ignore':
-                    self._in_pending.clear()
-                    self._in_pending_bytes = 0
-                    break
+            if z.eof() and (ud := z.unused_data()):
+                # Whatever followed the end of the stream within this chunk - the loop decides what to make of it.
+                self._in_pending.appendleft(ud)
+                self._in_pending_bytes += len(ud)
 
-                if not self._in_pending:
-                    break
-
-                # A following member, concatenated either within this chunk or starting at the next one.
-                z = self._decompressor = self._new_decompressor()
-
-            elif (ut := z.unconsumed_tail()):
-                self._in_pending.appendleft(ut)
-                self._in_pending_bytes += len(ut)
-                if not out:
-                    break
-
-        # 4. Finish and deliver the HTTP message end.
-        if not self._in_pending and self._pending_end is not None:
-            if not self._finished:
-                # Shares the turn's budget with the decompress loop above.
-                if should_yield():
-                    self._defer_resume(ctx)
-                    return False
-
-                out = z.finish()
-                self._finished = True
-
-                if not z.eof() and self._in_total_bytes:
-                    # `finish` does not fail on an incomplete stream, so nothing else would notice a body truncated
-                    # mid-stream - including gzip's own crc/length check, which lives in the trailer.
-                    aborted = self._make_aborted('truncated compressed message body')
-                    self._reset(preserve_pending_final_input=True)
-                    ctx.feed_in(aborted)
-                    return True
-
-                if out:
-                    ol = len(out)
-                    self._out_total_bytes += ol
-                    self._out_pending.append(out)
-                    self._out_pending_bytes += ol
-                    self._check_budgets()
-                    if self._emit_out_pending(ctx) and not self._is_auto_read(ctx):
-                        return True
+        # 4. Deliver the HTTP message end.
+        if self._pending_end is not None and not self._in_pending and z.needs_input():
+            if not z.eof() and self._in_total_bytes:
+                # Nothing else would notice a body truncated mid-stream - including gzip's own crc/length check, which
+                # lives in the trailer.
+                return self._abort(ctx, 'truncated compressed message body')
 
             if self._out_pending:
                 return False
@@ -21140,17 +29362,18 @@ class IoPipelineHttpObjectDecompressor(
         ctx.feed_in(msg)
 
     def _on_inbound_head(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageHead) -> None:
-        if self._decompressor is not None:
-            ctx.feed_in(self._make_aborted('unexpected message sequence'))
-            return
-
         enc = msg.headers.lower.get('content-encoding', ())
 
         # TODO: spec is actually an ordered stack lol
         for coding_name, coding in self._codings.items():
             if coding_name.lower() in enc:
+                try:
+                    self._decompressor = coding()
+                except IoPipelineHttpCompressionCodingUnavailableError:
+                    # As with a coding not in the mapping at all the body passes through still encoded, its header
+                    # intact for the application to see.
+                    break
                 self._coding = coding
-                self._decompressor = coding()
                 break
 
         ctx.feed_in(msg)
@@ -21165,7 +29388,6 @@ class IoPipelineHttpObjectDecompressor(
             self._in_total_bytes += mvl
             self._in_pending.append(mv)
             self._in_pending_bytes += mvl
-            self._check_budgets()
 
         self._pump(ctx)
 
@@ -21177,6 +29399,12 @@ class IoPipelineHttpObjectDecompressor(
         self._pending_end = msg
         self._pump(ctx)
 
+    def _on_inbound_aborted(self, ctx: IoPipelineHandlerContext, msg: IoPipelineHttpMessageAborted) -> None:
+        # Upstream gave up on the message partway: whatever was decoded of it so far is moot.
+        self._reset(preserve_pending_final_input=True)
+        ctx.feed_in(msg)
+        self._release_pending_final_input(ctx)
+
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineMessages.FinalInput):
             self._on_inbound_final_input(ctx, msg)
@@ -21185,13 +29413,26 @@ class IoPipelineHttpObjectDecompressor(
             self._on_inbound_flush_input(ctx, msg)
 
         elif isinstance(msg, self._head_type):
+            if self._decompressor is not None:
+                self._abort(ctx, 'unexpected message sequence')
+            self._discarding = False
             self._on_inbound_head(ctx, msg)
 
         elif isinstance(msg, self._body_data_type):
-            self._on_inbound_body_data(ctx, msg)
+            if not self._discarding:
+                self._on_inbound_body_data(ctx, msg)
 
         elif isinstance(msg, self._end_type):
-            self._on_inbound_end(ctx, msg)
+            if self._discarding:
+                self._discarding = False
+            else:
+                self._on_inbound_end(ctx, msg)
+
+        elif isinstance(msg, self._aborted_type):
+            if self._discarding:
+                self._discarding = False
+            else:
+                self._on_inbound_aborted(ctx, msg)
 
         else:
             ctx.feed_in(msg)
@@ -23233,69 +31474,6 @@ class StdLogger(Logger):
 
 
 ########################################
-# ../configs/snapshots.py
-
-
-##
-
-
-_SYSTEVISOR_CONFIG_SNAPSHOT_SCHEMA_VERSION = 1
-
-
-@dc.dataclass(frozen=True)
-class SystevisorDesiredInstanceSpec:
-    instance_id: SystevisorInstanceId
-    unit_name: SystevisorUnitName
-    slot: int
-    spec_digest: str
-    unit: SystevisorUnitConfig
-
-
-@dc.dataclass(frozen=True)
-class SystevisorConfigSnapshot:
-    snapshot_schema_version: int
-    digest: str
-    config: SystevisorConfig
-    instances: ta.Mapping[SystevisorInstanceId, SystevisorDesiredInstanceSpec]
-    source_paths: ta.Sequence[str]
-    provenance: ta.Sequence[SystevisorConfigProvenance]
-
-
-def systevisor_digest_config_object(value: ta.Any, value_type: ta.Any = None) -> str:
-    marshaled = systevisor_marshal_config_obj(value, value_type)
-    encoded = json.dumps(marshaled, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def systevisor_build_config_snapshot(
-        config: SystevisorConfig,
-        source_paths: ta.Sequence[str],
-        provenance: ta.Sequence[SystevisorConfigProvenance],
-) -> SystevisorConfigSnapshot:
-    instances: ta.Dict[SystevisorInstanceId, SystevisorDesiredInstanceSpec] = {}
-    for unit_name, unit in sorted(config.units.items()):
-        spec_digest = systevisor_digest_config_object(unit, SystevisorUnitConfig)
-        for slot in range(unit.replica_start, unit.replica_start + unit.replicas):
-            instance_id = systevisor_make_instance_id(unit_name, slot)
-            instances[instance_id] = SystevisorDesiredInstanceSpec(
-                instance_id=instance_id,
-                unit_name=SystevisorUnitName(unit_name),
-                slot=slot,
-                spec_digest=spec_digest,
-                unit=unit,
-            )
-
-    return SystevisorConfigSnapshot(
-        snapshot_schema_version=_SYSTEVISOR_CONFIG_SNAPSHOT_SCHEMA_VERSION,
-        digest=systevisor_digest_config_object(config, SystevisorConfig),
-        config=config,
-        instances=instances,
-        source_paths=tuple(source_paths),
-        provenance=tuple(provenance),
-    )
-
-
-########################################
 # ../platforms/runtime.py
 
 
@@ -23771,6 +31949,7 @@ class SystevisorManagerRuntime:
             self_update=SystevisorSelfUpdateConfig(),
             process_title=None,
             strip_ansi=False,
+            retained_child_log_runs=0,
         )
 
     def prepare(self, config: SystevisorManagerConfig) -> SystevisorPreparedManagerRuntimeChange:
@@ -23814,6 +31993,1039 @@ class SystevisorManagerRuntime:
         self._pid_file_manager.close()
         self._logging_manager.close()
         self._state = None
+
+
+########################################
+# ../../../omcore/formats/yaml/goyaml/decoding.py
+##
+# MIT License
+#
+# Copyright (c) 2019 Masaaki Goshima
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+# persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+# Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+##
+
+
+##
+
+
+class YamlDecodeContext:
+    def __init__(self, values: ta.Optional[ta.Dict[ta.Any, ta.Any]] = None) -> None:
+        super().__init__()
+
+        self._values: ta.Dict[ta.Any, ta.Any] = values if values is not None else {}
+
+    def with_value(self, key: ta.Any, value: ta.Any) -> 'YamlDecodeContext':
+        return YamlDecodeContext({**self._values, key: value})
+
+    def value(self, key: ta.Any) -> ta.Any:
+        return self._values.get(key)
+
+    #
+
+    class _MergeKey:  # noqa
+        pass
+
+    def with_merge(self) -> 'YamlDecodeContext':
+        return self.with_value(self._MergeKey, True)
+
+    def is_merge(self) -> bool:
+        if not isinstance(v := self.value(self._MergeKey), bool):
+            return False
+
+        return v
+
+    #
+
+    class _AnchorKey:  # noqa
+        pass
+
+    def with_anchor(self, name: str) -> 'YamlDecodeContext':
+        anchor_map = self.get_anchor_map()
+        new_map: ta.Dict[str, None] = {}
+        new_map.update(anchor_map)
+        new_map[name] = None
+        return self.with_value(self._AnchorKey, new_map)
+
+    def get_anchor_map(self) -> ta.Dict[str, None]:
+        if not isinstance(v := self.value(self._AnchorKey), dict):
+            return {}
+
+        return v
+
+
+##
+
+
+# CommentPosition type of the position for comment.
+class YamlCommentPosition(enum.IntEnum):
+    HEAD = 0
+    LINE = 1
+    FOOT = 2
+
+
+# Comment raw data for comment.
+@dc.dataclass()
+class YamlComment:
+    texts: ta.List[str]
+    position: YamlCommentPosition
+
+
+# LineComment create a one-line comment for CommentMap.
+def yaml_line_comment(text: str) -> YamlComment:
+    return YamlComment(
+        texts=[text],
+        position=YamlCommentPosition.LINE,
+    )
+
+
+# HeadComment create a multiline comment for CommentMap.
+def yaml_head_comment(*texts: str) -> YamlComment:
+    return YamlComment(
+        texts=list(texts),
+        position=YamlCommentPosition.HEAD,
+    )
+
+
+# FootComment create a multiline comment for CommentMap.
+def yaml_foot_comment(*texts: str) -> YamlComment:
+    return YamlComment(
+        texts=list(texts),
+        position=YamlCommentPosition.FOOT,
+    )
+
+
+# CommentMap map of the position of the comment and the comment information.
+class YamlCommentMap(ta.Dict[str, ta.List[YamlComment]]):
+    pass
+
+
+##
+
+
+# MapItem is an item in a MapSlice.
+@dc.dataclass()
+class YamlMapItem:
+    key: ta.Any
+    value: ta.Any
+
+
+# MapSlice encodes and decodes as a YAML map.
+# The order of keys is preserved when encoding and decoding.
+class YamlMapSlice(ta.List[YamlMapItem]):
+    # ToMap convert to map[interface{}]interface{}.
+    def to_map(self) -> ta.Dict[ta.Any, ta.Any]:
+        return {item.key: item.value for item in self}
+
+
+##
+
+
+class YamlBytesReader(ta.Protocol):
+    def read(self) -> bytes: ...
+
+
+class ImmediateYamlBytesReader:
+    def __init__(self, bs: bytes) -> None:
+        self._bs = bs
+
+    def read(self) -> bytes:
+        bs = self._bs
+        self._bs = b''
+        return bs
+
+
+##
+
+
+class YamlDecodeOption(ta.Protocol):
+    def __call__(self, d: 'YamlDecoder') -> ta.Optional[YamlError]: ...
+
+
+##
+
+
+class YamlDecodeErrors:
+    def __new__(cls, *args, **kwargs):  # noqa
+        raise TypeError
+
+    EXCEEDED_MAX_DEPTH = yaml_error('exceeded max depth')
+
+
+@dc.dataclass()
+class DuplicateKeyYamlError(YamlError):
+    msg: str
+    token: YamlToken
+
+    @property
+    def message(self) -> str:
+        return self.msg
+
+
+##
+
+
+# Decoder reads and decodes YAML values from an input stream.
+class YamlDecoder:
+    reader: YamlBytesReader
+    reference_readers: ta.List[YamlBytesReader]
+    anchor_node_map: ta.Dict[str, ta.Optional[YamlNode]]
+    anchor_value_map: ta.Dict[str, ta.Any]
+    comment_maps: ta.List[YamlCommentMap]
+    to_comment_map: ta.Optional[YamlCommentMap] = None
+    opts: ta.List[YamlDecodeOption]
+    reference_files: ta.List[str]
+    reference_dirs: ta.List[str]
+    is_recursive_dir: bool = False
+    is_resolved_reference: bool = False
+    allow_duplicate_map_key: bool = False
+    use_ordered_map: bool = False
+    parsed_file: ta.Optional[YamlFile] = None
+    stream_index: int = 0
+    decode_depth: int = 0
+
+    # NewDecoder returns a new decoder that reads from r.
+    def __init__(self, r: YamlBytesReader, *opts: YamlDecodeOption) -> None:
+        super().__init__()
+
+        self.reader = r
+        self.anchor_node_map = {}
+        self.anchor_value_map = {}
+        self.opts = list(opts)
+        self.reference_readers = []
+        self.reference_files = []
+        self.reference_dirs = []
+        self.is_recursive_dir = False
+        self.is_resolved_reference = False
+        self.allow_duplicate_map_key = False
+        self.use_ordered_map = False
+
+        self.comment_maps = []
+
+    MAX_DECODE_DEPTH: ta.ClassVar[int] = 10000
+
+    def step_in(self) -> None:
+        self.decode_depth += 1
+
+    def step_out(self) -> None:
+        self.decode_depth -= 1
+
+    def is_exceeded_max_depth(self) -> bool:
+        return self.decode_depth > self.MAX_DECODE_DEPTH
+
+    def cast_to_float(self, v: ta.Any) -> ta.Any:
+        if isinstance(v, bool):
+            return 0
+        elif isinstance(v, float):
+            return v
+        elif isinstance(v, int):
+            return float(v)
+        elif isinstance(v, str):
+            # if error occurred, return zero value
+            f = yaml_go_parse_float(v)
+            if isinstance(f, YamlGoStrconvRangeError):
+                return f.value
+            if isinstance(f, YamlGoStrconvError):
+                return 0.0
+            return f
+        return 0
+
+    def map_key_node_to_string(self, ctx: YamlDecodeContext, node: MapKeyYamlNode) -> YamlErrorOr[str]:
+        key = self.node_to_value(ctx, node)
+        if isinstance(key, YamlError):
+            return key
+        if key is None:
+            return 'null'
+        if isinstance(key, str):
+            return key
+        return yaml_go_sprint(key)
+
+    def set_to_map_value(
+            self,
+            ctx: YamlDecodeContext,
+            node: YamlNode,
+            m: ta.Dict[str, ta.Any],
+    ) -> ta.Optional[YamlError]:
+        self.step_in()
+        try:
+            if self.is_exceeded_max_depth():
+                return YamlDecodeErrors.EXCEEDED_MAX_DEPTH
+
+            self.set_path_comment_map(node)
+            if isinstance(n := node, MappingValueYamlNode):
+                if n.key.is_merge_key():
+                    value = self.get_map_node(n.value, True)
+                    if isinstance(value, YamlError):
+                        return value
+
+                    it = value.map_range()
+                    while it.next():
+                        if (err := self.set_to_map_value(ctx, it.key_value(), m)) is not None:
+                            return err
+
+                else:
+                    key = self.map_key_node_to_string(ctx, n.key)
+                    if isinstance(key, YamlError):
+                        return key
+
+                    v = self.node_to_value(ctx, n.value)
+                    if isinstance(v, YamlError):
+                        return v
+
+                    m[key] = v
+
+            elif isinstance(n, MappingYamlNode):
+                for value2 in n.values:
+                    if (err := self.set_to_map_value(ctx, value2, m)) is not None:
+                        return err
+
+            elif isinstance(n, AnchorYamlNode):
+                anchor_name = check.not_none(check.not_none(n.name).get_token()).value
+                self.anchor_node_map[anchor_name] = n.value
+
+            return None
+
+        finally:
+            self.step_out()
+
+    def set_to_ordered_map_value(
+            self,
+            ctx: YamlDecodeContext,
+            node: YamlNode,
+            m: YamlMapSlice,
+    ) -> ta.Optional[YamlError]:
+        self.step_in()
+        try:
+            if self.is_exceeded_max_depth():
+                return YamlDecodeErrors.EXCEEDED_MAX_DEPTH
+
+            self.set_path_comment_map(node)
+            if isinstance(n := node, MappingValueYamlNode):
+                if n.key.is_merge_key():
+                    value = self.get_map_node(n.value, True)
+                    if isinstance(value, YamlError):
+                        return value
+
+                    it = value.map_range()
+                    while it.next():
+                        if (err := self.set_to_ordered_map_value(ctx, it.key_value(), m)) is not None:
+                            return err
+
+                else:
+                    key = self.map_key_node_to_string(ctx, n.key)
+                    if isinstance(key, YamlError):
+                        return key
+
+                    value = self.node_to_value(ctx, n.value)
+                    if isinstance(value, YamlError):
+                        return value
+
+                    m.append(YamlMapItem(key, value))
+
+            elif isinstance(n, MappingYamlNode):
+                for value2 in n.values:
+                    if (err := self.set_to_ordered_map_value(ctx, value2, m)) is not None:
+                        return err
+
+            return None
+
+        finally:
+            self.step_out()
+
+    def set_path_comment_map(self, node: ta.Optional[YamlNode]) -> None:
+        if node is None:
+            return
+
+        if self.to_comment_map is None:
+            return
+
+        self.add_head_or_line_comment_to_map(node)
+        self.add_foot_comment_to_map(node)
+
+    def add_head_or_line_comment_to_map(self, node: YamlNode) -> None:
+        if isinstance(node, SequenceYamlNode):
+            self.add_sequence_node_comment_to_map(node)
+            return
+
+        comment_group = node.get_comment()
+        if comment_group is None:
+            return
+
+        texts: ta.List[str] = []
+        target_line = check.not_none(node.get_token()).position.line
+        min_comment_line = 1_000_000_000  # FIXME lol
+        for comment in comment_group.comments:
+            if min_comment_line > check.not_none(comment.token).position.line:
+                min_comment_line = check.not_none(comment.token).position.line
+
+            texts.append(check.not_none(comment.token).value)
+
+        if len(texts) == 0:
+            return
+
+        comment_path = node.get_path()
+        if min_comment_line < target_line:
+            if isinstance(n := node, MappingYamlNode):
+                if len(n.values) != 0:
+                    comment_path = n.values[0].key.get_path()
+
+            elif isinstance(n, MappingValueYamlNode):
+                comment_path = n.key.get_path()
+
+            self.add_comment_to_map(comment_path, yaml_head_comment(*texts))
+        else:
+            self.add_comment_to_map(comment_path, yaml_line_comment(texts[0]))
+
+    def add_sequence_node_comment_to_map(self, node: SequenceYamlNode) -> None:
+        if len(node.value_head_comments) != 0:
+            for idx, hc in enumerate(node.value_head_comments):
+                if hc is None:
+                    continue
+
+                texts: ta.List[str] = []
+                for comment in hc.comments:
+                    texts.append(check.not_none(comment.token).value)
+
+                if len(texts) != 0:
+                    self.add_comment_to_map(check.not_none(node.values[idx]).get_path(), yaml_head_comment(*texts))
+
+        first_elem_head_comment = node.get_comment()
+        if first_elem_head_comment is not None:
+            texts = []
+            for comment in first_elem_head_comment.comments:
+                texts.append(check.not_none(comment.token).value)
+
+            if len(texts) != 0:
+                if len(node.values) != 0:
+                    self.add_comment_to_map(check.not_none(node.values[0]).get_path(), yaml_head_comment(*texts))
+
+    def add_foot_comment_to_map(self, node: YamlNode) -> None:
+        fc: ta.Optional[CommentGroupYamlNode] = None
+        foot_comment_path = node.get_path()
+
+        if isinstance(n := node, SequenceYamlNode):
+            fc = n.foot_comment
+            if n.foot_comment is not None:
+                foot_comment_path = n.foot_comment.get_path()
+
+        elif isinstance(n, MappingYamlNode):
+            fc = n.foot_comment
+            if n.foot_comment is not None:
+                foot_comment_path = n.foot_comment.get_path()
+
+        elif isinstance(n, MappingValueYamlNode):
+            fc = n.foot_comment
+            if n.foot_comment is not None:
+                foot_comment_path = n.foot_comment.get_path()
+
+        if fc is None:
+            return
+
+        texts: ta.List[str] = []
+        for comment in fc.comments:
+            texts.append(check.not_none(comment.token).value)
+
+        if len(texts) != 0:
+            self.add_comment_to_map(foot_comment_path, yaml_foot_comment(*texts))
+
+    def add_comment_to_map(self, path: str, comment: YamlComment) -> None:
+        cm = check.not_none(self.to_comment_map)
+        for c in cm.get(path, []):
+            if c.position == comment.position:
+                # already added same comment
+                return
+
+        tcm = cm.setdefault(path, [])
+        tcm.append(comment)
+        tcm.sort(key=lambda c: c.position)
+
+    def node_to_value(self, ctx: YamlDecodeContext, node: ta.Optional[YamlNode]) -> YamlErrorOr[ta.Any]:
+        self.step_in()
+        try:
+            if self.is_exceeded_max_depth():
+                return YamlDecodeErrors.EXCEEDED_MAX_DEPTH
+
+            self.set_path_comment_map(node)
+
+            if isinstance(n := node, NullYamlNode):
+                return None
+
+            elif isinstance(n, StringYamlNode):
+                return n.get_value()
+
+            elif isinstance(n, IntegerYamlNode):
+                return n.get_value()
+
+            elif isinstance(n, FloatYamlNode):
+                return n.get_value()
+
+            elif isinstance(n, BoolYamlNode):
+                return n.get_value()
+
+            elif isinstance(n, InfinityYamlNode):
+                return n.get_value()
+
+            elif isinstance(n, NanYamlNode):
+                return n.get_value()
+
+            elif isinstance(n, TagYamlNode):
+                if n.directive is not None:
+                    v = self.node_to_value(ctx, check.not_none(n.value))
+                    if isinstance(v, YamlError):
+                        return v
+                    if v is None:
+                        return ''
+
+                    return yaml_go_sprint(v)
+
+                rtk = n.start.value
+                if rtk == YamlReservedTagKeywords.TIMESTAMP:
+                    t = self.cast_to_time(ctx, check.not_none(n.value))
+                    if isinstance(t, YamlError):
+                        return datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)  # noqa
+                    return t
+
+                elif rtk == YamlReservedTagKeywords.INTEGER:
+                    v = self.node_to_value(ctx, check.not_none(n.value))
+                    if isinstance(v, YamlError):
+                        return v
+                    i = yaml_go_atoi(yaml_go_sprint(v))
+                    if isinstance(i, YamlGoStrconvRangeError):
+                        return i.value
+                    if isinstance(i, YamlGoStrconvError):
+                        return 0
+                    return i
+
+                elif rtk == YamlReservedTagKeywords.FLOAT:
+                    v = self.node_to_value(ctx, check.not_none(n.value))
+                    if isinstance(v, YamlError):
+                        return v
+                    return self.cast_to_float(v)
+
+                elif rtk == YamlReservedTagKeywords.NULL:
+                    return None
+
+                elif rtk == YamlReservedTagKeywords.BINARY:
+                    v = self.node_to_value(ctx, check.not_none(n.value))
+                    if isinstance(v, YamlError):
+                        return v
+                    if not isinstance(v, str):
+                        return YamlSyntaxError(
+                            f'cannot convert {yaml_go_sprint(v)!r} to string',
+                            check.not_none(check.not_none(n.value).get_token()),
+                        )
+                    return yaml_go_b64_std_decode(v)
+
+                elif rtk == YamlReservedTagKeywords.BOOLEAN:
+                    v = self.node_to_value(ctx, check.not_none(n.value))
+                    if isinstance(v, YamlError):
+                        return v
+                    l = yaml_go_sprint(v).lower()
+                    if l in ('true', 't', '1', 'yes'):
+                        return True
+                    if l in ('false', 'f', '0', 'no'):
+                        return False
+                    return YamlSyntaxError(
+                        f'cannot convert {yaml_go_sprint(v)!r} to boolean',
+                        check.not_none(check.not_none(n.value).get_token()),
+                    )
+
+                elif rtk == YamlReservedTagKeywords.STRING:
+                    v = self.node_to_value(ctx, check.not_none(n.value))
+                    if isinstance(v, YamlError):
+                        return v
+                    if v is None:
+                        return ''
+                    return yaml_go_sprint(v)
+
+                elif rtk == YamlReservedTagKeywords.MAPPING:
+                    return self.node_to_value(ctx, check.not_none(n.value))
+
+                else:
+                    return self.node_to_value(ctx, check.not_none(n.value))
+
+            elif isinstance(n, AnchorYamlNode):
+                anchor_name = check.not_none(check.not_none(n.name).get_token()).value
+
+                # To handle the case where alias is processed recursively, the result of alias can be set to nil in
+                # advance.
+                self.anchor_node_map[anchor_name] = None
+                anchor_value = self.node_to_value(ctx.with_anchor(anchor_name), check.not_none(n.value))
+                if isinstance(anchor_value, YamlError):
+                    del self.anchor_node_map[anchor_name]
+                    return anchor_value
+                self.anchor_node_map[anchor_name] = n.value
+                self.anchor_value_map[anchor_name] = anchor_value
+                return anchor_value
+
+            elif isinstance(n, AliasYamlNode):
+                text = check.not_none(n.value).string()
+                if text in ctx.get_anchor_map():
+                    # self recursion.
+                    return None
+                try:
+                    v = self.anchor_value_map[text]
+                except KeyError:
+                    pass
+                else:
+                    return v
+                try:
+                    node2 = self.anchor_node_map[text]
+                except KeyError:
+                    pass
+                else:
+                    return self.node_to_value(ctx, node2)
+                return YamlSyntaxError(
+                    f'could not find alias {text!r}',
+                    check.not_none(check.not_none(n.value).get_token()),
+                )
+
+            elif isinstance(n, LiteralYamlNode):
+                return check.not_none(n.value).get_value()
+
+            elif isinstance(n, MappingKeyYamlNode):
+                return self.node_to_value(ctx, check.not_none(n.value))
+
+            elif isinstance(n, MappingValueYamlNode):
+                if n.key.is_merge_key():
+                    value = self.get_map_node(check.not_none(n.value), True)
+                    if isinstance(value, YamlError):
+                        return value
+                    it = value.map_range()
+                    if self.use_ordered_map:
+                        m = YamlMapSlice()
+                        while it.next():
+                            if (err := self.set_to_ordered_map_value(ctx, it.key_value(), m)) is not None:
+                                return err
+                        return m
+                    m2: ta.Dict[str, ta.Any] = {}
+                    while it.next():
+                        if (err := self.set_to_map_value(ctx, it.key_value(), m2)) is not None:
+                            return err
+                    return m2
+
+                key = self.map_key_node_to_string(ctx, n.key)
+                if isinstance(key, YamlError):
+                    return key
+
+                if self.use_ordered_map:
+                    v = self.node_to_value(ctx, n.value)
+                    if isinstance(v, YamlError):
+                        return v
+                    return YamlMapSlice([YamlMapItem(key, v)])
+
+                v = self.node_to_value(ctx, n.value)
+                if isinstance(v, YamlError):
+                    return v
+
+                return {key: v}
+
+            elif isinstance(n, MappingYamlNode):
+                if self.use_ordered_map:
+                    m3 = YamlMapSlice()
+                    for value2 in n.values:
+                        if (err := self.set_to_ordered_map_value(ctx, value2, m3)) is not None:
+                            return err
+                    return m3
+
+                m4: ta.Dict[str, ta.Any] = {}
+                for value3 in n.values:
+                    if (err := self.set_to_map_value(ctx, value3, m4)) is not None:
+                        return err
+                return m4
+
+            elif isinstance(n, SequenceYamlNode):
+                v2: ta.List[ta.Any] = []
+                for value4 in n.values:
+                    vv = self.node_to_value(ctx, check.not_none(value4))
+                    if isinstance(vv, YamlError):
+                        return vv
+                    v2.append(vv)
+                return v2
+
+            return None
+
+        finally:
+            self.step_out()
+
+    def cast_to_time(self, ctx: YamlDecodeContext, src: YamlNode) -> YamlErrorOr[datetime.datetime]:
+        raise NotImplementedError
+
+    def get_map_node(self, node: YamlNode, is_merge: bool) -> YamlErrorOr[MapYamlNode]:
+        self.step_in()
+        try:
+            if self.is_exceeded_max_depth():
+                return YamlDecodeErrors.EXCEEDED_MAX_DEPTH
+
+            if isinstance(n := node, MapYamlNode):
+                return n
+
+            elif isinstance(n, AnchorYamlNode):
+                anchor_name = check.not_none(check.not_none(n.name).get_token()).value
+                self.anchor_node_map[anchor_name] = n.value
+                return self.get_map_node(check.not_none(n.value), is_merge)
+
+            elif isinstance(n, TagYamlNode):
+                return self.get_map_node(check.not_none(n.value), is_merge)
+
+            elif isinstance(n, AliasYamlNode):
+                alias_name = check.not_none(check.not_none(n.value).get_token()).value
+                node2 = self.anchor_node_map.get(alias_name)
+                if node2 is None:
+                    return yaml_error(f'cannot find anchor by alias name {alias_name}')
+                return self.get_map_node(node2, is_merge)
+
+            elif isinstance(n, SequenceYamlNode):
+                if not is_merge:
+                    return UnexpectedNodeTypeYamlError(node.type(), YamlNodeType.MAPPING, check.not_none(node.get_token()))  # noqa
+                map_nodes: ta.List[MapYamlNode] = []
+                for value in n.values:
+                    map_node = self.get_map_node(check.not_none(value), False)
+                    if isinstance(map_node, YamlError):
+                        return map_node
+                    map_nodes.append(map_node)
+                return yaml_sequence_merge_value(*map_nodes)
+
+            return UnexpectedNodeTypeYamlError(node.type(), YamlNodeType.MAPPING, check.not_none(node.get_token()))
+
+        finally:
+            self.step_out()
+
+    def get_array_node(self, node: YamlNode) -> YamlErrorOr[ta.Optional[ArrayYamlNode]]:
+        self.step_in()
+        try:
+            if self.is_exceeded_max_depth():
+                return YamlDecodeErrors.EXCEEDED_MAX_DEPTH
+
+            if isinstance(node, NullYamlNode):
+                return None
+
+            if isinstance(anchor := node, AnchorYamlNode):
+                return self.get_array_node(check.not_none(anchor.value))
+
+            if isinstance(alias := node, AliasYamlNode):
+                alias_name = check.not_none(check.not_none(alias.value).get_token()).value
+                node2 = self.anchor_node_map.get(alias_name)
+                if node2 is None:
+                    return yaml_error(f'cannot find anchor by alias name {alias_name}')
+                return self.get_array_node(node2)
+
+            if isinstance(tag := node, TagYamlNode):
+                return self.get_array_node(check.not_none(tag.value))
+
+            if not isinstance(array_node := node, ArrayYamlNode):
+                return UnexpectedNodeTypeYamlError(node.type(), YamlNodeType.SEQUENCE, check.not_none(node.get_token()))  # noqa
+
+            return array_node
+
+        finally:
+            self.step_out()
+
+    def decode_value(self, ctx: YamlDecodeContext, src: YamlNode) -> YamlErrorOr[ta.Any]:
+        self.step_in()
+        try:
+            if self.is_exceeded_max_depth():
+                return YamlDecodeErrors.EXCEEDED_MAX_DEPTH
+
+            if src.type() == YamlNodeType.ANCHOR:
+                anchor = check.isinstance(src, AnchorYamlNode)
+                anchor_name = check.not_none(check.not_none(anchor.name).get_token()).value
+                if isinstance(av := self.decode_value(ctx.with_anchor(anchor_name), check.not_none(anchor.value)), YamlError):  # noqa
+                    return av
+                self.anchor_value_map[anchor_name] = av
+                return av
+
+            src_val = self.node_to_value(ctx, src)
+            if isinstance(src_val, YamlError):
+                return src_val
+
+            return src_val
+
+        finally:
+            self.step_out()
+
+    def key_to_node_map(
+        self,
+        ctx: YamlDecodeContext,
+        node: YamlNode,
+        ignore_merge_key: bool,
+        get_key_or_value_node: ta.Callable[[MapYamlNodeIter], YamlNode],
+    ) -> YamlErrorOr[ta.Optional[ta.Dict[str, YamlNode]]]:
+        self.step_in()
+        try:
+            if self.is_exceeded_max_depth():
+                return YamlDecodeErrors.EXCEEDED_MAX_DEPTH
+
+            map_node = self.get_map_node(node, False)
+            if isinstance(map_node, YamlError):
+                return map_node
+            key_map: ta.Dict[str, None] = {}
+            key_to_node_map: ta.Dict[str, YamlNode] = {}
+            map_iter = map_node.map_range()
+            while map_iter.next():
+                key_node = map_iter.key()
+                if key_node.is_merge_key():
+                    if ignore_merge_key:
+                        continue
+                    merge_map = self.key_to_node_map(ctx, map_iter.value(), ignore_merge_key, get_key_or_value_node)
+                    if isinstance(merge_map, YamlError):
+                        return merge_map
+                    for k, v in (merge_map or {}).items():
+                        if (err := self.validate_duplicate_key(key_map, k, v)) is not None:
+                            return err
+                        key_to_node_map[k] = v
+                else:
+                    key_val = self.node_to_value(ctx, key_node)
+                    if isinstance(key_val, YamlError):
+                        return key_val
+                    if not isinstance(key := key_val, str):
+                        # go bug preserved: `return nil, err` with a nil err - a non-string key yields a nil map with
+                        # no error, which callers iterate as empty.
+                        return None
+                    if (err := self.validate_duplicate_key(key_map, key, key_node)) is not None:
+                        return err
+                    key_to_node_map[key] = get_key_or_value_node(map_iter)
+            return key_to_node_map
+
+        finally:
+            self.step_out()
+
+    def key_to_key_node_map(
+        self,
+        ctx: YamlDecodeContext,
+        node: YamlNode,
+        ignore_merge_key: bool,
+    ) -> YamlErrorOr[ta.Optional[ta.Dict[str, YamlNode]]]:
+        m = self.key_to_node_map(ctx, node, ignore_merge_key, lambda node_map: node_map.key())
+        if isinstance(m, YamlError):
+            return m
+        return m
+
+    def key_to_value_node_map(
+        self,
+        ctx: YamlDecodeContext,
+        node: YamlNode,
+        ignore_merge_key: bool,
+    ) -> YamlErrorOr[ta.Optional[ta.Dict[str, YamlNode]]]:
+        m = self.key_to_node_map(ctx, node, ignore_merge_key, lambda node_map: node_map.value())
+        if isinstance(m, YamlError):
+            return m
+        return m
+
+    # getParentMapTokenIfExists if the NodeType is a container type such as MappingType or SequenceType,
+    # it is necessary to return the parent MapNode's colon token to represent the entire container.
+    def get_parent_map_token_if_exists_for_validation_error(self, typ: YamlNodeType, tk: ta.Optional[YamlToken]) -> ta.Optional[YamlToken]:  # noqa
+        if tk is None:
+            return None
+        if typ == YamlNodeType.MAPPING:
+            # map:
+            #   key: value
+            #      ^ current token ( colon )
+            if tk.prev is None:
+                return tk
+            key = tk.prev
+            if key.prev is None:
+                return tk
+            return key.prev
+        if typ == YamlNodeType.SEQUENCE:
+            # map:
+            #   - value
+            #   ^ current token ( sequence entry )
+            if tk.prev is None:
+                return tk
+            return tk.prev
+        return tk
+
+    def validate_duplicate_key(self, key_map: ta.Dict[str, None], key: ta.Any, key_node: YamlNode) -> ta.Optional[YamlError]:  # noqa
+        if not isinstance(k := key, str):
+            return None
+        if not self.allow_duplicate_map_key:
+            if k in key_map:
+                return DuplicateKeyYamlError(f'duplicate key "{k}"', check.not_none(key_node.get_token()))
+        key_map[k] = None
+        return None
+
+    def file_to_reader(self, file: str) -> YamlErrorOr[YamlBytesReader]:
+        try:
+            with open(file, 'rb') as f:
+                bs = f.read()
+        except OSError as e:
+            return yaml_error(e)
+        return ImmediateYamlBytesReader(bs)
+
+    def is_yaml_file(self, file: str) -> bool:
+        ext = os.path.splitext(file)[1]  # filepath.Ext includes the dot
+        if ext == '.yml':
+            return True
+        if ext == '.yaml':
+            return True
+        return False
+
+    def readers_under_dir(self, d: str) -> YamlErrorOr[ta.List[YamlBytesReader]]:
+        pattern = f'{d}/*'
+        matches = glob.glob(pattern)
+        readers: ta.List[YamlBytesReader] = []
+        for match in matches:
+            if not self.is_yaml_file(match):
+                continue
+            if isinstance(reader := self.file_to_reader(match), YamlError):
+                return reader
+            readers.append(reader)
+        return readers
+
+    def readers_under_dir_recursive(self, d: str) -> YamlErrorOr[ta.List[YamlBytesReader]]:
+        readers: ta.List[YamlBytesReader] = []
+        for dp, _, fns in os.walk(d):
+            for fn in fns:
+                path = os.path.join(dp, fn)
+                if not os.path.isfile(path):
+                    continue
+                if not self.is_yaml_file(path):
+                    continue
+                if isinstance(reader := self.file_to_reader(path), YamlError):
+                    return reader
+                readers.append(reader)
+        return readers
+
+    def resolve_reference(self, ctx: YamlDecodeContext) -> ta.Optional[YamlError]:
+        for opt in self.opts:
+            if (err := opt(self)) is not None:
+                return err
+        for file in self.reference_files:
+            if isinstance(reader := self.file_to_reader(file), YamlError):
+                return reader
+            self.reference_readers.append(reader)
+        for d in self.reference_dirs:
+            if not self.is_recursive_dir:
+                if isinstance(readers := self.readers_under_dir(d), YamlError):
+                    return readers
+                self.reference_readers.extend(readers)
+            else:
+                if isinstance(readers := self.readers_under_dir_recursive(d), YamlError):
+                    return readers
+                self.reference_readers.extend(readers)
+        for reader in self.reference_readers:
+            bs = reader.read()
+            # assign new anchor definition to anchorMap
+            if isinstance(err2 := self.parse(ctx, bs), YamlError):
+                return err2
+        self.is_resolved_reference = True
+        return None
+
+    def parse(self, ctx: YamlDecodeContext, bs: bytes) -> YamlErrorOr[YamlFile]:
+        parse_mode: YamlParseMode = 0
+        if self.to_comment_map is not None:
+            parse_mode |= YAML_PARSE_COMMENTS
+        opts: ta.List[YamlOption] = []
+        if self.allow_duplicate_map_key:
+            opts.append(yaml_allow_duplicate_map_key())
+        if isinstance(f := yaml_parse_str(bs.decode(), parse_mode, *opts), YamlError):
+            return f
+        normalized_file = YamlFile()
+        for doc in f.docs:
+            # try to decode YamlNode to value and map anchor value to anchorMap
+            if isinstance(v := self.node_to_value(ctx, doc.body), YamlError):
+                return v
+            if v is not None or (doc.body is not None and doc.body.type() == YamlNodeType.NULL):
+                normalized_file.docs.append(doc)
+                cm = YamlCommentMap()
+                cm.update(self.to_comment_map or {})
+                self.comment_maps.append(cm)
+            if self.to_comment_map is not None:
+                self.to_comment_map.clear()
+        return normalized_file
+
+    def is_initialized(self) -> bool:
+        return self.parsed_file is not None
+
+    def decode_init(self, ctx: YamlDecodeContext) -> ta.Optional[YamlError]:
+        if not self.is_resolved_reference:
+            if (err := self.resolve_reference(ctx)) is not None:
+                return err
+        buf = self.reader.read()
+        if isinstance(file := self.parse(ctx, buf), YamlError):
+            return file
+        self.parsed_file = file
+        return None
+
+    def _decode(self, ctx: YamlDecodeContext) -> YamlErrorOr[ta.Any]:
+        self.decode_depth = 0
+        self.anchor_value_map = {}
+        pf = check.not_none(self.parsed_file)
+        # NOTE: for zero-document files go zeroes the destination value here and then falls through to the
+        # stream-index check below, which returns io.EOF; with no destination there is nothing to zero.
+        if len(pf.docs) <= self.stream_index:
+            return EofYamlError()
+        body = pf.docs[self.stream_index].body
+        if body is None:
+            return None
+        if len(self.comment_maps) > self.stream_index:
+            if (scm := self.comment_maps[self.stream_index]):
+                check.not_none(self.to_comment_map).update(scm)
+        if isinstance(v := self.decode_value(ctx, body), YamlError):
+            return v
+        self.stream_index += 1
+        return v
+
+    # Decode reads the next YAML-encoded value from its input
+    # and stores it in the value pointed to by v.
+    #
+    # See the documentation for Unmarshal for details about the
+    # conversion of YAML into a Go value.
+    def decode(self) -> YamlErrorOr[ta.Any]:
+        return self.decode_context(YamlDecodeContext())
+
+    # decode_context reads the next YAML-encoded value from its input
+    # and stores it in the value pointed to by v with Context.
+    def decode_context(self, ctx: YamlDecodeContext) -> YamlErrorOr[ta.Any]:
+        if self.is_initialized():
+            if isinstance(v := self._decode(ctx), YamlError):
+                return v
+            return v
+        if (err := self.decode_init(ctx)) is not None:
+            return err
+        if isinstance(v := self._decode(ctx), YamlError):
+            return v
+        return v
+
+    # decode_from_node decodes node into the value pointed to by v.
+    def decode_from_node(self, node: YamlNode) -> YamlErrorOr[ta.Any]:
+        return self.decode_from_node_context(YamlDecodeContext(), node)
+
+    # decode_from_node_context decodes node into the value pointed to by v with Context.
+    def decode_from_node_context(self, ctx: YamlDecodeContext, node: YamlNode) -> YamlErrorOr[ta.Any]:
+        if not self.is_initialized():
+            if (err := self.decode_init(ctx)) is not None:
+                return err
+        # resolve references to the anchor on the same file
+        if isinstance(err2 := self.node_to_value(ctx, node), YamlError):
+            return err2
+        if isinstance(v := self.decode_value(ctx, node), YamlError):
+            return v
+        return v
+
+
+##
+
+
+def yaml_decode(s: str) -> ta.Any:
+    d = YamlDecoder(ImmediateYamlBytesReader(s.encode()))
+    if isinstance(v := d.decode(), YamlError):
+        if isinstance(v, EofYamlError):
+            return None
+        raise v
+    return v
 
 
 ########################################
@@ -24758,342 +33970,6 @@ def get_module_loggers(mod_globals: ta.Mapping[str, ta.Any]) -> ta.Tuple[Logger,
 
 
 ########################################
-# ../configs/compiling.py
-
-
-##
-
-
-@dc.dataclass(frozen=True)
-class SystevisorConfigCompileResult:
-    snapshot: ta.Optional[SystevisorConfigSnapshot]
-    diagnostics: ta.Sequence[SystevisorConfigDiagnostic]
-    discovered_paths: ta.Sequence[str]
-
-    @property
-    def is_valid(self) -> bool:
-        return self.snapshot is not None
-
-
-class SystevisorConfigCompiler:
-    def compile(self, paths: ta.Iterable[str], *, recursive: bool = False) -> SystevisorConfigCompileResult:
-        diagnostics: ta.List[SystevisorConfigDiagnostic] = []
-        try:
-            discovered_paths = systevisor_discover_config_files(paths, recursive=recursive)
-        except SystevisorConfigSourceError as exc:
-            diagnostics.append(SystevisorConfigDiagnostic(
-                severity=SystevisorConfigDiagnosticSeverity.ERROR,
-                stage=SystevisorConfigDiagnosticStage.DISCOVERY,
-                code='source_not_found',
-                message=exc.message,
-                source=exc.path,
-            ))
-            return SystevisorConfigCompileResult(snapshot=None, diagnostics=tuple(diagnostics), discovered_paths=())
-
-        documents: ta.List[SystevisorConfigSourceDocument] = []
-        for discovered_path in discovered_paths:
-            try:
-                documents.append(systevisor_load_config_document(discovered_path))
-            except SystevisorConfigSourceError as exc:
-                diagnostics.append(SystevisorConfigDiagnostic(
-                    severity=SystevisorConfigDiagnosticSeverity.ERROR,
-                    stage=SystevisorConfigDiagnosticStage.PARSE,
-                    code='parse_error',
-                    message=exc.message,
-                    source=exc.path,
-                ))
-        if diagnostics:
-            return SystevisorConfigCompileResult(
-                snapshot=None,
-                diagnostics=tuple(diagnostics),
-                discovered_paths=discovered_paths,
-            )
-
-        try:
-            merged, provenance = systevisor_merge_config_documents(documents)
-        except SystevisorConfigMergeError as exc:
-            diagnostics.append(SystevisorConfigDiagnostic(
-                severity=SystevisorConfigDiagnosticSeverity.ERROR,
-                stage=SystevisorConfigDiagnosticStage.MERGE,
-                code='duplicate_definition',
-                message=f'configuration value was defined by both {exc.first_source!r} and {exc.second_source!r}',
-                source=exc.second_source,
-                object_path=exc.object_path,
-            ))
-            return SystevisorConfigCompileResult(
-                snapshot=None,
-                diagnostics=tuple(diagnostics),
-                discovered_paths=discovered_paths,
-            )
-        except (TypeError, ValueError) as exc:
-            diagnostics.append(SystevisorConfigDiagnostic(
-                severity=SystevisorConfigDiagnosticSeverity.ERROR,
-                stage=SystevisorConfigDiagnosticStage.MERGE,
-                code='invalid_mapping',
-                message=str(exc),
-            ))
-            return SystevisorConfigCompileResult(
-                snapshot=None,
-                diagnostics=tuple(diagnostics),
-                discovered_paths=discovered_paths,
-            )
-
-        try:
-            config: SystevisorConfig = systevisor_unmarshal_config(merged, SystevisorConfig)
-        except Exception as exc:  # noqa: BLE001
-            diagnostics.append(SystevisorConfigDiagnostic(
-                severity=SystevisorConfigDiagnosticSeverity.ERROR,
-                stage=SystevisorConfigDiagnosticStage.UNMARSHAL,
-                code='invalid_shape',
-                message=f'{type(exc).__name__}: {exc}',
-            ))
-            return SystevisorConfigCompileResult(
-                snapshot=None,
-                diagnostics=tuple(diagnostics),
-                discovered_paths=discovered_paths,
-            )
-
-        diagnostics.extend(systevisor_validate_config(config))
-        if diagnostics:
-            return SystevisorConfigCompileResult(
-                snapshot=None,
-                diagnostics=tuple(diagnostics),
-                discovered_paths=discovered_paths,
-            )
-
-        return SystevisorConfigCompileResult(
-            snapshot=systevisor_build_config_snapshot(config, discovered_paths, provenance),
-            diagnostics=(),
-            discovered_paths=discovered_paths,
-        )
-
-
-########################################
-# ../core/effects.py
-
-
-##
-
-
-class SystevisorEngineEffect:
-    pass
-
-
-@dc.dataclass(frozen=True)
-class SystevisorSpawnProcessEffect(SystevisorEngineEffect):
-    run_id: SystevisorRunId
-    instance_id: SystevisorInstanceId
-    spec: SystevisorDesiredInstanceSpec
-
-
-@dc.dataclass(frozen=True)
-class SystevisorSignalProcessEffect(SystevisorEngineEffect):
-    run_id: SystevisorRunId
-    signal: str
-    scope: SystevisorSignalScope
-    reason: SystevisorSignalReason
-
-
-@dc.dataclass(frozen=True)
-class SystevisorScheduleDeadlineEffect(SystevisorEngineEffect):
-    deadline_id: int
-    deadline_at: float
-    kind: SystevisorDeadlineKind
-    instance_id: SystevisorInstanceId
-    run_id: ta.Optional[SystevisorRunId]
-
-
-@dc.dataclass(frozen=True)
-class SystevisorApplyLiveConfigEffect(SystevisorEngineEffect):
-    run_id: SystevisorRunId
-    instance_id: SystevisorInstanceId
-    spec: SystevisorDesiredInstanceSpec
-    changed_paths: ta.Sequence[str]
-
-
-@dc.dataclass(frozen=True)
-class SystevisorRunHealthProbeEffect(SystevisorEngineEffect):
-    check_id: SystevisorHealthCheckId
-    run_id: SystevisorRunId
-    instance_id: SystevisorInstanceId
-    probe: SystevisorHealthProbeConfig
-    spec: SystevisorDesiredInstanceSpec
-
-
-########################################
-# ../core/inputs.py
-
-
-##
-
-
-class SystevisorEngineInput:
-    pass
-
-
-class SystevisorEngineCommand(SystevisorEngineInput):
-    pass
-
-
-class SystevisorEngineFact(SystevisorEngineInput):
-    pass
-
-
-@dc.dataclass(frozen=True)
-class SystevisorApplySnapshotCommand(SystevisorEngineCommand):
-    snapshot: SystevisorConfigSnapshot
-    request_id: ta.Optional[str] = None
-
-
-@dc.dataclass(frozen=True)
-class SystevisorSetUnitDesiredCommand(SystevisorEngineCommand):
-    unit_name: SystevisorUnitName
-    active: bool
-    request_id: ta.Optional[str] = None
-
-
-@dc.dataclass(frozen=True)
-class SystevisorSetCollectionDesiredCommand(SystevisorEngineCommand):
-    collection_name: SystevisorCollectionName
-    active: bool
-    request_id: ta.Optional[str] = None
-
-
-@dc.dataclass(frozen=True)
-class SystevisorSetInstanceDesiredCommand(SystevisorEngineCommand):
-    instance_id: SystevisorInstanceId
-    active: bool
-    request_id: ta.Optional[str] = None
-
-
-@dc.dataclass(frozen=True)
-class SystevisorRestartInstanceCommand(SystevisorEngineCommand):
-    instance_id: SystevisorInstanceId
-    request_id: ta.Optional[str] = None
-
-
-@dc.dataclass(frozen=True)
-class SystevisorShutdownCommand(SystevisorEngineCommand):
-    request_id: ta.Optional[str] = None
-
-
-@dc.dataclass(frozen=True)
-class SystevisorForwardSignalCommand(SystevisorEngineCommand):
-    signal: str
-
-
-@dc.dataclass(frozen=True)
-class SystevisorSpawnSucceededFact(SystevisorEngineFact):
-    run_id: SystevisorRunId
-
-
-@dc.dataclass(frozen=True)
-class SystevisorSpawnFailedFact(SystevisorEngineFact):
-    run_id: SystevisorRunId
-    message: str
-
-
-@dc.dataclass(frozen=True)
-class SystevisorProcessExitedFact(SystevisorEngineFact):
-    run_id: SystevisorRunId
-    return_code: int
-
-
-@dc.dataclass(frozen=True)
-class SystevisorDeadlineReachedFact(SystevisorEngineFact):
-    deadline_id: int
-
-
-@dc.dataclass(frozen=True)
-class SystevisorHealthProbeResultFact(SystevisorEngineFact):
-    check_id: SystevisorHealthCheckId
-    run_id: SystevisorRunId
-    success: bool
-    message: ta.Optional[str] = None
-    data: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)
-
-
-########################################
-# ../core/state.py
-
-
-##
-
-
-@dc.dataclass()
-class SystevisorHealthProbeState:
-    name: str
-    role: SystevisorHealthRole
-    config_digest: str
-    status: SystevisorHealthStatus = SystevisorHealthStatus.UNKNOWN
-    consecutive_successes: int = 0
-    consecutive_failures: int = 0
-    last_started_at: ta.Optional[float] = None
-    last_completed_at: ta.Optional[float] = None
-    last_success_at: ta.Optional[float] = None
-    last_message: ta.Optional[str] = None
-    last_data: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)
-    scheduled_deadline_id: ta.Optional[int] = None
-    next_check_at: ta.Optional[float] = None
-    in_flight_check_id: ta.Optional[SystevisorHealthCheckId] = None
-    recovery_applied: bool = False
-
-
-@dc.dataclass()
-class SystevisorCollectionState:
-    name: SystevisorCollectionName
-    desired_active: bool
-    desired_origin: SystevisorDesiredOrigin
-    status: SystevisorCollectionStatus = SystevisorCollectionStatus.INACTIVE
-    activation_sequence: int = 0
-    failure_instance_id: ta.Optional[SystevisorInstanceId] = None
-    failure_reason: ta.Optional[str] = None
-
-
-@dc.dataclass()
-class SystevisorInstanceState:
-    instance_id: SystevisorInstanceId
-    unit_name: SystevisorUnitName
-    slot: int
-    desired_spec: SystevisorDesiredInstanceSpec
-    desired_state: SystevisorDesiredState
-    desired_origin: SystevisorDesiredOrigin
-    process_state: SystevisorProcessState = SystevisorProcessState.STOPPED
-    run_id: ta.Optional[SystevisorRunId] = None
-    applied_spec_digest: ta.Optional[str] = None
-    spawn_confirmed: bool = False
-    start_failures: int = 0
-    started_at: ta.Optional[float] = None
-    ready: bool = False
-    completed_successfully: bool = False
-    last_return_code: ta.Optional[int] = None
-    deadline_id: ta.Optional[int] = None
-    deadline_kind: ta.Optional[SystevisorDeadlineKind] = None
-    deadline_at: ta.Optional[float] = None
-    restart_requested: bool = False
-    blocked_reason: ta.Optional[str] = None
-    start_stable: bool = False
-    health: ta.MutableMapping[str, SystevisorHealthProbeState] = dc.field(default_factory=dict)
-
-
-@dc.dataclass()
-class SystevisorEngineState:
-    state_schema_version: int = 2
-    snapshot: ta.Optional[SystevisorConfigSnapshot] = None
-    config_generation: int = 0
-    instances: ta.MutableMapping[SystevisorInstanceId, SystevisorInstanceState] = dc.field(default_factory=dict)
-    collections: ta.MutableMapping[SystevisorCollectionName, SystevisorCollectionState] = dc.field(default_factory=dict)
-    unit_desired_overrides: ta.MutableMapping[SystevisorUnitName, bool] = dc.field(default_factory=dict)
-    startup_collection: ta.Optional[SystevisorCollectionName] = None
-    shutting_down: bool = False
-    next_run_id: int = 1
-    next_deadline_id: int = 1
-    event_sequence: int = 0
-    last_now: float = 0.
-    next_health_check_id: int = 1
-
-
-########################################
 # ../platforms/inject.py
 
 
@@ -25111,6 +33987,24 @@ def systevisor_bind_platforms() -> InjectorBindings:
         inj.bind(SystevisorManagerRuntime, singleton=True),
     ]
     return inj.as_bindings(*bindings)
+
+
+########################################
+# ../../../omcore/formats/yaml/goyaml/backend.py
+
+
+##
+
+
+class GoyamlYamlBackend(YamlBackend):
+    def is_available(self) -> bool:
+        return True
+
+    def loads(self, s: str) -> ta.Any:
+        return yaml_decode(s)
+
+    def dumps(self, o: ta.Any) -> str:
+        return json_dumps_pretty(o)
 
 
 ########################################
@@ -27247,6 +36141,922 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
 
 
 ########################################
+# ../../../omcore/http/pipelines/clients/responses.py
+
+
+##
+
+
+class IoPipelineHttpResponseDecoder(IoPipelineHttpResponseObjects, IoPipelineHttpObjectDecoder):
+    """
+    Request-agnostic HTTP response decoder.
+
+    Framing uses only the response status and headers. This keeps the decoder useful on its own, but means it cannot
+    infer the special response semantics of HEAD or CONNECT requests. Real HTTP clients should use
+    IoPipelineHttpClientResponseDecoder instead.
+    """
+
+    _parse_mode: ta.Final = HttpParser.Mode.RESPONSE
+    _if_content_length_missing: ta.Final = 'eof'
+
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        head = check.isinstance(head, IoPipelineHttpResponseHead)
+
+        if head.status == 101:
+            return IoPipelineHttpBodyMode('tunnel', None)
+
+        if 100 <= head.status < 200 or head.status in (204, 304):
+            return IoPipelineHttpBodyMode('empty', None)
+
+        return super()._select_body_mode(head)
+
+
+#
+
+
+class IoPipelineHttpClientResponseDecoder(IoPipelineHttpResponseDecoder):
+    """
+    HTTP client response decoder correlating responses with outbound request methods.
+
+    Informational responses retain the current request method. Final responses consume it, allowing HEAD and CONNECT
+    response framing to take precedence over otherwise misleading Content-Length or Transfer-Encoding headers.
+    """
+
+    def __init__(
+            self,
+            *,
+            config: IoPipelineHttpDecodingConfig = IoPipelineHttpDecodingConfig.DEFAULT,
+    ) -> None:
+        super().__init__(config=config)
+
+        self._request_methods: ta.Deque[str] = collections.deque()
+
+    def notify(self, ctx: IoPipelineHandlerContext, no: IoPipelineHandlerNotification) -> None:
+        if isinstance(no, (IoPipelineHandlerNotifications.Added, IoPipelineHandlerNotifications.Removed)):
+            self._request_methods.clear()
+
+    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, FullIoPipelineHttpRequest):
+            self._request_methods.append(msg.head.method)
+
+        elif isinstance(msg, IoPipelineHttpRequestHead):
+            self._request_methods.append(msg.method)
+
+        elif isinstance(msg, IoPipelineMessages.FinalOutput):
+            self._request_methods.clear()
+
+        ctx.feed_out(msg)
+
+    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
+        head = check.isinstance(head, IoPipelineHttpResponseHead)
+
+        if not self._request_methods:
+            raise RuntimeError('received HTTP response without a corresponding request')
+
+        if head.is_interim:
+            return super()._select_body_mode(head)
+
+        method = self._request_methods.popleft()
+
+        if head.status == 101:
+            self._request_methods.clear()
+            return IoPipelineHttpBodyMode('tunnel', None)
+
+        if method == 'HEAD':
+            return IoPipelineHttpBodyMode('empty', None)
+
+        if method == 'CONNECT' and 200 <= head.status < 300:
+            self._request_methods.clear()
+            return IoPipelineHttpBodyMode('tunnel', None)
+
+        return super()._select_body_mode(head)
+
+
+##
+
+
+class IoPipelineHttpResponseAggregatorDecoder(
+    IoPipelineHttpResponseObjects,
+    IoPipelineHttpObjectAggregatorDecoder,
+):
+    _if_content_length_missing: ta.Final = 'eof'
+
+
+##
+
+
+class IoPipelineHttpResponseDechunker(IoPipelineHttpResponseObjects, IoPipelineHttpObjectDechunker):
+    pass
+
+
+##
+
+
+class IoPipelineHttpResponseDecompressor(IoPipelineHttpResponseObjects, IoPipelineHttpObjectDecompressor):
+    pass
+
+
+########################################
+# ../../../omcore/http/pipelines/servers/requests.py
+
+
+##
+
+
+class IoPipelineHttpRequestDecoder(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDecoder):
+    _parse_mode: ta.Final = HttpParser.Mode.REQUEST
+    _if_content_length_missing: ta.Final = 'empty'
+
+
+##
+
+
+class IoPipelineHttpRequestAggregatorDecoder(
+    IoPipelineHttpRequestObjects,
+    IoPipelineHttpObjectAggregatorDecoder,
+):
+    _if_content_length_missing: ta.Final = 'empty'
+
+
+##
+
+
+class IoPipelineHttpRequestDechunker(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDechunker):
+    pass
+
+
+##
+
+
+class IoPipelineHttpRequestDecompressor(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDecompressor):
+    pass
+
+
+########################################
+# ../configs/sources.py
+
+
+##
+
+
+_SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS = frozenset({'.json', '.toml', '.yaml', '.yml'})
+
+
+class SystevisorYamlConfigLoader(YamlConfigLoader):
+    # Pinned rather than left to the default backend search: the amalgamated artifact has no package for the default
+    # goyaml backend to be imported relative to, and a config must not parse differently when pyyaml is installed.
+    backend = GoyamlYamlBackend()
+
+
+_SYSTEVISOR_CONFIG_SOURCE_FILE_LOADER = SwitchedConfigFileLoader(
+    loaders=[
+        JsonConfigLoader(),
+        TomlConfigLoader(),
+        SystevisorYamlConfigLoader(),
+    ],
+    default=JsonConfigLoader(),
+)
+
+
+@dc.dataclass(frozen=True)
+class SystevisorConfigSourceDocument:
+    path: str
+    data: ta.Mapping[str, ta.Any]
+
+
+@dc.dataclass(frozen=True)
+class SystevisorConfigProvenance:
+    object_path: ta.Sequence[str]
+    source: str
+
+
+class SystevisorConfigSourceError(Exception):
+    def __init__(self, path: str, message: str) -> None:
+        super().__init__(message)
+
+        self.path = path
+        self.message = message
+
+
+class SystevisorConfigMergeError(Exception):
+    def __init__(self, object_path: ta.Sequence[str], first_source: str, second_source: str) -> None:
+        super().__init__('.'.join(object_path))
+
+        self.object_path = tuple(object_path)
+        self.first_source = first_source
+        self.second_source = second_source
+
+
+def systevisor_discover_config_files(paths: ta.Iterable[str], *, recursive: bool = False) -> ta.Sequence[str]:
+    discovered: ta.List[str] = []
+    seen: ta.Set[str] = set()
+
+    for input_path in paths:
+        path = os.path.abspath(input_path)
+        if os.path.isfile(path):
+            if os.path.splitext(path)[1].lower() not in _SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS:
+                raise SystevisorConfigSourceError(path, 'unsupported config source extension')
+            candidates = [path]
+        elif os.path.isdir(path):
+            if recursive:
+                candidates = []
+                for directory, directory_names, file_names in os.walk(path):
+                    directory_names.sort()
+                    candidates.extend(os.path.join(directory, file_name) for file_name in sorted(file_names))
+            else:
+                candidates = [os.path.join(path, file_name) for file_name in sorted(os.listdir(path))]
+        else:
+            raise SystevisorConfigSourceError(path, 'config source does not exist')
+
+        for candidate in candidates:
+            if not os.path.isfile(candidate):
+                continue
+            if os.path.splitext(candidate)[1].lower() not in _SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS:
+                continue
+            canonical = os.path.realpath(candidate)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            discovered.append(candidate)
+
+    return tuple(discovered)
+
+
+def systevisor_load_config_document(path: str) -> SystevisorConfigSourceDocument:
+    try:
+        data = _SYSTEVISOR_CONFIG_SOURCE_FILE_LOADER.load_file(path).as_map()
+    except Exception as exc:
+        raise SystevisorConfigSourceError(path, str(exc) or type(exc).__name__) from exc
+
+    return SystevisorConfigSourceDocument(path=path, data=dict(data))
+
+
+def _systevisor_config_sources_record_provenance(
+        value: ta.Any,
+        object_path: ta.Tuple[str, ...],
+        source: str,
+        provenance: ta.MutableMapping[ta.Tuple[str, ...], str],
+) -> None:
+    if isinstance(value, dict):
+        if not value:
+            provenance[object_path] = source
+        for key, child in value.items():
+            _systevisor_config_sources_record_provenance(child, (*object_path, str(key)), source, provenance)
+    else:
+        provenance[object_path] = source
+
+
+def _systevisor_config_sources_merge_value(
+        target: ta.MutableMapping[str, ta.Any],
+        value: ta.Mapping[str, ta.Any],
+        object_path: ta.Tuple[str, ...],
+        source: str,
+        provenance: ta.MutableMapping[ta.Tuple[str, ...], str],
+) -> None:
+    for key, incoming in value.items():
+        if not isinstance(key, str):
+            raise TypeError(f'config mapping key must be a string at {object_path!r}: {key!r}')
+
+        child_path = (*object_path, key)
+        if key not in target:
+            if isinstance(incoming, dict):
+                child: ta.MutableMapping[str, ta.Any] = {}
+                target[key] = child
+                _systevisor_config_sources_merge_value(child, incoming, child_path, source, provenance)
+                if not incoming:
+                    provenance[child_path] = source
+            else:
+                target[key] = incoming
+                _systevisor_config_sources_record_provenance(incoming, child_path, source, provenance)
+            continue
+
+        current = target[key]
+        if isinstance(current, dict) and isinstance(incoming, dict):
+            _systevisor_config_sources_merge_value(current, incoming, child_path, source, provenance)
+            continue
+
+        first_source = provenance.get(child_path)
+        if first_source is None:
+            first_source = next(
+                (
+                    value_source
+                    for value_path, value_source in provenance.items()
+                    if value_path[:len(child_path)] == child_path
+                ),
+                '<unknown>',
+            )
+        raise SystevisorConfigMergeError(child_path, first_source, source)
+
+
+def systevisor_merge_config_documents(
+        documents: ta.Iterable[SystevisorConfigSourceDocument],
+) -> ta.Tuple[ta.Mapping[str, ta.Any], ta.Sequence[SystevisorConfigProvenance]]:
+    merged: ta.MutableMapping[str, ta.Any] = {}
+    provenance: ta.MutableMapping[ta.Tuple[str, ...], str] = {}
+    for document in documents:
+        _systevisor_config_sources_merge_value(merged, document.data, (), document.path, provenance)
+
+    return (
+        dict(merged),
+        tuple(
+            SystevisorConfigProvenance(object_path=object_path, source=source)
+            for object_path, source in sorted(provenance.items())
+        ),
+    )
+
+
+########################################
+# ../configs/snapshots.py
+
+
+##
+
+
+_SYSTEVISOR_CONFIG_SNAPSHOT_SCHEMA_VERSION = 1
+
+
+@dc.dataclass(frozen=True)
+class SystevisorDesiredInstanceSpec:
+    instance_id: SystevisorInstanceId
+    unit_name: SystevisorUnitName
+    slot: int
+    spec_digest: str
+    unit: SystevisorUnitConfig
+
+
+@dc.dataclass(frozen=True)
+class SystevisorConfigSnapshot:
+    snapshot_schema_version: int
+    digest: str
+    config: SystevisorConfig
+    instances: ta.Mapping[SystevisorInstanceId, SystevisorDesiredInstanceSpec]
+    source_paths: ta.Sequence[str]
+    provenance: ta.Sequence[SystevisorConfigProvenance]
+
+
+def systevisor_digest_config_object(value: ta.Any, value_type: ta.Any = None) -> str:
+    marshaled = systevisor_marshal_config_obj(value, value_type)
+    encoded = json.dumps(marshaled, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def systevisor_build_config_snapshot(
+        config: SystevisorConfig,
+        source_paths: ta.Sequence[str],
+        provenance: ta.Sequence[SystevisorConfigProvenance],
+) -> SystevisorConfigSnapshot:
+    instances: ta.Dict[SystevisorInstanceId, SystevisorDesiredInstanceSpec] = {}
+    for unit_name, unit in sorted(config.units.items()):
+        spec_digest = systevisor_digest_config_object(unit, SystevisorUnitConfig)
+        for slot in range(unit.replica_start, unit.replica_start + unit.replicas):
+            instance_id = systevisor_make_instance_id(unit_name, slot)
+            instances[instance_id] = SystevisorDesiredInstanceSpec(
+                instance_id=instance_id,
+                unit_name=SystevisorUnitName(unit_name),
+                slot=slot,
+                spec_digest=spec_digest,
+                unit=unit,
+            )
+
+    return SystevisorConfigSnapshot(
+        snapshot_schema_version=_SYSTEVISOR_CONFIG_SNAPSHOT_SCHEMA_VERSION,
+        digest=systevisor_digest_config_object(config, SystevisorConfig),
+        config=config,
+        instances=instances,
+        source_paths=tuple(source_paths),
+        provenance=tuple(provenance),
+    )
+
+
+########################################
+# ../control/client.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class SystevisorApiEndpoint:
+    unix_socket: ta.Optional[str] = None
+    host: ta.Optional[str] = None
+    port: ta.Optional[int] = None
+
+    def __post_init__(self) -> None:
+        unix = self.unix_socket is not None
+        tcp = self.host is not None or self.port is not None
+        if unix == tcp or (self.host is None) != (self.port is None):
+            raise ValueError('endpoint must specify exactly one complete Unix or TCP address')
+
+    @classmethod
+    def parse(cls, value: str) -> 'SystevisorApiEndpoint':
+        if value.startswith('unix:'):
+            return cls(unix_socket=value[len('unix:'):])
+        if value.startswith('/'):
+            return cls(unix_socket=value)
+        parsed = urllib.parse.urlsplit(value if '://' in value else f'http://{value}')
+        if parsed.scheme != 'http' or parsed.hostname is None or parsed.port is None:
+            raise ValueError(f'invalid systevisor endpoint: {value!r}')
+        return cls(host=parsed.hostname, port=parsed.port)
+
+
+@dc.dataclass(frozen=True)
+class SystevisorApiClientResponse:
+    status: int
+    headers: ta.Mapping[str, str]
+    body: bytes
+
+
+class SystevisorApiClientIoPipelineHandler(IoPipelineHandler):
+    def __init__(
+            self,
+            request: FullIoPipelineHttpRequest,
+            on_body: ta.Optional[ta.Callable[[bytes], None]] = None,
+    ) -> None:
+        super().__init__()
+        self._request = request
+        self._on_body = on_body
+        self.status: ta.Optional[int] = None
+        self.headers: ta.Dict[str, str] = {}
+        self.body_parts: ta.List[bytes] = []
+        self.complete = False
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            ctx.feed_in(msg)
+            ctx.feed_out(self._request)
+            return
+        if isinstance(msg, IoPipelineHttpResponseHead):
+            self.status = msg.status
+            self.headers = {name.lower(): value for name, value in msg.headers.raw}
+            return
+        if isinstance(msg, IoPipelineHttpResponseBodyData):
+            data = bytes(ByteStreamBuffers.to_bytes(msg.data))
+            if self._on_body is None:
+                self.body_parts.append(data)
+            else:
+                self._on_body(data)
+            return
+        if isinstance(msg, IoPipelineHttpResponseEnd):
+            self.complete = True
+            ctx.feed_final_output()
+            return
+        if isinstance(msg, IoPipelineHttpResponseAborted):
+            raise ConnectionError(f'HTTP response aborted: {msg!r}')
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            if not self.complete:
+                raise ConnectionError('connection closed before HTTP response completed')
+            ctx.feed_in(msg)
+            return
+        ctx.feed_in(msg)
+
+
+class SystevisorApiClient:
+    def __init__(
+            self,
+            endpoint: SystevisorApiEndpoint,
+            json_codec: ta.Optional[SystevisorJsonCodec] = None,
+            timeout_secs: float = 10.,
+    ) -> None:
+        if timeout_secs <= 0:
+            raise ValueError(timeout_secs)
+        self._endpoint = endpoint
+        self._json_codec = json_codec if json_codec is not None else SystevisorJsonCodec()
+        self._timeout_secs = timeout_secs
+
+    def _connect(self, *, streaming: bool) -> socket.socket:
+        if self._endpoint.unix_socket is not None:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.settimeout(self._timeout_secs)
+            try:
+                sock.connect(self._endpoint.unix_socket)
+            except BaseException:
+                sock.close()
+                raise
+        else:
+            sock = socket.create_connection(
+                (ta.cast(str, self._endpoint.host), ta.cast(int, self._endpoint.port)),
+                timeout=self._timeout_secs,
+            )
+        if streaming:
+            sock.settimeout(None)
+        return sock
+
+    def _make_request(
+            self,
+            method: str,
+            target: str,
+            body: ta.Optional[ta.Any],
+    ) -> FullIoPipelineHttpRequest:
+        encoded_body = b'' if body is None else self._json_codec.dumps(body)
+        host = (
+            'localhost' if self._endpoint.unix_socket is not None else
+            f'{self._endpoint.host}:{self._endpoint.port}'
+        )
+        return FullIoPipelineHttpRequest.simple(
+            host,
+            target,
+            method=method,
+            content_type='application/json' if body is not None else None,
+            body=encoded_body,
+            connection='close',
+        )
+
+    @staticmethod
+    def _pipeline_spec(handler: SystevisorApiClientIoPipelineHandler) -> IoPipeline.Spec:
+        return IoPipeline.Spec([
+            IoPipelineHttpRequestEncoder(),
+            IoPipelineHttpClientResponseDecoder(),
+            IoPipelineHttpResponseDechunker(),
+            handler,
+        ])
+
+    def request(
+            self,
+            method: str,
+            target: str,
+            body: ta.Optional[ta.Any] = None,
+    ) -> SystevisorApiClientResponse:
+        request = self._make_request(method, target, body)
+        handler = SystevisorApiClientIoPipelineHandler(request)
+        with self._connect(streaming=False) as sock:
+            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
+            try:
+                driver.loop_until_done()
+            finally:
+                driver.close()
+        if handler.status is None or not handler.complete:
+            raise ConnectionError('HTTP response was incomplete')
+        return SystevisorApiClientResponse(
+            status=handler.status,
+            headers=handler.headers,
+            body=b''.join(handler.body_parts),
+        )
+
+    def request_json(
+            self,
+            method: str,
+            target: str,
+            body: ta.Optional[ta.Any] = None,
+    ) -> ta.Tuple[int, ta.Any]:
+        response = self.request(method, target, body)
+        return response.status, self._json_codec.loads(response.body)
+
+    def stream(
+            self,
+            target: str,
+            callback: ta.Callable[[bytes], None],
+    ) -> int:
+        request = self._make_request('GET', target, None)
+        handler = SystevisorApiClientIoPipelineHandler(request, callback)
+        with self._connect(streaming=True) as sock:
+            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
+            try:
+                driver.loop_until_done()
+            finally:
+                driver.close()
+        if handler.status is None:
+            raise ConnectionError('HTTP response had no status')
+        return handler.status
+
+
+########################################
+# ../configs/compiling.py
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class SystevisorConfigCompileResult:
+    snapshot: ta.Optional[SystevisorConfigSnapshot]
+    diagnostics: ta.Sequence[SystevisorConfigDiagnostic]
+    discovered_paths: ta.Sequence[str]
+
+    @property
+    def is_valid(self) -> bool:
+        return self.snapshot is not None
+
+
+class SystevisorConfigCompiler:
+    def compile(self, paths: ta.Iterable[str], *, recursive: bool = False) -> SystevisorConfigCompileResult:
+        diagnostics: ta.List[SystevisorConfigDiagnostic] = []
+        try:
+            discovered_paths = systevisor_discover_config_files(paths, recursive=recursive)
+        except SystevisorConfigSourceError as exc:
+            diagnostics.append(SystevisorConfigDiagnostic(
+                severity=SystevisorConfigDiagnosticSeverity.ERROR,
+                stage=SystevisorConfigDiagnosticStage.DISCOVERY,
+                code='source_not_found',
+                message=exc.message,
+                source=exc.path,
+            ))
+            return SystevisorConfigCompileResult(snapshot=None, diagnostics=tuple(diagnostics), discovered_paths=())
+
+        documents: ta.List[SystevisorConfigSourceDocument] = []
+        for discovered_path in discovered_paths:
+            try:
+                documents.append(systevisor_load_config_document(discovered_path))
+            except SystevisorConfigSourceError as exc:
+                diagnostics.append(SystevisorConfigDiagnostic(
+                    severity=SystevisorConfigDiagnosticSeverity.ERROR,
+                    stage=SystevisorConfigDiagnosticStage.PARSE,
+                    code='parse_error',
+                    message=exc.message,
+                    source=exc.path,
+                ))
+        if diagnostics:
+            return SystevisorConfigCompileResult(
+                snapshot=None,
+                diagnostics=tuple(diagnostics),
+                discovered_paths=discovered_paths,
+            )
+
+        try:
+            merged, provenance = systevisor_merge_config_documents(documents)
+        except SystevisorConfigMergeError as exc:
+            diagnostics.append(SystevisorConfigDiagnostic(
+                severity=SystevisorConfigDiagnosticSeverity.ERROR,
+                stage=SystevisorConfigDiagnosticStage.MERGE,
+                code='duplicate_definition',
+                message=f'configuration value was defined by both {exc.first_source!r} and {exc.second_source!r}',
+                source=exc.second_source,
+                object_path=exc.object_path,
+            ))
+            return SystevisorConfigCompileResult(
+                snapshot=None,
+                diagnostics=tuple(diagnostics),
+                discovered_paths=discovered_paths,
+            )
+        except (TypeError, ValueError) as exc:
+            diagnostics.append(SystevisorConfigDiagnostic(
+                severity=SystevisorConfigDiagnosticSeverity.ERROR,
+                stage=SystevisorConfigDiagnosticStage.MERGE,
+                code='invalid_mapping',
+                message=str(exc),
+            ))
+            return SystevisorConfigCompileResult(
+                snapshot=None,
+                diagnostics=tuple(diagnostics),
+                discovered_paths=discovered_paths,
+            )
+
+        try:
+            config: SystevisorConfig = systevisor_unmarshal_config(merged, SystevisorConfig)
+        except Exception as exc:  # noqa: BLE001
+            diagnostics.append(SystevisorConfigDiagnostic(
+                severity=SystevisorConfigDiagnosticSeverity.ERROR,
+                stage=SystevisorConfigDiagnosticStage.UNMARSHAL,
+                code='invalid_shape',
+                message=f'{type(exc).__name__}: {exc}',
+            ))
+            return SystevisorConfigCompileResult(
+                snapshot=None,
+                diagnostics=tuple(diagnostics),
+                discovered_paths=discovered_paths,
+            )
+
+        diagnostics.extend(systevisor_validate_config(config))
+        if diagnostics:
+            return SystevisorConfigCompileResult(
+                snapshot=None,
+                diagnostics=tuple(diagnostics),
+                discovered_paths=discovered_paths,
+            )
+
+        return SystevisorConfigCompileResult(
+            snapshot=systevisor_build_config_snapshot(config, discovered_paths, provenance),
+            diagnostics=(),
+            discovered_paths=discovered_paths,
+        )
+
+
+########################################
+# ../core/effects.py
+
+
+##
+
+
+class SystevisorEngineEffect:
+    pass
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSpawnProcessEffect(SystevisorEngineEffect):
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    spec: SystevisorDesiredInstanceSpec
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSignalProcessEffect(SystevisorEngineEffect):
+    run_id: SystevisorRunId
+    signal: str
+    scope: SystevisorSignalScope
+    reason: SystevisorSignalReason
+
+
+@dc.dataclass(frozen=True)
+class SystevisorScheduleDeadlineEffect(SystevisorEngineEffect):
+    deadline_id: int
+    deadline_at: float
+    kind: SystevisorDeadlineKind
+    instance_id: SystevisorInstanceId
+    run_id: ta.Optional[SystevisorRunId]
+
+
+@dc.dataclass(frozen=True)
+class SystevisorApplyLiveConfigEffect(SystevisorEngineEffect):
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    spec: SystevisorDesiredInstanceSpec
+    changed_paths: ta.Sequence[str]
+
+
+@dc.dataclass(frozen=True)
+class SystevisorRunHealthProbeEffect(SystevisorEngineEffect):
+    check_id: SystevisorHealthCheckId
+    run_id: SystevisorRunId
+    instance_id: SystevisorInstanceId
+    probe: SystevisorHealthProbeConfig
+    spec: SystevisorDesiredInstanceSpec
+
+
+########################################
+# ../core/inputs.py
+
+
+##
+
+
+class SystevisorEngineInput:
+    pass
+
+
+class SystevisorEngineCommand(SystevisorEngineInput):
+    pass
+
+
+class SystevisorEngineFact(SystevisorEngineInput):
+    pass
+
+
+@dc.dataclass(frozen=True)
+class SystevisorApplySnapshotCommand(SystevisorEngineCommand):
+    snapshot: SystevisorConfigSnapshot
+    request_id: ta.Optional[str] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSetUnitDesiredCommand(SystevisorEngineCommand):
+    unit_name: SystevisorUnitName
+    active: bool
+    request_id: ta.Optional[str] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSetCollectionDesiredCommand(SystevisorEngineCommand):
+    collection_name: SystevisorCollectionName
+    active: bool
+    request_id: ta.Optional[str] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSetInstanceDesiredCommand(SystevisorEngineCommand):
+    instance_id: SystevisorInstanceId
+    active: bool
+    request_id: ta.Optional[str] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorRestartInstanceCommand(SystevisorEngineCommand):
+    instance_id: SystevisorInstanceId
+    request_id: ta.Optional[str] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorShutdownCommand(SystevisorEngineCommand):
+    request_id: ta.Optional[str] = None
+
+
+@dc.dataclass(frozen=True)
+class SystevisorForwardSignalCommand(SystevisorEngineCommand):
+    signal: str
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSpawnSucceededFact(SystevisorEngineFact):
+    run_id: SystevisorRunId
+
+
+@dc.dataclass(frozen=True)
+class SystevisorSpawnFailedFact(SystevisorEngineFact):
+    run_id: SystevisorRunId
+    message: str
+
+
+@dc.dataclass(frozen=True)
+class SystevisorProcessExitedFact(SystevisorEngineFact):
+    run_id: SystevisorRunId
+    return_code: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorDeadlineReachedFact(SystevisorEngineFact):
+    deadline_id: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorHealthProbeResultFact(SystevisorEngineFact):
+    check_id: SystevisorHealthCheckId
+    run_id: SystevisorRunId
+    success: bool
+    message: ta.Optional[str] = None
+    data: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)
+
+
+########################################
+# ../core/state.py
+
+
+##
+
+
+@dc.dataclass()
+class SystevisorHealthProbeState:
+    name: str
+    role: SystevisorHealthRole
+    config_digest: str
+    status: SystevisorHealthStatus = SystevisorHealthStatus.UNKNOWN
+    consecutive_successes: int = 0
+    consecutive_failures: int = 0
+    last_started_at: ta.Optional[float] = None
+    last_completed_at: ta.Optional[float] = None
+    last_success_at: ta.Optional[float] = None
+    last_message: ta.Optional[str] = None
+    last_data: ta.Mapping[str, ta.Any] = dc.field(default_factory=dict)
+    scheduled_deadline_id: ta.Optional[int] = None
+    next_check_at: ta.Optional[float] = None
+    in_flight_check_id: ta.Optional[SystevisorHealthCheckId] = None
+    recovery_applied: bool = False
+
+
+@dc.dataclass()
+class SystevisorCollectionState:
+    name: SystevisorCollectionName
+    desired_active: bool
+    desired_origin: SystevisorDesiredOrigin
+    status: SystevisorCollectionStatus = SystevisorCollectionStatus.INACTIVE
+    activation_sequence: int = 0
+    failure_instance_id: ta.Optional[SystevisorInstanceId] = None
+    failure_reason: ta.Optional[str] = None
+
+
+@dc.dataclass()
+class SystevisorInstanceState:
+    instance_id: SystevisorInstanceId
+    unit_name: SystevisorUnitName
+    slot: int
+    desired_spec: SystevisorDesiredInstanceSpec
+    desired_state: SystevisorDesiredState
+    desired_origin: SystevisorDesiredOrigin
+    process_state: SystevisorProcessState = SystevisorProcessState.STOPPED
+    run_id: ta.Optional[SystevisorRunId] = None
+    applied_spec_digest: ta.Optional[str] = None
+    spawn_confirmed: bool = False
+    start_failures: int = 0
+    unstable_restarts: int = 0
+    started_at: ta.Optional[float] = None
+    ready: bool = False
+    completed_successfully: bool = False
+    last_return_code: ta.Optional[int] = None
+    deadline_id: ta.Optional[int] = None
+    deadline_kind: ta.Optional[SystevisorDeadlineKind] = None
+    deadline_at: ta.Optional[float] = None
+    restart_requested: bool = False
+    blocked_reason: ta.Optional[str] = None
+    start_stable: bool = False
+    health: ta.MutableMapping[str, SystevisorHealthProbeState] = dc.field(default_factory=dict)
+
+
+@dc.dataclass()
+class SystevisorEngineState:
+    state_schema_version: int = 3
+    snapshot: ta.Optional[SystevisorConfigSnapshot] = None
+    config_generation: int = 0
+    instances: ta.MutableMapping[SystevisorInstanceId, SystevisorInstanceState] = dc.field(default_factory=dict)
+    collections: ta.MutableMapping[SystevisorCollectionName, SystevisorCollectionState] = dc.field(default_factory=dict)
+    unit_desired_overrides: ta.MutableMapping[SystevisorUnitName, bool] = dc.field(default_factory=dict)
+    startup_collection: ta.Optional[SystevisorCollectionName] = None
+    shutting_down: bool = False
+    next_run_id: int = 1
+    next_deadline_id: int = 1
+    event_sequence: int = 0
+    last_now: float = 0.
+    next_health_check_id: int = 1
+
+
+########################################
 # ../core/events.py
 
 
@@ -27731,6 +37541,7 @@ class SystevisorLogChannel:
     ring: SystevisorByteRingBuffer
     sinks: ta.List[SystevisorLogSink] = dc.field(default_factory=list)
     retired: bool = False
+    output_open: bool = False
     created_at: float = 0.
     last_activity_at: ta.Optional[float] = None
 
@@ -27742,11 +37553,13 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
             run_id: SystevisorRunId,
             stream: SystevisorLogStream,
             callback: ta.Callable[[bytes], None],
+            on_closed: ta.Optional[ta.Callable[[], None]] = None,
     ) -> None:
         self._fd = fd
         self._run_id = run_id
         self._stream = stream
         self._callback = callback
+        self._on_closed = on_closed
         self._closed = False
 
     def fd(self) -> int:
@@ -27768,6 +37581,8 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
         if not self._closed:
             os.close(self._fd)
             self._closed = True
+            if self._on_closed is not None:
+                self._on_closed()
 
     def readable(self) -> bool:
         return not self._closed
@@ -27795,12 +37610,17 @@ class SystevisorLogManager:
             syslog_writer: ta.Optional[SystevisorChildSyslogWriter] = None,
             *,
             default_strip_ansi: bool = False,
+            retained_runs: int = 2,
     ) -> None:
+        if retained_runs < 0:
+            raise ValueError(retained_runs)
         self._event_bus = event_bus
         self._clock = clock
         self._syslog_writer = syslog_writer
         self._default_strip_ansi = default_strip_ansi
+        self._retained_runs = retained_runs
         self._child_log_directory: ta.Optional[str] = None
+        self._cleanup_auto_logs = False
         self._channels: ta.Dict[ta.Tuple[SystevisorRunId, SystevisorLogStream], SystevisorLogChannel] = {}
         self._subscriptions: ta.Dict[
             int,
@@ -27811,6 +37631,22 @@ class SystevisorLogManager:
             ],
         ] = {}
         self._next_subscription_id = 1
+
+    def _auto_file(
+            self,
+            run_id: SystevisorRunId,
+            instance_id: SystevisorInstanceId,
+            stream: SystevisorLogStream,
+            config: SystevisorOutputConfig,
+    ) -> ta.Optional[str]:
+        if config.mode is not SystevisorOutputMode.FILE or config.file is not None:
+            return None
+        if self._child_log_directory is None:
+            raise ValueError('automatic file output requires a child log directory')
+        return os.path.join(
+            self._child_log_directory,
+            f'systevisor-child-{instance_id}-{int(run_id)}-{stream.value}.log',
+        )
 
     def _make_sinks(
             self,
@@ -27825,12 +37661,7 @@ class SystevisorLogManager:
         if config.mode is SystevisorOutputMode.FILE:
             file = config.file
             if file is None:
-                if self._child_log_directory is None:
-                    raise ValueError('automatic file output requires a child log directory')
-                file = os.path.join(
-                    self._child_log_directory,
-                    f'systevisor-child-{instance_id}-{int(run_id)}-{stream.value}.log',
-                )
+                file = self._auto_file(run_id, instance_id, stream, config)
             sinks.append(SystevisorRotatingFileLogSink(dc.replace(
                 config,
                 file=file,
@@ -27854,6 +37685,7 @@ class SystevisorLogManager:
         if self._channels and directory != self._child_log_directory:
             raise RuntimeError('child log directory cannot change while log channels exist')
         self._child_log_directory = directory
+        self._cleanup_auto_logs = config.cleanup_auto_logs
         if cleanup and config.cleanup_auto_logs and directory is not None:
             with os.scandir(directory) as entries:
                 for entry in entries:
@@ -27863,37 +37695,105 @@ class SystevisorLogManager:
     def set_default_strip_ansi(self, enabled: bool) -> None:
         self._default_strip_ansi = enabled
 
+    def set_retained_runs(self, retained_runs: int) -> None:
+        if retained_runs < 0:
+            raise ValueError(retained_runs)
+        self._retained_runs = retained_runs
+        self._evict()
+
+    def _output_handler(
+            self,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            fd: int,
+    ) -> SystevisorProcessOutputFdioHandler:
+        def handle_data(data: bytes) -> None:
+            self.append(run_id, stream, data)
+
+        def handle_closed() -> None:
+            channel = self._channels.get((run_id, stream))
+            if channel is not None:
+                channel.output_open = False
+                self._settle(run_id)
+
+        return SystevisorProcessOutputFdioHandler(fd, run_id, stream, handle_data, handle_closed)
+
+    def _settle(self, run_id: SystevisorRunId) -> None:
+        # A channel can still receive bytes after its process is reaped for as long as something holds the pipe open,
+        # so its sinks are only released once both have happened. Only then does the run count toward retention.
+        for (channel_run_id, _), channel in self._channels.items():
+            if channel_run_id == run_id and channel.retired and not channel.output_open:
+                for sink in channel.sinks:
+                    sink.close()
+                channel.sinks = []
+        self._evict()
+
+    def _evict(self) -> None:
+        settled: ta.Dict[SystevisorInstanceId, ta.Set[SystevisorRunId]] = {}
+        unsettled: ta.Set[SystevisorRunId] = set()
+        for (run_id, _), channel in self._channels.items():
+            if channel.retired and not channel.output_open:
+                settled.setdefault(channel.instance_id, set()).add(run_id)
+            else:
+                unsettled.add(run_id)
+
+        evicted: ta.Set[SystevisorRunId] = set()
+        for run_ids in settled.values():
+            ordered = sorted(run_ids - unsettled)
+            evicted.update(ordered[:max(0, len(ordered) - self._retained_runs)])
+
+        for key in [key for key in self._channels if key[0] in evicted]:
+            channel = self._channels.pop(key)
+            if self._cleanup_auto_logs:
+                self._remove_auto_files(channel)
+
+    def _remove_auto_files(self, channel: SystevisorLogChannel) -> None:
+        # Generated per-run files are scratch output in the same sense cold-start cleanup treats them as, and would
+        # otherwise accumulate one per run for as long as the manager lives.
+        path = self._auto_file(channel.run_id, channel.instance_id, channel.stream, channel.config)
+        if path is None:
+            return
+        for candidate in (path, *(f'{path}.{index}' for index in range(1, channel.config.backups + 1))):
+            try:
+                os.unlink(candidate)
+            except FileNotFoundError:
+                pass
+            except OSError as exc:
+                self._event_bus.publish('log.cleanup_error', {
+                    'run_id': channel.run_id,
+                    'stream': channel.stream.value,
+                    'message': str(exc),
+                }, self._clock.monotonic())
+
     def register_process(
             self,
             effect: SystevisorSpawnProcessEffect,
             stdout_fd: ta.Optional[int],
             stderr_fd: ta.Optional[int],
     ) -> ta.Sequence[SystevisorProcessOutputFdioHandler]:
-        handlers: ta.List[SystevisorProcessOutputFdioHandler] = []
+        # Built in full before any is recorded: a channel without the handler that will close it would never settle.
+        channels: ta.List[ta.Tuple[SystevisorLogChannel, int]] = []
         for stream, output_config, fd in (
                 (SystevisorLogStream.STDOUT, effect.spec.unit.stdio.stdout, stdout_fd),
                 (SystevisorLogStream.STDERR, effect.spec.unit.stdio.stderr, stderr_fd),
         ):
             if fd is None:
                 continue
-            channel = SystevisorLogChannel(
+            channels.append((SystevisorLogChannel(
                 run_id=effect.run_id,
                 instance_id=effect.instance_id,
                 stream=stream,
                 config=output_config,
                 ring=SystevisorByteRingBuffer(output_config.back_buffer_bytes),
                 sinks=self._make_sinks(effect.run_id, effect.instance_id, stream, output_config),
+                output_open=True,
                 created_at=self._clock.monotonic(),
-            )
-            self._channels[(effect.run_id, stream)] = channel
-            def handle_data(
-                    data: bytes,
-                    run_id: SystevisorRunId = effect.run_id,
-                    log_stream: SystevisorLogStream = stream,
-            ) -> None:
-                self.append(run_id, log_stream, data)
+            ), fd))
 
-            handlers.append(SystevisorProcessOutputFdioHandler(fd, effect.run_id, stream, handle_data))
+        handlers: ta.List[SystevisorProcessOutputFdioHandler] = []
+        for channel, fd in channels:
+            self._channels[(channel.run_id, channel.stream)] = channel
+            handlers.append(self._output_handler(channel.run_id, channel.stream, fd))
         return tuple(handlers)
 
     def attach_rehydrated_output(
@@ -27902,16 +37802,18 @@ class SystevisorLogManager:
             stream: SystevisorLogStream,
             fd: int,
     ) -> SystevisorProcessOutputFdioHandler:
-        if (run_id, stream) not in self._channels:
+        channel = self._channels.get((run_id, stream))
+        if channel is None:
             raise RuntimeError(f'cannot attach output without a log channel: {run_id}:{stream.value}')
-
-        def handle_data(data: bytes) -> None:
-            self.append(run_id, stream, data)
-
-        return SystevisorProcessOutputFdioHandler(fd, run_id, stream, handle_data)
+        if channel.retired and not channel.sinks:
+            channel.sinks = self._make_sinks(run_id, channel.instance_id, stream, channel.config, reopen=True)
+        channel.output_open = True
+        return self._output_handler(run_id, stream, fd)
 
     def append(self, run_id: SystevisorRunId, stream: SystevisorLogStream, data: bytes) -> None:
-        channel = self._channels[(run_id, stream)]
+        channel = self._channels.get((run_id, stream))
+        if channel is None:
+            return
         channel.last_activity_at = self._clock.monotonic()
         strip_ansi = channel.config.strip_ansi
         should_strip_ansi = strip_ansi if strip_ansi is not None else self._default_strip_ansi
@@ -28028,7 +37930,8 @@ class SystevisorLogManager:
                 stream=state.stream,
                 config=state.config,
                 ring=ring,
-                sinks=self._make_sinks(
+                # A retired channel only gets its sinks back if a still-open output is attached to it.
+                sinks=[] if state.retired else self._make_sinks(
                     state.run_id,
                     state.instance_id,
                     state.stream,
@@ -28077,6 +37980,7 @@ class SystevisorLogManager:
         for (channel_run_id, _), channel in self._channels.items():
             if channel_run_id == run_id:
                 channel.retired = True
+        self._settle(run_id)
 
     def close(self) -> None:
         self._subscriptions.clear()
@@ -28712,11 +38616,29 @@ def _systevisor_processes_child_write_error(fd: int, exc: BaseException) -> None
         message = message[written:]
 
 
+def _systevisor_processes_child_reset_signals() -> None:
+    # Entered with every signal still blocked from before the fork, so nothing has run the manager's handlers or
+    # written to its wakeup descriptor on the child's behalf. The program is handed default dispositions - including
+    # for the signals the interpreter itself ignores, such as SIGPIPE - and an empty mask; a signal that was already
+    # pending is delivered here and acts on the child as it would on the program.
+    signal.set_wakeup_fd(-1)
+    for signal_number in signal.valid_signals():
+        if signal_number in (signal.SIGKILL, signal.SIGSTOP):
+            continue
+        try:
+            signal.signal(signal_number, signal.SIG_DFL)
+        except (OSError, ValueError):
+            pass
+    signal.pthread_sigmask(signal.SIG_SETMASK, ())
+
+
 def _systevisor_processes_child_main(
         prepared: SystevisorPreparedProcess,
         modifiers: ta.Sequence[SystevisorChildModifier],
 ) -> ta.NoReturn:
     try:
+        _systevisor_processes_child_reset_signals()
+
         fds = prepared.fds
         _systevisor_processes_close_quietly(fds.stdout_parent_fd)
         _systevisor_processes_close_quietly(fds.stderr_parent_fd)
@@ -29084,7 +39006,17 @@ class SystevisorProcessManager:
                 prepared_modifiers.append(modifier)
                 modifier.parent_prepare(context)
             _systevisor_processes_relocate_reserved_fds(prepared, self._child_modifiers, context)
-            pid = os.fork()
+
+            # Blocked across the fork: until it has reset them the child still has the manager's handlers and wakeup
+            # descriptor, so a signal reaching it would be swallowed there and reported to the manager as its own.
+            previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, signal.valid_signals())
+            try:
+                pid = os.fork()
+            except BaseException:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+                raise
+            if pid != 0:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
         except BaseException:
             for modifier in reversed(prepared_modifiers):
                 modifier.parent_spawn_failed(context)
@@ -29095,6 +39027,8 @@ class SystevisorProcessManager:
             _systevisor_processes_child_main(prepared, self._child_modifiers)
 
         _systevisor_processes_close_child_fds(prepared)
+        pidfd: ta.Optional[int] = None
+        registered = False
         try:
             pidfd = _systevisor_processes_pidfd_open(pid)
             birth_identity = _systevisor_processes_read_birth_identity(pid)
@@ -29119,11 +39053,30 @@ class SystevisorProcessManager:
                 raise SystevisorProcessOwnershipError(f'pid is already owned: {pid}')
             self._processes_by_run[effect.run_id] = process
             self._processes_by_pid[pid] = process
+            registered = True
             for modifier in prepared_modifiers:
                 modifier.parent_spawned(context, pid)
             return SystevisorProcessSpawned(state=process.snapshot())
-        except BaseException:
+        except BaseException as exc:
+            # A spawn either yields an owned run or leaves nothing behind. The child exists but cannot be handed out,
+            # and as an unreaped direct child its pid cannot yet name anything else.
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            os.waitpid(pid, 0)
+            if registered:
+                del self._processes_by_run[effect.run_id]
+                del self._processes_by_pid[pid]
+            _systevisor_processes_close_quietly(pidfd)
             _systevisor_processes_close_parent_fds(prepared)
+            for modifier in reversed(prepared_modifiers):
+                modifier.parent_spawn_failed(context)
+                modifier.parent_retired(context)
+            if isinstance(exc, Exception):
+                raise SystevisorProcessSpawnError(
+                    f'parent setup failed after fork: {type(exc).__name__}: {exc}',
+                ) from exc
             raise
 
     def poll_exec_result(self, run_id: SystevisorRunId) -> ta.Optional[SystevisorProcessExecResult]:
@@ -29347,158 +39300,6 @@ def systevisor_close_process_retirement(retirement: SystevisorProcessRetirement)
     _systevisor_processes_close_quietly(retirement.stdout_fd)
     if retirement.stderr_fd != retirement.stdout_fd:
         _systevisor_processes_close_quietly(retirement.stderr_fd)
-
-
-########################################
-# ../../../omcore/http/pipelines/clients/responses.py
-
-
-##
-
-
-class IoPipelineHttpResponseDecoder(IoPipelineHttpResponseObjects, IoPipelineHttpObjectDecoder):
-    """
-    Request-agnostic HTTP response decoder.
-
-    Framing uses only the response status and headers. This keeps the decoder useful on its own, but means it cannot
-    infer the special response semantics of HEAD or CONNECT requests. Real HTTP clients should use
-    IoPipelineHttpClientResponseDecoder instead.
-    """
-
-    _parse_mode: ta.Final = HttpParser.Mode.RESPONSE
-    _if_content_length_missing: ta.Final = 'eof'
-
-    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
-        head = check.isinstance(head, IoPipelineHttpResponseHead)
-
-        if head.status == 101:
-            return IoPipelineHttpBodyMode('tunnel', None)
-
-        if 100 <= head.status < 200 or head.status in (204, 304):
-            return IoPipelineHttpBodyMode('empty', None)
-
-        return super()._select_body_mode(head)
-
-
-#
-
-
-class IoPipelineHttpClientResponseDecoder(IoPipelineHttpResponseDecoder):
-    """
-    HTTP client response decoder correlating responses with outbound request methods.
-
-    Informational responses retain the current request method. Final responses consume it, allowing HEAD and CONNECT
-    response framing to take precedence over otherwise misleading Content-Length or Transfer-Encoding headers.
-    """
-
-    def __init__(
-            self,
-            *,
-            config: IoPipelineHttpDecodingConfig = IoPipelineHttpDecodingConfig.DEFAULT,
-    ) -> None:
-        super().__init__(config=config)
-
-        self._request_methods: ta.Deque[str] = collections.deque()
-
-    def notify(self, ctx: IoPipelineHandlerContext, no: IoPipelineHandlerNotification) -> None:
-        if isinstance(no, (IoPipelineHandlerNotifications.Added, IoPipelineHandlerNotifications.Removed)):
-            self._request_methods.clear()
-
-    def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, FullIoPipelineHttpRequest):
-            self._request_methods.append(msg.head.method)
-
-        elif isinstance(msg, IoPipelineHttpRequestHead):
-            self._request_methods.append(msg.method)
-
-        elif isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._request_methods.clear()
-
-        ctx.feed_out(msg)
-
-    def _select_body_mode(self, head: IoPipelineHttpMessageHead) -> IoPipelineHttpBodyMode:
-        head = check.isinstance(head, IoPipelineHttpResponseHead)
-
-        if not self._request_methods:
-            raise RuntimeError('received HTTP response without a corresponding request')
-
-        if head.is_interim:
-            return super()._select_body_mode(head)
-
-        method = self._request_methods.popleft()
-
-        if head.status == 101:
-            self._request_methods.clear()
-            return IoPipelineHttpBodyMode('tunnel', None)
-
-        if method == 'HEAD':
-            return IoPipelineHttpBodyMode('empty', None)
-
-        if method == 'CONNECT' and 200 <= head.status < 300:
-            self._request_methods.clear()
-            return IoPipelineHttpBodyMode('tunnel', None)
-
-        return super()._select_body_mode(head)
-
-
-##
-
-
-class IoPipelineHttpResponseAggregatorDecoder(
-    IoPipelineHttpResponseObjects,
-    IoPipelineHttpObjectAggregatorDecoder,
-):
-    _if_content_length_missing: ta.Final = 'eof'
-
-
-##
-
-
-class IoPipelineHttpResponseDechunker(IoPipelineHttpResponseObjects, IoPipelineHttpObjectDechunker):
-    pass
-
-
-##
-
-
-class IoPipelineHttpResponseDecompressor(IoPipelineHttpResponseObjects, IoPipelineHttpObjectDecompressor):
-    pass
-
-
-########################################
-# ../../../omcore/http/pipelines/servers/requests.py
-
-
-##
-
-
-class IoPipelineHttpRequestDecoder(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDecoder):
-    _parse_mode: ta.Final = HttpParser.Mode.REQUEST
-    _if_content_length_missing: ta.Final = 'empty'
-
-
-##
-
-
-class IoPipelineHttpRequestAggregatorDecoder(
-    IoPipelineHttpRequestObjects,
-    IoPipelineHttpObjectAggregatorDecoder,
-):
-    _if_content_length_missing: ta.Final = 'empty'
-
-
-##
-
-
-class IoPipelineHttpRequestDechunker(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDechunker):
-    pass
-
-
-##
-
-
-class IoPipelineHttpRequestDecompressor(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDecompressor):
-    pass
 
 
 ########################################
@@ -29870,6 +39671,7 @@ class SystevisorEngine:
             return
 
         instance.restart_requested = instance.desired_state is SystevisorDesiredState.ACTIVE
+        instance.unstable_restarts = 0
         if (
                 instance.process_state is SystevisorProcessState.BACKOFF or
                 instance.process_state in _SYSTEVISOR_ENGINE_TERMINAL_PROCESS_STATES
@@ -29944,6 +39746,8 @@ class SystevisorEngine:
     ) -> None:
         desired_state = SystevisorDesiredState.ACTIVE if active else SystevisorDesiredState.INACTIVE
         self._change_desired(instance, desired_state, SystevisorDesiredOrigin.MANUAL, now, request_id=request_id)
+        if active:
+            instance.unstable_restarts = 0
         if active and instance.process_state in {SystevisorProcessState.EXITED, SystevisorProcessState.FATAL}:
             instance.start_failures = 0
             instance.completed_successfully = False
@@ -29974,6 +39778,7 @@ class SystevisorEngine:
             request_id=command.request_id,
         )
         instance.restart_requested = True
+        instance.unstable_restarts = 0
         if instance.process_state in _SYSTEVISOR_ENGINE_TERMINAL_PROCESS_STATES or (
                 instance.process_state is SystevisorProcessState.BACKOFF
         ):
@@ -30080,6 +39885,7 @@ class SystevisorEngine:
             return
 
         previous_state = instance.process_state
+        uptime = None if instance.started_at is None else now - instance.started_at
         instance.last_return_code = fact.return_code
         expected = fact.return_code in instance.desired_spec.unit.restart.expected_exit_codes
         instance.completed_successfully = expected and previous_state is SystevisorProcessState.RUNNING
@@ -30108,8 +39914,22 @@ class SystevisorEngine:
             (restart_mode is SystevisorRestartMode.UNEXPECTED and not expected)
         )
         instance.restart_requested = False
-        if should_restart:
+        if not should_restart:
+            return
+
+        # A run which died young is restarted on the same curve as a failed start, so a unit that keeps getting past
+        # start_secs and then exiting cannot respawn in a tight loop. Unlike a failed start it never goes fatal: the
+        # unit asked to be restarted, so it is retried at the capped interval for as long as it stays active.
+        restart = instance.desired_spec.unit.restart
+        if uptime is not None and uptime >= restart.backoff_max_secs:
+            instance.unstable_restarts = 0
+        delay = self._backoff_delay(restart, instance.unstable_restarts) if instance.unstable_restarts else 0.
+        instance.unstable_restarts += 1
+        if delay <= 0:
             self._transition(instance, SystevisorProcessState.STOPPED, now, 'automatic_restart')
+        else:
+            self._transition(instance, SystevisorProcessState.BACKOFF, now, 'restart_backoff')
+            self._schedule_deadline(instance, SystevisorDeadlineKind.BACKOFF, now + delay)
 
     def _deadline_reached(self, fact: SystevisorDeadlineReachedFact, now: float) -> None:
         instance = next(
@@ -30423,12 +40243,16 @@ class SystevisorEngine:
             return
 
         self._transition(instance, SystevisorProcessState.BACKOFF, now, reason)
-        restart = instance.desired_spec.unit.restart
-        delay = min(
-            restart.backoff_initial_secs * restart.backoff_multiplier ** (instance.start_failures - 1),
-            restart.backoff_max_secs,
-        )
+        delay = self._backoff_delay(instance.desired_spec.unit.restart, instance.start_failures)
         self._schedule_deadline(instance, SystevisorDeadlineKind.BACKOFF, now + delay)
+
+    @staticmethod
+    def _backoff_delay(restart: SystevisorRestartConfig, attempt: int) -> float:
+        try:
+            delay = restart.backoff_initial_secs * restart.backoff_multiplier ** (attempt - 1)
+        except OverflowError:
+            return restart.backoff_max_secs
+        return min(delay, restart.backoff_max_secs)
 
     def _clear_run(self, instance: SystevisorInstanceState) -> None:
         instance.run_id = None
@@ -30541,6 +40365,7 @@ class SystevisorEngine:
                     instance.process_state in {SystevisorProcessState.EXITED, SystevisorProcessState.FATAL}
             ):
                 instance.start_failures = 0
+                instance.unstable_restarts = 0
                 instance.completed_successfully = False
                 self._transition(instance, SystevisorProcessState.STOPPED, now, 'configured_reactivation')
 
@@ -31857,194 +41682,112 @@ class SystevisorInheritedSocketChildModifier(SystevisorChildModifier):
 
 
 ########################################
-# ../control/client.py
+# ../runtime/emergencies.py
 
 
 ##
 
 
-@dc.dataclass(frozen=True)
-class SystevisorApiEndpoint:
-    unix_socket: ta.Optional[str] = None
-    host: ta.Optional[str] = None
-    port: ta.Optional[int] = None
-
-    def __post_init__(self) -> None:
-        unix = self.unix_socket is not None
-        tcp = self.host is not None or self.port is not None
-        if unix == tcp or (self.host is None) != (self.port is None):
-            raise ValueError('endpoint must specify exactly one complete Unix or TCP address')
-
-    @classmethod
-    def parse(cls, value: str) -> 'SystevisorApiEndpoint':
-        if value.startswith('unix:'):
-            return cls(unix_socket=value[len('unix:'):])
-        if value.startswith('/'):
-            return cls(unix_socket=value)
-        parsed = urllib.parse.urlsplit(value if '://' in value else f'http://{value}')
-        if parsed.scheme != 'http' or parsed.hostname is None or parsed.port is None:
-            raise ValueError(f'invalid systevisor endpoint: {value!r}')
-        return cls(host=parsed.hostname, port=parsed.port)
+_SYSTEVISOR_EMERGENCIES_LOG = get_module_logger(globals())
 
 
-@dc.dataclass(frozen=True)
-class SystevisorApiClientResponse:
-    status: int
-    headers: ta.Mapping[str, str]
-    body: bytes
+class SystevisorEmergencyStop:
+    """
+    Stops every process the manager still owns using nothing but the process manager, for the exits where the engine or
+    the reactor is the thing that failed. Each run gets its unit's own stop signal and timeout before being killed, but
+    there is no ordering, no output draining, and no event: this is what stands between an internal error and children
+    left running with nothing supervising them.
+    """
 
-
-class SystevisorApiClientIoPipelineHandler(IoPipelineHandler):
     def __init__(
             self,
-            request: FullIoPipelineHttpRequest,
-            on_body: ta.Optional[ta.Callable[[bytes], None]] = None,
+            process_manager: SystevisorProcessManager,
+            clock: SystevisorClock,
+            *,
+            sleep: ta.Callable[[float], None] = time.sleep,
+            poll_interval_secs: float = .05,
+            kill_wait_secs: float = 5.,
     ) -> None:
         super().__init__()
-        self._request = request
-        self._on_body = on_body
-        self.status: ta.Optional[int] = None
-        self.headers: ta.Dict[str, str] = {}
-        self.body_parts: ta.List[bytes] = []
-        self.complete = False
 
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.InitialInput):
-            ctx.feed_in(msg)
-            ctx.feed_out(self._request)
-            return
-        if isinstance(msg, IoPipelineHttpResponseHead):
-            self.status = msg.status
-            self.headers = {name.lower(): value for name, value in msg.headers.raw}
-            return
-        if isinstance(msg, IoPipelineHttpResponseBodyData):
-            data = bytes(ByteStreamBuffers.to_bytes(msg.data))
-            if self._on_body is None:
-                self.body_parts.append(data)
+        self._process_manager = process_manager
+        self._clock = clock
+        self._sleep = sleep
+        self._poll_interval_secs = poll_interval_secs
+        self._kill_wait_secs = kill_wait_secs
+
+    def _signal(self, run_id: SystevisorRunId, signal_name: str, scope: SystevisorSignalScope) -> None:
+        # A session can only be signalled once its leader has confirmed exec, so fall back to the direct child.
+        failure: ta.Optional[BaseException] = None
+        for attempt_scope in dict.fromkeys((scope, SystevisorSignalScope.PROCESS)):
+            try:
+                self._process_manager.signal(run_id, signal_name, attempt_scope)
+            except (SystevisorProcessOwnershipError, OSError) as exc:
+                failure = exc
             else:
-                self._on_body(data)
-            return
-        if isinstance(msg, IoPipelineHttpResponseEnd):
-            self.complete = True
-            ctx.feed_final_output()
-            return
-        if isinstance(msg, IoPipelineHttpResponseAborted):
-            raise ConnectionError(f'HTTP response aborted: {msg!r}')
-        if isinstance(msg, IoPipelineMessages.FinalInput):
-            if not self.complete:
-                raise ConnectionError('connection closed before HTTP response completed')
-            ctx.feed_in(msg)
-            return
-        ctx.feed_in(msg)
+                return
+        _SYSTEVISOR_EMERGENCIES_LOG.warning('Systevisor could not signal run %s: %s', int(run_id), failure)
 
-
-class SystevisorApiClient:
-    def __init__(
-            self,
-            endpoint: SystevisorApiEndpoint,
-            json_codec: ta.Optional[SystevisorJsonCodec] = None,
-            timeout_secs: float = 10.,
-    ) -> None:
-        if timeout_secs <= 0:
-            raise ValueError(timeout_secs)
-        self._endpoint = endpoint
-        self._json_codec = json_codec if json_codec is not None else SystevisorJsonCodec()
-        self._timeout_secs = timeout_secs
-
-    def _connect(self, *, streaming: bool) -> socket.socket:
-        if self._endpoint.unix_socket is not None:
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.settimeout(self._timeout_secs)
+    def _reap(self) -> None:
+        try:
+            self._process_manager.poll_exits()
+        except SystevisorProcessOwnershipError as exc:
+            _SYSTEVISOR_EMERGENCIES_LOG.warning('Systevisor could not observe exits: %s', exc)
+        for state in self._process_manager.snapshot_states():
+            if state.status is not SystevisorOwnedProcessStatus.EXIT_OBSERVED:
+                continue
             try:
-                sock.connect(self._endpoint.unix_socket)
-            except BaseException:
-                sock.close()
-                raise
-        else:
-            sock = socket.create_connection(
-                (ta.cast(str, self._endpoint.host), ta.cast(int, self._endpoint.port)),
-                timeout=self._timeout_secs,
+                self._process_manager.acknowledge_exit(state.run_id)
+            except SystevisorProcessOwnershipError as exc:
+                _SYSTEVISOR_EMERGENCIES_LOG.warning('Systevisor could not reap run %s: %s', int(state.run_id), exc)
+
+    def run(self) -> ta.Sequence[SystevisorOwnedProcessState]:
+        """Returns whatever could not be stopped."""
+
+        self._reap()
+        stop_configs: ta.Dict[SystevisorRunId, SystevisorStopConfig] = {
+            run_id: context.spec.unit.stop
+            for run_id, context in self._process_manager.child_contexts().items()
+        }
+        if not stop_configs:
+            return self._process_manager.snapshot_states()
+
+        _SYSTEVISOR_EMERGENCIES_LOG.warning('Systevisor is stopping %d owned process(es) directly', len(stop_configs))
+        now = self._clock.monotonic()
+        kill_at: ta.Dict[SystevisorRunId, float] = {}
+        for run_id, stop in stop_configs.items():
+            kill_at[run_id] = now + stop.timeout_secs
+            self._signal(run_id, stop.signal, stop.scope)
+
+        give_up_at: ta.Optional[float] = None
+        while True:
+            self._reap()
+            remaining = {state.run_id for state in self._process_manager.snapshot_states()}
+            if not remaining:
+                break
+
+            now = self._clock.monotonic()
+            for run_id in sorted(remaining & set(kill_at)):
+                if kill_at[run_id] <= now:
+                    del kill_at[run_id]
+                    stop = stop_configs[run_id]
+                    self._signal(run_id, stop.kill_signal, stop.kill_scope or stop.scope)
+
+            if not (remaining & set(kill_at)):
+                if give_up_at is None:
+                    give_up_at = now + self._kill_wait_secs
+                elif give_up_at <= now:
+                    break
+            self._sleep(self._poll_interval_secs)
+
+        left = self._process_manager.snapshot_states()
+        for state in left:
+            _SYSTEVISOR_EMERGENCIES_LOG.error(
+                'Systevisor is leaving run %s (pid %d) behind',
+                int(state.run_id),
+                state.pid,
             )
-        if streaming:
-            sock.settimeout(None)
-        return sock
-
-    def _make_request(
-            self,
-            method: str,
-            target: str,
-            body: ta.Optional[ta.Any],
-    ) -> FullIoPipelineHttpRequest:
-        encoded_body = b'' if body is None else self._json_codec.dumps(body)
-        host = (
-            'localhost' if self._endpoint.unix_socket is not None else
-            f'{self._endpoint.host}:{self._endpoint.port}'
-        )
-        return FullIoPipelineHttpRequest.simple(
-            host,
-            target,
-            method=method,
-            content_type='application/json' if body is not None else None,
-            body=encoded_body,
-            connection='close',
-        )
-
-    @staticmethod
-    def _pipeline_spec(handler: SystevisorApiClientIoPipelineHandler) -> IoPipeline.Spec:
-        return IoPipeline.Spec([
-            IoPipelineHttpRequestEncoder(),
-            IoPipelineHttpClientResponseDecoder(),
-            IoPipelineHttpResponseDechunker(),
-            handler,
-        ])
-
-    def request(
-            self,
-            method: str,
-            target: str,
-            body: ta.Optional[ta.Any] = None,
-    ) -> SystevisorApiClientResponse:
-        request = self._make_request(method, target, body)
-        handler = SystevisorApiClientIoPipelineHandler(request)
-        with self._connect(streaming=False) as sock:
-            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
-            try:
-                driver.loop_until_done()
-            finally:
-                driver.close()
-        if handler.status is None or not handler.complete:
-            raise ConnectionError('HTTP response was incomplete')
-        return SystevisorApiClientResponse(
-            status=handler.status,
-            headers=handler.headers,
-            body=b''.join(handler.body_parts),
-        )
-
-    def request_json(
-            self,
-            method: str,
-            target: str,
-            body: ta.Optional[ta.Any] = None,
-    ) -> ta.Tuple[int, ta.Any]:
-        response = self.request(method, target, body)
-        return response.status, self._json_codec.loads(response.body)
-
-    def stream(
-            self,
-            target: str,
-            callback: ta.Callable[[bytes], None],
-    ) -> int:
-        request = self._make_request('GET', target, None)
-        handler = SystevisorApiClientIoPipelineHandler(request, callback)
-        with self._connect(streaming=True) as sock:
-            driver = SocketSyncIoPipelineDriver(self._pipeline_spec(handler), sock)
-            try:
-                driver.loop_until_done()
-            finally:
-                driver.close()
-        if handler.status is None:
-            raise ConnectionError('HTTP response had no status')
-        return handler.status
+        return left
 
 
 ########################################
@@ -32504,6 +42247,465 @@ class SystevisorFdioHealthProbeRunner(SystevisorHealthProbeRunner, FdioHandler):
 
 
 ########################################
+# ../runtime/coordinator.py
+
+
+##
+
+
+_SYSTEVISOR_COORDINATOR_LOG = get_module_logger(globals())
+
+
+@dc.dataclass(frozen=True)
+class SystevisorRuntimeOutputFd:
+    run_id: SystevisorRunId
+    stream: SystevisorLogStream
+    fd: int
+
+
+@dc.dataclass(frozen=True)
+class SystevisorInternalProcessCallbacks:
+    on_exec: ta.Callable[[SystevisorProcessExecResult], None]
+    on_exit: ta.Callable[[SystevisorObservedProcessExit], None]
+
+
+class SystevisorRuntimeCoordinator:
+    def __init__(
+            self,
+            engine: SystevisorEngine,
+            process_manager: SystevisorProcessManager,
+            fdio_manager: FdioManager,
+            clock: SystevisorClock,
+            event_bus: SystevisorEventBus,
+            log_manager: SystevisorLogManager,
+            health_probe_runner: SystevisorHealthProbeRunner,
+    ) -> None:
+        self._engine = engine
+        self._process_manager = process_manager
+        self._fdio_manager = fdio_manager
+        self._clock = clock
+        self._event_bus = event_bus
+        self._log_manager = log_manager
+        self._health_probe_runner = health_probe_runner
+
+        self._input_queue: ta.Deque[SystevisorEngineInput] = collections.deque()
+        self._processing = False
+        self._closed = False
+        self._exec_handlers: ta.Dict[SystevisorRunId, SystevisorProcessExecFdioHandler] = {}
+        self._pidfd_handlers: ta.Dict[SystevisorRunId, SystevisorProcessPidfdFdioHandler] = {}
+        self._output_handlers: ta.Dict[SystevisorRunId, ta.List[FdioHandler]] = {}
+        self._delivered_exec_results: ta.Set[SystevisorRunId] = set()
+        self._failed_exec_runs: ta.Set[SystevisorRunId] = set()
+        self._pending_exits: ta.Dict[SystevisorRunId, SystevisorObservedProcessExit] = {}
+        self._internal_processes: ta.Dict[SystevisorRunId, SystevisorInternalProcessCallbacks] = {}
+        self._signal_handler: ta.Optional[SystevisorSignalFdioHandler] = None
+        self._forward_signal_numbers: ta.Sequence[int] = ()
+        self._fatal_error: ta.Optional[BaseException] = None
+
+        self._deadline_handler = SystevisorDeadlineFdioHandler(clock, self._on_deadline)
+        self._wait_handler = SystevisorProcessWaitFdioHandler(
+            clock,
+            self._observe_process_exits,
+            process_manager.needs_wait_polling,
+        )
+        self._fdio_manager.register(self._deadline_handler)
+        self._fdio_manager.register(self._wait_handler)
+
+    @property
+    def engine(self) -> SystevisorEngine:
+        return self._engine
+
+    @property
+    def event_bus(self) -> SystevisorEventBus:
+        return self._event_bus
+
+    @property
+    def log_manager(self) -> SystevisorLogManager:
+        return self._log_manager
+
+    @property
+    def fatal_error(self) -> ta.Optional[BaseException]:
+        return self._fatal_error
+
+    def install_signal_handler(self) -> None:
+        if self._signal_handler is not None:
+            raise RuntimeError('signal handler is already installed')
+        handler = SystevisorSignalFdioHandler(self._on_signal, self._forward_signal_numbers)
+        handler.install()
+        self._signal_handler = handler
+        self._fdio_manager.register(handler)
+
+    def submit(self, engine_input: SystevisorEngineInput) -> ta.Sequence[SystevisorEngineOutput]:
+        if self._closed:
+            raise RuntimeError('runtime coordinator is closed')
+        if self._fatal_error is not None:
+            raise RuntimeError('runtime coordinator has failed') from self._fatal_error
+        self._input_queue.append(engine_input)
+        if self._processing:
+            return ()
+
+        outputs: ta.List[SystevisorEngineOutput] = []
+        self._processing = True
+        try:
+            while self._input_queue:
+                current_input = self._input_queue.popleft()
+                if isinstance(current_input, SystevisorApplySnapshotCommand):
+                    self.configure_snapshot_runtime(current_input.snapshot)
+                try:
+                    output = self._engine.step(current_input, self._clock.monotonic())
+                except Exception as exc:
+                    # A step that raised may have applied part of a transition. Callers such as the control API contain
+                    # their own failures, so this is recorded rather than left to propagate: the manager has to stop.
+                    self._fatal_error = exc
+                    raise
+                outputs.append(output)
+                for event in output.events:
+                    _, failures = self._event_bus.publish('engine', event, self._clock.monotonic())
+                    for failure in failures:
+                        _SYSTEVISOR_COORDINATOR_LOG.exception(
+                            'Systevisor event subscriber %s failed',
+                            failure.subscription_id,
+                            exc_info=failure.exception,
+                        )
+                for effect in output.effects:
+                    try:
+                        self._execute_effect(effect)
+                    except Exception as exc:  # noqa: BLE001
+                        self._effect_failed(effect, exc)
+        finally:
+            self._processing = False
+        return tuple(outputs)
+
+    def configure_snapshot_runtime(self, snapshot: SystevisorConfigSnapshot) -> None:
+        self._process_manager.set_reap_unknown_children(snapshot.config.manager.reap_unknown_children)
+        self._wait_handler.poke()
+        self._log_manager.set_default_strip_ansi(snapshot.config.manager.strip_ansi)
+        self._log_manager.set_retained_runs(snapshot.config.manager.retained_child_log_runs)
+        self._event_bus.set_journal_capacity(snapshot.config.api.event_backlog)
+        self._forward_signal_numbers = tuple(sorted({
+            systevisor_parse_signal_name(incoming)
+            for unit in snapshot.config.units.values()
+            for incoming in unit.signals.forward
+        }))
+        if self._signal_handler is not None:
+            self._signal_handler.reconfigure(self._forward_signal_numbers)
+
+    def _execute_effect(self, effect: SystevisorEngineEffect) -> None:
+        if isinstance(effect, SystevisorSpawnProcessEffect):
+            self._spawn(effect)
+        elif isinstance(effect, SystevisorSignalProcessEffect):
+            self._process_manager.signal_effect(effect)
+        elif isinstance(effect, SystevisorScheduleDeadlineEffect):
+            self._deadline_handler.schedule(effect)
+        elif isinstance(effect, SystevisorApplyLiveConfigEffect):
+            self._log_manager.update_process(effect)
+        elif isinstance(effect, SystevisorRunHealthProbeEffect):
+            self._run_health_probe(effect)
+        else:
+            raise TypeError(effect)
+
+    def _effect_failed(self, effect: SystevisorEngineEffect, exc: BaseException) -> None:
+        # Effects are independent: one that cannot be carried out must not strand the rest of the step, and where the
+        # engine is waiting on an outcome it is told there will not be one.
+        _SYSTEVISOR_COORDINATOR_LOG.exception('Systevisor effect %s failed', type(effect).__name__, exc_info=exc)
+        message = str(exc) or type(exc).__name__
+        self._event_bus.publish('runtime.effect_failed', {
+            'effect': type(effect).__name__,
+            'run_id': getattr(effect, 'run_id', None),
+            'message': message,
+        }, self._clock.monotonic())
+        if isinstance(effect, SystevisorSpawnProcessEffect):
+            self._abandon_spawned_run(effect.run_id, message)
+        elif isinstance(effect, SystevisorRunHealthProbeEffect):
+            self._input_queue.append(SystevisorHealthProbeResultFact(
+                check_id=effect.check_id,
+                run_id=effect.run_id,
+                success=False,
+                message=message,
+            ))
+
+    def _on_deadline(self, fact: SystevisorEngineInput) -> None:
+        self.submit(fact)
+
+    def _watch_process(self, state: SystevisorOwnedProcessState) -> None:
+        exec_error_fd = state.exec_error_fd
+        if exec_error_fd is None:
+            raise RuntimeError('spawned process has no exec handshake fd')
+
+        def exec_ready(run_id: SystevisorRunId = state.run_id) -> bool:
+            return self._on_exec_ready(run_id)
+
+        exec_handler = SystevisorProcessExecFdioHandler(exec_error_fd, exec_ready)
+        self._exec_handlers[state.run_id] = exec_handler
+        self._fdio_manager.register(exec_handler)
+
+        if state.pidfd is not None:
+            pidfd_handler = SystevisorProcessPidfdFdioHandler(
+                state.pidfd,
+                self._observe_process_exits,
+            )
+            self._pidfd_handlers[state.run_id] = pidfd_handler
+            self._fdio_manager.register(pidfd_handler)
+        self._wait_handler.poke()
+
+    def _abandon_spawned_run(self, run_id: SystevisorRunId, message: str) -> None:
+        # The engine is told the start failed, so a child that does exist must not outlive that report: it is killed
+        # and left to the ordinary exit path, which reaps it without announcing an exit the engine no longer expects.
+        if self._process_manager.get_state(run_id) is not None:
+            self._failed_exec_runs.add(run_id)
+            try:
+                self._process_manager.signal(run_id, 'KILL', SystevisorSignalScope.PROCESS)
+            except Exception:  # noqa: BLE001
+                _SYSTEVISOR_COORDINATOR_LOG.exception('Systevisor could not kill abandoned run %s', run_id)
+        self._input_queue.append(SystevisorSpawnFailedFact(run_id, message))
+
+    def _spawn(self, effect: SystevisorSpawnProcessEffect) -> None:
+        try:
+            spawned = self._process_manager.spawn(effect)
+        except Exception as exc:  # noqa: BLE001
+            # Whatever raised, a failed spawn leaves nothing owned, so it is an ordinary start failure.
+            self._input_queue.append(SystevisorSpawnFailedFact(effect.run_id, str(exc) or type(exc).__name__))
+            return
+
+        # Watch the child before anything else can fail, so even an abandoned run is still reaped.
+        self._watch_process(spawned.state)
+
+        stdout_fd = self._process_manager.take_output_fd(
+            effect.run_id,
+            SystevisorProcessOutputChannel.STDOUT,
+        )
+        stderr_fd = self._process_manager.take_output_fd(
+            effect.run_id,
+            SystevisorProcessOutputChannel.STDERR,
+        )
+        try:
+            output_handlers: ta.List[FdioHandler] = list(
+                self._log_manager.register_process(effect, stdout_fd, stderr_fd),
+            )
+        except BaseException:
+            for fd in {stdout_fd, stderr_fd}:
+                if fd is not None:
+                    os.close(fd)
+            raise
+        self._output_handlers[effect.run_id] = output_handlers
+        for handler in output_handlers:
+            self._fdio_manager.register(handler)
+
+    def _run_health_probe(self, effect: SystevisorRunHealthProbeEffect) -> None:
+        started = self._health_probe_runner.start(effect, self._on_health_probe_result)
+        run_id = started.command_run_id
+        if run_id is None:
+            return
+        state = self._process_manager.get_state(run_id)
+        if state is None:
+            raise RuntimeError('spawned health command is not owned')
+        self._watch_process(state)
+
+    def start_internal_process(
+            self,
+            run_id: SystevisorRunId,
+            argv: ta.Sequence[str],
+            purpose: SystevisorOwnedProcessPurpose,
+            callbacks: SystevisorInternalProcessCallbacks,
+    ) -> None:
+        if self._closed:
+            raise RuntimeError('runtime coordinator is closed')
+        if run_id in self._internal_processes:
+            raise RuntimeError(f'internal process is already registered: {run_id}')
+        spawned = self._process_manager.spawn_internal(run_id, argv, purpose)
+        self._internal_processes[run_id] = callbacks
+        self._watch_process(spawned.state)
+
+    def _on_health_probe_result(self, fact: SystevisorHealthProbeResultFact) -> None:
+        self.submit(fact)
+
+    def _on_exec_ready(self, run_id: SystevisorRunId) -> bool:
+        result = self._process_manager.poll_exec_result(run_id)
+        if result is None:
+            return False
+        self._handle_exec_result(result)
+        pending_exit = self._pending_exits.pop(run_id, None)
+        if pending_exit is not None:
+            self._complete_process_exit(pending_exit)
+        return True
+
+    def _handle_exec_result(self, result: SystevisorProcessExecResult) -> None:
+        if result.run_id in self._delivered_exec_results:
+            return
+        self._delivered_exec_results.add(result.run_id)
+        exec_handler = self._exec_handlers.pop(result.run_id, None)
+        if exec_handler is not None:
+            exec_handler.close()
+        internal = self._internal_processes.get(result.run_id)
+        if internal is not None:
+            internal.on_exec(result)
+            return
+        if self._health_probe_runner.owns_command_run(result.run_id):
+            self._health_probe_runner.command_exec_result(result)
+            return
+        if result.run_id in self._failed_exec_runs:
+            return
+        if result.succeeded:
+            self.submit(SystevisorSpawnSucceededFact(result.run_id))
+        else:
+            self._failed_exec_runs.add(result.run_id)
+            self.submit(SystevisorSpawnFailedFact(result.run_id, result.message or 'child setup failed'))
+
+    def _observe_process_exits(self) -> None:
+        for observed in self._process_manager.poll_exits():
+            if observed.run_id not in self._delivered_exec_results:
+                result = self._process_manager.poll_exec_result(observed.run_id)
+                if result is None:
+                    self._pending_exits[observed.run_id] = observed
+                    continue
+                self._handle_exec_result(result)
+            self._complete_process_exit(observed)
+        for unknown in self._process_manager.poll_unknown_exits():
+            self._event_bus.publish('runtime.unknown_child_reaped', unknown, self._clock.monotonic())
+
+    def _complete_process_exit(self, observed: SystevisorObservedProcessExit) -> None:
+        pidfd_handler = self._pidfd_handlers.pop(observed.run_id, None)
+        if pidfd_handler is not None:
+            pidfd_handler.close()
+        self._process_manager.acknowledge_exit(observed.run_id)
+        internal = self._internal_processes.pop(observed.run_id, None)
+        if internal is not None:
+            internal.on_exit(observed)
+            self._delivered_exec_results.discard(observed.run_id)
+            self._pending_exits.pop(observed.run_id, None)
+            return
+        if self._health_probe_runner.owns_command_run(observed.run_id):
+            self._health_probe_runner.command_exit(observed)
+            self._delivered_exec_results.discard(observed.run_id)
+            self._pending_exits.pop(observed.run_id, None)
+            return
+        self._log_manager.retire_process(observed.run_id)
+        if observed.run_id in self._failed_exec_runs:
+            self._failed_exec_runs.remove(observed.run_id)
+        else:
+            self.submit(SystevisorProcessExitedFact(observed.run_id, observed.return_code))
+        self._delivered_exec_results.discard(observed.run_id)
+        self._pending_exits.pop(observed.run_id, None)
+
+    def _on_signal(self, received: SystevisorReceivedSignal) -> None:
+        if received.signal_number == signal.SIGCHLD:
+            self._observe_process_exits()
+        elif received.signal_number in {signal.SIGTERM, signal.SIGINT, signal.SIGQUIT}:
+            self.submit(SystevisorShutdownCommand())
+        elif received.signal_number == signal.SIGHUP:
+            self._event_bus.publish('runtime.reload_requested', received, self._clock.monotonic())
+        else:
+            self._event_bus.publish('runtime.signal', received, self._clock.monotonic())
+            self.submit(SystevisorForwardSignalCommand(
+                systevisor_normalize_signal_name(signal.Signals(received.signal_number).name),
+            ))
+
+    def poll(self, timeout: ta.Optional[float] = None) -> None:
+        self._fdio_manager.poll(timeout=timeout)
+        for run_id in tuple(self._output_handlers):
+            if all(handler.closed for handler in self._output_handlers[run_id]):
+                del self._output_handlers[run_id]
+
+    def snapshot_output_fds(self) -> ta.Sequence[SystevisorRuntimeOutputFd]:
+        output_fds: ta.List[SystevisorRuntimeOutputFd] = []
+        for handlers in self._output_handlers.values():
+            for handler in handlers:
+                if isinstance(handler, SystevisorProcessOutputFdioHandler) and not handler.closed:
+                    output_fds.append(SystevisorRuntimeOutputFd(
+                        run_id=handler.run_id,
+                        stream=handler.stream,
+                        fd=handler.fd(),
+                    ))
+        return tuple(sorted(output_fds, key=lambda item: (int(item.run_id), item.stream.value)))
+
+    def handoff_issues(self) -> ta.Sequence[str]:
+        issues = list(self._process_manager.handoff_issues())
+        if self._processing or self._input_queue:
+            issues.append('the reconciliation input queue is not empty')
+        if self._exec_handlers or self._pending_exits:
+            issues.append('a process exec or exit transition is in flight')
+        if self._internal_processes:
+            issues.append('an internal process is in flight')
+        if self._health_probe_runner.has_active_checks():
+            issues.append('a health probe is in flight')
+        return tuple(issues)
+
+    def rehydrate_process_runtime(
+            self,
+            output_fds: ta.Iterable[SystevisorRuntimeOutputFd],
+    ) -> None:
+        if self._exec_handlers or self._pidfd_handlers or self._output_handlers:
+            raise RuntimeError('runtime process handlers can only be rehydrated before use')
+        states = self._process_manager.snapshot_states()
+        run_ids = {state.run_id for state in states}
+        self._delivered_exec_results.update(run_ids)
+        seen_outputs: ta.Set[ta.Tuple[SystevisorRunId, SystevisorLogStream]] = set()
+        for output in output_fds:
+            key = (output.run_id, output.stream)
+            if output.run_id not in run_ids:
+                raise RuntimeError(f'output descriptor belongs to an unknown run: {output.run_id}')
+            if key in seen_outputs:
+                raise RuntimeError(f'duplicate output descriptor: {output.run_id}:{output.stream.value}')
+            seen_outputs.add(key)
+            handler = self._log_manager.attach_rehydrated_output(
+                output.run_id,
+                output.stream,
+                output.fd,
+            )
+            self._output_handlers.setdefault(output.run_id, []).append(handler)
+            self._fdio_manager.register(handler)
+        for state in states:
+            if state.pidfd is not None:
+                pidfd_handler = SystevisorProcessPidfdFdioHandler(state.pidfd, self._observe_process_exits)
+                self._pidfd_handlers[state.run_id] = pidfd_handler
+                self._fdio_manager.register(pidfd_handler)
+        for instance in self._engine.state.instances.values():
+            if (
+                    instance.deadline_id is not None and
+                    instance.deadline_kind is not None and
+                    instance.deadline_at is not None
+            ):
+                self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
+                    deadline_id=instance.deadline_id,
+                    deadline_at=instance.deadline_at,
+                    kind=instance.deadline_kind,
+                    instance_id=instance.instance_id,
+                    run_id=instance.run_id,
+                ))
+            for health in instance.health.values():
+                if health.in_flight_check_id is not None:
+                    raise RuntimeError('cannot rehydrate an in-flight health check')
+                if health.scheduled_deadline_id is not None and health.next_check_at is not None:
+                    self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
+                        deadline_id=health.scheduled_deadline_id,
+                        deadline_at=health.next_check_at,
+                        kind=SystevisorDeadlineKind.HEALTH_PROBE,
+                        instance_id=instance.instance_id,
+                        run_id=instance.run_id,
+                    ))
+        self._wait_handler.poke()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        if self._signal_handler is not None:
+            self._signal_handler.close()
+            self._signal_handler = None
+        for exec_handler in self._exec_handlers.values():
+            exec_handler.close()
+        for pidfd_handler in self._pidfd_handlers.values():
+            pidfd_handler.close()
+        for handlers in self._output_handlers.values():
+            for output_handler in handlers:
+                output_handler.close()
+        self._deadline_handler.close()
+        self._wait_handler.close()
+        self._health_probe_runner.close()
+        self._log_manager.close()
+        self._closed = True
+
+
+########################################
 # ../selfupdate/codec.py
 
 
@@ -32748,6 +42950,7 @@ def systevisor_encode_engine_state(state: SystevisorEngineState) -> ta.Mapping[s
                 'applied_spec_digest': instance.applied_spec_digest,
                 'spawn_confirmed': instance.spawn_confirmed,
                 'start_failures': instance.start_failures,
+                'unstable_restarts': instance.unstable_restarts,
                 'started_at': instance.started_at,
                 'ready': instance.ready,
                 'completed_successfully': instance.completed_successfully,
@@ -32819,6 +43022,7 @@ def _systevisor_self_update_decode_instance(value: ta.Any) -> SystevisorInstance
         ),
         spawn_confirmed=_systevisor_self_update_bool(obj.get('spawn_confirmed'), 'spawn confirmed'),
         start_failures=_systevisor_self_update_int(obj.get('start_failures'), 'start failures'),
+        unstable_restarts=_systevisor_self_update_int(obj.get('unstable_restarts'), 'unstable restarts'),
         started_at=_systevisor_self_update_optional_float(obj.get('started_at'), 'started at'),
         ready=_systevisor_self_update_bool(obj.get('ready'), 'ready'),
         completed_successfully=_systevisor_self_update_bool(
@@ -32875,7 +43079,7 @@ def systevisor_decode_engine_state(
 ) -> SystevisorEngineState:
     obj = _systevisor_self_update_mapping(value, 'engine state')
     schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'engine schema version')
-    if schema_version != 2:
+    if schema_version != 3:
         raise SystevisorSelfUpdateCodecError(f'unsupported engine state schema: {schema_version}')
     instances = tuple(
         _systevisor_self_update_decode_instance(item)
@@ -33465,438 +43669,6 @@ def systevisor_self_update_atomic_write_json(path: str, value: ta.Any) -> None:
 
 
 ########################################
-# ../runtime/coordinator.py
-
-
-##
-
-
-_SYSTEVISOR_COORDINATOR_LOG = get_module_logger(globals())
-
-
-@dc.dataclass(frozen=True)
-class SystevisorRuntimeOutputFd:
-    run_id: SystevisorRunId
-    stream: SystevisorLogStream
-    fd: int
-
-
-@dc.dataclass(frozen=True)
-class SystevisorInternalProcessCallbacks:
-    on_exec: ta.Callable[[SystevisorProcessExecResult], None]
-    on_exit: ta.Callable[[SystevisorObservedProcessExit], None]
-
-
-class SystevisorRuntimeCoordinator:
-    def __init__(
-            self,
-            engine: SystevisorEngine,
-            process_manager: SystevisorProcessManager,
-            fdio_manager: FdioManager,
-            clock: SystevisorClock,
-            event_bus: SystevisorEventBus,
-            log_manager: SystevisorLogManager,
-            health_probe_runner: SystevisorHealthProbeRunner,
-    ) -> None:
-        self._engine = engine
-        self._process_manager = process_manager
-        self._fdio_manager = fdio_manager
-        self._clock = clock
-        self._event_bus = event_bus
-        self._log_manager = log_manager
-        self._health_probe_runner = health_probe_runner
-
-        self._input_queue: ta.Deque[SystevisorEngineInput] = collections.deque()
-        self._processing = False
-        self._closed = False
-        self._exec_handlers: ta.Dict[SystevisorRunId, SystevisorProcessExecFdioHandler] = {}
-        self._pidfd_handlers: ta.Dict[SystevisorRunId, SystevisorProcessPidfdFdioHandler] = {}
-        self._output_handlers: ta.Dict[SystevisorRunId, ta.List[FdioHandler]] = {}
-        self._delivered_exec_results: ta.Set[SystevisorRunId] = set()
-        self._failed_exec_runs: ta.Set[SystevisorRunId] = set()
-        self._pending_exits: ta.Dict[SystevisorRunId, SystevisorObservedProcessExit] = {}
-        self._internal_processes: ta.Dict[SystevisorRunId, SystevisorInternalProcessCallbacks] = {}
-        self._signal_handler: ta.Optional[SystevisorSignalFdioHandler] = None
-        self._forward_signal_numbers: ta.Sequence[int] = ()
-
-        self._deadline_handler = SystevisorDeadlineFdioHandler(clock, self._on_deadline)
-        self._wait_handler = SystevisorProcessWaitFdioHandler(
-            clock,
-            self._observe_process_exits,
-            process_manager.needs_wait_polling,
-        )
-        self._fdio_manager.register(self._deadline_handler)
-        self._fdio_manager.register(self._wait_handler)
-
-    @property
-    def engine(self) -> SystevisorEngine:
-        return self._engine
-
-    @property
-    def event_bus(self) -> SystevisorEventBus:
-        return self._event_bus
-
-    @property
-    def log_manager(self) -> SystevisorLogManager:
-        return self._log_manager
-
-    def install_signal_handler(self) -> None:
-        if self._signal_handler is not None:
-            raise RuntimeError('signal handler is already installed')
-        handler = SystevisorSignalFdioHandler(self._on_signal, self._forward_signal_numbers)
-        handler.install()
-        self._signal_handler = handler
-        self._fdio_manager.register(handler)
-
-    def submit(self, engine_input: SystevisorEngineInput) -> ta.Sequence[SystevisorEngineOutput]:
-        if self._closed:
-            raise RuntimeError('runtime coordinator is closed')
-        self._input_queue.append(engine_input)
-        if self._processing:
-            return ()
-
-        outputs: ta.List[SystevisorEngineOutput] = []
-        self._processing = True
-        try:
-            while self._input_queue:
-                current_input = self._input_queue.popleft()
-                if isinstance(current_input, SystevisorApplySnapshotCommand):
-                    self.configure_snapshot_runtime(current_input.snapshot)
-                output = self._engine.step(current_input, self._clock.monotonic())
-                outputs.append(output)
-                for event in output.events:
-                    _, failures = self._event_bus.publish('engine', event, self._clock.monotonic())
-                    for failure in failures:
-                        _SYSTEVISOR_COORDINATOR_LOG.error(
-                            'Systevisor event subscriber %s failed',
-                            failure.subscription_id,
-                            exc_info=(
-                                type(failure.exception),
-                                failure.exception,
-                                failure.exception.__traceback__,
-                            ),
-                        )
-                for effect in output.effects:
-                    self._execute_effect(effect)
-        finally:
-            self._processing = False
-        return tuple(outputs)
-
-    def configure_snapshot_runtime(self, snapshot: SystevisorConfigSnapshot) -> None:
-        self._process_manager.set_reap_unknown_children(snapshot.config.manager.reap_unknown_children)
-        self._wait_handler.poke()
-        self._log_manager.set_default_strip_ansi(snapshot.config.manager.strip_ansi)
-        self._event_bus.set_journal_capacity(snapshot.config.api.event_backlog)
-        self._forward_signal_numbers = tuple(sorted({
-            systevisor_parse_signal_name(incoming)
-            for unit in snapshot.config.units.values()
-            for incoming in unit.signals.forward
-        }))
-        if self._signal_handler is not None:
-            self._signal_handler.reconfigure(self._forward_signal_numbers)
-
-    def _execute_effect(self, effect: SystevisorEngineEffect) -> None:
-        if isinstance(effect, SystevisorSpawnProcessEffect):
-            self._spawn(effect)
-        elif isinstance(effect, SystevisorSignalProcessEffect):
-            self._process_manager.signal_effect(effect)
-        elif isinstance(effect, SystevisorScheduleDeadlineEffect):
-            self._deadline_handler.schedule(effect)
-        elif isinstance(effect, SystevisorApplyLiveConfigEffect):
-            self._log_manager.update_process(effect)
-        elif isinstance(effect, SystevisorRunHealthProbeEffect):
-            self._run_health_probe(effect)
-        else:
-            raise TypeError(effect)
-
-    def _on_deadline(self, fact: SystevisorEngineInput) -> None:
-        self.submit(fact)
-
-    def _spawn(self, effect: SystevisorSpawnProcessEffect) -> None:
-        try:
-            spawned = self._process_manager.spawn(effect)
-        except (SystevisorProcessSpawnError, OSError) as exc:
-            self._input_queue.append(SystevisorSpawnFailedFact(effect.run_id, str(exc)))
-            return
-
-        stdout_fd = self._process_manager.take_output_fd(
-            effect.run_id,
-            SystevisorProcessOutputChannel.STDOUT,
-        )
-        stderr_fd = self._process_manager.take_output_fd(
-            effect.run_id,
-            SystevisorProcessOutputChannel.STDERR,
-        )
-        output_handlers: ta.List[FdioHandler] = list(
-            self._log_manager.register_process(effect, stdout_fd, stderr_fd),
-        )
-        self._output_handlers[effect.run_id] = output_handlers
-        for handler in output_handlers:
-            self._fdio_manager.register(handler)
-
-        exec_error_fd = spawned.state.exec_error_fd
-        if exec_error_fd is None:
-            raise RuntimeError('spawned process has no exec handshake fd')
-        def exec_ready(run_id: SystevisorRunId = effect.run_id) -> bool:
-            return self._on_exec_ready(run_id)
-
-        exec_handler = SystevisorProcessExecFdioHandler(exec_error_fd, exec_ready)
-        self._exec_handlers[effect.run_id] = exec_handler
-        self._fdio_manager.register(exec_handler)
-
-        if spawned.state.pidfd is not None:
-            pidfd_handler = SystevisorProcessPidfdFdioHandler(
-                spawned.state.pidfd,
-                self._observe_process_exits,
-            )
-            self._pidfd_handlers[effect.run_id] = pidfd_handler
-            self._fdio_manager.register(pidfd_handler)
-        self._wait_handler.poke()
-
-    def _run_health_probe(self, effect: SystevisorRunHealthProbeEffect) -> None:
-        started = self._health_probe_runner.start(effect, self._on_health_probe_result)
-        run_id = started.command_run_id
-        if run_id is None:
-            return
-        state = self._process_manager.get_state(run_id)
-        if state is None or state.exec_error_fd is None:
-            raise RuntimeError('spawned health command has no exec handshake fd')
-
-        def exec_ready(command_run_id: SystevisorRunId = run_id) -> bool:
-            return self._on_exec_ready(command_run_id)
-
-        exec_handler = SystevisorProcessExecFdioHandler(state.exec_error_fd, exec_ready)
-        self._exec_handlers[run_id] = exec_handler
-        self._fdio_manager.register(exec_handler)
-        if state.pidfd is not None:
-            pidfd_handler = SystevisorProcessPidfdFdioHandler(
-                state.pidfd,
-                self._observe_process_exits,
-            )
-            self._pidfd_handlers[run_id] = pidfd_handler
-            self._fdio_manager.register(pidfd_handler)
-        self._wait_handler.poke()
-
-    def start_internal_process(
-            self,
-            run_id: SystevisorRunId,
-            argv: ta.Sequence[str],
-            purpose: SystevisorOwnedProcessPurpose,
-            callbacks: SystevisorInternalProcessCallbacks,
-    ) -> None:
-        if self._closed:
-            raise RuntimeError('runtime coordinator is closed')
-        if run_id in self._internal_processes:
-            raise RuntimeError(f'internal process is already registered: {run_id}')
-        spawned = self._process_manager.spawn_internal(run_id, argv, purpose)
-        self._internal_processes[run_id] = callbacks
-        state = spawned.state
-        if state.exec_error_fd is None:
-            raise RuntimeError('spawned internal process has no exec handshake fd')
-
-        def exec_ready(internal_run_id: SystevisorRunId = run_id) -> bool:
-            return self._on_exec_ready(internal_run_id)
-
-        exec_handler = SystevisorProcessExecFdioHandler(state.exec_error_fd, exec_ready)
-        self._exec_handlers[run_id] = exec_handler
-        self._fdio_manager.register(exec_handler)
-        if state.pidfd is not None:
-            pidfd_handler = SystevisorProcessPidfdFdioHandler(
-                state.pidfd,
-                self._observe_process_exits,
-            )
-            self._pidfd_handlers[run_id] = pidfd_handler
-            self._fdio_manager.register(pidfd_handler)
-        self._wait_handler.poke()
-
-    def _on_health_probe_result(self, fact: SystevisorHealthProbeResultFact) -> None:
-        self.submit(fact)
-
-    def _on_exec_ready(self, run_id: SystevisorRunId) -> bool:
-        result = self._process_manager.poll_exec_result(run_id)
-        if result is None:
-            return False
-        self._handle_exec_result(result)
-        pending_exit = self._pending_exits.pop(run_id, None)
-        if pending_exit is not None:
-            self._complete_process_exit(pending_exit)
-        return True
-
-    def _handle_exec_result(self, result: SystevisorProcessExecResult) -> None:
-        if result.run_id in self._delivered_exec_results:
-            return
-        self._delivered_exec_results.add(result.run_id)
-        exec_handler = self._exec_handlers.pop(result.run_id, None)
-        if exec_handler is not None:
-            exec_handler.close()
-        internal = self._internal_processes.get(result.run_id)
-        if internal is not None:
-            internal.on_exec(result)
-            return
-        if self._health_probe_runner.owns_command_run(result.run_id):
-            self._health_probe_runner.command_exec_result(result)
-            return
-        if result.succeeded:
-            self.submit(SystevisorSpawnSucceededFact(result.run_id))
-        else:
-            self._failed_exec_runs.add(result.run_id)
-            self.submit(SystevisorSpawnFailedFact(result.run_id, result.message or 'child setup failed'))
-
-    def _observe_process_exits(self) -> None:
-        for observed in self._process_manager.poll_exits():
-            if observed.run_id not in self._delivered_exec_results:
-                result = self._process_manager.poll_exec_result(observed.run_id)
-                if result is None:
-                    self._pending_exits[observed.run_id] = observed
-                    continue
-                self._handle_exec_result(result)
-            self._complete_process_exit(observed)
-        for unknown in self._process_manager.poll_unknown_exits():
-            self._event_bus.publish('runtime.unknown_child_reaped', unknown, self._clock.monotonic())
-
-    def _complete_process_exit(self, observed: SystevisorObservedProcessExit) -> None:
-        pidfd_handler = self._pidfd_handlers.pop(observed.run_id, None)
-        if pidfd_handler is not None:
-            pidfd_handler.close()
-        self._process_manager.acknowledge_exit(observed.run_id)
-        internal = self._internal_processes.pop(observed.run_id, None)
-        if internal is not None:
-            internal.on_exit(observed)
-            self._delivered_exec_results.discard(observed.run_id)
-            self._pending_exits.pop(observed.run_id, None)
-            return
-        if self._health_probe_runner.owns_command_run(observed.run_id):
-            self._health_probe_runner.command_exit(observed)
-            self._delivered_exec_results.discard(observed.run_id)
-            self._pending_exits.pop(observed.run_id, None)
-            return
-        self._log_manager.retire_process(observed.run_id)
-        if observed.run_id in self._failed_exec_runs:
-            self._failed_exec_runs.remove(observed.run_id)
-        else:
-            self.submit(SystevisorProcessExitedFact(observed.run_id, observed.return_code))
-        self._delivered_exec_results.discard(observed.run_id)
-        self._pending_exits.pop(observed.run_id, None)
-
-    def _on_signal(self, received: SystevisorReceivedSignal) -> None:
-        if received.signal_number == signal.SIGCHLD:
-            self._observe_process_exits()
-        elif received.signal_number in {signal.SIGTERM, signal.SIGINT, signal.SIGQUIT}:
-            self.submit(SystevisorShutdownCommand())
-        elif received.signal_number == signal.SIGHUP:
-            self._event_bus.publish('runtime.reload_requested', received, self._clock.monotonic())
-        else:
-            self._event_bus.publish('runtime.signal', received, self._clock.monotonic())
-            self.submit(SystevisorForwardSignalCommand(
-                systevisor_normalize_signal_name(signal.Signals(received.signal_number).name),
-            ))
-
-    def poll(self, timeout: ta.Optional[float] = None) -> None:
-        self._fdio_manager.poll(timeout=timeout)
-        for run_id in tuple(self._output_handlers):
-            if all(handler.closed for handler in self._output_handlers[run_id]):
-                del self._output_handlers[run_id]
-
-    def snapshot_output_fds(self) -> ta.Sequence[SystevisorRuntimeOutputFd]:
-        output_fds: ta.List[SystevisorRuntimeOutputFd] = []
-        for handlers in self._output_handlers.values():
-            for handler in handlers:
-                if isinstance(handler, SystevisorProcessOutputFdioHandler) and not handler.closed:
-                    output_fds.append(SystevisorRuntimeOutputFd(
-                        run_id=handler.run_id,
-                        stream=handler.stream,
-                        fd=handler.fd(),
-                    ))
-        return tuple(sorted(output_fds, key=lambda item: (int(item.run_id), item.stream.value)))
-
-    def handoff_issues(self) -> ta.Sequence[str]:
-        issues = list(self._process_manager.handoff_issues())
-        if self._processing or self._input_queue:
-            issues.append('the reconciliation input queue is not empty')
-        if self._exec_handlers or self._pending_exits:
-            issues.append('a process exec or exit transition is in flight')
-        if self._internal_processes:
-            issues.append('an internal process is in flight')
-        if self._health_probe_runner.has_active_checks():
-            issues.append('a health probe is in flight')
-        return tuple(issues)
-
-    def rehydrate_process_runtime(
-            self,
-            output_fds: ta.Iterable[SystevisorRuntimeOutputFd],
-    ) -> None:
-        if self._exec_handlers or self._pidfd_handlers or self._output_handlers:
-            raise RuntimeError('runtime process handlers can only be rehydrated before use')
-        states = self._process_manager.snapshot_states()
-        run_ids = {state.run_id for state in states}
-        self._delivered_exec_results.update(run_ids)
-        seen_outputs: ta.Set[ta.Tuple[SystevisorRunId, SystevisorLogStream]] = set()
-        for output in output_fds:
-            key = (output.run_id, output.stream)
-            if output.run_id not in run_ids:
-                raise RuntimeError(f'output descriptor belongs to an unknown run: {output.run_id}')
-            if key in seen_outputs:
-                raise RuntimeError(f'duplicate output descriptor: {output.run_id}:{output.stream.value}')
-            seen_outputs.add(key)
-            handler = self._log_manager.attach_rehydrated_output(
-                output.run_id,
-                output.stream,
-                output.fd,
-            )
-            self._output_handlers.setdefault(output.run_id, []).append(handler)
-            self._fdio_manager.register(handler)
-        for state in states:
-            if state.pidfd is not None:
-                pidfd_handler = SystevisorProcessPidfdFdioHandler(state.pidfd, self._observe_process_exits)
-                self._pidfd_handlers[state.run_id] = pidfd_handler
-                self._fdio_manager.register(pidfd_handler)
-        for instance in self._engine.state.instances.values():
-            if (
-                    instance.deadline_id is not None and
-                    instance.deadline_kind is not None and
-                    instance.deadline_at is not None
-            ):
-                self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
-                    deadline_id=instance.deadline_id,
-                    deadline_at=instance.deadline_at,
-                    kind=instance.deadline_kind,
-                    instance_id=instance.instance_id,
-                    run_id=instance.run_id,
-                ))
-            for health in instance.health.values():
-                if health.in_flight_check_id is not None:
-                    raise RuntimeError('cannot rehydrate an in-flight health check')
-                if health.scheduled_deadline_id is not None and health.next_check_at is not None:
-                    self._deadline_handler.schedule(SystevisorScheduleDeadlineEffect(
-                        deadline_id=health.scheduled_deadline_id,
-                        deadline_at=health.next_check_at,
-                        kind=SystevisorDeadlineKind.HEALTH_PROBE,
-                        instance_id=instance.instance_id,
-                        run_id=instance.run_id,
-                    ))
-        self._wait_handler.poke()
-
-    def close(self) -> None:
-        if self._closed:
-            return
-        if self._signal_handler is not None:
-            self._signal_handler.close()
-            self._signal_handler = None
-        for exec_handler in self._exec_handlers.values():
-            exec_handler.close()
-        for pidfd_handler in self._pidfd_handlers.values():
-            pidfd_handler.close()
-        for handlers in self._output_handlers.values():
-            for output_handler in handlers:
-                output_handler.close()
-        self._deadline_handler.close()
-        self._wait_handler.close()
-        self._health_probe_runner.close()
-        self._log_manager.close()
-        self._closed = True
-
-
-########################################
 # ../control/configs.py
 
 
@@ -34201,6 +43973,13 @@ def _systevisor_runtime_inject_provide_log_manager(
     return SystevisorLogManager(event_bus, clock, syslog_writer)
 
 
+def _systevisor_runtime_inject_provide_emergency_stop(
+        process_manager: SystevisorProcessManager,
+        clock: SystevisorClock,
+) -> SystevisorEmergencyStop:
+    return SystevisorEmergencyStop(process_manager, clock)
+
+
 def systevisor_bind_runtime() -> InjectorBindings:
     poller_type = ta.cast(ta.Type[FdioPoller], next(filter(None, (
         KqueueFdioPoller,
@@ -34225,6 +44004,7 @@ def systevisor_bind_runtime() -> InjectorBindings:
         inj.bind(SystevisorFdioHealthProbeRunner, singleton=True),
         inj.bind(SystevisorHealthProbeRunner, to_key=SystevisorFdioHealthProbeRunner),
         inj.bind(SystevisorRuntimeCoordinator, singleton=True),
+        inj.bind(_systevisor_runtime_inject_provide_emergency_stop, singleton=True),
     ]
     return inj.as_bindings(*bindings)
 
@@ -36625,6 +46405,12 @@ class SystevisorApiApplication:
 ##
 
 
+_SYSTEVISOR_HTTP_LOG = get_module_logger(globals())
+
+_SYSTEVISOR_HTTP_ACCEPT_RETRY_SECS = 1.
+_SYSTEVISOR_HTTP_ACCEPT_EXHAUSTION_ERRNOS = frozenset({errno.EMFILE, errno.ENFILE, errno.ENOBUFS, errno.ENOMEM})
+
+
 @dc.dataclass(frozen=True)
 class SystevisorHttpStreamPush(IoPipelineHandlerNotification):
     data: bytes
@@ -36819,6 +46605,77 @@ class SystevisorHttpConnectionIoPipelineHandler(IoPipelineHandler):
         ])
 
 
+class SystevisorHttpConnectionFdioHandler(IoPipelineDriverSocketFdioHandler):
+    """
+    A control connection is disposable. The driver fails itself and then re-raises whatever went wrong, which is the
+    right report for a caller that owns one connection but must never reach the reactor every managed child shares - a
+    peer that simply went away would otherwise take the manager down with it.
+    """
+
+    def _systevisor_io(self, method: ta.Callable[[], None]) -> None:
+        try:
+            method()
+        except OSError as exc:
+            _SYSTEVISOR_HTTP_LOG.debug('Systevisor control connection ended: %s: %s', type(exc).__name__, exc)
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection failed')
+        else:
+            return
+
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection did not close cleanly')
+
+    def on_readable(self) -> None:
+        self._systevisor_io(super().on_readable)
+
+    def on_writable(self) -> None:
+        self._systevisor_io(super().on_writable)
+
+    def on_timeout(self) -> None:
+        self._systevisor_io(super().on_timeout)
+
+
+class SystevisorHttpListenerFdioHandler(ServerSocketFdioHandler):
+    """
+    Accepting can fail for reasons that say nothing about the manager's health: the peer already reset, or descriptors
+    are exhausted. The latter leaves the listener readable, so accepting pauses briefly rather than spinning.
+    """
+
+    def __init__(
+            self,
+            sock: socket.socket,
+            on_connect: ta.Callable[[socket.socket, SocketAddress], None],
+    ) -> None:
+        super().__init__(sock, on_connect)
+
+        self._systevisor_retry_at: ta.Optional[float] = None
+
+    def readable(self) -> bool:
+        return self._systevisor_retry_at is None
+
+    def next_deadline(self) -> ta.Optional[float]:
+        return self._systevisor_retry_at
+
+    def on_timeout(self) -> None:
+        self._systevisor_retry_at = None
+
+    def on_readable(self) -> None:
+        try:
+            super().on_readable()
+        except BlockingIOError:
+            pass
+        except OSError as exc:
+            if exc.errno not in _SYSTEVISOR_HTTP_ACCEPT_EXHAUSTION_ERRNOS:
+                _SYSTEVISOR_HTTP_LOG.debug('Systevisor control connection was not accepted: %s', exc)
+                return
+            _SYSTEVISOR_HTTP_LOG.warning('Systevisor control listener is pausing: %s', exc)
+            self._systevisor_retry_at = time.monotonic() + _SYSTEVISOR_HTTP_ACCEPT_RETRY_SECS
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control listener failed to set up a connection')
+
+
 
 
 @dc.dataclass(frozen=True)
@@ -36875,7 +46732,7 @@ class SystevisorHttpServer:
         self._fdio_manager = fdio_manager
         self._application = application
         self._listeners: ta.Dict[SystevisorHttpListenerKey, SystevisorHttpListener] = {}
-        self._connections: ta.Set[IoPipelineDriverSocketFdioHandler] = set()
+        self._connections: ta.Set[SystevisorHttpConnectionFdioHandler] = set()
         self._queue_capacity_bytes = 1024 * 1024
 
     @property
@@ -36916,7 +46773,7 @@ class SystevisorHttpServer:
     def _accept(self, sock: socket.socket, address: SocketAddress) -> None:
         self._connections = {connection for connection in self._connections if not connection.closed}
         try:
-            connection = IoPipelineDriverSocketFdioHandler(
+            connection = SystevisorHttpConnectionFdioHandler(
                 sock,
                 address,
                 SystevisorHttpConnectionIoPipelineHandler.build_pipeline_spec(
@@ -36958,14 +46815,14 @@ class SystevisorHttpServer:
             unix_socket, unix_identity = self._bind_unix_socket(path, config.unix_socket_mode)
             return SystevisorHttpListener(
                 key,
-                ServerSocketFdioHandler(unix_socket, self._accept),
+                SystevisorHttpListenerFdioHandler(unix_socket, self._accept),
                 unix_identity,
             )
         if key[0] == 'tcp':
             host = ta.cast(str, key[1])
             port = ta.cast(int, key[2])
             tcp_socket = socket.create_server((host, port))
-            return SystevisorHttpListener(key, ServerSocketFdioHandler(tcp_socket, self._accept))
+            return SystevisorHttpListener(key, SystevisorHttpListenerFdioHandler(tcp_socket, self._accept))
         raise ValueError(key)
 
     def prepare_reconfigure(self, config: SystevisorApiConfig) -> SystevisorHttpPreparedChange:
@@ -37138,7 +46995,12 @@ def systevisor_bind_control(bootstrap: SystevisorControlBootstrapConfig) -> Inje
 ##
 
 
+_SYSTEVISOR_MAIN_LOG = get_module_logger(globals())
+
 _SYSTEVISOR_MAIN_DEFAULT_ENDPOINT = 'unix:/tmp/systevisor.sock'
+
+_SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED = 2
+_SYSTEVISOR_MAIN_EXIT_RUNTIME_FAILED = 70  # sysexits EX_SOFTWARE
 
 
 class SystevisorNdjsonConsumer:
@@ -37315,7 +47177,19 @@ class SystevisorMainServerContext:
         if self.manager_runtime is not None:
             self.manager_runtime.stopping()
 
+    def _stop_owned_processes(self) -> None:
+        # Every way out of the manager ends here, and nothing it started may be left running unsupervised: a restarted
+        # manager cannot adopt strays and would start a second copy of each beside them. After an orderly shutdown
+        # there is nothing left to stop.
+        if self.coordinator is None:
+            return
+        try:
+            self._injector.provide(SystevisorEmergencyStop).run()
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_MAIN_LOG.exception('Systevisor could not stop its remaining processes')
+
     def close(self) -> None:
+        self._stop_owned_processes()
         if self.self_update is not None:
             self.self_update.close()
         if self.resource_observer is not None:
@@ -37338,37 +47212,105 @@ class SystevisorMainServerContext:
             self.inherited_sockets.close()
 
 
+def _systevisor_main_collection_exit_code(
+        state: SystevisorEngineState,
+        collection_name: SystevisorCollectionName,
+) -> ta.Optional[int]:
+    """The exit code of a foreground collection which has run its course, or none while it should keep running."""
+
+    collection = state.collections.get(collection_name)
+    collection_config = (
+        None if state.snapshot is None else
+        state.snapshot.config.collections.get(collection_name)
+    )
+    if collection is None or collection_config is None:
+        return 2
+    if collection.status is SystevisorCollectionStatus.FAILED:
+        return 1
+    if collection.status is SystevisorCollectionStatus.INACTIVE:
+        return 0
+    if collection.status is SystevisorCollectionStatus.READY and all(
+            state.snapshot is not None and
+            state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
+            for unit_name in collection_config.units
+    ):
+        return 0
+    if collection.status is SystevisorCollectionStatus.DEGRADED and all(
+            instance.run_id is None
+            for instance in state.instances.values()
+            if instance.unit_name in collection_config.units
+    ):
+        return 1
+    return None
+
+
+def _systevisor_main_supervise(
+        context: SystevisorMainServerContext,
+        collection_name: ta.Optional[SystevisorCollectionName] = None,
+) -> int:
+    coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
+    self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
+
+    exit_code = 0
+    shutdown_requested = False
+    stopping_noted = False
+    while True:
+        coordinator.poll()
+        if (fatal_error := coordinator.fatal_error) is not None:
+            raise fatal_error
+
+        if self_update.ready_to_exec():
+            try:
+                self_update.execute_prepared()
+            except SystevisorSelfUpdateError:
+                pass
+
+        state = coordinator.engine.state
+        if collection_name is not None and not state.shutting_down and not shutdown_requested:
+            collection_exit_code = _systevisor_main_collection_exit_code(state, collection_name)
+            if collection_exit_code is not None:
+                exit_code = collection_exit_code
+                shutdown_requested = True
+                coordinator.submit(SystevisorShutdownCommand())
+        if state.shutting_down and not stopping_noted:
+            context.note_stopping()
+            stopping_noted = True
+        if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
+            return exit_code
+
+
+def _systevisor_main_report_failure(
+        codec: SystevisorJsonCodec,
+        exc: BaseException,
+        *,
+        supervising: bool,
+) -> int:
+    # Once children are being supervised a failure is the manager's own, and is reported and exited as one rather than
+    # as a bad start; the caller's close stops whatever is still owned.
+    _SYSTEVISOR_MAIN_LOG.exception(
+        'Systevisor failed %s',
+        'while supervising' if supervising else 'during startup',
+        exc_info=exc,
+    )
+    _systevisor_main_print_json({
+        'error': 'runtime_failed' if supervising else 'startup_failed',
+        'message': f'{type(exc).__name__}: {exc}',
+    }, codec, 2)
+    return _SYSTEVISOR_MAIN_EXIT_RUNTIME_FAILED if supervising else _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
+
+
 def _systevisor_main_serve(args: argparse.Namespace) -> int:
     context = SystevisorMainServerContext(args)
+    supervising = False
     try:
         result = context.start(context.compile())
         if not result.attempt.applied or result.snapshot is None:
             _systevisor_main_print_json(result.attempt, context.codec, 2)
-            return 2
-        coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
-
-        stopping_noted = False
-        while True:
-            coordinator.poll()
-            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
-            if self_update.ready_to_exec():
-                try:
-                    self_update.execute_prepared()
-                except SystevisorSelfUpdateError:
-                    pass
-            state = coordinator.engine.state
-            if state.shutting_down and not stopping_noted:
-                context.note_stopping()
-                stopping_noted = True
-            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
-                break
-        return 0
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
+        supervising = True
+        return _systevisor_main_supervise(context)
     except Exception as exc:  # noqa: BLE001
-        _systevisor_main_print_json({
-            'error': 'startup_failed',
-            'message': f'{type(exc).__name__}: {exc}',
-        }, context.codec, 2)
-        return 2
+        return _systevisor_main_report_failure(context.codec, exc, supervising=supervising)
     finally:
         context.close()
 
@@ -37376,74 +47318,26 @@ def _systevisor_main_serve(args: argparse.Namespace) -> int:
 def _systevisor_main_run(args: argparse.Namespace) -> int:
     context = SystevisorMainServerContext(args)
     collection_name = SystevisorCollectionName(args.collection)
+    supervising = False
     try:
         result = context.start(context.compile(), collection_name)
         if not result.attempt.applied or result.snapshot is None:
             _systevisor_main_print_json(result.attempt, context.codec, 2)
-            return 2
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
         coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
-        collection_config = result.snapshot.config.collections.get(collection_name)
-        collection = coordinator.engine.state.collections.get(collection_name)
-        if collection_config is None or collection is None:
+        if (
+                collection_name not in result.snapshot.config.collections or
+                collection_name not in coordinator.engine.state.collections
+        ):
             _systevisor_main_print_json({
                 'error': 'unknown_collection',
                 'collection': collection_name,
             }, context.codec, 2)
-            return 2
-
-        exit_code = 0
-        shutdown_requested = False
-        stopping_noted = False
-        while True:
-            coordinator.poll()
-            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
-            if self_update.ready_to_exec():
-                try:
-                    self_update.execute_prepared()
-                except SystevisorSelfUpdateError:
-                    pass
-            state = coordinator.engine.state
-            collection = state.collections.get(collection_name)
-            current_collection_config = (
-                None if state.snapshot is None else
-                state.snapshot.config.collections.get(collection_name)
-            )
-            if not state.shutting_down and not shutdown_requested:
-                if collection is None or current_collection_config is None:
-                    exit_code = 2
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.FAILED:
-                    exit_code = 1
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.INACTIVE:
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.READY and all(
-                        state.snapshot is not None and
-                        state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
-                        for unit_name in current_collection_config.units
-                ):
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.DEGRADED and all(
-                        instance.run_id is None
-                        for instance in state.instances.values()
-                        if instance.unit_name in current_collection_config.units
-                ):
-                    exit_code = 1
-                    shutdown_requested = True
-                if shutdown_requested:
-                    coordinator.submit(SystevisorShutdownCommand())
-            if state.shutting_down and not stopping_noted:
-                context.note_stopping()
-                stopping_noted = True
-            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
-                break
-        return exit_code
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
+        supervising = True
+        return _systevisor_main_supervise(context, collection_name)
     except Exception as exc:  # noqa: BLE001
-        _systevisor_main_print_json({
-            'error': 'startup_failed',
-            'message': f'{type(exc).__name__}: {exc}',
-        }, context.codec, 2)
-        return 2
+        return _systevisor_main_report_failure(context.codec, exc, supervising=supervising)
     finally:
         context.close()
 
@@ -37452,89 +47346,54 @@ def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False)
     context: ta.Optional[SystevisorMainServerContext] = None
     manifest = None
     try:
-        manifest = systevisor_handoff_manifest_from_obj(systevisor_self_update_read_json(args.manifest))
-        handoff = systevisor_decode_handoff(
-            manifest,
-            os.path.realpath(sys.argv[0]),
-            previous_source=rollback,
-        )
-        completion_error: ta.Optional[str] = None
-        if rollback:
-            error_obj = systevisor_self_update_read_json(args.error_file)
-            if not isinstance(error_obj, dict) or not isinstance(error_obj.get('message'), str):
-                raise ValueError('invalid self-update rollback error document')
-            completion_error = error_obj['message']
-        context_args = argparse.Namespace(
-            config=list(manifest.config_paths),
-            recursive=manifest.recursive,
-            state_directory=manifest.state_directory,
-        )
-        context = SystevisorMainServerContext(context_args)
-        context.resume(handoff, completion_error=completion_error)
-        systevisor_cleanup_handoff_files(args.manifest)
+        # Only reconstruction may fall back to the previous artifact. Once the handoff has been consumed this is an
+        # ordinary manager again, and a later failure is its own rather than a reason to exec an image it has left.
+        try:
+            manifest = systevisor_handoff_manifest_from_obj(systevisor_self_update_read_json(args.manifest))
+            handoff = systevisor_decode_handoff(
+                manifest,
+                os.path.realpath(sys.argv[0]),
+                previous_source=rollback,
+            )
+            completion_error: ta.Optional[str] = None
+            if rollback:
+                error_obj = systevisor_self_update_read_json(args.error_file)
+                if not isinstance(error_obj, dict) or not isinstance(error_obj.get('message'), str):
+                    raise ValueError('invalid self-update rollback error document')
+                completion_error = error_obj['message']
+            context_args = argparse.Namespace(
+                config=list(manifest.config_paths),
+                recursive=manifest.recursive,
+                state_directory=manifest.state_directory,
+            )
+            context = SystevisorMainServerContext(context_args)
+            context.resume(handoff, completion_error=completion_error)
+            systevisor_cleanup_handoff_files(args.manifest)
+        except Exception as exc:  # noqa: BLE001
+            error = 'self_update_rollback_failed' if rollback else 'self_update_resume_failed'
+            message = f'{type(exc).__name__}: {exc}'
+            if not rollback and manifest is not None:
+                try:
+                    systevisor_rollback_handoff(manifest, args.manifest, message)
+                except Exception as rollback_exc:  # noqa: BLE001
+                    error = 'self_update_rollback_failed'
+                    message = (
+                        f'{message}; rollback exec failed: '
+                        f'{type(rollback_exc).__name__}: {rollback_exc}'
+                    )
+            _systevisor_main_print_json({
+                'error': error,
+                'message': message,
+            }, SystevisorJsonCodec(), 2)
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
 
-        coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
-        collection_name = (
-            None if manifest.startup_collection is None else
-            SystevisorCollectionName(manifest.startup_collection)
-        )
-        exit_code = 0
-        stopping_noted = False
-        shutdown_requested = False
-        while True:
-            coordinator.poll()
-            state = coordinator.engine.state
-            if collection_name is not None and not state.shutting_down and not shutdown_requested:
-                collection = state.collections.get(collection_name)
-                collection_config = (
-                    None if state.snapshot is None else
-                    state.snapshot.config.collections.get(collection_name)
-                )
-                if collection is None or collection_config is None:
-                    exit_code = 2
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.FAILED:
-                    exit_code = 1
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.INACTIVE:
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.READY and all(
-                        state.snapshot is not None and
-                        state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
-                        for unit_name in collection_config.units
-                ):
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.DEGRADED and all(
-                        instance.run_id is None
-                        for instance in state.instances.values()
-                        if instance.unit_name in collection_config.units
-                ):
-                    exit_code = 1
-                    shutdown_requested = True
-                if shutdown_requested:
-                    coordinator.submit(SystevisorShutdownCommand())
-            if state.shutting_down and not stopping_noted:
-                context.note_stopping()
-                stopping_noted = True
-            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
-                return exit_code
-    except Exception as exc:  # noqa: BLE001
-        error = 'self_update_rollback_failed' if rollback else 'self_update_resume_failed'
-        message = f'{type(exc).__name__}: {exc}'
-        if not rollback and manifest is not None:
-            try:
-                systevisor_rollback_handoff(manifest, args.manifest, message)
-            except Exception as rollback_exc:  # noqa: BLE001
-                error = 'self_update_rollback_failed'
-                message = (
-                    f'{message}; rollback exec failed: '
-                    f'{type(rollback_exc).__name__}: {rollback_exc}'
-                )
-        _systevisor_main_print_json({
-            'error': error,
-            'message': message,
-        }, SystevisorJsonCodec(), 2)
-        return 2
+        try:
+            return _systevisor_main_supervise(
+                context,
+                None if manifest.startup_collection is None else SystevisorCollectionName(manifest.startup_collection),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return _systevisor_main_report_failure(context.codec, exc, supervising=True)
     finally:
         if context is not None:
             context.close()

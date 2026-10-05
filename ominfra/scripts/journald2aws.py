@@ -103,7 +103,7 @@ def __om_amalg__():  # noqa
             dict(path='../../../../omcore/io/streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
             dict(path='../../../../omcore/io/streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
             dict(path='../../../../omcore/lite/configs.py', sha1='c8602e0e197ef1133e7e8e248935ac745bfd46cb'),
-            dict(path='../../../../omcore/logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
+            dict(path='../../../../omcore/logs/base.py', sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4'),
             dict(path='../../../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../../../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
             dict(path='../../../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),  # noqa
@@ -9127,7 +9127,7 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
             if isinstance(arg0 := args[0], BaseException):
                 if exc_info is not True:  # noqa
                     raise TypeError(f'exc_info={exc_info!r} is not allowed when exc={arg0!r} is passed')
-            args, exc_info = ((),), arg0
+                args, exc_info = ((),), arg0
 
         return self._log(
             CaptureLoggingContextImpl(

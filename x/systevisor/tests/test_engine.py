@@ -1,4 +1,5 @@
 # ruff: noqa: PT009 UP006 UP007 UP045
+import typing as ta
 import unittest
 
 from omcore.lite.marshal import OBJ_MARSHALER_MANAGER
@@ -164,6 +165,71 @@ class TestSystevisorEngine(unittest.TestCase):
             SystevisorProcessState.FATAL,
         )
         self.assertEqual(_systevisor_test_engine_effects(output, SystevisorScheduleDeadlineEffect), [])
+
+    def test_running_exits_are_restarted_on_a_backoff_which_a_stable_run_resets(self) -> None:
+        harness = SystevisorEngineHarness()
+        output = harness.submit(SystevisorApplySnapshotCommand(_systevisor_test_engine_snapshot(
+            worker=_systevisor_test_engine_unit('worker', restart_mode=SystevisorRestartMode.ALWAYS),
+        )))
+        instance = harness.engine.state.instances[SystevisorInstanceId('worker:0')]
+
+        def run_for(uptime: float) -> ta.Optional[float]:
+            # Returns how long the engine waits before respawning a run which exits after the given uptime.
+            nonlocal output
+            spawn = _systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect)[0]
+            harness.succeed_spawn(spawn)
+            self.assertEqual(instance.process_state, SystevisorProcessState.RUNNING)
+            harness.advance_to(harness.now + uptime)
+            exited_at = harness.now
+            output = harness.exit_spawn(spawn, 1)
+            if _systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect):
+                return 0.
+            self.assertEqual(instance.process_state, SystevisorProcessState.BACKOFF)
+            backoff = next(
+                effect
+                for effect in _systevisor_test_engine_effects(output, SystevisorScheduleDeadlineEffect)
+                if effect.kind is SystevisorDeadlineKind.BACKOFF
+            )
+            output = harness.advance_to(backoff.deadline_at)[-1]
+            return backoff.deadline_at - exited_at
+
+        # The first exit restarts at once; a unit which keeps dying young then waits longer each time, up to the cap,
+        # without ever being given up on.
+        self.assertEqual(
+            [run_for(.5) for _ in range(9)],
+            [0., 1., 2., 4., 8., 16., 32., 60., 60.],
+        )
+        self.assertEqual(instance.start_failures, 0)
+
+        # A run which lasted is forgiven its history.
+        self.assertEqual(run_for(60.), 0.)
+        self.assertEqual(run_for(.5), 1.)
+
+        # So is one the operator restarts by hand.
+        spawn = _systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect)[0]
+        harness.succeed_spawn(spawn)
+        harness.submit(SystevisorRestartInstanceCommand(instance.instance_id))
+        output = harness.exit_spawn(spawn, -15)
+        self.assertEqual(run_for(.5), 0.)
+
+    def test_restart_backoff_is_cancelled_by_a_stop(self) -> None:
+        harness = SystevisorEngineHarness()
+        output = harness.submit(SystevisorApplySnapshotCommand(_systevisor_test_engine_snapshot(
+            worker=_systevisor_test_engine_unit('worker', restart_mode=SystevisorRestartMode.ALWAYS),
+        )))
+        instance = harness.engine.state.instances[SystevisorInstanceId('worker:0')]
+        for _ in range(2):
+            spawn = _systevisor_test_engine_effects(output, SystevisorSpawnProcessEffect)[0]
+            harness.succeed_spawn(spawn)
+            output = harness.exit_spawn(spawn, 1)
+        self.assertEqual(instance.process_state, SystevisorProcessState.BACKOFF)
+
+        harness.submit(SystevisorSetInstanceDesiredCommand(instance.instance_id, False))
+        self.assertEqual(instance.process_state, SystevisorProcessState.STOPPED)
+        self.assertEqual(
+            [output for output in harness.advance_to(120.) if output.effects],
+            [],
+        )
 
     def test_expected_running_exit_does_not_restart(self) -> None:
         harness = SystevisorEngineHarness()

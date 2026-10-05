@@ -67,3 +67,32 @@ class TestLogs(unittest.TestCase):
         except Exception as ve:  # noqa
             log.exception()
             log.exception(ve)  # noqa
+
+    def test_exception_message(self):
+        handler = ListLoggingHandler()
+
+        logging_log = logging.getLogger(f'{__name__}.exception_message')
+        logging_log.handlers.clear()
+        logging_log.handlers.append(handler)
+
+        log = StdLogger(logging_log)
+        ve = ValueError('barf')
+        try:
+            raise ve  # noqa
+        except Exception:  # noqa
+            log.exception('lone message')
+            log.exception('message %d', 420)
+            log.exception(('tuple message %d', 420))
+            log.exception(lambda: 'fn message')
+            log.exception('explicit %s', 'exc', exc_info=ve)
+
+        assert [lr.getMessage() for lr in handler.records] == [
+            'lone message',
+            'message 420',
+            'tuple message 420',
+            'fn message',
+            'explicit exc',
+        ]
+        for lr in handler.records:
+            assert lr.exc_info is not None
+            assert lr.exc_info[1] is ve

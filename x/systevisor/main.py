@@ -9,6 +9,7 @@ import urllib.parse
 
 from omcore.io.fdio.pollers import FdioPoller
 from omcore.lite.inject import inj
+from omcore.logs.modules import get_module_logger
 
 from .configs.compiling import SystevisorConfigCompiler
 from .configs.compiling import SystevisorConfigCompileResult
@@ -26,6 +27,7 @@ from .control.plane import SystevisorControlPlane
 from .control.service import SystevisorControlService
 from .core.identities import SystevisorCollectionName
 from .core.inputs import SystevisorShutdownCommand
+from .core.state import SystevisorEngineState
 from .core.states import SystevisorCollectionStatus
 from .platforms.inject import systevisor_bind_platforms
 from .platforms.runtime import SystevisorManagerRuntime
@@ -37,6 +39,7 @@ from .resources.inject import systevisor_bind_resources
 from .resources.runtime import SystevisorResourceObserver
 from .resources.sockets import SystevisorInheritedSocketRegistry
 from .runtime.coordinator import SystevisorRuntimeCoordinator
+from .runtime.emergencies import SystevisorEmergencyStop
 from .runtime.inject import systevisor_bind_runtime
 from .runtime.processes import SystevisorProcessManager
 from .scheduling.runtime import SystevisorScheduler
@@ -56,7 +59,12 @@ from .selfupdate.runtime import systevisor_run_self_update_probe
 ##
 
 
+_SYSTEVISOR_MAIN_LOG = get_module_logger(globals())
+
 _SYSTEVISOR_MAIN_DEFAULT_ENDPOINT = 'unix:/tmp/systevisor.sock'
+
+_SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED = 2
+_SYSTEVISOR_MAIN_EXIT_RUNTIME_FAILED = 70  # sysexits EX_SOFTWARE
 
 
 class SystevisorNdjsonConsumer:
@@ -233,7 +241,19 @@ class SystevisorMainServerContext:
         if self.manager_runtime is not None:
             self.manager_runtime.stopping()
 
+    def _stop_owned_processes(self) -> None:
+        # Every way out of the manager ends here, and nothing it started may be left running unsupervised: a restarted
+        # manager cannot adopt strays and would start a second copy of each beside them. After an orderly shutdown
+        # there is nothing left to stop.
+        if self.coordinator is None:
+            return
+        try:
+            self._injector.provide(SystevisorEmergencyStop).run()
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_MAIN_LOG.exception('Systevisor could not stop its remaining processes')
+
     def close(self) -> None:
+        self._stop_owned_processes()
         if self.self_update is not None:
             self.self_update.close()
         if self.resource_observer is not None:
@@ -256,37 +276,105 @@ class SystevisorMainServerContext:
             self.inherited_sockets.close()
 
 
+def _systevisor_main_collection_exit_code(
+        state: SystevisorEngineState,
+        collection_name: SystevisorCollectionName,
+) -> ta.Optional[int]:
+    """The exit code of a foreground collection which has run its course, or none while it should keep running."""
+
+    collection = state.collections.get(collection_name)
+    collection_config = (
+        None if state.snapshot is None else
+        state.snapshot.config.collections.get(collection_name)
+    )
+    if collection is None or collection_config is None:
+        return 2
+    if collection.status is SystevisorCollectionStatus.FAILED:
+        return 1
+    if collection.status is SystevisorCollectionStatus.INACTIVE:
+        return 0
+    if collection.status is SystevisorCollectionStatus.READY and all(
+            state.snapshot is not None and
+            state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
+            for unit_name in collection_config.units
+    ):
+        return 0
+    if collection.status is SystevisorCollectionStatus.DEGRADED and all(
+            instance.run_id is None
+            for instance in state.instances.values()
+            if instance.unit_name in collection_config.units
+    ):
+        return 1
+    return None
+
+
+def _systevisor_main_supervise(
+        context: SystevisorMainServerContext,
+        collection_name: ta.Optional[SystevisorCollectionName] = None,
+) -> int:
+    coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
+    self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
+
+    exit_code = 0
+    shutdown_requested = False
+    stopping_noted = False
+    while True:
+        coordinator.poll()
+        if (fatal_error := coordinator.fatal_error) is not None:
+            raise fatal_error
+
+        if self_update.ready_to_exec():
+            try:
+                self_update.execute_prepared()
+            except SystevisorSelfUpdateError:
+                pass
+
+        state = coordinator.engine.state
+        if collection_name is not None and not state.shutting_down and not shutdown_requested:
+            collection_exit_code = _systevisor_main_collection_exit_code(state, collection_name)
+            if collection_exit_code is not None:
+                exit_code = collection_exit_code
+                shutdown_requested = True
+                coordinator.submit(SystevisorShutdownCommand())
+        if state.shutting_down and not stopping_noted:
+            context.note_stopping()
+            stopping_noted = True
+        if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
+            return exit_code
+
+
+def _systevisor_main_report_failure(
+        codec: SystevisorJsonCodec,
+        exc: BaseException,
+        *,
+        supervising: bool,
+) -> int:
+    # Once children are being supervised a failure is the manager's own, and is reported and exited as one rather than
+    # as a bad start; the caller's close stops whatever is still owned.
+    _SYSTEVISOR_MAIN_LOG.exception(
+        'Systevisor failed %s',
+        'while supervising' if supervising else 'during startup',
+        exc_info=exc,
+    )
+    _systevisor_main_print_json({
+        'error': 'runtime_failed' if supervising else 'startup_failed',
+        'message': f'{type(exc).__name__}: {exc}',
+    }, codec, 2)
+    return _SYSTEVISOR_MAIN_EXIT_RUNTIME_FAILED if supervising else _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
+
+
 def _systevisor_main_serve(args: argparse.Namespace) -> int:
     context = SystevisorMainServerContext(args)
+    supervising = False
     try:
         result = context.start(context.compile())
         if not result.attempt.applied or result.snapshot is None:
             _systevisor_main_print_json(result.attempt, context.codec, 2)
-            return 2
-        coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
-
-        stopping_noted = False
-        while True:
-            coordinator.poll()
-            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
-            if self_update.ready_to_exec():
-                try:
-                    self_update.execute_prepared()
-                except SystevisorSelfUpdateError:
-                    pass
-            state = coordinator.engine.state
-            if state.shutting_down and not stopping_noted:
-                context.note_stopping()
-                stopping_noted = True
-            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
-                break
-        return 0
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
+        supervising = True
+        return _systevisor_main_supervise(context)
     except Exception as exc:  # noqa: BLE001
-        _systevisor_main_print_json({
-            'error': 'startup_failed',
-            'message': f'{type(exc).__name__}: {exc}',
-        }, context.codec, 2)
-        return 2
+        return _systevisor_main_report_failure(context.codec, exc, supervising=supervising)
     finally:
         context.close()
 
@@ -294,74 +382,26 @@ def _systevisor_main_serve(args: argparse.Namespace) -> int:
 def _systevisor_main_run(args: argparse.Namespace) -> int:
     context = SystevisorMainServerContext(args)
     collection_name = SystevisorCollectionName(args.collection)
+    supervising = False
     try:
         result = context.start(context.compile(), collection_name)
         if not result.attempt.applied or result.snapshot is None:
             _systevisor_main_print_json(result.attempt, context.codec, 2)
-            return 2
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
         coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
-        collection_config = result.snapshot.config.collections.get(collection_name)
-        collection = coordinator.engine.state.collections.get(collection_name)
-        if collection_config is None or collection is None:
+        if (
+                collection_name not in result.snapshot.config.collections or
+                collection_name not in coordinator.engine.state.collections
+        ):
             _systevisor_main_print_json({
                 'error': 'unknown_collection',
                 'collection': collection_name,
             }, context.codec, 2)
-            return 2
-
-        exit_code = 0
-        shutdown_requested = False
-        stopping_noted = False
-        while True:
-            coordinator.poll()
-            self_update = ta.cast(SystevisorSelfUpdateManager, context.self_update)
-            if self_update.ready_to_exec():
-                try:
-                    self_update.execute_prepared()
-                except SystevisorSelfUpdateError:
-                    pass
-            state = coordinator.engine.state
-            collection = state.collections.get(collection_name)
-            current_collection_config = (
-                None if state.snapshot is None else
-                state.snapshot.config.collections.get(collection_name)
-            )
-            if not state.shutting_down and not shutdown_requested:
-                if collection is None or current_collection_config is None:
-                    exit_code = 2
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.FAILED:
-                    exit_code = 1
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.INACTIVE:
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.READY and all(
-                        state.snapshot is not None and
-                        state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
-                        for unit_name in current_collection_config.units
-                ):
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.DEGRADED and all(
-                        instance.run_id is None
-                        for instance in state.instances.values()
-                        if instance.unit_name in current_collection_config.units
-                ):
-                    exit_code = 1
-                    shutdown_requested = True
-                if shutdown_requested:
-                    coordinator.submit(SystevisorShutdownCommand())
-            if state.shutting_down and not stopping_noted:
-                context.note_stopping()
-                stopping_noted = True
-            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
-                break
-        return exit_code
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
+        supervising = True
+        return _systevisor_main_supervise(context, collection_name)
     except Exception as exc:  # noqa: BLE001
-        _systevisor_main_print_json({
-            'error': 'startup_failed',
-            'message': f'{type(exc).__name__}: {exc}',
-        }, context.codec, 2)
-        return 2
+        return _systevisor_main_report_failure(context.codec, exc, supervising=supervising)
     finally:
         context.close()
 
@@ -370,89 +410,54 @@ def _systevisor_main_resume(args: argparse.Namespace, *, rollback: bool = False)
     context: ta.Optional[SystevisorMainServerContext] = None
     manifest = None
     try:
-        manifest = systevisor_handoff_manifest_from_obj(systevisor_self_update_read_json(args.manifest))
-        handoff = systevisor_decode_handoff(
-            manifest,
-            os.path.realpath(sys.argv[0]),
-            previous_source=rollback,
-        )
-        completion_error: ta.Optional[str] = None
-        if rollback:
-            error_obj = systevisor_self_update_read_json(args.error_file)
-            if not isinstance(error_obj, dict) or not isinstance(error_obj.get('message'), str):
-                raise ValueError('invalid self-update rollback error document')
-            completion_error = error_obj['message']
-        context_args = argparse.Namespace(
-            config=list(manifest.config_paths),
-            recursive=manifest.recursive,
-            state_directory=manifest.state_directory,
-        )
-        context = SystevisorMainServerContext(context_args)
-        context.resume(handoff, completion_error=completion_error)
-        systevisor_cleanup_handoff_files(args.manifest)
+        # Only reconstruction may fall back to the previous artifact. Once the handoff has been consumed this is an
+        # ordinary manager again, and a later failure is its own rather than a reason to exec an image it has left.
+        try:
+            manifest = systevisor_handoff_manifest_from_obj(systevisor_self_update_read_json(args.manifest))
+            handoff = systevisor_decode_handoff(
+                manifest,
+                os.path.realpath(sys.argv[0]),
+                previous_source=rollback,
+            )
+            completion_error: ta.Optional[str] = None
+            if rollback:
+                error_obj = systevisor_self_update_read_json(args.error_file)
+                if not isinstance(error_obj, dict) or not isinstance(error_obj.get('message'), str):
+                    raise ValueError('invalid self-update rollback error document')
+                completion_error = error_obj['message']
+            context_args = argparse.Namespace(
+                config=list(manifest.config_paths),
+                recursive=manifest.recursive,
+                state_directory=manifest.state_directory,
+            )
+            context = SystevisorMainServerContext(context_args)
+            context.resume(handoff, completion_error=completion_error)
+            systevisor_cleanup_handoff_files(args.manifest)
+        except Exception as exc:  # noqa: BLE001
+            error = 'self_update_rollback_failed' if rollback else 'self_update_resume_failed'
+            message = f'{type(exc).__name__}: {exc}'
+            if not rollback and manifest is not None:
+                try:
+                    systevisor_rollback_handoff(manifest, args.manifest, message)
+                except Exception as rollback_exc:  # noqa: BLE001
+                    error = 'self_update_rollback_failed'
+                    message = (
+                        f'{message}; rollback exec failed: '
+                        f'{type(rollback_exc).__name__}: {rollback_exc}'
+                    )
+            _systevisor_main_print_json({
+                'error': error,
+                'message': message,
+            }, SystevisorJsonCodec(), 2)
+            return _SYSTEVISOR_MAIN_EXIT_STARTUP_FAILED
 
-        coordinator = ta.cast(SystevisorRuntimeCoordinator, context.coordinator)
-        collection_name = (
-            None if manifest.startup_collection is None else
-            SystevisorCollectionName(manifest.startup_collection)
-        )
-        exit_code = 0
-        stopping_noted = False
-        shutdown_requested = False
-        while True:
-            coordinator.poll()
-            state = coordinator.engine.state
-            if collection_name is not None and not state.shutting_down and not shutdown_requested:
-                collection = state.collections.get(collection_name)
-                collection_config = (
-                    None if state.snapshot is None else
-                    state.snapshot.config.collections.get(collection_name)
-                )
-                if collection is None or collection_config is None:
-                    exit_code = 2
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.FAILED:
-                    exit_code = 1
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.INACTIVE:
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.READY and all(
-                        state.snapshot is not None and
-                        state.snapshot.config.units[unit_name].kind is SystevisorUnitKind.ONESHOT
-                        for unit_name in collection_config.units
-                ):
-                    shutdown_requested = True
-                elif collection.status is SystevisorCollectionStatus.DEGRADED and all(
-                        instance.run_id is None
-                        for instance in state.instances.values()
-                        if instance.unit_name in collection_config.units
-                ):
-                    exit_code = 1
-                    shutdown_requested = True
-                if shutdown_requested:
-                    coordinator.submit(SystevisorShutdownCommand())
-            if state.shutting_down and not stopping_noted:
-                context.note_stopping()
-                stopping_noted = True
-            if state.shutting_down and all(instance.run_id is None for instance in state.instances.values()):
-                return exit_code
-    except Exception as exc:  # noqa: BLE001
-        error = 'self_update_rollback_failed' if rollback else 'self_update_resume_failed'
-        message = f'{type(exc).__name__}: {exc}'
-        if not rollback and manifest is not None:
-            try:
-                systevisor_rollback_handoff(manifest, args.manifest, message)
-            except Exception as rollback_exc:  # noqa: BLE001
-                error = 'self_update_rollback_failed'
-                message = (
-                    f'{message}; rollback exec failed: '
-                    f'{type(rollback_exc).__name__}: {rollback_exc}'
-                )
-        _systevisor_main_print_json({
-            'error': error,
-            'message': message,
-        }, SystevisorJsonCodec(), 2)
-        return 2
+        try:
+            return _systevisor_main_supervise(
+                context,
+                None if manifest.startup_collection is None else SystevisorCollectionName(manifest.startup_collection),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return _systevisor_main_report_failure(context.codec, exc, supervising=True)
     finally:
         if context is not None:
             context.close()

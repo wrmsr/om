@@ -66,7 +66,7 @@ def __om_amalg__():  # noqa
             dict(path='handlers/flatmap.py', sha1='33daa28b6b14a0e7aca10640f938792e86dcfa3b'),
             dict(path='../streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
             dict(path='../streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
-            dict(path='../../logs/base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
+            dict(path='../../logs/base.py', sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4'),
             dict(path='../../logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='../streambufs/framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
             dict(path='../streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
@@ -6120,7 +6120,7 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
             if isinstance(arg0 := args[0], BaseException):
                 if exc_info is not True:  # noqa
                     raise TypeError(f'exc_info={exc_info!r} is not allowed when exc={arg0!r} is passed')
-            args, exc_info = ((),), arg0
+                args, exc_info = ((),), arg0
 
         return self._log(
             CaptureLoggingContextImpl(

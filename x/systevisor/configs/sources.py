@@ -4,13 +4,33 @@ import os
 import os.path
 import typing as ta
 
-from omcore.configs.formats import DEFAULT_CONFIG_FILE_LOADER
+from omcore.configs.formats import JsonConfigLoader
+from omcore.configs.formats import SwitchedConfigFileLoader
+from omcore.configs.formats import TomlConfigLoader
+from omcore.configs.formats import YamlConfigLoader
+from omcore.formats.yaml.goyaml.backend import GoyamlYamlBackend
 
 
 ##
 
 
 _SYSTEVISOR_CONFIG_SOURCE_EXTENSIONS = frozenset({'.json', '.toml', '.yaml', '.yml'})
+
+
+class SystevisorYamlConfigLoader(YamlConfigLoader):
+    # Pinned rather than left to the default backend search: the amalgamated artifact has no package for the default
+    # goyaml backend to be imported relative to, and a config must not parse differently when pyyaml is installed.
+    backend = GoyamlYamlBackend()
+
+
+_SYSTEVISOR_CONFIG_SOURCE_FILE_LOADER = SwitchedConfigFileLoader(
+    loaders=[
+        JsonConfigLoader(),
+        TomlConfigLoader(),
+        SystevisorYamlConfigLoader(),
+    ],
+    default=JsonConfigLoader(),
+)
 
 
 @dc.dataclass(frozen=True)
@@ -79,9 +99,9 @@ def systevisor_discover_config_files(paths: ta.Iterable[str], *, recursive: bool
 
 def systevisor_load_config_document(path: str) -> SystevisorConfigSourceDocument:
     try:
-        data = DEFAULT_CONFIG_FILE_LOADER.load_file(path).as_map()
+        data = _SYSTEVISOR_CONFIG_SOURCE_FILE_LOADER.load_file(path).as_map()
     except Exception as exc:
-        raise SystevisorConfigSourceError(path, str(exc)) from exc
+        raise SystevisorConfigSourceError(path, str(exc) or type(exc).__name__) from exc
 
     return SystevisorConfigSourceDocument(path=path, data=dict(data))
 

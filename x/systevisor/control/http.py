@@ -5,6 +5,7 @@ import errno
 import os
 import socket
 import stat
+import time
 import typing as ta
 
 from omcore.http.headers import HttpHeaders
@@ -30,6 +31,7 @@ from omcore.io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
 from omcore.io.pipelines.flow.types import IoPipelineFlow
 from omcore.io.pipelines.flow.types import IoPipelineFlowMessages
 from omcore.io.streambufs.utils import ByteStreamBuffers
+from omcore.logs.modules import get_module_logger
 from omcore.sockets.addresses import SocketAddress
 
 from ..configs.models import SystevisorApiConfig
@@ -42,6 +44,12 @@ from .configs import SystevisorConfigPreparedChange
 
 
 ##
+
+
+_SYSTEVISOR_HTTP_LOG = get_module_logger(globals())
+
+_SYSTEVISOR_HTTP_ACCEPT_RETRY_SECS = 1.
+_SYSTEVISOR_HTTP_ACCEPT_EXHAUSTION_ERRNOS = frozenset({errno.EMFILE, errno.ENFILE, errno.ENOBUFS, errno.ENOMEM})
 
 
 @dc.dataclass(frozen=True)
@@ -238,6 +246,77 @@ class SystevisorHttpConnectionIoPipelineHandler(IoPipelineHandler):
         ])
 
 
+class SystevisorHttpConnectionFdioHandler(IoPipelineDriverSocketFdioHandler):
+    """
+    A control connection is disposable. The driver fails itself and then re-raises whatever went wrong, which is the
+    right report for a caller that owns one connection but must never reach the reactor every managed child shares - a
+    peer that simply went away would otherwise take the manager down with it.
+    """
+
+    def _systevisor_io(self, method: ta.Callable[[], None]) -> None:
+        try:
+            method()
+        except OSError as exc:
+            _SYSTEVISOR_HTTP_LOG.debug('Systevisor control connection ended: %s: %s', type(exc).__name__, exc)
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection failed')
+        else:
+            return
+
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control connection did not close cleanly')
+
+    def on_readable(self) -> None:
+        self._systevisor_io(super().on_readable)
+
+    def on_writable(self) -> None:
+        self._systevisor_io(super().on_writable)
+
+    def on_timeout(self) -> None:
+        self._systevisor_io(super().on_timeout)
+
+
+class SystevisorHttpListenerFdioHandler(ServerSocketFdioHandler):
+    """
+    Accepting can fail for reasons that say nothing about the manager's health: the peer already reset, or descriptors
+    are exhausted. The latter leaves the listener readable, so accepting pauses briefly rather than spinning.
+    """
+
+    def __init__(
+            self,
+            sock: socket.socket,
+            on_connect: ta.Callable[[socket.socket, SocketAddress], None],
+    ) -> None:
+        super().__init__(sock, on_connect)
+
+        self._systevisor_retry_at: ta.Optional[float] = None
+
+    def readable(self) -> bool:
+        return self._systevisor_retry_at is None
+
+    def next_deadline(self) -> ta.Optional[float]:
+        return self._systevisor_retry_at
+
+    def on_timeout(self) -> None:
+        self._systevisor_retry_at = None
+
+    def on_readable(self) -> None:
+        try:
+            super().on_readable()
+        except BlockingIOError:
+            pass
+        except OSError as exc:
+            if exc.errno not in _SYSTEVISOR_HTTP_ACCEPT_EXHAUSTION_ERRNOS:
+                _SYSTEVISOR_HTTP_LOG.debug('Systevisor control connection was not accepted: %s', exc)
+                return
+            _SYSTEVISOR_HTTP_LOG.warning('Systevisor control listener is pausing: %s', exc)
+            self._systevisor_retry_at = time.monotonic() + _SYSTEVISOR_HTTP_ACCEPT_RETRY_SECS
+        except Exception:  # noqa: BLE001
+            _SYSTEVISOR_HTTP_LOG.exception('Systevisor control listener failed to set up a connection')
+
+
 SystevisorHttpListenerKey = ta.Tuple[ta.Union[str, int], ...]
 
 
@@ -295,7 +374,7 @@ class SystevisorHttpServer:
         self._fdio_manager = fdio_manager
         self._application = application
         self._listeners: ta.Dict[SystevisorHttpListenerKey, SystevisorHttpListener] = {}
-        self._connections: ta.Set[IoPipelineDriverSocketFdioHandler] = set()
+        self._connections: ta.Set[SystevisorHttpConnectionFdioHandler] = set()
         self._queue_capacity_bytes = 1024 * 1024
 
     @property
@@ -336,7 +415,7 @@ class SystevisorHttpServer:
     def _accept(self, sock: socket.socket, address: SocketAddress) -> None:
         self._connections = {connection for connection in self._connections if not connection.closed}
         try:
-            connection = IoPipelineDriverSocketFdioHandler(
+            connection = SystevisorHttpConnectionFdioHandler(
                 sock,
                 address,
                 SystevisorHttpConnectionIoPipelineHandler.build_pipeline_spec(
@@ -378,14 +457,14 @@ class SystevisorHttpServer:
             unix_socket, unix_identity = self._bind_unix_socket(path, config.unix_socket_mode)
             return SystevisorHttpListener(
                 key,
-                ServerSocketFdioHandler(unix_socket, self._accept),
+                SystevisorHttpListenerFdioHandler(unix_socket, self._accept),
                 unix_identity,
             )
         if key[0] == 'tcp':
             host = ta.cast(str, key[1])
             port = ta.cast(int, key[2])
             tcp_socket = socket.create_server((host, port))
-            return SystevisorHttpListener(key, ServerSocketFdioHandler(tcp_socket, self._accept))
+            return SystevisorHttpListener(key, SystevisorHttpListenerFdioHandler(tcp_socket, self._accept))
         raise ValueError(key)
 
     def prepare_reconfigure(self, config: SystevisorApiConfig) -> SystevisorHttpPreparedChange:

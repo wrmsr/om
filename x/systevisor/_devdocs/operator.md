@@ -135,6 +135,19 @@ reaping. Other configured catchable signals enter the engine and use each unit's
 delivery always resolves a run, acquires its non-reaping lease, revalidates ownership, and then uses pidfd/direct-child
 or owned-session delivery. `KILL` and `STOP` cannot be incoming forwarding signals.
 
+Every child is exec'd with default signal dispositions and an empty signal mask, whatever the manager itself inherited
+or ignores (the interpreter ignores `PIPE`). A signal sent to a run that has forked but not yet exec'd is held until
+the child has shed the manager's handlers, and then acts on the child as it would on the program.
+
+## Restart pacing
+
+A run that exits before `restart.start_secs` is a failed start: it is retried after `backoff_initial_secs`, multiplied
+by `backoff_multiplier` each time up to `backoff_max_secs`, and the instance goes `fatal` once `start_retries` is
+exhausted. A run that exits after becoming `running` is restarted according to `restart.mode`, immediately the first
+time and then on the same backoff curve for as long as its runs keep dying young. Such an instance sits in `backoff`
+between attempts but never goes `fatal`. A run that stays up for `backoff_max_secs`, a manual start or restart, or a
+restart-required config change clears that history.
+
 ## Child output
 
 `capture`, `file`, and `stdout` modes give the manager a nonblocking pipe and therefore support byte rings and stream
@@ -142,6 +155,13 @@ followers. `inherit` and `devnull` do not. `stderr.mode: stdout` performs `2>&1`
 generated rotating file beneath `manager.child_log_directory`; cold cleanup removes only generated filenames.
 `syslog: true` adds an injected syslog sink alongside capture/file output. Sink failure emits an event and is detached
 without stopping pipe drainage.
+
+A run's sinks are closed once its process has been reaped and its output pipe has reached end-of-file; a descendant
+still holding the pipe keeps the channel open until it lets go. After that the run's byte ring stays readable until
+`manager.retained_child_log_runs` (default 2, live-updateable) newer ended runs of the same instance exist, at which
+point it is dropped and reads of it return 404. With `cleanup_auto_logs` enabled the generated per-run files of a
+dropped run are removed with it, so a unit that restarts often does not accumulate them; configure an explicit `file`
+for output that should outlive its run.
 
 Clients track absolute byte offsets. A positive `gap_bytes` means the requested prefix fell out of the bounded ring.
 Slow HTTP followers have independent bounded queues and cannot backpressure child pipes.
@@ -170,6 +190,18 @@ subreaper/unknown-child cleanup and configured signal delegation are built in.
 Cgroups require a pre-delegated cgroup-v2 root; Systevisor does not edit ancestor delegation or use `cgroup.kill`.
 Activation sockets are adopted only from a valid systemd-style `LISTEN_PID/FDS/FDNAMES` set and only explicitly named
 unit selections are inherited. See `nginx.md` for a foreground-master nginx configuration.
+
+## Manager failure
+
+Control connections are disposable: a client that disconnects, stalls, or sends garbage ends only its own connection.
+An effect the manager cannot carry out (a signal the kernel refuses, a spawn whose resources cannot be prepared) is
+logged, published as a `runtime.effect_failed` event, and where applicable becomes an ordinary start failure.
+
+An internal error the manager cannot contain is fatal by design rather than survived in an unknown state. It is logged
+with its traceback, reported on stderr as `runtime_failed`, and the manager exits 70 - but not before every process it
+still owns has been sent its unit's stop signal, given its unit's stop timeout, and then killed. No exit path leaves
+children running unsupervised, so a service manager restarting Systevisor never starts a second copy of the stack
+beside a stranded first one. Exit 2 remains reserved for a start that never got as far as supervising.
 
 ## Troubleshooting order
 

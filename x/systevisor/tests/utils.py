@@ -1,6 +1,6 @@
 import shutil
 
-from omcore import check
+from omcore.lite.check import check
 
 
 def true_bin() -> str:

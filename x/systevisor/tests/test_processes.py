@@ -39,6 +39,7 @@ from ..runtime.processes import SystevisorProcessManager
 from ..runtime.processes import SystevisorProcessOwnershipError
 from ..runtime.processes import SystevisorProcessSpawnError
 from ..runtime.processes import systevisor_close_process_retirement
+from ..runtime.signals import SystevisorSignalFdioHandler
 from .utils import true_bin
 
 
@@ -478,3 +479,84 @@ class TestSystevisorProcesses(unittest.TestCase):
 
         self.assertEqual(manager.poll_unknown_exits(), ())
         self.assertEqual(_systevisor_test_wait_exit(manager, effect.run_id).run_id, effect.run_id)
+
+    @unittest.skipUnless(os.path.exists('/proc/self/status'), 'requires procfs signal state')
+    def test_child_starts_with_default_dispositions_and_an_empty_mask(self) -> None:
+        # The interpreter itself ignores SIGPIPE and SIGXFSZ, and an ignored signal stays ignored across exec.
+        self.assertIs(signal.getsignal(signal.SIGPIPE), signal.SIG_IGN)
+
+        manager = SystevisorProcessManager()
+        effect = _systevisor_test_process_effect((
+            '/bin/sh',
+            '-c',
+            'grep -E "^Sig(Ign|Blk):" /proc/self/status',
+        ))
+        manager.spawn(effect)
+        state = manager.get_state(effect.run_id)
+        assert state is not None
+        assert state.stdout_fd is not None
+        _systevisor_test_wait_exec(manager, effect.run_id)
+        self.assertEqual(_systevisor_test_wait_exit(manager, effect.run_id).return_code, 0)
+
+        fields = dict(
+            line.split(':', 1)
+            for line in os.read(state.stdout_fd, 4096).decode('ascii').splitlines()
+        )
+        self.assertEqual(int(fields['SigIgn'], 16), 0)
+        self.assertEqual(int(fields['SigBlk'], 16), 0)
+        systevisor_close_process_retirement(manager.acknowledge_exit(effect.run_id))
+
+    def test_signal_between_fork_and_exec_acts_on_the_child_alone(self) -> None:
+        gate_read_fd, gate_write_fd = os.pipe()
+        self.addCleanup(os.close, gate_read_fd)
+
+        class GatedModifier(SystevisorChildModifier):
+            def child_environment(self, context: SystevisorChildContext) -> ta.Mapping[str, str]:
+                # Holds the child before exec, while it still has every descriptor it inherited from the manager.
+                os.read(gate_read_fd, 1)
+                return {}
+
+        received: ta.List[int] = []
+        signal_handler = SystevisorSignalFdioHandler(lambda item: received.append(item.signal_number))
+        signal_handler.install()
+        self.addCleanup(signal_handler.close)
+
+        manager = SystevisorProcessManager(child_modifiers=(GatedModifier(),))
+        effect = _systevisor_test_process_effect((true_bin(),))
+        manager.spawn(effect)
+        manager.signal(effect.run_id, 'TERM', SystevisorSignalScope.PROCESS)
+        os.write(gate_write_fd, b'x')
+        os.close(gate_write_fd)
+
+        # Had the child still been running the manager's handler it would have swallowed the signal and gone on to
+        # exec and exit 0, having reported a SIGTERM to the manager through the shared wakeup descriptor.
+        self.assertEqual(_systevisor_test_wait_exit(manager, effect.run_id).return_code, -signal.SIGTERM)
+        signal_handler.on_readable()
+        self.assertNotIn(signal.SIGTERM, received)
+
+        _systevisor_test_wait_exec(manager, effect.run_id)
+        systevisor_close_process_retirement(manager.acknowledge_exit(effect.run_id))
+
+    def test_parent_failure_after_fork_leaves_nothing_owned(self) -> None:
+        spawned_pids: ta.List[int] = []
+        retired: ta.List[SystevisorRunId] = []
+
+        class FailingModifier(SystevisorChildModifier):
+            def parent_spawned(self, context: SystevisorChildContext, pid: int) -> None:
+                spawned_pids.append(pid)
+                raise RuntimeError('parent bookkeeping failed')
+
+            def parent_retired(self, context: SystevisorChildContext) -> None:
+                retired.append(context.run_id)
+
+        manager = SystevisorProcessManager(child_modifiers=(FailingModifier(),))
+        effect = _systevisor_test_process_effect(('/bin/sleep', '60'))
+        open_fds = set(os.listdir('/dev/fd'))
+        with self.assertRaises(SystevisorProcessSpawnError):
+            manager.spawn(effect)
+
+        self.assertFalse(manager.has_processes())
+        self.assertEqual(retired, [effect.run_id])
+        self.assertEqual(set(os.listdir('/dev/fd')), open_fds)
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(spawned_pids[0], os.WNOHANG)

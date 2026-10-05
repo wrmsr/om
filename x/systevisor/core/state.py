@@ -64,6 +64,7 @@ class SystevisorInstanceState:
     applied_spec_digest: ta.Optional[str] = None
     spawn_confirmed: bool = False
     start_failures: int = 0
+    unstable_restarts: int = 0
     started_at: ta.Optional[float] = None
     ready: bool = False
     completed_successfully: bool = False
@@ -79,7 +80,7 @@ class SystevisorInstanceState:
 
 @dc.dataclass()
 class SystevisorEngineState:
-    state_schema_version: int = 2
+    state_schema_version: int = 3
     snapshot: ta.Optional[SystevisorConfigSnapshot] = None
     config_generation: int = 0
     instances: ta.MutableMapping[SystevisorInstanceId, SystevisorInstanceState] = dc.field(default_factory=dict)

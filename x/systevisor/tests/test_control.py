@@ -1,4 +1,5 @@
 # ruff: noqa: PT009 UP006 UP007 UP045
+import errno
 import json
 import os
 import pathlib
@@ -29,6 +30,7 @@ from ..control.client import SystevisorApiClient
 from ..control.client import SystevisorApiClientIoPipelineHandler
 from ..control.configs import SystevisorConfigController
 from ..control.http import SystevisorHttpConnectionIoPipelineHandler
+from ..control.http import SystevisorHttpListenerFdioHandler
 from ..control.http import SystevisorHttpServer
 from ..control.jsoncodec import SystevisorJsonCodec
 from ..control.operations import SystevisorOperationStatus
@@ -421,6 +423,79 @@ class TestSystevisorControl(unittest.TestCase):
         self.assertEqual(os.stat(socket_path).st_mode & 0o777, 0o620)
         server.close()
         self.assertFalse(os.path.exists(socket_path))
+
+    def _roundtrip(self, socket_path: str, request: bytes) -> bytes:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_socket:
+            client_socket.settimeout(1.)
+            client_socket.connect(socket_path)
+            client_socket.sendall(request)
+            client_socket.setblocking(False)
+            response = bytearray()
+            deadline = time.monotonic() + 5.
+            while time.monotonic() < deadline:
+                self.fixture.fdio_manager.poll(timeout=.1)
+                try:
+                    data = client_socket.recv(65536)
+                except BlockingIOError:
+                    continue
+                if not data:
+                    return bytes(response)
+                response.extend(data)
+        raise AssertionError('timed out waiting for Unix-socket HTTP response')
+
+    def test_peer_disconnects_are_contained_to_their_connection(self) -> None:
+        self.assertTrue(self.fixture.config_controller.reload(initial=True).attempt.applied)
+        socket_path = str(self.fixture.root / 'api.sock')
+        server = SystevisorHttpServer(self.fixture.fdio_manager, self.fixture.application)
+        server.start(SystevisorApiConfig(unix_socket=socket_path))
+        self.addCleanup(server.close)
+
+        # A request abandoned halfway is answered with an error that can no longer be delivered.
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as abandoned_socket:
+            abandoned_socket.connect(socket_path)
+            abandoned_socket.sendall(b'GET /\r\n')
+            self.fixture.fdio_manager.poll(timeout=1.)
+        self.assertIn(b'HTTP/1.1 200 OK', self._roundtrip(socket_path, b'GET / HTTP/1.1\r\nHost: localhost\r\n\r\n'))
+
+        # A follower that goes away is owed the end of its stream, and then whatever is published next.
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as follower_socket:
+            follower_socket.settimeout(5.)
+            follower_socket.connect(socket_path)
+            follower_socket.sendall(b'GET /v1/events?follow=true HTTP/1.1\r\nHost: localhost\r\n\r\n')
+            follower_socket.setblocking(False)
+            deadline = time.monotonic() + 5.
+            while time.monotonic() < deadline:
+                self.fixture.fdio_manager.poll(timeout=.1)
+                try:
+                    if follower_socket.recv(65536):
+                        break
+                except BlockingIOError:
+                    continue
+            else:
+                self.fail('timed out waiting for the event stream to begin')
+        self.fixture.event_bus.publish('test.after_disconnect', {'ok': True}, self.fixture.clock.monotonic())
+        self.assertIn(b'HTTP/1.1 200 OK', self._roundtrip(socket_path, b'GET / HTTP/1.1\r\nHost: localhost\r\n\r\n'))
+
+    def test_listener_pauses_instead_of_spinning_when_accept_is_exhausted(self) -> None:
+        class ExhaustedSocket(socket.socket):
+            def accept(self) -> ta.Any:
+                raise OSError(errno.EMFILE, os.strerror(errno.EMFILE))
+
+        listener_socket = ExhaustedSocket(socket.AF_UNIX, socket.SOCK_STREAM)
+        listener_socket.bind(str(self.fixture.root / 'exhausted.sock'))
+        accepted: ta.List[ta.Any] = []
+        listener = SystevisorHttpListenerFdioHandler(listener_socket, lambda sock, address: accepted.append(sock))
+        self.addCleanup(listener.close)
+        self.assertTrue(listener.readable())
+
+        listener.on_readable()
+
+        self.assertEqual(accepted, [])
+        self.assertFalse(listener.readable())
+        self.assertIsNotNone(listener.next_deadline())
+        listener.on_timeout()
+        self.assertTrue(listener.readable())
+        self.assertIsNone(listener.next_deadline())
 
     def test_http_server_reconfigures_listener_set_without_dropping_retained_socket(self) -> None:
         first_path = str(self.fixture.root / 'first.sock')

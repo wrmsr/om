@@ -20,7 +20,7 @@ uses literal argv arrays, and separates identity, restart, stop, stdio, dependen
 | `auto_start` | `unit.autostart` | Collection and dependency claims remain separate from configured autostart. |
 | `auto_restart` | `unit.restart.mode` | `never`, `unexpected`, or `always`. |
 | `start_secs` | `unit.restart.start_secs` | Monotonic deadline; zero is supported. |
-| `start_retries` | `unit.restart.start_retries` | Includes explicit initial/multiplier/maximum backoff controls. |
+| `start_retries` | `unit.restart.start_retries` | Includes explicit initial/multiplier/maximum backoff controls, which also pace restarts of runs that keep exiting soon after becoming running. |
 | `stop_signal` | `unit.stop.signal` | Named signals are normalized and validated before activation. |
 | `stop_wait_secs` | `unit.stop.timeout_secs` | Monotonic escalation deadline. |
 | `stop_as_group` | `unit.stop.scope: session` | A session is created before exec and is signaled only through the leader run's active lease. |

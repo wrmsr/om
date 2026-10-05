@@ -17,6 +17,7 @@ from ..resources.sockets import SystevisorInheritedSocketChildModifier
 from .clocks import SystevisorClock
 from .clocks import SystevisorSystemClock
 from .coordinator import SystevisorRuntimeCoordinator
+from .emergencies import SystevisorEmergencyStop
 from .events import SystevisorEventBus
 from .health import SystevisorFdioHealthProbeRunner
 from .health import SystevisorHealthProbeRunner
@@ -59,6 +60,13 @@ def _systevisor_runtime_inject_provide_log_manager(
     return SystevisorLogManager(event_bus, clock, syslog_writer)
 
 
+def _systevisor_runtime_inject_provide_emergency_stop(
+        process_manager: SystevisorProcessManager,
+        clock: SystevisorClock,
+) -> SystevisorEmergencyStop:
+    return SystevisorEmergencyStop(process_manager, clock)
+
+
 def systevisor_bind_runtime() -> InjectorBindings:
     poller_type = ta.cast(ta.Type[FdioPoller], next(filter(None, (
         KqueueFdioPoller,
@@ -83,5 +91,6 @@ def systevisor_bind_runtime() -> InjectorBindings:
         inj.bind(SystevisorFdioHealthProbeRunner, singleton=True),
         inj.bind(SystevisorHealthProbeRunner, to_key=SystevisorFdioHealthProbeRunner),
         inj.bind(SystevisorRuntimeCoordinator, singleton=True),
+        inj.bind(_systevisor_runtime_inject_provide_emergency_stop, singleton=True),
     ]
     return inj.as_bindings(*bindings)

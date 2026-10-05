@@ -499,6 +499,7 @@ class SystevisorManagerRuntime:
             self_update=SystevisorSelfUpdateConfig(),
             process_title=None,
             strip_ansi=False,
+            retained_child_log_runs=0,
         )
 
     def prepare(self, config: SystevisorManagerConfig) -> SystevisorPreparedManagerRuntimeChange:

@@ -305,6 +305,7 @@ class SystevisorLogChannel:
     ring: SystevisorByteRingBuffer
     sinks: ta.List[SystevisorLogSink] = dc.field(default_factory=list)
     retired: bool = False
+    output_open: bool = False
     created_at: float = 0.
     last_activity_at: ta.Optional[float] = None
 
@@ -316,11 +317,13 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
             run_id: SystevisorRunId,
             stream: SystevisorLogStream,
             callback: ta.Callable[[bytes], None],
+            on_closed: ta.Optional[ta.Callable[[], None]] = None,
     ) -> None:
         self._fd = fd
         self._run_id = run_id
         self._stream = stream
         self._callback = callback
+        self._on_closed = on_closed
         self._closed = False
 
     def fd(self) -> int:
@@ -342,6 +345,8 @@ class SystevisorProcessOutputFdioHandler(FdioHandler):
         if not self._closed:
             os.close(self._fd)
             self._closed = True
+            if self._on_closed is not None:
+                self._on_closed()
 
     def readable(self) -> bool:
         return not self._closed
@@ -369,12 +374,17 @@ class SystevisorLogManager:
             syslog_writer: ta.Optional[SystevisorChildSyslogWriter] = None,
             *,
             default_strip_ansi: bool = False,
+            retained_runs: int = 2,
     ) -> None:
+        if retained_runs < 0:
+            raise ValueError(retained_runs)
         self._event_bus = event_bus
         self._clock = clock
         self._syslog_writer = syslog_writer
         self._default_strip_ansi = default_strip_ansi
+        self._retained_runs = retained_runs
         self._child_log_directory: ta.Optional[str] = None
+        self._cleanup_auto_logs = False
         self._channels: ta.Dict[ta.Tuple[SystevisorRunId, SystevisorLogStream], SystevisorLogChannel] = {}
         self._subscriptions: ta.Dict[
             int,
@@ -385,6 +395,22 @@ class SystevisorLogManager:
             ],
         ] = {}
         self._next_subscription_id = 1
+
+    def _auto_file(
+            self,
+            run_id: SystevisorRunId,
+            instance_id: SystevisorInstanceId,
+            stream: SystevisorLogStream,
+            config: SystevisorOutputConfig,
+    ) -> ta.Optional[str]:
+        if config.mode is not SystevisorOutputMode.FILE or config.file is not None:
+            return None
+        if self._child_log_directory is None:
+            raise ValueError('automatic file output requires a child log directory')
+        return os.path.join(
+            self._child_log_directory,
+            f'systevisor-child-{instance_id}-{int(run_id)}-{stream.value}.log',
+        )
 
     def _make_sinks(
             self,
@@ -399,12 +425,7 @@ class SystevisorLogManager:
         if config.mode is SystevisorOutputMode.FILE:
             file = config.file
             if file is None:
-                if self._child_log_directory is None:
-                    raise ValueError('automatic file output requires a child log directory')
-                file = os.path.join(
-                    self._child_log_directory,
-                    f'systevisor-child-{instance_id}-{int(run_id)}-{stream.value}.log',
-                )
+                file = self._auto_file(run_id, instance_id, stream, config)
             sinks.append(SystevisorRotatingFileLogSink(dc.replace(
                 config,
                 file=file,
@@ -428,6 +449,7 @@ class SystevisorLogManager:
         if self._channels and directory != self._child_log_directory:
             raise RuntimeError('child log directory cannot change while log channels exist')
         self._child_log_directory = directory
+        self._cleanup_auto_logs = config.cleanup_auto_logs
         if cleanup and config.cleanup_auto_logs and directory is not None:
             with os.scandir(directory) as entries:
                 for entry in entries:
@@ -437,37 +459,105 @@ class SystevisorLogManager:
     def set_default_strip_ansi(self, enabled: bool) -> None:
         self._default_strip_ansi = enabled
 
+    def set_retained_runs(self, retained_runs: int) -> None:
+        if retained_runs < 0:
+            raise ValueError(retained_runs)
+        self._retained_runs = retained_runs
+        self._evict()
+
+    def _output_handler(
+            self,
+            run_id: SystevisorRunId,
+            stream: SystevisorLogStream,
+            fd: int,
+    ) -> SystevisorProcessOutputFdioHandler:
+        def handle_data(data: bytes) -> None:
+            self.append(run_id, stream, data)
+
+        def handle_closed() -> None:
+            channel = self._channels.get((run_id, stream))
+            if channel is not None:
+                channel.output_open = False
+                self._settle(run_id)
+
+        return SystevisorProcessOutputFdioHandler(fd, run_id, stream, handle_data, handle_closed)
+
+    def _settle(self, run_id: SystevisorRunId) -> None:
+        # A channel can still receive bytes after its process is reaped for as long as something holds the pipe open,
+        # so its sinks are only released once both have happened. Only then does the run count toward retention.
+        for (channel_run_id, _), channel in self._channels.items():
+            if channel_run_id == run_id and channel.retired and not channel.output_open:
+                for sink in channel.sinks:
+                    sink.close()
+                channel.sinks = []
+        self._evict()
+
+    def _evict(self) -> None:
+        settled: ta.Dict[SystevisorInstanceId, ta.Set[SystevisorRunId]] = {}
+        unsettled: ta.Set[SystevisorRunId] = set()
+        for (run_id, _), channel in self._channels.items():
+            if channel.retired and not channel.output_open:
+                settled.setdefault(channel.instance_id, set()).add(run_id)
+            else:
+                unsettled.add(run_id)
+
+        evicted: ta.Set[SystevisorRunId] = set()
+        for run_ids in settled.values():
+            ordered = sorted(run_ids - unsettled)
+            evicted.update(ordered[:max(0, len(ordered) - self._retained_runs)])
+
+        for key in [key for key in self._channels if key[0] in evicted]:
+            channel = self._channels.pop(key)
+            if self._cleanup_auto_logs:
+                self._remove_auto_files(channel)
+
+    def _remove_auto_files(self, channel: SystevisorLogChannel) -> None:
+        # Generated per-run files are scratch output in the same sense cold-start cleanup treats them as, and would
+        # otherwise accumulate one per run for as long as the manager lives.
+        path = self._auto_file(channel.run_id, channel.instance_id, channel.stream, channel.config)
+        if path is None:
+            return
+        for candidate in (path, *(f'{path}.{index}' for index in range(1, channel.config.backups + 1))):
+            try:
+                os.unlink(candidate)
+            except FileNotFoundError:
+                pass
+            except OSError as exc:
+                self._event_bus.publish('log.cleanup_error', {
+                    'run_id': channel.run_id,
+                    'stream': channel.stream.value,
+                    'message': str(exc),
+                }, self._clock.monotonic())
+
     def register_process(
             self,
             effect: SystevisorSpawnProcessEffect,
             stdout_fd: ta.Optional[int],
             stderr_fd: ta.Optional[int],
     ) -> ta.Sequence[SystevisorProcessOutputFdioHandler]:
-        handlers: ta.List[SystevisorProcessOutputFdioHandler] = []
+        # Built in full before any is recorded: a channel without the handler that will close it would never settle.
+        channels: ta.List[ta.Tuple[SystevisorLogChannel, int]] = []
         for stream, output_config, fd in (
                 (SystevisorLogStream.STDOUT, effect.spec.unit.stdio.stdout, stdout_fd),
                 (SystevisorLogStream.STDERR, effect.spec.unit.stdio.stderr, stderr_fd),
         ):
             if fd is None:
                 continue
-            channel = SystevisorLogChannel(
+            channels.append((SystevisorLogChannel(
                 run_id=effect.run_id,
                 instance_id=effect.instance_id,
                 stream=stream,
                 config=output_config,
                 ring=SystevisorByteRingBuffer(output_config.back_buffer_bytes),
                 sinks=self._make_sinks(effect.run_id, effect.instance_id, stream, output_config),
+                output_open=True,
                 created_at=self._clock.monotonic(),
-            )
-            self._channels[(effect.run_id, stream)] = channel
-            def handle_data(
-                    data: bytes,
-                    run_id: SystevisorRunId = effect.run_id,
-                    log_stream: SystevisorLogStream = stream,
-            ) -> None:
-                self.append(run_id, log_stream, data)
+            ), fd))
 
-            handlers.append(SystevisorProcessOutputFdioHandler(fd, effect.run_id, stream, handle_data))
+        handlers: ta.List[SystevisorProcessOutputFdioHandler] = []
+        for channel, fd in channels:
+            self._channels[(channel.run_id, channel.stream)] = channel
+            handlers.append(self._output_handler(channel.run_id, channel.stream, fd))
         return tuple(handlers)
 
     def attach_rehydrated_output(
@@ -476,16 +566,18 @@ class SystevisorLogManager:
             stream: SystevisorLogStream,
             fd: int,
     ) -> SystevisorProcessOutputFdioHandler:
-        if (run_id, stream) not in self._channels:
+        channel = self._channels.get((run_id, stream))
+        if channel is None:
             raise RuntimeError(f'cannot attach output without a log channel: {run_id}:{stream.value}')
-
-        def handle_data(data: bytes) -> None:
-            self.append(run_id, stream, data)
-
-        return SystevisorProcessOutputFdioHandler(fd, run_id, stream, handle_data)
+        if channel.retired and not channel.sinks:
+            channel.sinks = self._make_sinks(run_id, channel.instance_id, stream, channel.config, reopen=True)
+        channel.output_open = True
+        return self._output_handler(run_id, stream, fd)
 
     def append(self, run_id: SystevisorRunId, stream: SystevisorLogStream, data: bytes) -> None:
-        channel = self._channels[(run_id, stream)]
+        channel = self._channels.get((run_id, stream))
+        if channel is None:
+            return
         channel.last_activity_at = self._clock.monotonic()
         strip_ansi = channel.config.strip_ansi
         should_strip_ansi = strip_ansi if strip_ansi is not None else self._default_strip_ansi
@@ -602,7 +694,8 @@ class SystevisorLogManager:
                 stream=state.stream,
                 config=state.config,
                 ring=ring,
-                sinks=self._make_sinks(
+                # A retired channel only gets its sinks back if a still-open output is attached to it.
+                sinks=[] if state.retired else self._make_sinks(
                     state.run_id,
                     state.instance_id,
                     state.stream,
@@ -651,6 +744,7 @@ class SystevisorLogManager:
         for (channel_run_id, _), channel in self._channels.items():
             if channel_run_id == run_id:
                 channel.retired = True
+        self._settle(run_id)
 
     def close(self) -> None:
         self._subscriptions.clear()

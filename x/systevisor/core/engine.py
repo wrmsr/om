@@ -4,6 +4,7 @@ import typing as ta
 from ..configs.models import SystevisorDependencyCondition
 from ..configs.models import SystevisorHealthRecovery
 from ..configs.models import SystevisorHealthRole
+from ..configs.models import SystevisorRestartConfig
 from ..configs.models import SystevisorRestartMode
 from ..configs.models import SystevisorUnitKind
 from ..configs.snapshots import SystevisorConfigSnapshot
@@ -418,6 +419,7 @@ class SystevisorEngine:
             return
 
         instance.restart_requested = instance.desired_state is SystevisorDesiredState.ACTIVE
+        instance.unstable_restarts = 0
         if (
                 instance.process_state is SystevisorProcessState.BACKOFF or
                 instance.process_state in _SYSTEVISOR_ENGINE_TERMINAL_PROCESS_STATES
@@ -492,6 +494,8 @@ class SystevisorEngine:
     ) -> None:
         desired_state = SystevisorDesiredState.ACTIVE if active else SystevisorDesiredState.INACTIVE
         self._change_desired(instance, desired_state, SystevisorDesiredOrigin.MANUAL, now, request_id=request_id)
+        if active:
+            instance.unstable_restarts = 0
         if active and instance.process_state in {SystevisorProcessState.EXITED, SystevisorProcessState.FATAL}:
             instance.start_failures = 0
             instance.completed_successfully = False
@@ -522,6 +526,7 @@ class SystevisorEngine:
             request_id=command.request_id,
         )
         instance.restart_requested = True
+        instance.unstable_restarts = 0
         if instance.process_state in _SYSTEVISOR_ENGINE_TERMINAL_PROCESS_STATES or (
                 instance.process_state is SystevisorProcessState.BACKOFF
         ):
@@ -628,6 +633,7 @@ class SystevisorEngine:
             return
 
         previous_state = instance.process_state
+        uptime = None if instance.started_at is None else now - instance.started_at
         instance.last_return_code = fact.return_code
         expected = fact.return_code in instance.desired_spec.unit.restart.expected_exit_codes
         instance.completed_successfully = expected and previous_state is SystevisorProcessState.RUNNING
@@ -656,8 +662,22 @@ class SystevisorEngine:
             (restart_mode is SystevisorRestartMode.UNEXPECTED and not expected)
         )
         instance.restart_requested = False
-        if should_restart:
+        if not should_restart:
+            return
+
+        # A run which died young is restarted on the same curve as a failed start, so a unit that keeps getting past
+        # start_secs and then exiting cannot respawn in a tight loop. Unlike a failed start it never goes fatal: the
+        # unit asked to be restarted, so it is retried at the capped interval for as long as it stays active.
+        restart = instance.desired_spec.unit.restart
+        if uptime is not None and uptime >= restart.backoff_max_secs:
+            instance.unstable_restarts = 0
+        delay = self._backoff_delay(restart, instance.unstable_restarts) if instance.unstable_restarts else 0.
+        instance.unstable_restarts += 1
+        if delay <= 0:
             self._transition(instance, SystevisorProcessState.STOPPED, now, 'automatic_restart')
+        else:
+            self._transition(instance, SystevisorProcessState.BACKOFF, now, 'restart_backoff')
+            self._schedule_deadline(instance, SystevisorDeadlineKind.BACKOFF, now + delay)
 
     def _deadline_reached(self, fact: SystevisorDeadlineReachedFact, now: float) -> None:
         instance = next(
@@ -971,12 +991,16 @@ class SystevisorEngine:
             return
 
         self._transition(instance, SystevisorProcessState.BACKOFF, now, reason)
-        restart = instance.desired_spec.unit.restart
-        delay = min(
-            restart.backoff_initial_secs * restart.backoff_multiplier ** (instance.start_failures - 1),
-            restart.backoff_max_secs,
-        )
+        delay = self._backoff_delay(instance.desired_spec.unit.restart, instance.start_failures)
         self._schedule_deadline(instance, SystevisorDeadlineKind.BACKOFF, now + delay)
+
+    @staticmethod
+    def _backoff_delay(restart: SystevisorRestartConfig, attempt: int) -> float:
+        try:
+            delay = restart.backoff_initial_secs * restart.backoff_multiplier ** (attempt - 1)
+        except OverflowError:
+            return restart.backoff_max_secs
+        return min(delay, restart.backoff_max_secs)
 
     def _clear_run(self, instance: SystevisorInstanceState) -> None:
         instance.run_id = None
@@ -1089,6 +1113,7 @@ class SystevisorEngine:
                     instance.process_state in {SystevisorProcessState.EXITED, SystevisorProcessState.FATAL}
             ):
                 instance.start_failures = 0
+                instance.unstable_restarts = 0
                 instance.completed_successfully = False
                 self._transition(instance, SystevisorProcessState.STOPPED, now, 'configured_reactivation')
 

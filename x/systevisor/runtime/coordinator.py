@@ -1,6 +1,7 @@
 # ruff: noqa: UP006 UP007 UP045
 import collections
 import dataclasses as dc
+import os
 import signal
 import typing as ta
 
@@ -8,6 +9,7 @@ from omcore.io.fdio.handlers import FdioHandler
 from omcore.io.fdio.manager import FdioManager
 from omcore.logs.modules import get_module_logger
 
+from ..configs.models import SystevisorSignalScope
 from ..configs.snapshots import SystevisorConfigSnapshot
 from ..core.effects import SystevisorApplyLiveConfigEffect
 from ..core.effects import SystevisorEngineEffect
@@ -41,10 +43,10 @@ from .logs import SystevisorLogStream
 from .logs import SystevisorProcessOutputFdioHandler
 from .processes import SystevisorObservedProcessExit
 from .processes import SystevisorOwnedProcessPurpose
+from .processes import SystevisorOwnedProcessState
 from .processes import SystevisorProcessExecResult
 from .processes import SystevisorProcessManager
 from .processes import SystevisorProcessOutputChannel
-from .processes import SystevisorProcessSpawnError
 from .signals import SystevisorReceivedSignal
 from .signals import SystevisorSignalFdioHandler
 
@@ -99,6 +101,7 @@ class SystevisorRuntimeCoordinator:
         self._internal_processes: ta.Dict[SystevisorRunId, SystevisorInternalProcessCallbacks] = {}
         self._signal_handler: ta.Optional[SystevisorSignalFdioHandler] = None
         self._forward_signal_numbers: ta.Sequence[int] = ()
+        self._fatal_error: ta.Optional[BaseException] = None
 
         self._deadline_handler = SystevisorDeadlineFdioHandler(clock, self._on_deadline)
         self._wait_handler = SystevisorProcessWaitFdioHandler(
@@ -121,6 +124,10 @@ class SystevisorRuntimeCoordinator:
     def log_manager(self) -> SystevisorLogManager:
         return self._log_manager
 
+    @property
+    def fatal_error(self) -> ta.Optional[BaseException]:
+        return self._fatal_error
+
     def install_signal_handler(self) -> None:
         if self._signal_handler is not None:
             raise RuntimeError('signal handler is already installed')
@@ -132,6 +139,8 @@ class SystevisorRuntimeCoordinator:
     def submit(self, engine_input: SystevisorEngineInput) -> ta.Sequence[SystevisorEngineOutput]:
         if self._closed:
             raise RuntimeError('runtime coordinator is closed')
+        if self._fatal_error is not None:
+            raise RuntimeError('runtime coordinator has failed') from self._fatal_error
         self._input_queue.append(engine_input)
         if self._processing:
             return ()
@@ -143,22 +152,27 @@ class SystevisorRuntimeCoordinator:
                 current_input = self._input_queue.popleft()
                 if isinstance(current_input, SystevisorApplySnapshotCommand):
                     self.configure_snapshot_runtime(current_input.snapshot)
-                output = self._engine.step(current_input, self._clock.monotonic())
+                try:
+                    output = self._engine.step(current_input, self._clock.monotonic())
+                except Exception as exc:
+                    # A step that raised may have applied part of a transition. Callers such as the control API contain
+                    # their own failures, so this is recorded rather than left to propagate: the manager has to stop.
+                    self._fatal_error = exc
+                    raise
                 outputs.append(output)
                 for event in output.events:
                     _, failures = self._event_bus.publish('engine', event, self._clock.monotonic())
                     for failure in failures:
-                        _SYSTEVISOR_COORDINATOR_LOG.error(
+                        _SYSTEVISOR_COORDINATOR_LOG.exception(
                             'Systevisor event subscriber %s failed',
                             failure.subscription_id,
-                            exc_info=(
-                                type(failure.exception),
-                                failure.exception,
-                                failure.exception.__traceback__,
-                            ),
+                            exc_info=failure.exception,
                         )
                 for effect in output.effects:
-                    self._execute_effect(effect)
+                    try:
+                        self._execute_effect(effect)
+                    except Exception as exc:  # noqa: BLE001
+                        self._effect_failed(effect, exc)
         finally:
             self._processing = False
         return tuple(outputs)
@@ -167,6 +181,7 @@ class SystevisorRuntimeCoordinator:
         self._process_manager.set_reap_unknown_children(snapshot.config.manager.reap_unknown_children)
         self._wait_handler.poke()
         self._log_manager.set_default_strip_ansi(snapshot.config.manager.strip_ansi)
+        self._log_manager.set_retained_runs(snapshot.config.manager.retained_child_log_runs)
         self._event_bus.set_journal_capacity(snapshot.config.api.event_backlog)
         self._forward_signal_numbers = tuple(sorted({
             systevisor_parse_signal_name(incoming)
@@ -190,15 +205,71 @@ class SystevisorRuntimeCoordinator:
         else:
             raise TypeError(effect)
 
+    def _effect_failed(self, effect: SystevisorEngineEffect, exc: BaseException) -> None:
+        # Effects are independent: one that cannot be carried out must not strand the rest of the step, and where the
+        # engine is waiting on an outcome it is told there will not be one.
+        _SYSTEVISOR_COORDINATOR_LOG.exception('Systevisor effect %s failed', type(effect).__name__, exc_info=exc)
+        message = str(exc) or type(exc).__name__
+        self._event_bus.publish('runtime.effect_failed', {
+            'effect': type(effect).__name__,
+            'run_id': getattr(effect, 'run_id', None),
+            'message': message,
+        }, self._clock.monotonic())
+        if isinstance(effect, SystevisorSpawnProcessEffect):
+            self._abandon_spawned_run(effect.run_id, message)
+        elif isinstance(effect, SystevisorRunHealthProbeEffect):
+            self._input_queue.append(SystevisorHealthProbeResultFact(
+                check_id=effect.check_id,
+                run_id=effect.run_id,
+                success=False,
+                message=message,
+            ))
+
     def _on_deadline(self, fact: SystevisorEngineInput) -> None:
         self.submit(fact)
+
+    def _watch_process(self, state: SystevisorOwnedProcessState) -> None:
+        exec_error_fd = state.exec_error_fd
+        if exec_error_fd is None:
+            raise RuntimeError('spawned process has no exec handshake fd')
+
+        def exec_ready(run_id: SystevisorRunId = state.run_id) -> bool:
+            return self._on_exec_ready(run_id)
+
+        exec_handler = SystevisorProcessExecFdioHandler(exec_error_fd, exec_ready)
+        self._exec_handlers[state.run_id] = exec_handler
+        self._fdio_manager.register(exec_handler)
+
+        if state.pidfd is not None:
+            pidfd_handler = SystevisorProcessPidfdFdioHandler(
+                state.pidfd,
+                self._observe_process_exits,
+            )
+            self._pidfd_handlers[state.run_id] = pidfd_handler
+            self._fdio_manager.register(pidfd_handler)
+        self._wait_handler.poke()
+
+    def _abandon_spawned_run(self, run_id: SystevisorRunId, message: str) -> None:
+        # The engine is told the start failed, so a child that does exist must not outlive that report: it is killed
+        # and left to the ordinary exit path, which reaps it without announcing an exit the engine no longer expects.
+        if self._process_manager.get_state(run_id) is not None:
+            self._failed_exec_runs.add(run_id)
+            try:
+                self._process_manager.signal(run_id, 'KILL', SystevisorSignalScope.PROCESS)
+            except Exception:  # noqa: BLE001
+                _SYSTEVISOR_COORDINATOR_LOG.exception('Systevisor could not kill abandoned run %s', run_id)
+        self._input_queue.append(SystevisorSpawnFailedFact(run_id, message))
 
     def _spawn(self, effect: SystevisorSpawnProcessEffect) -> None:
         try:
             spawned = self._process_manager.spawn(effect)
-        except (SystevisorProcessSpawnError, OSError) as exc:
-            self._input_queue.append(SystevisorSpawnFailedFact(effect.run_id, str(exc)))
+        except Exception as exc:  # noqa: BLE001
+            # Whatever raised, a failed spawn leaves nothing owned, so it is an ordinary start failure.
+            self._input_queue.append(SystevisorSpawnFailedFact(effect.run_id, str(exc) or type(exc).__name__))
             return
+
+        # Watch the child before anything else can fail, so even an abandoned run is still reaped.
+        self._watch_process(spawned.state)
 
         stdout_fd = self._process_manager.take_output_fd(
             effect.run_id,
@@ -208,31 +279,18 @@ class SystevisorRuntimeCoordinator:
             effect.run_id,
             SystevisorProcessOutputChannel.STDERR,
         )
-        output_handlers: ta.List[FdioHandler] = list(
-            self._log_manager.register_process(effect, stdout_fd, stderr_fd),
-        )
+        try:
+            output_handlers: ta.List[FdioHandler] = list(
+                self._log_manager.register_process(effect, stdout_fd, stderr_fd),
+            )
+        except BaseException:
+            for fd in {stdout_fd, stderr_fd}:
+                if fd is not None:
+                    os.close(fd)
+            raise
         self._output_handlers[effect.run_id] = output_handlers
         for handler in output_handlers:
             self._fdio_manager.register(handler)
-
-        exec_error_fd = spawned.state.exec_error_fd
-        if exec_error_fd is None:
-            raise RuntimeError('spawned process has no exec handshake fd')
-        def exec_ready(run_id: SystevisorRunId = effect.run_id) -> bool:
-            return self._on_exec_ready(run_id)
-
-        exec_handler = SystevisorProcessExecFdioHandler(exec_error_fd, exec_ready)
-        self._exec_handlers[effect.run_id] = exec_handler
-        self._fdio_manager.register(exec_handler)
-
-        if spawned.state.pidfd is not None:
-            pidfd_handler = SystevisorProcessPidfdFdioHandler(
-                spawned.state.pidfd,
-                self._observe_process_exits,
-            )
-            self._pidfd_handlers[effect.run_id] = pidfd_handler
-            self._fdio_manager.register(pidfd_handler)
-        self._wait_handler.poke()
 
     def _run_health_probe(self, effect: SystevisorRunHealthProbeEffect) -> None:
         started = self._health_probe_runner.start(effect, self._on_health_probe_result)
@@ -240,23 +298,9 @@ class SystevisorRuntimeCoordinator:
         if run_id is None:
             return
         state = self._process_manager.get_state(run_id)
-        if state is None or state.exec_error_fd is None:
-            raise RuntimeError('spawned health command has no exec handshake fd')
-
-        def exec_ready(command_run_id: SystevisorRunId = run_id) -> bool:
-            return self._on_exec_ready(command_run_id)
-
-        exec_handler = SystevisorProcessExecFdioHandler(state.exec_error_fd, exec_ready)
-        self._exec_handlers[run_id] = exec_handler
-        self._fdio_manager.register(exec_handler)
-        if state.pidfd is not None:
-            pidfd_handler = SystevisorProcessPidfdFdioHandler(
-                state.pidfd,
-                self._observe_process_exits,
-            )
-            self._pidfd_handlers[run_id] = pidfd_handler
-            self._fdio_manager.register(pidfd_handler)
-        self._wait_handler.poke()
+        if state is None:
+            raise RuntimeError('spawned health command is not owned')
+        self._watch_process(state)
 
     def start_internal_process(
             self,
@@ -271,24 +315,7 @@ class SystevisorRuntimeCoordinator:
             raise RuntimeError(f'internal process is already registered: {run_id}')
         spawned = self._process_manager.spawn_internal(run_id, argv, purpose)
         self._internal_processes[run_id] = callbacks
-        state = spawned.state
-        if state.exec_error_fd is None:
-            raise RuntimeError('spawned internal process has no exec handshake fd')
-
-        def exec_ready(internal_run_id: SystevisorRunId = run_id) -> bool:
-            return self._on_exec_ready(internal_run_id)
-
-        exec_handler = SystevisorProcessExecFdioHandler(state.exec_error_fd, exec_ready)
-        self._exec_handlers[run_id] = exec_handler
-        self._fdio_manager.register(exec_handler)
-        if state.pidfd is not None:
-            pidfd_handler = SystevisorProcessPidfdFdioHandler(
-                state.pidfd,
-                self._observe_process_exits,
-            )
-            self._pidfd_handlers[run_id] = pidfd_handler
-            self._fdio_manager.register(pidfd_handler)
-        self._wait_handler.poke()
+        self._watch_process(spawned.state)
 
     def _on_health_probe_result(self, fact: SystevisorHealthProbeResultFact) -> None:
         self.submit(fact)
@@ -316,6 +343,8 @@ class SystevisorRuntimeCoordinator:
             return
         if self._health_probe_runner.owns_command_run(result.run_id):
             self._health_probe_runner.command_exec_result(result)
+            return
+        if result.run_id in self._failed_exec_runs:
             return
         if result.succeeded:
             self.submit(SystevisorSpawnSucceededFact(result.run_id))

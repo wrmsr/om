@@ -44,7 +44,7 @@ def __om_amalg__():  # noqa
             dict(path='metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
             dict(path='contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
-            dict(path='base.py', sha1='4195705c64f3ec1c4263c2c76c63351d9dacdd5c'),
+            dict(path='base.py', sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4'),
             dict(path='std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
             dict(path='std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
             dict(path='std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
@@ -1482,7 +1482,7 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
             if isinstance(arg0 := args[0], BaseException):
                 if exc_info is not True:  # noqa
                     raise TypeError(f'exc_info={exc_info!r} is not allowed when exc={arg0!r} is passed')
-            args, exc_info = ((),), arg0
+                args, exc_info = ((),), arg0
 
         return self._log(
             CaptureLoggingContextImpl(

@@ -1,4 +1,5 @@
 # ruff: noqa: PT009 UP006 UP007 UP045
+import errno
 import os
 import pathlib
 import select
@@ -20,6 +21,7 @@ from ..configs.models import SystevisorOutputConfig
 from ..configs.models import SystevisorOutputMode
 from ..configs.models import SystevisorRestartConfig
 from ..configs.models import SystevisorStdioConfig
+from ..configs.models import SystevisorStopConfig
 from ..configs.models import SystevisorUnitConfig
 from ..configs.snapshots import systevisor_build_config_snapshot
 from ..core.effects import SystevisorScheduleDeadlineEffect
@@ -28,6 +30,8 @@ from ..core.engine import SystevisorEngine
 from ..core.identities import SystevisorInstanceId
 from ..core.identities import SystevisorRunId
 from ..core.inputs import SystevisorApplySnapshotCommand
+from ..core.inputs import SystevisorEngineInput
+from ..core.inputs import SystevisorShutdownCommand
 from ..core.states import SystevisorDeadlineKind
 from ..core.states import SystevisorProcessState
 from ..resources.inject import systevisor_bind_resources
@@ -43,7 +47,11 @@ from ..runtime.logs import SystevisorLogChannelState
 from ..runtime.logs import SystevisorLogManager
 from ..runtime.logs import SystevisorLogStream
 from ..runtime.logs import SystevisorRotatingFileLogSink
+from ..runtime.processes import SystevisorChildContext
+from ..runtime.processes import SystevisorChildModifier
+from ..runtime.processes import SystevisorPosixProcessSignalBackend
 from ..runtime.processes import SystevisorProcessManager
+from ..runtime.processes import SystevisorSignalLease
 from ..runtime.signals import SystevisorSignalFdioHandler
 from .fakes import SystevisorFakeClock
 
@@ -65,7 +73,10 @@ class SystevisorTestChildSyslogWriter(SystevisorChildSyslogWriter):
         self.records.append((instance_id, run_id, stream, data))
 
 
-def _systevisor_test_runtime_log_effect(output: SystevisorOutputConfig) -> SystevisorSpawnProcessEffect:
+def _systevisor_test_runtime_log_effect(
+        output: SystevisorOutputConfig,
+        run_id: int = 1,
+) -> SystevisorSpawnProcessEffect:
     config = SystevisorConfig(units={
         'worker': SystevisorUnitConfig(
             exec=SystevisorExecConfig(argv=('worker',)),
@@ -74,7 +85,42 @@ def _systevisor_test_runtime_log_effect(output: SystevisorOutputConfig) -> Syste
     })
     snapshot = systevisor_build_config_snapshot(config, (), ())
     spec = snapshot.instances[SystevisorInstanceId('worker:0')]
-    return SystevisorSpawnProcessEffect(SystevisorRunId(1), spec.instance_id, spec)
+    return SystevisorSpawnProcessEffect(SystevisorRunId(run_id), spec.instance_id, spec)
+
+
+class SystevisorTestRuntimeFixture:
+    def __init__(
+            self,
+            *,
+            engine: ta.Optional[SystevisorEngine] = None,
+            process_manager: ta.Optional[SystevisorProcessManager] = None,
+    ) -> None:
+        self.poller = SelectFdioPoller()
+        self.fdio_manager = FdioManager(self.poller)
+        self.clock = SystevisorSystemClock()
+        self.event_bus = SystevisorEventBus()
+        self.process_manager = process_manager if process_manager is not None else SystevisorProcessManager()
+        self.log_manager = SystevisorLogManager(self.event_bus, self.clock)
+        self.coordinator = SystevisorRuntimeCoordinator(
+            engine if engine is not None else SystevisorEngine(),
+            self.process_manager,
+            self.fdio_manager,
+            self.clock,
+            self.event_bus,
+            self.log_manager,
+            SystevisorFdioHealthProbeRunner(self.process_manager, self.fdio_manager, self.clock, self.log_manager),
+        )
+
+    def poll_until(self, predicate: ta.Callable[[], bool]) -> None:
+        deadline = time.monotonic() + _SYSTEVISOR_TEST_RUNTIME_TIMEOUT_SECS
+        while not predicate():
+            if time.monotonic() >= deadline:
+                raise AssertionError('timed out waiting for the runtime')
+            self.coordinator.poll(timeout=.1)
+
+    def close(self) -> None:
+        self.coordinator.close()
+        self.poller.close()
 
 
 class TestSystevisorEventBus(unittest.TestCase):
@@ -306,3 +352,160 @@ class TestSystevisorFdioRuntime(unittest.TestCase):
         self.assertIs(coordinator.engine, injector.provide(SystevisorEngine))
         self.assertIs(injector.provide(FdioManager), injector.provide(FdioManager))
         self.assertIs(injector.provide(FdioPoller), injector.provide(FdioPoller))
+
+
+class TestSystevisorRuntimeIsolation(unittest.TestCase):
+    def test_failed_effect_does_not_strand_the_rest_of_the_step(self) -> None:
+        class DenyingOnceSignalBackend(SystevisorPosixProcessSignalBackend):
+            denials_left = 1
+
+            def send_process(self, lease: SystevisorSignalLease, signal_number: int) -> bool:
+                if self.denials_left:
+                    self.denials_left -= 1
+                    raise PermissionError(errno.EPERM, os.strerror(errno.EPERM))
+                return super().send_process(lease, signal_number)
+
+        fixture = SystevisorTestRuntimeFixture(
+            process_manager=SystevisorProcessManager(signal_backend=DenyingOnceSignalBackend()),
+        )
+        self.addCleanup(fixture.close)
+        unit = SystevisorUnitConfig(
+            exec=SystevisorExecConfig(argv=('/bin/sleep', '60')),
+            restart=SystevisorRestartConfig(start_secs=0.),
+            stop=SystevisorStopConfig(timeout_secs=.05),
+        )
+        snapshot = systevisor_build_config_snapshot(SystevisorConfig(units={'first': unit, 'second': unit}), (), ())
+        fixture.coordinator.submit(SystevisorApplySnapshotCommand(snapshot))
+        instances = fixture.coordinator.engine.state.instances
+        fixture.poll_until(lambda: all(
+            instance.process_state is SystevisorProcessState.RUNNING
+            for instance in instances.values()
+        ))
+
+        # The first stop signal is refused. The second must still be sent, and the refused run is then reached by
+        # its ordinary escalation rather than being forgotten.
+        fixture.coordinator.submit(SystevisorShutdownCommand())
+
+        self.assertIn('runtime.effect_failed', {event.topic for event in fixture.event_bus.journal()})
+        fixture.poll_until(lambda: not fixture.process_manager.has_processes())
+        self.assertIsNone(fixture.coordinator.fatal_error)
+
+    def test_unexpected_spawn_failure_is_an_ordinary_start_failure(self) -> None:
+        class RefusingModifier(SystevisorChildModifier):
+            def parent_prepare(self, context: SystevisorChildContext) -> None:
+                raise RuntimeError('resource preparation failed')
+
+        fixture = SystevisorTestRuntimeFixture(
+            process_manager=SystevisorProcessManager(child_modifiers=(RefusingModifier(),)),
+        )
+        self.addCleanup(fixture.close)
+        snapshot = systevisor_build_config_snapshot(SystevisorConfig(units={
+            'worker': SystevisorUnitConfig(exec=SystevisorExecConfig(argv=('/bin/sleep', '60'))),
+        }), (), ())
+
+        fixture.coordinator.submit(SystevisorApplySnapshotCommand(snapshot))
+
+        instance = fixture.coordinator.engine.state.instances[SystevisorInstanceId('worker:0')]
+        self.assertEqual(instance.process_state, SystevisorProcessState.BACKOFF)
+        self.assertEqual(instance.start_failures, 1)
+        self.assertFalse(fixture.process_manager.has_processes())
+
+    def test_engine_failure_is_recorded_and_refuses_further_input(self) -> None:
+        class FailingEngine(SystevisorEngine):
+            def step(self, engine_input: SystevisorEngineInput, now: float) -> ta.Any:
+                raise RuntimeError('engine invariant broken')
+
+        fixture = SystevisorTestRuntimeFixture(engine=FailingEngine())
+        self.addCleanup(fixture.close)
+        self.assertIsNone(fixture.coordinator.fatal_error)
+
+        with self.assertRaisesRegex(RuntimeError, 'engine invariant broken') as raised:
+            fixture.coordinator.submit(SystevisorShutdownCommand())
+
+        self.assertIs(fixture.coordinator.fatal_error, raised.exception)
+        with self.assertRaisesRegex(RuntimeError, 'runtime coordinator has failed'):
+            fixture.coordinator.submit(SystevisorShutdownCommand())
+
+
+class TestSystevisorLogRetention(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.manager = SystevisorLogManager(SystevisorEventBus(), SystevisorFakeClock(), retained_runs=1)
+        self.manager.configure_manager(SystevisorManagerConfig(child_log_directory=self.temp_dir.name), cleanup=True)
+        self.addCleanup(self.manager.close)
+
+    def _run(self, run_id: int) -> ta.Tuple[ta.Any, int]:
+        effect = _systevisor_test_runtime_log_effect(
+            SystevisorOutputConfig(mode=SystevisorOutputMode.FILE, file=None),
+            run_id,
+        )
+        read_fd, write_fd = os.pipe()
+        handler = self.manager.register_process(effect, read_fd, None)[0]
+        self.manager.append(effect.run_id, SystevisorLogStream.STDOUT, b'output of run %d' % (run_id,))
+        return handler, write_fd
+
+    def _retained(self) -> ta.Sequence[int]:
+        return [int(channel.run_id) for channel in self.manager.channels()]
+
+    def _files(self) -> ta.Sequence[str]:
+        return sorted(os.listdir(self.temp_dir.name))
+
+    def test_ended_runs_release_their_sinks_and_only_the_newest_are_kept(self) -> None:
+        open_fds = len(os.listdir('/dev/fd'))
+        for run_id in (1, 2, 3):
+            handler, write_fd = self._run(run_id)
+            os.close(write_fd)
+            handler.on_readable()
+            self.assertTrue(handler.closed)
+            self.manager.retire_process(SystevisorRunId(run_id))
+
+        self.assertEqual(self._retained(), [3])
+        self.assertEqual(self.manager.read(SystevisorRunId(3), SystevisorLogStream.STDOUT, 0).data, b'output of run 3')
+        with self.assertRaises(KeyError):
+            self.manager.read(SystevisorRunId(2), SystevisorLogStream.STDOUT, 0)
+        self.assertEqual(self._files(), ['systevisor-child-worker:0-3-stdout.log'])
+        self.assertEqual(len(os.listdir('/dev/fd')), open_fds)
+
+    def test_run_is_kept_while_its_output_is_still_open(self) -> None:
+        first_handler, first_write_fd = self._run(1)
+        self.addCleanup(os.close, first_write_fd)
+        self.manager.retire_process(SystevisorRunId(1))
+        for run_id in (2, 3):
+            handler, write_fd = self._run(run_id)
+            os.close(write_fd)
+            handler.on_readable()
+            self.manager.retire_process(SystevisorRunId(run_id))
+
+        # Something still holds the first run's pipe, so it can still produce output and keeps its place and file.
+        self.assertEqual(self._retained(), [1, 3])
+        self.manager.append(SystevisorRunId(1), SystevisorLogStream.STDOUT, b' and more')
+        with open(os.path.join(self.temp_dir.name, 'systevisor-child-worker:0-1-stdout.log'), 'rb') as log_file:
+            self.assertEqual(log_file.read(), b'output of run 1 and more')
+
+        first_handler.close()
+        self.assertEqual(self._retained(), [3])
+
+    def test_running_instance_is_never_evicted_and_retention_is_live(self) -> None:
+        handler, write_fd = self._run(1)
+        self.addCleanup(os.close, write_fd)
+        self.addCleanup(handler.close)
+        self.manager.set_retained_runs(0)
+        self.assertEqual(self._retained(), [1])
+
+    def test_generated_files_are_kept_when_cleanup_is_disabled(self) -> None:
+        self.manager.configure_manager(SystevisorManagerConfig(
+            child_log_directory=self.temp_dir.name,
+            cleanup_auto_logs=False,
+        ), cleanup=True)
+        for run_id in (1, 2):
+            handler, write_fd = self._run(run_id)
+            os.close(write_fd)
+            handler.on_readable()
+            self.manager.retire_process(SystevisorRunId(run_id))
+
+        self.assertEqual(self._retained(), [2])
+        self.assertEqual(self._files(), [
+            'systevisor-child-worker:0-1-stdout.log',
+            'systevisor-child-worker:0-2-stdout.log',
+        ])

@@ -187,7 +187,7 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
             if isinstance(arg0 := args[0], BaseException):
                 if exc_info is not True:  # noqa
                     raise TypeError(f'exc_info={exc_info!r} is not allowed when exc={arg0!r} is passed')
-            args, exc_info = ((),), arg0
+                args, exc_info = ((),), arg0
 
         return self._log(
             CaptureLoggingContextImpl(

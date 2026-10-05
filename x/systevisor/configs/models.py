@@ -331,6 +331,7 @@ class SystevisorManagerConfig:
     pid_file: ta.Optional[str] = None
     state_directory: ta.Optional[str] = None
     child_log_directory: ta.Optional[str] = None
+    retained_child_log_runs: int = 2
     min_fds: int = 1024
     min_procs: int = 200
     cleanup_auto_logs: bool = True

@@ -302,6 +302,7 @@ def systevisor_encode_engine_state(state: SystevisorEngineState) -> ta.Mapping[s
                 'applied_spec_digest': instance.applied_spec_digest,
                 'spawn_confirmed': instance.spawn_confirmed,
                 'start_failures': instance.start_failures,
+                'unstable_restarts': instance.unstable_restarts,
                 'started_at': instance.started_at,
                 'ready': instance.ready,
                 'completed_successfully': instance.completed_successfully,
@@ -373,6 +374,7 @@ def _systevisor_self_update_decode_instance(value: ta.Any) -> SystevisorInstance
         ),
         spawn_confirmed=_systevisor_self_update_bool(obj.get('spawn_confirmed'), 'spawn confirmed'),
         start_failures=_systevisor_self_update_int(obj.get('start_failures'), 'start failures'),
+        unstable_restarts=_systevisor_self_update_int(obj.get('unstable_restarts'), 'unstable restarts'),
         started_at=_systevisor_self_update_optional_float(obj.get('started_at'), 'started at'),
         ready=_systevisor_self_update_bool(obj.get('ready'), 'ready'),
         completed_successfully=_systevisor_self_update_bool(
@@ -429,7 +431,7 @@ def systevisor_decode_engine_state(
 ) -> SystevisorEngineState:
     obj = _systevisor_self_update_mapping(value, 'engine state')
     schema_version = _systevisor_self_update_int(obj.get('state_schema_version'), 'engine schema version')
-    if schema_version != 2:
+    if schema_version != 3:
         raise SystevisorSelfUpdateCodecError(f'unsupported engine state schema: {schema_version}')
     instances = tuple(
         _systevisor_self_update_decode_instance(item)

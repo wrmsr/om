@@ -662,11 +662,29 @@ def _systevisor_processes_child_write_error(fd: int, exc: BaseException) -> None
         message = message[written:]
 
 
+def _systevisor_processes_child_reset_signals() -> None:
+    # Entered with every signal still blocked from before the fork, so nothing has run the manager's handlers or
+    # written to its wakeup descriptor on the child's behalf. The program is handed default dispositions - including
+    # for the signals the interpreter itself ignores, such as SIGPIPE - and an empty mask; a signal that was already
+    # pending is delivered here and acts on the child as it would on the program.
+    signal.set_wakeup_fd(-1)
+    for signal_number in signal.valid_signals():
+        if signal_number in (signal.SIGKILL, signal.SIGSTOP):
+            continue
+        try:
+            signal.signal(signal_number, signal.SIG_DFL)
+        except (OSError, ValueError):
+            pass
+    signal.pthread_sigmask(signal.SIG_SETMASK, ())
+
+
 def _systevisor_processes_child_main(
         prepared: SystevisorPreparedProcess,
         modifiers: ta.Sequence[SystevisorChildModifier],
 ) -> ta.NoReturn:
     try:
+        _systevisor_processes_child_reset_signals()
+
         fds = prepared.fds
         _systevisor_processes_close_quietly(fds.stdout_parent_fd)
         _systevisor_processes_close_quietly(fds.stderr_parent_fd)
@@ -1034,7 +1052,17 @@ class SystevisorProcessManager:
                 prepared_modifiers.append(modifier)
                 modifier.parent_prepare(context)
             _systevisor_processes_relocate_reserved_fds(prepared, self._child_modifiers, context)
-            pid = os.fork()
+
+            # Blocked across the fork: until it has reset them the child still has the manager's handlers and wakeup
+            # descriptor, so a signal reaching it would be swallowed there and reported to the manager as its own.
+            previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, signal.valid_signals())
+            try:
+                pid = os.fork()
+            except BaseException:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+                raise
+            if pid != 0:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
         except BaseException:
             for modifier in reversed(prepared_modifiers):
                 modifier.parent_spawn_failed(context)
@@ -1045,6 +1073,8 @@ class SystevisorProcessManager:
             _systevisor_processes_child_main(prepared, self._child_modifiers)
 
         _systevisor_processes_close_child_fds(prepared)
+        pidfd: ta.Optional[int] = None
+        registered = False
         try:
             pidfd = _systevisor_processes_pidfd_open(pid)
             birth_identity = _systevisor_processes_read_birth_identity(pid)
@@ -1069,11 +1099,30 @@ class SystevisorProcessManager:
                 raise SystevisorProcessOwnershipError(f'pid is already owned: {pid}')
             self._processes_by_run[effect.run_id] = process
             self._processes_by_pid[pid] = process
+            registered = True
             for modifier in prepared_modifiers:
                 modifier.parent_spawned(context, pid)
             return SystevisorProcessSpawned(state=process.snapshot())
-        except BaseException:
+        except BaseException as exc:
+            # A spawn either yields an owned run or leaves nothing behind. The child exists but cannot be handed out,
+            # and as an unreaped direct child its pid cannot yet name anything else.
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            os.waitpid(pid, 0)
+            if registered:
+                del self._processes_by_run[effect.run_id]
+                del self._processes_by_pid[pid]
+            _systevisor_processes_close_quietly(pidfd)
             _systevisor_processes_close_parent_fds(prepared)
+            for modifier in reversed(prepared_modifiers):
+                modifier.parent_spawn_failed(context)
+                modifier.parent_retired(context)
+            if isinstance(exc, Exception):
+                raise SystevisorProcessSpawnError(
+                    f'parent setup failed after fork: {type(exc).__name__}: {exc}',
+                ) from exc
             raise
 
     def poll_exec_result(self, run_id: SystevisorRunId) -> ta.Optional[SystevisorProcessExecResult]:

@@ -109,6 +109,14 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
             'umask',
         ))
 
+    if config.manager.retained_child_log_runs < 0:
+        errors.append(_systevisor_config_validation_error(
+            'invalid_child_log_retention',
+            'manager retained_child_log_runs must be non-negative',
+            'manager',
+            'retained_child_log_runs',
+        ))
+
     if config.manager.min_fds < 0 or config.manager.min_procs < 0:
         errors.append(_systevisor_config_validation_error(
             'invalid_resource_minimum',

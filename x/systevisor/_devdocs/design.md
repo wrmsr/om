@@ -61,6 +61,15 @@ owned session leader.
 All wait and signal call sites are confined and checked statically. Unknown adopted processes have no control
 capability and are only reaped.
 
+Every signal is blocked across `fork`. Until it has reset them, the child still has the manager's handlers and the
+manager's wakeup descriptor, so a signal reaching it would be swallowed there and reported to the manager as its own -
+a stop racing a spawn would shut the manager down. The child's first act is to drop the wakeup descriptor, restore
+default dispositions for everything including what the interpreter ignores, and only then unblock.
+
+A spawn either yields an owned run or leaves nothing behind. If parent-side bookkeeping fails after the fork, the
+child is killed and reaped on the spot, while its pid still cannot name anything else, and the failure is reported as
+a spawn error.
+
 Child modifiers have explicit parent-prepare, parent-spawned, failed-spawn, child-pre-exec, and parent-retired hooks.
 Preparation happens before `fork`; failures unwind prepared capabilities before any child exists. The child closes all
 ambient descriptors except the exec-status pipe and descriptors named by modifiers. Reserved child descriptor ranges
@@ -156,10 +165,27 @@ Child stdout/stderr are byte streams. A channel fanout drains the pipe into a by
 Streaming clients read ranges and receive an explicit gap if requested bytes were evicted. Slow clients never apply
 backpressure to the child pipe. Text decoding is an adapter with explicit error policy.
 
+A channel outlives its process in two distinct ways. It keeps receiving bytes for as long as anything holds the pipe
+open, so its sinks are released only once the run is retired and the pipe has reached end-of-file. Its ring then
+remains readable for post-mortems, bounded per instance by `retained_child_log_runs`, after which the channel is
+dropped. Nothing about a run is retained without a bound.
+
 Rotating files, manager stdout/stderr, and an injected syslog writer are independent sinks. File output without an
 explicit path derives a run-specific filename beneath the absolute child-log directory; cold cleanup can remove only
 that generated filename namespace. A sink exception detaches that sink and emits an event without interrupting pipe
 drainage or the byte ring.
+
+## Failure containment
+
+Failures are contained where containment is sound and fatal where it is not. A control connection, a log sink, a log
+or event subscriber, and a single effect are each independent of the manager's correctness: they fail alone, are
+reported, and where the engine is waiting on an outcome it is fed the failure as a fact. The engine and the process
+ownership bookkeeping are not: a step that raised may have applied half a transition, so the coordinator records it,
+refuses further input, and the manager stops.
+
+Stopping is the one thing that must not depend on what failed. Every exit path closes through an emergency stop that
+uses only the process manager - each owned run gets its unit's stop signal and timeout, then a kill - with no engine,
+reactor, ordering, or event involved. An orderly shutdown has nothing left for it to do.
 
 ## Health
 
