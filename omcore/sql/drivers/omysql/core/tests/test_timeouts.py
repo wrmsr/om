@@ -1,14 +1,14 @@
 """
-Timeout tests. The live-server cases need the harness-provided database; the stalled-peer cases run against sockets
-with no real server behind them at all.
+Timeout tests. The live-server cases need the harness-provided database; other cases use scripted peers or controlled
+connect calls.
 """
 import asyncio
+import errno
 import socket
 
 import pytest
 
 from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
-from .....tests.utils import stalled_tcp_listener
 from ...errors import Error
 from ...errors import OperationalError
 from ...protocol.session import ProtocolSession
@@ -94,36 +94,53 @@ def test_connect_timeout_sync(databases):
         con.close()
 
 
-def test_connect_timeout_sync_stalled():
-    with stalled_tcp_listener() as (host, port):
-        with pytest.raises(OperationalError, match="Can't connect") as exc:
-            SyncConnection(user='u', host=host, port=port, connect_timeout=.2, read_timeout=.5)
+def test_connect_timeout_sync_error(monkeypatch):
+    # A full TCP listen queue can reset or refuse connections instead of timing out, depending on the kernel.
+    def timed_out_connection(address, timeout=None, source_address=None):
+        assert address == ('test-host', 3306)
+        assert timeout == .2
+        assert source_address is None
+        raise TimeoutError('timed out')
+
+    monkeypatch.setattr(socket, 'create_connection', timed_out_connection)
+    with pytest.raises(OperationalError, match="Can't connect") as exc:
+        SyncConnection(user='u', host='test-host', connect_timeout=.2)
     assert isinstance(exc.value.__cause__, TimeoutError)
 
 
-def test_connect_timeout_asyncio_stalled():
+def test_connect_timeout_asyncio_stalled(monkeypatch):
+    async def stalled_open_connection(host, port):
+        assert (host, port) == ('test-host', 3306)
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(asyncio, 'open_connection', stalled_open_connection)
+
     async def main():
-        with stalled_tcp_listener() as (host, port):
-            with pytest.raises(OperationalError, match=r"Can't connect.*timed out") as exc:
-                await asyncio.wait_for(
-                    AsyncioConnection.connect(user='u', host=host, port=port, connect_timeout=.2, read_timeout=.5),
-                    timeout=1.,
-                )
+        with pytest.raises(OperationalError, match=r"Can't connect.*timed out") as exc:
+            await asyncio.wait_for(
+                AsyncioConnection.connect(user='u', host='test-host', connect_timeout=.2),
+                timeout=1.,
+            )
         assert exc.value.args[0] == 2003
         assert isinstance(exc.value.__cause__, TimeoutError)
 
     asyncio.run(main())
 
 
-def test_connect_asyncio_refused():
+@pytest.mark.parametrize('error_number', [errno.ECONNREFUSED, errno.EHOSTUNREACH])
+def test_connect_asyncio_oserror(monkeypatch, error_number):
+    async def failing_open_connection(host, port):
+        assert (host, port) == ('test-host', 3306)
+        raise OSError(error_number, 'connection failed')
+
+    monkeypatch.setattr(asyncio, 'open_connection', failing_open_connection)
+
     async def main():
-        with socket.socket() as bound:
-            bound.bind(('127.0.0.1', 0))
-            host, port = bound.getsockname()
-            with pytest.raises(OperationalError, match="Can't connect") as exc:
-                await AsyncioConnection.connect(user='u', host=host, port=port, connect_timeout=.2)
+        with pytest.raises(OperationalError, match="Can't connect") as exc:
+            await AsyncioConnection.connect(user='u', host='test-host', connect_timeout=.2)
         assert exc.value.args[0] == 2003
-        assert isinstance(exc.value.__cause__, ConnectionRefusedError)
+        assert isinstance(exc.value.__cause__, OSError)
+        assert exc.value.__cause__.errno == error_number
 
     asyncio.run(main())
 
