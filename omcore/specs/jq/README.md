@@ -36,6 +36,12 @@ earlier result. With `stable_outputs=False`, internal working containers may be 
 callers must consume them before advancing and must not mutate them. The current evaluator is naturally stable in most
 cases even when the guarantee is disabled; disabling it does not force reuse.
 
+Every path update - `setpath`, `delpaths`, and through them every form of assignment and `del` - is made of two
+`JqValueOps` methods: `with_item` and `without_item`, each returning a copy of one container with one item set or
+removed. A subclass overriding them, given as `compile_jq(..., value_ops=...)`, decides what kind of containers updates
+produce - and since any `Mapping` or `Sequence` is read as an object or array, that is enough to run a filter over
+containers which carry something of their own along with them and have it survive being updated.
+
 Non-string mapping keys raise by default. `JqValueOptions` can instead ignore them or provide an explicit stringifier.
 Key handling occurs as keys are semantically encountered rather than through an eager validation pass.
 

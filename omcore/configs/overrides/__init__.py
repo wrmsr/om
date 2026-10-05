@@ -17,13 +17,16 @@ with _lang.auto_proxy_init(globals()):
 
         apply_overrides,
         load_override_file,
-        own_tree,
     )
 
     from .args import (  # noqa
         OVERRIDE_DUMP_FORMATS,
 
         add_override_arguments,
+    )
+
+    from .conforming import (  # noqa
+        conform_value,
     )
 
     from .dumping import (  # noqa
@@ -115,4 +118,8 @@ with _lang.auto_proxy_init(globals()):
         ShapeStep,
 
         step_shape,
+    )
+
+    from .trees import (  # noqa
+        own_tree,
     )

@@ -676,6 +676,8 @@ package: gen check
 
 .PHONY: _package
 _package:
+	MACOSX_DEPLOYMENT_TARGET=15.0 \
+	_PYTHON_HOST_PLATFORM=macosx-15.0-arm64 \
 	PYTHONPATH=. ${PYTHON} ${PYPROJECT_SRC} pkg -b -r gen
 
 .PHONY: _package_ext

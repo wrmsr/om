@@ -1,18 +1,17 @@
 """
 The engine: applies ops, in order, to a plain tree of dicts, lists and scalars. It needs no shape to do so - the tree
 itself says what is a map and what is a list - but when given one it walks it in step with the tree, using it to type
-values and to reject keys the shape does not have.
+values, to conform those which arrive already typed, and to reject keys the shape does not have.
 """
 import collections.abc
-import itertools
 import os.path
 import typing as ta
 
 from ... import lang
 from ..formats import DEFAULT_CONFIG_FILE_LOADER
 from ..formats import ObjConfigData
+from .conforming import conform_value
 from .errors import OverrideFileError
-from .errors import OverrideJqError
 from .errors import OverrideOpError
 from .errors import OverridePathError
 from .literals import RawList
@@ -44,26 +43,14 @@ from .shapes import ANY_SHAPE
 from .shapes import Shape
 from .shapes import get_container_type
 from .stepping import step_shape
+from .trees import own_tree
 
 
 with lang.auto_proxy_import(globals()):
-    from ...specs import jq
+    from . import jq as _jq
 
 
 ##
-
-
-def own_tree(v: ta.Any) -> ta.Any:
-    """Deep-copies a tree into plain, unaliased dicts and lists."""
-
-    if isinstance(v, collections.abc.Mapping):
-        return {k: own_tree(e) for k, e in v.items()}
-    elif isinstance(v, (str, bytes, bytearray)):
-        return v
-    elif isinstance(v, collections.abc.Sequence):
-        return [own_tree(e) for e in v]
-    else:
-        return v
 
 
 def load_override_file(path: str) -> ta.Any:
@@ -257,7 +244,7 @@ class OverrideApplier:
         if isinstance(v, RawNode):
             v = self._resolver.resolve(v, slot.shape, slot.path)
         else:
-            v = own_tree(v)
+            v = conform_value(v, slot.shape, slot.path)
         slot.set(v)
 
     def _merge(self, slot: _Slot, v: ta.Any, *, nested: bool = False) -> None:
@@ -296,18 +283,6 @@ class OverrideApplier:
         elif not step_shape(slot.shape, key, node=node, path=slot.path).declared:
             raise OverridePathError(f'Nothing at {describe_path(path)}')
 
-    def _apply_jq(self, tree: ta.Any, op: JqOp) -> ta.Any:
-        try:
-            outs = list(itertools.islice(jq.compile_jq(op.filter).evaluate(tree), 2))
-        except jq.JqError as e:
-            raise OverrideJqError(f'jq filter {op.filter!r} failed: {e!r}') from e
-
-        if len(outs) != 1:
-            raise OverrideJqError(f'jq filter {op.filter!r} must produce exactly one output')
-
-        # jq outputs may share structure, both with their input and within themselves.
-        return own_tree(outs[0])
-
     #
 
     def apply(self, tree: ta.Any, ops: ta.Iterable[OverrideOp | str]) -> ta.Any:
@@ -327,7 +302,7 @@ class OverrideApplier:
             elif isinstance(op, RemoveOp):
                 self._remove(root, op.path)
             elif isinstance(op, JqOp):
-                holder[0] = self._apply_jq(holder[0], op)
+                holder[0] = _jq.apply_jq_filter(holder[0], op.filter, self._shape)
             else:
                 raise TypeError(op)
 

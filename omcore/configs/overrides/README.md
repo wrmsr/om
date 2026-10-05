@@ -40,6 +40,9 @@ Anything they can't express is a job for a jq filter, as a `JqOp`: it is given t
 one new one. It sees the tree as it stands - something created by an earlier override has only the keys it was given,
 not yet its defaults. jq is not imported until one is applied.
 
+Filters are held to the shape just as statements are: whatever one writes into the tree is checked where it lands, so
+`.vresion = "2"` and `.layers[0].dim = "8"` fail then and there, with a path, and `.opt.Sgd.lr = 1` switches subtypes.
+
 ## Values
 
 Values are kept as text until applied, when the *shape* of their target decides what they are:
@@ -59,6 +62,11 @@ Values are kept as text until applied, when the *shape* of their target decides 
 - Lists and maps are written json5-ish with bare scalars: `{name: enc, dims: [1, 2], note: "a, b"}`. Text which looks
   like one but isn't well-formed is a string, as is anything at all given to a string target (`pattern=[a-z]+`).
 - Booleans are `true` and `false`. Enums are their names, literals their values.
+
+Values from files and jq filters are different: they arrive already typed, so they are checked against the shape of
+their target but never reinterpreted. A number is not taken for a string (`.version = 1.10` is an error - write
+`.version = "1.10"`), nor a string for a boolean. The one liberty taken is between ints and floats of the same value,
+which neither JSON nor jq tells apart.
 
 ## Shapes
 

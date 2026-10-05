@@ -6,7 +6,6 @@ import operator
 import sys
 import typing as ta
 
-from ... import dataclasses as dc
 from .errors import JqCycleError
 from .errors import JqPathError
 from .errors import JqTypeError
@@ -22,9 +21,15 @@ JqPath: ta.TypeAlias = tuple[JqPathComponent, ...]
 ##
 
 
-@dc.dataclass(frozen=True)
 class JqValueOps:
-    options: JqValueOptions = JqValueOptions()
+    def __init__(self, options: JqValueOptions = JqValueOptions()) -> None:
+        super().__init__()
+
+        self._options = options
+
+    @property
+    def options(self) -> JqValueOptions:
+        return self._options
 
     _SEQUENCE_EXCLUSIONS: ta.ClassVar[tuple[type, ...]] = (
         str,
@@ -46,13 +51,13 @@ class JqValueOps:
         if isinstance(key, str):
             return key
 
-        if (stringifier := self.options.object_key_stringifier) is not None:
+        if (stringifier := self._options.object_key_stringifier) is not None:
             adapted = stringifier(key)
             if not isinstance(adapted, str):
                 raise JqTypeError('object key stringifier did not return a string')
             return adapted
 
-        if self.options.object_key_policy is ObjectKeyPolicy.IGNORE:
+        if self._options.object_key_policy is ObjectKeyPolicy.IGNORE:
             return None
 
         raise JqTypeError(f'jq object key is not a string: {key!r}')
@@ -199,7 +204,7 @@ class JqValueOps:
         if value_type == 'object':
             if not isinstance(key, str):
                 raise JqTypeError(f'cannot index object with {self.type_name(key)}')
-            if self.options.object_key_stringifier is None:
+            if self._options.object_key_stringifier is None:
                 try:
                     return value[key]
                 except KeyError:
@@ -258,7 +263,7 @@ class JqValueOps:
         if value_type == 'object':
             if not isinstance(key, str):
                 raise JqTypeError('object key must be a string')
-            if self.options.object_key_stringifier is None:
+            if self._options.object_key_stringifier is None:
                 return key in value
             return key in self.object_dict(value)
         if value_type == 'array':
@@ -464,36 +469,69 @@ class JqValueOps:
         normalized = self.normalize_path(path)
         return self._setpath(value, normalized, 0, replacement)
 
+    def with_item(self, container: ta.Any, key: JqPathComponent, item: ta.Any) -> ta.Any:
+        """
+        Returns a copy of a container with the item at a key set: of an object for a string key, and of an array -
+        padded with nulls as necessary - for a non-negative integer one. A null container stands for an empty one of
+        either.
+
+        This and `without_item` are what every path update - `setpath`, `delpaths`, and thus every form of assignment -
+        is made of, making them the place to override what kind of containers updates produce.
+        """
+
+        if isinstance(key, str):
+            result: dict[str, ta.Any] = {} if container is None else self.object_dict(container)
+            result[key] = item
+            return result
+
+        result_list: list[ta.Any] = [] if container is None else list(container)
+        if key >= len(result_list):
+            result_list.extend([None] * (key + 1 - len(result_list)))
+        result_list[key] = item
+        return result_list
+
+    def without_item(self, container: ta.Any, key: JqPathComponent) -> ta.Any:
+        """Returns a copy of a container with the item at a key - which must be present - removed."""
+
+        if isinstance(key, str):
+            result = self.object_dict(container)
+            del result[key]
+            return result
+
+        result_list = list(container)
+        del result_list[key]
+        return result_list
+
     def _setpath(self, value: ta.Any, path: JqPath, offset: int, replacement: ta.Any) -> ta.Any:
         if offset == len(path):
             return replacement
 
         component = path[offset]
+        child: ta.Any
         if isinstance(component, str):
             if value is None:
-                result: dict[str, ta.Any] = {}
+                child = None
             elif self.is_mapping(value):
-                result = self.object_dict(value)
+                child = self.index(value, component)
             else:
                 raise JqPathError(f'cannot index {self.type_name(value)} with a string path component')
-            result[component] = self._setpath(result.get(component), path, offset + 1, replacement)
-            return result
 
-        if value is None:
-            result_list: list[ta.Any] = []
-        elif self.is_sequence(value):
-            result_list = list(value)
         else:
-            raise JqPathError(f'cannot index {self.type_name(value)} with an integer path component')
-        index = component
-        if index < 0:
-            index += len(result_list)
-        if index < 0:
-            raise JqPathError(f'array index out of bounds: {component}')
-        if index >= len(result_list):
-            result_list.extend([None] * (index + 1 - len(result_list)))
-        result_list[index] = self._setpath(result_list[index], path, offset + 1, replacement)
-        return result_list
+            if value is None:
+                length = 0
+            elif self.is_sequence(value):
+                length = len(value)
+            else:
+                raise JqPathError(f'cannot index {self.type_name(value)} with an integer path component')
+            index = component
+            if index < 0:
+                index += length
+            if index < 0:
+                raise JqPathError(f'array index out of bounds: {component}')
+            child = value[index] if index < length else None
+            component = index
+
+        return self.with_item(value, component, self._setpath(child, path, offset + 1, replacement))
 
     def delpaths(self, value: ta.Any, paths: ta.Iterable[ta.Iterable[ta.Any]]) -> ta.Any:
         trie: dict[ta.Any, ta.Any] = {}
@@ -515,35 +553,36 @@ class JqValueOps:
             return _DELETED
         if value is None:
             return value
+
         value_type = self.type_name(value)
+        result = value
+
         if value_type == 'object':
-            result = self.object_dict(value)
             for component, child_trie in trie.items():
-                if not isinstance(component, str) or component not in result:
+                if not isinstance(component, str) or not self.has(result, component):
                     continue
-                child = self._deltrie(result[component], child_trie, terminal)
-                if child is _DELETED:
-                    del result[component]
-                else:
-                    result[component] = child
-            return result
-        if value_type == 'array':
-            result_list = list(value)
+                old = self.index(result, component)
+                if (child := self._deltrie(old, child_trie, terminal)) is _DELETED:
+                    result = self.without_item(result, component)
+                elif child is not old:
+                    result = self.with_item(result, component, child)
+
+        elif value_type == 'array':
             indexed: list[tuple[int, ta.Any]] = []
             for component, child_trie in trie.items():
                 if not self._is_int(component):
                     continue
-                index = component if component >= 0 else len(result_list) + component
-                if 0 <= index < len(result_list):
+                index = component if component >= 0 else len(result) + component
+                if 0 <= index < len(result):
                     indexed.append((index, child_trie))
             for index, child_trie in sorted(indexed, reverse=True):
-                child = self._deltrie(result_list[index], child_trie, terminal)
-                if child is _DELETED:
-                    del result_list[index]
-                else:
-                    result_list[index] = child
-            return result_list
-        return value
+                old = result[index]
+                if (child := self._deltrie(old, child_trie, terminal)) is _DELETED:
+                    result = self.without_item(result, index)
+                elif child is not old:
+                    result = self.with_item(result, index, child)
+
+        return result
 
     def normalize_path(self, path: ta.Iterable[ta.Any]) -> JqPath:
         if isinstance(path, self._SEQUENCE_EXCLUSIONS) or not isinstance(path, collections.abc.Sequence):

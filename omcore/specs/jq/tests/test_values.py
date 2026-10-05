@@ -7,6 +7,7 @@ from ..errors import JqCycleError
 from ..errors import JqTypeError
 from ..options import JqValueOptions
 from ..options import ObjectKeyPolicy
+from ..program import compile_jq
 from ..values import JqValueOps
 
 
@@ -110,3 +111,77 @@ def test_cycles_are_rejected_when_traversed():
     value.append(value)
     with pytest.raises(JqCycleError):
         JqValueOps().validate(value)
+
+
+def test_item_updates():
+    ops = JqValueOps()
+
+    assert ops.with_item(None, 'a', 1) == {'a': 1}
+    assert ops.with_item(None, 2, 'x') == [None, None, 'x']
+    assert ops.with_item(CustomMapping({'a': 1}), 'b', 2) == {'a': 1, 'b': 2}
+    assert ops.with_item(CustomSequence([1, 2]), 0, 'x') == ['x', 2]
+    assert ops.with_item([1], 3, 'x') == [1, None, None, 'x']
+
+    assert ops.without_item(CustomMapping({'a': 1, 'b': 2}), 'a') == {'b': 2}
+    assert ops.without_item(CustomSequence([1, 2, 3]), 1) == [1, 3]
+
+    obj = {'a': 1}
+    arr = [1, 2]
+    assert ops.with_item(obj, 'a', 2) is not obj
+    assert ops.without_item(arr, 0) is not arr
+    assert (obj, arr) == ({'a': 1}, [1, 2])
+
+
+def test_deleting_nothing_shares_everything():
+    ops = JqValueOps()
+    root: dict[str, ta.Any] = {'a': {'b': [1, 2]}, 'c': 1}
+    assert ops.delpaths(root, [['nope'], ['a', 'nope'], ['a', 'b', 5], ['c', 'x']]) is root
+
+    changed = ops.delpaths(root, [['a', 'b', 0], ['nope']])
+    assert changed == {'a': {'b': [2]}, 'c': 1}
+    assert root == {'a': {'b': [1, 2]}, 'c': 1}
+
+
+class RecordingValueOps(JqValueOps):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.calls: list[tuple[ta.Any, ...]] = []
+
+    def with_item(self, container, key, item):
+        self.calls.append(('with', key))
+        return super().with_item(container, key, item)
+
+    def without_item(self, container, key):
+        self.calls.append(('without', key))
+        return super().without_item(container, key)
+
+
+@pytest.mark.parametrize(('source', 'calls'), [
+    ('.a.b = 1', [('with', 'b'), ('with', 'a')]),
+    ('.xs[1] += 1', [('with', 1), ('with', 'xs')]),
+    ('.a |= (.b = 2)', [('with', 'b'), ('with', 'a')]),
+    ('.xs |= map(. * 2)', [('with', 'xs')]),
+    ('.new[1] = 1', [('with', 1), ('with', 'new')]),
+    ('del(.a.b)', [('without', 'b'), ('with', 'a')]),
+    ('del(.xs[0], .xs[2])', [('without', 2), ('without', 0), ('with', 'xs')]),
+    ('.xs |= map(select(. > 1))', [('with', 'xs')]),
+    ('.xs[] |= empty', None),
+    ('setpath(["a", "b"]; 3)', [('with', 'b'), ('with', 'a')]),
+    ('delpaths([["a", "b"]])', [('without', 'b'), ('with', 'a')]),
+    ('to_entries | from_entries', None),
+    ('.a.b', []),
+    ('. + {c: 1}', []),
+])
+def test_path_updates_are_made_of_item_updates(source, calls):
+    def new_tree():
+        return {'a': {'b': 1}, 'xs': [1, 2, 3]}
+
+    ops = RecordingValueOps()
+    program = compile_jq(source, value_ops=ops)
+    assert program.value_ops is ops
+    assert program.value_options is ops.options
+
+    assert list(program.evaluate(new_tree())) == list(compile_jq(source).evaluate(new_tree()))
+    if calls is not None:
+        assert ops.calls == calls

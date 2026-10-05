@@ -3823,7 +3823,7 @@ def _process_dataclass__1cc3c0eb99b32a4562fd11bbd7ff6ce199ca62f4():
 
 
 @_register(
-    installer_sha1='5e69a0a79af9d4996ab73c7389ecf120c46b6b31',
+    installer_sha1='af4f91f55a3075e5e0593f27ec5a90565e573109',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3833,15 +3833,16 @@ def _process_dataclass__1cc3c0eb99b32a4562fd11bbd7ff6ce199ca62f4():
             "e', 'missing', None, False, False, False), (('value_options', True, True, None, True, False, False, None),"
             " 'instance', 'value', None, False, False, False), (('runtime_options', True, True, None, True, False, Fals"
             "e, None), 'instance', 'value', None, False, False, False), (('regex_engine', True, True, None, True, False"
-            ", False, None), 'instance', 'factory', None, False, False, False)), False, 0, ()), ((False,), (False,), ()"
-            ", (False,), (False, False, ()), ((),), (), (False,)))"
+            ", False, None), 'instance', 'factory', None, False, False, False), (('value_ops', True, True, None, True, "
+            "False, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,),"
+            " (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omcore.specs.jq.program', 'JqProgram'),
     ),
 )
-def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
+def _process_dataclass__af4f91f55a3075e5e0593f27ec5a90565e573109():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3857,6 +3858,8 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
         __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
         __dataclass__init__fields__5__default_factory = __dataclass__spec.fields[5].default.must().fn
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -3874,6 +3877,7 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
                 value_options=self.value_options,
                 runtime_options=self.runtime_options,
                 regex_engine=self.regex_engine,
+                value_ops=self.value_ops,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3889,7 +3893,8 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
                 self.native_functions == other.native_functions and
                 self.value_options == other.value_options and
                 self.runtime_options == other.runtime_options and
-                self.regex_engine == other.regex_engine
+                self.regex_engine == other.regex_engine and
+                self.value_ops == other.value_ops
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3901,6 +3906,7 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
             'value_options',
             'runtime_options',
             'regex_engine',
+            'value_ops',
         }
 
         def __setattr__(self, name, value):
@@ -3931,6 +3937,7 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
                 self.value_options,
                 self.runtime_options,
                 self.regex_engine,
+                self.value_ops,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3943,6 +3950,7 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
             value_options: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             runtime_options: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
             regex_engine: __dataclass__init__fields__5__annotation = __dataclass__HAS_DEFAULT_FACTORY,
+            value_ops: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
         ) -> __dataclass__None:
             if regex_engine is __dataclass__HAS_DEFAULT_FACTORY:
                 regex_engine = __dataclass__init__fields__5__default_factory()
@@ -3952,6 +3960,7 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
             __dataclass__object_setattr(self, 'value_options', value_options)
             __dataclass__object_setattr(self, 'runtime_options', runtime_options)
             __dataclass__object_setattr(self, 'regex_engine', regex_engine)
+            __dataclass__object_setattr(self, 'value_ops', value_ops)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3964,6 +3973,7 @@ def _process_dataclass__5e69a0a79af9d4996ab73c7389ecf120c46b6b31():
             parts.append(f"value_options={self.value_options!r}")
             parts.append(f"runtime_options={self.runtime_options!r}")
             parts.append(f"regex_engine={self.regex_engine!r}")
+            parts.append(f"value_ops={self.value_ops!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -4904,117 +4914,6 @@ def _process_dataclass__321115f07c01b6afe61318d6d614fed7c5c0e6ca():
             parts.append(f"pending_key={self.pending_key!r}")
             parts.append(f"child_count={self.child_count!r}")
             parts.append(f"last_child_path={self.last_child_path!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    installer_sha1='cd5b7f3ca87b56a7f62e5e79580824c330f3a686',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('options', True, True, None, True, False, False, None), 'instance', 'value', "
-            "None, False, False, False), (('_SEQUENCE_EXCLUSIONS', True, True, None, True, None, False, None), 'class_v"
-            "ar', 'value', None, False, False, False), (('_TYPE_ORDER', True, True, None, True, None, False, None), 'cl"
-            "ass_var', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, "
-            "False, ()), ((),), (), (False,)))"
-        ),
-    ),
-    cls_names=(
-        ('omcore.specs.jq.values', 'JqValueOps'),
-    ),
-)
-def _process_dataclass__cd5b7f3ca87b56a7f62e5e79580824c330f3a686():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                options=self.options,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.options == other.options
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'options',
-            '_SEQUENCE_EXCLUSIONS',
-            '_TYPE_ORDER',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.options,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            options: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'options', options)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"options={self.options!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

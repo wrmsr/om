@@ -1,0 +1,95 @@
+#!/bin/bash
+set -euo pipefail
+
+set -x
+
+ELASTICSEARCH_VERSION="${ELASTICSEARCH_VERSION:-8.19.22}"
+
+CACHE_DIR="${ELASTICSEARCH_CACHE_DIR:-$HOME/.cache/omdev/elasticsearch}"
+
+case "$(uname -m)" in
+    x86_64|amd64)
+        ARCH=x86_64
+        ;;
+    aarch64|arm64)
+        ARCH=aarch64
+        ;;
+    *)
+        echo "Unsupported architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+esac
+
+NAME="elasticsearch-$ELASTICSEARCH_VERSION-linux-$ARCH"
+ARCHIVE="$CACHE_DIR/$NAME.tar.gz"
+DIST_DIR="$CACHE_DIR/$NAME"
+
+URL="https://artifacts.elastic.co/downloads/elasticsearch/$NAME.tar.gz"
+
+STATE_DIR="${ELASTICSEARCH_STATE_DIR:-$CACHE_DIR/state-$ELASTICSEARCH_VERSION}"
+DATA_DIR="${ELASTICSEARCH_DATA_DIR:-$STATE_DIR/data}"
+LOGS_DIR="${ELASTICSEARCH_LOGS_DIR:-$STATE_DIR/logs}"
+
+mkdir -p "$CACHE_DIR" "$DATA_DIR" "$LOGS_DIR"
+
+# Serialize first-time setup in case multiple agents race to start it.
+exec 9>"$CACHE_DIR/.lock"
+flock 9
+
+if ! test -s "$ARCHIVE"; then
+    TMP="$ARCHIVE.tmp.$$"
+    trap 'rm -f "$TMP"' EXIT
+
+    curl \
+        --fail \
+        --location \
+        --retry 3 \
+        --retry-all-errors \
+        --output "$TMP" \
+        "$URL"
+
+    EXPECTED_SHA512="$(
+        curl \
+            --fail \
+            --location \
+            --retry 3 \
+            --retry-all-errors \
+            "$URL.sha512" |
+        awk '{print $1}'
+    )"
+
+    ACTUAL_SHA512="$(sha512sum "$TMP" | awk '{print $1}')"
+
+    test "$ACTUAL_SHA512" = "$EXPECTED_SHA512"
+
+    mv "$TMP" "$ARCHIVE"
+    trap - EXIT
+fi
+
+if ! test -x "$DIST_DIR/bin/elasticsearch"; then
+    TMP="$DIST_DIR.tmp.$$"
+    trap 'rm -rf "$TMP"' EXIT
+
+    rm -rf "$TMP"
+    mkdir "$TMP"
+
+    tar \
+        -xzf "$ARCHIVE" \
+        -C "$TMP" \
+        --strip-components=1
+
+    mv "$TMP" "$DIST_DIR"
+    trap - EXIT
+fi
+
+flock -u 9
+exec 9>&-
+
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:--Xms750m -Xmx750m}"
+
+exec "$DIST_DIR/bin/elasticsearch" \
+    -Ediscovery.type=single-node \
+    -Expack.security.enabled=false \
+    -Epath.data="$DATA_DIR" \
+    -Epath.logs="$LOGS_DIR" \
+    "$@"

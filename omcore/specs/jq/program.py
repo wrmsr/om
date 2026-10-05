@@ -50,6 +50,9 @@ class JqProgram:
     runtime_options: JqRuntimeOptions = JqRuntimeOptions()
     regex_engine: RegexEngine | None = dc.field(default_factory=stdlib_regex_engine)
 
+    # When present these are used as is, and `value_options` is not consulted.
+    value_ops: JqValueOps | None = None
+
     @staticmethod
     def _environment(variables: ta.Mapping[str, ta.Any] | None) -> JqEnvironment:
         if variables is None:
@@ -66,7 +69,7 @@ class JqProgram:
             runtime_options: JqRuntimeOptions | None,
     ) -> JqEvalContext:
         return JqEvalContext(
-            value_ops=JqValueOps(self.value_options),
+            value_ops=self.value_ops if self.value_ops is not None else JqValueOps(self.value_options),
             options=runtime_options if runtime_options is not None else self.runtime_options,
             input_source=input_source,
             native_functions=self.native_functions,
@@ -118,6 +121,7 @@ def compile_jq(
         source: str,
         *,
         value_options: JqValueOptions = JqValueOptions(),
+        value_ops: JqValueOps | None = None,
         runtime_options: JqRuntimeOptions = JqRuntimeOptions(),
         regex_engine: RegexEngine | None | object = _DEFAULT_REGEX_ENGINE,
         include_prelude: bool = True,
@@ -133,7 +137,8 @@ def compile_jq(
         source,
         compiled,
         native_functions,
-        value_options,
+        value_ops.options if value_ops is not None else value_options,
         runtime_options,
         ta.cast('RegexEngine | None', regex_engine),
+        value_ops=value_ops,
     )

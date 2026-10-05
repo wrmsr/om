@@ -14,7 +14,10 @@ from ..errors import UnhandledOverrideShapeError
 from ..marshal import ConfigOverrider
 from ..marshal import get_unmarshaler_shape
 from ..marshal import override_config
+from ..ops import ConstOpValue
 from ..ops import JqOp
+from ..ops import SetOp
+from ..parsing import parse_path
 from ..shapes import AnyShape
 from ..shapes import ChoiceShape
 from ..shapes import ListShape
@@ -350,6 +353,48 @@ def test_jq():
     m = override('layers.0.dim=2', JqOp('.layers |= map(.dim *= 2)'), 'layers.1.dim=1')
     assert [l.dim for l in m.layers] == [4, 1]
 
+    assert type(override(JqOp('.dropout = 1')).dropout) is float
+    assert override(JqOp('.layers |= map(.dim /= 2)')).layers == (Layer('enc', 4), Layer('dec', 4))
+    assert override(JqOp('.tag = "5" | .ratio = 5 | .mixed = {name: "x"} | .mode2 = 3')) == dc.replace(
+        Model(),
+        tag='5',
+        ratio=5.,
+        mixed=Layer('x'),
+        mode2=3,
+    )
+    assert override(JqOp('.color = "BLUE" | .tags = ["a"] | .sizes += [1, 2.0]')) == dc.replace(
+        Model(),
+        color=Color.BLUE,
+        tags=frozenset(['a']),
+        sizes=(1, 2),
+    )
+
+    # Subtypes switch as they do for statements.
+    assert override(JqOp('.opt.Sgd.lr = 1')).opt == Sgd(1.)
+    assert override(JqOp('.opt |= (.Sgd.momentum = 1)')).opt == Sgd(momentum=1.)
+    assert override(JqOp('.opt2.Sgd.lr = 1')).opt2 == Sgd(1.)
+    assert override(JqOp('.sched |= (del(.t_max) | .type = "Step")')).sched == Step()
+
+    for f, match in [
+        ('.version = 1.10', r"Expected str at 'version', got number 1\.1"),
+        ('.debug = "false"', "Expected bool at 'debug', got string 'false'"),
+        ('.layers[0].dim = 1.5', r"Expected int at 'layers\.0\.dim'"),
+        ('.color = "BLEU"', "Expected one of 'RED', 'BLUE' at 'color'"),
+        ('.mode = "c"', "Expected one of 'a', 'b' at 'mode'"),
+        ('.tag = 1.5', "at 'tag', got number 1.5"),
+        ('. * {layers: [{nmae: "x"}]}', r"Unknown key 'nmae' at 'layers\.0' - did you mean 'name'"),
+    ]:
+        with pytest.raises(OverrideValueError, match=match):
+            override(JqOp(f))
+
+    for f, match in [
+        ('.vresion = "2"', "Unknown key 'vresion' at the root - did you mean 'version'"),
+        ('.layers[0].dmi = 1', r"Unknown key 'dmi' at 'layers\.0' - did you mean 'dim'"),
+        ('.opt.Sdg.lr = 1', "Unknown tag 'Sdg' at 'opt' - did you mean 'Sgd'"),
+    ]:
+        with pytest.raises(OverridePathError, match=match):
+            override(JqOp(f))
+
 
 def test_files():
     files = {'e.json': {'name': 'e', 'opt': {'Sgd': {'lr': 1}}, 'layers': [{'name': 'only'}]}}
@@ -362,6 +407,37 @@ def test_files():
         layers=(Layer('only'),),
     )
     assert override('by_name.x=@e.json', file_loader=lambda _: {'name': 'f'}).by_name == {'x': Layer('f')}
+
+
+def test_concrete_values_are_conformed():
+    def load(v):
+        return dict(file_loader=lambda _: v)
+
+    m = override('@f', **load({'dropout': 1, 'opt': {'Adam': {'betas': [1, 2]}}, 'layers': [{'name': 'f', 'dim': 2.}]}))
+    assert type(m.dropout) is float
+    assert m.opt == Adam(betas=(1., 2.))
+    assert m.layers == (Layer('f', 2),)
+    assert type(m.layers[0].dim) is int
+
+    assert override(SetOp(parse_path('ratio'), ConstOpValue(5))).ratio == 5.
+    assert override(SetOp(parse_path('extra.x'), ConstOpValue({'a': (1, '2')}))).extra == {'x': {'a': [1, '2']}}
+
+    # They arrive already typed, so nothing about them is reinterpreted.
+    for op, match in [
+        (('@f', load({'version': 1.10})), r"Expected str at 'version', got number 1\.1"),
+        (('@f', load({'debug': 'false'})), "Expected bool at 'debug', got string 'false'"),
+        (('layers.0=@f', load({'name': 'x', 'dmi': 1})), r"Unknown key 'dmi' at 'layers\.0' - did you mean 'dim'"),
+        (('layers=@f', load([{'name': 5}])), r"Expected str at 'layers\.0\.name', got number 5"),
+        (('opt=@f', load({'Adam': {}, 'Sgd': {}})), "exactly one tag at 'opt'"),
+        (('layers.+=@f', load('x')), r"Expected map at 'layers\.\+', got string 'x'"),
+        ((SetOp(parse_path('debug'), ConstOpValue(1)), {}), "Expected bool at 'debug', got number 1"),
+        ((SetOp(parse_path('name'), ConstOpValue(None)), {}), "Expected str at 'name', got null"),
+    ]:
+        with pytest.raises(OverrideValueError, match=match):
+            override(op[0], **op[1])
+
+    with pytest.raises(OverridePathError, match="Unknown key 'vresion' at the root"):
+        override('@f', **load({'vresion': '2'}))
 
 
 ##
