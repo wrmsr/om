@@ -707,7 +707,8 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 *schedule_path,
             ))
         try:
-            systevisor_parse_cron(schedule.cron)
+            # Parsing accepts dates that never occur, such as the 31st of February.
+            systevisor_parse_cron(schedule.cron).next_after(0.)
         except SystevisorCronError as exc:
             errors.append(_systevisor_config_validation_error(
                 'invalid_cron',

@@ -407,6 +407,16 @@ def _systevisor_processes_read_birth_identity(pid: int) -> ta.Optional[str]:
     return fields_after_command[19]
 
 
+def systevisor_manager_incarnation() -> str:
+    """
+    Names this manager process for as long as it lives. A pid alone is reused - it is always 1 in a container - but
+    together with the start time it is not, and both survive the manager exec'ing a new image of itself.
+    """
+
+    pid = os.getpid()
+    return f'{pid}.{_systevisor_processes_read_birth_identity(pid) or 0}'
+
+
 def _systevisor_processes_read_pidfd_pid(fd: int) -> ta.Optional[int]:
     try:
         with open(f'/proc/self/fdinfo/{fd}') as fdinfo_file:

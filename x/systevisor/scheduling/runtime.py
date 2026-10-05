@@ -38,7 +38,14 @@ from .cron import systevisor_parse_cron
 
 _SYSTEVISOR_SCHEDULER_STATE_SCHEMA_VERSION = 1
 _SYSTEVISOR_SCHEDULER_WALL_RECHECK_SECS = 60.
-_SYSTEVISOR_SCHEDULER_MAX_DUE_SCAN = 5_000_000
+
+# Past this many missed occurrences they stop being counted one by one: the backlog is known to be at least this deep,
+# and what to fire is worked out from the present instead of by walking up to it.
+_SYSTEVISOR_SCHEDULER_MAX_DUE_COUNT = 1000
+
+# The wall clock moving backwards by no more than this is waited out, so nothing fires twice. Anything larger is taken
+# to be a correction and schedules carry on from the new time. Vixie cron draws the same line in the same place.
+_SYSTEVISOR_SCHEDULER_CLOCK_STEP_TOLERANCE_SECS = 3. * 60. * 60.
 
 
 class SystevisorScheduleEventKind(enum.Enum):
@@ -262,6 +269,13 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
             previous = persisted.get(name)
             if previous is None or previous.fingerprint != fingerprint:
                 previous = SystevisorSchedulePersistentState(fingerprint, baseline)
+            elif (
+                    not math.isfinite(previous.last_due_wall_time) or
+                    previous.last_due_wall_time - now > _SYSTEVISOR_SCHEDULER_CLOCK_STEP_TOLERANCE_SECS
+            ):
+                # Recorded under a clock that has since been set back: resuming it would silence the schedule until
+                # the present caught up with that record.
+                previous = dc.replace(previous, last_due_wall_time=baseline)
             current = self._states.get(name)
             states[name] = SystevisorScheduleState(
                 name=name,
@@ -354,24 +368,35 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
             reason=reason,
         ), self._clock.monotonic())
 
-    def _run_state(self, state: SystevisorScheduleState, now: float) -> None:
+    def _run_state(self, state: SystevisorScheduleState, now: float) -> bool:
         cron = self._crons[state.name]
-        catch_up: ta.List[float] = []
+
+        behind = state.last_due_wall_time - now
+        if behind > _SYSTEVISOR_SCHEDULER_CLOCK_STEP_TOLERANCE_SECS:
+            previous_last_due = state.last_due_wall_time
+            state.last_due_wall_time = math.floor(now / 60.) * 60.
+            state.next_due_wall_time = cron.next_after(state.last_due_wall_time)
+            self._event_bus.publish('schedule.clock_stepped', {
+                'schedule_name': state.name,
+                'previous_last_due_wall_time': previous_last_due,
+                'next_due_wall_time': state.next_due_wall_time,
+            }, self._clock.monotonic())
+            return True
+        if state.next_due_wall_time > now:
+            return False
+
+        # Something is due, so the latest occurrence and the one after it follow from the present alone. Only the
+        # count of what was missed needs the occurrences in between, and that is given up on once it is deep enough.
+        latest_due = cron.previous_at_or_before(now)
         due_count = 0
-        latest_due: ta.Optional[float] = None
-        next_due = state.next_due_wall_time
-        while next_due <= now and due_count < _SYSTEVISOR_SCHEDULER_MAX_DUE_SCAN:
+        cursor = state.next_due_wall_time
+        while cursor <= now and due_count < _SYSTEVISOR_SCHEDULER_MAX_DUE_COUNT:
             due_count += 1
-            latest_due = next_due
-            if len(catch_up) < state.config.max_catch_up:
-                catch_up.append(next_due)
-            next_due = cron.next_after(next_due)
-        if latest_due is None:
-            return
-        if next_due <= now:
-            raise RuntimeError(f'schedule backlog exceeds {_SYSTEVISOR_SCHEDULER_MAX_DUE_SCAN} occurrences')
+            cursor = cron.next_after(cursor)
+        counted_all = cursor > now
 
         latest_is_current = now - latest_due < 60.
+        selected: ta.List[float]
         if due_count == 1 and latest_is_current:
             selected = [latest_due]
         elif state.config.missed is SystevisorScheduleMissedPolicy.SKIP:
@@ -379,7 +404,14 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
         elif state.config.missed is SystevisorScheduleMissedPolicy.LATEST:
             selected = [latest_due]
         else:
-            selected = catch_up
+            # The most recent ones, in order: a bound on catching up should not mean replaying the oldest of the
+            # backlog while leaving out the occurrence that is actually due now.
+            selected = []
+            cursor = latest_due
+            while len(selected) < min(state.config.max_catch_up, due_count):
+                selected.append(cursor)
+                cursor = cron.previous_at_or_before(cursor - 60.)
+            selected.reverse()
 
         fired_count = 0
         for scheduled_wall_time in selected:
@@ -405,24 +437,29 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
                 scheduled_wall_time,
                 operation_id=operation.operation_id,
             )
-        skipped_count = due_count - fired_count
-        state.skip_count += skipped_count
+        state.skip_count += due_count - fired_count
         missed_policy_skips = due_count - len(selected)
         if missed_policy_skips:
             self._publish(
                 SystevisorScheduleEventKind.SKIPPED,
                 state,
                 latest_due,
-                reason=f'missed-run policy skipped {missed_policy_skips} occurrence(s)',
+                reason=(
+                    f'missed-run policy skipped {"" if counted_all else "at least "}'
+                    f'{missed_policy_skips} occurrence(s)'
+                ),
             )
         state.last_due_wall_time = latest_due
-        state.next_due_wall_time = next_due
+        state.next_due_wall_time = cron.next_after(now)
+        return True
 
     def on_timeout(self) -> None:
         now = self._clock.wall_time()
+        changed = False
         for state in self._states.values():
-            self._run_state(state, now)
-        self._persist()
+            changed = self._run_state(state, now) or changed
+        if changed:
+            self._persist()
 
     def close(self) -> None:
         self._closed = True

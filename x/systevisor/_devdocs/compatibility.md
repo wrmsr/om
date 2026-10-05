@@ -16,7 +16,7 @@ uses literal argv arrays, and separates identity, restart, stop, stdio, dependen
 | `umask` | `unit.exec.umask` | Applied in the child after fork and before exec. |
 | `directory` | `unit.exec.working_directory` | Applied directly; no shell is involved. |
 | `environment` | `unit.exec.environment`, `.inherit_environment` | Explicit mapping plus controllable inheritance. |
-| `priority` | `unit.priority` | Lower starts earlier; reverse order is used for stopping. Dependencies override mere priority when required. |
+| `priority` | `unit.priority` | Lower starts earlier and stops later within a step, but is never waited on: unlike Supervisor's sequential reverse-priority stop, only dependencies make one unit wait for another to exit. |
 | `auto_start` | `unit.autostart` | Collection and dependency claims remain separate from configured autostart. |
 | `auto_restart` | `unit.restart.mode` | `never`, `unexpected`, or `always`. |
 | `start_secs` | `unit.restart.start_secs` | Monotonic deadline; zero is supported. |

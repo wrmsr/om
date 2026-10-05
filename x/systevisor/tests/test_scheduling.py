@@ -1,4 +1,5 @@
 # ruff: noqa: DTZ001 PTH100 PTH118 PTH123 PT009 UP006 UP007 UP017 UP045
+import dataclasses as dc
 import datetime
 import os.path
 import tempfile
@@ -22,6 +23,7 @@ from ..runtime.events import SystevisorEventBus
 from ..scheduling.cron import SystevisorCronError
 from ..scheduling.cron import systevisor_parse_cron
 from ..scheduling.runtime import SystevisorJsonScheduleStateStore
+from ..scheduling.runtime import SystevisorScheduleEventKind
 from ..scheduling.runtime import SystevisorSchedulePersistentState
 from ..scheduling.runtime import SystevisorScheduler
 from ..scheduling.runtime import SystevisorScheduleStateStore
@@ -56,12 +58,14 @@ class SystevisorTestScheduleFdioManager:
 class SystevisorTestScheduleStateStore(SystevisorScheduleStateStore):
     def __init__(self) -> None:
         self.states: ta.Mapping[str, SystevisorSchedulePersistentState] = {}
+        self.save_count = 0
 
     def load(self, path: str) -> ta.Mapping[str, SystevisorSchedulePersistentState]:
         return self.states
 
     def save(self, path: str, states: ta.Mapping[str, SystevisorSchedulePersistentState]) -> None:
         self.states = dict(states)
+        self.save_count += 1
 
 
 class SystevisorTestScheduleControl:
@@ -155,6 +159,60 @@ class TestSystevisorCron(unittest.TestCase):
             systevisor_parse_cron('61 * * * *')
 
 
+    def test_impossible_date_is_rejected_quickly_rather_than_searched_for(self) -> None:
+        cron = systevisor_parse_cron('0 0 31 2 *')
+        with self.assertRaises(SystevisorCronError):
+            cron.next_after(_SYSTEVISOR_TEST_SCHEDULE_EPOCH)
+        with self.assertRaises(SystevisorCronError):
+            cron.previous_at_or_before(_SYSTEVISOR_TEST_SCHEDULE_EPOCH)
+
+    def test_sparse_expressions_resolve_across_long_gaps(self) -> None:
+        def at(year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0) -> float:
+            return datetime.datetime(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+                tzinfo=datetime.timezone.utc,
+            ).timestamp()
+
+        leap_day = systevisor_parse_cron('17 4 29 2 *')
+        self.assertEqual(leap_day.next_after(at(2024, 2, 29, 4, 17)), at(2028, 2, 29, 4, 17))
+        self.assertEqual(leap_day.next_after(at(2096, 3, 1)), at(2104, 2, 29, 4, 17))
+        self.assertEqual(leap_day.previous_at_or_before(at(2028, 2, 29, 4, 16, 59)), at(2024, 2, 29, 4, 17))
+        self.assertEqual(leap_day.previous_at_or_before(at(2028, 2, 29, 4, 17, 30)), at(2028, 2, 29, 4, 17))
+
+        yearly = systevisor_parse_cron('0 0 1 1 *')
+        self.assertEqual(yearly.next_after(at(2024, 1, 1)), at(2025, 1, 1))
+        self.assertEqual(yearly.previous_at_or_before(at(2024, 12, 31, 23, 59)), at(2024, 1, 1))
+
+    def test_searches_agree_with_scanning_every_minute(self) -> None:
+        minute = datetime.timedelta(minutes=1)
+        for source in (
+                '* * * * *',
+                '*/15 9-17 * * 1-5',
+                '0 0 1 * 1',
+                '5,35 0,12 1-7 */3 *',
+                '0 12 28-31 * 5',
+        ):
+            cron = systevisor_parse_cron(source)
+            for day_offset in range(0, 800, 37):
+                start = datetime.datetime.fromtimestamp(
+                    _SYSTEVISOR_TEST_SCHEDULE_EPOCH + day_offset * 86400. + day_offset * 617.,
+                    datetime.timezone.utc,
+                )
+                later = start.replace(second=0, microsecond=0) + minute
+                while not cron.matches_datetime(later):
+                    later += minute
+                earlier = start.replace(second=0, microsecond=0)
+                while not cron.matches_datetime(earlier):
+                    earlier -= minute
+                self.assertEqual(cron.next_after(start.timestamp()), later.timestamp(), (source, start))
+                self.assertEqual(cron.previous_at_or_before(start.timestamp()), earlier.timestamp(), (source, start))
+
+
 class TestSystevisorScheduler(unittest.TestCase):
     def test_monotonic_deadline_fires_normal_control_operation(self) -> None:
         clock = SystevisorFakeClock(wall_time=_SYSTEVISOR_TEST_SCHEDULE_EPOCH)
@@ -241,3 +299,124 @@ class TestSystevisorScheduler(unittest.TestCase):
             store.save(path, states)
 
             self.assertEqual(store.load(path), states)
+
+    def _stepped_forward(
+            self,
+            missed: SystevisorScheduleMissedPolicy,
+    ) -> ta.Tuple[SystevisorScheduler, SystevisorTestScheduleControl, SystevisorEventBus, float]:
+        # A manager started before its clock was set: half a century of every-minute occurrences are suddenly overdue.
+        clock = SystevisorFakeClock(wall_time=0.)
+        scheduler, control, event_bus = _systevisor_test_scheduler(clock)
+        scheduler.prepare(_systevisor_test_schedule_snapshot(
+            missed=missed,
+            concurrency=SystevisorScheduleConcurrencyPolicy.ALLOW,
+            state_directory=None,
+        )).commit()
+        now = _SYSTEVISOR_TEST_SCHEDULE_EPOCH + 30.
+        clock.advance(now)
+        scheduler.on_timeout()
+        self.assertEqual(scheduler.states['job-every-minute'].next_due_wall_time, _SYSTEVISOR_TEST_SCHEDULE_EPOCH + 60.)
+        return scheduler, control, event_bus, now
+
+    def _fired_at(self, event_bus: SystevisorEventBus) -> ta.Sequence[float]:
+        return [
+            event.payload.scheduled_wall_time
+            for event in event_bus.journal()
+            if event.topic == 'schedule' and event.payload.kind is SystevisorScheduleEventKind.FIRED
+        ]
+
+    def test_large_forward_clock_step_is_bounded_work_under_every_policy(self) -> None:
+        scheduler, control, event_bus, _ = self._stepped_forward(SystevisorScheduleMissedPolicy.SKIP)
+        self.assertEqual(self._fired_at(event_bus), [_SYSTEVISOR_TEST_SCHEDULE_EPOCH])
+        self.assertEqual(scheduler.states['job-every-minute'].skip_count, 999)
+
+        scheduler, control, event_bus, _ = self._stepped_forward(SystevisorScheduleMissedPolicy.LATEST)
+        self.assertEqual(self._fired_at(event_bus), [_SYSTEVISOR_TEST_SCHEDULE_EPOCH])
+
+        # Bounded catch-up replays the most recent occurrences, ending with the one that is due now.
+        scheduler, control, event_bus, _ = self._stepped_forward(SystevisorScheduleMissedPolicy.ALL)
+        self.assertEqual(self._fired_at(event_bus), [
+            _SYSTEVISOR_TEST_SCHEDULE_EPOCH - 60.,
+            _SYSTEVISOR_TEST_SCHEDULE_EPOCH,
+        ])
+        self.assertEqual(len(control.calls), 2)
+        skipped = [
+            event.payload.reason
+            for event in event_bus.journal()
+            if event.topic == 'schedule' and event.payload.kind is SystevisorScheduleEventKind.SKIPPED
+        ]
+        self.assertEqual(skipped, ['missed-run policy skipped at least 998 occurrence(s)'])
+
+    def test_small_backward_clock_step_is_waited_out_without_firing_twice(self) -> None:
+        clock = SystevisorFakeClock(wall_time=_SYSTEVISOR_TEST_SCHEDULE_EPOCH)
+        store = SystevisorTestScheduleStateStore()
+        scheduler, control, _ = _systevisor_test_scheduler(clock, store)
+        scheduler.prepare(_systevisor_test_schedule_snapshot(
+            concurrency=SystevisorScheduleConcurrencyPolicy.ALLOW,
+        )).commit()
+        clock.advance(60.)
+        scheduler.on_timeout()
+        self.assertEqual(len(control.calls), 1)
+        save_count = store.save_count
+
+        clock.set_wall_time(_SYSTEVISOR_TEST_SCHEDULE_EPOCH - 3600.)
+        for _ in range(61):
+            scheduler.on_timeout()
+            clock.advance(60.)
+        self.assertEqual(len(control.calls), 1)
+        # Waking with nothing to do is not a reason to rewrite the state file.
+        self.assertEqual(store.save_count, save_count)
+
+        clock.advance(60.)
+        scheduler.on_timeout()
+        self.assertEqual(len(control.calls), 2)
+        self.assertEqual(
+            scheduler.states['job-every-minute'].last_fired_wall_time,
+            _SYSTEVISOR_TEST_SCHEDULE_EPOCH + 120.,
+        )
+
+    def test_large_backward_clock_step_carries_on_from_the_new_time(self) -> None:
+        clock = SystevisorFakeClock(wall_time=_SYSTEVISOR_TEST_SCHEDULE_EPOCH)
+        scheduler, control, event_bus = _systevisor_test_scheduler(clock)
+        scheduler.prepare(_systevisor_test_schedule_snapshot(
+            concurrency=SystevisorScheduleConcurrencyPolicy.ALLOW,
+            state_directory=None,
+        )).commit()
+        clock.advance(60.)
+        scheduler.on_timeout()
+
+        corrected = _SYSTEVISOR_TEST_SCHEDULE_EPOCH - 86400.
+        clock.set_wall_time(corrected)
+        scheduler.on_timeout()
+        self.assertEqual(len(control.calls), 1)
+        self.assertEqual(scheduler.states['job-every-minute'].next_due_wall_time, corrected + 60.)
+        self.assertIn('schedule.clock_stepped', {event.topic for event in event_bus.journal()})
+
+        clock.advance(60.)
+        scheduler.on_timeout()
+        self.assertEqual(len(control.calls), 2)
+
+    def test_state_persisted_under_a_fast_clock_does_not_silence_a_restart(self) -> None:
+        for recorded in (_SYSTEVISOR_TEST_SCHEDULE_EPOCH + 86400., float('nan')):
+            store = SystevisorTestScheduleStateStore()
+            first, _, _ = _systevisor_test_scheduler(
+                SystevisorFakeClock(wall_time=_SYSTEVISOR_TEST_SCHEDULE_EPOCH),
+                store,
+            )
+            snapshot = _systevisor_test_schedule_snapshot()
+            first.prepare(snapshot).commit()
+            store.states = {
+                name: dc.replace(state, last_due_wall_time=recorded, fire_count=7)
+                for name, state in store.states.items()
+            }
+
+            clock = SystevisorFakeClock(wall_time=_SYSTEVISOR_TEST_SCHEDULE_EPOCH)
+            second, control, _ = _systevisor_test_scheduler(clock, store)
+            second.prepare(snapshot).commit()
+            state = second.states['job-every-minute']
+            self.assertEqual(state.next_due_wall_time, _SYSTEVISOR_TEST_SCHEDULE_EPOCH + 60.)
+            self.assertEqual(state.fire_count, 7)
+
+            clock.advance(60.)
+            second.on_timeout()
+            self.assertEqual(len(control.calls), 1)

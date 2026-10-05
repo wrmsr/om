@@ -112,6 +112,14 @@ in the parent; after `fork`, the child writes `0` through that FD before droppin
 `cgroup.kill`. CPU, memory, PID, and aggregate descendant I/O counters are observable. Empty groups are removed;
 populated descendant groups are retained and retried by an fdio deadline even when ordinary sampling is disabled.
 
+A run directory is named for the manager incarnation, the run, and the instance. Run identities restart from 1 with
+every manager, so without the incarnation a manager would collide with whatever an earlier one left in the same root.
+The incarnation is the manager's pid together with its start time: unique for the life of the process even when the
+pid is always 1, and unchanged by the manager exec'ing a new image of itself, so a handoff needs nothing extra to
+recognise its own groups. When a validated root is first activated, run groups of other incarnations are removed if
+the kernel allows it - which it does only for groups with no members and no children. A group still in use holds
+processes an earlier manager never stopped; it is reported and left alone.
+
 Linux mount, IPC, UTS, network, and cgroup namespaces are optional child-pre-exec capabilities backed by injected
 ctypes syscalls. A new mount namespace is made recursively private, and UTS can set a hostname. PID namespaces are not
 offered because they require another fork and would break direct-child wait ownership. User namespaces are not offered
@@ -154,6 +162,17 @@ it evaluated, not merely the last action it fired. Missed-run policy selects ski
 policy can suppress a fire while the prior operation remains pending. A schedule invokes the ordinary control service,
 so restart/start/stop/shutdown has exactly the same validation, events, and process ownership path as HTTP or CLI.
 
+Everything the scheduler computes runs on the one reactor thread, so none of it may scale with how far the clock has
+moved. The next and previous occurrence are found by stepping whole fields - past a month, a day, an hour - rather
+than minutes. When occurrences are overdue, what to fire follows from the present: the latest occurrence, or the most
+recent `max_catch_up` of them in order, never by walking forward from where the schedule left off. Only the count of
+what was missed needs the occurrences in between, and past a thousand it is reported as a lower bound.
+
+A wall clock that moves forward, whether by downtime or by being set, is exactly what the missed-run policy is for.
+One that moves backward is handled the way Vixie cron does: a step of up to three hours is waited out, so nothing
+fires twice, and a larger one is taken as a correction, after which schedules carry on from the new time. The same
+applies to persisted state found further in the future than that when the manager starts.
+
 Durable schedule state is a versioned atomically replaced JSON file beneath the effective state directory. A matching
 per-schedule fingerprint resumes its last evaluated occurrence; a changed definition establishes a new current-time
 baseline and never reinterprets old occurrences under new policy. The store is injected so SQLite or another backend
@@ -174,6 +193,18 @@ Rotating files, manager stdout/stderr, and an injected syslog writer are indepen
 explicit path derives a run-specific filename beneath the absolute child-log directory; cold cleanup can remove only
 that generated filename namespace. A sink exception detaches that sink and emits an event without interrupting pipe
 drainage or the byte ring.
+
+## Stop ordering
+
+Stops are the reverse of starts. A unit is signalled only once every unit that depends on it - through `requires`,
+`wants`, `after`, or by being named in its `before` - and is itself on its way down has exited. That holds wherever
+both ends are stopping together: manager shutdown, a collection stop, removal by reload, or two units restarting for
+the same config change. Each unit's stop timeout starts when it is signalled, so a chain takes the sum of its links.
+
+A dependent which is staying up does not hold its dependency, and stopping a dependency does not stop its dependents:
+`requires` gates a start and orders a stop, nothing more. Priority orders units within a step and is not waited on.
+Ordering is read from each instance's own spec, so an instance removed by a reload still stops according to the
+configuration it was started under. The emergency stop below has no ordering at all.
 
 ## Failure containment
 

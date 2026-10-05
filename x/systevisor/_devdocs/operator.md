@@ -139,6 +139,17 @@ Every child is exec'd with default signal dispositions and an empty signal mask,
 or ignores (the interpreter ignores `PIPE`). A signal sent to a run that has forked but not yet exec'd is held until
 the child has shed the manager's handlers, and then acts on the child as it would on the program.
 
+## Stop ordering
+
+Units stop in the reverse of the order they start in. On shutdown, a collection stop, or a reload that removes units,
+a unit is signalled only after every unit depending on it (`requires`, `wants`, `after`, or named in its `before`)
+that is also stopping has exited; `units` shows a waiting instance still `running` with `blocked_reason` set to, for
+example, `web:stopping`. Each unit's `stop.timeout_secs` starts when it is signalled, so allow the sum along the
+longest dependency chain when setting a host stop deadline such as systemd `TimeoutStopSec` or `docker stop -t`.
+
+Stopping a single unit never stops or waits for the units that depend on it. `priority` only orders units within the
+same step; express anything that must be waited on as a dependency.
+
 ## Restart pacing
 
 A run that exits before `restart.start_secs` is a failed start: it is retried after `backoff_initial_secs`, multiplied
@@ -187,9 +198,23 @@ installs or activates it. systemd should own only Systevisor, use `Type=notify`,
 manager can drain children itself. Container deployments should run the artifact directly as PID 1 without dumb-init;
 subreaper/unknown-child cleanup and configured signal delegation are built in.
 
-Cgroups require a pre-delegated cgroup-v2 root; Systevisor does not edit ancestor delegation or use `cgroup.kill`.
+Cgroups require a pre-delegated cgroup-v2 root, writable by the manager and not shared with another one; Systevisor
+does not edit ancestor delegation or use `cgroup.kill`. Run groups are named `sv-<pid>.<start>-<run>-<instance digest>`
+so that a restarted manager never collides with an earlier one's. On first use of the root, empty run groups left by
+earlier managers are removed. One that is still populated means a previous manager died without stopping its
+children: it is logged, published as `resource.cgroup_swept`, and left for the operator.
 Activation sockets are adopted only from a valid systemd-style `LISTEN_PID/FDS/FDNAMES` set and only explicitly named
 unit selections are inherited. See `nginx.md` for a foreground-master nginx configuration.
+
+## Schedules and the clock
+
+Schedules are five-field cron in UTC. `missed` decides what happens to occurrences that came due while the manager was
+down or the clock jumped forward: `skip` fires only an occurrence that is due right now, `latest` fires once, and `all`
+fires the most recent `max_catch_up` in order. However long the gap, this is a bounded amount of work.
+
+If the clock is set back by up to three hours, schedules wait for it to pass where they had reached rather than fire
+again. A larger step back is treated as a correction: schedules resume from the new time and a `schedule.clock_stepped`
+event records it. A cron expression naming a date that never occurs is rejected when the configuration is checked.
 
 ## Manager failure
 

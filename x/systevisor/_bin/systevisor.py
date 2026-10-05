@@ -113,7 +113,7 @@ def __om_amalg__():  # noqa
             dict(path='core/states.py', sha1='edb8f94711b2a05a494781522c6f3b69c083dc9d'),
             dict(path='platforms/services.py', sha1='b1d597cb3d302dfb4b0d503e0d5f4bc07f8d280b'),
             dict(path='runtime/events.py', sha1='fcd03ef65d1c84b7db2696e8959575c399d4b72e'),
-            dict(path='scheduling/cron.py', sha1='d6d32c783750b1f502805e63ace3793a9767afc2'),
+            dict(path='scheduling/cron.py', sha1='5f52089d3e68bd432ebc4e86e7e77d8c956e9ab2'),
             dict(path='selfupdate/models.py', sha1='5e1cfadd817810d5606588a8480cdff7a4a38223'),
             dict(path='../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
             dict(path='../../omcore/formats/yaml/backends.py', sha1='52ac78eaf9285fcfcaf12b7a4ce1f706b66f1a92'),
@@ -149,7 +149,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
             dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
             dict(path='configs/marshal.py', sha1='80978d50109521a8e2b24c29a9b0ec9d17811da7'),
-            dict(path='configs/validation.py', sha1='c0d8eb7234cabe674c31326fabd0ea27819e8c6e'),
+            dict(path='configs/validation.py', sha1='a671e917349efecc7a2c579d11de85a8813f1d75'),
             dict(path='control/jsoncodec.py', sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4'),
             dict(path='control/operations.py', sha1='f912fa9b9dea5e9677232da26b21df5178f6fd47'),
             dict(path='core/changes.py', sha1='2cbd01de924b248be7c91fa4a8bd758049c036f0'),
@@ -199,9 +199,9 @@ def __om_amalg__():  # noqa
             dict(path='core/events.py', sha1='37526d652d6e8bc851b49b7417967e6fba6be4c2'),
             dict(path='runtime/fdio.py', sha1='618ebd90f4e1867bf900b19020256d4b3c80ad9f'),
             dict(path='runtime/logs.py', sha1='711c2d1da2f33776b7c6902037db2bd51d2e316a'),
-            dict(path='runtime/processes.py', sha1='ddd0bf5f17a21f297a4004c77dd82b34c60cd470'),
-            dict(path='core/engine.py', sha1='249019e7712c046c56a0358fdd6f45c4b029308e'),
-            dict(path='resources/cgroups.py', sha1='89b8073cb37ab5cfa695f1c68adc1cf70ad79176'),
+            dict(path='runtime/processes.py', sha1='4650bea43d3fc006bcbac4da147829c26800cff4'),
+            dict(path='core/engine.py', sha1='85cee9ab5c2d0b120c1d1b09bfab36d2dd7c2090'),
+            dict(path='resources/cgroups.py', sha1='c2ec9703d68dcb767a918c56636ab351f6831148'),
             dict(path='resources/namespaces.py', sha1='4e87cab38547e636cc91a5f9b845bda8e2924795'),
             dict(path='resources/sampling.py', sha1='6fa61546905963453297514ada59d9d09cb66dd1'),
             dict(path='resources/sockets.py', sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911'),
@@ -214,10 +214,10 @@ def __om_amalg__():  # noqa
             dict(path='selfupdate/restore.py', sha1='ffd90696e2e447bda4f769cefbaad3c33fe88737'),
             dict(path='control/manager.py', sha1='52f762caa1ed7806d3e54b3a88c02679d3d36e01'),
             dict(path='control/service.py', sha1='937696bbef2e453b89c3d65a696f97ad1c55c1f4'),
-            dict(path='resources/runtime.py', sha1='c78e77d589be11ef5e46527a0941997d0780963b'),
+            dict(path='resources/runtime.py', sha1='224bf2d85f5392f097403f2865ee4465971605b8'),
             dict(path='selfupdate/runtime.py', sha1='2eae4abfa5343b794f3c43e82a867be2345f3751'),
             dict(path='resources/inject.py', sha1='63dcae28924f1511893593d24c567ba61ecb96de'),
-            dict(path='scheduling/runtime.py', sha1='7a580aafaba94fbbcc5ac16068d7bba97d0d658b'),
+            dict(path='scheduling/runtime.py', sha1='ef838f832bba844b31568c25b314b29eb08bc4b9'),
             dict(path='selfupdate/inject.py', sha1='7765c7ba3b8dda9ca7e908af2d33f153213a06c0'),
             dict(path='control/api.py', sha1='8ecab21b05576295d7acd0eaa6cb5931d175e795'),
             dict(path='control/http.py', sha1='f07c61f653c6faf272ece42db3da5e468a03c674'),
@@ -6853,6 +6853,9 @@ class SystevisorEventBus:
 ##
 
 
+_SYSTEVISOR_CRON_SEARCH_YEARS = 8
+
+
 class SystevisorCronError(ValueError):
     pass
 
@@ -6875,33 +6878,74 @@ class SystevisorCronExpression:
     month: SystevisorCronField
     day_of_week: SystevisorCronField
 
-    def matches_datetime(self, value: datetime.datetime) -> bool:
+    def _matches_day(self, value: datetime.datetime) -> bool:
         cron_weekday = (value.weekday() + 1) % 7
         day_of_month_matches = self.day_of_month.matches(value.day)
         day_of_week_matches = self.day_of_week.matches(cron_weekday)
         if self.day_of_month.wildcard and self.day_of_week.wildcard:
-            day_matches = True
-        elif self.day_of_month.wildcard:
-            day_matches = day_of_week_matches
-        elif self.day_of_week.wildcard:
-            day_matches = day_of_month_matches
-        else:
-            day_matches = day_of_month_matches or day_of_week_matches
+            return True
+        if self.day_of_month.wildcard:
+            return day_of_week_matches
+        if self.day_of_week.wildcard:
+            return day_of_month_matches
+        return day_of_month_matches or day_of_week_matches
+
+    def matches_datetime(self, value: datetime.datetime) -> bool:
         return (
             self.minute.matches(value.minute) and
             self.hour.matches(value.hour) and
             self.month.matches(value.month) and
-            day_matches
+            self._matches_day(value)
         )
 
+    # Both searches move a whole field at a time - past a month, a day, an hour - rather than a minute at a time, so
+    # their cost does not depend on how sparse the expression is or how far away the answer lies. Eight years covers
+    # the longest gap a satisfiable expression can have, between two leap days across a skipped leap year.
+
     def next_after(self, wall_time: float) -> float:
-        current = datetime.datetime.fromtimestamp(wall_time, datetime.timezone.utc)
-        current = current.replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
-        limit = current + datetime.timedelta(days=366 * 8)
-        while current <= limit:
-            if self.matches_datetime(current):
-                return current.timestamp()
-            current += datetime.timedelta(minutes=1)
+        """The first occurrence in a minute later than the one containing the given time."""
+
+        minute = datetime.timedelta(minutes=1)
+        try:
+            current = datetime.datetime.fromtimestamp(wall_time, datetime.timezone.utc)
+            current = current.replace(second=0, microsecond=0) + minute
+            limit_year = current.year + _SYSTEVISOR_CRON_SEARCH_YEARS
+            while current.year <= limit_year:
+                if not self.month.matches(current.month):
+                    current = (current.replace(day=1, hour=0, minute=0) + datetime.timedelta(days=32)).replace(day=1)
+                elif not self._matches_day(current):
+                    current = current.replace(hour=0, minute=0) + datetime.timedelta(days=1)
+                elif not self.hour.matches(current.hour):
+                    current = current.replace(minute=0) + datetime.timedelta(hours=1)
+                elif not self.minute.matches(current.minute):
+                    current += minute
+                else:
+                    return current.timestamp()
+        except (OverflowError, OSError, ValueError) as exc:
+            raise SystevisorCronError(f'time is out of range for {self.source!r}: {wall_time!r}') from exc
+        raise SystevisorCronError(f'no occurrence found within eight years for {self.source!r}')
+
+    def previous_at_or_before(self, wall_time: float) -> float:
+        """The last occurrence in a minute no later than the one containing the given time."""
+
+        minute = datetime.timedelta(minutes=1)
+        try:
+            current = datetime.datetime.fromtimestamp(wall_time, datetime.timezone.utc)
+            current = current.replace(second=0, microsecond=0)
+            limit_year = current.year - _SYSTEVISOR_CRON_SEARCH_YEARS
+            while current.year >= limit_year:
+                if not self.month.matches(current.month):
+                    current = current.replace(day=1, hour=0, minute=0) - minute
+                elif not self._matches_day(current):
+                    current = current.replace(hour=0, minute=0) - minute
+                elif not self.hour.matches(current.hour):
+                    current = current.replace(minute=0) - minute
+                elif not self.minute.matches(current.minute):
+                    current -= minute
+                else:
+                    return current.timestamp()
+        except (OverflowError, OSError, ValueError) as exc:
+            raise SystevisorCronError(f'time is out of range for {self.source!r}: {wall_time!r}') from exc
         raise SystevisorCronError(f'no occurrence found within eight years for {self.source!r}')
 
 
@@ -19635,7 +19679,8 @@ def systevisor_validate_config(config: SystevisorConfig) -> ta.Sequence[Systevis
                 *schedule_path,
             ))
         try:
-            systevisor_parse_cron(schedule.cron)
+            # Parsing accepts dates that never occur, such as the 31st of February.
+            systevisor_parse_cron(schedule.cron).next_after(0.)
         except SystevisorCronError as exc:
             errors.append(_systevisor_config_validation_error(
                 'invalid_cron',
@@ -38361,6 +38406,16 @@ def _systevisor_processes_read_birth_identity(pid: int) -> ta.Optional[str]:
     return fields_after_command[19]
 
 
+def systevisor_manager_incarnation() -> str:
+    """
+    Names this manager process for as long as it lives. A pid alone is reused - it is always 1 in a container - but
+    together with the start time it is not, and both survive the manager exec'ing a new image of itself.
+    """
+
+    pid = os.getpid()
+    return f'{pid}.{_systevisor_processes_read_birth_identity(pid) or 0}'
+
+
 def _systevisor_processes_read_pidfd_pid(fd: int) -> ta.Optional[int]:
     try:
         with open(f'/proc/self/fdinfo/{fd}') as fdinfo_file:
@@ -40616,26 +40671,93 @@ class SystevisorEngine:
                 data={'from': previous.value, 'to': status.value},
             )
 
+    def _stop_dependents(self) -> ta.Mapping[SystevisorUnitName, ta.AbstractSet[SystevisorUnitName]]:
+        # The reverse of every edge that orders a start. Read from each instance's own spec rather than the snapshot so
+        # that an instance being removed still orders its stop by the configuration it was started under.
+        dependents: ta.Dict[SystevisorUnitName, ta.Set[SystevisorUnitName]] = {}
+        for instance in self._state.instances.values():
+            dependencies = instance.desired_spec.unit.dependencies
+            for name in (*dependencies.requires, *dependencies.wants, *dependencies.after):
+                dependents.setdefault(SystevisorUnitName(name), set()).add(instance.unit_name)
+            for name in dependencies.before:
+                dependents.setdefault(instance.unit_name, set()).add(SystevisorUnitName(name))
+        return dependents
+
+    @staticmethod
+    def _should_stop(instance: SystevisorInstanceState) -> bool:
+        return instance.desired_state is not SystevisorDesiredState.ACTIVE or instance.restart_requested
+
+    def _stop_instances(self, now: float) -> None:
+        """
+        Stops are ordered as the reverse of starts: a unit is signalled only once every unit which depends on it, and
+        is itself on its way down, has exited. A dependent which is staying up does not hold its dependency: stopping
+        one unit says nothing about the others.
+        """
+
+        stop_order = self._stop_order()
+        candidates = [
+            instance
+            for instance in stop_order
+            if self._should_stop(instance) and instance.process_state in {
+                SystevisorProcessState.STARTING,
+                SystevisorProcessState.RUNNING,
+            }
+        ]
+        for instance in stop_order:
+            if self._should_stop(instance) and instance.process_state is SystevisorProcessState.BACKOFF:
+                instance.deadline_id = None
+                instance.deadline_kind = None
+                instance.deadline_at = None
+                self._transition(instance, SystevisorProcessState.STOPPED, now, 'desired_inactive')
+
+        waiting: ta.Dict[SystevisorInstanceId, ta.AbstractSet[SystevisorUnitName]] = {}
+        if candidates:
+            dependents = self._stop_dependents()
+            going_down = {instance.unit_name for instance in candidates}
+            going_down.update(
+                instance.unit_name
+                for instance in stop_order
+                if instance.process_state is SystevisorProcessState.STOPPING
+            )
+            for instance in candidates:
+                holders = (dependents.get(instance.unit_name, frozenset()) & going_down) - {instance.unit_name}
+                if holders:
+                    waiting[instance.instance_id] = holders
+
+            # A wait is only kept if something it leads to is already exiting. Validation rejects ordering loops, but
+            # termination must not rest on that: instances which only wait on each other are stopped together.
+            exiting = {
+                instance.unit_name
+                for instance in stop_order
+                if instance.process_state is SystevisorProcessState.STOPPING
+            }
+            exiting.update(instance.unit_name for instance in candidates if instance.instance_id not in waiting)
+            progressed = True
+            while progressed:
+                progressed = False
+                for instance in candidates:
+                    if instance.unit_name not in exiting and waiting.get(instance.instance_id, frozenset()) & exiting:
+                        exiting.add(instance.unit_name)
+                        progressed = True
+            for instance in candidates:
+                if instance.instance_id in waiting and instance.unit_name not in exiting:
+                    del waiting[instance.instance_id]
+
+        for instance in stop_order:
+            if instance.instance_id in waiting:
+                self._update_blocked_reason(instance, f'{min(waiting[instance.instance_id])}:stopping', now)
+            elif instance.blocked_reason is not None and instance.blocked_reason.endswith(':stopping'):
+                self._update_blocked_reason(instance, None, now)
+        for instance in candidates:
+            if instance.instance_id not in waiting:
+                self._signal_stop(instance, now)
+
     def _stabilize(self, now: float) -> None:
         self._apply_collection_failures(now)
         if self._state.snapshot is not None:
             self._reconcile_dependency_desires(self._state.snapshot, now)
 
-        for instance in self._stop_order():
-            should_stop = (
-                instance.desired_state is not SystevisorDesiredState.ACTIVE or
-                instance.restart_requested
-            )
-            if should_stop and instance.process_state in {
-                    SystevisorProcessState.STARTING,
-                    SystevisorProcessState.RUNNING,
-            }:
-                self._signal_stop(instance, now)
-            elif should_stop and instance.process_state is SystevisorProcessState.BACKOFF:
-                instance.deadline_id = None
-                instance.deadline_kind = None
-                instance.deadline_at = None
-                self._transition(instance, SystevisorProcessState.STOPPED, now, 'desired_inactive')
+        self._stop_instances(now)
 
         for instance in self._start_order():
             if (
@@ -40708,6 +40830,12 @@ class SystevisorCgroupCounters:
 
 
 @dc.dataclass(frozen=True)
+class SystevisorCgroupSweep:
+    removed: ta.Sequence[str] = ()
+    populated: ta.Sequence[str] = ()
+
+
+@dc.dataclass(frozen=True)
 class SystevisorCgroupRunState:
     state_schema_version: int
     run_id: SystevisorRunId
@@ -40743,6 +40871,10 @@ class SystevisorCgroupFs(Abstract):
 
     @abc.abstractmethod
     def retire_run(self, path: str) -> ta.Tuple[bool, bool]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def sweep_stale(self, root: str, keep_prefix: str) -> SystevisorCgroupSweep:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -40808,6 +40940,8 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
         for name in ('cgroup.controllers', 'cgroup.procs'):
             if not os.path.isfile(os.path.join(root, name)):
                 raise SystevisorCgroupError(f'not a delegated cgroup v2 root; missing {name}: {root!r}')
+        if not os.access(root, os.W_OK | os.X_OK):
+            raise SystevisorCgroupError(f'delegated cgroup root is not writable: {root!r}')
         enabled_controllers = frozenset(
             _systevisor_cgroup_read_text(os.path.join(root, 'cgroup.subtree_control')).split(),
         )
@@ -40898,6 +41032,29 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
             raise SystevisorCgroupError(f'cannot remove empty run cgroup {path!r}: {exc}') from exc
         return True, False
 
+    def sweep_stale(self, root: str, keep_prefix: str) -> SystevisorCgroupSweep:
+        # Only ever rmdir, which the kernel refuses for a group that still has processes or children: what another
+        # incarnation left running is reported, never reached into.
+        removed: ta.List[str] = []
+        populated: ta.List[str] = []
+        try:
+            names = sorted(os.listdir(root))
+        except OSError:
+            return SystevisorCgroupSweep()
+        for name in names:
+            if name.startswith(keep_prefix) or not _SYSTEVISOR_CGROUP_RUN_NAME_RE.fullmatch(name):
+                continue
+            path = os.path.join(root, name)
+            try:
+                os.rmdir(path)
+            except FileNotFoundError:
+                continue
+            except OSError:
+                populated.append(path)
+            else:
+                removed.append(path)
+        return SystevisorCgroupSweep(removed=tuple(removed), populated=tuple(populated))
+
     def sample(self, path: str) -> SystevisorCgroupCounters:
         cpu = _systevisor_cgroup_read_keyed(os.path.join(path, 'cpu.stat'))
         events = _systevisor_cgroup_read_keyed(os.path.join(path, 'cgroup.events'))
@@ -40933,16 +41090,35 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
         )
 
 
-def _systevisor_cgroup_run_name(context: SystevisorChildContext) -> str:
+_SYSTEVISOR_CGROUP_INCARNATION_RE = re.compile(r'[0-9]+\.[0-9]+')
+
+# Also matches names from before they carried an incarnation, so those are swept too.
+_SYSTEVISOR_CGROUP_RUN_NAME_RE = re.compile(r'sv-(?:[0-9]+\.[0-9]+-)?[0-9]+-[0-9a-f]{16}')
+
+
+def _systevisor_cgroup_run_name(context: SystevisorChildContext, incarnation: str) -> str:
+    # Run identities restart from 1 with every manager, so on their own they would collide with whatever an earlier
+    # manager left behind in the same root.
     identity_digest = hashlib.sha256(str(context.instance_id).encode('utf-8')).hexdigest()[:16]
-    return f'sv-{int(context.run_id)}-{identity_digest}'
+    return f'sv-{incarnation}-{int(context.run_id)}-{identity_digest}'
 
 
 class SystevisorCgroupManager(SystevisorChildModifier):
-    def __init__(self, cgroup_fs: SystevisorCgroupFs) -> None:
+    def __init__(
+            self,
+            cgroup_fs: SystevisorCgroupFs,
+            *,
+            incarnation: ta.Optional[str] = None,
+    ) -> None:
+        if incarnation is not None and not _SYSTEVISOR_CGROUP_INCARNATION_RE.fullmatch(incarnation):
+            raise ValueError(incarnation)
         self._cgroup_fs = cgroup_fs
+        self._incarnation = incarnation
         self._active_root: ta.Optional[str] = None
         self._candidate_root: ta.Optional[str] = None
+        self._candidate_validated = False
+        self._swept_root: ta.Optional[str] = None
+        self._pending_sweep: ta.Optional[SystevisorCgroupSweep] = None
         self._has_candidate = False
         self._prepared: ta.Dict[SystevisorRunId, SystevisorCgroupPreparedRun] = {}
         self._states: ta.Dict[SystevisorRunId, SystevisorCgroupRunState] = {}
@@ -40975,18 +41151,38 @@ class SystevisorCgroupManager(SystevisorChildModifier):
                 raise SystevisorCgroupError('cgroup-enabled units require a delegated root')
             self._cgroup_fs.validate_root(root, configs)
         self._candidate_root = root
+        self._candidate_validated = bool(configs)
         self._has_candidate = True
 
     def commit_config(self) -> None:
         if not self._has_candidate:
             raise SystevisorCgroupError('no cgroup configuration candidate is prepared')
         self._active_root = self._candidate_root
+        # A root is swept once, and only once it has been validated as one this manager is meant to create groups in.
+        if self._candidate_validated and self._active_root is not None and self._active_root != self._swept_root:
+            self._swept_root = self._active_root
+            self._pending_sweep = self._cgroup_fs.sweep_stale(self._active_root, f'sv-{self._get_incarnation()}-')
         self._candidate_root = None
+        self._candidate_validated = False
         self._has_candidate = False
 
     def rollback_config(self) -> None:
         self._candidate_root = None
+        self._candidate_validated = False
         self._has_candidate = False
+
+    def take_sweep(self) -> ta.Optional[SystevisorCgroupSweep]:
+        sweep = self._pending_sweep
+        self._pending_sweep = None
+        return sweep
+
+    def _get_incarnation(self) -> str:
+        if self._incarnation is None:
+            self._incarnation = systevisor_manager_incarnation()
+        return self._incarnation
+
+    def _run_name(self, context: SystevisorChildContext) -> str:
+        return _systevisor_cgroup_run_name(context, self._get_incarnation())
 
     def _root(self) -> ta.Optional[str]:
         return self._candidate_root if self._has_candidate else self._active_root
@@ -40998,10 +41194,10 @@ class SystevisorCgroupManager(SystevisorChildModifier):
         root = self._root()
         if root is None:
             raise SystevisorCgroupError('cgroup configuration is not active')
-        prepared = self._cgroup_fs.create_run(root, _systevisor_cgroup_run_name(context), config)
+        prepared = self._cgroup_fs.create_run(root, self._run_name(context), config)
         self._prepared[context.run_id] = prepared
         self._states[context.run_id] = SystevisorCgroupRunState(
-            state_schema_version=1,
+            state_schema_version=2,
             run_id=context.run_id,
             instance_id=context.instance_id,
             path=prepared.path,
@@ -41097,7 +41293,7 @@ class SystevisorCgroupManager(SystevisorChildModifier):
             raise SystevisorCgroupError('cgroup manager can only be rehydrated before use')
         restored: ta.Dict[SystevisorRunId, SystevisorCgroupRunState] = {}
         for state in states:
-            if state.state_schema_version != 1:
+            if state.state_schema_version != 2:
                 raise SystevisorCgroupError(f'unsupported cgroup run schema: {state.state_schema_version}')
             if state.run_id in restored:
                 raise SystevisorCgroupError(f'duplicate cgroup run: {state.run_id}')
@@ -41107,7 +41303,7 @@ class SystevisorCgroupManager(SystevisorChildModifier):
                     raise SystevisorCgroupError(f'active cgroup has no owned process: {state.run_id}')
                 if self._active_root is None:
                     raise SystevisorCgroupError('active cgroup has no configured delegated root')
-                expected_path = os.path.join(self._active_root, _systevisor_cgroup_run_name(context))
+                expected_path = os.path.join(self._active_root, self._run_name(context))
                 if os.path.abspath(state.path) != os.path.abspath(expected_path):
                     raise SystevisorCgroupError(f'cgroup path changed for run {state.run_id}')
                 if state.config != context.spec.unit.resources.cgroup or state.pid is None:
@@ -44562,6 +44758,9 @@ class SystevisorControlService:
 ##
 
 
+_SYSTEVISOR_RESOURCES_LOG = get_module_logger(globals())
+
+
 class SystevisorResourceEventKind(enum.Enum):
     SAMPLED = 'sampled'
     FAILED = 'failed'
@@ -44672,6 +44871,7 @@ class SystevisorPreparedResourceChange(SystevisorConfigPreparedChange):
         if self._finished:
             raise RuntimeError('resource configuration change is already finished')
         self._owner._cgroup_manager.commit_config()  # noqa: SLF001
+        self._owner._report_cgroup_sweep()  # noqa: SLF001
         self._owner._apply_config(self._config)  # noqa: SLF001
         self._finished = True
 
@@ -44757,6 +44957,19 @@ class SystevisorResourceObserver(FdioHandler, SystevisorConfigParticipant):
                 if self._cgroup_manager.needs_sweep() else
                 None
             )
+
+    def _report_cgroup_sweep(self) -> None:
+        sweep = self._cgroup_manager.take_sweep()
+        if sweep is None or not (sweep.removed or sweep.populated):
+            return
+        if sweep.populated:
+            # Processes an earlier manager started and never stopped. They are not this manager's to signal.
+            _SYSTEVISOR_RESOURCES_LOG.warning(
+                'Systevisor found %d run cgroup(s) from an earlier manager still in use: %s',
+                len(sweep.populated),
+                ', '.join(sweep.populated),
+            )
+        self._event_bus.publish('resource.cgroup_swept', sweep, self._clock.monotonic())
 
     def _wake_for_cgroup_cleanup(self) -> None:
         if not self._closed:
@@ -45552,7 +45765,14 @@ def systevisor_bind_resources() -> InjectorBindings:
 
 _SYSTEVISOR_SCHEDULER_STATE_SCHEMA_VERSION = 1
 _SYSTEVISOR_SCHEDULER_WALL_RECHECK_SECS = 60.
-_SYSTEVISOR_SCHEDULER_MAX_DUE_SCAN = 5_000_000
+
+# Past this many missed occurrences they stop being counted one by one: the backlog is known to be at least this deep,
+# and what to fire is worked out from the present instead of by walking up to it.
+_SYSTEVISOR_SCHEDULER_MAX_DUE_COUNT = 1000
+
+# The wall clock moving backwards by no more than this is waited out, so nothing fires twice. Anything larger is taken
+# to be a correction and schedules carry on from the new time. Vixie cron draws the same line in the same place.
+_SYSTEVISOR_SCHEDULER_CLOCK_STEP_TOLERANCE_SECS = 3. * 60. * 60.
 
 
 class SystevisorScheduleEventKind(enum.Enum):
@@ -45776,6 +45996,13 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
             previous = persisted.get(name)
             if previous is None or previous.fingerprint != fingerprint:
                 previous = SystevisorSchedulePersistentState(fingerprint, baseline)
+            elif (
+                    not math.isfinite(previous.last_due_wall_time) or
+                    previous.last_due_wall_time - now > _SYSTEVISOR_SCHEDULER_CLOCK_STEP_TOLERANCE_SECS
+            ):
+                # Recorded under a clock that has since been set back: resuming it would silence the schedule until
+                # the present caught up with that record.
+                previous = dc.replace(previous, last_due_wall_time=baseline)
             current = self._states.get(name)
             states[name] = SystevisorScheduleState(
                 name=name,
@@ -45868,24 +46095,35 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
             reason=reason,
         ), self._clock.monotonic())
 
-    def _run_state(self, state: SystevisorScheduleState, now: float) -> None:
+    def _run_state(self, state: SystevisorScheduleState, now: float) -> bool:
         cron = self._crons[state.name]
-        catch_up: ta.List[float] = []
+
+        behind = state.last_due_wall_time - now
+        if behind > _SYSTEVISOR_SCHEDULER_CLOCK_STEP_TOLERANCE_SECS:
+            previous_last_due = state.last_due_wall_time
+            state.last_due_wall_time = math.floor(now / 60.) * 60.
+            state.next_due_wall_time = cron.next_after(state.last_due_wall_time)
+            self._event_bus.publish('schedule.clock_stepped', {
+                'schedule_name': state.name,
+                'previous_last_due_wall_time': previous_last_due,
+                'next_due_wall_time': state.next_due_wall_time,
+            }, self._clock.monotonic())
+            return True
+        if state.next_due_wall_time > now:
+            return False
+
+        # Something is due, so the latest occurrence and the one after it follow from the present alone. Only the
+        # count of what was missed needs the occurrences in between, and that is given up on once it is deep enough.
+        latest_due = cron.previous_at_or_before(now)
         due_count = 0
-        latest_due: ta.Optional[float] = None
-        next_due = state.next_due_wall_time
-        while next_due <= now and due_count < _SYSTEVISOR_SCHEDULER_MAX_DUE_SCAN:
+        cursor = state.next_due_wall_time
+        while cursor <= now and due_count < _SYSTEVISOR_SCHEDULER_MAX_DUE_COUNT:
             due_count += 1
-            latest_due = next_due
-            if len(catch_up) < state.config.max_catch_up:
-                catch_up.append(next_due)
-            next_due = cron.next_after(next_due)
-        if latest_due is None:
-            return
-        if next_due <= now:
-            raise RuntimeError(f'schedule backlog exceeds {_SYSTEVISOR_SCHEDULER_MAX_DUE_SCAN} occurrences')
+            cursor = cron.next_after(cursor)
+        counted_all = cursor > now
 
         latest_is_current = now - latest_due < 60.
+        selected: ta.List[float]
         if due_count == 1 and latest_is_current:
             selected = [latest_due]
         elif state.config.missed is SystevisorScheduleMissedPolicy.SKIP:
@@ -45893,7 +46131,14 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
         elif state.config.missed is SystevisorScheduleMissedPolicy.LATEST:
             selected = [latest_due]
         else:
-            selected = catch_up
+            # The most recent ones, in order: a bound on catching up should not mean replaying the oldest of the
+            # backlog while leaving out the occurrence that is actually due now.
+            selected = []
+            cursor = latest_due
+            while len(selected) < min(state.config.max_catch_up, due_count):
+                selected.append(cursor)
+                cursor = cron.previous_at_or_before(cursor - 60.)
+            selected.reverse()
 
         fired_count = 0
         for scheduled_wall_time in selected:
@@ -45919,24 +46164,29 @@ class SystevisorScheduler(FdioHandler, SystevisorConfigParticipant):
                 scheduled_wall_time,
                 operation_id=operation.operation_id,
             )
-        skipped_count = due_count - fired_count
-        state.skip_count += skipped_count
+        state.skip_count += due_count - fired_count
         missed_policy_skips = due_count - len(selected)
         if missed_policy_skips:
             self._publish(
                 SystevisorScheduleEventKind.SKIPPED,
                 state,
                 latest_due,
-                reason=f'missed-run policy skipped {missed_policy_skips} occurrence(s)',
+                reason=(
+                    f'missed-run policy skipped {"" if counted_all else "at least "}'
+                    f'{missed_policy_skips} occurrence(s)'
+                ),
             )
         state.last_due_wall_time = latest_due
-        state.next_due_wall_time = next_due
+        state.next_due_wall_time = cron.next_after(now)
+        return True
 
     def on_timeout(self) -> None:
         now = self._clock.wall_time()
+        changed = False
         for state in self._states.values():
-            self._run_state(state, now)
-        self._persist()
+            changed = self._run_state(state, now) or changed
+        if changed:
+            self._persist()
 
     def close(self) -> None:
         self._closed = True

@@ -2,6 +2,7 @@
 import dataclasses as dc
 import os
 import socket
+import tempfile
 import typing as ta
 import unittest
 
@@ -28,10 +29,13 @@ from ..core.identities import SystevisorRunId
 from ..core.states import SystevisorUnitChangeKind
 from ..resources.cgroups import SystevisorCgroupConfig as SystevisorCgroupConfigForType
 from ..resources.cgroups import SystevisorCgroupCounters
+from ..resources.cgroups import SystevisorCgroupError
 from ..resources.cgroups import SystevisorCgroupFs
 from ..resources.cgroups import SystevisorCgroupManager
 from ..resources.cgroups import SystevisorCgroupPreparedRun
 from ..resources.cgroups import SystevisorCgroupRunStatus
+from ..resources.cgroups import SystevisorCgroupSweep
+from ..resources.cgroups import SystevisorSystemCgroupFs
 from ..resources.namespaces import SystevisorNamespaceBackend
 from ..resources.namespaces import SystevisorNamespaceChildModifier
 from ..resources.runtime import SystevisorResourceEvent
@@ -88,6 +92,8 @@ class SystevisorTestCgroupFs(SystevisorCgroupFs):
         self.created: ta.List[ta.Tuple[str, str, SystevisorCgroupConfigForType]] = []
         self.read_fds: ta.Dict[str, int] = {}
         self.retire_results: ta.List[ta.Tuple[bool, bool]] = []
+        self.sweeps: ta.List[ta.Tuple[str, str]] = []
+        self.sweep_result = SystevisorCgroupSweep()
 
     def validate_root(self, root: str, configs: ta.Iterable[SystevisorCgroupConfigForType]) -> None:
         self.validated_roots.append(root)
@@ -115,6 +121,10 @@ class SystevisorTestCgroupFs(SystevisorCgroupFs):
 
     def retire_run(self, path: str) -> ta.Tuple[bool, bool]:
         return self.retire_results.pop(0) if self.retire_results else (True, False)
+
+    def sweep_stale(self, root: str, keep_prefix: str) -> SystevisorCgroupSweep:
+        self.sweeps.append((root, keep_prefix))
+        return self.sweep_result
 
     def sample(self, path: str) -> SystevisorCgroupCounters:
         return SystevisorCgroupCounters(memory_current_bytes=123, populated=True)
@@ -343,6 +353,111 @@ class TestSystevisorIsolationCapabilities(unittest.TestCase):
         self.assertEqual(wakes, [True])
         manager.sweep()
         self.assertEqual(manager.states[SystevisorRunId(7)].status, SystevisorCgroupRunStatus.REMOVED)
+
+    def _cgroup_context(self, snapshot: ta.Any, run_id: int) -> SystevisorChildContext:
+        spec = snapshot.instances[SystevisorInstanceId('service:0')]
+        return SystevisorChildContext(
+            run_id=SystevisorRunId(run_id),
+            instance_id=spec.instance_id,
+            spec=spec,
+            identity=SystevisorResolvedIdentity(None, None, None, None, None),
+            environment={},
+        )
+
+    def test_run_cgroups_of_different_manager_incarnations_cannot_collide(self) -> None:
+        resources = SystevisorUnitResourcesConfig(cgroup=SystevisorCgroupConfig(enabled=True))
+        snapshot = _systevisor_test_resource_snapshot(resources=resources, cgroup_root='/delegated')
+        names: ta.List[str] = []
+        for incarnation in ('1.1000', '1.2000'):
+            fs = SystevisorTestCgroupFs()
+            self.addCleanup(fs.close)
+            manager = SystevisorCgroupManager(fs, incarnation=incarnation)
+            manager.prepare_config(snapshot)
+            manager.commit_config()
+            # The first run of the first instance: the same run identity under every manager that ever starts here.
+            manager.parent_prepare(self._cgroup_context(snapshot, 1))
+            [(_, name, _)] = fs.created
+            names.append(name)
+            self.assertEqual(fs.sweeps, [('/delegated', f'sv-{incarnation}-')])
+
+        self.assertEqual(len(set(names)), 2)
+        self.assertTrue(names[0].startswith('sv-1.1000-1-'))
+
+    def test_root_is_swept_once_and_only_after_validation(self) -> None:
+        fs = SystevisorTestCgroupFs()
+        self.addCleanup(fs.close)
+        fs.sweep_result = SystevisorCgroupSweep(removed=('/delegated/sv-9.9-1-0123456789abcdef',))
+        manager = SystevisorCgroupManager(fs, incarnation='1.1000')
+
+        # A root with nothing configured to use it has not been checked to be a cgroup root at all.
+        unused = _systevisor_test_resource_snapshot(cgroup_root='/delegated')
+        manager.prepare_config(unused)
+        manager.commit_config()
+        self.assertEqual(fs.sweeps, [])
+        self.assertIsNone(manager.take_sweep())
+
+        used = _systevisor_test_resource_snapshot(
+            resources=SystevisorUnitResourcesConfig(cgroup=SystevisorCgroupConfig(enabled=True)),
+            cgroup_root='/delegated',
+        )
+        for _ in range(2):
+            manager.prepare_config(used)
+            manager.commit_config()
+        self.assertEqual(fs.sweeps, [('/delegated', 'sv-1.1000-')])
+        self.assertEqual(manager.take_sweep(), fs.sweep_result)
+        self.assertIsNone(manager.take_sweep())
+
+    def test_handed_off_cgroup_is_recognised_by_the_same_incarnation_only(self) -> None:
+        resources = SystevisorUnitResourcesConfig(cgroup=SystevisorCgroupConfig(enabled=True))
+        snapshot = _systevisor_test_resource_snapshot(resources=resources, cgroup_root='/delegated')
+        context = self._cgroup_context(snapshot, 7)
+
+        def manager_for(incarnation: str) -> SystevisorCgroupManager:
+            fs = SystevisorTestCgroupFs()
+            self.addCleanup(fs.close)
+            manager = SystevisorCgroupManager(fs, incarnation=incarnation)
+            manager.prepare_config(snapshot)
+            manager.commit_config()
+            return manager
+
+        before = manager_for('1.1000')
+        before.parent_prepare(context)
+        before.parent_spawned(context, 7654)
+        states = tuple(before.states.values())
+
+        manager_for('1.1000').rehydrate(states, {context.run_id: context})
+        with self.assertRaises(SystevisorCgroupError):
+            manager_for('1.2000').rehydrate(states, {context.run_id: context})
+        with self.assertRaises(SystevisorCgroupError):
+            manager_for('1.1000').rehydrate(
+                [dc.replace(state, state_schema_version=1) for state in states],
+                {context.run_id: context},
+            )
+
+    def test_stale_sweep_removes_only_empty_run_groups_of_other_incarnations(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            def group(name: str, *, in_use: bool = False) -> str:
+                path = os.path.join(root, name)
+                os.mkdir(path)
+                if in_use:
+                    # rmdir refuses this the way the kernel refuses a cgroup which still has members.
+                    os.mkdir(os.path.join(path, 'child'))
+                return path
+
+            empty = group('sv-9.9-1-0123456789abcdef')
+            in_use = group('sv-9.9-2-0123456789abcdef', in_use=True)
+            unprefixed = group('sv-3-0123456789abcdef')
+            own = group('sv-1.1000-1-0123456789abcdef')
+            unrelated = group('system.slice')
+            lookalike = group('sv-notes')
+
+            sweep = SystevisorSystemCgroupFs().sweep_stale(root, 'sv-1.1000-')
+
+            self.assertEqual(sweep, SystevisorCgroupSweep(removed=(unprefixed, empty), populated=(in_use,)))
+            self.assertEqual(
+                sorted(os.listdir(root)),
+                sorted(os.path.basename(path) for path in (in_use, own, unrelated, lookalike)),
+            )
 
     def test_namespace_modifier_is_injected_and_skips_internal_probe_runs(self) -> None:
         namespace = SystevisorNamespaceConfig(mount=True, uts=True, network=True, hostname='isolated')

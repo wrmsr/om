@@ -25,6 +25,7 @@ from ..core.state import SystevisorEngineState
 from ..core.states import SystevisorCollectionStatus
 from ..core.states import SystevisorDesiredOrigin
 from ..core.states import SystevisorDesiredState
+from ..core.states import SystevisorProcessState
 from .fakes import SystevisorEngineHarness
 
 
@@ -224,12 +225,16 @@ class TestSystevisorCollections(unittest.TestCase):
             False,
         ))
 
+        # The dependency claim is released at once, but the database is only stopped once nothing is using it.
         signals = _systevisor_test_collection_effects(output, SystevisorSignalProcessEffect)
-        self.assertEqual({signal.run_id for signal in signals}, {database_spawn.run_id, web_spawn.run_id})
-        self.assertEqual(
-            harness.engine.state.instances[database_spawn.instance_id].desired_state,
-            SystevisorDesiredState.INACTIVE,
-        )
+        self.assertEqual([signal.run_id for signal in signals], [web_spawn.run_id])
+        database_instance = harness.engine.state.instances[database_spawn.instance_id]
+        self.assertEqual(database_instance.desired_state, SystevisorDesiredState.INACTIVE)
+        self.assertEqual(database_instance.process_state, SystevisorProcessState.RUNNING)
+
+        output = harness.exit_spawn(web_spawn, 0)
+        signals = _systevisor_test_collection_effects(output, SystevisorSignalProcessEffect)
+        self.assertEqual([signal.run_id for signal in signals], [database_spawn.run_id])
 
     def test_collection_state_roundtrips(self) -> None:
         harness = SystevisorEngineHarness()

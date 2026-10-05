@@ -7,6 +7,7 @@ import typing as ta
 
 from omcore.io.fdio.handlers import FdioHandler
 from omcore.io.fdio.manager import FdioManager
+from omcore.logs.modules import get_module_logger
 
 from ..configs.models import SystevisorObservationConfig
 from ..configs.snapshots import SystevisorConfigSnapshot
@@ -30,6 +31,9 @@ from .sockets import SystevisorInheritedSocketRegistry
 
 
 ##
+
+
+_SYSTEVISOR_RESOURCES_LOG = get_module_logger(globals())
 
 
 class SystevisorResourceEventKind(enum.Enum):
@@ -142,6 +146,7 @@ class SystevisorPreparedResourceChange(SystevisorConfigPreparedChange):
         if self._finished:
             raise RuntimeError('resource configuration change is already finished')
         self._owner._cgroup_manager.commit_config()  # noqa: SLF001
+        self._owner._report_cgroup_sweep()  # noqa: SLF001
         self._owner._apply_config(self._config)  # noqa: SLF001
         self._finished = True
 
@@ -227,6 +232,19 @@ class SystevisorResourceObserver(FdioHandler, SystevisorConfigParticipant):
                 if self._cgroup_manager.needs_sweep() else
                 None
             )
+
+    def _report_cgroup_sweep(self) -> None:
+        sweep = self._cgroup_manager.take_sweep()
+        if sweep is None or not (sweep.removed or sweep.populated):
+            return
+        if sweep.populated:
+            # Processes an earlier manager started and never stopped. They are not this manager's to signal.
+            _SYSTEVISOR_RESOURCES_LOG.warning(
+                'Systevisor found %d run cgroup(s) from an earlier manager still in use: %s',
+                len(sweep.populated),
+                ', '.join(sweep.populated),
+            )
+        self._event_bus.publish('resource.cgroup_swept', sweep, self._clock.monotonic())
 
     def _wake_for_cgroup_cleanup(self) -> None:
         if not self._closed:

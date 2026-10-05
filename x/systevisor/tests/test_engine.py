@@ -23,11 +23,13 @@ from ..core.effects import SystevisorSpawnProcessEffect
 from ..core.events import SystevisorEventKind
 from ..core.identities import SystevisorInstanceId
 from ..core.identities import SystevisorRunId
+from ..core.identities import SystevisorUnitName
 from ..core.inputs import SystevisorApplySnapshotCommand
 from ..core.inputs import SystevisorForwardSignalCommand
 from ..core.inputs import SystevisorProcessExitedFact
 from ..core.inputs import SystevisorRestartInstanceCommand
 from ..core.inputs import SystevisorSetInstanceDesiredCommand
+from ..core.inputs import SystevisorSetUnitDesiredCommand
 from ..core.inputs import SystevisorShutdownCommand
 from ..core.inputs import SystevisorSpawnSucceededFact
 from ..core.state import SystevisorEngineState
@@ -367,6 +369,107 @@ class TestSystevisorEngine(unittest.TestCase):
         )
         rejected = harness.submit(SystevisorSetInstanceDesiredCommand(SystevisorInstanceId('low:0'), True))
         self.assertEqual(rejected.events[-1].kind, SystevisorEventKind.COMMAND_REJECTED)
+
+    def _start_all(
+            self,
+            harness: SystevisorEngineHarness,
+            snapshot: SystevisorConfigSnapshot,
+    ) -> ta.Mapping[str, ta.Any]:
+        spawns: ta.Dict[str, ta.Any] = {}
+        outputs = [harness.submit(SystevisorApplySnapshotCommand(snapshot))]
+        while outputs:
+            for spawn in _systevisor_test_engine_effects(outputs.pop(), SystevisorSpawnProcessEffect):
+                spawns[spawn.instance_id] = spawn
+                outputs.append(harness.succeed_spawn(spawn))
+        self.assertEqual(
+            {instance.process_state for instance in harness.engine.state.instances.values()},
+            {SystevisorProcessState.RUNNING},
+        )
+        return spawns
+
+    def test_stops_are_ordered_as_the_reverse_of_starts(self) -> None:
+        harness = SystevisorEngineHarness()
+        spawns = self._start_all(harness, _systevisor_test_engine_snapshot(
+            database=_systevisor_test_engine_unit('database'),
+            cache=_systevisor_test_engine_unit('cache', dependencies=SystevisorDependenciesConfig(before=('web',))),
+            web=SystevisorUnitConfig(
+                exec=SystevisorExecConfig(argv=('web',)),
+                replicas=2,
+                restart=SystevisorRestartConfig(start_secs=0.),
+                dependencies=SystevisorDependenciesConfig(
+                    requires={'database': SystevisorDependencyCondition.RUNNING},
+                ),
+            ),
+            worker=_systevisor_test_engine_unit('worker', dependencies=SystevisorDependenciesConfig(wants=('web',))),
+            unrelated=_systevisor_test_engine_unit('unrelated'),
+        ))
+        instances = harness.engine.state.instances
+
+        def signalled(output: ta.Any) -> ta.AbstractSet[str]:
+            return {
+                next(instance_id for instance_id, spawn in spawns.items() if spawn.run_id == effect.run_id)
+                for effect in _systevisor_test_engine_effects(output, SystevisorSignalProcessEffect)
+            }
+
+        # Only what nothing else depends on goes first; everything else is still serving its dependents.
+        output = harness.submit(SystevisorShutdownCommand())
+        self.assertEqual(signalled(output), {'worker:0', 'unrelated:0'})
+        self.assertEqual(instances[SystevisorInstanceId('web:0')].blocked_reason, 'worker:stopping')
+        self.assertEqual(instances[SystevisorInstanceId('database:0')].blocked_reason, 'web:stopping')
+        self.assertEqual(signalled(harness.exit_spawn(spawns['unrelated:0'], 0)), set())
+
+        output = harness.exit_spawn(spawns['worker:0'], 0)
+        self.assertEqual(signalled(output), {'web:0', 'web:1'})
+        self.assertIsNone(instances[SystevisorInstanceId('web:0')].blocked_reason)
+
+        # Every replica of a dependent has to be gone, and then both of its dependencies are free at once.
+        self.assertEqual(signalled(harness.exit_spawn(spawns['web:1'], 0)), set())
+        output = harness.exit_spawn(spawns['web:0'], 0)
+        self.assertEqual(signalled(output), {'database:0', 'cache:0'})
+        self.assertIsNone(instances[SystevisorInstanceId('database:0')].blocked_reason)
+
+    def test_stopping_only_a_dependency_does_not_wait_on_dependents_that_stay_up(self) -> None:
+        harness = SystevisorEngineHarness()
+        spawns = self._start_all(harness, _systevisor_test_engine_snapshot(
+            database=_systevisor_test_engine_unit('database'),
+            web=_systevisor_test_engine_unit('web', dependencies=SystevisorDependenciesConfig(
+                requires={'database': SystevisorDependencyCondition.RUNNING},
+            )),
+        ))
+
+        output = harness.submit(SystevisorSetUnitDesiredCommand(SystevisorUnitName('database'), False))
+
+        self.assertEqual(
+            [effect.run_id for effect in _systevisor_test_engine_effects(output, SystevisorSignalProcessEffect)],
+            [spawns['database:0'].run_id],
+        )
+        web = harness.engine.state.instances[SystevisorInstanceId('web:0')]
+        self.assertEqual(web.process_state, SystevisorProcessState.RUNNING)
+        self.assertIsNone(web.blocked_reason)
+
+    def test_stop_ordering_loop_cannot_hang_a_shutdown(self) -> None:
+        # Not reachable through validation, which the engine is not allowed to rely on to terminate.
+        harness = SystevisorEngineHarness()
+        self._start_all(harness, _systevisor_test_engine_snapshot(
+            first=_systevisor_test_engine_unit('first'),
+            second=_systevisor_test_engine_unit('second'),
+            third=_systevisor_test_engine_unit('third'),
+        ))
+        harness.submit(SystevisorApplySnapshotCommand(_systevisor_test_engine_snapshot(
+            first=_systevisor_test_engine_unit('first', dependencies=SystevisorDependenciesConfig(wants=('second',))),
+            second=_systevisor_test_engine_unit('second', dependencies=SystevisorDependenciesConfig(after=('first',))),
+            third=_systevisor_test_engine_unit('third', dependencies=SystevisorDependenciesConfig(after=('first',))),
+        )))
+
+        output = harness.submit(SystevisorShutdownCommand())
+
+        # The leaf goes first as usual; the two which only wait on each other go together once it has.
+        self.assertEqual(len(_systevisor_test_engine_effects(output, SystevisorSignalProcessEffect)), 1)
+        third = harness.engine.state.instances[SystevisorInstanceId('third:0')]
+        self.assertEqual(third.process_state, SystevisorProcessState.STOPPING)
+        assert third.run_id is not None
+        output = harness.submit(SystevisorProcessExitedFact(third.run_id, 0))
+        self.assertEqual(len(_systevisor_test_engine_effects(output, SystevisorSignalProcessEffect)), 2)
 
     def test_unknown_and_duplicate_facts_are_observable(self) -> None:
         harness = SystevisorEngineHarness()

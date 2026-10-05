@@ -7,6 +7,9 @@ import typing as ta
 ##
 
 
+_SYSTEVISOR_CRON_SEARCH_YEARS = 8
+
+
 class SystevisorCronError(ValueError):
     pass
 
@@ -29,33 +32,74 @@ class SystevisorCronExpression:
     month: SystevisorCronField
     day_of_week: SystevisorCronField
 
-    def matches_datetime(self, value: datetime.datetime) -> bool:
+    def _matches_day(self, value: datetime.datetime) -> bool:
         cron_weekday = (value.weekday() + 1) % 7
         day_of_month_matches = self.day_of_month.matches(value.day)
         day_of_week_matches = self.day_of_week.matches(cron_weekday)
         if self.day_of_month.wildcard and self.day_of_week.wildcard:
-            day_matches = True
-        elif self.day_of_month.wildcard:
-            day_matches = day_of_week_matches
-        elif self.day_of_week.wildcard:
-            day_matches = day_of_month_matches
-        else:
-            day_matches = day_of_month_matches or day_of_week_matches
+            return True
+        if self.day_of_month.wildcard:
+            return day_of_week_matches
+        if self.day_of_week.wildcard:
+            return day_of_month_matches
+        return day_of_month_matches or day_of_week_matches
+
+    def matches_datetime(self, value: datetime.datetime) -> bool:
         return (
             self.minute.matches(value.minute) and
             self.hour.matches(value.hour) and
             self.month.matches(value.month) and
-            day_matches
+            self._matches_day(value)
         )
 
+    # Both searches move a whole field at a time - past a month, a day, an hour - rather than a minute at a time, so
+    # their cost does not depend on how sparse the expression is or how far away the answer lies. Eight years covers
+    # the longest gap a satisfiable expression can have, between two leap days across a skipped leap year.
+
     def next_after(self, wall_time: float) -> float:
-        current = datetime.datetime.fromtimestamp(wall_time, datetime.timezone.utc)
-        current = current.replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
-        limit = current + datetime.timedelta(days=366 * 8)
-        while current <= limit:
-            if self.matches_datetime(current):
-                return current.timestamp()
-            current += datetime.timedelta(minutes=1)
+        """The first occurrence in a minute later than the one containing the given time."""
+
+        minute = datetime.timedelta(minutes=1)
+        try:
+            current = datetime.datetime.fromtimestamp(wall_time, datetime.timezone.utc)
+            current = current.replace(second=0, microsecond=0) + minute
+            limit_year = current.year + _SYSTEVISOR_CRON_SEARCH_YEARS
+            while current.year <= limit_year:
+                if not self.month.matches(current.month):
+                    current = (current.replace(day=1, hour=0, minute=0) + datetime.timedelta(days=32)).replace(day=1)
+                elif not self._matches_day(current):
+                    current = current.replace(hour=0, minute=0) + datetime.timedelta(days=1)
+                elif not self.hour.matches(current.hour):
+                    current = current.replace(minute=0) + datetime.timedelta(hours=1)
+                elif not self.minute.matches(current.minute):
+                    current += minute
+                else:
+                    return current.timestamp()
+        except (OverflowError, OSError, ValueError) as exc:
+            raise SystevisorCronError(f'time is out of range for {self.source!r}: {wall_time!r}') from exc
+        raise SystevisorCronError(f'no occurrence found within eight years for {self.source!r}')
+
+    def previous_at_or_before(self, wall_time: float) -> float:
+        """The last occurrence in a minute no later than the one containing the given time."""
+
+        minute = datetime.timedelta(minutes=1)
+        try:
+            current = datetime.datetime.fromtimestamp(wall_time, datetime.timezone.utc)
+            current = current.replace(second=0, microsecond=0)
+            limit_year = current.year - _SYSTEVISOR_CRON_SEARCH_YEARS
+            while current.year >= limit_year:
+                if not self.month.matches(current.month):
+                    current = current.replace(day=1, hour=0, minute=0) - minute
+                elif not self._matches_day(current):
+                    current = current.replace(hour=0, minute=0) - minute
+                elif not self.hour.matches(current.hour):
+                    current = current.replace(minute=0) - minute
+                elif not self.minute.matches(current.minute):
+                    current -= minute
+                else:
+                    return current.timestamp()
+        except (OverflowError, OSError, ValueError) as exc:
+            raise SystevisorCronError(f'time is out of range for {self.source!r}: {wall_time!r}') from exc
         raise SystevisorCronError(f'no occurrence found within eight years for {self.source!r}')
 
 

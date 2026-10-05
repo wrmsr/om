@@ -6,6 +6,7 @@ import enum
 import hashlib
 import os
 import os.path
+import re
 import stat
 import sys
 import typing as ta
@@ -18,6 +19,7 @@ from ..core.identities import SystevisorInstanceId
 from ..core.identities import SystevisorRunId
 from ..runtime.processes import SystevisorChildContext
 from ..runtime.processes import SystevisorChildModifier
+from ..runtime.processes import systevisor_manager_incarnation
 
 
 ##
@@ -60,6 +62,12 @@ class SystevisorCgroupCounters:
 
 
 @dc.dataclass(frozen=True)
+class SystevisorCgroupSweep:
+    removed: ta.Sequence[str] = ()
+    populated: ta.Sequence[str] = ()
+
+
+@dc.dataclass(frozen=True)
 class SystevisorCgroupRunState:
     state_schema_version: int
     run_id: SystevisorRunId
@@ -95,6 +103,10 @@ class SystevisorCgroupFs(Abstract):
 
     @abc.abstractmethod
     def retire_run(self, path: str) -> ta.Tuple[bool, bool]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def sweep_stale(self, root: str, keep_prefix: str) -> SystevisorCgroupSweep:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -160,6 +172,8 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
         for name in ('cgroup.controllers', 'cgroup.procs'):
             if not os.path.isfile(os.path.join(root, name)):
                 raise SystevisorCgroupError(f'not a delegated cgroup v2 root; missing {name}: {root!r}')
+        if not os.access(root, os.W_OK | os.X_OK):
+            raise SystevisorCgroupError(f'delegated cgroup root is not writable: {root!r}')
         enabled_controllers = frozenset(
             _systevisor_cgroup_read_text(os.path.join(root, 'cgroup.subtree_control')).split(),
         )
@@ -250,6 +264,29 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
             raise SystevisorCgroupError(f'cannot remove empty run cgroup {path!r}: {exc}') from exc
         return True, False
 
+    def sweep_stale(self, root: str, keep_prefix: str) -> SystevisorCgroupSweep:
+        # Only ever rmdir, which the kernel refuses for a group that still has processes or children: what another
+        # incarnation left running is reported, never reached into.
+        removed: ta.List[str] = []
+        populated: ta.List[str] = []
+        try:
+            names = sorted(os.listdir(root))
+        except OSError:
+            return SystevisorCgroupSweep()
+        for name in names:
+            if name.startswith(keep_prefix) or not _SYSTEVISOR_CGROUP_RUN_NAME_RE.fullmatch(name):
+                continue
+            path = os.path.join(root, name)
+            try:
+                os.rmdir(path)
+            except FileNotFoundError:
+                continue
+            except OSError:
+                populated.append(path)
+            else:
+                removed.append(path)
+        return SystevisorCgroupSweep(removed=tuple(removed), populated=tuple(populated))
+
     def sample(self, path: str) -> SystevisorCgroupCounters:
         cpu = _systevisor_cgroup_read_keyed(os.path.join(path, 'cpu.stat'))
         events = _systevisor_cgroup_read_keyed(os.path.join(path, 'cgroup.events'))
@@ -285,16 +322,35 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
         )
 
 
-def _systevisor_cgroup_run_name(context: SystevisorChildContext) -> str:
+_SYSTEVISOR_CGROUP_INCARNATION_RE = re.compile(r'[0-9]+\.[0-9]+')
+
+# Also matches names from before they carried an incarnation, so those are swept too.
+_SYSTEVISOR_CGROUP_RUN_NAME_RE = re.compile(r'sv-(?:[0-9]+\.[0-9]+-)?[0-9]+-[0-9a-f]{16}')
+
+
+def _systevisor_cgroup_run_name(context: SystevisorChildContext, incarnation: str) -> str:
+    # Run identities restart from 1 with every manager, so on their own they would collide with whatever an earlier
+    # manager left behind in the same root.
     identity_digest = hashlib.sha256(str(context.instance_id).encode('utf-8')).hexdigest()[:16]
-    return f'sv-{int(context.run_id)}-{identity_digest}'
+    return f'sv-{incarnation}-{int(context.run_id)}-{identity_digest}'
 
 
 class SystevisorCgroupManager(SystevisorChildModifier):
-    def __init__(self, cgroup_fs: SystevisorCgroupFs) -> None:
+    def __init__(
+            self,
+            cgroup_fs: SystevisorCgroupFs,
+            *,
+            incarnation: ta.Optional[str] = None,
+    ) -> None:
+        if incarnation is not None and not _SYSTEVISOR_CGROUP_INCARNATION_RE.fullmatch(incarnation):
+            raise ValueError(incarnation)
         self._cgroup_fs = cgroup_fs
+        self._incarnation = incarnation
         self._active_root: ta.Optional[str] = None
         self._candidate_root: ta.Optional[str] = None
+        self._candidate_validated = False
+        self._swept_root: ta.Optional[str] = None
+        self._pending_sweep: ta.Optional[SystevisorCgroupSweep] = None
         self._has_candidate = False
         self._prepared: ta.Dict[SystevisorRunId, SystevisorCgroupPreparedRun] = {}
         self._states: ta.Dict[SystevisorRunId, SystevisorCgroupRunState] = {}
@@ -327,18 +383,38 @@ class SystevisorCgroupManager(SystevisorChildModifier):
                 raise SystevisorCgroupError('cgroup-enabled units require a delegated root')
             self._cgroup_fs.validate_root(root, configs)
         self._candidate_root = root
+        self._candidate_validated = bool(configs)
         self._has_candidate = True
 
     def commit_config(self) -> None:
         if not self._has_candidate:
             raise SystevisorCgroupError('no cgroup configuration candidate is prepared')
         self._active_root = self._candidate_root
+        # A root is swept once, and only once it has been validated as one this manager is meant to create groups in.
+        if self._candidate_validated and self._active_root is not None and self._active_root != self._swept_root:
+            self._swept_root = self._active_root
+            self._pending_sweep = self._cgroup_fs.sweep_stale(self._active_root, f'sv-{self._get_incarnation()}-')
         self._candidate_root = None
+        self._candidate_validated = False
         self._has_candidate = False
 
     def rollback_config(self) -> None:
         self._candidate_root = None
+        self._candidate_validated = False
         self._has_candidate = False
+
+    def take_sweep(self) -> ta.Optional[SystevisorCgroupSweep]:
+        sweep = self._pending_sweep
+        self._pending_sweep = None
+        return sweep
+
+    def _get_incarnation(self) -> str:
+        if self._incarnation is None:
+            self._incarnation = systevisor_manager_incarnation()
+        return self._incarnation
+
+    def _run_name(self, context: SystevisorChildContext) -> str:
+        return _systevisor_cgroup_run_name(context, self._get_incarnation())
 
     def _root(self) -> ta.Optional[str]:
         return self._candidate_root if self._has_candidate else self._active_root
@@ -350,10 +426,10 @@ class SystevisorCgroupManager(SystevisorChildModifier):
         root = self._root()
         if root is None:
             raise SystevisorCgroupError('cgroup configuration is not active')
-        prepared = self._cgroup_fs.create_run(root, _systevisor_cgroup_run_name(context), config)
+        prepared = self._cgroup_fs.create_run(root, self._run_name(context), config)
         self._prepared[context.run_id] = prepared
         self._states[context.run_id] = SystevisorCgroupRunState(
-            state_schema_version=1,
+            state_schema_version=2,
             run_id=context.run_id,
             instance_id=context.instance_id,
             path=prepared.path,
@@ -449,7 +525,7 @@ class SystevisorCgroupManager(SystevisorChildModifier):
             raise SystevisorCgroupError('cgroup manager can only be rehydrated before use')
         restored: ta.Dict[SystevisorRunId, SystevisorCgroupRunState] = {}
         for state in states:
-            if state.state_schema_version != 1:
+            if state.state_schema_version != 2:
                 raise SystevisorCgroupError(f'unsupported cgroup run schema: {state.state_schema_version}')
             if state.run_id in restored:
                 raise SystevisorCgroupError(f'duplicate cgroup run: {state.run_id}')
@@ -459,7 +535,7 @@ class SystevisorCgroupManager(SystevisorChildModifier):
                     raise SystevisorCgroupError(f'active cgroup has no owned process: {state.run_id}')
                 if self._active_root is None:
                     raise SystevisorCgroupError('active cgroup has no configured delegated root')
-                expected_path = os.path.join(self._active_root, _systevisor_cgroup_run_name(context))
+                expected_path = os.path.join(self._active_root, self._run_name(context))
                 if os.path.abspath(state.path) != os.path.abspath(expected_path):
                     raise SystevisorCgroupError(f'cgroup path changed for run {state.run_id}')
                 if state.config != context.spec.unit.resources.cgroup or state.pid is None:

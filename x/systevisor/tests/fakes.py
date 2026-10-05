@@ -34,6 +34,10 @@ class SystevisorFakeClock(SystevisorClock):
         self._monotonic += seconds
         self._wall_time += seconds
 
+    def set_wall_time(self, wall_time: float) -> None:
+        # A step of the wall clock alone, which the monotonic clock does not see.
+        self._wall_time = wall_time
+
 
 class SystevisorEngineHarness:
     def __init__(self, engine: ta.Optional[SystevisorEngine] = None) -> None:

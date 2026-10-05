@@ -1364,26 +1364,93 @@ class SystevisorEngine:
                 data={'from': previous.value, 'to': status.value},
             )
 
+    def _stop_dependents(self) -> ta.Mapping[SystevisorUnitName, ta.AbstractSet[SystevisorUnitName]]:
+        # The reverse of every edge that orders a start. Read from each instance's own spec rather than the snapshot so
+        # that an instance being removed still orders its stop by the configuration it was started under.
+        dependents: ta.Dict[SystevisorUnitName, ta.Set[SystevisorUnitName]] = {}
+        for instance in self._state.instances.values():
+            dependencies = instance.desired_spec.unit.dependencies
+            for name in (*dependencies.requires, *dependencies.wants, *dependencies.after):
+                dependents.setdefault(SystevisorUnitName(name), set()).add(instance.unit_name)
+            for name in dependencies.before:
+                dependents.setdefault(instance.unit_name, set()).add(SystevisorUnitName(name))
+        return dependents
+
+    @staticmethod
+    def _should_stop(instance: SystevisorInstanceState) -> bool:
+        return instance.desired_state is not SystevisorDesiredState.ACTIVE or instance.restart_requested
+
+    def _stop_instances(self, now: float) -> None:
+        """
+        Stops are ordered as the reverse of starts: a unit is signalled only once every unit which depends on it, and
+        is itself on its way down, has exited. A dependent which is staying up does not hold its dependency: stopping
+        one unit says nothing about the others.
+        """
+
+        stop_order = self._stop_order()
+        candidates = [
+            instance
+            for instance in stop_order
+            if self._should_stop(instance) and instance.process_state in {
+                SystevisorProcessState.STARTING,
+                SystevisorProcessState.RUNNING,
+            }
+        ]
+        for instance in stop_order:
+            if self._should_stop(instance) and instance.process_state is SystevisorProcessState.BACKOFF:
+                instance.deadline_id = None
+                instance.deadline_kind = None
+                instance.deadline_at = None
+                self._transition(instance, SystevisorProcessState.STOPPED, now, 'desired_inactive')
+
+        waiting: ta.Dict[SystevisorInstanceId, ta.AbstractSet[SystevisorUnitName]] = {}
+        if candidates:
+            dependents = self._stop_dependents()
+            going_down = {instance.unit_name for instance in candidates}
+            going_down.update(
+                instance.unit_name
+                for instance in stop_order
+                if instance.process_state is SystevisorProcessState.STOPPING
+            )
+            for instance in candidates:
+                holders = (dependents.get(instance.unit_name, frozenset()) & going_down) - {instance.unit_name}
+                if holders:
+                    waiting[instance.instance_id] = holders
+
+            # A wait is only kept if something it leads to is already exiting. Validation rejects ordering loops, but
+            # termination must not rest on that: instances which only wait on each other are stopped together.
+            exiting = {
+                instance.unit_name
+                for instance in stop_order
+                if instance.process_state is SystevisorProcessState.STOPPING
+            }
+            exiting.update(instance.unit_name for instance in candidates if instance.instance_id not in waiting)
+            progressed = True
+            while progressed:
+                progressed = False
+                for instance in candidates:
+                    if instance.unit_name not in exiting and waiting.get(instance.instance_id, frozenset()) & exiting:
+                        exiting.add(instance.unit_name)
+                        progressed = True
+            for instance in candidates:
+                if instance.instance_id in waiting and instance.unit_name not in exiting:
+                    del waiting[instance.instance_id]
+
+        for instance in stop_order:
+            if instance.instance_id in waiting:
+                self._update_blocked_reason(instance, f'{min(waiting[instance.instance_id])}:stopping', now)
+            elif instance.blocked_reason is not None and instance.blocked_reason.endswith(':stopping'):
+                self._update_blocked_reason(instance, None, now)
+        for instance in candidates:
+            if instance.instance_id not in waiting:
+                self._signal_stop(instance, now)
+
     def _stabilize(self, now: float) -> None:
         self._apply_collection_failures(now)
         if self._state.snapshot is not None:
             self._reconcile_dependency_desires(self._state.snapshot, now)
 
-        for instance in self._stop_order():
-            should_stop = (
-                instance.desired_state is not SystevisorDesiredState.ACTIVE or
-                instance.restart_requested
-            )
-            if should_stop and instance.process_state in {
-                    SystevisorProcessState.STARTING,
-                    SystevisorProcessState.RUNNING,
-            }:
-                self._signal_stop(instance, now)
-            elif should_stop and instance.process_state is SystevisorProcessState.BACKOFF:
-                instance.deadline_id = None
-                instance.deadline_kind = None
-                instance.deadline_at = None
-                self._transition(instance, SystevisorProcessState.STOPPED, now, 'desired_inactive')
+        self._stop_instances(now)
 
         for instance in self._start_order():
             if (
