@@ -3,8 +3,6 @@ The fp8 KV cache (TorchOps kv_dtype='fp8'): the static decoder holds e4m3 codes 
 fallback agree, the whole decode / speculative / prefix-cache machinery runs on the four-array state, snapshots convert
 between formats, and the quantization error is small.
 """
-import os
-
 import numpy as np
 
 from ..model import Cache
@@ -13,28 +11,14 @@ from ..model import Qwen35
 from ..prefixcache import PrefixCache
 from .test_parity import rel_err
 from .test_parity import synthetic_source
+from .tritonmodes import triton_modes
 
 
 ##
 
 
-# These tests run the Triton kernels on CPU through Triton's interpreter, which each of them switches on for the rest of
-# the process (TRITON_INTERPRET=1). Triton reads that switch every time a kernel is jitted, and it jits its own `tl`
-# helpers (tl.sigmoid, ...) when it is first imported, so interpreted and compiled Triton cannot share a process:
-#
-#  - If Triton was already imported compiled (a kernel launched on CUDA, or torch.compile on CUDA, earlier in the
-#    process), our kernels are jitted here as interpreted functions that call compiled `tl` helpers, and these tests
-#    fail with "Cannot call @triton.jit'd outside of the scope of a kernel".
-#  - If these tests run first on a CUDA machine, test_torch_triton.py's kernels then run interpreted on CUDA tensors,
-#    which the interpreter does not support: bf16 comes out as garbage (test_qlinear_kernel) and some arguments cannot
-#    be moved to the host ("'ConstTensorWrapper' object has no attribute 'untyped_storage'": test_gdn_step_kernel,
-#    test_model_decode_with_kernel).
-#
-# So on a CUDA machine this module and test_torch_triton.py must run in separate pytest processes, and one process
-# running both fails. Without CUDA both modules are interpreted throughout and the conflict does not arise.
-#
-# TODO: run these tests' bodies in a subprocess with TRITON_INTERPRET=1 in its environment instead of setting it in this
-#  process, so that neither the order nor the grouping of tests in a pytest run matters.
+# These tests run the Triton kernels on CPU through Triton's interpreter, whatever the machine. The interpreter cannot
+# be switched on in the pytest process, so each body runs in a child process that has it on: see tritonmodes.py.
 
 
 def _skip() -> bool:
@@ -46,6 +30,7 @@ def _skip() -> bool:
     return False
 
 
+@triton_modes('interpret')
 def test_fp8_decode():
     if _skip():
         return
@@ -54,7 +39,6 @@ def test_fp8_decode():
 
     from ..backends.torch import TorchOps
 
-    os.environ.setdefault('TRITON_INTERPRET', '1')
     cfg, hf, src = synthetic_source()
     ids = np.random.default_rng(3).integers(0, 256, (1, 24))
 
@@ -80,6 +64,7 @@ def test_fp8_decode():
     print(f'fp8 decode: kernels == composed ({rel_err(kern, comp):.1e}); vs full precision {rel_err(kern, ref):.1e}')
 
 
+@triton_modes('interpret', timeout_s=120.)  # ~40s on its own, more beside other workers' children
 def test_fp8_spec_and_snapshots():
     """
     Speculative decoding and the prefix cache on fp8 states; an fp8 snapshot resumed by an fp8 decoder equals a
@@ -91,7 +76,6 @@ def test_fp8_spec_and_snapshots():
 
     from ..backends.torch import TorchOps
 
-    os.environ.setdefault('TRITON_INTERPRET', '1')
     cfg, hf, src = synthetic_source()
     rng = np.random.default_rng(8)
     p1 = rng.integers(0, 256, 7).tolist()

@@ -2,11 +2,10 @@
 """
 The Triton int4/int8 GEMV (backends/torch_triton.py) against `TorchQWeight.dequant` + matmul.
 
-Without a GPU this runs through Triton's numpy interpreter (`TRITON_INTERPRET=1`, set below before triton is imported),
-f32 only and slowly, so the shapes are small. On a GPU it also runs the bf16 path.
+Each test runs once per Triton mode, in a child process of its own (see tritonmodes.py): through Triton's numpy
+interpreter on CPU, f32 only and slowly, so the shapes are small; and, where there is a GPU, compiled on CUDA, which
+also runs the bf16 path.
 """
-import os
-
 import numpy as np
 
 
@@ -15,12 +14,8 @@ try:
 except ImportError:
     torch = None  # type: ignore[assignment]
 
-# Interpreted and compiled Triton cannot share a process: see the note and TODO at the top of test_fp8kv.py, which turns
-# the interpreter on whatever the machine and so breaks this module's CUDA runs when both share a pytest process.
-if torch is not None and not torch.cuda.is_available():
-    os.environ.setdefault('TRITON_INTERPRET', '1')
-
 from ..quant import quantize as quantize_np
+from .tritonmodes import triton_modes
 
 
 ##
@@ -40,6 +35,7 @@ def _skip() -> bool:
     return False
 
 
+@triton_modes('interpret', 'compiled')
 def test_qlinear_kernel():
     if _skip():
         return
@@ -102,6 +98,7 @@ def test_qlinear_kernel():
     print('TorchOps.linear switch OK')
 
 
+@triton_modes('interpret', 'compiled')
 def test_gdn_step_kernel():
     """
     The fused DeltaNet step against the composed Ops.gdn_step reference: T in (1, 4), 3 value heads per key
@@ -144,6 +141,7 @@ def test_gdn_step_kernel():
     print('fused DeltaNet step matches the reference (T=1, 4; final and all states)')
 
 
+@triton_modes('interpret', 'compiled')
 def test_attn_decode_kernel():
     """
     The length-aware decode attention against the composed Ops.sdpa_static: GQA fold order, per-token causal masks for T
@@ -187,6 +185,7 @@ def test_attn_decode_kernel():
     print('length-aware decode attention matches the composed reference (T=1/4, GQA, splits 1/4/32)')
 
 
+@triton_modes('interpret', 'compiled')
 def test_attn_prefill_kernel():
     """
     The flash-attention prefill kernel against the composed Ops.sdpa: GQA, causal with a KV offset, T that is
@@ -216,6 +215,7 @@ def test_attn_prefill_kernel():
     print('flash-attention prefill kernel matches the composed reference (GQA, KV offset, ragged blocks)')
 
 
+@triton_modes('interpret', 'compiled')
 def test_attn_fp8_kernels():
     """
     Both attention kernels on fp8 e4m3 codes + per-position scales equal the composed references run on the
@@ -274,20 +274,18 @@ def test_attn_fp8_kernels():
     print('fp8 KV attention kernels match the dequantized references (decode T=1/4, prefill with fp8 past)')
 
 
+@triton_modes('compiled')
 def test_fp8_compiled_write():
     """
     The static-buffer write of fp8 codes under torch.compile, in the eager-first protocol the decode steps use: the
     compiled write equals the eager one, in place, with the same buffer objects out. CUDA only: the compiled write goes
     through inductor's Triton codegen, which cannot store through a dtype view of a step argument (writing the codes
     through a uint8 view of the buffer failed there with 'cannot cast uint8[..] to fp8e4nv'; see
-    x/torch_/dtypeviewrepro.py). None of this module's own kernels are involved.
+    x/torch_/dtypeviewrepro.py). None of this module's own kernels are involved, but inductor's import of triton fixes
+    the process's mode all the same, so this is isolated like the rest.
     """
 
     if _skip():
-        return
-
-    if not torch.cuda.is_available():
-        print('cuda not available; skipping')
         return
 
     from ..backends.torch import TorchOps
@@ -334,6 +332,7 @@ def test_fp8_compiled_write():
     print('fp8 static-buffer write: compiled == eager, in place')
 
 
+@triton_modes('interpret', 'compiled')
 def test_model_decode_with_kernel():
     """A quantized model's static decode step gives the same logits with and without the kernel."""
 
