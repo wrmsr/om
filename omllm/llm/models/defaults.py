@@ -37,25 +37,28 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
 
     DefaultModel(
         name='claude-fable',
+        aliases=['fable'],
         key=ModelKey('anthropic', 'claude-fable-5.1'),
         api_key_name='anthropic_api_key',
     ),
 
     DefaultModel(
         name='claude-opus',
+        aliases=['opus'],
         key=ModelKey('anthropic', 'claude-opus-5.5'),
         api_key_name='anthropic_api_key',
     ),
 
     DefaultModel(
         name='claude-sonnet',
-        aliases=['claude'],
+        aliases=['sonnet', 'claude'],
         key=ModelKey('anthropic', 'claude-sonnet-5-5'),
         api_key_name='anthropic_api_key',
     ),
 
     DefaultModel(
         name='claude-haiku',
+        aliases=['haiku'],
         key=ModelKey('anthropic', 'claude-haiku-4-5-20251001'),
         api_key_name='anthropic_api_key',
     ),
@@ -75,7 +78,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
 
     DefaultModel(
         name='gemini-flash',
-        aliases=['google'],
+        aliases=['gemini', 'google'],
         key=ModelKey('google', 'gemini-3.8-flash'),
         api_key_name='gemini_api_key',
     ),
@@ -110,26 +113,36 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     # openai
 
     DefaultModel(
+        name='gpt-astra',
+        aliases=['astra'],
+        key=ModelKey('openai', 'gpt-6-astra'),
+        api_key_name='openai_api_key',
+    ),
+
+    DefaultModel(
         name='gpt-sol',
+        aliases=['sol'],
         key=ModelKey('openai', 'gpt-6.1-sol'),
         api_key_name='openai_api_key',
     ),
 
     DefaultModel(
         name='gpt-terra',
+        aliases=['terra'],
         key=ModelKey('openai', 'gpt-5.6-terra'),
         api_key_name='openai_api_key',
     ),
 
     DefaultModel(
         name='gpt-luna',
-        aliases=['gpt'],
+        aliases=['luna', 'gpt'],
         key=ModelKey('openai', 'gpt-6-luna'),
         api_key_name='openai_api_key',
     ),
 
     DefaultModel(
         name='gpt-nano',
+        aliases=['nano'],
         key=ModelKey('openai', 'gpt-5.4-nano'),
         api_key_name='openai_api_key',
     ),

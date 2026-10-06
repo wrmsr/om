@@ -68,9 +68,10 @@ class SyncCoreConnection(BaseCoreConnection):
             tcp_keepalive=tcp_keepalive,
         )
 
-        self._driver = SocketSyncIoPipelineDriver(self._make_pipeline_spec(), self._sock)
-
+        driver: SocketSyncIoPipelineDriver | None = None
         try:
+            self._driver = driver = SocketSyncIoPipelineDriver(self._make_pipeline_spec(), self._sock)
+
             if self._wants_ssl():
                 accepted = self._run(self._session.negotiate_ssl())
                 if (ssl_handler := self._on_ssl_response(accepted)) is not None:
@@ -79,7 +80,11 @@ class SyncCoreConnection(BaseCoreConnection):
             self._run(self._session.startup())
 
         except BaseException:
-            self._driver.close()
+            try:
+                if driver is not None:
+                    driver.close()
+            finally:
+                self._sock.close()
             raise
 
     def __enter__(self) -> ta.Self:
@@ -112,17 +117,21 @@ class SyncCoreConnection(BaseCoreConnection):
         return op.result()
 
     def close(self) -> None:
-        if self.is_closed:
-            raise InterfaceError('connection is closed')
-
         try:
+            if self.is_closed:
+                raise InterfaceError('connection is closed')
+
             # A failed session means the pipeline is already dead or dying (the transport hit EOF, or an error tore it
             # down), and would reject the courtesy Terminate.
             if self._session.fatal_error is None:
                 self._driver.enqueue(msgs.Terminate())
                 self._driver.next(read=False)
         finally:
-            self._driver.close()
+            try:
+                self._driver.close()
+            finally:
+                # The synchronous pipeline driver borrows its transport; the connection owns and closes it.
+                self._sock.close()
 
     def execute_simple(self, statement: str) -> Context:
         return self._run(self._session.execute_simple(statement))
