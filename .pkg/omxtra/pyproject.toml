@@ -42,6 +42,9 @@ wiki = [
     'mwparserfromhell ~= 0.7',
     'wikitextparser ~= 2.0',
 ]
+cext = [
+    'omxtra-cext == 0.0.63',
+]
 all = [
     'omdev == 0.0.63',
     'ominfra == 0.0.63',
@@ -49,6 +52,7 @@ all = [
     'asyncssh ~= 2.24',
     'mwparserfromhell ~= 0.7',
     'wikitextparser ~= 2.0',
+    'omxtra-cext == 0.0.63',
 ]
 
 [project.entry-points]
