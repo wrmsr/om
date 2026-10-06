@@ -204,8 +204,19 @@ class SetuptoolsBase:
             'README',
             'README.rst',
 
-            'LICENSE',
-            'LICENSE.txt',
+            *[
+                n + x
+                for n in [
+                    'LICENSE',
+                    'LICENCE',
+                ]
+                for x in [
+                    '',
+                    '.txt',
+                    '.rst',
+                    '.md',
+                ]
+            ],
 
             'AUTHORS',
         ],
