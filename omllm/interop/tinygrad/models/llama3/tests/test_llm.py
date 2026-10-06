@@ -4,6 +4,7 @@ from ..fetch import fetch_model
 from ..llm import Llama3Llm
 
 
+@pytest.mark.timeout(180)
 @pytest.mark.not_docker_guest
 @pytest.mark.high_mem
 def test_llama3_llm():
