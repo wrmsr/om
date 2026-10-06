@@ -6,13 +6,24 @@
 //     "_pcre2_/src/*.h"
 //   ],
 //   "extra_compile_args": [
-//     "-Wno-sign-compare",
-//     "-Wno-unreachable-code",
-//     "-Wno-unused-but-set-variable",
-//     "-Wno-unused-const-variable",
-//     "-Wno-unused-function",
 //     "-fvisibility=hidden",
 //     "-g0"
+//   ],
+//   "define_macros": ]
+//     "PCRE2_CODE_UNIT_WIDTH": "8",
+//     "PCRE2_STATIC": "1",
+//     "PCRE2_EXPORT": "",
+//     "SUPPORT_UNICODE": "1",
+//     "SUPPORT_PCRE2_8": "1",
+//     "LINK_SIZE": "2",
+//     "HEAP_LIMIT": "20000000",
+//     "MATCH_LIMIT": "10000000",
+//     "MATCH_LIMIT_DEPTH": "10000000",
+//     "MAX_NAME_COUNT": "10000",
+//     "MAX_NAME_SIZE": "128",
+//     "MAX_VARLOOKBEHIND": "255",
+//     "NEWLINE_DEFAULT": "2",
+//     "PARENS_NEST_LIMIT": "250"
 //   ]
 // }
 #define PY_SSIZE_T_CLEAN
