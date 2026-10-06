@@ -77,7 +77,7 @@ class Project(ProjectBase):
         ],
 
         'mypy': [
-            'mypy ~= 2.3',
+            'mypy ~= 2.4',
         ],
 
         'secrets': [
@@ -101,7 +101,7 @@ class Project(ProjectBase):
             'mysql-connector-python ~= 26.7',
             'mysqlclient ~= 2.3',
 
-            'snowflake-connector-python ~= 4.7',
+            'snowflake-connector-python ~= 4.8',
 
             'aiomysql ~= 0.3',
             'aiosqlite ~= 0.22',

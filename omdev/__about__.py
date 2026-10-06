@@ -36,10 +36,6 @@ class Project(ProjectBase):
             'docutils ~= 0.23',
         ],
 
-        'mypy': [
-            'mypy ~= 2.4',
-        ],
-
         'ocr': [
             'pytesseract ~= 0.3',
 

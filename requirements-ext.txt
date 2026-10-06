@@ -54,11 +54,11 @@ tree-sitter-python==0.25.0
 watchdog==6.0.0
 
 pyright[nodejs]==1.1.414
-basedpyright==1.40.1
+basedpyright==1.40.2
 
 blobfile==3.3.0
 
-pydantic-monty==1.0.0
+pydantic-monty==1.1.0
 
 
 ##
