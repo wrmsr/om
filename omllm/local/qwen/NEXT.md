@@ -205,13 +205,13 @@ a Triton grouped GEMV on torch -- and it is one more seam op with a composed ref
 expert tensor naming and per-expert quantization (the cache then has thousands of entries; it copes). Spec
 decoding's draft head exists in these checkpoints too.
 
-### 2.6 Device profiles: the 3090, the 4060 Ti, rented boxes, and the Mac's memory split
+### 2.6 Device profiles: the 5080, the 4060 Ti, rented boxes, and the Mac's memory split
 
 **Why.** Every device-specific knob exists -- the GEMV tuner, the attention launch ladder, the capacity and
 cache budgets, the KV dtype, the draft vocabulary -- and each is set by hand on the command line. A different
-GPU (the idle 4060 Ti, the retired 3090, a rented H100 for an afternoon) should be a one-time profiling run,
-not a session of flags, and the Mac should be able to choose its memory trade-offs (weights vs. KV vs. prefix
-snapshots) from one setting.
+GPU (the 5080 beside the 5090, the 4060 Ti in the home server, a rented H100 for an afternoon) should be a
+one-time profiling run, not a session of flags, and the Mac should be able to choose its memory trade-offs
+(weights vs. KV vs. prefix snapshots) from one setting.
 
 **How it fits.** The tuner already writes a JSON keyed by shape; the attention ladder resolves itself at first
 use; what is missing is a `profile` step that runs those once, measures free memory and bandwidth, picks
@@ -282,9 +282,11 @@ Named so they are not mistaken for omissions. Neither is on any horizon above.
 - **Vision.** If the checkpoints that matter carry a vision tower, it is an encoder plus a projector feeding
   image tokens into the same prefill; the engine would not change below the embedding. Not until a model makes
   it necessary.
-- **Multi-GPU.** Tensor or pipeline parallel across the cards that happen to be in the house. The 5090 runs
-  everything that fits it; the others are for profiles (2.6), not for ganging. Revisit only if a model that
-  matters does not fit one card and MoE offload (3.2) is not enough.
+- **Multi-GPU.** Tensor or pipeline parallel across the cards in one box (a 5090 and a 5080 in the
+  workstation; the 4060 Ti lives in another machine and is a second server, not a second stage). The 5090 runs
+  everything that fits it; the 5080 is first a second serving device for small models. Revisit as pipeline
+  parallelism by layers only if a model that matters does not fit one card and MoE offload (3.2) is not enough --
+  FLASHNEXT.md §7.2 is the case that would do it.
 
 
 ## 5. Non-goals
