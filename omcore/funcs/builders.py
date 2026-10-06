@@ -120,7 +120,12 @@ class DebugFnBuilder(FnBuilder):
         with open(src_file, 'w') as f:
             f.write(mod_src)
 
+        # Per https://docs.python.org/3.14/library/importlib.html#importlib.import_module
+        #   If you are dynamically importing a module that was created since the interpreter began execution (e.g.,
+        #   created a Python source file), you may need to call invalidate_caches() in order for the new module to be
+        #   noticed by the import system.
         importlib.invalidate_caches()
+
         mod = __import__(mod_name)
 
         check.equal(mod.__file__, src_file)
