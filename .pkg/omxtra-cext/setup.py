@@ -7,7 +7,7 @@ st.setup(
         st.Extension(
             name='omxtra.text.pcre2._pcre2',
             sources=[
-                'omxtra/text/pcre2/_pcre2.cc',
+                'omxtra/text/pcre2/_pcre2.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_auto_possess.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_chartables.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_chkdint.c',
@@ -34,7 +34,7 @@ st.setup(
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_xclass.c',
             ],
             extra_compile_args=[
-                '-std=c++20',
+                '-std=c11',
                 '-fvisibility=hidden',
                 '-g0',
             ],
@@ -53,16 +53,6 @@ st.setup(
                 ('MAX_VARLOOKBEHIND', '255'),
                 ('NEWLINE_DEFAULT', '2'),
                 ('PARENS_NEST_LIMIT', '250'),
-            ],
-        ),
-
-        st.Extension(
-            name='omxtra.text.pcre2.tests._capiclient',
-            sources=[
-                'omxtra/text/pcre2/tests/_capiclient.cc',
-            ],
-            extra_compile_args=[
-                '-std=c++20',
             ],
         ),
 

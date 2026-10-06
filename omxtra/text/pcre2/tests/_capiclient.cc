@@ -1,4 +1,4 @@
-// @om-cext
+// // @om-cext
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
@@ -19,7 +19,7 @@
 #ifndef PCRE2_STATIC
 #define PCRE2_STATIC
 #endif
-#include "pcre2.h"
+#include "../_pcre2_/src/pcre2.h"
 
 // A consumer of _pcre2's `capi` capsule, shaped like the ingest stage of a BPE trainer: given a Code object it splits
 // subjects into regex chunks and counts them, off the interpreter and across threads.
@@ -27,12 +27,12 @@
 //
 
 #define _MODULE_NAME "_capiclient"
-#define _PACKAGE_NAME "omcore.text.pcre2.tests"
+#define _PACKAGE_NAME "omxtra.text.pcre2.tests"
 #define _MODULE_FULL_NAME _PACKAGE_NAME "." _MODULE_NAME
 
-// Declared verbatim from ../_pcre2.cc.
+// Declared verbatim from ../_pcre2.c.
 
-#define PCRE2_CAPI_MODULE_NAME "omcore.text.pcre2._pcre2"
+#define PCRE2_CAPI_MODULE_NAME "omxtra.text.pcre2._pcre2"
 #define PCRE2_CAPI_CAPSULE_NAME PCRE2_CAPI_MODULE_NAME ".capi"
 #define PCRE2_CAPI_ABI_VERSION 1
 

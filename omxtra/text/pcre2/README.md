@@ -102,7 +102,7 @@ too takes a bound on the subject passed, or an `offset_limit`.
 ## Using it from another extension
 
 `_pcre2.capi` is a capsule holding a table of function pointers into this module's copy of PCRE2, so that another
-extension can drive it without linking a second copy. The table is `Pcre2Capi`, declared near the bottom of `_pcre2.cc`.
+extension can drive it without linking a second copy. The table is `Pcre2Capi`, declared near the bottom of `_pcre2.c`.
 Besides `code_from_object` and `match_context_from_object`, which unwrap a `Code` and a `MatchContext`, every entry is
 the PCRE2 function of the same name, touches no Python state, and may be called from any thread with or without a
 thread state attached.

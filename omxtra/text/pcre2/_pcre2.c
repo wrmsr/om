@@ -31,10 +31,10 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
-#include <atomic>
-#include <cstdint>
-#include <cstring>
-#include <new>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
 #define PCRE2_CODE_UNIT_WIDTH 8
 #ifndef PCRE2_STATIC
@@ -71,7 +71,7 @@
 //
 
 #define _MODULE_NAME "_pcre2"
-#define _PACKAGE_NAME "omcore.text.pcre2"
+#define _PACKAGE_NAME "omxtra.text.pcre2"
 #define _MODULE_FULL_NAME _PACKAGE_NAME "." _MODULE_NAME
 
 // The `pcre2_` prefix belongs to the library (every public name in pcre2.h is a macro), so module boilerplate that
@@ -84,7 +84,7 @@ typedef struct pcre2mod_state {
     PyObject *Error;
     PyObject *CompileError;
     PyObject *MatchError;
-    // The probe (see PROBE_MATCH_LIMIT) for matches given no MatchContext, or nullptr if PCRE2's default match limit
+    // The probe (see PROBE_MATCH_LIMIT) for matches given no MatchContext, or NULL if PCRE2's default match limit
     // is already no greater than a probe's. Not Python state, and never written to after the module is executed.
     pcre2_match_context *probe_context;
 } pcre2mod_state;
@@ -92,14 +92,14 @@ typedef struct pcre2mod_state {
 static inline pcre2mod_state * get_pcre2mod_state(PyObject *module)
 {
     void *state = PyModule_GetState(module);
-    assert(state != nullptr);
+    assert(state != NULL);
     return (pcre2mod_state *)state;
 }
 
 static inline pcre2mod_state * get_pcre2mod_type_state(PyTypeObject *tp)
 {
     void *state = PyType_GetModuleState(tp);
-    assert(state != nullptr);
+    assert(state != NULL);
     return (pcre2mod_state *)state;
 }
 
@@ -133,21 +133,21 @@ static void set_error(PyObject *exc_type, int code, Py_ssize_t offset)
     } else {
         msg = PyUnicode_FromString((const char *)buf);
     }
-    if (msg == nullptr) {
+    if (msg == NULL) {
         return;
     }
 
     PyObject *exc = PyObject_CallOneArg(exc_type, msg);
     Py_DECREF(msg);
-    if (exc == nullptr) {
+    if (exc == NULL) {
         return;
     }
 
     PyObject *code_obj = PyLong_FromLong(code);
     PyObject *offset_obj = (offset >= 0) ? PyLong_FromSsize_t(offset) : Py_NewRef(Py_None);
     if (
-        code_obj != nullptr &&
-        offset_obj != nullptr &&
+        code_obj != NULL &&
+        offset_obj != NULL &&
         PyObject_SetAttrString(exc, "code", code_obj) == 0 &&
         PyObject_SetAttrString(exc, "offset", offset_obj) == 0
     ) {
@@ -173,7 +173,7 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     pcre2_match_context *context;
-    // A copy of the context with its match limit lowered to a probe's, or nullptr if its own is already no greater.
+    // A copy of the context with its match limit lowered to a probe's, or NULL if its own is already no greater.
     pcre2_match_context *probe;
 } MatchContext;
 
@@ -189,7 +189,7 @@ typedef struct {
     // be valid UTF. PY_SSIZE_T_MAX until it has validated any of it.
     bool subject_immutable;
     Py_ssize_t validated_start;
-    std::atomic_flag busy;
+    atomic_flag busy;
 } MatchData;
 
 // The most backtracking a match may do from any one starting position while attached to the interpreter, in PCRE2's
@@ -202,13 +202,13 @@ typedef struct {
 //
 // Running a match twice is sound only because a match has no effects. Were callouts ever bound, a probed match would
 // call out twice.
-static constexpr uint32_t PROBE_MATCH_LIMIT = 256;
+static const uint32_t PROBE_MATCH_LIMIT = 256;
 
 // A match with at least this much subject ahead of it is run detached from the start, as is the compilation of a
 // pattern at least this long.
-static constexpr Py_ssize_t ALLOW_THREADS_MIN_LENGTH = 512;
+static const Py_ssize_t ALLOW_THREADS_MIN_LENGTH = 512;
 
-static uint32_t default_match_limit()
+static uint32_t default_match_limit(void)
 {
     uint32_t limit = 0;
     pcre2_config(PCRE2_CONFIG_MATCHLIMIT, &limit);
@@ -216,19 +216,19 @@ static uint32_t default_match_limit()
 }
 
 // A context to probe under in place of one whose effective match limit is given: a copy of it, or a new one if it is
-// nullptr, with the probe's limit. Sets *out to nullptr where the limit is already no greater than a probe's, and so
+// NULL, with the probe's limit. Sets *out to NULL where the limit is already no greater than a probe's, and so
 // no probe is called for. Returns false, with MemoryError set, if one could not be allocated.
 static bool make_probe_context(pcre2_match_context *context, uint32_t match_limit, pcre2_match_context **out)
 {
-    *out = nullptr;
+    *out = NULL;
     if (match_limit <= PROBE_MATCH_LIMIT) {
         return true;
     }
 
-    pcre2_match_context *probe = (context != nullptr)
+    pcre2_match_context *probe = (context != NULL)
         ? pcre2_match_context_copy(context)
-        : pcre2_match_context_create(nullptr);
-    if (probe == nullptr) {
+        : pcre2_match_context_create(NULL);
+    if (probe == NULL) {
         PyErr_NoMemory();
         return false;
     }
@@ -259,7 +259,7 @@ PyDoc_STRVAR(
 
 static PyObject * MatchContext_create(PyObject *cls, PyObject *args, PyObject *kwargs)
 {
-    static const char * const kwlist[] = {"match_limit", "depth_limit", "heap_limit", "offset_limit", nullptr};
+    static char *kwlist[] = {"match_limit", "depth_limit", "heap_limit", "offset_limit", NULL};
 
     PyObject *match_limit_obj = Py_None;
     PyObject *depth_limit_obj = Py_None;
@@ -275,7 +275,7 @@ static PyObject * MatchContext_create(PyObject *cls, PyObject *args, PyObject *k
         &heap_limit_obj,
         &offset_limit_obj
     )) {
-        return nullptr;
+        return NULL;
     }
 
     uint32_t match_limit = 0;
@@ -287,17 +287,17 @@ static PyObject * MatchContext_create(PyObject *cls, PyObject *args, PyObject *k
         (depth_limit_obj != Py_None && !convert_uint32(depth_limit_obj, &depth_limit)) ||
         (heap_limit_obj != Py_None && !convert_uint32(heap_limit_obj, &heap_limit))
     ) {
-        return nullptr;
+        return NULL;
     }
     if (offset_limit_obj != Py_None) {
         offset_limit = PyLong_AsSize_t(offset_limit_obj);
         if (offset_limit == (size_t)-1 && PyErr_Occurred()) {
-            return nullptr;
+            return NULL;
         }
     }
 
-    pcre2_match_context *context = pcre2_match_context_create(nullptr);
-    if (context == nullptr) {
+    pcre2_match_context *context = pcre2_match_context_create(NULL);
+    if (context == NULL) {
         return PyErr_NoMemory();
     }
 
@@ -314,19 +314,19 @@ static PyObject * MatchContext_create(PyObject *cls, PyObject *args, PyObject *k
         pcre2_set_offset_limit(context, (PCRE2_SIZE)offset_limit);
     }
 
-    pcre2_match_context *probe = nullptr;
+    pcre2_match_context *probe = NULL;
     uint32_t effective_match_limit = (match_limit_obj != Py_None) ? match_limit : default_match_limit();
     if (!make_probe_context(context, effective_match_limit, &probe)) {
         pcre2_match_context_free(context);
-        return nullptr;
+        return NULL;
     }
 
     PyTypeObject *tp = (PyTypeObject *)cls;
     MatchContext *self = (MatchContext *)tp->tp_alloc(tp, 0);
-    if (self == nullptr) {
+    if (self == NULL) {
         pcre2_match_context_free(probe);
         pcre2_match_context_free(context);
-        return nullptr;
+        return NULL;
     }
 
     self->context = context;
@@ -341,14 +341,14 @@ static PyMethodDef MatchContext_methods[] = {
         METH_VARARGS | METH_KEYWORDS | METH_CLASS,
         MatchContext_create_doc,
     },
-    {nullptr, nullptr, 0, nullptr}
+    {NULL, NULL, 0, NULL}
 };
 
 static PyType_Slot MatchContext_slots[] = {
     {Py_tp_dealloc, (void *)MatchContext_dealloc},
     {Py_tp_methods, (void *)MatchContext_methods},
     {Py_tp_doc, (void *)"Limits applied to a match (pcre2_match_context). Created by its create method."},
-    {0, nullptr}
+    {0, NULL}
 };
 
 static PyType_Spec MatchContext_spec = {
@@ -380,41 +380,41 @@ static PyObject * Code_pattern_info(Code *self, PyObject *arg)
 {
     uint32_t what;
     if (!convert_uint32(arg, &what)) {
-        return nullptr;
+        return NULL;
     }
 
     pcre2mod_state *state = get_pcre2mod_type_state(Py_TYPE(self));
 
     // With no destination, pcre2_pattern_info validates the request and returns the size of its result.
-    int rc = pcre2_pattern_info(self->code, what, nullptr);
+    int rc = pcre2_pattern_info(self->code, what, NULL);
     if (rc < 0) {
         set_error(state->Error, rc, -1);
-        return nullptr;
+        return NULL;
     }
     size_t size = (size_t)rc;
 
     if (what == PCRE2_INFO_NAMETABLE) {
         uint32_t count = 0;
         uint32_t entry_size = 0;
-        PCRE2_SPTR table = nullptr;
+        PCRE2_SPTR table = NULL;
         if (
             (rc = pcre2_pattern_info(self->code, PCRE2_INFO_NAMECOUNT, &count)) < 0 ||
             (rc = pcre2_pattern_info(self->code, PCRE2_INFO_NAMEENTRYSIZE, &entry_size)) < 0 ||
             (rc = pcre2_pattern_info(self->code, PCRE2_INFO_NAMETABLE, &table)) < 0
         ) {
             set_error(state->Error, rc, -1);
-            return nullptr;
+            return NULL;
         }
         return PyBytes_FromStringAndSize((const char *)table, (Py_ssize_t)count * (Py_ssize_t)entry_size);
     }
 
     if (what == PCRE2_INFO_FIRSTBITMAP) {
-        const uint8_t *bitmap = nullptr;
+        const uint8_t *bitmap = NULL;
         if ((rc = pcre2_pattern_info(self->code, what, &bitmap)) < 0) {
             set_error(state->Error, rc, -1);
-            return nullptr;
+            return NULL;
         }
-        if (bitmap == nullptr) {
+        if (bitmap == NULL) {
             Py_RETURN_NONE;
         }
         return PyBytes_FromStringAndSize((const char *)bitmap, 32);
@@ -424,7 +424,7 @@ static PyObject * Code_pattern_info(Code *self, PyObject *arg)
         uint32_t value = 0;
         if ((rc = pcre2_pattern_info(self->code, what, &value)) < 0) {
             set_error(state->Error, rc, -1);
-            return nullptr;
+            return NULL;
         }
         return PyLong_FromUnsignedLong(value);
     }
@@ -433,18 +433,18 @@ static PyObject * Code_pattern_info(Code *self, PyObject *arg)
         size_t value = 0;
         if ((rc = pcre2_pattern_info(self->code, what, &value)) < 0) {
             set_error(state->Error, rc, -1);
-            return nullptr;
+            return NULL;
         }
         return PyLong_FromSize_t(value);
     }
 
     PyErr_Format(PyExc_NotImplementedError, "pattern_info item %u has an unsupported result size", what);
-    return nullptr;
+    return NULL;
 }
 
 static int MatchData_acquire(MatchData *self)
 {
-    if (self->busy.test_and_set(std::memory_order_acquire)) {
+    if (atomic_flag_test_and_set_explicit(&self->busy, memory_order_acquire)) {
         PyErr_SetString(PyExc_RuntimeError, "MatchData is already in use");
         return -1;
     }
@@ -453,12 +453,12 @@ static int MatchData_acquire(MatchData *self)
 
 static inline void MatchData_release(MatchData *self)
 {
-    self->busy.clear(std::memory_order_release);
+    atomic_flag_clear_explicit(&self->busy, memory_order_release);
 }
 
 static void MatchData_unpin(MatchData *self)
 {
-    if (self->subject.obj != nullptr) {
+    if (self->subject.obj != NULL) {
         PyBuffer_Release(&self->subject);
     }
     Py_CLEAR(self->code);
@@ -474,7 +474,7 @@ static bool is_immutable_subject(PyObject *obj)
     }
     if (PyMemoryView_Check(obj)) {
         PyObject *base = PyMemoryView_GET_BASE(obj);
-        return base != nullptr && PyBytes_CheckExact(base);
+        return base != NULL && PyBytes_CheckExact(base);
     }
     return false;
 }
@@ -491,13 +491,13 @@ PyDoc_STRVAR(
 
 static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
 {
-    static const char * const kwlist[] = {
+    static char *kwlist[] = {
         "subject",
         "match_data",
         "start_offset",
         "options",
         "match_context",
-        nullptr,
+        NULL,
     };
 
     pcre2mod_state *state = get_pcre2mod_type_state(Py_TYPE(self));
@@ -520,35 +520,35 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
         &options,
         &match_context_obj
     )) {
-        return nullptr;
+        return NULL;
     }
 
     if (start_offset < 0) {
         PyErr_SetString(PyExc_ValueError, "start_offset must not be negative");
-        return nullptr;
+        return NULL;
     }
 
-    pcre2_match_context *context = nullptr;
+    pcre2_match_context *context = NULL;
     if (match_context_obj != Py_None) {
         if (!Py_IS_TYPE(match_context_obj, state->MatchContextType)) {
             PyErr_Format(PyExc_TypeError, "expected MatchContext or None, got %T", match_context_obj);
-            return nullptr;
+            return NULL;
         }
         context = ((MatchContext *)match_context_obj)->context;
     }
 
     MatchData *md = (MatchData *)match_data_obj;
     if (MatchData_acquire(md) < 0) {
-        return nullptr;
+        return NULL;
     }
 
     // A subject which is still pinned from the last match is matched through the buffer already held on it.
-    bool same_subject = (md->subject.obj != nullptr && md->subject.obj == subject_obj);
+    bool same_subject = (md->subject.obj != NULL && md->subject.obj == subject_obj);
     if (!same_subject) {
         MatchData_unpin(md);
         if (PyObject_GetBuffer(subject_obj, &md->subject, PyBUF_SIMPLE) < 0) {
             MatchData_release(md);
-            return nullptr;
+            return NULL;
         }
         md->subject_immutable = is_immutable_subject(subject_obj);
     }
@@ -565,7 +565,7 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
             "once it has validated it. Pass bytes, or NO_UTF_CHECK to vouch for the subject yourself",
             subject_obj
         );
-        return nullptr;
+        return NULL;
     }
 
     PCRE2_SPTR subject = (PCRE2_SPTR)md->subject.buf;
@@ -600,13 +600,13 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
             (PCRE2_SIZE)start_offset,
             match_options,
             md->match_data,
-            (probe != nullptr) ? probe : context
+            (probe != NULL) ? probe : context
         );
     }
 
     // The Code, the MatchContext, the MatchData, and the subject's buffer are all kept alive by this call's own
     // arguments, and the MatchData is marked busy, so nothing the match touches can be freed or reused while detached.
-    if (!attached || (probe != nullptr && rc == PCRE2_ERROR_MATCHLIMIT)) {
+    if (!attached || (probe != NULL && rc == PCRE2_ERROR_MATCHLIMIT)) {
         Py_BEGIN_ALLOW_THREADS
         rc = pcre2_match(
             self->code,
@@ -647,20 +647,20 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
     }
 
     set_error(state->MatchError, rc, error_offset);
-    return nullptr;
+    return NULL;
 }
 
 static PyMethodDef Code_methods[] = {
     {"pattern_info", (PyCFunction)Code_pattern_info, METH_O, Code_pattern_info_doc},
     {"match", (PyCFunction)(void (*)(void))Code_match, METH_VARARGS | METH_KEYWORDS, Code_match_doc},
-    {nullptr, nullptr, 0, nullptr}
+    {NULL, NULL, 0, NULL}
 };
 
 static PyType_Slot Code_slots[] = {
     {Py_tp_dealloc, (void *)Code_dealloc},
     {Py_tp_methods, (void *)Code_methods},
     {Py_tp_doc, (void *)"A compiled pattern (pcre2_code). Created by compile()."},
-    {0, nullptr}
+    {0, NULL}
 };
 
 static PyType_Spec Code_spec = {
@@ -699,7 +699,7 @@ static void MatchData_dealloc(MatchData *self)
 
 static PyObject * MatchData_wrap(PyTypeObject *tp, pcre2_match_data *match_data)
 {
-    if (match_data == nullptr) {
+    if (match_data == NULL) {
         return PyErr_NoMemory();
     }
 
@@ -714,17 +714,18 @@ static PyObject * MatchData_wrap(PyTypeObject *tp, pcre2_match_data *match_data)
     // Not tp_alloc, which starts tracking the object at once: the collector is how one thread comes by another's
     // objects, and on a free-threaded build this one must be whole before it can.
     MatchData *self = PyObject_GC_New(MatchData, tp);
-    if (self == nullptr) {
+    if (self == NULL) {
         pcre2_match_data_free(match_data);
-        return nullptr;
+        return NULL;
     }
 
     self->match_data = match_data;
-    self->code = nullptr;
+    self->code = NULL;
     memset(&self->subject, 0, sizeof(self->subject));
     self->subject_immutable = false;
     self->validated_start = PY_SSIZE_T_MAX;
-    new (&self->busy) std::atomic_flag();
+    // C11 leaves a flag which was not initialized with ATOMIC_FLAG_INIT in an indeterminate state, which this settles.
+    atomic_flag_clear(&self->busy);
 
     PyObject_GC_Track(self);
     return (PyObject *)self;
@@ -736,10 +737,10 @@ static PyObject * MatchData_create(PyObject *cls, PyObject *arg)
 {
     uint32_t ovecsize;
     if (!convert_uint32(arg, &ovecsize)) {
-        return nullptr;
+        return NULL;
     }
 
-    return MatchData_wrap((PyTypeObject *)cls, pcre2_match_data_create(ovecsize, nullptr));
+    return MatchData_wrap((PyTypeObject *)cls, pcre2_match_data_create(ovecsize, NULL));
 }
 
 PyDoc_STRVAR(
@@ -752,12 +753,12 @@ static PyObject * MatchData_create_from_pattern(PyObject *cls, PyObject *arg)
     pcre2mod_state *state = get_pcre2mod_type_state((PyTypeObject *)cls);
     if (!Py_IS_TYPE(arg, state->CodeType)) {
         PyErr_Format(PyExc_TypeError, "expected Code, got %T", arg);
-        return nullptr;
+        return NULL;
     }
 
     return MatchData_wrap(
         (PyTypeObject *)cls,
-        pcre2_match_data_create_from_pattern(((Code *)arg)->code, nullptr)
+        pcre2_match_data_create_from_pattern(((Code *)arg)->code, NULL)
     );
 }
 
@@ -771,7 +772,7 @@ PyDoc_STRVAR(
 static PyObject * MatchData_next_match(MatchData *self, PyObject *Py_UNUSED(ignored))
 {
     if (MatchData_acquire(self) < 0) {
-        return nullptr;
+        return NULL;
     }
 
     // Without a successful match there is nothing to advance from, and a block which has never been matched into holds
@@ -779,7 +780,7 @@ static PyObject * MatchData_next_match(MatchData *self, PyObject *Py_UNUSED(igno
     int more = 0;
     PCRE2_SIZE start_offset = 0;
     uint32_t options = 0;
-    if (self->code != nullptr) {
+    if (self->code != NULL) {
         more = pcre2_next_match(self->match_data, &start_offset, &options);
     }
 
@@ -794,18 +795,18 @@ static PyObject * MatchData_next_match(MatchData *self, PyObject *Py_UNUSED(igno
 static PyObject * MatchData_get_ovector(MatchData *self, void *Py_UNUSED(closure))
 {
     if (MatchData_acquire(self) < 0) {
-        return nullptr;
+        return NULL;
     }
 
     PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(self->match_data);
     Py_ssize_t n = 2 * (Py_ssize_t)pcre2_get_ovector_count(self->match_data);
 
     PyObject *result = PyTuple_New(n);
-    if (result != nullptr) {
+    if (result != NULL) {
         for (Py_ssize_t i = 0; i < n; i++) {
             // PCRE2_UNSET is all ones, so an offset read as a signed size is -1 exactly when it is unset.
             PyObject *item = PyLong_FromSsize_t((Py_ssize_t)ovector[i]);
-            if (item == nullptr) {
+            if (item == NULL) {
                 Py_CLEAR(result);
                 break;
             }
@@ -831,19 +832,19 @@ static PyMethodDef MatchData_methods[] = {
         MatchData_create_from_pattern_doc,
     },
     {"next_match", (PyCFunction)MatchData_next_match, METH_NOARGS, MatchData_next_match_doc},
-    {nullptr, nullptr, 0, nullptr}
+    {NULL, NULL, 0, NULL}
 };
 
 static PyGetSetDef MatchData_getset[] = {
     {
         "ovector",
         (getter)MatchData_get_ovector,
-        nullptr,
+        NULL,
         "The whole ovector, flat: 2 * ovector_count offsets, with unset ones as UNSET.",
-        nullptr,
+        NULL,
     },
-    {"ovector_count", (getter)MatchData_get_ovector_count, nullptr, "pcre2_get_ovector_count.", nullptr},
-    {nullptr, nullptr, nullptr, nullptr, nullptr}
+    {"ovector_count", (getter)MatchData_get_ovector_count, NULL, "pcre2_get_ovector_count.", NULL},
+    {NULL, NULL, NULL, NULL, NULL}
 };
 
 static PyType_Slot MatchData_slots[] = {
@@ -853,7 +854,7 @@ static PyType_Slot MatchData_slots[] = {
     {Py_tp_methods, (void *)MatchData_methods},
     {Py_tp_getset, (void *)MatchData_getset},
     {Py_tp_doc, (void *)"A block holding the results of a match (pcre2_match_data). Created by its create methods."},
-    {0, nullptr}
+    {0, NULL}
 };
 
 static PyType_Spec MatchData_spec = {
@@ -880,7 +881,7 @@ PyDoc_STRVAR(
 
 static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *kwargs)
 {
-    static const char * const kwlist[] = {"pattern", "options", "extra_options", nullptr};
+    static char *kwlist[] = {"pattern", "options", "extra_options", NULL};
 
     pcre2mod_state *state = get_pcre2mod_state(module);
 
@@ -898,13 +899,13 @@ static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *k
         convert_uint32,
         &extra_options
     )) {
-        return nullptr;
+        return NULL;
     }
 
-    pcre2_compile_context *context = nullptr;
+    pcre2_compile_context *context = NULL;
     if (extra_options != 0) {
-        context = pcre2_compile_context_create(nullptr);
-        if (context == nullptr) {
+        context = pcre2_compile_context_create(NULL);
+        if (context == NULL) {
             PyBuffer_Release(&pattern);
             return PyErr_NoMemory();
         }
@@ -914,10 +915,10 @@ static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *k
     // A pattern is validated and then trusted just as a subject is, but is small and compiled once, so rather than
     // being refused a writable one is compiled from a copy.
     PCRE2_SPTR pattern_ptr = (PCRE2_SPTR)pattern.buf;
-    void *pattern_copy = nullptr;
+    void *pattern_copy = NULL;
     if (!pattern.readonly && pattern.len > 0) {
         pattern_copy = PyMem_Malloc((size_t)pattern.len);
-        if (pattern_copy == nullptr) {
+        if (pattern_copy == NULL) {
             pcre2_compile_context_free(context);
             PyBuffer_Release(&pattern);
             return PyErr_NoMemory();
@@ -941,9 +942,9 @@ static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *k
     pcre2_compile_context_free(context);
     PyBuffer_Release(&pattern);
 
-    if (code == nullptr) {
+    if (code == NULL) {
         set_error(state->CompileError, error_code, (Py_ssize_t)error_offset);
-        return nullptr;
+        return NULL;
     }
 
     // What the pattern was compiled as can differ from the options given, as it can also set them for itself.
@@ -951,9 +952,9 @@ static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *k
     pcre2_pattern_info(code, PCRE2_INFO_ALLOPTIONS, &all_options);
 
     Code *self = (Code *)state->CodeType->tp_alloc(state->CodeType, 0);
-    if (self == nullptr) {
+    if (self == NULL) {
         pcre2_code_free(code);
-        return nullptr;
+        return NULL;
     }
 
     self->code = code;
@@ -968,17 +969,17 @@ static PyObject * pcre2mod_config(PyObject *module, PyObject *arg)
 {
     uint32_t what;
     if (!convert_uint32(arg, &what)) {
-        return nullptr;
+        return NULL;
     }
 
     pcre2mod_state *state = get_pcre2mod_state(module);
 
     // With no destination, pcre2_config validates the request and returns the size of its result: in bytes for
     // integer items, and in code units including the terminating zero for string ones.
-    int rc = pcre2_config(what, nullptr);
+    int rc = pcre2_config(what, NULL);
     if (rc < 0) {
         set_error(state->Error, rc, -1);
-        return nullptr;
+        return NULL;
     }
     size_t size = (size_t)rc;
 
@@ -989,11 +990,11 @@ static PyObject * pcre2mod_config(PyObject *module, PyObject *arg)
             PCRE2_UCHAR buf[128];
             if (size > sizeof(buf)) {
                 PyErr_SetString(PyExc_NotImplementedError, "config string is longer than expected");
-                return nullptr;
+                return NULL;
             }
             if ((rc = pcre2_config(what, buf)) < 0) {
                 set_error(state->Error, rc, -1);
-                return nullptr;
+                return NULL;
             }
             return PyUnicode_FromStringAndSize((const char *)buf, (Py_ssize_t)rc - 1);
         }
@@ -1001,12 +1002,12 @@ static PyObject * pcre2mod_config(PyObject *module, PyObject *arg)
         default: {
             if (size != sizeof(uint32_t)) {
                 PyErr_Format(PyExc_NotImplementedError, "config item %u has an unsupported result size", what);
-                return nullptr;
+                return NULL;
             }
             uint32_t value = 0;
             if ((rc = pcre2_config(what, &value)) < 0) {
                 set_error(state->Error, rc, -1);
-                return nullptr;
+                return NULL;
             }
             return PyLong_FromUnsignedLong(value);
         }
@@ -1019,14 +1020,14 @@ static PyObject * pcre2mod_get_error_message(PyObject *module, PyObject *arg)
 {
     int code = PyLong_AsInt(arg);
     if (code == -1 && PyErr_Occurred()) {
-        return nullptr;
+        return NULL;
     }
 
     PCRE2_UCHAR buf[256];
     int rc = pcre2_get_error_message(code, buf, sizeof(buf));
     if (rc == PCRE2_ERROR_BADDATA) {
         set_error(get_pcre2mod_state(module)->Error, rc, -1);
-        return nullptr;
+        return NULL;
     }
     return PyUnicode_FromString((const char *)buf);
 }
@@ -1240,7 +1241,7 @@ typedef struct Pcre2Capi {
     uint32_t struct_size;
 
     // The pcre2_code of a Code object, borrowed: valid for as long as the caller keeps the object alive. Returns
-    // nullptr with a TypeError set if the object is not a Code. Unlike the rest, requires an attached thread state.
+    // NULL with a TypeError set if the object is not a Code. Unlike the rest, requires an attached thread state.
     const pcre2_code * (*code_from_object)(PyObject *obj);
 
     pcre2_code * (*compile)(PCRE2_SPTR, PCRE2_SIZE, uint32_t, int *, PCRE2_SIZE *, pcre2_compile_context *);
@@ -1327,32 +1328,32 @@ static int pcre2mod_exec(PyObject *module)
 {
     pcre2mod_state *state = get_pcre2mod_state(module);
 
-    if (!make_probe_context(nullptr, default_match_limit(), &state->probe_context)) {
+    if (!make_probe_context(NULL, default_match_limit(), &state->probe_context)) {
         return -1;
     }
 
-    state->CodeType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &Code_spec, nullptr);
-    if (state->CodeType == nullptr) {
+    state->CodeType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &Code_spec, NULL);
+    if (state->CodeType == NULL) {
         return -1;
     }
 
-    state->MatchContextType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &MatchContext_spec, nullptr);
-    if (state->MatchContextType == nullptr) {
+    state->MatchContextType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &MatchContext_spec, NULL);
+    if (state->MatchContextType == NULL) {
         return -1;
     }
 
-    state->MatchDataType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &MatchData_spec, nullptr);
-    if (state->MatchDataType == nullptr) {
+    state->MatchDataType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &MatchData_spec, NULL);
+    if (state->MatchDataType == NULL) {
         return -1;
     }
 
     state->Error = PyErr_NewExceptionWithDoc(
         _MODULE_FULL_NAME ".Error",
         "An error reported by PCRE2. Carries its `code`, and the `offset` it was reported at where there is one.",
-        nullptr,
-        nullptr
+        NULL,
+        NULL
     );
-    if (state->Error == nullptr) {
+    if (state->Error == NULL) {
         return -1;
     }
 
@@ -1360,9 +1361,9 @@ static int pcre2mod_exec(PyObject *module)
         _MODULE_FULL_NAME ".CompileError",
         "A pattern failed to compile. `offset` is where in the pattern.",
         state->Error,
-        nullptr
+        NULL
     );
-    if (state->CompileError == nullptr) {
+    if (state->CompileError == NULL) {
         return -1;
     }
 
@@ -1370,9 +1371,9 @@ static int pcre2mod_exec(PyObject *module)
         _MODULE_FULL_NAME ".MatchError",
         "A match failed, as opposed to not matching. `offset` is set for invalid UTF-8, to where in the subject.",
         state->Error,
-        nullptr
+        NULL
     );
-    if (state->MatchError == nullptr) {
+    if (state->MatchError == NULL) {
         return -1;
     }
 
@@ -1387,13 +1388,14 @@ static int pcre2mod_exec(PyObject *module)
         return -1;
     }
 
-    for (const IntConstant &c : pcre2mod_constants) {
-        if (PyModule_Add(module, c.name, PyLong_FromLongLong(c.value)) < 0) {
+    for (size_t i = 0; i < sizeof(pcre2mod_constants) / sizeof(pcre2mod_constants[0]); i++) {
+        const IntConstant *c = &pcre2mod_constants[i];
+        if (PyModule_Add(module, c->name, PyLong_FromLongLong(c->value)) < 0) {
             return -1;
         }
     }
 
-    if (PyModule_Add(module, "capi", PyCapsule_New((void *)&pcre2mod_capi, PCRE2_CAPI_CAPSULE_NAME, nullptr)) < 0) {
+    if (PyModule_Add(module, "capi", PyCapsule_New((void *)&pcre2mod_capi, PCRE2_CAPI_CAPSULE_NAME, NULL)) < 0) {
         return -1;
     }
 
@@ -1430,21 +1432,21 @@ static void pcre2mod_free(void *module)
 
     pcre2mod_state *state = get_pcre2mod_state((PyObject *)module);
     pcre2_match_context_free(state->probe_context);
-    state->probe_context = nullptr;
+    state->probe_context = NULL;
 }
 
 static PyMethodDef pcre2mod_methods[] = {
     {"compile", (PyCFunction)(void (*)(void))pcre2mod_compile, METH_VARARGS | METH_KEYWORDS, compile_doc},
     {"config", (PyCFunction)pcre2mod_config, METH_O, config_doc},
     {"get_error_message", (PyCFunction)pcre2mod_get_error_message, METH_O, get_error_message_doc},
-    {nullptr, nullptr, 0, nullptr}
+    {NULL, NULL, 0, NULL}
 };
 
 static struct PyModuleDef_Slot pcre2mod_slots[] = {
     {Py_mod_exec, (void *)pcre2mod_exec},
     {Py_mod_gil, Py_MOD_GIL_NOT_USED},
     {Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED},
-    {0, nullptr}
+    {0, NULL}
 };
 
 static struct PyModuleDef pcre2mod_module = {
@@ -1459,14 +1461,14 @@ static struct PyModuleDef pcre2mod_module = {
     .m_free = pcre2mod_free,
 };
 
-// The state of the module whose types obj is an instance of one of, or nullptr - with no exception set - if it is not
+// The state of the module whose types obj is an instance of one of, or NULL - with no exception set - if it is not
 // an instance of any of them. Knowing the type is one of this module's is what makes it safe to read state through it.
 static pcre2mod_state * capi_state_from_object(PyObject *obj)
 {
     PyObject *module = PyType_GetModuleByDef(Py_TYPE(obj), &pcre2mod_module);
-    if (module == nullptr) {
+    if (module == NULL) {
         PyErr_Clear();
-        return nullptr;
+        return NULL;
     }
     return get_pcre2mod_state(module);
 }
@@ -1474,9 +1476,9 @@ static pcre2mod_state * capi_state_from_object(PyObject *obj)
 static const pcre2_code * capi_code_from_object(PyObject *obj)
 {
     pcre2mod_state *state = capi_state_from_object(obj);
-    if (state == nullptr || !Py_IS_TYPE(obj, state->CodeType)) {
+    if (state == NULL || !Py_IS_TYPE(obj, state->CodeType)) {
         PyErr_Format(PyExc_TypeError, "expected Code, got %T", obj);
-        return nullptr;
+        return NULL;
     }
 
     return ((Code *)obj)->code;
@@ -1485,19 +1487,15 @@ static const pcre2_code * capi_code_from_object(PyObject *obj)
 static pcre2_match_context * capi_match_context_from_object(PyObject *obj)
 {
     pcre2mod_state *state = capi_state_from_object(obj);
-    if (state == nullptr || !Py_IS_TYPE(obj, state->MatchContextType)) {
+    if (state == NULL || !Py_IS_TYPE(obj, state->MatchContextType)) {
         PyErr_Format(PyExc_TypeError, "expected MatchContext, got %T", obj);
-        return nullptr;
+        return NULL;
     }
 
     return ((MatchContext *)obj)->context;
 }
 
-extern "C" {
-
 PyMODINIT_FUNC PyInit__pcre2(void)
 {
     return PyModuleDef_Init(&pcre2mod_module);
-}
-
 }
