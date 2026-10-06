@@ -214,6 +214,8 @@ RUN (\
 export NEW_USER='om' ;\
 export NEW_UID='4317' ;\
 export NEW_GID='4317' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
@@ -232,6 +234,17 @@ useradd --uid ${NEW_UID} --gid ${NEW_GID} -m -s /bin/bash -d /${NEW_USER} ${NEW_
 echo "${NEW_USER} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/${NEW_USER} ;\
 \
 chmod 0440 /etc/sudoers.d/${NEW_USER} ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 USER om
@@ -243,6 +256,9 @@ RUN \
   --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
   --mount=target=/var/cache/apt,type=cache,sharing=locked \
 ( \
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -275,6 +291,17 @@ sudo apt-get install -y firefox ;\
 \
 echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:${distro_codename}";' |\
   sudo tee /etc/apt/apt.conf.d/51unattended-upgrades-firefox ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -285,6 +312,8 @@ RUN \
   --mount=target=/var/cache/apt,type=cache,sharing=locked \
 ( \
 export CUDA_VERSION='13.4' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
@@ -311,6 +340,17 @@ export PATH="$CUDA_HOME/bin:$PATH"\n\
 export LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:$CUDA_HOME/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n\
 export LIBRARY_PATH="$CUDA_HOME/lib64/stubs${LIBRARY_PATH:+:$LIBRARY_PATH}"\n\
 ' >> ~/.bashrc ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -320,6 +360,9 @@ RUN \
   --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
   --mount=target=/var/cache/apt,type=cache,sharing=locked \
 ( \
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -338,6 +381,17 @@ sudo apt install -y kitware-archive-keyring ;\
 \
 sudo apt update ;\
 sudo apt install -y cmake ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -347,6 +401,9 @@ RUN \
   --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
   --mount=target=/var/cache/apt,type=cache,sharing=locked \
 ( \
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -358,6 +415,17 @@ echo \
 \
 sudo apt-get update ;\
 sudo apt-get install -y docker-ce-cli ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -368,6 +436,8 @@ RUN \
   --mount=target=/var/cache/apt,type=cache,sharing=locked \
 ( \
 export JDKS='zulu21-ca-jdk zulu25-ca-jdk zulu26-ca-jdk zulu27-ca-jdk' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
@@ -378,23 +448,51 @@ echo "deb [signed-by=/usr/share/keyrings/azul.gpg] https://repos.azul.com/zulu/d
 \
 sudo apt-get update ;\
 sudo apt-get install -y ${JDKS} ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
 ## deadsnakes
 
 RUN (\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
 sudo add-apt-repository ppa:deadsnakes/ppa &&\
 sudo apt update ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
 ## rust
 
 RUN (\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -406,12 +504,26 @@ $HOME/.cargo/bin/cargo install \
   rust-script \
 \
 ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
 ## go
 
 RUN (\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -424,12 +536,26 @@ echo '\n\
 export GOROOT="$HOME/.go"\n\
 export PATH="$GOROOT/bin:$PATH"\n\
 ' >> ~/.bashrc ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
 ## zig
 
 RUN (\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -445,12 +571,26 @@ mv "$HOME/zig-$(uname -m)-linux-${ZIG_VERSION}" "$HOME/.zig" ;\
 echo '\n\
 export PATH="$HOME/.zig:$PATH"\n\
 ' >> ~/.bashrc ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
 ## vcpkg
 
 RUN (\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -460,6 +600,17 @@ git clone 'https://github.com/microsoft/vcpkg' ~/.vcpkg_root ;\
 echo '\n\
 export VCPKG_ROOT="$HOME/.vcpkg_root"\n\
 ' >> ~/.bashrc ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -467,6 +618,8 @@ export VCPKG_ROOT="$HOME/.vcpkg_root"\n\
 
 RUN (\
 export NVM_VERSIONS='20 22 24 26' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
@@ -484,6 +637,17 @@ export NVM_DIR="$HOME/.nvm" ;\
 for NV in ${NVM_VERSIONS} ; do\
   nvm install "$NV" ;\
 done ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -491,6 +655,8 @@ done ;\
 
 RUN (\
 export RBENV_VERSIONS='3.4 4.0' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
@@ -500,6 +666,17 @@ curl -fsSL 'https://rbenv.org/install.sh' | bash ;\
 for RV in ${RBENV_VERSIONS}; do\
   bash -c 'eval "$(~/.rbenv/bin/rbenv init - --no-rehash bash)" && rbenv install -L | grep -F "$1." | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n1 | xargs rbenv install' bash "$RV" ;\
 done ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -507,6 +684,8 @@ done ;\
 
 RUN (\
 export UV_PYTHON_VERSIONS='3.8 3.9 3.10 3.11 3.12 3.13 3.14 3.14+freethreaded 3.15 3.15+freethreaded' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
@@ -516,6 +695,17 @@ curl -LsSf 'https://astral.sh/uv/install.sh' | sh ;\
 for PV in ${UV_PYTHON_VERSIONS} ; do\
   bash --login -c "uv python install $PV" ;\
 done ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -525,6 +715,8 @@ RUN \
   --mount=target=/om/.pyenv_cache,type=cache,sharing=locked,uid=4317,gid=4317 \
 ( \
 export PYENV_VERSIONS='3.8.20 3.13.16 3.14.8 3.14.8t 3.15.0rc3 3.15.0rc3t' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
@@ -534,12 +726,26 @@ git clone 'https://github.com/pyenv/pyenv' ~/.pyenv ;\
 for V in ${PYENV_VERSIONS} ; do\
   PYTHON_BUILD_CACHE_PATH=~/.pyenv_cache ~/.pyenv/bin/pyenv install -s "$V" ;\
 done ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
 ## om
 
 RUN (\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
 set -ex ;\
 umask 0002 ;\
 \
@@ -560,6 +766,17 @@ bash --login -c 'om $@' - cli python -m omdev.imports.pycz \
   ominfra \
   omllm \
 ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
 )
 
 
@@ -889,11 +1106,12 @@ sudo chgrp -R $(id -gn) "$WORKDIR" ;\
 
 RUN (\
 export CHGRP_ROOTS='/om /work' ;\
+export CHGRP_GID='4317' ;\
 \
 set -ex ;\
 umask 0002 ;\
 \
-find ${CHGRP_ROOTS} ! -group "$(id -g)" -exec chgrp -h "$(id -g)" {} + ;\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
 \
 find ${CHGRP_ROOTS} ! -type l \( \
   \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \

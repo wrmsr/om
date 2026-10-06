@@ -25,7 +25,8 @@ def read_resource(r: Resource) -> str:
 #
 
 
-StaticEnv: ta.TypeAlias = ta.Union[
+type StaticEnv = ta.Union[
+    ta.Sequence[StaticEnv],
     ta.Mapping[str, str | ta.Sequence[str]],
     ta.Callable[[], ta.Mapping[str, str | ta.Sequence[str]]],
 ]
@@ -48,10 +49,10 @@ class LazyContent:
 #
 
 
-Content: ta.TypeAlias = ta.Union[
+type Content = ta.Union[
     str,
     Resource,
     WithStaticEnv,
     LazyContent,
-    ta.Sequence['Content'],
+    ta.Sequence[Content],
 ]

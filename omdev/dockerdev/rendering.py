@@ -12,6 +12,7 @@ from omcore import dataclasses as dc
 from .content import Content
 from .content import LazyContent
 from .content import Resource
+from .content import StaticEnv
 from .content import WithStaticEnv
 from .content import read_resource
 from .ops import Cmd
@@ -74,22 +75,37 @@ def render_resource(c: Resource, ctx: RenderContext) -> str:
 def render_with_static_env(c: WithStaticEnv, ctx: RenderContext) -> str:
     out = io.StringIO()
 
-    if c.env:
-        kvs = c.env
+    kvs: dict[str, str] = {}
 
-        if callable(kvs):
-            kvs = kvs()
+    def rec(se: StaticEnv) -> None:
+        if not se:
+            return
 
+        elif callable(se):
+            rec(se())
+
+        elif isinstance(se, ta.Sequence):
+            for cse in se:
+                rec(cse)
+
+        elif isinstance(se, ta.Mapping):
+            for k, v in se.items():
+                if isinstance(v, str):
+                    pass
+                elif isinstance(v, ta.Sequence):
+                    v = ' '.join(v)
+                else:
+                    raise TypeError(v)
+                kvs[k] = v
+
+        else:
+            raise TypeError(se)
+
+    rec(c.env)
+
+    if kvs:
         for k, v in kvs.items():
-            if isinstance(v, str):
-                pass
-            elif isinstance(v, ta.Sequence):
-                v = ' '.join(v)
-            else:
-                raise TypeError(v)
-
             out.write(f'export {k}={sh_quote(v)} ;\\\n')
-
         out.write('\\\n')
 
     out.write(render_content(c.body, ctx))

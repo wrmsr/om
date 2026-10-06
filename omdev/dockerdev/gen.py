@@ -11,9 +11,10 @@ from omcore import lang
 
 from .config import Config
 from .content import LazyContent
-from .content import Resource
+from .content import StaticEnv
 from .content import WithStaticEnv
 from .helpers import APT_CACHE_MOUNTS
+from .helpers import fragment_body
 from .helpers import fragment_section
 from .helpers import read_versions_file_versions
 from .helpers import render_apt_install_dep_sets
@@ -35,6 +36,10 @@ from .rendering import render_op
 
 
 def gen_ops(cfg: Config) -> ta.Sequence[Op]:
+    home = '/om'
+
+    #
+
     ops: list[Op] = [
         From(''.join([
             cfg.base_image,
@@ -42,11 +47,61 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
         ])),
     ]
 
+    #
+
+    chgrp_static_env = {
+        'CHGRP_ROOTS': [home],
+        'CHGRP_GID': str(cfg.gid),
+    }
+
+    def chgrp_fragment_run(
+            name: str,
+            *,
+            static_env: StaticEnv | None = None,
+            cache_mounts: ta.Sequence[str] | None = None,
+            cache_mount_args: ta.Sequence[str] | None = None,
+    ) -> Run:
+        body = WithStaticEnv(
+            [
+                fragment_body(name),
+                fragment_body('chgrp'),
+            ],
+            [
+                *([static_env] if static_env else []),
+                chgrp_static_env,
+            ],
+        )
+
+        return Run(
+            body,
+            cache_mounts=cache_mounts or None,
+            cache_mount_args=cache_mount_args or None,
+        )
+
+    def chgrp_fragment_section(
+            name: str,
+            *,
+            static_env: StaticEnv | None = None,
+            cache_mounts: ta.Sequence[str] | None = None,
+            cache_mount_args: ta.Sequence[str] | None = None,
+    ) -> Section:
+        return Section(name, [
+            chgrp_fragment_run(
+                name,
+                static_env=static_env,
+                cache_mounts=cache_mounts or None,
+                cache_mount_args=cache_mount_args or None,
+            ),
+        ])
+
+    #
+
     # ops.append(Section('timestamp', [
     #     Copy(src='docker/.timestamp', dst='/'),
     # ]))
 
-    home = '/om'
+    ##
+    # locale
 
     ops.append(Section('locale', [
         Env([
@@ -62,7 +117,7 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ops.append(Section('deps', [
         Run(
             [
-                Resource('fragments/apt.sh'),
+                fragment_body('apt'),
                 LazyContent(lambda: render_apt_install_dep_sets(*(cfg.dep_sets or []))),
             ],
             cache_mounts=APT_CACHE_MOUNTS,
@@ -70,76 +125,74 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ]))
 
     ops.append(Section('user', [
-        Run(
-            WithStaticEnv(
-                Resource('fragments/user.sh'),
-                {
-                    'NEW_USER': 'om',
-                    'NEW_UID': str(cfg.uid),
-                    'NEW_GID': str(cfg.gid),
-                },
-            ),
+        chgrp_fragment_run(
+            'user',
+            static_env={
+                'NEW_USER': 'om',
+                'NEW_UID': str(cfg.uid),
+                'NEW_GID': str(cfg.gid),
+            },
         ),
         User('om'),
     ]))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'firefox',
         cache_mounts=APT_CACHE_MOUNTS,
     ))
 
     if cfg.cuda_version is not None:
-        ops.append(fragment_section(
+        ops.append(chgrp_fragment_section(
             'cuda',
             static_env={'CUDA_VERSION': cfg.cuda_version},
             cache_mounts=APT_CACHE_MOUNTS,
         ))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'cmake',
         cache_mounts=APT_CACHE_MOUNTS,
     ))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'docker',
         cache_mounts=APT_CACHE_MOUNTS,
     ))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'jdk',
         static_env={'JDKS': cfg.jdks or []},
         cache_mounts=APT_CACHE_MOUNTS,
     ))
 
-    ops.append(fragment_section('deadsnakes'))
+    ops.append(chgrp_fragment_section('deadsnakes'))
 
     ##
     # langs
 
-    ops.append(fragment_section('rust'))
+    ops.append(chgrp_fragment_section('rust'))
 
-    ops.append(fragment_section('go'))
+    ops.append(chgrp_fragment_section('go'))
 
-    ops.append(fragment_section('zig'))
+    ops.append(chgrp_fragment_section('zig'))
 
-    ops.append(fragment_section('vcpkg'))
+    ops.append(chgrp_fragment_section('vcpkg'))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'nvm',
         static_env={'NVM_VERSIONS': cfg.nvm_versions or []},
     ))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'rbenv',
         static_env={'RBENV_VERSIONS': cfg.rbenv_versions or []},
     ))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'uv',
         static_env={'UV_PYTHON_VERSIONS': cfg.uv_python_versions or []},
     ))
 
-    ops.append(fragment_section(
+    ops.append(chgrp_fragment_section(
         'pyenv',
         static_env=lambda: {
             'PYENV_VERSIONS': list(read_versions_file_versions(
@@ -155,7 +208,7 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ##
     # self
 
-    ops.append(fragment_section('om'))
+    ops.append(chgrp_fragment_section('om'))
 
     ##
     # config
@@ -199,6 +252,7 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
     ops.append(fragment_section(
         'chgrp',
         static_env={
+            **chgrp_static_env,
             'CHGRP_ROOTS': [
                 home,
                 *([cfg.workdir] if cfg.workdir is not None else []),

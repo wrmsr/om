@@ -1,4 +1,4 @@
-find ${CHGRP_ROOTS} ! -group "$(id -g)" -exec chgrp -h "$(id -g)" {} + ;
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;
 
 find ${CHGRP_ROOTS} ! -type l \( \
   \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \

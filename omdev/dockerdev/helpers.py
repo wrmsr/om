@@ -19,6 +19,10 @@ from .rendering import render_var_sections
 ##
 
 
+def fragment_body(name: str) -> Content:
+    return Resource(f'fragments/{name}.sh')
+
+
 def fragment_section(
         name: str,
         *,
@@ -26,7 +30,7 @@ def fragment_section(
         cache_mounts: ta.Sequence[str] | None = None,
         cache_mount_args: ta.Sequence[str] | None = None,
 ) -> Section:
-    body: Content = Resource(f'fragments/{name}.sh')
+    body = fragment_body(name)
 
     if static_env is not None:
         body = WithStaticEnv(body, static_env)
