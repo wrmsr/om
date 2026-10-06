@@ -311,6 +311,26 @@
   parameters.
 - Similar to golang, parameter defaults should be the 'zero-value' of the type - for example, instead of
   `foo: bool = True`, prefer `no_foo: bool = False`.
+- **In general, function definitions with more than 3 parameters (excluding self), and function calls with more than 3
+  arguments (excluding bound self), should be split across multiple lines with 1 parameter / argument per line.**
+  - When splitting a call or def across lines, the first line should **NEVER** have an argument or parameter - it should
+    **ALWAYS** end with an opening brace `(`.
+  - This is *not* a strict dogmatic decree - it's very subjective, and there's plenty of justifiable cases for keeping
+    things on one line. In general though this is to promote uniformity / symmetry and reduce visual density.
+  - However, (almost) **NEVER** put arguments / parameters over multiple lines with multiple of each on each line!
+    Either keep everything on one line, or put everything on its own line - there is almost never any reason to do it
+    differently. It is (almost) **NEVER** acceptable to have for example 2 args on a line, followed by 3 args, followed
+    by 1, et cetera.
+    - But even this is subjective lol - maybe the only example I can come up with is a variadic function taking k/v
+      argument pairs for which it's justifiable to put 2 arguments per line - but again, this is the extreme exception.
+  - These rules apply much more strictly for definition parameters than for call arguments - defs will necessarily be
+    longer due to having type annotations, and in general will be read by readers more frequently than any one of their
+    callers.
+- Strive for local consistency - if you have 3 otherwise similar adjacent things, and one needs to be broken into 2
+  lines, break the other 2 into 2 lines in the same manner too even if they wouldn't on their own need that.
+- In general, space out your code! Group logical sections of function logic together and divide them with an empty line. 
+  Doing this does *not* require a comment of any kind, just a visual break for the reader.
+  - In general, density is *not* a virtue!
 
 
 ### Dataclasses
