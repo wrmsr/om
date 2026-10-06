@@ -10,7 +10,6 @@ st.setup(
                 'omxtra/text/pcre2/_pcre2.cc',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_auto_possess.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_chartables.c',
-                'omxtra/text/pcre2/_pcre2_/src/pcre2_chartables.c.dist',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_chkdint.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_compile.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_compile_cgroup.c',

@@ -1,9 +1,9 @@
 // @om-cext {
 //   "extra_sources": [
-//     "_pcre2_/src/*.c",
-//     "_pcre2_/src/*.c.dist"
+//     "_pcre2_/src/*.c"
 //   ],
 //   "extra_headers": [
+//     "_pcre2_/src/*.c.dist",
 //     "_pcre2_/src/*.h",
 //     "_pcre2_/src/*.h.generic"
 //   ],

@@ -1,5 +1,6 @@
 include omxtra/text/pcre2/_pcre2_/src/pcre2.h
 include omxtra/text/pcre2/_pcre2_/src/pcre2.h.generic
+include omxtra/text/pcre2/_pcre2_/src/pcre2_chartables.c.dist
 include omxtra/text/pcre2/_pcre2_/src/pcre2_compile.h
 include omxtra/text/pcre2/_pcre2_/src/pcre2_internal.h
 include omxtra/text/pcre2/_pcre2_/src/pcre2_intmodedep.h
