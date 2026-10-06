@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 import pytest
 
 from .. import _pcre2 as pcre2

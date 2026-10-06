@@ -17,7 +17,7 @@ def test_code_is_shared_between_threads():
 
     num_threads = 8
     barrier = threading.Barrier(num_threads)
-    results = [None] * num_threads
+    results: list = [None] * num_threads
 
     def run(i):
         barrier.wait()

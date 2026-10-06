@@ -89,9 +89,9 @@ def test_arguments():
     with pytest.raises(TypeError):
         pcre2.MatchContext()
     with pytest.raises(TypeError):
-        pcre2.MatchContext.create(1000)
+        pcre2.MatchContext.create(1000)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
-        pcre2.MatchContext.create(heap_limit='1')
+        pcre2.MatchContext.create(heap_limit='1')  # type: ignore[arg-type]
     with pytest.raises(OverflowError):
         pcre2.MatchContext.create(match_limit=-1)
     with pytest.raises(OverflowError):
@@ -103,7 +103,7 @@ def test_arguments():
     md = pcre2.MatchData.create_from_pattern(code)
     for obj in [md, code, 1000, object()]:
         with pytest.raises(TypeError, match='expected MatchContext or None'):
-            code.match(b'a', md, match_context=obj)
+            code.match(b'a', md, match_context=obj)  # type: ignore[arg-type]
 
 
 def test_context_is_shared_between_threads():
@@ -112,7 +112,7 @@ def test_context_is_shared_between_threads():
 
     num_threads = 8
     barrier = threading.Barrier(num_threads)
-    results = [None] * num_threads
+    results: list = [None] * num_threads
 
     def run(i):
         md = pcre2.MatchData.create_from_pattern(code)

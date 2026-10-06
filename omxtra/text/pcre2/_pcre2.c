@@ -42,21 +42,22 @@
 #endif
 #include "_pcre2_/src/pcre2.h"
 
-#if PCRE2_MAJOR != 10 || PCRE2_MINOR < 47
-#error "PCRE2 10.47 or newer is required (pcre2_next_match)"
+// The table of constants below is that of 10.49, and names what older releases do not have.
+#if PCRE2_MAJOR != 10 || PCRE2_MINOR < 49
+#error "PCRE2 10.49 or newer is required"
 #endif
 
 // A direct binding of the 8-bit PCRE2 library. Names, option bits, return codes, and offsets are PCRE2's own: patterns
 // and subjects are bytes-like, offsets count code units (bytes), `Code.match` returns what `pcre2_match` returns, and
 // PCRE2_UNSET surfaces as -1 (its value read as a signed size). Anything `re`-shaped - str subjects, match objects,
-// iteration, substitution - belongs in Python on top of this, not in here.
+// iteration, `re`'s replacement templates - belongs in Python on top of this, not in here.
 //
-// Not bound: the JIT, DFA matching, substitution, serialization, callouts, the general context, and the compile and
-// match contexts beyond the former's extra options word and the latter's limits.
+// Not bound: the JIT, DFA matching, serialization, pattern conversion, custom character tables, callouts of every
+// kind, and the general context.
 //
-// A Code and a MatchContext are immutable, and may be matched with from any number of threads at once - which is why a
-// MatchContext takes its limits when created, rather than through PCRE2's setters afterwards. A MatchData is a mutable
-// result block: using one from two places at once raises RuntimeError rather than corrupting it.
+// A Code, a CompileContext, and a MatchContext are immutable, and may be used from any number of threads at once -
+// which is why the contexts take their settings when created, rather than through PCRE2's setters afterwards. A
+// MatchData is a mutable result block: using one from two places at once raises RuntimeError rather than corrupting it.
 //
 // PCRE2 validates a UTF subject and from then on trusts what it validated, reading whole characters without checking
 // their length against the end of the subject. A subject which changes during a match is therefore not just a wrong
@@ -79,11 +80,13 @@
 
 typedef struct pcre2mod_state {
     PyTypeObject *CodeType;
+    PyTypeObject *CompileContextType;
     PyTypeObject *MatchContextType;
     PyTypeObject *MatchDataType;
     PyObject *Error;
     PyObject *CompileError;
     PyObject *MatchError;
+    PyObject *SubstituteError;
     // The probe (see PROBE_MATCH_LIMIT) for matches given no MatchContext, or NULL if PCRE2's default match limit
     // is already no greater than a probe's. Not Python state, and never written to after the module is executed.
     pcre2_match_context *probe_context;
@@ -172,6 +175,11 @@ typedef struct {
 
 typedef struct {
     PyObject_HEAD
+    pcre2_compile_context *context;
+} CompileContext;
+
+typedef struct {
+    PyObject_HEAD
     pcre2_match_context *context;
     // A copy of the context with its match limit lowered to a probe's, or NULL if its own is already no greater.
     pcre2_match_context *probe;
@@ -180,9 +188,12 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     pcre2_match_data *match_data;
-    // Set only while the block holds a successful match. pcre2_next_match reads through both the compiled pattern and
-    // the subject of the match it advances from, so both are pinned until the block is next matched into.
+    // The Code of the last match attempt, if PCRE2 saw that attempt through: to a match, to no match, or to a partial
+    // one. Only then is what the block holds besides its ovector - a mark above all, which points into the compiled
+    // pattern - PCRE2's to have set, rather than left over or never initialized. NULL otherwise.
     PyObject *code;
+    // The subject of the last match attempt, held only if it matched. pcre2_next_match reads through the subject of
+    // the match it advances from, so it stays pinned until the block is next matched into.
     Py_buffer subject;
     // Whether the pinned subject is bytes proper, whose contents cannot have changed for as long as they are pinned,
     // and if so the least offset the pinned Code has validated it from - everything from there to its end is known to
@@ -237,6 +248,180 @@ static bool make_probe_context(pcre2_match_context *context, uint32_t match_limi
     *out = probe;
     return true;
 }
+
+//
+
+static void CompileContext_dealloc(CompileContext *self)
+{
+    PyTypeObject *tp = Py_TYPE(self);
+    pcre2_compile_context_free(self->context);
+    tp->tp_free((PyObject *)self);
+    Py_DECREF(tp);
+}
+
+PyDoc_STRVAR(
+    CompileContext_create_doc,
+    "create(*, bsr=None, newline=None, max_pattern_length=None, max_pattern_compiled_length=None, "
+    "max_varlookbehind=None, parens_nest_limit=None, extra_options=None, optimize=None)\n\n"
+    "pcre2_compile_context_create, then pcre2_set_bsr, pcre2_set_newline, pcre2_set_max_pattern_length, "
+    "pcre2_set_max_pattern_compiled_length, pcre2_set_max_varlookbehind, pcre2_set_parens_nest_limit, "
+    "pcre2_set_compile_extra_options, and pcre2_set_optimize for whichever are given. Those left as None keep PCRE2's "
+    "defaults. optimize is one directive, or a sequence of them to apply in order."
+);
+
+static PyObject * CompileContext_create(PyObject *cls, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = {
+        "bsr",
+        "newline",
+        "max_pattern_length",
+        "max_pattern_compiled_length",
+        "max_varlookbehind",
+        "parens_nest_limit",
+        "extra_options",
+        "optimize",
+        NULL,
+    };
+
+    pcre2mod_state *state = get_pcre2mod_type_state((PyTypeObject *)cls);
+
+    PyObject *bsr_obj = Py_None;
+    PyObject *newline_obj = Py_None;
+    PyObject *max_pattern_length_obj = Py_None;
+    PyObject *max_pattern_compiled_length_obj = Py_None;
+    PyObject *max_varlookbehind_obj = Py_None;
+    PyObject *parens_nest_limit_obj = Py_None;
+    PyObject *extra_options_obj = Py_None;
+    PyObject *optimize_obj = Py_None;
+    if (!PyArg_ParseTupleAndKeywords(
+        args,
+        kwargs,
+        "|$OOOOOOOO:create",
+        kwlist,
+        &bsr_obj,
+        &newline_obj,
+        &max_pattern_length_obj,
+        &max_pattern_compiled_length_obj,
+        &max_varlookbehind_obj,
+        &parens_nest_limit_obj,
+        &extra_options_obj,
+        &optimize_obj
+    )) {
+        return NULL;
+    }
+
+    pcre2_compile_context *context = pcre2_compile_context_create(NULL);
+    if (context == NULL) {
+        return PyErr_NoMemory();
+    }
+
+    // Each setting is applied by its own setter, which is also what validates it.
+    const struct {
+        PyObject *obj;
+        int (*set)(pcre2_compile_context *, uint32_t);
+    } uint32_settings[] = {
+        {bsr_obj, pcre2_set_bsr},
+        {newline_obj, pcre2_set_newline},
+        {max_varlookbehind_obj, pcre2_set_max_varlookbehind},
+        {parens_nest_limit_obj, pcre2_set_parens_nest_limit},
+        {extra_options_obj, pcre2_set_compile_extra_options},
+    };
+    const struct {
+        PyObject *obj;
+        int (*set)(pcre2_compile_context *, PCRE2_SIZE);
+    } size_settings[] = {
+        {max_pattern_length_obj, pcre2_set_max_pattern_length},
+        {max_pattern_compiled_length_obj, pcre2_set_max_pattern_compiled_length},
+    };
+
+    int rc = 0;
+    PyObject *directives = NULL;
+
+    for (size_t i = 0; i < sizeof(uint32_settings) / sizeof(uint32_settings[0]); i++) {
+        if (uint32_settings[i].obj == Py_None) {
+            continue;
+        }
+        uint32_t value;
+        if (!convert_uint32(uint32_settings[i].obj, &value)) {
+            goto error;
+        }
+        if ((rc = uint32_settings[i].set(context, value)) < 0) {
+            goto pcre2_error;
+        }
+    }
+
+    for (size_t i = 0; i < sizeof(size_settings) / sizeof(size_settings[0]); i++) {
+        if (size_settings[i].obj == Py_None) {
+            continue;
+        }
+        size_t value = PyLong_AsSize_t(size_settings[i].obj);
+        if (value == (size_t)-1 && PyErr_Occurred()) {
+            goto error;
+        }
+        if ((rc = size_settings[i].set(context, (PCRE2_SIZE)value)) < 0) {
+            goto pcre2_error;
+        }
+    }
+
+    if (optimize_obj != Py_None) {
+        directives = PyLong_Check(optimize_obj) ? PyTuple_Pack(1, optimize_obj) : PySequence_Tuple(optimize_obj);
+        if (directives == NULL) {
+            goto error;
+        }
+        for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(directives); i++) {
+            uint32_t directive;
+            if (!convert_uint32(PyTuple_GET_ITEM(directives, i), &directive)) {
+                goto error;
+            }
+            if ((rc = pcre2_set_optimize(context, directive)) < 0) {
+                goto pcre2_error;
+            }
+        }
+        Py_CLEAR(directives);
+    }
+
+    PyTypeObject *tp = (PyTypeObject *)cls;
+    CompileContext *self = (CompileContext *)tp->tp_alloc(tp, 0);
+    if (self == NULL) {
+        goto error;
+    }
+
+    self->context = context;
+    return (PyObject *)self;
+
+pcre2_error:
+    set_error(state->Error, rc, -1);
+
+error:
+    Py_XDECREF(directives);
+    pcre2_compile_context_free(context);
+    return NULL;
+}
+
+static PyMethodDef CompileContext_methods[] = {
+    {
+        "create",
+        (PyCFunction)(void (*)(void))CompileContext_create,
+        METH_VARARGS | METH_KEYWORDS | METH_CLASS,
+        CompileContext_create_doc,
+    },
+    {NULL, NULL, 0, NULL}
+};
+
+static PyType_Slot CompileContext_slots[] = {
+    {Py_tp_dealloc, (void *)CompileContext_dealloc},
+    {Py_tp_methods, (void *)CompileContext_methods},
+    {Py_tp_doc, (void *)"Settings applied to a compilation (pcre2_compile_context). Created by its create method."},
+    {0, NULL}
+};
+
+static PyType_Spec CompileContext_spec = {
+    .name = _MODULE_FULL_NAME ".CompileContext",
+    .basicsize = sizeof(CompileContext),
+    .itemsize = 0,
+    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    .slots = CompileContext_slots,
+};
 
 //
 
@@ -456,11 +641,18 @@ static inline void MatchData_release(MatchData *self)
     atomic_flag_clear_explicit(&self->busy, memory_order_release);
 }
 
-static void MatchData_unpin(MatchData *self)
+static void MatchData_unpin_subject(MatchData *self)
 {
     if (self->subject.obj != NULL) {
         PyBuffer_Release(&self->subject);
     }
+    self->subject_immutable = false;
+    self->validated_start = PY_SSIZE_T_MAX;
+}
+
+static void MatchData_unpin(MatchData *self)
+{
+    MatchData_unpin_subject(self);
     Py_CLEAR(self->code);
 }
 
@@ -477,6 +669,49 @@ static bool is_immutable_subject(PyObject *obj)
         return base != NULL && PyBytes_CheckExact(base);
     }
     return false;
+}
+
+// Whether this Code may be matched against a subject. With NO_UTF_CHECK the caller has promised PCRE2 a valid subject,
+// which one that changes during the match is not - but that is then theirs to keep, as it is whenever that option is
+// given. Returns false, with BufferError set, if it may not.
+static bool check_subject(Code *self, PyObject *subject_obj, bool immutable, uint32_t options)
+{
+    if (!self->utf || immutable || (options & PCRE2_NO_UTF_CHECK) != 0) {
+        return true;
+    }
+
+    PyErr_Format(
+        PyExc_BufferError,
+        "a UTF pattern cannot be matched against %T, which could change during the match: PCRE2 trusts a subject "
+        "once it has validated it. Pass bytes, or NO_UTF_CHECK to vouch for the subject yourself",
+        subject_obj
+    );
+    return false;
+}
+
+// Unwraps an optional MatchContext argument into its context and the probe to try a short match under first, either
+// of which may be NULL. Returns false, with TypeError set, for anything but a MatchContext or None.
+static bool unwrap_match_context(
+    pcre2mod_state *state,
+    PyObject *obj,
+    pcre2_match_context **context,
+    pcre2_match_context **probe
+)
+{
+    if (obj == Py_None) {
+        *context = NULL;
+        *probe = state->probe_context;
+        return true;
+    }
+
+    if (!Py_IS_TYPE(obj, state->MatchContextType)) {
+        PyErr_Format(PyExc_TypeError, "expected MatchContext or None, got %T", obj);
+        return false;
+    }
+
+    *context = ((MatchContext *)obj)->context;
+    *probe = ((MatchContext *)obj)->probe;
+    return true;
 }
 
 PyDoc_STRVAR(
@@ -528,13 +763,10 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
         return NULL;
     }
 
-    pcre2_match_context *context = NULL;
-    if (match_context_obj != Py_None) {
-        if (!Py_IS_TYPE(match_context_obj, state->MatchContextType)) {
-            PyErr_Format(PyExc_TypeError, "expected MatchContext or None, got %T", match_context_obj);
-            return NULL;
-        }
-        context = ((MatchContext *)match_context_obj)->context;
+    pcre2_match_context *context;
+    pcre2_match_context *probe;
+    if (!unwrap_match_context(state, match_context_obj, &context, &probe)) {
+        return NULL;
     }
 
     MatchData *md = (MatchData *)match_data_obj;
@@ -554,17 +786,9 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
     }
     bool same_code = (md->code == (PyObject *)self);
 
-    // With NO_UTF_CHECK the caller has promised PCRE2 a valid subject, which one that changes during the match is
-    // not - but that is then theirs to keep, as it is whenever that option is given.
-    if (self->utf && !md->subject_immutable && (options & PCRE2_NO_UTF_CHECK) == 0) {
+    if (!check_subject(self, subject_obj, md->subject_immutable, options)) {
         MatchData_unpin(md);
         MatchData_release(md);
-        PyErr_Format(
-            PyExc_BufferError,
-            "a UTF pattern cannot be matched against %T, which could change during the match: PCRE2 trusts a subject "
-            "once it has validated it. Pass bytes, or NO_UTF_CHECK to vouch for the subject yourself",
-            subject_obj
-        );
         return NULL;
     }
 
@@ -586,9 +810,6 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
     uint32_t match_options = options | (skip_utf_check ? PCRE2_NO_UTF_CHECK : 0);
 
     // A match with little subject ahead of it is first tried attached, under the probe's match limit.
-    pcre2_match_context *probe = (match_context_obj != Py_None)
-        ? ((MatchContext *)match_context_obj)->probe
-        : state->probe_context;
     bool attached = (md->subject.len - start_offset < ALLOW_THREADS_MIN_LENGTH);
 
     int rc = 0;
@@ -620,12 +841,20 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
         Py_END_ALLOW_THREADS
     }
 
-    if (rc >= 0) {
+    if (rc >= 0 || rc == PCRE2_ERROR_NOMATCH || rc == PCRE2_ERROR_PARTIAL) {
+        // PCRE2 saw the attempt through, so what the block now holds is what it set for this Code.
         if (!same_code) {
             Py_XSETREF(md->code, Py_NewRef((PyObject *)self));
             md->validated_start = PY_SSIZE_T_MAX;
         }
-        if (self->validates_utf && (match_options & PCRE2_NO_UTF_CHECK) == 0 && start_offset < md->validated_start) {
+        if (rc < 0) {
+            // There is no match to advance from, so nothing will read through the subject again.
+            MatchData_unpin_subject(md);
+        } else if (
+            self->validates_utf &&
+            (match_options & PCRE2_NO_UTF_CHECK) == 0 &&
+            start_offset < md->validated_start
+        ) {
             md->validated_start = start_offset;
         }
         MatchData_release(md);
@@ -642,17 +871,335 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
     MatchData_unpin(md);
     MatchData_release(md);
 
-    if (rc == PCRE2_ERROR_NOMATCH || rc == PCRE2_ERROR_PARTIAL) {
-        return PyLong_FromLong(rc);
-    }
-
     set_error(state->MatchError, rc, error_offset);
     return NULL;
+}
+
+PyDoc_STRVAR(
+    Code_substitute_doc,
+    "substitute(subject, replacement, start_offset=0, options=0, match_data=None, match_context=None)\n\n"
+    "pcre2_substitute. Returns the result and the number of substitutions made, and raises SubstituteError for a "
+    "negative return code. The replacement is in PCRE2's own syntax, not re's. The subject is held to the same rule "
+    "as in match. A MatchData is only needed to reuse a block, or for SUBSTITUTE_MATCHED, which starts from the match "
+    "it holds and leaves it as it was - otherwise it holds nothing afterwards."
+);
+
+static PyObject * Code_substitute(Code *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = {
+        "subject",
+        "replacement",
+        "start_offset",
+        "options",
+        "match_data",
+        "match_context",
+        NULL,
+    };
+
+    pcre2mod_state *state = get_pcre2mod_type_state(Py_TYPE(self));
+
+    PyObject *subject_obj;
+    PyObject *replacement_obj;
+    Py_ssize_t start_offset = 0;
+    uint32_t options = 0;
+    PyObject *match_data_obj = Py_None;
+    PyObject *match_context_obj = Py_None;
+    if (!PyArg_ParseTupleAndKeywords(
+        args,
+        kwargs,
+        "OO|nO&OO:substitute",
+        kwlist,
+        &subject_obj,
+        &replacement_obj,
+        &start_offset,
+        convert_uint32,
+        &options,
+        &match_data_obj,
+        &match_context_obj
+    )) {
+        return NULL;
+    }
+
+    if (start_offset < 0) {
+        PyErr_SetString(PyExc_ValueError, "start_offset must not be negative");
+        return NULL;
+    }
+
+    pcre2_match_context *context;
+    pcre2_match_context *probe;
+    if (!unwrap_match_context(state, match_context_obj, &context, &probe)) {
+        return NULL;
+    }
+
+    MatchData *md = NULL;
+    if (match_data_obj != Py_None) {
+        if (!Py_IS_TYPE(match_data_obj, state->MatchDataType)) {
+            PyErr_Format(PyExc_TypeError, "expected MatchData or None, got %T", match_data_obj);
+            return NULL;
+        }
+        md = (MatchData *)match_data_obj;
+        if (MatchData_acquire(md) < 0) {
+            return NULL;
+        }
+    }
+
+    bool matched = (options & PCRE2_SUBSTITUTE_MATCHED) != 0;
+    bool ran = false;
+    Py_buffer own_subject = {.obj = NULL};
+    Py_buffer replacement = {.obj = NULL};
+    void *replacement_copy = NULL;
+    PyObject *output = NULL;
+    PyObject *result = NULL;
+
+    // PCRE2 starts by reading what the block's last match left in it, which is only there to read if that match was
+    // seen through. A block holding nothing is no better than no block, which PCRE2 would refuse for itself.
+    if (matched && (md == NULL || md->code == NULL)) {
+        PyErr_SetString(PyExc_ValueError, "SUBSTITUTE_MATCHED needs a MatchData holding the match to start from");
+        goto done;
+    }
+
+    // A subject still pinned by the block is used through the buffer already held on it: starting from an existing
+    // match, PCRE2 insists on being given the very subject that match was made in.
+    Py_buffer *subject;
+    bool subject_immutable;
+    if (md != NULL && md->subject.obj != NULL && md->subject.obj == subject_obj) {
+        subject = &md->subject;
+        subject_immutable = md->subject_immutable;
+    } else {
+        if (PyObject_GetBuffer(subject_obj, &own_subject, PyBUF_SIMPLE) < 0) {
+            goto done;
+        }
+        subject = &own_subject;
+        subject_immutable = is_immutable_subject(subject_obj);
+    }
+
+    if (!check_subject(self, subject_obj, subject_immutable, options)) {
+        goto done;
+    }
+
+    // A replacement is validated and then trusted just as a subject is, but is small and used once, so rather than
+    // being refused one which could change is used through a copy.
+    if (PyObject_GetBuffer(replacement_obj, &replacement, PyBUF_SIMPLE) < 0) {
+        goto done;
+    }
+    PCRE2_SPTR replacement_ptr = (PCRE2_SPTR)replacement.buf;
+    if (!is_immutable_subject(replacement_obj) && replacement.len > 0) {
+        replacement_copy = PyMem_Malloc((size_t)replacement.len);
+        if (replacement_copy == NULL) {
+            PyErr_NoMemory();
+            goto done;
+        }
+        memcpy(replacement_copy, replacement.buf, (size_t)replacement.len);
+        replacement_ptr = (PCRE2_SPTR)replacement_copy;
+    }
+
+    // The result is built in place in a bytes object, whose own terminator takes the zero PCRE2 writes after it. A
+    // guess at its size is tried first, and if PCRE2 reports that it needs more then that much exactly.
+    if (subject->len > PY_SSIZE_T_MAX - replacement.len - 64) {
+        PyErr_NoMemory();
+        goto done;
+    }
+    Py_ssize_t capacity = subject->len + replacement.len + 64;
+    output = PyBytes_FromStringAndSize(NULL, capacity);
+    if (output == NULL) {
+        goto done;
+    }
+
+    pcre2_match_data *match_data = (md != NULL) ? md->match_data : NULL;
+    uint32_t substitute_options = options | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH;
+
+    // As for a match, one with little subject ahead of it is first tried attached, under the probe's match limit, and
+    // run again detached under its real one if that runs out. Nothing a substitution touches while detached can be
+    // freed or reused meanwhile: the Code, the MatchContext, and the MatchData are kept alive by this call's own
+    // arguments, the buffers are held here, and the output is not yet anyone else's.
+    bool attached = (subject->len - start_offset < ALLOW_THREADS_MIN_LENGTH);
+    int rc = 0;
+    PCRE2_SIZE output_length = 0;
+    for (int attempt = 0; ; attempt++) {
+        ran = true;
+
+        if (attached) {
+            output_length = (PCRE2_SIZE)capacity + 1;
+            rc = pcre2_substitute(
+                self->code,
+                (PCRE2_SPTR)subject->buf,
+                (PCRE2_SIZE)subject->len,
+                (PCRE2_SIZE)start_offset,
+                substitute_options,
+                match_data,
+                (probe != NULL) ? probe : context,
+                replacement_ptr,
+                (PCRE2_SIZE)replacement.len,
+                (PCRE2_UCHAR *)PyBytes_AS_STRING(output),
+                &output_length
+            );
+            if (probe != NULL && rc == PCRE2_ERROR_MATCHLIMIT) {
+                attached = false;
+            }
+        }
+
+        if (!attached) {
+            PCRE2_UCHAR *output_ptr = (PCRE2_UCHAR *)PyBytes_AS_STRING(output);
+            output_length = (PCRE2_SIZE)capacity + 1;
+            Py_BEGIN_ALLOW_THREADS
+            rc = pcre2_substitute(
+                self->code,
+                (PCRE2_SPTR)subject->buf,
+                (PCRE2_SIZE)subject->len,
+                (PCRE2_SIZE)start_offset,
+                substitute_options,
+                match_data,
+                context,
+                replacement_ptr,
+                (PCRE2_SIZE)replacement.len,
+                output_ptr,
+                &output_length
+            );
+            Py_END_ALLOW_THREADS
+        }
+
+        // Having been asked to, PCRE2 carries on past a full buffer to work out the size of one which would do, the
+        // terminating zero included.
+        if (rc != PCRE2_ERROR_NOMEMORY || output_length == PCRE2_UNSET || attempt > 0) {
+            break;
+        }
+        if (output_length - 1 > (PCRE2_SIZE)PY_SSIZE_T_MAX) {
+            PyErr_NoMemory();
+            goto done;
+        }
+        capacity = (Py_ssize_t)(output_length - 1);
+        if (_PyBytes_Resize(&output, capacity) < 0) {
+            goto done;
+        }
+    }
+
+    if (rc < 0) {
+        // For a malformed replacement PCRE2 reports where in it, in place of a length.
+        Py_ssize_t error_offset = -1;
+        if (rc != PCRE2_ERROR_NOMEMORY && output_length != PCRE2_UNSET) {
+            error_offset = (Py_ssize_t)output_length;
+        }
+        set_error(state->SubstituteError, rc, error_offset);
+        goto done;
+    }
+
+    if (_PyBytes_Resize(&output, (Py_ssize_t)output_length) < 0) {
+        goto done;
+    }
+    result = Py_BuildValue("(Oi)", output, rc);
+
+done:
+    Py_XDECREF(output);
+    PyMem_Free(replacement_copy);
+    if (replacement.obj != NULL) {
+        PyBuffer_Release(&replacement);
+    }
+    if (own_subject.obj != NULL) {
+        PyBuffer_Release(&own_subject);
+    }
+    if (md != NULL) {
+        // Starting from an existing match PCRE2 works on a copy of the block, and leaves the block itself alone.
+        // Otherwise it has matched into it any number of times, and what is left in it is of no use to anyone.
+        if (ran && !matched) {
+            MatchData_unpin(md);
+        }
+        MatchData_release(md);
+    }
+    return result;
+}
+
+PyDoc_STRVAR(
+    Code_substring_number_from_name_doc,
+    "substring_number_from_name(name, /)\n\n"
+    "pcre2_substring_number_from_name: the number of the group with the given name, which must be bytes. Raises "
+    "Error with ERROR_NOSUBSTRING if there is none, and with ERROR_NOUNIQUESUBSTRING if there are several."
+);
+
+static PyObject * Code_substring_number_from_name(Code *self, PyObject *arg)
+{
+    // With no length asked for, this refuses a name which is not zero-terminated where it ends, as PCRE2 needs.
+    char *name;
+    if (PyBytes_AsStringAndSize(arg, &name, NULL) < 0) {
+        return NULL;
+    }
+
+    int rc = pcre2_substring_number_from_name(self->code, (PCRE2_SPTR)name);
+    if (rc < 0) {
+        set_error(get_pcre2mod_type_state(Py_TYPE(self))->Error, rc, -1);
+        return NULL;
+    }
+    return PyLong_FromLong(rc);
+}
+
+PyDoc_STRVAR(
+    Code_substring_nametable_scan_doc,
+    "substring_nametable_scan(name, /)\n\n"
+    "pcre2_substring_nametable_scan: the numbers of every group with the given name, which must be bytes, in name "
+    "table order. Raises Error with ERROR_NOSUBSTRING if there is none."
+);
+
+static PyObject * Code_substring_nametable_scan(Code *self, PyObject *arg)
+{
+    char *name;
+    if (PyBytes_AsStringAndSize(arg, &name, NULL) < 0) {
+        return NULL;
+    }
+
+    PCRE2_SPTR first = NULL;
+    PCRE2_SPTR last = NULL;
+    int entry_size = pcre2_substring_nametable_scan(self->code, (PCRE2_SPTR)name, &first, &last);
+    if (entry_size < 0) {
+        set_error(get_pcre2mod_type_state(Py_TYPE(self))->Error, entry_size, -1);
+        return NULL;
+    }
+
+    // Each entry of the name table is the number of a group, most significant byte first, and then its name.
+    Py_ssize_t n = (last - first) / entry_size + 1;
+    PyObject *result = PyTuple_New(n);
+    if (result == NULL) {
+        return NULL;
+    }
+    for (Py_ssize_t i = 0; i < n; i++) {
+        PCRE2_SPTR entry = first + i * entry_size;
+        PyObject *item = PyLong_FromLong(((long)entry[0] << 8) | (long)entry[1]);
+        if (item == NULL) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        PyTuple_SET_ITEM(result, i, item);
+    }
+    return result;
+}
+
+static PyObject * Code_sizeof(Code *self, PyObject *Py_UNUSED(ignored))
+{
+    size_t size = 0;
+    pcre2_pattern_info(self->code, PCRE2_INFO_SIZE, &size);
+    return PyLong_FromSize_t((size_t)Py_TYPE(self)->tp_basicsize + size);
 }
 
 static PyMethodDef Code_methods[] = {
     {"pattern_info", (PyCFunction)Code_pattern_info, METH_O, Code_pattern_info_doc},
     {"match", (PyCFunction)(void (*)(void))Code_match, METH_VARARGS | METH_KEYWORDS, Code_match_doc},
+    {
+        "substitute",
+        (PyCFunction)(void (*)(void))Code_substitute,
+        METH_VARARGS | METH_KEYWORDS,
+        Code_substitute_doc,
+    },
+    {
+        "substring_number_from_name",
+        (PyCFunction)Code_substring_number_from_name,
+        METH_O,
+        Code_substring_number_from_name_doc,
+    },
+    {
+        "substring_nametable_scan",
+        (PyCFunction)Code_substring_nametable_scan,
+        METH_O,
+        Code_substring_nametable_scan_doc,
+    },
+    {"__sizeof__", (PyCFunction)Code_sizeof, METH_NOARGS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -776,11 +1323,11 @@ static PyObject * MatchData_next_match(MatchData *self, PyObject *Py_UNUSED(igno
     }
 
     // Without a successful match there is nothing to advance from, and a block which has never been matched into holds
-    // nothing PCRE2 could safely read.
+    // nothing PCRE2 could safely read. A subject is pinned exactly when the block holds a match.
     int more = 0;
     PCRE2_SIZE start_offset = 0;
     uint32_t options = 0;
-    if (self->code != NULL) {
+    if (self->subject.obj != NULL) {
         more = pcre2_next_match(self->match_data, &start_offset, &options);
     }
 
@@ -823,6 +1370,72 @@ static PyObject * MatchData_get_ovector_count(MatchData *self, void *Py_UNUSED(c
     return PyLong_FromUnsignedLong(pcre2_get_ovector_count(self->match_data));
 }
 
+static PyObject * MatchData_get_mark(MatchData *self, void *Py_UNUSED(closure))
+{
+    if (MatchData_acquire(self) < 0) {
+        return NULL;
+    }
+
+    // A mark points into the compiled pattern, which is pinned whenever PCRE2 has set one, with its length in the
+    // code unit ahead of it.
+    PyObject *result;
+    PCRE2_SPTR mark = (self->code != NULL) ? pcre2_get_mark(self->match_data) : NULL;
+    if (mark != NULL) {
+        result = PyBytes_FromStringAndSize((const char *)mark, (Py_ssize_t)mark[-1]);
+    } else {
+        result = Py_NewRef(Py_None);
+    }
+
+    MatchData_release(self);
+    return result;
+}
+
+static PyObject * MatchData_get_startchar(MatchData *self, void *Py_UNUSED(closure))
+{
+    if (MatchData_acquire(self) < 0) {
+        return NULL;
+    }
+
+    PCRE2_SIZE startchar = (self->code != NULL) ? pcre2_get_startchar(self->match_data) : 0;
+
+    MatchData_release(self);
+    return PyLong_FromSize_t(startchar);
+}
+
+static PyObject * MatchData_get_size(MatchData *self, void *Py_UNUSED(closure))
+{
+    return PyLong_FromSize_t(pcre2_get_match_data_size(self->match_data));
+}
+
+static PyObject * MatchData_get_heapframes_size(MatchData *self, void *Py_UNUSED(closure))
+{
+    // A match grows the block's heap frames as it needs them.
+    if (MatchData_acquire(self) < 0) {
+        return NULL;
+    }
+
+    PCRE2_SIZE size = pcre2_get_match_data_heapframes_size(self->match_data);
+
+    MatchData_release(self);
+    return PyLong_FromSize_t(size);
+}
+
+static PyObject * MatchData_sizeof(MatchData *self, PyObject *Py_UNUSED(ignored))
+{
+    if (MatchData_acquire(self) < 0) {
+        return NULL;
+    }
+
+    size_t size = (
+        (size_t)Py_TYPE(self)->tp_basicsize +
+        pcre2_get_match_data_size(self->match_data) +
+        pcre2_get_match_data_heapframes_size(self->match_data)
+    );
+
+    MatchData_release(self);
+    return PyLong_FromSize_t(size);
+}
+
 static PyMethodDef MatchData_methods[] = {
     {"create", (PyCFunction)MatchData_create, METH_O | METH_CLASS, MatchData_create_doc},
     {
@@ -832,6 +1445,7 @@ static PyMethodDef MatchData_methods[] = {
         MatchData_create_from_pattern_doc,
     },
     {"next_match", (PyCFunction)MatchData_next_match, METH_NOARGS, MatchData_next_match_doc},
+    {"__sizeof__", (PyCFunction)MatchData_sizeof, METH_NOARGS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -844,6 +1458,30 @@ static PyGetSetDef MatchData_getset[] = {
         NULL,
     },
     {"ovector_count", (getter)MatchData_get_ovector_count, NULL, "pcre2_get_ovector_count.", NULL},
+    {
+        "mark",
+        (getter)MatchData_get_mark,
+        NULL,
+        "pcre2_get_mark: the name of the last (*MARK), (*PRUNE), or (*THEN) passed on the way to a match, or the one "
+        "PCRE2 reports for a failed or partial match. None if there is none, or the last match raised.",
+        NULL,
+    },
+    {
+        "startchar",
+        (getter)MatchData_get_startchar,
+        NULL,
+        "pcre2_get_startchar: where the last match started, which \\K can leave before the start of what it matched. "
+        "Zero if the last match found nothing, or raised.",
+        NULL,
+    },
+    {"size", (getter)MatchData_get_size, NULL, "pcre2_get_match_data_size.", NULL},
+    {
+        "heapframes_size",
+        (getter)MatchData_get_heapframes_size,
+        NULL,
+        "pcre2_get_match_data_heapframes_size: the memory the block is holding for backtracking.",
+        NULL,
+    },
     {NULL, NULL, NULL, NULL, NULL}
 };
 
@@ -874,52 +1512,54 @@ static PyType_Spec MatchData_spec = {
 
 PyDoc_STRVAR(
     compile_doc,
-    "compile(pattern, options=0, *, extra_options=0)\n\n"
+    "compile(pattern, options=0, compile_context=None)\n\n"
     "pcre2_compile. The pattern must be bytes-like. Nothing is implied by the options given: in particular a pattern "
-    "holding UTF-8 is only treated as such with UTF. extra_options is the compile context's extra options word."
+    "holding UTF-8 is only treated as such with UTF."
 );
 
 static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"pattern", "options", "extra_options", NULL};
+    static char *kwlist[] = {"pattern", "options", "compile_context", NULL};
 
     pcre2mod_state *state = get_pcre2mod_state(module);
 
-    Py_buffer pattern;
+    PyObject *pattern_obj;
     uint32_t options = 0;
-    uint32_t extra_options = 0;
+    PyObject *compile_context_obj = Py_None;
     if (!PyArg_ParseTupleAndKeywords(
         args,
         kwargs,
-        "y*|O&$O&:compile",
+        "O|O&O:compile",
         kwlist,
-        &pattern,
+        &pattern_obj,
         convert_uint32,
         &options,
-        convert_uint32,
-        &extra_options
+        &compile_context_obj
     )) {
         return NULL;
     }
 
     pcre2_compile_context *context = NULL;
-    if (extra_options != 0) {
-        context = pcre2_compile_context_create(NULL);
-        if (context == NULL) {
-            PyBuffer_Release(&pattern);
-            return PyErr_NoMemory();
+    if (compile_context_obj != Py_None) {
+        if (!Py_IS_TYPE(compile_context_obj, state->CompileContextType)) {
+            PyErr_Format(PyExc_TypeError, "expected CompileContext or None, got %T", compile_context_obj);
+            return NULL;
         }
-        pcre2_set_compile_extra_options(context, extra_options);
+        context = ((CompileContext *)compile_context_obj)->context;
+    }
+
+    Py_buffer pattern;
+    if (PyObject_GetBuffer(pattern_obj, &pattern, PyBUF_SIMPLE) < 0) {
+        return NULL;
     }
 
     // A pattern is validated and then trusted just as a subject is, but is small and compiled once, so rather than
-    // being refused a writable one is compiled from a copy.
+    // being refused one which could change is compiled from a copy.
     PCRE2_SPTR pattern_ptr = (PCRE2_SPTR)pattern.buf;
     void *pattern_copy = NULL;
-    if (!pattern.readonly && pattern.len > 0) {
+    if (!is_immutable_subject(pattern_obj) && pattern.len > 0) {
         pattern_copy = PyMem_Malloc((size_t)pattern.len);
         if (pattern_copy == NULL) {
-            pcre2_compile_context_free(context);
             PyBuffer_Release(&pattern);
             return PyErr_NoMemory();
         }
@@ -939,7 +1579,6 @@ static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *k
     }
 
     PyMem_Free(pattern_copy);
-    pcre2_compile_context_free(context);
     PyBuffer_Release(&pattern);
 
     if (code == NULL) {
@@ -1084,7 +1723,7 @@ static const IntConstant pcre2mod_constants[] = {
     _PCRE2_CONSTANT(MATCH_INVALID_UTF),
     _PCRE2_CONSTANT(ALT_EXTENDED_CLASS),
 
-    // Extra options for compile
+    // Extra options for compile, set through a CompileContext
 
     _PCRE2_CONSTANT(EXTRA_ALLOW_SURROGATE_ESCAPES),
     _PCRE2_CONSTANT(EXTRA_BAD_ESCAPE_IS_LITERAL),
@@ -1104,6 +1743,17 @@ static const IntConstant pcre2mod_constants[] = {
     _PCRE2_CONSTANT(EXTRA_NEVER_CALLOUT),
     _PCRE2_CONSTANT(EXTRA_TURKISH_CASING),
 
+    // Optimization directives for compile
+
+    _PCRE2_CONSTANT(OPTIMIZATION_NONE),
+    _PCRE2_CONSTANT(OPTIMIZATION_FULL),
+    _PCRE2_CONSTANT(AUTO_POSSESS),
+    _PCRE2_CONSTANT(AUTO_POSSESS_OFF),
+    _PCRE2_CONSTANT(DOTSTAR_ANCHOR),
+    _PCRE2_CONSTANT(DOTSTAR_ANCHOR_OFF),
+    _PCRE2_CONSTANT(START_OPTIMIZE),
+    _PCRE2_CONSTANT(START_OPTIMIZE_OFF),
+
     // Options for match
 
     _PCRE2_CONSTANT(NOTBOL),
@@ -1115,6 +1765,17 @@ static const IntConstant pcre2mod_constants[] = {
     _PCRE2_CONSTANT(NO_JIT),
     _PCRE2_CONSTANT(COPY_MATCHED_SUBJECT),
     _PCRE2_CONSTANT(DISABLE_RECURSELOOP_CHECK),
+
+    // Options for substitute
+
+    _PCRE2_CONSTANT(SUBSTITUTE_GLOBAL),
+    _PCRE2_CONSTANT(SUBSTITUTE_EXTENDED),
+    _PCRE2_CONSTANT(SUBSTITUTE_UNSET_EMPTY),
+    _PCRE2_CONSTANT(SUBSTITUTE_UNKNOWN_UNSET),
+    _PCRE2_CONSTANT(SUBSTITUTE_OVERFLOW_LENGTH),
+    _PCRE2_CONSTANT(SUBSTITUTE_LITERAL),
+    _PCRE2_CONSTANT(SUBSTITUTE_MATCHED),
+    _PCRE2_CONSTANT(SUBSTITUTE_REPLACEMENT_ONLY),
 
     // Values of INFO_NEWLINE / CONFIG_NEWLINE and INFO_BSR / CONFIG_BSR
 
@@ -1177,7 +1838,130 @@ static const IntConstant pcre2mod_constants[] = {
     _PCRE2_CONSTANT(CONFIG_COMPILED_WIDTHS),
     _PCRE2_CONSTANT(CONFIG_TABLES_LENGTH),
 
-    // Error codes reachable through what is bound here. Compile errors are the positive codes, and are left unnamed.
+    // Error codes for compile
+
+    _PCRE2_CONSTANT(ERROR_END_BACKSLASH),
+    _PCRE2_CONSTANT(ERROR_END_BACKSLASH_C),
+    _PCRE2_CONSTANT(ERROR_UNKNOWN_ESCAPE),
+    _PCRE2_CONSTANT(ERROR_QUANTIFIER_OUT_OF_ORDER),
+    _PCRE2_CONSTANT(ERROR_QUANTIFIER_TOO_BIG),
+    _PCRE2_CONSTANT(ERROR_MISSING_SQUARE_BRACKET),
+    _PCRE2_CONSTANT(ERROR_ESCAPE_INVALID_IN_CLASS),
+    _PCRE2_CONSTANT(ERROR_CLASS_RANGE_ORDER),
+    _PCRE2_CONSTANT(ERROR_QUANTIFIER_INVALID),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_UNEXPECTED_REPEAT),
+    _PCRE2_CONSTANT(ERROR_INVALID_AFTER_PARENS_QUERY),
+    _PCRE2_CONSTANT(ERROR_POSIX_CLASS_NOT_IN_CLASS),
+    _PCRE2_CONSTANT(ERROR_POSIX_NO_SUPPORT_COLLATING),
+    _PCRE2_CONSTANT(ERROR_MISSING_CLOSING_PARENTHESIS),
+    _PCRE2_CONSTANT(ERROR_BAD_SUBPATTERN_REFERENCE),
+    _PCRE2_CONSTANT(ERROR_NULL_PATTERN),
+    _PCRE2_CONSTANT(ERROR_BAD_OPTIONS),
+    _PCRE2_CONSTANT(ERROR_MISSING_COMMENT_CLOSING),
+    _PCRE2_CONSTANT(ERROR_PARENTHESES_NEST_TOO_DEEP),
+    _PCRE2_CONSTANT(ERROR_PATTERN_TOO_LARGE),
+    _PCRE2_CONSTANT(ERROR_HEAP_FAILED),
+    _PCRE2_CONSTANT(ERROR_UNMATCHED_CLOSING_PARENTHESIS),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_CODE_OVERFLOW),
+    _PCRE2_CONSTANT(ERROR_MISSING_CONDITION_CLOSING),
+    _PCRE2_CONSTANT(ERROR_LOOKBEHIND_NOT_FIXED_LENGTH),
+    _PCRE2_CONSTANT(ERROR_ZERO_RELATIVE_REFERENCE),
+    _PCRE2_CONSTANT(ERROR_TOO_MANY_CONDITION_BRANCHES),
+    _PCRE2_CONSTANT(ERROR_CONDITION_ASSERTION_EXPECTED),
+    _PCRE2_CONSTANT(ERROR_BAD_RELATIVE_REFERENCE),
+    _PCRE2_CONSTANT(ERROR_UNKNOWN_POSIX_CLASS),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_STUDY_ERROR),
+    _PCRE2_CONSTANT(ERROR_UNICODE_NOT_SUPPORTED),
+    _PCRE2_CONSTANT(ERROR_PARENTHESES_STACK_CHECK),
+    _PCRE2_CONSTANT(ERROR_CODE_POINT_TOO_BIG),
+    _PCRE2_CONSTANT(ERROR_LOOKBEHIND_TOO_COMPLICATED),
+    _PCRE2_CONSTANT(ERROR_LOOKBEHIND_INVALID_BACKSLASH_C),
+    _PCRE2_CONSTANT(ERROR_UNSUPPORTED_ESCAPE_SEQUENCE),
+    _PCRE2_CONSTANT(ERROR_CALLOUT_NUMBER_TOO_BIG),
+    _PCRE2_CONSTANT(ERROR_MISSING_CALLOUT_CLOSING),
+    _PCRE2_CONSTANT(ERROR_ESCAPE_INVALID_IN_VERB),
+    _PCRE2_CONSTANT(ERROR_UNRECOGNIZED_AFTER_QUERY_P),
+    _PCRE2_CONSTANT(ERROR_MISSING_NAME_TERMINATOR),
+    _PCRE2_CONSTANT(ERROR_DUPLICATE_SUBPATTERN_NAME),
+    _PCRE2_CONSTANT(ERROR_INVALID_SUBPATTERN_NAME),
+    _PCRE2_CONSTANT(ERROR_UNICODE_PROPERTIES_UNAVAILABLE),
+    _PCRE2_CONSTANT(ERROR_MALFORMED_UNICODE_PROPERTY),
+    _PCRE2_CONSTANT(ERROR_UNKNOWN_UNICODE_PROPERTY),
+    _PCRE2_CONSTANT(ERROR_SUBPATTERN_NAME_TOO_LONG),
+    _PCRE2_CONSTANT(ERROR_TOO_MANY_NAMED_SUBPATTERNS),
+    _PCRE2_CONSTANT(ERROR_CLASS_INVALID_RANGE),
+    _PCRE2_CONSTANT(ERROR_OCTAL_BYTE_TOO_BIG),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_OVERRAN_WORKSPACE),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_MISSING_SUBPATTERN),
+    _PCRE2_CONSTANT(ERROR_DEFINE_TOO_MANY_BRANCHES),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_O_MISSING_BRACE),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_UNKNOWN_NEWLINE),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_G_SYNTAX),
+    _PCRE2_CONSTANT(ERROR_PARENS_QUERY_R_MISSING_CLOSING),
+    _PCRE2_CONSTANT(ERROR_VERB_ARGUMENT_NOT_ALLOWED),
+    _PCRE2_CONSTANT(ERROR_VERB_UNKNOWN),
+    _PCRE2_CONSTANT(ERROR_SUBPATTERN_NUMBER_TOO_BIG),
+    _PCRE2_CONSTANT(ERROR_SUBPATTERN_NAME_EXPECTED),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_PARSED_OVERFLOW),
+    _PCRE2_CONSTANT(ERROR_INVALID_OCTAL),
+    _PCRE2_CONSTANT(ERROR_SUBPATTERN_NAMES_MISMATCH),
+    _PCRE2_CONSTANT(ERROR_MARK_MISSING_ARGUMENT),
+    _PCRE2_CONSTANT(ERROR_INVALID_HEXADECIMAL),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_C_SYNTAX),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_K_SYNTAX),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_BAD_CODE_LOOKBEHINDS),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_N_IN_CLASS),
+    _PCRE2_CONSTANT(ERROR_CALLOUT_STRING_TOO_LONG),
+    _PCRE2_CONSTANT(ERROR_UNICODE_DISALLOWED_CODE_POINT),
+    _PCRE2_CONSTANT(ERROR_UTF_IS_DISABLED),
+    _PCRE2_CONSTANT(ERROR_UCP_IS_DISABLED),
+    _PCRE2_CONSTANT(ERROR_VERB_NAME_TOO_LONG),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_U_CODE_POINT_TOO_BIG),
+    _PCRE2_CONSTANT(ERROR_MISSING_OCTAL_OR_HEX_DIGITS),
+    _PCRE2_CONSTANT(ERROR_VERSION_CONDITION_SYNTAX),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_BAD_CODE_AUTO_POSSESS),
+    _PCRE2_CONSTANT(ERROR_CALLOUT_NO_STRING_DELIMITER),
+    _PCRE2_CONSTANT(ERROR_CALLOUT_BAD_STRING_DELIMITER),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_C_CALLER_DISABLED),
+    _PCRE2_CONSTANT(ERROR_QUERY_BARJX_NEST_TOO_DEEP),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_C_LIBRARY_DISABLED),
+    _PCRE2_CONSTANT(ERROR_PATTERN_TOO_COMPLICATED),
+    _PCRE2_CONSTANT(ERROR_LOOKBEHIND_TOO_LONG),
+    _PCRE2_CONSTANT(ERROR_PATTERN_STRING_TOO_LONG),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_BAD_CODE),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_BAD_CODE_IN_SKIP),
+    _PCRE2_CONSTANT(ERROR_NO_SURROGATES_IN_UTF16),
+    _PCRE2_CONSTANT(ERROR_BAD_LITERAL_OPTIONS),
+    _PCRE2_CONSTANT(ERROR_SUPPORTED_ONLY_IN_UNICODE),
+    _PCRE2_CONSTANT(ERROR_INVALID_HYPHEN_IN_OPTIONS),
+    _PCRE2_CONSTANT(ERROR_ALPHA_ASSERTION_UNKNOWN),
+    _PCRE2_CONSTANT(ERROR_SCRIPT_RUN_NOT_AVAILABLE),
+    _PCRE2_CONSTANT(ERROR_TOO_MANY_CAPTURES),
+    _PCRE2_CONSTANT(ERROR_MISSING_OCTAL_DIGIT),
+    _PCRE2_CONSTANT(ERROR_BACKSLASH_K_IN_LOOKAROUND),
+    _PCRE2_CONSTANT(ERROR_MAX_VAR_LOOKBEHIND_EXCEEDED),
+    _PCRE2_CONSTANT(ERROR_PATTERN_COMPILED_SIZE_TOO_BIG),
+    _PCRE2_CONSTANT(ERROR_OVERSIZE_PYTHON_OCTAL),
+    _PCRE2_CONSTANT(ERROR_CALLOUT_CALLER_DISABLED),
+    _PCRE2_CONSTANT(ERROR_EXTRA_CASING_REQUIRES_UNICODE),
+    _PCRE2_CONSTANT(ERROR_TURKISH_CASING_REQUIRES_UTF),
+    _PCRE2_CONSTANT(ERROR_EXTRA_CASING_INCOMPATIBLE),
+    _PCRE2_CONSTANT(ERROR_ECLASS_NEST_TOO_DEEP),
+    _PCRE2_CONSTANT(ERROR_ECLASS_INVALID_OPERATOR),
+    _PCRE2_CONSTANT(ERROR_ECLASS_UNEXPECTED_OPERATOR),
+    _PCRE2_CONSTANT(ERROR_ECLASS_EXPECTED_OPERAND),
+    _PCRE2_CONSTANT(ERROR_ECLASS_MIXED_OPERATORS),
+    _PCRE2_CONSTANT(ERROR_ECLASS_HINT_SQUARE_BRACKET),
+    _PCRE2_CONSTANT(ERROR_PERL_ECLASS_UNEXPECTED_EXPR),
+    _PCRE2_CONSTANT(ERROR_PERL_ECLASS_EMPTY_EXPR),
+    _PCRE2_CONSTANT(ERROR_PERL_ECLASS_MISSING_CLOSE),
+    _PCRE2_CONSTANT(ERROR_PERL_ECLASS_UNEXPECTED_CHAR),
+    _PCRE2_CONSTANT(ERROR_EXPECTED_CAPTURE_GROUP),
+    _PCRE2_CONSTANT(ERROR_MISSING_OPENING_PARENTHESIS),
+    _PCRE2_CONSTANT(ERROR_MISSING_NUMBER_TERMINATOR),
+    _PCRE2_CONSTANT(ERROR_NULL_ERROROFFSET),
+
+    // Error codes for everything else
 
     _PCRE2_CONSTANT(ERROR_NOMATCH),
     _PCRE2_CONSTANT(ERROR_PARTIAL),
@@ -1202,21 +1986,60 @@ static const IntConstant pcre2mod_constants[] = {
     _PCRE2_CONSTANT(ERROR_UTF8_ERR19),
     _PCRE2_CONSTANT(ERROR_UTF8_ERR20),
     _PCRE2_CONSTANT(ERROR_UTF8_ERR21),
+    _PCRE2_CONSTANT(ERROR_UTF16_ERR1),
+    _PCRE2_CONSTANT(ERROR_UTF16_ERR2),
+    _PCRE2_CONSTANT(ERROR_UTF16_ERR3),
+    _PCRE2_CONSTANT(ERROR_UTF32_ERR1),
+    _PCRE2_CONSTANT(ERROR_UTF32_ERR2),
     _PCRE2_CONSTANT(ERROR_BADDATA),
+    _PCRE2_CONSTANT(ERROR_MIXEDTABLES),
     _PCRE2_CONSTANT(ERROR_BADMAGIC),
     _PCRE2_CONSTANT(ERROR_BADMODE),
     _PCRE2_CONSTANT(ERROR_BADOFFSET),
     _PCRE2_CONSTANT(ERROR_BADOPTION),
+    _PCRE2_CONSTANT(ERROR_BADREPLACEMENT),
     _PCRE2_CONSTANT(ERROR_BADUTFOFFSET),
+    _PCRE2_CONSTANT(ERROR_CALLOUT),
+    _PCRE2_CONSTANT(ERROR_DFA_BADRESTART),
+    _PCRE2_CONSTANT(ERROR_DFA_RECURSE),
+    _PCRE2_CONSTANT(ERROR_DFA_UCOND),
+    _PCRE2_CONSTANT(ERROR_DFA_UFUNC),
+    _PCRE2_CONSTANT(ERROR_DFA_UITEM),
+    _PCRE2_CONSTANT(ERROR_DFA_WSSIZE),
     _PCRE2_CONSTANT(ERROR_INTERNAL),
+    _PCRE2_CONSTANT(ERROR_JIT_BADOPTION),
+    _PCRE2_CONSTANT(ERROR_JIT_STACKLIMIT),
     _PCRE2_CONSTANT(ERROR_MATCHLIMIT),
     _PCRE2_CONSTANT(ERROR_NOMEMORY),
+    _PCRE2_CONSTANT(ERROR_NOSUBSTRING),
+    _PCRE2_CONSTANT(ERROR_NOUNIQUESUBSTRING),
     _PCRE2_CONSTANT(ERROR_NULL),
     _PCRE2_CONSTANT(ERROR_RECURSELOOP),
     _PCRE2_CONSTANT(ERROR_DEPTHLIMIT),
+    _PCRE2_CONSTANT(ERROR_RECURSIONLIMIT),
+    _PCRE2_CONSTANT(ERROR_UNAVAILABLE),
     _PCRE2_CONSTANT(ERROR_UNSET),
     _PCRE2_CONSTANT(ERROR_BADOFFSETLIMIT),
+    _PCRE2_CONSTANT(ERROR_BADREPESCAPE),
+    _PCRE2_CONSTANT(ERROR_REPMISSINGBRACE),
+    _PCRE2_CONSTANT(ERROR_BADSUBSTITUTION),
+    _PCRE2_CONSTANT(ERROR_BADSUBSPATTERN),
+    _PCRE2_CONSTANT(ERROR_TOOMANYREPLACE),
+    _PCRE2_CONSTANT(ERROR_BADSERIALIZEDDATA),
     _PCRE2_CONSTANT(ERROR_HEAPLIMIT),
+    _PCRE2_CONSTANT(ERROR_CONVERT_SYNTAX),
+    _PCRE2_CONSTANT(ERROR_INTERNAL_DUPMATCH),
+    _PCRE2_CONSTANT(ERROR_DFA_UINVALID_UTF),
+    _PCRE2_CONSTANT(ERROR_INVALIDOFFSET),
+    _PCRE2_CONSTANT(ERROR_JIT_UNSUPPORTED),
+    _PCRE2_CONSTANT(ERROR_REPLACECASE),
+    _PCRE2_CONSTANT(ERROR_TOOLARGEREPLACE),
+    _PCRE2_CONSTANT(ERROR_DIFFSUBSPATTERN),
+    _PCRE2_CONSTANT(ERROR_DIFFSUBSSUBJECT),
+    _PCRE2_CONSTANT(ERROR_DIFFSUBSOFFSET),
+    _PCRE2_CONSTANT(ERROR_DIFFSUBSOPTIONS),
+    _PCRE2_CONSTANT(ERROR_BAD_BACKSLASH_K),
+    _PCRE2_CONSTANT(ERROR_PARTIALSUBS),
 };
 
 #undef _PCRE2_CONSTANT
@@ -1230,8 +2053,8 @@ static const IntConstant pcre2mod_constants[] = {
 // before use. Entries are only ever appended under a given abi_version, so a consumer declaring an earlier, shorter
 // table keeps working against a later one.
 //
-// Everything but the two *_from_object entries is the PCRE2 function of the same name, takes the same arguments,
-// touches no Python state, and may be called from any thread with or without a thread state attached.
+// Everything but the *_from_object entries is the PCRE2 function of the same name, takes the same arguments, touches
+// no Python state, and may be called from any thread with or without a thread state attached.
 
 #define PCRE2_CAPI_CAPSULE_NAME _MODULE_FULL_NAME ".capi"
 #define PCRE2_CAPI_ABI_VERSION 1
@@ -1281,11 +2104,49 @@ typedef struct Pcre2Capi {
     int (*set_depth_limit)(pcre2_match_context *, uint32_t);
     int (*set_heap_limit)(pcre2_match_context *, uint32_t);
     int (*set_offset_limit)(pcre2_match_context *, PCRE2_SIZE);
+
+    // Appended next, on the same terms.
+
+    // The pcre2_compile_context of a CompileContext object, as match_context_from_object is for a MatchContext.
+    pcre2_compile_context * (*compile_context_from_object)(PyObject *obj);
+
+    pcre2_compile_context * (*compile_context_create)(pcre2_general_context *);
+    void (*compile_context_free)(pcre2_compile_context *);
+    int (*set_bsr)(pcre2_compile_context *, uint32_t);
+    int (*set_newline)(pcre2_compile_context *, uint32_t);
+    int (*set_max_pattern_length)(pcre2_compile_context *, PCRE2_SIZE);
+    int (*set_max_pattern_compiled_length)(pcre2_compile_context *, PCRE2_SIZE);
+    int (*set_max_varlookbehind)(pcre2_compile_context *, uint32_t);
+    int (*set_parens_nest_limit)(pcre2_compile_context *, uint32_t);
+    int (*set_compile_extra_options)(pcre2_compile_context *, uint32_t);
+    int (*set_optimize)(pcre2_compile_context *, uint32_t);
+
+    PCRE2_SPTR (*get_mark)(pcre2_match_data *);
+    PCRE2_SIZE (*get_match_data_size)(pcre2_match_data *);
+    PCRE2_SIZE (*get_match_data_heapframes_size)(pcre2_match_data *);
+
+    int (*substring_number_from_name)(const pcre2_code *, PCRE2_SPTR);
+    int (*substring_nametable_scan)(const pcre2_code *, PCRE2_SPTR, PCRE2_SPTR *, PCRE2_SPTR *);
+
+    int (*substitute)(
+        const pcre2_code *,
+        PCRE2_SPTR,
+        PCRE2_SIZE,
+        PCRE2_SIZE,
+        uint32_t,
+        pcre2_match_data *,
+        pcre2_match_context *,
+        PCRE2_SPTR,
+        PCRE2_SIZE,
+        PCRE2_UCHAR *,
+        PCRE2_SIZE *
+    );
 } Pcre2Capi;
 
 // Defined below the module definition they need.
 static const pcre2_code * capi_code_from_object(PyObject *obj);
 static pcre2_match_context * capi_match_context_from_object(PyObject *obj);
+static pcre2_compile_context * capi_compile_context_from_object(PyObject *obj);
 
 static const Pcre2Capi pcre2mod_capi = {
     .abi_version = PCRE2_CAPI_ABI_VERSION,
@@ -1318,6 +2179,28 @@ static const Pcre2Capi pcre2mod_capi = {
     .set_depth_limit = pcre2_set_depth_limit,
     .set_heap_limit = pcre2_set_heap_limit,
     .set_offset_limit = pcre2_set_offset_limit,
+
+    .compile_context_from_object = capi_compile_context_from_object,
+
+    .compile_context_create = pcre2_compile_context_create,
+    .compile_context_free = pcre2_compile_context_free,
+    .set_bsr = pcre2_set_bsr,
+    .set_newline = pcre2_set_newline,
+    .set_max_pattern_length = pcre2_set_max_pattern_length,
+    .set_max_pattern_compiled_length = pcre2_set_max_pattern_compiled_length,
+    .set_max_varlookbehind = pcre2_set_max_varlookbehind,
+    .set_parens_nest_limit = pcre2_set_parens_nest_limit,
+    .set_compile_extra_options = pcre2_set_compile_extra_options,
+    .set_optimize = pcre2_set_optimize,
+
+    .get_mark = pcre2_get_mark,
+    .get_match_data_size = pcre2_get_match_data_size,
+    .get_match_data_heapframes_size = pcre2_get_match_data_heapframes_size,
+
+    .substring_number_from_name = pcre2_substring_number_from_name,
+    .substring_nametable_scan = pcre2_substring_nametable_scan,
+
+    .substitute = pcre2_substitute,
 };
 
 //
@@ -1334,6 +2217,11 @@ static int pcre2mod_exec(PyObject *module)
 
     state->CodeType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &Code_spec, NULL);
     if (state->CodeType == NULL) {
+        return -1;
+    }
+
+    state->CompileContextType = (PyTypeObject *)PyType_FromModuleAndSpec(module, &CompileContext_spec, NULL);
+    if (state->CompileContextType == NULL) {
         return -1;
     }
 
@@ -1377,13 +2265,25 @@ static int pcre2mod_exec(PyObject *module)
         return -1;
     }
 
+    state->SubstituteError = PyErr_NewExceptionWithDoc(
+        _MODULE_FULL_NAME ".SubstituteError",
+        "A substitution failed. `offset` is set for a malformed replacement, to where in the replacement.",
+        state->Error,
+        NULL
+    );
+    if (state->SubstituteError == NULL) {
+        return -1;
+    }
+
     if (
         PyModule_AddObjectRef(module, "Code", (PyObject *)state->CodeType) < 0 ||
+        PyModule_AddObjectRef(module, "CompileContext", (PyObject *)state->CompileContextType) < 0 ||
         PyModule_AddObjectRef(module, "MatchContext", (PyObject *)state->MatchContextType) < 0 ||
         PyModule_AddObjectRef(module, "MatchData", (PyObject *)state->MatchDataType) < 0 ||
         PyModule_AddObjectRef(module, "Error", state->Error) < 0 ||
         PyModule_AddObjectRef(module, "CompileError", state->CompileError) < 0 ||
-        PyModule_AddObjectRef(module, "MatchError", state->MatchError) < 0
+        PyModule_AddObjectRef(module, "MatchError", state->MatchError) < 0 ||
+        PyModule_AddObjectRef(module, "SubstituteError", state->SubstituteError) < 0
     ) {
         return -1;
     }
@@ -1406,11 +2306,13 @@ static int pcre2mod_traverse(PyObject *module, visitproc visit, void *arg)
 {
     pcre2mod_state *state = get_pcre2mod_state(module);
     Py_VISIT(state->CodeType);
+    Py_VISIT(state->CompileContextType);
     Py_VISIT(state->MatchContextType);
     Py_VISIT(state->MatchDataType);
     Py_VISIT(state->Error);
     Py_VISIT(state->CompileError);
     Py_VISIT(state->MatchError);
+    Py_VISIT(state->SubstituteError);
     return 0;
 }
 
@@ -1418,11 +2320,13 @@ static int pcre2mod_clear(PyObject *module)
 {
     pcre2mod_state *state = get_pcre2mod_state(module);
     Py_CLEAR(state->CodeType);
+    Py_CLEAR(state->CompileContextType);
     Py_CLEAR(state->MatchContextType);
     Py_CLEAR(state->MatchDataType);
     Py_CLEAR(state->Error);
     Py_CLEAR(state->CompileError);
     Py_CLEAR(state->MatchError);
+    Py_CLEAR(state->SubstituteError);
     return 0;
 }
 
@@ -1493,6 +2397,17 @@ static pcre2_match_context * capi_match_context_from_object(PyObject *obj)
     }
 
     return ((MatchContext *)obj)->context;
+}
+
+static pcre2_compile_context * capi_compile_context_from_object(PyObject *obj)
+{
+    pcre2mod_state *state = capi_state_from_object(obj);
+    if (state == NULL || !Py_IS_TYPE(obj, state->CompileContextType)) {
+        PyErr_Format(PyExc_TypeError, "expected CompileContext, got %T", obj);
+        return NULL;
+    }
+
+    return ((CompileContext *)obj)->context;
 }
 
 PyMODINIT_FUNC PyInit__pcre2(void)

@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 import array
 
 import pytest
@@ -24,7 +25,7 @@ def test_utf_pattern_needs_an_immutable_subject():
             array.array('B', b'a'),
         ]:
             with pytest.raises(BufferError, match='could change during the match'):
-                code.match(subject, md)
+                code.match(subject, md)  # type: ignore[arg-type]
             assert md.next_match() is None
 
         for subject in [
@@ -32,7 +33,7 @@ def test_utf_pattern_needs_an_immutable_subject():
             memoryview(b'a'),
             memoryview(memoryview(b'xa'))[1:],
         ]:
-            assert code.match(subject, md) == 1
+            assert code.match(subject, md) == 1  # type: ignore[arg-type]
 
 
 def test_no_utf_check_vouches_for_a_subject():
@@ -58,7 +59,7 @@ def test_other_patterns_take_any_subject():
         memoryview(bytearray(b'a')),
         array.array('B', b'a'),
     ]:
-        assert code.match(subject, md) == 1
+        assert code.match(subject, md) == 1  # type: ignore[arg-type]
 
 
 def test_writable_subject_is_seen_as_it_is_now():

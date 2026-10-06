@@ -510,6 +510,8 @@
   - With multiple concurrent actors this may be achieved through 'lock-step' execution: with for example 2 related
     actors running concurrently which encounter a shared point of synchronization, run a test twice, once with the first
     actor running first, and once with the second actor running first.
+- Do not add an `if __name__ == '__main__':` block to test files. If a test-related utility script needs an entrypoint
+  that's fine, but in that case that utility script shouldn't itself contain tests.
 
 
 ### Runtime

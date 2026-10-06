@@ -46,27 +46,32 @@ def test_compile_error():
 
     e = ei.value
     assert isinstance(e, pcre2.Error)
-    assert e.code == 114
+    assert e.code == pcre2.ERROR_MISSING_CLOSING_PARENTHESIS == 114
     assert e.offset == 4
     assert pcre2.get_error_message(e.code) in str(e)
 
 
 def test_compile_arguments():
     with pytest.raises(TypeError):
-        pcre2.compile('abc')
+        pcre2.compile('abc')  # type: ignore[arg-type]
     with pytest.raises(OverflowError):
         pcre2.compile(b'abc', -1)
     with pytest.raises(OverflowError):
         pcre2.compile(b'abc', 1 << 32)
+    with pytest.raises(TypeError, match='expected CompileContext or None'):
+        pcre2.compile(b'abc', 0, pcre2.EXTRA_MATCH_WORD)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match='expected CompileContext or None'):
+        pcre2.compile(b'abc', compile_context=pcre2.MatchContext.create())  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        pcre2.compile(b'abc', 0, pcre2.EXTRA_MATCH_WORD)
+        pcre2.compile(b'abc', extra_options=pcre2.EXTRA_MATCH_WORD)  # type: ignore[call-arg]
+
+    assert pcre2.compile(b'abc', compile_context=None).pattern_info(pcre2.INFO_SIZE) > 0
 
 
 def test_types_are_not_instantiable():
-    with pytest.raises(TypeError):
-        pcre2.Code()
-    with pytest.raises(TypeError):
-        pcre2.MatchData()
+    for cls in [pcre2.Code, pcre2.CompileContext, pcre2.MatchContext, pcre2.MatchData]:
+        with pytest.raises(TypeError):
+            cls()
 
 
 def test_pattern_info():
@@ -99,14 +104,3 @@ def test_pattern_info_errors():
     assert ei.value.code == pcre2.ERROR_UNSET
 
     assert pcre2.compile(b'(*LIMIT_HEAP=1234)abc').pattern_info(pcre2.INFO_HEAPLIMIT) == 1234
-
-
-def test_extra_options():
-    plain = pcre2.compile(b'cat')
-    word = pcre2.compile(b'cat', extra_options=pcre2.EXTRA_MATCH_WORD)
-    assert word.pattern_info(pcre2.INFO_EXTRAOPTIONS) == pcre2.EXTRA_MATCH_WORD
-
-    md = pcre2.MatchData.create(1)
-    assert plain.match(b'concat', md) == 1
-    assert word.match(b'concat', md) == pcre2.ERROR_NOMATCH
-    assert word.match(b'a cat', md) == 1

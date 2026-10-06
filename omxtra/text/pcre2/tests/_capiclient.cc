@@ -1,4 +1,3 @@
-// // @om-cext
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
@@ -23,6 +22,10 @@
 
 // A consumer of _pcre2's `capi` capsule, shaped like the ingest stage of a BPE trainer: given a Code object it splits
 // subjects into regex chunks and counts them, off the interpreter and across threads.
+//
+// This is deliberately not marked as a cext: nothing under a tests directory is built or published with the package.
+// The `capiclient` fixture in conftest.py compiles it into a temporary directory the first time a test asks for it,
+// and loads it from there.
 
 //
 
@@ -75,6 +78,40 @@ typedef struct Pcre2Capi {
     int (*set_depth_limit)(pcre2_match_context *, uint32_t);
     int (*set_heap_limit)(pcre2_match_context *, uint32_t);
     int (*set_offset_limit)(pcre2_match_context *, PCRE2_SIZE);
+
+    pcre2_compile_context * (*compile_context_from_object)(PyObject *obj);
+
+    pcre2_compile_context * (*compile_context_create)(pcre2_general_context *);
+    void (*compile_context_free)(pcre2_compile_context *);
+    int (*set_bsr)(pcre2_compile_context *, uint32_t);
+    int (*set_newline)(pcre2_compile_context *, uint32_t);
+    int (*set_max_pattern_length)(pcre2_compile_context *, PCRE2_SIZE);
+    int (*set_max_pattern_compiled_length)(pcre2_compile_context *, PCRE2_SIZE);
+    int (*set_max_varlookbehind)(pcre2_compile_context *, uint32_t);
+    int (*set_parens_nest_limit)(pcre2_compile_context *, uint32_t);
+    int (*set_compile_extra_options)(pcre2_compile_context *, uint32_t);
+    int (*set_optimize)(pcre2_compile_context *, uint32_t);
+
+    PCRE2_SPTR (*get_mark)(pcre2_match_data *);
+    PCRE2_SIZE (*get_match_data_size)(pcre2_match_data *);
+    PCRE2_SIZE (*get_match_data_heapframes_size)(pcre2_match_data *);
+
+    int (*substring_number_from_name)(const pcre2_code *, PCRE2_SPTR);
+    int (*substring_nametable_scan)(const pcre2_code *, PCRE2_SPTR, PCRE2_SPTR *, PCRE2_SPTR *);
+
+    int (*substitute)(
+        const pcre2_code *,
+        PCRE2_SPTR,
+        PCRE2_SIZE,
+        PCRE2_SIZE,
+        uint32_t,
+        pcre2_match_data *,
+        pcre2_match_context *,
+        PCRE2_SPTR,
+        PCRE2_SIZE,
+        PCRE2_UCHAR *,
+        PCRE2_SIZE *
+    );
 } Pcre2Capi;
 
 //
@@ -469,6 +506,90 @@ static PyObject * count_chunks(PyObject *module, PyObject *args)
 
 //
 
+PyDoc_STRVAR(substitute_doc, "substitute(code, subject, replacement, options=0, match_context=None, /)");
+
+static PyObject * substitute(PyObject *module, PyObject *args)
+{
+    const Pcre2Capi *capi = get_capiclient_state(module)->capi;
+
+    PyObject *code_obj;
+    PyObject *subject_obj;
+    PyObject *replacement_obj;
+    unsigned int options = 0;
+    PyObject *match_context_obj = Py_None;
+    if (!PyArg_ParseTuple(
+        args,
+        "OOO|IO:substitute",
+        &code_obj,
+        &subject_obj,
+        &replacement_obj,
+        &options,
+        &match_context_obj
+    )) {
+        return nullptr;
+    }
+
+    const pcre2_code *code = capi->code_from_object(code_obj);
+    pcre2_match_context *match_context = nullptr;
+    if (code == nullptr || !match_context_from_arg(capi, match_context_obj, &match_context)) {
+        return nullptr;
+    }
+
+    Py_buffer subject;
+    if (get_immutable_buffer(subject_obj, &subject) < 0) {
+        return nullptr;
+    }
+    Py_buffer replacement;
+    if (get_immutable_buffer(replacement_obj, &replacement) < 0) {
+        PyBuffer_Release(&subject);
+        return nullptr;
+    }
+
+    // The output is sized by a guess, and if PCRE2 reports that it needs more then by exactly that.
+    std::string output;
+    PCRE2_SIZE output_length = 0;
+    int rc = 0;
+
+    Py_BEGIN_ALLOW_THREADS
+    try {
+        output.resize((size_t)subject.len + (size_t)replacement.len + 64);
+        for (int attempt = 0; ; attempt++) {
+            output_length = (PCRE2_SIZE)output.size() + 1;
+            rc = capi->substitute(
+                code,
+                (PCRE2_SPTR)subject.buf,
+                (PCRE2_SIZE)subject.len,
+                0,
+                (uint32_t)options | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
+                nullptr,
+                match_context,
+                (PCRE2_SPTR)replacement.buf,
+                (PCRE2_SIZE)replacement.len,
+                (PCRE2_UCHAR *)output.data(),
+                &output_length
+            );
+            if (rc != PCRE2_ERROR_NOMEMORY || output_length == PCRE2_UNSET || attempt > 0) {
+                break;
+            }
+            output.resize((size_t)output_length - 1);
+        }
+    } catch (const std::exception &) {
+        rc = PCRE2_ERROR_NOMEMORY;
+    }
+    Py_END_ALLOW_THREADS
+
+    PyBuffer_Release(&replacement);
+    PyBuffer_Release(&subject);
+
+    if (rc < 0) {
+        set_pcre2_error(capi, rc);
+        return nullptr;
+    }
+    return Py_BuildValue("(y#i)", output.data(), (Py_ssize_t)output_length, rc);
+}
+
+//
+
 PyDoc_STRVAR(capiclient_doc, "A consumer of the _pcre2 capi capsule");
 
 static int capiclient_exec(PyObject *module)
@@ -508,6 +629,7 @@ static int capiclient_exec(PyObject *module)
 static PyMethodDef capiclient_methods[] = {
     {"find_spans", (PyCFunction)find_spans, METH_VARARGS, find_spans_doc},
     {"count_chunks", (PyCFunction)count_chunks, METH_VARARGS, count_chunks_doc},
+    {"substitute", (PyCFunction)substitute, METH_VARARGS, substitute_doc},
     {nullptr, nullptr, 0, nullptr}
 };
 

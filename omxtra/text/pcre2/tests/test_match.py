@@ -119,13 +119,13 @@ def test_match_arguments():
     md = pcre2.MatchData.create_from_pattern(code)
 
     with pytest.raises(TypeError):
-        code.match('abc', md)
+        code.match('abc', md)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        code.match(b'abc', None)
+        code.match(b'abc', None)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        code.match(b'abc')
+        code.match(b'abc')  # type: ignore[call-arg]
     with pytest.raises(TypeError):
-        pcre2.MatchData.create_from_pattern(b'abc')
+        pcre2.MatchData.create_from_pattern(b'abc')  # type: ignore[arg-type]
     with pytest.raises(OverflowError):
         code.match(b'abc', md, 0, -1)
 
@@ -140,7 +140,7 @@ def test_subjects():
         memoryview(b'xxabxx'),
         array.array('B', b'xxabxx'),
     ]:
-        assert code.match(subject, md) == 1
+        assert code.match(subject, md) == 1  # type: ignore[arg-type]
         assert md.ovector == (2, 4)
 
     assert code.match(memoryview(b'xxabxx')[:3], md) == pcre2.ERROR_NOMATCH

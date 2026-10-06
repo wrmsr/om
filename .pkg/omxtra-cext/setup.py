@@ -28,6 +28,8 @@ st.setup(
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_script_run.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_string_utils.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_study.c',
+                'omxtra/text/pcre2/_pcre2_/src/pcre2_substitute.c',
+                'omxtra/text/pcre2/_pcre2_/src/pcre2_substring.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_tables.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_ucd.c',
                 'omxtra/text/pcre2/_pcre2_/src/pcre2_valid_utf.c',
