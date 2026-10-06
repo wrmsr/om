@@ -29,4 +29,5 @@ its object graph, polling loop, reload mechanism, event protocol, and test archi
 
 The files in this directory are durable handoff material. `requirements.md`, `research.md`, `design.md`, and `plan.md`
 describe the current intended system. `dev_NN_*.md` files are chronological working journals and should record what
-was attempted, what changed, verification performed, surprises, and the next expected work.
+was attempted, what changed, verification performed, surprises, and the next expected work. `todo.md` is the standing
+list of what is unfinished, untested, or undecided, and of what was suspected and ruled out.
