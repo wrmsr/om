@@ -159,6 +159,12 @@ exclude = [
     'README.rst',
     'LICENSE',
     'LICENSE.txt',
+    'LICENSE.rst',
+    'LICENSE.md',
+    'LICENCE',
+    'LICENCE.txt',
+    'LICENCE.rst',
+    'LICENCE.md',
     'AUTHORS',
 ]
 'omdev.cc' = [
