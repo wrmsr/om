@@ -31,7 +31,7 @@ class Project(ProjectBase):
             'torch ~= 2.14',
             'triton ~= 3.8; sys_platform == "linux"',
 
-            'transformers ~= 5.18',
+            'transformers ~= 5.19',
         ],
 
         'search': [
