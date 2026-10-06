@@ -1,17 +1,17 @@
 // @om-cext {
 //   "extra_sources": [
 //     "_pcre2_/src/*.c",
-//     "_pcre2_/*.c.dist"
+//     "_pcre2_/src/*.c.dist"
 //   ],
 //   "extra_headers": [
 //     "_pcre2_/src/*.h",
-//     "_pcre2_/*.h.generic"
+//     "_pcre2_/src/*.h.generic"
 //   ],
 //   "extra_compile_args": [
 //     "-fvisibility=hidden",
 //     "-g0"
 //   ],
-//   "define_macros": [
+//   "define_macros": {
 //     "PCRE2_CODE_UNIT_WIDTH": "8",
 //     "PCRE2_STATIC": "1",
 //     "PCRE2_EXPORT": "",
@@ -26,7 +26,7 @@
 //     "MAX_VARLOOKBEHIND": "255",
 //     "NEWLINE_DEFAULT": "2",
 //     "PARENS_NEST_LIMIT": "250"
-//   ]
+//   }
 // }
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
