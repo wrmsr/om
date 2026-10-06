@@ -55,11 +55,9 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore import marshal as msh
-from omcore.os.paths import is_path_in_dir
 from omcore.secrets import all as sec
 from omcore.shlex import shlex_maybe_quote
 
-from ..home.paths import get_cache_dir
 from ..home.secrets import load_secrets
 from .build import build_image
 from .config import Config
@@ -160,31 +158,17 @@ def process_run_args(
     autoexecs: list[str] = []
     setenv: dict[str, str] = {}
 
-    if args.mount_caches:
-        host_platform = sys.platform
-        if host_platform == 'linux':
-            cache_dir = os.path.join(get_cache_dir(), 'dockerdev')
-            for cl, cr in (cfg.cache_mounts or {}).items():
-                cld = os.path.join(cache_dir, cl)
-                check.state(is_path_in_dir(cache_dir, cld))
-                os.makedirs(cld, exist_ok=True)
-                run_args.append(f'--mount=type=bind,src={cld},dst={cr}')
-
-        elif host_platform == 'darwin':
-            if cfg.cache_mounts:
-                run_args.append(f'--mount=type=volume,src={CACHE_VOLUME},dst=/cache')
-                autoexecs.append(f'sudo chown om:om /cache')
-                for cl, cr in cfg.cache_mounts.items():
-                    autoexecs.extend([
-                        f'if ! [ -d /cache/{cl} ] ; then mkdir -p /cache/{cl} ; fi',
-                        f'rm -rf {cr} || true',
-                        f'ln -s /cache/{cl} {cr}',
-                    ])
-                    if cr == '/om/.cache/uv':
-                        setenv['UV_LINK_MODE'] = 'symlink'
-
-        else:
-            raise OSError(host_platform)
+    if args.mount_caches and cfg.cache_mounts:
+        run_args.append(f'--mount=type=volume,src={CACHE_VOLUME},dst=/cache')
+        autoexecs.append(f'sudo chown om:om /cache')
+        for cl, cr in cfg.cache_mounts.items():
+            autoexecs.extend([
+                f'if ! [ -d /cache/{cl} ] ; then mkdir -p /cache/{cl} ; fi',
+                f'rm -rf {cr} || true',
+                f'ln -s /cache/{cl} {cr}',
+            ])
+            if cr == '/om/.cache/uv':
+                setenv['UV_LINK_MODE'] = 'symlink'
 
     if args.mount_git or args.clone_mount_git:
         git_path = os.path.join(os.getcwd(), '.git')

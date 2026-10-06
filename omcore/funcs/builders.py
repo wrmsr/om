@@ -1,6 +1,7 @@
 # ruff: noqa: UP006 UP045
 # @om-lite
 import abc
+import importlib
 import io
 import os.path
 import sys
@@ -119,6 +120,7 @@ class DebugFnBuilder(FnBuilder):
         with open(src_file, 'w') as f:
             f.write(mod_src)
 
+        importlib.invalidate_caches()
         mod = __import__(mod_name)
 
         check.equal(mod.__file__, src_file)
