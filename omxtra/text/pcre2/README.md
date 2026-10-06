@@ -64,7 +64,10 @@ Things worth knowing:
 - A UTF pattern only matches a subject which cannot change: `bytes`, or a `memoryview` of `bytes`. Anything else raises
   `BufferError` - see [Threads](#threads) for why - unless `NO_UTF_CHECK` is given, which as in C is the caller's own
   promise that the subject is, and stays, valid. Other patterns take any buffer, and see it as it is at each call. A
-  writable pattern is compiled from a copy.
+  pattern which could change is compiled from a copy, as a replacement which could is used through one. What PCRE2
+  then validates and reads is the copy, so it cannot be led out of bounds, but a copy is not a snapshot: taken while
+  another thread is writing to the buffer it can come out part old and part new. Holding a buffer keeps it in place,
+  not still, and keeping it still while it is in use is the caller's to do.
 - Walking a subject match by match is linear in its length. PCRE2 on its own validates everything ahead of
   `start_offset` on every call, which is quadratic over a search; `Code.match` skips that for a subject the same `Code`
   has already validated through the same `MatchData`, so long as the same `bytes` object keeps being passed.
@@ -118,7 +121,9 @@ Both the default and the free-threaded build are supported, and the module decla
 
 - A `Code`, a `CompileContext`, and a `MatchContext` are immutable, and can be used from any number of threads at
   once. A `MatchData` cannot: using one while it is already in use raises `RuntimeError` rather than corrupting it, so
-  give each thread its own.
+  give each thread its own. That holds for use from within, too: a subject's buffer is released by calling its exporter
+  back, and an exporter written in Python which uses the block from there is refused the same way - whether the block
+  is letting go of the buffer to match something else, or being emptied by the collector.
 - No match holds the interpreter for long. One with 512 bytes or more of subject ahead of it runs detached from the
   start. A shorter one is first tried attached, under a match limit of 256, which ordinary matches finish well within,
   and only if that runs out is it run again, detached, under its real limit. Compiling a pattern of 512 bytes or more

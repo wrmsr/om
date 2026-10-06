@@ -251,9 +251,23 @@ static bool make_probe_context(pcre2_match_context *context, uint32_t match_limi
 
 //
 
+// Every instance of a heap type holds a reference to its type, and the type one to this module. A module instance
+// which holds one of its own objects - in a cache, say - is therefore a cycle, and one the collector can only find if
+// the object owns up to its type. So all of the types here are collected, including the three which hold no Python
+// objects of their own, for which this is all there is to traverse. Like a MatchData their instances are allocated
+// untracked, and tracked only once they are whole - see MatchData_wrap.
+static int traverse_type(PyObject *self, visitproc visit, void *arg)
+{
+    Py_VISIT(Py_TYPE(self));
+    return 0;
+}
+
+//
+
 static void CompileContext_dealloc(CompileContext *self)
 {
     PyTypeObject *tp = Py_TYPE(self);
+    PyObject_GC_UnTrack(self);
     pcre2_compile_context_free(self->context);
     tp->tp_free((PyObject *)self);
     Py_DECREF(tp);
@@ -381,12 +395,14 @@ static PyObject * CompileContext_create(PyObject *cls, PyObject *args, PyObject 
     }
 
     PyTypeObject *tp = (PyTypeObject *)cls;
-    CompileContext *self = (CompileContext *)tp->tp_alloc(tp, 0);
+    CompileContext *self = PyObject_GC_New(CompileContext, tp);
     if (self == NULL) {
         goto error;
     }
 
     self->context = context;
+
+    PyObject_GC_Track(self);
     return (PyObject *)self;
 
 pcre2_error:
@@ -410,6 +426,7 @@ static PyMethodDef CompileContext_methods[] = {
 
 static PyType_Slot CompileContext_slots[] = {
     {Py_tp_dealloc, (void *)CompileContext_dealloc},
+    {Py_tp_traverse, (void *)traverse_type},
     {Py_tp_methods, (void *)CompileContext_methods},
     {Py_tp_doc, (void *)"Settings applied to a compilation (pcre2_compile_context). Created by its create method."},
     {0, NULL}
@@ -419,7 +436,12 @@ static PyType_Spec CompileContext_spec = {
     .name = _MODULE_FULL_NAME ".CompileContext",
     .basicsize = sizeof(CompileContext),
     .itemsize = 0,
-    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    .flags = (
+        Py_TPFLAGS_DEFAULT |
+        Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_IMMUTABLETYPE |
+        Py_TPFLAGS_DISALLOW_INSTANTIATION
+    ),
     .slots = CompileContext_slots,
 };
 
@@ -428,6 +450,7 @@ static PyType_Spec CompileContext_spec = {
 static void MatchContext_dealloc(MatchContext *self)
 {
     PyTypeObject *tp = Py_TYPE(self);
+    PyObject_GC_UnTrack(self);
     pcre2_match_context_free(self->probe);
     pcre2_match_context_free(self->context);
     tp->tp_free((PyObject *)self);
@@ -507,7 +530,7 @@ static PyObject * MatchContext_create(PyObject *cls, PyObject *args, PyObject *k
     }
 
     PyTypeObject *tp = (PyTypeObject *)cls;
-    MatchContext *self = (MatchContext *)tp->tp_alloc(tp, 0);
+    MatchContext *self = PyObject_GC_New(MatchContext, tp);
     if (self == NULL) {
         pcre2_match_context_free(probe);
         pcre2_match_context_free(context);
@@ -516,6 +539,8 @@ static PyObject * MatchContext_create(PyObject *cls, PyObject *args, PyObject *k
 
     self->context = context;
     self->probe = probe;
+
+    PyObject_GC_Track(self);
     return (PyObject *)self;
 }
 
@@ -531,6 +556,7 @@ static PyMethodDef MatchContext_methods[] = {
 
 static PyType_Slot MatchContext_slots[] = {
     {Py_tp_dealloc, (void *)MatchContext_dealloc},
+    {Py_tp_traverse, (void *)traverse_type},
     {Py_tp_methods, (void *)MatchContext_methods},
     {Py_tp_doc, (void *)"Limits applied to a match (pcre2_match_context). Created by its create method."},
     {0, NULL}
@@ -540,7 +566,12 @@ static PyType_Spec MatchContext_spec = {
     .name = _MODULE_FULL_NAME ".MatchContext",
     .basicsize = sizeof(MatchContext),
     .itemsize = 0,
-    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    .flags = (
+        Py_TPFLAGS_DEFAULT |
+        Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_IMMUTABLETYPE |
+        Py_TPFLAGS_DISALLOW_INSTANTIATION
+    ),
     .slots = MatchContext_slots,
 };
 
@@ -549,6 +580,7 @@ static PyType_Spec MatchContext_spec = {
 static void Code_dealloc(Code *self)
 {
     PyTypeObject *tp = Py_TYPE(self);
+    PyObject_GC_UnTrack(self);
     pcre2_code_free(self->code);
     tp->tp_free((PyObject *)self);
     Py_DECREF(tp);
@@ -641,19 +673,31 @@ static inline void MatchData_release(MatchData *self)
     atomic_flag_clear_explicit(&self->busy, memory_order_release);
 }
 
+// Letting go of what a block pins calls out: releasing a buffer calls its exporter's release hook, which can be Python
+// and so can do anything, this block included. So whatever is being let go of is first taken out of the block, leaving
+// the block whole and holding nothing, and only then released - the hook is handed a copy of the buffer, which is all
+// a buffer is. That keeps a release from being repeated, or the block from being found half emptied, but not from
+// being used meanwhile: that is what holding the block busy is for, which every caller does.
+
 static void MatchData_unpin_subject(MatchData *self)
 {
-    if (self->subject.obj != NULL) {
-        PyBuffer_Release(&self->subject);
-    }
+    Py_buffer subject = self->subject;
+    memset(&self->subject, 0, sizeof(self->subject));
     self->subject_immutable = false;
     self->validated_start = PY_SSIZE_T_MAX;
+
+    if (subject.obj != NULL) {
+        PyBuffer_Release(&subject);
+    }
 }
 
 static void MatchData_unpin(MatchData *self)
 {
+    PyObject *code = self->code;
+    self->code = NULL;
+
     MatchData_unpin_subject(self);
-    Py_CLEAR(self->code);
+    Py_XDECREF(code);
 }
 
 // Whether a subject is bytes proper, or a memoryview of them, and so cannot change underneath a buffer held on it. A
@@ -1205,6 +1249,7 @@ static PyMethodDef Code_methods[] = {
 
 static PyType_Slot Code_slots[] = {
     {Py_tp_dealloc, (void *)Code_dealloc},
+    {Py_tp_traverse, (void *)traverse_type},
     {Py_tp_methods, (void *)Code_methods},
     {Py_tp_doc, (void *)"A compiled pattern (pcre2_code). Created by compile()."},
     {0, NULL}
@@ -1214,7 +1259,12 @@ static PyType_Spec Code_spec = {
     .name = _MODULE_FULL_NAME ".Code",
     .basicsize = sizeof(Code),
     .itemsize = 0,
-    .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    .flags = (
+        Py_TPFLAGS_DEFAULT |
+        Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_IMMUTABLETYPE |
+        Py_TPFLAGS_DISALLOW_INSTANTIATION
+    ),
     .slots = Code_slots,
 };
 
@@ -1230,7 +1280,17 @@ static int MatchData_traverse(MatchData *self, visitproc visit, void *arg)
 
 static int MatchData_clear(MatchData *self)
 {
+    // The collector clears a block which is still whole and still reachable from the rest of the cycle it is breaking
+    // - above all from the exporter whose release hook this is about to call. So clearing holds the block busy just as
+    // an operation on it does, and an operation the hook starts on it is refused, not let loose on a block which is
+    // halfway through being emptied. A block is never cleared while in use, as whoever is using it holds a reference
+    // to it, so one found busy has nothing to wait for and is left as it is.
+    if (atomic_flag_test_and_set_explicit(&self->busy, memory_order_acquire)) {
+        return 0;
+    }
+
     MatchData_unpin(self);
+    MatchData_release(self);
     return 0;
 }
 
@@ -1238,7 +1298,8 @@ static void MatchData_dealloc(MatchData *self)
 {
     PyTypeObject *tp = Py_TYPE(self);
     PyObject_GC_UnTrack(self);
-    MatchData_clear(self);
+    // Nothing can reach a block with no references left to it, so there is nothing to exclude.
+    MatchData_unpin(self);
     pcre2_match_data_free(self->match_data);
     tp->tp_free((PyObject *)self);
     Py_DECREF(tp);
@@ -1590,7 +1651,7 @@ static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *k
     uint32_t all_options = 0;
     pcre2_pattern_info(code, PCRE2_INFO_ALLOPTIONS, &all_options);
 
-    Code *self = (Code *)state->CodeType->tp_alloc(state->CodeType, 0);
+    Code *self = PyObject_GC_New(Code, state->CodeType);
     if (self == NULL) {
         pcre2_code_free(code);
         return NULL;
@@ -1599,6 +1660,8 @@ static PyObject * pcre2mod_compile(PyObject *module, PyObject *args, PyObject *k
     self->code = code;
     self->utf = (all_options & PCRE2_UTF) != 0;
     self->validates_utf = self->utf && (all_options & PCRE2_MATCH_INVALID_UTF) == 0;
+
+    PyObject_GC_Track(self);
     return (PyObject *)self;
 }
 
