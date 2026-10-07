@@ -116,10 +116,13 @@ with _lang.auto_proxy_init(
         WriteTool,
     )
 
+    from .fs.common import (  # noqa
+        FsFileChangedError,
+    )
+
     from .fs.ops import (  # noqa
         FsDirEntry,
         FsFile,
-        FsFileChangedError,
         FsGlobResult,
         FsOps,
         FsStat,
@@ -133,6 +136,10 @@ with _lang.auto_proxy_init(
         FS_TOOL_PERMISSION_MODES,
         FsPermissionTarget,
         GlobFsPermissionMatcher,
+    )
+
+    from .fs.remote.client import (  # noqa
+        RemoteFsOps,
     )
 
     ##
@@ -218,9 +225,6 @@ with _lang.auto_proxy_init(
 
     from .remote.client import (  # noqa
         RemoteAgentClient,
-        RemoteFsOps,
-        RemoteProcess,
-        RemoteProcessManager,
     )
 
     from .remote.docker import (  # noqa

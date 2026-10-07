@@ -61,14 +61,18 @@ def __om_amalg__():  # noqa
             dict(path='../../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
             dict(path='../../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../../omcore/os/pyremote/core.py', sha1='a663184c584cf8d8449981d424337f8fbb61c7e8'),
+            dict(path='../fs/common.py', sha1='ad483935984fc79cd708559f42c0313c03a66afa'),
             dict(path='../../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
-            dict(path='protocol.py', sha1='374a0c94df0b7469b6ce29c61848c83e0517f718'),
+            dict(path='../fs/remote/protocol.py', sha1='4ebd11a01f5943833857b768245246ed2cbae4e9'),
+            dict(path='../../core/processes/remote/protocol.py', sha1='aa2f9c585f9217ddb3d67453171c04ecec0560a1'),
             dict(path='../../core/rpc/errors.py', sha1='41e06a92d0a0139b6fc0530fe5892071c34cfd23'),
-            dict(path='../../core/rpc/handlers.py', sha1='6910c32940e50afb033686045241efc5a0528824'),
+            dict(path='../../core/rpc/handlers.py', sha1='a7b6f9989378d978410d3a46b6ee1e20b90e6343'),
             dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
+            dict(path='../fs/remote/server.py', sha1='43e3c09e4487c5e1fbe2faf249869b01bcdd3948'),
             dict(path='../../core/rpc/channels.py', sha1='8f49bf867159274422557a1f681ecdbffde5c887'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='server.py', sha1='f5c9e900b7439cd1c234517ca88e717c5ba904db'),
+            dict(path='../../core/processes/remote/server.py', sha1='7e5d412e083b3cf6e65a621967af1a62db3cab18'),
+            dict(path='server.py', sha1='3c89646f390fb142967b225b2aa17bd50130ab85'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -94,6 +98,7 @@ CheckArgsRenderer = ta.Callable[..., ta.Optional[str]]  # ta.TypeAlias
 # ../../core/rpc/handlers.py
 RpcMethod = ta.Callable[[ta.Any], ta.Awaitable[ta.Any]]  # ta.TypeAlias
 RpcNotificationErrorHandler = ta.Callable[['RpcNotificationMessage', BaseException], None]  # ta.TypeAlias
+RpcInlineNotificationHandler = ta.Callable[[str, ta.Any], None]  # ta.TypeAlias
 
 # ../../core/rpc/peers.py
 RpcPeerCloseCallback = ta.Callable[['RpcPeer'], None]  # ta.TypeAlias
@@ -2085,6 +2090,166 @@ pyremote = PyremoteApi()
 
 
 ########################################
+# ../../fs/common.py
+"""
+Filesystem primitives shared by the local `FsOps` and the remote agent's filesystem service. Lite: this is included in
+the remote agent amalgam, so it is Python 3.8 compatible and imports nothing but the standard library.
+"""
+
+
+##
+
+
+class FsFileChangedError(RuntimeError):
+    """A compare-before-write found the file's content no longer matching the digest it was read with."""
+
+
+def fs_file_digest(data: ta.Union[bytes, bytearray, memoryview]) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def fs_resolve_path(path: str) -> str:
+    """The absolute, symlink-resolved form of a path."""
+
+    return os.path.abspath(os.path.realpath(path))
+
+
+_FS_GLOB_MAGIC = frozenset('*?[')
+
+
+def fs_glob_root(pattern: str) -> str:
+    """Returns the non-pattern prefix of an absolute glob without touching the filesystem."""
+
+    if not os.path.isabs(pattern):
+        raise ValueError(f'glob pattern must be absolute: {pattern!r}')
+
+    pattern = os.path.normpath(pattern)
+
+    drive, tail = os.path.splitdrive(pattern)
+    root = drive + os.sep
+
+    for part in tail.lstrip(os.sep).split(os.sep):
+        if any(c in part for c in _FS_GLOB_MAGIC):
+            break
+        root = os.path.join(root, part)
+
+    return root
+
+
+def fs_path_is_under(path: str, root: str) -> bool:
+    """Checks already-resolved target paths using POSIX-compatible lexical path semantics."""
+
+    try:
+        return os.path.commonpath((path, root)) == root
+    except ValueError:
+        return False
+
+
+def fs_glob_paths(
+        pattern: str,
+        *,
+        root: str,
+        max_results: ta.Optional[int] = None,
+) -> ta.Tuple[ta.List[str], bool]:
+    """
+    Globs inside `root`, excluding matches whose resolved targets escape it. Returns the matched paths as the glob
+    produced them, and whether more were available than `max_results` allowed.
+    """
+
+    if max_results is not None and max_results < 0:
+        raise ValueError(max_results)
+
+    resolved_root = fs_resolve_path(root)
+    resolved_glob_root = fs_resolve_path(fs_glob_root(pattern))
+    if not fs_path_is_under(resolved_glob_root, resolved_root):
+        raise ValueError(f'glob root {resolved_glob_root!r} is outside permitted root {resolved_root!r}')
+
+    paths: ta.List[str] = []
+    has_more = False
+    for path in glob_.iglob(pattern, recursive=True):
+        if not fs_path_is_under(fs_resolve_path(path), resolved_root):
+            continue
+
+        if max_results is not None and len(paths) >= max_results:
+            has_more = True
+            break
+
+        paths.append(path)
+
+    return paths, has_more
+
+
+def fs_check_expected_digest(path: str, expected_digest: str) -> None:
+    try:
+        with open(path, 'rb') as f:  # noqa
+            actual_digest = fs_file_digest(f.read())
+    except FileNotFoundError:
+        actual_digest = None
+
+    if actual_digest != expected_digest:
+        raise FsFileChangedError(f'File changed since it was read: {path!r}')
+
+
+def fs_write_file(
+        path: str,
+        content: ta.Union[bytes, bytearray, memoryview],
+        *,
+        overwrite: bool = False,
+        expected_digest: ta.Optional[str] = None,
+) -> bool:
+    """
+    Writes a complete file, optionally replacing an existing regular file. `expected_digest` makes replacement fail if
+    the current content no longer matches a previous read. Returns whether the file was created rather than replaced.
+    """
+
+    dst_dir = os.path.dirname(path)
+    tmp_dir = tempfile.mkdtemp(prefix='.omllm-write-', dir=dst_dir)
+    tmp_path = os.path.join(tmp_dir, 'file')
+    fd = -1
+    try:
+        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+        with os.fdopen(fd, 'wb') as f:
+            fd = -1
+            f.write(content)
+
+        try:
+            lst = os.lstat(path)
+        except FileNotFoundError:
+            if expected_digest is not None:
+                raise FsFileChangedError(f'File changed since it was read: {path!r}') from None
+
+            # A hard link makes the fully-written file visible without replacing a path which appeared after the lstat
+            # above. Both names are in the destination directory, so they are necessarily on one filesystem.
+            os.link(tmp_path, path)
+            os.unlink(tmp_path)
+            tmp_path = ''
+            return True
+
+        if not overwrite:
+            raise FileExistsError(path)
+        if not stat_.S_ISREG(lst.st_mode):
+            raise IsADirectoryError(path)
+        if expected_digest is not None:
+            fs_check_expected_digest(path, expected_digest)
+
+        # Preserve the replaced file's permissions; the rename itself is atomic.
+        os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
+        os.replace(tmp_path, path)
+        tmp_path = ''
+        return False
+
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+        os.rmdir(tmp_dir)
+
+
+########################################
 # ../../../../omcore/lite/marshal.py
 """
 TODO:
@@ -2905,43 +3070,35 @@ unmarshal_obj = OBJ_MARSHALER_MANAGER.unmarshal_obj
 
 
 ########################################
-# ../protocol.py
-"""JSON-compatible request/result/notification shapes shared by the host adapter and the remote agent payload."""
+# ../../fs/remote/protocol.py
+"""
+The wire shapes of the remote filesystem: the requests the host's `RemoteFsOps` makes of the agent's `RemoteFsService`,
+and their results. Lite: shared with the remote agent amalgam, so Python 3.8 compatible and marshaled with the lite
+marshaler.
+"""
 
 
 ##
 
 
-FS_RESOLVE_PATH_METHOD = 'fs.resolve_path'
-FS_STAT_METHOD = 'fs.stat'
-FS_READ_FILE_METHOD = 'fs.read_file'
-FS_WRITE_FILE_METHOD = 'fs.write_file'
-FS_LIST_DIR_METHOD = 'fs.list_dir'
-FS_GLOB_METHOD = 'fs.glob'
-
-PROCESS_SPAWN_METHOD = 'process.spawn'
-PROCESS_SIGNAL_METHOD = 'process.signal'
-PROCESS_CLOSE_METHOD = 'process.close'
-PROCESS_WRITE_METHOD = 'process.write'
-PROCESS_WRITE_EOF_METHOD = 'process.write_eof'
-PROCESS_RESIZE_METHOD = 'process.resize'
-
-PROCESS_OUTPUT_METHOD = 'process.output'
-PROCESS_OUTPUT_END_METHOD = 'process.output_end'
-PROCESS_EXITED_METHOD = 'process.exited'
+REMOTE_FS_RESOLVE_PATH_METHOD = 'fs.resolve_path'
+REMOTE_FS_STAT_METHOD = 'fs.stat'
+REMOTE_FS_READ_FILE_METHOD = 'fs.read_file'
+REMOTE_FS_WRITE_FILE_METHOD = 'fs.write_file'
+REMOTE_FS_LIST_DIR_METHOD = 'fs.list_dir'
+REMOTE_FS_GLOB_METHOD = 'fs.glob'
 
 
 ##
-# Filesystem
 
 
 @dc.dataclass(frozen=True)
-class PathParams:
+class RemoteFsPathParams:
     path: str
 
 
 @dc.dataclass(frozen=True)
-class StatResult:
+class RemoteFsStatResult:
     path: str
     size: int
     is_dir: bool
@@ -2953,7 +3110,7 @@ class StatResult:
 
 
 @dc.dataclass(frozen=True)
-class ReadFileResult:
+class RemoteFsReadFileResult:
     data: bytes
     digest: str
 
@@ -2962,7 +3119,7 @@ class ReadFileResult:
 
 
 @dc.dataclass(frozen=True)
-class WriteFileParams:
+class RemoteFsWriteFileParams:
     path: str
     content: bytes
     overwrite: bool
@@ -2970,12 +3127,12 @@ class WriteFileParams:
 
 
 @dc.dataclass(frozen=True)
-class WriteFileResult:
+class RemoteFsWriteFileResult:
     created: bool
 
 
 @dc.dataclass(frozen=True)
-class FsEntry:
+class RemoteFsEntry:
     name: str
     path: str
     is_dir: bool
@@ -2984,7 +3141,7 @@ class FsEntry:
 
 
 @dc.dataclass(frozen=True)
-class GlobParams:
+class RemoteFsGlobParams:
     pattern: str
     root: str
     max_results: ta.Optional[int]
@@ -2995,17 +3152,48 @@ class GlobParams:
 
 
 @dc.dataclass(frozen=True)
-class GlobResult:
-    entries: ta.List[FsEntry]
+class RemoteFsGlobResult:
+    entries: ta.List[RemoteFsEntry]
     has_more: bool
 
 
+########################################
+# ../../../core/processes/remote/protocol.py
+"""
+The wire shapes of remote process management: the requests the host's `RemoteProcessManager` makes of the agent's
+`RemoteProcessService`, their results, and the notifications the agent sends back unprompted. Lite: shared with the
+remote agent amalgam, so Python 3.8 compatible and marshaled with the lite marshaler.
+"""
+
+
 ##
-# Processes
+
+
+REMOTE_PROCESS_SPAWN_METHOD = 'process.spawn'
+REMOTE_PROCESS_SIGNAL_METHOD = 'process.signal'
+REMOTE_PROCESS_CLOSE_METHOD = 'process.close'
+REMOTE_PROCESS_WRITE_METHOD = 'process.write'
+REMOTE_PROCESS_WRITE_EOF_METHOD = 'process.write_eof'
+REMOTE_PROCESS_RESIZE_METHOD = 'process.resize'
+
+REMOTE_PROCESS_OUTPUT_METHOD = 'process.output'
+REMOTE_PROCESS_OUTPUT_END_METHOD = 'process.output_end'
+REMOTE_PROCESS_EXITED_METHOD = 'process.exited'
+
+# The agent's unprompted notifications, which the host applies inline, in wire order.
+REMOTE_PROCESS_EVENT_METHODS = frozenset([
+    REMOTE_PROCESS_OUTPUT_METHOD,
+    REMOTE_PROCESS_OUTPUT_END_METHOD,
+    REMOTE_PROCESS_EXITED_METHOD,
+])
+
+
+##
+# Requests
 
 
 @dc.dataclass(frozen=True)
-class StdioSpec:
+class RemoteProcessStdioSpec:
     kind: str
     stdin: ta.Optional[str] = None
     stdout: ta.Optional[str] = None
@@ -3027,11 +3215,11 @@ class StdioSpec:
 
 
 @dc.dataclass(frozen=True)
-class SpawnParams:
+class RemoteProcessSpawnParams:
     argv: ta.List[str]
     cwd: ta.Optional[str]
     env: ta.Optional[ta.Dict[str, str]]
-    stdio: StdioSpec
+    stdio: RemoteProcessStdioSpec
     name: ta.Optional[str]
 
     def __post_init__(self) -> None:
@@ -3039,7 +3227,7 @@ class SpawnParams:
 
 
 @dc.dataclass(frozen=True)
-class SpawnResult:
+class RemoteProcessSpawnResult:
     id: str
     pid: int
     created_at: float
@@ -3052,7 +3240,7 @@ class SpawnResult:
 
 
 @dc.dataclass(frozen=True)
-class SignalParams:
+class RemoteProcessSignalParams:
     id: str
     signal: int
     process_group: bool
@@ -3063,7 +3251,7 @@ class SignalParams:
 
 
 @dc.dataclass(frozen=True)
-class ClosePolicySpec:
+class RemoteProcessClosePolicySpec:
     signal: int
     grace_s: float
     kill_s: float
@@ -3079,16 +3267,16 @@ class ClosePolicySpec:
 
 
 @dc.dataclass(frozen=True)
-class CloseParams:
+class RemoteProcessCloseParams:
     id: str
-    policy: ClosePolicySpec
+    policy: RemoteProcessClosePolicySpec
 
     def __post_init__(self) -> None:
         check.non_empty_str(self.id)
 
 
 @dc.dataclass(frozen=True)
-class CloseResult:
+class RemoteProcessCloseResult:
     returncode: int
     state: str
 
@@ -3097,7 +3285,7 @@ class CloseResult:
 
 
 @dc.dataclass(frozen=True)
-class WriteParams:
+class RemoteProcessWriteParams:
     id: str
     data: bytes
 
@@ -3106,7 +3294,7 @@ class WriteParams:
 
 
 @dc.dataclass(frozen=True)
-class ProcessRefParams:
+class RemoteProcessRefParams:
     id: str
 
     def __post_init__(self) -> None:
@@ -3114,7 +3302,7 @@ class ProcessRefParams:
 
 
 @dc.dataclass(frozen=True)
-class ResizeParams:
+class RemoteProcessResizeParams:
     id: str
     rows: int
     cols: int
@@ -3126,11 +3314,11 @@ class ResizeParams:
 
 
 ##
-# Process notifications (agent -> host)
+# Notifications (agent -> host)
 
 
 @dc.dataclass(frozen=True)
-class OutputEvent:
+class RemoteProcessOutputEvent:
     id: str
     fd: int
     data: bytes
@@ -3141,7 +3329,7 @@ class OutputEvent:
 
 
 @dc.dataclass(frozen=True)
-class OutputEndEvent:
+class RemoteProcessOutputEndEvent:
     id: str
 
     def __post_init__(self) -> None:
@@ -3149,7 +3337,7 @@ class OutputEndEvent:
 
 
 @dc.dataclass(frozen=True)
-class ExitedEvent:
+class RemoteProcessExitedEvent:
     id: str
     returncode: int
 
@@ -3254,6 +3442,34 @@ class RpcMethodHandler(RpcHandler):
         except KeyError:
             raise RpcMethodNotFoundError(method) from None
         return await fn(params)
+
+
+class RpcNotificationRouter(RpcHandler):
+    """
+    The handler for an endpoint which only ever receives notifications: each is applied inline, in wire order, by the
+    callback routed for its method, and anything unrouted, calls included, is rejected as not found. Routes may be
+    added after the peer is built, so whatever applies a method can itself be built on that peer.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._routes: ta.Dict[str, RpcInlineNotificationHandler] = {}
+
+    def add_routes(self, methods: ta.Iterable[str], handler: RpcInlineNotificationHandler) -> None:
+        for method in methods:
+            if method in self._routes:
+                raise ValueError(f'RPC notification method is already routed: {method!r}')
+            self._routes[method] = handler
+
+    def handle_notification_inline(self, method: str, params: ta.Any) -> bool:
+        if (handler := self._routes.get(method)) is None:
+            return False
+        handler(method, params)
+        return True
+
+    async def handle(self, method: str, params: ta.Any) -> ta.Any:
+        raise RpcMethodNotFoundError(method)
 
 
 ########################################
@@ -3410,6 +3626,105 @@ class JsonRpcMessageCodec(RpcMessageCodec):
             # Any failure to build the message from its wire fields - an unknown or missing field, a bad nested shape -
             # is a protocol error.
             raise RpcProtocolError(f'Invalid RPC {tag} message: {e}') from e
+
+
+########################################
+# ../../fs/remote/server.py
+"""
+The target side of the remote filesystem: `RemoteFsService` serves the `FsOps` operations on behalf of a host's
+`RemoteFsOps`. Lite: this runs inside the remote agent amalgam under Python 3.8+, and imports nothing but the standard
+library, `omcore.lite`, the rpc package, and the shared lite filesystem helpers.
+"""
+
+
+##
+
+
+class RemoteFsService:
+    @staticmethod
+    def _entry(path: str, name: ta.Optional[str] = None) -> RemoteFsEntry:
+        return RemoteFsEntry(
+            name=os.path.basename(path) if name is None else name,
+            path=path,
+            is_dir=os.path.isdir(path),
+            is_file=os.path.isfile(path),
+            is_symlink=os.path.islink(path),
+        )
+
+    async def resolve_path(self, params: ta.Any) -> str:
+        p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
+        return fs_resolve_path(p.path)
+
+    async def stat(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
+        lst = os.lstat(p.path)
+        st = os.stat(p.path)
+        return marshal_obj(RemoteFsStatResult(
+            path=p.path,
+            size=st.st_size,
+            is_dir=stat_.S_ISDIR(st.st_mode),
+            is_file=stat_.S_ISREG(st.st_mode),
+            is_symlink=stat_.S_ISLNK(lst.st_mode),
+        ))
+
+    async def read_file(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
+        with open(p.path, 'rb') as f:  # noqa
+            data = f.read()
+        return marshal_obj(RemoteFsReadFileResult(
+            data=data,
+            digest=fs_file_digest(data),
+        ))
+
+    async def write_file(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsWriteFileParams = unmarshal_obj(params, RemoteFsWriteFileParams)
+        created = fs_write_file(
+            p.path,
+            p.content,
+            overwrite=p.overwrite,
+            expected_digest=p.expected_digest,
+        )
+        return marshal_obj(RemoteFsWriteFileResult(
+            created=created,
+        ))
+
+    async def list_dir(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
+        return marshal_obj(
+            [
+                RemoteFsEntry(
+                    name=entry.name,
+                    path=entry.path,
+                    is_dir=entry.is_dir(),
+                    is_file=entry.is_file(),
+                    is_symlink=entry.is_symlink(),
+                )
+                for entry in os.scandir(p.path)
+            ],
+            ta.List[RemoteFsEntry],
+        )
+
+    async def glob(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsGlobParams = unmarshal_obj(params, RemoteFsGlobParams)
+        paths, has_more = fs_glob_paths(
+            p.pattern,
+            root=p.root,
+            max_results=p.max_results,
+        )
+        return marshal_obj(RemoteFsGlobResult(
+            entries=[self._entry(path) for path in paths],
+            has_more=has_more,
+        ))
+
+    def methods(self) -> ta.Mapping[str, RpcMethod]:
+        return {
+            REMOTE_FS_RESOLVE_PATH_METHOD: self.resolve_path,
+            REMOTE_FS_STAT_METHOD: self.stat,
+            REMOTE_FS_READ_FILE_METHOD: self.read_file,
+            REMOTE_FS_WRITE_FILE_METHOD: self.write_file,
+            REMOTE_FS_LIST_DIR_METHOD: self.list_dir,
+            REMOTE_FS_GLOB_METHOD: self.glob,
+        }
 
 
 ########################################
@@ -4073,8 +4388,18 @@ class RpcPeer:
 
 
 ########################################
-# ../server.py
-"""Python-3.8-compatible filesystem and process services used by the remote agent amalgam."""
+# ../../../core/processes/remote/server.py
+"""
+The target side of remote process management: `RemoteProcessService` spawns, streams, signals, and reaps children on
+behalf of a host's `RemoteProcessManager`, over the rpc peer it is given. Lite: this runs inside the remote agent
+amalgam under Python 3.8+, and imports nothing but the standard library, `omcore.lite`, and the rpc package.
+
+Children run in owned process groups and keep an unreaped leader until `close` deliberately reaps them, so their pid
+and pgid stay ours to signal. Exits are observed by one SIGCHLD handler probing every unexited child with a
+non-blocking, non-reaping `waitid`, which requires the event loop to run in the main thread. Output chunks, end of
+output, and exits reach the host as notifications in wire order, and the reply to a `close` is therefore an ordering
+barrier for everything sent before it.
+"""
 
 
 ##
@@ -4177,181 +4502,6 @@ def _remote_process_wait(pid: int, *, nohang: bool = False) -> ta.Optional[int]:
     return _remote_process_returncode(info.si_code, info.si_status)
 
 
-def _remote_fs_digest(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def _remote_glob_root(pattern: str) -> str:
-    if not os.path.isabs(pattern):
-        raise ValueError(f'glob pattern must be absolute: {pattern!r}')
-
-    pattern = os.path.normpath(pattern)
-    drive, tail = os.path.splitdrive(pattern)
-    root = drive + os.sep
-    for part in tail.lstrip(os.sep).split(os.sep):
-        if any(char in part for char in '*?['):
-            break
-        root = os.path.join(root, part)
-    return root
-
-
-def _remote_path_is_under(path: str, root: str) -> bool:
-    try:
-        return os.path.commonpath((path, root)) == root
-    except ValueError:
-        return False
-
-
-class _RemoteFsFileChangedError(RuntimeError):
-    pass
-
-
-class _RemoteFsService:
-    @staticmethod
-    def _resolve(path: str) -> str:
-        return os.path.abspath(os.path.realpath(path))
-
-    @staticmethod
-    def _entry(path: str, name: ta.Optional[str] = None) -> FsEntry:
-        return FsEntry(
-            name=os.path.basename(path) if name is None else name,
-            path=path,
-            is_dir=os.path.isdir(path),
-            is_file=os.path.isfile(path),
-            is_symlink=os.path.islink(path),
-        )
-
-    @staticmethod
-    def _check_expected_digest(path: str, expected_digest: str) -> None:
-        try:
-            with open(path, 'rb') as f:  # noqa
-                actual_digest = _remote_fs_digest(f.read())
-        except FileNotFoundError:
-            actual_digest = None
-
-        if actual_digest != expected_digest:
-            raise _RemoteFsFileChangedError(f'File changed since it was read: {path!r}')
-
-    async def resolve_path(self, params: ta.Any) -> str:
-        p: PathParams = unmarshal_obj(params, PathParams)
-        return self._resolve(p.path)
-
-    async def stat(self, params: ta.Any) -> ta.Any:
-        p: PathParams = unmarshal_obj(params, PathParams)
-        lst = os.lstat(p.path)
-        st = os.stat(p.path)
-        return marshal_obj(StatResult(
-            path=p.path,
-            size=st.st_size,
-            is_dir=stat_.S_ISDIR(st.st_mode),
-            is_file=stat_.S_ISREG(st.st_mode),
-            is_symlink=stat_.S_ISLNK(lst.st_mode),
-        ))
-
-    async def read_file(self, params: ta.Any) -> ta.Any:
-        p: PathParams = unmarshal_obj(params, PathParams)
-        with open(p.path, 'rb') as f:  # noqa
-            data = f.read()
-        return marshal_obj(ReadFileResult(
-            data=data,
-            digest=_remote_fs_digest(data),
-        ))
-
-    async def write_file(self, params: ta.Any) -> ta.Any:
-        p: WriteFileParams = unmarshal_obj(params, WriteFileParams)
-        path = p.path
-        content = p.content
-        overwrite = p.overwrite
-        expected_digest = p.expected_digest
-
-        dst_dir = os.path.dirname(path)
-        tmp_dir = tempfile.mkdtemp(prefix='.omllm-write-', dir=dst_dir)
-        tmp_path = os.path.join(tmp_dir, 'file')
-        fd = -1
-        try:
-            fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-            with os.fdopen(fd, 'wb') as f:
-                fd = -1
-                f.write(content)
-
-            try:
-                lst = os.lstat(path)
-            except FileNotFoundError:
-                if expected_digest is not None:
-                    raise _RemoteFsFileChangedError(f'File changed since it was read: {path!r}') from None
-                os.link(tmp_path, path)
-                os.unlink(tmp_path)
-                tmp_path = ''
-                return marshal_obj(WriteFileResult(
-                    created=True,
-                ))
-
-            if not overwrite:
-                raise FileExistsError(path)
-            if not stat_.S_ISREG(lst.st_mode):
-                raise IsADirectoryError(path)
-            if expected_digest is not None:
-                self._check_expected_digest(path, expected_digest)
-
-            os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
-            os.replace(tmp_path, path)
-            tmp_path = ''
-            return marshal_obj(WriteFileResult(
-                created=False,
-            ))
-
-        finally:
-            if fd >= 0:
-                os.close(fd)
-            if tmp_path:
-                try:
-                    os.unlink(tmp_path)
-                except FileNotFoundError:
-                    pass
-            os.rmdir(tmp_dir)
-
-    async def list_dir(self, params: ta.Any) -> ta.Any:
-        p: PathParams = unmarshal_obj(params, PathParams)
-        return marshal_obj(
-            [
-                FsEntry(
-                    name=entry.name,
-                    path=entry.path,
-                    is_dir=entry.is_dir(),
-                    is_file=entry.is_file(),
-                    is_symlink=entry.is_symlink(),
-                )
-                for entry in os.scandir(p.path)
-            ],
-            ta.List[FsEntry],
-        )
-
-    async def glob(self, params: ta.Any) -> ta.Any:
-        p: GlobParams = unmarshal_obj(params, GlobParams)
-        pattern = p.pattern
-        root = p.root
-        max_results = p.max_results
-
-        resolved_root = self._resolve(root)
-        resolved_glob_root = self._resolve(_remote_glob_root(pattern))
-        if not _remote_path_is_under(resolved_glob_root, resolved_root):
-            raise ValueError(f'glob root {resolved_glob_root!r} is outside permitted root {resolved_root!r}')
-
-        entries: ta.List[FsEntry] = []
-        has_more = False
-        for path in glob_.iglob(pattern, recursive=True):
-            if not _remote_path_is_under(self._resolve(path), resolved_root):
-                continue
-            if max_results is not None and len(entries) >= max_results:
-                has_more = True
-                break
-            entries.append(self._entry(path))
-        return marshal_obj(GlobResult(
-            entries=entries,
-            has_more=has_more,
-        ))
-
-
 ##
 
 
@@ -4380,7 +4530,7 @@ def _remote_log(msg: str, *, exc: ta.Optional[BaseException] = None) -> None:
 class _RemoteServerProcess:
     def __init__(
             self,
-            service: '_RemoteProcessService',  # noqa: UP037
+            service: 'RemoteProcessService',  # noqa: UP037
             process_id: str,
             popen: subprocess.Popen,
             *,
@@ -4443,8 +4593,8 @@ class _RemoteServerProcess:
             if self._open_readers == 0 and not self._output_ended.is_set():
                 self._output_ended.set()
                 await self._service.notify(
-                    PROCESS_OUTPUT_END_METHOD,
-                    marshal_obj(OutputEndEvent(
+                    REMOTE_PROCESS_OUTPUT_END_METHOD,
+                    marshal_obj(RemoteProcessOutputEndEvent(
                         id=self.id,
                     )),
                 )
@@ -4477,8 +4627,8 @@ class _RemoteServerProcess:
             # Nothing to read: the output is over before it began.
             self._output_ended.set()
             self._service.queue_event(
-                PROCESS_OUTPUT_END_METHOD,
-                marshal_obj(OutputEndEvent(
+                REMOTE_PROCESS_OUTPUT_END_METHOD,
+                marshal_obj(RemoteProcessOutputEndEvent(
                     id=self.id,
                 )),
             )
@@ -4499,8 +4649,8 @@ class _RemoteServerProcess:
             if not data:
                 return False
             await self._service.notify(
-                PROCESS_OUTPUT_METHOD,
-                marshal_obj(OutputEvent(
+                REMOTE_PROCESS_OUTPUT_METHOD,
+                marshal_obj(RemoteProcessOutputEvent(
                     id=self.id,
                     fd=output_fd,
                     data=data,
@@ -4554,8 +4704,8 @@ class _RemoteServerProcess:
             if not data:
                 return
             await self._service.notify(
-                PROCESS_OUTPUT_METHOD,
-                marshal_obj(OutputEvent(
+                REMOTE_PROCESS_OUTPUT_METHOD,
+                marshal_obj(RemoteProcessOutputEvent(
                     id=self.id,
                     fd=fd,
                     data=data,
@@ -4585,8 +4735,8 @@ class _RemoteServerProcess:
         if (readable := self._pty_readable) is not None and not readable.done():
             readable.set_result(None)
         self._service.queue_event(
-            PROCESS_EXITED_METHOD,
-            marshal_obj(ExitedEvent(
+            REMOTE_PROCESS_EXITED_METHOD,
+            marshal_obj(RemoteProcessExitedEvent(
                 id=self.id,
                 returncode=returncode,
             )),
@@ -4742,7 +4892,7 @@ class _RemoteServerProcess:
             self._exited.set()
         self.popen.returncode = self._returncode
 
-    async def _run_close(self, policy: ClosePolicySpec) -> CloseResult:
+    async def _run_close(self, policy: RemoteProcessClosePolicySpec) -> RemoteProcessCloseResult:
         close_stdin = policy.close_stdin
         first_signal = policy.signal
         grace_s = policy.grace_s
@@ -4784,11 +4934,11 @@ class _RemoteServerProcess:
             await asyncio.gather(*self._reader_tasks, return_exceptions=True)
         self._reap()
         self._service.finished(self)
-        return CloseResult(returncode=check.not_none(self._returncode), state='reaped')
+        return RemoteProcessCloseResult(returncode=check.not_none(self._returncode), state='reaped')
 
-    async def close(self, policy: ClosePolicySpec) -> CloseResult:
+    async def close(self, policy: RemoteProcessClosePolicySpec) -> RemoteProcessCloseResult:
         if self._reaped:
-            return CloseResult(returncode=check.not_none(self._returncode), state='reaped')
+            return RemoteProcessCloseResult(returncode=check.not_none(self._returncode), state='reaped')
         if self._close_task is None:
             self._close_task = asyncio.create_task(
                 self._run_close(policy),
@@ -4835,8 +4985,8 @@ class _RemoteServerProcess:
         return self._returncode
 
 
-class _RemoteProcessService:
-    _DEFAULT_CLOSE_POLICY: ta.ClassVar[ClosePolicySpec] = ClosePolicySpec(
+class RemoteProcessService:
+    _DEFAULT_CLOSE_POLICY: ta.ClassVar[RemoteProcessClosePolicySpec] = RemoteProcessClosePolicySpec(
         signal=int(signal.SIGTERM),
         grace_s=5.,
         kill_s=5.,
@@ -4952,7 +5102,7 @@ class _RemoteProcessService:
     async def spawn(self, params: ta.Any) -> ta.Any:
         if self._closed:
             raise RuntimeError('remote process service is closed')
-        p: SpawnParams = unmarshal_obj(params, SpawnParams)
+        p: RemoteProcessSpawnParams = unmarshal_obj(params, RemoteProcessSpawnParams)
         argv = list(p.argv)
         cwd = p.cwd
         env = dict(p.env) if p.env is not None else None
@@ -5048,7 +5198,7 @@ class _RemoteProcessService:
             process._close_streams()  # noqa: SLF001
             raise
 
-        return marshal_obj(SpawnResult(
+        return marshal_obj(RemoteProcessSpawnResult(
             id=process.id,
             pid=process.popen.pid,
             created_at=process.created_at,
@@ -5056,24 +5206,34 @@ class _RemoteProcessService:
         ))
 
     async def signal(self, params: ta.Any) -> None:
-        p: SignalParams = unmarshal_obj(params, SignalParams)
+        p: RemoteProcessSignalParams = unmarshal_obj(params, RemoteProcessSignalParams)
         await self._lookup(p.id).signal(p.signal, p.process_group)
 
     async def close(self, params: ta.Any) -> ta.Any:
-        p: CloseParams = unmarshal_obj(params, CloseParams)
+        p: RemoteProcessCloseParams = unmarshal_obj(params, RemoteProcessCloseParams)
         return marshal_obj(await self._lookup(p.id).close(p.policy))
 
     async def write(self, params: ta.Any) -> None:
-        p: WriteParams = unmarshal_obj(params, WriteParams)
+        p: RemoteProcessWriteParams = unmarshal_obj(params, RemoteProcessWriteParams)
         await self._lookup(p.id).write(p.data)
 
     async def write_eof(self, params: ta.Any) -> None:
-        p: ProcessRefParams = unmarshal_obj(params, ProcessRefParams)
+        p: RemoteProcessRefParams = unmarshal_obj(params, RemoteProcessRefParams)
         await self._lookup(p.id).write_eof()
 
     async def resize(self, params: ta.Any) -> None:
-        p: ResizeParams = unmarshal_obj(params, ResizeParams)
+        p: RemoteProcessResizeParams = unmarshal_obj(params, RemoteProcessResizeParams)
         await self._lookup(p.id).resize(p.rows, p.cols)
+
+    def methods(self) -> ta.Mapping[str, RpcMethod]:
+        return {
+            REMOTE_PROCESS_SPAWN_METHOD: self.spawn,
+            REMOTE_PROCESS_SIGNAL_METHOD: self.signal,
+            REMOTE_PROCESS_CLOSE_METHOD: self.close,
+            REMOTE_PROCESS_WRITE_METHOD: self.write,
+            REMOTE_PROCESS_WRITE_EOF_METHOD: self.write_eof,
+            REMOTE_PROCESS_RESIZE_METHOD: self.resize,
+        }
 
     async def _close_at_shutdown(self, process: _RemoteServerProcess) -> None:
         """
@@ -5122,6 +5282,15 @@ class _RemoteProcessService:
                 await asyncio.gather(task, return_exceptions=True)
 
 
+########################################
+# ../server.py
+"""
+The remote agent payload's request handler: the method tables of each remotable concern's target-side service, merged
+over the one rpc peer. Lite: this is the amalgam's composition root beneath `main.py`. A new remotable concern plugs in
+here, and its host-side client into `client.py`; nothing below either knows the others exist.
+"""
+
+
 ##
 
 
@@ -5129,24 +5298,21 @@ class RemoteAgentRpcHandler(RpcHandler):
     def __init__(self) -> None:
         super().__init__()
 
-        self._fs = _RemoteFsService()
-        self._processes = _RemoteProcessService()
-        self._methods = {
-            FS_RESOLVE_PATH_METHOD: self._fs.resolve_path,
-            FS_STAT_METHOD: self._fs.stat,
-            FS_READ_FILE_METHOD: self._fs.read_file,
-            FS_WRITE_FILE_METHOD: self._fs.write_file,
-            FS_LIST_DIR_METHOD: self._fs.list_dir,
-            FS_GLOB_METHOD: self._fs.glob,
-            PROCESS_SPAWN_METHOD: self._processes.spawn,
-            PROCESS_SIGNAL_METHOD: self._processes.signal,
-            PROCESS_CLOSE_METHOD: self._processes.close,
-            PROCESS_WRITE_METHOD: self._processes.write,
-            PROCESS_WRITE_EOF_METHOD: self._processes.write_eof,
-            PROCESS_RESIZE_METHOD: self._processes.resize,
-        }
+        self._fs = RemoteFsService()
+        self._processes = RemoteProcessService()
+
+        self._methods: ta.Dict[str, RpcMethod] = {}
+        for table in (
+                self._fs.methods(),
+                self._processes.methods(),
+        ):
+            for method, fn in table.items():
+                if method in self._methods:
+                    raise ValueError(f'Duplicate remote agent method: {method!r}')
+                self._methods[method] = fn
 
     def set_peer(self, peer: RpcPeer) -> None:
+        # Only the process service speaks unprompted - its output and exit notifications - so only it needs the peer.
         self._processes.set_peer(peer)
 
     async def handle(self, method: str, params: ta.Any) -> ta.Any:

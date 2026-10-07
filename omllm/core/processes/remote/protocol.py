@@ -1,5 +1,9 @@
 # ruff: noqa: UP006 UP007 UP045
-"""JSON-compatible request/result/notification shapes shared by the host adapter and the remote agent payload."""
+"""
+The wire shapes of remote process management: the requests the host's `RemoteProcessManager` makes of the agent's
+`RemoteProcessService`, their results, and the notifications the agent sends back unprompted. Lite: shared with the
+remote agent amalgam, so Python 3.8 compatible and marshaled with the lite marshaler.
+"""
 import dataclasses as dc
 import typing as ta
 
@@ -9,100 +13,31 @@ from omcore.lite.check import check
 ##
 
 
-FS_RESOLVE_PATH_METHOD = 'fs.resolve_path'
-FS_STAT_METHOD = 'fs.stat'
-FS_READ_FILE_METHOD = 'fs.read_file'
-FS_WRITE_FILE_METHOD = 'fs.write_file'
-FS_LIST_DIR_METHOD = 'fs.list_dir'
-FS_GLOB_METHOD = 'fs.glob'
+REMOTE_PROCESS_SPAWN_METHOD = 'process.spawn'
+REMOTE_PROCESS_SIGNAL_METHOD = 'process.signal'
+REMOTE_PROCESS_CLOSE_METHOD = 'process.close'
+REMOTE_PROCESS_WRITE_METHOD = 'process.write'
+REMOTE_PROCESS_WRITE_EOF_METHOD = 'process.write_eof'
+REMOTE_PROCESS_RESIZE_METHOD = 'process.resize'
 
-PROCESS_SPAWN_METHOD = 'process.spawn'
-PROCESS_SIGNAL_METHOD = 'process.signal'
-PROCESS_CLOSE_METHOD = 'process.close'
-PROCESS_WRITE_METHOD = 'process.write'
-PROCESS_WRITE_EOF_METHOD = 'process.write_eof'
-PROCESS_RESIZE_METHOD = 'process.resize'
+REMOTE_PROCESS_OUTPUT_METHOD = 'process.output'
+REMOTE_PROCESS_OUTPUT_END_METHOD = 'process.output_end'
+REMOTE_PROCESS_EXITED_METHOD = 'process.exited'
 
-PROCESS_OUTPUT_METHOD = 'process.output'
-PROCESS_OUTPUT_END_METHOD = 'process.output_end'
-PROCESS_EXITED_METHOD = 'process.exited'
-
-
-##
-# Filesystem
-
-
-@dc.dataclass(frozen=True)
-class PathParams:
-    path: str
-
-
-@dc.dataclass(frozen=True)
-class StatResult:
-    path: str
-    size: int
-    is_dir: bool
-    is_file: bool
-    is_symlink: bool
-
-    def __post_init__(self) -> None:
-        check.arg(self.size >= 0)
-
-
-@dc.dataclass(frozen=True)
-class ReadFileResult:
-    data: bytes
-    digest: str
-
-    def __post_init__(self) -> None:
-        check.non_empty_str(self.digest)
-
-
-@dc.dataclass(frozen=True)
-class WriteFileParams:
-    path: str
-    content: bytes
-    overwrite: bool
-    expected_digest: ta.Optional[str]
-
-
-@dc.dataclass(frozen=True)
-class WriteFileResult:
-    created: bool
-
-
-@dc.dataclass(frozen=True)
-class FsEntry:
-    name: str
-    path: str
-    is_dir: bool
-    is_file: bool
-    is_symlink: bool
-
-
-@dc.dataclass(frozen=True)
-class GlobParams:
-    pattern: str
-    root: str
-    max_results: ta.Optional[int]
-
-    def __post_init__(self) -> None:
-        if self.max_results is not None:
-            check.arg(self.max_results >= 0)
-
-
-@dc.dataclass(frozen=True)
-class GlobResult:
-    entries: ta.List[FsEntry]
-    has_more: bool
+# The agent's unprompted notifications, which the host applies inline, in wire order.
+REMOTE_PROCESS_EVENT_METHODS = frozenset([
+    REMOTE_PROCESS_OUTPUT_METHOD,
+    REMOTE_PROCESS_OUTPUT_END_METHOD,
+    REMOTE_PROCESS_EXITED_METHOD,
+])
 
 
 ##
-# Processes
+# Requests
 
 
 @dc.dataclass(frozen=True)
-class StdioSpec:
+class RemoteProcessStdioSpec:
     kind: str
     stdin: ta.Optional[str] = None
     stdout: ta.Optional[str] = None
@@ -124,11 +59,11 @@ class StdioSpec:
 
 
 @dc.dataclass(frozen=True)
-class SpawnParams:
+class RemoteProcessSpawnParams:
     argv: ta.List[str]
     cwd: ta.Optional[str]
     env: ta.Optional[ta.Dict[str, str]]
-    stdio: StdioSpec
+    stdio: RemoteProcessStdioSpec
     name: ta.Optional[str]
 
     def __post_init__(self) -> None:
@@ -136,7 +71,7 @@ class SpawnParams:
 
 
 @dc.dataclass(frozen=True)
-class SpawnResult:
+class RemoteProcessSpawnResult:
     id: str
     pid: int
     created_at: float
@@ -149,7 +84,7 @@ class SpawnResult:
 
 
 @dc.dataclass(frozen=True)
-class SignalParams:
+class RemoteProcessSignalParams:
     id: str
     signal: int
     process_group: bool
@@ -160,7 +95,7 @@ class SignalParams:
 
 
 @dc.dataclass(frozen=True)
-class ClosePolicySpec:
+class RemoteProcessClosePolicySpec:
     signal: int
     grace_s: float
     kill_s: float
@@ -176,16 +111,16 @@ class ClosePolicySpec:
 
 
 @dc.dataclass(frozen=True)
-class CloseParams:
+class RemoteProcessCloseParams:
     id: str
-    policy: ClosePolicySpec
+    policy: RemoteProcessClosePolicySpec
 
     def __post_init__(self) -> None:
         check.non_empty_str(self.id)
 
 
 @dc.dataclass(frozen=True)
-class CloseResult:
+class RemoteProcessCloseResult:
     returncode: int
     state: str
 
@@ -194,7 +129,7 @@ class CloseResult:
 
 
 @dc.dataclass(frozen=True)
-class WriteParams:
+class RemoteProcessWriteParams:
     id: str
     data: bytes
 
@@ -203,7 +138,7 @@ class WriteParams:
 
 
 @dc.dataclass(frozen=True)
-class ProcessRefParams:
+class RemoteProcessRefParams:
     id: str
 
     def __post_init__(self) -> None:
@@ -211,7 +146,7 @@ class ProcessRefParams:
 
 
 @dc.dataclass(frozen=True)
-class ResizeParams:
+class RemoteProcessResizeParams:
     id: str
     rows: int
     cols: int
@@ -223,11 +158,11 @@ class ResizeParams:
 
 
 ##
-# Process notifications (agent -> host)
+# Notifications (agent -> host)
 
 
 @dc.dataclass(frozen=True)
-class OutputEvent:
+class RemoteProcessOutputEvent:
     id: str
     fd: int
     data: bytes
@@ -238,7 +173,7 @@ class OutputEvent:
 
 
 @dc.dataclass(frozen=True)
-class OutputEndEvent:
+class RemoteProcessOutputEndEvent:
     id: str
 
     def __post_init__(self) -> None:
@@ -246,7 +181,7 @@ class OutputEndEvent:
 
 
 @dc.dataclass(frozen=True)
-class ExitedEvent:
+class RemoteProcessExitedEvent:
     id: str
     returncode: int
 

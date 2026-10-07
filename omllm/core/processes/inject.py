@@ -14,6 +14,14 @@ from .managers.types import RootProcessScope
 ##
 
 
+def bind_root_process_scope() -> inj.Elements:
+    """Binds the root scope of whichever `ProcessManager` is bound, local or remote, for the ui to hand to tools."""
+
+    return inj.as_elements(
+        inj.bind(RootProcessScope, to_fn=inj.KwargsTarget.of(lambda pm: pm.root, pm=ProcessManager)),
+    )
+
+
 def bind_process_manager(
         config: ManagerConfig | None = None,
 ) -> inj.Elements:
@@ -21,7 +29,7 @@ def bind_process_manager(
 
     lst.append(inj.bind(config if config is not None else ManagerConfig()))
 
-    lst.append(inj.bind(RootProcessScope, to_fn=inj.KwargsTarget.of(lambda pm: pm.root, pm=ProcessManager)))
+    lst.append(bind_root_process_scope())
 
     lst.extend([
         inj.bind(

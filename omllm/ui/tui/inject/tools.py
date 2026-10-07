@@ -56,6 +56,21 @@ async def _provide_remote_target_cwd(config: Config, fs: agn.FsOps) -> TargetCwd
 ##
 
 
+def _provide_unsandboxed_ripgrep_tool(
+        permissions: agn.PermissionDecider,
+        exec: agn.ExecOps,  # noqa
+        fs: agn.FsOps,
+) -> agn.RipgrepTool:
+    # The platform sandbox confines a local `rg` by its host path. Against a container the process runs remotely, where
+    # neither the host's sandbox nor the host's `rg` applies, so it is left target-relative and unconfined.
+    return agn.RipgrepTool(
+        permissions=permissions,
+        exec=exec,
+        fs=fs,
+        sandbox=False,
+    )
+
+
 def bind_tools(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
@@ -125,10 +140,12 @@ def bind_tools(config: Config) -> inj.Elements:
         ])
 
     if config.exec and config.fs:
-        lst.extend([
-            inj.bind(agn.RipgrepTool, singleton=True),
-            bind_agent_tool_class(agn.RipgrepTool),
-        ])
+        if config.container is not None:
+            lst.append(inj.bind(agn.RipgrepTool, singleton=True, to_fn=_provide_unsandboxed_ripgrep_tool))
+        else:
+            lst.append(inj.bind(agn.RipgrepTool, singleton=True))
+
+        lst.append(bind_agent_tool_class(agn.RipgrepTool))
 
     if config.web:
         lst.extend([

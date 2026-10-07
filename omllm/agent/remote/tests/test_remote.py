@@ -1,32 +1,30 @@
+"""
+The remote agent end to end: the generated amalgam, bootstrapped into a separate interpreter (the Python 3.8 venv when
+there is one) exactly as the docker connection does it, and driven through `RemoteAgentClient`.
+"""
 import asyncio
 import contextlib
-import ctypes
 import fcntl
 import os
 import pathlib
-import signal
 import sys
 import time
-import types
 import typing as ta
 
 import pytest
 
 from omcore import dataclasses as dc
-from omcore.lite.marshal import unmarshal_obj
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
 
 from ....core import processes
+from ....core.processes.remote.tests.support import TERMINATION_PROCESS_SRC
 from ....core.rpc.channels import AsyncioStreamRpcChannel
 from ...exec.ops import ExecParams
 from ...exec.ops import ProcessesExecOps
-from ...fs.ops import FsFileChangedError
-from .. import server as remote_server
+from ...fs.common import FsFileChangedError
 from ..client import RemoteAgentClient
 from ..payload import get_remote_agent_payload_src
-from ..protocol import PROCESS_OUTPUT_METHOD
-from ..protocol import OutputEvent
 
 
 ##
@@ -36,65 +34,6 @@ from ..protocol import OutputEvent
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 _PYTHON_38 = _REPO_ROOT / '.venvs' / '8' / 'bin' / 'python'
 _PYTHON = str(_PYTHON_38) if _PYTHON_38.is_file() else sys.executable
-
-
-# Darwin's Bash 3.2 can defer a TERM trap around `sleep & wait` until the sleep finishes, or even crash. Either leaves
-# the termination marker missing even when killpg succeeds. Use a single Python process to avoid that shell
-# fork/wait race, and keep the helper compatible with the Python 3.8 interpreter used for the remote agent.
-#
-# Arguments: the marker path, written once TERM arrives; then, optionally, a lock path. Given one, it takes an exclusive
-# flock on it and forks a descendant into its process group that shares the lock and ignores TERM - one only the group
-# sweep's SIGKILL can end. The lock is free again only once both are gone. Everything is in place before 'ready'.
-_TERMINATION_PROCESS_SRC = """
-import fcntl
-import os
-import signal
-import sys
-import time
-
-
-def _fork_stubborn_descendant():
-    # Fully set up - TERM ignored, our stdio let go of - before it reports in, so no TERM can reach it first.
-    r, w = os.pipe()
-    if os.fork():
-        os.close(w)
-        if os.read(r, 1) != b'+':
-            raise RuntimeError('descendant failed to start')
-        os.close(r)
-        return
-
-    try:
-        os.close(r)
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        null = os.open(os.devnull, os.O_RDWR)
-        for fd in (0, 1, 2):
-            os.dup2(null, fd)
-        os.write(w, b'+')
-        os.close(w)
-        # Bounded, so one that escapes the sweep does not linger long after the test that let it.
-        time.sleep(120)
-    finally:
-        os._exit(0)
-
-
-def _main():
-    # Block TERM before announcing readiness: sigwait consumes it even if it arrives before the wait starts.
-    # Python handlers are deferred, so signal.signal + signal.pause would leave a smaller lost-wakeup window.
-    term_signals = {signal.SIGTERM}
-    signal.pthread_sigmask(signal.SIG_BLOCK, term_signals)
-    if len(sys.argv) > 2:
-        lock_fd = os.open(sys.argv[2], os.O_RDWR | os.O_CREAT, 0o600)
-        fcntl.flock(lock_fd, fcntl.LOCK_EX)
-        _fork_stubborn_descendant()
-    os.write(1, b'ready')
-    signal.sigwait(term_signals)
-    with open(sys.argv[1], 'wb') as f:
-        f.write(b'terminated')
-
-
-if __name__ == '__main__':
-    _main()
-"""
 
 
 @contextlib.asynccontextmanager
@@ -139,64 +78,6 @@ async def _remote_agent(*, stderr_sink: list[str] | None = None) -> ta.AsyncIter
         if stderr_sink is not None:
             stderr_sink.append(stderr)
         assert returncode == 0, stderr
-
-
-##
-
-
-def test_remote_process_wait_darwin_fallback(monkeypatch) -> None:
-    calls: list[tuple[int, bool]] = []
-
-    def fallback(pid: int, *, nohang: bool = False) -> int:
-        calls.append((pid, nohang))
-        return 7
-
-    monkeypatch.delattr(remote_server.os, 'waitid')
-    monkeypatch.setattr(remote_server.sys, 'platform', 'darwin')
-    monkeypatch.setattr(remote_server, '_remote_darwin_process_wait', fallback)
-
-    assert remote_server._remote_process_wait(123, nohang=True) == 7  # noqa: SLF001
-    assert calls == [(123, True)]
-
-
-def test_remote_darwin_process_wait_libc(monkeypatch) -> None:
-    calls: list[tuple[int, int, int]] = []
-
-    class FakeWaitid:
-        argtypes: ta.Any = None
-        restype: ta.Any = None
-        exited = True
-
-        def __call__(self, idtype: int, pid: int, info: ta.Any, options: int) -> int:
-            calls.append((idtype, pid, options))
-            if self.exited:
-                info._obj.si_pid = pid  # noqa: SLF001
-                info._obj.si_code = remote_server._REMOTE_CLD_KILLED  # noqa: SLF001
-                info._obj.si_status = 9  # noqa: SLF001
-            return 0
-
-    fake_waitid = FakeWaitid()
-
-    class FakeLibc:
-        waitid = fake_waitid
-
-    monkeypatch.setattr(ctypes, 'CDLL', lambda *_args, **_kwargs: FakeLibc())
-
-    assert remote_server._remote_darwin_process_wait(456) == -9  # noqa: SLF001
-    fake_waitid.exited = False
-    assert remote_server._remote_darwin_process_wait(456, nohang=True) is None  # noqa: SLF001
-    assert calls == [
-        (
-            remote_server._REMOTE_DARWIN_P_PID,  # noqa: SLF001
-            456,
-            remote_server._REMOTE_DARWIN_WEXITED | remote_server._REMOTE_DARWIN_WNOWAIT,  # noqa: SLF001
-        ),
-        (
-            remote_server._REMOTE_DARWIN_P_PID,  # noqa: SLF001
-            456,
-            remote_server._REMOTE_DARWIN_WEXITED | remote_server._REMOTE_DARWIN_WNOWAIT | os.WNOHANG,  # noqa: SLF001
-        ),
-    ]
 
 
 ##
@@ -273,59 +154,6 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
         pty_process.spool.close()
 
         assert not client.processes.root.processes
-
-
-@pytest.mark.asyncs('asyncio')
-async def test_remote_close_reprobes_a_stale_exit_belief_before_killing(tmp_path) -> None:
-    # A stale "already exited" belief must not make close skip the graceful signal: a live process still gets its TERM,
-    # and the chance to write its marker, before any KILL. Driven in process, with the belief injected directly.
-    stdout = asyncio.StreamReader()
-
-    class ProcessService(remote_server._RemoteProcessService):  # noqa: SLF001
-        async def notify(self, method: str, params: ta.Any) -> None:
-            if method == PROCESS_OUTPUT_METHOD:
-                event: OutputEvent = unmarshal_obj(params, OutputEvent)
-                if event.fd == 1:
-                    stdout.feed_data(event.data)
-            await super().notify(method, params)
-
-    service = ProcessService()
-    service._ensure_sigchld()  # noqa: SLF001
-    terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
-    try:
-        spawned = await service.spawn({
-            'argv': [_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path],
-            'cwd': os.path.realpath(tmp_path),
-            'env': None,
-            'name': None,
-            'stdio': {'kind': 'pipes', 'stdin': 'devnull', 'stdout': 'pipe', 'stderr': 'pipe'},
-        })
-        process = service._processes[spawned['id']]  # noqa: SLF001
-        # Synchronize with signal setup instead of assuming the child has started after a fixed delay.
-        assert await asyncio.wait_for(stdout.readexactly(len(b'ready')), 5.) == b'ready'
-        assert not process._exited.is_set()  # noqa: SLF001  # it is actually running
-
-        # Inject the stale belief while the process is known to be alive.
-        process._returncode = 0  # noqa: SLF001
-        process._exited.set()  # noqa: SLF001
-
-        result = await service.close({
-            'id': spawned['id'],
-            'policy': {
-                'signal': int(signal.SIGTERM),
-                'grace_s': 1.5,
-                'kill_s': 1.5,
-                'close_stdin': True,
-                'process_group': True,
-                # No drain window, so only the graceful signal-and-wait (reached by re-probing the stale belief) can
-                # let it write its marker - the sweep would otherwise SIGKILL the group right after its SIGTERM.
-                'drain_s': 0.,
-            },
-        })
-        assert result['state'] == 'reaped'
-        assert pathlib.Path(terminated_path).read_bytes() == b'terminated'
-    finally:
-        await service.aclose()
 
 
 async def _describe_pid(pid: int) -> str:
@@ -426,7 +254,7 @@ async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
     root = os.path.realpath(tmp_path)
     terminated_path = os.path.join(root, 'terminated')
 
-    run = await _run_until_disconnect([_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path], cwd=root)
+    run = await _run_until_disconnect([_PYTHON, '-c', TERMINATION_PROCESS_SRC, terminated_path], cwd=root)
     await _assert_terminated_gracefully(run, terminated_path)
 
 
@@ -459,7 +287,7 @@ async def test_remote_agent_disconnect_sweeps_the_process_group(tmp_path) -> Non
         assert _lock_held(lock_path)
 
     run = await _run_until_disconnect(
-        [_PYTHON, '-c', _TERMINATION_PROCESS_SRC, terminated_path, lock_path],
+        [_PYTHON, '-c', TERMINATION_PROCESS_SRC, terminated_path, lock_path],
         cwd=root,
         before_disconnect=check_lock_held,
     )
@@ -473,75 +301,6 @@ async def test_remote_agent_disconnect_sweeps_the_process_group(tmp_path) -> Non
 
 
 ##
-
-
-@pytest.mark.asyncs('asyncio')
-async def test_remote_shutdown_kills_a_process_whose_close_fails(capsys) -> None:
-    service = remote_server._RemoteProcessService()  # noqa: SLF001
-    spawned = await service.spawn({
-        'argv': ['sleep', '30'],
-        'cwd': None,
-        'env': None,
-        'name': None,
-        'stdio': {'kind': 'pipes', 'stdin': 'devnull', 'stdout': 'pipe', 'stderr': 'pipe'},
-    })
-    process: ta.Any = service._processes[spawned['id']]  # noqa: SLF001
-
-    async def failing_close(policy):
-        raise RuntimeError('simulated close failure')
-
-    process.close = failing_close
-    await service.aclose()
-
-    assert process._reaped  # noqa: SLF001
-    assert process.returncode == -signal.SIGKILL
-    assert not service._processes  # noqa: SLF001
-    err = capsys.readouterr().err
-    assert 'close failed' in err
-    assert 'simulated close failure' in err
-    assert f'killed, returncode={-signal.SIGKILL}' in err
-
-
-def test_remote_waitstatus_to_exitcode() -> None:
-    for status in (0, 7 << 8, 255 << 8, 9, 15, 0x80 | 6):
-        assert remote_server._remote_waitstatus_to_exitcode(status) == os.waitstatus_to_exitcode(status)  # noqa: SLF001
-
-
-def _bare_server_process(pid: int) -> ta.Any:
-    proc: ta.Any = remote_server._RemoteServerProcess.__new__(remote_server._RemoteServerProcess)  # noqa: SLF001
-    proc._reaped = False  # noqa: SLF001
-    proc._exited = asyncio.Event()  # noqa: SLF001
-    proc.popen = types.SimpleNamespace(pid=pid)
-    return proc
-
-
-def test_remote_signal_group_eperm_falls_back_to_leader_pid(monkeypatch) -> None:
-    # A killpg that reports EPERM (which macOS/BSD can do) must not swallow the signal: it is delivered to the owned
-    # leader pid directly, so a live leader still gets its TERM (and runs its handlers).
-    proc = _bare_server_process(4321)
-    killed: list[tuple[int, int]] = []
-
-    def fake_killpg(pid: int, sig: int) -> None:
-        raise PermissionError
-
-    monkeypatch.setattr(remote_server.os, 'killpg', fake_killpg)
-    monkeypatch.setattr(remote_server.os, 'kill', lambda pid, sig: killed.append((pid, sig)))
-
-    proc._signal(signal.SIGTERM, True)  # noqa: SLF001
-    assert killed == [(4321, signal.SIGTERM)]
-
-
-def test_remote_signal_group_success_does_not_also_hit_the_pid(monkeypatch) -> None:
-    proc = _bare_server_process(4321)
-    group_signals: list[tuple[int, int]] = []
-    pid_signals: list[tuple[int, int]] = []
-
-    monkeypatch.setattr(remote_server.os, 'killpg', lambda pid, sig: group_signals.append((pid, sig)))
-    monkeypatch.setattr(remote_server.os, 'kill', lambda pid, sig: pid_signals.append((pid, sig)))
-
-    proc._signal(signal.SIGTERM, True)  # noqa: SLF001
-    assert group_signals == [(4321, signal.SIGTERM)]
-    assert pid_signals == []
 
 
 @pytest.mark.asyncs('asyncio')

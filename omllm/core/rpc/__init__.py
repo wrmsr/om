@@ -23,8 +23,11 @@ from .errors import (  # noqa
 
 from .handlers import (  # noqa
     RpcHandler,
+    RpcInlineNotificationHandler,
+    RpcMethod,
     RpcMethodHandler,
     RpcNotificationErrorHandler,
+    RpcNotificationRouter,
 )
 
 from .messages import (  # noqa
@@ -44,4 +47,9 @@ from .peers import (  # noqa
     DEFAULT_RPC_MAX_IN_FLIGHT,
     DEFAULT_RPC_MAX_TRACEBACK_CHARS,
     RpcPeer,
+)
+
+from .translate import (  # noqa
+    RPC_TRANSLATED_BUILTIN_EXCEPTIONS,
+    translate_rpc_remote_builtin_error,
 )

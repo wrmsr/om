@@ -31,6 +31,8 @@ omllm/core/processes/
              before exec) + ShimPayload, its json-able config
   asyncio/   AsyncioProcessManager: only the asyncio bits (tasks, pipe transports, notifier, handle callbacks)
   sandbox/   bwrap / sandbox-exec confinement;  targets/  docker exec / ssh
+  remote/    the process half of the remote agent: lite protocol + server (in the agent amalgam), standard client
+             (RemoteProcessManager, a ProcessManager over an rpc peer); composed by omllm/agent/remote
   tests/     pytest
   _devdocs/  these notes
 ```

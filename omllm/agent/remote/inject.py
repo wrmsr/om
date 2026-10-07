@@ -1,10 +1,11 @@
 from omcore import inject as inj
 
+from ...core.processes.inject import bind_root_process_scope
 from ...core.processes.managers.types import ProcessManager
+from ...core.processes.remote.client import RemoteProcessManager
 from ..fs.ops import FsOps
+from ..fs.remote.client import RemoteFsOps
 from .client import RemoteAgentClient
-from .client import RemoteFsOps
-from .client import RemoteProcessManager
 from .docker import DockerContainerIdt
 from .docker import DockerRemoteAgentConfig
 from .docker import DockerRemoteAgentConnection
@@ -45,4 +46,5 @@ def bind_docker_remote_agent(
 
         inj.bind(RemoteProcessManager, singleton=True, to_fn=_provide_remote_processes),
         inj.bind(ProcessManager, to_key=RemoteProcessManager),
+        bind_root_process_scope(),
     )

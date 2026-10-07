@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from ..ops import FsFileChangedError
+from ..common import FsFileChangedError
 from ..ops import LocalFsOps
 
 

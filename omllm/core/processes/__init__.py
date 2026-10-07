@@ -183,6 +183,13 @@ with _lang.auto_proxy_init(
 
     ##
 
+    from .remote.client import (  # noqa
+        RemoteProcess,
+        RemoteProcessManager,
+    )
+
+    ##
+
     from .handles import (  # noqa
         Process,
         ProcessInfo,
@@ -195,4 +202,5 @@ with _lang.auto_proxy_init(
 
     from .inject import (  # noqa
         bind_process_manager,
+        bind_root_process_scope,
     )

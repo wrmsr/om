@@ -26,5 +26,10 @@ Teardown runs to completion however it is entered - a local `aclose`, the other 
 the receive task being cancelled before it ever ran - and always fails every pending call, then runs the callbacks
 registered with `add_close_callback`, then releases `wait_closed`.
 
+`RpcNotificationRouter` is the handler for an endpoint which only receives notifications - the remote agent's host side -
+applying each inline through the callback registered for its method, so that the concerns built on one peer can each
+route their own. `translate.py` maps remote builtin exceptions back to their local types for clients layering a typed
+api over the rpc.
+
 The package owns only JSON-compatible RPC values. Agent-specific request and result shapes, including any encoding of
 byte strings, belong to the agent protocol layered above it.
