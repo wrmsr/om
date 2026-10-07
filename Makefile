@@ -140,9 +140,8 @@ dep-unfreeze: venv
 	${PYTHON} -m pip install -r requirements-frz.txt
 
 .PHONY: dep-tree
-PIPDEPTREE_PACKAGE_DIR := $(patsubst %/,%,$(dir $(firstword $(wildcard */pipdeptree/__main__.py))))
 dep-tree:
-	@${PYTHON} -m $(subst /,.,${PIPDEPTREE_PACKAGE_DIR})
+	@${PYTHON} -m x.pipdeptree
 
 .PHONY: dep-updates
 dep-updates: venv
