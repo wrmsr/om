@@ -8,3 +8,12 @@ include omcore/collections/stl/tlx/tlx/container/btree_map.hpp
 include omcore/collections/stl/tlx/tlx/container/btree_set.hpp
 include omcore/collections/stl/tlx/tlx/die/core.hpp
 include omcore/collections/stl/vec.hh
+include omcore/text/pcre2/_pcre2_/src/pcre2.h
+include omcore/text/pcre2/_pcre2_/src/pcre2.h.generic
+include omcore/text/pcre2/_pcre2_/src/pcre2_chartables.c.dist
+include omcore/text/pcre2/_pcre2_/src/pcre2_compile.h
+include omcore/text/pcre2/_pcre2_/src/pcre2_internal.h
+include omcore/text/pcre2/_pcre2_/src/pcre2_intmodedep.h
+include omcore/text/pcre2/_pcre2_/src/pcre2_ucp.h
+include omcore/text/pcre2/_pcre2_/src/pcre2_ucptables_inc.h
+include omcore/text/pcre2/_pcre2_/src/pcre2_util.h

@@ -1,4 +1,4 @@
-from omcore.testing.pytest import plugins as ptp
+from ...testing.pytest import plugins as ptp
 
 
 def pytest_addhooks(pluginmanager):

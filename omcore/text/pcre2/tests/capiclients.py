@@ -11,7 +11,7 @@ import importlib.util
 import os.path
 import sys
 
-from omcore import lang
+from .... import lang
 
 
 with lang.auto_proxy_import(globals()):
