@@ -57,6 +57,15 @@ with _lang.auto_proxy_init(
         ProcessesCommand,
     )
 
+    from .commands.repl import (  # noqa
+        ReplSwitchError,
+        ReplModeSwitcher,
+
+        PyCommand,
+        JsCommand,
+        ChatCommand,
+    )
+
     from .commands.simple import (  # noqa
         EchoCommand,
 

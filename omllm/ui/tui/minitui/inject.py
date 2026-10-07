@@ -13,6 +13,7 @@ from .output import AgentEventRenderer
 from .output import MinituiTextDisplayer
 from .output import VerboseEventRenderer
 from .promptpump import PromptPump
+from .repl import bind_repl
 from .shutdown import Shutdown
 
 
@@ -73,6 +74,7 @@ def bind_minitui(config: Config) -> inj.Elements:
         bind_app(config),
         bind_input(config),
         bind_output(config),
+        bind_repl(config),
 
         inj.bind(AppQuitSignal, singleton=True),
         inj.bind(ui.QuitSignal, to_key=AppQuitSignal),

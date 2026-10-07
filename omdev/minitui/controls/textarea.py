@@ -22,6 +22,8 @@ from omcore.text.highlights import Highlighter
 from omcore.text.widths import char_width
 
 from ..docs.documents import Document
+from ..docs.documents import DocumentListener
+from ..docs.edits import AppliedEdit
 from ..docs.highlighting import IncrementalHighlighter
 from ..docs.positions import Pos
 from ..docs.positions import SpanKind
@@ -131,18 +133,16 @@ class TextArea(Control):
         self._prompt = prompt
         self._prompt_style = prompt_style
         self._on_submit = on_submit
-        self._highlighter = highlighter
 
         self._top = 0  # first visible screen row of the wrapped document
         self._last_width = 80  # viewport ops happen between renders; remember the geometry
         self._pending_z = False
 
+        self._highlighter: Highlighter | None = None
+        self._hl_listener: DocumentListener | None = None
         self._hl_version: int | None = None
         self._hl_tags: list[list[_TagInterval]] = []
-
-        if isinstance(highlighter, IncrementalHighlighter):
-            # Feed every applied edit (undo inverses included) so keystrokes cost incremental reparses.
-            self.doc.add_listener(lambda doc, applied: highlighter.note_edit(applied.edit))
+        self._attach_highlighter(highlighter)
 
         if not start_in_normal:
             self._engine.enter_insert()
@@ -172,6 +172,45 @@ class TextArea(Control):
         self._engine.enter_insert()
         self._engine.set_cursor(self.doc.end_pos())
         self._top = 0
+
+    @property
+    def prompt(self) -> str:
+        return self._prompt
+
+    def set_prompt(self, prompt: str, style: StyleLike | None = None) -> None:
+        self._prompt = prompt
+        self._prompt_style = style
+
+    ##
+    # Highlighting
+
+    @property
+    def highlighter(self) -> Highlighter | None:
+        return self._highlighter
+
+    def _attach_highlighter(self, highlighter: Highlighter | None) -> None:
+        if (listener := self._hl_listener) is not None:
+            self.doc.remove_listener(listener)
+            self._hl_listener = None
+
+        self._highlighter = highlighter
+        self._hl_version = None
+        self._hl_tags = []
+
+        if isinstance(highlighter, IncrementalHighlighter):
+            # Feed every applied edit (undo inverses included) so keystrokes cost incremental reparses.
+            incremental = highlighter
+
+            def listener(doc: Document, applied: AppliedEdit) -> None:
+                incremental.note_edit(applied.edit)
+
+            self._hl_listener = listener
+            self.doc.add_listener(listener)
+
+    def set_highlighter(self, highlighter: Highlighter | None) -> None:
+        """Swap the syntax highlighter at runtime (a language change); the next render re-highlights from scratch."""
+
+        self._attach_highlighter(highlighter)
 
     ##
     # Wrapping

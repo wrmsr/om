@@ -6,6 +6,7 @@ This module is pure UI - it knows nothing of agents or sessions. `main` wires `o
 drives the streaming / display methods from agent events, and `input` drives the permission-card flow. All
 methods here are loop-side (the agent shares the asyncio loop with the driver); none block.
 """
+import abc
 import collections
 import datetime
 import enum
@@ -16,6 +17,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.text import highlights as hl
 from omdev import minitui as mt
+from omdev import repl
 
 from ....core import ui
 from ..rendering import render_text_rows
@@ -41,6 +43,8 @@ THEME = mt.DEFAULT_THEME.extend({
     'turn.info': mt.Style(fg=mt.MUTED),
     'echo.command': mt.Style(fg=mt.TEXT_SECONDARY, italic=True),
     'turn.aborted': mt.Style(fg=mt.TEXT_SECONDARY, italic=True),
+    'input.mode': mt.Style(fg=mt.PRIMARY, bold=True),
+    **repl.minitui.REPL_STYLES,
 })
 
 
@@ -211,6 +215,61 @@ APP_KEY_REVERSE_MAP: ta.Final[ta.Mapping[mt.Key, AppKey]] = col.make_map((
 ##
 
 
+class InputMode(lang.Abstract):
+    """
+    What the input box is for: the chat (the default - prompts and slash commands to the pump) or something a host
+    plugs in (a repl). The app owns the textarea and the keys; a mode owns what a submission means, what the popup
+    suggests, and whatever it does to the textarea while it is the mode (a prompt, a highlighter).
+    """
+
+    @property
+    @abc.abstractmethod
+    def label(self) -> str:
+        """Shown in the status bar; empty for the default."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def submit(self, text: str) -> None:
+        raise NotImplementedError
+
+    def suggestions(self, text: str) -> ta.Sequence[mt.SuggestionItem]:
+        return ()
+
+    def activate(self) -> None:
+        pass
+
+    def deactivate(self) -> None:
+        pass
+
+
+class ChatInputMode(InputMode):
+    def __init__(self, app: MinituiChatApp) -> None:
+        super().__init__()
+
+        self._app = app
+
+    @property
+    def label(self) -> str:
+        return ''
+
+    def submit(self, text: str) -> None:
+        if (cb := self._app.on_submit) is not None:
+            cb(text)
+
+    def suggestions(self, text: str) -> ta.Sequence[mt.SuggestionItem]:
+        if text.startswith('/') and '\n' not in text and ' ' not in text:
+            return [
+                mt.SuggestionItem(name, desc)
+                for name, desc in self._app.commands
+                if name.startswith(text)
+            ]
+        return ()
+
+
+##
+
+
 class AppQuitSignal(ui.QuitSignal):
     """
     Routes `/quit` through the app's quit funnel, so it sequences like ctrl+d and `:q` instead of raising through the
@@ -282,6 +341,9 @@ class MinituiChatApp(mt.App):
 
         self._commands: ta.Sequence[tuple[str, str]] = ()
 
+        self._chat_mode = ChatInputMode(self)
+        self._input_mode: InputMode = self._chat_mode
+
         self._usage = self.Usage()
 
         # The submit hook - `main` points this at the session prompt pump.
@@ -322,6 +384,12 @@ class MinituiChatApp(mt.App):
         """Commit pre-rendered (already width-safe) rows followed by a blank separator."""
 
         self._commit_rows([*rows, []], tag=self._ai_turn)
+        self._driver.invalidate()
+
+    def commit_rows(self, rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
+        """Commit pre-rendered rows exactly as given - no separator - for input modes which lay out their own blocks."""
+
+        self._commit_rows(rows, tag=self._ai_turn)
         self._driver.invalidate()
 
     def _parse_markdown(self, text: str) -> list[mt.MdBlock]:
@@ -722,11 +790,38 @@ class MinituiChatApp(mt.App):
     def set_commands(self, commands: ta.Iterable[tuple[str, str]]) -> None:
         self._commands = tuple(commands)
 
+    @property
+    def commands(self) -> ta.Sequence[tuple[str, str]]:
+        return self._commands
+
+    @property
+    def input_area(self) -> mt.TextArea:
+        """The input textarea itself, for a mode which lends it out (the repl console binds to it)."""
+
+        return self._input
+
+    @property
+    def chat_mode(self) -> InputMode:
+        return self._chat_mode
+
+    @property
+    def input_mode(self) -> InputMode:
+        return self._input_mode
+
+    def set_input_mode(self, mode: InputMode) -> None:
+        if mode is self._input_mode:
+            return
+        self._input_mode.deactivate()
+        self._input_mode = mode
+        mode.activate()
+        self._popup.clear()
+        self._refresh_status()
+        self._driver.invalidate()
+
     def _on_submit_text(self, text: str) -> None:
         self._history.add(text)
         self._popup.clear()
-        if (cb := self.on_submit) is not None:
-            cb(text)
+        self._input_mode.submit(text)
 
     def request_quit(self) -> None:
         """
@@ -763,15 +858,7 @@ class MinituiChatApp(mt.App):
         return f'Not an editor command: {line}'
 
     def _update_popup(self) -> None:
-        text = self._input.doc.text()
-        if text.startswith('/') and '\n' not in text and ' ' not in text:
-            self._popup.set_items(
-                mt.SuggestionItem(name, desc)
-                for name, desc in self._commands
-                if name.startswith(text)
-            )
-        else:
-            self._popup.clear()
+        self._popup.set_items(self._input_mode.suggestions(self._input.doc.text()))
 
     def _history_step(self, *, back: bool) -> None:
         current = self._input.doc.text()
@@ -1101,6 +1188,7 @@ class MinituiChatApp(mt.App):
         self._status.set_left([
             (self._spinner.frame if self._busy else ' ', 'status.spinner'),
             (f' {activity}  ', 'status.dim'),
+            (f'{label}  ' if (label := self._input_mode.label) else '', 'input.mode'),
             (mode_part or '', 'status.mode'),
             (f'  {st.pending}' if st.pending else '', 'status.dim'),
             (f'  {exit_hint or st.message}' if exit_hint or st.message else '', 'status.dim'),
