@@ -196,6 +196,18 @@
     }
   },
   {
+    "module": ".pipdeptree.__main__",
+    "attr": "_CLI_MODULE",
+    "file": "omdev/pipdeptree/__main__.py",
+    "line": 153,
+    "value": {
+      "!.cli.types.CliModule": {
+        "name": "pipdeptree",
+        "module": "omdev.pipdeptree.__main__"
+      }
+    }
+  },
+  {
     "module": ".precheck.__main__",
     "attr": "_CLI_MODULE",
     "file": "omdev/precheck/__main__.py",

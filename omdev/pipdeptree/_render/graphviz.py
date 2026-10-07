@@ -114,7 +114,7 @@ def print_graphviz(dump_output: str | bytes, *, output_format: str = 'dot') -> N
             temp_path = temp_file.name
         print(f'Binary output file written to: {temp_path}', file=sys.stderr)  # noqa: T201
         if not webbrowser.open(temp_path):
-            print('Could not open file with default application. Please open it manually.', file=sys.stderr)  # noqa: T201
+            print('Could not open file with default application. Please open it manually.', file=sys.stderr)  # noqa
         return
 
     sys.stdout.buffer.write(dump_output)

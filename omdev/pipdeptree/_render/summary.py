@@ -16,11 +16,10 @@ import itertools
 import json
 import typing as ta
 
-from omdev.packaging.specifiers import InvalidSpecifierError
-from omdev.packaging.specifiers import SpecifierSet
-from omdev.packaging.versions import InvalidVersion
-from omdev.packaging.versions import Version
-
+from ...packaging.specifiers import InvalidSpecifierError
+from ...packaging.specifiers import SpecifierSet
+from ...packaging.versions import InvalidVersion
+from ...packaging.versions import Version
 from .._computed import ComputedValues
 from .._models.package import Package
 from .._validate import conflicting_deps

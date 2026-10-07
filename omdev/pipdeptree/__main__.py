@@ -2,6 +2,7 @@
 import sys
 import typing as ta
 
+from ..cli import CliModule
 from ._cli import Options
 from ._cli import get_options
 from ._cli import parse_packages
@@ -147,6 +148,10 @@ def _is_text_output(options: Options) -> bool:
 
 def _determine_return_code(warning_printer: WarningPrinter) -> int:
     return 1 if warning_printer.has_warned_with_failure() else 0
+
+
+# @om-manifest
+_CLI_MODULE = CliModule('pipdeptree', __name__)
 
 
 if __name__ == '__main__':

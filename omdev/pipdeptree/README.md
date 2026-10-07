@@ -14,11 +14,3 @@ supports text and JSON.
 
 The index resolver and Rich renderer from the vendored snapshot were removed because they required external Python
 packages. The Python API remains available through this package's `render(...)` function.
-
-To check this package before moving it into a top-level library:
-
-```sh
-./python -m ruff check x/pipdeptree
-./python -m mypy x/pipdeptree
-./python -m pytest x/pipdeptree
-```
