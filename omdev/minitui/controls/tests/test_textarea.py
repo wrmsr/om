@@ -455,3 +455,35 @@ def test_set_number_ex_command_keeps_text():
     press(ta_, 'A')
     type_text(ta_, 'e')
     assert rows(ta_) == ['1 ab', '2 cde']
+
+
+def test_delete_forward_and_undo():
+    ta_ = TextArea()
+    ta_.set_text('ab\ncd')
+    press(ta_, 'escape', 'i')
+    ta_.engine.set_cursor(Pos(0, 1))
+    press(ta_, 'delete')
+    assert ta_.doc.text() == 'a\ncd'
+    press(ta_, 'delete')
+    assert ta_.doc.text() == 'acd'
+    press(ta_, 'escape', 'u')
+    assert ta_.doc.text() == 'ab\ncd'
+
+
+def test_delete_at_end_of_buffer_is_noop():
+    ta_ = TextArea()
+    ta_.set_text('ab')
+    ta_.engine.set_cursor(Pos(0, 2))
+    press(ta_, 'delete')
+    assert ta_.doc.text() == 'ab'
+    assert ta_.engine.cursor == Pos(0, 2)
+
+
+def test_delete_in_normal_and_visual_modes():
+    ta_ = TextArea()
+    ta_.set_text('abcd')
+    ta_.engine.set_cursor(Pos(0, 0))
+    press(ta_, 'escape', 'delete')
+    assert ta_.doc.text() == 'bcd'
+    press(ta_, 'u', 'v', 'l', 'delete')
+    assert ta_.doc.text() == 'cd'

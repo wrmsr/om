@@ -187,6 +187,12 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
         api_key_name='openrouter_api_key',
     ),
 
+    DefaultModel(
+        name='mimo',
+        key=ModelKey('openrouter', 'xiaomi/mimo-v2.6-pro'),
+        api_key_name='openrouter_api_key',
+    ),
+
 ]
 
 

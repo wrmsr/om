@@ -102,12 +102,20 @@ class _BrowseStatus(mt.Control):
         super().__init__()
 
         self._view = view
+        self._message: str | None = None
         self._bar = mt.StatusBar(
             right=[('f12/esc/q live  wheel j/k  pgup/pgdn  g/G', 'status.dim')],
         )
 
+    def set_message(self, message: str | None) -> None:
+        self._message = message
+
     def render(self, width: int) -> ta.Sequence[ta.Sequence[mt.Segment]]:
         view = self._view
+        if self._message is not None:
+            self._bar.set_left([(self._message, 'status.text')])
+            return self._bar.render(width)
+
         first = view.offset + 1 if view.total else 0
         last = min(view.offset + view.height, view.total)
         self._bar.set_left([
@@ -201,6 +209,8 @@ class AppQuitSignal(ui.QuitSignal):
 
 
 class MinituiChatApp(mt.App):
+    _EXIT_HINT = 'press ctrl-d again to exit'
+
     def __init__(
             self,
             driver: mt.AsyncioDriver,
@@ -225,6 +235,7 @@ class MinituiChatApp(mt.App):
             ),
         )
         self._history = mt.InputHistory()
+        self._exit_timer: mt.AsyncioTimer | None = None
 
         self._cards: collections.OrderedDict[str, _ToolCardEntry] = collections.OrderedDict()
         self._card_spacer = _CardSpacer()
@@ -696,10 +707,28 @@ class MinituiChatApp(mt.App):
         Every quit path funnels here. `main` points `on_quit` at its shutdown sequence; unwired, the driver just stops.
         """
 
+        self._clear_exit_confirmation()
         if (fn := self.on_quit) is not None:
             fn()
         else:
             self._driver.stop()
+
+    def _clear_exit_confirmation(self) -> None:
+        if (timer := self._exit_timer) is not None:
+            timer.cancel()
+            self._exit_timer = None
+            self._refresh_status()
+            self._driver.invalidate()
+
+    def _handle_exit_key(self, event: mt.KeyEvent) -> None:
+        if self._input.doc.text():
+            self._clear_exit_confirmation()
+            self.set_browsing(False)
+            self._input.handle_event(dc.replace(event, key=mt.Key('delete'), text=None))
+        elif self._exit_timer is not None:
+            self.request_quit()
+        else:
+            self._exit_timer = self._driver.timers.call_later(1., self._clear_exit_confirmation)
 
     def _ex(self, line: str) -> str | None:
         if line in ('q', 'q!', 'wq'):
@@ -737,7 +766,7 @@ class MinituiChatApp(mt.App):
             return True
 
         if app_key is AppKey.EXIT:
-            self.request_quit()
+            self._handle_exit_key(event)
             return True
 
         if app_key is AppKey.SUSPEND:
@@ -968,12 +997,14 @@ class MinituiChatApp(mt.App):
         else:
             activity = 'idle'
 
+        exit_hint = self._EXIT_HINT if self._exit_timer is not None else None
+        self._browse_status.set_message(exit_hint)
         self._status.set_left([
             (self._spinner.frame if self._busy else ' ', 'status.spinner'),
             (f' {activity}  ', 'status.dim'),
             (mode_part or '', 'status.mode'),
             (f'  {st.pending}' if st.pending else '', 'status.dim'),
-            (f'  {st.message}' if st.message else '', 'status.dim'),
+            (f'  {exit_hint or st.message}' if exit_hint or st.message else '', 'status.dim'),
         ])
 
         session_usage = self._usage.render_session()
@@ -996,8 +1027,14 @@ class MinituiChatApp(mt.App):
         control.handle_event(local)
 
     def handle_event(self, event: mt.Event) -> None:
+        if (
+                isinstance(event, mt.PasteEvent) or
+                (isinstance(event, mt.KeyEvent) and APP_KEY_REVERSE_MAP.get(event.key) is not AppKey.EXIT)
+        ):
+            self._clear_exit_confirmation()
+
         if isinstance(event, mt.InputEofEvent):
-            # The input is gone for good: the same way out as ctrl+d, so a turn in flight is wound down while the driver
+            # The input is gone for good: quit immediately, so a turn in flight is wound down while the driver
             # is still bound and what it leaves behind reaches scrollback.
             self.request_quit()
         elif self._browsing:

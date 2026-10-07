@@ -153,6 +153,8 @@ def test_browse_passes_global_keys_but_not_input_keys():
     assert app.is_browsing
 
     press(app, mt.Key('d', ctrl=True))
+    assert not driver.stopped
+    press(app, mt.Key('d', ctrl=True))
     assert driver.stopped
 
 

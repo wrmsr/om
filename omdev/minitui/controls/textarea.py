@@ -56,6 +56,7 @@ _KEY_TOKENS: ta.Mapping[str, str] = {
     'enter': '\r',
     'escape': '\x1b',
     'backspace': '\x7f',
+    'delete': '<delete>',
     'tab': '\t',
 }
 

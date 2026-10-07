@@ -814,6 +814,7 @@ def test_quit_keys_route_through_hook():
     app.on_quit = lambda: quits.append('quit')
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))
+    app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))
     app.handle_event(mt.KeyEvent(mt.Key('escape')))
     app.handle_event(mt.KeyEvent(mt.Key(':'), text=':'))
     app.handle_event(mt.KeyEvent(mt.Key('q'), text='q'))
@@ -861,7 +862,8 @@ async def test_quit_drains_pump_before_stopping_driver():
     pump.submit('second')
 
     app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))
-    app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))  # a repeat is a no-op, not a second shutdown
+    app.handle_event(mt.KeyEvent(app_key(AppKey.EXIT)))  # confirms the quit
+    app.request_quit()  # a repeat is a no-op, not a second shutdown
     await settle_idle(agent, lambda: driver.stopped)
 
     assert driver.stopped

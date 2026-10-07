@@ -220,6 +220,9 @@ class VimEngine:
         Enter arrives as '\\r' or '\\n'; escape as '\\x1b'; backspace as '\\x7f'.
         """
 
+        if key == '<delete>' and self._mode not in (Mode.INSERT, Mode.CMDLINE):
+            key = 'x'
+
         if self._mode is Mode.INSERT:
             self._feed_insert(key)
         elif self._mode is Mode.CMDLINE:
@@ -490,6 +493,20 @@ class VimEngine:
 
         self._edit_at_cursors(make, lambda a: a.edit.start)
 
+    def _delete_at_cursors(self) -> None:
+        doc = self._doc
+
+        def make(pos: Pos) -> tuple[Pos, Pos, str] | None:
+            if pos.col < llen(doc, pos.row):
+                return (pos, Pos(pos.row, pos.col + 1), '')
+
+            if pos.row + 1 < doc.line_count():
+                return (pos, Pos(pos.row + 1, 0), '')
+
+            return None
+
+        self._edit_at_cursors(make, lambda a: a.edit.start)
+
     def _move_cursors_insert(self, key: str) -> None:
         doc = self._doc
 
@@ -599,6 +616,10 @@ class VimEngine:
 
         if key in BACKSPACES:
             self._backspace_at_cursors()
+            return
+
+        if key == '<delete>':
+            self._delete_at_cursors()
             return
 
         if key == '<c-w>':
