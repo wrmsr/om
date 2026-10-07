@@ -49,7 +49,7 @@ psutil==7.2.2
 ## json
 
 #> ujson
-orjson==3.12.0  # @om-venv !14t !14dt !15t
+orjson==3.13.0  # @om-venv !14t !14dt !15t
 
 ## pickle
 

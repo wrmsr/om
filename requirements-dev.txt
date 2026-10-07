@@ -79,7 +79,7 @@ markupsafe==3.0.4
 asgiref==3.12.1
 uvicorn[standard]==0.54.0
 
-sqlean.py==3.50.4.5  # @om-venv !14t !15t  # SLOW COMPILE
+sqlean.py==3.50.4.5
 # git+https://github.com/wrmsr/sqlean.py.git
 
 duckdb==1.5.6  # @om-venv !14t !15t  # SLOW COMPILE
@@ -97,7 +97,7 @@ mdit-py-plugins==0.6.1
 
 pygments==2.21.0
 
-mwparserfromhell==0.7.2  # @om-venv !14t !15t
+mwparserfromhell==0.7.2
 wikitextparser==2.0.0  # !! GPL
 
 numpy==2.5.3
@@ -109,6 +109,7 @@ numpy==2.5.3
 # textual-dev==1.8.0
 # textual-speedups==0.2.1  # @om-venv !15 !15t
 
+# !! These install but enable the GIL on import
 tree-sitter==0.26.0  # @om-venv !14t !14dt !15t
 tree-sitter-bash==0.25.1  # @om-venv !14t !14dt !15t
 tree-sitter-css==0.25.0  # @om-venv !14t !14dt !15t
@@ -152,8 +153,8 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.108
-botocore==1.43.108
+boto3==1.43.109
+botocore==1.43.109
 types-boto3==1.43.108
 botocore-stubs==1.43.67
 
@@ -164,8 +165,8 @@ pynacl==1.6.2
 
 bcrypt==5.0.0
 
-mlx==0.32.3; sys_platform == "darwin"  # @om-venv !14t !4dt !15 !15t
-mlx-lm==0.32.0; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
+mlx==0.32.3; sys_platform == "darwin"
+mlx-lm==0.32.0; sys_platform == "darwin"
 
 apsw==3.53.4.0
 
