@@ -33,7 +33,7 @@ class DarwinOcrBackend(OcrBackend):
         self._no_language_correction = no_language_correction
 
     def is_available(self) -> bool:
-        return sys.platform == 'darwin'
+        return getattr(sys, 'platform') == 'darwin'
 
     def ocr(self, image: Image.Image) -> str:
         return vn.recognize_text(

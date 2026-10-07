@@ -173,12 +173,12 @@ def _select_backend_name(name: str, *, uv: bool) -> str:
 
 def _get_image_data(file: str | None) -> ta.Any:
     if file == '@':
-        if sys.platform != 'darwin':
+        if getattr(sys, 'platform') != 'darwin':
             raise OSError(sys.platform)
         items = darwin_clipboard.get_darwin_clipboard_data(types={'public.png'})
         if not items:
             raise RuntimeError('No clipboard image data found')
-        return io.BytesIO(check.not_none(items[0].data))
+        return io.BytesIO(check.not_none(items[0].data))  # noqa
     elif file and file != '-':
         return os.path.expanduser(file)
     else:
