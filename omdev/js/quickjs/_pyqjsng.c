@@ -163,9 +163,9 @@ static void ctx_attach(ContextObject *self)
     self->thread_state = NULL;
 }
 
-static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
+static int qjs_interrupt_handler(JSContext *ctx, void *opaque)
 {
-    (void)rt;
+    (void)ctx;
     ContextObject *self = (ContextObject *)opaque;
 
     // Runs on the JS thread while it is detached from Python - must not touch any Python state.
