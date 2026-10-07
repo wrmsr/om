@@ -46,4 +46,7 @@ class RemoteAgentRpcHandler(RpcHandler):
         return await fn(params)
 
     async def aclose(self) -> None:
-        await self._processes.aclose()
+        try:
+            await self._fs.aclose()
+        finally:
+            await self._processes.aclose()

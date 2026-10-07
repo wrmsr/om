@@ -14,6 +14,7 @@ from ..client import RemoteProcessManager
 from ..protocol import REMOTE_PROCESS_CLOSE_METHOD
 from ..protocol import REMOTE_PROCESS_SIGNAL_METHOD
 from ..protocol import REMOTE_PROCESS_SPAWN_METHOD
+from ..protocol import REMOTE_PROCESS_WRITE_METHOD
 
 
 ##
@@ -85,8 +86,9 @@ class ScriptedRemoteAgent:
     """
     Answers `process.spawn` with a fabricated process and records what the client asks of it. A set `spawn_gate` holds
     spawn replies until it is released; `before_spawn_reply` runs, with the new id, just before a spawn is answered;
-    `hang_close` never answers `process.close`; `on_close` replaces the close reply entirely. The host's end of the
-    connection is `client_reader` / `client_writer`, for whichever client a test builds on it.
+    `hang_close` never answers `process.close`; `on_close` replaces the close reply entirely; `write_error` and
+    `signal_error` are raised by `process.write` and `process.signal` in place of their usual silence. The host's end
+    of the connection is `client_reader` / `client_writer`, for whichever client a test builds on it.
     """
 
     def __init__(self) -> None:
@@ -102,6 +104,8 @@ class ScriptedRemoteAgent:
         self.close_requested = asyncio.Event()
         self.hang_close = False
         self.on_close: ta.Callable[[ta.Any], ta.Awaitable[ta.Any]] | None = None
+        self.write_error: Exception | None = None
+        self.signal_error: Exception | None = None
 
         self._next_id = 1
 
@@ -112,6 +116,7 @@ class ScriptedRemoteAgent:
                 REMOTE_PROCESS_SPAWN_METHOD: self._spawn,
                 REMOTE_PROCESS_CLOSE_METHOD: self._close,
                 REMOTE_PROCESS_SIGNAL_METHOD: self._signal,
+                REMOTE_PROCESS_WRITE_METHOD: self._write,
             }),
         )
 
@@ -138,6 +143,12 @@ class ScriptedRemoteAgent:
 
     async def _signal(self, params: ta.Any) -> None:
         self.signals.append(params)
+        if self.signal_error is not None:
+            raise self.signal_error
+
+    async def _write(self, params: ta.Any) -> None:
+        if self.write_error is not None:
+            raise self.write_error
 
     async def notify(self, method: str, params: ta.Any) -> None:
         await self.peer.notify(method, params)

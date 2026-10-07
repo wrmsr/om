@@ -104,6 +104,131 @@ def fs_check_expected_digest(path: str, expected_digest: str) -> None:
         raise FsFileChangedError(f'File changed since it was read: {path!r}')
 
 
+##
+
+
+class FsStagedWrite:
+    """
+    A file being written next to its destination, invisible there until `commit` makes it so atomically, or `abort`
+    discards it. Either finishes the stage and cleans up after it, as does a commit that fails. Content may arrive in
+    any number of `write`s, so a caller which has it in pieces need not hold all of them at once.
+    """
+
+    def __init__(self, path: str) -> None:
+        super().__init__()
+
+        self._path = path
+
+        self._tmp_dir: ta.Optional[str] = tempfile.mkdtemp(prefix='.omllm-write-', dir=os.path.dirname(path))
+        self._tmp_path: ta.Optional[str] = os.path.join(self._tmp_dir, 'file')
+        self._file: ta.Optional[ta.BinaryIO] = None
+        self._size = 0
+        self._finished = False
+
+        try:
+            fd = os.open(self._tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+            try:
+                self._file = os.fdopen(fd, 'wb')
+            except BaseException:
+                os.close(fd)
+                raise
+        except BaseException:
+            self.abort()
+            raise
+
+    @property
+    def path(self) -> str:
+        return self._path
+
+    @property
+    def size(self) -> int:
+        """How many bytes have been written so far."""
+
+        return self._size
+
+    @property
+    def finished(self) -> bool:
+        return self._finished
+
+    def write(self, data: ta.Union[bytes, bytearray, memoryview]) -> None:
+        if self._finished or self._file is None:
+            raise RuntimeError('staged write is finished')
+        self._file.write(data)
+        self._size += len(data)
+
+    def _close_file(self) -> None:
+        if (f := self._file) is not None:
+            self._file = None
+            f.close()
+
+    def abort(self) -> None:
+        """Discards whatever is staged. Idempotent, and harmless after a commit."""
+
+        self._finished = True
+        self._close_file()
+
+        if (tmp_path := self._tmp_path) is not None:
+            self._tmp_path = None
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+
+        if (tmp_dir := self._tmp_dir) is not None:
+            self._tmp_dir = None
+            try:
+                os.rmdir(tmp_dir)
+            except FileNotFoundError:
+                pass
+
+    def commit(
+            self,
+            *,
+            overwrite: bool = False,
+            expected_digest: ta.Optional[str] = None,
+    ) -> bool:
+        """
+        Makes the staged content visible at the destination, optionally replacing an existing regular file.
+        `expected_digest` makes replacement fail if the current content no longer matches a previous read. Returns
+        whether the file was created rather than replaced.
+        """
+
+        if self._finished or (tmp_path := self._tmp_path) is None:
+            raise RuntimeError('staged write is finished')
+        path = self._path
+
+        try:
+            # Everything buffered is on disk under the temporary name before that name is linked or renamed.
+            self._close_file()
+
+            try:
+                lst = os.lstat(path)
+            except FileNotFoundError:
+                if expected_digest is not None:
+                    raise FsFileChangedError(f'File changed since it was read: {path!r}') from None
+
+                # A hard link makes the fully-written file visible without replacing a path which appeared after the
+                # lstat above. Both names are in the destination directory, so they are necessarily on one filesystem.
+                os.link(tmp_path, path)
+                return True
+
+            if not overwrite:
+                raise FileExistsError(path)
+            if not stat_.S_ISREG(lst.st_mode):
+                raise IsADirectoryError(path)
+            if expected_digest is not None:
+                fs_check_expected_digest(path, expected_digest)
+
+            # Preserve the replaced file's permissions; the rename itself is atomic.
+            os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
+            os.replace(tmp_path, path)
+            self._tmp_path = None  # Consumed by the rename: only the directory is left to remove.
+            return False
+
+        finally:
+            self.abort()
+
+
 def fs_write_file(
         path: str,
         content: ta.Union[bytes, bytearray, memoryview],
@@ -116,48 +241,13 @@ def fs_write_file(
     the current content no longer matches a previous read. Returns whether the file was created rather than replaced.
     """
 
-    dst_dir = os.path.dirname(path)
-    tmp_dir = tempfile.mkdtemp(prefix='.omllm-write-', dir=dst_dir)
-    tmp_path = os.path.join(tmp_dir, 'file')
-    fd = -1
+    stage = FsStagedWrite(path)
     try:
-        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-        with os.fdopen(fd, 'wb') as f:
-            fd = -1
-            f.write(content)
-
-        try:
-            lst = os.lstat(path)
-        except FileNotFoundError:
-            if expected_digest is not None:
-                raise FsFileChangedError(f'File changed since it was read: {path!r}') from None
-
-            # A hard link makes the fully-written file visible without replacing a path which appeared after the lstat
-            # above. Both names are in the destination directory, so they are necessarily on one filesystem.
-            os.link(tmp_path, path)
-            os.unlink(tmp_path)
-            tmp_path = ''
-            return True
-
-        if not overwrite:
-            raise FileExistsError(path)
-        if not stat_.S_ISREG(lst.st_mode):
-            raise IsADirectoryError(path)
-        if expected_digest is not None:
-            fs_check_expected_digest(path, expected_digest)
-
-        # Preserve the replaced file's permissions; the rename itself is atomic.
-        os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
-        os.replace(tmp_path, path)
-        tmp_path = ''
-        return False
-
-    finally:
-        if fd >= 0:
-            os.close(fd)
-        if tmp_path:
-            try:
-                os.unlink(tmp_path)
-            except FileNotFoundError:
-                pass
-        os.rmdir(tmp_dir)
+        stage.write(content)
+    except BaseException:
+        stage.abort()
+        raise
+    return stage.commit(
+        overwrite=overwrite,
+        expected_digest=expected_digest,
+    )

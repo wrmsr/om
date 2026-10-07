@@ -23,6 +23,8 @@ from ....core.rpc.channels import AsyncioStreamRpcChannel
 from ...exec.ops import ExecParams
 from ...exec.ops import ProcessesExecOps
 from ...fs.common import FsFileChangedError
+from ...fs.common import fs_file_digest
+from ...fs.remote.client import DEFAULT_REMOTE_FS_CHUNK_BYTES
 from ..client import RemoteAgentClient
 from ..payload import get_remote_agent_payload_src
 
@@ -101,6 +103,14 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
 
         globbed = await client.fs.glob(os.path.join(root, '*.txt'), root=root)
         assert [entry.path for entry in globbed.entries] == [path]
+
+        # Content past a chunk crosses the real agent in pieces, in both directions.
+        big = os.urandom(DEFAULT_REMOTE_FS_CHUNK_BYTES * 2 + 12345)
+        big_path = os.path.join(root, 'big.bin')
+        assert (await client.fs.write_file(big_path, big)).created
+        big_read = await client.fs.read_file(big_path)
+        assert big_read.data == big
+        assert big_read.digest == fs_file_digest(big)
 
         result = await ProcessesExecOps().exec(client.processes.root, ExecParams(
             ['sh', '-c', 'printf stdout; printf stderr >&2; exit 7'],

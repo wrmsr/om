@@ -134,3 +134,26 @@ async def test_timed_out_waits_leave_no_task_behind():
 
     await client.aclose()
     await agent.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_remote_builtin_errors_come_back_typed():
+    # What the agent raises as a builtin with the same meaning on both sides is raised here as that builtin, as the
+    # local manager would have - not as a generic remote error.
+    agent = ScriptedRemoteAgent()
+    agent.write_error = BrokenPipeError('stdin is closed')
+    agent.signal_error = ProcessLookupError('gone')
+    client = await scripted_remote_process_client(agent)
+    process = await client.manager.root.spawn(processes.ProcessSpec(
+        ['cat'],
+        stdio=processes.ProcessStdio(stdin='pipe'),
+    ))
+
+    with pytest.raises(BrokenPipeError, match='stdin is closed'):
+        await process.write(b'x')
+    with pytest.raises(ProcessLookupError, match='gone'):
+        await process.signal(15)
+    assert agent.signals == [{'id': process.id, 'signal': 15, 'process_group': True}]
+
+    await client.aclose()
+    await agent.aclose()

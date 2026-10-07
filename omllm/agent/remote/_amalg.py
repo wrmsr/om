@@ -61,18 +61,18 @@ def __om_amalg__():  # noqa
             dict(path='../../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
             dict(path='../../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
             dict(path='../../../omcore/os/pyremote/core.py', sha1='a663184c584cf8d8449981d424337f8fbb61c7e8'),
-            dict(path='../fs/common.py', sha1='ad483935984fc79cd708559f42c0313c03a66afa'),
+            dict(path='../fs/common.py', sha1='07e5a3c043dcedda29bb55c19b10c7af6ba15266'),
             dict(path='../../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
-            dict(path='../fs/remote/protocol.py', sha1='4ebd11a01f5943833857b768245246ed2cbae4e9'),
+            dict(path='../fs/remote/protocol.py', sha1='f20fa531e165d2eb7594106da7c6bc918153835d'),
             dict(path='../../core/processes/remote/protocol.py', sha1='aa2f9c585f9217ddb3d67453171c04ecec0560a1'),
             dict(path='../../core/rpc/errors.py', sha1='41e06a92d0a0139b6fc0530fe5892071c34cfd23'),
             dict(path='../../core/rpc/handlers.py', sha1='a7b6f9989378d978410d3a46b6ee1e20b90e6343'),
             dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
-            dict(path='../fs/remote/server.py', sha1='43e3c09e4487c5e1fbe2faf249869b01bcdd3948'),
+            dict(path='../fs/remote/server.py', sha1='7c04b01527e3691cd50c43a7f996916c8878b8a2'),
             dict(path='../../core/rpc/channels.py', sha1='8f49bf867159274422557a1f681ecdbffde5c887'),
             dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
             dict(path='../../core/processes/remote/server.py', sha1='7e5d412e083b3cf6e65a621967af1a62db3cab18'),
-            dict(path='server.py', sha1='3c89646f390fb142967b225b2aa17bd50130ab85'),
+            dict(path='server.py', sha1='59fc035bb714c797787d08b6ffbc619aa622e9e8'),
             dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
         ],
     )
@@ -2190,6 +2190,131 @@ def fs_check_expected_digest(path: str, expected_digest: str) -> None:
         raise FsFileChangedError(f'File changed since it was read: {path!r}')
 
 
+##
+
+
+class FsStagedWrite:
+    """
+    A file being written next to its destination, invisible there until `commit` makes it so atomically, or `abort`
+    discards it. Either finishes the stage and cleans up after it, as does a commit that fails. Content may arrive in
+    any number of `write`s, so a caller which has it in pieces need not hold all of them at once.
+    """
+
+    def __init__(self, path: str) -> None:
+        super().__init__()
+
+        self._path = path
+
+        self._tmp_dir: ta.Optional[str] = tempfile.mkdtemp(prefix='.omllm-write-', dir=os.path.dirname(path))
+        self._tmp_path: ta.Optional[str] = os.path.join(self._tmp_dir, 'file')
+        self._file: ta.Optional[ta.BinaryIO] = None
+        self._size = 0
+        self._finished = False
+
+        try:
+            fd = os.open(self._tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+            try:
+                self._file = os.fdopen(fd, 'wb')
+            except BaseException:
+                os.close(fd)
+                raise
+        except BaseException:
+            self.abort()
+            raise
+
+    @property
+    def path(self) -> str:
+        return self._path
+
+    @property
+    def size(self) -> int:
+        """How many bytes have been written so far."""
+
+        return self._size
+
+    @property
+    def finished(self) -> bool:
+        return self._finished
+
+    def write(self, data: ta.Union[bytes, bytearray, memoryview]) -> None:
+        if self._finished or self._file is None:
+            raise RuntimeError('staged write is finished')
+        self._file.write(data)
+        self._size += len(data)
+
+    def _close_file(self) -> None:
+        if (f := self._file) is not None:
+            self._file = None
+            f.close()
+
+    def abort(self) -> None:
+        """Discards whatever is staged. Idempotent, and harmless after a commit."""
+
+        self._finished = True
+        self._close_file()
+
+        if (tmp_path := self._tmp_path) is not None:
+            self._tmp_path = None
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+
+        if (tmp_dir := self._tmp_dir) is not None:
+            self._tmp_dir = None
+            try:
+                os.rmdir(tmp_dir)
+            except FileNotFoundError:
+                pass
+
+    def commit(
+            self,
+            *,
+            overwrite: bool = False,
+            expected_digest: ta.Optional[str] = None,
+    ) -> bool:
+        """
+        Makes the staged content visible at the destination, optionally replacing an existing regular file.
+        `expected_digest` makes replacement fail if the current content no longer matches a previous read. Returns
+        whether the file was created rather than replaced.
+        """
+
+        if self._finished or (tmp_path := self._tmp_path) is None:
+            raise RuntimeError('staged write is finished')
+        path = self._path
+
+        try:
+            # Everything buffered is on disk under the temporary name before that name is linked or renamed.
+            self._close_file()
+
+            try:
+                lst = os.lstat(path)
+            except FileNotFoundError:
+                if expected_digest is not None:
+                    raise FsFileChangedError(f'File changed since it was read: {path!r}') from None
+
+                # A hard link makes the fully-written file visible without replacing a path which appeared after the
+                # lstat above. Both names are in the destination directory, so they are necessarily on one filesystem.
+                os.link(tmp_path, path)
+                return True
+
+            if not overwrite:
+                raise FileExistsError(path)
+            if not stat_.S_ISREG(lst.st_mode):
+                raise IsADirectoryError(path)
+            if expected_digest is not None:
+                fs_check_expected_digest(path, expected_digest)
+
+            # Preserve the replaced file's permissions; the rename itself is atomic.
+            os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
+            os.replace(tmp_path, path)
+            self._tmp_path = None  # Consumed by the rename: only the directory is left to remove.
+            return False
+
+        finally:
+            self.abort()
+
+
 def fs_write_file(
         path: str,
         content: ta.Union[bytes, bytearray, memoryview],
@@ -2202,51 +2327,16 @@ def fs_write_file(
     the current content no longer matches a previous read. Returns whether the file was created rather than replaced.
     """
 
-    dst_dir = os.path.dirname(path)
-    tmp_dir = tempfile.mkdtemp(prefix='.omllm-write-', dir=dst_dir)
-    tmp_path = os.path.join(tmp_dir, 'file')
-    fd = -1
+    stage = FsStagedWrite(path)
     try:
-        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-        with os.fdopen(fd, 'wb') as f:
-            fd = -1
-            f.write(content)
-
-        try:
-            lst = os.lstat(path)
-        except FileNotFoundError:
-            if expected_digest is not None:
-                raise FsFileChangedError(f'File changed since it was read: {path!r}') from None
-
-            # A hard link makes the fully-written file visible without replacing a path which appeared after the lstat
-            # above. Both names are in the destination directory, so they are necessarily on one filesystem.
-            os.link(tmp_path, path)
-            os.unlink(tmp_path)
-            tmp_path = ''
-            return True
-
-        if not overwrite:
-            raise FileExistsError(path)
-        if not stat_.S_ISREG(lst.st_mode):
-            raise IsADirectoryError(path)
-        if expected_digest is not None:
-            fs_check_expected_digest(path, expected_digest)
-
-        # Preserve the replaced file's permissions; the rename itself is atomic.
-        os.chmod(tmp_path, stat_.S_IMODE(lst.st_mode))
-        os.replace(tmp_path, path)
-        tmp_path = ''
-        return False
-
-    finally:
-        if fd >= 0:
-            os.close(fd)
-        if tmp_path:
-            try:
-                os.unlink(tmp_path)
-            except FileNotFoundError:
-                pass
-        os.rmdir(tmp_dir)
+        stage.write(content)
+    except BaseException:
+        stage.abort()
+        raise
+    return stage.commit(
+        overwrite=overwrite,
+        expected_digest=expected_digest,
+    )
 
 
 ########################################
@@ -3075,6 +3165,13 @@ unmarshal_obj = OBJ_MARSHALER_MANAGER.unmarshal_obj
 The wire shapes of the remote filesystem: the requests the host's `RemoteFsOps` makes of the agent's `RemoteFsService`,
 and their results. Lite: shared with the remote agent amalgam, so Python 3.8 compatible and marshaled with the lite
 marshaler.
+
+File content crosses the connection in chunks, so a file's size is bounded by memory rather than by the rpc's frame
+limit. A read starts with `fs.read_file`, which returns either the whole file or its first chunk and a handle through
+which `fs.read_chunk` fetches the rest; the agent releases the handle with the last chunk, or on `fs.read_abort`. A
+write which fits one chunk is a single `fs.write_file`; a larger one is staged with `fs.write_begin` and
+`fs.write_chunk`, then made visible atomically by `fs.write_commit` (or discarded by `fs.write_abort`), with exactly the
+semantics of the single call.
 """
 
 
@@ -3083,13 +3180,26 @@ marshaler.
 
 REMOTE_FS_RESOLVE_PATH_METHOD = 'fs.resolve_path'
 REMOTE_FS_STAT_METHOD = 'fs.stat'
-REMOTE_FS_READ_FILE_METHOD = 'fs.read_file'
-REMOTE_FS_WRITE_FILE_METHOD = 'fs.write_file'
 REMOTE_FS_LIST_DIR_METHOD = 'fs.list_dir'
 REMOTE_FS_GLOB_METHOD = 'fs.glob'
 
+REMOTE_FS_READ_FILE_METHOD = 'fs.read_file'
+REMOTE_FS_READ_CHUNK_METHOD = 'fs.read_chunk'
+REMOTE_FS_READ_ABORT_METHOD = 'fs.read_abort'
+
+REMOTE_FS_WRITE_FILE_METHOD = 'fs.write_file'
+REMOTE_FS_WRITE_BEGIN_METHOD = 'fs.write_begin'
+REMOTE_FS_WRITE_CHUNK_METHOD = 'fs.write_chunk'
+REMOTE_FS_WRITE_COMMIT_METHOD = 'fs.write_commit'
+REMOTE_FS_WRITE_ABORT_METHOD = 'fs.write_abort'
+
+# No piece of file content on the wire exceeds this, so that no frame approaches the rpc's limit once base64 encoded.
+# The agent refuses larger ones.
+REMOTE_FS_MAX_CHUNK_BYTES = 8 * 1024 * 1024
+
 
 ##
+# Paths
 
 
 @dc.dataclass(frozen=True)
@@ -3107,28 +3217,6 @@ class RemoteFsStatResult:
 
     def __post_init__(self) -> None:
         check.arg(self.size >= 0)
-
-
-@dc.dataclass(frozen=True)
-class RemoteFsReadFileResult:
-    data: bytes
-    digest: str
-
-    def __post_init__(self) -> None:
-        check.non_empty_str(self.digest)
-
-
-@dc.dataclass(frozen=True)
-class RemoteFsWriteFileParams:
-    path: str
-    content: bytes
-    overwrite: bool
-    expected_digest: ta.Optional[str]
-
-
-@dc.dataclass(frozen=True)
-class RemoteFsWriteFileResult:
-    created: bool
 
 
 @dc.dataclass(frozen=True)
@@ -3155,6 +3243,117 @@ class RemoteFsGlobParams:
 class RemoteFsGlobResult:
     entries: ta.List[RemoteFsEntry]
     has_more: bool
+
+
+##
+# Handles
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsHandleParams:
+    handle: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.handle)
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsHandleResult:
+    handle: str
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.handle)
+
+
+##
+# Reads
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsReadFileParams:
+    path: str
+    max_bytes: int
+
+    def __post_init__(self) -> None:
+        check.arg(0 < self.max_bytes <= REMOTE_FS_MAX_CHUNK_BYTES)
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsReadFileResult:
+    """The file's first `max_bytes`: all of it, with its digest, or else the rest follows through `handle`."""
+
+    data: bytes
+    digest: ta.Optional[str]
+    handle: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        check.arg((self.digest is None) != (self.handle is None))
+        if self.digest is not None:
+            check.non_empty_str(self.digest)
+        if self.handle is not None:
+            check.non_empty_str(self.handle)
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsReadChunkParams:
+    handle: str
+    max_bytes: int
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.handle)
+        check.arg(0 < self.max_bytes <= REMOTE_FS_MAX_CHUNK_BYTES)
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsReadChunkResult:
+    """More of the file. A digest means that was the last of it, and its handle is gone."""
+
+    data: bytes
+    digest: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        if self.digest is not None:
+            check.non_empty_str(self.digest)
+
+
+##
+# Writes
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsWriteFileParams:
+    path: str
+    content: bytes
+    overwrite: bool
+    expected_digest: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        check.arg(len(self.content) <= REMOTE_FS_MAX_CHUNK_BYTES)
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsWriteFileResult:
+    created: bool
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsWriteChunkParams:
+    handle: str
+    data: bytes
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.handle)
+        check.arg(len(self.data) <= REMOTE_FS_MAX_CHUNK_BYTES)
+
+
+@dc.dataclass(frozen=True)
+class RemoteFsWriteCommitParams:
+    handle: str
+    overwrite: bool
+    expected_digest: ta.Optional[str]
+
+    def __post_init__(self) -> None:
+        check.non_empty_str(self.handle)
 
 
 ########################################
@@ -3632,15 +3831,76 @@ class JsonRpcMessageCodec(RpcMessageCodec):
 # ../../fs/remote/server.py
 """
 The target side of the remote filesystem: `RemoteFsService` serves the `FsOps` operations on behalf of a host's
-`RemoteFsOps`. Lite: this runs inside the remote agent amalgam under Python 3.8+, and imports nothing but the standard
-library, `omcore.lite`, the rpc package, and the shared lite filesystem helpers.
+`RemoteFsOps`, including the chunked reads and staged writes through which content larger than one chunk crosses the
+connection (see `protocol.py`). Lite: this runs inside the remote agent amalgam under Python 3.8+, and imports nothing
+but the standard library, `omcore.lite`, the rpc package, and the shared lite filesystem helpers.
 """
 
 
 ##
 
 
+class _RemoteFsOpenRead:
+    """
+    A file held open across the chunks of one read. The size seen at the open bounds what is served, so the whole read
+    is of the file as it was then: a writer replacing it atomically leaves this inode untouched.
+    """
+
+    def __init__(self, file: ta.BinaryIO) -> None:
+        super().__init__()
+
+        self.file = file
+        self.size = os.fstat(file.fileno()).st_size
+        self.hasher = hashlib.sha256()
+
+    def read(self, max_bytes: int) -> ta.Tuple[bytes, bool]:
+        """The next piece, and whether it was the last."""
+
+        data = self.file.read(max_bytes)
+        self.hasher.update(data)
+        done = not data or self.file.tell() >= self.size
+        return data, done
+
+    def close(self) -> None:
+        self.file.close()
+
+
 class RemoteFsService:
+    def __init__(
+            self,
+            *,
+            max_chunk_bytes: int = REMOTE_FS_MAX_CHUNK_BYTES,
+            max_open_handles: int = 64,
+    ) -> None:
+        super().__init__()
+
+        check.arg(0 < max_chunk_bytes <= REMOTE_FS_MAX_CHUNK_BYTES)
+        check.arg(max_open_handles > 0)
+
+        self._max_chunk_bytes = max_chunk_bytes
+        self._max_open_handles = max_open_handles
+
+        self._reads: ta.Dict[str, _RemoteFsOpenRead] = {}
+        self._writes: ta.Dict[str, FsStagedWrite] = {}
+        self._next_handle = 1
+        self._closed = False
+
+    @property
+    def num_open_handles(self) -> int:
+        return len(self._reads) + len(self._writes)
+
+    def _new_handle(self, prefix: str) -> str:
+        if self._closed:
+            raise RuntimeError('remote filesystem service is closed')
+        if self.num_open_handles >= self._max_open_handles:
+            raise RuntimeError(f'too many open remote filesystem handles: {self._max_open_handles}')
+        handle = f'{prefix}{self._next_handle}'
+        self._next_handle += 1
+        return handle
+
+    def _chunk_bytes(self, requested: int) -> int:
+        return min(requested, self._max_chunk_bytes)
+
     @staticmethod
     def _entry(path: str, name: ta.Optional[str] = None) -> RemoteFsEntry:
         return RemoteFsEntry(
@@ -3650,6 +3910,8 @@ class RemoteFsService:
             is_file=os.path.isfile(path),
             is_symlink=os.path.islink(path),
         )
+
+    #
 
     async def resolve_path(self, params: ta.Any) -> str:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
@@ -3665,27 +3927,6 @@ class RemoteFsService:
             is_dir=stat_.S_ISDIR(st.st_mode),
             is_file=stat_.S_ISREG(st.st_mode),
             is_symlink=stat_.S_ISLNK(lst.st_mode),
-        ))
-
-    async def read_file(self, params: ta.Any) -> ta.Any:
-        p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
-        with open(p.path, 'rb') as f:  # noqa
-            data = f.read()
-        return marshal_obj(RemoteFsReadFileResult(
-            data=data,
-            digest=fs_file_digest(data),
-        ))
-
-    async def write_file(self, params: ta.Any) -> ta.Any:
-        p: RemoteFsWriteFileParams = unmarshal_obj(params, RemoteFsWriteFileParams)
-        created = fs_write_file(
-            p.path,
-            p.content,
-            overwrite=p.overwrite,
-            expected_digest=p.expected_digest,
-        )
-        return marshal_obj(RemoteFsWriteFileResult(
-            created=created,
         ))
 
     async def list_dir(self, params: ta.Any) -> ta.Any:
@@ -3716,15 +3957,164 @@ class RemoteFsService:
             has_more=has_more,
         ))
 
+    #
+
+    def _lookup_read(self, handle: str) -> _RemoteFsOpenRead:
+        try:
+            return self._reads[handle]
+        except KeyError:
+            raise ValueError(f'No such remote filesystem read: {handle!r}') from None
+
+    async def read_file(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsReadFileParams = unmarshal_obj(params, RemoteFsReadFileParams)
+        if self._closed:
+            raise RuntimeError('remote filesystem service is closed')
+
+        rd = _RemoteFsOpenRead(open(p.path, 'rb'))  # noqa
+        try:
+            data, done = rd.read(self._chunk_bytes(p.max_bytes))
+            if done:
+                return marshal_obj(RemoteFsReadFileResult(
+                    data=data,
+                    digest=rd.hasher.hexdigest(),
+                    handle=None,
+                ))
+
+            handle = self._new_handle('r')
+
+        except BaseException:
+            rd.close()
+            raise
+
+        self._reads[handle] = rd
+        return marshal_obj(RemoteFsReadFileResult(
+            data=data,
+            digest=None,
+            handle=handle,
+        ))
+
+    async def read_chunk(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsReadChunkParams = unmarshal_obj(params, RemoteFsReadChunkParams)
+        rd = self._lookup_read(p.handle)
+
+        try:
+            data, done = rd.read(self._chunk_bytes(p.max_bytes))
+        except BaseException:
+            self._reads.pop(p.handle, None)
+            rd.close()
+            raise
+
+        if not done:
+            return marshal_obj(RemoteFsReadChunkResult(
+                data=data,
+                digest=None,
+            ))
+
+        self._reads.pop(p.handle, None)
+        rd.close()
+        return marshal_obj(RemoteFsReadChunkResult(
+            data=data,
+            digest=rd.hasher.hexdigest(),
+        ))
+
+    async def read_abort(self, params: ta.Any) -> None:
+        # Idempotent: the handle may already have gone with its last chunk.
+        p: RemoteFsHandleParams = unmarshal_obj(params, RemoteFsHandleParams)
+        if (rd := self._reads.pop(p.handle, None)) is not None:
+            rd.close()
+
+    #
+
+    def _lookup_write(self, handle: str) -> FsStagedWrite:
+        try:
+            return self._writes[handle]
+        except KeyError:
+            raise ValueError(f'No such remote filesystem write: {handle!r}') from None
+
+    async def write_file(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsWriteFileParams = unmarshal_obj(params, RemoteFsWriteFileParams)
+        check.arg(len(p.content) <= self._max_chunk_bytes)
+        created = fs_write_file(
+            p.path,
+            p.content,
+            overwrite=p.overwrite,
+            expected_digest=p.expected_digest,
+        )
+        return marshal_obj(RemoteFsWriteFileResult(
+            created=created,
+        ))
+
+    async def write_begin(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
+        handle = self._new_handle('w')
+        self._writes[handle] = FsStagedWrite(p.path)
+        return marshal_obj(RemoteFsHandleResult(
+            handle=handle,
+        ))
+
+    async def write_chunk(self, params: ta.Any) -> None:
+        p: RemoteFsWriteChunkParams = unmarshal_obj(params, RemoteFsWriteChunkParams)
+        stage = self._lookup_write(p.handle)
+        try:
+            check.arg(len(p.data) <= self._max_chunk_bytes)
+            stage.write(p.data)
+        except BaseException:
+            # A stage that failed to take a piece cannot be completed: it is discarded, and the commit will say so.
+            self._writes.pop(p.handle, None)
+            stage.abort()
+            raise
+
+    async def write_commit(self, params: ta.Any) -> ta.Any:
+        p: RemoteFsWriteCommitParams = unmarshal_obj(params, RemoteFsWriteCommitParams)
+        stage = self._lookup_write(p.handle)
+        self._writes.pop(p.handle, None)
+        # Finishes the stage either way, cleaning up after a failure.
+        created = stage.commit(
+            overwrite=p.overwrite,
+            expected_digest=p.expected_digest,
+        )
+        return marshal_obj(RemoteFsWriteFileResult(
+            created=created,
+        ))
+
+    async def write_abort(self, params: ta.Any) -> None:
+        # Idempotent: the handle may already have gone with a failed chunk or commit.
+        p: RemoteFsHandleParams = unmarshal_obj(params, RemoteFsHandleParams)
+        if (stage := self._writes.pop(p.handle, None)) is not None:
+            stage.abort()
+
+    #
+
     def methods(self) -> ta.Mapping[str, RpcMethod]:
         return {
             REMOTE_FS_RESOLVE_PATH_METHOD: self.resolve_path,
             REMOTE_FS_STAT_METHOD: self.stat,
-            REMOTE_FS_READ_FILE_METHOD: self.read_file,
-            REMOTE_FS_WRITE_FILE_METHOD: self.write_file,
             REMOTE_FS_LIST_DIR_METHOD: self.list_dir,
             REMOTE_FS_GLOB_METHOD: self.glob,
+
+            REMOTE_FS_READ_FILE_METHOD: self.read_file,
+            REMOTE_FS_READ_CHUNK_METHOD: self.read_chunk,
+            REMOTE_FS_READ_ABORT_METHOD: self.read_abort,
+
+            REMOTE_FS_WRITE_FILE_METHOD: self.write_file,
+            REMOTE_FS_WRITE_BEGIN_METHOD: self.write_begin,
+            REMOTE_FS_WRITE_CHUNK_METHOD: self.write_chunk,
+            REMOTE_FS_WRITE_COMMIT_METHOD: self.write_commit,
+            REMOTE_FS_WRITE_ABORT_METHOD: self.write_abort,
         }
+
+    async def aclose(self) -> None:
+        """Releases every open read and discards every unfinished write - a host that has gone cannot finish them."""
+
+        self._closed = True
+
+        reads, self._reads = self._reads, {}
+        for rd in reads.values():
+            rd.close()
+
+        writes, self._writes = self._writes, {}
+        for stage in writes.values():
+            stage.abort()
 
 
 ########################################
@@ -5323,7 +5713,10 @@ class RemoteAgentRpcHandler(RpcHandler):
         return await fn(params)
 
     async def aclose(self) -> None:
-        await self._processes.aclose()
+        try:
+            await self._fs.aclose()
+        finally:
+            await self._processes.aclose()
 
 
 ########################################

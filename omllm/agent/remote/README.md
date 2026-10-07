@@ -11,7 +11,9 @@ lite-marshaled wire shapes, a lite `server` that runs inside the payload, and a 
 and implements the concern's ordinary interface:
 
 - `omllm/agent/fs/remote` - `RemoteFsOps` implements `FsOps` over a `RemoteFsService`, sharing the lite primitives in
-  `omllm/agent/fs/common.py` with `LocalFsOps`.
+  `omllm/agent/fs/common.py` with `LocalFsOps`. File content crosses in chunks (4 MiB by default, never more than 8),
+  as a handle-based read and a staged, still-atomic write, so a file's size is bounded by memory rather than by the
+  rpc's frame limit.
 - `omllm/core/processes/remote` - `RemoteProcessManager` implements `ProcessManager` / `ProcessScope` over a
   `RemoteProcessService`, with local proxy handles and output spools. See its README for the process semantics.
 
