@@ -104,9 +104,16 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=_Formatter,
         parents=[render_parent],
     )
-    parser.add_argument('-v', '--version', action='version')
+    parser.add_argument(
+        '-v',
+        '--version',
+        action='version',
+    )
 
-    select = parser.add_argument_group(title='select', description='choose what to render')
+    select = parser.add_argument_group(
+        title='select',
+        description='choose what to render',
+    )
     select.add_argument(
         '--python',
         default=None,
@@ -129,7 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='if in a virtualenv that has global access do not show globally installed packages',
     )
-    scope.add_argument('-u', '--user-only', action='store_true', help='only show installations in the user site dir')
+    scope.add_argument(
+        '-u',
+        '--user-only',
+        action='store_true',
+        help='only show installations in the user site dir',
+    )
 
     _add_installed_metadata_arguments(parser)
 
@@ -145,8 +157,14 @@ def build_parser() -> argparse.ArgumentParser:
             'this is fully offline -- no package index, network, or extra is required.'
         ),
     )
-    from_lock.add_argument('lock', metavar='PYLOCK', help='path to a PEP 751 pylock.toml lock file')
-    from_lock.set_defaults(command='from-lock')
+    from_lock.add_argument(
+        'lock',
+        metavar='PYLOCK',
+        help='path to a PEP 751 pylock.toml lock file',
+    )
+    from_lock.set_defaults(
+        command='from-lock',
+    )
 
     # Bare ``pipdeptree`` does not visit the subparser, so seed its defaults.
     parser.set_defaults(
@@ -213,7 +231,10 @@ def _add_render_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
-        '-f', '--freeze', action='store_true', help='(Deprecated, use -o) print names so as to write freeze files',
+        '-f',
+        '--freeze',
+        action='store_true',
+        help='(Deprecated, use -o) print names so as to write freeze files',
     )
     parser.add_argument(
         '--encoding',
@@ -223,7 +244,10 @@ def _add_render_arguments(parser: argparse.ArgumentParser) -> None:
         metavar='E',
     )
     parser.add_argument(
-        '-a', '--all', action='store_true', help='list all deps at top level (text and freeze render only)',
+        '-a',
+        '--all',
+        action='store_true',
+        help='list all deps at top level (text and freeze render only)',
     )
     parser.add_argument(
         '-d',
@@ -300,8 +324,10 @@ def _add_installed_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         '-m',
         '--metadata',
         default='',
-        help='comma separated list of metadata fields to display from the package METADATA file'
-        ' (e.g. license,summary,author,home-page,requires-python)',
+        help=(
+            'comma separated list of metadata fields to display from the package METADATA file'
+            ' (e.g. license,summary,author,home-page,requires-python)'
+        ),
         metavar='M',
     )
     parser.add_argument(
