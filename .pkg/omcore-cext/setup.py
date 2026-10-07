@@ -159,6 +159,7 @@ st.setup(
                 'omcore/text/pcre2/_pcre2_/src/pcre2_compile_class.c',
                 'omcore/text/pcre2/_pcre2_/src/pcre2_config.c',
                 'omcore/text/pcre2/_pcre2_/src/pcre2_context.c',
+                'omcore/text/pcre2/_pcre2_/src/pcre2_dfa_match.c',
                 'omcore/text/pcre2/_pcre2_/src/pcre2_error.c',
                 'omcore/text/pcre2/_pcre2_/src/pcre2_extuni.c',
                 'omcore/text/pcre2/_pcre2_/src/pcre2_find_bracket.c',

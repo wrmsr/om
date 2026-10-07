@@ -112,6 +112,18 @@ typedef struct Pcre2Capi {
         PCRE2_UCHAR *,
         PCRE2_SIZE *
     );
+
+    int (*dfa_match)(
+        const pcre2_code *,
+        PCRE2_SPTR,
+        PCRE2_SIZE,
+        PCRE2_SIZE,
+        uint32_t,
+        pcre2_match_data *,
+        pcre2_match_context *,
+        int *,
+        PCRE2_SIZE
+    );
 } Pcre2Capi;
 
 //
@@ -590,6 +602,96 @@ static PyObject * substitute(PyObject *module, PyObject *args)
 
 //
 
+PyDoc_STRVAR(dfa_match_lengths_doc, "dfa_match_lengths(code, subject, wscount=1000, /)");
+
+// The lengths of every match the DFA matcher finds from the first place one starts, longest first.
+static PyObject * dfa_match_lengths(PyObject *module, PyObject *args)
+{
+    const Pcre2Capi *capi = get_capiclient_state(module)->capi;
+
+    PyObject *code_obj;
+    PyObject *subject_obj;
+    Py_ssize_t wscount = 1000;
+    if (!PyArg_ParseTuple(args, "OO|n:dfa_match_lengths", &code_obj, &subject_obj, &wscount)) {
+        return nullptr;
+    }
+
+    const pcre2_code *code = capi->code_from_object(code_obj);
+    if (code == nullptr) {
+        return nullptr;
+    }
+    if (wscount < 0 || wscount > 1000000) {
+        PyErr_SetString(PyExc_ValueError, "wscount must be between 0 and 1000000");
+        return nullptr;
+    }
+
+    Py_buffer subject;
+    if (get_immutable_buffer(subject_obj, &subject) < 0) {
+        return nullptr;
+    }
+
+    // The workspace is the consumer's own to provide here, as is a block with room for more than the one match.
+    const uint32_t max_matches = 64;
+    pcre2_match_data *match_data = capi->match_data_create(max_matches, nullptr);
+    if (match_data == nullptr) {
+        PyBuffer_Release(&subject);
+        return PyErr_NoMemory();
+    }
+
+    std::vector<PCRE2_SIZE> lengths;
+    int rc;
+
+    Py_BEGIN_ALLOW_THREADS
+    try {
+        std::vector<int> workspace((size_t)wscount);
+        rc = capi->dfa_match(
+            code,
+            (PCRE2_SPTR)subject.buf,
+            (PCRE2_SIZE)subject.len,
+            0,
+            0,
+            match_data,
+            nullptr,
+            workspace.data(),
+            (PCRE2_SIZE)workspace.size()
+        );
+
+        // Zero is more matches than the block has room for, of which it holds the longest.
+        PCRE2_SIZE *ovector = capi->get_ovector_pointer(match_data);
+        int n = (rc == 0) ? (int)max_matches : rc;
+        for (int i = 0; i < n; i++) {
+            lengths.push_back(ovector[2 * i + 1] - ovector[2 * i]);
+        }
+    } catch (const std::exception &) {
+        rc = PCRE2_ERROR_NOMEMORY;
+    }
+    Py_END_ALLOW_THREADS
+
+    capi->match_data_free(match_data);
+    PyBuffer_Release(&subject);
+
+    if (rc < 0 && rc != PCRE2_ERROR_NOMATCH) {
+        set_pcre2_error(capi, rc);
+        return nullptr;
+    }
+
+    PyObject *result = PyList_New((Py_ssize_t)lengths.size());
+    if (result == nullptr) {
+        return nullptr;
+    }
+    for (size_t i = 0; i < lengths.size(); i++) {
+        PyObject *item = PyLong_FromSize_t(lengths[i]);
+        if (item == nullptr) {
+            Py_DECREF(result);
+            return nullptr;
+        }
+        PyList_SET_ITEM(result, (Py_ssize_t)i, item);
+    }
+    return result;
+}
+
+//
+
 PyDoc_STRVAR(capiclient_doc, "A consumer of the _pcre2 capi capsule");
 
 static int capiclient_exec(PyObject *module)
@@ -630,6 +732,7 @@ static PyMethodDef capiclient_methods[] = {
     {"find_spans", (PyCFunction)find_spans, METH_VARARGS, find_spans_doc},
     {"count_chunks", (PyCFunction)count_chunks, METH_VARARGS, count_chunks_doc},
     {"substitute", (PyCFunction)substitute, METH_VARARGS, substitute_doc},
+    {"dfa_match_lengths", (PyCFunction)dfa_match_lengths, METH_VARARGS, dfa_match_lengths_doc},
     {nullptr, nullptr, 0, nullptr}
 };
 

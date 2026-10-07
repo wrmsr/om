@@ -163,3 +163,15 @@ def test_substitute(capiclient):
     slow = pcre2.compile(rb'(a+)+$')
     with pytest.raises(RuntimeError, match='match limit exceeded'):
         capiclient.substitute(slow, b'a' * 40 + b'b', b'x', 0, pcre2.MatchContext.create(match_limit=1000))
+
+
+def test_dfa_match(capiclient):
+    # Through the entry appended to the capsule's table after the others.
+    code = pcre2.compile(rb'cat(er(pillar)?)?')
+    assert capiclient.dfa_match_lengths(code, b'the caterpillar') == [11, 5, 3]
+    assert capiclient.dfa_match_lengths(code, b'the dog') == []
+
+    with pytest.raises(RuntimeError, match='workspace size exceeded'):
+        capiclient.dfa_match_lengths(code, b'the caterpillar', 20)
+    with pytest.raises(RuntimeError, match='not supported for DFA matching'):
+        capiclient.dfa_match_lengths(pcre2.compile(rb'(a)\1'), b'aa')

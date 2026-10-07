@@ -90,6 +90,11 @@ NO_JIT: ta.Final[int]
 COPY_MATCHED_SUBJECT: ta.Final[int]
 DISABLE_RECURSELOOP_CHECK: ta.Final[int]
 
+# Options for dfa_match
+
+DFA_RESTART: ta.Final[int]
+DFA_SHORTEST: ta.Final[int]
+
 # Options for substitute
 
 SUBSTITUTE_GLOBAL: ta.Final[int]
@@ -431,6 +436,16 @@ class Code:
             start_offset: int = 0,
             options: int = 0,
             match_context: MatchContext | None = None,
+    ) -> int: ...
+
+    def dfa_match(
+            self,
+            subject: collections.abc.Buffer,
+            match_data: MatchData,
+            start_offset: int = 0,
+            options: int = 0,
+            match_context: MatchContext | None = None,
+            wscount: int = 1000,
     ) -> int: ...
 
     def substitute(

@@ -31,6 +31,7 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+#include <limits.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -52,8 +53,8 @@
 // PCRE2_UNSET surfaces as -1 (its value read as a signed size). Anything `re`-shaped - str subjects, match objects,
 // iteration, `re`'s replacement templates - belongs in Python on top of this, not in here.
 //
-// Not bound: the JIT, DFA matching, serialization, pattern conversion, custom character tables, callouts of every
-// kind, and the general context.
+// Not bound: the JIT, serialization, pattern conversion, custom character tables, callouts of every kind, and the
+// general context.
 //
 // A Code, a CompileContext, and a MatchContext are immutable, and may be used from any number of threads at once -
 // which is why the contexts take their settings when created, rather than through PCRE2's setters afterwards. A
@@ -200,6 +201,12 @@ typedef struct {
     // be valid UTF. PY_SSIZE_T_MAX until it has validated any of it.
     bool subject_immutable;
     Py_ssize_t validated_start;
+    // The DFA matcher's workspace, which like the block's heap frames is kept to be used again, and whether the last
+    // thing done with the block was a DFA match by the pinned Code which ended partially: what that left in the
+    // workspace is then where it can be asked to carry on from.
+    int *workspace;
+    size_t wscount;
+    bool dfa_partial;
     atomic_flag busy;
 } MatchData;
 
@@ -758,6 +765,213 @@ static bool unwrap_match_context(
     return true;
 }
 
+// The workspace a DFA match is given when none is asked for. PCRE2 needs at least 20 ints, and more the more ways
+// through a pattern there are to keep track of at once.
+static const Py_ssize_t DEFAULT_WSCOUNT = 1000;
+
+// Sizes the block's workspace, keeping what it holds - a restart reads it - and zeroing what is new, which PCRE2 reads
+// as holding nothing to restart from.
+static int MatchData_reserve_workspace(MatchData *self, size_t wscount)
+{
+    if (self->workspace != NULL && self->wscount == wscount) {
+        return 0;
+    }
+
+    if (wscount > (size_t)INT_MAX) {
+        PyErr_SetString(PyExc_OverflowError, "wscount is too large");
+        return -1;
+    }
+
+    int *workspace = PyMem_Realloc(self->workspace, (wscount > 0 ? wscount : 1) * sizeof(int));
+    if (workspace == NULL) {
+        PyErr_NoMemory();
+        return -1;
+    }
+    if (self->workspace == NULL) {
+        self->wscount = 0;
+    }
+    if (wscount > self->wscount) {
+        memset(workspace + self->wscount, 0, (wscount - self->wscount) * sizeof(int));
+    }
+
+    self->workspace = workspace;
+    self->wscount = wscount;
+    return 0;
+}
+
+// What match and dfa_match share, which is everything but the call to PCRE2 itself: with a negative wscount the
+// backtracking matcher is used, and otherwise the DFA one with a workspace of that many ints.
+static PyObject * Code_match_into(
+    Code *self,
+    PyObject *subject_obj,
+    MatchData *md,
+    Py_ssize_t start_offset,
+    uint32_t options,
+    PyObject *match_context_obj,
+    Py_ssize_t wscount
+)
+{
+    pcre2mod_state *state = get_pcre2mod_type_state(Py_TYPE(self));
+    bool dfa = (wscount >= 0);
+
+    if (start_offset < 0) {
+        PyErr_SetString(PyExc_ValueError, "start_offset must not be negative");
+        return NULL;
+    }
+
+    pcre2_match_context *context;
+    pcre2_match_context *probe;
+    if (!unwrap_match_context(state, match_context_obj, &context, &probe)) {
+        return NULL;
+    }
+
+    if (MatchData_acquire(md) < 0) {
+        return NULL;
+    }
+
+    // A partial DFA match can be carried on from only by the next thing done with the block, and only by its Code.
+    bool restartable = (md->dfa_partial && md->code == (PyObject *)self);
+    md->dfa_partial = false;
+
+    // A subject which is still pinned from the last match is matched through the buffer already held on it.
+    bool same_subject = (md->subject.obj != NULL && md->subject.obj == subject_obj);
+    if (!same_subject) {
+        MatchData_unpin(md);
+        if (PyObject_GetBuffer(subject_obj, &md->subject, PyBUF_SIMPLE) < 0) {
+            MatchData_release(md);
+            return NULL;
+        }
+        md->subject_immutable = is_immutable_subject(subject_obj);
+    }
+    bool same_code = (md->code == (PyObject *)self);
+
+    if (!check_subject(self, subject_obj, md->subject_immutable, options)) {
+        MatchData_unpin(md);
+        MatchData_release(md);
+        return NULL;
+    }
+
+    PCRE2_SPTR subject = (PCRE2_SPTR)md->subject.buf;
+    PCRE2_SIZE length = (PCRE2_SIZE)md->subject.len;
+
+    // Left to itself PCRE2 validates everything ahead of start_offset on every call, which makes walking a subject
+    // match by match quadratic in its length. That is skipped where this Code has already validated this subject from
+    // at or before here, the subject can not have changed since, and - as skipping the check also skips PCRE2's own
+    // for this - start_offset is not in the middle of a character.
+    bool skip_utf_check = (
+        same_subject &&
+        same_code &&
+        self->validates_utf &&
+        md->subject_immutable &&
+        start_offset >= md->validated_start &&
+        (start_offset >= md->subject.len || (subject[start_offset] & 0xC0) != 0x80)
+    );
+    uint32_t match_options = options | (skip_utf_check ? PCRE2_NO_UTF_CHECK : 0);
+
+    // Whichever matcher it is, the Code, the MatchContext, the MatchData, and the subject's buffer are all kept alive
+    // by the caller's own arguments, and the MatchData is marked busy, so nothing the match touches can be freed or
+    // reused while detached.
+    int rc = 0;
+    if (dfa) {
+        // PCRE2 carries a partial match on from what is in the workspace, which it checks is well formed but cannot
+        // check is this pattern's, or anything it ever wrote. That is what would let it be led out of bounds, so it is
+        // only let try where what is there is known to be what this Code left on ending partially.
+        if ((options & PCRE2_DFA_RESTART) != 0 && !restartable) {
+            MatchData_unpin(md);
+            MatchData_release(md);
+            set_error(state->MatchError, PCRE2_ERROR_DFA_BADRESTART, -1);
+            return NULL;
+        }
+
+        if (MatchData_reserve_workspace(md, (size_t)wscount) < 0) {
+            MatchData_unpin(md);
+            MatchData_release(md);
+            return NULL;
+        }
+        int *workspace = md->workspace;
+
+        // A match limit bounds this matcher by how many places it starts from, not by how much it does from each, so
+        // there is no trying it under a small one first: it always runs detached.
+        Py_BEGIN_ALLOW_THREADS
+        rc = pcre2_dfa_match(
+            self->code,
+            subject,
+            length,
+            (PCRE2_SIZE)start_offset,
+            match_options,
+            md->match_data,
+            context,
+            workspace,
+            (PCRE2_SIZE)wscount
+        );
+        Py_END_ALLOW_THREADS
+
+    } else {
+        // A match with little subject ahead of it is first tried attached, under the probe's match limit.
+        bool attached = (md->subject.len - start_offset < ALLOW_THREADS_MIN_LENGTH);
+
+        if (attached) {
+            rc = pcre2_match(
+                self->code,
+                subject,
+                length,
+                (PCRE2_SIZE)start_offset,
+                match_options,
+                md->match_data,
+                (probe != NULL) ? probe : context
+            );
+        }
+
+        if (!attached || (probe != NULL && rc == PCRE2_ERROR_MATCHLIMIT)) {
+            Py_BEGIN_ALLOW_THREADS
+            rc = pcre2_match(
+                self->code,
+                subject,
+                length,
+                (PCRE2_SIZE)start_offset,
+                match_options,
+                md->match_data,
+                context
+            );
+            Py_END_ALLOW_THREADS
+        }
+    }
+
+    if (rc >= 0 || rc == PCRE2_ERROR_NOMATCH || rc == PCRE2_ERROR_PARTIAL) {
+        // PCRE2 saw the attempt through, so what the block now holds is what it set for this Code.
+        if (!same_code) {
+            Py_XSETREF(md->code, Py_NewRef((PyObject *)self));
+            md->validated_start = PY_SSIZE_T_MAX;
+        }
+        if (rc < 0) {
+            // There is no match to advance from, so nothing will read through the subject again.
+            MatchData_unpin_subject(md);
+        } else if (
+            self->validates_utf &&
+            (match_options & PCRE2_NO_UTF_CHECK) == 0 &&
+            start_offset < md->validated_start
+        ) {
+            md->validated_start = start_offset;
+        }
+        md->dfa_partial = (dfa && rc == PCRE2_ERROR_PARTIAL);
+        MatchData_release(md);
+        return PyLong_FromLong(rc);
+    }
+
+    // pcre2_get_startchar is the offset of the offending code unit after a UTF-8 validity error, and is not otherwise
+    // meaningful after a failure.
+    Py_ssize_t error_offset = -1;
+    if (rc <= PCRE2_ERROR_UTF8_ERR1 && rc >= PCRE2_ERROR_UTF8_ERR21) {
+        error_offset = (Py_ssize_t)pcre2_get_startchar(md->match_data);
+    }
+
+    MatchData_unpin(md);
+    MatchData_release(md);
+
+    set_error(state->MatchError, rc, error_offset);
+    return NULL;
+}
+
 PyDoc_STRVAR(
     Code_match_doc,
     "match(subject, match_data, start_offset=0, options=0, match_context=None)\n\n"
@@ -802,121 +1016,80 @@ static PyObject * Code_match(Code *self, PyObject *args, PyObject *kwargs)
         return NULL;
     }
 
-    if (start_offset < 0) {
-        PyErr_SetString(PyExc_ValueError, "start_offset must not be negative");
-        return NULL;
-    }
-
-    pcre2_match_context *context;
-    pcre2_match_context *probe;
-    if (!unwrap_match_context(state, match_context_obj, &context, &probe)) {
-        return NULL;
-    }
-
-    MatchData *md = (MatchData *)match_data_obj;
-    if (MatchData_acquire(md) < 0) {
-        return NULL;
-    }
-
-    // A subject which is still pinned from the last match is matched through the buffer already held on it.
-    bool same_subject = (md->subject.obj != NULL && md->subject.obj == subject_obj);
-    if (!same_subject) {
-        MatchData_unpin(md);
-        if (PyObject_GetBuffer(subject_obj, &md->subject, PyBUF_SIMPLE) < 0) {
-            MatchData_release(md);
-            return NULL;
-        }
-        md->subject_immutable = is_immutable_subject(subject_obj);
-    }
-    bool same_code = (md->code == (PyObject *)self);
-
-    if (!check_subject(self, subject_obj, md->subject_immutable, options)) {
-        MatchData_unpin(md);
-        MatchData_release(md);
-        return NULL;
-    }
-
-    PCRE2_SPTR subject = (PCRE2_SPTR)md->subject.buf;
-    PCRE2_SIZE length = (PCRE2_SIZE)md->subject.len;
-
-    // Left to itself PCRE2 validates everything ahead of start_offset on every call, which makes walking a subject
-    // match by match quadratic in its length. That is skipped where this Code has already validated this subject from
-    // at or before here, the subject can not have changed since, and - as skipping the check also skips PCRE2's own
-    // for this - start_offset is not in the middle of a character.
-    bool skip_utf_check = (
-        same_subject &&
-        same_code &&
-        self->validates_utf &&
-        md->subject_immutable &&
-        start_offset >= md->validated_start &&
-        (start_offset >= md->subject.len || (subject[start_offset] & 0xC0) != 0x80)
+    return Code_match_into(
+        self,
+        subject_obj,
+        (MatchData *)match_data_obj,
+        start_offset,
+        options,
+        match_context_obj,
+        -1
     );
-    uint32_t match_options = options | (skip_utf_check ? PCRE2_NO_UTF_CHECK : 0);
+}
 
-    // A match with little subject ahead of it is first tried attached, under the probe's match limit.
-    bool attached = (md->subject.len - start_offset < ALLOW_THREADS_MIN_LENGTH);
+PyDoc_STRVAR(
+    Code_dfa_match_doc,
+    "dfa_match(subject, match_data, start_offset=0, options=0, match_context=None, wscount=1000)\n\n"
+    "pcre2_dfa_match, PCRE2's other matcher: it does not backtrack, and finds every match there is from the first "
+    "place one starts rather than the one Perl would. Returns how many it found, and leaves them in the ovector "
+    "longest first, each a start and an end - there are no captured groups. Otherwise as match: zero means more were "
+    "found than the ovector holds, ERROR_NOMATCH and ERROR_PARTIAL are returned, and anything else raises "
+    "MatchError, a pattern using what this matcher does not support included. The workspace of wscount ints it works "
+    "in is kept by the MatchData. A match which ended partially can be carried on into more subject with "
+    "DFA_RESTART, by the same Code, as the next thing done with the block."
+);
 
-    int rc = 0;
-    if (attached) {
-        rc = pcre2_match(
-            self->code,
-            subject,
-            length,
-            (PCRE2_SIZE)start_offset,
-            match_options,
-            md->match_data,
-            (probe != NULL) ? probe : context
-        );
+static PyObject * Code_dfa_match(Code *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = {
+        "subject",
+        "match_data",
+        "start_offset",
+        "options",
+        "match_context",
+        "wscount",
+        NULL,
+    };
+
+    pcre2mod_state *state = get_pcre2mod_type_state(Py_TYPE(self));
+
+    PyObject *subject_obj;
+    PyObject *match_data_obj;
+    Py_ssize_t start_offset = 0;
+    uint32_t options = 0;
+    PyObject *match_context_obj = Py_None;
+    Py_ssize_t wscount = DEFAULT_WSCOUNT;
+    if (!PyArg_ParseTupleAndKeywords(
+        args,
+        kwargs,
+        "OO!|nO&On:dfa_match",
+        kwlist,
+        &subject_obj,
+        state->MatchDataType,
+        &match_data_obj,
+        &start_offset,
+        convert_uint32,
+        &options,
+        &match_context_obj,
+        &wscount
+    )) {
+        return NULL;
     }
 
-    // The Code, the MatchContext, the MatchData, and the subject's buffer are all kept alive by this call's own
-    // arguments, and the MatchData is marked busy, so nothing the match touches can be freed or reused while detached.
-    if (!attached || (probe != NULL && rc == PCRE2_ERROR_MATCHLIMIT)) {
-        Py_BEGIN_ALLOW_THREADS
-        rc = pcre2_match(
-            self->code,
-            subject,
-            length,
-            (PCRE2_SIZE)start_offset,
-            match_options,
-            md->match_data,
-            context
-        );
-        Py_END_ALLOW_THREADS
+    if (wscount < 0) {
+        PyErr_SetString(PyExc_ValueError, "wscount must not be negative");
+        return NULL;
     }
 
-    if (rc >= 0 || rc == PCRE2_ERROR_NOMATCH || rc == PCRE2_ERROR_PARTIAL) {
-        // PCRE2 saw the attempt through, so what the block now holds is what it set for this Code.
-        if (!same_code) {
-            Py_XSETREF(md->code, Py_NewRef((PyObject *)self));
-            md->validated_start = PY_SSIZE_T_MAX;
-        }
-        if (rc < 0) {
-            // There is no match to advance from, so nothing will read through the subject again.
-            MatchData_unpin_subject(md);
-        } else if (
-            self->validates_utf &&
-            (match_options & PCRE2_NO_UTF_CHECK) == 0 &&
-            start_offset < md->validated_start
-        ) {
-            md->validated_start = start_offset;
-        }
-        MatchData_release(md);
-        return PyLong_FromLong(rc);
-    }
-
-    // pcre2_get_startchar is the offset of the offending code unit after a UTF-8 validity error, and is not otherwise
-    // meaningful after a failure.
-    Py_ssize_t error_offset = -1;
-    if (rc <= PCRE2_ERROR_UTF8_ERR1 && rc >= PCRE2_ERROR_UTF8_ERR21) {
-        error_offset = (Py_ssize_t)pcre2_get_startchar(md->match_data);
-    }
-
-    MatchData_unpin(md);
-    MatchData_release(md);
-
-    set_error(state->MatchError, rc, error_offset);
-    return NULL;
+    return Code_match_into(
+        self,
+        subject_obj,
+        (MatchData *)match_data_obj,
+        start_offset,
+        options,
+        match_context_obj,
+        wscount
+    );
 }
 
 PyDoc_STRVAR(
@@ -985,6 +1158,7 @@ static PyObject * Code_substitute(Code *self, PyObject *args, PyObject *kwargs)
         if (MatchData_acquire(md) < 0) {
             return NULL;
         }
+        md->dfa_partial = false;
     }
 
     bool matched = (options & PCRE2_SUBSTITUTE_MATCHED) != 0;
@@ -1226,6 +1400,12 @@ static PyMethodDef Code_methods[] = {
     {"pattern_info", (PyCFunction)Code_pattern_info, METH_O, Code_pattern_info_doc},
     {"match", (PyCFunction)(void (*)(void))Code_match, METH_VARARGS | METH_KEYWORDS, Code_match_doc},
     {
+        "dfa_match",
+        (PyCFunction)(void (*)(void))Code_dfa_match,
+        METH_VARARGS | METH_KEYWORDS,
+        Code_dfa_match_doc,
+    },
+    {
         "substitute",
         (PyCFunction)(void (*)(void))Code_substitute,
         METH_VARARGS | METH_KEYWORDS,
@@ -1300,6 +1480,7 @@ static void MatchData_dealloc(MatchData *self)
     PyObject_GC_UnTrack(self);
     // Nothing can reach a block with no references left to it, so there is nothing to exclude.
     MatchData_unpin(self);
+    PyMem_Free(self->workspace);
     pcre2_match_data_free(self->match_data);
     tp->tp_free((PyObject *)self);
     Py_DECREF(tp);
@@ -1332,6 +1513,9 @@ static PyObject * MatchData_wrap(PyTypeObject *tp, pcre2_match_data *match_data)
     memset(&self->subject, 0, sizeof(self->subject));
     self->subject_immutable = false;
     self->validated_start = PY_SSIZE_T_MAX;
+    self->workspace = NULL;
+    self->wscount = 0;
+    self->dfa_partial = false;
     // C11 leaves a flag which was not initialized with ATOMIC_FLAG_INIT in an indeterminate state, which this settles.
     atomic_flag_clear(&self->busy);
 
@@ -1490,7 +1674,8 @@ static PyObject * MatchData_sizeof(MatchData *self, PyObject *Py_UNUSED(ignored)
     size_t size = (
         (size_t)Py_TYPE(self)->tp_basicsize +
         pcre2_get_match_data_size(self->match_data) +
-        pcre2_get_match_data_heapframes_size(self->match_data)
+        pcre2_get_match_data_heapframes_size(self->match_data) +
+        self->wscount * sizeof(int)
     );
 
     MatchData_release(self);
@@ -1828,6 +2013,11 @@ static const IntConstant pcre2mod_constants[] = {
     _PCRE2_CONSTANT(NO_JIT),
     _PCRE2_CONSTANT(COPY_MATCHED_SUBJECT),
     _PCRE2_CONSTANT(DISABLE_RECURSELOOP_CHECK),
+
+    // Options for dfa_match
+
+    _PCRE2_CONSTANT(DFA_RESTART),
+    _PCRE2_CONSTANT(DFA_SHORTEST),
 
     // Options for substitute
 
@@ -2204,6 +2394,18 @@ typedef struct Pcre2Capi {
         PCRE2_UCHAR *,
         PCRE2_SIZE *
     );
+
+    int (*dfa_match)(
+        const pcre2_code *,
+        PCRE2_SPTR,
+        PCRE2_SIZE,
+        PCRE2_SIZE,
+        uint32_t,
+        pcre2_match_data *,
+        pcre2_match_context *,
+        int *,
+        PCRE2_SIZE
+    );
 } Pcre2Capi;
 
 // Defined below the module definition they need.
@@ -2264,6 +2466,8 @@ static const Pcre2Capi pcre2mod_capi = {
     .substring_nametable_scan = pcre2_substring_nametable_scan,
 
     .substitute = pcre2_substitute,
+
+    .dfa_match = pcre2_dfa_match,
 };
 
 //

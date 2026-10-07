@@ -14,6 +14,7 @@
     "src/pcre2_compile_class.c",
     "src/pcre2_config.c",
     "src/pcre2_context.c",
+    "src/pcre2_dfa_match.c",
     "src/pcre2_error.c",
     "src/pcre2_extuni.c",
     "src/pcre2_find_bracket.c",

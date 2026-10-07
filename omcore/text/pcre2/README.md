@@ -23,6 +23,7 @@ md.next_match()                         # (13, 0): where, and with what options,
 |--------------------------------------------------------|----------------------------------------------------------|
 | `compile(pattern, options=0, compile_context=None)`    | `pcre2_compile`                                          |
 | `Code.match(subject, match_data, start_offset=0, options=0, match_context=None)` | `pcre2_match`                  |
+| `Code.dfa_match(subject, match_data, ..., wscount=1000)` | `pcre2_dfa_match`                                      |
 | `Code.substitute(subject, replacement, ...)`           | `pcre2_substitute`                                       |
 | `Code.pattern_info(what)`                              | `pcre2_pattern_info`                                     |
 | `Code.substring_number_from_name(name)`                | `pcre2_substring_number_from_name`                       |
@@ -59,8 +60,8 @@ Things worth knowing:
 - Groups are found by name with `Code.substring_number_from_name`, or with `Code.substring_nametable_scan`, which
   returns the numbers of every group of that name, where a pattern compiled with `DUPNAMES` has several. Names are
   `bytes`. Which of several took part in a match is for the ovector to say.
-- `sys.getsizeof` of a `Code` or a `MatchData` includes what PCRE2 holds for it, for a `MatchData` the memory a match
-  needed for backtracking, which it keeps to use again.
+- `sys.getsizeof` of a `Code` or a `MatchData` includes what PCRE2 holds for it: for a `MatchData` the memory a match
+  needed for backtracking and the DFA matcher's workspace, both of which it keeps to use again.
 - A UTF pattern only matches a subject which cannot change: `bytes`, or a `memoryview` of `bytes`. Anything else raises
   `BufferError` - see [Threads](#threads) for why - unless `NO_UTF_CHECK` is given, which as in C is the caller's own
   promise that the subject is, and stays, valid. Other patterns take any buffer, and see it as it is at each call. A
@@ -71,8 +72,42 @@ Things worth knowing:
 - Walking a subject match by match is linear in its length. PCRE2 on its own validates everything ahead of
   `start_offset` on every call, which is quadratic over a search; `Code.match` skips that for a subject the same `Code`
   has already validated through the same `MatchData`, so long as the same `bytes` object keeps being passed.
-- Not bound: the JIT, DFA matching, serialization, pattern conversion, custom character tables, callouts of every
-  kind, and the general context.
+- Not bound: the JIT, serialization, pattern conversion, custom character tables, callouts of every kind, and the
+  general context.
+
+## The DFA matcher
+
+`Code.dfa_match` is PCRE2's other matching algorithm. Where `match` follows one way through a pattern at a time, and
+backs up to try another when it fails, this reads the subject once and keeps track of every way through that is still
+open. It does not backtrack, and what it finds is not the one match Perl would but all of them:
+
+```python
+code = _pcre2.compile(rb'cat(er(pillar)?)?')
+md = _pcre2.MatchData.create(8)
+
+code.dfa_match(b'the caterpillar', md)  # 3
+md.ovector[:6]                           # (4, 15, 4, 9, 4, 7): caterpillar, cater, and cat
+```
+
+- It returns how many matches it found from the first place any starts, and leaves them in the ovector longest first,
+  each a start and an end. There are no captured groups, so the size of a block is how many matches it can hold, and
+  zero is returned if there were more. `DFA_SHORTEST` has it stop at the first, shortest one.
+- Which matches there are can turn on how PCRE2 compiled the pattern: a repeat which nothing after it could give
+  ground to is made possessive, which leaves it one match. `NO_AUTO_POSSESS` at compile time brings back the rest.
+- It does not do everything `match` does. A pattern with a backreference, `\K`, or a backtracking verb raises
+  `MatchError` with `ERROR_DFA_UITEM`, and one compiled with `MATCH_INVALID_UTF` with `ERROR_DFA_UINVALID_UTF`.
+- It works in a workspace of `wscount` ints, which the `MatchData` keeps for the next time. One too small for the ways
+  through it has to keep track of ends the match with `ERROR_DFA_WSSIZE`. That is what bounds this matcher, and the
+  bound is worth having: it does more the more it is tracking, and given room enough it can be as slow on a hostile
+  pattern as backtracking is - the pattern in `tests/test_limits.py` fails at once in the default workspace, and with
+  eight times that takes over a second on a subject of 400 characters. A match limit means something else to it, the
+  number of places it starts a match from, and the depth and heap limits apply as usual.
+- A match which ran out of subject - `ERROR_PARTIAL`, under `PARTIAL_HARD` or `PARTIAL_SOFT` - can be carried on into
+  the next piece of it with `DFA_RESTART`, which is how a subject is matched in pieces. That has to be the next thing
+  done with the block, by the same `Code`: what is carried on from is in the workspace, and anything else raises
+  `MatchError` with `ERROR_DFA_BADRESTART`.
+- Otherwise it is used as `match` is: the same rule for the subject of a UTF pattern, the same return codes and errors,
+  and `MatchData.next_match` for a global search. It always runs detached from the interpreter.
 
 ## Substitution
 
@@ -208,30 +243,58 @@ Entries are only ever appended to `Pcre2Capi` under a given `PCRE2_CAPI_ABI_VERS
 earlier, shorter table keeps working, and one built against a later table than the module has is refused at import. Any
 other change must bump the version.
 
-## Building `re` on top
+## The `re` adapter
 
-An `re`-compatible adapter is pure Python over what is here:
+The `re` subpackage is a best effort at the standard library's `re` on top of the binding, in pure Python: the same
+functions, the same flags, and `Pattern` and `Match` objects with the attributes and methods of the originals.
 
-- Flags map onto options: `IGNORECASE` to `CASELESS`, `VERBOSE` to `EXTENDED`, the absence of `ASCII` to `UCP`,
-  `MULTILINE` to `MULTILINE | ALT_CIRCUMFLEX` (without which `^` does not match after a trailing newline, as it does in
-  `re`), and `match` / `fullmatch` to `ANCHORED` / `ANCHORED | ENDANCHORED` at match time. `pos` is `start_offset`, and
-  `endpos` is a `memoryview` slice of the subject.
-- `finditer`, `findall`, `split`, and `sub` are the `match` / `next_match` loop in `tests/spans.py`. On the patterns in
-  `tests/test_search.py` it yields the same spans `re.finditer` does, empty matches included. `Code.substitute` does
-  what `sub` does for a replacement with no group references in it, and otherwise only after translating `re`'s
-  template into PCRE2's.
-- `groups` and `groupindex` come from `pattern_info`: `INFO_CAPTURECOUNT`, and `INFO_NAMETABLE` with `INFO_NAMECOUNT`
-  and `INFO_NAMEENTRYSIZE` (each entry is a two byte big-endian group number, then the zero-terminated name). One
-  group's number is `substring_number_from_name`.
-- `re.ASCII` and `re`'s reading of octal escapes are `EXTRA_ASCII_*` and `EXTRA_PYTHON_OCTAL`, through a
-  `CompileContext`.
-- A `str` subject is encoded to UTF-8 once per call, and that one `bytes` object passed to every `match` of the call,
-  which both satisfies the rule for UTF patterns and keeps the search linear. Offsets are then translated incrementally,
-  as matches arrive in order: the code points in `subject[a:b]` are `len(subject[a:b].decode())`. For an ASCII subject
-  they are the same.
+```python
+from omcore.text.pcre2 import re as pre
 
-What does not carry over mechanically is where the two languages differ - for example `\Z`, which in PCRE2 also
-matches before a trailing newline (`re`'s `\Z` is PCRE2's `\z`), `lastindex`, and the replacement template syntax.
+pre.sub(r'(\w+)@(\w+)', r'\2 at \1', 'bob@example')  # 'example at bob'
+```
+
+The flags are the standard library's own objects, and so is the exception raised for a bad pattern, `re.PatternError`,
+so code written against `re` can be pointed at this without changing either. What it does to get there:
+
+- Patterns are rewritten where the two dialects part, in `re/translating.py`: `\Z` becomes `\z`, `\v` a vertical tab,
+  `\uXXXX`, `\UXXXXXXXX`, and `\N{NAME}` plain code points, a `[` inside a class is escaped so that it does not open a
+  POSIX class, and the `u` flag letter is dropped. For a str pattern not under `ASCII`, `\w`, `\s`, and `\b` are
+  written out as what `re` means by them, which is not quite what PCRE2 does - checked against `re` over every code
+  point, they then differ only where PCRE2's Unicode data, version 17, is newer than Python's.
+- It compiles with `EXTRA_PYTHON_OCTAL`, with a linefeed as the only newline, and with `ALT_CIRCUMFLEX`, and maps
+  `IGNORECASE`, `MULTILINE`, `DOTALL`, and `VERBOSE` to PCRE2's options. A str pattern is compiled with `UTF`, and with
+  `UCP` unless `ASCII` is given. A bytes pattern is compiled with neither.
+- A str subject is matched as its UTF-8, encoded once per call. Groups are sliced out of that and decoded, and offsets
+  are only translated into characters when a `Match` is asked for one, each counted from the nearest already known.
+- `finditer`, `findall`, `split`, and `sub` are all the `match` / `next_match` loop, which finds the same matches as
+  `re`'s, empty ones included. Replacement templates are parsed in `re/templates.py`, to `re`'s rules and with its
+  error messages - PCRE2's own substitution is not used, as its templates are another language.
+- `Match.lastindex` is not something PCRE2 reports. It is worked out from what it does report and from where each
+  group closes in the pattern.
+- `Pattern` takes one keyword `re.compile` does not, `match_context`, so that a pattern can carry limits.
+
+It is tested against `re` itself: `re/tests/test_stdlib.py` runs both over a grid of patterns and subjects, through
+every operation, and requires the same answers. Where they are known to differ is pinned in
+`re/tests/test_divergences.py`:
+
+- Under `ASCII` with `IGNORECASE`, `re` folds the case of ASCII letters only, and PCRE2 folds all of them.
+- `\W` and `\S` inside a character class keep PCRE2's meaning, as a negated class cannot be written out as members of
+  another. That differs for combining marks and connector punctuation, which are word characters to PCRE2, and for a
+  handful of control characters.
+- A repeat of something which can match nothing - `(a?)*`, say - is handled by each engine's own rules, which can leave
+  different text in its groups and, more rarely, find different matches. Of 12,000 randomly generated patterns this
+  was the only disagreement found, in 51 of them.
+- A match which backtracks past PCRE2's match limit raises the binding's `MatchError`, where `re` would have carried
+  on. `LOCALE` is not supported, `DEBUG` is ignored, and a str holding a lone surrogate cannot be encoded to be matched.
+- Error messages are PCRE2's, and where a pattern was rewritten the position of an error in it is not reported.
+- PCRE2's syntax is a superset of `re`'s, and none of the rest of it is refused: `\p{L}`, `\h`, `\K`, recursion, and
+  lookbehinds of varying length all work, where `re` would raise.
+
+It is also slower per match than `re`, whose loops are in C where these are in Python. A `findall` of every word in a
+text took around five times as long, and of a literal over ten, while one with more to do per match took under three
+times as long, and one of a case-insensitive alternation the same. PCRE2 only earns its overhead back where the
+matching itself dominates.
 
 ## Known divergence from Rust's `regex`
 
