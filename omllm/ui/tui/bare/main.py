@@ -15,6 +15,7 @@ from ..inject import bind_tui
 from ..setup import AgentSetup
 from ..types import TargetCwd
 from ..yolo import yolo_autoexec
+from ..yolo import yolo_process_config
 from .input import InputManager
 from .input import bind_input
 from .output import bind_output
@@ -26,6 +27,7 @@ from .output import display_transcript
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
     config = Config.parse_from_arguments(argv)
+    config = yolo_process_config(config)
 
     #
 

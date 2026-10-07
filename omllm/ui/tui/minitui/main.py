@@ -10,7 +10,6 @@ rather than being dropped.
 import asyncio
 
 from omcore import check
-from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import lang
 from omcore.logs import all as logs
@@ -25,6 +24,7 @@ from ..inject import AgentEventSubscribers
 from ..setup import AgentSetup
 from ..types import TargetCwd
 from ..yolo import yolo_autoexec
+from ..yolo import yolo_process_config
 from .app import MinituiChatApp
 from .inject import bind_minitui
 from .output import AgentEventRenderer
@@ -35,26 +35,12 @@ from .shutdown import Shutdown
 ##
 
 
-def _parse_config(argv: lang.SequenceNotStr[str] | None = None) -> Config:
-    config = Config.parse_from_arguments(argv)
-
-    if config.yolo:
-        config = dc.replace(
-            config,
-
-            eval=True,
-            exec=True,
-            fs=True,
-        )
-
-    return config
-
-
 log = logs.get_module_logger(globals())
 
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
-    config = _parse_config(argv)
+    config = Config.parse_from_arguments(argv)
+    config = yolo_process_config(config)
 
     #
 
