@@ -591,7 +591,6 @@ DOCKER_WHEEL_PKGS?=\
 	omcore-cext \
 	omcore-mypyc \
 	omdev-cext \
-	omxtra-cext \
 
 .PHONY: docker-pull-wheel-builder
 docker-pull-wheel-builder:
