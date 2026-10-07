@@ -26,6 +26,11 @@ with _lang.auto_proxy_init(
         make_default_session,
     )
 
+    from .dispatch import (  # noqa
+        Dispatcher,
+        InlineDispatcher,
+    )
+
     from .executors import (  # noqa
         Executor,
         ImmediateExecutor,
@@ -53,6 +58,10 @@ with _lang.auto_proxy_init(
 
     from .lines import (  # noqa
         LineRepl,
+
+        LineCommandResult,
+        QUIT_COMMANDS,
+        handle_line_command,
     )
 
     from .outputs import (  # noqa
@@ -92,6 +101,7 @@ with _lang.auto_proxy_init(
         AsyncioThreadExecutor,
         AsyncioRunning,
         AsyncioRunner,
+        AsyncioLoopDispatcher,
     )
 
     ##
@@ -109,4 +119,5 @@ with _lang.auto_proxy_init(
     ##
     # frontends
 
+    from . import manhole  # noqa
     from . import minitui  # noqa

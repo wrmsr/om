@@ -7,6 +7,7 @@ from .base import (  # noqa
 from .diag import (  # noqa
     CheckBootstrap,
     CprofileBootstrap,
+    ManholeBootstrap,
     PycharmBootstrap,
     ThreadDumpBootstrap,
     TimebombBootstrap,

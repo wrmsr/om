@@ -3,6 +3,9 @@ The line-oriented read-eval-print core shared by transport frontends: a bare std
 arrive one at a time and accumulate until the active language calls the buffer complete; outputs go to a sink. The
 whole-buffer frontends (minitui submits a finished buffer) do not go through this.
 """
+from omcore import dataclasses as dc
+from omcore import lang
+
 from .interpreters import Result
 from .languages import Completeness
 from .outputs import OutputSink
@@ -60,3 +63,49 @@ class LineRepl:
             return None
 
         return await self._session.execute(source, self._sink)
+
+
+##
+
+
+@dc.dataclass(frozen=True)
+class LineCommandResult(lang.Final):
+    quit: bool = False
+    message: str | None = None
+
+
+QUIT_COMMANDS: frozenset[str] = frozenset(['quit', 'exit', 'q'])
+
+
+def handle_line_command(
+        session: Session,
+        line: str,
+        *,
+        switching: bool = True,
+) -> LineCommandResult | None:
+    """
+    The line frontends' shared slash commands - `/quit`, `/help`, and with `switching` `/<name>` to switch
+    interpreters - or None when `line` is not one. Frontends ask only when no lines are pending; mid-block a slash line
+    is code.
+    """
+
+    if not line.startswith('/'):
+        return None
+
+    name, _, _ = line[1:].strip().partition(' ')
+
+    if name in QUIT_COMMANDS:
+        return LineCommandResult(quit=True)
+
+    if name == 'help':
+        return LineCommandResult(message='\n'.join([
+            *((f'/{n}  switch to {n}' for n in session.names) if switching else ()),
+            '/help  this',
+            '/quit  leave',
+        ]))
+
+    if switching and name in session.names:
+        session.switch(name)
+        return LineCommandResult()
+
+    return LineCommandResult(message=f'unknown command: /{name}')

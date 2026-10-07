@@ -5,6 +5,7 @@ else is written to run the same under any loop, or none.
 import asyncio
 import typing as ta
 
+from .dispatch import Dispatcher
 from .executors import Executor
 from .runners import Runner
 from .runners import Running
@@ -87,3 +88,33 @@ class AsyncioRunner(Runner):
             f.cancel()
         if futures:
             await asyncio.gather(*futures, return_exceptions=True)
+
+
+##
+
+
+class AsyncioLoopDispatcher(Dispatcher):
+    """
+    Runs the code on another loop - a host application's - and awaits the result on this one. A cancellation here
+    cancels the task there. Works, if pointlessly, when the two loops are the same.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        super().__init__()
+
+        self._loop = loop
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        return self._loop
+
+    async def dispatch(self, fn: ta.Callable[[], ta.Awaitable[T]]) -> T:
+        async def inner() -> T:
+            return await fn()
+
+        future = asyncio.run_coroutine_threadsafe(inner(), self._loop)
+        try:
+            return await asyncio.wrap_future(future)
+        except asyncio.CancelledError:
+            future.cancel()
+            raise

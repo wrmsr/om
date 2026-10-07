@@ -13,7 +13,6 @@ import os.path
 import signal
 import sys
 import tempfile
-import threading
 import typing as ta
 
 from .. import check
@@ -32,8 +31,11 @@ with lang.auto_proxy_import(globals()):
     from ..diag import debug as d_debug
     from ..diag import execstat
     from ..diag import pycharm as d_pycharm
-    from ..diag import replserver
     from ..diag import threads as d_threads
+
+    # omcore's one deliberate reach into omdev, and lazy: bootstrap is how every entrypoint gets its knobs without
+    # knowing them, so the manhole's hook lives here and nowhere else.
+    from omdev.repl import manhole as od_manhole
 
 
 ##
@@ -51,6 +53,7 @@ class CheckBootstrap(ContextBootstrap['CheckBootstrap.Config']):
     @contextlib.contextmanager
     def enter(self) -> ta.Generator[None]:
         if not self._config.breakpoint:
+            yield
             return
 
         check.register_on_raise(CheckBootstrap._breakpoint)
@@ -184,22 +187,24 @@ class PycharmBootstrap(SimpleBootstrap['PycharmBootstrap.Config']):
 ##
 
 
-class ReplServerBootstrap(ContextBootstrap['ReplServerBootstrap.Config']):
+class ManholeBootstrap(ContextBootstrap['ManholeBootstrap.Config']):
+    """
+    A manhole (`omdev.repl.manhole`) into the process for its lifetime, on a thread of its own: a python repl over a
+    socket - `address` is a unix socket path, or `host:port` / `:port` for tcp. The repl's namespace starts with the
+    manhole's standard seed (`sys`, `os`, `gc`, `threading`); anything else is an import away.
+    """
+
     @dc.dataclass(frozen=True)
     class Config(Bootstrap.Config):
-        path: str | None = None
+        address: ta.Optional[str] = None
 
     @contextlib.contextmanager
     def enter(self) -> ta.Generator[None]:
-        if self._config.path is None:
+        if self._config.address is None:
+            yield
             return
 
-        with replserver.ReplServer(replserver.ReplServer.Config(
-            path=self._config.path,
-        )) as rs:
-            thread = threading.Thread(target=rs.run, name='replserver')
-            thread.start()
-
+        with od_manhole.start_manhole(self._config.address):
             yield
 
 
@@ -214,6 +219,7 @@ class DebugBootstrap(ContextBootstrap['DebugBootstrap.Config']):
     @contextlib.contextmanager
     def enter(self) -> ta.Generator[None]:
         if not self._config.enable:
+            yield
             return
 
         with d_debug.debugging_on_exception():

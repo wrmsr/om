@@ -11,6 +11,7 @@ from omcore import lang
 from ..defaults import make_default_session
 from ..interpreters import ResultStatus
 from ..lines import LineRepl
+from ..lines import handle_line_command
 from ..outputs import TextOutputSink
 
 
@@ -36,14 +37,11 @@ def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                 repl.reset()
                 continue
 
-            if not repl.pending and line.startswith('/'):
-                command = line[1:].strip()
-                if command == 'quit':
+            if not repl.pending and (command := handle_line_command(session, line)) is not None:
+                if command.message is not None:
+                    write(command.message + '\n')
+                if command.quit:
                     break
-                if command in session.names:
-                    session.switch(command)
-                else:
-                    write(f'unknown command: {line}\n')
                 continue
 
             result = lang.sync_await(repl.feed_line(line))
