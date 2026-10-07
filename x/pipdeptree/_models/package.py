@@ -289,7 +289,7 @@ class ReqPackage(Package):
         if not frozen:
             extra_str = f', extra: {self.extra}' if self.extra else ''
             if mode == 'resolved':
-                # nab resolves one version per package and discards the per-edge range, so there is no
+                # A lock resolves one version per package and discards the per-edge range, so there is no
                 # "required" to show; surface only the selected candidate.
                 return f'{self.project_name} [candidate: {self.installed_version}{extra_str}]'
             req_ver = self.version_spec or 'Any'
@@ -347,7 +347,7 @@ class ReqPackage(Package):
 
     def as_dict(self, *, mode: RenderMode = 'default') -> dict[str, str]:
         if mode == 'resolved':
-            # nab discards the per-edge range, so drop required_version and report the single resolved
+            # A lock discards the per-edge range, so drop required_version and report the single resolved
             # version under candidate_version.
             result = {
                 'key': self.key,

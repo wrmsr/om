@@ -7,12 +7,12 @@ pinned packages, their versions, and the forward edges between them -- so render
 which is why ``from-lock`` works fully offline and needs no optional extra.
 
 The lock's ``packages`` array becomes :class:`~pipdeptree._synthetic_dist.SyntheticDistribution` objects (the same
-adapter the ``from-index`` path uses), so the existing DAG and every renderer work unchanged. Each package's
+adapter), so the existing DAG and every renderer work unchanged. Each package's
 ``dependencies`` array lists only child *names*; the child's version is looked up in the ``packages`` array by PEP 503
 canonical name so an edge ``Foo_Bar`` matches a package ``foo-bar``.
 """
 import importlib.metadata
-import pathlib
+import os
 import tomllib
 import typing as ta
 
@@ -29,7 +29,7 @@ class FromLockError(ValueError):
     """Raised when a PEP 751 lock file is missing or cannot be parsed into a dependency tree."""
 
 
-def load_lock(path: pathlib.Path) -> list[importlib.metadata.Distribution]:
+def load_lock(path: str | os.PathLike[str]) -> list[importlib.metadata.Distribution]:
     """
     Parse a PEP 751 ``pylock.toml`` into Distribution-like objects ready for the existing DAG pipeline.
 
@@ -40,14 +40,19 @@ def load_lock(path: pathlib.Path) -> list[importlib.metadata.Distribution]:
         without a ``name``.
     """
 
-    if not path.is_file():
+    path = os.fspath(path)
+    if not os.path.isfile(path):
         msg = f'lock file does not exist: {path}'
         raise FromLockError(msg)
 
     try:
-        data = tomllib.loads(path.read_text(encoding='utf-8'))
+        with open(path, 'rb') as file:  # noqa: PTH123
+            data = tomllib.load(file)
     except tomllib.TOMLDecodeError as exc:
         msg = f'not a valid PEP 751 lock file: {path} (malformed TOML: {exc})'
+        raise FromLockError(msg) from exc
+    except OSError as exc:
+        msg = f'cannot read lock file: {path} ({exc})'
         raise FromLockError(msg) from exc
 
     packages = data.get('packages')
@@ -64,7 +69,7 @@ def load_lock(path: pathlib.Path) -> list[importlib.metadata.Distribution]:
     ]
 
 
-def _named(packages: list[ta.Any], path: pathlib.Path) -> list[tuple[str, dict[str, ta.Any]]]:
+def _named(packages: list[ta.Any], path: str) -> list[tuple[str, dict[str, ta.Any]]]:
     named: list[tuple[str, dict[str, ta.Any]]] = []
     for pkg in packages:
         if not isinstance(pkg, dict) or 'name' not in pkg:

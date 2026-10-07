@@ -7,6 +7,7 @@ from ... import pipdeptree
 from .. import _RenderResult
 from .. import _SummaryResult
 from .._computed import ComputedValues
+from . import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ def patched_env(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
         make_mock_dist(name='a', version='1.0.0', requires=['b>=1.0']),
         make_mock_dist(name='b', version='2.0.0'),
     ]
-    mocker.patch('pipdeptree.__main__.get_installed_distributions', return_value=pkgs)
+    mocker.patch(f'{PACKAGE_NAME}.__main__.get_installed_distributions', return_value=pkgs)
 
 
 @pytest.mark.usefixtures('patched_env')
@@ -112,7 +113,7 @@ def test_render_depth_limits_text_tree() -> None:
 
 def test_render_passes_select_options_through(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
     discovery = mocker.patch(
-        'pipdeptree.__main__.get_installed_distributions',
+        f'{PACKAGE_NAME}.__main__.get_installed_distributions',
         return_value=[make_mock_dist(name='a', version='1.0.0')],
     )
     pipdeptree.render(python='/some/python', user_only=True)
@@ -122,7 +123,7 @@ def test_render_passes_select_options_through(mocker: MockerFixture, make_mock_d
 
 def test_render_local_only_passed_through(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
     discovery = mocker.patch(
-        'pipdeptree.__main__.get_installed_distributions',
+        f'{PACKAGE_NAME}.__main__.get_installed_distributions',
         return_value=[make_mock_dist(name='a', version='1.0.0')],
     )
     pipdeptree.render(local_only=True)
@@ -132,7 +133,7 @@ def test_render_local_only_passed_through(mocker: MockerFixture, make_mock_dist:
 def test_render_extras_passed_through(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
     spy = mocker.spy(pipdeptree.__main__.PackageDAG, 'from_pkgs')
     mocker.patch(
-        'pipdeptree.__main__.get_installed_distributions',
+        f'{PACKAGE_NAME}.__main__.get_installed_distributions',
         return_value=[make_mock_dist(name='a', version='1.0.0')],
     )
     pipdeptree.render(extras=True)
@@ -142,7 +143,7 @@ def test_render_extras_passed_through(mocker: MockerFixture, make_mock_dist: Moc
 def test_render_extras_mode_passed_through(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
     spy = mocker.spy(pipdeptree.__main__.PackageDAG, 'from_pkgs')
     mocker.patch(
-        'pipdeptree.__main__.get_installed_distributions',
+        f'{PACKAGE_NAME}.__main__.get_installed_distributions',
         return_value=[make_mock_dist(name='a', version='1.0.0')],
     )
     pipdeptree.render(extras='active')
@@ -151,7 +152,7 @@ def test_render_extras_mode_passed_through(mocker: MockerFixture, make_mock_dist
 
 def test_render_invalid_filter_returns_empty(mocker: MockerFixture, make_mock_dist: MockDistMaker) -> None:
     mocker.patch(
-        'pipdeptree.__main__.get_installed_distributions',
+        f'{PACKAGE_NAME}.__main__.get_installed_distributions',
         return_value=[make_mock_dist(name='a', version='1.0.0')],
     )
     assert not pipdeptree.render(packages='does-not-exist')
@@ -163,7 +164,7 @@ def test_render_warnings_do_not_leak_by_default(
     make_mock_dist: MockDistMaker,
 ) -> None:
     mocker.patch(
-        'pipdeptree.__main__.get_installed_distributions',
+        f'{PACKAGE_NAME}.__main__.get_installed_distributions',
         return_value=[make_mock_dist(name='a', version='1.0.0', requires=['missing>=1'])],
     )
     pipdeptree.render()
@@ -193,13 +194,6 @@ def test_render_summary_json_is_plain_str() -> None:
     out = pipdeptree.render(summary=True, output_format='json')
     assert not hasattr(out, '_repr_mimebundle_')
     assert json.loads(out)['total_packages'] == 2
-
-
-@pytest.mark.usefixtures('patched_env_no_size')
-def test_render_summary_rich_is_plain_str() -> None:
-    out = pipdeptree.render(summary=True, output_format='rich')
-    assert not hasattr(out, '_repr_mimebundle_')
-    assert 'environment summary' in out
 
 
 @pytest.mark.usefixtures('patched_env')

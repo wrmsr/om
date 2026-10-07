@@ -1,5 +1,4 @@
 """The main entry point used for CLI."""
-import pathlib
 import sys
 import typing as ta
 
@@ -10,15 +9,13 @@ from ._detect_env import detect_active_interpreter
 from ._detect_env import find_active_interpreter
 from ._discovery import InterpreterQueryError
 from ._discovery import get_installed_distributions
-from ._from_index import FromIndexInputError
-from ._from_index import FromIndexUnavailableError
-from ._from_index import resolve_from_index
 from ._from_lock import FromLockError
 from ._from_lock import load_lock
 from ._models import PackageDAG
 from ._models.dag import IncludeExcludeOverlapError
 from ._models.dag import IncludePatternNotFoundError
 from ._render import render
+from ._render.graphviz import GraphvizError
 from ._validate import validate
 from ._warning import WarningPrinter
 from ._warning import WarningType
@@ -55,7 +52,7 @@ def main(args: ta.Sequence[str] | None = None) -> int | None:
     except InterpreterQueryError as e:
         print(f'Failed to query custom interpreter: {e}', file=sys.stderr)  # noqa: T201
         return 1
-    except (FromIndexUnavailableError, FromIndexInputError, FromLockError) as e:
+    except FromLockError as e:
         print(str(e), file=sys.stderr)  # noqa: T201
         return 1
     except _FilterError as e:
@@ -66,7 +63,11 @@ def main(args: ta.Sequence[str] | None = None) -> int | None:
             warning_printer.print_single_line(str(e))
         return _determine_return_code(warning_printer)
 
-    render(options, tree)
+    try:
+        render(options, tree)
+    except GraphvizError as e:
+        print(str(e), file=sys.stderr)  # noqa: T201
+        return 1
 
     return _determine_return_code(warning_printer)
 
@@ -78,25 +79,13 @@ def build_tree(options: Options, *, log_resolved: bool = False) -> PackageDAG:
     Shared by the CLI and the programmatic :func:`pipdeptree.render` API.
 
     :raises InterpreterQueryError: if querying a custom interpreter failed
-    :raises FromIndexUnavailableError: if from-index is used but the optional nab resolver is missing
-    :raises FromIndexInputError: if a from-index source is missing or a requirements file uses an unsupported directive
     :raises FromLockError: if a from-lock file is missing or is not a valid PEP 751 lock
     :raises _FilterError: if the include/exclude filter cannot be satisfied
     """
 
-    if options.command == 'from-index':
-        # from-index resolves requirements by querying the package index instead of inspecting an installed
-        # environment, so interpreter resolution is skipped entirely.
-        pkgs = resolve_from_index(
-            requirements=options.requirement,
-            requirement_files=options.requirements or [],
-            pyproject_files=options.pyproject or [],
-            index_url=options.index_url,
-            extra_index_url=options.extra_index_url,
-        )
-    elif options.command == 'from-lock':
+    if options.command == 'from-lock':
         # A PEP 751 lock is already resolved, so it is read straight off disk -- no interpreter, network, or index.
-        pkgs = load_lock(pathlib.Path(options.lock))  # type: ignore
+        pkgs = load_lock(ta.cast('str', options.lock))
     else:
         options.python = _resolve_python(options.python, log_resolved=log_resolved)
         pkgs = get_installed_distributions(
@@ -153,7 +142,7 @@ def _resolve_python(python: str | None, *, log_resolved: bool = False) -> str:
 def _is_text_output(options: Options) -> bool:
     if any((options.json, options.json_tree, options.graphviz_format, options.mermaid)):
         return False
-    return options.output_format in {'freeze', 'rich', 'text'}
+    return options.output_format in {'freeze', 'text'}
 
 
 def _determine_return_code(warning_printer: WarningPrinter) -> int:

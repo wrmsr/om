@@ -8,6 +8,7 @@ import pytest
 from ..__main__ import main
 from .._discovery import get_installed_distributions
 from .._discovery import has_valid_metadata
+from . import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -25,14 +26,14 @@ if TYPE_CHECKING:
 #         f.write('Metadata-Version: 2.3\nName: foo\nVersion: 1.2.5\n')
 #
 #     cmd = [str(result.creator.exe.parent / 'python3'), '--local-only']
-#     mocker.patch('pipdeptree._discovery.sys.prefix', venv_path)
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.sys.prefix', venv_path)
 #     sys_path = sys.path.copy()
 #     mock_path = sys_path + venv_site_packages
-#     mocker.patch('pipdeptree._discovery.sys.path', mock_path)
-#     mocker.patch('pipdeptree._discovery.sys.argv', cmd)
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.sys.path', mock_path)
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.sys.argv', cmd)
 #
 #     # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
-#     mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=None)
+#     mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=None)
 #
 #     main()
 #     out, _ = capfd.readouterr()
@@ -47,17 +48,17 @@ if TYPE_CHECKING:
 def test_user_only(fake_dist: Path, mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
     # Make a fake user site.
     fake_user_site = str(fake_dist.parent)
-    mocker.patch('pipdeptree._discovery.site.getusersitepackages', Mock(return_value=fake_user_site))
+    mocker.patch(f'{PACKAGE_NAME}._discovery.site.getusersitepackages', Mock(return_value=fake_user_site))
 
     # Add fake user site directory into a fake sys.path (normal environments will have the user site in sys.path).
     fake_sys_path = [*sys.path, fake_user_site]
-    mocker.patch('pipdeptree._discovery.sys.path', fake_sys_path)
+    mocker.patch(f'{PACKAGE_NAME}._discovery.sys.path', fake_sys_path)
 
     # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
-    mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=None)
 
     cmd = ['', '--user-only']
-    mocker.patch('pipdeptree.__main__.sys.argv', cmd)
+    mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', cmd)
     main()
 
     out, err = capfd.readouterr()
@@ -78,14 +79,14 @@ def test_user_only(fake_dist: Path, mocker: MockerFixture, capfd: pytest.Capture
 #     venv_path = str(tmp_path / 'venv')
 #     virtualenv.cli_run([venv_path, '--activators', ''])
 #     venv_site_packages = site.getsitepackages([venv_path])
-#     mocker.patch('pipdeptree._discovery.sys.path', venv_site_packages)
-#     mocker.patch('pipdeptree._discovery.sys.prefix', venv_path)
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.sys.path', venv_site_packages)
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.sys.prefix', venv_path)
 #
 #     # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
-#     mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=None)
+#     mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=None)
 #
 #     cmd = ['', '--user-only']
-#     mocker.patch('pipdeptree.__main__.sys.argv', cmd)
+#     mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', cmd)
 #     main()
 #
 #     out, err = capfd.readouterr()
@@ -105,7 +106,7 @@ def test_user_only(fake_dist: Path, mocker: MockerFixture, capfd: pytest.Capture
 #
 #     # Make a fake user site directory since we don't know what to expect from the real one.
 #     fake_user_site = str(fake_dist.parent)
-#     mocker.patch('pipdeptree._discovery.site.getusersitepackages', Mock(return_value=fake_user_site))
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.site.getusersitepackages', Mock(return_value=fake_user_site))
 #
 #     # Create a temporary virtual environment. Add the fake user site to path (since user site packages should normally
 #     # be there).
@@ -113,14 +114,14 @@ def test_user_only(fake_dist: Path, mocker: MockerFixture, capfd: pytest.Capture
 #     virtualenv.cli_run([venv_path, '--system-site-packages', '--activators', ''])
 #     venv_site_packages = site.getsitepackages([venv_path])
 #     mock_path = sys.path + venv_site_packages + [fake_user_site]
-#     mocker.patch('pipdeptree._discovery.sys.path', mock_path)
-#     mocker.patch('pipdeptree._discovery.sys.prefix', venv_path)
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.sys.path', mock_path)
+#     mocker.patch(f'{PACKAGE_NAME}._discovery.sys.prefix', venv_path)
 #
 #     # The test mocks the running interpreter's environment, so keep the default --python on the running interpreter.
-#     mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=None)
+#     mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=None)
 #
 #     cmd = ['', '--user-only']
-#     mocker.patch('pipdeptree.__main__.sys.argv', cmd)
+#     mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', cmd)
 #     main()
 #
 #     out, err = capfd.readouterr()
@@ -133,7 +134,7 @@ def test_user_only(fake_dist: Path, mocker: MockerFixture, capfd: pytest.Capture
 
 def test_interpreter_query_failure(mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
     cmd = ['', '--python', 'i-dont-exist']
-    mocker.patch('pipdeptree._discovery.sys.argv', cmd)
+    mocker.patch(f'{PACKAGE_NAME}._discovery.sys.argv', cmd)
 
     main()
 
@@ -143,7 +144,7 @@ def test_interpreter_query_failure(mocker: MockerFixture, capfd: pytest.CaptureF
 
 def test_duplicate_metadata(mocker: MockerFixture, capfd: pytest.CaptureFixture[str]) -> None:
     mocker.patch(
-        'pipdeptree._discovery.distributions',
+        f'{PACKAGE_NAME}._discovery.importlib.metadata.distributions',
         Mock(
             return_value=[
                 Mock(metadata={'Name': 'foo'}, version='1.2.5', locate_file=Mock(return_value='/path/1')),
@@ -171,7 +172,7 @@ def test_invalid_metadata(
 ) -> None:
     fake_site_dir = str(fake_dist_with_invalid_metadata.parent)
     mocked_sys_path = [fake_site_dir]
-    mocker.patch('pipdeptree._discovery.sys.path', mocked_sys_path)
+    mocker.patch(f'{PACKAGE_NAME}._discovery.sys.path', mocked_sys_path)
 
     dists = get_installed_distributions()
 

@@ -413,13 +413,12 @@ def _gate_dependents(children: list[ReqPackage], extra: str) -> list[ReqPackage]
     """Reverse gate: having descended into a package through ``extra``, keep only dependents that asked for it."""
 
     wanted = canonicalize_name(extra)
-    return [
-        c
-        for c in children
-        if not isinstance(c, DistPackage)  # type: ignore
-        or c.req is None
-        or wanted in {canonicalize_name(e) for e in c.req.requested_extras}
-    ]
+    parents = ta.cast('list[DistPackage]', children)
+    return ta.cast('list[ReqPackage]', [
+        parent
+        for parent in parents
+        if parent.req is None or wanted in {canonicalize_name(e) for e in parent.req.requested_extras}
+    ])
 
 
 def _expand_requested_extras(

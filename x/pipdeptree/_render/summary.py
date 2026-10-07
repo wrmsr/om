@@ -3,10 +3,10 @@ Render a single-block health summary of a dependency tree.
 
 The report has two tiers. Graph-structural metrics (counts, depth, cycles) derive purely from the DAG edges and are
 available for every command. The installed-environment tier (missing/conflicting deps, licenses, requires-python,
-size) reads real distribution metadata and on-disk files, which the ``from-index``/``from-lock`` synthetic trees do
+size) reads real distribution metadata and on-disk files, which the ``from-lock`` synthetic trees do
 not carry; in that ``resolved`` mode those metrics are reported as unavailable rather than a misleading zero.
 
-The same computed metrics drive three presentation styles -- aligned ``text``, a ``rich`` table, and ``json`` -- plus
+The same computed metrics drive two presentation styles -- aligned ``text`` and ``json`` -- plus
 an HTML table for notebook display, all built from the one shared row list.
 """
 import collections
@@ -14,7 +14,6 @@ import dataclasses as dc
 import html
 import itertools
 import json
-import sys
 import typing as ta
 
 from omdev.packaging.specifiers import InvalidSpecifierError
@@ -38,7 +37,7 @@ if ta.TYPE_CHECKING:
 
 # Weak and strong copyleft families worth flagging for compliance review; matched case-insensitively as substrings.
 _COPYLEFT_MARKERS = ('AGPL', 'LGPL', 'GPL', 'MPL', 'EUPL', 'CDDL')
-_RESOLVED_NOTE = 'n/a (resolved from index/lock - package metadata unavailable)'
+_RESOLVED_NOTE = 'n/a (resolved from lock - package metadata unavailable)'
 
 
 @dc.dataclass()
@@ -65,16 +64,14 @@ def render_summary(tree: PackageDAG, *, mode: RenderMode = 'default', style: str
     Print a one-block summary of the dependency tree.
 
     :param tree: the package tree
-    :param mode: ``"resolved"`` (from-index/from-lock) drops the installed-environment metrics that synthetic
+    :param mode: ``"resolved"`` (from-lock) drops the installed-environment metrics that synthetic
         distributions cannot supply
-    :param style: presentation style -- ``"text"`` (aligned), ``"rich"`` (table) or ``"json"``
+    :param style: presentation style -- ``"text"`` (aligned) or ``"json"``
     """
 
     summary = _collect(tree, resolved=mode == 'resolved')
     if style == 'json':
         print(_as_json(summary))  # noqa: T201
-    elif style == 'rich':
-        _as_rich(summary)
     else:
         print(_as_text(summary))  # noqa: T201
 
@@ -188,25 +185,6 @@ def _as_text(summary: _Summary) -> str:
     rows = _rows(summary)
     width = max(len(label) for label, _ in rows)
     return '\n'.join(f"{label + ':':<{width + 1}} {value}" for label, value in rows)
-
-
-def _as_rich(summary: _Summary) -> None:
-    try:
-        from rich.console import Console  # noqa: PLC0415
-        from rich.table import Table  # noqa: PLC0415
-    except ImportError as exc:
-        print(  # noqa: T201
-            'rich is not available, but necessary for the output option. Please install it.',
-            file=sys.stderr,
-        )
-        raise SystemExit(1) from exc
-
-    table = Table(title='environment summary', show_header=False, title_style='bold')
-    table.add_column('metric', style='bold cyan', no_wrap=True)
-    table.add_column('value')
-    for label, value in _rows(summary):
-        table.add_row(label, value, style='dim' if value == _RESOLVED_NOTE else None)
-    Console().print(table)
 
 
 def _as_html(summary: _Summary) -> str:

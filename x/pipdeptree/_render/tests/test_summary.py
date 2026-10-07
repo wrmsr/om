@@ -1,5 +1,4 @@
 import json
-import sys
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
     from ...tests.conftest import MockDistMaker
     from ...tests.our_types import MockGraph
 
-_RESOLVED_NOTE = 'n/a (resolved from index/lock - package metadata unavailable)'
+_RESOLVED_NOTE = 'n/a (resolved from lock - package metadata unavailable)'
 
 
 @pytest.fixture
@@ -209,36 +208,6 @@ def test_from_lock_synthetic_tree(capsys: pytest.CaptureFixture[str]) -> None:
     assert rows['total packages'] == '2'
     assert rows['max depth'] == '2'
     assert rows['missing dependencies'] == _RESOLVED_NOTE
-
-
-@pytest.mark.usefixtures('zero_size')
-@pytest.mark.parametrize(
-    ('mode', 'needle'),
-    [
-        pytest.param('default', 'total packages', id='default'),
-        pytest.param('resolved', 'n/a (resolved', id='resolved'),
-    ],
-)
-def test_rich_style(
-    mode: RenderMode, needle: str, make_mock_dist: MockDistMaker, capsys: pytest.CaptureFixture[str],
-) -> None:
-    dag = PackageDAG.from_pkgs([make_mock_dist('a', '1.0.0', requires=['b']), make_mock_dist('b', '1.0.0')])
-
-    render_summary(dag, mode=mode, style='rich')
-
-    out = capsys.readouterr().out
-    assert 'environment summary' in out
-    assert needle in out
-
-
-def test_rich_style_missing_import(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:  # noqa
-    mocker.patch.dict(sys.modules, {'rich': None, 'rich.console': None, 'rich.table': None})
-    dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0.0'): []})))
-
-    with pytest.raises(SystemExit) as exc_info:
-        render_summary(dag, mode='resolved', style='rich')
-
-    assert exc_info.value.code == 1
 
 
 def test_summary_html_table(mock_pkgs: Callable[[MockGraph], Iterator[Mock]]) -> None:  # noqa

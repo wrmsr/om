@@ -12,6 +12,7 @@ from omdev.packaging.specifiers import SpecifierSet
 from ..._models import DistPackage
 from ..._models import ReqPackage
 from ..._models.package import Package
+from ...tests import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ def test_package_as_frozen_repr(mocker: MockerFixture) -> None:
     foo = Mock(metadata={'Name': 'foo'}, version='1.2.3')
     dp = DistPackage(foo)
     expected = 'test'
-    mocker.patch('pipdeptree._models.package.distribution_to_specifier', Mock(return_value=expected))
+    mocker.patch(f'{PACKAGE_NAME}._models.package.distribution_to_specifier', Mock(return_value=expected))
     assert Package.as_frozen_repr(dp.unwrap()) == expected
 
 
@@ -72,7 +73,7 @@ def test_dist_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
     foo = Mock(metadata={'Name': 'foo'}, version='1.2.3')
     dp = DistPackage(foo)
     expected = 'test'
-    mocker.patch('pipdeptree._models.package.distribution_to_specifier', Mock(return_value=expected))
+    mocker.patch(f'{PACKAGE_NAME}._models.package.distribution_to_specifier', Mock(return_value=expected))
     assert dp.render_as_root(frozen=True) == expected
 
 
@@ -145,7 +146,7 @@ def test_dist_package_licenses(dist_metadata: Message, expected_output: str) -> 
 
 
 def test_licenses_importlib_cant_find_package(mocker: MockerFixture) -> None:
-    mocker.patch('pipdeptree._models.package.metadata', side_effect=PackageNotFoundError())
+    mocker.patch(f'{PACKAGE_NAME}._models.package.importlib.metadata.metadata', side_effect=PackageNotFoundError())
     req = MagicMock()
     req.name = 'nonexistent'
     assert ReqPackage(req).licenses() == Package.UNKNOWN_LICENSE_STR
@@ -179,7 +180,7 @@ def test_req_package_render_as_root_with_frozen(mocker: MockerFixture) -> None:
     bar_req.name = 'bar'
     rp = ReqPackage(bar_req, dp)
     expected = 'test'
-    mocker.patch('pipdeptree._models.package.distribution_to_specifier', Mock(return_value=expected))
+    mocker.patch(f'{PACKAGE_NAME}._models.package.distribution_to_specifier', Mock(return_value=expected))
     assert rp.render_as_root(frozen=True) == expected
 
 
@@ -242,8 +243,8 @@ def test_req_package_is_conflicting_out_of_range() -> None:
 
 
 def test_req_package_is_conflicting_when_version_unknown(mocker: MockerFixture) -> None:
-    mocker.patch('pipdeptree._models.package.version', side_effect=PackageNotFoundError)
-    mocker.patch('pipdeptree._models.package.import_module', side_effect=ImportError)
+    mocker.patch(f'{PACKAGE_NAME}._models.package.importlib.metadata.version', side_effect=PackageNotFoundError)
+    mocker.patch(f'{PACKAGE_NAME}._models.package.import_module', side_effect=ImportError)
     bar_req = MagicMock(specifier=SpecifierSet('>=4.0'))
     bar_req.name = 'missing-pkg'
     rp = ReqPackage(bar_req)
@@ -260,8 +261,8 @@ def test_req_package_is_missing_with_known_version() -> None:
 
 
 def test_req_package_is_missing_with_unknown_version(mocker: MockerFixture) -> None:
-    mocker.patch('pipdeptree._models.package.version', side_effect=PackageNotFoundError)
-    mocker.patch('pipdeptree._models.package.import_module', side_effect=ImportError)
+    mocker.patch(f'{PACKAGE_NAME}._models.package.importlib.metadata.version', side_effect=PackageNotFoundError)
+    mocker.patch(f'{PACKAGE_NAME}._models.package.import_module', side_effect=ImportError)
     bar_req = MagicMock(specifier=['>=4.0'])
     bar_req.name = 'missing-pkg'
     rp = ReqPackage(bar_req)
@@ -269,20 +270,20 @@ def test_req_package_is_missing_with_unknown_version(mocker: MockerFixture) -> N
 
 
 def test_req_package_installed_version_unknown_on_import_error(mocker: MockerFixture) -> None:
-    mocker.patch('pipdeptree._models.package.version', side_effect=PackageNotFoundError)
-    mocker.patch('pipdeptree._models.package.import_module', side_effect=ImportError)
+    mocker.patch(f'{PACKAGE_NAME}._models.package.importlib.metadata.version', side_effect=PackageNotFoundError)
+    mocker.patch(f'{PACKAGE_NAME}._models.package.import_module', side_effect=ImportError)
     r = MagicMock()
     r.name = 'not-installed-pkg'
     assert ReqPackage(r).installed_version == '?'
 
 
 def test_req_package_installed_version_unknown_no_version_attr(mocker: MockerFixture) -> None:
-    mocker.patch('pipdeptree._models.package.version', side_effect=PackageNotFoundError)
+    mocker.patch(f'{PACKAGE_NAME}._models.package.importlib.metadata.version', side_effect=PackageNotFoundError)
 
     class FakeModule:
         pass
 
-    mocker.patch('pipdeptree._models.package.import_module', return_value=FakeModule())
+    mocker.patch(f'{PACKAGE_NAME}._models.package.import_module', return_value=FakeModule())
     r = MagicMock()
     r.name = 'no-version-pkg'
     assert ReqPackage(r).installed_version == '?'
@@ -516,7 +517,7 @@ def test_get_metadata_missing_field() -> None:
 
 
 def test_get_metadata_unknown_package(mocker: MockerFixture) -> None:
-    mocker.patch('pipdeptree._models.package.metadata', side_effect=PackageNotFoundError('x'))
+    mocker.patch(f'{PACKAGE_NAME}._models.package.importlib.metadata.metadata', side_effect=PackageNotFoundError('x'))
     req = MagicMock()
     req.name = 'nonexistent'
     assert ReqPackage(req).get_metadata('Summary') == 'N/A'
@@ -589,7 +590,9 @@ def test_get_metadata_uses_dist_not_global_lookup(mocker: MockerFixture) -> None
     msg['Name'] = 'foo'
     msg['Summary'] = 'From dist'
     dist = MagicMock(metadata=msg, version='1.0')
-    global_metadata = mocker.patch('pipdeptree._models.package.metadata', side_effect=PackageNotFoundError('x'))
+    global_metadata = mocker.patch(
+        f'{PACKAGE_NAME}._models.package.importlib.metadata.metadata', side_effect=PackageNotFoundError('x'),
+    )
     assert DistPackage(dist).get_metadata('Summary') == 'From dist'
     global_metadata.assert_not_called()
 
@@ -599,6 +602,8 @@ def test_licenses_uses_dist_not_global_lookup(mocker: MockerFixture) -> None:
     msg['Name'] = 'foo'
     msg['License-Expression'] = 'MIT'
     dist = MagicMock(metadata=msg, version='1.0')
-    global_metadata = mocker.patch('pipdeptree._models.package.metadata', side_effect=PackageNotFoundError('x'))
+    global_metadata = mocker.patch(
+        f'{PACKAGE_NAME}._models.package.importlib.metadata.metadata', side_effect=PackageNotFoundError('x'),
+    )
     assert DistPackage(dist).licenses() == '(MIT)'
     global_metadata.assert_not_called()

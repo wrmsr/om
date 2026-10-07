@@ -7,6 +7,7 @@ from ..._cli import RenderContext
 from ..._models import PackageDAG
 from ..._models.package import Package
 from ..._render.text import render_text
+from ...tests import PACKAGE_NAME
 from ...tests.conftest import example_dag  # noqa
 from ...tests.conftest import mock_pkgs  # noqa
 
@@ -581,7 +582,7 @@ def test_render_text_with_computed(
         ('b', '1.0'): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._computed.distribution', return_value=MagicMock(files=None))
+    mocker.patch(f'{PACKAGE_NAME}._computed.importlib.metadata.distribution', return_value=MagicMock(files=None))
     render_text(
         dag, max_depth=float('inf'), encoding='utf-8', context=RenderContext(computed=['size', 'unique-deps-count']),
     )

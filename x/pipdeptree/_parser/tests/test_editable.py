@@ -8,6 +8,7 @@ import pytest
 from ..._parser.editable import find_egg_link
 from ..._parser.editable import get_editable_location
 from ..._parser.editable import url_to_path
+from ...tests import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -60,9 +61,9 @@ def test_get_editable_location_from_egg_link_site_packages(mocker: MockerFixture
     egg_link.write_text('/path/to/source\n')
     dist = Mock(metadata={'Name': 'mypackage'})
     dist.read_text.return_value = None
-    mocker.patch('pipdeptree._parser.editable.sys.path', [])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=None)
     result = get_editable_location(dist)
     assert result == '/path/to/source'
 
@@ -74,9 +75,9 @@ def test_get_editable_location_from_egg_link_user_site(mocker: MockerFixture, tm
     egg_link.write_text('/path/to/source\n')
     dist = Mock(metadata={'Name': 'mypackage'})
     dist.read_text.return_value = None
-    mocker.patch('pipdeptree._parser.editable.sys.path', [])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=str(user_site))
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=str(user_site))
     result = get_editable_location(dist)
     assert result == '/path/to/source'
 
@@ -88,9 +89,9 @@ def test_get_editable_location_egg_link_multiline(mocker: MockerFixture, tmp_pat
     egg_link.write_text('/path/to/source\nextra line\n')
     dist = Mock(metadata={'Name': 'pkg'})
     dist.read_text.return_value = None
-    mocker.patch('pipdeptree._parser.editable.sys.path', [])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=None)
     result = get_editable_location(dist)
     assert result == '/path/to/source'
 
@@ -117,9 +118,9 @@ def test_get_editable_location_egg_link_not_found(mocker: MockerFixture, tmp_pat
     user_site = tmp_path / 'user-site'
     dist = Mock(metadata={'Name': 'nonexistent'})
     dist.read_text.return_value = None
-    mocker.patch('pipdeptree._parser.editable.sys.path', [])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=str(user_site))
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=str(user_site))
     result = get_editable_location(dist)
     assert result is None
 
@@ -140,9 +141,9 @@ def test_find_egg_link_sys_path_search(mocker: MockerFixture, tmp_path: Path) ->
     search_dir.mkdir()
     egg_link = search_dir / 'mypackage.egg-link'
     egg_link.write_text('/path/to/source\n')
-    mocker.patch('pipdeptree._parser.editable.sys.path', [str(search_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [str(search_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=None)
     result = find_egg_link('mypackage')
     assert result == egg_link
 
@@ -152,9 +153,9 @@ def test_find_egg_link_safe_name_normalization(mocker: MockerFixture, tmp_path: 
     search_dir.mkdir()
     egg_link = search_dir / 'my-package.egg-link'
     egg_link.write_text('/path/to/source\n')
-    mocker.patch('pipdeptree._parser.editable.sys.path', [str(search_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [str(search_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=None)
     result = find_egg_link('my_package')
     assert result == egg_link
 
@@ -164,9 +165,9 @@ def test_find_egg_link_raw_name_fallback(mocker: MockerFixture, tmp_path: Path) 
     search_dir.mkdir()
     egg_link = search_dir / 'my_package.egg-link'
     egg_link.write_text('/path/to/source\n')
-    mocker.patch('pipdeptree._parser.editable.sys.path', [str(search_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [str(search_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=None)
     result = find_egg_link('my_package')
     assert result == egg_link
 
@@ -180,8 +181,8 @@ def test_find_egg_link_sys_path_before_site(mocker: MockerFixture, tmp_path: Pat
     sys_egg.write_text('/sys/source\n')
     site_egg = site_dir / 'pkg.egg-link'
     site_egg.write_text('/site/source\n')
-    mocker.patch('pipdeptree._parser.editable.sys.path', [str(sys_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
-    mocker.patch('pipdeptree._parser.editable.site.getusersitepackages', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.sys.path', [str(sys_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getsitepackages', return_value=[str(site_dir)])
+    mocker.patch(f'{PACKAGE_NAME}._parser.editable.site.getusersitepackages', return_value=None)
     result = find_egg_link('pkg')
     assert result == sys_egg

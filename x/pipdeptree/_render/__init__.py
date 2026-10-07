@@ -5,7 +5,6 @@ from .graphviz import render_graphviz
 from .json import render_json
 from .json_tree import render_json_tree
 from .mermaid import render_mermaid
-from .rich_text import render_rich_text
 from .summary import render_summary
 from .text import render_text
 
@@ -21,9 +20,9 @@ if ta.TYPE_CHECKING:
 
 def render(options: Options, tree: PackageDAG) -> None:
     output_format = options.output_format
-    # from-index/from-lock build a tree from resolved data: one version per package and no per-edge
+    # from-lock builds a tree from resolved data: one version per package and no per-edge
     # range, so edges show "[candidate: <version>]" instead of "[required:, installed:]".
-    mode: RenderMode = 'resolved' if options.command in {'from-index', 'from-lock'} else 'default'
+    mode: RenderMode = 'resolved' if options.command == 'from-lock' else 'default'
     # --summary reduces the tree to an aggregate report; output_format then only selects its presentation style.
     if options.summary:
         render_summary(tree, mode=mode, style=output_format)
@@ -35,8 +34,6 @@ def render(options: Options, tree: PackageDAG) -> None:
         render_mermaid(tree, context=options.context)
     elif output_format == 'freeze':
         render_freeze(tree, max_depth=options.depth, list_all=options.all)
-    elif output_format == 'rich':
-        render_rich_text(tree, max_depth=options.depth, list_all=options.all, context=options.context, mode=mode)
     elif output_format.startswith('graphviz-'):
         render_graphviz(
             tree,

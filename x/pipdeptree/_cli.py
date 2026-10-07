@@ -20,11 +20,6 @@ class Options(argparse.Namespace):
     python: str | None
     path: list[str]
     command: str | None
-    requirement: list[str]
-    requirements: list[str] | None
-    pyproject: list[str] | None
-    index_url: str | None
-    extra_index_url: list[str] | None
     lock: str | None
     all: bool
     local_only: bool
@@ -87,10 +82,10 @@ class RenderContext:
 
 
 # NOTE: graphviz-* has been intentionally left out. Users of this var should handle it separately.
-ALLOWED_RENDER_FORMATS = ['freeze', 'json', 'json-tree', 'mermaid', 'rich', 'text']
+ALLOWED_RENDER_FORMATS = ['freeze', 'json', 'json-tree', 'mermaid', 'text']
 # Tree-specific renderers (mermaid, graphviz, freeze, json-tree) have no meaning for the aggregate summary, so
 # --summary is restricted to the styles that can present a flat report.
-SUMMARY_RENDER_FORMATS = frozenset({'text', 'rich', 'json'})
+SUMMARY_RENDER_FORMATS = frozenset({'text', 'json'})
 ALLOWED_COMPUTED_FIELDS = frozenset({'size', 'size-raw', 'unique-deps-count', 'unique-deps-names', 'unique-deps-size'})
 
 
@@ -100,9 +95,7 @@ class _Formatter(argparse.ArgumentDefaultsHelpFormatter):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    # The render/select flags shared by the default command and the from-index subcommand are defined once on a
-    # parent parser; both the top-level parser and the from-index subparser inherit them via parents=[...], so the
-    # flags stay single-sourced and the top-level CLI keeps its existing behavior.
+    # The default command and from-lock share the rendering and selection flags.
     render_parent = _build_render_parent()
 
     parser = argparse.ArgumentParser(
@@ -141,58 +134,6 @@ def build_parser() -> argparse.ArgumentParser:
     _add_installed_metadata_arguments(parser)
 
     sub = parser.add_subparsers(dest='command')
-    from_index = sub.add_parser(
-        'from-index',
-        aliases=['i'],
-        parents=[render_parent],
-        formatter_class=_Formatter,
-        help='resolve requirements by querying a package index and render their tree (needs the index extra)',
-        description=(
-            'Resolve the given requirements by querying the package index (PyPI) and render the dependency tree '
-            'without installing or inspecting the environment. Positional arguments are inline PEP 508 requirements; '
-            'files are supplied explicitly via --requirements and --pyproject. A lone --pyproject is resolved '
-            'natively (honoring [tool.nab]); otherwise every source merges into one resolve. Needs the optional '
-            'index resolver (pip install pipdeptree[index]).'
-        ),
-    )
-    from_index.add_argument(
-        'requirement',
-        nargs='*',
-        metavar='REQUIREMENT',
-        help='inline PEP 508 requirement to resolve, like a pip install argument; repeatable',
-    )
-    # argparse records the alias actually typed in ``command``; pin it to the canonical name so __main__ and
-    # get_options can branch on a single value regardless of whether the user typed "from-index" or "i".
-    from_index.set_defaults(command='from-index')
-    from_index.add_argument(
-        '--requirements',
-        action='append',
-        metavar='FILE',
-        help='a requirements.txt or .in style file (nested -r, -c constraints, markers and comments supported); '
-        'repeatable',
-    )
-    from_index.add_argument(
-        '--pyproject',
-        action='append',
-        metavar='FILE',
-        help='a pyproject.toml handed natively to the resolver when it is the only source; repeatable',
-    )
-    from_index.add_argument(
-        '--index-url',
-        metavar='URL',
-        default=None,
-        help='primary package index to resolve against, replacing PyPI; falls back to PIP_INDEX_URL then '
-        'UV_INDEX_URL when unset, and defaults to PyPI',
-    )
-    from_index.add_argument(
-        '--extra-index-url',
-        action='append',
-        metavar='URL',
-        default=None,
-        help='additional package index to resolve against, repeatable; falls back to PIP_EXTRA_INDEX_URL then '
-        'UV_EXTRA_INDEX_URL (whitespace separated) when unset',
-    )
-
     from_lock = sub.add_parser(
         'from-lock',
         aliases=['l'],
@@ -207,16 +148,9 @@ def build_parser() -> argparse.ArgumentParser:
     from_lock.add_argument('lock', metavar='PYLOCK', help='path to a PEP 751 pylock.toml lock file')
     from_lock.set_defaults(command='from-lock')
 
-    # Bare ``pipdeptree`` does not visit the subparser, so seed defaults for its attributes to keep Options total. The
-    # installed-only display options (license/metadata/computed) are not exposed on the subparsers, so seed them too:
-    # this keeps Options total whichever path argparse takes, so get_options can post-process it always.
+    # Bare ``pipdeptree`` does not visit the subparser, so seed its defaults.
     parser.set_defaults(
         command=None,
-        requirement=[],
-        requirements=None,
-        pyproject=None,
-        index_url=None,
-        extra_index_url=None,
         lock=None,
         license=False,
         metadata='',
@@ -289,14 +223,14 @@ def _add_render_arguments(parser: argparse.ArgumentParser) -> None:
         metavar='E',
     )
     parser.add_argument(
-        '-a', '--all', action='store_true', help='list all deps at top level (text, rich, and freeze render only)',
+        '-a', '--all', action='store_true', help='list all deps at top level (text and freeze render only)',
     )
     parser.add_argument(
         '-d',
         '--depth',
         type=_positive_int,
         default=float('inf'),
-        help='limit the depth of the tree (text, rich, freeze, and graphviz render only)',
+        help='limit the depth of the tree (text, freeze, and graphviz render only)',
         metavar='D',
     )
     parser.add_argument(
@@ -314,7 +248,7 @@ def _add_render_arguments(parser: argparse.ArgumentParser) -> None:
         action='store_true',
         default=False,
         help='render a one-block health report of the tree instead of the tree itself; combine with -o text '
-        '(default), rich, or json. Composes with from-index/from-lock',
+        '(default) or json. Also works with from-lock',
     )
     render_type = parser.add_mutually_exclusive_group()
     render_type.add_argument(
@@ -356,9 +290,7 @@ def _add_render_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_installed_metadata_arguments(parser: argparse.ArgumentParser) -> None:
-    # These read state of already-installed packages (METADATA file contents, on-disk file sizes), so they only make
-    # sense for the default command that inspects an environment. The from-index subcommand renders resolver output for
-    # packages that are never installed, so it intentionally omits them.
+    # These read state of already-installed packages (METADATA file contents, on-disk file sizes).
     parser.add_argument(
         '--license',
         action='store_true',
@@ -418,8 +350,6 @@ def get_options(args: ta.Sequence[str] | None) -> Options:
         allowed = ', '.join(sorted(SUMMARY_RENDER_FORMATS))
         parser.error(f'--summary supports only -o {allowed} (got {options.output_format})')
 
-    if options.command == 'from-index' and not (options.requirement or options.requirements or options.pyproject):
-        parser.error('from-index needs at least one REQUIREMENT, --requirements FILE, or --pyproject FILE')
     if options.exclude_dependencies and not options.exclude:
         parser.error('must use --exclude-dependencies with --exclude')
     if options.path and (options.local_only or options.user_only):

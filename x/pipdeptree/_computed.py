@@ -1,7 +1,7 @@
 import dataclasses as dc
 import functools
 import importlib.metadata
-import pathlib
+import os
 import typing as ta
 
 
@@ -60,7 +60,7 @@ class ComputedValues:
     @staticmethod
     def _file_size(path: str) -> int:
         try:
-            return pathlib.Path(path).stat().st_size
+            return os.stat(path).st_size
         except OSError:
             return 0
 

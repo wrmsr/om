@@ -7,6 +7,7 @@ from ..._cli import RenderContext
 from ..._models.dag import PackageDAG
 from ..._models.package import Package
 from ..._render.json_tree import render_json_tree
+from ...tests import PACKAGE_NAME
 from ...tests.conftest import mock_pkgs  # noqa
 
 
@@ -66,7 +67,7 @@ def test_json_tree_with_computed(
 ) -> None:
     graph: MockGraph = {('a', '1.0'): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._computed.distribution', return_value=MagicMock(files=None))
+    mocker.patch(f'{PACKAGE_NAME}._computed.importlib.metadata.distribution', return_value=MagicMock(files=None))
     render_json_tree(dag, context=RenderContext(computed=['size']))
     output = capsys.readouterr().out
     assert '"computed"' in output

@@ -5,6 +5,7 @@ import pytest
 
 from ..__main__ import _resolve_python
 from ..__main__ import main
+from . import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 def test_resolve_python_default_uses_detected_env(
     tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=str(tmp_path))
+    mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=str(tmp_path))
 
     assert _resolve_python(None, log_resolved=True) == str(tmp_path)
 
@@ -27,7 +28,7 @@ def test_resolve_python_default_note_silent_without_log(
     tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str],
 ) -> None:
     # The programmatic API resolves without log_resolved, so notebooks get no stderr note.
-    mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=str(tmp_path))
+    mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=str(tmp_path))
 
     assert _resolve_python(None) == str(tmp_path)
 
@@ -37,7 +38,7 @@ def test_resolve_python_default_note_silent_without_log(
 
 
 def test_resolve_python_default_falls_back_silently(mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
-    mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=None)
 
     assert _resolve_python(None) == sys.executable
 
@@ -49,7 +50,7 @@ def test_resolve_python_default_falls_back_silently(mocker: MockFixture, capsys:
 def test_resolve_python_auto_uses_strict_detection(
     tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    mocker.patch('pipdeptree.__main__.detect_active_interpreter', return_value=str(tmp_path))
+    mocker.patch(f'{PACKAGE_NAME}.__main__.detect_active_interpreter', return_value=str(tmp_path))
 
     assert _resolve_python('auto', log_resolved=True) == str(tmp_path)
 
@@ -57,7 +58,7 @@ def test_resolve_python_auto_uses_strict_detection(
 
 
 def test_resolve_python_auto_fails_when_none_found(mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
-    mocker.patch('pipdeptree._detect_env.find_active_interpreter', return_value=None)
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.find_active_interpreter', return_value=None)
 
     with pytest.raises(SystemExit):
         _resolve_python('auto')
@@ -74,9 +75,9 @@ def test_resolve_python_explicit_path_passthrough(capsys: pytest.CaptureFixture[
 
 
 def test_main_default_falls_back_to_sys_executable(mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
-    mocker.patch('pipdeptree.__main__.sys.argv', ['pipdeptree'])
-    mocker.patch('pipdeptree.__main__.find_active_interpreter', return_value=None)
-    get_installed = mocker.patch('pipdeptree.__main__.get_installed_distributions', return_value=[])
+    mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', ['pipdeptree'])
+    mocker.patch(f'{PACKAGE_NAME}.__main__.find_active_interpreter', return_value=None)
+    get_installed = mocker.patch(f'{PACKAGE_NAME}.__main__.get_installed_distributions', return_value=[])
 
     assert main() == 0
 

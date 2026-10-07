@@ -7,6 +7,7 @@ from .._cli import get_options
 from .._from_lock import FromLockError
 from .._from_lock import load_lock
 from .._models import PackageDAG
+from . import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -152,7 +153,7 @@ def test_main_from_lock_renders_text_tree(
     tmp_path: Path, mocker: MockerFixture, capsys: pytest.CaptureFixture[str],
 ) -> None:
     lock = _write(tmp_path, _CHAIN)
-    mocker.patch('pipdeptree.__main__.sys.argv', ['', 'from-lock', str(lock)])
+    mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', ['', 'from-lock', str(lock)])
 
     assert main() == 0
 
@@ -164,7 +165,7 @@ def test_main_from_lock_renders_text_tree(
 
 def test_main_from_lock_json_output(tmp_path: Path, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]) -> None:
     lock = _write(tmp_path, _CHAIN)
-    mocker.patch('pipdeptree.__main__.sys.argv', ['', 'from-lock', str(lock), '-o', 'json'])
+    mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', ['', 'from-lock', str(lock), '-o', 'json'])
 
     assert main() == 0
 
@@ -173,7 +174,7 @@ def test_main_from_lock_json_output(tmp_path: Path, mocker: MockerFixture, capsy
 
 
 def test_main_from_lock_error(tmp_path: Path, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]) -> None:
-    mocker.patch('pipdeptree.__main__.sys.argv', ['', 'from-lock', str(tmp_path / 'absent.toml')])
+    mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', ['', 'from-lock', str(tmp_path / 'absent.toml')])
 
     assert main() == 1
 

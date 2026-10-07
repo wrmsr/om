@@ -6,6 +6,7 @@ import pytest
 from .._cli import RenderContext
 from .._computed import ComputedValues
 from .._models import PackageDAG
+from . import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 def test_size_formatting(total_bytes: int, expected: str, mocker: MockerFixture) -> None:
     dag = MagicMock(spec=PackageDAG)
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['f'], locate_file=lambda _: '/dev/null'),
     )
     mocker.patch.object(ComputedValues, '_file_size', return_value=total_bytes)
@@ -42,7 +43,7 @@ def test_size_formatting(total_bytes: int, expected: str, mocker: MockerFixture)
 
 def test_size_bytes_no_files(mocker: MockerFixture) -> None:
     dag = MagicMock(spec=PackageDAG)
-    mocker.patch('pipdeptree._computed.distribution', return_value=MagicMock(files=None))
+    mocker.patch(f'{PACKAGE_NAME}._computed.importlib.metadata.distribution', return_value=MagicMock(files=None))
     assert ComputedValues('some-pkg', dag).size_bytes is None
 
 
@@ -50,7 +51,7 @@ def test_size_bytes_with_files(tmp_path: Path, mocker: MockerFixture) -> None:
     (tmp_path / 'file1.py').write_text('x' * 100)
     (tmp_path / 'file2.py').write_text('y' * 200)
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['file1.py', 'file2.py'], locate_file=lambda f: tmp_path / f),
     )
     dag = MagicMock(spec=PackageDAG)
@@ -63,7 +64,7 @@ def test_size_bytes_with_files(tmp_path: Path, mocker: MockerFixture) -> None:
 def test_size_bytes_missing_file_on_disk(mocker: MockerFixture) -> None:
     dag = MagicMock(spec=PackageDAG)
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['missing.py'], locate_file=lambda _: '/nonexistent/path'),
     )
     assert ComputedValues('pkg', dag).size_bytes == 0
@@ -99,7 +100,7 @@ def test_unique_deps_size(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mock
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['f'], locate_file=lambda _: '/dev/null'),
     )
     mocker.patch.object(ComputedValues, '_file_size', return_value=2048)
@@ -119,7 +120,7 @@ def test_as_dict(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: Mocke
         ('b', '1.0'): [],
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._computed.distribution', return_value=MagicMock(files=None))
+    mocker.patch(f'{PACKAGE_NAME}._computed.importlib.metadata.distribution', return_value=MagicMock(files=None))
     assert ComputedValues('a', dag).as_dict(['size', 'unique-deps-count', 'unique-deps-names']) == {
         'size': '0 B',
         'unique_deps_count': 1,
@@ -130,7 +131,7 @@ def test_as_dict(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: Mocke
 def test_as_dict_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0'): []})))
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['f'], locate_file=lambda _: '/dev/null'),
     )
     mocker.patch.object(ComputedValues, '_file_size', return_value=123456)
@@ -144,7 +145,9 @@ def test_as_dict_unknown_field(mock_pkgs: Callable[[MockGraph], Iterator[Mock]])
 
 def test_size_computed_once(mocker: MockerFixture) -> None:
     dag = MagicMock(spec=PackageDAG)
-    mock_dist = mocker.patch('pipdeptree._computed.distribution', return_value=MagicMock(files=None))
+    mock_dist = mocker.patch(
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution', return_value=MagicMock(files=None),
+    )
     cv = ComputedValues('a', dag)
     assert cv.size_bytes is None
     assert cv.size == '0 B'
@@ -159,7 +162,7 @@ def test_format_display(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['f'], locate_file=lambda _: '/dev/null'),
     )
     mocker.patch.object(ComputedValues, '_file_size', return_value=100)
@@ -179,7 +182,7 @@ def test_format_display_unique_deps_size(
     }
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['f'], locate_file=lambda _: '/dev/null'),
     )
     mocker.patch.object(ComputedValues, '_file_size', return_value=1024)
@@ -194,7 +197,7 @@ def test_format_display_hides_zero_unique_deps(mock_pkgs: Callable[[MockGraph], 
 def test_format_display_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0'): []})))
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['f'], locate_file=lambda _: '/dev/null'),
     )
     mocker.patch.object(ComputedValues, '_file_size', return_value=5000)
@@ -204,7 +207,7 @@ def test_format_display_size_raw(mock_pkgs: Callable[[MockGraph], Iterator[Mock]
 def test_format_display_with_exclude(mock_pkgs: Callable[[MockGraph], Iterator[Mock]], mocker: MockerFixture) -> None:
     dag = PackageDAG.from_pkgs(list(mock_pkgs({('a', '1.0'): []})))
     mocker.patch(
-        'pipdeptree._computed.distribution',
+        f'{PACKAGE_NAME}._computed.importlib.metadata.distribution',
         return_value=MagicMock(files=['f'], locate_file=lambda _: '/dev/null'),
     )
     mocker.patch.object(ComputedValues, '_file_size', return_value=100)
@@ -221,7 +224,7 @@ def test_build_node_extra_label_metadata(
 ) -> None:
     graph: MockGraph = {('a', '1.0'): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._models.package.Package.get_metadata_values', return_value=['A package'])
+    mocker.patch(f'{PACKAGE_NAME}._models.package.Package.get_metadata_values', return_value=['A package'])
     ctx = RenderContext(metadata=['Summary'])
     assert ctx.build_node_extra_label('a', dag, ', ') == 'A package'
 
@@ -231,7 +234,7 @@ def test_build_node_extra_label_computed(
 ) -> None:
     graph: MockGraph = {('a', '1.0'): [('b', [('>=', '1.0')])], ('b', '1.0'): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._computed.distribution', return_value=MagicMock(files=None))
+    mocker.patch(f'{PACKAGE_NAME}._computed.importlib.metadata.distribution', return_value=MagicMock(files=None))
     ctx = RenderContext(computed=['size'])
     assert ctx.build_node_extra_label('a', dag, ', ') == 'size: 0 B'
 
@@ -241,7 +244,7 @@ def test_build_node_extra_label_license(
 ) -> None:
     graph: MockGraph = {('a', '1.0'): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._models.package.Package.licenses', return_value='(MIT)')
+    mocker.patch(f'{PACKAGE_NAME}._models.package.Package.licenses', return_value='(MIT)')
     ctx = RenderContext(metadata=['license'])
     assert ctx.build_node_extra_label('a', dag, ', ') == 'MIT License'
 
@@ -251,7 +254,7 @@ def test_build_node_extra_label_missing_metadata_field(
 ) -> None:
     graph: MockGraph = {('a', '1.0'): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._models.package.Package.get_metadata_values', return_value=[])
+    mocker.patch(f'{PACKAGE_NAME}._models.package.Package.get_metadata_values', return_value=[])
     ctx = RenderContext(metadata=['Author'])
     assert not ctx.build_node_extra_label('a', dag, ', ')
 

@@ -1,5 +1,4 @@
 import os
-import pathlib
 import platform
 import subprocess  # noqa: S404
 import sys
@@ -30,7 +29,7 @@ def detect_active_interpreter() -> str:
 def find_active_interpreter() -> str | None:
     """Attempt to detect a venv, virtualenv, poetry, or conda environment, returning ``None`` if none is found."""
 
-    detection_funcs: list[Callable[[], pathlib.Path | None]] = [
+    detection_funcs: list[Callable[[], str | None]] = [
         detect_venv_or_virtualenv_interpreter,
         detect_conda_env_interpreter,
         detect_poetry_env_interpreter,
@@ -39,51 +38,48 @@ def find_active_interpreter() -> str | None:
         path = detect()
         if not path:
             continue
-        if not path.exists():
+        if not os.path.exists(path):
             continue
-        return str(path)
+        return path
 
     return None
 
 
-def detect_venv_or_virtualenv_interpreter() -> pathlib.Path | None:
+def detect_venv_or_virtualenv_interpreter() -> str | None:
     # Both virtualenv and venv set this environment variable.
     env_var = os.environ.get('VIRTUAL_ENV')
     if not env_var:
         return None
 
-    path = pathlib.Path(env_var)
-    path /= determine_bin_dir()
-
     file_name = determine_interpreter_file_name()
-    return path / file_name if file_name else None
+    return os.path.join(env_var, determine_bin_dir(), file_name) if file_name else None
 
 
 def determine_bin_dir() -> str:
     return 'Scripts' if os.name == 'nt' else 'bin'
 
 
-def detect_conda_env_interpreter() -> pathlib.Path | None:
+def detect_conda_env_interpreter() -> str | None:
     # Env var mentioned in
     # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables.
     env_var = os.environ.get('CONDA_PREFIX')
     if not env_var:
         return None
 
-    path = pathlib.Path(env_var)
+    path = env_var
 
     # On POSIX systems, conda adds the python executable to the /bin directory. On Windows, it resides in the parent
     # directory of /bin (i.e. the root directory).
     # See https://docs.anaconda.com/free/working-with-conda/configurations/python-path/#examples.
     if os.name == 'posix':  # pragma: posix cover
-        path /= 'bin'
+        path = os.path.join(path, 'bin')
 
     file_name = determine_interpreter_file_name()
 
-    return path / file_name if file_name else None
+    return os.path.join(path, file_name) if file_name else None
 
 
-def detect_poetry_env_interpreter() -> pathlib.Path | None:
+def detect_poetry_env_interpreter() -> str | None:
     # poetry doesn't expose an environment variable like other implementations, so we instead use its CLI to snatch the
     # active interpreter.
     # See https://python-poetry.org/docs/managing-environments/#displaying-the-environment-information.
@@ -94,11 +90,12 @@ def detect_poetry_env_interpreter() -> pathlib.Path | None:
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
+            timeout=60,
         )
-    except Exception:  # noqa: BLE001
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
 
-    return pathlib.Path(result.stdout.strip())
+    return result.stdout.strip() or None
 
 
 def determine_interpreter_file_name() -> str | None:

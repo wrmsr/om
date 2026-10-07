@@ -1,7 +1,7 @@
 """
 A :class:`importlib.metadata.Distribution` look-alike backed by name/version/edges instead of an on-disk package.
 
-Both the ``from-index`` resolver and the ``from-lock`` reader produce package graphs that were never installed, yet
+The ``from-lock`` reader produces package graphs that were never installed, yet
 the existing :class:`~pipdeptree._models.PackageDAG` and every renderer expect real ``Distribution`` objects. This
 shared adapter bridges that gap: each child is rendered as a PEP 508 ``Requires-Dist`` string so the unchanged
 :meth:`pipdeptree._models.package.DistPackage.requires` rebuilds exact edges with no renderer changes.

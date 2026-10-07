@@ -1,6 +1,8 @@
 import collections
+import json
 import math
-import os
+import re
+import subprocess
 import sys
 import tempfile
 import typing as ta
@@ -13,13 +15,41 @@ from .._models import ReqPackage
 
 
 if ta.TYPE_CHECKING:
-    from graphviz import Digraph  # type: ignore
-
     from .._cli import RenderContext
     from .._models import PackageDAG
 
 
 ##
+
+
+_BARE_ID = re.compile(r'[A-Za-z_][A-Za-z_0-9]*\Z')
+
+
+class GraphvizError(Exception):
+    """The Graphviz command could not render the requested format."""
+
+
+def _quote(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _id(value: str) -> str:
+    return value if _BARE_ID.fullmatch(value) else _quote(value)
+
+
+def _node(key: str, label: str, *, missing: bool = False) -> str:
+    style = ', style=dashed' if missing else ''
+    return f'\t{_id(key)} [label={_quote(label)}{style}]\n'
+
+
+def _edge(parent: str, child: str, *, label: str = '', missing: bool = False) -> str:
+    if missing:
+        attributes = ' [style=dashed]'
+    elif label:
+        attributes = f' [label={_quote(label)}]'
+    else:
+        attributes = ''
+    return f'\t{_id(parent)} -> {_id(child)}{attributes}\n'
 
 
 def render_graphviz(
@@ -31,10 +61,7 @@ def render_graphviz(
     context: RenderContext | None = None,
 ) -> None:
     output = dump_graphviz(tree, output_format=output_format, is_reverse=reverse, max_depth=max_depth, context=context)
-    if isinstance(output, bytes):
-        print_graphviz(output, output_format=output_format)
-    else:
-        print_graphviz(output)
+    print_graphviz(output, output_format=output_format)
 
 
 def dump_graphviz(
@@ -44,149 +71,114 @@ def dump_graphviz(
     max_depth: float = math.inf,
     context: RenderContext | None = None,
 ) -> str | bytes:
-    """
-    Output dependency graph as one of the supported GraphViz output formats.
+    """Build DOT source and optionally render it with the Graphviz `dot` command."""
 
-    :param dict tree: dependency graph
-    :param string output_format: output format
-    :param bool is_reverse: reverse or not
-    :param float max_depth: maximum depth of the dependency tree to include
-    :param context: metadata and computed fields to include in node labels
-    :returns: representation of tree in the specified output format
-    :rtype: str or binary representation depending on the output format
-    """
-
-    try:
-        from graphviz import Digraph  # noqa: PLC0415
-    except ImportError as exc:
-        print(  # noqa: T201
-            'graphviz is not available, but necessary for the output option. Please install it.',
-            file=sys.stderr,
-        )
-        raise SystemExit(1) from exc
-
-    from graphviz import parameters  # noqa: PLC0415
-
-    valid_formats = parameters.FORMATS
-
-    if output_format not in valid_formats:
-        print(f'{output_format} is not a supported output format.', file=sys.stderr)  # noqa: T201
-        print(f"Supported formats are: {', '.join(sorted(valid_formats))}", file=sys.stderr)  # noqa: T201
-        raise SystemExit(1)
-
-    graph = Digraph(format=output_format)
-
+    body: list[str] = []
     if is_reverse:
-        _build_reverse_graph(tree, graph, max_depth, context)
+        _build_reverse_graph(tree, body, max_depth, context)
     else:
-        _build_forward_graph(tree, graph, max_depth, context)
-
-    # Allow output of dot format, even if GraphViz isn't installed.
+        _build_forward_graph(tree, body, max_depth, context)
+    source = 'digraph {\n' + ''.join(sorted(body)) + '}\n'
     if output_format == 'dot':
-        # Emulates graphviz.dot.Dot.__iter__() to force the sorting of graph.body.
-        # Fixes https://github.com/tox-dev/pipdeptree/issues/188
-        # That way we can guarantee the output of the dot format is deterministic
-        # and stable.
-        return ''.join([next(iter(graph)), *sorted(graph.body), graph._tail])  # noqa: SLF001
+        return source
 
-    # As it's unknown if the selected output format is binary or not, try to
-    # decode it as UTF8 and only print it out in binary if that's not possible.
     try:
-        return graph.pipe().decode('utf-8')
+        result = subprocess.run(
+            ['dot', f'-T{output_format}'],
+            input=source.encode('utf-8'),
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise GraphvizError(f'cannot run Graphviz dot: {exc}') from exc
+    if result.returncode:
+        message = result.stderr.decode('utf-8', errors='replace').strip()
+        raise GraphvizError(message or f'Graphviz dot exited with status {result.returncode}')
+    try:
+        return result.stdout.decode('utf-8')
     except UnicodeDecodeError:
-        return graph.pipe()
+        return result.stdout
 
 
 def print_graphviz(dump_output: str | bytes, *, output_format: str = 'dot') -> None:
-    """
-    Dump the data generated by GraphViz to stdout or open in browser/viewer.
-
-    :param dump_output: The output from dump_graphviz
-    :param output_format: The output format (used to determine file extension)
-    """
-
-    if isinstance(dump_output, bytes) and sys.stdout.isatty():
-        with tempfile.NamedTemporaryFile(
-            suffix=f'.{output_format}',
-            delete=False,
-        ) as temp_file:
-            temp_file.write(dump_output)
-            temp_path = temp_file.name
-
-        print(f'Binary output file written to: {temp_path}', file=sys.stderr)  # noqa: T201
-        print('Opening file with default application...', file=sys.stderr)  # noqa: T201
-        if not webbrowser.open(temp_path):
-            print('Could not open file with default application. Please open it manually.', file=sys.stderr)  # noqa
-        return
+    """Write graph output to stdout, or open binary output when attached to a terminal."""
 
     if isinstance(dump_output, str):
-        print(dump_output)  # noqa: T201
-    else:
-        with os.fdopen(sys.stdout.fileno(), 'wb') as bytestream:
-            bytestream.write(dump_output)
+        print(dump_output, end='')  # noqa: T201
+        return
+
+    if sys.stdout.isatty():
+        with tempfile.NamedTemporaryFile(suffix=f'.{output_format}', delete=False) as temp_file:
+            temp_file.write(dump_output)
+            temp_path = temp_file.name
+        print(f'Binary output file written to: {temp_path}', file=sys.stderr)  # noqa: T201
+        if not webbrowser.open(temp_path):
+            print('Could not open file with default application. Please open it manually.', file=sys.stderr)  # noqa: T201
+        return
+
+    sys.stdout.buffer.write(dump_output)
 
 
 def _build_reverse_graph(
     tree: PackageDAG,
-    graph: Digraph,
+    body: list[str],
     max_depth: float,
     context: RenderContext | None,
 ) -> None:
-    """Build graphviz nodes and edges for a reversed dependency tree."""
+    """Build Graphviz nodes and edges for a reversed dependency tree."""
 
     visited = _compute_reachable_depths(tree, _get_root_keys(tree), max_depth)
-
     for dep_rev, parents in tree.items():
         if visited is not None and dep_rev.key not in visited:
             continue
         dep_rev_rp = check.isinstance(dep_rev, ReqPackage)
-        label = f'{dep_rev_rp.project_name}\\n{dep_rev_rp.installed_version}'
-        if context and (extra := context.build_node_extra_label(dep_rev_rp.key, tree, '\\n')):
-            label += f'\\n{extra}'
-        graph.node(dep_rev_rp.key, label=label)
+        label = f'{dep_rev_rp.project_name}\n{dep_rev_rp.installed_version}'
+        if context and (extra := context.build_node_extra_label(dep_rev_rp.key, tree, '\n')):
+            label += f'\n{extra}'
+        body.append(_node(dep_rev_rp.key, label))
         if visited is None or visited[dep_rev_rp.key] < max_depth:
             for parent in parents:
                 parent_dp = check.isinstance(parent, DistPackage)
                 if visited is not None and parent_dp.key not in visited:
                     continue
-                graph.edge(dep_rev_rp.key, parent_dp.key, label=parent_dp.edge_label)
+                body.append(_edge(dep_rev_rp.key, parent_dp.key, label=parent_dp.edge_label))
 
 
 def _build_forward_graph(
     tree: PackageDAG,
-    graph: Digraph,
+    body: list[str],
     max_depth: float,
     context: RenderContext | None,
 ) -> None:
-    """Build graphviz nodes and edges for a forward dependency tree."""
+    """Build Graphviz nodes and edges for a forward dependency tree."""
 
     visited = _compute_reachable_depths(tree, _get_root_keys(tree), max_depth)
-
     for pkg, deps in tree.items():
         if visited is not None and pkg.key not in visited:
             continue
-        label = f'{pkg.project_name}\\n{pkg.version}'
-        if context and (extra := context.build_node_extra_label(pkg.key, tree, '\\n')):
-            label += f'\\n{extra}'
-        graph.node(pkg.key, label=label)
+        label = f'{pkg.project_name}\n{pkg.version}'
+        if context and (extra := context.build_node_extra_label(pkg.key, tree, '\n')):
+            label += f'\n{extra}'
+        body.append(_node(pkg.key, label))
         if visited is None or visited[pkg.key] < max_depth:
             for dep in deps:
                 if visited is not None and dep.key not in visited:
                     continue
                 if dep.is_missing:
-                    graph.node(dep.key, label=f'{dep.project_name}\\n(missing)', style='dashed')
-                    graph.edge(pkg.key, dep.key, style='dashed')
+                    body.append(_node(dep.key, f'{dep.project_name}\n(missing)', missing=True))
+                    body.append(_edge(pkg.key, dep.key, missing=True))
                 else:
-                    graph.edge(pkg.key, dep.key, label=dep.edge_label)
+                    body.append(_edge(pkg.key, dep.key, label=dep.edge_label))
 
 
 def _compute_reachable_depths(tree: PackageDAG, root_keys: set[str], max_depth: float) -> dict[str, int] | None:
-    """BFS from root_keys, returning {key: depth} for all nodes reachable within max_depth."""
+    """Find the nodes reachable from roots within the requested depth."""
 
-    if max_depth >= math.inf:
+    if max_depth == math.inf:
         return None
     visited: dict[str, int] = {}
-    queue: collections.deque[tuple[str, int]] = collections.deque((k, 0) for k in root_keys)
+    queue: collections.deque[tuple[str, int]] = collections.deque((key, 0) for key in root_keys)
     while queue:
         key, depth = queue.popleft()
         if key in visited:
@@ -200,7 +192,8 @@ def _compute_reachable_depths(tree: PackageDAG, root_keys: set[str], max_depth: 
 
 
 def _get_root_keys(tree: PackageDAG) -> set[str]:
-    """Return keys that are not dependencies of any other package (i.e. root nodes)."""
+    """Return package keys that are not dependencies of another package."""
 
     dep_keys = {dep.key for deps in tree.values() for dep in deps}
-    return {pkg.key for pkg in tree if pkg.key not in dep_keys}
+    roots = {str(pkg.key) for pkg in tree if pkg.key not in dep_keys}
+    return roots or {str(pkg.key) for pkg in tree}

@@ -6,6 +6,7 @@ from ..._computed import ComputedValues
 from ..._models.dag import PackageDAG
 from ..._models.package import Package
 from ..._render.json import render_json
+from ...tests import PACKAGE_NAME
 from ...tests.conftest import mock_pkgs  # noqa
 
 
@@ -94,7 +95,7 @@ def test_render_json_with_computed(
 ) -> None:
     graph: MockGraph = {('a', '1.0'): []}
     dag = PackageDAG.from_pkgs(list(mock_pkgs(graph)))
-    mocker.patch('pipdeptree._computed.distribution')
+    mocker.patch(f'{PACKAGE_NAME}._computed.importlib.metadata.distribution')
     mocker.patch.object(ComputedValues, '_file_size', return_value=100)
     render_json(dag, context=RenderContext(computed=['size']))
     output = capsys.readouterr().out

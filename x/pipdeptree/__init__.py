@@ -6,8 +6,9 @@ JupyterLite cell -- without going through the command line or capturing stdout y
 
     import pipdeptree
 
-    print(pipdeptree.render())  # text tree, defaults pipdeptree.render(output_format="json")  # JSON string
-    pipdeptree.render(packages="rich", reverse=True)  # filtered + reversed
+    print(pipdeptree.render())  # text tree
+    pipdeptree.render(output_format="json")  # JSON string
+    pipdeptree.render(packages="pytest", reverse=True)  # filtered + reversed
 
 In a Jupyter or JupyterLite notebook cell, the default (``text``) render also displays as a Mermaid dependency diagram
 (with an HTML/text fallback) via the rich-display protocol, while its string value stays the plain text tree.
@@ -19,14 +20,18 @@ import io
 import math
 import typing as ta
 
+from omcore import lang
+
 from . import _render
-from .__main__ import _FilterError
-from .__main__ import build_tree
 from ._cli import SUMMARY_RENDER_FORMATS
 from ._cli import get_options
 from ._render.summary import summary_html
 from ._warning import WarningType
 from ._warning import get_warning_printer
+
+
+with lang.auto_proxy_import(globals()):
+    from . import __main__ as _main
 
 
 if ta.TYPE_CHECKING:
@@ -79,7 +84,7 @@ def render(  # noqa: PLR0913
     :param exclude: comma separated deny-list of packages to hide (wildcards allowed)
     :param output_format: one of ``text``, ``json``, ``json-tree``, ``mermaid`` or ``dot`` (Graphviz source); binary
         Graphviz formats (png, svg, ...) cannot be returned as text and raise :class:`ValueError`. With
-        ``summary=True`` it instead selects the summary style and must be ``text``, ``rich`` or ``json``
+        ``summary=True`` it instead selects the summary style and must be ``text`` or ``json``
     :param summary: return a one-block health report of the environment rather than the tree; in a notebook the
         ``text`` style additionally displays as an HTML table
     :param reverse: list sub-dependencies with the packages that require them
@@ -131,8 +136,8 @@ def render(  # noqa: PLR0913
     get_warning_printer().warning_type = WarningType.from_str(options.warn)
 
     try:
-        tree = build_tree(options)
-    except _FilterError:
+        tree = _main.build_tree(options)
+    except _main._FilterError:  # noqa: SLF001
         return ''
 
     text = _render_to_str(options, tree)

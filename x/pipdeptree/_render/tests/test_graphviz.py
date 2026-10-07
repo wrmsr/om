@@ -1,3 +1,4 @@
+import shutil
 import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING
@@ -7,11 +8,11 @@ import pytest
 from ..._cli import RenderContext
 from ..._models import PackageDAG
 from ..._models.package import Package
+from ..._render.graphviz import GraphvizError
 from ..._render.graphviz import dump_graphviz
 from ..._render.graphviz import print_graphviz
 from ..._render.graphviz import render_graphviz
-from ...tests.conftest import example_dag  # noqa
-from ...tests.conftest import mock_pkgs  # noqa
+from ...tests import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -55,21 +56,20 @@ def test_render_dot(
             \tg -> f [label=">=3.0.0"]
             \tg [label="g\\n6.8.3rc1"]
             }
-
             """,
         )
 
 
-def test_render_pdf(tmp_path: Path, mocker: MockerFixture, example_dag: PackageDAG) -> None:  # noqa
+@pytest.mark.skipif(shutil.which('dot') is None, reason='Graphviz dot executable is unavailable')
+def test_render_pdf(tmp_path: Path, example_dag: PackageDAG) -> None:  # noqa
     output = dump_graphviz(example_dag, output_format='pdf')
-    res = tmp_path / 'file'
-    with pytest.raises(OSError, match='Bad file'):  # noqa: PT012, SIM117 # because we reopen the file
-        with res.open('wb') as buf:
-            mocker.patch.object(sys, 'stdout', buf)
-            print_graphviz(output)
+    assert isinstance(output, bytes)
+    res = tmp_path / 'file.pdf'
+    res.write_bytes(output)
     assert res.read_bytes()[:4] == b'%PDF'
 
 
+@pytest.mark.skipif(shutil.which('dot') is None, reason='Graphviz dot executable is unavailable')
 def test_render_svg(capsys: pytest.CaptureFixture[str], example_dag: PackageDAG) -> None:  # noqa
     output = dump_graphviz(example_dag, output_format='svg')
     print_graphviz(output)
@@ -77,6 +77,18 @@ def test_render_svg(capsys: pytest.CaptureFixture[str], example_dag: PackageDAG)
     assert out.startswith('<?xml')
     assert '<svg' in out
     assert out.strip().endswith('</svg>')
+
+
+def test_dot_source_does_not_need_graphviz(mocker: MockerFixture, example_dag: PackageDAG) -> None:
+    run = mocker.patch(f'{PACKAGE_NAME}._render.graphviz.subprocess.run', side_effect=FileNotFoundError('dot'))
+
+    source = dump_graphviz(example_dag, output_format='dot')
+    assert isinstance(source, str)
+    assert source.startswith('digraph {')
+    run.assert_not_called()
+
+    with pytest.raises(GraphvizError, match='cannot run Graphviz dot'):
+        dump_graphviz(example_dag, output_format='svg')
 
 
 def test_render_dot_with_depth(example_dag: PackageDAG) -> None:  # noqa
@@ -137,11 +149,10 @@ def test_render_dot_with_depth_zero(example_dag: PackageDAG) -> None:  # noqa
     assert '->' not in output
 
 
-def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:  # noqa
+def test_print_graphviz_binary_tty_handling(mocker: MockerFixture) -> None:
     """Test that binary output is written to a temp file when stdout is a tty."""
 
-    output = dump_graphviz(example_dag, output_format='pdf')
-    assert isinstance(output, bytes)
+    output = b'%PDF example'
 
     # Mock stdout.isatty() to return True
     mock_stdout = mocker.patch.object(sys, 'stdout')
@@ -179,27 +190,20 @@ def test_print_graphviz_binary_tty_handling(mocker: MockerFixture, example_dag: 
     mock_open.assert_called_once_with('/tmp/pipdeptree_test_output.pdf')  # noqa: S108  # Mock path for testing
 
 
-def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture, example_dag: PackageDAG) -> None:  # noqa
+def test_print_graphviz_binary_non_tty_handling(mocker: MockerFixture) -> None:
     """Test that binary output is written directly to stdout when stdout is not a tty."""
 
-    output = dump_graphviz(example_dag, output_format='pdf')
-    assert isinstance(output, bytes)
+    output = b'%PDF example'
 
     # Mock stdout.isatty() to return False (non-tty, e.g., piped output)
     mock_stdout = mocker.patch.object(sys, 'stdout')
     mock_stdout.isatty.return_value = False
     mock_stdout.fileno.return_value = 1
 
-    # Mock fdopen to capture binary write
-    mock_fdopen = mocker.patch('os.fdopen')
-    mock_bytestream = mocker.MagicMock()
-    mock_fdopen.return_value.__enter__.return_value = mock_bytestream
-
     print_graphviz(output, output_format='pdf')
 
     # Verify that binary data was written to stdout
-    mock_fdopen.assert_called_once_with(1, 'wb')
-    mock_bytestream.write.assert_called_once_with(output)
+    mock_stdout.buffer.write.assert_called_once_with(output)
 
 
 def test_render_graphviz_with_metadata(

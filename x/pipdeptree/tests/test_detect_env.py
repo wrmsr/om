@@ -7,6 +7,7 @@ import pytest
 
 from .._detect_env import detect_active_interpreter
 from .._detect_env import find_active_interpreter
+from . import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -15,8 +16,9 @@ if TYPE_CHECKING:
 
 @pytest.mark.parametrize(('env_var'), ['VIRTUAL_ENV', 'CONDA_PREFIX'])
 def test_detect_active_interpreter_using_env_vars(tmp_path: Path, mocker: MockFixture, env_var: str) -> None:
-    mocker.patch('pipdeptree._detect_env.os.environ', {env_var: str(tmp_path)})
-    mocker.patch('pipdeptree._detect_env.Path.exists', return_value=True)
+    (tmp_path / 'bin').mkdir()
+    (tmp_path / 'bin' / 'python').touch()
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.os.environ', {env_var: str(tmp_path)})
 
     actual_path = detect_active_interpreter()
 
@@ -25,8 +27,8 @@ def test_detect_active_interpreter_using_env_vars(tmp_path: Path, mocker: MockFi
 
 def test_detect_active_interpreter_poetry(tmp_path: Path, mocker: MockFixture) -> None:
     faked_result = CompletedProcess('', 0, stdout=str(tmp_path))
-    mocker.patch('pipdeptree._detect_env.subprocess.run', return_value=faked_result)
-    mocker.patch('pipdeptree._detect_env.os.environ', {})
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.subprocess.run', return_value=faked_result)
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.os.environ', {})
 
     actual_path = detect_active_interpreter()
 
@@ -37,9 +39,8 @@ def test_detect_active_interpreter_non_supported_python_implementation(
     tmp_path: Path,
     mocker: MockFixture,
 ) -> None:
-    mocker.patch('pipdeptree._detect_env.os.environ', {'VIRTUAL_ENV': str(tmp_path)})
-    mocker.patch('pipdeptree._detect_env.Path.exists', return_value=True)
-    mocker.patch('pipdeptree._detect_env.platform.python_implementation', return_value='NotSupportedPythonImpl')
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.os.environ', {'VIRTUAL_ENV': str(tmp_path)})
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.platform.python_implementation', return_value='NotSupportedPythonImpl')
 
     with pytest.raises(SystemExit):
         detect_active_interpreter()
@@ -49,7 +50,7 @@ def test_detect_active_interpreter_non_existent_path(
     mocker: MockFixture,
 ) -> None:
     fake_path = str(Path(*('i', 'dont', 'exist')))
-    mocker.patch('pipdeptree._detect_env.os.environ', {'VIRTUAL_ENV': fake_path})
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.os.environ', {'VIRTUAL_ENV': fake_path})
 
     with pytest.raises(SystemExit):
         detect_active_interpreter()
@@ -64,7 +65,7 @@ def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path:
     fake_python_path.write_text('This is a fake Python file')
     fake_path = str(Path(*('i', 'dont', 'exist')))
     mocker.patch(
-        'pipdeptree._detect_env.os.environ.get',
+        f'{PACKAGE_NAME}._detect_env.os.environ.get',
         side_effect=lambda key: fake_path if key == 'VIRTUAL_ENV' else str(tmp_path),
     )
 
@@ -74,8 +75,9 @@ def test_detect_active_interpreter_continue_when_other_detections_fail(tmp_path:
 
 
 def test_find_active_interpreter_returns_path_when_detected(tmp_path: Path, mocker: MockFixture) -> None:
-    mocker.patch('pipdeptree._detect_env.os.environ', {'VIRTUAL_ENV': str(tmp_path)})
-    mocker.patch('pipdeptree._detect_env.Path.exists', return_value=True)
+    (tmp_path / 'bin').mkdir()
+    (tmp_path / 'bin' / 'python').touch()
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.os.environ', {'VIRTUAL_ENV': str(tmp_path)})
 
     detected = find_active_interpreter()
 
@@ -84,7 +86,7 @@ def test_find_active_interpreter_returns_path_when_detected(tmp_path: Path, mock
 
 
 def test_find_active_interpreter_returns_none_when_nothing_detected(mocker: MockFixture) -> None:
-    mocker.patch('pipdeptree._detect_env.os.environ', {})
-    mocker.patch('pipdeptree._detect_env.subprocess.run', side_effect=FileNotFoundError)
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.os.environ', {})
+    mocker.patch(f'{PACKAGE_NAME}._detect_env.subprocess.run', side_effect=FileNotFoundError)
 
     assert find_active_interpreter() is None

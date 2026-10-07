@@ -1,12 +1,10 @@
-import sys
-from importlib import metadata
-from subprocess import CompletedProcess  # noqa: S404
-from subprocess import check_call  # noqa: S404
+import subprocess  # noqa: S404
 from typing import TYPE_CHECKING
 
 import pytest
 
 from ..__main__ import main
+from . import PACKAGE_NAME
 
 
 if TYPE_CHECKING:
@@ -16,35 +14,23 @@ if TYPE_CHECKING:
 
 
 def test_main() -> None:
-    check_call([sys.executable, '-m', 'pipdeptree', '--help'])
-
-
-def test_console_script() -> None:
-    try:
-        dist = metadata.distribution('pipdeptree')
-    except Exception as e:  # noqa: BLE001 # pragma: no cover
-        pytest.fail(f'Unexpected error when retrieving pipdeptree metadata: {e}')
-
-    entry_points = dist.entry_points
-    assert len(entry_points) == 1
-
-    entry_point = entry_points['pipdeptree']
-
-    try:
-        pipdeptree = entry_point.load()
-    except Exception as e:  # noqa: BLE001 # pragma: no cover
-        pytest.fail(f'Unexpected error: {e}')
-
-    with pytest.raises(SystemExit, match='0'):
-        pipdeptree(['--help'])
+    result = subprocess.run(
+        ['./python', '-m', PACKAGE_NAME, '--help'],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    assert result.stdout.startswith('usage: pipdeptree')
+    assert not result.stderr
 
 
 def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
     mocker.patch('sys.argv', ['', '--python', 'auto'])
-    mocker.patch('pipdeptree.__main__.detect_active_interpreter', return_value=str(tmp_path))
+    mocker.patch(f'{PACKAGE_NAME}.__main__.detect_active_interpreter', return_value=str(tmp_path))
     mock_subprocess_run = mocker.patch('subprocess.run')
     valid_sys_path = str([str(tmp_path)])
-    mock_subprocess_run.return_value = CompletedProcess(
+    mock_subprocess_run.return_value = subprocess.CompletedProcess(
         args=['python', '-c', 'import sys; print(sys.path)'],
         returncode=0,
         stdout=valid_sys_path,
@@ -59,7 +45,7 @@ def test_main_log_resolved(tmp_path: Path, mocker: MockFixture, capsys: pytest.C
 
 def test_main_include_and_exclude_overlap(mocker: MockFixture, capsys: pytest.CaptureFixture[str]) -> None:
     cmd = ['', '--packages', 'a,b,c', '--exclude', 'a']
-    mocker.patch('pipdeptree.__main__.sys.argv', cmd)
+    mocker.patch(f'{PACKAGE_NAME}.__main__.sys.argv', cmd)
 
     main()
 

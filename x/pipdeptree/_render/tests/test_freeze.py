@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ...tests import PACKAGE_NAME
 from ...tests.conftest import example_dag  # noqa
 from ..freeze import render_freeze
 
@@ -20,8 +21,8 @@ def patch_pip_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
     of whether they are editable or direct URL installs.
     """
 
-    monkeypatch.setattr('pipdeptree._parser.format.find_egg_link', lambda _: None)
-    monkeypatch.setattr('pipdeptree._parser.format.get_direct_url', lambda _: None)
+    monkeypatch.setattr(f'{PACKAGE_NAME}._parser.format.find_egg_link', lambda _: None)
+    monkeypatch.setattr(f'{PACKAGE_NAME}._parser.format.get_direct_url', lambda _: None)
 
 
 @pytest.mark.parametrize(
