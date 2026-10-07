@@ -556,8 +556,8 @@ class ChatDemoApp(App):
                 Key('d', ctrl=True),
                 Key('z', ctrl=True),
                 Key('f10'),
-                Key('f2',
-                    )):  # noqa: E501
+                Key('f2'),
+        ):
             self._handle_app_key(event)  # the global bindings, and answering a warm card, still work fullscreen
 
     ##

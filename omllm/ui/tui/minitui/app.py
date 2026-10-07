@@ -23,6 +23,14 @@ from ..rendering import render_text_rows
 
 CardRows: ta.TypeAlias = tuple[tuple[mt.Segment, ...], ...]
 
+# Untagged output and widgets outside a turn remain actionable through the block/control itself.
+type ContextTarget = ta.Union[  # noqa: UP007
+    TurnRecord,
+    ToolCardRecord,
+    mt.TranscriptBlock,
+    mt.Control,
+]
+
 
 ##
 
@@ -51,15 +59,41 @@ def _freeze_rows(rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> CardRows:
     return tuple(tuple(row) for row in rows)
 
 
+@dc.dataclass(frozen=True)
+class TurnRecord(lang.Final):
+    """
+    The transcript tag on a chat turn's blocks: who spoke, and when. Every block a turn commits - header, streamed
+    markdown, the closing marker - carries the same record. Tool cards retain their own record with a reference to
+    the owning turn: the anchors for browsing actions on messages and individual widgets.
+    """
+
+    speaker: Speaker
+    at: datetime.datetime
+    text: str | None = None  # the prompt, for user turns; ai turns stream
+
+
+@dc.dataclass(frozen=True)
+class ToolCardRecord(lang.Final):
+    """The identity of a tool widget, retained after its rendered rows become scrollback."""
+
+    key: str
+    card: mt.Card
+    turn: TurnRecord | None
+
+
 @dc.dataclass()
 class _ToolCardEntry:
     title: str
     call_summary: str | None
     base_detail: CardRows
-    card: mt.Card
+    record: ToolCardRecord
 
     ready_to_finalize: bool = False
     finalize_timer: mt.AsyncioTimer | None = None
+
+    @property
+    def card(self) -> mt.Card:
+        return self.record.card
 
 
 @dc.dataclass(frozen=True)
@@ -82,19 +116,6 @@ class _CardSpacer(mt.Control):
         return [[]]
 
 
-@dc.dataclass(frozen=True)
-class TurnRecord(lang.Final):
-    """
-    The transcript tag on a chat turn's blocks: who spoke, and when. Every block a turn commits - header, streamed
-    markdown, tool cards, the closing marker - carries the same record, so a row anywhere in the turn resolves back to
-    it: the anchor for browsing actions on a message.
-    """
-
-    speaker: Speaker
-    at: datetime.datetime
-    text: str | None = None  # the prompt, for user turns; ai turns stream
-
-
 class _BrowseStatus(mt.Control):
     """Browse mode's status row: where the view is, and the keys. Reads the view after it has rendered, so no lag."""
 
@@ -104,7 +125,7 @@ class _BrowseStatus(mt.Control):
         self._view = view
         self._message: str | None = None
         self._bar = mt.StatusBar(
-            right=[('f12/esc/q live  wheel j/k  pgup/pgdn  g/G', 'status.dim')],
+            right=[('f12/esc/q live  j/k pgup/dn g/G  click', 'status.dim')],
         )
 
     def set_message(self, message: str | None) -> None:
@@ -251,6 +272,9 @@ class MinituiChatApp(mt.App):
         self._browsing = False
         self._ai_turn: TurnRecord | None = None
 
+        self._menu: mt.Menu | None = None
+        self._menu_overlay: mt.Overlay | None = None
+
         self._busy = False
         self._thinking = False
         self._streaming = False
@@ -264,6 +288,7 @@ class MinituiChatApp(mt.App):
         self.on_submit: ta.Callable[[str], None] | None = None
         self.on_cancel: ta.Callable[[], bool] | None = None
         self.on_quit: ta.Callable[[], None] | None = None
+        self.on_context_action: ta.Callable[[ContextTarget], None] | None = None
 
         self._refresh_status()
 
@@ -296,7 +321,7 @@ class MinituiChatApp(mt.App):
     def display_rows(self, rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> None:
         """Commit pre-rendered (already width-safe) rows followed by a blank separator."""
 
-        self._commit_rows([*rows, []])
+        self._commit_rows([*rows, []], tag=self._ai_turn)
         self._driver.invalidate()
 
     def _parse_markdown(self, text: str) -> list[mt.MdBlock]:
@@ -481,9 +506,10 @@ class MinituiChatApp(mt.App):
             title=title,
             call_summary=call_summary,
             base_detail=frozen_detail,
-            card=mt.Card(
-                state=state,
-                detail=frozen_detail,
+            record=ToolCardRecord(
+                key=key,
+                card=mt.Card(state=state, detail=frozen_detail),
+                turn=self._ai_turn,
             ),
         )
         self._set_tool_card_summary(entry, 'running...')
@@ -670,7 +696,7 @@ class MinituiChatApp(mt.App):
                 return
             self._cancel_finalize(entry)
             # As displayed: the card and its spacer row.
-            self._commit_rows([*entry.card.render(self.width), []], tag=self._ai_turn)
+            self._commit_rows([*entry.card.render(self.width), []], tag=entry.record)
 
     def _cancel_finalize(self, entry: _ToolCardEntry) -> None:
         if (timer := entry.finalize_timer) is not None:
@@ -834,6 +860,7 @@ class MinituiChatApp(mt.App):
         if browsing == self._browsing:
             return
         self._browsing = browsing
+        self._close_context_menu()
         if browsing:
             self._browse.scroll_to_bottom()
         self._driver.set_alt_screen(browsing)
@@ -841,18 +868,90 @@ class MinituiChatApp(mt.App):
 
     _browse_type_returns = False
 
-    def _handle_browse_event(self, event: mt.Event) -> None:
+    def _run_context_action(self, target: ContextTarget) -> None:
+        # Deliberately no real action yet; the captured target remains valid even if a live widget has finalized.
+        if (cb := self.on_context_action) is not None:
+            cb(target)
+
+    def _open_context_menu(self, target: ContextTarget, x: int, y: int) -> None:
+        menu = mt.Menu(
+            [
+                mt.MenuItem('Placeholder action', on_select=lambda: self._run_context_action(target)),
+                mt.MenuItem('Close'),
+            ],
+            on_close=self._close_context_menu,
+        )
+        self._menu = menu
+        self._menu_overlay = mt.Overlay(menu, x, y, menu.width, fill='menu.item')
+
+    def _close_context_menu(self) -> None:
+        self._menu = None
+        self._menu_overlay = None
+
+    def _handle_context_menu_event(self, event: mt.Event, layout: mt.StackLayout | None) -> bool:
+        """Modal menu routing, independent of which screen owns the layout."""
+
+        if (menu := self._menu) is None:
+            return False
         if isinstance(event, mt.MouseEvent):
-            if self._browse_layout is not None and (hit := self._browse_layout.hit(event.y)) is not None:
-                control, local_y = hit
-                control.handle_event(dc.replace(event, y=local_y))
+            hit = layout.hit_at(event.x, event.y) if layout is not None else None
+            if hit is not None and hit.control is menu:
+                menu.handle_event(dc.replace(event, x=hit.x, y=hit.y))
+            elif event.kind is mt.MouseEventKind.DOWN:
+                self._close_context_menu()
+        elif isinstance(event, mt.KeyEvent):
+            app_key = APP_KEY_REVERSE_MAP.get(event.key)
+            if app_key in _BROWSE_PASSTHROUGH_KEYS:
+                self._handle_app_key(event)
+            else:
+                menu.handle_event(event)
+        return True
+
+    def _browse_context_target(self, hit: mt.TranscriptHit) -> ContextTarget | None:
+        if (block := hit.block) is not None:
+            return block.tag if isinstance(block.tag, (TurnRecord, ToolCardRecord)) else block
+        if (control := hit.control) is not None:
+            for entry in self._cards.values():
+                if entry.card is control:
+                    return entry.record
+            if control is self._tail:
+                return self._ai_turn or control
+            if control is not self._card_spacer:
+                return control
+        return None
+
+    def _handle_browse_event(self, event: mt.Event) -> None:
+        if isinstance(event, mt.KeyEvent) and APP_KEY_REVERSE_MAP.get(event.key) is AppKey.BROWSE_TOGGLE:
+            self.set_browsing(False)
+            return
+        if self._handle_context_menu_event(event, self._browse_layout):
+            return
+
+        if isinstance(event, mt.MouseEvent):
+            if (layout := self._browse_layout) is None or (hit := layout.hit_at(event.x, event.y)) is None:
+                return
+            local = dc.replace(event, x=hit.x, y=hit.y)
+            if hit.control is self._browse and event.kind is mt.MouseEventKind.DOWN:
+                if (document_hit := self._browse.hit(hit.y)) is not None:
+                    # Only the live header's expander owns expansion; the rest of the widget opens a menu.
+                    if (
+                            isinstance(document_hit.control, mt.Card) and
+                            document_hit.control_row == 0 and
+                            0 <= hit.x < 3 and
+                            document_hit.control.render(self.width)[0][0].text in ('[+] ', '[-] ')
+                    ):
+                        document_hit.control.handle_event(dc.replace(local, y=0))
+                    elif (target := self._browse_context_target(document_hit)) is not None:
+                        self._open_context_menu(target, event.x, event.y)
+                return
+            hit.control.handle_event(local)
             return
 
         if not isinstance(event, mt.KeyEvent):
             return
 
         app_key = APP_KEY_REVERSE_MAP.get(event.key)
-        if app_key is AppKey.BROWSE_TOGGLE or app_key is AppKey.BROWSE_EXIT:
+        if app_key is AppKey.BROWSE_EXIT:
             self.set_browsing(False)
             return
 
@@ -1080,6 +1179,7 @@ class MinituiChatApp(mt.App):
             width=width,
             max_height=max_height,
             theme=THEME,
+            overlays=[self._menu_overlay] if self._menu_overlay is not None else (),
         )
         return self._browse_layout.frame
 

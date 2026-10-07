@@ -210,6 +210,126 @@ def _process_dataclass__99cc714a1fb5115f9896d7c3a83918ccaa3cb9cd():
 
 
 @_register(
+    installer_sha1='e121ca4bfe02c881c5a162eff50cf83c08174eb5',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('key', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('card', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('turn', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ()"
+            ", (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.ui.tui.minitui.app', 'ToolCardRecord'),
+    ),
+)
+def _process_dataclass__e121ca4bfe02c881c5a162eff50cf83c08174eb5():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                key=self.key,
+                card=self.card,
+                turn=self.turn,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.key == other.key and
+                self.card == other.card and
+                self.turn == other.turn
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'key',
+            'card',
+            'turn',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.key,
+                self.card,
+                self.turn,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            key: __dataclass__init__fields__0__annotation,
+            card: __dataclass__init__fields__1__annotation,
+            turn: __dataclass__init__fields__2__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'key', key)
+            __dataclass__object_setattr(self, 'card', card)
+            __dataclass__object_setattr(self, 'turn', turn)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"key={self.key!r}")
+            parts.append(f"card={self.card!r}")
+            parts.append(f"turn={self.turn!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='7c8419065adf03ae4b9b38b00947afbeac0905ea',
     spec_keys=(
         (
@@ -479,25 +599,25 @@ def _process_dataclass__aa668fdad59913367e4c9a882d6a0f66a504904c():
 
 
 @_register(
-    installer_sha1='d39348b3936a059efcf9d01ff2133be25a6045d1',
+    installer_sha1='be05316cadf35ac4ccf90a590fc89bea282729c0',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
             "lse, False, False, False), ((('title', True, True, None, True, False, False, None), 'instance', 'missing',"
             " None, False, False, False), (('call_summary', True, True, None, True, False, False, None), 'instance', 'm"
             "issing', None, False, False, False), (('base_detail', True, True, None, True, False, False, None), 'instan"
-            "ce', 'missing', None, False, False, False), (('card', True, True, None, True, False, False, None), 'instan"
-            "ce', 'missing', None, False, False, False), (('ready_to_finalize', True, True, None, True, False, False, N"
-            "one), 'instance', 'value', None, False, False, False), (('finalize_timer', True, True, None, True, False, "
-            "False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (F"
-            "alse,), (False, False, ()), ((),), (), (False,)))"
+            "ce', 'missing', None, False, False, False), (('record', True, True, None, True, False, False, None), 'inst"
+            "ance', 'missing', None, False, False, False), (('ready_to_finalize', True, True, None, True, False, False,"
+            " None), 'instance', 'value', None, False, False, False), (('finalize_timer', True, True, None, True, False"
+            ", False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), "
+            "(False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.minitui.app', '_ToolCardEntry'),
     ),
 )
-def _process_dataclass__d39348b3936a059efcf9d01ff2133be25a6045d1():
+def _process_dataclass__be05316cadf35ac4ccf90a590fc89bea282729c0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -523,7 +643,7 @@ def _process_dataclass__d39348b3936a059efcf9d01ff2133be25a6045d1():
                 title=self.title,
                 call_summary=self.call_summary,
                 base_detail=self.base_detail,
-                card=self.card,
+                record=self.record,
                 ready_to_finalize=self.ready_to_finalize,
                 finalize_timer=self.finalize_timer,
             )
@@ -539,7 +659,7 @@ def _process_dataclass__d39348b3936a059efcf9d01ff2133be25a6045d1():
                 self.title == other.title and
                 self.call_summary == other.call_summary and
                 self.base_detail == other.base_detail and
-                self.card == other.card and
+                self.record == other.record and
                 self.ready_to_finalize == other.ready_to_finalize and
                 self.finalize_timer == other.finalize_timer
             )
@@ -553,14 +673,14 @@ def _process_dataclass__d39348b3936a059efcf9d01ff2133be25a6045d1():
             title: __dataclass__init__fields__0__annotation,
             call_summary: __dataclass__init__fields__1__annotation,
             base_detail: __dataclass__init__fields__2__annotation,
-            card: __dataclass__init__fields__3__annotation,
+            record: __dataclass__init__fields__3__annotation,
             ready_to_finalize: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
             finalize_timer: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             self.title = title
             self.call_summary = call_summary
             self.base_detail = base_detail
-            self.card = card
+            self.record = record
             self.ready_to_finalize = ready_to_finalize
             self.finalize_timer = finalize_timer
 
@@ -572,7 +692,7 @@ def _process_dataclass__d39348b3936a059efcf9d01ff2133be25a6045d1():
             parts.append(f"title={self.title!r}")
             parts.append(f"call_summary={self.call_summary!r}")
             parts.append(f"base_detail={self.base_detail!r}")
-            parts.append(f"card={self.card!r}")
+            parts.append(f"record={self.record!r}")
             parts.append(f"ready_to_finalize={self.ready_to_finalize!r}")
             parts.append(f"finalize_timer={self.finalize_timer!r}")
             return (
