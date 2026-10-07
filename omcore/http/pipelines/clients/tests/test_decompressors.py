@@ -325,6 +325,49 @@ class TestGzipDecompressorFlow(unittest.TestCase):
         self.assertEqual(len(output), 1)
         self.assertIsInstance(output[0], IoPipelineFlowMessages.ReadyForInput)
 
+    def test_manual_read_delivers_oversized_pending_output(self):
+        # A decompressor step is capped at max_decomp_chunk, but a single pending entry could still exceed it (a coding
+        # with a soft output limit, such as brotli's, overshooting by up to an internal block). End delivery in
+        # manual-read mode feeds pending entries whole - an oversized one must be split, not truncated.
+        raw_data = b'x' * 100
+        compressed_data = gzip_bytes(raw_data)
+        handler = IoPipelineHttpResponseDecompressor(
+            config=dc.replace(self.config, max_steps_per_call=None, max_decomp_chunk=64),
+        )
+        capture = CaptureReadsIoPipelineHandler()
+        channel = IoPipeline.new(
+            [
+                handler,
+                capture,
+            ],
+            services=[StubIoPipelineFlowService(auto_read=False)],
+        )
+        end = IoPipelineHttpResponseEnd()
+
+        channel.feed_in(self.head)
+        channel.feed_in(IoPipelineHttpResponseBodyData(compressed_data))
+        channel.feed_in(end)
+        self.assertEqual(capture.messages, [self.head])
+
+        body_parts = []
+        for _ in range(100):
+            start = len(capture.messages)
+            request_read(channel, capture)
+            delivered = capture.messages[start:]
+            self.assertEqual(len(delivered), 2)
+            self.assertIsInstance(delivered[1], IoPipelineFlowMessages.FlushInput)
+
+            if isinstance(delivered[0], IoPipelineHttpResponseBodyData):
+                self.assertLessEqual(len(delivered[0].data), 64)
+                body_parts.append(ByteStreamBuffers.to_bytes(delivered[0].data, strict=True))
+            else:
+                self.assertIs(delivered[0], end)
+                break
+        else:
+            self.fail('Decompressor did not deliver End')
+
+        self.assertEqual(b''.join(body_parts), raw_data)
+
     def test_manual_read_preserves_final_input_order(self):
         raw_data = b'Decompressed output remains readable after the transport reaches EOF.'
         compressor = zlib.compressobj(wbits=16 + zlib.MAX_WBITS)

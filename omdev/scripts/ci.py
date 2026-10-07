@@ -203,7 +203,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
             dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
             dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='56c33baa20fd8d2a20d53036ed4cc3f0f7ea0aa3'),  # noqa
+            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='e6490c3dd0a6707a7d099a7391a0df3b8d81da6b'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
             dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
@@ -27277,8 +27277,8 @@ class IoPipelineHttpDecompressionConfig:
 
     max_decomp_chunk: int = 64 * 1024  # max bytes emitted per inflate step
 
-    max_decomp_total: ta.Optional[int] = None    # max total decompressed bytes per object
-    max_expansion_ratio: ta.Optional[int] = 200  # max_out <= max(1, in_total) * ratio (+ small slack)
+    max_decomp_total: ta.Optional[int] = None     # max total decompressed bytes per object
+    max_expansion_ratio: ta.Optional[int] = None  # max_out <= max(1, in_total) * ratio (+ small slack)
 
     max_out_pending: ta.Optional[int] = 256 * 1024  # cap decompressed bytes retained by this stage (if you buffer)
 
@@ -27445,6 +27445,10 @@ class IoPipelineHttpObjectDecompressor(
             o = self._out_pending.popleft()
             self._out_pending_bytes -= len(o)
 
+            # Entries are split to fit max_decomp_chunk when appended - a whole entry must fit a single BodyData, as
+            # nothing later accounts for a partially delivered one.
+            check.state(len(o) <= self._config.max_decomp_chunk)
+
             if not self._is_auto_read(ctx):
                 self._read_requested = False
 
@@ -27523,10 +27527,16 @@ class IoPipelineHttpObjectDecompressor(
             if out:
                 self._fresh_member = False
 
-                ol = len(out)
-                self._out_total_bytes += ol
-                self._out_pending.append(out)
-                self._out_pending_bytes += ol
+                # A coding's output limit may be soft (brotli overshoots by up to an internal block), so a step may
+                # produce more than max_decomp_chunk. Split it here: pending entries are delivered whole, one per
+                # BodyData, and nothing accounts for a partially delivered one - most acutely on End in manual mode,
+                # where the message would otherwise complete with its tail silently dropped.
+                mdc = self._config.max_decomp_chunk
+                self._out_total_bytes += len(out)
+                for pos in range(0, len(out), mdc):
+                    part = out[pos:pos + mdc]
+                    self._out_pending.append(part)
+                    self._out_pending_bytes += len(part)
                 self._check_budgets()
 
                 if self._emit_out_pending(ctx):

@@ -45,8 +45,8 @@ class IoPipelineHttpDecompressionConfig:
 
     max_decomp_chunk: int = 64 * 1024  # max bytes emitted per inflate step
 
-    max_decomp_total: ta.Optional[int] = None    # max total decompressed bytes per object
-    max_expansion_ratio: ta.Optional[int] = 200  # max_out <= max(1, in_total) * ratio (+ small slack)
+    max_decomp_total: ta.Optional[int] = None     # max total decompressed bytes per object
+    max_expansion_ratio: ta.Optional[int] = None  # max_out <= max(1, in_total) * ratio (+ small slack)
 
     max_out_pending: ta.Optional[int] = 256 * 1024  # cap decompressed bytes retained by this stage (if you buffer)
 
@@ -213,6 +213,10 @@ class IoPipelineHttpObjectDecompressor(
             o = self._out_pending.popleft()
             self._out_pending_bytes -= len(o)
 
+            # Entries are split to fit max_decomp_chunk when appended - a whole entry must fit a single BodyData, as
+            # nothing later accounts for a partially delivered one.
+            check.state(len(o) <= self._config.max_decomp_chunk)
+
             if not self._is_auto_read(ctx):
                 self._read_requested = False
 
@@ -291,10 +295,16 @@ class IoPipelineHttpObjectDecompressor(
             if out:
                 self._fresh_member = False
 
-                ol = len(out)
-                self._out_total_bytes += ol
-                self._out_pending.append(out)
-                self._out_pending_bytes += ol
+                # A coding's output limit may be soft (brotli overshoots by up to an internal block), so a step may
+                # produce more than max_decomp_chunk. Split it here: pending entries are delivered whole, one per
+                # BodyData, and nothing accounts for a partially delivered one - most acutely on End in manual mode,
+                # where the message would otherwise complete with its tail silently dropped.
+                mdc = self._config.max_decomp_chunk
+                self._out_total_bytes += len(out)
+                for pos in range(0, len(out), mdc):
+                    part = out[pos:pos + mdc]
+                    self._out_pending.append(part)
+                    self._out_pending_bytes += len(part)
                 self._check_budgets()
 
                 if self._emit_out_pending(ctx):
