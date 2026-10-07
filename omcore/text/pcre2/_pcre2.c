@@ -72,7 +72,7 @@
 //
 
 #define _MODULE_NAME "_pcre2"
-#define _PACKAGE_NAME "omxtra.text.pcre2"
+#define _PACKAGE_NAME "omcore.text.pcre2"
 #define _MODULE_FULL_NAME _PACKAGE_NAME "." _MODULE_NAME
 
 // The `pcre2_` prefix belongs to the library (every public name in pcre2.h is a macro), so module boilerplate that

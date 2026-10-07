@@ -30,12 +30,12 @@
 //
 
 #define _MODULE_NAME "_capiclient"
-#define _PACKAGE_NAME "omxtra.text.pcre2.tests"
+#define _PACKAGE_NAME "omcore.text.pcre2.tests"
 #define _MODULE_FULL_NAME _PACKAGE_NAME "." _MODULE_NAME
 
 // Declared verbatim from ../_pcre2.c.
 
-#define PCRE2_CAPI_MODULE_NAME "omxtra.text.pcre2._pcre2"
+#define PCRE2_CAPI_MODULE_NAME "omcore.text.pcre2._pcre2"
 #define PCRE2_CAPI_CAPSULE_NAME PCRE2_CAPI_MODULE_NAME ".capi"
 #define PCRE2_CAPI_ABI_VERSION 1
 
