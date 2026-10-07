@@ -13,7 +13,7 @@ from .output import AgentEventRenderer
 from .output import MinituiTextDisplayer
 from .output import VerboseEventRenderer
 from .promptpump import PromptPump
-from .repl import bind_repl
+from .repl.inject import bind_repl
 from .shutdown import Shutdown
 
 

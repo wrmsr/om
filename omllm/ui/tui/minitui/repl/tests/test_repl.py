@@ -7,18 +7,18 @@ from omcore import lang
 from omdev import minitui as mt
 from omdev import repl
 
-from ..... import harness as har
-from ...config import Config
-from ...tests.headless import bind_headless_tui
-from ...tests.headless import headless_tui
-from ..app import MinituiChatApp
+from ...... import harness as har
+from ....config import Config
+from ....tests.headless import bind_headless_tui
+from ....tests.headless import headless_tui
+from ...app import MinituiChatApp
+from ...tests.utils import Driver
+from ...tests.utils import commit_texts
+from ...tests.utils import frame_lines
+from ...tests.utils import make_app
+from ..inject import bind_repl
+from ..inject import repl_namespace_seeds
 from ..repl import MinituiRepl
-from ..repl import bind_repl
-from ..repl import repl_namespace_seeds
-from .utils import Driver
-from .utils import commit_texts
-from .utils import frame_lines
-from .utils import make_app
 
 
 ##
