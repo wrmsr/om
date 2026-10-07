@@ -15,7 +15,7 @@ from .uv import UvOcrBackend
 
 
 with lang.auto_proxy_import(globals()):
-    import rapidocr
+    import rapidocr  # type: ignore[import-not-found,unused-ignore]
     from PIL import Image
 
 
@@ -64,7 +64,7 @@ def _convert_params(params: ta.Mapping[str, ta.Any]) -> dict[str, ta.Any]:
         for key, value in params.items()
     }
     if 'Global.model_root_dir' in converted:
-        converted['Global.model_root_dir'] = os.path.expanduser(converted['Global.model_root_dir'])  # type: ignore
+        converted['Global.model_root_dir'] = os.path.expanduser(converted['Global.model_root_dir'])  # type: ignore[arg-type,unused-ignore]  # noqa
     return converted
 
 
@@ -86,7 +86,7 @@ class RapidocrOcrBackend(OcrBackend):
 
     def ocr(self, image: Image.Image) -> str:
         result = rapidocr.RapidOCR(params=_convert_params(self._params))(get_image_png_bytes(image))
-        return '\n'.join(result.txts if result.txts is not None else ())  # type: ignore
+        return '\n'.join(result.txts if result.txts is not None else ())  # type: ignore[union-attr,unused-ignore]
 
 
 ##
@@ -108,9 +108,9 @@ def _uv_rapidocr_ocr(png: bytes, *, params: dict) -> str:
         for key, value in params.items()
     }
     if 'Global.model_root_dir' in converted:
-        converted['Global.model_root_dir'] = os.path.expanduser(converted['Global.model_root_dir'])  # type: ignore
+        converted['Global.model_root_dir'] = os.path.expanduser(converted['Global.model_root_dir'])  # type: ignore[arg-type,unused-ignore]  # noqa
     result = rapidocr.RapidOCR(params=converted)(png)
-    return '\n'.join(result.txts if result.txts is not None else ())  # type: ignore
+    return '\n'.join(result.txts if result.txts is not None else ())  # type: ignore[union-attr,unused-ignore]
 
 
 class UvRapidocrOcrBackend(UvOcrBackend):

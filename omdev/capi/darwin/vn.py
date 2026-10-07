@@ -25,7 +25,7 @@ class _Vision:
     def __init__(self) -> None:
         super().__init__()
 
-        if sys.platform != 'darwin':
+        if getattr(sys, 'platform') != 'darwin':
             raise OSError(sys.platform)
 
         # Retain the library handles for at least as long as the bound callables.
@@ -46,19 +46,96 @@ class _Vision:
         # Apple's BOOL is C bool on arm64 and signed char on Intel macOS.
         objc_bool = ct.c_bool if os.uname().machine == 'arm64' else ct.c_byte
         symbol = ('objc_msgSend', self._objc)
-        self._id = ct.CFUNCTYPE(ct.c_void_p, ct.c_void_p, ct.c_void_p)(symbol)
-        self._id_id = ct.CFUNCTYPE(ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_void_p)(symbol)
-        self._id_id_id = ct.CFUNCTYPE(ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_void_p)(symbol)
-        self._id_uint = ct.CFUNCTYPE(ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_ulong)(symbol)
-        self._id_bytes_size = ct.CFUNCTYPE(ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_ulong)(symbol)
-        self._id_cstr = ct.CFUNCTYPE(ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_char_p)(symbol)
-        self._uint = ct.CFUNCTYPE(ct.c_ulong, ct.c_void_p, ct.c_void_p)(symbol)
-        self._cstr = ct.CFUNCTYPE(ct.c_char_p, ct.c_void_p, ct.c_void_p)(symbol)
-        self._void = ct.CFUNCTYPE(None, ct.c_void_p, ct.c_void_p)(symbol)
-        self._void_id = ct.CFUNCTYPE(None, ct.c_void_p, ct.c_void_p, ct.c_void_p)(symbol)
-        self._void_int = ct.CFUNCTYPE(None, ct.c_void_p, ct.c_void_p, ct.c_long)(symbol)
-        self._void_bool = ct.CFUNCTYPE(None, ct.c_void_p, ct.c_void_p, objc_bool)(symbol)
-        self._perform = ct.CFUNCTYPE(objc_bool, ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.POINTER(ct.c_void_p))(symbol)
+
+        self._id: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+        )(symbol)
+
+        self._id_id: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+        )(symbol)
+
+        self._id_id_id: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+        )(symbol)
+
+        self._id_uint: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_ulong,
+        )(symbol)
+
+        self._id_bytes_size: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_ulong,
+        )(symbol)
+
+        self._id_cstr: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_char_p,
+        )(symbol)
+
+        self._uint: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_ulong,
+            ct.c_void_p,
+            ct.c_void_p,
+        )(symbol)
+
+        self._cstr: ta.Any = ct.CFUNCTYPE(  # noqa
+            ct.c_char_p,
+            ct.c_void_p,
+            ct.c_void_p,
+        )(symbol)
+
+        self._void: ta.Any = ct.CFUNCTYPE(  # noqa
+            None,
+            ct.c_void_p,
+            ct.c_void_p,
+        )(symbol)
+
+        self._void_id: ta.Any = ct.CFUNCTYPE(  # noqa
+            None,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+        )(symbol)
+
+        self._void_int: ta.Any = ct.CFUNCTYPE(  # noqa
+            None,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_long,
+        )(symbol)
+
+        self._void_bool: ta.Any = ct.CFUNCTYPE(  # noqa
+            None,
+            ct.c_void_p,
+            ct.c_void_p,
+            objc_bool,
+        )(symbol)
+
+        self._perform: ta.Any = ct.CFUNCTYPE(  # noqa
+            objc_bool,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.c_void_p,
+            ct.POINTER(ct.c_void_p),
+        )(symbol)
 
     def _cls(self, name: bytes) -> int:
         if not (obj := self._get_class(name)):
