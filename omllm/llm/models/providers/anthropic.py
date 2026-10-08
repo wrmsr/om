@@ -110,9 +110,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='anthropic',
-            id='claude-haiku-4-5-20251001',
+            id='claude-haiku-5-5',
         ),
-        name='Claude Haiku 4.5',
+        name='Claude Haiku 5.5',
         backend='anthropic-messages',
         cache=CacheCapabilities(
             control_style='anthropic',

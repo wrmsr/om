@@ -59,7 +59,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='claude-haiku',
         aliases=['haiku'],
-        key=ModelKey('anthropic', 'claude-haiku-4-5-20251001'),
+        key=ModelKey('anthropic', 'claude-haiku-5-5'),
         api_key_name='anthropic_api_key',
     ),
 
