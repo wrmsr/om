@@ -45,8 +45,8 @@ def _read_until(sock, marker, *, timeout_s=10.):
     return buf
 
 
-def test_manhole_bootstrap_in_process(tmp_path):
-    path = str(tmp_path / 'm.sock')
+def test_manhole_bootstrap_in_process(temp_path):
+    path = str(temp_path / 'm.sock')
     with bootstrap(ManholeBootstrap.Config(address=path)):
         sock = _connect(path)
         try:
@@ -70,9 +70,9 @@ def test_manhole_bootstrap_disabled_by_default():
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *(['..'] * 3)))
 
 
-def test_manhole_bootstrap_from_the_command_line(tmp_path):
+def test_manhole_bootstrap_from_the_command_line(temp_path):
     # An arbitrary entrypoint, started through bootstrap, gets a manhole without a line of its own about it.
-    path = str(tmp_path / 'cli.sock')
+    path = str(temp_path / 'cli.sock')
     proc = subprocess.Popen(
         [
             sys.executable,

@@ -22,14 +22,18 @@ def _serve_in_thread(manhole, address):
         bound.append(a)
         listening.set()
 
-    thread = threading.Thread(target=serve_inline, args=(manhole, address), kwargs={'on_listening': on_listening})
+    thread = threading.Thread(
+        target=serve_inline,
+        args=(manhole, address),
+        kwargs={'on_listening': on_listening},
+    )
     thread.start()
     assert listening.wait(10.)
     return thread, bound[0]
 
 
-def test_inline_over_a_unix_socket(tmp_path):
-    path = str(tmp_path / 'inline.sock')
+def test_inline_over_a_unix_socket(temp_path):
+    path = str(temp_path / 'inline.sock')
     manhole = Manhole(seed={'answer': 42}, allow_await=False)
     thread, bound = _serve_in_thread(manhole, UnixAddress(path))
     assert bound == UnixAddress(path)

@@ -11,8 +11,8 @@ from ..asyncio import start_manhole
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *(['..'] * 4)))
 
 
-def test_client_subprocess(tmp_path):
-    path = str(tmp_path / 'client.sock')
+def test_client_subprocess(temp_path):
+    path = str(temp_path / 'client.sock')
     with start_manhole(path, seed={'answer': 42}, banner='hi'):
         proc = subprocess.run(
             [sys.executable, '-m', 'omdev.repl.manhole', path],

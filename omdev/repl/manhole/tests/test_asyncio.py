@@ -18,12 +18,12 @@ from .utils import Client
 ##
 
 
-def sock_path(tmp_path):
-    return str(tmp_path / 'manhole.sock')
+def sock_path(temp_path):
+    return str(temp_path / 'manhole.sock')
 
 
-def test_thread_manhole_over_a_unix_socket(tmp_path):
-    path = sock_path(tmp_path)
+def test_thread_manhole_over_a_unix_socket(temp_path):
+    path = sock_path(temp_path)
     mh = start_manhole(path, seed={'answer': 42})
     try:
         running = mh.is_running
@@ -83,8 +83,8 @@ def test_tcp_with_an_ephemeral_port():
     assert mh.address is None
 
 
-def test_connections_have_their_own_namespaces_and_run_concurrently(tmp_path):
-    with start_manhole(sock_path(tmp_path), seed={'threading': threading}) as mh:
+def test_connections_have_their_own_namespaces_and_run_concurrently(temp_path):
+    with start_manhole(sock_path(temp_path), seed={'threading': threading}) as mh:
         with Client(mh.address) as a, Client(mh.address) as b:
             a.prompt()
             b.prompt()
@@ -101,8 +101,8 @@ def test_connections_have_their_own_namespaces_and_run_concurrently(tmp_path):
             assert b.read_eof() == b''
 
 
-def test_stop_with_a_live_client_closes_it(tmp_path):
-    mh = start_manhole(sock_path(tmp_path))
+def test_stop_with_a_live_client_closes_it(temp_path):
+    mh = start_manhole(sock_path(temp_path))
     c = Client(mh.address)
     try:
         c.prompt()
@@ -114,8 +114,8 @@ def test_stop_with_a_live_client_closes_it(tmp_path):
     assert not mh.thread.is_alive
 
 
-def test_telnet_clients(tmp_path):
-    with start_manhole(sock_path(tmp_path)) as mh, Client(mh.address) as c:
+def test_telnet_clients(temp_path):
+    with start_manhole(sock_path(temp_path)) as mh, Client(mh.address) as c:
         c.prompt()
         c.send(b'\xff\xfd\x03\xff\xfb\x18' + b'1 + 1\r\n')
         assert c.prompt() == b'2\n>>> '
@@ -134,9 +134,9 @@ def test_address_in_use_fails_cleanly():
         assert not second.thread.is_alive
 
 
-def test_python_native_defaults(tmp_path):
+def test_python_native_defaults(temp_path):
     holder: dict = {}
-    with start_manhole(sock_path(tmp_path), seed={'holder': holder}) as mh, Client(mh.address) as c:
+    with start_manhole(sock_path(temp_path), seed={'holder': holder}) as mh, Client(mh.address) as c:
         c.prompt()
         assert c.ask('__name__') == "'__manhole__'\n"
         assert c.ask('sys.version_info[0], os.getpid() > 0, gc is not None, threading is not None') == \
@@ -182,9 +182,9 @@ async def _aconnect(path):
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_dispatch_to_the_host_loop(tmp_path):
+async def test_dispatch_to_the_host_loop(temp_path):
     host_loop = asyncio.get_running_loop()
-    path = sock_path(tmp_path)
+    path = sock_path(temp_path)
     mh = start_manhole(
         path,
         seed={'asyncio': asyncio, 'host_loop': host_loop, 'threading': threading},
@@ -204,8 +204,8 @@ async def test_dispatch_to_the_host_loop(tmp_path):
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_server_on_the_hosts_own_loop(tmp_path):
-    path = sock_path(tmp_path)
+async def test_server_on_the_hosts_own_loop(temp_path):
+    path = sock_path(temp_path)
     manhole = Manhole(seed={'asyncio': asyncio}, banner='')
     async with AsyncioManholeServer(UnixAddress(path), manhole.handle) as server:
         bound = server.address

@@ -1,6 +1,8 @@
 from .fixtures import (  # noqa
     exit_stack,
     async_exit_stack,
+
+    temp_path,
 )
 
 from .helpers import (  # noqa
