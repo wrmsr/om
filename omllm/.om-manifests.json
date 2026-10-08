@@ -535,7 +535,7 @@
     "module": ".llm.models.providers.openrouter",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/openrouter.py",
-    "line": 193,
+    "line": 226,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -585,6 +585,18 @@
             "provider": "openrouter",
             "id": "xiaomi/mimo-v2.6-pro",
             "name": "MiMo 2.6 Pro",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "openrouter",
+            "id": "mistralai/mistral-large-4-0",
+            "name": "Mistral Large 4",
+            "backend": "openai-completions"
+          },
+          {
+            "provider": "openrouter",
+            "id": "qwen/qwen3.8-max-prime",
+            "name": "Qwen3.8 Max Prime",
             "backend": "openai-completions"
           },
           {

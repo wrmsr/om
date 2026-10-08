@@ -170,7 +170,40 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     ##
+    # mistral
+
+    Model(
+        key=ModelKey(
+            provider='openrouter',
+            id='mistralai/mistral-large-4-0',
+        ),
+        name='Mistral Large 4',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'mistralai/mistral-large-4-0'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    ##
     # qwen
+
+    Model(
+        key=ModelKey(
+            provider='openrouter',
+            id='qwen/qwen3.8-max-prime',
+        ),
+        name='Qwen3.8 Max Prime',
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', 'qwen/qwen3.8-max-prime'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
 
     Model(
         key=ModelKey(

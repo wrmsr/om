@@ -193,6 +193,12 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
         api_key_name='openrouter_api_key',
     ),
 
+    DefaultModel(
+        name='mistral',
+        key=ModelKey('openrouter', 'mistralai/mistral-large-4-0'),
+        api_key_name='openrouter_api_key',
+    ),
+
 ]
 
 
