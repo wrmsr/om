@@ -3,7 +3,8 @@ Input side of the minitui backend: the permission asker.
 
 `PermissionAsker.ask` is awaited from deep inside a tool executor, mid-turn. Here it surfaces as a warm-window
 confirmation card (allow f10 / deny f2) whose response resolves an asyncio future - the driver keeps rendering (and the
-user keeps typing) while that execution is parked on the decision. Concurrent requests queue behind the active card. An
+user keeps typing) while that execution is parked on the decision. The card's detail carries the request's preview, if
+it has one - the diff an edit would make - shown above the choice. Concurrent requests queue behind the active card. An
 ask withdrawn by the app (its turn ended while the tool was still live) surfaces as `PermissionAskAbortedError`, never
 as a cancellation the requesting task did not ask for.
 """
@@ -14,6 +15,7 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from .app import MinituiChatApp
+from .toolcards import card_text_rows
 from .toolcards import tool_call_summary
 from .toolcards import tool_card_key
 
@@ -29,12 +31,19 @@ class CardPermissionAsker(agn.PermissionAsker):
 
     async def ask(
             self,
-            requestor: agn.PermissionRequestor,
-            target: agn.PermissionTarget,
+            request: agn.PermissionRequest,
             rule: agn.PermissionRule,
     ) -> agn.DecidedPermissionState:
+        requestor = request.requestor
         context = check.not_none(requestor.tool_context)
         fut: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
+
+        detail_rows: list[list[mt.Segment]] = [
+            [mt.Segment(f'target: {request.target!r}', 'card.detail')],
+            [mt.Segment(f'rule: {rule!r}', 'card.detail')],
+        ]
+        if (preview := request.preview) is not None:
+            detail_rows.extend(card_text_rows(preview, self._app.width))
 
         def respond(allowed: bool) -> None:
             if not fut.done():
@@ -46,10 +55,7 @@ class CardPermissionAsker(agn.PermissionAsker):
         self._app.begin_permission_card(
             tool_card_key(context),
             context.tool.name if context.tool is not None else f'{requestor!r}',
-            [
-                [mt.Segment(f'target: {target!r}', 'card.detail')],
-                [mt.Segment(f'rule: {rule!r}', 'card.detail')],
-            ],
+            detail_rows,
             respond,
             call_summary=tool_call_summary(context),
             on_cancel=cancel,
@@ -62,7 +68,7 @@ class CardPermissionAsker(agn.PermissionAsker):
             # was still live. Per the PermissionAsker contract that is an execution error for the tool, not a
             # cancellation of the turn - the turn loop could not tell the two apart.
             if not check.not_none(asyncio.current_task()).cancelling():
-                raise agn.PermissionAskAbortedError(target) from None
+                raise agn.PermissionAskAbortedError(request.target) from None
             raise
 
         return agn.PermissionState.ALLOW if allowed else agn.PermissionState.DENY

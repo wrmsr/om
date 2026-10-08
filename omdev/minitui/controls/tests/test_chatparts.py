@@ -98,11 +98,19 @@ def test_card_lifecycle_and_render():
     assert rows[0].startswith('[+] ? tool()')
     assert 'allow (f10)' in rows[1]
 
-    # Click on the header toggles expansion.
+    # Click on the header toggles expansion. The choice follows the detail, closing out what is being decided.
     card.handle_event(MouseEvent(MouseEventKind.DOWN, 2, 0))
     rows = [segments_text(r) for r in card.render(40)]
     assert rows[0].startswith('[-]')
-    assert any('args' in r for r in rows)
+    assert rows[1] == '  args'
+    assert 'allow (f10)' in rows[2]
+
+    card.set_expanded(False)
+    collapsed = card.expanded
+    assert not collapsed
+    card.set_expanded(True)
+    expanded = card.expanded
+    assert expanded
 
     card.respond(True)
     assert decided == [True]

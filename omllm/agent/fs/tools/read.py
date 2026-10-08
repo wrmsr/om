@@ -6,6 +6,7 @@ from omcore import dataclasses as dc
 
 from .... import llm
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequest
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
@@ -88,10 +89,10 @@ class ReadTool(ToolClass[ReadToolParams]):
         if params.num_lines > ABSOLUTE_MAX_NUM_LINES:
             raise ValueError(f'Number of lines exceeds maximum of {ABSOLUTE_MAX_NUM_LINES}')
 
-        await self._permissions.check_allowed(
+        await self._permissions.check_allowed(PermissionRequest(
             PermissionRequestor(tool_context=ctx),
             FsPermissionTarget(file_path, 'r'),
-        )
+        ))
 
         try:
             st = await self._fs.stat(file_path)

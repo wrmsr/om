@@ -11,6 +11,7 @@ from omcore import dataclasses as dc
 
 from .... import llm
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequest
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.progress import OutputToolProgressUpdate
@@ -103,10 +104,10 @@ class BashTool(ToolClass[BashToolParams]):
         # against the remote execution environment's PATH.
         cmd = ['bash', '-c', params.command]
 
-        await self._permissions.check_allowed(
+        await self._permissions.check_allowed(PermissionRequest(
             PermissionRequestor(tool_context=ctx),
             ExecPermissionTarget(cmd),
-        )
+        ))
 
         result = await self._exec.exec(
             scope,

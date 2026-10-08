@@ -4222,13 +4222,14 @@ def _process_dataclass__f85c1f3db095ecf9bddf0210a821a49f31f7a632():
 
 
 @_register(
-    installer_sha1='4cd467e78ff7651b459755736ffb17b7a4609804',
+    installer_sha1='2730055762ec7c3032d49f6c3f888be43af9d9d0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('content', True, True, None, True, True, False, None), 'instance', 'missing', "
             "None, False, False, False), (('error', True, True, None, True, True, False, None), 'instance', 'value', No"
             "ne, False, False, False), (('details', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('display', True, True, None, True, True, False, None), 'instance', 'value', No"
             "ne, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ()"
             ", (False,)))"
         ),
@@ -4237,7 +4238,7 @@ def _process_dataclass__f85c1f3db095ecf9bddf0210a821a49f31f7a632():
         ('omllm.agent.types.tools', 'ToolResult'),
     ),
 )
-def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
+def _process_dataclass__2730055762ec7c3032d49f6c3f888be43af9d9d0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4249,6 +4250,8 @@ def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -4262,6 +4265,7 @@ def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
                 content=self.content,
                 error=self.error,
                 details=self.details,
+                display=self.display,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -4274,7 +4278,8 @@ def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
             return (
                 self.content == other.content and
                 self.error == other.error and
-                self.details == other.details
+                self.details == other.details and
+                self.display == other.display
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -4283,6 +4288,7 @@ def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
             'content',
             'error',
             'details',
+            'display',
         }
 
         def __setattr__(self, name, value):
@@ -4310,6 +4316,7 @@ def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
                 self.content,
                 self.error,
                 self.details,
+                self.display,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -4320,10 +4327,12 @@ def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
             content: __dataclass__init__fields__0__annotation,
             error: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             details: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            display: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'content', content)
             __dataclass__object_setattr(self, 'error', error)
             __dataclass__object_setattr(self, 'details', details)
+            __dataclass__object_setattr(self, 'display', display)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -4333,6 +4342,7 @@ def _process_dataclass__4cd467e78ff7651b459755736ffb17b7a4609804():
             parts.append(f"content={self.content!r}")
             parts.append(f"error={self.error!r}")
             parts.append(f"details={self.details!r}")
+            parts.append(f"display={self.display!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

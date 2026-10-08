@@ -205,6 +205,7 @@ with _lang.auto_proxy_init(
         PermissionState,
 
         PermissionRequestor,
+        PermissionRequest,
 
         DecidedPermissionState,
         PermissionDeniedError,

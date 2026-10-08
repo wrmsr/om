@@ -872,21 +872,20 @@ def _process_dataclass__4197a20ffd41222c521d50312a189864dde9b012():
 
 
 @_register(
-    installer_sha1='f50f257b16604edeecdf772359519b00eed0cf62',
+    installer_sha1='5636f936962fb56e2c01cf745b70a1091b132285',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('path', True, True, None, True, True, False, None), 'instance', 'missing', Non"
-            "e, False, False, False), (('diff', True, True, None, True, True, False, None), 'instance', 'missing', None"
-            ", False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), "
-            "(False,)))"
+            "e, False, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ()"
+            ", (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.fs.tools.details', 'EditToolResultDetails'),
     ),
 )
-def _process_dataclass__f50f257b16604edeecdf772359519b00eed0cf62():
+def _process_dataclass__5636f936962fb56e2c01cf745b70a1091b132285():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -894,7 +893,6 @@ def _process_dataclass__f50f257b16604edeecdf772359519b00eed0cf62():
         __dataclass__globals,
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -906,7 +904,6 @@ def _process_dataclass__f50f257b16604edeecdf772359519b00eed0cf62():
                 raise TypeError(self)
             return __class__(  # noqa
                 path=self.path,
-                diff=self.diff,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -917,15 +914,13 @@ def _process_dataclass__f50f257b16604edeecdf772359519b00eed0cf62():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.path == other.path and
-                self.diff == other.diff
+                self.path == other.path
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'path',
-            'diff',
         }
 
         def __setattr__(self, name, value):
@@ -951,7 +946,6 @@ def _process_dataclass__f50f257b16604edeecdf772359519b00eed0cf62():
         def __hash__(self):
             return hash((
                 self.path,
-                self.diff,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -960,10 +954,8 @@ def _process_dataclass__f50f257b16604edeecdf772359519b00eed0cf62():
             self,
             *,
             path: __dataclass__init__fields__0__annotation,
-            diff: __dataclass__init__fields__1__annotation,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'path', path)
-            __dataclass__object_setattr(self, 'diff', diff)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -971,7 +963,6 @@ def _process_dataclass__f50f257b16604edeecdf772359519b00eed0cf62():
         def __repr__(self):
             parts = []
             parts.append(f"path={self.path!r}")
-            parts.append(f"diff={self.diff!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

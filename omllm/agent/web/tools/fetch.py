@@ -5,6 +5,7 @@ from omcore import check
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequest
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
@@ -56,10 +57,10 @@ class WebFetchTool(ToolClass[WebFetchToolParams]):
         parsed_url = urllib.parse.urlparse(params.url)
         url = check.non_empty_str(urllib.parse.urlunparse(parsed_url))  # noqa
 
-        await self._permissions.check_allowed(
+        await self._permissions.check_allowed(PermissionRequest(
             PermissionRequestor(tool_context=ctx),
             UrlPermissionTarget(url, method='GET'),
-        )
+        ))
 
         page = await self._fetcher.fetch(WebFetchRequest(url))
         if not (200 <= page.status < 300):

@@ -14,9 +14,6 @@ from ...types.tools import ToolResultDetails
 class EditToolResultDetails(ToolResultDetails, lang.Final):
     path: str
 
-    # A unified diff of the change.
-    diff: str
-
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)

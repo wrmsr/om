@@ -8,6 +8,7 @@ from ....core.asyncs.base import AsyncJob
 from ....core.asyncs.base import AsyncJobRunner
 from ....core.asyncs.base import AsyncJobTimeoutError
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequest
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
@@ -76,13 +77,13 @@ class QuickjsTool(ToolClass[QuickjsToolParams]):
         return params.code
 
     async def execute(self, ctx: ToolContext, params: QuickjsToolParams) -> str:
-        await self._permissions.check_allowed(
+        await self._permissions.check_allowed(PermissionRequest(
             PermissionRequestor(tool_context=ctx),
             EvalPermissionTarget(
                 language=EvalLanguage.JS,
                 code=params.code,
             ),
-        )
+        ))
 
         # The timeout is the runner's to keep, not the engine's: its interruption reaches the same engine hook a time
         # limit would, and a cancellation of the call reaches it the same way.

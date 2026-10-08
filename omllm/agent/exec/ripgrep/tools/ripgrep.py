@@ -11,6 +11,7 @@ from ....fs.ops import FsOps
 from ....fs.permissions import FsPermissionTarget
 from ....fs.tools.paths import validate_tool_path
 from ....permissions.types import PermissionDecider
+from ....permissions.types import PermissionRequest
 from ....permissions.types import PermissionRequestor
 from ....tools.classes import ToolClass
 from ....types.tools import ToolContext
@@ -134,10 +135,12 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
 
         #
 
-        await self._permissions.check_allowed(
-            permission_requestor := PermissionRequestor(tool_context=ctx),
+        permission_requestor = PermissionRequestor(tool_context=ctx)
+
+        await self._permissions.check_allowed(PermissionRequest(
+            permission_requestor,
             FsPermissionTarget(cwd, 'r'),
-        )
+        ))
 
         if self._sandbox:
             # A platform Sandbox is necessarily local, and needs the host executable's canonical path in its policy.
@@ -152,10 +155,10 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
             *SAFETY_RG_ARGS,
         ]
 
-        await self._permissions.check_allowed(
+        await self._permissions.check_allowed(PermissionRequest(
             permission_requestor,
             ExecPermissionTarget(cmd),
-        )
+        ))
 
         options: list[processes.ProcessOption] = []
         if self._sandbox:

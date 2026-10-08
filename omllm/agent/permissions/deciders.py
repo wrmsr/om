@@ -7,9 +7,8 @@ from .types import DecidedPermissionState
 from .types import PermissionAsker
 from .types import PermissionDecider
 from .types import PermissionMatchContext
-from .types import PermissionRequestor
+from .types import PermissionRequest
 from .types import PermissionState
-from .types import PermissionTarget
 
 
 ##
@@ -20,7 +19,7 @@ from .types import PermissionTarget
 class StaticPermissionDecider(PermissionDecider):
     state: DecidedPermissionState
 
-    async def decide(self, requestor: PermissionRequestor, target: PermissionTarget) -> DecidedPermissionState:
+    async def decide(self, request: PermissionRequest) -> DecidedPermissionState:
         return self.state
 
 
@@ -42,10 +41,10 @@ class StandardPermissionDecider(PermissionDecider):
         self._manager = manager
         self._asker = asker
 
-    async def decide(self, requestor: PermissionRequestor, target: PermissionTarget) -> DecidedPermissionState:
+    async def decide(self, request: PermissionRequest) -> DecidedPermissionState:
         if (m := self._manager.match(PermissionMatchContext(
-            target,
-            requestor=requestor,
+            request.target,
+            requestor=request.requestor,
         ))) is None:
             return PermissionState.DENY
 
@@ -54,7 +53,7 @@ class StandardPermissionDecider(PermissionDecider):
             return mr
 
         elif mr is PermissionState.ASK:
-            return await self._asker.ask(requestor, target, m)
+            return await self._asker.ask(request, m)
 
         else:
             raise ValueError(mr)

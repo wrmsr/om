@@ -5,7 +5,9 @@ import sys
 from omcore import inject as inj
 
 from .... import agent as agn
+from ....core import ui
 from ..config import Config
+from .previews import ShownPreviews
 
 
 ##
@@ -51,23 +53,45 @@ class InputManager:
 
 
 class InputPermissionAsker(agn.PermissionAsker):
-    def __init__(self, *, input_manager: InputManager) -> None:
+    def __init__(
+            self,
+            *,
+            input_manager: InputManager,
+            text_displayer: ui.TextDisplayer,
+            shown_previews: ShownPreviews,
+    ) -> None:
         super().__init__()
 
         self._input_manager = input_manager
+        self._text_displayer = text_displayer
+        self._shown_previews = shown_previews
+
+        # A preview and the prompt it belongs to go out together: another ask's preview must not land mid-prompt.
+        self._mtx = asyncio.Lock()
+
+    @staticmethod
+    def _describe_requestor(requestor: agn.PermissionRequestor) -> str:
+        if (context := requestor.tool_context) is not None and (tool := context.tool) is not None:
+            return tool.name
+        return repr(requestor)
 
     async def ask(
             self,
-            requestor: agn.PermissionRequestor,
-            target: agn.PermissionTarget,
+            request: agn.PermissionRequest,
             rule: agn.PermissionRule,
     ) -> agn.DecidedPermissionState:
-        while True:
-            out = await self._input_manager.input(f'{requestor!r} :: {target!r} (y/n) ')
-            if out == 'y':
-                return agn.PermissionState.ALLOW
-            elif out == 'n':
-                return agn.PermissionState.DENY
+        async with self._mtx:
+            if preview := request.preview:
+                await self._text_displayer.display_text(preview)
+                self._shown_previews.add(request.requestor.tool_context, preview)
+
+            prompt = f'{self._describe_requestor(request.requestor)} :: {request.target!r} (y/n) '
+            while True:
+                out = await self._input_manager.input(prompt)
+                if out == 'y':
+                    return agn.PermissionState.ALLOW
+                elif out == 'n':
+                    return agn.PermissionState.DENY
 
 
 ##
@@ -76,7 +100,10 @@ class InputPermissionAsker(agn.PermissionAsker):
 def bind_input(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
-    lst.append(inj.bind(InputManager, singleton=True))
+    lst.extend([
+        inj.bind(InputManager, singleton=True),
+        inj.bind(ShownPreviews, singleton=True),
+    ])
 
     lst.extend([
         inj.bind(InputPermissionAsker, singleton=True),

@@ -613,6 +613,10 @@ class MinituiChatApp(mt.App):
         self._set_tool_card_summary(entry, 'awaiting confirmation')
         entry.card.set_on_confirm(respond)
 
+        # What is being decided is shown, not left behind an expander. It stays open once decided: the answer is
+        # committed alongside what it answered.
+        entry.card.set_expanded(True)
+
     def _respond_permission(self, request: _PermissionCardRequest, allowed: bool) -> None:
         if self._active_permission is not request:
             return
@@ -733,7 +737,10 @@ class MinituiChatApp(mt.App):
             ok: bool,
             call_summary: str | None = None,
             detail_rows: ta.Sequence[ta.Sequence[mt.Segment]] | None = None,
+            expand: bool = False,
     ) -> None:
+        """With `expand`, the detail is shown opened - into scrollback too - rather than behind the expander."""
+
         if (entry := self._cards.get(key)) is None:
             entry = self._add_tool_card(
                 key,
@@ -747,10 +754,17 @@ class MinituiChatApp(mt.App):
         if call_summary is not None:
             entry.call_summary = call_summary
         entry.card.set_on_confirm(None)
-        entry.card.set_state(mt.CardState.COMPLETE if ok else mt.CardState.FAILED)
-        self._set_tool_card_summary(entry, 'done' if ok else 'failed')
-        if detail_rows is not None:
-            entry.card.set_detail(detail_rows)
+
+        # A failure following a denial is that denial coming back as the tool's error: the card keeps saying it was
+        # denied, over the detail of what was refused.
+        if ok or entry.card.state is not mt.CardState.DENIED:
+            entry.card.set_state(mt.CardState.COMPLETE if ok else mt.CardState.FAILED)
+            self._set_tool_card_summary(entry, 'done' if ok else 'failed')
+            if detail_rows is not None:
+                entry.card.set_detail(detail_rows)
+            if expand:
+                entry.card.set_expanded(True)
+
         self._finalize_card_later(entry, .8)
         self._driver.invalidate()
 

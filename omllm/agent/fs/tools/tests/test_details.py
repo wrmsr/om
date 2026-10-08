@@ -3,6 +3,7 @@ import tempfile
 
 import pytest
 
+from .....core import ui
 from ....permissions.deciders import StaticPermissionDecider
 from ....permissions.types import PermissionState
 from ....types.tools import ToolContext
@@ -57,7 +58,7 @@ async def test_write_edit_and_read_report_details():
         )
         assert isinstance(e.details, EditToolResultDetails)
         assert e.details.path == path
-        assert '-b' in e.details.diff and '+c' in e.details.diff
+        assert e.display == ui.DiffText(old='a\nb\n', new='a\nc\n', path=path)
 
         r = await _call(ReadTool(permissions=perms, fs=fs), td, {'file_path': path, 'num_lines': 1})
         assert isinstance(r.details, ReadToolResultDetails)

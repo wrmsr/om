@@ -145,7 +145,8 @@ def test_reactivated_card_survives_its_stale_finalize_timer():
     assert driver.commits == []
     assert any('alpha  running...' in line for line in frame_lines(app))
 
-    # Likewise a denial's finalize must not race the failure result that follows it.
+    # Likewise a denial's finalize must not race the failure result that follows it - which is the denial itself coming
+    # back, so the card goes on saying so.
     app.begin_permission_card('call-a', 'alpha', (), lambda allowed: None)
     app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_DENY)))
     app.tool_finished('call-a', 'alpha', ok=False)
@@ -153,7 +154,7 @@ def test_reactivated_card_survives_its_stale_finalize_timer():
     assert driver.commits == []
     driver.fire_after(.3)
     assert len(driver.commits) == 1
-    assert 'alpha  failed' in commit_texts(driver)[0]
+    assert 'alpha  denied' in commit_texts(driver)[0]
 
 
 def test_cancel_key_when_idle_falls_through_harmlessly():
@@ -215,8 +216,10 @@ def _ask(asker, call_id, name):
         llm_tool_call=llm.ToolCall(call_id, name, {}),
     )
     return asyncio.get_running_loop().create_task(asker.ask(
-        agn.PermissionRequestor(tool_context=context),
-        EvalPermissionTarget(language=EvalLanguage.JS, code='1 + 1'),
+        agn.PermissionRequest(
+            agn.PermissionRequestor(tool_context=context),
+            EvalPermissionTarget(language=EvalLanguage.JS, code='1 + 1'),
+        ),
         agn.PermissionRule(agn.EvalPermissionMatcher(), agn.PermissionState.ASK),
     ))
 
@@ -696,8 +699,10 @@ class _AskingTool:
         self.started.set()
         try:
             await self._asker.ask(
-                agn.PermissionRequestor(tool_context=ctx),
-                EvalPermissionTarget(language=EvalLanguage.JS, code=self.name),
+                agn.PermissionRequest(
+                    agn.PermissionRequestor(tool_context=ctx),
+                    EvalPermissionTarget(language=EvalLanguage.JS, code=self.name),
+                ),
                 agn.PermissionRule(agn.EvalPermissionMatcher(), agn.PermissionState.ASK),
             )
         except BaseException as e:

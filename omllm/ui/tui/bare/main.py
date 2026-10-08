@@ -11,14 +11,12 @@ from ...logs import configure_tui_logging
 from ...types import UiId
 from ..config import Config
 from ..inject import AgentEventSubscribers
-from ..inject import bind_tui
 from ..setup import AgentSetup
 from ..types import TargetCwd
 from ..yolo import yolo_autoexec
 from ..yolo import yolo_process_config
+from .inject import bind_bare
 from .input import InputManager
-from .input import bind_input
-from .output import bind_output
 from .output import display_transcript
 
 
@@ -31,24 +29,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
     #
 
-    lst: list[inj.Elemental] = [
-        bind_tui(config),
-
-        bind_input(config),
-        bind_output(config),
-    ]
-
-    #
-
-    lst.extend([
-        inj.bind(ui.RaiseQuitSignal(SystemExit)),
-        inj.bind(ui.QuitSignal, to_key=ui.RaiseQuitSignal),
-    ])
-
-    #
-
     async with inj.create_async_managed_injector(
-        *lst,
+        bind_bare(config),
         factory=inj.create_asyncio_injector,
     ) as injector:
         ui_id = await injector[UiId]

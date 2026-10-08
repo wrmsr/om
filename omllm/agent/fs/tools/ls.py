@@ -4,6 +4,7 @@ import typing as ta
 from omcore import dataclasses as dc
 
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequest
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
@@ -54,10 +55,10 @@ class LsTool(ToolClass[LsToolParams]):
 
         permission_path = dir_path if dir_path.endswith('/') else dir_path + '/'
 
-        await self._permissions.check_allowed(
+        await self._permissions.check_allowed(PermissionRequest(
             PermissionRequestor(tool_context=ctx),
             FsPermissionTarget(permission_path, 'r'),
-        )
+        ))
 
         try:
             st = await self._fs.stat(dir_path)

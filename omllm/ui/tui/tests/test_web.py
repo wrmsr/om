@@ -27,8 +27,8 @@ class _AllowingAsker(agn.PermissionAsker):
 
         self.targets = []
 
-    async def ask(self, requestor, target, rule):
-        self.targets.append(target)
+    async def ask(self, request, rule):
+        self.targets.append(request.target)
         return agn.PermissionState.ALLOW
 
 

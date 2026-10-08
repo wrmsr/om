@@ -5,6 +5,7 @@ from omcore import dataclasses as dc
 
 from .... import llm
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequest
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
@@ -58,10 +59,10 @@ class GlobTool(ToolClass[GlobToolParams]):
             raise ValueError('No working directory configured')
         root_path, resolved_cwd = await validate_tool_glob(self._fs, params.pattern, cwd)
 
-        await self._permissions.check_allowed(
+        await self._permissions.check_allowed(PermissionRequest(
             PermissionRequestor(tool_context=ctx),
             FsPermissionTarget(root_path, 'r'),
-        )
+        ))
 
         try:
             await self._fs.stat(root_path)

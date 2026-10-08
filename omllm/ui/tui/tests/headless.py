@@ -25,8 +25,7 @@ from ..setup import AgentSetup
 class DenyingPermissionAsker(agn.PermissionAsker):
     async def ask(
             self,
-            requestor: agn.PermissionRequestor,
-            target: agn.PermissionTarget,
+            request: agn.PermissionRequest,
             rule: agn.PermissionRule,
     ) -> agn.DecidedPermissionState:
         return agn.PermissionState.DENY

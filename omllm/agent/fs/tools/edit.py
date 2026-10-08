@@ -2,20 +2,22 @@
 TODO:
  - loosened replacer helpers
  - accept diff format impl
- - injectable confirmation, diff format
+ - injectable diff format
 """
-import difflib
 import typing as ta
 
 from omcore import dataclasses as dc
 
 from .... import llm
+from ....core import ui
 from ...permissions.types import PermissionDecider
+from ...permissions.types import PermissionRequest
 from ...permissions.types import PermissionRequestor
 from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ...types.tools import ToolResult
+from ..common import FsFileChangedError
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
 from .details import EditToolResultDetails
@@ -93,10 +95,12 @@ class EditTool(ToolClass[EditToolParams]):
         if not params.old_string:
             raise ValueError('The requested edit to was given an empty "old_string" parameter.')
 
-        await self._permissions.check_allowed(
-            PermissionRequestor(tool_context=ctx),
-            FsPermissionTarget(file_path, 'w'),
-        )
+        requestor = PermissionRequestor(tool_context=ctx)
+
+        await self._permissions.check_allowed(PermissionRequest(
+            requestor,
+            FsPermissionTarget(file_path, 'r'),
+        ))
 
         old_file_data = await self._fs.read_file(file_path)
         old_file = old_file_data.data.decode('utf-8')
@@ -109,28 +113,35 @@ class EditTool(ToolClass[EditToolParams]):
             raise ValueError('The requested file to edit contained the given "old_string" parameter multiple times.')
 
         new_file = old_file.replace(params.old_string, params.new_string)
-        new_file_b = new_file.encode('utf-8')
 
-        # FIXME: confirm lol
-
-        await self._fs.write_file(
-            file_path,
-            new_file_b,
-            overwrite=True,
-            expected_digest=old_file_data.digest,
+        # Asked with the change in hand, so what is shown is exactly what gets written - and the write fails rather than
+        # clobber the file if it changed while the decision was pending.
+        diff = ui.DiffText(
+            old=old_file,
+            new=new_file,
+            path=file_path,
         )
 
-        diff = ''.join(difflib.unified_diff(
-            old_file.splitlines(keepends=True),
-            new_file.splitlines(keepends=True),
-            fromfile=file_path,
-            tofile=file_path,
+        await self._permissions.check_allowed(PermissionRequest(
+            requestor,
+            FsPermissionTarget(file_path, 'w'),
+            preview=diff,
         ))
+
+        try:
+            await self._fs.write_file(
+                file_path,
+                new_file.encode('utf-8'),
+                overwrite=True,
+                expected_digest=old_file_data.digest,
+            )
+        except FsFileChangedError:
+            raise ValueError('The requested file to edit changed before the edit was written. Read it again.') from None
 
         return ToolResult(
             content=llm.TextContent('The file has been edited successfully.'),
             details=EditToolResultDetails(
                 path=file_path,
-                diff=diff,
             ),
+            display=diff,
         )

@@ -11,6 +11,7 @@ from ..config import Config
 from ..inject import bind_on_agent_event_subscriber
 from ..rendering import TerminalTextDisplayer
 from ..rendering import build_terminal_text_displayer
+from .previews import ShownPreviews
 
 
 ##
@@ -86,6 +87,30 @@ class StreamResponsePrinter(AgentEventDisplayer):
                 await self._text_displayer.display_text('\n')
 
 
+class ToolResultPrinter(AgentEventDisplayer):
+    """Shows what a finished tool has to show the user - unless it is what the tool's ask just showed above it."""
+
+    def __init__(
+            self,
+            text_displayer: ui.TextDisplayer,
+            *,
+            shown_previews: ShownPreviews,
+    ) -> None:
+        super().__init__(text_displayer)
+
+        self._shown_previews = shown_previews
+
+    async def on_agent_event(self, ev: agn.Event) -> None:
+        if not isinstance(ev, agn.ToolExecutionEndEvent):
+            return
+
+        previewed = self._shown_previews.pop(ev.context)
+
+        result = ev.result
+        if result.error is None and (display := result.display) and display != previewed:
+            await self._text_displayer.display_text(display)
+
+
 class EndReasonPrinter(AgentEventDisplayer):
     """Says how a run ended whenever it was not the model ending its own turn: a failure comes back as a result now."""
 
@@ -116,6 +141,9 @@ def bind_output(config: Config) -> inj.Elements:
     lst.extend([
         inj.bind(build_terminal_text_displayer, singleton=True),
         inj.bind(ui.TextDisplayer, to_key=TerminalTextDisplayer),
+
+        inj.bind(ToolResultPrinter, singleton=True),
+        bind_on_agent_event_subscriber(ToolResultPrinter),
 
         inj.bind(EndReasonPrinter, singleton=True),
         bind_on_agent_event_subscriber(EndReasonPrinter),

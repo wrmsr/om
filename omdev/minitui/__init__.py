@@ -76,6 +76,7 @@ with _lang.auto_proxy_init(
     from .controls.cards import (  # noqa
         CardState,
         TERMINAL_CARD_STATES,
+        CARD_DETAIL_INDENT,
         Card,
     )
 

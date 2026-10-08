@@ -67,6 +67,10 @@ class ToolResult:
 
     details: ToolResultDetails | None = None
 
+    # What the user should be shown of the result, in whatever frontend they are using - the diff an edit made, say.
+    # For display only: never projected to the model.
+    display: ui.Text | None = None
+
     @classmethod
     def of_error(cls, e: BaseException) -> ToolResult:
         """The result handed back to the model for a call which raised, worded so it can recover."""

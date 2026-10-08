@@ -1,4 +1,8 @@
+from omdev import minitui as mt
+
 from .... import agent as agn
+from ....core import ui
+from ..rendering import render_text_rows
 
 
 ##
@@ -23,14 +27,32 @@ def tool_call_summary(context: agn.ToolContext) -> str | None:
         # FIXME: display error lol
         return None
 
-    if not isinstance(summary, str):
-        # FIXME: handle ui text lol
-        raise TypeError(summary)
+    if summary is None:
+        return None
 
-    if not (summary := ' '.join(summary.split())):
+    # The summary rides a single header row, so only its characters survive - styling and blocks have nowhere to go.
+    if not (summary := ' '.join(ui.Text.str_of(summary).split())):
         return None
 
     if len(summary) > _MAX_CALL_SUMMARY_LEN:
         summary = summary[:_MAX_CALL_SUMMARY_LEN - 3] + '...'
 
     return summary
+
+
+def card_text_rows(text: ui.CanText, width: int) -> list[list[mt.Segment]]:
+    """
+    UI text as card detail rows, laid out for the width beside the card's detail indent so the card never re-wraps it -
+    fixed-width layouts like a rendered diff stay intact.
+    """
+
+    rows = render_text_rows(
+        ui.StyledTextRenderer().render(text),
+        max(width - mt.CARD_DETAIL_INDENT, 1),
+    )
+
+    # Text ending in a newline leaves the cursor on a fresh, empty row, which is not a row of the text.
+    if rows and not rows[-1]:
+        rows.pop()
+
+    return rows

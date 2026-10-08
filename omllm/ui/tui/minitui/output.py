@@ -15,6 +15,7 @@ from .... import llm
 from ....core import ui
 from ..config import Config
 from .app import MinituiChatApp
+from .toolcards import card_text_rows
 from .toolcards import tool_call_summary
 from .toolcards import tool_card_key
 
@@ -100,6 +101,10 @@ class AgentEventRenderer:
     def _result_rows(self, result: agn.ToolResult) -> list[list[mt.Segment]]:
         if result.error is not None:
             return _detail_rows(repr(result.error))
+
+        # What the tool has to show the user, where it has something.
+        if display := result.display:
+            return card_text_rows(display, self._app.width)
 
         # Details are the structured story where a tool tells one; the model-facing text otherwise.
         if isinstance(d := result.details, agn.ExecToolResultDetails):
@@ -244,15 +249,18 @@ class AgentEventRenderer:
         elif isinstance(ev, agn.ToolExecutionEndEvent):
             key = tool_card_key(ev.context)
             self._tool_output.pop(key, None)
+            result = ev.result
             app.tool_finished(
                 key,
                 self._tool_title(ev),
-                ok=ev.result.error is None,
+                ok=result.error is None,
                 call_summary=tool_call_summary(ev.context),
                 detail_rows=[
                     *self._tool_detail(ev.context),
-                    *self._result_rows(ev.result),
+                    *self._result_rows(result),
                 ],
+                # A result with something to show shows it, rather than leaving it behind the expander in scrollback.
+                expand=result.error is None and bool(result.display),
             )
 
 

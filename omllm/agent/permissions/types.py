@@ -13,6 +13,7 @@ from omcore import lang
 from omcore import marshal as msh
 
 from ...core import fieldhash as fh
+from ...core import ui
 from ..types.errors import Error
 
 
@@ -42,6 +43,25 @@ class PermissionRequestor:
     tool_context: ToolContext | None = None
 
 
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
+class PermissionRequest:
+    """
+    One request for permission, as handed to a decider and on to whoever it asks. The requestor and target are what
+    rules match on; the preview is only ever shown.
+    """
+
+    requestor: PermissionRequestor
+    target: PermissionTarget
+
+    _: dc.KW_ONLY
+
+    # A frontend-neutral account of what granting the request would do - the diff a write would make, say - for whoever
+    # is asked to decide it. Never consulted by matching.
+    preview: ui.Text | None = None
+
+
 DecidedPermissionState: ta.TypeAlias = ta.Literal[
     PermissionState.DENY,
     PermissionState.ALLOW,
@@ -68,21 +88,17 @@ class PermissionAskAbortedError(Error):
 
 class PermissionDecider(lang.Abstract):
     @abc.abstractmethod
-    def decide(
-            self,
-            requestor: PermissionRequestor,
-            target: PermissionTarget,
-    ) -> ta.Awaitable[DecidedPermissionState | None]:
+    def decide(self, request: PermissionRequest) -> ta.Awaitable[DecidedPermissionState | None]:
         raise NotImplementedError
 
     @ta.final
-    async def is_allowed(self, requestor: PermissionRequestor, target: PermissionTarget) -> bool:
-        return (await self.decide(requestor, target)) is PermissionState.ALLOW
+    async def is_allowed(self, request: PermissionRequest) -> bool:
+        return (await self.decide(request)) is PermissionState.ALLOW
 
     @ta.final
-    async def check_allowed(self, requestor: PermissionRequestor, target: PermissionTarget) -> None:
-        if not await self.is_allowed(requestor, target):
-            raise PermissionDeniedError(target)
+    async def check_allowed(self, request: PermissionRequest) -> None:
+        if not await self.is_allowed(request):
+            raise PermissionDeniedError(request.target)
 
 
 ##
@@ -158,8 +174,7 @@ class PermissionAsker(lang.Abstract):
     @abc.abstractmethod
     def ask(
             self,
-            requestor: PermissionRequestor,
-            target: PermissionTarget,
+            request: PermissionRequest,
             rule: PermissionRule,
     ) -> ta.Awaitable[DecidedPermissionState]:
         raise NotImplementedError

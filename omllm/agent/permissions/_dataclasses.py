@@ -544,6 +544,132 @@ def _process_dataclass__39f8906f135aee945c24fb95b6817b37f203af6b():
 
 
 @_register(
+    installer_sha1='fd0a33b7948034372d4a1a6fa7c892883eee5fde',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('requestor', True, True, None, True, False, False, None), 'instance', 'missin"
+            "g', None, False, False, False), (('target', True, True, None, True, False, False, None), 'instance', 'miss"
+            "ing', None, False, False, False), (('preview', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (("
+            "),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.agent.permissions.types', 'PermissionRequest'),
+    ),
+)
+def _process_dataclass__fd0a33b7948034372d4a1a6fa7c892883eee5fde():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                requestor=self.requestor,
+                target=self.target,
+                preview=self.preview,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.requestor == other.requestor and
+                self.target == other.target and
+                self.preview == other.preview
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'requestor',
+            'target',
+            'preview',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.requestor,
+                self.target,
+                self.preview,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            requestor: __dataclass__init__fields__0__annotation,
+            target: __dataclass__init__fields__1__annotation,
+            *,
+            preview: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'requestor', requestor)
+            __dataclass__object_setattr(self, 'target', target)
+            __dataclass__object_setattr(self, 'preview', preview)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.requestor)) is not None:
+                parts.append(f"requestor={s}")
+            if (s := __dataclass__repr__default_fn(self.target)) is not None:
+                parts.append(f"target={s}")
+            if (s := __dataclass__repr__default_fn(self.preview)) is not None:
+                parts.append(f"preview={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='5626ceab6af520a94189a57e4574290bcb8a5a73',
     spec_keys=(
         (

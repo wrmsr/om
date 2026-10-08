@@ -6,7 +6,7 @@ A card lives in the live region while its subject is in flight: state advances (
 denied / failed / cancelled), the summary and detail mutate freely, the detail expands and collapses (keyboard or
 click). When its subject finalizes, the app commits the card's rendered rows to scrollback and drops it from the stack -
 the full warm-window lifecycle. Confirmation is a callback the app resolves (bound keys, clicks); the card itself just
-displays and remembers.
+displays and remembers. A confirming card offers its choice beneath its detail: after what is being decided.
 """
 import enum
 import typing as ta
@@ -49,6 +49,9 @@ TERMINAL_CARD_STATES: ta.AbstractSet[CardState] = frozenset([
     CardState.FAILED,
     CardState.CANCELLED,
 ])
+
+# Detail rows render indented by this many columns: detail pre-rendered to fit `width - CARD_DETAIL_INDENT` never wraps.
+CARD_DETAIL_INDENT: ta.Final[int] = 2
 
 
 class Card(Control):
@@ -93,6 +96,9 @@ class Card(Control):
     def set_on_confirm(self, on_confirm: ta.Callable[[bool], None] | None) -> None:
         self._on_confirm = on_confirm
 
+    def set_expanded(self, expanded: bool) -> None:
+        self._expanded = expanded
+
     def toggle_expanded(self) -> None:
         if self._detail:
             self._expanded = not self._expanded
@@ -119,6 +125,14 @@ class Card(Control):
 
         rows: list[ta.Sequence[Segment]] = list(wrap_segments(header, width))
 
+        if self._expanded and self._detail:
+            indent = Segment(' ' * CARD_DETAIL_INDENT)
+            for detail_row in self._detail:
+                for wrapped in wrap_segments([indent, *detail_row], width):
+                    rows.append(wrapped)  # noqa: PERF402
+
+        # The choice follows what is being decided. A live region taller than the screen loses its top rows, so this
+        # also keeps it in view beneath a long detail.
         if self._state is CardState.CONFIRMING:
             rows.append([
                 Segment('    '),
@@ -126,11 +140,6 @@ class Card(Control):
                 Segment('  '),
                 Segment(' deny (f2) ', 'card.deny'),
             ])
-
-        if self._expanded:
-            for detail_row in self._detail:
-                for wrapped in wrap_segments([Segment('  '), *detail_row], width):
-                    rows.append(wrapped)  # noqa: PERF402
 
         return rows
 
