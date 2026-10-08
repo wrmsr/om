@@ -169,6 +169,7 @@ class RunHost:
 CONTAINER_STAGING_DIR: ta.Final = '/dockerdev'
 
 
+@dc.dataclass(kw_only=True)
 class RunPlan:
     """
     What one `docker run` will be, accumulated by the run steps in order: the options before the image, the shell lines
@@ -176,96 +177,36 @@ class RunPlan:
     the files staged for the container, and the environment of the docker client process itself.
     """
 
-    def __init__(
-            self,
-            *,
-            cfg: Config,
-            args: RunArgs,
-            run_id: uuid.UUID,
-            host: RunHost,
-    ) -> None:
-        super().__init__()
+    cfg: Config
+    args: RunArgs
+    run_id: uuid.UUID
+    host: RunHost
 
-        self._cfg = cfg
-        self._args = args
-        self._run_id = run_id
-        self._host = host
-
-        self._options: list[str] = []
-        self._autoexec_lines: list[str] = []
-        self._exec_env: dict[str, str] = {}
-        self._entrypoint: str | None = None
-        self._client_env: dict[str, str | sec.Secret] = {}
-        self._staging_dir: str | None = None
+    options: list[str] = dc.field(default_factory=list)
+    autoexec_lines: list[str] = dc.field(default_factory=list)
+    exec_env: dict[str, str] = dc.field(default_factory=dict)
+    entrypoint: str | None = None
+    client_env: dict[str, str | sec.Secret] = dc.field(default_factory=dict)
+    staging_dir: str | None = None
 
     #
-
-    @property
-    def cfg(self) -> Config:
-        return self._cfg
-
-    @property
-    def args(self) -> RunArgs:
-        return self._args
-
-    @property
-    def run_id(self) -> uuid.UUID:
-        return self._run_id
-
-    @property
-    def host(self) -> RunHost:
-        return self._host
-
-    #
-
-    @property
-    def options(self) -> ta.Sequence[str]:
-        """The `docker run` options planned so far - everything before the image."""
-
-        return self._options
 
     def add_options(self, *options: str) -> None:
-        self._options.extend(options)
-
-    @property
-    def autoexec_lines(self) -> ta.Sequence[str]:
-        return self._autoexec_lines
+        self.options.extend(options)
 
     def add_autoexec_lines(self, *lines: str) -> None:
-        self._autoexec_lines.extend(lines)
-
-    @property
-    def exec_env(self) -> ta.Mapping[str, str]:
-        """Environment the autoexec entrypoint sets for the command alone, once its lines have run."""
-
-        return self._exec_env
+        self.autoexec_lines.extend(lines)
 
     def set_exec_env(self, key: str, value: str) -> None:
-        self._exec_env[key] = value
-
-    @property
-    def entrypoint(self) -> str | None:
-        return self._entrypoint
+        self.exec_env[key] = value
 
     def set_entrypoint(self, entrypoint: str) -> None:
-        self._entrypoint = entrypoint
-
-    @property
-    def client_env(self) -> ta.Mapping[str, str | sec.Secret]:
-        """Environment for the docker client process, from which `--env=KEY` options pass values without naming them."""
-
-        return self._client_env
+        self.entrypoint = entrypoint
 
     def set_client_env(self, key: str, value: str | sec.Secret) -> None:
-        self._client_env[key] = value
+        self.client_env[key] = value
 
     #
-
-    @property
-    def staging_dir(self) -> str | None:
-        """The host directory files have been staged in, if any have."""
-
-        return self._staging_dir
 
     def stage_file(self, name: str, content: str, *, mode: int = 0o755) -> str:
         """Writes a file for the container to see in its staging dir, returning its path there."""
@@ -273,10 +214,10 @@ class RunPlan:
         check.non_empty_str(name)
         check.arg(os.sep not in name and name not in ('.', '..'), name)
 
-        if (staging_dir := self._staging_dir) is None:
-            if (mkdtemp := self._host.mkdtemp) is None:
+        if (staging_dir := self.staging_dir) is None:
+            if (mkdtemp := self.host.mkdtemp) is None:
                 mkdtemp = tempfile.mkdtemp
-            staging_dir = self._staging_dir = mkdtemp()
+            staging_dir = self.staging_dir = mkdtemp()
 
         path = os.path.join(staging_dir, name)
         with open(path, 'x') as f:
