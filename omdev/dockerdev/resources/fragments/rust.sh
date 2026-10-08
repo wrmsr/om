@@ -5,4 +5,6 @@ $HOME/.cargo/bin/cargo install \
   cargo-edit \
   rust-script \
 \
+  ocrs-cli \
+\
 ;

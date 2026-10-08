@@ -158,6 +158,7 @@ DEPS="$DEPS\
   tcpdump\
   tcsh\
   telnet\
+  tesseract-ocr\
   tmux\
   u-boot-qemu\
   unzip\
@@ -502,6 +503,8 @@ $HOME/.cargo/bin/cargo install \
 \
   cargo-edit \
   rust-script \
+\
+  ocrs-cli \
 \
 ;\
 \
