@@ -241,7 +241,7 @@ static int for_each_match(
         // in the length of the subject. One successful match has validated all of it, the subject cannot change, and
         // next_match only ever moves forward to the start of a character - which is all that skipping the check needs.
         if (code_validates_utf) {
-            options = PCRE2_NO_UTF_CHECK;
+            options = start_offset < subject.size() && (subject[start_offset] & 0xC0) == 0x80 ? 0 : PCRE2_NO_UTF_CHECK;
         }
     }
 }

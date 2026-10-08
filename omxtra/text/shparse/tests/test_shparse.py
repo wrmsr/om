@@ -438,6 +438,15 @@ def test_node_end_positions():
         ('\n' * (LINE_MAX - 1) + ')', f'{LINE_MAX}:1: `)` can only be used to close a subshell'),
         (' ' * (COL_MAX - 1) + ')', f'1:{COL_MAX}: `)` can only be used to close a subshell'),
     ],
+    ids=[
+        'line-max-valid',
+        'line-max-overflow',
+        'line-overflow',
+        'column-max-overflow',
+        'column-overflow-after-newline',
+        'line-max-minus-one',
+        'column-max-minus-one',
+    ],
 )
 def test_parse_position_overflow(source, expected):
     if expected is None:
