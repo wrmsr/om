@@ -1,6 +1,6 @@
 """
-Standalone, source-extracted workers: PNG on stdin, keyword arguments in JSON, UTF-8 text in a result file.
-The child never imports or installs omdev. Its stdout and stderr are diagnostics, not a result protocol.
+Standalone, source-extracted workers: PNG on stdin, keyword arguments in JSON, UTF-8 text in a result file. The child
+never imports or installs omdev. Its stdout and stderr are diagnostics, not a result protocol.
 """
 import abc
 import inspect
@@ -17,6 +17,7 @@ import typing as ta
 from omcore import lang
 
 from ..images import get_image_png_bytes
+from ..subprocesses import ProcessError
 from ..types import OcrBackend
 
 
@@ -31,38 +32,48 @@ DEFAULT_UV_PYTHON = 'cpython@3.12'
 DEFAULT_UV_TIMEOUT = 600.
 
 
+def _uv_main(worker):
+    import json
+    import sys
+
+    with open(sys.argv[1], encoding='utf-8') as f:
+        kwargs = json.load(f)
+    result = worker(sys.stdin.buffer.read(), **kwargs)
+    if not isinstance(result, str):
+        raise TypeError(type(result))
+    with open(sys.argv[2], 'w', encoding='utf-8', newline='') as f:
+        f.write(result)
+
+
 def _make_worker_script(worker: ta.Callable[..., str]) -> str:
     # Workers must be undecorated, self-contained free functions with inner imports and no enclosing-scope references.
-    source = textwrap.dedent(inspect.getsource(worker))
-    return (
-        'from __future__ import annotations\n'
-        'import json\n'
-        'import sys\n\n'
-        f'{source}\n\n'
-        'def _main():\n'
-        '    with open(sys.argv[1], encoding="utf-8") as f:\n'
-        '        kwargs = json.load(f)\n'
-        f'    result = {worker.__name__}(sys.stdin.buffer.read(), **kwargs)\n'
-        '    if not isinstance(result, str):\n'
-        '        raise TypeError(type(result))\n'
-        '    with open(sys.argv[2], "w", encoding="utf-8", newline="") as f:\n'
-        '        f.write(result)\n\n'
-        'if __name__ == "__main__":\n'
-        '    _main()\n'
-    )
+    worker_source = textwrap.dedent(inspect.getsource(worker))
+
+    main_source = inspect.getsource(_uv_main)
+
+    return '\n'.join([
+        'from __future__ import annotations',
+        '',
+        worker_source,
+        '',
+        main_source,
+        '',
+        f'_uv_main({worker.__name__})',
+    ])
 
 
 def _run_worker_process(cmd: ta.Sequence[str], data: bytes, *, timeout: float) -> None:
-    # Keep model diagnostics off the caller's stdout. A separate process group lets timeout/interrupt kill the worker
-    # as well as uv, rather than leaving model execution running after its temporary directory has been removed.
+    # Keep model diagnostics off the caller's stdout. A separate process group lets timeout/interrupt kill the worker as
+    # well as uv, rather than leaving model execution running after its temporary directory has been removed.
     with subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
-            stdout=2,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             start_new_session=True,
     ) as proc:
         try:
-            proc.communicate(data, timeout=timeout)
+            stdout, stderr = proc.communicate(data, timeout=timeout)
         except BaseException:
             try:
                 os.killpg(proc.pid, signal.SIGKILL)
@@ -72,7 +83,12 @@ def _run_worker_process(cmd: ta.Sequence[str], data: bytes, *, timeout: float) -
             raise
 
         if proc.returncode:
-            raise subprocess.CalledProcessError(proc.returncode, cmd)
+            raise ProcessError(
+                proc.returncode,
+                cmd,
+                stdout,
+                stderr.decode(),  # noqa
+            )
 
 
 def _run_uv_ocr(
@@ -96,13 +112,23 @@ def _run_uv_ocr(
             json.dump(dict(kwargs), f)
 
         cmd = [
-            uv, 'run',
-            '--no-project', '--isolated', '--no-config',
+            uv,
+            'run',
+            '--no-project',
+            '--isolated',
+            '--no-config',
             '--python', python,
         ]
         for requirement in requirements:
             cmd.extend(['--with', requirement])
-        cmd.extend(['--', 'python', '-I', script, options, result])
+        cmd.extend([
+            '--',
+            'python',
+            '-I',
+            script,
+            options,
+            result,
+        ])
 
         _run_worker_process(cmd, png, timeout=timeout)
 

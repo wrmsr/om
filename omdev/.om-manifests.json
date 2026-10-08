@@ -196,6 +196,18 @@
     }
   },
   {
+    "module": ".ocr.__main__",
+    "attr": "_CLI_MODULE",
+    "file": "omdev/ocr/__main__.py",
+    "line": 4,
+    "value": {
+      "!.cli.types.CliModule": {
+        "name": "ocr",
+        "module": "omdev.ocr.__main__"
+      }
+    }
+  },
+  {
     "module": ".pipdeptree.__main__",
     "attr": "_CLI_MODULE",
     "file": "omdev/pipdeptree/__main__.py",
@@ -483,18 +495,6 @@
           "nb"
         ],
         "module": "omdev.tools.notebook"
-      }
-    }
-  },
-  {
-    "module": ".tools.ocr",
-    "attr": "_CLI_MODULE",
-    "file": "omdev/tools/ocr.py",
-    "line": 166,
-    "value": {
-      "!.cli.types.CliModule": {
-        "name": "ocr",
-        "module": "omdev.tools.ocr"
       }
     }
   },

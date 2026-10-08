@@ -22,7 +22,16 @@ with lang.auto_proxy_import(globals()):
 ##
 
 
+DEFAULT_UV_DEPS = (
+    'pillow>=12.3.0,<13',
+    'omegaconf>=2.3.0,<3',
+    'rapidocr>=3.9.2,<4',
+)
+
 DEFAULT_UV_MODEL_ROOT_DIR = '~/.cache/omdev/ocr/rapidocr'
+
+
+##
 
 
 def _get_params(
@@ -37,6 +46,9 @@ def _get_params(
         raise ValueError((engine, device))
 
     params: dict[str, ta.Any] = {}
+
+    params['Global.log_level'] = 'WARNING'
+
     for stage in ('Det', 'Cls', 'Rec'):
         params[f'{stage}.engine_type'] = engine
         params[f'{stage}.ocr_version'] = 'PP-OCRv4'
@@ -86,6 +98,7 @@ class RapidocrOcrBackend(OcrBackend):
 
     def ocr(self, image: Image.Image) -> str:
         result = rapidocr.RapidOCR(params=_convert_params(self._params))(get_image_png_bytes(image))
+
         return '\n'.join(result.txts if result.txts is not None else ())  # type: ignore[union-attr,unused-ignore]
 
 
@@ -109,7 +122,9 @@ def _uv_rapidocr_ocr(png: bytes, *, params: dict) -> str:
     }
     if 'Global.model_root_dir' in converted:
         converted['Global.model_root_dir'] = os.path.expanduser(converted['Global.model_root_dir'])  # type: ignore[arg-type,unused-ignore]  # noqa
+
     result = rapidocr.RapidOCR(params=converted)(png)
+
     return '\n'.join(result.txts if result.txts is not None else ())  # type: ignore[union-attr,unused-ignore]
 
 
@@ -125,12 +140,17 @@ class UvRapidocrOcrBackend(UvOcrBackend):
             timeout: float = DEFAULT_UV_TIMEOUT,
     ) -> None:
         super().__init__(
-            requirements=('pillow', 'rapidocr>=3.9.2,<4', engine),
-            kwargs={'params': _get_params(
+            requirements=(
+                *DEFAULT_UV_DEPS,
                 engine,
-                device,
-                model_root_dir=model_root_dir if model_root_dir is not None else DEFAULT_UV_MODEL_ROOT_DIR,
-            )},
+            ),
+            kwargs={
+                'params': _get_params(
+                    engine,
+                    device,
+                    model_root_dir=model_root_dir if model_root_dir is not None else DEFAULT_UV_MODEL_ROOT_DIR,
+                ),
+            },
             uv=uv,
             python=python,
             timeout=timeout,

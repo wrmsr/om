@@ -158,8 +158,6 @@ botocore==1.43.110
 types-boto3==1.43.109
 botocore-stubs==1.43.67
 
-antlr4-python3-runtime==4.13.2
-
 asn1crypto==1.5.1
 pynacl==1.6.2
 
@@ -170,8 +168,9 @@ mlx-lm==0.32.0; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 
 apsw==3.53.4.0
 
-rapidocr == 3.10.0  # @om-venv !14t !14dt !15 !15t
-onnxruntime == 1.30.0  # @om-venv !14t !14dt !15 !15t
+rapidocr==3.10.0  # @om-venv !14t !14dt !15 !15t
+onnxruntime==1.30.0  # @om-venv !14t !14dt !15 !15t
+omegaconf==2.3.0  # @om-venv !14t !14dt !15 !15t
 
 pillow==12.3.0
 

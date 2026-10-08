@@ -67,10 +67,11 @@ def _make_backends(args: argparse.Namespace) -> dict[str, OcrBackend]:
             timeout=args.timeout,
         ),
 
-        'rapidocr-onnx': RapidocrOcrBackend(
+        'rapidocr': (rapidocr_onnx := RapidocrOcrBackend(
             engine='onnxruntime',
             model_root_dir=args.rapidocr_model_dir,
-        ),
+        )),
+        'rapidocr-onnx': rapidocr_onnx,
         'rapidocr-onnx-uv': UvRapidocrOcrBackend(
             engine='onnxruntime',
             model_root_dir=args.rapidocr_model_dir,
@@ -196,8 +197,9 @@ def _main(argv: ta.Sequence[str] | None = None) -> None:
 
     backends = _make_backends(args)
     if args.list_backends:
+        ml = max(map(len, backends)) + 2
         for name, backend in backends.items():
-            print(f'{name}\t{"available" if backend.is_available() else "unavailable"}')
+            print(f'{name.ljust(ml)}{"available" if backend.is_available() else "unavailable"}')
         return
 
     try:

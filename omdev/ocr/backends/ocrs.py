@@ -5,11 +5,11 @@ PNG is sent on stdin; plain text is read from stdout. Model downloads/cache mana
 No clipboard feature, Rust extension, or in-process binding is needed.
 """
 import shutil
-import subprocess
 
 from omcore import lang
 
 from ..images import get_image_png_bytes
+from ..subprocesses import check_subprocess_output
 from ..types import OcrBackend
 
 
@@ -33,8 +33,8 @@ class OcrsOcrBackend(OcrBackend):
         return shutil.which(self._executable) is not None
 
     def ocr(self, image: Image.Image) -> str:
-        return subprocess.check_output(
+        return check_subprocess_output(
             [self._executable],
             input=get_image_png_bytes(image),
             timeout=self._timeout,
-        ).decode('utf-8')
+        )

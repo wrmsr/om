@@ -1,2 +1,4 @@
+- rapidocr broken lol
+- default to 'best' available
 - actual integration tests lol
 - linux clipboard

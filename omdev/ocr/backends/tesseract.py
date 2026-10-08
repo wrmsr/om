@@ -5,11 +5,11 @@ The default config selects LSTM recognition of a uniform text block. tessdata_be
 """
 import shlex
 import shutil
-import subprocess
 
 from omcore import lang
 
 from ..images import get_image_png_bytes
+from ..subprocesses import check_subprocess_output
 from ..types import OcrBackend
 
 
@@ -53,9 +53,8 @@ class TesseractOcrBackend(OcrBackend):
         cmd.extend(shlex.split(self._config))
         cmd.append('txt')
 
-        # Keep stderr on the caller's diagnostic channel, separate from the recognized text.
-        return subprocess.check_output(  # noqa
+        return check_subprocess_output(
             cmd,
             input=png,
             timeout=self._timeout,
-        ).decode('utf-8')
+        )

@@ -45,7 +45,7 @@ def test_defaults(tmp_path, capfd, output):
 
     captured = capfd.readouterr()
     assert captured.out == ''
-    assert 'tesseract diagnostics' in captured.err
+    # assert 'tesseract diagnostics' in captured.err
 
 
 def test_options(tmp_path):
@@ -102,16 +102,14 @@ def test_missing_executable(tmp_path):
         backend.ocr(PngImage())  # type: ignore
 
 
-def test_nonzero_exit(tmp_path, capfd):
+def test_nonzero_exit(tmp_path):
     executable, _, _ = _make_tesseract(tmp_path, output='partial\n', returncode=7)
     backend = TesseractOcrBackend(executable=executable, timeout=30.)
     with pytest.raises(subprocess.CalledProcessError) as exc:
         backend.ocr(PngImage())  # type: ignore
     assert exc.value.returncode == 7
-    assert exc.value.output == b'partial\n'
-    captured = capfd.readouterr()
-    assert captured.out == ''
-    assert 'tesseract diagnostics' in captured.err
+    assert exc.value.stdout == b'partial\n'
+    assert 'tesseract diagnostics' in exc.value.stderr.decode()
 
 
 def test_timeout(tmp_path):
