@@ -1,19 +1,19 @@
 """
-Both variants require the tesseract executable and its language data on the host; uv only installs Python packages.
+Requires the tesseract executable and its language data on the host.
+PNG is sent on stdin; UTF-8 text is read from stdout.
 The default config selects LSTM recognition of a uniform text block. tessdata_best must be installed separately.
 """
-import typing as ta
+import shlex
+import shutil
+import subprocess
 
 from omcore import lang
 
+from ..images import get_image_png_bytes
 from ..types import OcrBackend
-from .uv import DEFAULT_UV_PYTHON
-from .uv import DEFAULT_UV_TIMEOUT
-from .uv import UvOcrBackend
 
 
 with lang.auto_proxy_import(globals()):
-    import pytesseract
     from PIL import Image
 
 
@@ -29,6 +29,7 @@ class TesseractOcrBackend(OcrBackend):
             *,
             config: str = DEFAULT_TESSERACT_CONFIG,
             language: str | None = None,
+            executable: str = 'tesseract',
             timeout: float = 300.,
     ) -> None:
         super().__init__()
@@ -37,57 +38,24 @@ class TesseractOcrBackend(OcrBackend):
             raise ValueError(timeout)
         self._config = config
         self._language = language
+        self._executable = executable
         self._timeout = timeout
 
     def is_available(self) -> bool:
-        return lang.can_import('pytesseract')
+        return shutil.which(self._executable) is not None
 
     def ocr(self, image: Image.Image) -> str:
-        return pytesseract.image_to_string(
-            image,
-            lang=self._language,
-            config=self._config,
-            nice=0,
+        png = get_image_png_bytes(image)
+
+        cmd = [self._executable, 'stdin', 'stdout']
+        if self._language is not None:
+            cmd.extend(['-l', self._language])
+        cmd.extend(shlex.split(self._config))
+        cmd.append('txt')
+
+        # Keep stderr on the caller's diagnostic channel, separate from the recognized text.
+        return subprocess.check_output(  # noqa
+            cmd,
+            input=png,
             timeout=self._timeout,
-        )
-
-
-##
-
-
-def _uv_tesseract_ocr(png: bytes, *, config: str, language: str | None, timeout: float) -> str:
-    import io
-
-    import pytesseract
-    from PIL import Image
-
-    with Image.open(io.BytesIO(png)) as image:
-        return pytesseract.image_to_string(
-            image,
-            lang=language,
-            config=config,
-            nice=0,
-            timeout=timeout,
-        )
-
-
-class UvTesseractOcrBackend(UvOcrBackend):
-    def __init__(
-            self,
-            *,
-            config: str = DEFAULT_TESSERACT_CONFIG,
-            language: str | None = None,
-            uv: str = 'uv',
-            python: str = DEFAULT_UV_PYTHON,
-            timeout: float = DEFAULT_UV_TIMEOUT,
-    ) -> None:
-        super().__init__(
-            requirements=('pillow', 'pytesseract'),
-            kwargs={'config': config, 'language': language, 'timeout': timeout},
-            uv=uv,
-            python=python,
-            timeout=timeout,
-        )
-
-    def _get_worker(self) -> ta.Callable[..., str]:
-        return _uv_tesseract_ocr
+        ).decode('utf-8')

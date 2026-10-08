@@ -20,7 +20,6 @@ from .backends.rapidocr import UvRapidocrOcrBackend
 from .backends.rapidocrort import RapidocrOnnxruntimeOcrBackend
 from .backends.tesseract import DEFAULT_TESSERACT_CONFIG
 from .backends.tesseract import TesseractOcrBackend
-from .backends.tesseract import UvTesseractOcrBackend
 from .backends.uv import DEFAULT_UV_PYTHON
 from .types import OcrBackend
 
@@ -138,12 +137,6 @@ def _make_backends(args: argparse.Namespace) -> dict[str, OcrBackend]:
             no_language_correction=args.vision_no_language_correction,
         ),
         'ocrs': OcrsOcrBackend(
-            timeout=args.timeout,
-        ),
-        'uv-tesseract': UvTesseractOcrBackend(
-            config=args.tesseract_config,
-            language=args.tesseract_language,
-            python=args.uv_python,
             timeout=args.timeout,
         ),
         'uv-rapidocr-ort': UvRapidocrOcrBackend(
