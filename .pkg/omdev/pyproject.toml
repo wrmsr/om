@@ -45,7 +45,8 @@ doc = [
     'docutils ~= 0.23',
 ]
 ocr = [
-    'rapidocr-onnxruntime ~= 1.4',
+    'rapidocr ~= 3.9',
+    'onnxruntime ~= 1.30',
 ]
 pillow = [
     'pillow ~= 12.3',
@@ -96,7 +97,8 @@ all = [
     'pycparser ~= 3.0',
     'pcpp ~= 1.30',
     'docutils ~= 0.23',
-    'rapidocr-onnxruntime ~= 1.4',
+    'rapidocr ~= 3.9',
+    'onnxruntime ~= 1.30',
     'pillow ~= 12.3',
     'gprof2dot ~= 2025.4',
     'basedpyright ~= 1.40',

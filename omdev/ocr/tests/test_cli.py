@@ -19,8 +19,11 @@ def test_default_and_options():
     assert args.tesseract_config == '--oem 1 --psm 6'
 
     args = _make_parser().parse_args([
-        '-b', 'rapidocr-torch', '--torch-device', 'mps',
-        '--vision-language', 'en-US', '--vision-language', 'fr-FR', '@',
+        '-b', 'rapidocr-torch',
+        '--torch-device', 'mps',
+        '--vision-language', 'en-US',
+        '--vision-language', 'fr-FR',
+        '@',
     ])
     assert args.torch_device == 'mps'
     assert args.vision_language == ['en-US', 'fr-FR']
@@ -28,11 +31,9 @@ def test_default_and_options():
 
 
 @pytest.mark.parametrize(('name', 'expected'), [
-    ('rapidocr', 'uv-rapidocr-ort'),
-    ('rapidocr-ort', 'uv-rapidocr-ort'),
-    ('rapidocr-torch', 'uv-rapidocr-torch'),
-    ('tesseract', 'uv-tesseract'),
-    ('uv-tesseract', 'uv-tesseract'),
+    ('rapidocr', 'rapidocr-onnx-uv'),
+    ('rapidocr-onnx', 'rapidocr-onnx-uv'),
+    ('rapidocr-torch', 'rapidocr-torch-uv'),
 ])
 def test_uv_selection(name, expected):
     assert _select_backend_name(name, uv=True) == expected

@@ -7,7 +7,6 @@ import pytest
 
 from ...tests.helpers import PngImage
 from .. import rapidocr
-from .. import rapidocrort
 
 
 ##
@@ -93,21 +92,6 @@ def test_invalid_configuration(engine, device):
         rapidocr.RapidocrOcrBackend(engine=engine, device=device)
     with pytest.raises(ValueError):  # noqa
         rapidocr.UvRapidocrOcrBackend(engine=engine, device=device)
-
-
-@pytest.mark.parametrize(('rows', 'expected'), [
-    (None, ''),
-    ([], ''),
-    ([(None, 'Open', .99), (None, 'Save', .98)], 'Open\nSave'),
-])
-def test_legacy(monkeypatch, rows, expected):
-    class Engine:
-        def __call__(self, png):
-            assert png == PngImage().data
-            return rows, [0., 0., 0.]
-
-    monkeypatch.setattr(rapidocrort, 'rapidocr_onnxruntime', types.SimpleNamespace(RapidOCR=Engine))  # noqa
-    assert rapidocrort.RapidocrOnnxruntimeOcrBackend().ocr(PngImage()) == expected  # type: ignore
 
 
 def test_model_directory(monkeypatch):

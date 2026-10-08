@@ -27,7 +27,7 @@ class Project(ProjectBase):
         ],
 
         'c': [
-            'pycparser ~= 3.0',
+            'pycparser ~= 3.1',
 
             'pcpp ~= 1.30',
         ],
@@ -37,7 +37,8 @@ class Project(ProjectBase):
         ],
 
         'ocr': [
-            'rapidocr-onnxruntime ~= 1.4',
+            'rapidocr ~= 3.10',
+            'onnxruntime ~= 1.30',
         ],
 
         'pillow': [

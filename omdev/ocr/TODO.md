@@ -1,0 +1,2 @@
+- actual integration tests lol
+- linux clipboard

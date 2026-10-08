@@ -17,7 +17,6 @@ from .backends.darwin import DarwinOcrBackend
 from .backends.ocrs import OcrsOcrBackend
 from .backends.rapidocr import RapidocrOcrBackend
 from .backends.rapidocr import UvRapidocrOcrBackend
-from .backends.rapidocrort import RapidocrOnnxruntimeOcrBackend
 from .backends.tesseract import DEFAULT_TESSERACT_CONFIG
 from .backends.tesseract import TesseractOcrBackend
 from .backends.uv import DEFAULT_UV_PYTHON
@@ -36,23 +35,70 @@ with lang.auto_proxy_import(globals()):
 DEFAULT_OCR_BACKEND = 'rapidocr'
 
 OCR_BACKEND_NAMES = (
-    'rapidocr',
-    'rapidocr-ort',
-    'rapidocr-torch',
-    'tesseract',
     'darwin',
+
     'ocrs',
-    'uv-tesseract',
-    'uv-rapidocr-ort',
-    'uv-rapidocr-torch',
+
+    'rapidocr',
+    'rapidocr-onnx',
+    'rapidocr-onnx-uv',
+    'rapidocr-torch',
+    'rapidocr-torch-uv',
+
+    'tesseract',
 )
 
 _UV_BACKENDS = {
-    'rapidocr': 'uv-rapidocr-ort',
-    'rapidocr-ort': 'uv-rapidocr-ort',
-    'rapidocr-torch': 'uv-rapidocr-torch',
-    'tesseract': 'uv-tesseract',
+    'rapidocr': 'rapidocr-onnx-uv',
+    'rapidocr-onnx': 'rapidocr-onnx-uv',
+    'rapidocr-torch': 'rapidocr-torch-uv',
 }
+
+
+def _make_backends(args: argparse.Namespace) -> dict[str, OcrBackend]:
+    return {
+        'darwin': DarwinOcrBackend(
+            languages=args.vision_language,
+            fast=args.vision_fast,
+            no_language_correction=args.vision_no_language_correction,
+        ),
+
+        'ocrs': OcrsOcrBackend(
+            timeout=args.timeout,
+        ),
+
+        'rapidocr-onnx': RapidocrOcrBackend(
+            engine='onnxruntime',
+            model_root_dir=args.rapidocr_model_dir,
+        ),
+        'rapidocr-onnx-uv': UvRapidocrOcrBackend(
+            engine='onnxruntime',
+            model_root_dir=args.rapidocr_model_dir,
+            python=args.uv_python,
+            timeout=args.timeout,
+        ),
+        'rapidocr-torch': RapidocrOcrBackend(
+            engine='torch',
+            device=args.torch_device,
+            model_root_dir=args.rapidocr_model_dir,
+        ),
+        'rapidocr-torch-uv': UvRapidocrOcrBackend(
+            engine='torch',
+            device=args.torch_device,
+            model_root_dir=args.rapidocr_model_dir,
+            python=args.uv_python,
+            timeout=args.timeout,
+        ),
+
+        'tesseract': TesseractOcrBackend(
+            config=args.tesseract_config,
+            language=args.tesseract_language,
+            timeout=args.timeout,
+        ),
+    }
+
+
+##
 
 
 def _make_parser() -> argparse.ArgumentParser:
@@ -114,49 +160,8 @@ def _make_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _make_backends(args: argparse.Namespace) -> dict[str, OcrBackend]:
-    return {
-        'rapidocr': RapidocrOnnxruntimeOcrBackend(),
-        'rapidocr-ort': RapidocrOcrBackend(
-            engine='onnxruntime',
-            model_root_dir=args.rapidocr_model_dir,
-        ),
-        'rapidocr-torch': RapidocrOcrBackend(
-            engine='torch',
-            device=args.torch_device,
-            model_root_dir=args.rapidocr_model_dir,
-        ),
-        'tesseract': TesseractOcrBackend(
-            config=args.tesseract_config,
-            language=args.tesseract_language,
-            timeout=args.timeout,
-        ),
-        'darwin': DarwinOcrBackend(
-            languages=args.vision_language,
-            fast=args.vision_fast,
-            no_language_correction=args.vision_no_language_correction,
-        ),
-        'ocrs': OcrsOcrBackend(
-            timeout=args.timeout,
-        ),
-        'uv-rapidocr-ort': UvRapidocrOcrBackend(
-            engine='onnxruntime',
-            model_root_dir=args.rapidocr_model_dir,
-            python=args.uv_python,
-            timeout=args.timeout,
-        ),
-        'uv-rapidocr-torch': UvRapidocrOcrBackend(
-            engine='torch',
-            device=args.torch_device,
-            model_root_dir=args.rapidocr_model_dir,
-            python=args.uv_python,
-            timeout=args.timeout,
-        ),
-    }
-
-
 def _select_backend_name(name: str, *, uv: bool) -> str:
-    if not uv or name.startswith('uv-'):
+    if not uv or name.endswith('-uv'):
         return name
     try:
         return _UV_BACKENDS[name]
