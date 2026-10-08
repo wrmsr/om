@@ -648,16 +648,16 @@
     }
   },
   {
-    "module": ".ui.tui.__main__",
+    "module": ".ui.__main__",
     "attr": null,
-    "file": "omllm/ui/tui/__main__.py",
+    "file": "omllm/ui/__main__.py",
     "line": 1,
     "value": {
       "!omdev.cli.types.CliModule": {
         "name": [
           "llm"
         ],
-        "module": "omllm.ui.tui.__main__"
+        "module": "omllm.ui.__main__"
       }
     }
   }

@@ -21,9 +21,9 @@ def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
     main: ta.Any
 
     if ns.bare:
-        from .bare import main
+        from .tui.bare import main
     else:
-        from .minitui import main
+        from .tui.minitui import main
 
     main._main(args)  # noqa
 
