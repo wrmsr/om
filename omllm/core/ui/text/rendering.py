@@ -3,6 +3,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.text import diffs
 
 from .types import CanText
 from .types import DiffText
@@ -21,6 +22,10 @@ class TextRenderingOptions:
     density: ta.Literal['pretty', 'compact', None] = None
 
     json_style: JsonTextStyle = JsonTextStyle.DEFAULT
+
+    # How a frontend drawing diffs lays out their hunks - side by side, or one beneath the other. None leaves it to the
+    # diff renderer, which chooses by the width it is given.
+    diff_layout: diffs.DiffLayout | None = None
 
 
 class TextRenderer(lang.Abstract, ta.Generic[O]):
@@ -43,6 +48,10 @@ def resolve_json_text_style(
         .merge(options.json_style)
         .merge(style)
     )
+
+
+def resolve_diff_layout(options: TextRenderingOptions) -> diffs.DiffLayout:
+    return options.diff_layout if options.diff_layout is not None else 'auto'
 
 
 ##

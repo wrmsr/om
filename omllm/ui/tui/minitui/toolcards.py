@@ -2,7 +2,7 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from ....core import ui
-from ..rendering import render_text_rows
+from ..rendering import TextRowsRenderer
 
 
 ##
@@ -40,16 +40,17 @@ def tool_call_summary(context: agn.ToolContext) -> str | None:
     return summary
 
 
-def card_text_rows(text: ui.CanText, width: int) -> list[list[mt.Segment]]:
+def card_text_rows(
+        renderer: TextRowsRenderer,
+        text: ui.CanText,
+        width: int,
+) -> list[list[mt.Segment]]:
     """
     UI text as card detail rows, laid out for the width beside the card's detail indent so the card never re-wraps it -
     fixed-width layouts like a rendered diff stay intact.
     """
 
-    rows = render_text_rows(
-        ui.StyledTextRenderer().render(text),
-        max(width - mt.CARD_DETAIL_INDENT, 1),
-    )
+    rows = renderer.render_rows(max(width - mt.CARD_DETAIL_INDENT, 1), text)
 
     # Text ending in a newline leaves the cursor on a fresh, empty row, which is not a row of the text.
     if rows and not rows[-1]:

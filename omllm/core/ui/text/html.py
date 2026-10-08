@@ -18,6 +18,7 @@ from omcore.text.pdcmark.rendering import html as pdcmark_html
 
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
+from .rendering import resolve_diff_layout
 from .styled import StyledTextBlock
 from .styled import StyledTextRenderer
 from .themes import UI_TEXT_STYLE_THEME
@@ -91,9 +92,10 @@ class HtmlTextRenderer(TextRenderer[str]):
 
         check.arg(diff_width >= 20)
 
+        self._options = options if options is not None else TextRenderingOptions()
         self._theme = theme if theme is not None else UI_TEXT_STYLE_THEME
         self._diff_width = diff_width
-        self._styled_renderer = styled_renderer if styled_renderer is not None else StyledTextRenderer(options)
+        self._styled_renderer = styled_renderer if styled_renderer is not None else StyledTextRenderer(self._options)
 
     def _render_inline(self, text: st.StyledText) -> str:
         return f'<span style="white-space:pre-wrap">{hst.render_html(text, theme=self._theme)}</span>'
@@ -110,6 +112,7 @@ class HtmlTextRenderer(TextRenderer[str]):
         document = diffs.render_diff_styled_doc(
             diffs.parse_patch(''.join(block.diff_lines)),
             width=self._diff_width,
+            layout=resolve_diff_layout(self._options),
         )
 
         # The diff's own colors win over any inherited ones so its rows stay coherent on any page, while inherited flags

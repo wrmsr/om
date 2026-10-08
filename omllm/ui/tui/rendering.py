@@ -49,36 +49,24 @@ def _block_base(block: ui.StyledTextBlock) -> mt.Style:
     return UI_TEXT_THEME.resolve_refs(block.styles)
 
 
-def render_text_part_rows(
-        part: ui.StyledTextPart,
-        width: int,
-) -> list[list[mt.Segment]]:
-    """Render one target-neutral UI text part into width-safe, fully resolved minitui rows."""
+class TextRowsRenderer:
+    """
+    Lowers UI text into width-safe, fully resolved minitui rows: the one layout every terminal frontend shares, whether
+    its rows go to a live surface or out as ANSI.
+    """
 
-    if width < 1:
-        raise ValueError(width)
+    def __init__(self, options: ui.TextRenderingOptions | None = None) -> None:
+        super().__init__()
 
-    if isinstance(part, st.StyledText):
-        return _wrap_segment_rows(
-            mt.styled_text_to_segment_lines(part, theme=UI_TEXT_THEME),
-            width,
-        )
+        self._options = options if options is not None else ui.TextRenderingOptions()
+        self._styled_renderer = ui.StyledTextRenderer(self._options)
 
-    if not isinstance(part, ui.StyledTextBlock):
-        raise TypeError(part)
-
-    block = part.block
-    base = _block_base(part)
-
-    if isinstance(block, ui.MarkdownText):
-        rows = mt.render_markdown_blocks(
-            mt.parse_markdown_with(mt.get_markdown_stream(), block.s),
-            width,
-            highlighter=hl.highlight_code,
-        )
-        return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
-
-    if isinstance(block, ui.DiffText):
+    def _render_diff_rows(
+            self,
+            block: ui.DiffText,
+            width: int,
+            base: mt.Style,
+    ) -> list[list[mt.Segment]]:
         if width < 20:
             rows = mt.render_markdown_block(
                 mt.MdCode('diff', tuple(line.rstrip('\n') for line in block.diff_lines)),
@@ -90,31 +78,68 @@ def render_text_part_rows(
         document = diffs.render_diff_styled_doc(
             diffs.parse_patch(''.join(block.diff_lines)),
             width=width,
+            layout=ui.resolve_diff_layout(self._options),
         )
         return [
             mt.styled_text_to_segment_lines(line, theme=UI_DIFF_THEME, base=base)[0]
             for line in document.lines
         ]
 
-    raise TypeError(block)
+    def render_part_rows(
+            self,
+            part: ui.StyledTextPart,
+            width: int,
+    ) -> list[list[mt.Segment]]:
+        """Render one target-neutral UI text part into width-safe, fully resolved minitui rows."""
 
+        if width < 1:
+            raise ValueError(width)
 
-def render_text_rows(
-        rendering: ui.StyledTextRendering,
-        width: int,
-) -> list[list[mt.Segment]]:
-    """Render a complete mixed inline/block UI text result into minitui rows."""
+        if isinstance(part, st.StyledText):
+            return _wrap_segment_rows(
+                mt.styled_text_to_segment_lines(part, theme=UI_TEXT_THEME),
+                width,
+            )
 
-    rows: list[list[mt.Segment]] = []
-    previous: ui.StyledTextPart | None = None
-    for part in rendering.parts:
-        # A trailing empty row is the cursor position after an inline newline. The following part begins on that row;
-        # extending blindly would manufacture an additional blank line.
-        if isinstance(previous, st.StyledText) and previous.plain.endswith('\n'):
-            rows.pop()
-        rows.extend(render_text_part_rows(part, width))
-        previous = part
-    return rows
+        if not isinstance(part, ui.StyledTextBlock):
+            raise TypeError(part)
+
+        block = part.block
+        base = _block_base(part)
+
+        if isinstance(block, ui.MarkdownText):
+            rows = mt.render_markdown_blocks(
+                mt.parse_markdown_with(mt.get_markdown_stream(), block.s),
+                width,
+                highlighter=hl.highlight_code,
+            )
+            return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
+
+        if isinstance(block, ui.DiffText):
+            return self._render_diff_rows(block, width, base)
+
+        raise TypeError(block)
+
+    def render_styled_rows(
+            self,
+            rendering: ui.StyledTextRendering,
+            width: int,
+    ) -> list[list[mt.Segment]]:
+        """Render a complete mixed inline/block UI text result into minitui rows."""
+
+        rows: list[list[mt.Segment]] = []
+        previous: ui.StyledTextPart | None = None
+        for part in rendering.parts:
+            # A trailing empty row is the cursor position after an inline newline. The following part begins on that
+            # row; extending blindly would manufacture an additional blank line.
+            if isinstance(previous, st.StyledText) and previous.plain.endswith('\n'):
+                rows.pop()
+            rows.extend(self.render_part_rows(part, width))
+            previous = part
+        return rows
+
+    def render_rows(self, width: int, *ts: ui.CanText) -> list[list[mt.Segment]]:
+        return self.render_styled_rows(self._styled_renderer.render(*ts), width)
 
 
 ##
@@ -141,6 +166,7 @@ class TerminalTextRenderer(ui.TextRenderer[str]):
         self._width = width
         self._color_depth = color_depth
         self._styled_renderer = styled_renderer if styled_renderer is not None else ui.StyledTextRenderer(options)
+        self._rows_renderer = TextRowsRenderer(options)
 
     def render(self, *ts: ui.CanText) -> str:
         rendering = self._styled_renderer.render(*ts)
@@ -171,7 +197,7 @@ class TerminalTextRenderer(ui.TextRenderer[str]):
                         depth=self._color_depth,
                     ))
             else:
-                rows = render_text_part_rows(part, self._width)
+                rows = self._rows_renderer.render_part_rows(part, self._width)
                 if self._color_depth is None:
                     write('\n'.join(mt.segments_text(row) for row in rows) + '\n')
                 else:
@@ -192,7 +218,10 @@ class TerminalTextDisplayer(ui.TextDisplayer):
             *,
             file: lang.SupportsWrite[str] | None = None,
             renderer: TerminalTextRenderer | None = None,
+            options: ui.TextRenderingOptions | None = None,
     ) -> None:
+        """The `options` are those of the renderer built when none is given."""
+
         super().__init__()
 
         self._file = file if file is not None else sys.stdout
@@ -201,6 +230,7 @@ class TerminalTextDisplayer(ui.TextDisplayer):
             isatty = getattr(self._file, 'isatty', None)
             terminal = bool(isatty()) if callable(isatty) else False
             renderer = TerminalTextRenderer(
+                options,
                 width=shutil.get_terminal_size((80, 24)).columns if terminal else 80,
                 color_depth=tst.detect_color_depth() if terminal else None,
             )
@@ -210,5 +240,5 @@ class TerminalTextDisplayer(ui.TextDisplayer):
         self._file.write(self._renderer.render(*texts))
 
 
-def build_terminal_text_displayer() -> TerminalTextDisplayer:
-    return TerminalTextDisplayer()
+def build_terminal_text_displayer(options: ui.TextRenderingOptions) -> TerminalTextDisplayer:
+    return TerminalTextDisplayer(options=options)

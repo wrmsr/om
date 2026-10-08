@@ -14,6 +14,7 @@ from omcore import check
 from omdev import minitui as mt
 
 from .... import agent as agn
+from ..rendering import TextRowsRenderer
 from .app import MinituiChatApp
 from .toolcards import card_text_rows
 from .toolcards import tool_call_summary
@@ -24,10 +25,16 @@ from .toolcards import tool_card_key
 
 
 class CardPermissionAsker(agn.PermissionAsker):
-    def __init__(self, *, app: MinituiChatApp) -> None:
+    def __init__(
+            self,
+            *,
+            app: MinituiChatApp,
+            text_renderer: TextRowsRenderer | None = None,
+    ) -> None:
         super().__init__()
 
         self._app = app
+        self._text_renderer = text_renderer if text_renderer is not None else TextRowsRenderer()
 
     async def ask(
             self,
@@ -43,7 +50,7 @@ class CardPermissionAsker(agn.PermissionAsker):
             [mt.Segment(f'rule: {rule!r}', 'card.detail')],
         ]
         if (preview := request.preview) is not None:
-            detail_rows.extend(card_text_rows(preview, self._app.width))
+            detail_rows.extend(card_text_rows(self._text_renderer, preview, self._app.width))
 
         def respond(allowed: bool) -> None:
             if not fut.done():

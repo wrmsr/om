@@ -20,7 +20,14 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .styled import (  # noqa
+        DiffLayout,
+        DIFF_LAYOUTS,
         DiffStyledDocOptions,
+
+        DiffHunkLayout,
+        SplitDiffHunkLayout,
+        UnifiedDiffHunkLayout,
+
         DiffStyledDocRenderer,
         render_diff_styled_doc,
     )

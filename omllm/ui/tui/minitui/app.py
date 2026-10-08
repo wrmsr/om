@@ -20,7 +20,7 @@ from omdev import minitui as mt
 from omdev import repl
 
 from ....core import ui
-from ..rendering import render_text_rows
+from ..rendering import TextRowsRenderer
 
 
 CardRows: ta.TypeAlias = tuple[tuple[mt.Segment, ...], ...]
@@ -294,12 +294,15 @@ class MinituiChatApp(mt.App):
     def __init__(
             self,
             driver: mt.AsyncioDriver,
+            *,
+            text_renderer: TextRowsRenderer | None = None,
     ) -> None:
         """With `browse_type_returns`, typing a printable key while browsing returns to the live view and types it."""
 
         super().__init__()
 
         self._driver = driver
+        self._text_renderer = text_renderer if text_renderer is not None else TextRowsRenderer()
 
         self._tail = mt.MarkdownTail(backend=mt.get_markdown_stream())
         self._spinner = mt.Spinner()
@@ -416,8 +419,7 @@ class MinituiChatApp(mt.App):
         self.display_rows(out)
 
     def display_ui_text(self, *texts: ui.CanText) -> None:
-        rendering = ui.StyledTextRenderer().render(*texts)
-        rows = render_text_rows(rendering, self.width)
+        rows = self._text_renderer.render_rows(self.width, *texts)
         if rows and not rows[-1]:
             rows = rows[:-1]
         self.display_rows(rows)

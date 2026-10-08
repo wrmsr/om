@@ -3,7 +3,8 @@ import pathlib
 
 from ...term import styled as tst
 from .. import diffs
-from .styled import render_diff_styled_doc
+from .styled.options import DiffLayout
+from .styled.rendering import render_diff_styled_doc
 from .themes import DIFF_STYLE_THEME
 
 
@@ -17,6 +18,7 @@ def render_diff_ansi(
         width: int = 80,
         tab_size: int = 4,
         syntax_highlighting: bool = True,
+        layout: DiffLayout = 'auto',
         color_depth: tst.ColorDepth = tst.ColorDepth.TRUE,
 ) -> str:
     doc = render_diff_styled_doc(
@@ -25,6 +27,7 @@ def render_diff_ansi(
         width=width,
         tab_size=tab_size,
         syntax_highlighting=syntax_highlighting,
+        layout=layout,
     )
 
     return tst.render_ansi(

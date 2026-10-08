@@ -7,6 +7,7 @@ from ... import lang
 from ...argparse import all as ap
 from ...term import styled as tst
 from .parsing import parse_patch
+from .styled.options import DIFF_LAYOUTS
 from .types import ExtendedHeaderKind
 from .types import FilePatch
 from .types import PatchSet
@@ -142,6 +143,7 @@ class Cli(ap.Cli):
         ap.arg('file', nargs='?'),
         ap.arg('-r', '--root'),
         ap.arg('-w', '--width', type=int),
+        ap.arg('-l', '--layout', choices=DIFF_LAYOUTS, default='auto'),
         ap.arg('--no-color', action='store_true'),
         ap.arg('--no-syntax', action='store_true'),
     )
@@ -160,6 +162,7 @@ class Cli(ap.Cli):
             project_root,
             width=width,
             syntax_highlighting=not self.args.no_syntax,
+            layout=self.args.layout,
             color_depth=color_depth,
         ))
 

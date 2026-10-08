@@ -14,6 +14,7 @@ from .... import agent as agn
 from .... import llm
 from ....core import ui
 from ..config import Config
+from ..rendering import TextRowsRenderer
 from .app import MinituiChatApp
 from .toolcards import card_text_rows
 from .toolcards import tool_call_summary
@@ -66,12 +67,14 @@ class AgentEventRenderer:
             app: MinituiChatApp,
             text_displayer: ui.TextDisplayer,
             config: Config,
+            text_renderer: TextRowsRenderer | None = None,
     ) -> None:
         super().__init__()
 
         self._app = app
         self._text_displayer = text_displayer
         self._config = config
+        self._text_renderer = text_renderer if text_renderer is not None else TextRowsRenderer()
 
         # Output a running tool has reported so far, by card, shown live in its detail.
         self._tool_output: dict[str, str] = {}
@@ -104,7 +107,7 @@ class AgentEventRenderer:
 
         # What the tool has to show the user, where it has something.
         if display := result.display:
-            return card_text_rows(display, self._app.width)
+            return card_text_rows(self._text_renderer, display, self._app.width)
 
         # Details are the structured story where a tool tells one; the model-facing text otherwise.
         if isinstance(d := result.details, agn.ExecToolResultDetails):

@@ -16,6 +16,7 @@ from .....agent.tests.scripted import text_message
 from .....agent.tests.scripted import tool_call_message
 from .....core import ui
 from ...config import Config
+from ...rendering import TextRowsRenderer
 from ..app import AppKey
 from ..input import CardPermissionAsker
 from ..output import AgentEventRenderer
@@ -39,8 +40,10 @@ _DIFF_HEADER = '(1 additions, 1 removals)'
 
 
 class _Run:
-    def __init__(self, tmp_path, *, write_state):
+    def __init__(self, tmp_path, *, write_state, text_renderer=None):
         super().__init__()
+
+        self.text_renderer = text_renderer
 
         self.root = os.path.realpath(tmp_path)
         self.path = os.path.join(self.root, 'f.py')
@@ -57,7 +60,7 @@ class _Run:
                 agn.PermissionRule(agn.GlobFsPermissionMatcher(workspace, ['r']), agn.PermissionState.ALLOW),
                 agn.PermissionRule(agn.GlobFsPermissionMatcher(workspace, ['w']), write_state),
             ]),
-            asker=CardPermissionAsker(app=self.app),
+            asker=CardPermissionAsker(app=self.app, text_renderer=text_renderer),
         )
 
         self.backend = scripted_backend(
@@ -81,7 +84,12 @@ class _Run:
             tool_env=agn.ToolEnvironment(cwd=self.root),
         ))
 
-        renderer = AgentEventRenderer(app=self.app, text_displayer=MinituiTextDisplayer(app=self.app), config=Config())
+        renderer = AgentEventRenderer(
+            app=self.app,
+            text_displayer=MinituiTextDisplayer(app=self.app),
+            config=Config(),
+            text_renderer=self.text_renderer,
+        )
         agent.subscribe(renderer.on_agent_event)
 
         self.pump = PromptPump(agent=agent, app=self.app)
@@ -120,7 +128,8 @@ async def test_edit_is_confirmed_over_its_diff_and_commits_it(tmp_path):
     diff = next(i for i, line in enumerate(lines) if _DIFF_HEADER in line)
     choice = next(i for i, line in enumerate(lines) if 'allow (f10)' in line)
     assert header < diff < choice
-    assert any('two' in line and 'TWO' in line for line in lines[diff:choice])
+    assert any('two' in line for line in lines[diff:choice])
+    assert any('TWO' in line for line in lines[diff:choice])
 
     run.app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_ALLOW)))
     await run.finish()
@@ -173,12 +182,37 @@ async def test_edit_allowed_outright_still_commits_its_diff(tmp_path):
     await run.pump.aclose()
 
 
+@pytest.mark.parametrize(('layout', 'same_row'), [('split', True), ('unified', False)])
+@pytest.mark.asyncs('asyncio')
+async def test_cards_lay_diffs_out_as_configured(tmp_path, layout, same_row):
+    run = _Run(
+        tmp_path,
+        write_state=agn.PermissionState.ASK,
+        text_renderer=TextRowsRenderer(ui.TextRenderingOptions(diff_layout=layout)),
+    )
+    await run.start()
+
+    await settle(lambda: run.shows('awaiting confirmation'), max_steps=200)
+    lines = run.frame()
+
+    # Side by side the old and new lines share a row; one beneath the other they each get their own, marked.
+    assert any('two' in line and 'TWO' in line for line in lines) is same_row
+    if not same_row:
+        assert any(' - two' in line for line in lines)
+        assert any(' + TWO' in line for line in lines)
+
+    run.app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_DENY)))
+    await run.finish()
+    await run.pump.aclose()
+
+
 ##
 
 
 def test_card_text_rows_fit_beside_the_detail_indent():
     width = 60
-    rows = card_text_rows(['changing:\n', ui.DiffText(old='a\nb\n', new='a\nB\n', path='f.py')], width)
+    renderer = TextRowsRenderer()
+    rows = card_text_rows(renderer, ['changing:\n', ui.DiffText(old='a\nb\n', new='a\nB\n', path='f.py')], width)
 
     assert mt.segments_text(rows[0]) == 'changing:'
     assert any(_DIFF_HEADER in mt.segments_text(row) for row in rows)
@@ -189,7 +223,7 @@ def test_card_text_rows_fit_beside_the_detail_indent():
     assert len(card.render(width)) == 1 + len(rows)
 
     # A trailing newline ends the text's last row rather than starting another.
-    assert [mt.segments_text(row) for row in card_text_rows('x\n', width)] == ['x']
+    assert [mt.segments_text(row) for row in card_text_rows(renderer, 'x\n', width)] == ['x']
 
 
 def test_tool_call_summary_flattens_ui_text():

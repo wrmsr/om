@@ -70,6 +70,8 @@ DIFF_STYLE_THEME = st.StyleTheme({
 
     'diff.code': st.StylePatch(fg=CODE_FOREGROUND, bg=CODE_BACKGROUND),
     'diff.gutter': st.StylePatch(fg=COMMENT, dim=True),
+    'diff.marker.remove': st.StylePatch(fg=RED, bold=True),
+    'diff.marker.add': st.StylePatch(fg=GREEN, bold=True),
     'diff.indent': st.StylePatch(fg=COMMENT, dim=True),
     'diff.padding': st.StylePatch(fg=CODE_BACKGROUND, bg=DIFF_BACKGROUND),
     'diff.line.remove': st.StylePatch(bg=REMOVED_BACKGROUND),
