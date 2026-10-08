@@ -55,7 +55,7 @@ def _process(
         load_secrets=None,
 ) -> _Run:
     cwd = tmp_path / 'cwd'
-    cwd.mkdir()
+    cwd.mkdir(parents=True)
     if with_git:
         (cwd / '.git').mkdir()
 
@@ -114,9 +114,17 @@ def test_defaults(tmp_path):
     assert run.staging_dir is None
 
 
-def test_unknown_args_replace_the_defaults(tmp_path):
+def test_unknown_args_are_forwarded_alongside_the_defaults(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, unknown_args=['--name=x', '-d']))
-    assert run.options == sorted(['--name=x', '-d', _HOST_PLATFORM, _LABEL])
+    assert run.options == sorted(['--rm', '-it', '--name=x', '-d', _HOST_PLATFORM, _LABEL])
+
+
+def test_defaults_can_be_disabled(tmp_path):
+    assert '--rm' not in _process(tmp_path / 'a', RunArgs(id=_RUN_ID, no_rm=True)).options
+    assert '-it' not in _process(tmp_path / 'b', RunArgs(id=_RUN_ID, no_it=True)).options
+
+    run = _process(tmp_path / 'c', RunArgs(id=_RUN_ID, no_rm=True, no_it=True))
+    assert run.options == sorted([_HOST_PLATFORM, _LABEL])
 
 
 def test_simple_options(tmp_path):
@@ -362,6 +370,8 @@ def test_kitchen_sink(tmp_path):
     )
 
     assert run.options == sorted([
+        '--rm',
+        '-it',
         '--name=sink',
         '--privileged',
         '--mount=type=volume,src=om-dockerdev-cache,dst=/cache',

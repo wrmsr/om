@@ -107,8 +107,48 @@ class Cli(ap.Cli):
 
         print(sha)
 
+    def _build_run_args(self) -> RunArgs:
+        # The command starts at the first argument which is not an option, or after a `--` ending the options - which
+        # argparse leaves at the head of the remainder, and is dropped here. A later `--` belongs to the command.
+        extra_args = list(self.args.args or [])
+        if extra_args[:1] == ['--']:
+            extra_args = extra_args[1:]
+
+        return RunArgs(
+            verbose=bool(self.args.verbose),
+
+            no_rm=bool(self.args.no_rm),
+            no_it=bool(self.args.no_it),
+
+            mounts=self.args.mount,
+            mount_caches=bool(self.args.mount_caches),
+            mount_docker_sock=bool(self.args.mount_docker_sock),
+            mount_git=bool(self.args.mount_git),
+            clone_mount_git=bool(self.args.clone_mount_git),
+
+            privileged=bool(self.args.privileged),
+
+            offline=bool(self.args.offline),
+
+            no_host_platform=bool(self.args.no_host_platform),
+
+            autoexecs=self.args.autoexec,
+
+            x11=bool(self.args.x11),
+
+            inject_secrets_pats=self.args.inject_secrets,
+
+            shift_uid=self._get_args_shift_uid(),
+
+            unknown_args=self.unknown_args or None,
+            extra_args=extra_args or None,
+        )
+
     @ap.cmd(
         ap.arg('-v', '--verbose', action='store_true'),
+
+        ap.arg('--no-rm', action='store_true'),
+        ap.arg('--no-it', action='store_true'),
 
         ap.arg('--mount', action='append'),
         ap.arg('-C', '--mount-caches', action='store_true'),
@@ -139,32 +179,7 @@ class Cli(ap.Cli):
         run_image(
             self._load_config(),
 
-            RunArgs(
-                verbose=bool(self.args.verbose),
-
-                mounts=self.args.mount,
-                mount_caches=bool(self.args.mount_caches),
-                mount_docker_sock=bool(self.args.mount_docker_sock),
-                mount_git=bool(self.args.mount_git),
-                clone_mount_git=bool(self.args.clone_mount_git),
-
-                privileged=bool(self.args.privileged),
-
-                offline=bool(self.args.offline),
-
-                no_host_platform=bool(self.args.no_host_platform),
-
-                autoexecs=self.args.autoexec,
-
-                x11=bool(self.args.x11),
-
-                inject_secrets_pats=self.args.inject_secrets,
-
-                shift_uid=self._get_args_shift_uid(),
-
-                unknown_args=self.unknown_args,
-                extra_args=self.args.args,
-            ),
+            self._build_run_args(),
 
             host=RunHost.current(
                 load_secrets=load_secrets,

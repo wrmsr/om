@@ -75,6 +75,9 @@ with lang.auto_proxy_import(globals()):
 class RunArgs:
     verbose: bool = False
 
+    no_rm: bool = False
+    no_it: bool = False
+
     mounts: ta.Sequence[str] | None = None
     mount_caches: bool = False
     mount_docker_sock: bool = False
@@ -244,15 +247,16 @@ class RunStep(lang.Abstract):
 
 
 class BaseOptionsRunStep(RunStep):
-    """The options passed through unrecognized from the command line, or else `--rm -it`."""
-
-    # FIXME: any unrecognized option at all drops the defaults, rather than only one which conflicts with them.
+    """`--rm` and `-it` unless disabled, and the options passed through unrecognized from the command line."""
 
     def apply(self, plan: RunPlan) -> None:
+        if not plan.args.no_rm:
+            plan.add_options('--rm')
+        if not plan.args.no_it:
+            plan.add_options('-it')
+
         if plan.args.unknown_args:
             plan.add_options(*plan.args.unknown_args)
-        else:
-            plan.add_options('--rm', '-it')
 
 
 class PrivilegedRunStep(RunStep):
