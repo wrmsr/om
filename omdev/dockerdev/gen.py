@@ -175,6 +175,8 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
 
     ops.append(chgrp_fragment_section('zig'))
 
+    # ops.append(chgrp_fragment_section('v'))
+
     ops.append(chgrp_fragment_section('vcpkg'))
 
     ops.append(chgrp_fragment_section(

@@ -23,7 +23,7 @@ nvm_versions = [
     '26',
 ]
 
-rbenv_versions = [
+rbenv_versions =    [
     '3.4',
     '4.0',
 ]
