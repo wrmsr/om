@@ -42,11 +42,13 @@ from omcore import lang
 from omcore import marshal as msh
 from omcore.argparse import all as ap
 
+from ..home.secrets import load_secrets
 from .build import build_image
 from .config import Config
 from .gen import gen_src
 from .run import ID_LABEL
 from .run import RunArgs
+from .run import RunHost
 from .run import run_image
 
 
@@ -162,6 +164,10 @@ class Cli(ap.Cli):
 
                 unknown_args=self.unknown_args,
                 extra_args=self.args.args,
+            ),
+
+            host=RunHost.current(
+                load_secrets=load_secrets,
             ),
 
             write_to_db=bool(self.args.db),
