@@ -1,12 +1,18 @@
 import difflib
 import os.path
 
+import pytest
+
 from .... import styled as st
 from ....styled import grid
 from ...newlines import split_newlines
 from ...parsing import parse_patch
+from ..options import DiffContextLimits
+from ..options import DiffStyledDocOptions
+from ..rendering import DiffStyledDocRenderer
 from ..rendering import render_diff_styled_doc
 from ..sources import DictDiffFileSource
+from ..sources import DiffFileSource
 from ..sources import DiffFileTexts
 from ..sources import FilesystemDiffFileSource
 from ..sources import texts_match_hunks
@@ -162,3 +168,66 @@ def test_control_characters_in_code_are_shown_not_passed_through():
         assert '\x1b' not in document.plain
         assert '␛[31mred' in document.plain
         assert all(grid.cell_width(line) == 60 for line in document.lines if line)
+
+
+##
+
+
+def test_context_limits_count_lines_and_utf8_bytes():
+    limits = DiffContextLimits(max_lines=2, max_bytes=8)
+
+    assert limits.admits(['ab', 'cd'])
+    assert not limits.admits(['a', 'b', 'c'])
+    assert not limits.admits(['abcd', 'efgh'])
+
+    # Counted as the file's bytes, not its characters: four two-byte characters and a newline.
+    assert not limits.admits(['\u00e9' * 4])
+
+    assert limits.admits_size(8)
+    assert not limits.admits_size(9)
+
+    assert DiffContextLimits(max_lines=None, max_bytes=None).admits(['x'] * 100_000)
+
+    with pytest.raises(Exception):  # noqa
+        DiffContextLimits(max_lines=-1)
+
+
+class _SizedDiffFileSource(DiffFileSource):
+    """Knows a file's size without reading it - and notes whether it was read all the same."""
+
+    def __init__(self, size, texts):
+        super().__init__()
+
+        self._size = size
+        self._texts = texts
+
+        self.read = False
+
+    def get_texts(self, patch):
+        self.read = True
+        return self._texts
+
+    def get_target_size(self, patch):
+        return self._size
+
+
+def test_a_file_over_the_context_limits_is_highlighted_by_its_hunks_alone():
+    patch = _patch(_DOC_OLD, _DOC_NEW)
+    texts = DiffFileTexts(source=split_newlines(_DOC_OLD), target=split_newlines(_DOC_NEW))
+
+    def render(file_source, **limits):
+        options = DiffStyledDocOptions(width=80, layout='unified', context_limits=DiffContextLimits(**limits))
+        return DiffStyledDocRenderer(options, file_source=file_source).render(patch)
+
+    in_hand = DictDiffFileSource({'f.py': texts})
+    assert _changed_row_is_string(render(in_hand))
+    assert not _changed_row_is_string(render(in_hand, max_lines=10))
+    assert not _changed_row_is_string(render(in_hand, max_bytes=100))
+
+    # Where the source knows the size up front, a file over the limit is never read at all.
+    sized = _SizedDiffFileSource(10_000, texts)
+    assert not _changed_row_is_string(render(sized, max_bytes=1_000))
+    assert not sized.read
+
+    assert _changed_row_is_string(render(sized, max_bytes=None))
+    assert sized.read

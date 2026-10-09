@@ -23,6 +23,7 @@ with _lang.auto_proxy_init(globals()):
     from .options import (  # noqa
         DiffLayout,
         DIFF_LAYOUTS,
+        DiffContextLimits,
         DiffStyledDocOptions,
     )
 

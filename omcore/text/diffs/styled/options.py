@@ -33,6 +33,46 @@ DiffLayout: ta.TypeAlias = ta.Literal[
 DIFF_LAYOUTS: ta.Sequence[DiffLayout] = ta.get_args(DiffLayout)
 
 
+def _check_limit(value: int | None) -> None:
+    if value is not None:
+        check.arg(isinstance(value, int) and not isinstance(value, bool) and value >= 0)
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class DiffContextLimits(lang.Final):
+    """
+    How big a file a document will highlight whole, for context its hunks lack on their own. Whole-file highlighting
+    takes time in proportion to the file - some tens of microseconds a line, in a terminal ui on its event loop - so a
+    bigger file's hunks are highlighted on their own instead. None is no limit.
+    """
+
+    # About 80ms of highlighting.
+    max_lines: int | None = 2_000
+
+    # A catch for few, long lines - minified or generated text - which a line count lets through.
+    max_bytes: int | None = 256 * 1024
+
+    def __post_init__(self) -> None:
+        _check_limit(self.max_lines)
+        _check_limit(self.max_bytes)
+
+    def admits_size(self, size: int) -> bool:
+        return self.max_bytes is None or size <= self.max_bytes
+
+    def admits(self, lines: ta.Sequence[str]) -> bool:
+        if self.max_lines is not None and len(lines) > self.max_lines:
+            return False
+
+        if self.max_bytes is not None:
+            size = 0
+            for line in lines:
+                size += len(line.encode('utf-8', 'surrogatepass')) + 1
+                if size > self.max_bytes:
+                    return False
+
+        return True
+
+
 @dc.dataclass(frozen=True)
 class DiffStyledDocOptions(lang.Final):
     width: int = 80
@@ -49,12 +89,15 @@ class DiffStyledDocOptions(lang.Final):
     # on ordinary lines. Unified never truncates sooner than split, so it gets everything narrower.
     auto_split_width: int = 160
 
+    context_limits: DiffContextLimits = DiffContextLimits()
+
     def __post_init__(self) -> None:
         check.arg(isinstance(self.width, int) and not isinstance(self.width, bool) and self.width >= 20)
         check.arg(isinstance(self.tab_size, int) and not isinstance(self.tab_size, bool) and self.tab_size >= 1)
         check.arg(isinstance(self.syntax_highlighting, bool))
         check.in_(self.layout, DIFF_LAYOUTS)
         check.arg(isinstance(self.auto_split_width, int) and not isinstance(self.auto_split_width, bool))
+        check.isinstance(self.context_limits, DiffContextLimits)
 
     @property
     def resolved_layout(self) -> ta.Literal['split', 'unified']:

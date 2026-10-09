@@ -88,7 +88,7 @@ class TextRowsRenderer:
             document = ui.render_diff_text_doc(
                 block,
                 width=width,
-                layout=ui.resolve_diff_layout(self._options),
+                options=self._options,
             )
         except diffs.DiffParseError:
             # A diff is often drawn mid-tool - as the preview a permission is asked over - so one that will not lay out

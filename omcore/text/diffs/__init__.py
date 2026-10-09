@@ -40,6 +40,7 @@ with _lang.auto_proxy_init(globals()):
     from .styled import (  # noqa
         DiffLayout,
         DIFF_LAYOUTS,
+        DiffContextLimits,
         DiffStyledDocOptions,
 
         DiffHunkLayout,

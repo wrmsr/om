@@ -6,6 +6,7 @@ from omcore.text import styled as st
 
 from ..diffdocs import render_diff_text_doc
 from ..html import HtmlTextRenderer
+from ..rendering import TextRenderingOptions
 from ..styled import StyledTextBlock
 from ..styled import StyledTextRenderer
 from ..types import DiffText
@@ -94,10 +95,18 @@ def test_diff_docs_highlight_hunks_with_the_whole_file():
     old = '\n'.join(['def f():', '    """', *[f'    line {i}' for i in range(10)], '    """', ''])
     d = DiffText(old=old, new=old.replace('line 6', 'LINE 6'), path='/w/f.py')
 
-    document = render_diff_text_doc(d, width=80, layout='unified')
+    def changed_row_is_string(**kwargs):
+        options = TextRenderingOptions(diff_layout='unified', **kwargs)
+        document = render_diff_text_doc(d, width=80, options=options)
+        row = next(line for line in document.lines if 'LINE 6' in line.text)
+        return st.StyleName('code.string') in row.style_at(row.text.index('LINE 6'))
 
-    row = next(line for line in document.lines if 'LINE 6' in line.text)
-    assert st.StyleName('code.string') in row.style_at(row.text.index('LINE 6'))
+    assert changed_row_is_string()
+
+    # Past the context limits the hunks are highlighted on their own, and this one cannot tell it is in a string.
+    assert not changed_row_is_string(diff_context_limits=diffs.DiffContextLimits(max_lines=10))
+    assert not changed_row_is_string(diff_context_limits=diffs.DiffContextLimits(max_bytes=100))
+    assert changed_row_is_string(diff_context_limits=diffs.DiffContextLimits(max_lines=None, max_bytes=None))
 
 
 def test_html_shows_a_diff_that_will_not_lay_out_as_plain_text():

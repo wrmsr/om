@@ -39,7 +39,10 @@ class DiffFileSource(lang.Abstract):
 
     @abc.abstractmethod
     def get_target_size(self, patch: diffs.FilePatch) -> int | None:
-        """The size in bytes of the file as the patch leaves it, as shown for a binary file."""
+        """
+        The size in bytes of the file as the patch leaves it, where it is known without reading the file: shown for a
+        binary file, and checked against a document's context limits before the file's texts are asked for.
+        """
 
         raise NotImplementedError
 

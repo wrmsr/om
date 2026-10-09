@@ -8,6 +8,7 @@ with _lang.auto_proxy_init(
     ##
 
     from .text.diffdocs import (  # noqa
+        build_diff_doc_options,
         render_diff_text_doc,
     )
 
@@ -39,7 +40,6 @@ with _lang.auto_proxy_init(
     from .text.rendering import (  # noqa
         TextRenderer,
         TextRenderingOptions,
-        resolve_diff_layout,
     )
 
     from .text.styled import (  # noqa

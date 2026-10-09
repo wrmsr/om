@@ -19,7 +19,6 @@ from omcore.text.pdcmark.rendering import html as pdcmark_html
 from .diffdocs import render_diff_text_doc
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
-from .rendering import resolve_diff_layout
 from .styled import StyledTextBlock
 from .styled import StyledTextRenderer
 from .themes import UI_TEXT_STYLE_THEME
@@ -114,7 +113,7 @@ class HtmlTextRenderer(TextRenderer[str]):
             document = render_diff_text_doc(
                 block,
                 width=self._diff_width,
-                layout=resolve_diff_layout(self._options),
+                options=self._options,
             )
         except diffs.DiffParseError:
             # A diff which will not lay out still shows, as its plain text.

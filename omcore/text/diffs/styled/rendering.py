@@ -256,7 +256,17 @@ class DiffStyledDocRenderer(lang.Final):
         other version would put the wrong code on every row.
         """
 
-        if self._file_source is None or (texts := self._file_source.get_texts(patch)) is None:
+        if self._file_source is None:
+            return None
+
+        # A file too big to highlight whole is not even read, where the source can tell its size without reading it.
+        limits = self._options.context_limits
+        if (size := self._file_source.get_target_size(patch)) is not None and not limits.admits_size(size):
+            return None
+
+        if (texts := self._file_source.get_texts(patch)) is None:
+            return None
+        if not all(limits.admits(text) for text in (texts.source, texts.target) if text is not None):
             return None
 
         # Only the target stands alone: a source text not given is rebuilt from it and the hunks.

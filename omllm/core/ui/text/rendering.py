@@ -27,6 +27,10 @@ class TextRenderingOptions:
     # diff renderer, which chooses by the width it is given.
     diff_layout: diffs.DiffLayout | None = None
 
+    # How big a diffed file may be for its hunks to be highlighted with the whole file around them. None leaves it to
+    # the diff renderer's defaults.
+    diff_context_limits: diffs.DiffContextLimits | None = None
+
 
 class TextRenderer(lang.Abstract, ta.Generic[O]):
     @abc.abstractmethod
@@ -48,10 +52,6 @@ def resolve_json_text_style(
         .merge(options.json_style)
         .merge(style)
     )
-
-
-def resolve_diff_layout(options: TextRenderingOptions) -> diffs.DiffLayout:
-    return options.diff_layout if options.diff_layout is not None else 'auto'
 
 
 ##
