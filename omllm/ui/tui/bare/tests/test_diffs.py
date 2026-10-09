@@ -54,8 +54,10 @@ class _Run:
         self.out = io.StringIO()
         self.input_manager = _ScriptedInputManager(self.out, answers)
 
-        # The rendered diff's own header line for this one-line change.
+        # The rendered diff's own header line for this one-line change, and a width keeping it whole on one row however
+        # long the temp path is (under xdist or on macos it can overflow any fixed width, cutting off the counts).
         self.diff_header = f'{self.path} (1 additions, 1 removals)'
+        self.width = max(100, len(self.diff_header) + 10)
 
     def read(self):
         with open(self.path) as f:
@@ -75,7 +77,7 @@ class _Run:
             inj.bind(InputManager, to_const=self.input_manager),
             inj.bind(TerminalTextDisplayer, to_const=TerminalTextDisplayer(
                 file=self.out,
-                renderer=TerminalTextRenderer(width=100, color_depth=None),
+                renderer=TerminalTextRenderer(width=self.width, color_depth=None),
             )),
 
             bind_scripted_backend(

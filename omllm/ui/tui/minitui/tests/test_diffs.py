@@ -59,9 +59,10 @@ class _Run:
         with open(self.path, 'w') as f:
             f.write(content)
 
-        # Wide enough for the card's header to keep a temp path and its status on one row.
+        # Wide enough for the card's header, and the diff's, to keep the temp path and their status on one row - however
+        # long that path is (under xdist or on macos it can overflow any fixed width).
         self.app, self.driver = make_app()
-        self.driver.surface.width = 120
+        self.driver.surface.width = max(120, len(self.path) + 60)
 
         workspace = os.path.join(self.root, '**')
         self.decider = agn.StandardPermissionDecider(
@@ -228,11 +229,16 @@ async def test_cards_lay_diffs_out_as_configured(tmp_path, layout, same_row):
     await settle(lambda: run.shows('awaiting confirmation'), max_steps=200)
     lines = run.frame()
 
+    # Only the diff's own rows - the card's args row above it names both strings too.
+    hunk = next(i for i, line in enumerate(lines) if '@@ -1,3 +1,3 @@' in line)
+    choice = next(i for i, line in enumerate(lines) if 'allow (f10)' in line)
+    rows = lines[hunk + 1:choice]
+
     # Side by side the old and new lines share a row; one beneath the other they each get their own, marked.
-    assert any('two' in line and 'TWO' in line for line in lines) is same_row
+    assert any('two' in line and 'TWO' in line for line in rows) is same_row
     if not same_row:
-        assert any(' - two' in line for line in lines)
-        assert any(' + TWO' in line for line in lines)
+        assert any(' - two' in line for line in rows)
+        assert any(' + TWO' in line for line in rows)
 
     run.app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_DENY)))
     await run.finish()
