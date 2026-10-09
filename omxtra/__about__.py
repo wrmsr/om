@@ -29,7 +29,7 @@ class Project(ProjectBase):
         'wiki': [
             'mwparserfromhell ~= 0.7',
 
-            'wikitextparser ~= 2.0',  # !! GPL
+            'wikitextparser ~= 3.0',  # !! GPL
         ],
     }
 
