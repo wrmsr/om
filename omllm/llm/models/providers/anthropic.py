@@ -41,7 +41,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='anthropic',
-            id='claude-fable-5.1',
+            id='claude-fable-5-1',
         ),
         name='Claude Fable 5.1',
         backend='anthropic-messages',
@@ -53,8 +53,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
-        limits=modeldb_model_limits('anthropic', 'claude-fable-5'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-fable-5'),
+        limits=modeldb_model_limits('anthropic', 'claude-fable-5-1'),
+        pricing=modeldb_token_pricing('anthropic', 'claude-fable-5-1'),
         http=_DEFAULT_HTTP,
         default_options=Options(
             max_tokens=128000,
@@ -64,7 +64,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     Model(
         key=ModelKey(
             provider='anthropic',
-            id='claude-opus-5.5',
+            id='claude-opus-5-5',
         ),
         name='Claude Opus 5.5',
         backend='anthropic-messages',
@@ -76,8 +76,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
-        limits=modeldb_model_limits('anthropic', 'claude-opus-5'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-opus-5'),
+        limits=modeldb_model_limits('anthropic', 'claude-opus-5-5'),
+        pricing=modeldb_token_pricing('anthropic', 'claude-opus-5-5'),
         http=_DEFAULT_HTTP,
         default_options=Options(
             max_tokens=128000,
@@ -121,8 +121,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
                 CacheRetention.ONE_HOUR,
             }),
         ),
-        limits=modeldb_model_limits('anthropic', 'claude-haiku-4-5-20251001'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-haiku-4-5-20251001'),
+        limits=modeldb_model_limits('anthropic', 'claude-haiku-5-5'),
+        pricing=modeldb_token_pricing('anthropic', 'claude-haiku-5-5'),
         http=_DEFAULT_HTTP,
         default_options=Options(
             max_tokens=64000,

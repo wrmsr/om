@@ -38,14 +38,14 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='claude-fable',
         aliases=['fable'],
-        key=ModelKey('anthropic', 'claude-fable-5.1'),
+        key=ModelKey('anthropic', 'claude-fable-5-1'),
         api_key_name='anthropic_api_key',
     ),
 
     DefaultModel(
         name='claude-opus',
         aliases=['opus'],
-        key=ModelKey('anthropic', 'claude-opus-5.5'),
+        key=ModelKey('anthropic', 'claude-opus-5-5'),
         api_key_name='anthropic_api_key',
     ),
 
