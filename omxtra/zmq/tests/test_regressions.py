@@ -90,11 +90,19 @@ async def test_connector_retries_after_a_refusal_at_the_connection_limit():
         await dealer.connect(ab.address)
         await asyncio.sleep(.3)
 
-        # Free the slot. The connector to B should retry and connect.
+        # Free the slot. The connector to B should retry and connect. Until the dealer notices A's connection closing -
+        # which may be after A's close returns - a send may still be admitted to it, and lost, as the contract allows:
+        # so probe until one reaches B, which only the retried connection can carry.
         await ra.aclose()
 
-        await dealer.send((b'to b',), timeout=5)
-        assert (await rb.recv(timeout=5)).message == (b'to b',)
+        async with asyncio.timeout(10):
+            while True:
+                await dealer.send((b'to b',), timeout=5)
+                try:
+                    if (await rb.recv(timeout=.2)).message == (b'to b',):
+                        break
+                except ZmqTimeoutError:
+                    pass
 
     finally:
         await be.aclose()
