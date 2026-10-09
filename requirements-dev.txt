@@ -40,7 +40,7 @@ mypy==2.4.0
 astpretty==3.0.0
 
 gprof2dot==2025.4.14
-guppy3==3.1.7  # @om-venv !14t !14dt !15 !15t
+guppy3==3.1.7  # @om-venv !14t !14dt !15 !15t  # TODO: abandoned?
 objgraph==3.6.2
 memray==1.20.0
 
@@ -59,7 +59,7 @@ lxml==6.1.3
 
 
 # Used for tests
-json5==0.15.0
+json5==0.16.0
 
 
 ##
@@ -82,13 +82,13 @@ uvicorn[standard]==0.54.0
 sqlean.py==3.50.4.5
 # git+https://github.com/wrmsr/sqlean.py.git
 
-duckdb==1.5.6  # @om-venv !14t !15t  # SLOW COMPILE
+duckdb==1.5.6  # @om-venv !14t !14dt  # SLOW COMPILE
 
-pycparser==3.1
+pycparser==3.11
 pcpp==1.30
 
 # !! LGPL
-paramiko==5.0.0  # @om-venv !15t
+paramiko==5.0.0
 
 docutils==0.23
 
@@ -101,13 +101,6 @@ mwparserfromhell==0.7.2
 wikitextparser==3.0.0  # !! GPL
 
 numpy==2.5.3
-
-# Deprecated via minitui
-# textual==8.2.8
-# textual[syntax]==8.2.8  # @om-venv !14t !14dt !15t
-# rich==15.0.0
-# textual-dev==1.8.0
-# textual-speedups==0.2.1  # @om-venv !15 !15t
 
 # !! These install but enable the GIL on import
 tree-sitter==0.26.0  # @om-venv !14t !14dt !15t
@@ -127,10 +120,10 @@ tree-sitter-toml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-xml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-yaml==0.7.2  # @om-venv !14t !14dt !15t
 
-snowflake-connector-python[secure-local-storage]==4.8.0  # @om-venv !15t
+snowflake-connector-python[secure-local-storage]==4.8.0
 # snowflake-sqlalchemy==1.7.7
 
-trino==0.340.0  # @om-venv !14t !14dt !15t  # orjson
+trino==0.340.0  # @om-venv !14t !14dt  # orjson
 
 huggingface-hub==1.32.0
 hf-xet==1.6.0
@@ -139,14 +132,14 @@ greenlet==3.5.6
 
 ## NOTE: the following add a full minute to CI just setting up the deps..
 
-datasets==5.0.1  # @om-venv !15 !15t  # !! includes arrow and pandas and shit
+datasets==5.1.0
 
-transformers==5.19.0  # @om-venv !14t !14dt !15t
-sentence-transformers==6.1.0  # @om-venv !14t !14dt !15 !15t
+transformers==5.19.0
+sentence-transformers==6.1.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.2
-tiktoken==0.14.0  # @om-venv !15 !15t
-tokenizers==0.23.2  # @om-venv !14t !14dt !15t
+tiktoken==0.14.0
+tokenizers==0.23.3  # @om-venv !14t !14dt !15t
 
 llama-cpp-python; sys_platform == "darwin"
 
@@ -168,9 +161,9 @@ mlx-lm==0.32.0; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 
 apsw==3.53.4.0
 
-rapidocr==3.10.0  # @om-venv !14t !14dt !15 !15t
-onnxruntime==1.30.0  # @om-venv !14t !14dt !15 !15t
-omegaconf==2.3.1  # @om-venv !14t !14dt !15 !15t
+rapidocr==3.10.0  # @om-venv !14t !14dt !15t
+onnxruntime==1.31.0  # @om-venv !14t !14dt !15 !15t
+omegaconf==2.4.0
 
 pillow==12.3.0
 

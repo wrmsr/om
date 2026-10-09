@@ -1,4 +1,4 @@
-- rapidocr broken lol
 - default to 'best' available
 - actual integration tests lol
 - linux clipboard
+- yank uv rapidocr dep vers out of `__about__.py`

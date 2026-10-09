@@ -27,7 +27,7 @@ class Project(ProjectBase):
         ],
 
         'c': [
-            'pycparser ~= 3.1',
+            'pycparser ~= 3.11',
 
             'pcpp ~= 1.30',
         ],
@@ -38,7 +38,7 @@ class Project(ProjectBase):
 
         'ocr': [
             'rapidocr ~= 3.10',
-            'onnxruntime ~= 1.30',
+            'onnxruntime ~= 1.31',
         ],
 
         'pillow': [
@@ -61,7 +61,7 @@ class Project(ProjectBase):
             'ruff ~= 0.16',
         ],
 
-        # 'sqlrepl': [
+        # 'sqlrepl':
         #     'litecli ~= 1.17',
         #     'mycli ~= 2.17',
         #     'pgcli ~= 4.6',

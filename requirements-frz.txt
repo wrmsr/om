@@ -38,7 +38,7 @@ cramjam==2.13.0
 cryptography==50.0.2
 cycler==0.12.1
 Cython==3.3.0
-datasets==5.0.1
+datasets==5.1.0
 ddgs==9.16.0
 debugpy==1.8.22
 deno==2.9.7
@@ -95,7 +95,7 @@ jedi==0.20.0
 Jinja2==3.1.6
 jmespath==1.1.0
 joblib==1.6.0
-json5==0.15.0
+json5==0.16.0
 keyring==25.7.0
 kiwisolver==1.5.1
 lazy-loader==0.6
@@ -137,8 +137,8 @@ nodeenv==1.11.0
 nodejs-wheel-binaries==24.19.0
 numpy==2.5.3
 objgraph==3.6.2
-omegaconf==2.3.1
-onnxruntime==1.30.0
+omegaconf==2.4.0
+onnxruntime==1.31.0
 opencv-python-headless==5.0.0.93
 opentelemetry-api==1.45.1
 orjson==3.13.0
@@ -169,12 +169,12 @@ ptyprocess==0.7.0
 pudb==2025.1.5
 pure_eval==0.2.4
 py-cpuinfo2==10.1.1
-pyarrow==25.0.1
+pyarrow==26.0.0
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pyclipper==1.4.0
 pycodestyle==2.15.0
-pycparser==3.1
+pycparser==3.11
 pycryptodomex==3.24.0
 pydantic-monty==1.1.0
 pydantic-monty-client==1.1.0
@@ -239,7 +239,7 @@ textual==8.2.8
 threadpoolctl==3.7.0
 tifffile==2026.9.20
 tiktoken==0.14.0
-tokenizers==0.23.2
+tokenizers==0.23.3
 tomlkit==0.15.1
 torch==2.14.1
 torchvision==0.29.1

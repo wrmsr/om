@@ -38,7 +38,7 @@ black = [
     'black ~= 26.10',
 ]
 c = [
-    'pycparser ~= 3.1',
+    'pycparser ~= 3.11',
     'pcpp ~= 1.30',
 ]
 doc = [
@@ -46,7 +46,7 @@ doc = [
 ]
 ocr = [
     'rapidocr ~= 3.10',
-    'onnxruntime ~= 1.30',
+    'onnxruntime ~= 1.31',
 ]
 pillow = [
     'pillow ~= 12.3',
@@ -94,11 +94,11 @@ all = [
     'ominfra == 0.0.65',
     'omllm == 0.0.65',
     'black ~= 26.10',
-    'pycparser ~= 3.1',
+    'pycparser ~= 3.11',
     'pcpp ~= 1.30',
     'docutils ~= 0.23',
     'rapidocr ~= 3.10',
-    'onnxruntime ~= 1.30',
+    'onnxruntime ~= 1.31',
     'pillow ~= 12.3',
     'gprof2dot ~= 2025.4',
     'basedpyright ~= 1.40',

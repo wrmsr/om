@@ -18,7 +18,7 @@ librt==0.16.0
 ### compress:
 
 lz4==4.4.5
-python-snappy==0.7.3  # @om-venv !15 !15t
+python-snappy==0.7.3
 brotli==1.2.0  # !! USES_GIL - https://github.com/google/brotli/commit/51be27dbd9782f9fe27bc6e06cee6ff18311702d
 
 
@@ -49,7 +49,7 @@ psutil==7.2.2
 ## json
 
 #> ujson
-orjson==3.13.0  # @om-venv !14t !14dt !15t
+orjson==3.13.0  # @om-venv !14t !14dt
 
 ## pickle
 
