@@ -1,3 +1,4 @@
+import hashlib
 import io
 import os.path
 import textwrap
@@ -11,6 +12,7 @@ from omcore.lite.runtime import LITE_REQUIRED_PYTHON_VERSION
 from ...git.magic import GIT_DIFF_OMIT_MAGIC
 from ...py.tokens import all as tks
 from ..info import AMALG_INFO_ATTR
+from ..info import AMALG_SHA1_ATTR
 from .srcfiles import SrcFile
 from .srcfiles import make_src_file
 from .strip import strip_main_lines
@@ -113,10 +115,11 @@ class AmalgGenerator:
     def gen_amalg_info_block(self, sfs: ta.Sequence[str]) -> str:
         md = os.path.dirname(self._main_path)
         src_files = self._src_files()
+
         sf_dcts = [
             dict(
-                path=os.path.relpath(sfn, md),
                 sha1=src_files[sfn].sha1,
+                path=os.path.relpath(sfn, md),
             )
             for sfn in sfs
         ]
@@ -134,7 +137,16 @@ class AmalgGenerator:
                 for l in sf_lines
             ]
 
+        file_sha1_src = ''.join([
+            f'{sfd["sha1"]} {sfd["path"]} \n'
+            for sfd in sf_dcts
+        ])
+        file_sha1 = hashlib.sha1(file_sha1_src.encode('utf-8')).hexdigest()  # noqa
+
         return '\n'.join([
+            f'{AMALG_SHA1_ATTR} = {file_sha1!r}',
+            '',
+            '',
             f'def {AMALG_INFO_ATTR}():  # noqa',
             f'    return dict(',
             f'        src_files=[',

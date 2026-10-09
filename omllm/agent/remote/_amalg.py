@@ -50,30 +50,33 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
+__om_amalg_sha1__ = 'ce659b00de818cef5e875f1f9cbb989f7d99f396'
+
+
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='../../../omcore/asyncs/asyncio/streams.py', sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab'),
-            dict(path='../../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
-            dict(path='../../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
-            dict(path='../../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
-            dict(path='../../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
-            dict(path='../../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
-            dict(path='../../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
-            dict(path='../../../omcore/os/pyremote/core.py', sha1='a663184c584cf8d8449981d424337f8fbb61c7e8'),
-            dict(path='../fs/common.py', sha1='07e5a3c043dcedda29bb55c19b10c7af6ba15266'),
-            dict(path='../../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
-            dict(path='../fs/remote/protocol.py', sha1='f20fa531e165d2eb7594106da7c6bc918153835d'),
-            dict(path='../../core/processes/remote/protocol.py', sha1='aa2f9c585f9217ddb3d67453171c04ecec0560a1'),
-            dict(path='../../core/rpc/errors.py', sha1='41e06a92d0a0139b6fc0530fe5892071c34cfd23'),
-            dict(path='../../core/rpc/handlers.py', sha1='a7b6f9989378d978410d3a46b6ee1e20b90e6343'),
-            dict(path='../../core/rpc/messages.py', sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395'),
-            dict(path='../fs/remote/server.py', sha1='7c04b01527e3691cd50c43a7f996916c8878b8a2'),
-            dict(path='../../core/rpc/channels.py', sha1='8f49bf867159274422557a1f681ecdbffde5c887'),
-            dict(path='../../core/rpc/peers.py', sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab'),
-            dict(path='../../core/processes/remote/server.py', sha1='7e5d412e083b3cf6e65a621967af1a62db3cab18'),
-            dict(path='server.py', sha1='59fc035bb714c797787d08b6ffbc619aa622e9e8'),
-            dict(path='main.py', sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1'),
+            dict(sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab', path='../../../omcore/asyncs/asyncio/streams.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../../omcore/lite/abstract.py'),
+            dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../../omcore/lite/cached.py'),
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../../omcore/lite/check.py'),
+            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../../omcore/lite/objects.py'),
+            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../../omcore/lite/reflect.py'),
+            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../../../omcore/lite/strings.py'),
+            dict(sha1='a663184c584cf8d8449981d424337f8fbb61c7e8', path='../../../omcore/os/pyremote/core.py'),
+            dict(sha1='07e5a3c043dcedda29bb55c19b10c7af6ba15266', path='../fs/common.py'),
+            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../../omcore/lite/marshal.py'),
+            dict(sha1='f20fa531e165d2eb7594106da7c6bc918153835d', path='../fs/remote/protocol.py'),
+            dict(sha1='aa2f9c585f9217ddb3d67453171c04ecec0560a1', path='../../core/processes/remote/protocol.py'),
+            dict(sha1='41e06a92d0a0139b6fc0530fe5892071c34cfd23', path='../../core/rpc/errors.py'),
+            dict(sha1='a7b6f9989378d978410d3a46b6ee1e20b90e6343', path='../../core/rpc/handlers.py'),
+            dict(sha1='fdab342fadbd32f1d4930bc0d1ee6fbf370e9395', path='../../core/rpc/messages.py'),
+            dict(sha1='7c04b01527e3691cd50c43a7f996916c8878b8a2', path='../fs/remote/server.py'),
+            dict(sha1='8f49bf867159274422557a1f681ecdbffde5c887', path='../../core/rpc/channels.py'),
+            dict(sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab', path='../../core/rpc/peers.py'),
+            dict(sha1='7e5d412e083b3cf6e65a621967af1a62db3cab18', path='../../core/processes/remote/server.py'),
+            dict(sha1='59fc035bb714c797787d08b6ffbc619aa622e9e8', path='server.py'),
+            dict(sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1', path='main.py'),
         ],
     )
 

@@ -30,25 +30,28 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
+__om_amalg_sha1__ = 'ddfc4f2a5e4af55bdf0ee7f69dd72a9e5c3aaacb'
+
+
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='../lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
-            dict(path='../lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
-            dict(path='levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
-            dict(path='std/filters.py', sha1='3ec3856ade50561f99ce9463f54737ab1126d410'),
-            dict(path='std/proxy.py', sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a'),
-            dict(path='warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='../lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
-            dict(path='infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
-            dict(path='metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
-            dict(path='contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
-            dict(path='std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
-            dict(path='base.py', sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4'),
-            dict(path='std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
-            dict(path='std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
-            dict(path='_amalg.py', sha1='396b3ff436de60d3c5205f6eeb3f973395a166cf'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../lite/abstract.py'),
+            dict(sha1='a60d94f0bdbb2b1541d363c301314682d1686240', path='../lite/io.py'),
+            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='levels.py'),
+            dict(sha1='3ec3856ade50561f99ce9463f54737ab1126d410', path='std/filters.py'),
+            dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', path='std/proxy.py'),
+            dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', path='warnings.py'),
+            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', path='../lite/json.py'),
+            dict(sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079', path='infos.py'),
+            dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', path='metrics/base.py'),
+            dict(sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1', path='contexts.py'),
+            dict(sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5', path='std/json.py'),
+            dict(sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4', path='base.py'),
+            dict(sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6', path='std/records.py'),
+            dict(sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c', path='std/standard.py'),
+            dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', path='std/loggers.py'),
+            dict(sha1='396b3ff436de60d3c5205f6eeb3f973395a166cf', path='_amalg.py'),
         ],
     )
 

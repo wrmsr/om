@@ -19,24 +19,27 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
+__om_amalg_sha1__ = '57538f8132c20a1601505546dd72d3819e412faa'
+
+
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
-            dict(path='../../lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
-            dict(path='../../lite/bytes.py', sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c'),
-            dict(path='../../lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
-            dict(path='types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
-            dict(path='base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
-            dict(path='reading.py', sha1='36ca4cdf831d8913088dc82a5a512ea7ad0aa66b'),
-            dict(path='utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
-            dict(path='direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
-            dict(path='scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
-            dict(path='adapters.py', sha1='46f94df341c7b7e67375942dc5b76991f8a13251'),
-            dict(path='framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
-            dict(path='linear.py', sha1='110520fd317355e92c246e09c47afcba9d86c8cb'),
-            dict(path='segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
-            dict(path='_amalg.py', sha1='795e3dc80a8acd501be0ff3fd579e9e4a5f74794'),
+            dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', path='errors.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../lite/abstract.py'),
+            dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../lite/bytes.py'),
+            dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../../lite/namespaces.py'),
+            dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', path='types.py'),
+            dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', path='base.py'),
+            dict(sha1='36ca4cdf831d8913088dc82a5a512ea7ad0aa66b', path='reading.py'),
+            dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', path='utils.py'),
+            dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', path='direct.py'),
+            dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', path='scanning.py'),
+            dict(sha1='46f94df341c7b7e67375942dc5b76991f8a13251', path='adapters.py'),
+            dict(sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df', path='framing.py'),
+            dict(sha1='110520fd317355e92c246e09c47afcba9d86c8cb', path='linear.py'),
+            dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', path='segmented.py'),
+            dict(sha1='795e3dc80a8acd501be0ff3fd579e9e4a5f74794', path='_amalg.py'),
         ],
     )
 
