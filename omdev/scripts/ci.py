@@ -226,7 +226,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='9f8fecc0822c9495f2d97b9c961a1261bf31d97f'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ad4436f6a45e3c8088a55e8b9343363f0510b61b'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -34097,7 +34097,13 @@ class SyncIoPipelineDriver(Abstract):
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
-            check.none(self._transport_final_output)
+            if self._transport_final_output is not None:
+                # A duplicate close is an application bug, but the terminal tolerates a second FinalOutput - fail it
+                # rather than crashing the driver and losing the first one's graceful drain.
+                with self._pipeline.enter():
+                    if not msg.is_done():
+                        msg.set_failed(SawFinalOutputIoPipelineError())
+                return 'handled'
             self._transport_final_output = msg
             self._state = IoPipelineDriverState.DRAINING
             return 'handled'

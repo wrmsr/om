@@ -17,6 +17,7 @@ from ...streambufs.segmented import SegmentedByteStreamBuffer
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
 from ..core import IoPipelineMessages
+from ..errors import SawFinalOutputIoPipelineError
 from ..errors import UnsupportedIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
@@ -552,7 +553,13 @@ class SyncIoPipelineDriver(Abstract):
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
-            check.none(self._transport_final_output)
+            if self._transport_final_output is not None:
+                # A duplicate close is an application bug, but the terminal tolerates a second FinalOutput - fail it
+                # rather than crashing the driver and losing the first one's graceful drain.
+                with self._pipeline.enter():
+                    if not msg.is_done():
+                        msg.set_failed(SawFinalOutputIoPipelineError())
+                return 'handled'
             self._transport_final_output = msg
             self._state = IoPipelineDriverState.DRAINING
             return 'handled'
