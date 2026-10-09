@@ -61,7 +61,7 @@ qr = [
     'segno ~= 1.6',
 ]
 ruff = [
-    'ruff ~= 0.16',
+    'ruff ~= 0.17',
 ]
 tui-syntax = [
     'tree-sitter ~= 0.26',
@@ -103,7 +103,7 @@ all = [
     'gprof2dot ~= 2025.4',
     'basedpyright ~= 1.40',
     'segno ~= 1.6',
-    'ruff ~= 0.16',
+    'ruff ~= 0.17',
     'tree-sitter ~= 0.26',
     'tree-sitter-bash ~= 0.25',
     'tree-sitter-css ~= 0.25',

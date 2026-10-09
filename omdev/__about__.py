@@ -58,7 +58,7 @@ class Project(ProjectBase):
         ],
 
         'ruff': [
-            'ruff ~= 0.16',
+            'ruff ~= 0.17',
         ],
 
         # 'sqlrepl':

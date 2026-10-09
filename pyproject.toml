@@ -212,6 +212,7 @@ ignore = [
     'FLY002',    # static-join-to-f-string
     'FURB122',   # for-loop-writes
     'FURB136',   # if-expr-min-max
+    'ICN001',    # unconventional-import-alias
     'N804',      # invalid-first-argument-name-for-class-method
     'PERF203',   # try-except-in-loop
     'PERF401',   # manual-list-comprehension
