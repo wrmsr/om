@@ -115,7 +115,7 @@ def write_run_to_db(
 
     if db_file is None:
         db_file = os.path.join(
-            get_home_paths().config_dir,
+            get_home_paths().state_dir,
             'dockerdev',
             DEFAULT_DB_FILE_NAME,
         )
