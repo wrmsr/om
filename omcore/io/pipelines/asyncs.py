@@ -19,6 +19,7 @@ class AsyncIoPipelineMessages(NamespaceClass):
     class Await(
         IoPipelineMessages.Completable[T],
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.AfterShutdownOutput,
         ta.Generic[T],
     ):
         obj: ta.Awaitable[T]

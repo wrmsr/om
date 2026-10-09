@@ -50,8 +50,10 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
     when all intervals are omitted, this handler does not require an IoPipelineScheduling service and remains tickless.
 
     Read and write activity include ordinary messages crossing this handler in their respective directions. A
-    successfully completed FlushOutput additionally records write activity at the transport boundary; emitting the
-    fence itself is not activity. Other flow-control, lifecycle, error, and idle-event messages are not activity.
+    successfully completed FlushOutput or ShutdownOutput additionally records write activity at the transport boundary;
+    emitting the fence itself is not activity. Other flow-control, lifecycle, error, and idle-event messages are not
+    activity. FinalInput ends read idleness and ShutdownOutput ends write idleness, each half-close leaving the other
+    direction (and the combined state) running.
     """
 
     _STATES: ta.ClassVar[ta.Tuple[IoPipelineIdleState, ...]] = (
@@ -87,11 +89,16 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
 
         self._started = False
         self._read_open = False
+        self._write_open = False
 
     #
 
     def _is_active(self, state: IoPipelineIdleState) -> bool:
-        return self._started and (state is not IoPipelineIdleState.READ_IDLE or self._read_open)
+        return (
+            self._started and
+            (state is not IoPipelineIdleState.READ_IDLE or self._read_open) and
+            (state is not IoPipelineIdleState.WRITE_IDLE or self._write_open)
+        )
 
     def _cancel(self, state: ta.Optional[IoPipelineIdleState] = None) -> None:
         if state is not None:
@@ -131,7 +138,7 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
     @staticmethod
     def _on_flush_output_done(
             context_ref: ta.Callable[[], ta.Optional[IoPipelineHandlerContext]],
-            msg: IoPipelineFlowMessages.FlushOutput,
+            msg: IoPipelineMessages.Completable[None],
     ) -> None:
         if not msg.is_succeeded() or (ctx := context_ref()) is None or ctx.invalidated:
             return
@@ -142,7 +149,7 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
     def _track_flush_output(
             self,
             ctx: IoPipelineHandlerContext,
-            msg: IoPipelineFlowMessages.FlushOutput,
+            msg: IoPipelineMessages.Completable[None],
     ) -> None:
         if not self._started or not any(self._timeouts[state] is not None for state in self._WRITE_ACTIVITY_STATES):
             return
@@ -174,10 +181,12 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
             self._first = {state: True for state in self._STATES}
             self._started = False
             self._read_open = False
+            self._write_open = False
 
         elif isinstance(no, IoPipelineHandlerNotifications.Removed):
             self._started = False
             self._read_open = False
+            self._write_open = False
             self._cancel()
 
     #
@@ -196,6 +205,7 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
             self._first = {state: True for state in self._STATES}
             self._started = True
             self._read_open = True
+            self._write_open = True
             for state in self._STATES:
                 self._arm(ctx, state)
 
@@ -220,7 +230,13 @@ class IdleStateIoPipelineHandler(IoPipelineHandler):
         if isinstance(msg, IoPipelineMessages.FinalOutput):
             self._started = False
             self._read_open = False
+            self._write_open = False
             self._cancel()
+
+        elif isinstance(msg, IoPipelineMessages.ShutdownOutput):
+            self._write_open = False
+            self._cancel(IoPipelineIdleState.WRITE_IDLE)
+            self._track_flush_output(ctx, msg)
 
         elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
             self._track_flush_output(ctx, msg)
@@ -330,8 +346,9 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
     """
     Emits one inbound timeout error when an explicit outbound completion fence remains pending for too long.
 
-    FlushOutput and FinalOutput are ordered fences whose completion means all preceding output crossed the transport
-    boundary. Each fence gets an independent deadline, making the oldest outstanding fence the effective deadline.
+    FlushOutput, ShutdownOutput, and FinalOutput are ordered fences whose completion means all preceding output crossed
+    the transport boundary. Each fence gets an independent deadline, making the oldest outstanding fence the effective
+    deadline.
     Ordinary outbound messages do not implicitly flush or schedule anything, so the handler remains tickless whenever
     no fence is outstanding.
 
@@ -436,7 +453,11 @@ class WriteTimeoutIoPipelineHandler(IoPipelineHandler):
         if (
                 self._active and
                 not self._timed_out and
-                isinstance(msg, (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.FinalOutput))
+                isinstance(msg, (
+                    IoPipelineFlowMessages.FlushOutput,
+                    IoPipelineMessages.ShutdownOutput,
+                    IoPipelineMessages.FinalOutput,
+                ))
         ):
             self._track_fence(
                 ctx,

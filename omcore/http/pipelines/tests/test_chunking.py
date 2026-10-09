@@ -577,6 +577,43 @@ class TestChunker(unittest.TestCase):
         self.assertIsInstance(out[0], IoPipelineHttpResponseHead)
         self.assertIsInstance(out[1], IoPipelineHttpResponseAborted)
 
+    def test_shutdown_output_mid_message_aborts_it(self) -> None:
+        chunker = IoPipelineHttpResponseChunker()
+        channel = IoPipeline.new([
+            chunker,
+            fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+
+        shutdown_output = IoPipelineMessages.ShutdownOutput()
+        channel.feed_in(fbi.wrap(self._make_chunked_head()))
+        channel.feed_in(fbi.wrap(IoPipelineHttpResponseBodyData(b'hello')))
+        channel.feed_in(fbi.wrap(shutdown_output))
+
+        out = channel.output.drain()
+        self.assertEqual(len(out), 3)
+        self.assertIsInstance(out[0], IoPipelineHttpResponseHead)
+        self.assertIsInstance(out[1], IoPipelineHttpResponseAborted)
+        self.assertIs(out[2], shutdown_output)
+        self.assertEqual(chunker.outbound_buffered_bytes(), 0)
+
+    def test_shutdown_output_between_messages_passes_through(self) -> None:
+        chunker = IoPipelineHttpResponseChunker()
+        channel = IoPipeline.new([
+            chunker,
+            fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+
+        shutdown_output = IoPipelineMessages.ShutdownOutput()
+        channel.feed_in(fbi.wrap(self._make_chunked_head()))
+        channel.feed_in(fbi.wrap(IoPipelineHttpResponseBodyData(b'hello')))
+        channel.feed_in(fbi.wrap(IoPipelineHttpResponseEnd()))
+        channel.feed_in(fbi.wrap(shutdown_output))
+
+        out = channel.output.drain()
+        self.assertEqual(len(out), 8)
+        self.assertIsInstance(out[6], IoPipelineHttpResponseEnd)
+        self.assertIs(out[7], shutdown_output)
+
 
 ##
 

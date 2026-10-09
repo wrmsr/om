@@ -178,7 +178,8 @@ class IoPipelineHttpObjectChunker(
                 ctx.feed_out(msg)
                 return
 
-            if isinstance(msg, IoPipelineMessages.FinalOutput):
+            if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+                # Output ends mid-message either way.
                 self._reset()
                 ctx.feed_out(self._make_aborted('eof before end of message'))
                 ctx.feed_out(msg)

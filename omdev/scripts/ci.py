@@ -101,7 +101,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/urllib.py', sha1='fc273565255546f42152ab2dfc264feb8c8b8dc6'),
             dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
             dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
-            dict(path='../../omcore/io/pipelines/errors.py', sha1='4996d5e8a39e1362d979077bd6fb8a6ee19c3d4b'),
+            dict(path='../../omcore/io/pipelines/errors.py', sha1='422d99f57e249f77f8a06ee0a1baca69539d8ee7'),
             dict(path='../../omcore/io/streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
             dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
             dict(path='../../omcore/lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
@@ -137,7 +137,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
             dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
             dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3'),  # noqa
-            dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
+            dict(path='../../omcore/io/pipelines/core.py', sha1='2cb9d8df06d752881522c402ec5460161c17657b'),
             dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
             dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
             dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
@@ -165,7 +165,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/simple/types.py', sha1='50fbfcfb97ef726d1bb4296d9428e6cb0713d54c'),
             dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
             dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
-            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='d7182502ec64e84607e4f9cacb32472072307752'),
+            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='53f7bc76bff67bc342e8156c2e2eb72fd160598b'),
             dict(path='../../omcore/io/pipelines/sched/types.py', sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f'),
             dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
             dict(path='../../omcore/io/streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
@@ -188,7 +188,7 @@ def __om_amalg__():  # noqa
             dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
             dict(path='../../omcore/http/simple/handlers.py', sha1='43502a58069673135882066ba939c99ea2f8dfc1'),
             dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
-            dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
+            dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='e6a73f2e600970aff969459fea541cd14299c77b'),
             dict(path='../../omcore/io/streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
             dict(path='../../omcore/io/streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
             dict(path='../../omcore/logs/base.py', sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4'),
@@ -201,8 +201,8 @@ def __om_amalg__():  # noqa
             dict(path='../specs/oci/media.py', sha1='803842842e9b3f1d51ccb48c41c7fb7df9d833b3'),
             dict(path='../specs/oci/pack/packing.py', sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad'),
             dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
-            dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
-            dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
+            dict(path='../../omcore/http/pipelines/chunking.py', sha1='ec34f9087d680eb55836faced8c363abe9977d7d'),
+            dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='f8a54befb79fb058b811b2248f63315a36bb6bbb'),  # noqa
             dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='e6490c3dd0a6707a7d099a7391a0df3b8d81da6b'),  # noqa
             dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
             dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
@@ -226,7 +226,7 @@ def __om_amalg__():  # noqa
             dict(path='../dataserver/http.py', sha1='e39f673cc82c78cd806b44a37a19902a01321c49'),
             dict(path='../specs/oci/dataserver.py', sha1='b5469f2a1e797e7e04c468d8243a877910136e80'),
             dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ec00345d6192983625190ddb9da1dbd713f16130'),
+            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='9f8fecc0822c9495f2d97b9c961a1261bf31d97f'),
             dict(path='../../omcore/lite/timing.py', sha1='af5022f5a508939f1b433ed0514ede340fd0d672'),
             dict(path='cache.py', sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98'),
             dict(path='docker/cmds.py', sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d'),
@@ -1127,6 +1127,10 @@ class AbortedIoPipelineError(IoPipelineError):
     pass
 
 
+class UnsupportedIoPipelineError(IoPipelineError):
+    """An operation is not supported by the transport or component asked to perform it."""
+
+
 ##
 
 
@@ -1155,6 +1159,10 @@ class SawFinalInputIoPipelineError(StateIoPipelineError):
 
 
 class SawFinalOutputIoPipelineError(StateIoPipelineError):
+    pass
+
+
+class SawShutdownOutputIoPipelineError(StateIoPipelineError):
     pass
 
 
@@ -7724,6 +7732,15 @@ class IoPipelineMessages(NamespaceClass):
         messages must not, and remain rejected.
         """
 
+    class AfterShutdownOutput(Abstract):
+        """
+        These may reach the outbound pipeline terminal after ShutdownOutput has reached it.
+
+        ShutdownOutput is only an *output* half-close - input continues until FinalInput - so control messages which
+        concern input or driver interaction (notably read requests and deferred work) must remain deliverable
+        afterwards. Ordinary output must not, and is rejected.
+        """
+
     #
 
     class Pinning(Abstract):
@@ -7757,8 +7774,13 @@ class IoPipelineMessages(NamespaceClass):
 
     @ta.final
     @dc.dataclass(frozen=True)
-    class Error(NeverOutbound):
-        """Signals an exception occurred in the pipeline."""
+    class Error(NeverOutbound, AfterFinalInput):
+        """
+        Signals an exception occurred in the pipeline.
+
+        Errors can arise after input has ended - a failed write, a timeout, an aborted stream - so they remain
+        deliverable at the pipeline boundary after FinalInput.
+        """
 
         exc: BaseException
 
@@ -7914,11 +7936,30 @@ class IoPipelineMessages(NamespaceClass):
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
 
+    @ta.final
+    @dc.dataclass(frozen=True, eq=False)
+    class ShutdownOutput(NeverInbound, MustPropagate, Completable[None]):  # ~ Netty `DuplexChannel::shutdownOutput`
+        """
+        Ends output while input continues: an output half-close.
+
+        This is an ordered barrier like FlushOutput: handlers emit all output accepted before it, and may retain it
+        while finishing protocol-level output shutdown, then forward the same instance. Once it reaches the pipeline
+        terminal only `AfterShutdownOutput` messages and FinalOutput may follow it there. Unlike FinalOutput it does not
+        terminate the driver, which keeps delivering input; FinalOutput remains required to finish the pipeline.
+
+        Successful completion means all preceding output crossed the driver's transport boundary and the transport's
+        output half was shut down (for a socket, `shutdown(SHUT_WR)`). It does not imply peer receipt. A transport which
+        cannot half-close fails the message and is otherwise left intact.
+        """
+
+        def __repr__(self) -> str:
+            return f'{type(self).__name__}@{id(self):x}()'
+
     #
 
     @ta.final
     @dc.dataclass(frozen=True)
-    class Defer(NeverInbound, Pinning, Completable[T], ta.Generic[T]):
+    class Defer(NeverInbound, AfterShutdownOutput, Pinning, Completable[T], ta.Generic[T]):
         fn: ta.Union[
             ta.Callable[['IoPipelineHandlerContext'], T],
             ta.Callable[[], T],
@@ -8375,6 +8416,11 @@ class IoPipelineHandlerContext:
 
     def feed_final_output(self) -> IoPipelineMessages.FinalOutput:
         msg = IoPipelineMessages.FinalOutput()
+        self.feed_out(msg)
+        return msg
+
+    def feed_shutdown_output(self) -> IoPipelineMessages.ShutdownOutput:
+        msg = IoPipelineMessages.ShutdownOutput()
         self.feed_out(msg)
         return msg
 
@@ -8995,6 +9041,7 @@ class IoPipeline:
     _saw_initial_input = False
     _saw_final_input = False
     _saw_final_output = False
+    _saw_shutdown_output = False
 
     @property
     def saw_any_input(self) -> bool:
@@ -9011,6 +9058,10 @@ class IoPipeline:
     @property
     def saw_final_output(self) -> bool:
         return self._saw_final_output
+
+    @property
+    def saw_shutdown_output(self) -> bool:
+        return self._saw_shutdown_output
 
     ##
     # sub-collections
@@ -9223,6 +9274,12 @@ class IoPipeline:
             self._saw_final_output = True
         elif self._saw_final_output:
             raise SawFinalOutputIoPipelineError
+        elif self._saw_shutdown_output:
+            # Includes a second ShutdownOutput, which is not an AfterShutdownOutput.
+            if not isinstance(msg, IoPipelineMessages.AfterShutdownOutput):
+                raise SawShutdownOutputIoPipelineError
+        elif isinstance(msg, IoPipelineMessages.ShutdownOutput):
+            self._saw_shutdown_output = True
 
         self._output._q.append(msg)  # noqa
 
@@ -14540,6 +14597,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class FlushOutput(  # ~ Netty 'ChannelOutboundInvoker::flush'
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.AfterShutdownOutput,
         IoPipelineMessages.Completable[None],
     ):
         """
@@ -14554,6 +14612,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class ReadyForInput(  # ~ Netty `ChannelOutboundInvoker::read`
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.AfterShutdownOutput,
     ):
         pass
 
@@ -22157,7 +22216,7 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             self._deadline = deadline
             self._seq = seq
             self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
-            self._fn = fn
+            self._fn: ta.Optional[ta.Callable[..., None]] = fn
             self._with_context = with_context
 
             self._cancelled = False
@@ -22168,16 +22227,20 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             return check.not_none(self.__handler_context_ref())
 
         def _run(self) -> None:
+            fn = check.not_none(self._fn)
+            self._fn = None
             if self._with_context:
-                self._fn(self._handler_context)
+                fn(self._handler_context)
             else:
-                self._fn()
+                fn()
 
         def cancel(self) -> None:
             if self._cancelled or self._done:
                 return
 
+            # A cancelled handle may linger in the heap until it surfaces, so release whatever its callback holds now.
             self._cancelled = True
+            self._fn = None
             if (sched := self.__sched_ref()) is not None:
                 sched._live.discard(self)  # noqa
 
@@ -27054,7 +27117,8 @@ class IoPipelineHttpObjectChunker(
                 ctx.feed_out(msg)
                 return
 
-            if isinstance(msg, IoPipelineMessages.FinalOutput):
+            if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+                # Output ends mid-message either way.
                 self._reset()
                 ctx.feed_out(self._make_aborted('eof before end of message'))
                 ctx.feed_out(msg)
@@ -27181,7 +27245,11 @@ class IoPipelineHttpObjectCompressor(
 
     #
 
-    def _on_outbound_final_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineMessages.FinalOutput) -> None:
+    def _on_outbound_final_output(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: ta.Union[IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput],
+    ) -> None:
         if self._compressor is None:
             ctx.feed_out(msg)
             return
@@ -27238,7 +27306,8 @@ class IoPipelineHttpObjectCompressor(
         ctx.feed_out(msg)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
+        if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+            # Output ends mid-message either way.
             self._on_outbound_final_output(ctx, msg)
 
         elif isinstance(msg, self._head_type):
@@ -33515,9 +33584,13 @@ class SyncIoPipelineDriver(Abstract):
     Drive a pipeline over a caller-owned synchronous transport, blocking the calling thread.
 
     The transport must be used exclusively through the driver while it is active. Subclasses supply the handful of
-    transport operations - nonblocking reads and writes, the file descriptors to wait on, and switching the transport
-    into and out of nonblocking mode - and everything else (pipeline stepping, queued writes, watermarks, timers, the
-    readiness wait) is shared.
+    transport operations - nonblocking reads and writes, the file descriptors to wait on, switching the transport into
+    and out of nonblocking mode, and shutting down its output half - and everything else (pipeline stepping, queued
+    writes, watermarks, timers, the readiness wait) is shared.
+
+    ShutdownOutput is queued behind the bytes preceding it and performed once they have been written. Reading continues
+    afterwards. A transport which cannot half-close fails the message with UnsupportedIoPipelineError and is otherwise
+    left intact.
     """
 
     @dc.dataclass(frozen=True)
@@ -33567,9 +33640,14 @@ class SyncIoPipelineDriver(Abstract):
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: ta.Deque[ta.Union[memoryview, IoPipelineFlowMessages.FlushOutput]] = collections.deque()
+        self._write_q: ta.Deque[ta.Union[
+            memoryview,
+            IoPipelineFlowMessages.FlushOutput,
+            IoPipelineMessages.ShutdownOutput,
+        ]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
+        self._output_shutdown = False
 
         self._transport_prepared = False
         self._wait_timeout_s: ta.Optional[float] = None
@@ -33601,6 +33679,12 @@ class SyncIoPipelineDriver(Abstract):
     @property
     def pipeline(self) -> IoPipeline:
         return self._pipeline
+
+    @property
+    def output_shutdown(self) -> bool:
+        """Whether a ShutdownOutput has shut down the transport's output half."""
+
+        return self._output_shutdown
 
     @property
     def wait_timeout_s(self) -> ta.Optional[float]:
@@ -33723,6 +33807,15 @@ class SyncIoPipelineDriver(Abstract):
 
         raise NotImplementedError
 
+    def _shutdown_output(self) -> None:
+        """
+        Shut down the transport's output half, leaving its input readable. Called at most once, after all queued output
+        has been written. Raises UnsupportedIoPipelineError if the transport cannot half-close, in which case it must be
+        left intact; any other exception fails the driver.
+        """
+
+        raise UnsupportedIoPipelineError(f'{type(self).__name__} does not support output shutdown')
+
     #
 
     def _prepare_transport_once(self) -> None:
@@ -33842,6 +33935,25 @@ class SyncIoPipelineDriver(Abstract):
 
         self._update_output_writability()
 
+    def _complete_shutdown_output(self, msg: IoPipelineMessages.ShutdownOutput) -> None:
+        try:
+            self._shutdown_output()
+
+        except UnsupportedIoPipelineError as e:
+            with self._pipeline.enter():
+                if not msg.is_done():
+                    msg.set_failed(e)
+            return
+
+        except BaseException:
+            self._fail()
+            raise
+
+        self._output_shutdown = True
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
+
     def _try_write(self) -> bool:
         if not self._write_q:
             return False
@@ -33852,6 +33964,11 @@ class SyncIoPipelineDriver(Abstract):
             with self._pipeline.enter():
                 if not head.is_done():
                     head.set_succeeded(None)
+            return True
+
+        if isinstance(head, IoPipelineMessages.ShutdownOutput):
+            self._write_q.popleft()
+            self._complete_shutdown_output(head)
             return True
 
         mv = head
@@ -33883,7 +34000,11 @@ class SyncIoPipelineDriver(Abstract):
         return True
 
     def _update_output_writability(self) -> None:
-        if self._flow is None or self._state is not IoPipelineDriverState.RUNNING:
+        if (
+                self._flow is None or
+                self._state is not IoPipelineDriverState.RUNNING or
+                self._output_shutdown
+        ):
             return
 
         if self._output_writable:
@@ -33891,7 +34012,9 @@ class SyncIoPipelineDriver(Abstract):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark:
+        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
+            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
+            # since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -33969,7 +34092,7 @@ class SyncIoPipelineDriver(Abstract):
             self._enqueue_write(msg)
             return 'handled'
 
-        elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
+        elif isinstance(msg, (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput)):
             self._write_q.append(msg)
             return 'handled'
 
@@ -34019,7 +34142,10 @@ class SyncIoPipelineDriver(Abstract):
                 else:
                     raise RuntimeError(f'Unknown handled value: {handled!r}')
 
-            if self._write_q and isinstance(self._write_q[0], IoPipelineFlowMessages.FlushOutput):
+            if self._write_q and isinstance(
+                    self._write_q[0],
+                    (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput),
+            ):
                 self._try_write()
                 continue
 
@@ -34107,7 +34233,11 @@ class SyncIoPipelineDriver(Abstract):
             if not read:
                 while self._write_q and self._try_write():
                     pass
-                if self._transport_final_output is not None and not self._write_q:
+                # Writing completes fences, whose listeners may have produced more output to process now.
+                if (
+                        (self._transport_final_output is not None and not self._write_q) or
+                        pipeline.output.peek() is not None
+                ):
                     continue
                 return None
 
@@ -34216,6 +34346,14 @@ class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
     def _write(self, data: memoryview) -> int:
         return self._sock.send(data)
 
+    def _shutdown_output(self) -> None:
+        try:
+            shutdown = self._sock.shutdown
+        except AttributeError:
+            raise UnsupportedIoPipelineError(f'{self._sock!r} has no shutdown method') from None
+
+        shutdown(socket.SHUT_WR)
+
 
 ##
 
@@ -34226,6 +34364,12 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
 
     Both descriptors are switched to nonblocking mode while the driver is active and restored afterwards. They may be
     the same descriptor. An optional timeout bounds each readiness wait the same way a socket's timeout would.
+
+    ShutdownOutput on a socket write descriptor shuts down the socket's output half without closing the descriptor. A
+    caller-owned non-socket write descriptor (a pipe, a terminal) cannot be half-closed without closing it, so the
+    message fails unless `close_write_fd_on_output_shutdown` grants the driver that ownership - in which case the
+    descriptor's original flags are restored and it is closed. A single non-socket descriptor used for both directions
+    can never be half-closed.
     """
 
     def __init__(
@@ -34236,12 +34380,14 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
             config: ta.Optional[SyncIoPipelineDriver.Config] = None,
             *,
             timeout_s: ta.Optional[float] = None,
+            close_write_fd_on_output_shutdown: bool = False,
     ) -> None:
         super().__init__(spec, config)
 
         self._read_fd = read_fd
         self._write_fd = write_fd
         self._timeout_s = timeout_s
+        self._close_write_fd_on_output_shutdown = close_write_fd_on_output_shutdown
 
         self._original_flags: ta.Dict[int, int] = {}
 
@@ -34286,6 +34432,37 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
 
     def _write(self, data: memoryview) -> int:
         return os.write(self._write_fd, data)
+
+    def _shutdown_output(self) -> None:
+        fd = self._write_fd
+
+        if stat.S_ISSOCK(os.fstat(fd).st_mode):
+            # Shutdown acts on the socket, not the descriptor, so a temporary duplicate reaches it without taking
+            # ownership of the caller's descriptor.
+            sock = socket.socket(fileno=os.dup(fd))
+            try:
+                sock.shutdown(socket.SHUT_WR)
+            finally:
+                sock.close()
+            return
+
+        if fd == self._read_fd:
+            raise UnsupportedIoPipelineError('a single non-socket descriptor cannot be half-closed')
+
+        if not self._close_write_fd_on_output_shutdown:
+            raise UnsupportedIoPipelineError('closing the caller-owned write descriptor was not permitted')
+
+        # The nonblocking flag lives on the open file description, which other descriptors may share, so restore it
+        # before closing. The descriptor number may be reused once closed, so it must never be touched again.
+        if (flags := self._original_flags.pop(fd, None)) is not None:
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+        os.close(fd)
+
+        # The read descriptor may share that open file description - as dups of one terminal do - and is still in use,
+        # so it is made nonblocking again. Its original flags are restored when the driver is done with it.
+        rfl = fcntl.fcntl(self._read_fd, fcntl.F_GETFL)
+        if not rfl & os.O_NONBLOCK:
+            fcntl.fcntl(self._read_fd, fcntl.F_SETFL, rfl | os.O_NONBLOCK)
 
 
 ########################################

@@ -37,6 +37,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class FlushOutput(  # ~ Netty 'ChannelOutboundInvoker::flush'
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.AfterShutdownOutput,
         IoPipelineMessages.Completable[None],
     ):
         """
@@ -51,6 +52,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class ReadyForInput(  # ~ Netty `ChannelOutboundInvoker::read`
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.AfterShutdownOutput,
     ):
         pass
 

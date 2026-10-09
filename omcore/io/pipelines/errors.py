@@ -19,6 +19,10 @@ class AbortedIoPipelineError(IoPipelineError):
     pass
 
 
+class UnsupportedIoPipelineError(IoPipelineError):
+    """An operation is not supported by the transport or component asked to perform it."""
+
+
 ##
 
 
@@ -47,6 +51,10 @@ class SawFinalInputIoPipelineError(StateIoPipelineError):
 
 
 class SawFinalOutputIoPipelineError(StateIoPipelineError):
+    pass
+
+
+class SawShutdownOutputIoPipelineError(StateIoPipelineError):
     pass
 
 

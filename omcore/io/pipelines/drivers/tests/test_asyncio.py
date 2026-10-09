@@ -955,13 +955,11 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
 
             self.assertIsNone(drv._drain_task)
             self.assertFalse(drv._drain_again)
+            # The payload was held behind the drain and counted, so queued output never fell to the low watermark: the
+            # pause is never lifted.
             self.assertEqual(
                 [type(event) for event in capture.events],
-                [
-                    IoPipelineFlowMessages.PauseOutput,
-                    IoPipelineFlowMessages.ReadyForOutput,
-                    IoPipelineFlowMessages.PauseOutput,
-                ],
+                [IoPipelineFlowMessages.PauseOutput],
             )
             self.assertEqual(
                 writer.events,
@@ -1137,3 +1135,103 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
             await drv.close()
 
         self.assertIs(drv.state, IoPipelineDriverState.FAILED)
+
+
+class _ShutdownApp(IoPipelineHandler):
+    def __init__(self, request: bytes) -> None:
+        super().__init__()
+
+        self._request = request
+        self.shutdown_output = IoPipelineMessages.ShutdownOutput()
+        self.final_output = IoPipelineMessages.FinalOutput()
+        self.shutdown_errors: ta.List[ta.Optional[BaseException]] = []
+        self.received = bytearray()
+        self.shutdown_output.add_listener(
+            lambda m: self.shutdown_errors.append(m.get_exception() if m.is_failed() else None),
+        )
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            ctx.feed_in(msg)
+            ctx.feed_out(self._request)
+            ctx.feed_out(self.shutdown_output)
+            return
+
+        if ByteStreamBuffers.can_bytes(msg):
+            self.received.extend(ByteStreamBuffers.to_bytes(msg, strict=True))
+            return
+
+        if isinstance(msg, IoPipelineMessages.FinalInput):
+            ctx.feed_in(msg)
+            ctx.feed_out(self.final_output)
+            return
+
+        ctx.feed_in(msg)
+
+
+class TestPollAsyncioStreamIoPipelineDriverOutputShutdown(AsyncioIsolatedAsyncTestCase):
+    async def test_shutdown_without_writer_completes(self) -> None:
+        app = _ShutdownApp(b'dropped')
+        reader = asyncio.StreamReader()
+        reader.feed_eof()
+        driver = PollAsyncioStreamIoPipelineDriver(IoPipeline.Spec([app]), reader)
+        try:
+            await asyncio.wait_for(driver.loop_until_done(), 5.)
+            self.assertTrue(app.shutdown_output.is_succeeded())
+            self.assertTrue(driver.output_shutdown)
+            self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
+        finally:
+            await driver.close()
+
+    async def test_tls_stream_cannot_write_eof_so_shutdown_fails_and_stream_stays_usable(self) -> None:
+        # An asyncio TLS transport cannot write EOF (TLS half-close belongs to the pipeline's own TLS handler), so the
+        # message fails clearly - and the connection carries on.
+        import ssl
+
+        from .....secrets import tempssl
+        from .....subprocesses import sync as _  # noqa  # import side-effect installing _DEFAULT_SUBPROCESSES
+        from ...errors import UnsupportedIoPipelineError
+
+        cert = tempssl.generate_temp_localhost_ssl_cert().cert
+        server_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        server_ctx.load_cert_chain(cert.cert_file, cert.key_file)
+        client_ctx = ssl.create_default_context(cafile=cert.cert_file)
+
+        request = b'hello over asyncio tls'
+
+        async def on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+            data = await reader.readexactly(len(request))
+            writer.write(data.upper())
+            await writer.drain()
+            writer.close()
+            await writer.wait_closed()
+
+        server = await asyncio.start_server(on_connect, '127.0.0.1', 0, ssl=server_ctx)
+        try:
+            port = server.sockets[0].getsockname()[1]
+            reader, writer = await asyncio.open_connection(
+                '127.0.0.1',
+                port,
+                ssl=client_ctx,
+                server_hostname='localhost',
+            )
+            self.assertFalse(writer.can_write_eof())
+
+            app = _ShutdownApp(request)
+            driver = PollAsyncioStreamIoPipelineDriver(IoPipeline.Spec([app]), reader, writer)
+            try:
+                await asyncio.wait_for(driver.loop_until_done(), 10.)
+            finally:
+                await driver.close()
+
+            self.assertTrue(app.shutdown_output.is_failed())
+            self.assertEqual(len(app.shutdown_errors), 1)
+            self.assertIsInstance(app.shutdown_errors[0], UnsupportedIoPipelineError)
+            self.assertFalse(driver.output_shutdown)
+            self.assertEqual(bytes(app.received), request.upper())
+            self.assertTrue(app.final_output.is_succeeded())
+            self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
+
+        finally:
+            server.close()
+            await server.wait_closed()

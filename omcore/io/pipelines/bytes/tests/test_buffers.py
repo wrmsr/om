@@ -317,3 +317,41 @@ class TestOutboundBytesBuffer(unittest.TestCase):
         assert [type(event) for event in capture.events] == [
             IoPipelineFlowMessages.PauseOutput,
         ]
+
+    def test_shutdown_output_flushes_first_and_does_not_announce_writability(self):
+        # Like FinalOutput, ShutdownOutput is an ordered fence after which no ordinary output may follow: buffered
+        # bytes precede it, and announcing writability on draining would only invite a write the terminal rejects.
+
+        capture = CaptureOutputWritabilityIoPipelineHandler()
+        ch = IoPipeline.new(
+            [
+                PauseOutputOnBytesIoPipelineHandler(),
+                OutboundBytesBufferIoPipelineHandler(
+                    OutboundBytesBufferIoPipelineHandler.Config(
+                        flush_threshold=None,
+                        write_high_watermark=4,
+                        write_low_watermark=2,
+                    ),
+                ),
+                capture,
+                fbi := FeedbackInboundIoPipelineHandler(),
+            ],
+            services=[StubIoPipelineFlowService()],
+        )
+
+        ch.feed_in(fbi.wrap(b'abc'))
+        ch.feed_in(fbi.wrap(b'de'))
+        assert ch.output.drain() == []
+
+        shutdown_output = IoPipelineMessages.ShutdownOutput()
+        ch.feed_in(fbi.wrap(shutdown_output))
+
+        drained = ch.output.drain()
+        assert len(drained) == 2
+        assert drained[0].tobytes() == b'abcde'
+        assert drained[1] is shutdown_output
+        assert ch.saw_shutdown_output
+
+        assert [type(event) for event in capture.events] == [
+            IoPipelineFlowMessages.PauseOutput,
+        ]

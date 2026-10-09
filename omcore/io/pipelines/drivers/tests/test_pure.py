@@ -10,6 +10,8 @@ from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
+from ...errors import AbortedIoPipelineError
+from ...errors import SawShutdownOutputIoPipelineError
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
 from ...sched.types import IoPipelineScheduling
@@ -21,7 +23,9 @@ from ..types import IoPipelineDriverState
 
 
 @dc.dataclass(frozen=True)
-class Observed:
+class Observed(IoPipelineMessages.AfterShutdownOutput):
+    """Echoed back to the driver's caller as unhandled output; remains deliverable after an output shutdown."""
+
     msg: ta.Any
 
 
@@ -318,3 +322,217 @@ class TestPureIoPipelineDriver(unittest.TestCase):
             )
         finally:
             driver.close()
+
+
+class TestPureIoPipelineDriverOutputShutdown(unittest.TestCase):
+    def _driver(
+            self,
+            capture: CaptureIoPipelineHandler,
+            *,
+            manual_input: bool = False,
+            pipeline_config: IoPipeline.Config = IoPipeline.Config.DEFAULT,
+            **kwargs: ta.Any,
+    ) -> PureIoPipelineDriver:
+        return PureIoPipelineDriver(
+            IoPipeline.Spec(
+                [capture],
+                pipeline_config,
+                services=[StubIoPipelineFlowService(auto_read=not manual_input)],
+            ),
+            PureIoPipelineDriver.Config(**kwargs),
+        )
+
+    def test_shutdown_follows_preceding_bytes_across_partial_drains(self) -> None:
+        capture = CaptureIoPipelineHandler()
+        so = IoPipelineMessages.ShutdownOutput()
+        driver = self._driver(capture)
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([b'abc', so]))
+            self.assertIsNone(driver.next(read=False))
+            self.assertTrue(driver.has_pending_output)
+
+            self.assertEqual(driver.drain_output(2), b'ab')
+            self.assertFalse(driver.output_shutdown)
+            self.assertFalse(so.is_done())
+
+            self.assertEqual(driver.drain_output(1), b'c')
+            self.assertTrue(driver.output_shutdown)
+            self.assertTrue(so.is_succeeded())
+            self.assertFalse(driver.has_pending_output)
+            self.assertIs(driver.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(driver.pipeline.saw_shutdown_output)
+        finally:
+            driver.close()
+
+    def test_zero_byte_shutdown_completes_on_a_zero_byte_drain(self) -> None:
+        so = IoPipelineMessages.ShutdownOutput()
+        driver = self._driver(CaptureIoPipelineHandler())
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([so]))
+            self.assertIsNone(driver.next(read=False))
+
+            self.assertEqual(driver.drain_output(0), b'')
+            self.assertTrue(so.is_succeeded())
+            self.assertTrue(driver.output_shutdown)
+        finally:
+            driver.close()
+
+    def test_input_continues_after_shutdown_until_final_output(self) -> None:
+        fo = IoPipelineMessages.FinalOutput()
+
+        class CloseOnFinalInputHandler(CaptureIoPipelineHandler):
+            def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+                super().inbound(ctx, msg)
+                if isinstance(msg, IoPipelineMessages.FinalInput):
+                    ctx.feed_out(fo)
+
+        capture = CloseOnFinalInputHandler()
+        so = IoPipelineMessages.ShutdownOutput()
+        driver = self._driver(capture)
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([b'request', so]))
+            self.assertIsNone(driver.next(read=False))
+            self.assertEqual(driver.drain_output(), b'request')
+            self.assertTrue(driver.output_shutdown)
+
+            driver.feed_input(b'response')
+            self.assertEqual(driver.next(), Observed(b'response'))
+            driver.feed_eof()
+            self.assertIsNone(driver.next(raise_on_stall=False))
+            self.assertTrue(driver.pipeline.saw_final_input)
+
+            # The application policy closes once both directions have ended.
+            self.assertIs(driver.state, IoPipelineDriverState.DRAINING)
+            self.assertEqual(driver.drain_output(), b'')
+            self.assertTrue(fo.is_succeeded())
+            self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
+        finally:
+            driver.close()
+
+    def test_final_output_queued_behind_shutdown(self) -> None:
+        so = IoPipelineMessages.ShutdownOutput()
+        fo = IoPipelineMessages.FinalOutput()
+        driver = self._driver(CaptureIoPipelineHandler())
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([b'xy', so, fo]))
+            self.assertIsNone(driver.next(read=False))
+
+            self.assertEqual(driver.drain_output(1), b'x')
+            self.assertFalse(so.is_done())
+            self.assertFalse(fo.is_done())
+
+            self.assertEqual(driver.drain_output(), b'y')
+            self.assertTrue(so.is_succeeded())
+            self.assertTrue(fo.is_succeeded())
+            self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
+        finally:
+            driver.close()
+
+    def test_writability_is_not_announced_after_shutdown(self) -> None:
+        capture = CaptureIoPipelineHandler()
+        so = IoPipelineMessages.ShutdownOutput()
+        driver = self._driver(capture, write_high_watermark=4, write_low_watermark=2)
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([b'abcdef', so]))
+            self.assertIsNone(driver.next(read=False))
+            self.assertEqual(
+                [type(msg) for msg in capture.output_writability],
+                [IoPipelineFlowMessages.PauseOutput],
+            )
+
+            self.assertEqual(driver.drain_output(), b'abcdef')
+            self.assertTrue(driver.output_shutdown)
+
+            # Draining below the low watermark would ordinarily announce ReadyForOutput, but nothing may produce
+            # ordinary output any more.
+            self.assertEqual(
+                [type(msg) for msg in capture.output_writability],
+                [IoPipelineFlowMessages.PauseOutput],
+            )
+        finally:
+            driver.close()
+
+    def test_output_after_shutdown_is_an_inbound_error(self) -> None:
+        capture = CaptureIoPipelineHandler()
+        driver = self._driver(capture, pipeline_config=IoPipeline.Config(inbound_terminal='drop'))
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([IoPipelineMessages.ShutdownOutput()]))
+            driver.enqueue(Emit([b'late']))
+            self.assertIsNone(driver.next(read=False))
+
+            errors = [m for m in capture.inputs if isinstance(m, IoPipelineMessages.Error)]
+            self.assertEqual(len(errors), 1)
+            self.assertIsInstance(errors[0].exc, SawShutdownOutputIoPipelineError)
+            self.assertEqual(driver.pending_output_bytes, 0)
+            self.assertIs(driver.state, IoPipelineDriverState.RUNNING)
+        finally:
+            driver.close()
+
+    def test_manual_read_tokens_are_honored_after_shutdown(self) -> None:
+        capture = CaptureIoPipelineHandler()
+        driver = self._driver(capture, manual_input=True)
+        try:
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([IoPipelineMessages.ShutdownOutput(), IoPipelineFlowMessages.ReadyForInput()]))
+            self.assertIsNone(driver.next(read=False))
+            driver.drain_output()
+            self.assertTrue(driver.output_shutdown)
+
+            driver.feed_input(b'more')
+            self.assertTrue(driver.wants_input)
+            self.assertEqual(driver.next(), Observed(b'more'))
+            self.assertFalse(driver.wants_input)
+        finally:
+            driver.close()
+
+    def test_close_fails_pending_shutdown(self) -> None:
+        so = IoPipelineMessages.ShutdownOutput()
+        excs: ta.List[ta.Optional[BaseException]] = []
+        so.add_listener(lambda m: excs.append(m.get_exception()))
+        driver = self._driver(CaptureIoPipelineHandler())
+        self.assertIsNone(driver.next(read=False))
+        driver.enqueue(Emit([b'unsent', so]))
+        self.assertIsNone(driver.next(read=False))
+
+        driver.close()
+
+        self.assertTrue(so.is_failed())
+        self.assertEqual(len(excs), 1)
+        self.assertIsInstance(excs[0], AbortedIoPipelineError)
+        self.assertFalse(driver.output_shutdown)
+
+    def test_half_closed_lifecycle_releases_without_cyclic_gc(self) -> None:
+        import gc
+        import weakref
+
+        def run() -> ta.Tuple[weakref.ReferenceType, ...]:
+            capture = CaptureIoPipelineHandler()
+            so = IoPipelineMessages.ShutdownOutput()
+            fo = IoPipelineMessages.FinalOutput()
+            driver = self._driver(capture)
+            self.assertIsNone(driver.next(read=False))
+            driver.enqueue(Emit([b'request', so]))
+            self.assertIsNone(driver.next(read=False))
+            driver.drain_output()
+            driver.feed_input(b'response')
+            self.assertEqual(driver.next(), Observed(b'response'))
+            driver.enqueue(Emit([fo]))
+            self.assertIsNone(driver.next(read=False))
+            driver.drain_output()
+            self.assertIs(driver.state, IoPipelineDriverState.CLOSED)
+            return (weakref.ref(driver), weakref.ref(driver.pipeline), weakref.ref(capture), weakref.ref(so))
+
+        was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            refs = run()
+            self.assertEqual([r() for r in refs], [None] * len(refs))
+        finally:
+            if was_enabled:
+                gc.enable()

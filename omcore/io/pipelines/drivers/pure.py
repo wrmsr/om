@@ -25,9 +25,13 @@ class PureIoPipelineDriver:
     Deterministically drive a pipeline without an operating-system transport or event loop.
 
     Transport input is supplied with `feed_input()` and consumed by `next(read=True)`. Outbound bytes remain queued
-    until `drain_output()` explicitly accepts them across the simulated transport boundary. Consequently flush and
-    final-output completion, partial writes, watermarks, and timer races can be exercised without sockets or sleeps.
-    Queued bytes-like segments are retained by reference until accepted and must not be mutated or recycled meanwhile.
+    until `drain_output()` explicitly accepts them across the simulated transport boundary. Consequently flush,
+    output-shutdown, and final-output completion, partial writes, watermarks, and timer races can be exercised without
+    sockets or sleeps. Queued bytes-like segments are retained by reference until accepted and must not be mutated or
+    recycled meanwhile.
+
+    An output shutdown is recorded once `drain_output()` reaches it, after all preceding bytes, and is observable as
+    `output_shutdown`; a caller simulating a peer would deliver EOF to it at that point.
 
     The clock starts at zero and advances only through `advance_time()`. With no scheduled callback the driver remains
     tickless; advancing time does not itself run work, so callers retain the same explicit stepping model as `next()`.
@@ -86,11 +90,14 @@ class PureIoPipelineDriver:
         self._transport_input_q: ta.Deque[ta.Any] = collections.deque()
         self._fed_final_input = False
 
-        self._write_q: ta.Deque[
-            ta.Union[memoryview, IoPipelineFlowMessages.FlushOutput]
-        ] = collections.deque()
+        self._write_q: ta.Deque[ta.Union[
+            memoryview,
+            IoPipelineFlowMessages.FlushOutput,
+            IoPipelineMessages.ShutdownOutput,
+        ]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
+        self._output_shutdown = False
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
 
@@ -130,8 +137,20 @@ class PureIoPipelineDriver:
         return self._write_q_bytes
 
     @property
+    def pending_input_bytes(self) -> int:
+        """Bytes supplied with `feed_input()` which have not yet been read into the pipeline."""
+
+        return sum(len(msg) for msg in self._transport_input_q if ByteStreamBuffers.can_bytes(msg))
+
+    @property
     def has_pending_output(self) -> bool:
         return bool(self._write_q) or self._transport_final_output is not None
+
+    @property
+    def output_shutdown(self) -> bool:
+        """Whether a ShutdownOutput has crossed the simulated transport boundary, shutting down its output half."""
+
+        return self._output_shutdown
 
     @property
     def wants_input(self) -> bool:
@@ -301,7 +320,11 @@ class PureIoPipelineDriver:
         self._update_output_writability()
 
     def _update_output_writability(self) -> None:
-        if self._flow is None or self._state is not IoPipelineDriverState.RUNNING:
+        if (
+                self._flow is None or
+                self._state is not IoPipelineDriverState.RUNNING or
+                self._output_shutdown
+        ):
             return
 
         if self._output_writable:
@@ -309,11 +332,16 @@ class PureIoPipelineDriver:
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark:
+        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
+            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
+            # since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
-    def _complete_flush_output(self, msg: IoPipelineFlowMessages.FlushOutput) -> None:
+    def _complete_fence(
+            self,
+            msg: ta.Union[IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput],
+    ) -> None:
         with self._pipeline.enter():
             if not msg.is_done():
                 msg.set_succeeded(None)
@@ -340,8 +368,8 @@ class PureIoPipelineDriver:
         Accept queued bytes across the simulated transport boundary.
 
         `max_bytes` bounds this acceptance step. When omitted, `Config.write_chunk_max` supplies the bound; when both
-        are omitted all currently queued bytes are accepted. Zero-byte flush fences at the reached boundary complete
-        in the same call. A pending FinalOutput completes once the queue has drained.
+        are omitted all currently queued bytes are accepted. Zero-byte flush and output-shutdown fences at the reached
+        boundary complete in the same call. A pending FinalOutput completes once the queue has drained.
         """
 
         self._ensure_pipeline()
@@ -359,7 +387,13 @@ class PureIoPipelineDriver:
                 head = self._write_q[0]
                 if isinstance(head, IoPipelineFlowMessages.FlushOutput):
                     self._write_q.popleft()
-                    self._complete_flush_output(head)
+                    self._complete_fence(head)
+                    continue
+
+                if isinstance(head, IoPipelineMessages.ShutdownOutput):
+                    self._write_q.popleft()
+                    self._output_shutdown = True
+                    self._complete_fence(head)
                     continue
 
                 if remaining == 0:
@@ -409,7 +443,7 @@ class PureIoPipelineDriver:
             self._enqueue_write(msg)
             return 'handled'
 
-        if isinstance(msg, IoPipelineFlowMessages.FlushOutput):
+        if isinstance(msg, (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput)):
             self._write_q.append(msg)
             return 'handled'
 
@@ -453,11 +487,19 @@ class PureIoPipelineDriver:
                 pipeline.feed_in(self._input_q.popleft())
                 continue
 
-            if self._transport_final_output is not None or self._write_q:
+            if self._transport_final_output is not None:
+                # Draining: input has no consumer any more, but is still taken off the transport, so a peer whose own
+                # output is blocked on this side reading is not left waiting forever.
+                self._transport_input_q.clear()
                 return 'write'
 
+            # Pending output must not stop reading: a peer which is not accepting output may be waiting for this side
+            # to read first.
             if self._transport_input_q and not pipeline.saw_final_input and self._want_read:
                 return 'read'
+
+            if self._write_q:
+                return 'write'
 
             return None
 

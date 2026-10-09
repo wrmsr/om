@@ -121,9 +121,9 @@ class OutboundBytesBufferIoPipelineHandler(OutboundBytesBufferingIoPipelineHandl
             self._update_writability(ctx)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
+        if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
             # Draining here can leave us writable again, but announcing that would invite a reentrant write which
-            # could only land after FinalOutput - silently stranded, since the terminal rejects it.
+            # could only land after the fence - and be rejected, since no ordinary output may follow either.
             self._flush(ctx, no_announce_writability=True)
             ctx.feed_out(msg)
 

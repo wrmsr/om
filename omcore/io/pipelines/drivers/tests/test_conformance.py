@@ -6,6 +6,7 @@ import dataclasses as dc
 import socket
 import typing as ta
 
+from .....lite.check import check
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ....streambufs.types import ByteStreamBuffer
 from ....streambufs.utils import ByteStreamBuffers
@@ -14,6 +15,7 @@ from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
 from ...errors import AbortedIoPipelineError
+from ...errors import SawShutdownOutputIoPipelineError
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
 from ...sched.types import IoPipelineScheduling
@@ -22,6 +24,9 @@ from ..fdio import IoPipelineDriverSocketFdioHandler
 from ..pure import PureIoPipelineDriver
 from ..sync import SocketSyncIoPipelineDriver
 from ..types import IoPipelineDriverState
+
+
+_ASYNCIO_STEP_TIMEOUT_S = 5.
 
 
 ##
@@ -33,7 +38,9 @@ class _Emit:
 
 
 @dc.dataclass(frozen=True)
-class _ObservedInput:
+class _ObservedInput(IoPipelineMessages.AfterShutdownOutput):
+    """Echoed back to the driver's caller as unhandled output; remains deliverable after an output shutdown."""
+
     msg: ta.Any
 
 
@@ -160,6 +167,17 @@ class _ConformanceDriverAdapter(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def peer_saw_eof(self) -> bool:
+        """Whether the real or simulated peer has observed the end of the driver's output, as of the last take."""
+
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def output_shutdown(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     async def close(self) -> None:
         raise NotImplementedError
 
@@ -184,7 +202,7 @@ def _fill_socket_send_buffer(sock: socket.socket) -> None:
             return
 
 
-def _drain_socket(sock: socket.socket) -> bytes:
+def _drain_socket_eof(sock: socket.socket) -> ta.Tuple[bytes, bool]:
     timeout = sock.gettimeout()
     sock.setblocking(False)
     chunks: ta.List[bytes] = []
@@ -193,12 +211,16 @@ def _drain_socket(sock: socket.socket) -> bytes:
             try:
                 chunk = sock.recv(64 * 1024)
             except BlockingIOError:
-                return b''.join(chunks)
+                return (b''.join(chunks), False)
             if not chunk:
-                return b''.join(chunks)
+                return (b''.join(chunks), True)
             chunks.append(chunk)
     finally:
         sock.settimeout(timeout)
+
+
+def _drain_socket(sock: socket.socket) -> bytes:
+    return _drain_socket_eof(sock)[0]
 
 
 class _SyncConformanceDriverAdapter(_ConformanceDriverAdapter):
@@ -226,6 +248,7 @@ class _SyncConformanceDriverAdapter(_ConformanceDriverAdapter):
             ),
         )
         self._output_blocked = False
+        self._peer_eof = False
 
     @property
     def state(self) -> IoPipelineDriverState:
@@ -234,6 +257,10 @@ class _SyncConformanceDriverAdapter(_ConformanceDriverAdapter):
     @property
     def pipeline(self) -> IoPipeline:
         return self._driver.pipeline
+
+    @property
+    def output_shutdown(self) -> bool:
+        return self._driver.output_shutdown
 
     async def start(self) -> None:
         assert self._driver.next(read=False) is None
@@ -265,7 +292,12 @@ class _SyncConformanceDriverAdapter(_ConformanceDriverAdapter):
             assert self._driver.next(read=False) is None
 
     def take_output(self) -> bytes:
-        return _drain_socket(self._peer)
+        data, eof = _drain_socket_eof(self._peer)
+        self._peer_eof |= eof
+        return data
+
+    def peer_saw_eof(self) -> bool:
+        return self._peer_eof
 
     async def close(self) -> None:
         try:
@@ -300,6 +332,7 @@ class _FdioConformanceDriverAdapter(_ConformanceDriverAdapter):
             ),
         )
         self._output_blocked = False
+        self._peer_eof = False
 
     @property
     def state(self) -> IoPipelineDriverState:
@@ -308,6 +341,10 @@ class _FdioConformanceDriverAdapter(_ConformanceDriverAdapter):
     @property
     def pipeline(self) -> IoPipeline:
         return self._driver.pipeline
+
+    @property
+    def output_shutdown(self) -> bool:
+        return self._driver.output_shutdown
 
     async def start(self) -> None:
         assert self._driver.next(read=False) is None
@@ -339,7 +376,12 @@ class _FdioConformanceDriverAdapter(_ConformanceDriverAdapter):
             self._driver.on_writable()
 
     def take_output(self) -> bytes:
-        return _drain_socket(self._peer)
+        data, eof = _drain_socket_eof(self._peer)
+        self._peer_eof |= eof
+        return data
+
+    def peer_saw_eof(self) -> bool:
+        return self._peer_eof
 
     async def close(self) -> None:
         try:
@@ -369,14 +411,23 @@ class _ConformanceStreamWriter:
         self.transport = self.Transport(self)
         self.output = bytearray()
         self.closed = False
+        self.eof = False
         self.blocked = False
         self.drain_started = asyncio.Event()
         self._release = asyncio.Event()
 
     def write(self, data: ta.Any) -> None:
+        if self.eof:
+            raise RuntimeError('write after write_eof')
         b = bytes(data)
         self.output.extend(b)
         self.transport._size += len(b)
+
+    def can_write_eof(self) -> bool:
+        return True
+
+    def write_eof(self) -> None:
+        self.eof = True
 
     async def drain(self) -> None:
         self.drain_started.set()
@@ -424,6 +475,10 @@ class _AsyncioConformanceDriverAdapter(_ConformanceDriverAdapter):
     def pipeline(self) -> IoPipeline:
         return self._driver.pipeline
 
+    @property
+    def output_shutdown(self) -> bool:
+        return self._driver.output_shutdown
+
     async def start(self) -> None:
         assert await self._driver.next(read=False) is None
 
@@ -451,11 +506,11 @@ class _AsyncioConformanceDriverAdapter(_ConformanceDriverAdapter):
 
     async def feed_input(self, data: bytes) -> ta.Any:
         self._reader.feed_data(data)
-        return await self._driver.next(read=True, raise_on_stall=False)
+        return await asyncio.wait_for(self._driver.next(read=True, raise_on_stall=False), _ASYNCIO_STEP_TIMEOUT_S)
 
     async def feed_eof(self) -> ta.Any:
         self._reader.feed_eof()
-        return await self._driver.next(read=True, raise_on_stall=False)
+        return await asyncio.wait_for(self._driver.next(read=True, raise_on_stall=False), _ASYNCIO_STEP_TIMEOUT_S)
 
     async def step_nonblocking(self) -> ta.Optional[ta.Any]:
         return await self._driver.next(read=False)
@@ -465,18 +520,137 @@ class _AsyncioConformanceDriverAdapter(_ConformanceDriverAdapter):
 
     async def release_output(self) -> None:
         self._writer._release.set()
-        if (drain_task := self._driver._drain_task) is not None:
-            await drain_task
-        assert await self._settle() is None
+        # Completing one drain can release output queued behind it which starts the next, so settle until none remain.
+        for _ in range(8):
+            if (drain_task := self._driver._drain_task) is not None:
+                await drain_task
+            assert await self._settle() is None
+            if self._driver._drain_task is None:
+                break
 
     def take_output(self) -> bytes:
         out = bytes(self._writer.output)
         self._writer.output.clear()
         return out
 
+    def peer_saw_eof(self) -> bool:
+        # Like a real transport, buffered bytes are sent before the EOF they precede.
+        return self._writer.eof and not self._writer.transport.get_write_buffer_size()
+
     async def close(self) -> None:
         self._writer._release.set()
         await self._driver.close()
+
+
+class _AsyncioSocketConformanceDriverAdapter(_ConformanceDriverAdapter):
+    """The asyncio driver over a real socket pair, using the event loop's own stream transport."""
+
+    NAME = 'asyncio-socket'
+
+    def __init__(self, handler: _ConformanceIoPipelineHandler, **kwargs: ta.Any) -> None:
+        super().__init__(handler, **kwargs)
+
+        self._sock, self._peer = socket.socketpair()
+        self._peer.setblocking(False)
+        self._driver: ta.Optional[PollAsyncioStreamIoPipelineDriver] = None
+        self._output_blocked = False
+        self._peer_eof = False
+
+    @property
+    def driver(self) -> PollAsyncioStreamIoPipelineDriver:
+        return check.not_none(self._driver)
+
+    @property
+    def state(self) -> IoPipelineDriverState:
+        if self._driver is None:
+            return IoPipelineDriverState.NEW
+        return self._driver.state
+
+    @property
+    def pipeline(self) -> IoPipeline:
+        return self.driver.pipeline
+
+    @property
+    def output_shutdown(self) -> bool:
+        return self.driver.output_shutdown
+
+    async def start(self) -> None:
+        reader, writer = await asyncio.open_connection(sock=self._sock)
+        self._driver = PollAsyncioStreamIoPipelineDriver(
+            _make_spec(
+                self.handler,
+                manual_input=self._manual_input,
+                explicit_auto_input=self._explicit_auto_input,
+            ),
+            reader,
+            writer,
+            PollAsyncioStreamIoPipelineDriver.Config(
+                read_chunk_size=self._read_chunk_size,
+                read_batch_max_bytes=self._read_batch_max_bytes,
+                read_batch_max_reads=self._read_batch_max_reads,
+                write_high_watermark=self._write_high_watermark,
+                write_low_watermark=self._write_low_watermark,
+            ),
+        )
+        assert await self._driver.next(read=False) is None
+
+    async def _settle(self) -> ta.Optional[ta.Any]:
+        # Real transport progress - sends, drain wakeups, EOF - happens in event loop iterations, not direct calls.
+        for _ in range(16):
+            await asyncio.sleep(0)
+            if self.driver.state in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED):
+                break
+            if (out := await self.driver.next(read=False)) is not None:
+                return out
+        return None
+
+    async def enqueue(self, *msgs: ta.Any) -> ta.Optional[ta.Any]:
+        self.driver.enqueue(*msgs)
+        if (out := await self.driver.next(read=False)) is not None:
+            return out
+        return await self._settle()
+
+    async def feed_input(self, data: bytes) -> ta.Any:
+        self._peer.sendall(data)
+        return await asyncio.wait_for(self.driver.next(read=True, raise_on_stall=False), _ASYNCIO_STEP_TIMEOUT_S)
+
+    async def feed_eof(self) -> ta.Any:
+        self._peer.shutdown(socket.SHUT_WR)
+        return await asyncio.wait_for(self.driver.next(read=True, raise_on_stall=False), _ASYNCIO_STEP_TIMEOUT_S)
+
+    async def step_nonblocking(self) -> ta.Optional[ta.Any]:
+        return await self.driver.next(read=False)
+
+    async def block_output(self) -> None:
+        # The transport writes straight to the socket while its own buffer is empty, so filling the kernel buffer
+        # first forces later pipeline output into the transport's buffer, above the write watermark.
+        _fill_socket_send_buffer(self._sock)
+        self._output_blocked = True
+
+    async def release_output(self) -> None:
+        if self._output_blocked:
+            _drain_socket(self._peer)
+            self._output_blocked = False
+        if self.driver.state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+            if (drain_task := self.driver._drain_task) is not None:
+                await asyncio.wait_for(asyncio.shield(drain_task), _ASYNCIO_STEP_TIMEOUT_S)
+            assert await self._settle() is None
+
+    def take_output(self) -> bytes:
+        data, eof = _drain_socket_eof(self._peer)
+        self._peer_eof |= eof
+        return data
+
+    def peer_saw_eof(self) -> bool:
+        return self._peer_eof
+
+    async def close(self) -> None:
+        try:
+            if self._driver is not None:
+                await self._driver.close()
+        finally:
+            self._sock.close()
+            self._peer.close()
 
 
 class _PureConformanceDriverAdapter(_ConformanceDriverAdapter):
@@ -509,6 +683,10 @@ class _PureConformanceDriverAdapter(_ConformanceDriverAdapter):
     def pipeline(self) -> IoPipeline:
         return self._driver.pipeline
 
+    @property
+    def output_shutdown(self) -> bool:
+        return self._driver.output_shutdown
+
     async def start(self) -> None:
         assert self._driver.next(read=False) is None
 
@@ -539,6 +717,9 @@ class _PureConformanceDriverAdapter(_ConformanceDriverAdapter):
         self._output.clear()
         return out
 
+    def peer_saw_eof(self) -> bool:
+        return self._driver.output_shutdown
+
     async def close(self) -> None:
         self._driver.close()
 
@@ -550,6 +731,7 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
     ADAPTER_TYPES: ta.Tuple[ta.Type[_ConformanceDriverAdapter], ...] = (
         _SyncConformanceDriverAdapter,
         _AsyncioConformanceDriverAdapter,
+        _AsyncioSocketConformanceDriverAdapter,
         _FdioConformanceDriverAdapter,
         _PureConformanceDriverAdapter,
     )
@@ -708,6 +890,29 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
 
         await self._with_adapters(run, manual_input=True)
 
+    async def test_output_writability_returns_without_a_flush(self) -> None:
+        # A producer which only honors writability - stopping at PauseOutput, resuming at ReadyForOutput - and never
+        # flushes must still be told when the transport catches up.
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            await adapter.block_output()
+
+            self.assertIsNone(await adapter.enqueue(_Emit([b'abcde', b'f'])))
+            self.assertEqual(
+                [type(msg) for msg in adapter.handler.output_writability],
+                [IoPipelineFlowMessages.PauseOutput],
+            )
+
+            await adapter.release_output()
+
+            self.assertEqual(
+                [type(msg) for msg in adapter.handler.output_writability],
+                [IoPipelineFlowMessages.PauseOutput, IoPipelineFlowMessages.ReadyForOutput],
+            )
+            self.assertEqual(adapter.take_output(), b'abcdef')
+
+        await self._with_adapters(run, manual_input=True)
+
     async def test_final_input_is_only_an_input_half_close(self) -> None:
         async def run(adapter: _ConformanceDriverAdapter) -> None:
             await adapter.start()
@@ -768,5 +973,172 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
             if out is None:
                 out = await adapter.step_nonblocking()
             self.assertIs(out, marker)
+
+        await self._with_adapters(run, manual_input=True)
+
+    ##
+    # Manual input while output is blocked
+
+    async def test_manual_input_is_honored_while_output_is_blocked(self) -> None:
+        # A peer which stops reading must not stop this side reading: otherwise two peers each blocked on output, each
+        # waiting for the other to read, deadlock symmetrically.
+
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            await adapter.block_output()
+            flush_output = IoPipelineFlowMessages.FlushOutput()
+
+            self.assertIsNone(await adapter.enqueue(_Emit([b'payload', flush_output]), _RequestInput()))
+            self.assertFalse(flush_output.is_done())
+
+            self.assertEqual(await adapter.feed_input(b'input'), _ObservedInput(b'input'))
+            self.assertFalse(flush_output.is_done())
+
+            await adapter.release_output()
+            self.assertTrue(flush_output.is_succeeded())
+
+        await self._with_adapters(run, manual_input=True)
+
+    ##
+    # Output shutdown
+
+    async def test_shutdown_output_follows_preceding_output_and_ends_transport_output(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            shutdown_output = IoPipelineMessages.ShutdownOutput()
+
+            self.assertIsNone(await adapter.enqueue(_Emit([b'ab', b'cd', shutdown_output])))
+            await adapter.release_output()
+
+            self.assertEqual(adapter.take_output(), b'abcd')
+            self.assertTrue(adapter.peer_saw_eof())
+            self.assertTrue(shutdown_output.is_succeeded())
+            self.assertTrue(adapter.output_shutdown)
+            self.assertIs(adapter.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(adapter.pipeline.saw_shutdown_output)
+            self.assertFalse(adapter.pipeline.saw_final_output)
+
+        await self._with_adapters(run)
+
+    async def test_shutdown_output_waits_for_blocked_output(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            await adapter.block_output()
+            shutdown_output = IoPipelineMessages.ShutdownOutput()
+
+            self.assertIsNone(await adapter.enqueue(_Emit([b'payload', shutdown_output])))
+            self.assertFalse(shutdown_output.is_done())
+            self.assertFalse(adapter.peer_saw_eof())
+
+            await adapter.release_output()
+
+            self.assertEqual(adapter.take_output(), b'payload')
+            self.assertTrue(adapter.peer_saw_eof())
+            self.assertTrue(shutdown_output.is_succeeded())
+            self.assertTrue(adapter.output_shutdown)
+
+        await self._with_adapters(run, manual_input=True)
+
+    async def test_input_continues_after_shutdown_output(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            shutdown_output = IoPipelineMessages.ShutdownOutput()
+
+            self.assertIsNone(await adapter.enqueue(_Emit([b'request', shutdown_output])))
+            await adapter.release_output()
+            self.assertEqual(adapter.take_output(), b'request')
+            self.assertTrue(shutdown_output.is_succeeded())
+
+            self.assertEqual(await adapter.feed_input(b'response'), _ObservedInput(b'response'))
+
+            observed = await adapter.feed_eof()
+            self.assertIsInstance(observed, _ObservedInput)
+            self.assertIsInstance(observed.msg, IoPipelineMessages.FinalInput)
+            self.assertIs(adapter.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(adapter.pipeline.is_ready)
+
+        await self._with_adapters(run)
+
+    async def test_final_output_after_shutdown_output_closes(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            shutdown_output = IoPipelineMessages.ShutdownOutput()
+            final_output = IoPipelineMessages.FinalOutput()
+
+            self.assertIsNone(await adapter.enqueue(_Emit([b'payload', shutdown_output, final_output])))
+            await adapter.release_output()
+
+            self.assertEqual(adapter.take_output(), b'payload')
+            self.assertTrue(shutdown_output.is_succeeded())
+            self.assertTrue(final_output.is_succeeded())
+            self.assertIs(adapter.state, IoPipelineDriverState.CLOSED)
+            self.assertFalse(adapter.pipeline.is_ready)
+
+        await self._with_adapters(run)
+
+    async def test_output_after_shutdown_output_is_rejected(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+
+            observed = await adapter.enqueue(_Emit([IoPipelineMessages.ShutdownOutput(), b'late']))
+            if observed is None:
+                observed = await adapter.step_nonblocking()
+
+            observed = check.isinstance(observed, _ObservedInput)
+            self.assertIsInstance(observed.msg, IoPipelineMessages.Error)
+            self.assertIsInstance(observed.msg.exc, SawShutdownOutputIoPipelineError)
+
+            await adapter.release_output()
+            self.assertEqual(adapter.take_output(), b'')
+            self.assertTrue(adapter.peer_saw_eof())
+            self.assertIs(adapter.state, IoPipelineDriverState.RUNNING)
+
+        await self._with_adapters(run)
+
+    async def test_close_is_abortive_for_pending_shutdown_output(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            await adapter.block_output()
+            shutdown_output = IoPipelineMessages.ShutdownOutput()
+            completion_errors: ta.List[ta.Optional[BaseException]] = []
+            shutdown_output.add_listener(lambda msg: completion_errors.append(msg.get_exception()))
+            self.assertIsNone(await adapter.enqueue(_Emit([b'payload', shutdown_output])))
+            self.assertFalse(shutdown_output.is_done())
+
+            await adapter.close()
+
+            self.assertIs(adapter.state, IoPipelineDriverState.CLOSED)
+            self.assertTrue(shutdown_output.is_failed())
+            self.assertEqual(len(completion_errors), 1)
+            self.assertIsInstance(completion_errors[0], AbortedIoPipelineError)
+
+        await self._with_adapters(run, manual_input=True)
+
+    async def test_fences_complete_in_order_around_shutdown_output(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            await adapter.block_output()
+            completed: ta.List[str] = []
+            flush_before = IoPipelineFlowMessages.FlushOutput()
+            shutdown_output = IoPipelineMessages.ShutdownOutput()
+            flush_after = IoPipelineFlowMessages.FlushOutput()
+            flush_before.add_listener(lambda _: completed.append('flush_before'))
+            shutdown_output.add_listener(lambda _: completed.append('shutdown'))
+            flush_after.add_listener(lambda _: completed.append('flush_after'))
+
+            self.assertIsNone(await adapter.enqueue(_Emit([
+                b'one',
+                flush_before,
+                b'two',
+                shutdown_output,
+                flush_after,
+            ])))
+            await adapter.release_output()
+
+            self.assertEqual(adapter.take_output(), b'onetwo')
+            self.assertTrue(adapter.peer_saw_eof())
+            self.assertEqual(completed, ['flush_before', 'shutdown', 'flush_after'])
+            for msg in (flush_before, shutdown_output, flush_after):
+                self.assertTrue(msg.is_succeeded())
 
         await self._with_adapters(run, manual_input=True)

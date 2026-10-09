@@ -17,6 +17,7 @@ from .errors import MessageReachedTerminalIoPipelineError
 from .errors import SawFinalInputIoPipelineError
 from .errors import SawFinalOutputIoPipelineError
 from .errors import SawInitialInputIoPipelineError
+from .errors import SawShutdownOutputIoPipelineError
 from .errors import UnhandleableIoPipelineError
 
 
@@ -72,6 +73,15 @@ class IoPipelineMessages(NamespaceClass):
         messages must not, and remain rejected.
         """
 
+    class AfterShutdownOutput(Abstract):
+        """
+        These may reach the outbound pipeline terminal after ShutdownOutput has reached it.
+
+        ShutdownOutput is only an *output* half-close - input continues until FinalInput - so control messages which
+        concern input or driver interaction (notably read requests and deferred work) must remain deliverable
+        afterwards. Ordinary output must not, and is rejected.
+        """
+
     #
 
     class Pinning(Abstract):
@@ -105,8 +115,13 @@ class IoPipelineMessages(NamespaceClass):
 
     @ta.final
     @dc.dataclass(frozen=True)
-    class Error(NeverOutbound):
-        """Signals an exception occurred in the pipeline."""
+    class Error(NeverOutbound, AfterFinalInput):
+        """
+        Signals an exception occurred in the pipeline.
+
+        Errors can arise after input has ended - a failed write, a timeout, an aborted stream - so they remain
+        deliverable at the pipeline boundary after FinalInput.
+        """
 
         exc: BaseException
 
@@ -262,11 +277,30 @@ class IoPipelineMessages(NamespaceClass):
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
 
+    @ta.final
+    @dc.dataclass(frozen=True, eq=False)
+    class ShutdownOutput(NeverInbound, MustPropagate, Completable[None]):  # ~ Netty `DuplexChannel::shutdownOutput`
+        """
+        Ends output while input continues: an output half-close.
+
+        This is an ordered barrier like FlushOutput: handlers emit all output accepted before it, and may retain it
+        while finishing protocol-level output shutdown, then forward the same instance. Once it reaches the pipeline
+        terminal only `AfterShutdownOutput` messages and FinalOutput may follow it there. Unlike FinalOutput it does not
+        terminate the driver, which keeps delivering input; FinalOutput remains required to finish the pipeline.
+
+        Successful completion means all preceding output crossed the driver's transport boundary and the transport's
+        output half was shut down (for a socket, `shutdown(SHUT_WR)`). It does not imply peer receipt. A transport which
+        cannot half-close fails the message and is otherwise left intact.
+        """
+
+        def __repr__(self) -> str:
+            return f'{type(self).__name__}@{id(self):x}()'
+
     #
 
     @ta.final
     @dc.dataclass(frozen=True)
-    class Defer(NeverInbound, Pinning, Completable[T], ta.Generic[T]):
+    class Defer(NeverInbound, AfterShutdownOutput, Pinning, Completable[T], ta.Generic[T]):
         fn: ta.Union[
             ta.Callable[['IoPipelineHandlerContext'], T],
             ta.Callable[[], T],
@@ -723,6 +757,11 @@ class IoPipelineHandlerContext:
 
     def feed_final_output(self) -> IoPipelineMessages.FinalOutput:
         msg = IoPipelineMessages.FinalOutput()
+        self.feed_out(msg)
+        return msg
+
+    def feed_shutdown_output(self) -> IoPipelineMessages.ShutdownOutput:
+        msg = IoPipelineMessages.ShutdownOutput()
         self.feed_out(msg)
         return msg
 
@@ -1343,6 +1382,7 @@ class IoPipeline:
     _saw_initial_input = False
     _saw_final_input = False
     _saw_final_output = False
+    _saw_shutdown_output = False
 
     @property
     def saw_any_input(self) -> bool:
@@ -1359,6 +1399,10 @@ class IoPipeline:
     @property
     def saw_final_output(self) -> bool:
         return self._saw_final_output
+
+    @property
+    def saw_shutdown_output(self) -> bool:
+        return self._saw_shutdown_output
 
     ##
     # sub-collections
@@ -1571,6 +1615,12 @@ class IoPipeline:
             self._saw_final_output = True
         elif self._saw_final_output:
             raise SawFinalOutputIoPipelineError
+        elif self._saw_shutdown_output:
+            # Includes a second ShutdownOutput, which is not an AfterShutdownOutput.
+            if not isinstance(msg, IoPipelineMessages.AfterShutdownOutput):
+                raise SawShutdownOutputIoPipelineError
+        elif isinstance(msg, IoPipelineMessages.ShutdownOutput):
+            self._saw_shutdown_output = True
 
         self._output._q.append(msg)  # noqa
 

@@ -1,8 +1,10 @@
 # ruff: noqa: SLF001 UP006 UP045
 # @om-lite
+import gc
 import time
 import typing as ta
 import unittest
+import weakref
 
 from .....lite.check import check
 from ...core import IoPipeline
@@ -164,3 +166,43 @@ class TestHeapIoPipelineSchedulingService(unittest.TestCase):
         self.assertIsNone(sched.next_deadline())
         self.assertEqual(sched.run_due(), 0)
         self.assertEqual(events, [])
+
+    def test_cancelled_and_completed_callbacks_are_released_promptly(self) -> None:
+        # A cancelled far-future handle stays in the heap until it surfaces; it must not keep its callback's captures
+        # alive meanwhile. Likewise a completed handle retained by its owner.
+
+        class Captured:
+            pass
+
+        handler = NopIoPipelineHandler()
+        clock = [0.]
+        sched = HeapIoPipelineSchedulingService(lambda: clock[0])
+        pipeline = IoPipeline.new([handler], services=[sched])
+        was_enabled = gc.isenabled()
+        gc.disable()
+        try:
+            ref = self.find_handler_ref(pipeline, handler)
+
+            cancelled_obj = Captured()
+            cancelled_ref = weakref.ref(cancelled_obj)
+            cancelled = sched.schedule(ref, 1000., lambda obj=cancelled_obj: None)  # type: ignore[misc]
+            del cancelled_obj
+
+            ran_obj = Captured()
+            ran_ref = weakref.ref(ran_obj)
+            ran = sched.schedule(ref, 0., lambda obj=ran_obj: None)  # type: ignore[misc]
+            del ran_obj
+
+            # Keeps the cancelled handle buried in the heap.
+            sched.schedule(ref, 1., lambda: None)
+
+            cancelled.cancel()
+            self.assertIsNone(cancelled_ref())
+            self.assertEqual(sched.run_due(), 1)
+            self.assertIsNone(ran_ref())
+            del ran
+
+        finally:
+            pipeline.destroy()
+            if was_enabled:
+                gc.enable()

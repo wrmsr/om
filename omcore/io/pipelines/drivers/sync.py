@@ -6,6 +6,8 @@ import dataclasses as dc
 import fcntl
 import os
 import select
+import socket
+import stat
 import typing as ta
 
 from ....lite.abstract import Abstract
@@ -15,6 +17,7 @@ from ...streambufs.segmented import SegmentedByteStreamBuffer
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
 from ..core import IoPipelineMessages
+from ..errors import UnsupportedIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.heap import HeapIoPipelineSchedulingService
@@ -36,9 +39,13 @@ class SyncIoPipelineDriver(Abstract):
     Drive a pipeline over a caller-owned synchronous transport, blocking the calling thread.
 
     The transport must be used exclusively through the driver while it is active. Subclasses supply the handful of
-    transport operations - nonblocking reads and writes, the file descriptors to wait on, and switching the transport
-    into and out of nonblocking mode - and everything else (pipeline stepping, queued writes, watermarks, timers, the
-    readiness wait) is shared.
+    transport operations - nonblocking reads and writes, the file descriptors to wait on, switching the transport into
+    and out of nonblocking mode, and shutting down its output half - and everything else (pipeline stepping, queued
+    writes, watermarks, timers, the readiness wait) is shared.
+
+    ShutdownOutput is queued behind the bytes preceding it and performed once they have been written. Reading continues
+    afterwards. A transport which cannot half-close fails the message with UnsupportedIoPipelineError and is otherwise
+    left intact.
     """
 
     @dc.dataclass(frozen=True)
@@ -88,9 +95,14 @@ class SyncIoPipelineDriver(Abstract):
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: ta.Deque[ta.Union[memoryview, IoPipelineFlowMessages.FlushOutput]] = collections.deque()
+        self._write_q: ta.Deque[ta.Union[
+            memoryview,
+            IoPipelineFlowMessages.FlushOutput,
+            IoPipelineMessages.ShutdownOutput,
+        ]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
+        self._output_shutdown = False
 
         self._transport_prepared = False
         self._wait_timeout_s: ta.Optional[float] = None
@@ -122,6 +134,12 @@ class SyncIoPipelineDriver(Abstract):
     @property
     def pipeline(self) -> IoPipeline:
         return self._pipeline
+
+    @property
+    def output_shutdown(self) -> bool:
+        """Whether a ShutdownOutput has shut down the transport's output half."""
+
+        return self._output_shutdown
 
     @property
     def wait_timeout_s(self) -> ta.Optional[float]:
@@ -244,6 +262,15 @@ class SyncIoPipelineDriver(Abstract):
 
         raise NotImplementedError
 
+    def _shutdown_output(self) -> None:
+        """
+        Shut down the transport's output half, leaving its input readable. Called at most once, after all queued output
+        has been written. Raises UnsupportedIoPipelineError if the transport cannot half-close, in which case it must be
+        left intact; any other exception fails the driver.
+        """
+
+        raise UnsupportedIoPipelineError(f'{type(self).__name__} does not support output shutdown')
+
     #
 
     def _prepare_transport_once(self) -> None:
@@ -363,6 +390,25 @@ class SyncIoPipelineDriver(Abstract):
 
         self._update_output_writability()
 
+    def _complete_shutdown_output(self, msg: IoPipelineMessages.ShutdownOutput) -> None:
+        try:
+            self._shutdown_output()
+
+        except UnsupportedIoPipelineError as e:
+            with self._pipeline.enter():
+                if not msg.is_done():
+                    msg.set_failed(e)
+            return
+
+        except BaseException:
+            self._fail()
+            raise
+
+        self._output_shutdown = True
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
+
     def _try_write(self) -> bool:
         if not self._write_q:
             return False
@@ -373,6 +419,11 @@ class SyncIoPipelineDriver(Abstract):
             with self._pipeline.enter():
                 if not head.is_done():
                     head.set_succeeded(None)
+            return True
+
+        if isinstance(head, IoPipelineMessages.ShutdownOutput):
+            self._write_q.popleft()
+            self._complete_shutdown_output(head)
             return True
 
         mv = head
@@ -404,7 +455,11 @@ class SyncIoPipelineDriver(Abstract):
         return True
 
     def _update_output_writability(self) -> None:
-        if self._flow is None or self._state is not IoPipelineDriverState.RUNNING:
+        if (
+                self._flow is None or
+                self._state is not IoPipelineDriverState.RUNNING or
+                self._output_shutdown
+        ):
             return
 
         if self._output_writable:
@@ -412,7 +467,9 @@ class SyncIoPipelineDriver(Abstract):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark:
+        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
+            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
+            # since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -490,7 +547,7 @@ class SyncIoPipelineDriver(Abstract):
             self._enqueue_write(msg)
             return 'handled'
 
-        elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
+        elif isinstance(msg, (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput)):
             self._write_q.append(msg)
             return 'handled'
 
@@ -540,7 +597,10 @@ class SyncIoPipelineDriver(Abstract):
                 else:
                     raise RuntimeError(f'Unknown handled value: {handled!r}')
 
-            if self._write_q and isinstance(self._write_q[0], IoPipelineFlowMessages.FlushOutput):
+            if self._write_q and isinstance(
+                    self._write_q[0],
+                    (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput),
+            ):
                 self._try_write()
                 continue
 
@@ -628,7 +688,11 @@ class SyncIoPipelineDriver(Abstract):
             if not read:
                 while self._write_q and self._try_write():
                     pass
-                if self._transport_final_output is not None and not self._write_q:
+                # Writing completes fences, whose listeners may have produced more output to process now.
+                if (
+                        (self._transport_final_output is not None and not self._write_q) or
+                        pipeline.output.peek() is not None
+                ):
                     continue
                 return None
 
@@ -737,6 +801,14 @@ class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
     def _write(self, data: memoryview) -> int:
         return self._sock.send(data)
 
+    def _shutdown_output(self) -> None:
+        try:
+            shutdown = self._sock.shutdown
+        except AttributeError:
+            raise UnsupportedIoPipelineError(f'{self._sock!r} has no shutdown method') from None
+
+        shutdown(socket.SHUT_WR)
+
 
 ##
 
@@ -747,6 +819,12 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
 
     Both descriptors are switched to nonblocking mode while the driver is active and restored afterwards. They may be
     the same descriptor. An optional timeout bounds each readiness wait the same way a socket's timeout would.
+
+    ShutdownOutput on a socket write descriptor shuts down the socket's output half without closing the descriptor. A
+    caller-owned non-socket write descriptor (a pipe, a terminal) cannot be half-closed without closing it, so the
+    message fails unless `close_write_fd_on_output_shutdown` grants the driver that ownership - in which case the
+    descriptor's original flags are restored and it is closed. A single non-socket descriptor used for both directions
+    can never be half-closed.
     """
 
     def __init__(
@@ -757,12 +835,14 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
             config: ta.Optional[SyncIoPipelineDriver.Config] = None,
             *,
             timeout_s: ta.Optional[float] = None,
+            close_write_fd_on_output_shutdown: bool = False,
     ) -> None:
         super().__init__(spec, config)
 
         self._read_fd = read_fd
         self._write_fd = write_fd
         self._timeout_s = timeout_s
+        self._close_write_fd_on_output_shutdown = close_write_fd_on_output_shutdown
 
         self._original_flags: ta.Dict[int, int] = {}
 
@@ -807,3 +887,34 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
 
     def _write(self, data: memoryview) -> int:
         return os.write(self._write_fd, data)
+
+    def _shutdown_output(self) -> None:
+        fd = self._write_fd
+
+        if stat.S_ISSOCK(os.fstat(fd).st_mode):
+            # Shutdown acts on the socket, not the descriptor, so a temporary duplicate reaches it without taking
+            # ownership of the caller's descriptor.
+            sock = socket.socket(fileno=os.dup(fd))
+            try:
+                sock.shutdown(socket.SHUT_WR)
+            finally:
+                sock.close()
+            return
+
+        if fd == self._read_fd:
+            raise UnsupportedIoPipelineError('a single non-socket descriptor cannot be half-closed')
+
+        if not self._close_write_fd_on_output_shutdown:
+            raise UnsupportedIoPipelineError('closing the caller-owned write descriptor was not permitted')
+
+        # The nonblocking flag lives on the open file description, which other descriptors may share, so restore it
+        # before closing. The descriptor number may be reused once closed, so it must never be touched again.
+        if (flags := self._original_flags.pop(fd, None)) is not None:
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+        os.close(fd)
+
+        # The read descriptor may share that open file description - as dups of one terminal do - and is still in use,
+        # so it is made nonblocking again. Its original flags are restored when the driver is done with it.
+        rfl = fcntl.fcntl(self._read_fd, fcntl.F_GETFL)
+        if not rfl & os.O_NONBLOCK:
+            fcntl.fcntl(self._read_fd, fcntl.F_SETFL, rfl | os.O_NONBLOCK)

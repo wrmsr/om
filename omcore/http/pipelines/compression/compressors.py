@@ -1,4 +1,4 @@
-# ruff: noqa: UP006 UP037 UP045
+# ruff: noqa: UP006 UP007 UP037 UP045
 # @om-lite
 import dataclasses as dc
 import typing as ta
@@ -59,7 +59,11 @@ class IoPipelineHttpObjectCompressor(
 
     #
 
-    def _on_outbound_final_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineMessages.FinalOutput) -> None:
+    def _on_outbound_final_output(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: ta.Union[IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput],
+    ) -> None:
         if self._compressor is None:
             ctx.feed_out(msg)
             return
@@ -116,7 +120,8 @@ class IoPipelineHttpObjectCompressor(
         ctx.feed_out(msg)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
+        if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+            # Output ends mid-message either way.
             self._on_outbound_final_output(ctx, msg)
 
         elif isinstance(msg, self._head_type):

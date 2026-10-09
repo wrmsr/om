@@ -1,9 +1,5 @@
 # ruff: noqa: UP006 UP007 UP037 UP045
 # @om-lite
-"""
-TODO:
- - self._sock.shutdown(socket.SHUT_WR) ?
-"""
 import collections
 import dataclasses as dc
 import socket
@@ -32,6 +28,13 @@ log = get_module_logger(globals())  # noqa
 
 
 class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
+    """
+    Drive a pipeline over an owned nonblocking socket registered with an `FdioManager`.
+
+    ShutdownOutput is queued behind the bytes preceding it, then performed with `shutdown(SHUT_WR)`; reading continues
+    afterwards. FinalOutput still drains and closes the socket.
+    """
+
     @dc.dataclass(frozen=True)
     class Config:
         DEFAULT: ta.ClassVar['IoPipelineDriverSocketFdioHandler.Config']
@@ -82,11 +85,15 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: collections.deque[
-            ta.Union[BytesLike, IoPipelineFlowMessages.FlushOutput]
-        ] = collections.deque()
+        self._write_q: collections.deque[ta.Union[
+            BytesLike,
+            IoPipelineFlowMessages.FlushOutput,
+            IoPipelineMessages.ShutdownOutput,
+        ]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
+        self._output_shutdown = False
+        self._drain_input_ended = False
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
@@ -126,6 +133,12 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     @property
     def is_active(self) -> bool:
         return self._state in self.ACTIVE_STATES
+
+    @property
+    def output_shutdown(self) -> bool:
+        """Whether a ShutdownOutput has shut down the socket's output half."""
+
+        return self._output_shutdown
 
     #
 
@@ -350,6 +363,18 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         return sr
 
+    def _complete_shutdown_output(self, msg: IoPipelineMessages.ShutdownOutput) -> None:
+        try:
+            check.not_none(self._sock).shutdown(socket.SHUT_WR)
+        except BaseException:
+            self._fail()
+            raise
+
+        self._output_shutdown = True
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
+
     def _try_flush_write_q(self) -> None:
         while self._write_q:
             head = self._write_q[0]
@@ -358,6 +383,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 with self._pipeline.enter():
                     if not head.is_done():
                         head.set_succeeded(None)
+                continue
+
+            if isinstance(head, IoPipelineMessages.ShutdownOutput):
+                self._write_q.popleft()
+                self._complete_shutdown_output(head)
                 continue
 
             b = head
@@ -392,7 +422,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 bl = bl[sr:]
 
     def _update_output_writability(self) -> None:
-        if self._flow is None:
+        if self._flow is None or self._output_shutdown:
             return
 
         if self._output_writable:
@@ -400,7 +430,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark:
+        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
+            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
+            # since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -419,6 +451,13 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 with self._pipeline.enter():
                     if not msg.is_done():
                         msg.set_succeeded(None)
+            return 'handled'
+
+        elif isinstance(msg, IoPipelineMessages.ShutdownOutput):
+            if self._write_q:
+                self._write_q.append(msg)
+            else:
+                self._complete_shutdown_output(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
@@ -576,6 +615,10 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     ##
 
     def readable(self) -> bool:
+        if self._state is IoPipelineDriverState.DRAINING:
+            # Input has no consumer any more, but is still taken off the transport, so a peer whose own output is
+            # blocked on this side reading is not left waiting forever.
+            return not self._drain_input_ended
         return (
             self._state is IoPipelineDriverState.RUNNING and
             not self._pipeline.saw_final_input and
@@ -592,7 +635,24 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     #
 
+    def _discard_input(self) -> None:
+        buf = bytearray(self._config.read_chunk_size)
+        for _ in range(self._config.read_batch_max_reads):
+            try:
+                n = check.not_none(self._sock).recv_into(buf)
+            except BlockingIOError:
+                return
+            except OSError:
+                self._drain_input_ended = True
+                return
+            if not n:
+                self._drain_input_ended = True
+                return
+
     def on_readable(self) -> None:
+        if self._state is IoPipelineDriverState.DRAINING:
+            self._discard_input()
+            return
         check.none(self.next(raise_on_stall=False))
 
     def on_writable(self) -> None:

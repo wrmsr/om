@@ -141,7 +141,7 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             self._deadline = deadline
             self._seq = seq
             self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
-            self._fn = fn
+            self._fn: ta.Optional[ta.Callable[..., None]] = fn
             self._with_context = with_context
 
             self._cancelled = False
@@ -152,16 +152,20 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             return check.not_none(self.__handler_context_ref())
 
         def _run(self) -> None:
+            fn = check.not_none(self._fn)
+            self._fn = None
             if self._with_context:
-                self._fn(self._handler_context)
+                fn(self._handler_context)
             else:
-                self._fn()
+                fn()
 
         def cancel(self) -> None:
             if self._cancelled or self._done:
                 return
 
+            # A cancelled handle may linger in the heap until it surfaces, so release whatever its callback holds now.
             self._cancelled = True
+            self._fn = None
             if (sched := self.__sched_ref()) is not None:
                 sched._live.discard(self)  # noqa
 

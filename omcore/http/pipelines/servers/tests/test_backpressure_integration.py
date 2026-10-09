@@ -443,7 +443,8 @@ class TestBackpressureIntegration(AsyncioIsolatedAsyncTestCase):
                 self.assertLessEqual(check.not_none(server_ssl.outbound_buffered_bytes()), 512)
                 self.assertEqual(chunker.outbound_buffered_bytes(), 0)
                 event_types = [type(event) for event in capture.events]
-                self.assertGreaterEqual(len(event_types), blocked_drains * 2 - 1)
+                # Output produced while a drain is pending is held behind it and counts toward writability, so a drain
+                # need not end each pause: the transitions alternate, but are not one pair per drain.
                 self.assertEqual(
                     event_types,
                     [
@@ -462,6 +463,11 @@ class TestBackpressureIntegration(AsyncioIsolatedAsyncTestCase):
             self.assertEqual(attempted, labels)
             self.assertEqual(completed, labels)
             self.assertEqual(server_driver.state, IoPipelineDriverState.RUNNING)
+
+            # The app may complete its final send while output it already produced still waits behind throttled drains
+            # (deferred work runs while a drain is pending), so stop throttling and let the response finish.
+            server_writer.auto_drain = True
+            server_writer.allow_drain()
 
             await asyncio.wait_for(asyncio.gather(server_task, client_task), 2.)
 

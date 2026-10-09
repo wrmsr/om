@@ -4,7 +4,7 @@ A lightweight, composable pipeline framework for transforming and routing data t
 Netty's `ChannelPipeline` architecture, but designed for Python with significant simplifications and adaptations.
 
 See [DESIGN.md](DESIGN.md) for the architectural contracts governing lifecycle, completion, flow control, scheduling,
-drivers, protocol layering, and reference ownership.
+drivers, protocol layering, reference ownership, and stream multiplexing.
 
 ## Overview
 
@@ -100,6 +100,8 @@ The system defines several message types with special semantics:
 
 - **`InitialInput`**: Signals the start of inbound data (analogous to "connected"). Must propagate fully.
 - **`FinalInput`**: Signals the end of inbound data (analogous to "EOF"). Must propagate fully.
+- **`ShutdownOutput`**: Ends outbound data while input continues (analogous to "shutdown(SHUT_WR)"). Must propagate
+  fully; only control messages marked `AfterShutdownOutput`, and `FinalOutput`, may follow it.
 - **`FinalOutput`**: Signals the end of outbound data (analogous to "close"). Must propagate fully.
 - **`Error`**: Wraps exceptions that occurred during processing, includes direction and handler reference.
 - **`Defer`**: Represents deferred work with completion tracking and optional message pinning.
@@ -200,6 +202,8 @@ Beyond the core pipeline abstraction, the package includes:
 - **Metadata**: Type-safe attachment of configuration or context to pipelines
 - **Reference drivers**: Sync sockets, asyncio streams, fdio sockets, and a deterministic pure/no-I/O driver sharing
   one lifecycle, ordering, flow-control, completion, and scheduling conformance suite
+- **Stream multiplexing** ([multiplex](multiplex/README.md)): many logical streams over one pipeline, each driven as a
+  child pipeline, with pluggable credit accounting and output scheduling, for protocols such as SSH and HTTP/2
 
 These components build on the core abstractions but are entirely optional - the core pipeline can be used standalone
 for any message transformation use case.

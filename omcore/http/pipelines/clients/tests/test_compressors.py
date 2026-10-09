@@ -4,6 +4,7 @@ import unittest
 import zlib
 
 from .....io.pipelines.core import IoPipeline
+from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
@@ -11,6 +12,7 @@ from .....io.pipelines.handlers.queues import InboundQueueIoPipelineHandler
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.check import check
 from ....headers import HttpHeaders
+from ...requests import IoPipelineHttpRequestAborted
 from ...requests import IoPipelineHttpRequestBodyData
 from ...requests import IoPipelineHttpRequestEnd
 from ...requests import IoPipelineHttpRequestHead
@@ -89,6 +91,28 @@ class TestGzipCompressorSimple(unittest.TestCase):
         decompressor = zlib.decompressobj(wbits=16 + zlib.MAX_WBITS)
         decompressed = decompressor.decompress(compressed_data) + decompressor.flush()
         self.assertEqual(decompressed, raw_data)
+
+    def test_shutdown_output_mid_body_aborts_it(self):
+        handler = IoPipelineHttpRequestCompressor()
+        channel = IoPipeline.new([
+            handler,
+            fbi := FeedbackInboundIoPipelineHandler(),
+        ])
+
+        head = IoPipelineHttpRequestHead(
+            method='POST',
+            target='/api/data',
+            headers=HttpHeaders({'content-encoding': 'gzip'}),
+        )
+        shutdown_output = IoPipelineMessages.ShutdownOutput()
+        channel.feed_in(fbi.wrap(head))
+        channel.feed_in(fbi.wrap(IoPipelineHttpRequestBodyData(b'partial body')))
+        channel.feed_in(fbi.wrap(shutdown_output))
+
+        results = channel.output.drain()
+        self.assertIs(results[0], head)
+        self.assertIsInstance(results[-2], IoPipelineHttpRequestAborted)
+        self.assertIs(results[-1], shutdown_output)
 
     def test_gzip_multiple_chunks(self):
         """Test gzip compression with multiple body data chunks."""

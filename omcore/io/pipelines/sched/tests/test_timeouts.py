@@ -124,6 +124,7 @@ class CaptureIdleStateIoPipelineHandler(IoPipelineHandler):
 _WRITE_ACTIVITY = object()
 _WRITE_CONTROL = object()
 _FINAL_OUTPUT = object()
+_SHUTDOWN_OUTPUT = object()
 
 
 class IdleStateActivityIoPipelineHandler(CaptureIdleStateIoPipelineHandler):
@@ -131,6 +132,7 @@ class IdleStateActivityIoPipelineHandler(CaptureIdleStateIoPipelineHandler):
         super().__init__(emit=emit)
 
         self.flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
+        self.shutdown_output: ta.Optional[IoPipelineMessages.ShutdownOutput] = None
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if msg is _WRITE_ACTIVITY:
@@ -144,6 +146,9 @@ class IdleStateActivityIoPipelineHandler(CaptureIdleStateIoPipelineHandler):
 
         elif msg is _FINAL_OUTPUT:
             ctx.feed_final_output()
+
+        elif msg is _SHUTDOWN_OUTPUT:
+            self.shutdown_output = ctx.feed_shutdown_output()
 
         else:
             super().inbound(ctx, msg)
@@ -401,6 +406,44 @@ class TestIdleStateIoPipelineHandler(unittest.TestCase):
                 pipeline.destroy()
             if was_enabled:
                 gc.enable()
+
+    def test_write_idle_stops_at_shutdown_output_and_its_completion_is_activity(self) -> None:
+        idle = IdleStateIoPipelineHandler(
+            read_idle_timeout_s=1.,
+            write_idle_timeout_s=1.,
+            all_idle_timeout_s=1.,
+        )
+        capture = IdleStateActivityIoPipelineHandler()
+        pipeline, scheduling, _ = make_idle_channel(idle, capture)
+        try:
+            # The trigger is itself inbound (read) activity; the ShutdownOutput it produces is not write activity.
+            pipeline.feed_in(_SHUTDOWN_OUTPUT)
+            self.assertNotIn(IoPipelineIdleState.WRITE_IDLE, idle._handles)
+            read_handle = idle._handles[IoPipelineIdleState.READ_IDLE]
+            all_handle = idle._handles[IoPipelineIdleState.ALL_IDLE]
+
+            with pipeline.enter():
+                check.not_none(capture.shutdown_output).set_succeeded(None)
+
+            # The completed shutdown is transport-side write activity for the combined state, but write idleness has
+            # ended for good.
+            self.assertNotIn(IoPipelineIdleState.WRITE_IDLE, idle._handles)
+            self.assertIs(idle._handles[IoPipelineIdleState.READ_IDLE], read_handle)
+            self.assertIsNot(idle._handles[IoPipelineIdleState.ALL_IDLE], all_handle)
+
+            # Reading continues to reset read idleness.
+            pipeline.feed_in(b'read')
+            self.assertIsNot(idle._handles[IoPipelineIdleState.READ_IDLE], read_handle)
+
+            idle._handles[IoPipelineIdleState.ALL_IDLE].run(pipeline)  # type: ignore[attr-defined]
+            self.assertEqual([e.state for e in capture.events], [IoPipelineIdleState.ALL_IDLE])
+            self.assertNotIn(IoPipelineIdleState.WRITE_IDLE, idle._handles)
+            self.assertEqual(
+                {h.delay_s for h in scheduling.live_handles()},
+                {1.},
+            )
+        finally:
+            pipeline.destroy()
 
     def test_read_idle_stops_at_final_input(self):
         idle = IdleStateIoPipelineHandler(read_idle_timeout_s=1.)
@@ -830,6 +873,39 @@ class TestWriteTimeoutIoPipelineHandler(unittest.TestCase):
         finally:
             pipeline.destroy()
 
+    def test_shutdown_output_is_timed_until_completion(self) -> None:
+        shutdown_output = IoPipelineMessages.ShutdownOutput()
+        timeout = WriteTimeoutIoPipelineHandler(1.)
+        app = WriteTimeoutTestIoPipelineHandler([b'output', shutdown_output])
+        pipeline, scheduling = make_write_timeout_pipeline(timeout, app)
+        try:
+            pipeline.feed_in(_EMIT_OUTPUT)
+            self.assertEqual(pipeline.output.drain(), [b'output', shutdown_output])
+            self.assertEqual(len(scheduling.live_handles()), 1)
+
+            with pipeline.enter():
+                shutdown_output.set_succeeded(None)
+            self.assertEqual(scheduling.live_handles(), [])
+            self.assertEqual(app.errors, [])
+        finally:
+            pipeline.destroy()
+
+    def test_stalled_shutdown_output_times_out(self) -> None:
+        shutdown_output = IoPipelineMessages.ShutdownOutput()
+        timeout = WriteTimeoutIoPipelineHandler(1.)
+        app = WriteTimeoutTestIoPipelineHandler([b'output', shutdown_output])
+        pipeline, scheduling = make_write_timeout_pipeline(timeout, app)
+        try:
+            pipeline.feed_in(_EMIT_OUTPUT)
+            [handle] = scheduling.live_handles()
+            handle.run(pipeline)
+
+            self.assertEqual(len(app.errors), 1)
+            self.assertIsInstance(app.errors[0].exc, TimeoutIoPipelineError)
+            self.assertFalse(shutdown_output.is_done())
+        finally:
+            pipeline.destroy()
+
     def test_final_output_is_timed_until_completion(self) -> None:
         final_output = IoPipelineMessages.FinalOutput()
         timeout = WriteTimeoutIoPipelineHandler(1.)
@@ -935,6 +1011,48 @@ class TestSyncWriteTimeoutIoPipelineHandler(unittest.TestCase):
                 self.assertFalse(flush_output.is_done())
                 self.assertGreater(driver._write_q_bytes, 0)
                 self.assertIsNone(driver._sched.next_delay())
+            finally:
+                driver.close()
+
+
+class TestSyncWriteTimeoutShutdownOutput(unittest.TestCase):
+    def test_stalled_socket_shutdown_expires_and_completes_late(self) -> None:
+        sock, peer = socket.socketpair()
+        with sock, peer:
+            self.assertGreater(fill_socket_send_buffer(sock), 0)
+            shutdown_output = IoPipelineMessages.ShutdownOutput()
+            timeout = WriteTimeoutIoPipelineHandler(.01)
+            # Errors are captured inbound: echoing them as output would be rejected once the shutdown passed the
+            # pipeline terminal.
+            app = WriteTimeoutTestIoPipelineHandler([b'output', shutdown_output])
+            driver = SocketSyncIoPipelineDriver(make_write_timeout_driver_spec(timeout, app), sock)
+            try:
+                self.assertIsNone(driver.next(read=False))
+                driver.enqueue(_EMIT_OUTPUT)
+
+                self.assertIsNone(driver.next())
+                self.assertEqual(len(app.errors), 1)
+                self.assertIsInstance(app.errors[0].exc, TimeoutIoPipelineError)
+                self.assertFalse(shutdown_output.is_done())
+                self.assertFalse(driver.output_shutdown)
+
+                # A timeout reports the missed deadline; it does not cancel transport progress.
+                peer.setblocking(False)
+                received = bytearray()
+                deadline = time.monotonic() + 5.
+                while not shutdown_output.is_done() and time.monotonic() < deadline:
+                    try:
+                        received.extend(peer.recv(1024 * 1024))
+                    except BlockingIOError:
+                        pass
+                    self.assertIsNone(driver.next(read=False))
+
+                self.assertTrue(shutdown_output.is_succeeded())
+                self.assertTrue(driver.output_shutdown)
+                peer.settimeout(5.)
+                while (chunk := peer.recv(1024 * 1024)):
+                    received.extend(chunk)
+                self.assertTrue(received.endswith(b'output'))
             finally:
                 driver.close()
 

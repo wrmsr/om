@@ -595,13 +595,22 @@ class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):
             ),
         )
 
+        # The driver runs deferred work while a drain is pending, so the app resumes after each accepted send and
+        # attempts the next one - but the handler parks that send until the transport is writable again. Production
+        # is therefore bounded to a single parked send beyond what the transport has accepted.
+
+        async def settle() -> None:
+            for _ in range(8):
+                await asyncio.sleep(0)
+
         task = asyncio.create_task(driver.loop_until_done())
         try:
             await writer.wait_for_drain(1)
+            await settle()
             self.assertEqual(writer.transport.limits, (8, 32))
             self.assertGreater(writer.transport.size, 32)
-            self.assertEqual(attempted, ['start'])
-            self.assertEqual(completed, [])
+            self.assertEqual(attempted, ['start', 'a'])
+            self.assertEqual(completed, ['start'])
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [IoPipelineFlowMessages.PauseOutput],
@@ -609,9 +618,10 @@ class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):
 
             writer.allow_drain()
             await writer.wait_for_drain(2)
+            await settle()
             self.assertGreater(writer.transport.size, 32)
-            self.assertEqual(attempted, ['start', 'a'])
-            self.assertEqual(completed, ['start'])
+            self.assertEqual(attempted, ['start', 'a', 'b'])
+            self.assertEqual(completed, ['start', 'a'])
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [
@@ -623,9 +633,10 @@ class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):
 
             writer.allow_drain()
             await writer.wait_for_drain(3)
+            await settle()
             self.assertGreater(writer.transport.size, 32)
             self.assertEqual(attempted, ['start', 'a', 'b'])
-            self.assertEqual(completed, ['start', 'a'])
+            self.assertEqual(completed, ['start', 'a', 'b'])
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [

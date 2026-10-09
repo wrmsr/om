@@ -23,6 +23,7 @@ from ..core import IoPipelineService
 from ..core import IoPipelineServices
 from ..core import IoPipelineUpdate
 from ..errors import AbortedIoPipelineError
+from ..errors import UnsupportedIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.types import IoPipelineScheduling
@@ -42,6 +43,10 @@ class PollAsyncioStreamIoPipelineDriver:
     LoopAsyncioStreamIoPipelineDriver which runs its own internal event loop via run(), this driver exposes next() and
     loop_until_done() methods that let the caller control stepping. Unhandled pipeline output messages are returned from
     next(), enabling streaming use cases.
+
+    ShutdownOutput calls the writer's `write_eof()`, which the transport performs after the bytes already written, and
+    completes after the following drain - the same transport-boundary guarantee FlushOutput receives. A writer which
+    cannot write EOF fails the message with UnsupportedIoPipelineError and is left intact. Reading continues afterwards.
     """
 
     @dc.dataclass(frozen=True)
@@ -104,11 +109,14 @@ class PollAsyncioStreamIoPipelineDriver:
         self._state = IoPipelineDriverState.NEW
         self._has_init = False
 
+        # Fences (FlushOutput and ShutdownOutput) completed by the current and the next drain.
         self._drain_task: ta.Optional[asyncio.Task] = None
         self._drain_again = False
-        self._drain_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
-        self._next_drain_flush_outputs: ta.List[IoPipelineFlowMessages.FlushOutput] = []
+        self._drain_flush_outputs: ta.List[IoPipelineMessages.Completable] = []
+        self._next_drain_flush_outputs: ta.List[IoPipelineMessages.Completable] = []
         self._post_drain_output_q: collections.deque[ta.Any] = collections.deque()
+        # Output bytes held behind a pending drain count toward writability as much as the transport's own buffer.
+        self._post_drain_output_bytes = 0
 
         self._pending_awaits: ta.Set[asyncio.Future] = set()
 
@@ -118,6 +126,7 @@ class PollAsyncioStreamIoPipelineDriver:
         self._has_read_eof: bool = False
 
         self._output_writable = True
+        self._output_shutdown = False
 
         self._command_handlers: ta.Mapping[ta.Type['PollAsyncioStreamIoPipelineDriver._Command'], ta.Callable[[ta.Any, ta.Any], ta.Awaitable[None]]]  # noqa
         self._output_handlers: ta.Mapping[type, ta.Callable[[ta.Any, ta.Any], ta.Awaitable[ta.Optional[str]]]]
@@ -154,6 +163,12 @@ class PollAsyncioStreamIoPipelineDriver:
             hasattr(self, '_pipeline') and
             self._pipeline.is_ready
         )
+
+    @property
+    def output_shutdown(self) -> bool:
+        """Whether a ShutdownOutput has shut down the writer's output half."""
+
+        return self._output_shutdown
 
     ##
     # init
@@ -499,7 +514,7 @@ class PollAsyncioStreamIoPipelineDriver:
                 self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
                 self._deadline = deadline
                 self._seq = seq
-                self._fn = fn
+                self._fn: ta.Optional[ta.Callable[..., None]] = fn
                 self._with_context = with_context
 
                 self._task: ta.Optional[asyncio.Task] = None
@@ -516,16 +531,20 @@ class PollAsyncioStreamIoPipelineDriver:
                 return check.not_none(self.__handler_context_ref())
 
             def _run(self) -> None:
+                fn = check.not_none(self._fn)
+                self._fn = None
                 if self._with_context:
-                    self._fn(self._handler_context)
+                    fn(self._handler_context)
                 else:
-                    self._fn()
+                    fn()
 
             def cancel(self) -> None:
                 if self._cancelled or self._done:
                     return
 
+                # A queued command may still reference a cancelled handle, so release what its callback holds now.
                 self._cancelled = True
+                self._fn = None
                 if (sched := self.__sched_ref()) is not None:
                     sched._live.discard(self)  # noqa
 
@@ -657,7 +676,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
     def _finish_flush_outputs(
             self,
-            flush_outputs: ta.Iterable[IoPipelineFlowMessages.FlushOutput],
+            flush_outputs: ta.Iterable[IoPipelineMessages.Completable],
             exc: ta.Optional[BaseException] = None,
             *,
             raise_listener_errors: bool = True,
@@ -684,7 +703,7 @@ class PollAsyncioStreamIoPipelineDriver:
         if first_listener_exc is not None and raise_listener_errors:
             raise first_listener_exc
 
-    def _take_drain_flush_outputs(self) -> ta.List[IoPipelineFlowMessages.FlushOutput]:
+    def _take_drain_flush_outputs(self) -> ta.List[IoPipelineMessages.Completable]:
         flush_outputs = self._drain_flush_outputs
         self._drain_flush_outputs = []
         if self._next_drain_flush_outputs:
@@ -727,7 +746,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
         task.add_done_callback(done_callback)
 
-    def _request_drain(self, flush_output: IoPipelineFlowMessages.FlushOutput) -> None:
+    def _request_drain(self, flush_output: IoPipelineMessages.Completable) -> None:
         if self._writer is None:
             self._finish_flush_outputs([flush_output])
             return
@@ -778,11 +797,11 @@ class PollAsyncioStreamIoPipelineDriver:
         self._finish_flush_outputs(flush_outputs)
 
         if self._state is IoPipelineDriverState.RUNNING:
-            self._update_output_writability()
             if drain_again:
                 self._drain_flush_outputs = self._next_drain_flush_outputs
                 self._next_drain_flush_outputs = []
                 self._start_drain()
+            self._update_output_writability(drained=True)
 
     ##
     # awaits
@@ -941,6 +960,20 @@ class PollAsyncioStreamIoPipelineDriver:
         self._request_drain(msg)
         return None
 
+    async def _handle_output_shutdown_output(self, msg: IoPipelineMessages.ShutdownOutput) -> ta.Optional[str]:
+        if (writer := self._writer) is not None:
+            if not writer.can_write_eof():
+                with self._pipeline.enter():
+                    if not msg.is_done():
+                        msg.set_failed(UnsupportedIoPipelineError(f'{writer!r} cannot write eof'))
+                return None
+
+            writer.write_eof()
+
+        self._output_shutdown = True
+        self._request_drain(msg)
+        return None
+
     async def _handle_output_ready_for_input(self, msg: IoPipelineFlowMessages.ReadyForInput) -> ta.Optional[str]:
         check.state(self._flow is not None)
         if self._config.strict_input_flow:
@@ -949,23 +982,67 @@ class PollAsyncioStreamIoPipelineDriver:
         self._want_read_event.set()
         return None
 
-    def _update_output_writability(self) -> None:
+    def _hold_post_drain_output(self, msg: ta.Any) -> None:
+        self._post_drain_output_q.append(msg)
+        if ByteStreamBuffers.can_bytes(msg):
+            self._post_drain_output_bytes += ByteStreamBuffers.bytes_len(msg)
+            # Without this a producer continuing through Defers - which are not held - would never be paused.
+            self._update_output_writability()
+
+    def _take_post_drain_output(self) -> ta.Any:
+        msg = self._post_drain_output_q.popleft()
+        if ByteStreamBuffers.can_bytes(msg):
+            self._post_drain_output_bytes -= ByteStreamBuffers.bytes_len(msg)
+        return msg
+
+    def _update_output_writability(self, *, drained: bool = False) -> None:
+        """
+        The transport's own write buffer limits are the watermarks, so it pauses and resumes with the same hysteresis.
+        A completed drain means it resumed - its buffer reached the low watermark - so unless the buffer has since grown
+        past the high watermark, output is writable again.
+        """
+
         if (
                 self._state is not IoPipelineDriverState.RUNNING or
                 self._flow is None or
-                self._writer is None
+                self._writer is None or
+                self._output_shutdown
         ):
             return
 
-        size = self._writer.transport.get_write_buffer_size()
+        size = self._writer.transport.get_write_buffer_size() + self._post_drain_output_bytes
         if self._output_writable:
             if size > self._config.write_high_watermark:
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif size <= self._config.write_low_watermark:
+        elif (
+                (
+                    size <= self._config.write_low_watermark or
+                    (drained and size <= self._config.write_high_watermark)
+                ) and
+                # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
+                # since from then on nothing may produce ordinary output.
+                not self._pipeline.saw_shutdown_output
+        ):
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
+
+    def _ensure_paused_output_drain(self) -> None:
+        """
+        The transport writes in the background, and nothing else observes it catching up: while output is paused, a
+        drain must be pending, or a producer which honors writability without flushing would wait forever. Started only
+        once no runnable output remains, so it never delays fences already queued behind the paused output.
+        """
+
+        if (
+                not self._output_writable and
+                self._drain_task is None and
+                self._state is IoPipelineDriverState.RUNNING and
+                self._writer is not None and
+                not self._output_shutdown
+        ):
+            self._start_drain()
 
     def _build_output_handlers(self) -> ta.Mapping[
         type,
@@ -976,6 +1053,7 @@ class PollAsyncioStreamIoPipelineDriver:
             IoPipelineMessages.FinalOutput: cls._handle_output_final_output,
             IoPipelineMessages.Defer: cls._handle_output_defer,
             IoPipelineFlowMessages.FlushOutput: cls._handle_output_flush_output,
+            IoPipelineMessages.ShutdownOutput: cls._handle_output_shutdown_output,
             IoPipelineFlowMessages.ReadyForInput: cls._handle_output_ready_for_input,
             AsyncIoPipelineMessages.Await: cls._handle_output_await,
         }
@@ -1003,6 +1081,14 @@ class PollAsyncioStreamIoPipelineDriver:
 
     ##
     # core loop
+
+    @staticmethod
+    def _is_drain_ordered_output(msg: ta.Any) -> bool:
+        return ByteStreamBuffers.can_bytes(msg) or isinstance(msg, (
+            IoPipelineFlowMessages.FlushOutput,
+            IoPipelineMessages.ShutdownOutput,
+            IoPipelineMessages.FinalOutput,
+        ))
 
     def _has_pending_work(self) -> bool:
         if self._pending_awaits:
@@ -1040,13 +1126,28 @@ class PollAsyncioStreamIoPipelineDriver:
         while True:
             if self._drain_task is not None:
                 while (blocked_msg := pipeline.output.poll()) is not None:
-                    if isinstance(blocked_msg, (BaseException, IoPipelineMessages.Error)):
+                    # Only output bytes and output fences are ordered against a pending drain. Everything else - read
+                    # requests, deferred work, awaits, unhandled messages for the caller - is not, and must not wait
+                    # behind a drain stalled on the peer: a read request held here would stop input while output waits
+                    # for the peer to read, deadlocking two such peers.
+                    if self._is_drain_ordered_output(blocked_msg):
+                        self._hold_post_drain_output(blocked_msg)
+                        continue
+
+                    handled = await self._handle_output(blocked_msg)
+
+                    if handled == 'handled':
+                        continue
+
+                    elif handled == 'unhandled':
                         return blocked_msg
-                    self._post_drain_output_q.append(blocked_msg)
+
+                    else:
+                        raise RuntimeError(f'Unexpected handled value for {blocked_msg!r}: {handled!r}')
 
             else:
                 if self._post_drain_output_q:
-                    out_msg = self._post_drain_output_q.popleft()
+                    out_msg = self._take_post_drain_output()
                 else:
                     out_msg = pipeline.output.poll()
 
@@ -1064,6 +1165,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
                     else:
                         raise RuntimeError(f'Unknown handled value: {handled!r}')
+
+            self._ensure_paused_output_drain()
 
             # Handling pipeline output (notably a Defer) can schedule timers just as handling a command can, so flush
             # before any wait - otherwise a timer scheduled from a deferred callback never gets its sleeping task and
@@ -1138,6 +1241,7 @@ class PollAsyncioStreamIoPipelineDriver:
                 raise_listener_errors=False,
             )
             self._post_drain_output_q.clear()
+            self._post_drain_output_bytes = 0
 
             await self._cancel_tasks(self._read_task, check_running=True)
 
