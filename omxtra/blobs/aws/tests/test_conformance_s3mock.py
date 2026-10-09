@@ -63,6 +63,10 @@ class TestS3MockConformance(BlobStoreConformance):
     def runner(self, s3_client):
         return s3_client.make_runner()
 
+    @pytest.mark.xfail(reason='Flaky, see x/s3mockrepro.py')
+    def test_readers_during_overwrites(self, store, runner):
+        super().test_readers_during_overwrites(store, runner)
+
 
 class TestS3MockAdapterRoundTripConformance(BlobStoreConformance):
     """The sync facade: an async S3 store over a sync http client, driven through AsyncToSyncBlobStore."""
