@@ -641,10 +641,17 @@ class MultiplexChild:
     ##
     # teardown
 
-    def finish(self) -> None:
-        """Gracefully ends the child after its FinalOutput completed, as a driver does."""
+    def finish(self, final_output: ta.Optional[IoPipelineMessages.Completable] = None) -> None:
+        """
+        Gracefully ends the child, as a driver does: completes its FinalOutput, if given, then destroys it.
+
+        It is marked finished before the completion, so a listener on that FinalOutput which destroys the pipeline -
+        an application's close hook, say - is not mistaken for an abandonment of the stream and answered with a reset.
+        """
 
         self._finished = True
+        if final_output is not None:
+            self.complete(final_output)
         self._destroy()
 
     def abort(

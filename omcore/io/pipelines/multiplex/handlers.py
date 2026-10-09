@@ -876,8 +876,10 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 if item.kind == 'final':
                     if not stream.local_finished:
                         stream.finish_local()
-                    child.complete(item.msg)
-                    child.finish()
+                    # Completed - and the child finished - behind the parent flush, like a final reached normally: a
+                    # fence of this stream emitted earlier may still await that flush, and a later fence must not
+                    # complete ahead of it (DESIGN 5), nor may finishing the child now fail it.
+                    self._flush_fences.append((child, item.msg, 'final'))
                 else:
                     child.complete(item.msg, StreamResetMultiplexError('closed', by='remote'))
 
@@ -1126,12 +1128,13 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         for child_ref, fence_ref, kind in entries:
             if (child := child_ref()) is None or (fence := fence_ref()) is None:
                 continue
-            child.complete(fence, exc)
-            if kind == 'final':
-                if exc is None:
-                    child.finish()
-                else:
-                    child.abort(exc, notify=False)
+            if kind != 'final':
+                child.complete(fence, exc)
+            elif exc is None:
+                child.finish(fence)
+            else:
+                child.complete(fence, exc)
+                child.abort(exc, notify=False)
 
         if (ctx := ctx_ref()) is not None and not ctx.invalidated:
             check.isinstance(ctx.handler, MultiplexIoPipelineHandler).on_child_activity(ctx)

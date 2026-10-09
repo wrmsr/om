@@ -855,9 +855,16 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
         return self._write_fd
 
     def _prepare_transport(self) -> None:
-        for fd in {self._read_fd, self._write_fd}:
-            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-            self._original_flags[fd] = flags
+        fds = {self._read_fd, self._write_fd}
+
+        # Both descriptors may share one open file description (dups of a terminal, say), whose flags are shared too:
+        # every original is recorded before any is changed, or the second would record the first's change as its
+        # original and restore the description to nonblocking.
+        for fd in fds:
+            self._original_flags[fd] = fcntl.fcntl(fd, fcntl.F_GETFL)
+
+        for fd in fds:
+            flags = self._original_flags[fd]
             if not (flags & os.O_NONBLOCK):
                 fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 

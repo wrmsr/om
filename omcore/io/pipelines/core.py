@@ -1611,10 +1611,11 @@ class IoPipeline:
             raise RuntimeError(f'unknown inbound terminal mode {tm}')
 
     def _terminal_outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:  # noqa
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._saw_final_output = True
-        elif self._saw_final_output:
+        if self._saw_final_output:
+            # Includes a second FinalOutput: nothing may follow the first.
             raise SawFinalOutputIoPipelineError
+        elif isinstance(msg, IoPipelineMessages.FinalOutput):
+            self._saw_final_output = True
         elif self._saw_shutdown_output:
             # Includes a second ShutdownOutput, which is not an AfterShutdownOutput.
             if not isinstance(msg, IoPipelineMessages.AfterShutdownOutput):
