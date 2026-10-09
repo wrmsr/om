@@ -176,6 +176,13 @@ rather than `check.none`.
 Demo tests: `/tmp/muxscratch/t48_dupf.py` (pure+sync), `/tmp/muxscratch/t49_dupf_fdio.py` (fdio),
 `/tmp/muxscratch/t50_dupf_aio.py` (asyncio - graceful).
 
+**STATUS: FIXED inline** (not committed). The three drivers now fail a duplicate FinalOutput as a Completable with
+`SawFinalOutputIoPipelineError` instead of `check.none`-crashing, matching asyncio's graceful handling and the
+terminal's tolerance. Regression test enshrined at
+`omcore/io/pipelines/drivers/tests/test_dup_final_output.py` (3 tests, all pass post-fix; all fail pre-fix).
+`omdev/scripts/ci.py` regenerated via `make gen` (it amalgamates `drivers/sync.py`). `make fix check` clean;
+full `omcore/io/pipelines` + `omcore/http/pipelines` suite: 843 passed.
+
 ### F2 - RESOLVED (not a bug) - reset of a finished stream completes its pending FinalOutput on flush
 
 Initially suspected a fence-completion leak: a reset arriving while a finished stream's parent flush fence is pending.
