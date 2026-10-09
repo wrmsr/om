@@ -32,6 +32,14 @@ with _lang.auto_proxy_init(globals()):
         render_diff_styled_doc,
     )
 
+    from .sources import (  # noqa
+        DiffFileTexts,
+        DiffFileSource,
+        texts_match_hunks,
+        DictDiffFileSource,
+        FilesystemDiffFileSource,
+    )
+
     from .split import (  # noqa
         SplitDiffHunkLayout,
     )

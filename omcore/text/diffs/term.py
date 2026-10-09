@@ -1,10 +1,9 @@
 """Headless terminal rendering for styled diff documents."""
-import pathlib
-
 from ...term import styled as tst
 from .. import diffs
 from .styled.options import DiffLayout
 from .styled.rendering import render_diff_styled_doc
+from .styled.sources import DiffFileSource
 from .themes import DIFF_STYLE_THEME
 
 
@@ -13,7 +12,7 @@ from .themes import DIFF_STYLE_THEME
 
 def render_diff_ansi(
         patch_set: diffs.PatchSet,
-        project_root: pathlib.Path | None = None,
+        file_source: DiffFileSource | None = None,
         *,
         width: int = 80,
         tab_size: int = 4,
@@ -23,7 +22,7 @@ def render_diff_ansi(
 ) -> str:
     doc = render_diff_styled_doc(
         patch_set,
-        project_root,
+        file_source,
         width=width,
         tab_size=tab_size,
         syntax_highlighting=syntax_highlighting,

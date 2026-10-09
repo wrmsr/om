@@ -85,9 +85,10 @@ def render_code_line(
     """
     One line of code behind its gutter, exactly `width` cells: truncated to fit, padded out, a changed line on its
     side's background and the ranges of `intraline` within it marked. The gutter is plain text, so its length is its
-    width.
+    width. Control characters in the code are shown, never passed through to act on a terminal.
     """
 
+    code = grid.show_controls(code)
     code = grid.indent_guides(code, tab_size, style='diff.indent')
     content_width = max(width - grid.cell_width(gutter), 0)
     code = grid.truncate(code, content_width)

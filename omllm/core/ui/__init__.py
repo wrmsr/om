@@ -7,6 +7,10 @@ with _lang.auto_proxy_init(
 ):
     ##
 
+    from .text.diffdocs import (  # noqa
+        render_diff_text_doc,
+    )
+
     from .text.display import (  # noqa
         TextDisplayer,
         NopTextDisplayer,

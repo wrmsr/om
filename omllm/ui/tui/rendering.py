@@ -7,6 +7,7 @@ from omcore.term import styled as tst
 from omcore.text import diffs
 from omcore.text import highlights as hl
 from omcore.text import styled as st
+from omcore.text.styled import grid
 from omdev import minitui as mt
 
 from ...core import ui
@@ -61,6 +62,19 @@ class TextRowsRenderer:
         self._options = options if options is not None else ui.TextRenderingOptions()
         self._styled_renderer = ui.StyledTextRenderer(self._options)
 
+    def _render_plain_diff_rows(
+            self,
+            block: ui.DiffText,
+            width: int,
+            base: mt.Style,
+    ) -> list[list[mt.Segment]]:
+        rows = mt.render_markdown_block(
+            mt.MdCode('diff', tuple(grid.show_controls(line.rstrip('\r\n')).text for line in block.diff_lines)),
+            width,
+            highlighter=hl.highlight_code,
+        )
+        return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
+
     def _render_diff_rows(
             self,
             block: ui.DiffText,
@@ -68,18 +82,19 @@ class TextRowsRenderer:
             base: mt.Style,
     ) -> list[list[mt.Segment]]:
         if width < 20:
-            rows = mt.render_markdown_block(
-                mt.MdCode('diff', tuple(line.rstrip('\n') for line in block.diff_lines)),
-                width,
-                highlighter=hl.highlight_code,
-            )
-            return _resolve_segment_rows(rows, theme=UI_TEXT_THEME, base=base)
+            return self._render_plain_diff_rows(block, width, base)
 
-        document = diffs.render_diff_styled_doc(
-            diffs.parse_patch(''.join(block.diff_lines)),
-            width=width,
-            layout=ui.resolve_diff_layout(self._options),
-        )
+        try:
+            document = ui.render_diff_text_doc(
+                block,
+                width=width,
+                layout=ui.resolve_diff_layout(self._options),
+            )
+        except diffs.DiffParseError:
+            # A diff is often drawn mid-tool - as the preview a permission is asked over - so one that will not lay out
+            # still shows, as its plain text, rather than failing what it was showing.
+            return self._render_plain_diff_rows(block, width, base)
+
         return [
             mt.styled_text_to_segment_lines(line, theme=UI_DIFF_THEME, base=base)[0]
             for line in document.lines

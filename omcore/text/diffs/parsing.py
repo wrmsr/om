@@ -19,6 +19,7 @@ import dataclasses as dc
 import re
 import typing as ta
 
+from .newlines import split_newlines
 from .types import BinaryFilesHeader
 from .types import DiffGitHeader
 from .types import ExtendedHeader
@@ -74,7 +75,7 @@ class _PatchParser:
         super().__init__()
 
         self._text = text
-        self._lines = text.splitlines(keepends=True)
+        self._lines = split_newlines(text, keepends=True)
         self._i = 0
 
     def parse(self) -> PatchSet:

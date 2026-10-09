@@ -8,6 +8,7 @@ from ...argparse import all as ap
 from ...term import styled as tst
 from .parsing import parse_patch
 from .styled.options import DIFF_LAYOUTS
+from .styled.sources import FilesystemDiffFileSource
 from .types import ExtendedHeaderKind
 from .types import FilePatch
 from .types import PatchSet
@@ -159,7 +160,7 @@ class Cli(ap.Cli):
         color_depth = tst.ColorDepth.MONO if self.args.no_color else tst.detect_color_depth()
         sys.stdout.write(term.render_diff_ansi(
             parse_patch(diff),
-            project_root,
+            FilesystemDiffFileSource(str(project_root)),
             width=width,
             syntax_highlighting=not self.args.no_syntax,
             layout=self.args.layout,

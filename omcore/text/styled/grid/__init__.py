@@ -9,6 +9,10 @@ from .... import lang as _lang
 
 
 with _lang.auto_proxy_init(globals()):
+    from .controls import (  # noqa
+        show_controls,
+    )
+
     from .fitting import (  # noqa
         Alignment,
         fit,

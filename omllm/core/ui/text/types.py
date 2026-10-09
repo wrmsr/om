@@ -10,6 +10,8 @@ from omcore import marshal as msh
 with lang.auto_proxy_import(globals()):
     import difflib
 
+    from omcore.text import diffs
+
     from . import normalize
     from . import plain
 
@@ -304,9 +306,17 @@ class DiffText(BlockText, lang.Final):
 
     @cached.property
     def diff_lines(self) -> ta.Sequence[str]:
-        return tuple(difflib.unified_diff(
-            self.old.splitlines(keepends=True),
-            self.new.splitlines(keepends=True),
-            fromfile=lang.coalesce(self.path, 'old'),
-            tofile=lang.coalesce(self.path, 'new'),
-        ))
+        out: list[str] = []
+        for line in difflib.unified_diff(
+                diffs.split_newlines(self.old, keepends=True),
+                diffs.split_newlines(self.new, keepends=True),
+                fromfile=lang.coalesce(self.path, 'old'),
+                tofile=lang.coalesce(self.path, 'new'),
+        ):
+            if line.endswith('\n'):
+                out.append(line)
+            else:
+                # A text not ending in a newline leaves its last line without one, which would run the next diff line on
+                # to it. A unified diff says so with a marker line instead.
+                out.extend((line + '\n', '\\ No newline at end of file\n'))
+        return tuple(out)

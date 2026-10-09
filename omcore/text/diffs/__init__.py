@@ -4,6 +4,10 @@ from ... import lang as _lang
 with _lang.auto_proxy_init(globals()):
     ##
 
+    from .newlines import (  # noqa
+        split_newlines,
+    )
+
     from .parsing import (  # noqa
         DiffParseError,
 
@@ -27,6 +31,11 @@ with _lang.auto_proxy_init(globals()):
         DiffHunkLayout,
         SplitDiffHunkLayout,
         UnifiedDiffHunkLayout,
+
+        DiffFileTexts,
+        DiffFileSource,
+        DictDiffFileSource,
+        FilesystemDiffFileSource,
 
         DiffStyledDocRenderer,
         render_diff_styled_doc,

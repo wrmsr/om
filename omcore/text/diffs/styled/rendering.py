@@ -31,6 +31,8 @@ from .layouts import DiffFileLines
 from .layouts import DiffHunkLayout
 from .options import DiffLayout
 from .options import DiffStyledDocOptions
+from .sources import DiffFileSource
+from .sources import texts_match_hunks
 from .split import SplitDiffHunkLayout
 from .unified import UnifiedDiffHunkLayout
 
@@ -93,7 +95,7 @@ class DiffStyledDocRenderer(lang.Final):
             self,
             options: DiffStyledDocOptions | None = None,
             *,
-            project_root: pathlib.Path | None = None,
+            file_source: DiffFileSource | None = None,
             highlighter: CodeHighlighter | None = None,
             hunk_layout: DiffHunkLayout | None = None,
     ) -> None:
@@ -102,7 +104,7 @@ class DiffStyledDocRenderer(lang.Final):
         super().__init__()
 
         self._options = options or DiffStyledDocOptions()
-        self._project_root = project_root
+        self._file_source = file_source
         self._code_highlighter = DiffCodeHighlighter(self._options, highlighter=highlighter)
         self._hunk_layout = hunk_layout if hunk_layout is not None else build_diff_hunk_layout(self._options)
 
@@ -175,8 +177,8 @@ class DiffStyledDocRenderer(lang.Final):
     def _file_lines(self, patch: diffs.FilePatch) -> DiffFileLines:
         source_highlighted: HighlightedLines
         target_highlighted: HighlightedLines
-        if (file_lines := self._load_file_lines(patch)) is not None:
-            source_lines, target_lines = file_lines
+        if (full_texts := self._full_texts(patch)) is not None:
+            source_lines, target_lines = full_texts
             source_highlighted = dict(enumerate(
                 self._code_highlighter.highlight(_source_path(patch), source_lines),
                 start=1,
@@ -222,7 +224,7 @@ class DiffStyledDocRenderer(lang.Final):
         ])
         return grid.rule(
             self._options.width,
-            title=st.StyledText.assemble(*parts),
+            title=grid.show_controls(st.StyledText.assemble(*parts)),
             character='▁',
             style='diff.border',
         )
@@ -241,25 +243,35 @@ class DiffStyledDocRenderer(lang.Final):
         ]
 
     def _binary_size(self, patch: diffs.FilePatch) -> int | None:
-        if self._project_root is not None:
-            try:
-                return (self._project_root / _patch_path(patch)).stat().st_size
-            except OSError:
-                pass
+        if self._file_source is not None and (size := self._file_source.get_target_size(patch)) is not None:
+            return size
         if patch.git_binary_patch is not None:
             return sum(record.size for record in patch.git_binary_patch.records)
         return None
 
-    def _load_file_lines(self, patch: diffs.FilePatch) -> tuple[list[str], list[str]] | None:
-        if self._project_root is not None:
-            try:
-                target = (self._project_root / _patch_path(patch)).read_text().splitlines()
-            except (OSError, UnicodeError):
-                pass
-            else:
-                target = [line.expandtabs(self._options.tab_size) for line in target]
-                return reconstruct_source(target, patch, self._options.tab_size), target
-        return None
+    def _full_texts(self, patch: diffs.FilePatch) -> tuple[list[str], list[str]] | None:
+        """
+        The file's full texts on both sides, where the source has them and they agree with the patch. Otherwise None,
+        and the hunks are drawn from the patch alone - every row is drawn by its line number from these, so text of some
+        other version would put the wrong code on every row.
+        """
+
+        if self._file_source is None or (texts := self._file_source.get_texts(patch)) is None:
+            return None
+
+        # Only the target stands alone: a source text not given is rebuilt from it and the hunks.
+        if (target := texts.target) is None or not texts_match_hunks(patch, target, side='target'):
+            return None
+        if (source := texts.source) is not None and not texts_match_hunks(patch, source, side='source'):
+            return None
+
+        tab_size = self._options.tab_size
+        target_lines = [line.expandtabs(tab_size) for line in target]
+        if source is not None:
+            source_lines = [line.expandtabs(tab_size) for line in source]
+        else:
+            source_lines = reconstruct_source(target_lines, patch, tab_size)
+        return source_lines, target_lines
 
     def _highlight_patch_lines(self, patch: diffs.FilePatch) -> tuple[HighlightedLines, HighlightedLines]:
         # Without the file there is nothing between hunks to give context, so each hunk is highlighted on its own.
@@ -287,12 +299,13 @@ class DiffStyledDocRenderer(lang.Final):
             (f'+{hunk.new_start},{hunk.new_count}', 'diff.hunk.add'),
             (f" @@ {hunk.section or ''}", 'diff.hunk.section'),
         )
-        return grid.rule(self._options.width, title=title, character='╲', style='diff.hunk')
+        # The section is a line of the file, so it may hold anything the file does.
+        return grid.rule(self._options.width, title=grid.show_controls(title), character='╲', style='diff.hunk')
 
 
 def render_diff_styled_doc(
         patch_set: diffs.PatchSet,
-        project_root: pathlib.Path | None = None,
+        file_source: DiffFileSource | None = None,
         *,
         width: int = 80,
         tab_size: int = 4,
@@ -308,5 +321,5 @@ def render_diff_styled_doc(
             syntax_highlighting=syntax_highlighting,
             layout=layout,
         ),
-        project_root=project_root,
+        file_source=file_source,
     ).render(patch_set)

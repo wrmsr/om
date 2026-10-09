@@ -117,3 +117,23 @@ async def test_bound_options_reach_the_frontends():
 
     rendered = '\n'.join(mt.segments_text(row) for row in rows_renderer.render_rows(60, _DIFF))
     assert _shares_a_row(rendered)
+
+
+def test_a_diff_that_will_not_lay_out_shows_as_plain_text():
+    rows = TextRowsRenderer().render_rows(60, ui.DiffText(old='x\n', new='y\n', path='bad\npath'))
+    texts = [mt.segments_text(row) for row in rows]
+
+    assert any('-x' in text for text in texts)
+    assert any('+y' in text for text in texts)
+    assert any('bad\u240apath' in text for text in texts)
+
+
+def test_control_characters_in_diffs_reach_the_terminal_as_pictures():
+    d = ui.DiffText(old='a\rb\nsay \x1b[31m\n', new='a\rb\nsay \x1b[32m\n', path='f.txt')
+
+    rendered = TerminalTextRenderer(width=60, color_depth=None).render(d)
+
+    assert '\r' not in rendered
+    assert '\x1b' not in rendered
+    assert 'a\u240db' in rendered
+    assert 'say \u241b[32m' in rendered

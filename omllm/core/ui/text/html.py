@@ -16,6 +16,7 @@ from omcore.text import pdcmark
 from omcore.text import styled as st
 from omcore.text.pdcmark.rendering import html as pdcmark_html
 
+from .diffdocs import render_diff_text_doc
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
 from .rendering import resolve_diff_layout
@@ -109,11 +110,15 @@ class HtmlTextRenderer(TextRenderer[str]):
         return f'<div style="{css}">{render_markdown_html(block.s)}</div>'
 
     def _render_diff(self, block: DiffText, base: st.ResolvedStyle) -> str:
-        document = diffs.render_diff_styled_doc(
-            diffs.parse_patch(''.join(block.diff_lines)),
-            width=self._diff_width,
-            layout=resolve_diff_layout(self._options),
-        )
+        try:
+            document = render_diff_text_doc(
+                block,
+                width=self._diff_width,
+                layout=resolve_diff_layout(self._options),
+            )
+        except diffs.DiffParseError:
+            # A diff which will not lay out still shows, as its plain text.
+            document = st.StyledDocument.of_text(''.join(block.diff_lines))
 
         # The diff's own colors win over any inherited ones so its rows stay coherent on any page, while inherited flags
         # like italic still apply.

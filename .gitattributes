@@ -21,6 +21,7 @@ omcore/sql/tabledefs/_dataclasses.py linguist-generated
 omcore/text/abnf/_dataclasses.py linguist-generated
 omcore/text/pdcmark/_dataclasses.py linguist-generated
 omdev/dataclasses/_dumping.py linguist-generated
+omdev/dockerdev/_dataclasses.py linguist-generated
 omdev/js/vendor/_dataclasses.py linguist-generated
 omdev/manifests/_dumping.py linguist-generated
 omdev/minitui/_dataclasses.py linguist-generated

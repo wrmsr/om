@@ -40,7 +40,16 @@ _DIFF_HEADER = '(1 additions, 1 removals)'
 
 
 class _Run:
-    def __init__(self, tmp_path, *, write_state, text_renderer=None):
+    def __init__(
+            self,
+            tmp_path,
+            *,
+            write_state,
+            text_renderer=None,
+            content='one\ntwo\nthree\n',
+            old_string='two\n',
+            new_string='TWO\n',
+    ):
         super().__init__()
 
         self.text_renderer = text_renderer
@@ -48,7 +57,7 @@ class _Run:
         self.root = os.path.realpath(tmp_path)
         self.path = os.path.join(self.root, 'f.py')
         with open(self.path, 'w') as f:
-            f.write('one\ntwo\nthree\n')
+            f.write(content)
 
         # Wide enough for the card's header to keep a temp path and its status on one row.
         self.app, self.driver = make_app()
@@ -67,7 +76,7 @@ class _Run:
             tool_call_message(llm.ToolCall(
                 id='edit-1',
                 name='edit',
-                args={'file_path': self.path, 'old_string': 'two\n', 'new_string': 'TWO\n'},
+                args={'file_path': self.path, 'old_string': old_string, 'new_string': new_string},
             )),
             text_message('edited'),
         )
@@ -178,6 +187,30 @@ async def test_edit_allowed_outright_still_commits_its_diff(tmp_path):
     card = run.committed_card()
     assert card.startswith('[-] ✓ edit')
     assert _DIFF_HEADER in card
+
+    await run.pump.aclose()
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_edit_of_a_file_without_a_final_newline_is_confirmed_over_its_diff(tmp_path):
+    # Once a diff of such a file would not even parse - and drawing it for the ask failed the edit.
+    run = _Run(
+        tmp_path,
+        write_state=agn.PermissionState.ASK,
+        content='one\ntwo',
+        old_string='two',
+        new_string='TWO',
+    )
+    await run.start()
+
+    await settle(lambda: run.shows('awaiting confirmation'), max_steps=200)
+    assert run.shows(_DIFF_HEADER)
+
+    run.app.handle_event(mt.KeyEvent(app_key(AppKey.CARD_ALLOW)))
+    await run.finish()
+
+    assert run.read() == 'one\nTWO'
+    assert '  done' in run.committed_card()
 
     await run.pump.aclose()
 
