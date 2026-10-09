@@ -130,6 +130,8 @@ hf-xet==1.6.0
 
 greenlet==3.5.6
 
+pyzmq==27.2.0
+
 ## NOTE: the following add a full minute to CI just setting up the deps..
 
 datasets==5.1.0

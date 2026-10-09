@@ -204,6 +204,7 @@ python-snappy==0.7.3
 pytokens==0.4.1
 pytz==2026.5
 PyYAML==6.0.3
+pyzmq==27.2.0
 rapidocr==3.10.0
 readme_renderer==46.0
 regex==2026.9.29

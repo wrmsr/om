@@ -31,6 +31,10 @@ class Project(ProjectBase):
 
             'wikitextparser ~= 3.0',  # !! GPL
         ],
+
+        'zmq': [
+            'pyzmq ~= 27.2',
+        ],
     }
 
     entry_points = {
