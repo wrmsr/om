@@ -95,6 +95,11 @@ def test_the_defaults_can_be_disabled():
     assert not args.no_it
 
 
+def test_cuda():
+    assert _run_args('--cuda bash').cuda
+    assert not _run_args('bash').cuda
+
+
 def test_dockerdev_short_options_shadow_dockers():
     # dockerdev's `-v` (verbose) and `-P` (privileged) take docker's `-v` (volume) and `-P` (publish-all): spell those
     # `--volume=` and `--publish-all`.

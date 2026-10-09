@@ -86,6 +86,8 @@ class RunArgs:
 
     privileged: bool = False
 
+    cuda: bool = False
+
     offline: bool = False
 
     no_host_platform: bool = False
@@ -263,6 +265,14 @@ class PrivilegedRunStep(RunStep):
     def apply(self, plan: RunPlan) -> None:
         if plan.args.privileged:
             plan.add_options('--privileged')
+
+
+class CudaRunStep(RunStep):
+    """Every host gpu, through the nvidia container runtime."""
+
+    def apply(self, plan: RunPlan) -> None:
+        if plan.args.cuda:
+            plan.add_options('--runtime=nvidia', '--gpus=all')
 
 
 class OfflineRunStep(RunStep):
@@ -474,6 +484,7 @@ class SecretsRunStep(RunStep):
 DEFAULT_RUN_STEPS: ta.Sequence[RunStep] = (
     BaseOptionsRunStep(),
     PrivilegedRunStep(),
+    CudaRunStep(),
     OfflineRunStep(),
     MountsRunStep(),
     CacheMountsRunStep(),

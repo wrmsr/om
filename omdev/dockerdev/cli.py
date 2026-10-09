@@ -128,6 +128,8 @@ class Cli(ap.Cli):
 
             privileged=bool(self.args.privileged),
 
+            cuda=bool(self.args.cuda),
+
             offline=bool(self.args.offline),
 
             no_host_platform=bool(self.args.no_host_platform),
@@ -157,6 +159,8 @@ class Cli(ap.Cli):
         ap.arg('-G', '--clone-mount-git', action='store_true'),
 
         ap.arg('-P', '--privileged', action='store_true'),
+
+        ap.arg('--cuda', action='store_true'),
 
         ap.arg('-O', '--offline', action='store_true'),
 

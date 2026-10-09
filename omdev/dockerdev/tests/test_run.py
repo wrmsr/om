@@ -148,6 +148,11 @@ def test_simple_options(tmp_path):
     ])
 
 
+def test_cuda(tmp_path):
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, cuda=True))
+    assert run.options == sorted(['--rm', '-it', '--runtime=nvidia', '--gpus=all', _HOST_PLATFORM, _LABEL])
+
+
 def test_extra_args_replace_the_command(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, extra_args=['python3', '-c', 'x']))
     assert run.image_and_command == [_SHA, 'python3', '-c', 'x']
