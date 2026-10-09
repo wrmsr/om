@@ -673,7 +673,7 @@ The churn tests reset a subset of active streams while preserving healthy stream
 data, connection-credit conservation, empty stream tables, and continued connection usability. Final connection
 shutdown is also checked. The real transport suites cover SocketSync, FdSync, fdio, and asyncio, with and without TLS.
 
-The early long-running campaigns loaded the session helper before shuffled scheduling was added. The checked-in
+The early long-running campaigns loaded the session helper before shuffled scheduling was added. The repository
 helper now shuffles endpoint stepping and transfer order reproducibly. Seed ranges reproduce the generated session
 parameters; the later shuffled campaigns and the current runner also reproduce that shuffled scheduling policy.
 
