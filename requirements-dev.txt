@@ -170,7 +170,7 @@ apsw==3.53.4.0
 
 rapidocr==3.10.0  # @om-venv !14t !14dt !15 !15t
 onnxruntime==1.30.0  # @om-venv !14t !14dt !15 !15t
-omegaconf==2.3.0  # @om-venv !14t !14dt !15 !15t
+omegaconf==2.3.1  # @om-venv !14t !14dt !15 !15t
 
 pillow==12.3.0
 

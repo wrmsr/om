@@ -24,7 +24,7 @@ with lang.auto_proxy_import(globals()):
 
 DEFAULT_UV_DEPS = (
     'pillow>=12.3.0,<13',
-    'omegaconf>=2.3.0,<3',
+    'omegaconf>=2.3.1,<3',
     'rapidocr>=3.9.2,<4',
 )
 

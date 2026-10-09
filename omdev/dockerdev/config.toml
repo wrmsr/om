@@ -43,7 +43,6 @@ uv_python_versions = [
 
 pyenv_version_keys = [
     '8',
-    '13',
     '14',
     '14t',
     '15',
