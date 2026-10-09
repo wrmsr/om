@@ -19,6 +19,7 @@ omcore/sql/drivers/omysql/_dataclasses.py linguist-generated
 omcore/sql/queries/_dataclasses.py linguist-generated
 omcore/sql/tabledefs/_dataclasses.py linguist-generated
 omcore/text/abnf/_dataclasses.py linguist-generated
+omcore/text/diffs/_dataclasses.py linguist-generated
 omcore/text/pdcmark/_dataclasses.py linguist-generated
 omdev/dataclasses/_dumping.py linguist-generated
 omdev/dockerdev/_dataclasses.py linguist-generated
