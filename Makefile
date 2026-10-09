@@ -453,6 +453,12 @@ test-8: venv-8
 	LITE_PATHS=$$(${PYTHON} -m omdev.magic find --modules -k '@om-lite' ${SRCS}) ; \
 	$$(${PYPROJECT} venv 8 exe) -m omcore.testing.unittest -vb $$LITE_PATHS
 
+# pyodide
+
+.PHONY: venv-pyodide
+venv-pyodide: venv
+	${PYTHON} -m uv venv .venvs/pyodide -p pyodide
+
 # lite
 
 LITE_VENVS=\
