@@ -9,6 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from .. import _warning
 from .._models import PackageDAG
 
 if TYPE_CHECKING:
@@ -136,3 +137,13 @@ def fake_dist_with_invalid_metadata(tmp_path: Path) -> Path:
     fake_metadata = Path(fake_dist_path) / 'METADATA'
     fake_metadata.touch()
     return fake_dist_path
+
+
+@pytest.fixture(autouse=True)
+def fresh_warning_printer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    The warning printer is a process-wide singleton which `main()` and `render()` configure and never reset, so without
+    this a test silencing it silences whatever test its worker happens to run next.
+    """
+
+    monkeypatch.setattr(_warning, '_shared_warning_printer', _warning.WarningPrinter())
