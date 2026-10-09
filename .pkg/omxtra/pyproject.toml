@@ -35,20 +35,24 @@ ominfra = [
     'ominfra == 0.0.65',
 ]
 ssh = [
-    'paramiko ~= 5.0',
     'asyncssh ~= 2.24',
+    'paramiko ~= 5.0',
 ]
 wiki = [
     'mwparserfromhell ~= 0.7',
     'wikitextparser ~= 3.0',
 ]
+zmq = [
+    'pyzmq ~= 27.2',
+]
 all = [
     'omdev == 0.0.65',
     'ominfra == 0.0.65',
-    'paramiko ~= 5.0',
     'asyncssh ~= 2.24',
+    'paramiko ~= 5.0',
     'mwparserfromhell ~= 0.7',
     'wikitextparser ~= 3.0',
+    'pyzmq ~= 27.2',
 ]
 
 [project.entry-points]

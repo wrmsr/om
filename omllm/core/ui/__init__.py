@@ -7,7 +7,7 @@ with _lang.auto_proxy_init(
 ):
     ##
 
-    from .text.diffdocs import (  # noqa
+    from .text.diffs import (  # noqa
         build_diff_doc_options,
         render_diff_text_doc,
     )

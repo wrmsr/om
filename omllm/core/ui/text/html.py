@@ -16,7 +16,7 @@ from omcore.text import pdcmark
 from omcore.text import styled as st
 from omcore.text.pdcmark.rendering import html as pdcmark_html
 
-from .diffdocs import render_diff_text_doc
+from .diffs import render_diff_text_doc
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
 from .rendering import resolve_display_diff_text

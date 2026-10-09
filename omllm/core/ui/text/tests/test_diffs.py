@@ -4,7 +4,7 @@ from omcore import marshal as msh
 from omcore.text import diffs
 from omcore.text import styled as st
 
-from ..diffdocs import render_diff_text_doc
+from ..diffs import render_diff_text_doc
 from ..html import HtmlTextRenderer
 from ..rendering import TextRenderingOptions
 from ..styled import StyledTextBlock

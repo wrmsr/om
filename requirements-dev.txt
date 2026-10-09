@@ -82,13 +82,13 @@ uvicorn[standard]==0.54.0
 sqlean.py==3.50.4.5
 # git+https://github.com/wrmsr/sqlean.py.git
 
-duckdb==1.5.6  # @om-venv !14t !14dt  # SLOW COMPILE
+duckdb==1.5.6  # @om-venv !14t !14dt !15t  # SLOW COMPILE
 
 pycparser==3.11
 pcpp==1.30
 
 # !! LGPL
-paramiko==5.0.0
+paramiko==5.0.0  # @om-venv !15t
 
 docutils==0.23
 
@@ -123,7 +123,7 @@ tree-sitter-yaml==0.7.2  # @om-venv !14t !14dt !15t
 snowflake-connector-python[secure-local-storage]==4.8.0
 # snowflake-sqlalchemy==1.7.7
 
-trino==0.340.0  # @om-venv !14t !14dt  # orjson
+trino==0.340.0  # @om-venv !14t !14dt !15t  # orjson
 
 huggingface-hub==1.32.0
 hf-xet==1.6.0
@@ -136,7 +136,7 @@ pyzmq==27.2.0
 
 datasets==5.1.0
 
-transformers==5.19.0
+transformers==5.19.0  # @om-venv !15t
 sentence-transformers==6.1.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.2
