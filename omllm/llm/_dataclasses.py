@@ -2251,21 +2251,22 @@ def _process_dataclass__c35e74da0f0490f6f065cd19ed7ab578ce9e861f():
 
 
 @_register(
-    installer_sha1='ec91dedc9bf4e27b6274437e69dc4c4488e8c3ce',
+    installer_sha1='4090806d6fca888356c43bc066b47f54046eb23f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
             "e, False, True, False), ((('provider', True, True, None, True, False, False, None), 'instance', 'missing',"
             " None, False, False, False), (('id', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), ()"
-            ", (False,)))"
+            "one, False, False, False), (('SEPARATOR', True, True, None, True, None, False, None), 'class_var', 'value'"
+            ", None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),),"
+            " (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.llm.types.models', 'ModelKey'),
     ),
 )
-def _process_dataclass__ec91dedc9bf4e27b6274437e69dc4c4488e8c3ce():
+def _process_dataclass__4090806d6fca888356c43bc066b47f54046eb23f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2274,6 +2275,8 @@ def _process_dataclass__ec91dedc9bf4e27b6274437e69dc4c4488e8c3ce():
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -2305,6 +2308,7 @@ def _process_dataclass__ec91dedc9bf4e27b6274437e69dc4c4488e8c3ce():
         __dataclass___frozen_fields = {
             'provider',
             'id',
+            'SEPARATOR',
         }
 
         def __setattr__(self, name, value):

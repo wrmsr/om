@@ -1,5 +1,6 @@
 import typing as ta
 
+from omcore import cached
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
@@ -108,6 +109,22 @@ class ModelKey:
     def __post_init__(self) -> None:
         check.non_empty_str(self.provider)
         check.non_empty_str(self.id)
+
+    #
+
+    SEPARATOR: ta.ClassVar[str] = '::'
+
+    @cached.property
+    def joined(self) -> str:
+        return f'{self.provider}{self.SEPARATOR}{self.id}'
+
+    @classmethod
+    def parse(cls, s: str) -> ta.Self:
+        provider, id = s.split(cls.SEPARATOR)  # noqa
+        return cls(
+            provider=provider,
+            id=id,
+        )
 
 
 @ta.final

@@ -4,6 +4,7 @@ import typing as ta
 from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.formats.json import all as json
 
 from ..types.models import ModelKey
 
@@ -220,3 +221,42 @@ def default_models_by_name(
         if (ep := m.exclude_platforms) is None or platform not in ep
         for n in [m.name, *(m.aliases or [])]
     ), strict=True)
+
+
+##
+
+
+def _main() -> None:
+    from .providers import provider_model_catalog
+
+    dcts: dict[str, dict] = {}
+
+    mc = provider_model_catalog()
+    for dm in ALL_DEFAULT_MODELS:
+        m = mc[dm.key]
+
+        dct: dict = {}
+
+        limits = m.limits
+        if callable(limits):
+            limits = limits()
+        if limits is not None:
+            dct.update(
+                limits={k: v for k, v in dc.asdict(limits).items() if v is not None},
+            )
+
+        pricing = m.pricing
+        if callable(pricing):
+            pricing = pricing()
+        if pricing is not None:
+            dct.update(
+                pricing={k: v for k, v in dc.asdict(pricing).items() if v is not None},
+            )
+
+        dcts[dm.key.joined] = dct
+
+    print(json.dumps_pretty(dcts))
+
+
+if __name__ == '__main__':
+    _main()

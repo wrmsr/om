@@ -535,7 +535,7 @@
     "module": ".llm.models.providers.openrouter",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/openrouter.py",
-    "line": 226,
+    "line": 141,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [

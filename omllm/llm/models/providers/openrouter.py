@@ -6,6 +6,7 @@ from ...types.models import Model
 from ...types.models import ModelKey
 from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_model_limits
+from ..modeldb import modeldb_token_pricing
 
 
 ##
@@ -29,195 +30,109 @@ _COMPAT = OpenaiCompletionsCompat(
 )
 
 
+def _make_model(
+        id: str,  # noqa
+        name: str,
+) -> Model:
+    return Model(
+        key=ModelKey(
+            provider='openrouter',
+            id=id,
+        ),
+        name=name,
+        backend='openai-completions',
+        compat=_COMPAT,
+        cache=_CACHE,
+        limits=modeldb_model_limits('openrouter', id),
+        pricing=modeldb_token_pricing('openrouter', id),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    )
+
+
+##
+
+
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
     ##
     # deepseek
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='deepseek/deepseek-v4-pro-0813',
-        ),
+    _make_model(
+        id='deepseek/deepseek-v4-pro-0813',
         name='DeepSeek V4 Pro 0813',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'deepseek/deepseek-v4-pro-0813'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='deepseek/deepseek-v4-flash-0731',
-        ),
+    _make_model(
+        id='deepseek/deepseek-v4-flash-0731',
         name='DeepSeek V4 Flash 0731',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'deepseek/deepseek-v4-flash-0731'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
     ##
     # kimi
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='moonshotai/kimi-k3',
-        ),
+    _make_model(
+        id='moonshotai/kimi-k3',
         name='Kimi K3',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'moonshotai/kimi-k3'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
     ##
     # glm
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='z-ai/glm-5.3',
-        ),
+    _make_model(
+        id='z-ai/glm-5.3',
         name='GLM 5.3',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'z-ai/glm-5.3'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='z-ai/glm-5.3-flash',
-        ),
+    _make_model(
+        id='z-ai/glm-5.3-flash',
         name='GLM 5.3 Flash',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'z-ai/glm-5.3-flash'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
     ##
     # ling
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='inclusionai/ling-3.0-flash',
-        ),
+    _make_model(
+        id='inclusionai/ling-3.0-flash',
         name='Ling 3.0 Flash',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'inclusionai/ling-3.0-flash'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
     ##
     # mercury
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='inception/mercury-2.5',
-        ),
+    _make_model(
+        id='inception/mercury-2.5',
         name='Mercury 2.5',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'inception/mercury-2.5'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
     ##
     # mimo
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='xiaomi/mimo-v2.6-pro',
-        ),
+    _make_model(
+        id='xiaomi/mimo-v2.6-pro',
         name='MiMo 2.6 Pro',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'xiaomi/mimo-v2.6-pro'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
     ##
     # mistral
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='mistralai/mistral-large-4-0',
-        ),
+    _make_model(
+        id='mistralai/mistral-large-4-0',
         name='Mistral Large 4',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'mistralai/mistral-large-4-0'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
     ##
     # qwen
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='qwen/qwen3.8-max-prime',
-        ),
+    _make_model(
+        id='qwen/qwen3.8-max-prime',
         name='Qwen3.8 Max Prime',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'qwen/qwen3.8-max-prime'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
-    Model(
-        key=ModelKey(
-            provider='openrouter',
-            id='qwen/qwen3.8-flash',
-        ),
+    _make_model(
+        id='qwen/qwen3.8-flash',
         name='Qwen 3.8 Flash',
-        backend='openai-completions',
-        compat=_COMPAT,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', 'qwen/qwen3.8-flash'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
     ),
 
 ]

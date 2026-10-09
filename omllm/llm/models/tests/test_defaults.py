@@ -20,5 +20,5 @@ def test_checked_platforms() -> None:
 
 def test_model_keys():
     mc = llm.provider_model_catalog()
-    for m in ALL_DEFAULT_MODELS:
-        assert m.key in mc
+    for dm in ALL_DEFAULT_MODELS:
+        assert dm.key in mc
