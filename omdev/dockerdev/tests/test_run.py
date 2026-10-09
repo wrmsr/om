@@ -5,6 +5,7 @@ what a run means, the image and command after them are.
 import functools
 import re
 import tempfile
+import typing as ta
 import uuid
 
 import pytest
@@ -108,23 +109,62 @@ def _staging_mount(run: _Run) -> str:
 
 def test_defaults(tmp_path):
     run = _process(tmp_path)
-    assert run.options == sorted(['--rm', '-it', _HOST_PLATFORM, _LABEL])
+    assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL])
     assert run.image_and_command == [_SHA, 'bash']
     assert run.env is None
     assert run.staging_dir is None
 
 
+def test_unset_args_behave_as_false_and_empty(tmp_path):
+    explicit: dict[str, ta.Any] = dict(
+        verbose=False,
+        no_rm=False,
+        no_interactive=False,
+        no_tty=False,
+        detach=False,
+        mounts=[],
+        mount_caches=False,
+        mount_docker_sock=False,
+        mount_git=False,
+        clone_mount_git=False,
+        privileged=False,
+        cuda=False,
+        offline=False,
+        no_host_platform=False,
+        autoexecs=[],
+        x11=False,
+        no_id_label=False,
+        inject_secrets_pats=[],
+        unknown_args=[],
+        extra_args=[],
+    )
+
+    # Every field which has an explicit 'off' value: a new one must be added here too.
+    assert {f.name for f in dc.fields(RunArgs)} - set(explicit) == {'id', 'shift_uid'}
+
+    assert _process(tmp_path / 'a', RunArgs(id=_RUN_ID)) == _process(tmp_path / 'b', RunArgs(id=_RUN_ID, **explicit))
+
+
 def test_unknown_args_are_forwarded_alongside_the_defaults(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, unknown_args=['--name=x', '-d']))
-    assert run.options == sorted(['--rm', '-it', '--name=x', '-d', _HOST_PLATFORM, _LABEL])
+    assert run.options == sorted(['--rm', '-i', '-t', '--name=x', '-d', _HOST_PLATFORM, _LABEL])
 
 
 def test_defaults_can_be_disabled(tmp_path):
     assert '--rm' not in _process(tmp_path / 'a', RunArgs(id=_RUN_ID, no_rm=True)).options
-    assert '-it' not in _process(tmp_path / 'b', RunArgs(id=_RUN_ID, no_it=True)).options
+    assert '-i' not in _process(tmp_path / 'b', RunArgs(id=_RUN_ID, no_interactive=True)).options
+    assert '-t' not in _process(tmp_path / 'c', RunArgs(id=_RUN_ID, no_tty=True)).options
 
-    run = _process(tmp_path / 'c', RunArgs(id=_RUN_ID, no_rm=True, no_it=True))
+    run = _process(tmp_path / 'd', RunArgs(id=_RUN_ID, no_rm=True, no_interactive=True, no_tty=True))
     assert run.options == sorted([_HOST_PLATFORM, _LABEL])
+
+
+def test_detach_disables_nothing_else(tmp_path):
+    run = _process(tmp_path / 'a', RunArgs(id=_RUN_ID, detach=True))
+    assert run.options == sorted(['--rm', '-i', '-t', '-d', _HOST_PLATFORM, _LABEL])
+
+    run = _process(tmp_path / 'b', RunArgs(id=_RUN_ID, detach=True, no_interactive=True, no_tty=True))
+    assert run.options == sorted(['--rm', '-d', _HOST_PLATFORM, _LABEL])
 
 
 def test_simple_options(tmp_path):
@@ -139,7 +179,8 @@ def test_simple_options(tmp_path):
     ))
     assert run.options == sorted([
         '--rm',
-        '-it',
+        '-i',
+        '-t',
         '--privileged',
         '--pull=never',
         '--mount=type=bind,src=/a,dst=/b',
@@ -150,7 +191,7 @@ def test_simple_options(tmp_path):
 
 def test_cuda(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, cuda=True))
-    assert run.options == sorted(['--rm', '-it', '--runtime=nvidia', '--gpus=all', _HOST_PLATFORM, _LABEL])
+    assert run.options == sorted(['--rm', '-i', '-t', '--runtime=nvidia', '--gpus=all', _HOST_PLATFORM, _LABEL])
 
 
 def test_extra_args_replace_the_command(tmp_path):
@@ -176,7 +217,8 @@ def test_cache_mounts(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_caches=True))
     assert run.options == sorted([
         '--rm',
-        '-it',
+        '-i',
+        '-t',
         '--mount=type=volume,src=om-dockerdev-cache,dst=/cache',
         _HOST_PLATFORM,
         _staging_mount(run),
@@ -199,14 +241,14 @@ def test_cache_mounts(tmp_path):
 
 def test_cache_mounts_need_configured_caches(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_caches=True), cfg=Config('ubuntu:24.04'))
-    assert run.options == sorted(['--rm', '-it', _HOST_PLATFORM, _LABEL])
+    assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL])
     assert run.staging_dir is None
 
 
 def test_git_mounts(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_git=True))
     git_mount = f'--mount=type=bind,src={tmp_path}/cwd/.git,dst=/git,ro'
-    assert run.options == sorted(['--rm', '-it', git_mount, _HOST_PLATFORM, _LABEL])
+    assert run.options == sorted(['--rm', '-i', '-t', git_mount, _HOST_PLATFORM, _LABEL])
 
 
 def test_git_clone(tmp_path):
@@ -258,7 +300,8 @@ def test_shift_uid(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, shift_uid=(1000, 1001)))
     assert run.options == sorted([
         '--rm',
-        '-it',
+        '-i',
+        '-t',
         _HOST_PLATFORM,
         _staging_mount(run),
         *_shift_uid_options(''),
@@ -273,7 +316,8 @@ def test_shift_uid_wraps_the_autoexec_entrypoint(tmp_path):
     # One staging dir and mount for both scripts, and only the outer entrypoint given to docker.
     assert run.options == sorted([
         '--rm',
-        '-it',
+        '-i',
+        '-t',
         _HOST_PLATFORM,
         _staging_mount(run),
         *_shift_uid_options('/dockerdev/autoexec.sh'),
@@ -292,7 +336,8 @@ def test_x11_linux(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, x11=True))
     assert run.options == sorted([
         '--rm',
-        '-it',
+        '-i',
+        '-t',
         _HOST_PLATFORM,
         '--env=DISPLAY',
         '--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw',
@@ -304,7 +349,7 @@ def test_x11_linux(tmp_path):
 
 def test_x11_darwin(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, x11=True), sys_platform='darwin')
-    assert run.options == sorted(['--rm', '-it', _HOST_PLATFORM, '--env=DISPLAY=host.docker.internal:0', _LABEL])
+    assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, '--env=DISPLAY=host.docker.internal:0', _LABEL])
 
 
 def test_x11_needs_a_supported_host(tmp_path):
@@ -330,7 +375,7 @@ def test_secrets_inject_every_match(tmp_path):
     run = _process(tmp_path, RunArgs(id=_RUN_ID, inject_secrets_pats=['.*_key']), load_secrets=_load_secrets)
 
     # Passed through by name only: the values are in the docker client's environment, never its argv.
-    assert run.options == sorted(['--rm', '-it', _HOST_PLATFORM, _LABEL, '--env=FOO_KEY', '--env=BAR_KEY'])
+    assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL, '--env=FOO_KEY', '--env=BAR_KEY'])
     assert run.env == {'FOO_KEY': 'foo-value', 'BAR_KEY': 'bar-value'}
 
 
@@ -376,7 +421,8 @@ def test_kitchen_sink(tmp_path):
 
     assert run.options == sorted([
         '--rm',
-        '-it',
+        '-i',
+        '-t',
         '--name=sink',
         '--privileged',
         '--mount=type=volume,src=om-dockerdev-cache,dst=/cache',

@@ -44,7 +44,7 @@ def test_the_command_starts_at_the_first_non_option():
 
 
 def test_unknown_options_are_forwarded():
-    assert _split('--name=foo -d bash') == (['--name=foo', '-d'], ['bash'])
+    assert _split('--name=foo --init bash') == (['--name=foo', '--init'], ['bash'])
     assert _split('--rm -it') == (['--rm', '-it'], [])
 
     # A forwarded option must be one argument: its separate value would be taken for the command.
@@ -85,14 +85,38 @@ def test_a_double_dash_does_not_reach_docker(tmp_path):
 
 
 def test_the_defaults_can_be_disabled():
-    args = _run_args('--no-rm --no-it bash')
+    args = _run_args('--no-rm --no-interactive --no-tty bash')
     assert args.no_rm
-    assert args.no_it
+    assert args.no_interactive
+    assert args.no_tty
     assert args.extra_args == ['bash']
 
     args = _run_args('--name=foo bash')
     assert not args.no_rm
-    assert not args.no_it
+    assert not args.no_interactive
+    assert not args.no_tty
+
+
+def test_detach():
+    for cmdline in ['-d bash', '--detach bash']:
+        args = _run_args(cmdline)
+        assert args.detach
+        assert not args.no_interactive
+        assert not args.no_tty
+        assert args.extra_args == ['bash']
+
+    assert not _run_args('bash').detach
+
+    # dockerdev's `-d` means what docker's does, and docker's `--detach-keys` is not taken for it.
+    args = _run_args('--detach-keys=ctrl-o,ctrl-d -d bash')
+    assert args.detach
+    assert args.unknown_args == ['--detach-keys=ctrl-o,ctrl-d']
+
+    # Docker's clustered `-dit` still works: dockerdev takes the `-d`, and forwards the rest - harmlessly, as `-i` and
+    # `-t` are on by default.
+    args = _run_args('-dit bash')
+    assert args.detach
+    assert args.unknown_args == ['-it']
 
 
 def test_cuda():

@@ -118,7 +118,10 @@ class Cli(ap.Cli):
             verbose=bool(self.args.verbose),
 
             no_rm=bool(self.args.no_rm),
-            no_it=bool(self.args.no_it),
+            no_interactive=bool(self.args.no_interactive),
+            no_tty=bool(self.args.no_tty),
+
+            detach=bool(self.args.detach),
 
             mounts=self.args.mount,
             mount_caches=bool(self.args.mount_caches),
@@ -150,7 +153,10 @@ class Cli(ap.Cli):
         ap.arg('-v', '--verbose', action='store_true'),
 
         ap.arg('--no-rm', action='store_true'),
-        ap.arg('--no-it', action='store_true'),
+        ap.arg('--no-interactive', action='store_true'),
+        ap.arg('--no-tty', action='store_true'),
+
+        ap.arg('-d', '--detach', action='store_true'),
 
         ap.arg('--mount', action='append'),
         ap.arg('-C', '--mount-caches', action='store_true'),

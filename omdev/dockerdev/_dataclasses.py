@@ -1934,39 +1934,41 @@ def _process_dataclass__12ca4d1260a3c17c0b1366d05f55524950502f14():
 
 
 @_register(
-    installer_sha1='2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05',
+    installer_sha1='e115aea517dcc461987971225ccc7920335dd53a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('verbose', True, True, None, True, True, False, None), 'instance', 'value', No"
             "ne, False, False, False), (('no_rm', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('no_it', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('mounts', True, True, None, True, True, False, None), 'instance', 'value', None, F"
-            "alse, False, False), (('mount_caches', True, True, None, True, True, False, None), 'instance', 'value', No"
-            "ne, False, False, False), (('mount_docker_sock', True, True, None, True, True, False, None), 'instance', '"
-            "value', None, False, False, False), (('mount_git', True, True, None, True, True, False, None), 'instance',"
-            " 'value', None, False, False, False), (('clone_mount_git', True, True, None, True, True, False, None), 'in"
-            "stance', 'value', None, False, False, False), (('privileged', True, True, None, True, True, False, None), "
-            "'instance', 'value', None, False, False, False), (('cuda', True, True, None, True, True, False, None), 'in"
-            "stance', 'value', None, False, False, False), (('offline', True, True, None, True, True, False, None), 'in"
-            "stance', 'value', None, False, False, False), (('no_host_platform', True, True, None, True, True, False, N"
-            "one), 'instance', 'value', None, False, False, False), (('autoexecs', True, True, None, True, True, False,"
-            " None), 'instance', 'value', None, False, False, False), (('x11', True, True, None, True, True, False, Non"
-            "e), 'instance', 'value', None, False, False, False), (('id', True, True, None, True, True, False, None), '"
-            "instance', 'value', None, False, False, False), (('no_id_label', True, True, None, True, True, False, None"
-            "), 'instance', 'value', None, False, False, False), (('inject_secrets_pats', True, True, None, True, True,"
-            " False, None), 'instance', 'value', None, False, False, False), (('shift_uid', True, True, None, True, Tru"
-            "e, False, None), 'instance', 'value', None, False, False, False), (('unknown_args', True, True, None, True"
-            ", True, False, None), 'instance', 'value', None, False, False, False), (('extra_args', True, True, None, T"
-            "rue, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (Fals"
-            "e,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            ", False, False, False), (('no_interactive', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('no_tty', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('detach', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('mounts', True, True, None, True, True, False, None), 'instance', 'value', "
+            "None, False, False, False), (('mount_caches', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('mount_docker_sock', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('mount_git', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('clone_mount_git', True, True, None, True, True, False, Non"
+            "e), 'instance', 'value', None, False, False, False), (('privileged', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False), (('cuda', True, True, None, True, True, False, Non"
+            "e), 'instance', 'value', None, False, False, False), (('offline', True, True, None, True, True, False, Non"
+            "e), 'instance', 'value', None, False, False, False), (('no_host_platform', True, True, None, True, True, F"
+            "alse, None), 'instance', 'value', None, False, False, False), (('autoexecs', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('x11', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('id', True, True, None, True, True, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('no_id_label', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('inject_secrets_pats', True, True, None, True"
+            ", True, False, None), 'instance', 'value', None, False, False, False), (('shift_uid', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('unknown_args', True, True, Non"
+            "e, True, True, False, None), 'instance', 'value', None, False, False, False), (('extra_args', True, True, "
+            "None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,)"
+            ", (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.run', 'RunArgs'),
     ),
 )
-def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
+def _process_dataclass__e115aea517dcc461987971225ccc7920335dd53a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2013,6 +2015,10 @@ def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
         __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
         __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
         __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
+        __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -2025,7 +2031,9 @@ def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
             return __class__(  # noqa
                 verbose=self.verbose,
                 no_rm=self.no_rm,
-                no_it=self.no_it,
+                no_interactive=self.no_interactive,
+                no_tty=self.no_tty,
+                detach=self.detach,
                 mounts=self.mounts,
                 mount_caches=self.mount_caches,
                 mount_docker_sock=self.mount_docker_sock,
@@ -2055,7 +2063,9 @@ def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
             return (
                 self.verbose == other.verbose and
                 self.no_rm == other.no_rm and
-                self.no_it == other.no_it and
+                self.no_interactive == other.no_interactive and
+                self.no_tty == other.no_tty and
+                self.detach == other.detach and
                 self.mounts == other.mounts and
                 self.mount_caches == other.mount_caches and
                 self.mount_docker_sock == other.mount_docker_sock and
@@ -2080,7 +2090,9 @@ def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
         __dataclass___frozen_fields = {
             'verbose',
             'no_rm',
-            'no_it',
+            'no_interactive',
+            'no_tty',
+            'detach',
             'mounts',
             'mount_caches',
             'mount_docker_sock',
@@ -2124,7 +2136,9 @@ def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
             return hash((
                 self.verbose,
                 self.no_rm,
-                self.no_it,
+                self.no_interactive,
+                self.no_tty,
+                self.detach,
                 self.mounts,
                 self.mount_caches,
                 self.mount_docker_sock,
@@ -2151,28 +2165,32 @@ def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
             *,
             verbose: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
             no_rm: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
-            no_it: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
-            mounts: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
-            mount_caches: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
-            mount_docker_sock: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
-            mount_git: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
-            clone_mount_git: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            privileged: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            cuda: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            offline: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            no_host_platform: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            autoexecs: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            x11: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            id: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
-            no_id_label: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
-            inject_secrets_pats: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
-            shift_uid: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
-            unknown_args: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
-            extra_args: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            no_interactive: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            no_tty: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            detach: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            mounts: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            mount_caches: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            mount_docker_sock: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            mount_git: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            clone_mount_git: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            privileged: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            cuda: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            offline: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            no_host_platform: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            autoexecs: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            x11: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            id: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            no_id_label: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            inject_secrets_pats: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            shift_uid: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            unknown_args: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            extra_args: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'verbose', verbose)
             __dataclass__object_setattr(self, 'no_rm', no_rm)
-            __dataclass__object_setattr(self, 'no_it', no_it)
+            __dataclass__object_setattr(self, 'no_interactive', no_interactive)
+            __dataclass__object_setattr(self, 'no_tty', no_tty)
+            __dataclass__object_setattr(self, 'detach', detach)
             __dataclass__object_setattr(self, 'mounts', mounts)
             __dataclass__object_setattr(self, 'mount_caches', mount_caches)
             __dataclass__object_setattr(self, 'mount_docker_sock', mount_docker_sock)
@@ -2198,7 +2216,9 @@ def _process_dataclass__2bc0c20d93befe3a91eee50bbccf82c4c8f4fe05():
             parts = []
             parts.append(f"verbose={self.verbose!r}")
             parts.append(f"no_rm={self.no_rm!r}")
-            parts.append(f"no_it={self.no_it!r}")
+            parts.append(f"no_interactive={self.no_interactive!r}")
+            parts.append(f"no_tty={self.no_tty!r}")
+            parts.append(f"detach={self.detach!r}")
             parts.append(f"mounts={self.mounts!r}")
             parts.append(f"mount_caches={self.mount_caches!r}")
             parts.append(f"mount_docker_sock={self.mount_docker_sock!r}")

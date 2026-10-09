@@ -73,31 +73,34 @@ with lang.auto_proxy_import(globals()):
 
 @dc.dataclass(frozen=True, kw_only=True)
 class RunArgs:
-    verbose: bool = False
+    verbose: bool | None = None
 
-    no_rm: bool = False
-    no_it: bool = False
+    no_rm: bool | None = None
+    no_interactive: bool | None = None
+    no_tty: bool | None = None
+
+    detach: bool | None = None
 
     mounts: ta.Sequence[str] | None = None
-    mount_caches: bool = False
-    mount_docker_sock: bool = False
-    mount_git: bool = False
-    clone_mount_git: bool = False
+    mount_caches: bool | None = None
+    mount_docker_sock: bool | None = None
+    mount_git: bool | None = None
+    clone_mount_git: bool | None = None
 
-    privileged: bool = False
+    privileged: bool | None = None
 
-    cuda: bool = False
+    cuda: bool | None = None
 
-    offline: bool = False
+    offline: bool | None = None
 
-    no_host_platform: bool = False
+    no_host_platform: bool | None = None
 
     autoexecs: ta.Sequence[str] | None = None
 
-    x11: bool = False
+    x11: bool | None = None
 
     id: uuid.UUID | None = None
-    no_id_label: bool = False
+    no_id_label: bool | None = None
 
     # TODO: k=v? currently hardcodes env key as `sk.upper()`
     inject_secrets_pats: ta.Sequence[str | re.Pattern[str]] | None = dc.xfield(
@@ -249,13 +252,22 @@ class RunStep(lang.Abstract):
 
 
 class BaseOptionsRunStep(RunStep):
-    """`--rm` and `-it` unless disabled, and the options passed through unrecognized from the command line."""
+    """
+    `--rm`, `-i` and `-t` unless each is disabled, `-d` if asked for, and the options passed through unrecognized from
+    the command line. Detaching disables neither of the others: a tty is what keeps a detached `bash` waiting rather
+    than exiting at the end of an empty stdin, and `-i` is what lets a later `docker attach` type into it.
+    """
 
     def apply(self, plan: RunPlan) -> None:
         if not plan.args.no_rm:
             plan.add_options('--rm')
-        if not plan.args.no_it:
-            plan.add_options('-it')
+        if not plan.args.no_interactive:
+            plan.add_options('-i')
+        if not plan.args.no_tty:
+            plan.add_options('-t')
+
+        if plan.args.detach:
+            plan.add_options('-d')
 
         if plan.args.unknown_args:
             plan.add_options(*plan.args.unknown_args)
@@ -562,8 +574,8 @@ def run_image(
     if sha is None:
         sha = build_image(
             cfg,
-            offline=args.offline,
-            verbose=args.verbose,
+            offline=bool(args.offline),
+            verbose=bool(args.verbose),
         )
 
     #
