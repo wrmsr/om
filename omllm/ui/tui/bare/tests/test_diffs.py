@@ -14,6 +14,7 @@ from omcore import inject as inj
 from ..... import llm
 from .....agent.tests.scripted import text_message
 from .....agent.tests.scripted import tool_call_message
+from .....core import ui
 from ...config import Config
 from ...rendering import TerminalTextDisplayer
 from ...rendering import TerminalTextRenderer
@@ -54,14 +55,20 @@ class _Run:
         self.out = io.StringIO()
         self.input_manager = _ScriptedInputManager(self.out, answers)
 
-        # The rendered diff's own header line for this one-line change, and a width keeping it whole on one row however
-        # long the temp path is (under xdist or on macos it can overflow any fixed width, cutting off the counts).
-        self.diff_header = f'{self.path} (1 additions, 1 removals)'
-        self.width = max(100, len(self.diff_header) + 10)
+        # The rendered diff's own header line for this one-line change, its path shown relative to the session's cwd -
+        # set off by the rule's spaces, so no longer path ending in it matches.
+        self.diff_header = ' f.py (1 additions, 1 removals) '
 
     def read(self):
         with open(self.path) as f:
             return f.read()
+
+    def _build_text_displayer(self, options: ui.TextRenderingOptions) -> TerminalTextDisplayer:
+        # Rendering with the injected options, which carry that cwd.
+        return TerminalTextDisplayer(
+            file=self.out,
+            renderer=TerminalTextRenderer(options, width=100, color_depth=None),
+        )
 
     def tui(self):
         return headless_tui(inj.override(
@@ -75,10 +82,7 @@ class _Run:
             )),
 
             inj.bind(InputManager, to_const=self.input_manager),
-            inj.bind(TerminalTextDisplayer, to_const=TerminalTextDisplayer(
-                file=self.out,
-                renderer=TerminalTextRenderer(width=self.width, color_depth=None),
-            )),
+            inj.bind(TerminalTextDisplayer, singleton=True, to_fn=self._build_text_displayer),
 
             bind_scripted_backend(
                 tool_call_message(llm.ToolCall(

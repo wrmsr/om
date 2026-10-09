@@ -2,6 +2,7 @@ from omcore.text import styled as st
 
 from ..plain import PlainTextRenderer
 from ..rendering import TextRenderingOptions
+from ..rendering import resolve_display_path
 from ..styled import StyledJsonStyles
 from ..styled import StyledTextBlock
 from ..styled import StyledTextRenderer
@@ -22,6 +23,24 @@ def test_plain_compact_degrades_blocks():
 
     s = PlainTextRenderer(TextRenderingOptions(density='compact')).render(t)
     assert s == 'a # hi there b f.py: +1 -1'
+
+
+def test_display_paths_are_relative_to_the_cwd():
+    options = TextRenderingOptions(cwd='/w/')
+
+    assert resolve_display_path(options, '/w/a/b.py') == 'a/b.py'
+    assert resolve_display_path(options, '/w') == '.'
+    assert resolve_display_path(options, 'a/b.py') == 'a/b.py'
+
+    # Outside the cwd a path stays as given, rather than climbing out of it.
+    assert resolve_display_path(options, '/wx/b.py') == '/wx/b.py'
+    assert resolve_display_path(options, '/w/../v/b.py') == '/w/../v/b.py'
+
+    assert resolve_display_path(TextRenderingOptions(cwd='/w', absolute_paths=True), '/w/a/b.py') == '/w/a/b.py'
+    assert resolve_display_path(TextRenderingOptions(), '/w/a/b.py') == '/w/a/b.py'
+
+    t = DiffText(old='x\n', new='y\n', path='/w/a/b.py')
+    assert PlainTextRenderer(TextRenderingOptions(density='compact', cwd='/w')).render(t) == 'a/b.py: +1 -1'
 
 
 def test_plain_json_density():

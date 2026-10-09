@@ -40,6 +40,9 @@ from .unified import UnifiedDiffHunkLayout
 ##
 
 
+_ELLIPSIS = '\N{HORIZONTAL ELLIPSIS}'
+
+
 def simple_pluralise(word: str, number: int) -> str:
     return word if number == 1 else word + 's'
 
@@ -206,25 +209,32 @@ class DiffStyledDocRenderer(lang.Final):
         )
 
     def _render_file_header(self, patch: diffs.FilePatch) -> st.StyledText:
-        parts: list[tuple[st.StyledTextLike, st.StyleLike | None]] = []
+        head: list[tuple[st.StyledTextLike, st.StyleLike | None]] = []
         if _is_rename(patch):
-            parts.extend([
+            head.extend([
                 (pathlib.PurePath(_source_path(patch)).name, 'diff.header.old-path'),
                 (' → ', None),
             ])
         elif patch.is_new_file:
-            parts.append(('Added ', 'diff.header.added'))
-        parts.extend([
-            (_patch_path(patch), 'diff.header.path'),
+            head.append(('Added ', 'diff.header.added'))
+        head_text = grid.show_controls(st.StyledText.assemble(*head))
+
+        tail_text = st.StyledText.assemble(
             (' (', None),
             (str(patch.added_count), 'diff.header.additions'),
             (' additions, ', None),
             (str(patch.removed_count), 'diff.header.removals'),
             (' removals)', None),
-        ])
+        )
+
+        # A path too long for the header gives up its start rather than the counts after it, as its end names the file.
+        # The rule sets the title off by a space on each side.
+        path_width = self._options.width - 2 - grid.cell_width(head_text) - grid.cell_width(tail_text)
+        path_text = grid.truncate_left(grid.show_controls(_patch_path(patch)), path_width, ellipsis=_ELLIPSIS)
+
         return grid.rule(
             self._options.width,
-            title=grid.show_controls(st.StyledText.assemble(*parts)),
+            title=st.StyledText.assemble(head_text, (path_text, 'diff.header.path'), tail_text),
             character='▁',
             style='diff.border',
         )

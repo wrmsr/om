@@ -19,6 +19,7 @@ with _lang.auto_proxy_init(globals()):
         pad_left,
         pad_right,
         truncate,
+        truncate_left,
     )
 
     from .indents import (  # noqa
@@ -29,6 +30,7 @@ with _lang.auto_proxy_init(globals()):
     from .measuring import (  # noqa
         cell_width,
         fit_offset,
+        fit_tail_offset,
     )
 
     from .rules import (  # noqa

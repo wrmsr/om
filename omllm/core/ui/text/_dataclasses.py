@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='9e68b9dea9d92099a7e2e2709413767a03b788b1',
+    installer_sha1='3c33aec0a68bb024bc7f68f0718210d17119af7c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -40,15 +40,17 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "ne, False, False, False), (('json_style', True, True, None, True, True, False, None), 'instance', 'value',"
             " None, False, False, False), (('diff_layout', True, True, None, True, True, False, None), 'instance', 'val"
             "ue', None, False, False, False), (('diff_context_limits', True, True, None, True, True, False, None), 'ins"
-            "tance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, Fa"
-            "lse, ()), ((),), (), (False,)))"
+            "tance', 'value', None, False, False, False), (('cwd', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('absolute_paths', True, True, None, True, True, False, None), '"
+            "instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False,"
+            " False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.core.ui.text.rendering', 'TextRenderingOptions'),
     ),
 )
-def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
+def _process_dataclass__3c33aec0a68bb024bc7f68f0718210d17119af7c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -63,6 +65,10 @@ def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -77,6 +83,8 @@ def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
                 json_style=self.json_style,
                 diff_layout=self.diff_layout,
                 diff_context_limits=self.diff_context_limits,
+                cwd=self.cwd,
+                absolute_paths=self.absolute_paths,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -90,7 +98,9 @@ def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
                 self.density == other.density and
                 self.json_style == other.json_style and
                 self.diff_layout == other.diff_layout and
-                self.diff_context_limits == other.diff_context_limits
+                self.diff_context_limits == other.diff_context_limits and
+                self.cwd == other.cwd and
+                self.absolute_paths == other.absolute_paths
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -100,6 +110,8 @@ def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
             'json_style',
             'diff_layout',
             'diff_context_limits',
+            'cwd',
+            'absolute_paths',
         }
 
         def __setattr__(self, name, value):
@@ -128,6 +140,8 @@ def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
                 self.json_style,
                 self.diff_layout,
                 self.diff_context_limits,
+                self.cwd,
+                self.absolute_paths,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -139,11 +153,15 @@ def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
             json_style: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             diff_layout: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             diff_context_limits: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            cwd: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            absolute_paths: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'density', density)
             __dataclass__object_setattr(self, 'json_style', json_style)
             __dataclass__object_setattr(self, 'diff_layout', diff_layout)
             __dataclass__object_setattr(self, 'diff_context_limits', diff_context_limits)
+            __dataclass__object_setattr(self, 'cwd', cwd)
+            __dataclass__object_setattr(self, 'absolute_paths', absolute_paths)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -154,6 +172,8 @@ def _process_dataclass__9e68b9dea9d92099a7e2e2709413767a03b788b1():
             parts.append(f"json_style={self.json_style!r}")
             parts.append(f"diff_layout={self.diff_layout!r}")
             parts.append(f"diff_context_limits={self.diff_context_limits!r}")
+            parts.append(f"cwd={self.cwd!r}")
+            parts.append(f"absolute_paths={self.absolute_paths!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

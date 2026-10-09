@@ -1,4 +1,5 @@
 import abc
+import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -31,6 +32,12 @@ class TextRenderingOptions:
     # the diff renderer's defaults.
     diff_context_limits: diffs.DiffContextLimits | None = None
 
+    # The working directory, paths beneath which are shown relative to it. None shows every path as given.
+    cwd: str | None = None
+
+    # Shows every path as given, even those beneath the cwd.
+    absolute_paths: bool = False
+
 
 class TextRenderer(lang.Abstract, ta.Generic[O]):
     @abc.abstractmethod
@@ -52,6 +59,36 @@ def resolve_json_text_style(
         .merge(options.json_style)
         .merge(style)
     )
+
+
+##
+
+
+def resolve_display_path(options: TextRenderingOptions, path: str) -> str:
+    """A path as shown: relative to the options' cwd if beneath it, unless they ask for absolute paths."""
+
+    if (
+            options.absolute_paths or
+            (cwd := options.cwd) is None or
+            not os.path.isabs(path) or
+            not os.path.isabs(cwd)
+    ):
+        return path
+
+    cwd = os.path.normpath(cwd)
+    if os.path.commonpath([os.path.normpath(path), cwd]) != cwd:
+        return path
+
+    return os.path.relpath(path, cwd)
+
+
+def resolve_display_diff_text(options: TextRenderingOptions, t: DiffText) -> DiffText:
+    """A diff block as shown: its path resolved for display, its texts untouched."""
+
+    if t.path is None or (path := resolve_display_path(options, t.path)) == t.path:
+        return t
+
+    return dc.replace(t, path=path)
 
 
 ##

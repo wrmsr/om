@@ -40,6 +40,8 @@ with _lang.auto_proxy_init(
     from .text.rendering import (  # noqa
         TextRenderer,
         TextRenderingOptions,
+        resolve_display_path,
+        resolve_display_diff_text,
     )
 
     from .text.styled import (  # noqa

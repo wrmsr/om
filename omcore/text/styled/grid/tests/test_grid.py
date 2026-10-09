@@ -10,10 +10,12 @@ from ..fitting import fit
 from ..fitting import pad_left
 from ..fitting import pad_right
 from ..fitting import truncate
+from ..fitting import truncate_left
 from ..indents import expand_tabs
 from ..indents import indent_guides
 from ..measuring import cell_width
 from ..measuring import fit_offset
+from ..measuring import fit_tail_offset
 from ..rules import rule
 from ..wrapping import wrap
 from ..wrapping import wrap_document
@@ -36,6 +38,15 @@ def test_measuring():
     assert fit_offset('漢字', 3) == 1
     assert fit_offset('漢字', 0) == 0
 
+    assert fit_tail_offset('abc', 2) == 1
+    assert fit_tail_offset('abc', 5) == 0
+    assert fit_tail_offset('漢字', 3) == 1
+    assert fit_tail_offset('漢字', 0) == 2
+
+    # A combining mark goes with the base it was cut from.
+    assert fit_tail_offset('ae\u0301b', 2) == 1
+    assert fit_tail_offset('ae\u0301b', 1) == 3
+
 
 def test_truncate():
     text = StyledText('abcdef').styled(BOLD, 2, 6)
@@ -48,6 +59,19 @@ def test_truncate():
     assert truncate(text, 4, ellipsis='…') == StyledText('abc…', (StyleSpan(2, 3, BOLD),))
     assert truncate('abcdef', 1, ellipsis='…') == StyledText('a')
     assert truncate('abcdef', 5, ellipsis='...') == StyledText('ab...')
+
+
+def test_truncate_left():
+    text = StyledText('abcdef').styled(BOLD, 0, 4)
+
+    assert truncate_left(text, 10) == text
+    assert truncate_left(text, 3) == StyledText('def', (StyleSpan(0, 1, BOLD),))
+    assert truncate_left(text, 0) == StyledText()
+    assert truncate_left('漢字漢', 3) == StyledText('漢')
+
+    assert truncate_left(text, 4, ellipsis='…') == StyledText('…def', (StyleSpan(1, 2, BOLD),))
+    assert truncate_left('abcdef', 1, ellipsis='…') == StyledText('f')
+    assert truncate_left('abcdef', 5, ellipsis='...') == StyledText('...ef')
 
 
 def test_pad_and_fit():

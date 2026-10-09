@@ -109,6 +109,20 @@ def test_diff_docs_highlight_hunks_with_the_whole_file():
     assert changed_row_is_string(diff_context_limits=diffs.DiffContextLimits(max_lines=None, max_bytes=None))
 
 
+def test_diff_docs_show_paths_relative_to_the_cwd_unless_absolute():
+    d = DiffText(old='x\n', new='y\n', path='/w/src/f.py')
+
+    def header(**kwargs):
+        document = render_diff_text_doc(d, width=80, options=TextRenderingOptions(**kwargs))
+        [line] = [line.text for line in document.lines if 'additions' in line.text]
+        return line.strip('▁ ')
+
+    assert header(cwd='/w') == 'src/f.py (1 additions, 1 removals)'
+    assert header(cwd='/w', absolute_paths=True) == '/w/src/f.py (1 additions, 1 removals)'
+    assert header(cwd='/v') == '/w/src/f.py (1 additions, 1 removals)'
+    assert header() == '/w/src/f.py (1 additions, 1 removals)'
+
+
 def test_html_shows_a_diff_that_will_not_lay_out_as_plain_text():
     html = HtmlTextRenderer().render(DiffText(old='x\n', new='y\n', path='bad\npath'))
 

@@ -91,6 +91,27 @@ rename to new.txt
 
 
 @LAYOUTS
+def test_a_long_path_gives_up_its_start_to_keep_the_counts(layout):
+    path = '/'.join([*(['deeply', 'nested'] * 10), 'f.py'])
+
+    def header(diff):
+        document = render_diff_styled_doc(parse_patch(diff), width=60, layout=layout)
+        [line] = [line.text for line in document.lines if 'additions' in line.text]
+        assert len(line) == 60
+        return line
+
+    # Exactly filled: the title, set off by a space on each side, leaves no room for the rule.
+    modified = header(f'--- a/{path}\n+++ b/{path}\n@@ -1 +1 @@\n-x\n+y\n')
+    assert modified == f' \N{HORIZONTAL ELLIPSIS}{path[-31:]} (1 additions, 1 removals) '
+
+    added = header(f'--- /dev/null\n+++ b/{path}\n@@ -0,0 +1 @@\n+y\n')
+    assert added == f' Added \N{HORIZONTAL ELLIPSIS}{path[-25:]} (1 additions, 0 removals) '
+
+    # A path that fits is left whole.
+    assert header('--- a/f.py\n+++ b/f.py\n@@ -1 +1 @@\n-x\n+y\n').strip('▁ ') == 'f.py (1 additions, 1 removals)'
+
+
+@LAYOUTS
 def test_headless_ansi_has_same_visible_text(layout):
     patch = parse_patch(MODIFIED_DIFF)
     document = render_diff_styled_doc(patch, width=60, layout=layout)

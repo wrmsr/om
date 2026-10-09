@@ -9,6 +9,7 @@ from .json import JsonTokenKind
 from .json import render_json_tokens
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
+from .rendering import resolve_display_diff_text
 from .rendering import resolve_json_text_style
 from .rendering import squash_markdown_text
 from .rendering import summarize_diff_text
@@ -200,7 +201,8 @@ class StyledTextRenderer(TextRenderer[StyledTextRendering]):
 
             elif isinstance(node, DiffText):
                 if compact:
-                    current.append(_styled(summarize_diff_text(node), style_refs))
+                    summary = summarize_diff_text(resolve_display_diff_text(self._options, node))
+                    current.append(_styled(summary, style_refs))
                 else:
                     flush()
                     parts.append(StyledTextBlock(node, style_refs))

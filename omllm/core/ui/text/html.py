@@ -19,6 +19,7 @@ from omcore.text.pdcmark.rendering import html as pdcmark_html
 from .diffdocs import render_diff_text_doc
 from .rendering import TextRenderer
 from .rendering import TextRenderingOptions
+from .rendering import resolve_display_diff_text
 from .styled import StyledTextBlock
 from .styled import StyledTextRenderer
 from .themes import UI_TEXT_STYLE_THEME
@@ -109,6 +110,8 @@ class HtmlTextRenderer(TextRenderer[str]):
         return f'<div style="{css}">{render_markdown_html(block.s)}</div>'
 
     def _render_diff(self, block: DiffText, base: st.ResolvedStyle) -> str:
+        block = resolve_display_diff_text(self._options, block)
+
         try:
             document = render_diff_text_doc(
                 block,

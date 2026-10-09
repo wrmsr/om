@@ -7,6 +7,7 @@ from ..text import StyledText
 from ..text import StyledTextLike
 from .measuring import cell_width
 from .measuring import fit_offset
+from .measuring import fit_tail_offset
 
 
 type Alignment = ta.Literal['left', 'center', 'right']
@@ -35,6 +36,24 @@ def truncate(text: StyledTextLike, width: int, *, ellipsis: str = '') -> StyledT
     if ellipsis and ellipsis_width < width:
         return value.slice(0, fit_offset(value.text, width - ellipsis_width)) + ellipsis
     return value.slice(0, fit_offset(value.text, width))
+
+
+def truncate_left(text: StyledTextLike, width: int, *, ellipsis: str = '') -> StyledText:
+    """
+    Clip to at most `width` cells from the left, keeping the end and never splitting a wide character. An ellipsis,
+    when given and it fits, replaces the clipped head and carries no style of its own.
+    """
+
+    value = StyledText.of(text)
+    if width <= 0:
+        return StyledText()
+    if cell_width(value) <= width:
+        return value
+
+    ellipsis_width = cell_width(ellipsis)
+    if ellipsis and ellipsis_width < width:
+        return ellipsis + value.slice(fit_tail_offset(value.text, width - ellipsis_width))
+    return value.slice(fit_tail_offset(value.text, width))
 
 
 def pad_left(

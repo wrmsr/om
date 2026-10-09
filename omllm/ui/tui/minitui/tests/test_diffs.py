@@ -59,8 +59,8 @@ class _Run:
         with open(self.path, 'w') as f:
             f.write(content)
 
-        # Wide enough for the card's header, and the diff's, to keep the temp path and their status on one row - however
-        # long that path is (under xdist or on macos it can overflow any fixed width).
+        # Wide enough for the card's header to keep the temp path and its status on one row, however long that path is
+        # (under xdist or on macos it can overflow any fixed width).
         self.app, self.driver = make_app()
         self.driver.surface.width = max(120, len(self.path) + 60)
 

@@ -4,6 +4,7 @@ from omcore.text import diffs
 from omcore.text import styled as st
 
 from .rendering import TextRenderingOptions
+from .rendering import resolve_display_diff_text
 from .types import DiffText
 
 
@@ -36,6 +37,11 @@ def render_diff_text_doc(
     far as the options' context limits allow.
     """
 
+    if options is None:
+        options = TextRenderingOptions()
+
+    # Laid out under the path it is shown by, which the patch is then parsed with.
+    t = resolve_display_diff_text(options, t)
     patch_set = diffs.parse_patch(''.join(t.diff_lines))
 
     # Keyed by the path the patch was parsed with - the parser's reading of the block's own path, not a guess at it.
@@ -49,6 +55,6 @@ def render_diff_text_doc(
     })
 
     return diffs.DiffStyledDocRenderer(
-        build_diff_doc_options(options if options is not None else TextRenderingOptions(), width=width),
+        build_diff_doc_options(options, width=width),
         file_source=file_source,
     ).render(patch_set)

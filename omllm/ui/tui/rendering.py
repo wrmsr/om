@@ -81,6 +81,8 @@ class TextRowsRenderer:
             width: int,
             base: mt.Style,
     ) -> list[list[mt.Segment]]:
+        block = ui.resolve_display_diff_text(self._options, block)
+
         if width < 20:
             return self._render_plain_diff_rows(block, width, base)
 
