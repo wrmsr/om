@@ -136,6 +136,8 @@ def write_run_to_db(
     )
 
     async def do_write() -> None:
+        await store.ensure_schema()
+
         async with orm.session(registry, store):
             await orm.add_one(OrmRun(
                 id=orm.key(id),
