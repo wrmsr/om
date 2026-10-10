@@ -55,7 +55,6 @@ from .credit import IoPipelineMultiplexCreditStrategy
 from .credit import StreamMultiplexCreditStrategy
 from .schedulers import IoPipelineMultiplexOutputScheduler
 from .schedulers import RoundRobinIoPipelineMultiplexOutputScheduler
-from .streams import UNSET
 from .streams import IoPipelineMultiplexOutputFence
 from .streams import IoPipelineMultiplexOutputMessage
 from .streams import IoPipelineMultiplexStream
@@ -336,8 +335,8 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
         def set_limits(
                 self,
                 *,
-                max_local: ta.Optional[int] = UNSET,
-                max_remote: ta.Optional[int] = UNSET,
+                max_local: ta.Union[int, None, ta.Literal['unset']] = 'unset',
+                max_remote: ta.Union[int, None, ta.Literal['unset']] = 'unset',
         ) -> None:
             self.h._table.set_limits(max_local=max_local, max_remote=max_remote)  # noqa
 

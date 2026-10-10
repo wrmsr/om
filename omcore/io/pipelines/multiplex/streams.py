@@ -439,18 +439,6 @@ class IoPipelineMultiplexStreamStats:
     active_remote: int = 0
 
 
-# FIXME: UGHH
-
-@ta.final
-class _Unset:
-    def __repr__(self) -> str:
-        return 'UNSET'
-
-
-# Leaves a setting unchanged.
-UNSET: ta.Any = _Unset()
-
-
 @ta.final
 class IoPipelineMultiplexStreamTable:
     """The streams of one connection, with per-origin concurrency limits which may be changed at any time."""
@@ -513,15 +501,15 @@ class IoPipelineMultiplexStreamTable:
     def set_limits(
             self,
             *,
-            max_local: ta.Optional[int] = UNSET,
-            max_remote: ta.Optional[int] = UNSET,
+            max_local: ta.Union[int, None, ta.Literal['unset']] = 'unset',
+            max_remote: ta.Union[int, None, ta.Literal['unset']] = 'unset',
     ) -> None:
         """Changes limits. Streams above a lowered limit are unaffected, but no new ones open until below it."""
 
-        if max_local is not UNSET:
+        if max_local != 'unset':
             check.arg(max_local is None or max_local >= 0)
             self._max_local = max_local
-        if max_remote is not UNSET:
+        if max_remote != 'unset':
             check.arg(max_remote is None or max_remote >= 0)
             self._max_remote = max_remote
 

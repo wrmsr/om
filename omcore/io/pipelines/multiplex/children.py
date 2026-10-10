@@ -163,7 +163,13 @@ class MultiplexChildIoPipelineScheduling(IoPipelineScheduling, IoPipelineService
                 ph.cancel()
 
     @staticmethod
-    def _fire(handle_ref: ta.Callable[[], ta.Optional['MultiplexChildIoPipelineScheduling._Handle']], ctx: IoPipelineHandlerContext) -> None:  # noqa
+    def _fire(
+            handle_ref: ta.Callable[
+                [],
+                ta.Optional['MultiplexChildIoPipelineScheduling._Handle'],
+            ],
+            ctx: IoPipelineHandlerContext,
+    ) -> None:
         if (h := handle_ref()) is None or h._cancelled or h._done:  # noqa
             return
 

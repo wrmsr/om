@@ -16,7 +16,6 @@ import typing as ta
 
 from ....lite.abstract import Abstract
 from ...streambufs.segmented import SegmentedByteStreamBufferView
-from .streams import UNSET
 from .streams import IoPipelineMultiplexStream
 from .streams import IoPipelineMultiplexStreamStats
 from .types import IoPipelineMultiplexStreamKey
@@ -207,10 +206,10 @@ class IoPipelineMultiplexConnection(Abstract):
     def set_limits(
             self,
             *,
-            max_local: ta.Optional[int] = UNSET,
-            max_remote: ta.Optional[int] = UNSET,
+            max_local: ta.Union[int, None, ta.Literal['unset']] = 'unset',
+            max_remote: ta.Union[int, None, ta.Literal['unset']] = 'unset',
     ) -> None:
-        """Changes the concurrent stream limits; `UNSET` leaves one unchanged and None removes it."""
+        """Changes the concurrent stream limits; 'unset' leaves one unchanged and None removes it."""
 
         raise NotImplementedError
 
