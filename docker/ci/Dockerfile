@@ -22,6 +22,7 @@ RUN ( \
     llvm \
     nginx \
     nodejs \
+    tmux \
     vim \
 \
   && \
