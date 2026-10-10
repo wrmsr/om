@@ -176,6 +176,16 @@ class MultiplexCreditStrategy(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+        """
+        Takes back a grant returned by `receive`, `consume_receive`, `discard_receive` or `pending_grants` which was
+        not sent to the peer, so the accounting follows the wire: the credit is unadvertised again and will be
+        proposed afresh.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def recv_queued(self, key: MultiplexStreamKey) -> int:
         """Received but not yet consumed cost."""
 
@@ -236,6 +246,14 @@ class _RecvAccount:
         self.unadvertised -= amount
         self.outstanding += amount
         self.advertised += amount
+
+    def withdraw(self, amount: int) -> None:
+        """Takes back credit just advertised which was not, after all, sent to the peer."""
+
+        check.arg(0 < amount <= self.outstanding)
+        self.outstanding -= amount
+        self.advertised -= amount
+        self.unadvertised += amount
 
 
 class _StreamAccounts:
@@ -313,6 +331,10 @@ class _BaseMultiplexCreditStrategy(MultiplexCreditStrategy, Abstract):
     def recv_queued(self, key: MultiplexStreamKey) -> int:
         return self._accounts(key).recv.queued
 
+    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+        check.not_none(key)
+        self._accounts(key).recv.withdraw(amount)
+
     def _stream_totals(self, key: MultiplexStreamKey) -> MultiplexCreditTotals:
         acc = self._accounts(key)
         return MultiplexCreditTotals(
@@ -360,6 +382,11 @@ class StreamMultiplexCreditStrategy(_BaseMultiplexCreditStrategy):
 
     def pending_grants(self) -> ta.Sequence[MultiplexCreditGrant]:
         return ()
+
+    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+        if key is None:
+            raise TypeError('connection-level credit is not part of this strategy')
+        super().withdraw(key, amount)
 
     def totals(self, key: ta.Optional[MultiplexStreamKey] = None) -> MultiplexCreditTotals:
         if key is None:
@@ -456,6 +483,12 @@ class ConnectionMultiplexCreditStrategy(_BaseMultiplexCreditStrategy):
             raise FlowControlMultiplexError('connection', None)
         self._recv.consume(cost)
         return self.pending_grants()
+
+    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+        if key is None:
+            self._recv.withdraw(amount)
+        else:
+            super().withdraw(key, amount)
 
     def totals(self, key: ta.Optional[MultiplexStreamKey] = None) -> MultiplexCreditTotals:
         if key is not None:

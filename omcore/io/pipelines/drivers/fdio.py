@@ -204,6 +204,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return
 
         if self._state is IoPipelineDriverState.NEW:
+            self._input_q.clear()
             try:
                 super().close()
             except BaseException:
@@ -221,6 +222,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                     pipeline.destroy()
 
             finally:
+                self._input_q.clear()
                 self._write_q.clear()
                 self._write_q_bytes = 0
                 self._transport_final_output = None
@@ -240,6 +242,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 pipeline.destroy()
 
         finally:
+            self._input_q.clear()
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
@@ -466,7 +469,10 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return 'stop'
 
         elif isinstance(msg, IoPipelineMessages.Defer):
-            self._pipeline.run_deferred(msg)
+            # A deferred continuation is a fairness yield: timers due meanwhile run first.
+            self._sched.run_due()
+            if self._pipeline.is_ready:
+                self._pipeline.run_deferred(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
@@ -486,11 +492,10 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'stop'],
+        ta.Literal['read', 'stop', 'destroyed'],
         None,
     ]:
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         try:
             self._sched.run_due()
@@ -499,6 +504,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             raise
 
         while True:
+            if not pipeline.is_ready:
+                return 'destroyed'
+
             if (out_msg := pipeline.output.poll()) is not None:
                 handled = self._handle_output(out_msg)
 
@@ -530,7 +538,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     def poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'stop'],
+        ta.Literal['read', 'stop', 'destroyed'],
         None,
     ]:
         try:
@@ -554,7 +562,6 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         """
 
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         while True:
             out = self.poll()
@@ -566,6 +573,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
                 else:
                     raise RuntimeError(f'Unknown output: {ok!r}')
+
+            elif out == 'destroyed':
+                # Destroyed from under the driver - by an application policy in a callback, say: an explicit close.
+                self.close()
+                return None
 
             elif out == 'read':
                 if read:

@@ -2,7 +2,6 @@
 # @om-lite
 import unittest
 
-from ...core import IoPipelineHandler
 from ...core import IoPipelineMessages
 from ...flow.types import IoPipelineFlowMessages
 from ..handlers import MultiplexConfig
@@ -22,6 +21,8 @@ from .loopback import LOpen
 from .loopback import LReset
 from .loopback import data_of
 from .loopback import of_type
+from .removers import FailOnFrame
+from .removers import RemoveMuxOnFrame
 
 
 def _keep_open(**kwargs):
@@ -75,45 +76,6 @@ class TestChildWritabilityWakeup(unittest.TestCase):
             h.close()
 
 
-class _RemoveMuxOnFrame(IoPipelineHandler):
-    """Outside the multiplexer: removes it from the pipeline as soon as a matching frame passes outward."""
-
-    def __init__(self, match):
-        super().__init__()
-
-        self._match = match
-        self.removed = False
-        self.errors = []
-
-    def inbound(self, ctx, msg):
-        if isinstance(msg, IoPipelineMessages.Error):
-            self.errors.append(msg.exc)
-            return
-        ctx.feed_in(msg)
-
-    def outbound(self, ctx, msg):
-        ctx.feed_out(msg)
-        if not self.removed and self._match(msg):
-            self.removed = True
-            ctx.pipeline.remove(ctx.pipeline.handlers()[-1])  # the multiplexer, innermost
-
-
-class _FailOnFrame(IoPipelineHandler):
-    """Outside the multiplexer, like a frame encoder: raises on a matching outbound frame."""
-
-    def __init__(self, match):
-        super().__init__()
-
-        self._match = match
-        self.raised = 0
-
-    def outbound(self, ctx, msg):
-        if self._match(msg):
-            self.raised += 1
-            raise RuntimeError('cannot encode frame')
-        ctx.feed_out(msg)
-
-
 class TestStaleReadinessDuringEmission(unittest.TestCase):
     def _queue_on_two_streams_then_resume(self, h):
         h.feed(LOpen('a'), LOpen('b'))
@@ -124,7 +86,7 @@ class TestStaleReadinessDuringEmission(unittest.TestCase):
         h.enqueue(IoPipelineFlowMessages.ReadyForOutput())
 
     def test_removing_the_multiplexer_while_it_emits_stream_output(self) -> None:
-        remover = _RemoveMuxOnFrame(lambda m: isinstance(m, LData) and m.key == 'a')
+        remover = RemoveMuxOnFrame(lambda m: isinstance(m, LData) and m.key == 'a')
         h = LoopbackHarness(AppFactory(lambda o: _keep_open()), extra_outer=[remover])
         try:
             self._queue_on_two_streams_then_resume(h)
@@ -160,7 +122,7 @@ class TestStaleReadinessDuringEmission(unittest.TestCase):
             h.close()
 
     def test_encoder_failure_on_one_stream_while_another_is_ready(self) -> None:
-        enc = _FailOnFrame(lambda m: isinstance(m, LData) and m.key == 'a')
+        enc = FailOnFrame(lambda m: isinstance(m, LData) and m.key == 'a')
         h = LoopbackHarness(AppFactory(lambda o: _keep_open()), extra_outer=[enc])
         try:
             # The encoder error is reported inbound to the multiplexer while it is emitting: the connection fails.
@@ -191,12 +153,24 @@ class TestOpenCompletedWhenEndedBeforeEstablishment(unittest.TestCase):
             h.close()
 
     def test_confirm_then_close_in_one_read(self) -> None:
+        app = _keep_open()
         h = LoopbackHarness(AppFactory(lambda o: _keep_open()))
         try:
-            out, key = self._open(h)
+            out = h.open(app_spec(app))
+            (opened,) = of_type(h.frames, LOpen)
+            key = opened.key
             h.feed(LBatch([LConfirm(key), LClose(key)]))
-            self.assertNotIn(key, h.mux.streams)
+            # Confirmed, so accepted: the open completes with its child, which sees the graceful close as an EOF and
+            # keeps the stream until it finishes.
             self.assertTrue(out.done)
+            self.assertIsNotNone(out.result)
+            self.assertTrue(app.saw_initial_input)
+            self.assertTrue(app.saw_final_input)
+            self.assertIn(key, h.mux.streams)
+
+            h.feed_stream(key, Emit(IoPipelineMessages.FinalOutput))
+            self.assertTrue(app.final_output.is_succeeded())
+            self.assertNotIn(key, h.mux.streams)
         finally:
             h.close()
 

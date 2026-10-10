@@ -119,9 +119,15 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
     """
     bytes-like -> frames using longest-match delimiter semantics.
 
+    In manual-read mode a read which completes no frame leaves the reader's request unsatisfied, so the decoder asks
+    the transport for more itself (as the buffered decoders do).
+
     TODO:
-     - flow control, *or* replace with BytesToMessageDecoderIoPipelineHandler
+     - replace with BytesToMessageDecoderIoPipelineHandler
     """
+
+    _decoded_since_flush = False   # bytes arrived since the last FlushInput ...
+    _produced_since_flush = False  # ... and at least one frame was produced from them
 
     def __init__(
             self,
@@ -157,6 +163,15 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
             ctx.feed_in(msg)
             return
 
+        if isinstance(msg, IoPipelineFlowMessages.FlushInput):
+            decoded, produced = self._decoded_since_flush, self._produced_since_flush
+            self._decoded_since_flush = self._produced_since_flush = False
+            if decoded and not produced:
+                # The read completed no frame: whoever asked for one is still waiting on it.
+                IoPipelineFlow.maybe_ready_for_input(ctx)
+            ctx.feed_in(msg)
+            return
+
         if not ByteStreamBuffers.can_bytes(msg):
             ctx.feed_in(msg)
             return
@@ -165,10 +180,13 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
             if mv:
                 self._buf.write(mv)
 
+        self._decoded_since_flush = True
         self._produce_frames(ctx)
 
     def _produce_frames(self, ctx: IoPipelineHandlerContext, *, final: bool = False) -> None:
         frames = self._fr.decode(self._buf, final=final)
+        if frames:
+            self._produced_since_flush = True
 
         if final and len(self._buf):
             if (oif := self._on_incomplete_final) == 'allow':

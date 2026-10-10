@@ -400,8 +400,9 @@ class MultiplexChild:
             parent_ctx_ref: ta.Optional[ta.Callable[[], ta.Optional[IoPipelineHandlerContext]]],
     ) -> None:
         # The child's own finish and abort mark it finished before destroying it; any other destruction abandons the
-        # stream, which is then reset like a failed one - and the host must hear of it now, not at its next turn.
-        if (child := child_ref()) is None or child._finished:  # noqa
+        # stream, which is then reset like a failed one - and the host must hear of it now, not at its next turn. A
+        # pipeline destroyed while it is still being built is a construction failure, reported by the construction.
+        if (child := child_ref()) is None or child._finished or child._pipeline is None:  # noqa
             return
         child._fail(AbortedIoPipelineError('stream pipeline destroyed'))  # noqa
 
@@ -449,12 +450,15 @@ class MultiplexChild:
         arriving with nothing queued remains outstanding. Contiguous data is delivered as one buffer, typed messages
         individually and in order, and each batch containing either is followed by FlushInput. End-of-input becomes
         FinalInput after everything queued before it, delivered as part of a batch (in manual mode, under a token).
+        Typed messages queued behind end-of-input are delivered without a token.
         """
 
         consumed: ta.List[int] = []
         stream = self._stream
         while self.is_running and stream.in_head() is not None:
-            if not self._auto_read and not self._want_read:
+            # Typed messages queued behind end-of-input are not reads: they need no token, which a child has no reason
+            # to request once it has seen FinalInput.
+            if not self._auto_read and not self._want_read and not self._final_input_delivered:
                 break
 
             segs: ta.List[memoryview] = []
@@ -522,13 +526,16 @@ class MultiplexChild:
     ##
     # output
 
-    def collect_output(self, claim: ta.Callable[[ta.Any], bool]) -> None:
+    def collect_output(self, claim: ta.Callable[[ta.Any], ta.Optional[int]]) -> None:
         """
         Moves the child's terminal output into the stream's outbound queue, in order.
 
-        Bytes, FlushOutput, ShutdownOutput, and FinalOutput are queued; Defer runs at once; ReadyForInput grants a read
-        token; Await is held for the host to forward. Anything else is offered to `claim` (the protocol adapter) and
-        queued as a typed message if claimed - otherwise it fails within the child, as an inbound Error there.
+        Bytes, FlushOutput, ShutdownOutput, and FinalOutput are queued; Defer runs at once, after the child's
+        writability has been re-derived from what was collected so far, so a producer continuing through Defers is
+        paused before it continues; ReadyForInput grants a read token; Await is held for the host to forward. Anything
+        else is offered to `claim` (the protocol adapter), which returns its flow-control cost (zero for an uncontrolled
+        message) if it is a typed message of the protocol - it is then queued with that cost - or None, in which case it
+        fails within the child, as an inbound Error there.
         """
 
         pipeline = self._pipeline
@@ -552,6 +559,7 @@ class MultiplexChild:
                 stream.push_out_fence('final', msg)
 
             elif isinstance(msg, IoPipelineMessages.Defer):
+                self.update_writability()
                 try:
                     pipeline.run_deferred(msg)
                 except Exception as e:  # noqa
@@ -566,8 +574,8 @@ class MultiplexChild:
             elif isinstance(msg, AsyncIoPipelineMessages.Await):
                 self._pending_awaits.append(msg)
 
-            elif claim(msg):
-                stream.push_out_message(msg)
+            elif (cost := claim(msg)) is not None:
+                stream.push_out_message(msg, cost)
 
             else:
                 self._reject_output(msg)
@@ -641,10 +649,17 @@ class MultiplexChild:
     ##
     # teardown
 
-    def finish(self) -> None:
-        """Gracefully ends the child after its FinalOutput completed, as a driver does."""
+    def finish(self, final_output: ta.Optional[IoPipelineMessages.Completable] = None) -> None:
+        """
+        Gracefully ends the child, as a driver does: completes its FinalOutput, if given, then destroys it.
+
+        It is marked finished before the completion, so a listener on that FinalOutput which destroys the pipeline -
+        an application's close hook, say - is not mistaken for an abandonment of the stream and answered with a reset.
+        """
 
         self._finished = True
+        if final_output is not None:
+            self.complete(final_output)
         self._destroy()
 
     def abort(

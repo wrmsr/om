@@ -42,6 +42,9 @@ class MultiplexStreamParams:
     # Whether the peer must confirm or refuse the stream before it is established.
     explicit: bool = True
 
+    # The stream's share of the connection's output relative to the other streams', for the output scheduler.
+    weight: int = 1
+
 
 @ta.final
 @dc.dataclass(frozen=True)
@@ -103,10 +106,12 @@ class MultiplexConnection(Abstract):
             *,
             recv_window: int,
             send_credit: int = 0,
+            weight: int = 1,
     ) -> ta.Optional[MultiplexStream]:
         """
         A peer-opened stream. Returns the stream if it is accepted - by limits, shutdown state, and the stream spec
-        factory - or None if it was refused, in which case the refusal has been encoded and queued.
+        factory (which may refuse it, or raise) - or None if it was refused, in which case the refusal has been encoded
+        and queued.
         """
 
         raise NotImplementedError
@@ -210,6 +215,12 @@ class MultiplexConnection(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+        """Changes a stream's output scheduling weight (an HTTP/2 PRIORITY, say); applies from its next turn."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def begin_shutdown(self) -> None:
         """
         Gracefully shuts the connection down: no new streams in either direction; existing ones run to completion;
@@ -274,7 +285,14 @@ class MultiplexAdapter(Abstract):
 
     @abc.abstractmethod
     def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
-        """Advertises receive credit for a stream, or for the connection when `stream` is None."""
+        """
+        Advertises receive credit for a stream, or for the connection when `stream` is None.
+
+        Returning nothing declines the grant: the credit stays unadvertised in the core's accounting and is offered
+        again as more is consumed. The core offers grants for a stream whose local side has finished, since the peer
+        may still be sending on it; a protocol which may send nothing more on such a stream (SSH after its CLOSE)
+        declines them, one which may (HTTP/2 after END_STREAM) encodes them.
+        """
 
         raise NotImplementedError
 

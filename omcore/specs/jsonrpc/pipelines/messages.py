@@ -103,6 +103,7 @@ class JsonrpcPipelineMessages(lang.Namespace):
 
     class Event(
         ipl.Messages.NeverInbound,
+        ipl.Messages.AfterShutdownOutput,  # for the host, not the peer: still deliverable after an output half-close
         lang.Abstract,
     ):
         pass

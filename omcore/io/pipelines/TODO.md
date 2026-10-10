@@ -24,29 +24,33 @@
 
 ### half-close
 
-- stop announcing `ReadyForOutput` after `ShutdownOutput` in the TLS handler and http chunking, as the drivers now do
-  once it reaches the terminal (DESIGN 6)
-- mark host-facing messages `AfterShutdownOutput` - jsonrpc `JsonrpcPipelineMessages.Event`, http client
-  `IoPipelineHttpClientMessages.Output` - which would otherwise be rejected after a half-close
-- fail TLS's pending `ShutdownOutput` and flushes when a failed or EOF'd handshake drops queued plaintext, rather than
-  reporting success
-- decide whether asyncio `ShutdownOutput` should complete only once the FIN is actually sent: it completes after
-  `write_eof()` plus a drain returning at the low watermark, which DESIGN 8 allows but DESIGN 5's wording outpromises
+- bound the asyncio driver's graceful close: a peer which never reads keeps it `DRAINING` until the transport is
+  aborted, as the sync drivers are kept waiting to write; a configurable close timeout which fails the `FinalOutput`
+  and aborts is a separate decision from servicing commands while it waits (which is done)
+- decide whether `IdleStateIoPipelineHandler` should keep firing `ALL_IDLE` once both `FinalInput` and
+  `ShutdownOutput` have passed, when nothing can happen until `FinalOutput`: it matches its docstring and may serve as
+  a "close the zombie" signal, but is not a deliberate choice
 
 ### drivers
 
-- clear the asyncio driver's `_pending_awaits` on `close()`: an awaitable which never completes keeps a cycle alive
-- let the pure driver simulate write failures once its peer is gone, so back-to-back links can model one side closing
-  (the draining deadlock test in `drivers/tests/test_driver_edges.py` can only assert half of it today)
+- move a `Defer` continuation behind the reads and writes already pending in the synchronous drivers' loops, not only
+  behind the timers already due: the fuller form of the fairness yield `yielding.py` describes
+- `PollAsyncioStreamIoPipelineDriver._drain_again` / `_next_drain_flush_outputs` are unreachable now that fences are
+  held behind a pending drain; remove them once the hold-behind-drain path is settled
 
 ### multiplex
 
 - revisit completion listeners holding the handler context weakly: `_on_parent_flush_done` and `_on_parent_await_done`
   in `multiplex/handlers.py`, the child scheduling and lifecycle services in `multiplex/children.py`
-- make per-stream scheduler weights settable: the scheduler supports them, but every stream is added with weight 1
-- tidy the review-written regression tests to house style (function-level imports, long class docstrings):
-  `multiplex/tests/test_emission.py`, `multiplex/tests/test_credit_bounds.py`, `drivers/tests/test_driver_edges.py`,
-  `drivers/tests/test_asyncio_backpressure.py`, `ssl/tests/test_halfclose_edges.py`
+- report a connection failure originating inside the multiplexer (adapter exception, control-output limit) to the
+  parent pipeline as an inbound `Error`: today the parent sees only the encoded connection error and `FinalOutput`,
+  so an application cannot tell a failure from a graceful shutdown without inspecting the handler
+- give `MultiplexCreditStrategy` a receive-side counterpart of `adjust_all_send`, so a protocol which changes its own
+  advertised initial window (HTTP/2 `SETTINGS_INITIAL_WINDOW_SIZE`) can adjust existing streams' windows; the h2-like
+  test adapter's `SendSettings` only shifts the peer's send credit for that reason
+- the synchronous drivers run a parent `Defer` between the messages of one read batch, so the multiplexer's
+  per-batch input coalescing (DESIGN 13.5) covers one decoded buffer there rather than the whole batch the asyncio
+  driver feeds at once: correct, just narrower
 
 ### http
 

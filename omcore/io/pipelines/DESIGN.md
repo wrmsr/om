@@ -224,8 +224,10 @@ edge notifications:
 - Emit exactly one notification for each transition.
 - `PauseOutput` means producers must stop creating ordinary output.
 - `ReadyForOutput` means output production may resume.
-- Once output has been shut down, no further transitions are announced: nothing may produce ordinary output. Shut
-  down means `ShutdownOutput` reached the terminal, not merely that the transport performed it.
+- Once output has been shut down, `ReadyForOutput` is never announced again: nothing may produce ordinary output. A
+  pause may still be, for a backlog still draining. Shut down means `ShutdownOutput` (or `FinalOutput`) reached the
+  terminal, not merely that the transport performed it. Buffering handlers - TLS, HTTP chunking - follow the same rule
+  as the drivers.
 
 Socket drivers derive their local state from queued transport bytes with hysteresis: transition to paused above the
 high watermark and back to ready at or below the low watermark. The queue still accepts data; watermarks are a
@@ -313,6 +315,9 @@ A conforming transport driver must:
 11. Perform `ShutdownOutput` after the output preceding it, complete it, and keep reading; fail it with
     `UnsupportedIoPipelineError`, leaving the transport intact, where the transport cannot half-close.
 12. Keep honoring read requests and delivering input while output is blocked.
+13. Run the scheduled callbacks already due before continuing a `Defer`: the deferred boundary is a fairness yield.
+14. On `close()`, release queued input nothing will process, fail the waiters of input it never processed, and cancel
+    the work it started on the application's behalf.
 
 The generic core remains completely bytes-agnostic. At a byte transport boundary, however, the reference drivers
 deliver each bounded read batch as one `ByteStreamBuffer` followed by one `FlushInput` when flow control is installed.
@@ -336,7 +341,8 @@ NEW -> RUNNING -> DRAINING -> CLOSED
 ```
 
 Explicit `close()` is abortive while running or draining. `CLOSED` records successful graceful completion or explicit
-closure; `FAILED` records a transport, pipeline-driving, or teardown failure.
+closure; `FAILED` records a transport, pipeline-driving, or teardown failure. A pipeline destroyed from under a running
+driver - by an application policy in a timer callback, say - ends the driver as an explicit close would.
 
 `next(read=False)` is the common non-waiting step: it processes queued and immediately due work but does not wait for
 future input or deadlines. This is important for embedding a pipeline in another scheduler and for deterministic tests.
@@ -345,7 +351,8 @@ Each reference driver exposes `output_shutdown` once it has shut down its transp
 ownership remains explicit:
 
 - The sync socket driver temporarily makes its caller-owned socket nonblocking and restores its prior timeout mode.
-  Output shutdown is `shutdown(SHUT_WR)`, which leaves the socket itself open.
+  Output shutdown is `shutdown(SHUT_WR)`, which leaves the socket itself open. The synchronous drivers wait with
+  `poll()` where it exists (Linux and darwin), so a descriptor numbered above `FD_SETSIZE` is as good as any other.
 - The sync descriptor-pair driver shuts down a socket write descriptor through a temporary duplicate, never closing the
   caller's descriptor. A non-socket write descriptor can only be half-closed by closing it, which the caller must
   explicitly permit; its original flags are restored first, and the closed number is never touched again.
@@ -355,15 +362,23 @@ ownership remains explicit:
   write buffer limits are set to the watermarks, and since it writes in the background, a drain is kept pending while
   output is paused: its completion is the return to writable, so a producer which never flushes is still resumed.
   Output bytes held behind a pending drain count toward writability like the transport's own buffer, so a producer
-  continuing through `Defer` - which is not held - is still paused.
+  continuing through `Defer` - which is not held - is still paused. `ShutdownOutput` completes once the transport has
+  performed the half-close - its drain runs with zero watermarks, so it returns when the buffer is empty rather than
+  at the low watermark. `FinalOutput` starts the graceful close as a task which flushes everything written and only
+  then closes the transport (closing first would stop it reading at once); while a peer which has yet to read keeps
+  that from completing, timers, awaits and drain completions are still serviced. A coroutine the driver turns into a
+  task for an `Await` is the driver's: it is cancelled if the `Await` is failed by its producer - a multiplexed stream
+  which ended, say - and when the driver closes. A task or future supplied is the caller's.
 - The fdio driver is a nonblocking `FdioHandler`; `FdioManager` combines descriptor readiness with the earliest handler
   deadline. It is valid in forked or otherwise single-threaded contexts and does not depend on asyncio.
-- While draining after `FinalOutput`, the pure and fdio drivers keep taking input off the transport and discard it:
+- While draining after `FinalOutput`, every reference driver keeps taking input off the transport and discards it:
   nothing consumes it any more, but a peer whose own output waits for this side to read must not wait forever.
 - The pure driver queues supplied transport input, accepts output only through explicit drain steps, and advances an
   injected scheduler clock only when requested. It is both an executable reference contract and a deterministic
   generator-style integration; it does not emulate socket syscalls. An output shutdown is recorded when a drain step
   reaches it, which is where a caller simulating the peer delivers EOF to it; pending output never prevents reading.
+  `fail_output()` makes the next drain step fail as a write to a departed peer would, so two pure drivers linked back
+  to back can model one side closing.
 
 ---
 
@@ -403,7 +418,12 @@ forward it when its protocol shutdown reaches the closed state.
 
 TLS uses an apply/pump/emit turn so reentrant application reactions cannot reorder ciphertext. Its output writability
 combines transport state with queued plaintext. Its handshake and shutdown timers require scheduling only when those
-timeouts are configured.
+timeouts are configured. A handshake which fails, times out, or is cut short by a transport EOF fails the flush and
+shutdown fences queued behind it - the plaintext they fenced was discarded and there is no session to half-close -
+while a retained `FinalOutput` is still forwarded, since it is the close. Strict ragged-EOF detection
+(`suppress_ragged_eofs=False`) needs the SSL context's `OP_IGNORE_UNEXPECTED_EOF` option clear, or the engine reports a
+truncated stream as a clean EOF; Python 3.8's default contexts set it, so the handler clears it on the caller's context,
+a documented side effect. Removed from a pipeline, the handler drops the plaintext and backlog it holds.
 
 TLS half-close follows RFC 8446 section 6.1: on `ShutdownOutput` it encrypts the queued plaintext, sends close_notify,
 forwards the same `ShutdownOutput` so the transport half-closes after that record, and keeps decrypting until the peer's
@@ -531,10 +551,12 @@ The multiplexing handler is each child's driver, performing the duties of sectio
    order, followed by `FlushInput`. A token arriving with nothing queued remains outstanding. Input decoded from one
    parent read is delivered once that read has been processed - at the parent's `FlushInput`, or when a parent `Defer`
    requested at the read's first message runs - so it coalesces as a driver's read does, without depending on a
-   `FlushInput` arriving.
-6. Child writability is derived from the stream's queued outbound data with high and low watermarks and hysteresis,
-   announced once per transition. Credit exhaustion and parent pauses reach a child only through the growth of its
-   queue.
+   `FlushInput` arriving. Typed messages queued behind end-of-input are not reads: they are delivered without a token,
+   since a child which has seen `FinalInput` has no reason to request one.
+6. Child writability is derived from the stream's queued outbound cost - data, plus flow-controlled typed messages at
+   the cost the adapter gave them when collected - with high and low watermarks and hysteresis, announced once per
+   transition, and re-derived before each of the child's `Defer` continuations runs, so a producer continuing through
+   them is paused in time. Credit exhaustion and parent pauses reach a child only through the growth of its queue.
 7. A child `FlushOutput` completes once everything queued before it has been emitted into the parent and a parent
    `FlushOutput` issued after that point has completed; it fails if the stream or connection dies first.
 8. A child `ShutdownOutput` is the stream's end-of-output: emitted after everything before it, it completes under the
@@ -565,7 +587,9 @@ need a handshake - so the adapter closes explicitly, and the core resets or refu
   follow it if marked `AfterFinalInput` (and, outbound, after `ShutdownOutput` if marked `AfterShutdownOutput`).
 - A close from the peer while the child still runs is graceful: the child receives what was queued, then
   `FinalInput`; its further output is discarded, fences other than `FinalOutput` failing; the stream is released once
-  the child finishes. A close after the local side finished releases the stream at once.
+  the child finishes. A close after the local side finished releases the stream at once. A close decoded from the same
+  read as the acceptance it follows is just as graceful: the child is built, receives what was accepted, then
+  `FinalInput`.
 - A reset aborts the child with `StreamResetMultiplexError`, recording which side reset. If the child had already
   finished and only awaits its final flush, it completes normally.
 - On connection EOF, streams whose peer had ended its output carry on - the connection's output is still open - while
@@ -578,7 +602,11 @@ need a handshake - so the adapter closes explicitly, and the core resets or refu
   Flow-controlled frames for a stream which has ended but is not yet released are counted against any connection-level
   window and dropped; for a released one, the adapter reports their cost with `discard`.
 - A child pipeline destroyed by anyone but its driver - its opener, say - abandons its stream, which is reset. A remote
-  stream whose child cannot be built is refused, and counted as refused.
+  stream whose child cannot be built is refused, and counted as refused; a stream spec factory raising refuses that
+  stream alone, with the exception as the reason.
+- An adapter raising while encoding or sizing fails the connection, as one raising while decoding does. Tearing the
+  connection down releases every stream's queued input and output, and the parent `Await`s forwarded for its streams
+  are failed, as they are when their stream alone ends, so the parent's driver cancels the work it started for them.
 - Concurrent stream limits apply per origin and may be changed at any time; refusals by limit and by factory are
   encoded by the adapter with a reason.
 
@@ -592,7 +620,8 @@ Credit accounting is a pluggable strategy: `StreamMultiplexCreditStrategy` (per 
 - Credit is signed. Adapters grant per stream or per connection and shift every stream at once, by positive or
   negative deltas; a stream at or below zero simply cannot send flow-controlled output until it recovers.
 - A flow-controlled unit's cost is its length plus the adapter's per-unit overhead (padding, say); a typed message's
-  cost comes from the adapter. Uncontrolled typed items cost nothing but never overtake data queued before them.
+  cost comes from the adapter, once, when the message is collected from its child. Uncontrolled typed items cost
+  nothing but never overtake data queued before them.
 - Receive credit is debited on arrival and replenished by policy as delivery consumes it (by default once half a window
   is consumed). Connection-level replenishment is its own policy: by default it frees credit as input arrives, so the
   connection window bounds only what is in flight and one slow stream cannot stall the others; freeing it on consumption
@@ -600,8 +629,11 @@ Credit accounting is a pluggable strategy: `StreamMultiplexCreditStrategy` (per 
   which decides whether that is a stream or a connection error.
 - Queued input per stream is bounded by its window; uncontrolled typed messages by a separate count limit. Empty data
   is never queued.
-- Credit is not granted on a stream the peer has ended or closed: nothing more will arrive, and after a close the
-  protocol may forbid sending anything on it.
+- Credit is not granted on a stream the peer has ended or closed: nothing more will arrive. A stream whose local side
+  has finished may still receive, so its grants are offered to the adapter, which encodes them when its protocol allows
+  (HTTP/2 after END_STREAM) and declines them - returning nothing - when it does not (SSH after its CLOSE); a declined
+  grant is withdrawn, so the accounting follows the wire. Input a finished or failed child left queued, and input a
+  reset discards, returns its credit as if it had been consumed.
 - Control output is never gated by credit, per-stream backlog, or parent writability. While the parent is paused, the
   amount emitted is bounded; exceeding the bound fails the connection.
 - While the parent is paused no stream output is emitted; it stays queued per stream, where byte accounting is honest.
@@ -613,7 +645,9 @@ Credit accounting is a pluggable strategy: `StreamMultiplexCreditStrategy` (per 
 ### Output scheduling and the turn
 
 When several streams have sendable output, a pluggable scheduler chooses between them; the default is deficit round
-robin with a byte quantum and per-stream weights, which starves no stream that stays ready.
+robin with a byte quantum and per-stream weights, which starves no stream that stays ready. A stream's weight comes
+from its parameters at open and may be changed through the connection (an HTTP/2 PRIORITY, say), applying from its
+next turn.
 
 The handler follows the TLS handler's discipline: entry points record state; a pump advances children, delivering
 input and collecting output, without feeding the parent; a single emit phase feeds the parent. Within a turn the emit

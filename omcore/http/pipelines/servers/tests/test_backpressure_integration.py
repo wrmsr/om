@@ -135,10 +135,13 @@ class _CaptureOutputWritabilityIoPipelineHandler(IoPipelineHandler):
         super().__init__()
 
         self.events: ta.List[ta.Any] = []
+        # Whether output had ended (ShutdownOutput or FinalOutput reached the terminal) when each event was announced.
+        self.output_ended: ta.List[bool] = []
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, (IoPipelineFlowMessages.ReadyForOutput, IoPipelineFlowMessages.PauseOutput)):
             self.events.append(msg)
+            self.output_ended.append(ctx.pipeline.saw_shutdown_output or ctx.pipeline.saw_final_output)
         ctx.feed_in(msg)
 
 
@@ -482,7 +485,6 @@ class TestBackpressureIntegration(AsyncioIsolatedAsyncTestCase):
             self.assertLess(server_writer.max_buffer_size, 2048)
             self.assertGreater(client_handler.input_flushes, 1)
             event_types = [type(event) for event in capture.events]
-            self.assertEqual(len(event_types) % 2, 0)
             self.assertEqual(
                 event_types,
                 [
@@ -491,6 +493,14 @@ class TestBackpressureIntegration(AsyncioIsolatedAsyncTestCase):
                     for i in range(len(event_types))
                 ],
             )
+            # Once the close reached the terminal nothing may produce ordinary output, so a pause in force when the
+            # backlog finishes draining after it is never lifted: every resume precedes the close, and a trailing pause
+            # is the only unpaired transition.
+            for event_type, ended in zip(event_types, capture.output_ended):
+                if event_type is IoPipelineFlowMessages.ReadyForOutput:
+                    self.assertFalse(ended, 'output was resumed after the close reached the terminal')
+            if len(event_types) % 2:
+                self.assertTrue(server_driver.pipeline.saw_final_output)
 
             response_head, encoded_body = bytes(client_handler.response).split(b'\r\n\r\n', 1)
             self.assertIn(b'content-encoding: gzip', response_head.lower())

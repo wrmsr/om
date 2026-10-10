@@ -8,17 +8,18 @@ import unittest
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
-from ...core import IoPipelineHandler
-from ...core import IoPipelineHandlerContext
-from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
+from ...multiplex.handlers import MultiplexConfig
+from ...multiplex.tests.apps import StreamApp
+from ...multiplex.tests.apps import app_spec
+from ...multiplex.tests.h2like import H2LikeAdapter
+from ...multiplex.tests.h2like import h2_like_spec
+from ...multiplex.types import MultiplexMessages
 from ..asyncio import PollAsyncioStreamIoPipelineDriver
 from ..sync import SocketSyncIoPipelineDriver
-
-
-_CHUNK = b'x' * (16 * 1024)
-_N_CHUNKS = 64  # 1 MiB total, far above the 64 KiB high watermark
+from .producers import DEFER_N_CHUNKS
+from .producers import DeferYieldingProducer
 
 
 def _fill_socket_send_buffer(sock: socket.socket) -> None:
@@ -27,48 +28,6 @@ def _fill_socket_send_buffer(sock: socket.socket) -> None:
             sock.send(b'x' * (64 * 1024))
         except BlockingIOError:
             return
-
-
-class _DeferYieldingProducer(IoPipelineHandler):
-    """
-    A producer which honors writability and yields to the driver between chunks: each step emits one chunk and a flush,
-    then continues through a Defer - the same pattern the multiplex handler's turn budget relies on ("the parent's
-    driver only reports writability after processing queued output").
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.emitted = 0
-        self.emitted_at_first_pause: ta.Optional[int] = None
-        self._writable = True
-
-    def _step(self, ctx: IoPipelineHandlerContext) -> None:
-        if not self._writable or self.emitted >= _N_CHUNKS:
-            return
-        ctx.feed_out(_CHUNK)
-        self.emitted += 1
-        ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
-        ctx.defer(self._step)
-
-    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.InitialInput):
-            ctx.feed_in(msg)
-            self._step(ctx)
-            return
-
-        if isinstance(msg, IoPipelineFlowMessages.PauseOutput):
-            self._writable = False
-            if self.emitted_at_first_pause is None:
-                self.emitted_at_first_pause = self.emitted
-            return
-
-        if isinstance(msg, IoPipelineFlowMessages.ReadyForOutput):
-            self._writable = True
-            self._step(ctx)
-            return
-
-        ctx.feed_in(msg)
 
 
 class TestAsyncioDeferYieldingProducer(AsyncioIsolatedAsyncTestCase):
@@ -80,7 +39,7 @@ class TestAsyncioDeferYieldingProducer(AsyncioIsolatedAsyncTestCase):
 
         try:
             reader, writer = await asyncio.open_connection(sock=sock)
-            handler = _DeferYieldingProducer()
+            handler = DeferYieldingProducer()
             driver = PollAsyncioStreamIoPipelineDriver(
                 IoPipeline.Spec([handler], services=[StubIoPipelineFlowService(auto_read=False)]),
                 reader,
@@ -98,7 +57,7 @@ class TestAsyncioDeferYieldingProducer(AsyncioIsolatedAsyncTestCase):
                 # Parity with the sync driver (see below): the producer must be paused once the transport holds more
                 # than the high watermark - a handful of 16 KiB chunks - not after it has handed over all of its data.
                 self.assertIsNotNone(handler.emitted_at_first_pause)
-                self.assertLess(check_not_none(handler.emitted_at_first_pause), _N_CHUNKS)
+                self.assertLess(check_not_none(handler.emitted_at_first_pause), DEFER_N_CHUNKS)
                 self.assertLessEqual(check_not_none(handler.emitted_at_first_pause), 8)
 
             finally:
@@ -127,7 +86,7 @@ class TestAsyncioDeferYieldingProducer(AsyncioIsolatedAsyncTestCase):
 
         try:
             reader, writer = await asyncio.open_connection(sock=sock)
-            handler = _DeferYieldingProducer()
+            handler = DeferYieldingProducer()
             driver = PollAsyncioStreamIoPipelineDriver(
                 IoPipeline.Spec([handler], services=[StubIoPipelineFlowService(auto_read=False)]),
                 reader,
@@ -143,7 +102,7 @@ class TestAsyncioDeferYieldingProducer(AsyncioIsolatedAsyncTestCase):
                 self.assertIsNone(await asyncio.wait_for(driver.next(read=False), 5.))
                 await asyncio.sleep(0)
                 # The other task must have observed the producer at some point other than "nothing" or "everything".
-                self.assertTrue(any(0 < n < _N_CHUNKS for n in ticks), ticks[-5:])
+                self.assertTrue(any(0 < n < DEFER_N_CHUNKS for n in ticks), ticks[-5:])
             finally:
                 stop.set()
                 await t
@@ -167,7 +126,7 @@ class TestSyncDeferYieldingProducer(unittest.TestCase):
         _fill_socket_send_buffer(sock)
 
         try:
-            handler = _DeferYieldingProducer()
+            handler = DeferYieldingProducer()
             driver = SocketSyncIoPipelineDriver(
                 IoPipeline.Spec([handler], services=[StubIoPipelineFlowService(auto_read=False)]),
                 sock,
@@ -195,13 +154,6 @@ class TestAsyncioMultiplexTurnBudget(AsyncioIsolatedAsyncTestCase):
         # on the parent driver reporting writability (PauseOutput) before that Defer runs. Once a parent FlushOutput
         # (here: one stream's child flush) has left a drain pending, every continuation Defer runs at once, so all of
         # the other stream's data is moved into the driver's post-drain queue in one go, never paused.
-        from ...multiplex.handlers import MultiplexConfig
-        from ...multiplex.tests.apps import StreamApp
-        from ...multiplex.tests.apps import app_spec
-        from ...multiplex.tests.h2like import H2LikeAdapter
-        from ...multiplex.tests.h2like import h2_like_spec
-        from ...multiplex.types import MultiplexMessages
-
         big = 4 * 1024 * 1024
         budget = 64 * 1024
 

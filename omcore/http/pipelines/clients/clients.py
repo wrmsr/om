@@ -29,7 +29,11 @@ class IoPipelineHttpClientMessages(NamespaceClass):
         aggregate: ta.Union[bool, ta.Literal['unless_chunked'], None] = None
 
     @dc.dataclass(frozen=True)
-    class Output(IoPipelineMessages.NeverInbound):
+    class Output(
+        IoPipelineMessages.NeverInbound,
+        # Host-facing, not for the peer: a response may follow a half-closed request.
+        IoPipelineMessages.AfterShutdownOutput,
+    ):
         msg: ta.Union[
             IoPipelineHttpResponseObject,
             IoPipelineMessages.FinalInput,

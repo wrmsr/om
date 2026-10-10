@@ -197,6 +197,10 @@ class LifecycleStreamWriter:
         self.transport._size += len(data)
         self.events.append(('write', bytes(data)))
 
+    async def drain(self) -> None:
+        self.events.append('drain')
+        self.transport._size = 0
+
     def close(self) -> None:
         self.events.append('close')
         self.closed = True
@@ -895,11 +899,11 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
 
             self.assertIsNone(await drv.next(read=False))
 
-            self.assertEqual(writer.events, [('write', b'payload'), 'close', 'wait_closed'])
+            self.assertEqual(writer.events, [('write', b'payload'), 'drain', 'close', 'wait_closed'])
             self.assertTrue(graceful_close.final_output.is_succeeded())
             self.assertEqual(
                 completion_writer_events,
-                [(True, [('write', b'payload'), 'close', 'wait_closed'])],
+                [(True, [('write', b'payload'), 'drain', 'close', 'wait_closed'])],
             )
             self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
             self.assertFalse(drv.pipeline.is_ready)
@@ -967,6 +971,7 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
                     ('write', b'abcde'),
                     'drain',
                     ('write', b'payload'),
+                    'drain',
                     'close',
                     'wait_closed',
                 ],
@@ -1080,6 +1085,7 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
                 writer.events,
                 [
                     ('write', b'payload'),
+                    'drain',
                     'close',
                     'wait_closed',
                     'abort',
@@ -1123,6 +1129,7 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
                 writer.events,
                 [
                     ('write', b'payload'),
+                    'drain',
                     'close',
                     'wait_closed',
                     'abort',

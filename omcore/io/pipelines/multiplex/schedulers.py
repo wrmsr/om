@@ -30,6 +30,12 @@ class MultiplexOutputScheduler(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+        """Changes a stream's weight; a turn already under way keeps its allowance."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def set_ready(self, key: MultiplexStreamKey, ready: bool) -> None:
         raise NotImplementedError
 
@@ -89,6 +95,11 @@ class RoundRobinMultiplexOutputScheduler(MultiplexOutputScheduler):
         if self._weights.pop(key, None) is None:
             return
         self._set_unready(key)
+
+    def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+        check.in_(key, self._weights)
+        check.arg(weight > 0)
+        self._weights[key] = weight
 
     def _set_unready(self, key: MultiplexStreamKey) -> None:
         if key not in self._ready:

@@ -59,6 +59,7 @@ class IoPipelineHttpObjectChunker(
         self._self_writable = True
         self._announced_writable = True
         self._outbound_depth = 0
+        self._output_ended = False  # ShutdownOutput or FinalOutput passed: nothing may produce ordinary output
 
     #
 
@@ -85,6 +86,9 @@ class IoPipelineHttpObjectChunker(
 
         effective = self._downstream_writable and self._self_writable
         if effective != self._announced_writable:
+            if effective and self._output_ended:
+                # DESIGN 6: a pause may still be announced for a remaining backlog, but a resume never is.
+                return
             self._announced_writable = effective
             ctx.feed_in(
                 IoPipelineFlowMessages.ReadyForOutput() if effective
@@ -134,6 +138,9 @@ class IoPipelineHttpObjectChunker(
     #
 
     def _outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+            self._output_ended = True
+
         if isinstance(msg, self._head_type):
             self._active = IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.headers)
             ctx.feed_out(msg)

@@ -8,6 +8,7 @@ import time
 import tty
 import typing as ta
 import unittest
+import weakref
 
 from ....fdio.manager import FdioManager
 from ....fdio.pollers import SelectFdioPoller
@@ -138,7 +139,6 @@ class TestFdSyncSharedOpenFileDescription(unittest.TestCase):
         master, slave = pty.openpty()
         tty.setraw(slave)
         read_fd = os.dup(slave)
-        assert slave < read_fd
         return master, read_fd, slave
 
     def test_read_fd_stays_nonblocking_after_permitted_close(self) -> None:
@@ -229,7 +229,6 @@ class _CloseWhenShutdownCompletes(IoPipelineHandler):
         if isinstance(msg, _Emit):
             for m in msg.msgs:
                 if isinstance(m, IoPipelineMessages.ShutdownOutput):
-                    import weakref
                     pr = weakref.ref(ctx.pipeline)
 
                     def on_done(so: ta.Any) -> None:
@@ -282,6 +281,14 @@ class _SendAllThenFinish(IoPipelineHandler):
         self._payload = payload
         self.final_output = IoPipelineMessages.FinalOutput()
         self.received = 0
+
+        # Outcomes are only observable from listeners (DESIGN 5).
+        self.final_exc: ta.Optional[BaseException] = None
+        self.final_output.add_listener(self._on_final_done)
+
+    def _on_final_done(self, msg: IoPipelineMessages.Completable) -> None:
+        if msg.is_failed():
+            self.final_exc = msg.get_exception()
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineMessages.InitialInput):
@@ -344,8 +351,20 @@ class TestDrainingDuplexDeadlock(unittest.TestCase):
         db = PureIoPipelineDriver(IoPipeline.Spec([hb]))
 
         def transfer(src: PureIoPipelineDriver, dst: PureIoPipelineDriver) -> bool:
-            if not (src.is_running and dst.is_running):
+            if not src.is_running:
                 return False
+            if not dst.is_running:
+                if not src.has_pending_output:
+                    return False
+                # The peer is gone: the next write fails, as a socket's would.
+                src.fail_output(BrokenPipeError('peer closed'))
+                try:
+                    src.drain_output()
+                except BrokenPipeError:
+                    pass
+                else:
+                    raise AssertionError('the write to a departed peer did not fail')
+                return True
             room = link_capacity - dst.pending_input_bytes
             if room > 0 and src.has_pending_output:
                 data = src.drain_output(room)
@@ -365,11 +384,14 @@ class TestDrainingDuplexDeadlock(unittest.TestCase):
                 if not (transfer(da, db) | transfer(db, da)):
                     break
 
-            # One side drained everything - its peer kept reading while draining - and closed. The pure link cannot
-            # model the other's write failure, so it is left with output no one will read.
-            states = {da.state, db.state}
-            assert IoPipelineDriverState.CLOSED in states, states
-            assert ha.final_output.is_succeeded() or hb.final_output.is_succeeded()
+            # One side drained everything - its peer kept reading while draining - and closed; the other's remaining
+            # output then had no reader, which failed it.
+            assert {da.state, db.state} == {IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED}
+            for d, h in ((da, ha), (db, hb)):
+                if d.state is IoPipelineDriverState.CLOSED:
+                    assert h.final_output.is_succeeded()
+                else:
+                    assert isinstance(h.final_exc, BrokenPipeError), h.final_exc
         finally:
             da.close()
             db.close()

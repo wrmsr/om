@@ -109,6 +109,7 @@ class SyncIoPipelineDriver(Abstract):
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
+        self._drain_input_ended = False
 
         self._state = IoPipelineDriverState.NEW
 
@@ -303,17 +304,21 @@ class SyncIoPipelineDriver(Abstract):
         else:
             self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
         finally:
+            self._input_q.clear()
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
             self._pending_read_error = None
+            self._drain_input_ended = False
             self._restore_transport_if_prepared()
 
     def _fail(self) -> None:
         self._state = IoPipelineDriverState.FAILED
+        self._input_q.clear()
         self._write_q.clear()
         self._write_q_bytes = 0
         self._pending_read_error = None
+        self._drain_input_ended = False
         try:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
@@ -379,6 +384,29 @@ class SyncIoPipelineDriver(Abstract):
             self._want_read = False
 
         return out
+
+    def _discard_input(self) -> bool:
+        """
+        While draining after FinalOutput nothing consumes input any more, but it is still taken off the transport and
+        dropped: a peer whose own output waits for this side to read must not wait forever. Returns whether anything
+        was read.
+        """
+
+        buf = memoryview(bytearray(self._config.read_chunk_size))
+        progressed = False
+        for _ in range(self._config.read_batch_max_reads):
+            try:
+                n = self._read_into(buf)
+            except BlockingIOError:
+                return progressed
+            except OSError:
+                self._drain_input_ended = True
+                return True
+            if not n:
+                self._drain_input_ended = True
+                return True
+            progressed = True
+        return progressed
 
     #
 
@@ -475,6 +503,48 @@ class SyncIoPipelineDriver(Abstract):
 
     #
 
+    @staticmethod
+    def _wait_for_io(
+            read_fd: ta.Optional[int],
+            write_fd: ta.Optional[int],
+            timeout: ta.Optional[float],
+    ) -> ta.Tuple[bool, bool]:
+        """
+        Waits for the wanted readiness, with `poll()` where it exists (Linux and darwin both have it): unlike
+        `select()`, it is not limited to descriptors below FD_SETSIZE. A hung-up or errored descriptor counts as ready
+        so the read or write reports it; an invalid one raises as `select()` would.
+        """
+
+        if (poll := getattr(select, 'poll', None)) is None:
+            rl, wl, _ = select.select(
+                [read_fd] if read_fd is not None else [],
+                [write_fd] if write_fd is not None else [],
+                [],
+                timeout,
+            )
+            return bool(rl), bool(wl)
+
+        events: ta.Dict[int, int] = {}
+        if read_fd is not None:
+            events[read_fd] = select.POLLIN
+        if write_fd is not None:
+            events[write_fd] = events.get(write_fd, 0) | select.POLLOUT
+        poller = poll()
+        for fd, ev in events.items():
+            poller.register(fd, ev)
+
+        ready = poller.poll(None if timeout is None else max(0., timeout * 1000.))
+
+        readable = writable = False
+        for fd, ev in ready:
+            if ev & select.POLLNVAL:
+                raise ValueError(f'filedescriptor {fd} is not open')
+            if fd == read_fd and ev & (select.POLLIN | select.POLLHUP | select.POLLERR):
+                readable = True
+            if fd == write_fd and ev & (select.POLLOUT | select.POLLHUP | select.POLLERR):
+                writable = True
+        return readable, writable
+
     def _wait_for_io_or_timer(
             self,
             *,
@@ -504,10 +574,9 @@ class SyncIoPipelineDriver(Abstract):
                 timeout = min(timer_delay, socket_timeout)
 
             try:
-                readable, writable, _ = select.select(
-                    [self._read_fileno()] if want_read else [],
-                    [self._write_fileno()] if want_write else [],
-                    [],
+                readable, writable = self._wait_for_io(
+                    self._read_fileno() if want_read else None,
+                    self._write_fileno() if want_write else None,
                     timeout,
                 )
             except (OSError, ValueError):
@@ -558,7 +627,10 @@ class SyncIoPipelineDriver(Abstract):
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.Defer):
-            self._pipeline.run_deferred(msg)
+            # A deferred continuation is a fairness yield: timers due meanwhile run first.
+            self._sched.run_due()
+            if self._pipeline.is_ready:
+                self._pipeline.run_deferred(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
@@ -578,13 +650,15 @@ class SyncIoPipelineDriver(Abstract):
 
     def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'write', 'stop'],
+        ta.Literal['read', 'write', 'stop', 'destroyed'],
         None,
     ]:
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         while True:
+            if not pipeline.is_ready:
+                return 'destroyed'
+
             if (out_msg := pipeline.output.poll()) is not None:
                 handled = self._handle_output(out_msg)
 
@@ -638,7 +712,6 @@ class SyncIoPipelineDriver(Abstract):
         """
 
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         try:
             ran_timer = bool(self._sched.run_due())
@@ -661,6 +734,11 @@ class SyncIoPipelineDriver(Abstract):
                 else:
                     raise RuntimeError(f'Unknown output: {ok!r}')
 
+            elif out == 'destroyed':
+                # Destroyed from under the driver - by an application policy in a callback, say: an explicit close.
+                self.close()
+                return None
+
             elif out == 'stop':
                 try:
                     self._restore_transport_if_prepared()
@@ -682,7 +760,13 @@ class SyncIoPipelineDriver(Abstract):
             if ran_timer:
                 return None
 
-            want_read = not pipeline.saw_final_input and self._want_read
+            draining = self._transport_final_output is not None
+            if draining:
+                # Input has no consumer any more, but is still taken off the transport (and dropped) so a peer blocked
+                # on this side reading can proceed to read this side's remaining output.
+                want_read = not self._drain_input_ended and not pipeline.saw_final_input
+            else:
+                want_read = not pipeline.saw_final_input and self._want_read
             want_write = bool(self._write_q)
 
             if not read:
@@ -710,8 +794,11 @@ class SyncIoPipelineDriver(Abstract):
             if writable:
                 progressed |= self._try_write()
             if readable:
-                self._input_q.extend(self._do_read())
-                progressed = True
+                if draining:
+                    progressed |= self._discard_input()
+                else:
+                    self._input_q.extend(self._do_read())
+                    progressed = True
 
             if not (progressed or ran_timer):
                 return None
@@ -855,9 +942,16 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
         return self._write_fd
 
     def _prepare_transport(self) -> None:
-        for fd in {self._read_fd, self._write_fd}:
-            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-            self._original_flags[fd] = flags
+        fds = {self._read_fd, self._write_fd}
+
+        # Both descriptors may share one open file description (dups of a terminal, say), whose flags are shared too:
+        # every original is recorded before any is changed, or the second would record the first's change as its
+        # original and restore the description to nonblocking.
+        for fd in fds:
+            self._original_flags[fd] = fcntl.fcntl(fd, fcntl.F_GETFL)
+
+        for fd in fds:
+            flags = self._original_flags[fd]
             if not (flags & os.O_NONBLOCK):
                 fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 

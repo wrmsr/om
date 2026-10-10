@@ -100,6 +100,7 @@ class PureIoPipelineDriver:
         self._output_shutdown = False
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
+        self._write_failure: ta.Optional[BaseException] = None
 
         self._clock = self._Clock()
         self._state = IoPipelineDriverState.NEW
@@ -144,7 +145,7 @@ class PureIoPipelineDriver:
 
     @property
     def has_pending_output(self) -> bool:
-        return bool(self._write_q) or self._transport_final_output is not None
+        return bool(self._write_q) or self._transport_final_output is not None or self._write_failure is not None
 
     @property
     def output_shutdown(self) -> bool:
@@ -363,6 +364,31 @@ class PureIoPipelineDriver:
         else:
             self._state = IoPipelineDriverState.CLOSED
 
+    def fail_output(self, exc: BaseException) -> None:
+        """
+        Makes the next `drain_output()` fail as a transport write would once the peer is gone: the queued fences and a
+        pending FinalOutput fail with `exc`, the driver fails, and `exc` is raised from that step - what the socket
+        drivers do on a write error, so a simulated link can model one side closing.
+        """
+
+        check.state(self._state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING))
+        self._write_failure = exc
+
+    def _fail_output(self, exc: BaseException) -> None:
+        pipeline = self._pipeline
+        fences = [m for m in self._write_q if not isinstance(m, memoryview)]
+        final_output = self._transport_final_output
+        try:
+            with pipeline.enter():
+                for fence in fences:
+                    if not fence.is_done():
+                        fence.set_failed(exc)
+                if final_output is not None and not final_output.is_done():
+                    final_output.set_failed(exc)
+        finally:
+            self._fail()
+        raise exc
+
     def drain_output(self, max_bytes: ta.Optional[int] = None) -> bytes:
         """
         Accept queued bytes across the simulated transport boundary.
@@ -374,6 +400,10 @@ class PureIoPipelineDriver:
 
         self._ensure_pipeline()
         check.state(self._state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING))
+
+        if (write_failure := self._write_failure) is not None:
+            self._write_failure = None
+            self._fail_output(write_failure)
 
         if max_bytes is not None and max_bytes < 0:
             raise ValueError(max_bytes)
@@ -454,7 +484,10 @@ class PureIoPipelineDriver:
             return 'handled'
 
         if isinstance(msg, IoPipelineMessages.Defer):
-            self._pipeline.run_deferred(msg)
+            # A deferred continuation is a fairness yield: timers due meanwhile run first.
+            self._sched.run_due()
+            if self._pipeline.is_ready:
+                self._pipeline.run_deferred(msg)
             return 'handled'
 
         if isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
@@ -468,7 +501,7 @@ class PureIoPipelineDriver:
 
     def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'write'],
+        ta.Literal['read', 'write', 'destroyed'],
         None,
     ]:
         pipeline = self._ensure_pipeline()
@@ -477,6 +510,9 @@ class PureIoPipelineDriver:
         self._sched.run_due()
 
         while True:
+            if not pipeline.is_ready:
+                return 'destroyed'
+
             if (out_msg := pipeline.output.poll()) is not None:
                 handled = self._handle_output(out_msg)
                 if handled == 'handled':
@@ -526,6 +562,11 @@ class PureIoPipelineDriver:
 
             if isinstance(out, tuple):
                 return out[1]
+
+            if out == 'destroyed':
+                # Destroyed from under the driver - by an application policy in a callback, say: an explicit close.
+                self.close()
+                return None
 
             if out == 'read':
                 if not read:

@@ -76,6 +76,9 @@ from .types import StreamStateMultiplexError
 from .types import StreamTruncatedMultiplexError
 
 
+T = ta.TypeVar('T')
+
+
 ##
 
 
@@ -169,8 +172,13 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         self._pending_feeds: ta.List[MultiplexMessages.FeedStream] = []
 
         self._control_q: ta.Deque[ta.Any] = collections.deque()
+        # The connection error of a failed connection: emitted ahead of its FinalOutput, outside the pause bound.
+        self._goodbye_q: ta.Deque[ta.Any] = collections.deque()
         self._completions: ta.Deque[ta.Tuple[IoPipelineMessages.Completable, ta.Any, ta.Optional[BaseException]]] = collections.deque()  # noqa
         self._child_awaits: ta.Deque[ta.Tuple[MultiplexChild, AsyncIoPipelineMessages.Await]] = collections.deque()
+        # Awaits forwarded to the parent on behalf of each stream, failed when the stream ends so the parent's driver
+        # cancels the work it started for them.
+        self._parent_awaits: ta.Dict[MultiplexStreamKey, ta.List[AsyncIoPipelineMessages.Await]] = {}
         self._flush_fences: ta.List[ta.Tuple[MultiplexChild, IoPipelineMessages.Completable, str]] = []
 
         self._parent_writable = True
@@ -279,8 +287,15 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 *,
                 recv_window: int,
                 send_credit: int = 0,
+                weight: int = 1,
         ) -> ta.Optional[MultiplexStream]:
-            return self.h._open_remote(key, info, recv_window=recv_window, send_credit=send_credit)  # noqa
+            return self.h._open_remote(  # noqa
+                key,
+                info,
+                recv_window=recv_window,
+                send_credit=send_credit,
+                weight=weight,
+            )
 
         def confirm(self, key: MultiplexStreamKey, *, send_credit: int = 0) -> None:
             self.h._confirm(key, send_credit=send_credit)  # noqa
@@ -325,6 +340,11 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 max_remote: ta.Optional[int] = UNSET,
         ) -> None:
             self.h._table.set_limits(max_local=max_local, max_remote=max_remote)  # noqa
+
+        def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+            h = self.h
+            h._table[key]  # noqa  # raises UnknownStreamMultiplexError
+            h._scheduler.set_weight(key, weight)  # noqa
 
         def begin_shutdown(self) -> None:
             self.h._shutting_down = True  # noqa
@@ -443,21 +463,57 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     ##
     # stream events
 
+    def _guard(self, fn: ta.Callable[..., T], *args: ta.Any, default: ta.Any) -> T:
+        """
+        Calls into the adapter. An adapter failing fails the connection - as when decoding - and the call site
+        proceeds with a value which makes it a no-op, so the turn still finishes the connection.
+        """
+
+        try:
+            return fn(*args)
+        except Exception as e:  # noqa
+            self._fail(e)
+            return default
+
     def _queue_grants(self, grants: ta.Iterable[MultiplexCreditGrant]) -> None:
         for g in grants:
             stream: ta.Optional[MultiplexStream] = None
             if g.key is not None:
-                # Nothing more will arrive on a stream the peer ended or closed - and after a close, the protocol may
-                # forbid sending anything on it at all.
+                if not self._credit.has_stream(g.key):
+                    continue
+                # Nothing more will arrive on a stream the peer ended or closed: the credit stays unadvertised. One
+                # whose local side finished may still receive, so its grant is offered; the adapter knows whether its
+                # protocol lets it be sent (SSH may send nothing after its CLOSE, HTTP/2 may grant after END_STREAM).
                 if (
                         (stream := self._table.get(g.key)) is None or
                         stream.is_terminal or
-                        stream.local_finished or
                         stream.remote_ended or
                         g.key in self._remote_closed
                 ):
+                    self._credit.withdraw(g.key, g.amount)
                     continue
-            self._control_q.extend(self._adapter.encode_credit(stream, g.amount))
+            if frames := self._guard(self._adapter.encode_credit, stream, g.amount, default=()):
+                self._control_q.extend(frames)
+            else:
+                # Declined: the accounting follows the wire.
+                self._credit.withdraw(g.key, g.amount)
+
+    def _discard_input(self, stream: MultiplexStream) -> None:
+        """Drops input nothing will consume any more, returning its credit as if it had been consumed."""
+
+        for cost in stream.clear_in():
+            if self._credit.has_stream(stream.key):
+                self._queue_grants(self._credit.consume_receive(stream.key, cost))
+
+    def _fail_parent_awaits(self, key: MultiplexStreamKey, exc: BaseException) -> None:
+        """Fails the Awaits forwarded for a stream which is ending, so the parent's driver cancels their work."""
+
+        for pawt in self._parent_awaits.pop(key, ()):
+            if not pawt.is_done():
+                try:
+                    pawt.set_failed(exc)
+                except Exception:  # noqa
+                    pass
 
     def _complete_later(
             self,
@@ -487,8 +543,8 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             return
 
         self._credit.add_stream(stream.key, send_credit=params.send_credit, recv_window=params.recv_window)
-        self._scheduler.add(stream.key)
-        self._control_q.extend(self._adapter.encode_open(stream))
+        self._scheduler.add(stream.key, weight=params.weight)
+        self._control_q.extend(self._guard(self._adapter.encode_open, stream, default=()))
 
         if params.explicit:
             self._pending_opens[stream.key] = msg
@@ -502,6 +558,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             *,
             recv_window: int,
             send_credit: int,
+            weight: int,
     ) -> ta.Optional[MultiplexStream]:
         opening = MultiplexStreamOpening(key, 'remote', info)
 
@@ -511,18 +568,22 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         elif not self._table.can_open('remote'):
             reason = StreamLimitMultiplexError('remote')
         else:
-            res = self._spec_factory(opening)
+            try:
+                res = self._spec_factory(opening)
+            except Exception as e:  # noqa
+                # An application error for one stream refuses that stream, like a child which cannot be built.
+                res = MultiplexRefusal(e)
             if not isinstance(res, MultiplexRefusal):
                 stream = MultiplexStream(key, 'remote', info=info)
                 self._table.add(stream)
                 self._credit.add_stream(key, send_credit=send_credit, recv_window=recv_window)
-                self._scheduler.add(key)
+                self._scheduler.add(key, weight=weight)
                 self._pending_establish[key] = (res, None)
                 return stream
             reason = res.reason
 
         self._table.count_refused('remote')
-        self._control_q.extend(self._adapter.encode_refuse(opening, reason))
+        self._control_q.extend(self._guard(self._adapter.encode_refuse, opening, reason, default=()))
         return None
 
     def _confirm(self, key: MultiplexStreamKey, *, send_credit: int) -> None:
@@ -583,16 +644,18 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         if stream.is_terminal:
             return
         child = self._children.get(key)
-        if child is None or not child.is_running:
-            exc = StreamResetMultiplexError('closed', by='remote')
-            if (pe := self._pending_establish.pop(key, None)) is not None and (pmsg := pe[1]) is not None:
-                self._complete_later(pmsg, exc=exc)
+        if child is None and key not in self._pending_establish:
+            # Nothing was accepted: a local open still awaiting the peer's confirmation.
             if (msg := self._pending_opens.pop(key, None)) is not None:
-                self._complete_later(msg, exc=exc)
+                self._complete_later(msg, exc=StreamResetMultiplexError('closed', by='remote'))
+            stream.close()
+            return
+        if child is not None and not child.is_running:
             stream.close()
             return
 
-        # Graceful remote close: the child still receives what was queued, then FinalInput.
+        # Graceful remote close: the child - built in the next pump, if the stream was accepted in this same read -
+        # still receives what was queued, then FinalInput.
         if not stream.remote_ended:
             stream.end_remote()
             stream.push_in_end()
@@ -612,7 +675,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
         key = stream.key
         if encode:
-            self._control_q.extend(self._adapter.encode_reset(stream, reason))
+            self._control_q.extend(self._guard(self._adapter.encode_reset, stream, reason, default=()))
         stream.reset(reason, by=by)
 
         if exc is None:
@@ -623,10 +686,11 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         if (msg := self._pending_opens.pop(key, None)) is not None:
             self._complete_later(msg, exc=exc)
 
-        stream.clear_in()
+        self._discard_input(stream)
         self._remote_closed.discard(key)
         if (child := self._children.get(key)) is not None and not stream.local_finished:
             child.abort(exc)
+            self._fail_parent_awaits(key, exc)
 
     def _on_shutdown(self) -> None:
         if self._shutting_down:
@@ -666,8 +730,10 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         # May be reached during emission: the turn must run again to release streams and finish the connection.
         self._dirty = True
 
+        # A failed connection emits its connection error and nothing else of the control output it had queued.
+        self._control_q.clear()
         try:
-            self._control_q.extend(self._adapter.encode_connection_error(exc))
+            self._goodbye_q.extend(self._adapter.encode_connection_error(exc))
         except Exception:  # noqa
             pass
 
@@ -686,6 +752,17 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 self._completions.append((msg, None, exc))
             if (child := self._children.pop(stream.key, None)) is not None:
                 child.abort(exc)
+            self._fail_parent_awaits(stream.key, exc)
+            # Nothing can process a stream's queued input or output any more; nothing retains them.
+            stream.clear_in()
+            stream.clear_out()
+
+        for stream in list(self._table):
+            self._table.remove(stream.key)
+            self._credit.remove_stream(stream.key)
+            self._scheduler.remove(stream.key)
+        self._children.clear()
+        self._parent_awaits.clear()
 
         for _, pmsg in self._pending_establish.values():
             if pmsg is not None and not pmsg.is_done():
@@ -693,6 +770,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         self._pending_establish.clear()
         self._remote_closed.clear()
         self._control_q.clear()
+        self._goodbye_q.clear()
         self._child_awaits.clear()
         self._flush_fences.clear()
         self._finished_hooks.clear()
@@ -799,9 +877,11 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         if (failure := child.failure) is not None:
             if stream.origin == 'remote':
                 # Nothing was accepted yet, so the stream is refused rather than reset.
-                self._control_q.extend(self._adapter.encode_refuse(
+                self._control_q.extend(self._guard(
+                    self._adapter.encode_refuse,
                     MultiplexStreamOpening(key, stream.origin, stream.info),
                     failure,
+                    default=(),
                 ))
                 stream.refuse_remote(failure)
             else:
@@ -812,15 +892,25 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
         self._children[key] = child
         if stream.origin == 'remote':
-            self._control_q.extend(self._adapter.encode_accept(stream))
+            self._control_q.extend(self._guard(self._adapter.encode_accept, stream, default=()))
 
         child.start()
         if msg is not None:
             self._complete_later(msg, MultiplexOpenedStream(key, check.not_none(child.pipeline)))
 
+    def _claim_output(self, stream: MultiplexStream, msg: ta.Any) -> ta.Optional[int]:
+        """The flow-control cost of a stream's typed output message, or None if the adapter does not claim it."""
+
+        if not self._guard(self._adapter.claim_output, stream, msg, default=False):
+            return None
+        return max(self._guard(self._adapter.message_cost, stream, msg, default=0), 0)
+
     def _pump_child(self, child: MultiplexChild) -> bool:
         stream = child.stream
         if not child.is_running:
+            if stream.in_items:
+                # Finished or failed, it will consume no more; what it left queued must not hold the credit it occupies.
+                self._discard_input(stream)
             if child.failure is not None and not stream.is_terminal:
                 self._reset_stream(stream, child.failure, by='local', encode=True, exc=child.failure)
                 return True
@@ -832,8 +922,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             for cost in child.deliver_input():
                 self._queue_grants(self._credit.consume_receive(stream.key, cost))
 
-        adapter = self._adapter
-        child.collect_output(lambda m: adapter.claim_output(stream, m))
+        child.collect_output(functools.partial(self._claim_output, stream))
 
         for awt in child.take_awaits():
             self._child_awaits.append((child, awt))
@@ -857,9 +946,13 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         for key in list(self._remote_closed):
             stream = self._table.get(key)
             child = self._children.get(key)
-            if stream is None or child is None:
+            if stream is None:
                 self._remote_closed.discard(key)
                 continue
+            if child is None:
+                if key not in self._pending_establish:
+                    self._remote_closed.discard(key)
+                continue  # Accepted and closed in one read: the child is built in this pump, and drained afterwards.
 
             while (head := stream.out_head()) is not None:
                 progressed = True
@@ -876,8 +969,10 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 if item.kind == 'final':
                     if not stream.local_finished:
                         stream.finish_local()
-                    child.complete(item.msg)
-                    child.finish()
+                    # Completed - and the child finished - behind the parent flush, like a final reached normally: a
+                    # fence of this stream emitted earlier may still await that flush, and a later fence must not
+                    # complete ahead of it (DESIGN 5), nor may finishing the child now fail it.
+                    self._flush_fences.append((child, item.msg, 'final'))
                 else:
                     child.complete(item.msg, StreamResetMultiplexError('closed', by='remote'))
 
@@ -909,8 +1004,9 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             self._scheduler.remove(key)
             self._children.pop(key, None)
             self._remote_closed.discard(key)
+            self._fail_parent_awaits(key, ConnectionClosedMultiplexError('stream ended'))
             self._queue_grants(self._credit.pending_grants())
-            self._adapter.on_stream_released(stream)
+            self._guard(self._adapter.on_stream_released, stream, default=None)
 
     def _refresh_ready(self, stream: MultiplexStream) -> None:
         key = stream.key
@@ -931,16 +1027,19 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         if isinstance(head, memoryview):
             return (
                 stream.can_send_data and
-                adapter.max_data_unit(stream) > 0 and
-                self._credit.send_available(key) - adapter.data_unit_overhead(stream) > 0
+                self._guard(adapter.max_data_unit, stream, default=0) > 0 and
+                self._credit.send_available(key) - self._guard(adapter.data_unit_overhead, stream, default=0) > 0
             )
 
         if isinstance(head, MultiplexOutputMessage):
-            if (cost := adapter.message_cost(stream, head.msg)) <= 0:
+            if (cost := head.cost) <= 0:
                 return True
-            limit = min(self._credit.send_available(key), adapter.max_data_unit(stream))
+            limit = min(self._credit.send_available(key), self._guard(adapter.max_data_unit, stream, default=0))
             # A message which does not fit must be splittable to make progress now; otherwise it waits for credit.
-            return cost <= limit or (limit > 0 and adapter.split_message(stream, head.msg, limit) is not None)
+            return cost <= limit or (
+                limit > 0 and
+                self._guard(adapter.split_message, stream, head.msg, limit, default=None) is not None
+            )
 
         return True
 
@@ -968,6 +1067,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
         if self._final_output_sent:
             self._control_q.clear()
+            self._goodbye_q.clear()
             return
 
         while self._control_q:
@@ -978,18 +1078,31 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 self._control_during_pause += 1
                 if self._control_during_pause > self._config.max_control_during_pause:
                     self._fail(ControlOutputLimitMultiplexError(self._control_during_pause))
+            if self._failed is not None:
+                # Whether by the bound just crossed or by a reaction to what was fed: the rest of the batch is not
+                # emitted, only the connection error.
+                self._control_q.clear()
+                break
+
+        while self._goodbye_q:
+            if self._is_removed():
+                return
+            ctx.feed_out(self._goodbye_q.popleft())
 
         while self._child_awaits:
             if self._is_removed():
                 return
             child, cawt = self._child_awaits.popleft()
             pawt: AsyncIoPipelineMessages.Await = AsyncIoPipelineMessages.Await(cawt.obj)
+            key = child.stream.key
             pawt.add_listener(functools.partial(
                 MultiplexIoPipelineHandler._on_parent_await_done,
                 weakref.ref(ctx),
                 weakref.ref(child),
                 weakref.ref(cawt),
+                key,
             ))
+            self._parent_awaits.setdefault(key, []).append(pawt)
             ctx.feed_out(pawt)
 
         self._emit_streams(ctx)
@@ -1036,6 +1149,8 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
             before = (stream.out_items, stream.out_bytes)
             cost = self._emit_unit(ctx, stream)
+            if self._is_removed():
+                return  # Torn down while the unit was fed: nothing of this stream remains to account.
             self._scheduler.account(key, cost)
             self._turn_budget -= cost
             if cost <= 0 and (stream.out_items, stream.out_bytes) == before:
@@ -1052,10 +1167,10 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         head = check.not_none(stream.out_head())
 
         if isinstance(head, memoryview):
-            overhead = adapter.data_unit_overhead(stream)
+            overhead = self._guard(adapter.data_unit_overhead, stream, default=0)
             n = min(
                 stream.out_head_data_bytes(),
-                adapter.max_data_unit(stream),
+                self._guard(adapter.max_data_unit, stream, default=0),
                 self._credit.send_available(key) - overhead,
             )
             if n <= 0:
@@ -1063,48 +1178,56 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             segs = stream.pop_out_data(n)
             cost = n + overhead
             self._credit.consume_send(key, cost)
-            for out in adapter.encode_data(stream, SegmentedByteStreamBufferView(segs)):
-                ctx.feed_out(out)
+            self._feed_frames(ctx, self._guard(
+                adapter.encode_data,
+                stream,
+                SegmentedByteStreamBufferView(segs),
+                default=(),
+            ))
             return cost
 
         if isinstance(head, MultiplexOutputMessage):
             msg = head.msg
-            cost = adapter.message_cost(stream, msg)
+            cost = head.cost
             if cost > 0:
-                limit = min(self._credit.send_available(key), adapter.max_data_unit(stream))
+                limit = min(self._credit.send_available(key), self._guard(adapter.max_data_unit, stream, default=0))
                 if cost > limit:
-                    if (split := adapter.split_message(stream, msg, limit)) is None:
+                    if (split := self._guard(adapter.split_message, stream, msg, limit, default=None)) is None:
                         self._scheduler.set_ready(key, False)
                         return 0
                     msg, tail = split
-                    stream.replace_out_head_message(tail)
-                    cost = adapter.message_cost(stream, msg)
-                    check.state(0 < cost <= limit)
-                    self._credit.consume_send(key, cost)
-                    for out in adapter.encode_message(stream, msg):
-                        ctx.feed_out(out)
-                    return cost
+                    head_cost = self._guard(adapter.message_cost, stream, msg, default=0)
+                    check.state(0 < head_cost <= limit)
+                    stream.replace_out_head_message(tail, cost - head_cost)
+                    self._credit.consume_send(key, head_cost)
+                    self._feed_frames(ctx, self._guard(adapter.encode_message, stream, msg, default=()))
+                    return head_cost
                 self._credit.consume_send(key, cost)
             stream.pop_out_item()
-            for out in adapter.encode_message(stream, msg):
-                ctx.feed_out(out)
-            return max(cost, 0)
+            self._feed_frames(ctx, self._guard(adapter.encode_message, stream, msg, default=()))
+            return cost
 
         fence = check.isinstance(stream.pop_out_item(), MultiplexOutputFence)
         child = self._children[key]
         if fence.kind == 'shutdown':
             stream.end_local()
-            for out in adapter.encode_end(stream):
-                ctx.feed_out(out)
+            self._feed_frames(ctx, self._guard(adapter.encode_end, stream, default=()))
         elif fence.kind == 'final':
-            outs = adapter.encode_finish(stream)
+            outs = self._guard(adapter.encode_finish, stream, default=())
             stream.finish_local()
-            for out in outs:
-                ctx.feed_out(out)
+            self._feed_frames(ctx, outs)
             self._finished_hooks.append(key)
             self._dirty = True
         self._flush_fences.append((child, fence.msg, fence.kind))
         return 0
+
+    def _feed_frames(self, ctx: IoPipelineHandlerContext, frames: ta.Iterable[ta.Any]) -> None:
+        # Feeding a frame can remove this handler (an outer handler reacting to it); the remaining frames of the unit
+        # must then not go through the invalidated context.
+        for out in frames:
+            if self._is_removed():
+                return
+            ctx.feed_out(out)
 
     ##
     # completion listeners - hold the context and child side weakly
@@ -1126,12 +1249,13 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         for child_ref, fence_ref, kind in entries:
             if (child := child_ref()) is None or (fence := fence_ref()) is None:
                 continue
-            child.complete(fence, exc)
-            if kind == 'final':
-                if exc is None:
-                    child.finish()
-                else:
-                    child.abort(exc, notify=False)
+            if kind != 'final':
+                child.complete(fence, exc)
+            elif exc is None:
+                child.finish(fence)
+            else:
+                child.complete(fence, exc)
+                child.abort(exc, notify=False)
 
         if (ctx := ctx_ref()) is not None and not ctx.invalidated:
             check.isinstance(ctx.handler, MultiplexIoPipelineHandler).on_child_activity(ctx)
@@ -1141,6 +1265,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             ctx_ref: ta.Callable[[], ta.Optional[IoPipelineHandlerContext]],
             child_ref: ta.Callable[[], ta.Optional[MultiplexChild]],
             cawt_ref: ta.Callable[[], ta.Optional[AsyncIoPipelineMessages.Await]],
+            key: MultiplexStreamKey,
             pawt: AsyncIoPipelineMessages.Await,
     ) -> None:
         if (child := child_ref()) is not None and (cawt := cawt_ref()) is not None:
@@ -1150,4 +1275,12 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 child.complete_await(cawt, exc=pawt.get_exception() or AbortedIoPipelineError('await failed'))
 
         if (ctx := ctx_ref()) is not None and not ctx.invalidated:
-            check.isinstance(ctx.handler, MultiplexIoPipelineHandler).on_child_activity(ctx)
+            h = check.isinstance(ctx.handler, MultiplexIoPipelineHandler)
+            if (lst := h._parent_awaits.get(key)) is not None:  # noqa
+                try:
+                    lst.remove(pawt)
+                except ValueError:
+                    pass
+                if not lst:
+                    h._parent_awaits.pop(key, None)  # noqa
+            h.on_child_activity(ctx)

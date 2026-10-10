@@ -48,9 +48,13 @@ class MultiplexOutputFence:
 @ta.final
 @dc.dataclass(frozen=True)
 class MultiplexOutputMessage:
-    """An uncontrolled typed message in a stream's outbound queue: costs no credit, but keeps its place in order."""
+    """
+    A typed message in a stream's outbound queue, keeping its place in order. A positive cost makes it flow-controlled
+    like data; an uncontrolled message costs nothing.
+    """
 
     msg: ta.Any
+    cost: int = 0
 
 
 @ta.final
@@ -252,7 +256,7 @@ class MultiplexStream:
 
     @property
     def out_bytes(self) -> int:
-        """Queued flow-controlled bytes."""
+        """Queued flow-controlled cost: data bytes plus the costs of flow-controlled typed messages."""
 
         return self._out_bytes
 
@@ -266,8 +270,10 @@ class MultiplexStream:
                 self._out_q.append(seg)
                 self._out_bytes += len(seg)
 
-    def push_out_message(self, msg: ta.Any) -> None:
-        self._out_q.append(MultiplexOutputMessage(msg))
+    def push_out_message(self, msg: ta.Any, cost: int = 0) -> None:
+        check.arg(cost >= 0)
+        self._out_q.append(MultiplexOutputMessage(msg, cost))
+        self._out_bytes += cost
 
     def push_out_fence(self, kind: MultiplexOutputFenceKind, msg: ta.Any = None) -> None:
         self._out_q.append(MultiplexOutputFence(kind, msg))
@@ -305,17 +311,21 @@ class MultiplexStream:
         self._out_bytes -= max_bytes - remaining
         return out
 
-    def replace_out_head_message(self, msg: ta.Any) -> None:
+    def replace_out_head_message(self, msg: ta.Any, cost: int = 0) -> None:
         """Replaces the typed message at the head of the queue - with the remainder of a split message, say."""
 
-        check.isinstance(self._out_q[0], MultiplexOutputMessage)
-        self._out_q[0] = MultiplexOutputMessage(msg)
+        check.arg(cost >= 0)
+        old = check.isinstance(self._out_q[0], MultiplexOutputMessage)
+        self._out_q[0] = MultiplexOutputMessage(msg, cost)
+        self._out_bytes += cost - old.cost
 
     def pop_out_item(self) -> ta.Union[MultiplexOutputMessage, MultiplexOutputFence]:
         head = self._out_q.popleft()
         if isinstance(head, memoryview):
             self._out_q.appendleft(head)
             raise TypeError('head of queue is data')
+        if isinstance(head, MultiplexOutputMessage):
+            self._out_bytes -= head.cost
         return head
 
     def clear_out(self) -> ta.List[ta.Union[MultiplexOutputMessage, MultiplexOutputFence]]:
@@ -390,11 +400,17 @@ class MultiplexStream:
                 self._in_messages -= 1
         return item
 
-    def clear_in(self) -> None:
+    def clear_in(self) -> ta.List[int]:
+        """
+        Discards all queued input, returning the flow-controlled costs discarded (so their credit can be returned).
+        """
+
+        costs = [item.cost for item in self._in_q if not isinstance(item, MultiplexInputEnd) and item.cost]
         self._in_q.clear()
         self._in_cost = 0
         self._in_bytes = 0
         self._in_messages = 0
+        return costs
 
 
 ##

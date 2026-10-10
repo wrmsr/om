@@ -254,7 +254,10 @@ class SshLikeAdapter(MultiplexAdapter):
 
     def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
         assert stream is not None
-        return [SshWindowAdjust(self._st(stream).peer_id, amount)]  # type: ignore[arg-type]
+        st = self._st(stream)
+        if st.close_sent:
+            return []  # Nothing may be sent on a channel after our CLOSE: the grant is declined.
+        return [SshWindowAdjust(st.peer_id, amount)]  # type: ignore[arg-type]
 
     def encode_data(self, stream: MultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
         return [SshData(self._st(stream).peer_id, data.tobytes())]  # type: ignore[arg-type]

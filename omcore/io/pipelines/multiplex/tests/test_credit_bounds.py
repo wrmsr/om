@@ -24,6 +24,11 @@ from .loopback import LRefuse
 from .loopback import LReset
 from .loopback import data_of
 from .loopback import of_type
+from .sshlike import SshClose
+from .sshlike import SshData
+from .sshlike import SshLikeAdapter
+from .sshlike import SshOpen
+from .sshlike import SshWindowAdjust
 
 
 @dc.dataclass(frozen=True)
@@ -139,12 +144,6 @@ class TestGrantsAfterRemoteClose(unittest.TestCase):
             h.close()
 
     def test_sshlike_window_adjust_follows_close(self) -> None:
-        from .sshlike import SshClose
-        from .sshlike import SshData
-        from .sshlike import SshLikeAdapter
-        from .sshlike import SshOpen
-        from .sshlike import SshWindowAdjust
-
         # A channel app reading in manual mode, which has not yet asked for input.
         h = LoopbackHarness(
             AppFactory(lambda o: StreamApp(close_on_final_input=False), auto_read=False),

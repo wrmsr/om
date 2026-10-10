@@ -91,7 +91,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '85239d7be8d172571af25b3ba9b39e3d002191de'
+__om_amalg_sha1__ = 'c5101639f9c905ae04e11fcb1201c35051b60db0'
 
 
 def __om_amalg__():  # noqa
@@ -140,7 +140,7 @@ def __om_amalg__():  # noqa
             dict(sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f', path='../../omcore/http/headers.py'),
             dict(sha1='174c753698e07d7283989e56804a820e4f76e91e', path='../../omcore/http/parsing.py'),
             dict(sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3', path='../../omcore/http/pipelines/compression/codings.py'),  # noqa
-            dict(sha1='2cb9d8df06d752881522c402ec5460161c17657b', path='../../omcore/io/pipelines/core.py'),
+            dict(sha1='ef5b43c83d67dc6b929e46946e42044d9a5ff1dc', path='../../omcore/io/pipelines/core.py'),
             dict(sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799', path='../../omcore/io/pipelines/yielding.py'),
             dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', path='../../omcore/io/streambufs/types.py'),
             dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', path='../../omcore/lite/json.py'),
@@ -204,7 +204,7 @@ def __om_amalg__():  # noqa
             dict(sha1='803842842e9b3f1d51ccb48c41c7fb7df9d833b3', path='../specs/oci/media.py'),
             dict(sha1='8f343e23dbd144c77e9dcdeb6d5e37c7649402ad', path='../specs/oci/pack/packing.py'),
             dict(sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e', path='../../omcore/formats/yaml/goyaml/parsing.py'),
-            dict(sha1='ec34f9087d680eb55836faced8c363abe9977d7d', path='../../omcore/http/pipelines/chunking.py'),
+            dict(sha1='06a58986cd080c3f94434e717bc71b46b904345e', path='../../omcore/http/pipelines/chunking.py'),
             dict(sha1='f8a54befb79fb058b811b2248f63315a36bb6bbb', path='../../omcore/http/pipelines/compression/compressors.py'),  # noqa
             dict(sha1='e6490c3dd0a6707a7d099a7391a0df3b8d81da6b', path='../../omcore/http/pipelines/compression/decompressors.py'),  # noqa
             dict(sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b', path='../../omcore/http/pipelines/encoders.py'),
@@ -224,12 +224,12 @@ def __om_amalg__():  # noqa
             dict(sha1='73e387af353d56ed6c3f817e490038aa1ba940c8', path='../../omcore/formats/yaml/goyaml/decoding.py'),
             dict(sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1', path='../../omcore/http/pipelines/aggregators.py'),
             dict(sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5', path='../../omcore/http/pipelines/servers/responses.py'),  # noqa
-            dict(sha1='95cfd81b143427f3dbe12777a728208c3a4daafa', path='../../omcore/io/pipelines/bytes/decoders.py'),
+            dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', path='../../omcore/io/pipelines/bytes/decoders.py'),
             dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', path='../../omcore/logs/modules.py'),
             dict(sha1='e39f673cc82c78cd806b44a37a19902a01321c49', path='../dataserver/http.py'),
             dict(sha1='b5469f2a1e797e7e04c468d8243a877910136e80', path='../specs/oci/dataserver.py'),
             dict(sha1='00a5a981594b5f6133b6daec746f75b30da88fd9', path='../../omcore/http/pipelines/decoders.py'),
-            dict(sha1='9f8fecc0822c9495f2d97b9c961a1261bf31d97f', path='../../omcore/io/pipelines/drivers/sync.py'),
+            dict(sha1='8ecd4541594f5fdcf8a53ba6e7cff0c2b411b29b', path='../../omcore/io/pipelines/drivers/sync.py'),
             dict(sha1='af5022f5a508939f1b433ed0514ede340fd0d672', path='../../omcore/lite/timing.py'),
             dict(sha1='f448ea9fe7384e6d2bcf398abfc6d53673d70c98', path='cache.py'),
             dict(sha1='8c7d8c21691403d9e4bbd613fca23bd910f67e4d', path='docker/cmds.py'),
@@ -7819,10 +7819,20 @@ class IoPipelineMessages(NamespaceClass):
                 return False
             return cps == 'succeeded'
 
+        def _outcome(self) -> _Completion:
+            try:
+                return self._completion_  # type: ignore[attr-defined]
+            except AttributeError:
+                raise StateIoPipelineError(
+                    'A completable\'s outcome is only available from its completion listeners',
+                ) from None
+
         def get_result(self) -> T:
+            """The result, available only from a completion listener: outcomes are released with the listeners."""
+
             check.state(self._completion_state == 'succeeded')  # type: ignore[attr-defined]
 
-            return self._completion_.result  # type: ignore[attr-defined]
+            return self._outcome().result
 
         def is_failed(self) -> bool:
             try:
@@ -7832,9 +7842,11 @@ class IoPipelineMessages(NamespaceClass):
             return cps == 'failed'
 
         def get_exception(self) -> ta.Optional[BaseException]:
+            """The exception, available only from a completion listener: outcomes are released with the listeners."""
+
             check.state(self._completion_state == 'failed')  # type: ignore[attr-defined]
 
-            return self._completion_.exc  # type: ignore[attr-defined]
+            return self._outcome().exc
 
         def _completion(self) -> _Completion:
             try:
@@ -8388,6 +8400,8 @@ class IoPipelineHandlerContext:
         ...
 
     def feed_in(self, msg):  # ~ Netty `ChannelInboundInvoker::fireChannelRead`
+        if self._invalidated:
+            raise ContextInvalidatedIoPipelineError
         nxt = self._next_in
         while not nxt._handles_inbound:  # noqa
             nxt = nxt._next_in  # noqa
@@ -8410,6 +8424,8 @@ class IoPipelineHandlerContext:
         ...
 
     def feed_out(self, msg):  # ~ Netty `ChannelOutboundInvoker::write`
+        if self._invalidated:
+            raise ContextInvalidatedIoPipelineError
         nxt = self._next_out  # noqa
         while not nxt._handles_outbound:  # noqa
             nxt = nxt._next_out  # noqa
@@ -9134,19 +9150,23 @@ class IoPipeline:
     def _feed_in_to(self, ctx: IoPipelineHandlerContext, msgs: ta.Iterable[ta.Any]) -> None:
         self._step_in()
         try:
+            # The input lifetime - one InitialInput, then input until FinalInput - is transport input crossing the
+            # pipeline boundary. A message injected at a handler's position is not that, and is not checked against it.
+            boundary = ctx is self._outermost
             for msg in msgs:
-                if self._saw_final_input:
-                    if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
-                        raise SawFinalInputIoPipelineError
-                elif isinstance(msg, IoPipelineMessages.FinalInput):
-                    self._saw_final_input = True
+                if boundary:
+                    if self._saw_final_input:
+                        if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
+                            raise SawFinalInputIoPipelineError
+                    elif isinstance(msg, IoPipelineMessages.FinalInput):
+                        self._saw_final_input = True
 
-                if isinstance(msg, IoPipelineMessages.InitialInput):
-                    if self._saw_any_input:
-                        raise SawInitialInputIoPipelineError
-                    check.state(not self._saw_initial_input)
-                    self._saw_initial_input = True
-                self._saw_any_input = True
+                    if isinstance(msg, IoPipelineMessages.InitialInput):
+                        if self._saw_any_input:
+                            raise SawInitialInputIoPipelineError
+                        check.state(not self._saw_initial_input)
+                        self._saw_initial_input = True
+                    self._saw_any_input = True
 
                 ctx._inbound(msg)  # noqa
 
@@ -9273,10 +9293,11 @@ class IoPipeline:
             raise RuntimeError(f'unknown inbound terminal mode {tm}')
 
     def _terminal_outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:  # noqa
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._saw_final_output = True
-        elif self._saw_final_output:
+        if self._saw_final_output:
+            # Includes a second FinalOutput: nothing may follow the first.
             raise SawFinalOutputIoPipelineError
+        elif isinstance(msg, IoPipelineMessages.FinalOutput):
+            self._saw_final_output = True
         elif self._saw_shutdown_output:
             # Includes a second ShutdownOutput, which is not an AfterShutdownOutput.
             if not isinstance(msg, IoPipelineMessages.AfterShutdownOutput):
@@ -9299,6 +9320,7 @@ class IoPipeline:
             ignore_name_of: ta.Optional[IoPipelineHandlerContext] = None,
     ) -> IoPipelineHandler:
         check.state(self._state == IoPipeline.State.READY)  # noqa
+        check.isinstance(handler, IoPipelineHandler)
 
         if not isinstance(handler, ShareableIoPipelineHandler):
             check.not_in(handler, self._unique_contexts)
@@ -9677,19 +9699,31 @@ class IoPipeline:
         FinalOutput to the pipeline terminal before destroying it.
         """
 
-        if self._state == IoPipeline.State.DESTROYED:
+        if self._state in (IoPipeline.State.DESTROYED, IoPipeline.State.DESTROYING):
+            # Destroying removes every handler; one whose Removed callback asks for destruction is answered by the
+            # destruction in progress.
             return
 
         check.state(self._state == IoPipeline.State.READY)
         self._set_state(IoPipeline.State.DESTROYING)
 
+        first_exc: ta.Optional[BaseException] = None
         try:
             self._step_in()
             try:
                 im_ctx = self._innermost  # noqa
                 om_ctx = self._outermost  # noqa
                 while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
-                    self.remove(ctx.ref)  # noqa
+                    try:
+                        self.remove(ctx.ref)  # noqa
+                    except BaseException as e:  # noqa
+                        # One handler's Removed callback failing must neither strand the remaining handlers nor hide
+                        # behind DESTROYED: the first failure is raised once everything has been torn down.
+                        if first_exc is None:
+                            first_exc = e
+                        if im_ctx._next_out is ctx:  # noqa
+                            # The removal failed before unlinking the handler: no progress is possible.
+                            raise
 
             finally:
                 self._step_out()
@@ -9701,7 +9735,12 @@ class IoPipeline:
             try:
                 self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
             finally:
+                # Output nothing consumed can no longer be used by anyone; completables among it were just failed.
+                self._output._q.clear()  # noqa
                 self._set_state(IoPipeline.State.DESTROYED)
+
+        if first_exc is not None:
+            raise first_exc
 
     def _fail_pending_completables(self, exc: BaseException) -> None:
         first_listener_exc: ta.Optional[BaseException] = None
@@ -27001,6 +27040,7 @@ class IoPipelineHttpObjectChunker(
         self._self_writable = True
         self._announced_writable = True
         self._outbound_depth = 0
+        self._output_ended = False  # ShutdownOutput or FinalOutput passed: nothing may produce ordinary output
 
     #
 
@@ -27027,6 +27067,9 @@ class IoPipelineHttpObjectChunker(
 
         effective = self._downstream_writable and self._self_writable
         if effective != self._announced_writable:
+            if effective and self._output_ended:
+                # DESIGN 6: a pause may still be announced for a remaining backlog, but a resume never is.
+                return
             self._announced_writable = effective
             ctx.feed_in(
                 IoPipelineFlowMessages.ReadyForOutput() if effective
@@ -27076,6 +27119,9 @@ class IoPipelineHttpObjectChunker(
     #
 
     def _outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+            self._output_ended = True
+
         if isinstance(msg, self._head_type):
             self._active = IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.headers)
             ctx.feed_out(msg)
@@ -32328,9 +32374,15 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
     """
     bytes-like -> frames using longest-match delimiter semantics.
 
+    In manual-read mode a read which completes no frame leaves the reader's request unsatisfied, so the decoder asks
+    the transport for more itself (as the buffered decoders do).
+
     TODO:
-     - flow control, *or* replace with BytesToMessageDecoderIoPipelineHandler
+     - replace with BytesToMessageDecoderIoPipelineHandler
     """
+
+    _decoded_since_flush = False   # bytes arrived since the last FlushInput ...
+    _produced_since_flush = False  # ... and at least one frame was produced from them
 
     def __init__(
             self,
@@ -32366,6 +32418,15 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
             ctx.feed_in(msg)
             return
 
+        if isinstance(msg, IoPipelineFlowMessages.FlushInput):
+            decoded, produced = self._decoded_since_flush, self._produced_since_flush
+            self._decoded_since_flush = self._produced_since_flush = False
+            if decoded and not produced:
+                # The read completed no frame: whoever asked for one is still waiting on it.
+                IoPipelineFlow.maybe_ready_for_input(ctx)
+            ctx.feed_in(msg)
+            return
+
         if not ByteStreamBuffers.can_bytes(msg):
             ctx.feed_in(msg)
             return
@@ -32374,10 +32435,13 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
             if mv:
                 self._buf.write(mv)
 
+        self._decoded_since_flush = True
         self._produce_frames(ctx)
 
     def _produce_frames(self, ctx: IoPipelineHandlerContext, *, final: bool = False) -> None:
         frames = self._fr.decode(self._buf, final=final)
+        if frames:
+            self._produced_since_flush = True
 
         if final and len(self._buf):
             if (oif := self._on_incomplete_final) == 'allow':
@@ -33657,6 +33721,7 @@ class SyncIoPipelineDriver(Abstract):
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
+        self._drain_input_ended = False
 
         self._state = IoPipelineDriverState.NEW
 
@@ -33851,17 +33916,21 @@ class SyncIoPipelineDriver(Abstract):
         else:
             self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
         finally:
+            self._input_q.clear()
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
             self._pending_read_error = None
+            self._drain_input_ended = False
             self._restore_transport_if_prepared()
 
     def _fail(self) -> None:
         self._state = IoPipelineDriverState.FAILED
+        self._input_q.clear()
         self._write_q.clear()
         self._write_q_bytes = 0
         self._pending_read_error = None
+        self._drain_input_ended = False
         try:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
@@ -33927,6 +33996,29 @@ class SyncIoPipelineDriver(Abstract):
             self._want_read = False
 
         return out
+
+    def _discard_input(self) -> bool:
+        """
+        While draining after FinalOutput nothing consumes input any more, but it is still taken off the transport and
+        dropped: a peer whose own output waits for this side to read must not wait forever. Returns whether anything
+        was read.
+        """
+
+        buf = memoryview(bytearray(self._config.read_chunk_size))
+        progressed = False
+        for _ in range(self._config.read_batch_max_reads):
+            try:
+                n = self._read_into(buf)
+            except BlockingIOError:
+                return progressed
+            except OSError:
+                self._drain_input_ended = True
+                return True
+            if not n:
+                self._drain_input_ended = True
+                return True
+            progressed = True
+        return progressed
 
     #
 
@@ -34023,6 +34115,48 @@ class SyncIoPipelineDriver(Abstract):
 
     #
 
+    @staticmethod
+    def _wait_for_io(
+            read_fd: ta.Optional[int],
+            write_fd: ta.Optional[int],
+            timeout: ta.Optional[float],
+    ) -> ta.Tuple[bool, bool]:
+        """
+        Waits for the wanted readiness, with `poll()` where it exists (Linux and darwin both have it): unlike
+        `select()`, it is not limited to descriptors below FD_SETSIZE. A hung-up or errored descriptor counts as ready
+        so the read or write reports it; an invalid one raises as `select()` would.
+        """
+
+        if (poll := getattr(select, 'poll', None)) is None:
+            rl, wl, _ = select.select(
+                [read_fd] if read_fd is not None else [],
+                [write_fd] if write_fd is not None else [],
+                [],
+                timeout,
+            )
+            return bool(rl), bool(wl)
+
+        events: ta.Dict[int, int] = {}
+        if read_fd is not None:
+            events[read_fd] = select.POLLIN
+        if write_fd is not None:
+            events[write_fd] = events.get(write_fd, 0) | select.POLLOUT
+        poller = poll()
+        for fd, ev in events.items():
+            poller.register(fd, ev)
+
+        ready = poller.poll(None if timeout is None else max(0., timeout * 1000.))
+
+        readable = writable = False
+        for fd, ev in ready:
+            if ev & select.POLLNVAL:
+                raise ValueError(f'filedescriptor {fd} is not open')
+            if fd == read_fd and ev & (select.POLLIN | select.POLLHUP | select.POLLERR):
+                readable = True
+            if fd == write_fd and ev & (select.POLLOUT | select.POLLHUP | select.POLLERR):
+                writable = True
+        return readable, writable
+
     def _wait_for_io_or_timer(
             self,
             *,
@@ -34052,10 +34186,9 @@ class SyncIoPipelineDriver(Abstract):
                 timeout = min(timer_delay, socket_timeout)
 
             try:
-                readable, writable, _ = select.select(
-                    [self._read_fileno()] if want_read else [],
-                    [self._write_fileno()] if want_write else [],
-                    [],
+                readable, writable = self._wait_for_io(
+                    self._read_fileno() if want_read else None,
+                    self._write_fileno() if want_write else None,
                     timeout,
                 )
             except (OSError, ValueError):
@@ -34106,7 +34239,10 @@ class SyncIoPipelineDriver(Abstract):
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.Defer):
-            self._pipeline.run_deferred(msg)
+            # A deferred continuation is a fairness yield: timers due meanwhile run first.
+            self._sched.run_due()
+            if self._pipeline.is_ready:
+                self._pipeline.run_deferred(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
@@ -34126,13 +34262,15 @@ class SyncIoPipelineDriver(Abstract):
 
     def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'write', 'stop'],
+        ta.Literal['read', 'write', 'stop', 'destroyed'],
         None,
     ]:
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         while True:
+            if not pipeline.is_ready:
+                return 'destroyed'
+
             if (out_msg := pipeline.output.poll()) is not None:
                 handled = self._handle_output(out_msg)
 
@@ -34186,7 +34324,6 @@ class SyncIoPipelineDriver(Abstract):
         """
 
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         try:
             ran_timer = bool(self._sched.run_due())
@@ -34209,6 +34346,11 @@ class SyncIoPipelineDriver(Abstract):
                 else:
                     raise RuntimeError(f'Unknown output: {ok!r}')
 
+            elif out == 'destroyed':
+                # Destroyed from under the driver - by an application policy in a callback, say: an explicit close.
+                self.close()
+                return None
+
             elif out == 'stop':
                 try:
                     self._restore_transport_if_prepared()
@@ -34230,7 +34372,13 @@ class SyncIoPipelineDriver(Abstract):
             if ran_timer:
                 return None
 
-            want_read = not pipeline.saw_final_input and self._want_read
+            draining = self._transport_final_output is not None
+            if draining:
+                # Input has no consumer any more, but is still taken off the transport (and dropped) so a peer blocked
+                # on this side reading can proceed to read this side's remaining output.
+                want_read = not self._drain_input_ended and not pipeline.saw_final_input
+            else:
+                want_read = not pipeline.saw_final_input and self._want_read
             want_write = bool(self._write_q)
 
             if not read:
@@ -34258,8 +34406,11 @@ class SyncIoPipelineDriver(Abstract):
             if writable:
                 progressed |= self._try_write()
             if readable:
-                self._input_q.extend(self._do_read())
-                progressed = True
+                if draining:
+                    progressed |= self._discard_input()
+                else:
+                    self._input_q.extend(self._do_read())
+                    progressed = True
 
             if not (progressed or ran_timer):
                 return None
@@ -34403,9 +34554,16 @@ class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
         return self._write_fd
 
     def _prepare_transport(self) -> None:
-        for fd in {self._read_fd, self._write_fd}:
-            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-            self._original_flags[fd] = flags
+        fds = {self._read_fd, self._write_fd}
+
+        # Both descriptors may share one open file description (dups of a terminal, say), whose flags are shared too:
+        # every original is recorded before any is changed, or the second would record the first's change as its
+        # original and restore the description to nonblocking.
+        for fd in fds:
+            self._original_flags[fd] = fcntl.fcntl(fd, fcntl.F_GETFL)
+
+        for fd in fds:
+            flags = self._original_flags[fd]
             if not (flags & os.O_NONBLOCK):
                 fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 

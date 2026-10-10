@@ -18,6 +18,7 @@ from .errors import SawFinalInputIoPipelineError
 from .errors import SawFinalOutputIoPipelineError
 from .errors import SawInitialInputIoPipelineError
 from .errors import SawShutdownOutputIoPipelineError
+from .errors import StateIoPipelineError
 from .errors import UnhandleableIoPipelineError
 
 
@@ -157,10 +158,20 @@ class IoPipelineMessages(NamespaceClass):
                 return False
             return cps == 'succeeded'
 
+        def _outcome(self) -> _Completion:
+            try:
+                return self._completion_  # type: ignore[attr-defined]
+            except AttributeError:
+                raise StateIoPipelineError(
+                    'A completable\'s outcome is only available from its completion listeners',
+                ) from None
+
         def get_result(self) -> T:
+            """The result, available only from a completion listener: outcomes are released with the listeners."""
+
             check.state(self._completion_state == 'succeeded')  # type: ignore[attr-defined]
 
-            return self._completion_.result  # type: ignore[attr-defined]
+            return self._outcome().result
 
         def is_failed(self) -> bool:
             try:
@@ -170,9 +181,11 @@ class IoPipelineMessages(NamespaceClass):
             return cps == 'failed'
 
         def get_exception(self) -> ta.Optional[BaseException]:
+            """The exception, available only from a completion listener: outcomes are released with the listeners."""
+
             check.state(self._completion_state == 'failed')  # type: ignore[attr-defined]
 
-            return self._completion_.exc  # type: ignore[attr-defined]
+            return self._outcome().exc
 
         def _completion(self) -> _Completion:
             try:
@@ -726,6 +739,8 @@ class IoPipelineHandlerContext:
         ...
 
     def feed_in(self, msg):  # ~ Netty `ChannelInboundInvoker::fireChannelRead`
+        if self._invalidated:
+            raise ContextInvalidatedIoPipelineError
         nxt = self._next_in
         while not nxt._handles_inbound:  # noqa
             nxt = nxt._next_in  # noqa
@@ -748,6 +763,8 @@ class IoPipelineHandlerContext:
         ...
 
     def feed_out(self, msg):  # ~ Netty `ChannelOutboundInvoker::write`
+        if self._invalidated:
+            raise ContextInvalidatedIoPipelineError
         nxt = self._next_out  # noqa
         while not nxt._handles_outbound:  # noqa
             nxt = nxt._next_out  # noqa
@@ -1472,19 +1489,23 @@ class IoPipeline:
     def _feed_in_to(self, ctx: IoPipelineHandlerContext, msgs: ta.Iterable[ta.Any]) -> None:
         self._step_in()
         try:
+            # The input lifetime - one InitialInput, then input until FinalInput - is transport input crossing the
+            # pipeline boundary. A message injected at a handler's position is not that, and is not checked against it.
+            boundary = ctx is self._outermost
             for msg in msgs:
-                if self._saw_final_input:
-                    if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
-                        raise SawFinalInputIoPipelineError
-                elif isinstance(msg, IoPipelineMessages.FinalInput):
-                    self._saw_final_input = True
+                if boundary:
+                    if self._saw_final_input:
+                        if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
+                            raise SawFinalInputIoPipelineError
+                    elif isinstance(msg, IoPipelineMessages.FinalInput):
+                        self._saw_final_input = True
 
-                if isinstance(msg, IoPipelineMessages.InitialInput):
-                    if self._saw_any_input:
-                        raise SawInitialInputIoPipelineError
-                    check.state(not self._saw_initial_input)
-                    self._saw_initial_input = True
-                self._saw_any_input = True
+                    if isinstance(msg, IoPipelineMessages.InitialInput):
+                        if self._saw_any_input:
+                            raise SawInitialInputIoPipelineError
+                        check.state(not self._saw_initial_input)
+                        self._saw_initial_input = True
+                    self._saw_any_input = True
 
                 ctx._inbound(msg)  # noqa
 
@@ -1611,10 +1632,11 @@ class IoPipeline:
             raise RuntimeError(f'unknown inbound terminal mode {tm}')
 
     def _terminal_outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:  # noqa
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._saw_final_output = True
-        elif self._saw_final_output:
+        if self._saw_final_output:
+            # Includes a second FinalOutput: nothing may follow the first.
             raise SawFinalOutputIoPipelineError
+        elif isinstance(msg, IoPipelineMessages.FinalOutput):
+            self._saw_final_output = True
         elif self._saw_shutdown_output:
             # Includes a second ShutdownOutput, which is not an AfterShutdownOutput.
             if not isinstance(msg, IoPipelineMessages.AfterShutdownOutput):
@@ -1637,6 +1659,7 @@ class IoPipeline:
             ignore_name_of: ta.Optional[IoPipelineHandlerContext] = None,
     ) -> IoPipelineHandler:
         check.state(self._state == IoPipeline.State.READY)  # noqa
+        check.isinstance(handler, IoPipelineHandler)
 
         if not isinstance(handler, ShareableIoPipelineHandler):
             check.not_in(handler, self._unique_contexts)
@@ -2015,19 +2038,31 @@ class IoPipeline:
         FinalOutput to the pipeline terminal before destroying it.
         """
 
-        if self._state == IoPipeline.State.DESTROYED:
+        if self._state in (IoPipeline.State.DESTROYED, IoPipeline.State.DESTROYING):
+            # Destroying removes every handler; one whose Removed callback asks for destruction is answered by the
+            # destruction in progress.
             return
 
         check.state(self._state == IoPipeline.State.READY)
         self._set_state(IoPipeline.State.DESTROYING)
 
+        first_exc: ta.Optional[BaseException] = None
         try:
             self._step_in()
             try:
                 im_ctx = self._innermost  # noqa
                 om_ctx = self._outermost  # noqa
                 while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
-                    self.remove(ctx.ref)  # noqa
+                    try:
+                        self.remove(ctx.ref)  # noqa
+                    except BaseException as e:  # noqa
+                        # One handler's Removed callback failing must neither strand the remaining handlers nor hide
+                        # behind DESTROYED: the first failure is raised once everything has been torn down.
+                        if first_exc is None:
+                            first_exc = e
+                        if im_ctx._next_out is ctx:  # noqa
+                            # The removal failed before unlinking the handler: no progress is possible.
+                            raise
 
             finally:
                 self._step_out()
@@ -2039,7 +2074,12 @@ class IoPipeline:
             try:
                 self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
             finally:
+                # Output nothing consumed can no longer be used by anyone; completables among it were just failed.
+                self._output._q.clear()  # noqa
                 self._set_state(IoPipeline.State.DESTROYED)
+
+        if first_exc is not None:
+            raise first_exc
 
     def _fail_pending_completables(self, exc: BaseException) -> None:
         first_listener_exc: ta.Optional[BaseException] = None
