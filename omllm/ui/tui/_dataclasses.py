@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='7a8664a09601116f9cd513065262fef788a6ad90',
+    installer_sha1='99c7d724ec629e03df2ee98b0dcf6b52c7880e07',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -43,28 +43,26 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "lse, False, False), (('container', True, True, None, True, True, False, None), 'instance', 'value', None, "
             "False, False, False), (('eval', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
             "se, False, False), (('exec', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('allow_ripgrep_execs', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False), (('fs', True, True, None, True, True, False, None), 'instance', 'value', None,"
-            " False, False, False), (('allow_fs_reads', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', No"
-            "ne, False, False, False), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value"
-            "', None, False, False, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),)"
-            ", (), (False,)))"
+            " False, False), (('fs', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fals"
+            "e, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
+            "alse), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False"
+            "), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
+            "se, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
+            "alse, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
+            "se, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fals"
+            "e, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
+            "se, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
+            "alse, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
+            "alse, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fals"
+            "e, False), (('diet_yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
+def _process_dataclass__99c7d724ec629e03df2ee98b0dcf6b52c7880e07():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -109,8 +107,6 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
         __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
         __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
         __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
-        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
-        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -128,9 +124,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
                 container=self.container,
                 eval=self.eval,
                 exec=self.exec,
-                allow_ripgrep_execs=self.allow_ripgrep_execs,
                 fs=self.fs,
-                allow_fs_reads=self.allow_fs_reads,
                 web=self.web,
                 url=self.url,
                 backend_model_id=self.backend_model_id,
@@ -141,6 +135,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
                 immediate=self.immediate,
                 verbose=self.verbose,
                 yolo=self.yolo,
+                diet_yolo=self.diet_yolo,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -158,9 +153,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
                 self.container == other.container and
                 self.eval == other.eval and
                 self.exec == other.exec and
-                self.allow_ripgrep_execs == other.allow_ripgrep_execs and
                 self.fs == other.fs and
-                self.allow_fs_reads == other.allow_fs_reads and
                 self.web == other.web and
                 self.url == other.url and
                 self.backend_model_id == other.backend_model_id and
@@ -170,7 +163,8 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
                 self.verbose == other.verbose and
-                self.yolo == other.yolo
+                self.yolo == other.yolo and
+                self.diet_yolo == other.diet_yolo
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -183,9 +177,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
             'container',
             'eval',
             'exec',
-            'allow_ripgrep_execs',
             'fs',
-            'allow_fs_reads',
             'web',
             'url',
             'backend_model_id',
@@ -196,6 +188,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
             'immediate',
             'verbose',
             'yolo',
+            'diet_yolo',
         }
 
         def __setattr__(self, name, value):
@@ -227,9 +220,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
                 self.container,
                 self.eval,
                 self.exec,
-                self.allow_ripgrep_execs,
                 self.fs,
-                self.allow_fs_reads,
                 self.web,
                 self.url,
                 self.backend_model_id,
@@ -240,6 +231,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
                 self.immediate,
                 self.verbose,
                 self.yolo,
+                self.diet_yolo,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -254,19 +246,18 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
             container: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
             eval: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
             exec: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
-            allow_ripgrep_execs: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            fs: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            allow_fs_reads: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            web: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            url: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            backend_model_id: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            in_memory: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            jsonl: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
-            resume: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
-            autoexec: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
-            immediate: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
-            verbose: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
-            yolo: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            fs: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            web: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            url: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            backend_model_id: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            in_memory: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            jsonl: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            resume: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            autoexec: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            immediate: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            verbose: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            yolo: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            diet_yolo: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'effort', effort)
@@ -275,9 +266,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
             __dataclass__object_setattr(self, 'container', container)
             __dataclass__object_setattr(self, 'eval', eval)
             __dataclass__object_setattr(self, 'exec', exec)
-            __dataclass__object_setattr(self, 'allow_ripgrep_execs', allow_ripgrep_execs)
             __dataclass__object_setattr(self, 'fs', fs)
-            __dataclass__object_setattr(self, 'allow_fs_reads', allow_fs_reads)
             __dataclass__object_setattr(self, 'web', web)
             __dataclass__object_setattr(self, 'url', url)
             __dataclass__object_setattr(self, 'backend_model_id', backend_model_id)
@@ -288,6 +277,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
             __dataclass__object_setattr(self, 'immediate', immediate)
             __dataclass__object_setattr(self, 'verbose', verbose)
             __dataclass__object_setattr(self, 'yolo', yolo)
+            __dataclass__object_setattr(self, 'diet_yolo', diet_yolo)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -301,9 +291,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
             parts.append(f"container={self.container!r}")
             parts.append(f"eval={self.eval!r}")
             parts.append(f"exec={self.exec!r}")
-            parts.append(f"allow_ripgrep_execs={self.allow_ripgrep_execs!r}")
             parts.append(f"fs={self.fs!r}")
-            parts.append(f"allow_fs_reads={self.allow_fs_reads!r}")
             parts.append(f"web={self.web!r}")
             parts.append(f"url={self.url!r}")
             parts.append(f"backend_model_id={self.backend_model_id!r}")
@@ -314,6 +302,7 @@ def _process_dataclass__7a8664a09601116f9cd513065262fef788a6ad90():
             parts.append(f"immediate={self.immediate!r}")
             parts.append(f"verbose={self.verbose!r}")
             parts.append(f"yolo={self.yolo!r}")
+            parts.append(f"diet_yolo={self.diet_yolo!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

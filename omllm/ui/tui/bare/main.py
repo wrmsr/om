@@ -71,7 +71,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             await agent.prompt(input)
 
         for ax in [
-            *(yolo_autoexec(cwd) if config.yolo else []),
+            *yolo_autoexec(config, cwd),
             *(config.autoexec or []),
         ]:
             await prompt(ax)

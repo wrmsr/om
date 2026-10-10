@@ -26,9 +26,7 @@ class Config:
 
     eval: bool | None = None
     exec: bool | None = None
-    allow_ripgrep_execs: bool | None = None
     fs: bool | None = None
-    allow_fs_reads: bool | None = None
     web: bool | None = None
 
     url: str | None = None
@@ -43,7 +41,9 @@ class Config:
     immediate: bool | None = None
 
     verbose: bool | None = None
+
     yolo: bool | None = None
+    diet_yolo: bool | None = None
 
     ##
 
@@ -59,9 +59,7 @@ class Config:
 
         parser.add_argument('--eval', action='store_true')
         parser.add_argument('--exec', action='store_true')
-        parser.add_argument('--allow-ripgrep-execs', action='store_true')
         parser.add_argument('--fs', action='store_true')
-        parser.add_argument('--allow-fs-reads', action='store_true')
         parser.add_argument('--web', action='store_true')
 
         parser.add_argument('--url')
@@ -76,7 +74,9 @@ class Config:
         parser.add_argument('-I', '--immediate', action='store_true')
 
         parser.add_argument('-v', '--verbose', action='store_true')
+
         parser.add_argument('--yolo', action='store_true')
+        parser.add_argument('--diet-yolo', action='store_true')
 
         return parser
 
@@ -93,9 +93,7 @@ class Config:
 
             eval=args.eval,
             exec=args.exec,
-            allow_ripgrep_execs=args.allow_ripgrep_execs,
             fs=args.fs,
-            allow_fs_reads=args.allow_fs_reads,
             web=args.web,
 
             url=args.url,
@@ -110,7 +108,9 @@ class Config:
             immediate=args.immediate,
 
             verbose=args.verbose,
+
             yolo=args.yolo,
+            diet_yolo=args.diet_yolo,
         )
 
     @classmethod

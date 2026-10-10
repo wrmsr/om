@@ -78,7 +78,11 @@ class _Run:
                 in_memory=True,
                 cwd=self.root,
                 fs=True,
-                allow_fs_reads=True,
+                autoexec=[
+                    '/permissions clear',
+                    f'/permissions add allow glob_fs \'{{"glob":"{self.root}/**","modes":["r"]}}\'',
+                    f'/permissions add ask glob_fs \'{{"glob":"{self.root}/**","modes":["w"]}}\'',
+                ],
             )),
 
             inj.bind(InputManager, to_const=self.input_manager),

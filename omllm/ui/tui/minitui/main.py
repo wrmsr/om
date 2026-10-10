@@ -91,7 +91,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                 event_renderer.display_transcript(await session.resume())
 
             for ax in [
-                    *(yolo_autoexec(cwd) if config.yolo else []),
+                    *yolo_autoexec(config, cwd),
                     *(config.autoexec or []),
             ]:
                 pump.submit(ax)

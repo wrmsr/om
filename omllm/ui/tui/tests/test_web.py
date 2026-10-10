@@ -75,6 +75,9 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
                 model='scripted',
                 in_memory=True,
                 web=True,
+                autoexec=[
+                    '/permissions add ask regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
+                ],
             )),
             inj.bind(agn.PermissionAsker, to_const=asker),
             inj.bind(agn.WebSearcher, to_const=_Searcher()),
@@ -108,6 +111,9 @@ async def test_live_search_and_fetch_through_the_tui_tools():
             model='scripted',
             in_memory=True,
             web=True,
+            autoexec=[
+                '/permissions add allow regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
+            ],
         )),
         inj.bind(agn.PermissionAsker, to_const=_AllowingAsker()),
     )) as tui:

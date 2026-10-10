@@ -89,6 +89,21 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
         if config.resume is not None:
             await session.resume()
 
+        async def prompt(input: str) -> None:  # noqa
+            if not input:
+                return
+
+            if input[0] == '/':
+                await commands.parse(input[1:]).run()
+                return
+
+            await agent.prompt(input)
+
+        for ax in [
+            *(config.autoexec or []),
+        ]:
+            await prompt(ax)
+
         yield HeadlessTui(
             injector=injector,
             agent=agent,
