@@ -32,8 +32,9 @@ class TestHttpServerPingFlow(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/unknown')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
-                self.assertEqual(e.read(), b'not found')
+                with e:
+                    self.assertEqual(e.code, 404)
+                    self.assertEqual(e.read(), b'not found')
 
     def test_multiple_requests(self) -> None:
         """Test multiple sequential requests work."""

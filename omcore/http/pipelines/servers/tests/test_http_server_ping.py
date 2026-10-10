@@ -32,8 +32,9 @@ class TestHttpServerPing(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/unknown')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
-                self.assertEqual(e.read(), b'not found')
+                with e:
+                    self.assertEqual(e.code, 404)
+                    self.assertEqual(e.read(), b'not found')
 
     def test_root_path_not_found(self) -> None:
         """Test root path returns 404."""
@@ -43,7 +44,8 @@ class TestHttpServerPing(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
+                with e:
+                    self.assertEqual(e.code, 404)
 
     def test_multiple_requests(self) -> None:
         """Test multiple sequential requests work."""
@@ -64,7 +66,8 @@ class TestHttpServerPing(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/other')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
+                with e:
+                    self.assertEqual(e.code, 404)
 
     def test_connection_closes_after_response(self) -> None:
         """Test that connection closes after response (Connection: close header)."""

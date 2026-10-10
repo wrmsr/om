@@ -108,6 +108,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._state = IoPipelineDriverState.NEW
         self._has_init = False
+        self._loop: ta.Optional[asyncio.AbstractEventLoop] = None
 
         # Fences (FlushOutput and ShutdownOutput) completed by the current and the next drain.
         self._drain_task: ta.Optional[asyncio.Task] = None
@@ -203,6 +204,7 @@ class PollAsyncioStreamIoPipelineDriver:
             raise
 
     def _init(self) -> IoPipeline:
+        self._loop = asyncio.get_running_loop()
         self._sched = self._SchedulingService(self)
 
         services = IoPipelineServices.of(self._spec.services)
@@ -246,30 +248,40 @@ class PollAsyncioStreamIoPipelineDriver:
     ##
     # async utils
 
-    @staticmethod
+    def _own_loop_running(self) -> bool:
+        """
+        Whether the driver's own loop is the one running here - the only case in which `close()` may wait for what it
+        cancels. Closed from anywhere else - a coroutine closed by garbage collection once its loop is gone, say, or a
+        caller on another loop - it does its bookkeeping without suspending, and without touching a closed loop.
+        """
+
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            return False
+        if (loop := self._loop) is None:
+            return True  # Not yet initialized: whichever loop runs here is as good as any.
+        return running is loop and not loop.is_closed()
+
+    def _loop_closed(self) -> bool:
+        return (loop := self._loop) is not None and loop.is_closed()
+
     async def _cancel_tasks(
-            *tasks: ta.Optional[asyncio.Task],
-            check_running: bool = False,
+            self,
+            *tasks: ta.Optional[asyncio.Future],
+            wait: bool = True,
     ) -> None:
-        if check_running:
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                return
-            else:
-                if not loop.is_running():
-                    return
+        if self._loop_closed():
+            return  # Nothing can run any more, and a closed loop refuses the cancellation's callbacks.
 
-        #
-
-        cts: ta.List[asyncio.Task] = []
+        cts: ta.List[asyncio.Future] = []
 
         for t in tasks:
             if t is not None and not t.done():
                 t.cancel()
                 cts.append(t)
 
-        if cts:
+        if cts and wait:
             await asyncio.gather(*cts, return_exceptions=True)
 
     #
@@ -313,7 +325,7 @@ class PollAsyncioStreamIoPipelineDriver:
         except (AttributeError, NotImplementedError):
             pass
 
-    async def _abort_writer(self) -> None:
+    async def _abort_writer(self, *, wait: bool = True) -> None:
         writer = self._writer
         if writer is None:
             writer = self._closing_writer
@@ -329,7 +341,8 @@ class PollAsyncioStreamIoPipelineDriver:
             except (AttributeError, NotImplementedError):
                 writer.close()
 
-            await writer.wait_closed()
+            if wait:
+                await writer.wait_closed()
 
         except Exception:  # noqa
             pass
@@ -739,16 +752,11 @@ class PollAsyncioStreamIoPipelineDriver:
 
         task.add_done_callback(done_callback)
 
-    async def _cancel_close_task(self) -> None:
+    async def _cancel_close_task(self, *, wait: bool = True) -> None:
         task = self._close_task
         self._close_task = None
 
-        if task is None:
-            return
-
-        if not task.done():
-            task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+        await self._cancel_tasks(task, wait=wait)
 
     def _fail_graceful_close(self, exc: BaseException) -> None:
         self._finish_flush_outputs(
@@ -771,7 +779,7 @@ class PollAsyncioStreamIoPipelineDriver:
 
         self._shutdown_event.set()
         self._want_read_event.set()
-        await self._cancel_tasks(self._read_task, check_running=True)
+        await self._cancel_tasks(self._read_task)
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
 
     async def _handle_command_close_completed(self, cmd: _CloseCompletedCommand) -> None:
@@ -914,7 +922,7 @@ class PollAsyncioStreamIoPipelineDriver:
         self._drain_flush_outputs.append(flush_output)
         self._start_drain()
 
-    async def _cancel_drain_task(self, *, propagate_done_error: bool = False) -> None:
+    async def _cancel_drain_task(self, *, propagate_done_error: bool = False, wait: bool = True) -> None:
         task = self._drain_task
         self._drain_task = None
         self._drain_again = False
@@ -923,9 +931,7 @@ class PollAsyncioStreamIoPipelineDriver:
             return
 
         was_done = task.done()
-        if not was_done:
-            task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+        await self._cancel_tasks(task, wait=wait)
 
         if propagate_done_error and was_done and not task.cancelled():
             task.result()
@@ -1052,13 +1058,10 @@ class PollAsyncioStreamIoPipelineDriver:
 
         return None
 
-    async def _cancel_created_awaits(self) -> None:
-        tasks = [fut for fut, created in self._pending_awaits.items() if created and not fut.done()]
+    async def _cancel_created_awaits(self, *, wait: bool = True) -> None:
+        tasks = [fut for fut, created in self._pending_awaits.items() if created]
         self._pending_awaits.clear()
-        for fut in tasks:
-            fut.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+        await self._cancel_tasks(*tasks, wait=wait)
 
     ##
     # command handling
@@ -1453,29 +1456,32 @@ class PollAsyncioStreamIoPipelineDriver:
 
         failed = self._state is IoPipelineDriverState.FAILED
 
+        # Only on its own running loop may the driver wait for what it cancels.
+        wait = self._own_loop_running()
+
         try:
             self._shutdown_event.set()
 
             self._want_read_event.set()
 
-            await self._cancel_drain_task()
-            await self._cancel_close_task()
+            await self._cancel_drain_task(wait=wait)
+            await self._cancel_close_task(wait=wait)
             self._fail_graceful_close(AbortedIoPipelineError('Driver closed before transport flush completion'))
             self._post_drain_output_q.clear()
             self._post_drain_output_bytes = 0
 
-            await self._cancel_tasks(self._read_task, check_running=True)
-            await self._cancel_created_awaits()
+            await self._cancel_tasks(self._read_task, wait=wait)
+            await self._cancel_created_awaits(wait=wait)
 
             # Input never processed is released, and anyone waiting on it is told.
             self._drain_command_queue(AbortedIoPipelineError('Driver closed before the input was processed'))
             self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
 
-            await self._abort_writer()
+            await self._abort_writer(wait=wait)
 
-            if hasattr(self, '_sched'):
+            if hasattr(self, '_sched') and not self._loop_closed():
                 self._sched.cancel_all()
-                if self._sched._tasks:  # noqa
+                if wait and self._sched._tasks:  # noqa
                     await asyncio.gather(*self._sched._tasks, return_exceptions=True)  # noqa
 
             if self._has_init:

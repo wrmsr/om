@@ -1,4 +1,4 @@
-# ruff: noqa: UP045
+# ruff: noqa: UP006 UP045
 # @om-lite
 import asyncio
 import threading
@@ -66,16 +66,25 @@ class HttpServerRunner:
             self._loop.close()
 
     async def _serve(self) -> None:
-        """Serve requests until shutdown."""
+        """Serve requests until shutdown, then let the connection handlers finish before the loop is closed."""
+
+        handlers: ta.Set[asyncio.Task] = set()
 
         async def _handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-            drv = PollAsyncioStreamIoPipelineDriver(
-                self._spec_builder(),
-                reader,
-                writer,
-            )
+            task = asyncio.current_task()
+            if task is not None:
+                handlers.add(task)
+            try:
+                drv = PollAsyncioStreamIoPipelineDriver(
+                    self._spec_builder(),
+                    reader,
+                    writer,
+                )
 
-            await drv.loop_until_done()
+                await drv.loop_until_done()
+            finally:
+                if task is not None:
+                    handlers.discard(task)
 
         self._server = await asyncio.start_server(
             _handle_client,
@@ -98,6 +107,16 @@ class HttpServerRunner:
             except asyncio.CancelledError:
                 # Expected when server is shutdown
                 pass
+
+        # The server waits (on 3.12+) for its connections to drop, not for their handlers to finish: one may still be
+        # completing its driver's graceful close, or holding a keep-alive connection. Closing the loop under a pending
+        # handler leaves its coroutine to be closed by garbage collection, with no loop to finish on.
+        if handlers:
+            _, pending = await asyncio.wait(list(handlers), timeout=1.)
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.wait(list(pending))
 
     def _shutdown(self) -> None:
         """Shutdown the server (called from event loop thread)."""

@@ -72,8 +72,9 @@ class TestHttpServerKv(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/noexist')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
-                self.assertEqual(e.read(), b'not found')
+                with e:
+                    self.assertEqual(e.code, 404)
+                    self.assertEqual(e.read(), b'not found')
 
     def test_delete_key(self) -> None:
         """Test DELETE removes key."""
@@ -103,7 +104,8 @@ class TestHttpServerKv(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/deleteme')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
+                with e:
+                    self.assertEqual(e.code, 404)
 
     def test_delete_nonexistent_key(self) -> None:
         """Test DELETE for nonexistent key returns 404."""
@@ -119,7 +121,8 @@ class TestHttpServerKv(unittest.TestCase):
                 urllib.request.urlopen(req)
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
+                with e:
+                    self.assertEqual(e.code, 404)
 
     def test_multi_segment_path_rejected(self) -> None:
         """Test that paths with slashes are rejected."""
@@ -136,8 +139,9 @@ class TestHttpServerKv(unittest.TestCase):
                 urllib.request.urlopen(req)
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 400)
-                self.assertEqual(e.read(), b'bad request')
+                with e:
+                    self.assertEqual(e.code, 400)
+                    self.assertEqual(e.read(), b'bad request')
 
     def test_root_path_rejected(self) -> None:
         """Test that root path is rejected."""
@@ -149,7 +153,8 @@ class TestHttpServerKv(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 400)
+                with e:
+                    self.assertEqual(e.code, 400)
 
     def test_unsupported_method(self) -> None:
         """Test that unsupported methods return 405."""
@@ -165,8 +170,9 @@ class TestHttpServerKv(unittest.TestCase):
                 urllib.request.urlopen(req)
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 405)
-                self.assertEqual(e.read(), b'method not allowed')
+                with e:
+                    self.assertEqual(e.code, 405)
+                    self.assertEqual(e.read(), b'method not allowed')
 
     def test_multiple_keys(self) -> None:
         """Test storing multiple keys."""

@@ -80,8 +80,9 @@ class TestHttpServerFdio(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/unknown')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as exc:
-                self.assertEqual(exc.code, 404)
-                self.assertEqual(exc.read(), b'not found')
+                with exc:
+                    self.assertEqual(exc.code, 404)
+                    self.assertEqual(exc.read(), b'not found')
 
     def test_multiple_connections(self) -> None:
         with FdioHttpServerRunner() as port:

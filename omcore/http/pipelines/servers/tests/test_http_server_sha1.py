@@ -99,8 +99,9 @@ class TestHttpServerSha1(unittest.TestCase):
                 urllib.request.urlopen(req)
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
-                self.assertEqual(e.read(), b'not found')
+                with e:
+                    self.assertEqual(e.code, 404)
+                    self.assertEqual(e.read(), b'not found')
 
     def test_not_found_for_get_request(self) -> None:
         """Test that GET requests return 404."""
@@ -110,7 +111,8 @@ class TestHttpServerSha1(unittest.TestCase):
                 urllib.request.urlopen(f'http://127.0.0.1:{port}/sha1')
                 self.fail('Expected HTTPError')
             except urllib.error.HTTPError as e:
-                self.assertEqual(e.code, 404)
+                with e:
+                    self.assertEqual(e.code, 404)
 
     def test_multiple_requests(self) -> None:
         """Test multiple sequential SHA1 requests."""
