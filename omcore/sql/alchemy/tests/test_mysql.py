@@ -63,6 +63,7 @@ def _test_mysql(url: str) -> None:
             assert rows[0].name == 'some name 1'
 
 
+@pytest.mark.xfail(reason="AttributeError: module 'ssl' has no attribute 'PROTOCOL_TLSv1'. Did you mean: 'PROTOCOL_TLS'?")  # noqa
 @ptu.skip.if_cant_import('mysql.connector')
 @mark_sql_backend('mysql')
 def test_mysql_mysql_connector_python(harness) -> None:
