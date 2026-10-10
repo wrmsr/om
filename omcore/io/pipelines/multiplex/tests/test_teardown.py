@@ -13,10 +13,10 @@ from ...core import IoPipelineMessages
 from ...errors import AbortedIoPipelineError
 from ...flow.stub import StubIoPipelineFlowService
 from ...sched.types import IoPipelineScheduling
-from ..types import ConnectionClosedMultiplexError
-from ..types import MultiplexMessages
-from ..types import MultiplexOpenedStream
-from ..types import UnclaimedOutputMultiplexError
+from ..types import ConnectionClosedMultiplexIoPipelineError
+from ..types import IoPipelineMultiplexMessages
+from ..types import IoPipelineMultiplexOpenedStream
+from ..types import UnclaimedOutputMultiplexIoPipelineError
 from .apps import AppFactory
 from .apps import Emit
 from .apps import StreamApp
@@ -116,8 +116,8 @@ class TestChildErrors(unittest.TestCase):
             h.feed_stream('k', Emit(msg, b'after'))
 
             self.assertEqual(len(app.errors), 1)
-            self.assertIsInstance(app.errors[0], UnclaimedOutputMultiplexError)
-            self.assertIsInstance(failures[0], UnclaimedOutputMultiplexError)
+            self.assertIsInstance(app.errors[0], UnclaimedOutputMultiplexIoPipelineError)
+            self.assertIsInstance(failures[0], UnclaimedOutputMultiplexIoPipelineError)
             self.assertEqual(data_of(h.frames, 'k'), b'after')
         finally:
             h.close()
@@ -142,7 +142,7 @@ class TestTeardown(unittest.TestCase):
 
             self.assertFalse(child.is_ready)
             self.assertEqual(len(app.errors), 1)
-            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexError)
+            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexIoPipelineError)
             self.assertTrue(so.is_failed())
             self.assertIsInstance(opening.exc, AbortedIoPipelineError)
         finally:
@@ -157,9 +157,9 @@ class TestTeardown(unittest.TestCase):
                 h.pipeline.remove(h.pipeline.handlers()[-1])
 
             self.assertFalse(child.is_ready)
-            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexError)
+            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexIoPipelineError)
             self.assertTrue(so.is_failed())
-            self.assertIsInstance(opening.exc, ConnectionClosedMultiplexError)
+            self.assertIsInstance(opening.exc, ConnectionClosedMultiplexIoPipelineError)
             self.assertTrue(h.pipeline.is_ready)
         finally:
             h.close()
@@ -171,9 +171,9 @@ class TestTeardown(unittest.TestCase):
 
             (bye,) = of_type(h.frames, LGoodbye)
             self.assertIsInstance(bye.exc, RuntimeError)
-            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexError)
+            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexIoPipelineError)
             self.assertIsInstance(app.errors[0].__cause__, RuntimeError)
-            self.assertIsInstance(opening.exc, ConnectionClosedMultiplexError)
+            self.assertIsInstance(opening.exc, ConnectionClosedMultiplexIoPipelineError)
             self.assertTrue(h.pipeline.saw_final_output)
             self.assertEqual(len(h.mux.streams), 0)
         finally:
@@ -340,11 +340,11 @@ class _Opener(IoPipelineHandler):
         super().__init__()
 
         self._spec = spec
-        self.msg: ta.Optional[MultiplexMessages.OpenStream] = None
+        self.msg: ta.Optional[IoPipelineMultiplexMessages.OpenStream] = None
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if msg == 'open':
-            self.msg = MultiplexMessages.OpenStream(self._spec, 'from-handler')
+            self.msg = IoPipelineMultiplexMessages.OpenStream(self._spec, 'from-handler')
             ctx.feed_in(self.msg)
             return
         ctx.feed_in(msg)
@@ -371,12 +371,12 @@ class TestOpenSources(unittest.TestCase):
         try:
             h.step()
             app = _keep_open()
-            msg = MultiplexMessages.OpenStream(app_spec(app))
+            msg = IoPipelineMultiplexMessages.OpenStream(app_spec(app))
             out = Outcome(msg)
             mux_ref = h.pipeline.handlers()[-1]
             h.pipeline.feed_in_to(mux_ref, msg)
             h.step()
-            self.assertIsInstance(out.result, MultiplexOpenedStream)
+            self.assertIsInstance(out.result, IoPipelineMultiplexOpenedStream)
             self.assertTrue(app.saw_initial_input)
         finally:
             h.close()

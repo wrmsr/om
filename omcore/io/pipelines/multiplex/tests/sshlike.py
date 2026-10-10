@@ -12,13 +12,13 @@ from ....streambufs.segmented import SegmentedByteStreamBufferView
 from ...core import IoPipeline
 from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
-from ..adapters import MultiplexAdapter
-from ..adapters import MultiplexConnection
-from ..adapters import MultiplexStreamParams
-from ..handlers import MultiplexConfig
+from ..adapters import IoPipelineMultiplexAdapter
+from ..adapters import IoPipelineMultiplexConnection
+from ..adapters import IoPipelineMultiplexStreamParams
+from ..handlers import IoPipelineMultiplexConfig
 from ..handlers import MultiplexIoPipelineHandler
-from ..streams import MultiplexStream
-from ..types import MultiplexStreamOpening
+from ..streams import IoPipelineMultiplexStream
+from ..types import IoPipelineMultiplexStreamOpening
 from ..types import MultiplexStreamSpecFactory
 from .wire import FrameCodec
 from .wire import FrameCodecIoPipelineHandler
@@ -139,7 +139,7 @@ class SshOpenInfo:
     peer_id: ta.Optional[int] = None  # for a peer-opened channel
 
 
-class SshLikeAdapter(MultiplexAdapter):
+class SshLikeAdapter(IoPipelineMultiplexAdapter):
     def __init__(
             self,
             *,
@@ -159,12 +159,12 @@ class SshLikeAdapter(MultiplexAdapter):
         self._next_id += 1
         return k
 
-    def _st(self, stream: MultiplexStream) -> SshChannelState:
+    def _st(self, stream: IoPipelineMultiplexStream) -> SshChannelState:
         return stream.protocol
 
     #
 
-    def inbound(self, conn: MultiplexConnection, msg: ta.Any) -> bool:
+    def inbound(self, conn: IoPipelineMultiplexConnection, msg: ta.Any) -> bool:
         if isinstance(msg, SshOpen):
             key = self._alloc()
             stream = conn.open_remote(
@@ -228,23 +228,23 @@ class SshLikeAdapter(MultiplexAdapter):
 
         return True
 
-    def open_local(self, conn: MultiplexConnection, info: ta.Any) -> MultiplexStreamParams:
-        return MultiplexStreamParams(self._alloc(), recv_window=self._window, explicit=True)
+    def open_local(self, conn: IoPipelineMultiplexConnection, info: ta.Any) -> IoPipelineMultiplexStreamParams:
+        return IoPipelineMultiplexStreamParams(self._alloc(), recv_window=self._window, explicit=True)
 
     #
 
-    def encode_open(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_open(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         stream.protocol = SshChannelState()
         info: SshOpenInfo = stream.info
         return [SshOpen(info.kind, stream.key, self._window, self._max_packet, info.info)]  # type: ignore[arg-type]
 
-    def encode_accept(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_accept(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [SshOpenConfirm(self._st(stream).peer_id, stream.key, self._window, self._max_packet)]  # type: ignore[arg-type]  # noqa
 
-    def encode_refuse(self, opening: MultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_refuse(self, opening: IoPipelineMultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
         return [SshOpenFailure(opening.info.peer_id, str(reason))]
 
-    def encode_reset(self, stream: MultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_reset(self, stream: IoPipelineMultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
         # No reset in this protocol: a locally aborted channel is closed.
         st = self._st(stream)
         if st.close_sent or st.peer_id is None:
@@ -252,17 +252,21 @@ class SshLikeAdapter(MultiplexAdapter):
         st.close_sent = True
         return [SshClose(st.peer_id)]
 
-    def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
+    def encode_credit(self, stream: ta.Optional[IoPipelineMultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
         assert stream is not None
         st = self._st(stream)
         if st.close_sent:
             return []  # Nothing may be sent on a channel after our CLOSE: the grant is declined.
         return [SshWindowAdjust(st.peer_id, amount)]  # type: ignore[arg-type]
 
-    def encode_data(self, stream: MultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
+    def encode_data(
+            self,
+            stream: IoPipelineMultiplexStream,
+            data: SegmentedByteStreamBufferView,
+    ) -> ta.Sequence[ta.Any]:
         return [SshData(self._st(stream).peer_id, data.tobytes())]  # type: ignore[arg-type]
 
-    def encode_message(self, stream: MultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_message(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
         peer_id: int = self._st(stream).peer_id  # type: ignore[assignment]
         if isinstance(msg, ChannelExtData):
             return [SshExtData(peer_id, msg.code, msg.data)]
@@ -270,10 +274,10 @@ class SshLikeAdapter(MultiplexAdapter):
             return [SshRequest(peer_id, msg.name, msg.want_reply, msg.payload)]
         raise TypeError(msg)
 
-    def encode_end(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_end(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [SshEof(self._st(stream).peer_id)]  # type: ignore[arg-type]
 
-    def encode_finish(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_finish(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         st = self._st(stream)
         if st.close_sent:
             return []
@@ -282,20 +286,20 @@ class SshLikeAdapter(MultiplexAdapter):
 
     #
 
-    def max_data_unit(self, stream: MultiplexStream) -> int:
+    def max_data_unit(self, stream: IoPipelineMultiplexStream) -> int:
         return self._st(stream).peer_max_packet
 
-    def claim_output(self, stream: MultiplexStream, msg: ta.Any) -> bool:
+    def claim_output(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> bool:
         return isinstance(msg, (ChannelRequest, ChannelExtData))
 
-    def message_cost(self, stream: MultiplexStream, msg: ta.Any) -> int:
+    def message_cost(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> int:
         if isinstance(msg, ChannelExtData):
             return len(msg.data)
         return 0
 
     def split_message(
             self,
-            stream: MultiplexStream,
+            stream: IoPipelineMultiplexStream,
             msg: ta.Any,
             max_cost: int,
     ) -> ta.Optional[ta.Tuple[ta.Any, ta.Any]]:
@@ -303,12 +307,12 @@ class SshLikeAdapter(MultiplexAdapter):
             return None
         return (ChannelExtData(msg.code, msg.data[:max_cost]), ChannelExtData(msg.code, msg.data[max_cost:]))
 
-    def on_stream_finished(self, conn: MultiplexConnection, stream: MultiplexStream) -> None:
+    def on_stream_finished(self, conn: IoPipelineMultiplexConnection, stream: IoPipelineMultiplexStream) -> None:
         # The channel number is free once CLOSE has gone both ways.
         if self._st(stream).close_received:
             conn.close(stream.key)
 
-    def on_stream_released(self, stream: MultiplexStream) -> None:
+    def on_stream_released(self, stream: IoPipelineMultiplexStream) -> None:
         self.recently_closed.add(ta.cast(int, stream.key))
 
 
@@ -316,7 +320,7 @@ def ssh_like_spec(
         spec_factory: MultiplexStreamSpecFactory,
         *,
         adapter: ta.Optional[SshLikeAdapter] = None,
-        config: ta.Optional[MultiplexConfig] = None,
+        config: ta.Optional[IoPipelineMultiplexConfig] = None,
         auto_read: bool = False,
 ) -> ta.Tuple[IoPipeline.Spec, MultiplexIoPipelineHandler]:
     if adapter is None:

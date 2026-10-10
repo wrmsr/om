@@ -44,36 +44,36 @@ from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..yielding import IoPipelineYieldPolicy
 from ..yielding import NeverIoPipelineYieldPolicy
-from .adapters import MultiplexAdapter
-from .adapters import MultiplexConnection
-from .adapters import MultiplexConnectionStats
-from .children import MultiplexChild
-from .children import MultiplexChildConfig
-from .children import MultiplexChildHost
-from .credit import MultiplexCreditGrant
-from .credit import MultiplexCreditStrategy
+from .adapters import IoPipelineMultiplexAdapter
+from .adapters import IoPipelineMultiplexConnection
+from .adapters import IoPipelineMultiplexConnectionStats
+from .children import IoPipelineMultiplexChild
+from .children import IoPipelineMultiplexChildConfig
+from .children import IoPipelineMultiplexChildHost
+from .credit import IoPipelineMultiplexCreditGrant
+from .credit import IoPipelineMultiplexCreditStrategy
 from .credit import StreamMultiplexCreditStrategy
-from .schedulers import MultiplexOutputScheduler
-from .schedulers import RoundRobinMultiplexOutputScheduler
+from .schedulers import IoPipelineMultiplexOutputScheduler
+from .schedulers import RoundRobinIoPipelineMultiplexOutputScheduler
 from .streams import UNSET
-from .streams import MultiplexOutputFence
-from .streams import MultiplexOutputMessage
-from .streams import MultiplexStream
-from .streams import MultiplexStreamTable
-from .types import ConnectionClosedMultiplexError
-from .types import ControlOutputLimitMultiplexError
-from .types import InputLimitMultiplexError
-from .types import MultiplexMessages
-from .types import MultiplexOpenedStream
-from .types import MultiplexRefusal
-from .types import MultiplexStreamKey
-from .types import MultiplexStreamOpening
+from .streams import IoPipelineMultiplexOutputFence
+from .streams import IoPipelineMultiplexOutputMessage
+from .streams import IoPipelineMultiplexStream
+from .streams import IoPipelineMultiplexStreamTable
+from .types import ConnectionClosedMultiplexIoPipelineError
+from .types import ControlOutputLimitMultiplexIoPipelineError
+from .types import InputLimitMultiplexIoPipelineError
+from .types import IoPipelineMultiplexMessages
+from .types import IoPipelineMultiplexOpenedStream
+from .types import IoPipelineMultiplexRefusal
+from .types import IoPipelineMultiplexStreamKey
+from .types import IoPipelineMultiplexStreamOpening
 from .types import MultiplexStreamSpecFactory
-from .types import StreamLimitMultiplexError
-from .types import StreamRefusedMultiplexError
-from .types import StreamResetMultiplexError
-from .types import StreamStateMultiplexError
-from .types import StreamTruncatedMultiplexError
+from .types import StreamLimitMultiplexIoPipelineError
+from .types import StreamRefusedMultiplexIoPipelineError
+from .types import StreamResetMultiplexIoPipelineError
+from .types import StreamStateMultiplexIoPipelineError
+from .types import StreamTruncatedMultiplexIoPipelineError
 
 
 T = ta.TypeVar('T')
@@ -84,8 +84,8 @@ T = ta.TypeVar('T')
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexConfig:
-    child: MultiplexChildConfig = dc.field(default_factory=MultiplexChildConfig)
+class IoPipelineMultiplexConfig:
+    child: IoPipelineMultiplexChildConfig = dc.field(default_factory=IoPipelineMultiplexChildConfig)
 
     max_local_streams: ta.Optional[int] = None
     max_remote_streams: ta.Optional[int] = None
@@ -120,7 +120,7 @@ class MultiplexConfig:
 ##
 
 
-class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
+class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler):
     """
     Hosts many streams over one parent pipeline, each driven as a child pipeline, for a protocol given by `adapter`.
 
@@ -131,17 +131,17 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
     def __init__(
             self,
-            adapter: MultiplexAdapter,
+            adapter: IoPipelineMultiplexAdapter,
             spec_factory: MultiplexStreamSpecFactory,
             *,
-            config: ta.Optional[MultiplexConfig] = None,
-            credit: ta.Optional[MultiplexCreditStrategy] = None,
-            scheduler: ta.Optional[MultiplexOutputScheduler] = None,
+            config: ta.Optional[IoPipelineMultiplexConfig] = None,
+            credit: ta.Optional[IoPipelineMultiplexCreditStrategy] = None,
+            scheduler: ta.Optional[IoPipelineMultiplexOutputScheduler] = None,
     ) -> None:
         super().__init__()
 
         if config is None:
-            config = MultiplexConfig()
+            config = IoPipelineMultiplexConfig()
         self._config = config
         self._adapter = adapter
         self._spec_factory = spec_factory
@@ -150,36 +150,36 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             credit = StreamMultiplexCreditStrategy()
         self._credit = credit
         if scheduler is None:
-            scheduler = RoundRobinMultiplexOutputScheduler()
+            scheduler = RoundRobinIoPipelineMultiplexOutputScheduler()
         self._scheduler = scheduler
         self._yield_policy = config.yield_policy or NeverIoPipelineYieldPolicy()
 
-        self._table = MultiplexStreamTable(
+        self._table = IoPipelineMultiplexStreamTable(
             max_local=config.max_local_streams,
             max_remote=config.max_remote_streams,
         )
-        self._children: ta.Dict[MultiplexStreamKey, MultiplexChild] = {}
+        self._children: ta.Dict[IoPipelineMultiplexStreamKey, IoPipelineMultiplexChild] = {}
 
         # Accepted or confirmed streams whose child is created in the next pump.
-        self._pending_establish: ta.Dict[MultiplexStreamKey, ta.Tuple[ta.Any, ta.Optional[MultiplexMessages.OpenStream]]] = {}  # noqa
+        self._pending_establish: ta.Dict[IoPipelineMultiplexStreamKey, ta.Tuple[ta.Any, ta.Optional[IoPipelineMultiplexMessages.OpenStream]]] = {}  # noqa
         # Explicitly opened local streams awaiting the peer's confirmation.
-        self._pending_opens: ta.Dict[MultiplexStreamKey, MultiplexMessages.OpenStream] = {}
+        self._pending_opens: ta.Dict[IoPipelineMultiplexStreamKey, IoPipelineMultiplexMessages.OpenStream] = {}
         # Streams closed by the peer while their child still runs: its further output is discarded.
-        self._remote_closed: ta.Set[MultiplexStreamKey] = set()
+        self._remote_closed: ta.Set[IoPipelineMultiplexStreamKey] = set()
         # Streams whose finish was emitted, awaiting the adapter's decision.
-        self._finished_hooks: ta.List[MultiplexStreamKey] = []
+        self._finished_hooks: ta.List[IoPipelineMultiplexStreamKey] = []
         # Messages to feed into streams' pipelines at their boundary.
-        self._pending_feeds: ta.List[MultiplexMessages.FeedStream] = []
+        self._pending_feeds: ta.List[IoPipelineMultiplexMessages.FeedStream] = []
 
         self._control_q: ta.Deque[ta.Any] = collections.deque()
         # The connection error of a failed connection: emitted ahead of its FinalOutput, outside the pause bound.
         self._goodbye_q: ta.Deque[ta.Any] = collections.deque()
         self._completions: ta.Deque[ta.Tuple[IoPipelineMessages.Completable, ta.Any, ta.Optional[BaseException]]] = collections.deque()  # noqa
-        self._child_awaits: ta.Deque[ta.Tuple[MultiplexChild, AsyncIoPipelineMessages.Await]] = collections.deque()
+        self._child_awaits: ta.Deque[ta.Tuple[IoPipelineMultiplexChild, AsyncIoPipelineMessages.Await]] = collections.deque()  # noqa
         # Awaits forwarded to the parent on behalf of each stream, failed when the stream ends so the parent's driver
         # cancels the work it started for them.
-        self._parent_awaits: ta.Dict[MultiplexStreamKey, ta.List[AsyncIoPipelineMessages.Await]] = {}
-        self._flush_fences: ta.List[ta.Tuple[MultiplexChild, IoPipelineMessages.Completable, str]] = []
+        self._parent_awaits: ta.Dict[IoPipelineMultiplexStreamKey, ta.List[AsyncIoPipelineMessages.Await]] = {}
+        self._flush_fences: ta.List[ta.Tuple[IoPipelineMultiplexChild, IoPipelineMessages.Completable, str]] = []
 
         self._parent_writable = True
         self._control_during_pause = 0
@@ -211,29 +211,29 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     # inspection
 
     @property
-    def config(self) -> MultiplexConfig:
+    def config(self) -> IoPipelineMultiplexConfig:
         return self._config
 
     @property
-    def adapter(self) -> MultiplexAdapter:
+    def adapter(self) -> IoPipelineMultiplexAdapter:
         return self._adapter
 
     @property
-    def credit(self) -> MultiplexCreditStrategy:
+    def credit(self) -> IoPipelineMultiplexCreditStrategy:
         return self._credit
 
     @property
-    def streams(self) -> MultiplexStreamTable:
+    def streams(self) -> IoPipelineMultiplexStreamTable:
         return self._table
 
-    def child_pipeline(self, key: MultiplexStreamKey) -> ta.Optional[ta.Any]:
+    def child_pipeline(self, key: IoPipelineMultiplexStreamKey) -> ta.Optional[ta.Any]:
         if (child := self._children.get(key)) is None:
             return None
         return child.pipeline
 
     @property
-    def stats(self) -> MultiplexConnectionStats:
-        return MultiplexConnectionStats(
+    def stats(self) -> IoPipelineMultiplexConnectionStats:
+        return IoPipelineMultiplexConnectionStats(
             streams=self._table.stats,
             control_during_pause=self._control_during_pause,
             queued_input={s.key: (s.in_cost, s.in_messages) for s in self._table},
@@ -253,7 +253,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     # adapter facade
 
     @ta.final
-    class _Connection(MultiplexConnection):
+    class _Connection(IoPipelineMultiplexConnection):
         def __init__(self, h: 'MultiplexIoPipelineHandler') -> None:
             super().__init__()
 
@@ -263,14 +263,14 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         def h(self) -> 'MultiplexIoPipelineHandler':
             return check.not_none(self._h, 'MultiplexConnection used outside of its adapter call')
 
-        def get(self, key: MultiplexStreamKey) -> ta.Optional[MultiplexStream]:
+        def get(self, key: IoPipelineMultiplexStreamKey) -> ta.Optional[IoPipelineMultiplexStream]:
             return self.h._table.get(key)  # noqa
 
-        def streams(self) -> ta.Sequence[MultiplexStream]:
+        def streams(self) -> ta.Sequence[IoPipelineMultiplexStream]:
             return list(self.h._table)  # noqa
 
         @property
-        def stats(self) -> MultiplexConnectionStats:
+        def stats(self) -> IoPipelineMultiplexConnectionStats:
             return self.h.stats
 
         @property
@@ -282,13 +282,13 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
         def open_remote(
                 self,
-                key: MultiplexStreamKey,
+                key: IoPipelineMultiplexStreamKey,
                 info: ta.Any = None,
                 *,
                 recv_window: int,
                 send_credit: int = 0,
                 weight: int = 1,
-        ) -> ta.Optional[MultiplexStream]:
+        ) -> ta.Optional[IoPipelineMultiplexStream]:
             return self.h._open_remote(  # noqa
                 key,
                 info,
@@ -297,39 +297,39 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 weight=weight,
             )
 
-        def confirm(self, key: MultiplexStreamKey, *, send_credit: int = 0) -> None:
+        def confirm(self, key: IoPipelineMultiplexStreamKey, *, send_credit: int = 0) -> None:
             self.h._confirm(key, send_credit=send_credit)  # noqa
 
-        def refuse(self, key: MultiplexStreamKey, reason: ta.Any = None) -> None:
+        def refuse(self, key: IoPipelineMultiplexStreamKey, reason: ta.Any = None) -> None:
             self.h._refuse(key, reason)  # noqa
 
-        def data(self, key: MultiplexStreamKey, data: ta.Any, *, cost: ta.Optional[int] = None) -> None:
+        def data(self, key: IoPipelineMultiplexStreamKey, data: ta.Any, *, cost: ta.Optional[int] = None) -> None:
             self.h._data(key, data, cost=cost)  # noqa
 
         def discard(self, cost: int) -> None:
             h = self.h
             h._queue_grants(h._credit.discard_receive(cost))  # noqa
 
-        def message(self, key: MultiplexStreamKey, msg: ta.Any, *, cost: int = 0) -> None:
+        def message(self, key: IoPipelineMultiplexStreamKey, msg: ta.Any, *, cost: int = 0) -> None:
             self.h._message(key, msg, cost=cost)  # noqa
 
-        def end(self, key: MultiplexStreamKey) -> None:
+        def end(self, key: IoPipelineMultiplexStreamKey) -> None:
             self.h._end(key)  # noqa
 
-        def close(self, key: MultiplexStreamKey) -> None:
+        def close(self, key: IoPipelineMultiplexStreamKey) -> None:
             self.h._close(key)  # noqa
 
-        def reset(self, key: MultiplexStreamKey, reason: ta.Any = None) -> None:
+        def reset(self, key: IoPipelineMultiplexStreamKey, reason: ta.Any = None) -> None:
             h = self.h
             h._reset_stream(h._table[key], reason, by='remote')  # noqa
 
-        def grant(self, key: ta.Optional[MultiplexStreamKey], delta: int) -> None:
+        def grant(self, key: ta.Optional[IoPipelineMultiplexStreamKey], delta: int) -> None:
             self.h._credit.grant_send(key, delta)  # noqa
 
         def adjust_all(self, delta: int) -> None:
             self.h._credit.adjust_all_send(delta)  # noqa
 
-        def reset_local(self, key: MultiplexStreamKey, reason: ta.Any = None) -> None:
+        def reset_local(self, key: IoPipelineMultiplexStreamKey, reason: ta.Any = None) -> None:
             h = self.h
             h._reset_stream(h._table[key], reason, by='local', encode=True)  # noqa
 
@@ -341,7 +341,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         ) -> None:
             self.h._table.set_limits(max_local=max_local, max_remote=max_remote)  # noqa
 
-        def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+        def set_weight(self, key: IoPipelineMultiplexStreamKey, weight: int) -> None:
             h = self.h
             h._table[key]  # noqa  # raises UnknownStreamMultiplexError
             h._scheduler.set_weight(key, weight)  # noqa
@@ -353,7 +353,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             self.h._fail(exc)  # noqa
 
     @contextlib.contextmanager
-    def _connection(self) -> ta.Iterator[MultiplexConnection]:
+    def _connection(self) -> ta.Iterator[IoPipelineMultiplexConnection]:
         conn = MultiplexIoPipelineHandler._Connection(self)
         try:
             yield conn
@@ -366,7 +366,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     def notify(self, ctx: IoPipelineHandlerContext, no: IoPipelineHandlerNotification) -> None:
         if isinstance(no, IoPipelineHandlerNotifications.Removed):
             self._removed = True
-            self._teardown(ConnectionClosedMultiplexError('multiplexing handler removed'))
+            self._teardown(ConnectionClosedMultiplexIoPipelineError('multiplexing handler removed'))
 
     def on_child_activity(self, ctx: IoPipelineHandlerContext) -> None:
         if not ctx.invalidated:
@@ -414,13 +414,13 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         elif isinstance(msg, IoPipelineMessages.Error):
             self._fail(msg.exc)
 
-        elif isinstance(msg, MultiplexMessages.OpenStream):
+        elif isinstance(msg, IoPipelineMultiplexMessages.OpenStream):
             self._open_local(msg)
 
-        elif isinstance(msg, MultiplexMessages.Shutdown):
+        elif isinstance(msg, IoPipelineMultiplexMessages.Shutdown):
             self._on_shutdown()
 
-        elif isinstance(msg, MultiplexMessages.FeedStream):
+        elif isinstance(msg, IoPipelineMultiplexMessages.FeedStream):
             self._pending_feeds.append(msg)
 
         else:
@@ -443,17 +443,17 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         self._turn(ctx)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, MultiplexMessages.OpenStream):
+        if isinstance(msg, IoPipelineMultiplexMessages.OpenStream):
             self._open_local(msg)
             self._turn(ctx)
             return
 
-        if isinstance(msg, MultiplexMessages.Shutdown):
+        if isinstance(msg, IoPipelineMultiplexMessages.Shutdown):
             self._on_shutdown()
             self._turn(ctx)
             return
 
-        if isinstance(msg, MultiplexMessages.FeedStream):
+        if isinstance(msg, IoPipelineMultiplexMessages.FeedStream):
             self._pending_feeds.append(msg)
             self._turn(ctx)
             return
@@ -475,9 +475,9 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             self._fail(e)
             return default
 
-    def _queue_grants(self, grants: ta.Iterable[MultiplexCreditGrant]) -> None:
+    def _queue_grants(self, grants: ta.Iterable[IoPipelineMultiplexCreditGrant]) -> None:
         for g in grants:
-            stream: ta.Optional[MultiplexStream] = None
+            stream: ta.Optional[IoPipelineMultiplexStream] = None
             if g.key is not None:
                 if not self._credit.has_stream(g.key):
                     continue
@@ -498,14 +498,14 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 # Declined: the accounting follows the wire.
                 self._credit.withdraw(g.key, g.amount)
 
-    def _discard_input(self, stream: MultiplexStream) -> None:
+    def _discard_input(self, stream: IoPipelineMultiplexStream) -> None:
         """Drops input nothing will consume any more, returning its credit as if it had been consumed."""
 
         for cost in stream.clear_in():
             if self._credit.has_stream(stream.key):
                 self._queue_grants(self._credit.consume_receive(stream.key, cost))
 
-    def _fail_parent_awaits(self, key: MultiplexStreamKey, exc: BaseException) -> None:
+    def _fail_parent_awaits(self, key: IoPipelineMultiplexStreamKey, exc: BaseException) -> None:
         """Fails the Awaits forwarded for a stream which is ending, so the parent's driver cancels their work."""
 
         for pawt in self._parent_awaits.pop(key, ()):
@@ -523,26 +523,41 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     ) -> None:
         self._completions.append((msg, result, exc))
 
-    def _open_local(self, msg: MultiplexMessages.OpenStream) -> None:
+    def _open_local(self, msg: IoPipelineMultiplexMessages.OpenStream) -> None:
         if msg.is_done():
             return
         if not self.accepting:
-            self._complete_later(msg, exc=ConnectionClosedMultiplexError('connection is not accepting streams'))
+            self._complete_later(
+                msg,
+                exc=ConnectionClosedMultiplexIoPipelineError('connection is not accepting streams'),
+            )
             return
         if not self._table.can_open('local'):
-            self._complete_later(msg, exc=StreamLimitMultiplexError('local'))
+            self._complete_later(
+                msg,
+                exc=StreamLimitMultiplexIoPipelineError('local'),
+            )
             return
 
         try:
             with self._connection() as conn:
                 params = self._adapter.open_local(conn, msg.info)
-            stream = MultiplexStream(params.key, 'local', info=msg.info, opening=params.explicit)
+            stream = IoPipelineMultiplexStream(
+                params.key,
+                'local',
+                info=msg.info,
+                opening=params.explicit,
+            )
             self._table.add(stream)
         except Exception as e:  # noqa
             self._complete_later(msg, exc=e)
             return
 
-        self._credit.add_stream(stream.key, send_credit=params.send_credit, recv_window=params.recv_window)
+        self._credit.add_stream(
+            stream.key,
+            send_credit=params.send_credit,
+            recv_window=params.recv_window,
+        )
         self._scheduler.add(stream.key, weight=params.weight)
         self._control_q.extend(self._guard(self._adapter.encode_open, stream, default=()))
 
@@ -553,28 +568,28 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
     def _open_remote(
             self,
-            key: MultiplexStreamKey,
+            key: IoPipelineMultiplexStreamKey,
             info: ta.Any,
             *,
             recv_window: int,
             send_credit: int,
             weight: int,
-    ) -> ta.Optional[MultiplexStream]:
-        opening = MultiplexStreamOpening(key, 'remote', info)
+    ) -> ta.Optional[IoPipelineMultiplexStream]:
+        opening = IoPipelineMultiplexStreamOpening(key, 'remote', info)
 
         reason: ta.Any
         if not self.accepting:
-            reason = ConnectionClosedMultiplexError('connection is not accepting streams')
+            reason = ConnectionClosedMultiplexIoPipelineError('connection is not accepting streams')
         elif not self._table.can_open('remote'):
-            reason = StreamLimitMultiplexError('remote')
+            reason = StreamLimitMultiplexIoPipelineError('remote')
         else:
             try:
                 res = self._spec_factory(opening)
             except Exception as e:  # noqa
                 # An application error for one stream refuses that stream, like a child which cannot be built.
-                res = MultiplexRefusal(e)
-            if not isinstance(res, MultiplexRefusal):
-                stream = MultiplexStream(key, 'remote', info=info)
+                res = IoPipelineMultiplexRefusal(e)
+            if not isinstance(res, IoPipelineMultiplexRefusal):
+                stream = IoPipelineMultiplexStream(key, 'remote', info=info)
                 self._table.add(stream)
                 self._credit.add_stream(key, send_credit=send_credit, recv_window=recv_window)
                 self._scheduler.add(key, weight=weight)
@@ -586,7 +601,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         self._control_q.extend(self._guard(self._adapter.encode_refuse, opening, reason, default=()))
         return None
 
-    def _confirm(self, key: MultiplexStreamKey, *, send_credit: int) -> None:
+    def _confirm(self, key: IoPipelineMultiplexStreamKey, *, send_credit: int) -> None:
         stream = self._table[key]
         stream.confirm()
         if send_credit:
@@ -594,13 +609,13 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         msg = self._pending_opens.pop(key)
         self._pending_establish[key] = (msg.spec, msg)
 
-    def _refuse(self, key: MultiplexStreamKey, reason: ta.Any) -> None:
+    def _refuse(self, key: IoPipelineMultiplexStreamKey, reason: ta.Any) -> None:
         stream = self._table[key]
         stream.refuse(reason)
         if (msg := self._pending_opens.pop(key, None)) is not None:
-            self._complete_later(msg, exc=StreamRefusedMultiplexError(reason))
+            self._complete_later(msg, exc=StreamRefusedMultiplexIoPipelineError(reason))
 
-    def _data(self, key: MultiplexStreamKey, data: ta.Any, *, cost: ta.Optional[int]) -> None:
+    def _data(self, key: IoPipelineMultiplexStreamKey, data: ta.Any, *, cost: ta.Optional[int]) -> None:
         stream = self._table[key]
         if cost is None:
             cost = len(data)
@@ -609,7 +624,9 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             self._queue_grants(self._credit.discard_receive(cost))
             return
         if not stream.can_receive_data:
-            raise StreamStateMultiplexError(f'stream {key!r} cannot receive data in state {stream.state.name}')
+            raise StreamStateMultiplexIoPipelineError(
+                f'stream {key!r} cannot receive data in state {stream.state.name}',
+            )
         self._queue_grants(self._credit.receive(key, cost))
         if stream.local_finished or not len(data):
             # Nothing will consume it, or there is nothing to consume - an empty frame, which queued would be bounded
@@ -619,27 +636,29 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             return
         stream.push_in_data(data, cost)
 
-    def _message(self, key: MultiplexStreamKey, msg: ta.Any, *, cost: int) -> None:
+    def _message(self, key: IoPipelineMultiplexStreamKey, msg: ta.Any, *, cost: int) -> None:
         stream = self._table[key]
         if not stream.can_receive_message:
-            raise StreamStateMultiplexError(f'stream {key!r} cannot receive messages in state {stream.state.name}')
+            raise StreamStateMultiplexIoPipelineError(
+                f'stream {key!r} cannot receive messages in state {stream.state.name}',
+            )
         if cost:
             self._queue_grants(self._credit.receive(key, cost))
         elif stream.in_messages >= self._config.max_stream_input_messages:
-            raise InputLimitMultiplexError(key)
+            raise InputLimitMultiplexIoPipelineError(key)
         if stream.local_finished:
             if cost:
                 self._queue_grants(self._credit.consume_receive(key, cost))
             return
         stream.push_in_message(msg, cost)
 
-    def _end(self, key: MultiplexStreamKey) -> None:
+    def _end(self, key: IoPipelineMultiplexStreamKey) -> None:
         stream = self._table[key]
         stream.end_remote()
         if not stream.local_finished:
             stream.push_in_end()
 
-    def _close(self, key: MultiplexStreamKey) -> None:
+    def _close(self, key: IoPipelineMultiplexStreamKey) -> None:
         stream = self._table[key]
         if stream.is_terminal:
             return
@@ -647,7 +666,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         if child is None and key not in self._pending_establish:
             # Nothing was accepted: a local open still awaiting the peer's confirmation.
             if (msg := self._pending_opens.pop(key, None)) is not None:
-                self._complete_later(msg, exc=StreamResetMultiplexError('closed', by='remote'))
+                self._complete_later(msg, exc=StreamResetMultiplexIoPipelineError('closed', by='remote'))
             stream.close()
             return
         if child is not None and not child.is_running:
@@ -663,7 +682,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
     def _reset_stream(
             self,
-            stream: MultiplexStream,
+            stream: IoPipelineMultiplexStream,
             reason: ta.Any,
             *,
             by: ta.Literal['local', 'remote'],
@@ -679,7 +698,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         stream.reset(reason, by=by)
 
         if exc is None:
-            exc = StreamResetMultiplexError(reason, by=by)
+            exc = StreamResetMultiplexIoPipelineError(reason, by=by)
 
         if (pe := self._pending_establish.pop(key, None)) is not None and (pmsg := pe[1]) is not None:
             self._complete_later(pmsg, exc=exc)
@@ -711,10 +730,17 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                     stream,
                     'connection input ended',
                     by='remote',
-                    exc=ConnectionClosedMultiplexError('connection input ended before the stream was confirmed'),
+                    exc=ConnectionClosedMultiplexIoPipelineError(
+                        'connection input ended before the stream was confirmed',
+                    ),
                 )
             elif not stream.remote_ended:
-                self._reset_stream(stream, 'truncated', by='remote', exc=StreamTruncatedMultiplexError(stream.key))
+                self._reset_stream(
+                    stream,
+                    'truncated',
+                    by='remote',
+                    exc=StreamTruncatedMultiplexIoPipelineError(stream.key),
+                )
 
         try:
             with self._connection() as conn:
@@ -737,7 +763,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
         except Exception:  # noqa
             pass
 
-        cce = ConnectionClosedMultiplexError('connection failed')
+        cce = ConnectionClosedMultiplexIoPipelineError('connection failed')
         cce.__cause__ = exc
         for stream in self._table:
             self._reset_stream(stream, 'connection failed', by='local', exc=cce)
@@ -857,20 +883,20 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     def _establish(
             self,
             ctx: IoPipelineHandlerContext,
-            key: MultiplexStreamKey,
+            key: IoPipelineMultiplexStreamKey,
             spec: ta.Any,
-            msg: ta.Optional[MultiplexMessages.OpenStream],
+            msg: ta.Optional[IoPipelineMultiplexMessages.OpenStream],
     ) -> None:
         stream = self._table.get(key)
         if stream is None or stream.is_terminal:
             if msg is not None:
-                self._complete_later(msg, exc=ConnectionClosedMultiplexError('stream ended before establishment'))
+                self._complete_later(msg, exc=ConnectionClosedMultiplexIoPipelineError('stream ended before establishment'))  # noqa
             return
 
-        child = MultiplexChild(
+        child = IoPipelineMultiplexChild(
             stream,
             spec,
-            MultiplexStreamOpening(key, stream.origin, stream.info),
+            IoPipelineMultiplexStreamOpening(key, stream.origin, stream.info),
             config=self._config.child,
             parent_ctx=ctx,
         )
@@ -879,7 +905,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 # Nothing was accepted yet, so the stream is refused rather than reset.
                 self._control_q.extend(self._guard(
                     self._adapter.encode_refuse,
-                    MultiplexStreamOpening(key, stream.origin, stream.info),
+                    IoPipelineMultiplexStreamOpening(key, stream.origin, stream.info),
                     failure,
                     default=(),
                 ))
@@ -896,16 +922,16 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
 
         child.start()
         if msg is not None:
-            self._complete_later(msg, MultiplexOpenedStream(key, check.not_none(child.pipeline)))
+            self._complete_later(msg, IoPipelineMultiplexOpenedStream(key, check.not_none(child.pipeline)))
 
-    def _claim_output(self, stream: MultiplexStream, msg: ta.Any) -> ta.Optional[int]:
+    def _claim_output(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> ta.Optional[int]:
         """The flow-control cost of a stream's typed output message, or None if the adapter does not claim it."""
 
         if not self._guard(self._adapter.claim_output, stream, msg, default=False):
             return None
         return max(self._guard(self._adapter.message_cost, stream, msg, default=0), 0)
 
-    def _pump_child(self, child: MultiplexChild) -> bool:
+    def _pump_child(self, child: IoPipelineMultiplexChild) -> bool:
         stream = child.stream
         if not child.is_running:
             if stream.in_items:
@@ -961,9 +987,9 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                     continue
 
                 item = stream.pop_out_item()
-                if not isinstance(item, MultiplexOutputFence):
+                if not isinstance(item, IoPipelineMultiplexOutputFence):
                     if isinstance(item.msg, IoPipelineMessages.Completable):
-                        child.complete(item.msg, StreamResetMultiplexError('closed', by='remote'))
+                        child.complete(item.msg, StreamResetMultiplexIoPipelineError('closed', by='remote'))
                     continue
 
                 if item.kind == 'final':
@@ -974,7 +1000,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                     # complete ahead of it (DESIGN 5), nor may finishing the child now fail it.
                     self._flush_fences.append((child, item.msg, 'final'))
                 else:
-                    child.complete(item.msg, StreamResetMultiplexError('closed', by='remote'))
+                    child.complete(item.msg, StreamResetMultiplexIoPipelineError('closed', by='remote'))
 
             if not child.is_running and not stream.is_terminal:
                 stream.close()
@@ -1004,15 +1030,15 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             self._scheduler.remove(key)
             self._children.pop(key, None)
             self._remote_closed.discard(key)
-            self._fail_parent_awaits(key, ConnectionClosedMultiplexError('stream ended'))
+            self._fail_parent_awaits(key, ConnectionClosedMultiplexIoPipelineError('stream ended'))
             self._queue_grants(self._credit.pending_grants())
             self._guard(self._adapter.on_stream_released, stream, default=None)
 
-    def _refresh_ready(self, stream: MultiplexStream) -> None:
+    def _refresh_ready(self, stream: IoPipelineMultiplexStream) -> None:
         key = stream.key
         self._scheduler.set_ready(key, self._is_ready(stream))
 
-    def _is_ready(self, stream: MultiplexStream) -> bool:
+    def _is_ready(self, stream: IoPipelineMultiplexStream) -> bool:
         key = stream.key
         if (
                 stream.is_terminal or
@@ -1031,7 +1057,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 self._credit.send_available(key) - self._guard(adapter.data_unit_overhead, stream, default=0) > 0
             )
 
-        if isinstance(head, MultiplexOutputMessage):
+        if isinstance(head, IoPipelineMultiplexOutputMessage):
             if (cost := head.cost) <= 0:
                 return True
             limit = min(self._credit.send_available(key), self._guard(adapter.max_data_unit, stream, default=0))
@@ -1077,7 +1103,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             if not self._parent_writable:
                 self._control_during_pause += 1
                 if self._control_during_pause > self._config.max_control_during_pause:
-                    self._fail(ControlOutputLimitMultiplexError(self._control_during_pause))
+                    self._fail(ControlOutputLimitMultiplexIoPipelineError(self._control_during_pause))
             if self._failed is not None:
                 # Whether by the bound just crossed or by a reaction to what was fed: the rest of the batch is not
                 # emitted, only the connection error.
@@ -1161,7 +1187,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
                 # The stream's queue shrank: the next pump re-derives its child's writability, which may resume it.
                 self._dirty = True
 
-    def _emit_unit(self, ctx: IoPipelineHandlerContext, stream: MultiplexStream) -> int:
+    def _emit_unit(self, ctx: IoPipelineHandlerContext, stream: IoPipelineMultiplexStream) -> int:
         key = stream.key
         adapter = self._adapter
         head = check.not_none(stream.out_head())
@@ -1186,7 +1212,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             ))
             return cost
 
-        if isinstance(head, MultiplexOutputMessage):
+        if isinstance(head, IoPipelineMultiplexOutputMessage):
             msg = head.msg
             cost = head.cost
             if cost > 0:
@@ -1207,7 +1233,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
             self._feed_frames(ctx, self._guard(adapter.encode_message, stream, msg, default=()))
             return cost
 
-        fence = check.isinstance(stream.pop_out_item(), MultiplexOutputFence)
+        fence = check.isinstance(stream.pop_out_item(), IoPipelineMultiplexOutputFence)
         child = self._children[key]
         if fence.kind == 'shutdown':
             stream.end_local()
@@ -1236,7 +1262,7 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     def _on_parent_flush_done(
             ctx_ref: ta.Callable[[], ta.Optional[IoPipelineHandlerContext]],
             entries: ta.Sequence[ta.Tuple[
-                ta.Callable[[], ta.Optional[MultiplexChild]],
+                ta.Callable[[], ta.Optional[IoPipelineMultiplexChild]],
                 ta.Callable[[], ta.Optional[IoPipelineMessages.Completable]],
                 str,
             ]],
@@ -1263,9 +1289,9 @@ class MultiplexIoPipelineHandler(MultiplexChildHost, IoPipelineHandler):
     @staticmethod
     def _on_parent_await_done(
             ctx_ref: ta.Callable[[], ta.Optional[IoPipelineHandlerContext]],
-            child_ref: ta.Callable[[], ta.Optional[MultiplexChild]],
+            child_ref: ta.Callable[[], ta.Optional[IoPipelineMultiplexChild]],
             cawt_ref: ta.Callable[[], ta.Optional[AsyncIoPipelineMessages.Await]],
-            key: MultiplexStreamKey,
+            key: IoPipelineMultiplexStreamKey,
             pawt: AsyncIoPipelineMessages.Await,
     ) -> None:
         if (child := child_ref()) is not None and (cawt := cawt_ref()) is not None:

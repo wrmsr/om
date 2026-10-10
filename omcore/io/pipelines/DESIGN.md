@@ -515,7 +515,7 @@ layer; socket pairs, memory BIOs, explicit schedulers, and small recording handl
 ## 13. Stream multiplexing
 
 `multiplex` carries many logical streams over one pipeline. A `MultiplexIoPipelineHandler`, normally innermost in the
-parent pipeline, owns a set of streams, each backed by a child `IoPipeline` it drives; a `MultiplexAdapter` is the seam
+parent pipeline, owns a set of streams, each backed by a child `IoPipeline` it drives; a `IoPipelineMultiplexAdapter` is the seam
 to the concrete wire protocol. The core contains nothing protocol-specific: it was shaped against SSH channels and
 HTTP/2 streams, and toy versions of both are exercised in its tests.
 
@@ -526,7 +526,7 @@ HTTP/2 streams, and toy versions of both are exercised in its tests.
 - Peer-opened streams get their child spec from a factory given the stream's opening information, which may refuse
   them. Local streams are opened with `MultiplexMessages.OpenStream`, fed to the handler inbound (from a handler outside
   it, or from outside the pipeline with `feed_in_to`) or outbound; it completes once the stream is established.
-- The adapter tells the core what arrived by calling a `MultiplexConnection`, valid only during that call. The core
+- The adapter tells the core what arrived by calling a `IoPipelineMultiplexConnection`, valid only during that call. The core
   asks the adapter to encode what to emit, as one of two kinds of output: control output - opens, acceptances,
   refusals, resets, credit grants - which bypasses stream queues; and stream-ordered output - data, typed messages,
   end-of-output, finish - which keeps its place in its stream.
@@ -537,7 +537,7 @@ HTTP/2 streams, and toy versions of both are exercised in its tests.
 
 The multiplexing handler is each child's driver, performing the duties of section 8:
 
-1. The child is built from the factory's spec plus `MultiplexStreamMetadata` (key, origin, opening information), the
+1. The child is built from the factory's spec plus `IoPipelineMultiplexStreamMetadata` (key, origin, opening information), the
    spec's own flow service or else a default one, and - only when the parent has one - a scheduling service which
    delegates to the parent's under the multiplexing handler's ownership. Nothing else is inherited.
 2. `InitialInput` is fed when the stream is established: on acceptance for a peer-opened stream, on confirmation for an
@@ -590,10 +590,10 @@ need a handshake - so the adapter closes explicitly, and the core resets or refu
   the child finishes. A close after the local side finished releases the stream at once. A close decoded from the same
   read as the acceptance it follows is just as graceful: the child is built, receives what was accepted, then
   `FinalInput`.
-- A reset aborts the child with `StreamResetMultiplexError`, recording which side reset. If the child had already
+- A reset aborts the child with `StreamResetMultiplexIoPipelineError`, recording which side reset. If the child had already
   finished and only awaits its final flush, it completes normally.
 - On connection EOF, streams whose peer had ended its output carry on - the connection's output is still open - while
-  the others are aborted with `StreamTruncatedMultiplexError`, and unconfirmed local opens fail. The adapter's
+  the others are aborted with `StreamTruncatedMultiplexIoPipelineError`, and unconfirmed local opens fail. The adapter's
   `on_input_ended` then decides the connection's fate; by default it shuts down gracefully.
 - Graceful shutdown (`MultiplexMessages.Shutdown`, or the adapter's `begin_shutdown`) admits no new streams in either
   direction, lets existing ones finish, and then emits parent `FinalOutput`. An adapter implementing "streams above
@@ -625,7 +625,7 @@ Credit accounting is a pluggable strategy: `StreamMultiplexCreditStrategy` (per 
 - Receive credit is debited on arrival and replenished by policy as delivery consumes it (by default once half a window
   is consumed). Connection-level replenishment is its own policy: by default it frees credit as input arrives, so the
   connection window bounds only what is in flight and one slow stream cannot stall the others; freeing it on consumption
-  instead bounds total buffering. Arrivals beyond advertised credit raise `FlowControlMultiplexError` to the adapter,
+  instead bounds total buffering. Arrivals beyond advertised credit raise `FlowControlMultiplexIoPipelineError` to the adapter,
   which decides whether that is a stream or a connection error.
 - Queued input per stream is bounded by its window; uncontrolled typed messages by a separate count limit. Empty data
   is never queued.

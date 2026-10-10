@@ -6,13 +6,13 @@ import typing as ta
 
 from ....lite.abstract import Abstract
 from ....lite.check import check
-from .types import MultiplexStreamKey
+from .types import IoPipelineMultiplexStreamKey
 
 
 ##
 
 
-class MultiplexOutputScheduler(Abstract):
+class IoPipelineMultiplexOutputScheduler(Abstract):
     """
     Chooses which stream sends next when several have sendable output and the connection is writable.
 
@@ -22,35 +22,35 @@ class MultiplexOutputScheduler(Abstract):
     """
 
     @abc.abstractmethod
-    def add(self, key: MultiplexStreamKey, *, weight: int = 1) -> None:
+    def add(self, key: IoPipelineMultiplexStreamKey, *, weight: int = 1) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def remove(self, key: MultiplexStreamKey) -> None:
+    def remove(self, key: IoPipelineMultiplexStreamKey) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+    def set_weight(self, key: IoPipelineMultiplexStreamKey, weight: int) -> None:
         """Changes a stream's weight; a turn already under way keeps its allowance."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def set_ready(self, key: MultiplexStreamKey, ready: bool) -> None:
+    def set_ready(self, key: IoPipelineMultiplexStreamKey, ready: bool) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def is_ready(self, key: MultiplexStreamKey) -> bool:
+    def is_ready(self, key: IoPipelineMultiplexStreamKey) -> bool:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def next(self) -> ta.Optional[MultiplexStreamKey]:
+    def next(self) -> ta.Optional[IoPipelineMultiplexStreamKey]:
         """The ready stream which should send its next unit, or None if no stream is ready."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def account(self, key: MultiplexStreamKey, cost: int) -> None:
+    def account(self, key: IoPipelineMultiplexStreamKey, cost: int) -> None:
         """Records that `cost` was sent on the stream returned by the last `next()`."""
 
         raise NotImplementedError
@@ -60,7 +60,7 @@ class MultiplexOutputScheduler(Abstract):
 
 
 @ta.final
-class RoundRobinMultiplexOutputScheduler(MultiplexOutputScheduler):
+class RoundRobinIoPipelineMultiplexOutputScheduler(IoPipelineMultiplexOutputScheduler):
     """
     Deficit round robin: each ready stream in turn may send up to `quantum * weight` cost (always at least one unit)
     before the next ready stream gets its turn. Units are never split by the scheduler; a unit larger than the quantum
@@ -73,10 +73,10 @@ class RoundRobinMultiplexOutputScheduler(MultiplexOutputScheduler):
         check.arg(quantum > 0)
         self._quantum = quantum
 
-        self._weights: ta.Dict[MultiplexStreamKey, int] = {}
-        self._ready: ta.Set[MultiplexStreamKey] = set()
-        self._rotation: ta.Deque[MultiplexStreamKey] = collections.deque()  # ready streams awaiting their turn
-        self._current: ta.Optional[MultiplexStreamKey] = None
+        self._weights: ta.Dict[IoPipelineMultiplexStreamKey, int] = {}
+        self._ready: ta.Set[IoPipelineMultiplexStreamKey] = set()
+        self._rotation: ta.Deque[IoPipelineMultiplexStreamKey] = collections.deque()  # ready streams awaiting their turn  # noqa
+        self._current: ta.Optional[IoPipelineMultiplexStreamKey] = None
         self._remaining = 0
 
     def __repr__(self) -> str:
@@ -86,22 +86,22 @@ class RoundRobinMultiplexOutputScheduler(MultiplexOutputScheduler):
     def quantum(self) -> int:
         return self._quantum
 
-    def add(self, key: MultiplexStreamKey, *, weight: int = 1) -> None:
+    def add(self, key: IoPipelineMultiplexStreamKey, *, weight: int = 1) -> None:
         check.not_in(key, self._weights)
         check.arg(weight > 0)
         self._weights[key] = weight
 
-    def remove(self, key: MultiplexStreamKey) -> None:
+    def remove(self, key: IoPipelineMultiplexStreamKey) -> None:
         if self._weights.pop(key, None) is None:
             return
         self._set_unready(key)
 
-    def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+    def set_weight(self, key: IoPipelineMultiplexStreamKey, weight: int) -> None:
         check.in_(key, self._weights)
         check.arg(weight > 0)
         self._weights[key] = weight
 
-    def _set_unready(self, key: MultiplexStreamKey) -> None:
+    def _set_unready(self, key: IoPipelineMultiplexStreamKey) -> None:
         if key not in self._ready:
             return
         self._ready.discard(key)
@@ -111,7 +111,7 @@ class RoundRobinMultiplexOutputScheduler(MultiplexOutputScheduler):
         else:
             self._rotation.remove(key)
 
-    def set_ready(self, key: MultiplexStreamKey, ready: bool) -> None:
+    def set_ready(self, key: IoPipelineMultiplexStreamKey, ready: bool) -> None:
         check.in_(key, self._weights)
         if ready:
             if key in self._ready:
@@ -121,10 +121,10 @@ class RoundRobinMultiplexOutputScheduler(MultiplexOutputScheduler):
         else:
             self._set_unready(key)
 
-    def is_ready(self, key: MultiplexStreamKey) -> bool:
+    def is_ready(self, key: IoPipelineMultiplexStreamKey) -> bool:
         return key in self._ready
 
-    def next(self) -> ta.Optional[MultiplexStreamKey]:
+    def next(self) -> ta.Optional[IoPipelineMultiplexStreamKey]:
         if self._current is not None:
             if self._remaining > 0:
                 return self._current
@@ -140,7 +140,7 @@ class RoundRobinMultiplexOutputScheduler(MultiplexOutputScheduler):
         self._remaining = self._quantum * self._weights[key]
         return key
 
-    def account(self, key: MultiplexStreamKey, cost: int) -> None:
+    def account(self, key: IoPipelineMultiplexStreamKey, cost: int) -> None:
         check.arg(cost >= 0)
         if key == self._current:
             self._remaining -= max(cost, 1)

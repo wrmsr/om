@@ -5,13 +5,13 @@ import typing as ta
 import unittest
 
 from ..credit import ConnectionMultiplexCreditStrategy
-from ..credit import HalfWindowMultiplexCreditReplenishPolicy
-from ..credit import ImmediateMultiplexCreditReplenishPolicy
-from ..credit import MultiplexCreditGrant
-from ..credit import MultiplexCreditStrategy
+from ..credit import HalfWindowIoPipelineMultiplexCreditReplenishPolicy
+from ..credit import ImmediateIoPipelineMultiplexCreditReplenishPolicy
+from ..credit import IoPipelineMultiplexCreditGrant
+from ..credit import IoPipelineMultiplexCreditStrategy
 from ..credit import StreamMultiplexCreditStrategy
-from ..types import FlowControlMultiplexError
-from ..types import UnknownStreamMultiplexError
+from ..types import FlowControlMultiplexIoPipelineError
+from ..types import UnknownStreamMultiplexIoPipelineError
 
 
 ##
@@ -25,7 +25,7 @@ class _Model:
         self.queued: ta.Dict[int, int] = {}
 
 
-def _strategies() -> ta.Sequence[ta.Tuple[str, ta.Callable[[], MultiplexCreditStrategy]]]:
+def _strategies() -> ta.Sequence[ta.Tuple[str, ta.Callable[[], IoPipelineMultiplexCreditStrategy]]]:
     return [
         ('stream', lambda: StreamMultiplexCreditStrategy()),
         ('connection-receive', lambda: ConnectionMultiplexCreditStrategy(send_credit=5000, recv_window=4000)),
@@ -43,7 +43,7 @@ def _strategies() -> ta.Sequence[ta.Tuple[str, ta.Callable[[], MultiplexCreditSt
 class TestMultiplexCreditConservation(unittest.TestCase):
     """The same property suite against every strategy: granted == consumed + available, both directions."""
 
-    def _check_invariants(self, cs: MultiplexCreditStrategy, model: _Model, *, connection: bool) -> None:
+    def _check_invariants(self, cs: IoPipelineMultiplexCreditStrategy, model: _Model, *, connection: bool) -> None:
         for key, window in model.windows.items():
             t = cs.totals(key)
             self.assertEqual(t.send_granted, t.send_consumed + t.send_available)
@@ -127,7 +127,7 @@ class TestMultiplexCreditConservation(unittest.TestCase):
                                     self.assertIsNone(g.key)
                             else:
                                 before = cs.totals(key)
-                                with self.assertRaises(FlowControlMultiplexError):
+                                with self.assertRaises(FlowControlMultiplexIoPipelineError):
                                     cs.receive(key, outstanding + 1)
                                 self.assertEqual(cs.totals(key), before)
 
@@ -173,24 +173,24 @@ class TestStreamMultiplexCreditStrategy(unittest.TestCase):
         cs = StreamMultiplexCreditStrategy()
         cs.add_stream('a', recv_window=100)
         cs.receive('a', 100)
-        with self.assertRaises(FlowControlMultiplexError) as cm:
+        with self.assertRaises(FlowControlMultiplexIoPipelineError) as cm:
             cs.receive('a', 1)
         self.assertEqual((cm.exception.scope, cm.exception.key), ('stream', 'a'))
 
         self.assertEqual(cs.consume_receive('a', 49), [])
-        self.assertEqual(cs.consume_receive('a', 1), [MultiplexCreditGrant('a', 50)])
+        self.assertEqual(cs.consume_receive('a', 1), [IoPipelineMultiplexCreditGrant('a', 50)])
         cs.receive('a', 50)
-        self.assertEqual(cs.consume_receive('a', 50), [MultiplexCreditGrant('a', 50)])
+        self.assertEqual(cs.consume_receive('a', 50), [IoPipelineMultiplexCreditGrant('a', 50)])
         self.assertEqual(cs.totals('a').recv_outstanding, 50)
 
     def test_immediate_replenish_and_unknown_streams(self) -> None:
-        cs = StreamMultiplexCreditStrategy(stream_replenish=ImmediateMultiplexCreditReplenishPolicy())
+        cs = StreamMultiplexCreditStrategy(stream_replenish=ImmediateIoPipelineMultiplexCreditReplenishPolicy())
         cs.add_stream('a', recv_window=10)
         cs.receive('a', 3)
-        self.assertEqual(cs.consume_receive('a', 1), [MultiplexCreditGrant('a', 1)])
-        with self.assertRaises(UnknownStreamMultiplexError):
+        self.assertEqual(cs.consume_receive('a', 1), [IoPipelineMultiplexCreditGrant('a', 1)])
+        with self.assertRaises(UnknownStreamMultiplexIoPipelineError):
             cs.send_available('zz')
-        with self.assertRaises(UnknownStreamMultiplexError):
+        with self.assertRaises(UnknownStreamMultiplexIoPipelineError):
             cs.receive('zz', 1)
 
 
@@ -220,10 +220,10 @@ class TestConnectionMultiplexCreditStrategy(unittest.TestCase):
         cs.add_stream('b', recv_window=10)
 
         cs.receive('a', 10)
-        with self.assertRaises(FlowControlMultiplexError) as cm:
+        with self.assertRaises(FlowControlMultiplexIoPipelineError) as cm:
             cs.receive('b', 6)
         self.assertEqual(cm.exception.scope, 'connection')
-        with self.assertRaises(FlowControlMultiplexError) as cm:
+        with self.assertRaises(FlowControlMultiplexIoPipelineError) as cm:
             cs.receive('a', 1)
         self.assertEqual(cm.exception.scope, 'stream')
 
@@ -234,18 +234,18 @@ class TestConnectionMultiplexCreditStrategy(unittest.TestCase):
                     send_credit=0,
                     recv_window=20,
                     connection_replenish_on=mode,
-                    connection_replenish=ImmediateMultiplexCreditReplenishPolicy(),
+                    connection_replenish=ImmediateIoPipelineMultiplexCreditReplenishPolicy(),
                 )
                 cs.add_stream('slow', recv_window=20)
                 cs.add_stream('fast', recv_window=20)
 
                 grants = cs.receive('slow', 20)  # never consumed
                 if mode == 'receive':
-                    self.assertEqual(grants, [MultiplexCreditGrant(None, 20)])
+                    self.assertEqual(grants, [IoPipelineMultiplexCreditGrant(None, 20)])
                     cs.receive('fast', 20)  # the slow stream did not stall it
                 else:
                     self.assertEqual(grants, ())
-                    with self.assertRaises(FlowControlMultiplexError):
+                    with self.assertRaises(FlowControlMultiplexIoPipelineError):
                         cs.receive('fast', 1)
 
     def test_removed_stream_releases_connection_credit_in_consume_mode(self) -> None:
@@ -253,11 +253,11 @@ class TestConnectionMultiplexCreditStrategy(unittest.TestCase):
             send_credit=0,
             recv_window=20,
             connection_replenish_on='consume',
-            connection_replenish=HalfWindowMultiplexCreditReplenishPolicy(),
+            connection_replenish=HalfWindowIoPipelineMultiplexCreditReplenishPolicy(),
         )
         cs.add_stream('a', recv_window=20)
         cs.receive('a', 15)
         self.assertEqual(cs.pending_grants(), [])
         cs.remove_stream('a')
-        self.assertEqual(cs.pending_grants(), [MultiplexCreditGrant(None, 15)])
+        self.assertEqual(cs.pending_grants(), [IoPipelineMultiplexCreditGrant(None, 15)])
         self.assertEqual(cs.totals().recv_outstanding, 20)

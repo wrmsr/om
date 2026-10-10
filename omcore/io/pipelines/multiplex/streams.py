@@ -21,33 +21,33 @@ import typing as ta
 
 from ....lite.check import check
 from ...streambufs.utils import ByteStreamBuffers
-from .types import DuplicateStreamMultiplexError
-from .types import MultiplexStreamKey
-from .types import MultiplexStreamOrigin
-from .types import MultiplexStreamState
-from .types import StreamLimitMultiplexError
-from .types import StreamStateMultiplexError
-from .types import UnknownStreamMultiplexError
+from .types import DuplicateStreamMultiplexIoPipelineError
+from .types import IoPipelineMultiplexStreamKey
+from .types import IoPipelineMultiplexStreamOrigin
+from .types import IoPipelineMultiplexStreamState
+from .types import StreamLimitMultiplexIoPipelineError
+from .types import StreamStateMultiplexIoPipelineError
+from .types import UnknownStreamMultiplexIoPipelineError
 
 
 ##
 
 
-MultiplexOutputFenceKind = ta.Literal['flush', 'shutdown', 'final']  # ta.TypeAlias
+IoPipelineMultiplexOutputFenceKind = ta.Literal['flush', 'shutdown', 'final']  # ta.TypeAlias
 
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexOutputFence:
+class IoPipelineMultiplexOutputFence:
     """A fence in a stream's outbound queue, ordered with the output around it."""
 
-    kind: MultiplexOutputFenceKind
+    kind: IoPipelineMultiplexOutputFenceKind
     msg: ta.Any = None
 
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexOutputMessage:
+class IoPipelineMultiplexOutputMessage:
     """
     A typed message in a stream's outbound queue, keeping its place in order. A positive cost makes it flow-controlled
     like data; an uncontrolled message costs nothing.
@@ -59,14 +59,14 @@ class MultiplexOutputMessage:
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexInputData:
+class IoPipelineMultiplexInputData:
     data: ta.Any
     cost: int
 
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexInputMessage:
+class IoPipelineMultiplexInputMessage:
     msg: ta.Any
     cost: int = 0  # positive for flow-controlled typed messages (SSH extended data, say)
 
@@ -77,20 +77,24 @@ class MultiplexInputEnd:
         return f'{type(self).__name__}()'
 
 
-MultiplexInputItem = ta.Union[MultiplexInputData, MultiplexInputMessage, MultiplexInputEnd]  # ta.TypeAlias  # noqa
+MultiplexInputItem = ta.Union[  # ta.TypeAlias  # om-amalg-typing-no-move
+    IoPipelineMultiplexInputData,
+    IoPipelineMultiplexInputMessage,
+    MultiplexInputEnd,
+]
 
 
 ##
 
 
 @ta.final
-class MultiplexStream:
+class IoPipelineMultiplexStream:
     """One logical bidirectional flow: its lifecycle state machine and its ordered inbound and outbound queues."""
 
     def __init__(
             self,
-            key: MultiplexStreamKey,
-            origin: MultiplexStreamOrigin,
+            key: IoPipelineMultiplexStreamKey,
+            origin: IoPipelineMultiplexStreamOrigin,
             *,
             info: ta.Any = None,
             opening: bool = False,
@@ -108,10 +112,10 @@ class MultiplexStream:
         self._remote: ta.Literal['open', 'ended'] = 'open'
         self._terminal: ta.Optional[ta.Literal['closed', 'reset', 'refused']] = None
         self._terminal_reason: ta.Any = None
-        self._reset_by: ta.Optional[MultiplexStreamOrigin] = None
+        self._reset_by: ta.Optional[IoPipelineMultiplexStreamOrigin] = None
 
         # Outbound: data segments (memoryviews) interleaved with typed messages and fences, in exact order.
-        self._out_q: ta.Deque[ta.Union[memoryview, MultiplexOutputMessage, MultiplexOutputFence]] = collections.deque()
+        self._out_q: ta.Deque[ta.Union[memoryview, IoPipelineMultiplexOutputMessage, IoPipelineMultiplexOutputFence]] = collections.deque()  # noqa
         self._out_bytes = 0
 
         # Inbound, in exact order.
@@ -128,11 +132,11 @@ class MultiplexStream:
         return f'{type(self).__name__}@{id(self):x}<{self._key!r}, {self._origin}, {self.state.name}>'
 
     @property
-    def key(self) -> MultiplexStreamKey:
+    def key(self) -> IoPipelineMultiplexStreamKey:
         return self._key
 
     @property
-    def origin(self) -> MultiplexStreamOrigin:
+    def origin(self) -> IoPipelineMultiplexStreamOrigin:
         return self._origin
 
     @property
@@ -143,27 +147,27 @@ class MultiplexStream:
     # state
 
     @property
-    def state(self) -> MultiplexStreamState:
+    def state(self) -> IoPipelineMultiplexStreamState:
         if (t := self._terminal) is not None:
             return {
-                'closed': MultiplexStreamState.CLOSED,
-                'reset': MultiplexStreamState.RESET,
-                'refused': MultiplexStreamState.REFUSED,
+                'closed': IoPipelineMultiplexStreamState.CLOSED,
+                'reset': IoPipelineMultiplexStreamState.RESET,
+                'refused': IoPipelineMultiplexStreamState.REFUSED,
             }[t]
 
         if self._local == 'opening':
-            return MultiplexStreamState.OPENING
+            return IoPipelineMultiplexStreamState.OPENING
 
         local_done = self._local in ('ended', 'finished')
         remote_done = self._remote == 'ended'
         if local_done and remote_done:
-            return MultiplexStreamState.ENDED
+            return IoPipelineMultiplexStreamState.ENDED
         elif local_done:
-            return MultiplexStreamState.HALF_CLOSED_LOCAL
+            return IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL
         elif remote_done:
-            return MultiplexStreamState.HALF_CLOSED_REMOTE
+            return IoPipelineMultiplexStreamState.HALF_CLOSED_REMOTE
         else:
-            return MultiplexStreamState.OPEN
+            return IoPipelineMultiplexStreamState.OPEN
 
     @property
     def is_terminal(self) -> bool:
@@ -190,7 +194,7 @@ class MultiplexStream:
         return self._terminal_reason
 
     @property
-    def reset_by(self) -> ta.Optional[MultiplexStreamOrigin]:
+    def reset_by(self) -> ta.Optional[IoPipelineMultiplexStreamOrigin]:
         return self._reset_by
 
     @property
@@ -209,7 +213,9 @@ class MultiplexStream:
 
     def _require(self, ok: bool, op: str) -> None:
         if not ok:
-            raise StreamStateMultiplexError(f'{op} not permitted in stream {self._key!r} state {self.state.name}')
+            raise StreamStateMultiplexIoPipelineError(
+                f'{op} not permitted in stream {self._key!r} state {self.state.name}',
+            )
 
     def confirm(self) -> None:
         self._require(self._terminal is None and self._local == 'opening', 'confirm')
@@ -244,7 +250,7 @@ class MultiplexStream:
         self._terminal = 'closed'
         self._terminal_reason = reason
 
-    def reset(self, reason: ta.Any = None, *, by: MultiplexStreamOrigin) -> None:
+    def reset(self, reason: ta.Any = None, *, by: IoPipelineMultiplexStreamOrigin) -> None:
         self._require(self._terminal is None, 'reset')
         check.in_(by, ('local', 'remote'))
         self._terminal = 'reset'
@@ -272,13 +278,13 @@ class MultiplexStream:
 
     def push_out_message(self, msg: ta.Any, cost: int = 0) -> None:
         check.arg(cost >= 0)
-        self._out_q.append(MultiplexOutputMessage(msg, cost))
+        self._out_q.append(IoPipelineMultiplexOutputMessage(msg, cost))
         self._out_bytes += cost
 
-    def push_out_fence(self, kind: MultiplexOutputFenceKind, msg: ta.Any = None) -> None:
-        self._out_q.append(MultiplexOutputFence(kind, msg))
+    def push_out_fence(self, kind: IoPipelineMultiplexOutputFenceKind, msg: ta.Any = None) -> None:
+        self._out_q.append(IoPipelineMultiplexOutputFence(kind, msg))
 
-    def out_head(self) -> ta.Union[memoryview, MultiplexOutputMessage, MultiplexOutputFence, None]:
+    def out_head(self) -> ta.Union[memoryview, IoPipelineMultiplexOutputMessage, IoPipelineMultiplexOutputFence, None]:
         if not self._out_q:
             return None
         return self._out_q[0]
@@ -315,20 +321,20 @@ class MultiplexStream:
         """Replaces the typed message at the head of the queue - with the remainder of a split message, say."""
 
         check.arg(cost >= 0)
-        old = check.isinstance(self._out_q[0], MultiplexOutputMessage)
-        self._out_q[0] = MultiplexOutputMessage(msg, cost)
+        old = check.isinstance(self._out_q[0], IoPipelineMultiplexOutputMessage)
+        self._out_q[0] = IoPipelineMultiplexOutputMessage(msg, cost)
         self._out_bytes += cost - old.cost
 
-    def pop_out_item(self) -> ta.Union[MultiplexOutputMessage, MultiplexOutputFence]:
+    def pop_out_item(self) -> ta.Union[IoPipelineMultiplexOutputMessage, IoPipelineMultiplexOutputFence]:
         head = self._out_q.popleft()
         if isinstance(head, memoryview):
             self._out_q.appendleft(head)
             raise TypeError('head of queue is data')
-        if isinstance(head, MultiplexOutputMessage):
+        if isinstance(head, IoPipelineMultiplexOutputMessage):
             self._out_bytes -= head.cost
         return head
 
-    def clear_out(self) -> ta.List[ta.Union[MultiplexOutputMessage, MultiplexOutputFence]]:
+    def clear_out(self) -> ta.List[ta.Union[IoPipelineMultiplexOutputMessage, IoPipelineMultiplexOutputFence]]:
         """Discards all queued output, returning the non-data items (so their fences can be failed)."""
 
         items = [item for item in self._out_q if not isinstance(item, memoryview)]
@@ -366,13 +372,13 @@ class MultiplexStream:
     def push_in_data(self, data: ta.Any, cost: int) -> None:
         check.arg(cost >= 0)
         check.state(not self._in_end_queued)
-        self._in_q.append(MultiplexInputData(data, cost))
+        self._in_q.append(IoPipelineMultiplexInputData(data, cost))
         self._in_cost += cost
         self._in_bytes += len(data)
 
     def push_in_message(self, msg: ta.Any, cost: int = 0) -> None:
         check.arg(cost >= 0)
-        self._in_q.append(MultiplexInputMessage(msg, cost))
+        self._in_q.append(IoPipelineMultiplexInputMessage(msg, cost))
         if cost:
             self._in_cost += cost
         else:
@@ -390,10 +396,10 @@ class MultiplexStream:
 
     def pop_in(self) -> MultiplexInputItem:
         item = self._in_q.popleft()
-        if isinstance(item, MultiplexInputData):
+        if isinstance(item, IoPipelineMultiplexInputData):
             self._in_cost -= item.cost
             self._in_bytes -= len(item.data)
-        elif isinstance(item, MultiplexInputMessage):
+        elif isinstance(item, IoPipelineMultiplexInputMessage):
             if item.cost:
                 self._in_cost -= item.cost
             else:
@@ -418,7 +424,7 @@ class MultiplexStream:
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexStreamStats:
+class IoPipelineMultiplexStreamStats:
     """Read-only counters a protocol layer may use for its own defenses (open/reset floods, control backlogs)."""
 
     opened_local: int = 0
@@ -433,6 +439,8 @@ class MultiplexStreamStats:
     active_remote: int = 0
 
 
+# FIXME: UGHH
+
 @ta.final
 class _Unset:
     def __repr__(self) -> str:
@@ -444,7 +452,7 @@ UNSET: ta.Any = _Unset()
 
 
 @ta.final
-class MultiplexStreamTable:
+class IoPipelineMultiplexStreamTable:
     """The streams of one connection, with per-origin concurrency limits which may be changed at any time."""
 
     def __init__(
@@ -458,7 +466,7 @@ class MultiplexStreamTable:
         self._max_local = max_local
         self._max_remote = max_remote
 
-        self._streams: ta.Dict[MultiplexStreamKey, MultiplexStream] = {}
+        self._streams: ta.Dict[IoPipelineMultiplexStreamKey, IoPipelineMultiplexStream] = {}
         self._active = {'local': 0, 'remote': 0}
 
         self._counters: ta.Dict[str, int] = dict.fromkeys([
@@ -477,20 +485,20 @@ class MultiplexStreamTable:
     def __len__(self) -> int:
         return len(self._streams)
 
-    def __contains__(self, key: MultiplexStreamKey) -> bool:
+    def __contains__(self, key: IoPipelineMultiplexStreamKey) -> bool:
         return key in self._streams
 
-    def __iter__(self) -> ta.Iterator[MultiplexStream]:
+    def __iter__(self) -> ta.Iterator[IoPipelineMultiplexStream]:
         return iter(list(self._streams.values()))
 
-    def get(self, key: MultiplexStreamKey) -> ta.Optional[MultiplexStream]:
+    def get(self, key: IoPipelineMultiplexStreamKey) -> ta.Optional[IoPipelineMultiplexStream]:
         return self._streams.get(key)
 
-    def __getitem__(self, key: MultiplexStreamKey) -> MultiplexStream:
+    def __getitem__(self, key: IoPipelineMultiplexStreamKey) -> IoPipelineMultiplexStream:
         try:
             return self._streams[key]
         except KeyError:
-            raise UnknownStreamMultiplexError(key) from None
+            raise UnknownStreamMultiplexIoPipelineError(key) from None
 
     #
 
@@ -517,32 +525,32 @@ class MultiplexStreamTable:
             check.arg(max_remote is None or max_remote >= 0)
             self._max_remote = max_remote
 
-    def count(self, origin: MultiplexStreamOrigin) -> int:
+    def count(self, origin: IoPipelineMultiplexStreamOrigin) -> int:
         return self._active[origin]
 
-    def can_open(self, origin: MultiplexStreamOrigin) -> bool:
+    def can_open(self, origin: IoPipelineMultiplexStreamOrigin) -> bool:
         limit = self._max_local if origin == 'local' else self._max_remote
         return limit is None or self._active[origin] < limit
 
     #
 
-    def add(self, stream: MultiplexStream) -> None:
+    def add(self, stream: IoPipelineMultiplexStream) -> None:
         if stream.key in self._streams:
-            raise DuplicateStreamMultiplexError(stream.key)
+            raise DuplicateStreamMultiplexIoPipelineError(stream.key)
         if not self.can_open(stream.origin):
-            raise StreamLimitMultiplexError(stream.origin)
+            raise StreamLimitMultiplexIoPipelineError(stream.origin)
         check.state(not stream.is_terminal)
 
         self._streams[stream.key] = stream
         self._active[stream.origin] += 1
         self._counters[f'opened_{stream.origin}'] += 1
 
-    def count_refused(self, origin: MultiplexStreamOrigin) -> None:
+    def count_refused(self, origin: IoPipelineMultiplexStreamOrigin) -> None:
         """Counts a refusal of a stream which never entered the table."""
 
         self._counters[f'refused_{origin}'] += 1
 
-    def remove(self, key: MultiplexStreamKey) -> MultiplexStream:
+    def remove(self, key: IoPipelineMultiplexStreamKey) -> IoPipelineMultiplexStream:
         """Removes a terminal stream, counting its outcome."""
 
         stream = self[key]
@@ -551,18 +559,18 @@ class MultiplexStreamTable:
         self._active[stream.origin] -= 1
 
         st = stream.state
-        if st is MultiplexStreamState.CLOSED:
+        if st is IoPipelineMultiplexStreamState.CLOSED:
             self._counters['closed'] += 1
-        elif st is MultiplexStreamState.RESET:
+        elif st is IoPipelineMultiplexStreamState.RESET:
             self._counters[f'reset_{stream.reset_by}'] += 1
-        elif st is MultiplexStreamState.REFUSED:
+        elif st is IoPipelineMultiplexStreamState.REFUSED:
             self._counters[f'refused_{stream.origin}'] += 1
 
         return stream
 
     @property
-    def stats(self) -> MultiplexStreamStats:
-        return MultiplexStreamStats(
+    def stats(self) -> IoPipelineMultiplexStreamStats:
+        return IoPipelineMultiplexStreamStats(
             **self._counters,
             active_local=self._active['local'],
             active_remote=self._active['remote'],

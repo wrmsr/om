@@ -19,15 +19,15 @@ import typing as ta
 
 from ....lite.abstract import Abstract
 from ....lite.check import check
-from .types import FlowControlMultiplexError
-from .types import MultiplexStreamKey
-from .types import UnknownStreamMultiplexError
+from .types import FlowControlMultiplexIoPipelineError
+from .types import IoPipelineMultiplexStreamKey
+from .types import UnknownStreamMultiplexIoPipelineError
 
 
 ##
 
 
-class MultiplexCreditReplenishPolicy(Abstract):
+class IoPipelineMultiplexCreditReplenishPolicy(Abstract):
     @abc.abstractmethod
     def replenish(self, window: int, unadvertised: int) -> int:
         """
@@ -39,7 +39,7 @@ class MultiplexCreditReplenishPolicy(Abstract):
 
 
 @ta.final
-class HalfWindowMultiplexCreditReplenishPolicy(MultiplexCreditReplenishPolicy):
+class HalfWindowIoPipelineMultiplexCreditReplenishPolicy(IoPipelineMultiplexCreditReplenishPolicy):
     """Re-advertises all consumed credit once at least half of the window has been consumed."""
 
     def __repr__(self) -> str:
@@ -52,7 +52,7 @@ class HalfWindowMultiplexCreditReplenishPolicy(MultiplexCreditReplenishPolicy):
 
 
 @ta.final
-class ImmediateMultiplexCreditReplenishPolicy(MultiplexCreditReplenishPolicy):
+class ImmediateIoPipelineMultiplexCreditReplenishPolicy(IoPipelineMultiplexCreditReplenishPolicy):
     """Re-advertises consumed credit as soon as any is consumed."""
 
     def __repr__(self) -> str:
@@ -67,16 +67,16 @@ class ImmediateMultiplexCreditReplenishPolicy(MultiplexCreditReplenishPolicy):
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexCreditGrant:
+class IoPipelineMultiplexCreditGrant:
     """Credit to advertise to the peer: for a stream, or for the whole connection when `key` is None."""
 
-    key: ta.Optional[MultiplexStreamKey]
+    key: ta.Optional[IoPipelineMultiplexStreamKey]
     amount: int
 
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexCreditTotals:
+class IoPipelineMultiplexCreditTotals:
     """Cumulative accounting, for conservation checks: granted == consumed + available, per direction."""
 
     send_granted: int
@@ -88,7 +88,7 @@ class MultiplexCreditTotals:
     recv_outstanding: int
 
 
-class MultiplexCreditStrategy(Abstract):
+class IoPipelineMultiplexCreditStrategy(Abstract):
     """Send and receive credit accounting for one multiplexed connection."""
 
     #
@@ -97,7 +97,7 @@ class MultiplexCreditStrategy(Abstract):
     @abc.abstractmethod
     def add_stream(
             self,
-            key: MultiplexStreamKey,
+            key: IoPipelineMultiplexStreamKey,
             *,
             send_credit: int = 0,
             recv_window: int,
@@ -105,7 +105,7 @@ class MultiplexCreditStrategy(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def remove_stream(self, key: MultiplexStreamKey) -> None:
+    def remove_stream(self, key: IoPipelineMultiplexStreamKey) -> None:
         """
         Forgets a stream. Its unconsumed received cost is released as consumed for connection-level purposes, so a
         closed stream cannot permanently shrink the connection's receive window.
@@ -114,24 +114,24 @@ class MultiplexCreditStrategy(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def has_stream(self, key: MultiplexStreamKey) -> bool:
+    def has_stream(self, key: IoPipelineMultiplexStreamKey) -> bool:
         raise NotImplementedError
 
     #
     # sending
 
     @abc.abstractmethod
-    def send_available(self, key: MultiplexStreamKey) -> int:
+    def send_available(self, key: IoPipelineMultiplexStreamKey) -> int:
         """The cost a flow-controlled unit on the stream may have right now: the minimum applicable credit."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def consume_send(self, key: MultiplexStreamKey, cost: int) -> None:
+    def consume_send(self, key: IoPipelineMultiplexStreamKey, cost: int) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def grant_send(self, key: ta.Optional[MultiplexStreamKey], delta: int) -> None:
+    def grant_send(self, key: ta.Optional[IoPipelineMultiplexStreamKey], delta: int) -> None:
         """Adds (possibly negative) send credit to one stream, or to the connection when `key` is None."""
 
         raise NotImplementedError
@@ -146,7 +146,7 @@ class MultiplexCreditStrategy(Abstract):
     # receiving
 
     @abc.abstractmethod
-    def receive(self, key: MultiplexStreamKey, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def receive(self, key: IoPipelineMultiplexStreamKey, cost: int) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         """
         Debits arriving flow-controlled cost, returning any credit to advertise now. Raises FlowControlMultiplexError,
         debiting nothing, if the cost exceeds advertised credit.
@@ -155,13 +155,17 @@ class MultiplexCreditStrategy(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def consume_receive(self, key: MultiplexStreamKey, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def consume_receive(
+            self,
+            key: IoPipelineMultiplexStreamKey,
+            cost: int,
+    ) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         """Records delivery of received cost to the stream's consumer, returning any credit to advertise now."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def discard_receive(self, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def discard_receive(self, cost: int) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         """
         Debits and at once frees cost arriving for no live stream against any connection-level window, returning any
         credit to advertise now. Raises FlowControlMultiplexError, debiting nothing, if it exceeds advertised credit.
@@ -170,29 +174,29 @@ class MultiplexCreditStrategy(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def pending_grants(self) -> ta.Sequence[MultiplexCreditGrant]:
+    def pending_grants(self) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         """Credit to advertise now outside of a receive or consume - for example once stream removal released some."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+    def withdraw(self, key: ta.Optional[IoPipelineMultiplexStreamKey], amount: int) -> None:
         """
-        Takes back a grant returned by `receive`, `consume_receive`, `discard_receive` or `pending_grants` which was
-        not sent to the peer, so the accounting follows the wire: the credit is unadvertised again and will be
-        proposed afresh.
+        Takes back a grant returned by `receive`, `consume_receive`, `discard_receive` or `pending_grants` which was not
+        sent to the peer, so the accounting follows the wire: the credit is unadvertised again and will be proposed
+        afresh.
         """
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def recv_queued(self, key: MultiplexStreamKey) -> int:
+    def recv_queued(self, key: IoPipelineMultiplexStreamKey) -> int:
         """Received but not yet consumed cost."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def totals(self, key: ta.Optional[MultiplexStreamKey] = None) -> MultiplexCreditTotals:
+    def totals(self, key: ta.Optional[IoPipelineMultiplexStreamKey] = None) -> IoPipelineMultiplexCreditTotals:
         """Cumulative accounting for a stream, or for the connection-level windows when `key` is None."""
 
         raise NotImplementedError
@@ -201,108 +205,105 @@ class MultiplexCreditStrategy(Abstract):
 ##
 
 
-class _SendAccount:
-    def __init__(self, credit: int) -> None:
-        self.credit = credit
-        self.granted = credit
-        self.consumed = 0
+class _BaseIoPipelineMultiplexCreditStrategy(IoPipelineMultiplexCreditStrategy, Abstract):
+    class _SendAccount:
+        def __init__(self, credit: int) -> None:
+            self.credit = credit
+            self.granted = credit
+            self.consumed = 0
 
-    def consume(self, cost: int) -> None:
-        check.arg(cost >= 0)
-        self.credit -= cost
-        self.consumed += cost
+        def consume(self, cost: int) -> None:
+            check.arg(cost >= 0)
+            self.credit -= cost
+            self.consumed += cost
 
-    def grant(self, delta: int) -> None:
-        self.credit += delta
-        self.granted += delta
+        def grant(self, delta: int) -> None:
+            self.credit += delta
+            self.granted += delta
 
+    class _RecvAccount:
+        def __init__(self, window: int) -> None:
+            check.arg(window >= 0)
+            self.window = window
+            self.outstanding = window  # advertised and not yet used by the peer
+            self.queued = 0            # received, not yet consumed
+            self.unadvertised = 0      # consumed, not yet re-advertised
+            self.advertised = window
+            self.received = 0
 
-class _RecvAccount:
-    def __init__(self, window: int) -> None:
-        check.arg(window >= 0)
-        self.window = window
-        self.outstanding = window  # advertised and not yet used by the peer
-        self.queued = 0            # received, not yet consumed
-        self.unadvertised = 0      # consumed, not yet re-advertised
-        self.advertised = window
-        self.received = 0
+        def receive(self, cost: int) -> bool:
+            check.arg(cost >= 0)
+            if cost > self.outstanding:
+                return False
+            self.outstanding -= cost
+            self.queued += cost
+            self.received += cost
+            return True
 
-    def receive(self, cost: int) -> bool:
-        check.arg(cost >= 0)
-        if cost > self.outstanding:
-            return False
-        self.outstanding -= cost
-        self.queued += cost
-        self.received += cost
-        return True
+        def consume(self, cost: int) -> None:
+            check.arg(0 <= cost <= self.queued)
+            self.queued -= cost
+            self.unadvertised += cost
 
-    def consume(self, cost: int) -> None:
-        check.arg(0 <= cost <= self.queued)
-        self.queued -= cost
-        self.unadvertised += cost
+        def advertise(self, amount: int) -> None:
+            check.arg(0 < amount <= self.unadvertised)
+            self.unadvertised -= amount
+            self.outstanding += amount
+            self.advertised += amount
 
-    def advertise(self, amount: int) -> None:
-        check.arg(0 < amount <= self.unadvertised)
-        self.unadvertised -= amount
-        self.outstanding += amount
-        self.advertised += amount
+        def withdraw(self, amount: int) -> None:
+            """Takes back credit just advertised which was not, after all, sent to the peer."""
 
-    def withdraw(self, amount: int) -> None:
-        """Takes back credit just advertised which was not, after all, sent to the peer."""
+            check.arg(0 < amount <= self.outstanding)
+            self.outstanding -= amount
+            self.advertised -= amount
+            self.unadvertised += amount
 
-        check.arg(0 < amount <= self.outstanding)
-        self.outstanding -= amount
-        self.advertised -= amount
-        self.unadvertised += amount
+    class _StreamAccounts:
+        def __init__(self, send_credit: int, recv_window: int) -> None:
+            self.send = _BaseIoPipelineMultiplexCreditStrategy._SendAccount(send_credit)
+            self.recv = _BaseIoPipelineMultiplexCreditStrategy._RecvAccount(recv_window)
 
-
-class _StreamAccounts:
-    def __init__(self, send_credit: int, recv_window: int) -> None:
-        self.send = _SendAccount(send_credit)
-        self.recv = _RecvAccount(recv_window)
-
-
-class _BaseMultiplexCreditStrategy(MultiplexCreditStrategy, Abstract):
     def __init__(
             self,
             *,
-            stream_replenish: ta.Optional[MultiplexCreditReplenishPolicy] = None,
+            stream_replenish: ta.Optional[IoPipelineMultiplexCreditReplenishPolicy] = None,
     ) -> None:
         super().__init__()
 
         if stream_replenish is None:
-            stream_replenish = HalfWindowMultiplexCreditReplenishPolicy()
+            stream_replenish = HalfWindowIoPipelineMultiplexCreditReplenishPolicy()
         self._stream_replenish = stream_replenish
 
-        self._streams: ta.Dict[MultiplexStreamKey, _StreamAccounts] = {}
+        self._streams: ta.Dict[IoPipelineMultiplexStreamKey, _BaseIoPipelineMultiplexCreditStrategy._StreamAccounts] = {}  # noqa
 
-    def _accounts(self, key: MultiplexStreamKey) -> _StreamAccounts:
+    def _accounts(self, key: IoPipelineMultiplexStreamKey) -> _StreamAccounts:
         try:
             return self._streams[key]
         except KeyError:
-            raise UnknownStreamMultiplexError(key) from None
+            raise UnknownStreamMultiplexIoPipelineError(key) from None
 
     #
 
     def add_stream(
             self,
-            key: MultiplexStreamKey,
+            key: IoPipelineMultiplexStreamKey,
             *,
             send_credit: int = 0,
             recv_window: int,
     ) -> None:
         check.not_in(key, self._streams)
-        self._streams[key] = _StreamAccounts(send_credit, recv_window)
+        self._streams[key] = _BaseIoPipelineMultiplexCreditStrategy._StreamAccounts(send_credit, recv_window)
 
-    def remove_stream(self, key: MultiplexStreamKey) -> None:
+    def remove_stream(self, key: IoPipelineMultiplexStreamKey) -> None:
         self._streams.pop(key, None)
 
-    def has_stream(self, key: MultiplexStreamKey) -> bool:
+    def has_stream(self, key: IoPipelineMultiplexStreamKey) -> bool:
         return key in self._streams
 
     #
 
-    def grant_send(self, key: ta.Optional[MultiplexStreamKey], delta: int) -> None:
+    def grant_send(self, key: ta.Optional[IoPipelineMultiplexStreamKey], delta: int) -> None:
         check.not_none(key)
         self._accounts(key).send.grant(delta)
 
@@ -312,32 +313,32 @@ class _BaseMultiplexCreditStrategy(MultiplexCreditStrategy, Abstract):
 
     #
 
-    def _stream_receive(self, key: MultiplexStreamKey, cost: int) -> _StreamAccounts:
+    def _stream_receive(self, key: IoPipelineMultiplexStreamKey, cost: int) -> _StreamAccounts:
         acc = self._accounts(key)
         if not acc.recv.receive(cost):
-            raise FlowControlMultiplexError('stream', key)
+            raise FlowControlMultiplexIoPipelineError('stream', key)
         return acc
 
-    def _stream_consume(self, key: MultiplexStreamKey, cost: int) -> ta.List[MultiplexCreditGrant]:
+    def _stream_consume(self, key: IoPipelineMultiplexStreamKey, cost: int) -> ta.List[IoPipelineMultiplexCreditGrant]:
         acc = self._accounts(key)
         acc.recv.consume(cost)
 
-        out: ta.List[MultiplexCreditGrant] = []
+        out: ta.List[IoPipelineMultiplexCreditGrant] = []
         if (amount := self._stream_replenish.replenish(acc.recv.window, acc.recv.unadvertised)) > 0:
             acc.recv.advertise(amount)
-            out.append(MultiplexCreditGrant(key, amount))
+            out.append(IoPipelineMultiplexCreditGrant(key, amount))
         return out
 
-    def recv_queued(self, key: MultiplexStreamKey) -> int:
+    def recv_queued(self, key: IoPipelineMultiplexStreamKey) -> int:
         return self._accounts(key).recv.queued
 
-    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+    def withdraw(self, key: ta.Optional[IoPipelineMultiplexStreamKey], amount: int) -> None:
         check.not_none(key)
         self._accounts(key).recv.withdraw(amount)
 
-    def _stream_totals(self, key: MultiplexStreamKey) -> MultiplexCreditTotals:
+    def _stream_totals(self, key: IoPipelineMultiplexStreamKey) -> IoPipelineMultiplexCreditTotals:
         acc = self._accounts(key)
-        return MultiplexCreditTotals(
+        return IoPipelineMultiplexCreditTotals(
             send_granted=acc.send.granted,
             send_consumed=acc.send.consumed,
             send_available=acc.send.credit,
@@ -351,51 +352,55 @@ class _BaseMultiplexCreditStrategy(MultiplexCreditStrategy, Abstract):
 
 
 @ta.final
-class StreamMultiplexCreditStrategy(_BaseMultiplexCreditStrategy):
+class StreamMultiplexCreditStrategy(_BaseIoPipelineMultiplexCreditStrategy):
     """Per-stream credit only, as in SSH channels."""
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}'
 
-    def send_available(self, key: MultiplexStreamKey) -> int:
+    def send_available(self, key: IoPipelineMultiplexStreamKey) -> int:
         return self._accounts(key).send.credit
 
-    def consume_send(self, key: MultiplexStreamKey, cost: int) -> None:
+    def consume_send(self, key: IoPipelineMultiplexStreamKey, cost: int) -> None:
         acc = self._accounts(key)
         check.state(cost <= acc.send.credit)
         acc.send.consume(cost)
 
-    def grant_send(self, key: ta.Optional[MultiplexStreamKey], delta: int) -> None:
+    def grant_send(self, key: ta.Optional[IoPipelineMultiplexStreamKey], delta: int) -> None:
         if key is None:
             raise TypeError('connection-level credit is not part of this strategy')
         super().grant_send(key, delta)
 
-    def receive(self, key: MultiplexStreamKey, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def receive(self, key: IoPipelineMultiplexStreamKey, cost: int) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         self._stream_receive(key, cost)
         return ()
 
-    def consume_receive(self, key: MultiplexStreamKey, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def consume_receive(
+            self,
+            key: IoPipelineMultiplexStreamKey,
+            cost: int,
+    ) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         return self._stream_consume(key, cost)
 
-    def discard_receive(self, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def discard_receive(self, cost: int) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         return ()
 
-    def pending_grants(self) -> ta.Sequence[MultiplexCreditGrant]:
+    def pending_grants(self) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         return ()
 
-    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+    def withdraw(self, key: ta.Optional[IoPipelineMultiplexStreamKey], amount: int) -> None:
         if key is None:
             raise TypeError('connection-level credit is not part of this strategy')
         super().withdraw(key, amount)
 
-    def totals(self, key: ta.Optional[MultiplexStreamKey] = None) -> MultiplexCreditTotals:
+    def totals(self, key: ta.Optional[IoPipelineMultiplexStreamKey] = None) -> IoPipelineMultiplexCreditTotals:
         if key is None:
             raise TypeError('connection-level credit is not part of this strategy')
         return self._stream_totals(key)
 
 
 @ta.final
-class ConnectionMultiplexCreditStrategy(_BaseMultiplexCreditStrategy):
+class ConnectionMultiplexCreditStrategy(_BaseIoPipelineMultiplexCreditStrategy):
     """
     Per-stream plus connection-wide credit, as in HTTP/2.
 
@@ -413,57 +418,57 @@ class ConnectionMultiplexCreditStrategy(_BaseMultiplexCreditStrategy):
             *,
             send_credit: int,
             recv_window: int,
-            stream_replenish: ta.Optional[MultiplexCreditReplenishPolicy] = None,
-            connection_replenish: ta.Optional[MultiplexCreditReplenishPolicy] = None,
+            stream_replenish: ta.Optional[IoPipelineMultiplexCreditReplenishPolicy] = None,
+            connection_replenish: ta.Optional[IoPipelineMultiplexCreditReplenishPolicy] = None,
             connection_replenish_on: ta.Literal['receive', 'consume'] = 'receive',
     ) -> None:
         super().__init__(stream_replenish=stream_replenish)
 
         if connection_replenish is None:
-            connection_replenish = HalfWindowMultiplexCreditReplenishPolicy()
+            connection_replenish = HalfWindowIoPipelineMultiplexCreditReplenishPolicy()
         self._connection_replenish = connection_replenish
         check.in_(connection_replenish_on, ('receive', 'consume'))
         self._connection_replenish_on = connection_replenish_on
 
-        self._send = _SendAccount(send_credit)
-        self._recv = _RecvAccount(recv_window)
+        self._send = _BaseIoPipelineMultiplexCreditStrategy._SendAccount(send_credit)  # noqa
+        self._recv = _BaseIoPipelineMultiplexCreditStrategy._RecvAccount(recv_window)  # noqa
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}'
 
-    def remove_stream(self, key: MultiplexStreamKey) -> None:
+    def remove_stream(self, key: IoPipelineMultiplexStreamKey) -> None:
         acc = self._streams.pop(key, None)
         if acc is not None and acc.recv.queued and self._connection_replenish_on == 'consume':
             # Discarded input no longer occupies the connection window.
             self._recv.consume(acc.recv.queued)
 
-    def pending_grants(self) -> ta.Sequence[MultiplexCreditGrant]:
+    def pending_grants(self) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         if (amount := self._connection_replenish.replenish(self._recv.window, self._recv.unadvertised)) > 0:
             self._recv.advertise(amount)
-            return [MultiplexCreditGrant(None, amount)]
+            return [IoPipelineMultiplexCreditGrant(None, amount)]
         return []
 
-    def send_available(self, key: MultiplexStreamKey) -> int:
+    def send_available(self, key: IoPipelineMultiplexStreamKey) -> int:
         return min(self._accounts(key).send.credit, self._send.credit)
 
-    def consume_send(self, key: MultiplexStreamKey, cost: int) -> None:
+    def consume_send(self, key: IoPipelineMultiplexStreamKey, cost: int) -> None:
         acc = self._accounts(key)
         check.state(cost <= min(acc.send.credit, self._send.credit))
         acc.send.consume(cost)
         self._send.consume(cost)
 
-    def grant_send(self, key: ta.Optional[MultiplexStreamKey], delta: int) -> None:
+    def grant_send(self, key: ta.Optional[IoPipelineMultiplexStreamKey], delta: int) -> None:
         if key is None:
             self._send.grant(delta)
         else:
             super().grant_send(key, delta)
 
-    def receive(self, key: MultiplexStreamKey, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def receive(self, key: IoPipelineMultiplexStreamKey, cost: int) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         acc = self._accounts(key)
         if cost > self._recv.outstanding:
-            raise FlowControlMultiplexError('connection', key)
+            raise FlowControlMultiplexIoPipelineError('connection', key)
         if not acc.recv.receive(cost):
-            raise FlowControlMultiplexError('stream', key)
+            raise FlowControlMultiplexIoPipelineError('stream', key)
         check.state(self._recv.receive(cost))
 
         if self._connection_replenish_on == 'receive':
@@ -471,29 +476,33 @@ class ConnectionMultiplexCreditStrategy(_BaseMultiplexCreditStrategy):
             return self.pending_grants()
         return ()
 
-    def consume_receive(self, key: MultiplexStreamKey, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def consume_receive(
+            self,
+            key: IoPipelineMultiplexStreamKey,
+            cost: int,
+    ) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         out = self._stream_consume(key, cost)
         if self._connection_replenish_on == 'consume':
             self._recv.consume(cost)
             out.extend(self.pending_grants())
         return out
 
-    def discard_receive(self, cost: int) -> ta.Sequence[MultiplexCreditGrant]:
+    def discard_receive(self, cost: int) -> ta.Sequence[IoPipelineMultiplexCreditGrant]:
         if not self._recv.receive(cost):
-            raise FlowControlMultiplexError('connection', None)
+            raise FlowControlMultiplexIoPipelineError('connection', None)
         self._recv.consume(cost)
         return self.pending_grants()
 
-    def withdraw(self, key: ta.Optional[MultiplexStreamKey], amount: int) -> None:
+    def withdraw(self, key: ta.Optional[IoPipelineMultiplexStreamKey], amount: int) -> None:
         if key is None:
             self._recv.withdraw(amount)
         else:
             super().withdraw(key, amount)
 
-    def totals(self, key: ta.Optional[MultiplexStreamKey] = None) -> MultiplexCreditTotals:
+    def totals(self, key: ta.Optional[IoPipelineMultiplexStreamKey] = None) -> IoPipelineMultiplexCreditTotals:
         if key is not None:
             return self._stream_totals(key)
-        return MultiplexCreditTotals(
+        return IoPipelineMultiplexCreditTotals(
             send_granted=self._send.granted,
             send_consumed=self._send.consumed,
             send_available=self._send.credit,

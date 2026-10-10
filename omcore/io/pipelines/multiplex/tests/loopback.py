@@ -15,16 +15,16 @@ from ...core import IoPipelineMessages
 from ...drivers.pure import PureIoPipelineDriver
 from ...drivers.types import IoPipelineDriverState
 from ...flow.stub import StubIoPipelineFlowService
-from ..adapters import MultiplexAdapter
-from ..adapters import MultiplexConnection
-from ..adapters import MultiplexStreamParams
-from ..credit import MultiplexCreditStrategy
-from ..handlers import MultiplexConfig
+from ..adapters import IoPipelineMultiplexAdapter
+from ..adapters import IoPipelineMultiplexConnection
+from ..adapters import IoPipelineMultiplexStreamParams
+from ..credit import IoPipelineMultiplexCreditStrategy
+from ..handlers import IoPipelineMultiplexConfig
 from ..handlers import MultiplexIoPipelineHandler
-from ..schedulers import MultiplexOutputScheduler
-from ..streams import MultiplexStream
-from ..types import MultiplexMessages
-from ..types import MultiplexStreamOpening
+from ..schedulers import IoPipelineMultiplexOutputScheduler
+from ..streams import IoPipelineMultiplexStream
+from ..types import IoPipelineMultiplexMessages
+from ..types import IoPipelineMultiplexStreamOpening
 from ..types import MultiplexStreamSpecFactory
 
 
@@ -138,7 +138,7 @@ class Outcome:
             self.exc = m.get_exception()
 
 
-class LoopbackAdapter(MultiplexAdapter):
+class LoopbackAdapter(IoPipelineMultiplexAdapter):
     def __init__(
             self,
             *,
@@ -168,7 +168,7 @@ class LoopbackAdapter(MultiplexAdapter):
         self.released: ta.List[ta.Any] = []
         self.input_ended = 0
 
-    def inbound(self, conn: MultiplexConnection, msg: ta.Any) -> bool:
+    def inbound(self, conn: IoPipelineMultiplexConnection, msg: ta.Any) -> bool:
         if isinstance(msg, LBatch):
             for f in msg.frames:
                 self.inbound(conn, f)
@@ -198,61 +198,65 @@ class LoopbackAdapter(MultiplexAdapter):
             return False
         return True
 
-    def open_local(self, conn: MultiplexConnection, info: ta.Any) -> MultiplexStreamParams:
+    def open_local(self, conn: IoPipelineMultiplexConnection, info: ta.Any) -> IoPipelineMultiplexStreamParams:
         key = self._next_key
         self._next_key += 1
-        return MultiplexStreamParams(
+        return IoPipelineMultiplexStreamParams(
             key,
             recv_window=self._recv_window,
             send_credit=self._local_send_credit,
             explicit=self._explicit_open,
         )
 
-    def encode_open(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_open(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [LOpen(stream.key, stream.info)]
 
-    def encode_accept(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_accept(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [LAccept(stream.key)]
 
-    def encode_refuse(self, opening: MultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_refuse(self, opening: IoPipelineMultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
         return [LRefuse(opening.key, reason)]
 
-    def encode_reset(self, stream: MultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_reset(self, stream: IoPipelineMultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
         return [LReset(stream.key, reason)]
 
-    def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
+    def encode_credit(self, stream: ta.Optional[IoPipelineMultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
         return [LGrant(stream.key if stream is not None else None, amount)]
 
-    def encode_data(self, stream: MultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
+    def encode_data(
+            self,
+            stream: IoPipelineMultiplexStream,
+            data: SegmentedByteStreamBufferView,
+    ) -> ta.Sequence[ta.Any]:
         return [LData(stream.key, bytes(data.tobytes()))]
 
-    def encode_message(self, stream: MultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_message(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
         return [LMsg(stream.key, msg)]
 
-    def encode_end(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_end(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [LEnd(stream.key)]
 
-    def encode_finish(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_finish(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [LFinish(stream.key, stream.local_ended)]
 
     def encode_connection_error(self, exc: BaseException) -> ta.Sequence[ta.Any]:
         return [LGoodbye(exc)]
 
-    def max_data_unit(self, stream: MultiplexStream) -> int:
+    def max_data_unit(self, stream: IoPipelineMultiplexStream) -> int:
         return self._max_unit
 
-    def data_unit_overhead(self, stream: MultiplexStream) -> int:
+    def data_unit_overhead(self, stream: IoPipelineMultiplexStream) -> int:
         return self._overhead
 
-    def claim_output(self, stream: MultiplexStream, msg: ta.Any) -> bool:
+    def claim_output(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> bool:
         return self._claim(msg)
 
-    def message_cost(self, stream: MultiplexStream, msg: ta.Any) -> int:
+    def message_cost(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> int:
         return self._cost(msg)
 
     def split_message(
             self,
-            stream: MultiplexStream,
+            stream: IoPipelineMultiplexStream,
             msg: ta.Any,
             max_cost: int,
     ) -> ta.Optional[ta.Tuple[ta.Any, ta.Any]]:
@@ -260,16 +264,16 @@ class LoopbackAdapter(MultiplexAdapter):
             return None
         return self._split(msg, max_cost)
 
-    def on_stream_finished(self, conn: MultiplexConnection, stream: MultiplexStream) -> None:
+    def on_stream_finished(self, conn: IoPipelineMultiplexConnection, stream: IoPipelineMultiplexStream) -> None:
         if self._on_finish == 'close':
             conn.close(stream.key)
         elif self._on_finish == 'reset' and not stream.remote_ended:
             conn.reset_local(stream.key, 'finished early')
 
-    def on_stream_released(self, stream: MultiplexStream) -> None:
+    def on_stream_released(self, stream: IoPipelineMultiplexStream) -> None:
         self.released.append(stream.key)
 
-    def on_input_ended(self, conn: MultiplexConnection) -> None:
+    def on_input_ended(self, conn: IoPipelineMultiplexConnection) -> None:
         self.input_ended += 1
         super().on_input_ended(conn)
 
@@ -293,9 +297,9 @@ class LoopbackHarness:
             spec_factory: MultiplexStreamSpecFactory,
             *,
             adapter: ta.Optional[LoopbackAdapter] = None,
-            config: ta.Optional[MultiplexConfig] = None,
-            credit: ta.Optional[MultiplexCreditStrategy] = None,
-            scheduler: ta.Optional[MultiplexOutputScheduler] = None,
+            config: ta.Optional[IoPipelineMultiplexConfig] = None,
+            credit: ta.Optional[IoPipelineMultiplexCreditStrategy] = None,
+            scheduler: ta.Optional[IoPipelineMultiplexOutputScheduler] = None,
             parent_auto_read: bool = True,
             parent_flow: bool = True,
             extra_outer: ta.Sequence[IoPipelineHandler] = (),
@@ -354,13 +358,13 @@ class LoopbackHarness:
         return self.step()
 
     def open(self, spec: IoPipeline.Spec, info: ta.Any = None) -> Outcome:
-        msg = MultiplexMessages.OpenStream(spec, info)
+        msg = IoPipelineMultiplexMessages.OpenStream(spec, info)
         out = Outcome(msg)
         self.enqueue(msg)
         return out
 
     def feed_stream(self, key: ta.Any, *msgs: ta.Any) -> ta.List[ta.Any]:
-        return self.enqueue(MultiplexMessages.FeedStream(key, msgs))
+        return self.enqueue(IoPipelineMultiplexMessages.FeedStream(key, msgs))
 
     def app(self, key: ta.Any) -> ta.Any:
         """The (first) handler of a stream's pipeline."""

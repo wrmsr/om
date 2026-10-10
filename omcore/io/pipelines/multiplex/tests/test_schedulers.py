@@ -4,14 +4,14 @@ import collections
 import typing as ta
 import unittest
 
-from ..schedulers import RoundRobinMultiplexOutputScheduler
+from ..schedulers import RoundRobinIoPipelineMultiplexOutputScheduler
 
 
 ##
 
 
 def _run(
-        sched: RoundRobinMultiplexOutputScheduler,
+        sched: RoundRobinIoPipelineMultiplexOutputScheduler,
         steps: int,
         unit: ta.Callable[[ta.Any], int],
 ) -> ta.List[ta.Any]:
@@ -26,7 +26,7 @@ def _run(
 
 class TestRoundRobinMultiplexOutputScheduler(unittest.TestCase):
     def test_quantum_shares_are_fair(self) -> None:
-        sched = RoundRobinMultiplexOutputScheduler(quantum=100)
+        sched = RoundRobinIoPipelineMultiplexOutputScheduler(quantum=100)
         for k in 'abc':
             sched.add(k)
             sched.set_ready(k, True)
@@ -38,21 +38,21 @@ class TestRoundRobinMultiplexOutputScheduler(unittest.TestCase):
         self.assertEqual(set(counts.values()), {100})
 
     def test_large_units_take_a_whole_turn_each(self) -> None:
-        sched = RoundRobinMultiplexOutputScheduler(quantum=10)
+        sched = RoundRobinIoPipelineMultiplexOutputScheduler(quantum=10)
         for k in 'ab':
             sched.add(k)
             sched.set_ready(k, True)
         self.assertEqual(_run(sched, 6, lambda _: 1000), list('ababab'))
 
     def test_zero_cost_units_cannot_hold_a_turn(self) -> None:
-        sched = RoundRobinMultiplexOutputScheduler(quantum=3)
+        sched = RoundRobinIoPipelineMultiplexOutputScheduler(quantum=3)
         for k in 'ab':
             sched.add(k)
             sched.set_ready(k, True)
         self.assertEqual(_run(sched, 12, lambda _: 0), list('aaabbbaaabbb'))
 
     def test_weights(self) -> None:
-        sched = RoundRobinMultiplexOutputScheduler(quantum=10)
+        sched = RoundRobinIoPipelineMultiplexOutputScheduler(quantum=10)
         sched.add('heavy', weight=3)
         sched.add('light')
         for k in ('heavy', 'light'):
@@ -61,7 +61,7 @@ class TestRoundRobinMultiplexOutputScheduler(unittest.TestCase):
         self.assertEqual(counts['heavy'], 3 * counts['light'])
 
     def test_unready_streams_are_skipped_and_rejoin_at_the_back(self) -> None:
-        sched = RoundRobinMultiplexOutputScheduler(quantum=10)
+        sched = RoundRobinIoPipelineMultiplexOutputScheduler(quantum=10)
         for k in 'abc':
             sched.add(k)
             sched.set_ready(k, True)
@@ -77,7 +77,7 @@ class TestRoundRobinMultiplexOutputScheduler(unittest.TestCase):
         self.assertEqual(sched.next(), 'b')
 
     def test_current_stream_going_unready_or_removed(self) -> None:
-        sched = RoundRobinMultiplexOutputScheduler(quantum=100)
+        sched = RoundRobinIoPipelineMultiplexOutputScheduler(quantum=100)
         for k in 'ab':
             sched.add(k)
             sched.set_ready(k, True)
@@ -94,7 +94,7 @@ class TestRoundRobinMultiplexOutputScheduler(unittest.TestCase):
         self.assertEqual(_run(sched, 3, lambda _: 100), list('aaa'))
 
     def test_no_stream_is_starved_under_churn(self) -> None:
-        sched = RoundRobinMultiplexOutputScheduler(quantum=50)
+        sched = RoundRobinIoPipelineMultiplexOutputScheduler(quantum=50)
         keys = list(range(10))
         for k in keys:
             sched.add(k)

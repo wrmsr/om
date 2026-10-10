@@ -17,10 +17,10 @@ import typing as ta
 from ....lite.abstract import Abstract
 from ...streambufs.segmented import SegmentedByteStreamBufferView
 from .streams import UNSET
-from .streams import MultiplexStream
-from .streams import MultiplexStreamStats
-from .types import MultiplexStreamKey
-from .types import MultiplexStreamOpening
+from .streams import IoPipelineMultiplexStream
+from .streams import IoPipelineMultiplexStreamStats
+from .types import IoPipelineMultiplexStreamKey
+from .types import IoPipelineMultiplexStreamOpening
 
 
 ##
@@ -28,10 +28,10 @@ from .types import MultiplexStreamOpening
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexStreamParams:
+class IoPipelineMultiplexStreamParams:
     """What the adapter decides about a stream it is opening locally."""
 
-    key: MultiplexStreamKey
+    key: IoPipelineMultiplexStreamKey
 
     # Initial receive window advertised to the peer.
     recv_window: int
@@ -48,35 +48,35 @@ class MultiplexStreamParams:
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexConnectionStats:
+class IoPipelineMultiplexConnectionStats:
     """Read-only facts a protocol layer may use for its own defenses."""
 
-    streams: MultiplexStreamStats
+    streams: IoPipelineMultiplexStreamStats
 
     # Control output emitted since the connection's output last became writable while it was paused.
     control_during_pause: int
 
     # Per stream: (queued flow-controlled input cost, queued uncontrolled input items).
-    queued_input: ta.Mapping[MultiplexStreamKey, ta.Tuple[int, int]]
+    queued_input: ta.Mapping[IoPipelineMultiplexStreamKey, ta.Tuple[int, int]]
 
 
-class MultiplexConnection(Abstract):
+class IoPipelineMultiplexConnection(Abstract):
     """The multiplexing core as seen by its protocol adapter, for the duration of one adapter call."""
 
     #
     # inspection
 
     @abc.abstractmethod
-    def get(self, key: MultiplexStreamKey) -> ta.Optional[MultiplexStream]:
+    def get(self, key: IoPipelineMultiplexStreamKey) -> ta.Optional[IoPipelineMultiplexStream]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def streams(self) -> ta.Sequence[MultiplexStream]:
+    def streams(self) -> ta.Sequence[IoPipelineMultiplexStream]:
         raise NotImplementedError
 
     @property
     @abc.abstractmethod
-    def stats(self) -> MultiplexConnectionStats:
+    def stats(self) -> IoPipelineMultiplexConnectionStats:
         raise NotImplementedError
 
     @property
@@ -101,13 +101,13 @@ class MultiplexConnection(Abstract):
     @abc.abstractmethod
     def open_remote(
             self,
-            key: MultiplexStreamKey,
+            key: IoPipelineMultiplexStreamKey,
             info: ta.Any = None,
             *,
             recv_window: int,
             send_credit: int = 0,
             weight: int = 1,
-    ) -> ta.Optional[MultiplexStream]:
+    ) -> ta.Optional[IoPipelineMultiplexStream]:
         """
         A peer-opened stream. Returns the stream if it is accepted - by limits, shutdown state, and the stream spec
         factory (which may refuse it, or raise) - or None if it was refused, in which case the refusal has been encoded
@@ -117,19 +117,19 @@ class MultiplexConnection(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def confirm(self, key: MultiplexStreamKey, *, send_credit: int = 0) -> None:
+    def confirm(self, key: IoPipelineMultiplexStreamKey, *, send_credit: int = 0) -> None:
         """The peer confirmed a locally opened stream."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def refuse(self, key: MultiplexStreamKey, reason: ta.Any = None) -> None:
+    def refuse(self, key: IoPipelineMultiplexStreamKey, reason: ta.Any = None) -> None:
         """The peer refused a locally opened stream."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def data(self, key: MultiplexStreamKey, data: ta.Any, *, cost: ta.Optional[int] = None) -> None:
+    def data(self, key: IoPipelineMultiplexStreamKey, data: ta.Any, *, cost: ta.Optional[int] = None) -> None:
         """
         Flow-controlled stream data, costing `cost` (default: its length). Raises FlowControlMultiplexError if it
         exceeds advertised credit and StreamStateMultiplexError if the stream cannot receive data; the adapter decides
@@ -150,7 +150,7 @@ class MultiplexConnection(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def message(self, key: MultiplexStreamKey, msg: ta.Any, *, cost: int = 0) -> None:
+    def message(self, key: IoPipelineMultiplexStreamKey, msg: ta.Any, *, cost: int = 0) -> None:
         """
         A typed message for the stream, ordered with its data. A positive cost makes it flow-controlled. Raises
         InputLimitMultiplexError when too many uncontrolled items are queued for the stream.
@@ -159,13 +159,13 @@ class MultiplexConnection(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def end(self, key: MultiplexStreamKey) -> None:
+    def end(self, key: IoPipelineMultiplexStreamKey) -> None:
         """The peer ended its output on the stream. Its pipeline sees FinalInput after everything queued before it."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def close(self, key: MultiplexStreamKey) -> None:
+    def close(self, key: IoPipelineMultiplexStreamKey) -> None:
         """
         The stream is closed by protocol agreement - the peer will neither send nor receive more on it.
 
@@ -177,13 +177,13 @@ class MultiplexConnection(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def reset(self, key: MultiplexStreamKey, reason: ta.Any = None) -> None:
+    def reset(self, key: IoPipelineMultiplexStreamKey, reason: ta.Any = None) -> None:
         """The peer abortively terminated the stream."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def grant(self, key: ta.Optional[MultiplexStreamKey], delta: int) -> None:
+    def grant(self, key: ta.Optional[IoPipelineMultiplexStreamKey], delta: int) -> None:
         """Send credit from the peer: for one stream, or for the connection when `key` is None. May be negative."""
 
         raise NotImplementedError
@@ -198,7 +198,7 @@ class MultiplexConnection(Abstract):
     # local actions
 
     @abc.abstractmethod
-    def reset_local(self, key: MultiplexStreamKey, reason: ta.Any = None) -> None:
+    def reset_local(self, key: IoPipelineMultiplexStreamKey, reason: ta.Any = None) -> None:
         """Abortively terminates a stream from this side, encoding and queueing the reset."""
 
         raise NotImplementedError
@@ -215,7 +215,7 @@ class MultiplexConnection(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def set_weight(self, key: MultiplexStreamKey, weight: int) -> None:
+    def set_weight(self, key: IoPipelineMultiplexStreamKey, weight: int) -> None:
         """Changes a stream's output scheduling weight (an HTTP/2 PRIORITY, say); applies from its next turn."""
 
         raise NotImplementedError
@@ -239,7 +239,7 @@ class MultiplexConnection(Abstract):
 ##
 
 
-class MultiplexAdapter(Abstract):
+class IoPipelineMultiplexAdapter(Abstract):
     """
     A concrete protocol's half of multiplexing.
 
@@ -251,7 +251,7 @@ class MultiplexAdapter(Abstract):
     # inbound
 
     @abc.abstractmethod
-    def inbound(self, conn: MultiplexConnection, msg: ta.Any) -> bool:
+    def inbound(self, conn: IoPipelineMultiplexConnection, msg: ta.Any) -> bool:
         """
         Handles one message arriving at the multiplexing handler from outside it - normally a decoded protocol frame -
         by calling `conn`. Returns False if the message is not the adapter's, which is then forwarded inward.
@@ -263,7 +263,7 @@ class MultiplexAdapter(Abstract):
     # local opens
 
     @abc.abstractmethod
-    def open_local(self, conn: MultiplexConnection, info: ta.Any) -> MultiplexStreamParams:
+    def open_local(self, conn: IoPipelineMultiplexConnection, info: ta.Any) -> IoPipelineMultiplexStreamParams:
         """Allocates a key and initial windows for a stream being opened locally."""
 
         raise NotImplementedError
@@ -271,20 +271,20 @@ class MultiplexAdapter(Abstract):
     #
     # control output
 
-    def encode_open(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_open(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return ()
 
-    def encode_accept(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_accept(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return ()
 
-    def encode_refuse(self, opening: MultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_refuse(self, opening: IoPipelineMultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
         return ()
 
-    def encode_reset(self, stream: MultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_reset(self, stream: IoPipelineMultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
         return ()
 
     @abc.abstractmethod
-    def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
+    def encode_credit(self, stream: ta.Optional[IoPipelineMultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
         """
         Advertises receive credit for a stream, or for the connection when `stream` is None.
 
@@ -300,18 +300,26 @@ class MultiplexAdapter(Abstract):
     # stream-ordered output
 
     @abc.abstractmethod
-    def encode_data(self, stream: MultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
+    def encode_data(
+            self,
+            stream: IoPipelineMultiplexStream,
+            data: SegmentedByteStreamBufferView,
+    ) -> ta.Sequence[ta.Any]:
         raise NotImplementedError
 
-    def encode_message(self, stream: MultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_message(
+            self,
+            stream: IoPipelineMultiplexStream,
+            msg: ta.Any,
+    ) -> ta.Sequence[ta.Any]:
         raise TypeError(msg)
 
-    def encode_end(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_end(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         """End of the stream's local output (its pipeline sent ShutdownOutput)."""
 
         return ()
 
-    def encode_finish(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_finish(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         """
         The stream's local endpoint finished (its pipeline sent FinalOutput) - `stream.local_ended` says whether
         end-of-output was already encoded.
@@ -322,29 +330,29 @@ class MultiplexAdapter(Abstract):
     #
     # sizing and costs
 
-    def max_data_unit(self, stream: MultiplexStream) -> int:
+    def max_data_unit(self, stream: IoPipelineMultiplexStream) -> int:
         """The most data bytes one emitted unit may carry."""
 
         return 16 * 1024
 
-    def data_unit_overhead(self, stream: MultiplexStream) -> int:
+    def data_unit_overhead(self, stream: IoPipelineMultiplexStream) -> int:
         """Credit cost of a data unit beyond its length (padding, say)."""
 
         return 0
 
-    def claim_output(self, stream: MultiplexStream, msg: ta.Any) -> bool:
+    def claim_output(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> bool:
         """Whether a non-byte message produced by a stream's pipeline is a valid typed message of this protocol."""
 
         return False
 
-    def message_cost(self, stream: MultiplexStream, msg: ta.Any) -> int:
+    def message_cost(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> int:
         """The flow-control cost of a claimed typed message; zero for uncontrolled messages."""
 
         return 0
 
     def split_message(
             self,
-            stream: MultiplexStream,
+            stream: IoPipelineMultiplexStream,
             msg: ta.Any,
             max_cost: int,
     ) -> ta.Optional[ta.Tuple[ta.Any, ta.Any]]:
@@ -355,21 +363,21 @@ class MultiplexAdapter(Abstract):
     #
     # lifecycle hooks
 
-    def on_stream_finished(self, conn: MultiplexConnection, stream: MultiplexStream) -> None:
+    def on_stream_finished(self, conn: IoPipelineMultiplexConnection, stream: IoPipelineMultiplexStream) -> None:
         """
         After a stream's finish was emitted. The adapter may close the stream now (`conn.close`), reset it, or leave it
         awaiting the peer's close.
         """
 
-    def on_stream_released(self, stream: MultiplexStream) -> None:
+    def on_stream_released(self, stream: IoPipelineMultiplexStream) -> None:
         """The stream left the table. A protocol which must absorb late frames for a closed key remembers it here."""
 
-    def on_shutdown(self, conn: MultiplexConnection) -> None:
+    def on_shutdown(self, conn: IoPipelineMultiplexConnection) -> None:
         """A local graceful shutdown was requested. The adapter may announce it to the peer before shutting down."""
 
         conn.begin_shutdown()
 
-    def on_input_ended(self, conn: MultiplexConnection) -> None:
+    def on_input_ended(self, conn: IoPipelineMultiplexConnection) -> None:
         """
         The connection's input ended. Streams whose peer had not ended its output have already been aborted with
         StreamTruncatedMultiplexError. By default the connection shuts down gracefully.

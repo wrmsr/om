@@ -35,19 +35,19 @@ from ..errors import AbortedIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.types import IoPipelineScheduling
-from .streams import MultiplexInputData
+from .streams import IoPipelineMultiplexInputData
+from .streams import IoPipelineMultiplexInputMessage
+from .streams import IoPipelineMultiplexStream
 from .streams import MultiplexInputEnd
-from .streams import MultiplexInputMessage
-from .streams import MultiplexStream
-from .types import MultiplexStreamMetadata
-from .types import MultiplexStreamOpening
-from .types import UnclaimedOutputMultiplexError
+from .types import IoPipelineMultiplexStreamMetadata
+from .types import IoPipelineMultiplexStreamOpening
+from .types import UnclaimedOutputMultiplexIoPipelineError
 
 
 ##
 
 
-class MultiplexChildHost(Abstract):
+class IoPipelineMultiplexChildHost(Abstract):
     """
     Implemented by the handler hosting child drivers. Child machinery reaches it only through a parent context given to
     a callback - a scheduled callback, or a completion listener holding the context weakly - never through a cached
@@ -65,7 +65,7 @@ class MultiplexChildHost(Abstract):
 
 
 @ta.final
-class MultiplexChildFlowService(IoPipelineFlow, IoPipelineService):
+class MultiplexChildIoPipelineFlowService(IoPipelineFlow, IoPipelineService):
     """The flow service installed in a child whose spec does not supply one."""
 
     def __init__(self, *, auto_read: bool = True) -> None:
@@ -81,7 +81,7 @@ class MultiplexChildFlowService(IoPipelineFlow, IoPipelineService):
 
 
 @ta.final
-class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
+class MultiplexChildIoPipelineScheduling(IoPipelineScheduling, IoPipelineService):
     """
     Child timers, delegated to the parent's scheduling service under the host handler's ownership.
 
@@ -101,7 +101,7 @@ class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
         self._on_failure = on_failure
 
         self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
-        self._live: ta.Set[MultiplexChildScheduling._Handle] = set()
+        self._live: ta.Set[MultiplexChildIoPipelineScheduling._Handle] = set()
 
     @property
     def _pipeline(self) -> ta.Optional[IoPipeline]:
@@ -126,7 +126,7 @@ class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
     class _Handle(IoPipelineScheduling.Handle):
         def __init__(
                 self,
-                sched: 'MultiplexChildScheduling',
+                sched: 'MultiplexChildIoPipelineScheduling',
                 handler_ref: IoPipelineHandlerRef,
                 fn: ta.Callable[..., None],
                 with_context: bool,
@@ -143,7 +143,7 @@ class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
             self._done = False
 
         @property
-        def _sched(self) -> ta.Optional['MultiplexChildScheduling']:
+        def _sched(self) -> ta.Optional['MultiplexChildIoPipelineScheduling']:
             return self.__sched_ref()
 
         @property
@@ -163,7 +163,7 @@ class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
                 ph.cancel()
 
     @staticmethod
-    def _fire(handle_ref: ta.Callable[[], ta.Optional['MultiplexChildScheduling._Handle']], ctx: IoPipelineHandlerContext) -> None:  # noqa
+    def _fire(handle_ref: ta.Callable[[], ta.Optional['MultiplexChildIoPipelineScheduling._Handle']], ctx: IoPipelineHandlerContext) -> None:  # noqa
         if (h := handle_ref()) is None or h._cancelled or h._done:  # noqa
             return
 
@@ -192,7 +192,7 @@ class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
             except Exception as e:  # noqa
                 sched._on_failure(e)  # noqa
 
-        check.isinstance(ctx.handler, MultiplexChildHost).on_child_activity(ctx)
+        check.isinstance(ctx.handler, IoPipelineMultiplexChildHost).on_child_activity(ctx)
 
     def _schedule(
             self,
@@ -214,7 +214,7 @@ class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
         h._parent_handle = parent_ctx.services[IoPipelineScheduling].schedule_context(  # noqa
             parent_ctx.ref,
             delay_s,
-            functools.partial(MultiplexChildScheduling._fire, weakref.ref(h)),
+            functools.partial(MultiplexChildIoPipelineScheduling._fire, weakref.ref(h)),
         )
         self._live.add(h)
         return h
@@ -242,7 +242,7 @@ class MultiplexChildScheduling(IoPipelineScheduling, IoPipelineService):
 
 
 @ta.final
-class _MultiplexChildLifecycleService(IoPipelineService):
+class _MultiplexChildLifecycleIoPipelineService(IoPipelineService):
     """Notices the child pipeline being destroyed - by its driver, or by anyone else holding it, such as its opener."""
 
     def __init__(self, on_destroyed: ta.Callable[[], None]) -> None:
@@ -260,7 +260,7 @@ class _MultiplexChildLifecycleService(IoPipelineService):
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexChildConfig:
+class IoPipelineMultiplexChildConfig:
     # The most input bytes delivered in one batch, as one buffer followed by FlushInput. In manual-read mode one
     # ReadyForInput permits one batch.
     read_batch_max_bytes: int = 1024 * 1024
@@ -284,7 +284,7 @@ class MultiplexChildConfig:
 
 
 @ta.final
-class MultiplexChild:
+class IoPipelineMultiplexChild:
     """
     Drives one stream's child pipeline.
 
@@ -295,11 +295,11 @@ class MultiplexChild:
 
     def __init__(
             self,
-            stream: MultiplexStream,
+            stream: IoPipelineMultiplexStream,
             spec: IoPipeline.Spec,
-            opening: MultiplexStreamOpening,
+            opening: IoPipelineMultiplexStreamOpening,
             *,
-            config: MultiplexChildConfig,
+            config: IoPipelineMultiplexChildConfig,
             parent_ctx: ta.Optional[IoPipelineHandlerContext] = None,
     ) -> None:
         super().__init__()
@@ -322,22 +322,22 @@ class MultiplexChild:
             if isinstance(svc, IoPipelineFlow):
                 flow = svc
         if flow is None:
-            flow = MultiplexChildFlowService(auto_read=config.default_auto_read)
+            flow = MultiplexChildIoPipelineFlowService(auto_read=config.default_auto_read)
             services.append(flow)
         self._flow = flow
 
-        self._sched: ta.Optional[MultiplexChildScheduling] = None
+        self._sched: ta.Optional[MultiplexChildIoPipelineScheduling] = None
         if parent_ctx is not None and parent_ctx.services.find(IoPipelineScheduling) is not None:
             # The service reports failures back without owning this child: the child owns the service.
-            self._sched = MultiplexChildScheduling(
+            self._sched = MultiplexChildIoPipelineScheduling(
                 parent_ctx,
-                functools.partial(MultiplexChild._fail_ref, weakref.ref(self)),
+                functools.partial(IoPipelineMultiplexChild._fail_ref, weakref.ref(self)),
             )
             services.append(self._sched)
 
         # Like the scheduling service, it holds the child and the parent context only weakly.
-        services.append(_MultiplexChildLifecycleService(functools.partial(
-            MultiplexChild._destroyed_ref,
+        services.append(_MultiplexChildLifecycleIoPipelineService(functools.partial(
+            IoPipelineMultiplexChild._destroyed_ref,
             weakref.ref(self),
             weakref.ref(parent_ctx) if parent_ctx is not None else None,
         )))
@@ -346,7 +346,7 @@ class MultiplexChild:
         try:
             self._pipeline = IoPipeline(dc.replace(
                 spec,
-                metadata=[*spec.metadata, MultiplexStreamMetadata(opening)],
+                metadata=[*spec.metadata, IoPipelineMultiplexStreamMetadata(opening)],
                 services=services,
             ))
         except Exception as e:  # noqa
@@ -358,7 +358,7 @@ class MultiplexChild:
         return f'{type(self).__name__}@{id(self):x}<{self._stream.key!r}>'
 
     @property
-    def stream(self) -> MultiplexStream:
+    def stream(self) -> IoPipelineMultiplexStream:
         return self._stream
 
     @property
@@ -390,13 +390,13 @@ class MultiplexChild:
             self._failure = e
 
     @staticmethod
-    def _fail_ref(child_ref: ta.Callable[[], ta.Optional['MultiplexChild']], e: BaseException) -> None:
+    def _fail_ref(child_ref: ta.Callable[[], ta.Optional['IoPipelineMultiplexChild']], e: BaseException) -> None:
         if (child := child_ref()) is not None:
             child._fail(e)  # noqa
 
     @staticmethod
     def _destroyed_ref(
-            child_ref: ta.Callable[[], ta.Optional['MultiplexChild']],
+            child_ref: ta.Callable[[], ta.Optional['IoPipelineMultiplexChild']],
             parent_ctx_ref: ta.Optional[ta.Callable[[], ta.Optional[IoPipelineHandlerContext]]],
     ) -> None:
         # The child's own finish and abort mark it finished before destroying it; any other destruction abandons the
@@ -408,7 +408,7 @@ class MultiplexChild:
 
         if parent_ctx_ref is None or (ctx := parent_ctx_ref()) is None or ctx.invalidated:
             return
-        host = check.isinstance(ctx.handler, MultiplexChildHost)
+        host = check.isinstance(ctx.handler, IoPipelineMultiplexChildHost)
         with ctx.pipeline.enter():
             host.on_child_activity(ctx)
 
@@ -479,7 +479,7 @@ class MultiplexChild:
                 return self._feed(buf)
 
             while (head := stream.in_head()) is not None:
-                if isinstance(head, MultiplexInputData):
+                if isinstance(head, IoPipelineMultiplexInputData):
                     if batch_bytes and batch_bytes + len(head.data) > self._config.read_batch_max_bytes:
                         break
                     stream.pop_in()
@@ -490,7 +490,7 @@ class MultiplexChild:
                     consumed.append(head.cost)
                     delivered = True
 
-                elif isinstance(head, MultiplexInputMessage):
+                elif isinstance(head, IoPipelineMultiplexInputMessage):
                     stream.pop_in()
                     if head.cost:
                         consumed.append(head.cost)
@@ -581,7 +581,7 @@ class MultiplexChild:
                 self._reject_output(msg)
 
     def _reject_output(self, msg: ta.Any) -> None:
-        exc = UnclaimedOutputMultiplexError(msg)
+        exc = UnclaimedOutputMultiplexIoPipelineError(msg)
         pipeline = check.not_none(self._pipeline)
         try:
             if isinstance(msg, IoPipelineMessages.Completable) and not msg.is_done():

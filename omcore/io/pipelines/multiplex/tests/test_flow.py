@@ -9,14 +9,14 @@ from ...errors import AbortedIoPipelineError
 from ...errors import SawShutdownOutputIoPipelineError
 from ...flow.types import IoPipelineFlowMessages
 from ...yielding import CountingIoPipelineYieldPolicy
-from ..children import MultiplexChildConfig
-from ..credit import HalfWindowMultiplexCreditReplenishPolicy  # noqa
+from ..children import IoPipelineMultiplexChildConfig
+from ..credit import HalfWindowIoPipelineMultiplexCreditReplenishPolicy  # noqa
 from ..credit import StreamMultiplexCreditStrategy
-from ..handlers import MultiplexConfig
-from ..schedulers import RoundRobinMultiplexOutputScheduler
-from ..types import ConnectionClosedMultiplexError
-from ..types import ControlOutputLimitMultiplexError
-from ..types import InputLimitMultiplexError
+from ..handlers import IoPipelineMultiplexConfig
+from ..schedulers import RoundRobinIoPipelineMultiplexOutputScheduler
+from ..types import ConnectionClosedMultiplexIoPipelineError
+from ..types import ControlOutputLimitMultiplexIoPipelineError
+from ..types import InputLimitMultiplexIoPipelineError
 from .apps import AppFactory
 from .apps import Emit
 from .apps import StreamApp
@@ -233,7 +233,7 @@ class TestInputFlow(unittest.TestCase):
     def test_uncontrolled_input_count_limit(self) -> None:
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open(), auto_read=False),
-            config=MultiplexConfig(max_stream_input_messages=3),
+            config=IoPipelineMultiplexConfig(max_stream_input_messages=3),
         )
         try:
             h.feed(LOpen('k'))
@@ -241,7 +241,7 @@ class TestInputFlow(unittest.TestCase):
             self.assertEqual(h.mux.stats.queued_input['k'], (0, 3))
             h.feed(LMsg('k', 4))
             (bye,) = of_type(h.frames, LGoodbye)
-            self.assertIsInstance(bye.exc, InputLimitMultiplexError)
+            self.assertIsInstance(bye.exc, InputLimitMultiplexIoPipelineError)
         finally:
             h.close()
 
@@ -250,7 +250,12 @@ class TestOutputFlow(unittest.TestCase):
     def test_child_writability_follows_its_queued_output_with_hysteresis(self) -> None:
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
-            config=MultiplexConfig(child=MultiplexChildConfig(write_high_watermark=10, write_low_watermark=4)),
+            config=IoPipelineMultiplexConfig(
+                child=IoPipelineMultiplexChildConfig(
+                    write_high_watermark=10,
+                    write_low_watermark=4,
+                ),
+            ),
         )
         try:
             h.feed(LOpen('k', credit=0))
@@ -302,7 +307,7 @@ class TestOutputFlow(unittest.TestCase):
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
             adapter=LoopbackAdapter(max_unit=10),
-            scheduler=RoundRobinMultiplexOutputScheduler(quantum=20),
+            scheduler=RoundRobinIoPipelineMultiplexOutputScheduler(quantum=20),
         )
         try:
             h.feed(*[LOpen(k) for k in 'abc'])
@@ -324,13 +329,13 @@ class TestOutputFlow(unittest.TestCase):
     def test_control_output_while_paused_is_bounded(self) -> None:
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
-            config=MultiplexConfig(max_control_during_pause=5),
+            config=IoPipelineMultiplexConfig(max_control_during_pause=5),
         )
         try:
             h.enqueue(IoPipelineFlowMessages.PauseOutput())
             h.feed(*[LOpen(i) for i in range(10)])
             (bye,) = of_type(h.frames, LGoodbye)
-            self.assertIsInstance(bye.exc, ControlOutputLimitMultiplexError)
+            self.assertIsInstance(bye.exc, ControlOutputLimitMultiplexIoPipelineError)
             for i in range(6):
                 app = h.mux.child_pipeline(i)
                 self.assertTrue(app is None or not app.is_ready)
@@ -342,7 +347,7 @@ class TestOutputFlow(unittest.TestCase):
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
             adapter=LoopbackAdapter(max_unit=16 * 1024),
-            config=MultiplexConfig(turn_output_budget=budget),
+            config=IoPipelineMultiplexConfig(turn_output_budget=budget),
         )
         try:
             h.feed(LOpen('k'))
@@ -371,7 +376,7 @@ class TestOutputFlow(unittest.TestCase):
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
             adapter=LoopbackAdapter(max_unit=10),
-            config=MultiplexConfig(yield_policy=CountingIoPipelineYieldPolicy(3)),
+            config=IoPipelineMultiplexConfig(yield_policy=CountingIoPipelineYieldPolicy(3)),
         )
         try:
             h.feed(LOpen('k'))
@@ -426,7 +431,7 @@ class TestConnectionInputEnd(unittest.TestCase):
             self.assertEqual(len(open_app.errors), 1)
             self.assertIsInstance(open_app.errors[0], AbortedIoPipelineError)
             self.assertIn('open', str(open_app.errors[0]))
-            self.assertIsInstance(opening.exc, ConnectionClosedMultiplexError)
+            self.assertIsInstance(opening.exc, ConnectionClosedMultiplexIoPipelineError)
 
             # The ended stream may still send; the connection finishes once it is done.
             self.assertEqual(ended_app.errors, [])
@@ -472,7 +477,7 @@ class TestEmissionProgress(unittest.TestCase):
         # which fails while emitting must itself finish the connection.
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
-            config=MultiplexConfig(max_control_during_pause=2),
+            config=IoPipelineMultiplexConfig(max_control_during_pause=2),
             parent_flow=False,
         )
         try:

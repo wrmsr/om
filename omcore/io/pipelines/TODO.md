@@ -45,7 +45,7 @@
 - report a connection failure originating inside the multiplexer (adapter exception, control-output limit) to the
   parent pipeline as an inbound `Error`: today the parent sees only the encoded connection error and `FinalOutput`,
   so an application cannot tell a failure from a graceful shutdown without inspecting the handler
-- give `MultiplexCreditStrategy` a receive-side counterpart of `adjust_all_send`, so a protocol which changes its own
+- give `IoPipelineMultiplexCreditStrategy` a receive-side counterpart of `adjust_all_send`, so a protocol which changes its own
   advertised initial window (HTTP/2 `SETTINGS_INITIAL_WINDOW_SIZE`) can adjust existing streams' windows; the h2-like
   test adapter's `SendSettings` only shifts the peer's send credit for that reason
 - the synchronous drivers run a parent `Defer` between the messages of one read batch, so the multiplexer's

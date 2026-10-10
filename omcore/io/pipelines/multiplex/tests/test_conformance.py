@@ -19,16 +19,16 @@ from ...drivers.pure import PureIoPipelineDriver
 from ...drivers.tests import test_conformance as tc
 from ...drivers.types import IoPipelineDriverState
 from ...flow.stub import StubIoPipelineFlowService
-from ..adapters import MultiplexAdapter
-from ..adapters import MultiplexConnection
-from ..adapters import MultiplexStreamParams
-from ..children import MultiplexChildConfig
-from ..handlers import MultiplexConfig
+from ..adapters import IoPipelineMultiplexAdapter
+from ..adapters import IoPipelineMultiplexConnection
+from ..adapters import IoPipelineMultiplexStreamParams
+from ..children import IoPipelineMultiplexChildConfig
+from ..handlers import IoPipelineMultiplexConfig
 from ..handlers import MultiplexIoPipelineHandler
-from ..streams import MultiplexStream
-from ..types import MultiplexMessages
-from ..types import MultiplexRefusal
-from ..types import MultiplexStreamOpening
+from ..streams import IoPipelineMultiplexStream
+from ..types import IoPipelineMultiplexMessages
+from ..types import IoPipelineMultiplexRefusal
+from ..types import IoPipelineMultiplexStreamOpening
 
 
 ##
@@ -78,8 +78,8 @@ class _Batch:
     frames: ta.Sequence[ta.Any]
 
 
-class _LoopbackAdapter(MultiplexAdapter):
-    def inbound(self, conn: MultiplexConnection, msg: ta.Any) -> bool:
+class _LoopbackAdapter(IoPipelineMultiplexAdapter):
+    def inbound(self, conn: IoPipelineMultiplexConnection, msg: ta.Any) -> bool:
         if isinstance(msg, _Batch):
             for f in msg.frames:
                 self.inbound(conn, f)
@@ -99,29 +99,33 @@ class _LoopbackAdapter(MultiplexAdapter):
             return False
         return True
 
-    def open_local(self, conn: MultiplexConnection, info: ta.Any) -> MultiplexStreamParams:
+    def open_local(self, conn: IoPipelineMultiplexConnection, info: ta.Any) -> IoPipelineMultiplexStreamParams:
         raise TypeError
 
-    def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
+    def encode_credit(self, stream: ta.Optional[IoPipelineMultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
         return []
 
-    def encode_data(self, stream: MultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
+    def encode_data(
+            self,
+            stream: IoPipelineMultiplexStream,
+            data: SegmentedByteStreamBufferView,
+    ) -> ta.Sequence[ta.Any]:
         return [_Data(ta.cast(int, stream.key), bytes(data.tobytes()))]
 
-    def encode_message(self, stream: MultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_message(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
         return [_Msg(ta.cast(int, stream.key), msg)]
 
-    def encode_end(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_end(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [_End(ta.cast(int, stream.key))]
 
-    def claim_output(self, stream: MultiplexStream, msg: ta.Any) -> bool:
+    def claim_output(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> bool:
         # Whatever the child returns to its 'driver' reaches the harness, as unhandled driver output would.
         return True
 
-    def max_data_unit(self, stream: MultiplexStream) -> int:
+    def max_data_unit(self, stream: IoPipelineMultiplexStream) -> int:
         return 1 << 30
 
-    def on_stream_finished(self, conn: MultiplexConnection, stream: MultiplexStream) -> None:
+    def on_stream_finished(self, conn: IoPipelineMultiplexConnection, stream: IoPipelineMultiplexStream) -> None:
         conn.close(stream.key)
 
 
@@ -140,7 +144,7 @@ class _MultiplexChildConformanceDriverAdapter(tc._ConformanceDriverAdapter):
         self._mux = MultiplexIoPipelineHandler(
             _LoopbackAdapter(),
             self._spec_factory,
-            config=MultiplexConfig(child=MultiplexChildConfig(
+            config=IoPipelineMultiplexConfig(child=IoPipelineMultiplexChildConfig(
                 read_batch_max_bytes=self._read_batch_max_bytes,
                 write_high_watermark=self._write_high_watermark,
                 write_low_watermark=self._write_low_watermark,
@@ -158,13 +162,16 @@ class _MultiplexChildConformanceDriverAdapter(tc._ConformanceDriverAdapter):
         self._closed_by_harness = False
         self._started = False
 
-    def _spec_factory(self, opening: MultiplexStreamOpening) -> ta.Union[IoPipeline.Spec, MultiplexRefusal]:
+    def _spec_factory(
+            self,
+            opening: IoPipelineMultiplexStreamOpening,
+    ) -> ta.Union[IoPipeline.Spec, IoPipelineMultiplexRefusal]:
         return self._child_spec
 
     #
 
     @property
-    def _stream(self) -> ta.Optional[MultiplexStream]:
+    def _stream(self) -> ta.Optional[IoPipelineMultiplexStream]:
         return self._mux.streams.get(_KEY)
 
     @property
@@ -233,7 +240,7 @@ class _MultiplexChildConformanceDriverAdapter(tc._ConformanceDriverAdapter):
         self._child_pipeline = self._mux.child_pipeline(_KEY)
 
     async def enqueue(self, *msgs: ta.Any) -> ta.Optional[ta.Any]:
-        self._driver.enqueue(MultiplexMessages.FeedStream(_KEY, msgs))
+        self._driver.enqueue(IoPipelineMultiplexMessages.FeedStream(_KEY, msgs))
         return self._step(read=False)
 
     async def feed_input(self, data: bytes) -> ta.Any:

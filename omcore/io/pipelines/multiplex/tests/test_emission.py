@@ -4,8 +4,8 @@ import unittest
 
 from ...core import IoPipelineMessages
 from ...flow.types import IoPipelineFlowMessages
-from ..handlers import MultiplexConfig
-from ..types import MultiplexMessages
+from ..handlers import IoPipelineMultiplexConfig
+from ..types import IoPipelineMultiplexMessages
 from .apps import AppFactory
 from .apps import Emit
 from .apps import StreamApp
@@ -57,7 +57,7 @@ class TestChildWritabilityWakeup(unittest.TestCase):
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
             adapter=LoopbackAdapter(max_unit=16 * 1024),
-            config=MultiplexConfig(turn_output_budget=256 * 1024),
+            config=IoPipelineMultiplexConfig(turn_output_budget=256 * 1024),
         )
         try:
             h.feed(LOpen('k'))
@@ -112,7 +112,7 @@ class TestStaleReadinessDuringEmission(unittest.TestCase):
                     h.pipeline.remove(h.pipeline.handlers()[-1])
                 removed.append(m)
 
-            msg = MultiplexMessages.OpenStream(app_spec(_keep_open(send=b'hello')))
+            msg = IoPipelineMultiplexMessages.OpenStream(app_spec(_keep_open(send=b'hello')))
             msg.add_listener(on_open)
             h.enqueue(msg)
 
@@ -199,7 +199,7 @@ class TestDestroyedChild(unittest.TestCase):
 
             # The opener abandons the stream by destroying its pipeline, then asks for a graceful shutdown.
             out.result.pipeline.destroy()
-            h.enqueue(MultiplexMessages.Shutdown())
+            h.enqueue(IoPipelineMultiplexMessages.Shutdown())
 
             # The stream must not linger forever: it is reset towards the peer and released, and the connection
             # finishes.

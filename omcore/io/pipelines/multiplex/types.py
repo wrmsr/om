@@ -12,17 +12,17 @@ from ..errors import AbortedIoPipelineError
 from ..errors import IoPipelineError
 
 
-MultiplexStreamKey = ta.Hashable  # ta.TypeAlias
+IoPipelineMultiplexStreamKey = ta.Hashable  # ta.TypeAlias
 
-MultiplexStreamOrigin = ta.Literal['local', 'remote']  # ta.TypeAlias
+IoPipelineMultiplexStreamOrigin = ta.Literal['local', 'remote']  # ta.TypeAlias
 
-MultiplexFlowControlScope = ta.Literal['stream', 'connection']  # ta.TypeAlias
+IoPipelineMultiplexFlowControlScope = ta.Literal['stream', 'connection']  # ta.TypeAlias
 
 
 ##
 
 
-class MultiplexStreamState(enum.Enum):
+class IoPipelineMultiplexStreamState(enum.Enum):
     """
     The reported lifecycle state of a stream, derived from its two half states and any terminal outcome.
 
@@ -41,74 +41,78 @@ class MultiplexStreamState(enum.Enum):
     REFUSED = 'refused'
 
 
-TERMINAL_MULTIPLEX_STREAM_STATES: ta.FrozenSet[MultiplexStreamState] = frozenset([
-    MultiplexStreamState.CLOSED,
-    MultiplexStreamState.RESET,
-    MultiplexStreamState.REFUSED,
+TERMINAL_IO_PIPELINE_MULTIPLEX_STREAM_STATES: ta.FrozenSet[IoPipelineMultiplexStreamState] = frozenset([
+    IoPipelineMultiplexStreamState.CLOSED,
+    IoPipelineMultiplexStreamState.RESET,
+    IoPipelineMultiplexStreamState.REFUSED,
 ])
 
 
 ##
 
 
-class MultiplexError(IoPipelineError):
+class MultiplexIoPipelineError(IoPipelineError):
     pass
 
 
-class StreamStateMultiplexError(MultiplexError):
+class StreamStateMultiplexIoPipelineError(MultiplexIoPipelineError):
     """An operation was attempted in a stream state which does not permit it."""
 
 
-class UnknownStreamMultiplexError(MultiplexError):
+class UnknownStreamMultiplexIoPipelineError(MultiplexIoPipelineError):
     pass
 
 
-class DuplicateStreamMultiplexError(MultiplexError):
+class DuplicateStreamMultiplexIoPipelineError(MultiplexIoPipelineError):
     pass
 
 
-class StreamLimitMultiplexError(MultiplexError):
+class StreamLimitMultiplexIoPipelineError(MultiplexIoPipelineError):
     """Opening a stream would exceed the concurrent stream limit for its origin."""
 
 
-class StreamRefusedMultiplexError(MultiplexError):
+class StreamRefusedMultiplexIoPipelineError(MultiplexIoPipelineError):
     def __init__(self, reason: ta.Any = None) -> None:
         super().__init__(reason)
 
         self.reason = reason
 
 
-class StreamResetMultiplexError(MultiplexError, AbortedIoPipelineError):
-    def __init__(self, reason: ta.Any = None, *, by: ta.Optional[MultiplexStreamOrigin] = None) -> None:
+class StreamResetMultiplexIoPipelineError(MultiplexIoPipelineError, AbortedIoPipelineError):
+    def __init__(self, reason: ta.Any = None, *, by: ta.Optional[IoPipelineMultiplexStreamOrigin] = None) -> None:
         super().__init__(reason, by)
 
         self.reason = reason
         self.by = by
 
 
-class StreamTruncatedMultiplexError(MultiplexError, AbortedIoPipelineError):
+class StreamTruncatedMultiplexIoPipelineError(MultiplexIoPipelineError, AbortedIoPipelineError):
     """The connection's input ended before the peer ended its output on the stream."""
 
 
-class FlowControlMultiplexError(MultiplexError):
+class FlowControlMultiplexIoPipelineError(MultiplexIoPipelineError):
     """The peer sent more flow-controlled input than the advertised credit allowed."""
 
-    def __init__(self, scope: MultiplexFlowControlScope, key: ta.Optional[MultiplexStreamKey] = None) -> None:
+    def __init__(
+            self,
+            scope: IoPipelineMultiplexFlowControlScope,
+            key: ta.Optional[IoPipelineMultiplexStreamKey] = None,
+    ) -> None:
         super().__init__(scope, key)
 
         self.scope = scope
         self.key = key
 
 
-class InputLimitMultiplexError(MultiplexError):
+class InputLimitMultiplexIoPipelineError(MultiplexIoPipelineError):
     """Too many uncontrolled inbound items are queued for a stream."""
 
 
-class ControlOutputLimitMultiplexError(MultiplexError):
+class ControlOutputLimitMultiplexIoPipelineError(MultiplexIoPipelineError):
     """Control output kept accumulating while the connection's output was paused."""
 
 
-class UnclaimedOutputMultiplexError(MultiplexError):
+class UnclaimedOutputMultiplexIoPipelineError(MultiplexIoPipelineError):
     """A stream's pipeline produced a message which the protocol adapter did not claim."""
 
     def __init__(self, msg: ta.Any) -> None:
@@ -117,7 +121,7 @@ class UnclaimedOutputMultiplexError(MultiplexError):
         self.msg = msg
 
 
-class ConnectionClosedMultiplexError(MultiplexError, AbortedIoPipelineError):
+class ConnectionClosedMultiplexIoPipelineError(MultiplexIoPipelineError, AbortedIoPipelineError):
     """The multiplexed connection ended, or the multiplexer was removed, before the stream finished."""
 
 
@@ -125,31 +129,39 @@ class ConnectionClosedMultiplexError(MultiplexError, AbortedIoPipelineError):
 
 
 @dc.dataclass(frozen=True)
-class MultiplexStreamOpening:
+class IoPipelineMultiplexStreamOpening:
     """Describes a stream being opened, as given to a stream spec factory."""
 
-    key: MultiplexStreamKey
-    origin: MultiplexStreamOrigin
+    key: IoPipelineMultiplexStreamKey
+    origin: IoPipelineMultiplexStreamOrigin
 
     # Protocol-specific opening information, opaque to the core.
     info: ta.Any = None
 
 
 @dc.dataclass(frozen=True)
-class MultiplexRefusal:
+class IoPipelineMultiplexRefusal:
     """Returned by a stream spec factory to refuse a stream."""
 
     reason: ta.Any = None
 
 
-MultiplexStreamSpecFactory = ta.Callable[[MultiplexStreamOpening], ta.Union[IoPipeline.Spec, MultiplexRefusal]]  # ta.TypeAlias  # noqa
+MultiplexStreamSpecFactory = ta.Callable[  # ta.TypeAlias  # om-amalg-typing-no-move
+    [
+        IoPipelineMultiplexStreamOpening,
+    ],
+    ta.Union[
+        IoPipeline.Spec,
+        IoPipelineMultiplexRefusal,
+    ],
+]
 
 
 @ta.final
-class MultiplexStreamMetadata(IoPipelineMetadata):
+class IoPipelineMultiplexStreamMetadata(IoPipelineMetadata):
     """Attached to each stream's child pipeline."""
 
-    def __init__(self, opening: MultiplexStreamOpening) -> None:
+    def __init__(self, opening: IoPipelineMultiplexStreamOpening) -> None:
         super().__init__()
 
         self._opening = opening
@@ -158,15 +170,15 @@ class MultiplexStreamMetadata(IoPipelineMetadata):
         return f'{type(self).__name__}({self._opening!r})'
 
     @property
-    def opening(self) -> MultiplexStreamOpening:
+    def opening(self) -> IoPipelineMultiplexStreamOpening:
         return self._opening
 
     @property
-    def key(self) -> MultiplexStreamKey:
+    def key(self) -> IoPipelineMultiplexStreamKey:
         return self._opening.key
 
     @property
-    def origin(self) -> MultiplexStreamOrigin:
+    def origin(self) -> IoPipelineMultiplexStreamOrigin:
         return self._opening.origin
 
     @property
@@ -177,10 +189,10 @@ class MultiplexStreamMetadata(IoPipelineMetadata):
 ##
 
 
-class MultiplexMessages(NamespaceClass):
+class IoPipelineMultiplexMessages(NamespaceClass):
     @ta.final
     @dc.dataclass(frozen=True, eq=False)
-    class OpenStream(IoPipelineMessages.Completable['MultiplexOpenedStream'], IoPipelineMessages.AfterFinalInput):
+    class OpenStream(IoPipelineMessages.Completable['IoPipelineMultiplexOpenedStream'], IoPipelineMessages.AfterFinalInput):  # noqa
         """
         Requests a locally opened stream running a child pipeline built from `spec`.
 
@@ -204,7 +216,7 @@ class MultiplexMessages(NamespaceClass):
         the stream has no running pipeline.
         """
 
-        key: MultiplexStreamKey
+        key: IoPipelineMultiplexStreamKey
         msgs: ta.Sequence[ta.Any]
 
     @ta.final
@@ -218,6 +230,6 @@ class MultiplexMessages(NamespaceClass):
 
 @ta.final
 @dc.dataclass(frozen=True)
-class MultiplexOpenedStream:
-    key: MultiplexStreamKey
+class IoPipelineMultiplexOpenedStream:
+    key: IoPipelineMultiplexStreamKey
     pipeline: IoPipeline

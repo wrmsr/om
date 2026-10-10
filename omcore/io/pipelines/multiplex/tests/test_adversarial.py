@@ -24,13 +24,13 @@ import weakref
 from ...core import IoPipelineMessages
 from ...errors import SawShutdownOutputIoPipelineError
 from ...flow.types import IoPipelineFlowMessages
-from ..credit import ImmediateMultiplexCreditReplenishPolicy
+from ..credit import ImmediateIoPipelineMultiplexCreditReplenishPolicy
 from ..credit import StreamMultiplexCreditStrategy
-from ..handlers import MultiplexConfig
-from ..schedulers import RoundRobinMultiplexOutputScheduler
-from ..types import StreamLimitMultiplexError
-from ..types import StreamResetMultiplexError
-from ..types import StreamTruncatedMultiplexError
+from ..handlers import IoPipelineMultiplexConfig
+from ..schedulers import RoundRobinIoPipelineMultiplexOutputScheduler
+from ..types import StreamLimitMultiplexIoPipelineError
+from ..types import StreamResetMultiplexIoPipelineError
+from ..types import StreamTruncatedMultiplexIoPipelineError
 from .apps import AppFactory
 from .apps import Emit
 from .apps import StreamApp
@@ -67,14 +67,14 @@ class TestOpenRaces(unittest.TestCase):
 
             h.feed(LReset(key, 'nope'))
             self.assertTrue(out.done)
-            self.assertIsInstance(out.exc, StreamResetMultiplexError)
+            self.assertIsInstance(out.exc, StreamResetMultiplexIoPipelineError)
 
             # A late confirm for the dead key is a protocol error and fails the connection - the completed open must
             # not be completed a second time.
             h.feed(LConfirm(key))
             self.assertTrue(of_type(h.frames, LGoodbye))
             self.assertTrue(out.done)
-            self.assertIsInstance(out.exc, StreamResetMultiplexError)
+            self.assertIsInstance(out.exc, StreamResetMultiplexIoPipelineError)
         finally:
             h.close()
 
@@ -97,7 +97,7 @@ class TestOpenRaces(unittest.TestCase):
             h.mux.streams.set_limits(max_local=0)
             out = h.open(app_spec(_keep_open()))
             self.assertTrue(out.done)
-            self.assertIsInstance(out.exc, StreamLimitMultiplexError)
+            self.assertIsInstance(out.exc, StreamLimitMultiplexIoPipelineError)
             self.assertFalse(of_type(h.frames, LGoodbye))
             self.assertEqual(len(h.mux.streams), 0)
         finally:
@@ -189,7 +189,7 @@ class TestResetAndEof(unittest.TestCase):
 
             h.feed(LReset('k', 'bye'))
             self.assertEqual(len(outcomes), 1)
-            self.assertIsInstance(outcomes[0], StreamResetMultiplexError)
+            self.assertIsInstance(outcomes[0], StreamResetMultiplexIoPipelineError)
             self.assertEqual(len(h.mux.streams), 0)
             self.assertEqual(h.adapter.released, ['k'])
         finally:
@@ -227,7 +227,10 @@ class TestResetAndEof(unittest.TestCase):
             h.eof()
 
             # The stream whose peer had ended carries on; the other is truncated.
-            self.assertTrue(any(isinstance(e, StreamTruncatedMultiplexError) for e in app_open.errors), app_open.errors)
+            self.assertTrue(
+                any(isinstance(e, StreamTruncatedMultiplexIoPipelineError) for e in app_open.errors),
+                app_open.errors,
+            )
             self.assertEqual(app_ended.errors, [])
 
             # The ended stream's output still flows after the connection's input ended.
@@ -324,8 +327,8 @@ class TestFlowAndScheduling(unittest.TestCase):
     def test_control_output_bounded_during_pause(self) -> None:
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
-            config=MultiplexConfig(max_control_during_pause=20),
-            credit=StreamMultiplexCreditStrategy(stream_replenish=ImmediateMultiplexCreditReplenishPolicy()),
+            config=IoPipelineMultiplexConfig(max_control_during_pause=20),
+            credit=StreamMultiplexCreditStrategy(stream_replenish=ImmediateIoPipelineMultiplexCreditReplenishPolicy()),
             adapter=LoopbackAdapter(recv_window=100),
         )
         try:
@@ -344,7 +347,7 @@ class TestFlowAndScheduling(unittest.TestCase):
         n = 8
         h = LoopbackHarness(
             AppFactory(lambda o: _keep_open()),
-            scheduler=RoundRobinMultiplexOutputScheduler(quantum=100),
+            scheduler=RoundRobinIoPipelineMultiplexOutputScheduler(quantum=100),
         )
         try:
             for i in range(n):
@@ -361,7 +364,7 @@ class TestFlowAndScheduling(unittest.TestCase):
         h = LoopbackHarness(
             AppFactory(lambda o: StreamApp()),
             adapter=LoopbackAdapter(recv_window=100),
-            credit=StreamMultiplexCreditStrategy(stream_replenish=ImmediateMultiplexCreditReplenishPolicy()),
+            credit=StreamMultiplexCreditStrategy(stream_replenish=ImmediateIoPipelineMultiplexCreditReplenishPolicy()),
         )
         try:
             h.feed(LBatch([LOpen('k', credit=1 << 30), LData('k', b'x' * 50), LEnd('k')]))

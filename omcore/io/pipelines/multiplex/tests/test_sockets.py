@@ -23,9 +23,9 @@ from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
 from ...drivers.types import IoPipelineDriverState
 from ...flow.stub import StubIoPipelineFlowService
 from ...ssl.handlers import SslIoPipelineHandler
-from ..handlers import MultiplexConfig
+from ..handlers import IoPipelineMultiplexConfig
 from ..handlers import MultiplexIoPipelineHandler
-from ..types import MultiplexMessages
+from ..types import IoPipelineMultiplexMessages
 from .apps import AppFactory
 from .apps import StreamApp
 from .apps import app_spec
@@ -75,7 +75,7 @@ class _Session:
             lambda o: StreamApp(respond=payload(('resp', o.info.info), _RESPONSE_SIZE), manual_read=True),
             auto_read=False,
         )
-        config = MultiplexConfig(turn_output_budget=32 * 1024)
+        config = IoPipelineMultiplexConfig(turn_output_budget=32 * 1024)
         self.client_mux = MultiplexIoPipelineHandler(
             SshLikeAdapter(window=32 * 1024, max_packet=8 * 1024),
             AppFactory(lambda o: StreamApp()),
@@ -99,7 +99,7 @@ class _Session:
 
     def open_messages(self) -> ta.List[ta.Any]:
         return [
-            MultiplexMessages.OpenStream(app_spec(app), SshOpenInfo('session', str(i).encode()))
+            IoPipelineMultiplexMessages.OpenStream(app_spec(app), SshOpenInfo('session', str(i).encode()))
             for i, app in self.client_apps.items()
         ]
 
@@ -107,7 +107,7 @@ class _Session:
         return all(a.final_output.is_done() for a in self.client_apps.values())
 
     def shutdown_messages(self) -> ta.List[ta.Any]:
-        return [MultiplexMessages.Shutdown()]
+        return [IoPipelineMultiplexMessages.Shutdown()]
 
     def check(self, tc: unittest.TestCase) -> None:
         for i, app in self.client_apps.items():

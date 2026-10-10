@@ -5,10 +5,10 @@ import unittest
 
 from ...drivers.pure import PureIoPipelineDriver
 from ...drivers.types import IoPipelineDriverState
-from ..types import ConnectionClosedMultiplexError
-from ..types import MultiplexMessages
-from ..types import MultiplexOpenedStream
-from ..types import StreamResetMultiplexError
+from ..types import ConnectionClosedMultiplexIoPipelineError
+from ..types import IoPipelineMultiplexMessages
+from ..types import IoPipelineMultiplexOpenedStream
+from ..types import StreamResetMultiplexIoPipelineError
 from .apps import AppFactory
 from .apps import StreamApp
 from .apps import app_spec
@@ -59,7 +59,7 @@ class _H2Peer:
         self.driver = PureIoPipelineDriver(spec)
 
     def open(self, app: StreamApp, *, auto_read: bool = True) -> _Outcome:
-        msg = MultiplexMessages.OpenStream(app_spec(app, auto_read=auto_read))
+        msg = IoPipelineMultiplexMessages.OpenStream(app_spec(app, auto_read=auto_read))
         outcome = _Outcome(msg)
         self.driver.enqueue(msg)
         return outcome
@@ -202,7 +202,7 @@ class TestH2LikeMultiplexing(unittest.TestCase):
             link.pump()
 
             self.assertEqual(len(bad_app.errors), 1)
-            self.assertIsInstance(bad_app.errors[0], StreamResetMultiplexError)
+            self.assertIsInstance(bad_app.errors[0], StreamResetMultiplexIoPipelineError)
             self.assertEqual(bad_app.errors[0].reason, 'FLOW_CONTROL_ERROR')  # type: ignore[attr-defined]
             self.assertEqual(bytes(server_factory.apps[1].received), b'fine')
             self.assertEqual(server.mux.streams.stats.reset_local, 1)
@@ -229,7 +229,7 @@ class TestH2LikeMultiplexing(unittest.TestCase):
             link.pump()
 
             self.assertEqual(len(sapp.errors), 1)
-            self.assertIsInstance(sapp.errors[0], ConnectionClosedMultiplexError)
+            self.assertIsInstance(sapp.errors[0], ConnectionClosedMultiplexIoPipelineError)
             self.assertIs(server.driver.state, IoPipelineDriverState.CLOSED)
             # The client saw the GOAWAY and then the end of the connection, which truncated its stream.
             self.assertEqual(client.adapter.goaway_received, 1)
@@ -245,7 +245,7 @@ class TestH2LikeMultiplexing(unittest.TestCase):
             app = _request('x', end=False, close_on_final_input=False)
             out = client.open(app)
             link.pump()
-            self.assertIsInstance(out.result, MultiplexOpenedStream)
+            self.assertIsInstance(out.result, IoPipelineMultiplexOpenedStream)
             (sid,) = server_factory.apps
 
             server.driver.enqueue(SendRaw(H2RstStream(sid, 'CANCEL')))
@@ -253,7 +253,7 @@ class TestH2LikeMultiplexing(unittest.TestCase):
 
             self.assertEqual(len(app.errors), 1)
             err = app.errors[0]
-            self.assertIsInstance(err, StreamResetMultiplexError)
+            self.assertIsInstance(err, StreamResetMultiplexIoPipelineError)
             self.assertEqual((err.reason, err.by), ('CANCEL', 'remote'))  # type: ignore[attr-defined]
             self.assertIsNone(client.mux.child_pipeline(sid))
             self.assertEqual(len(client.mux.streams), 0)
@@ -276,7 +276,7 @@ class TestH2LikeMultiplexing(unittest.TestCase):
             # resets it as safe to retry.
             crossing = _request('late', b'body')
             client.open(crossing)
-            server.driver.enqueue(MultiplexMessages.Shutdown())
+            server.driver.enqueue(IoPipelineMultiplexMessages.Shutdown())
             link.pump()
 
             self.assertEqual(client.adapter.goaway_received, 3)
@@ -301,7 +301,7 @@ class TestH2LikeMultiplexing(unittest.TestCase):
 
             crossing = _request('late', b'body')
             client.open(crossing)
-            server.driver.enqueue(MultiplexMessages.Shutdown())
+            server.driver.enqueue(IoPipelineMultiplexMessages.Shutdown())
             link.pump()
 
             # The server refused the stream it saw after its GOAWAY; the client, having seen the GOAWAY, reset it too.
@@ -313,7 +313,7 @@ class TestH2LikeMultiplexing(unittest.TestCase):
             # New local opens fail on both sides; the busy stream keeps both connections up.
             late = client.open(StreamApp())
             link.pump()
-            self.assertIsInstance(late.exc, ConnectionClosedMultiplexError)
+            self.assertIsInstance(late.exc, ConnectionClosedMultiplexIoPipelineError)
             self.assertIs(server.driver.state, IoPipelineDriverState.RUNNING)
             self.assertEqual(len(server.mux.streams), 1)
         finally:

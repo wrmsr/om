@@ -11,9 +11,9 @@ from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
-from ..types import MultiplexRefusal
-from ..types import MultiplexStreamMetadata
-from ..types import MultiplexStreamOpening
+from ..types import IoPipelineMultiplexRefusal
+from ..types import IoPipelineMultiplexStreamMetadata
+from ..types import IoPipelineMultiplexStreamOpening
 
 
 ##
@@ -82,7 +82,7 @@ class StreamApp(IoPipelineHandler):
         self.reads_requested = 0
         self.saw_initial_input = False
         self.saw_final_input = False
-        self.metadata: ta.Optional[MultiplexStreamMetadata] = None
+        self.metadata: ta.Optional[IoPipelineMultiplexStreamMetadata] = None
 
         self.shutdown_output = IoPipelineMessages.ShutdownOutput()
         self.final_output = IoPipelineMessages.FinalOutput()
@@ -124,7 +124,7 @@ class StreamApp(IoPipelineHandler):
 
         if isinstance(msg, IoPipelineMessages.InitialInput):
             self.saw_initial_input = True
-            self.metadata = ctx.pipeline.metadata.get(MultiplexStreamMetadata)
+            self.metadata = ctx.pipeline.metadata.get(IoPipelineMultiplexStreamMetadata)
             ctx.feed_in(msg)
             for m in self._prelude:
                 ctx.feed_out(m)
@@ -175,10 +175,10 @@ class AppFactory:
 
     def __init__(
             self,
-            make: ta.Callable[[MultiplexStreamOpening], StreamApp],
+            make: ta.Callable[[IoPipelineMultiplexStreamOpening], StreamApp],
             *,
-            refuse: ta.Optional[ta.Callable[[MultiplexStreamOpening], ta.Any]] = None,
-            auto_read: ta.Union[bool, ta.Callable[[MultiplexStreamOpening], bool]] = True,
+            refuse: ta.Optional[ta.Callable[[IoPipelineMultiplexStreamOpening], ta.Any]] = None,
+            auto_read: ta.Union[bool, ta.Callable[[IoPipelineMultiplexStreamOpening], bool]] = True,
     ) -> None:
         super().__init__()
 
@@ -186,12 +186,15 @@ class AppFactory:
         self._refuse = refuse
         self._auto_read = auto_read
         self.apps: ta.Dict[ta.Any, StreamApp] = {}
-        self.openings: ta.List[MultiplexStreamOpening] = []
+        self.openings: ta.List[IoPipelineMultiplexStreamOpening] = []
 
-    def __call__(self, opening: MultiplexStreamOpening) -> ta.Union[IoPipeline.Spec, MultiplexRefusal]:
+    def __call__(
+            self,
+            opening: IoPipelineMultiplexStreamOpening,
+    ) -> ta.Union[IoPipeline.Spec, IoPipelineMultiplexRefusal]:
         self.openings.append(opening)
         if self._refuse is not None and (reason := self._refuse(opening)) is not None:
-            return MultiplexRefusal(reason)
+            return IoPipelineMultiplexRefusal(reason)
         app = self._make(opening)
         self.apps[opening.key] = app
         auto_read = self._auto_read if isinstance(self._auto_read, bool) else self._auto_read(opening)

@@ -10,12 +10,12 @@ from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
-from ...multiplex.handlers import MultiplexConfig
+from ...multiplex.handlers import IoPipelineMultiplexConfig
 from ...multiplex.tests.apps import StreamApp
 from ...multiplex.tests.apps import app_spec
 from ...multiplex.tests.h2like import H2LikeAdapter
 from ...multiplex.tests.h2like import h2_like_spec
-from ...multiplex.types import MultiplexMessages
+from ...multiplex.types import IoPipelineMultiplexMessages
 from ..asyncio import PollAsyncioStreamIoPipelineDriver
 from ..sync import SocketSyncIoPipelineDriver
 from .producers import DEFER_N_CHUNKS
@@ -167,7 +167,7 @@ class TestAsyncioMultiplexTurnBudget(AsyncioIsolatedAsyncTestCase):
                 'client',
                 lambda o: None,  # type: ignore[arg-type,return-value]
                 adapter=H2LikeAdapter('client', peer_initial_window=2 * big, max_frame=16 * 1024),
-                config=MultiplexConfig(turn_output_budget=budget),
+                config=IoPipelineMultiplexConfig(turn_output_budget=budget),
                 connection_send_window=2 * big,
             )
             reader, writer = await asyncio.open_connection(sock=sock)
@@ -185,8 +185,8 @@ class TestAsyncioMultiplexTurnBudget(AsyncioIsolatedAsyncTestCase):
                 small = StreamApp(send=b'a' * 100, send_messages=[IoPipelineFlowMessages.FlushOutput()])
                 large = StreamApp(send=b'b' * big, chunk_size=64 * 1024)
                 driver.enqueue(
-                    MultiplexMessages.OpenStream(app_spec(small), None),
-                    MultiplexMessages.OpenStream(app_spec(large), None),
+                    IoPipelineMultiplexMessages.OpenStream(app_spec(small), None),
+                    IoPipelineMultiplexMessages.OpenStream(app_spec(large), None),
                 )
                 for _ in range(8):
                     self.assertIsNone(await asyncio.wait_for(driver.next(read=False), 10.))

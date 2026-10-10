@@ -5,24 +5,24 @@ the like - with each stream backed by its own child `IoPipeline`. The multiplexi
 for it the same terminal contract a socket driver meets for a top-level pipeline, so anything that runs on an ordinary
 pipeline - byte decoders, protocol codecs, timeouts - runs unchanged inside a stream.
 
-The core is protocol-agnostic. A protocol plugs in through a `MultiplexAdapter`. The contracts are recorded in
+The core is protocol-agnostic. A protocol plugs in through a `IoPipelineMultiplexAdapter`. The contracts are recorded in
 [DESIGN.md](../DESIGN.md) section 13.
 
 ## Public surface
 
 - `MultiplexIoPipelineHandler(adapter, spec_factory, *, config, credit, scheduler)` - placed innermost in the parent
   pipeline, inside the handlers decoding and encoding the protocol's frames.
-- `MultiplexAdapter` - the protocol: decodes inbound frames into calls on a `MultiplexConnection`, and encodes what the
+- `IoPipelineMultiplexAdapter` - the protocol: decodes inbound frames into calls on a `IoPipelineMultiplexConnection`, and encodes what the
   core asks it to emit.
 - A stream spec factory - `(MultiplexStreamOpening) -> IoPipeline.Spec | MultiplexRefusal` - for peer-opened streams.
-- `MultiplexConfig` and `MultiplexChildConfig` - limits, the per-turn output budget, child batching and watermarks.
+- `IoPipelineMultiplexConfig` and `IoPipelineMultiplexChildConfig` - limits, the per-turn output budget, child batching and watermarks.
 - Credit strategies - `StreamMultiplexCreditStrategy` (per stream, like SSH) and `ConnectionMultiplexCreditStrategy`
   (per stream plus connection, like HTTP/2) - with replenish policies.
-- `RoundRobinMultiplexOutputScheduler` - deficit round robin between streams with sendable output.
-- Messages: `MultiplexMessages.OpenStream` (opens a local stream, completing with a `MultiplexOpenedStream`),
+- `RoundRobinIoPipelineMultiplexOutputScheduler` - deficit round robin between streams with sendable output.
+- Messages: `MultiplexMessages.OpenStream` (opens a local stream, completing with a `IoPipelineMultiplexOpenedStream`),
   `MultiplexMessages.Shutdown` (graceful connection shutdown), and `MultiplexMessages.FeedStream` (feeds a stream's
   pipeline at its boundary, like a driver's `enqueue`).
-- `MultiplexStreamMetadata` - attached to each child pipeline: the stream's key, origin, and opening information.
+- `IoPipelineMultiplexStreamMetadata` - attached to each child pipeline: the stream's key, origin, and opening information.
 
 The stream table, stream state machine, credit accounting, and output scheduling (`streams`, `credit`, `schedulers`) do
 not depend on child pipelines, so a consumer preferring tagged messages to child pipelines can build on them.

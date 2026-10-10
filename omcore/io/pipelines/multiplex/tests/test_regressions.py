@@ -27,12 +27,12 @@ from ...drivers.types import IoPipelineDriverState
 from ...flow.types import IoPipelineFlowMessages
 from ...sched.types import IoPipelineScheduling
 from ...yielding import CountingIoPipelineYieldPolicy
-from ..children import MultiplexChildConfig
+from ..children import IoPipelineMultiplexChildConfig
 from ..credit import ConnectionMultiplexCreditStrategy
-from ..handlers import MultiplexConfig
+from ..handlers import IoPipelineMultiplexConfig
 from ..handlers import MultiplexIoPipelineHandler
-from ..types import MultiplexMessages
-from ..types import MultiplexStreamState
+from ..types import IoPipelineMultiplexMessages
+from ..types import IoPipelineMultiplexStreamState
 from .apps import AppFactory
 from .apps import Emit
 from .apps import StreamApp
@@ -105,7 +105,7 @@ class TestChildDestroyedFromItsOwnCompletion(unittest.TestCase):
 
             self.assertEqual(of_type(frames, LReset), [])
             self.assertTrue(app.final_output.is_succeeded())
-            self.assertIs(h.mux.streams['k'].state, MultiplexStreamState.HALF_CLOSED_LOCAL)
+            self.assertIs(h.mux.streams['k'].state, IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL)
 
             h.feed(LClose('k'))
             self.assertNotIn('k', h.mux.streams)
@@ -371,7 +371,7 @@ class TestReceiveCreditAfterLocalFinish(unittest.TestCase):
         try:
             h.feed(LOpen('k'))
             h.feed_stream('k', Emit(IoPipelineMessages.FinalOutput))
-            self.assertIs(h.mux.streams['k'].state, MultiplexStreamState.HALF_CLOSED_LOCAL)
+            self.assertIs(h.mux.streams['k'].state, IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL)
 
             for n in (60, 40):
                 h.feed(LData('k', b'x' * n))
@@ -398,7 +398,7 @@ class TestOpenBeforeInitialInput(unittest.TestCase):
             ref = h.pipeline.find_single_handler_of_type(MultiplexIoPipelineHandler)
             assert ref is not None
 
-            msg = MultiplexMessages.OpenStream(app_spec(StreamApp(close_on_final_input=False)))
+            msg = IoPipelineMultiplexMessages.OpenStream(app_spec(StreamApp(close_on_final_input=False)))
             out = Outcome(msg)
             h.pipeline.feed_in_to(ref, msg)
             h.step()
@@ -450,7 +450,7 @@ class TestDeferredProducerBackpressure(unittest.TestCase):
         app = DeferYieldingProducer()
         h = LoopbackHarness(
             lambda o: app_spec(app),
-            config=MultiplexConfig(child=MultiplexChildConfig(
+            config=IoPipelineMultiplexConfig(child=IoPipelineMultiplexChildConfig(
                 write_high_watermark=64 * 1024,
                 write_low_watermark=16 * 1024,
             )),
@@ -480,7 +480,7 @@ class TestTypedOutputWatermarks(unittest.TestCase):
         h = LoopbackHarness(
             lambda o: app_spec(app),
             adapter=LoopbackAdapter(cost=lambda m: len(m.data)),
-            config=MultiplexConfig(child=MultiplexChildConfig(
+            config=IoPipelineMultiplexConfig(child=IoPipelineMultiplexChildConfig(
                 write_high_watermark=16,
                 write_low_watermark=4,
             )),
@@ -513,10 +513,17 @@ class TestFinishedChildConnectionCredit(unittest.TestCase):
             recv_window=8,
             connection_replenish_on='consume',
         )
-        factory = AppFactory(lambda o: StreamApp(close_on_final_input=False), auto_read=False)
+        factory = AppFactory(
+            lambda o: StreamApp(
+                close_on_final_input=False,
+            ),
+            auto_read=False)
         h = LoopbackHarness(
             factory,
-            adapter=LoopbackAdapter(recv_window=8, on_finish='wait'),
+            adapter=LoopbackAdapter(
+                recv_window=8,
+                on_finish='wait',
+            ),
             credit=credit,
         )
         try:
@@ -527,8 +534,8 @@ class TestFinishedChildConnectionCredit(unittest.TestCase):
             h.feed_stream('abandoned', Emit(IoPipelineMessages.FinalOutput))
             self.assertTrue(h.mux.streams['abandoned'].local_finished)
             self.assertTrue(factory.apps['abandoned'].final_output.is_succeeded())
-            # The child has finished and can never consume the queued input. The peer's close handshake may arrive
-            # much later; it must not hold the entire connection window until then.
+            # The child has finished and can never consume the queued input. The peer's close handshake may arrive much
+            # later; it must not hold the entire connection window until then.
             self.assertEqual(sum(f.n for f in of_type(h.frames, LGrant) if f.key is None), 8)
             self.assertEqual(h.mux.streams['abandoned'].in_bytes, 0)
         finally:
@@ -543,7 +550,10 @@ class TestControlOutputBound(unittest.TestCase):
     def test_control_output_limit_bounds_one_decoded_batch(self) -> None:
         h = LoopbackHarness(
             AppFactory(lambda o: StreamApp()),
-            config=MultiplexConfig(max_remote_streams=0, max_control_during_pause=3),
+            config=IoPipelineMultiplexConfig(
+                max_remote_streams=0,
+                max_control_during_pause=3,
+            ),
         )
         try:
             h.enqueue(IoPipelineFlowMessages.PauseOutput())
@@ -655,8 +665,15 @@ class TestDeferredYieldsAndTimers(AsyncioIsolatedAsyncTestCase):
                 spec, _ = h2_like_spec(
                     'client',
                     AppFactory(lambda o: StreamApp()),
-                    adapter=H2LikeAdapter('client', peer_initial_window=8192, max_frame=16),
-                    config=MultiplexConfig(turn_output_budget=16, yield_policy=CountingIoPipelineYieldPolicy(1)),
+                    adapter=H2LikeAdapter(
+                        'client',
+                        peer_initial_window=8192,
+                        max_frame=16,
+                    ),
+                    config=IoPipelineMultiplexConfig(
+                        turn_output_budget=16,
+                        yield_policy=CountingIoPipelineYieldPolicy(1),
+                    ),
                     connection_send_window=8192,
                 )
                 observer = _TimerDuringOutput()
@@ -676,7 +693,7 @@ class TestDeferredYieldsAndTimers(AsyncioIsolatedAsyncTestCase):
                     driver = PollAsyncioStreamIoPipelineDriver(spec, reader, writer)
                 app = StreamApp(prelude=[Headers('request')], send=b'x' * 4096, close_on_final_input=False)
                 try:
-                    driver.enqueue(MultiplexMessages.OpenStream(app_spec(app)))
+                    driver.enqueue(IoPipelineMultiplexMessages.OpenStream(app_spec(app)))
                     for _ in range(1024):
                         if kind == 'asyncio':
                             await driver.next(read=False)

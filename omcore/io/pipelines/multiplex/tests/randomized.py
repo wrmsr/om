@@ -9,9 +9,9 @@ from ...drivers.pure import PureIoPipelineDriver
 from ...drivers.types import IoPipelineDriverState
 from ...ssl.tests.test_halfclose import _ssl_handlers
 from ...yielding import CountingIoPipelineYieldPolicy
-from ..children import MultiplexChildConfig
-from ..handlers import MultiplexConfig
-from ..types import MultiplexMessages
+from ..children import IoPipelineMultiplexChildConfig
+from ..handlers import IoPipelineMultiplexConfig
+from ..types import IoPipelineMultiplexMessages
 from .apps import AppFactory
 from .apps import StreamApp
 from .apps import app_spec
@@ -65,8 +65,8 @@ def run_session(tc, seed, *, protocol, tls=False):
     requests = [payload((seed, 'request', i), rng.randint(0, 16384)) for i in range(count)]
     responses = [payload((seed, 'response', i), rng.randint(0, 16384)) for i in range(count)]
     extended = [payload((seed, 'extended', i), rng.randint(0, 2048)) for i in range(count)]
-    configs = [MultiplexConfig(
-        child=MultiplexChildConfig(
+    configs = [IoPipelineMultiplexConfig(
+        child=IoPipelineMultiplexChildConfig(
             read_batch_max_bytes=rng.randint(1, 8192),
             write_high_watermark=256,
             write_low_watermark=64,
@@ -146,7 +146,7 @@ def run_session(tc, seed, *, protocol, tls=False):
                 chunk_size=rng.randint(1, 4096),
             )
             apps.append(app)
-            msg = MultiplexMessages.OpenStream(
+            msg = IoPipelineMultiplexMessages.OpenStream(
                 app_spec(app, auto_read=not bool(i % 2)),
                 None if protocol == 'h2' else SshOpenInfo('session', str(i).encode()),
             )
@@ -183,7 +183,7 @@ def run_session(tc, seed, *, protocol, tls=False):
 def run_churn(tc, seed, *, waves=8, tls=False):
     rng = random.Random(seed)
     factory = AppFactory(lambda o: StreamApp(respond=payload((seed, 'response', o.key), 4096)))
-    config = MultiplexConfig(turn_output_budget=128, yield_policy=CountingIoPipelineYieldPolicy(2))
+    config = IoPipelineMultiplexConfig(turn_output_budget=128, yield_policy=CountingIoPipelineYieldPolicy(2))
     specs = []
     muxes = []
     roles: ta.Sequence[ta.Literal['client', 'server']] = ('client', 'server')
@@ -213,7 +213,7 @@ def run_churn(tc, seed, *, waves=8, tls=False):
             for index in range(count):
                 body = payload((seed, wave, index), 4096)
                 app = StreamApp(prelude=[Headers(str(index))], send=body, shutdown_after_send=True)
-                msg = MultiplexMessages.OpenStream(app_spec(app))
+                msg = IoPipelineMultiplexMessages.OpenStream(app_spec(app))
                 outcomes.append(Outcome(msg))
                 bodies.append(body)
                 apps.append(app)
@@ -245,7 +245,7 @@ def run_churn(tc, seed, *, waves=8, tls=False):
                 tc.assertTrue(drivers[side].is_running)
             factory.apps.clear()
             factory.openings.clear()
-        drivers[0].enqueue(MultiplexMessages.Shutdown())
+        drivers[0].enqueue(IoPipelineMultiplexMessages.Shutdown())
         link.pump()
         for driver in drivers:
             tc.assertIs(driver.state, IoPipelineDriverState.CLOSED)

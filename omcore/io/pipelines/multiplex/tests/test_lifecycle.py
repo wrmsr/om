@@ -4,11 +4,11 @@ import typing as ta
 import unittest
 
 from ...core import IoPipelineMessages
-from ..types import ConnectionClosedMultiplexError
-from ..types import MultiplexOpenedStream
-from ..types import MultiplexStreamState
-from ..types import StreamRefusedMultiplexError
-from ..types import StreamResetMultiplexError
+from ..types import ConnectionClosedMultiplexIoPipelineError
+from ..types import IoPipelineMultiplexOpenedStream
+from ..types import IoPipelineMultiplexStreamState
+from ..types import StreamRefusedMultiplexIoPipelineError
+from ..types import StreamResetMultiplexIoPipelineError
 from .apps import AppFactory
 from .apps import Emit
 from .apps import StreamApp
@@ -47,14 +47,14 @@ class TestLocalOpens(unittest.TestCase):
             self.assertEqual(opened.info, 'hello')
 
             stream = h.mux.streams[key]
-            self.assertIs(stream.state, MultiplexStreamState.OPENING)
+            self.assertIs(stream.state, IoPipelineMultiplexStreamState.OPENING)
             self.assertFalse(app.saw_initial_input)
             self.assertFalse(out.done)
 
             h.feed(LConfirm(key, credit=10))
-            self.assertIs(stream.state, MultiplexStreamState.OPEN)
+            self.assertIs(stream.state, IoPipelineMultiplexStreamState.OPEN)
             self.assertTrue(app.saw_initial_input)
-            self.assertIsInstance(out.result, MultiplexOpenedStream)
+            self.assertIsInstance(out.result, IoPipelineMultiplexOpenedStream)
             self.assertEqual(out.result.key, key)
             self.assertIs(out.result.pipeline, h.mux.child_pipeline(key))
             self.assertEqual(h.mux.credit.send_available(key), 10)
@@ -71,7 +71,7 @@ class TestLocalOpens(unittest.TestCase):
             (opened,) = of_type(h.frames, LOpen)
 
             h.feed(LRefuse(opened.key, 'no thanks'))
-            self.assertIsInstance(out.exc, StreamRefusedMultiplexError)
+            self.assertIsInstance(out.exc, StreamRefusedMultiplexIoPipelineError)
             self.assertEqual(out.exc.reason, 'no thanks')  # type: ignore[union-attr]
             self.assertFalse(app.saw_initial_input)
             self.assertEqual(len(h.mux.streams), 0)
@@ -85,7 +85,7 @@ class TestLocalOpens(unittest.TestCase):
         try:
             app = StreamApp(send=b'early', close_on_final_input=False)
             out = (h.open(app_spec(app)))
-            self.assertIsInstance(out.result, MultiplexOpenedStream)
+            self.assertIsInstance(out.result, IoPipelineMultiplexOpenedStream)
             self.assertTrue(app.saw_initial_input)
             # No send credit was granted yet: the data waits.
             self.assertEqual(data_of(h.frames, out.result.key), b'')
@@ -158,45 +158,48 @@ class TestRemoteOpens(unittest.TestCase):
 class TestCloseAndResetInEachState(unittest.TestCase):
     """Close and reset arriving from the peer in every lifecycle state."""
 
-    def _open_remote(self, h: LoopbackHarness, key: str, state: MultiplexStreamState) -> StreamApp:
+    def _open_remote(self, h: LoopbackHarness, key: str, state: IoPipelineMultiplexStreamState) -> StreamApp:
         h.feed(LOpen(key))
         app = h.app(key)
         assert isinstance(app, StreamApp)
-        if state in (MultiplexStreamState.HALF_CLOSED_REMOTE, MultiplexStreamState.ENDED):
+        if state in (IoPipelineMultiplexStreamState.HALF_CLOSED_REMOTE, IoPipelineMultiplexStreamState.ENDED):
             h.feed(LEnd(key))
-        if state in (MultiplexStreamState.HALF_CLOSED_LOCAL, MultiplexStreamState.ENDED):
+        if state in (IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL, IoPipelineMultiplexStreamState.ENDED):
             h.feed_stream(key, Emit(IoPipelineMessages.ShutdownOutput))
         self.assertIs(h.mux.streams[key].state, state)
         return app
 
     def test_close_in_each_state(self) -> None:
         for state in (
-                MultiplexStreamState.OPEN,
-                MultiplexStreamState.HALF_CLOSED_LOCAL,
-                MultiplexStreamState.HALF_CLOSED_REMOTE,
-                MultiplexStreamState.ENDED,
+                IoPipelineMultiplexStreamState.OPEN,
+                IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL,
+                IoPipelineMultiplexStreamState.HALF_CLOSED_REMOTE,
+                IoPipelineMultiplexStreamState.ENDED,
         ):
             with self.subTest(state=state):
                 h = LoopbackHarness(AppFactory(lambda o: _keep_open()))
                 try:
                     app = self._open_remote(h, 'k', state)
                     h.feed(LData('k', b'tail') if state in (
-                        MultiplexStreamState.OPEN,
-                        MultiplexStreamState.HALF_CLOSED_LOCAL,
+                        IoPipelineMultiplexStreamState.OPEN,
+                        IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL,
                     ) else LClose('k'))
-                    if state in (MultiplexStreamState.OPEN, MultiplexStreamState.HALF_CLOSED_LOCAL):
+                    if state in (IoPipelineMultiplexStreamState.OPEN, IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL):
                         h.feed(LClose('k'))
 
                     # A graceful remote close: the pipeline gets what was queued, then FinalInput, and lives on.
                     self.assertTrue(app.saw_final_input)
-                    if state in (MultiplexStreamState.OPEN, MultiplexStreamState.HALF_CLOSED_LOCAL):
+                    if state in (IoPipelineMultiplexStreamState.OPEN, IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL):
                         self.assertEqual(bytes(app.received), b'tail')
                     self.assertEqual(app.errors, [])
                     self.assertIn('k', h.mux.streams)
 
                     # Output after the close is discarded; the pipeline finishing releases the stream.
                     before = len(h.frames)
-                    if state in (MultiplexStreamState.HALF_CLOSED_LOCAL, MultiplexStreamState.ENDED):
+                    if state in (
+                            IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL,
+                            IoPipelineMultiplexStreamState.ENDED,
+                    ):
                         h.feed_stream('k', Emit(IoPipelineMessages.FinalOutput))
                     else:
                         h.feed_stream('k', Emit(b'discarded', IoPipelineMessages.FinalOutput))
@@ -216,7 +219,7 @@ class TestCloseAndResetInEachState(unittest.TestCase):
             self.assertEqual(of_type(h.frames, LFinish), [LFinish('k', False)])
             stream = h.mux.streams['k']
             self.assertTrue(stream.local_finished)
-            self.assertIs(stream.state, MultiplexStreamState.ENDED)
+            self.assertIs(stream.state, IoPipelineMultiplexStreamState.ENDED)
             self.assertTrue(factory.apps['k'].final_output.is_succeeded())
             self.assertFalse(ta.cast(ta.Any, h.mux.child_pipeline('k')).is_ready)
 
@@ -228,10 +231,10 @@ class TestCloseAndResetInEachState(unittest.TestCase):
 
     def test_reset_in_each_state(self) -> None:
         for state in (
-                MultiplexStreamState.OPEN,
-                MultiplexStreamState.HALF_CLOSED_LOCAL,
-                MultiplexStreamState.HALF_CLOSED_REMOTE,
-                MultiplexStreamState.ENDED,
+                IoPipelineMultiplexStreamState.OPEN,
+                IoPipelineMultiplexStreamState.HALF_CLOSED_LOCAL,
+                IoPipelineMultiplexStreamState.HALF_CLOSED_REMOTE,
+                IoPipelineMultiplexStreamState.ENDED,
         ):
             with self.subTest(state=state):
                 h = LoopbackHarness(AppFactory(lambda o: _keep_open()))
@@ -243,7 +246,7 @@ class TestCloseAndResetInEachState(unittest.TestCase):
 
                     self.assertEqual(len(app.errors), 1)
                     err = app.errors[0]
-                    self.assertIsInstance(err, StreamResetMultiplexError)
+                    self.assertIsInstance(err, StreamResetMultiplexIoPipelineError)
                     self.assertEqual((err.reason, err.by), ('cancelled', 'remote'))  # type: ignore[attr-defined]
                     self.assertFalse(child_pipeline.is_ready)
                     self.assertNotIn('k', h.mux.streams)
@@ -259,7 +262,7 @@ class TestCloseAndResetInEachState(unittest.TestCase):
             out = (h.open(app_spec(app)))
             (opened,) = of_type(h.frames, LOpen)
             h.feed(LReset(opened.key, 'gone'))
-            self.assertIsInstance(out.exc, StreamResetMultiplexError)
+            self.assertIsInstance(out.exc, StreamResetMultiplexIoPipelineError)
             self.assertFalse(app.saw_initial_input)
             self.assertNotIn(opened.key, h.mux.streams)
         finally:
@@ -271,7 +274,7 @@ class TestCloseAndResetInEachState(unittest.TestCase):
             out = (h.open(app_spec(_keep_open())))
             (opened,) = of_type(h.frames, LOpen)
             h.feed(LClose(opened.key))
-            self.assertIsInstance(out.exc, StreamResetMultiplexError)
+            self.assertIsInstance(out.exc, StreamResetMultiplexIoPipelineError)
             self.assertNotIn(opened.key, h.mux.streams)
         finally:
             h.close()
@@ -306,7 +309,7 @@ class TestProtocolViolations(unittest.TestCase):
             (bye,) = of_type(h.frames, LGoodbye)
             self.assertIn('nope', str(bye.exc))
             self.assertEqual(len(app.errors), 1)
-            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexError)
+            self.assertIsInstance(app.errors[0], ConnectionClosedMultiplexIoPipelineError)
             self.assertTrue(h.pipeline.saw_final_output)
         finally:
             h.close()

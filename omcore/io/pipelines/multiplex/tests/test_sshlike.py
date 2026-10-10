@@ -4,9 +4,9 @@ import typing as ta
 import unittest
 
 from ...drivers.pure import PureIoPipelineDriver
-from ..types import MultiplexMessages
-from ..types import MultiplexOpenedStream
-from ..types import StreamRefusedMultiplexError
+from ..types import IoPipelineMultiplexMessages
+from ..types import IoPipelineMultiplexOpenedStream
+from ..types import StreamRefusedMultiplexIoPipelineError
 from .apps import AppFactory
 from .apps import StreamApp
 from .apps import app_spec
@@ -52,7 +52,7 @@ class _Peer:
         self.driver = PureIoPipelineDriver(spec)
 
     def open(self, app: StreamApp, info: bytes = b'', kind: str = 'session') -> _Outcome:
-        msg = MultiplexMessages.OpenStream(app_spec(app), SshOpenInfo(kind, info))
+        msg = IoPipelineMultiplexMessages.OpenStream(app_spec(app), SshOpenInfo(kind, info))
         outcome = _Outcome(msg)
         self.driver.enqueue(msg)
         return outcome
@@ -103,7 +103,7 @@ class TestSshLikeMultiplexing(unittest.TestCase):
                 with self.subTest(stream=i):
                     oc = outcomes[i]
                     self.assertTrue(oc.done)
-                    self.assertIsInstance(oc.result, MultiplexOpenedStream)
+                    self.assertIsInstance(oc.result, IoPipelineMultiplexOpenedStream)
                     app = client_apps[i]
                     self.assertTrue(bytes(app.received) == payload(('resp', str(i).encode()), 50_000))
                     self.assertTrue(app.saw_final_input)
@@ -167,10 +167,10 @@ class TestSshLikeMultiplexing(unittest.TestCase):
             over = client.open(StreamApp(), kind='session')
             link.pump()
 
-            self.assertIsInstance(ok.result, MultiplexOpenedStream)
-            self.assertIsInstance(forbidden.exc, StreamRefusedMultiplexError)
+            self.assertIsInstance(ok.result, IoPipelineMultiplexOpenedStream)
+            self.assertIsInstance(forbidden.exc, StreamRefusedMultiplexIoPipelineError)
             self.assertEqual(forbidden.exc.reason, 'not allowed')  # type: ignore[union-attr]
-            self.assertIsInstance(over.exc, StreamRefusedMultiplexError)
+            self.assertIsInstance(over.exc, StreamRefusedMultiplexIoPipelineError)
             self.assertIn('remote', str(over.exc.reason))  # type: ignore[union-attr]
 
             st = server.mux.streams.stats
@@ -273,7 +273,7 @@ class TestSshLikeMultiplexing(unittest.TestCase):
             link = PureLink(client, server)
             capp = StreamApp(send=b'ping', shutdown_after_send=True)
             refs.append(weakref.ref(capp))
-            client.enqueue(MultiplexMessages.OpenStream(app_spec(capp), SshOpenInfo('session', b'')))
+            client.enqueue(IoPipelineMultiplexMessages.OpenStream(app_spec(capp), SshOpenInfo('session', b'')))
             del capp
             link.pump()
             self.assertEqual(len(client_mux.streams), 0)

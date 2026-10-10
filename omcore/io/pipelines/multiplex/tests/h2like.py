@@ -14,15 +14,15 @@ import typing as ta
 from ....streambufs.segmented import SegmentedByteStreamBufferView
 from ...core import IoPipeline
 from ...flow.stub import StubIoPipelineFlowService
-from ..adapters import MultiplexAdapter
-from ..adapters import MultiplexConnection
-from ..adapters import MultiplexStreamParams
+from ..adapters import IoPipelineMultiplexAdapter
+from ..adapters import IoPipelineMultiplexConnection
+from ..adapters import IoPipelineMultiplexStreamParams
 from ..credit import ConnectionMultiplexCreditStrategy
-from ..handlers import MultiplexConfig
+from ..handlers import IoPipelineMultiplexConfig
 from ..handlers import MultiplexIoPipelineHandler
-from ..streams import MultiplexStream
-from ..types import FlowControlMultiplexError
-from ..types import MultiplexStreamOpening
+from ..streams import IoPipelineMultiplexStream
+from ..types import FlowControlMultiplexIoPipelineError
+from ..types import IoPipelineMultiplexStreamOpening
 from ..types import MultiplexStreamSpecFactory
 from .wire import FrameCodec
 from .wire import FrameCodecIoPipelineHandler
@@ -104,7 +104,7 @@ class SendRaw:
 ##
 
 
-class H2LikeAdapter(MultiplexAdapter):
+class H2LikeAdapter(IoPipelineMultiplexAdapter):
     def __init__(
             self,
             role: ta.Literal['client', 'server'],
@@ -131,13 +131,13 @@ class H2LikeAdapter(MultiplexAdapter):
     def _is_peer_id(self, sid: int) -> bool:
         return bool(sid % 2) == (self._role == 'server')
 
-    def _maybe_close(self, conn: MultiplexConnection, stream: ta.Optional[MultiplexStream]) -> None:
+    def _maybe_close(self, conn: IoPipelineMultiplexConnection, stream: ta.Optional[IoPipelineMultiplexStream]) -> None:
         if stream is not None and not stream.is_terminal and stream.local_finished and stream.remote_ended:
             conn.close(stream.key)
 
     #
 
-    def inbound(self, conn: MultiplexConnection, msg: ta.Any) -> bool:
+    def inbound(self, conn: IoPipelineMultiplexConnection, msg: ta.Any) -> bool:
         if isinstance(msg, SendSettings):
             conn.send(H2Settings(msg.initial_window))
             return True
@@ -197,7 +197,7 @@ class H2LikeAdapter(MultiplexAdapter):
                 return True
             try:
                 conn.data(msg.stream_id, msg.data, cost=len(msg.data) + msg.pad)
-            except FlowControlMultiplexError as e:
+            except FlowControlMultiplexIoPipelineError as e:
                 if e.scope == 'stream':
                     conn.reset_local(msg.stream_id, 'FLOW_CONTROL_ERROR')
                     return True
@@ -214,10 +214,10 @@ class H2LikeAdapter(MultiplexAdapter):
 
         return False
 
-    def open_local(self, conn: MultiplexConnection, info: ta.Any) -> MultiplexStreamParams:
+    def open_local(self, conn: IoPipelineMultiplexConnection, info: ta.Any) -> IoPipelineMultiplexStreamParams:
         sid = self._next_local
         self._next_local += 2
-        return MultiplexStreamParams(
+        return IoPipelineMultiplexStreamParams(
             sid,
             recv_window=self._initial_window,
             send_credit=self._peer_initial_window,
@@ -226,51 +226,55 @@ class H2LikeAdapter(MultiplexAdapter):
 
     #
 
-    def encode_refuse(self, opening: MultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_refuse(self, opening: IoPipelineMultiplexStreamOpening, reason: ta.Any) -> ta.Sequence[ta.Any]:
         return [H2RstStream(ta.cast(int, opening.key), 'REFUSED_STREAM')]
 
-    def encode_reset(self, stream: MultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_reset(self, stream: IoPipelineMultiplexStream, reason: ta.Any) -> ta.Sequence[ta.Any]:
         return [H2RstStream(ta.cast(int, stream.key), str(reason))]
 
-    def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
+    def encode_credit(self, stream: ta.Optional[IoPipelineMultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
         return [H2WindowUpdate(ta.cast(int, stream.key) if stream is not None else 0, amount)]
 
-    def encode_data(self, stream: MultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
+    def encode_data(
+            self,
+            stream: IoPipelineMultiplexStream,
+            data: SegmentedByteStreamBufferView,
+    ) -> ta.Sequence[ta.Any]:
         return [H2Data(ta.cast(int, stream.key), bytes(data.tobytes()), False, self._pad)]
 
-    def encode_message(self, stream: MultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
+    def encode_message(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> ta.Sequence[ta.Any]:
         return [H2Headers(ta.cast(int, stream.key), msg.fields, False)]
 
-    def encode_end(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_end(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [H2Data(ta.cast(int, stream.key), b'', True, 0)]
 
-    def encode_finish(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_finish(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         if stream.local_ended:
             return []
         return [H2Data(ta.cast(int, stream.key), b'', True, 0)]
 
     def encode_connection_error(self, exc: BaseException) -> ta.Sequence[ta.Any]:
-        code = 'FLOW_CONTROL_ERROR' if isinstance(exc, FlowControlMultiplexError) else 'INTERNAL_ERROR'
+        code = 'FLOW_CONTROL_ERROR' if isinstance(exc, FlowControlMultiplexIoPipelineError) else 'INTERNAL_ERROR'
         return [H2GoAway(self._last_peer_id, code)]
 
     #
 
-    def max_data_unit(self, stream: MultiplexStream) -> int:
+    def max_data_unit(self, stream: IoPipelineMultiplexStream) -> int:
         return self._max_frame
 
-    def data_unit_overhead(self, stream: MultiplexStream) -> int:
+    def data_unit_overhead(self, stream: IoPipelineMultiplexStream) -> int:
         return self._pad
 
-    def claim_output(self, stream: MultiplexStream, msg: ta.Any) -> bool:
+    def claim_output(self, stream: IoPipelineMultiplexStream, msg: ta.Any) -> bool:
         return isinstance(msg, Headers)
 
-    def on_stream_finished(self, conn: MultiplexConnection, stream: MultiplexStream) -> None:
+    def on_stream_finished(self, conn: IoPipelineMultiplexConnection, stream: IoPipelineMultiplexStream) -> None:
         if stream.remote_ended:
             conn.close(stream.key)
         else:
             conn.reset_local(stream.key, 'CANCEL')
 
-    def on_shutdown(self, conn: MultiplexConnection) -> None:
+    def on_shutdown(self, conn: IoPipelineMultiplexConnection) -> None:
         self.goaway_sent = self._last_peer_id
         conn.send(H2GoAway(self._last_peer_id, 'NO_ERROR'))
         conn.begin_shutdown()
@@ -281,7 +285,7 @@ def h2_like_spec(
         spec_factory: MultiplexStreamSpecFactory,
         *,
         adapter: ta.Optional[H2LikeAdapter] = None,
-        config: ta.Optional[MultiplexConfig] = None,
+        config: ta.Optional[IoPipelineMultiplexConfig] = None,
         connection_send_window: int = 64 * 1024,
         connection_recv_window: int = 64 * 1024,
         connection_replenish_on: ta.Literal['receive', 'consume'] = 'receive',
