@@ -38,7 +38,7 @@ class _ClosesTwice(IoPipelineHandler):
         self.second = IoPipelineMessages.FinalOutput()
         self.errors: ta.List[IoPipelineMessages.Error] = []
 
-        # Outcomes are only observable from listeners (DESIGN 5).
+        # Outcomes are only observable from listeners.
         self.second_exc: ta.Optional[BaseException] = None
         self.second.add_listener(self._on_second_done)
 
@@ -61,9 +61,9 @@ class _ClosesTwice(IoPipelineHandler):
 
 
 class TestSecondFinalOutput(unittest.TestCase):
-    # DESIGN 4: "Once it reaches the outbound terminal, no further outbound message may reach that terminal." A second
-    # FinalOutput is such a message, and must be rejected like anything else - not appended to the output queue, where
-    # every driver then fails on it.
+    # "Once it reaches the outbound terminal, no further outbound message may reach that terminal." A second FinalOutput
+    # is such a message, and must be rejected like anything else - not appended to the output queue, where every driver
+    # then fails on it.
 
     def test_second_final_output_is_rejected_at_the_terminal(self) -> None:
         h = _ClosesTwice()

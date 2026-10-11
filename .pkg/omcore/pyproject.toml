@@ -33,7 +33,7 @@ async = [
 ]
 check = [
     'asttokens ~= 3.0',
-    'executing ~= 2.2',
+    'executing ~= 2.3',
 ]
 compress = [
     'lz4 ~= 4.4',
@@ -93,7 +93,7 @@ text = [
 ]
 plus = [
     'asttokens ~= 3.0',
-    'executing ~= 2.2',
+    'executing ~= 2.3',
     'cryptography ~= 50.0',
     'pygments ~= 2.21',
 ]
@@ -109,7 +109,7 @@ all = [
     'trio ~= 0.34',
     'trio-asyncio ~= 0.15',
     'asttokens ~= 3.0',
-    'executing ~= 2.2',
+    'executing ~= 2.3',
     'lz4 ~= 4.4',
     'python-snappy ~= 0.7',
     'brotli ~= 1.2',
@@ -147,7 +147,7 @@ all = [
     'pygments ~= 2.21',
     'regex ~= 2026.9',
     'asttokens ~= 3.0',
-    'executing ~= 2.2',
+    'executing ~= 2.3',
     'cryptography ~= 50.0',
     'pygments ~= 2.21',
     'omcore-cext == 0.0.66',

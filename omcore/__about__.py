@@ -44,7 +44,7 @@ class Project(ProjectBase):
 
         'check': [
             'asttokens ~= 3.0',
-            'executing ~= 2.2',
+            'executing ~= 2.3',
         ],
 
         'compress': [

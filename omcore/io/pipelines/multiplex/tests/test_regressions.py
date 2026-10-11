@@ -117,9 +117,9 @@ class TestChildDestroyedFromItsOwnCompletion(unittest.TestCase):
 
 class TestRemoteCloseBehindPendingParentFlush(unittest.TestCase):
     # A child fence completes once a parent FlushOutput issued after its emission completes. If the peer closes the
-    # stream before that parent flush has completed, and the child then finishes, its FinalOutput - discarded output
-    # on a remote-closed stream, completed at once - must not complete ahead of the earlier fence (DESIGN 5), and
-    # finishing the child must not fail that fence: it was emitted and will cross the transport with the flush.
+    # stream before that parent flush has completed, and the child then finishes, its FinalOutput - discarded output on
+    # a remote-closed stream, completed at once - must not complete ahead of the earlier fence, and finishing the child
+    # must not fail that fence: it was emitted and will cross the transport with the flush.
 
     def _run(self, app, before_close):
         h = LoopbackHarness(AppFactory(lambda o: app))
@@ -201,9 +201,9 @@ class _Trailer(IoPipelineMessages.AfterFinalInput):
 
 
 class TestManualReadMessageAfterEnd(unittest.TestCase):
-    # O2. DESIGN 13: "In manual-read mode one child ReadyForInput permits one batch: everything queued at that point".
-    # Delivery stops at end-of-input, though, so a typed message queued behind it is left for a further token - which
-    # a child has no reason to request once it has seen FinalInput. The message is never delivered.
+    # In manual-read mode one child ReadyForInput permits one batch: everything queued at that point. Delivery stops at
+    # end-of-input, though, so a typed message queued behind it is left for a further token - which a child has no
+    # reason to request once it has seen FinalInput. The message is never delivered.
 
     def _harness(self) -> LoopbackHarness:
         return LoopbackHarness(AppFactory(
@@ -285,10 +285,10 @@ class TestReadTokenAfterEnd(unittest.TestCase):
 
 
 class TestStreamSpecFactoryFailure(unittest.TestCase):
-    # O5 (reviewer 2's MUX-11). A stream spec factory may refuse a stream by returning a MultiplexRefusal; one which
-    # raises instead - an application error for one request - takes the whole connection down with it, although
-    # nothing about the connection is wrong. A child which cannot be built is refused (DESIGN 13), and a factory which
-    # cannot produce a spec is the same situation.
+    # A stream spec factory may refuse a stream by returning a MultiplexRefusal; one which raises instead - an
+    # application error for one request - takes the whole connection down with it, although nothing about the connection
+    # is wrong. A child which cannot be built is refused, and a factory which cannot produce a spec is the same
+    # situation.
 
     def test_factory_exception_refuses_only_that_stream(self) -> None:
         good = StreamApp(close_on_final_input=False)

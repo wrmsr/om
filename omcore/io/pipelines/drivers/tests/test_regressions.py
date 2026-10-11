@@ -449,11 +449,11 @@ _PAYLOAD = b'x' * (4 * 1024 * 1024)
 
 
 class TestDrainingDuplexDeadlock(unittest.TestCase):
-    # O1. DESIGN 8: "While draining after FinalOutput, the pure and fdio drivers keep taking input off the transport
-    # and discard it: nothing consumes it any more, but a peer whose own output waits for this side to read must not
-    # wait forever." The sync driver does not: once it holds a FinalOutput it only waits for writability, so two such
-    # peers, each with more queued than the socket buffers hold, wait on each other forever. The fdio driver's
-    # equivalent (`test_driver_edges.TestDrainingDuplexDeadlock`) passes.
+    # "While draining after FinalOutput, the pure and fdio drivers keep taking input off the transport and discard it:
+    # nothing consumes it any more, but a peer whose own output waits for this side to read must not wait forever." The
+    # sync driver does not: once it holds a FinalOutput it only waits for writability, so two such peers, each with more
+    # queued than the socket buffers hold, wait on each other forever. The fdio driver's equivalent
+    # (`test_driver_edges.TestDrainingDuplexDeadlock`) passes.
 
     def test_sync_both_draining(self) -> None:
         ha, hb = _SendAllThenFinish(_PAYLOAD), _SendAllThenFinish(_PAYLOAD)
@@ -656,10 +656,10 @@ class TestAsyncioFinalDrain(AsyncioIsolatedAsyncTestCase):
             for sock in socks:
                 sock.close()
 
-    # O17 (reviewer 2's IO-02, and TODO.md's "decide whether asyncio ShutdownOutput should complete only once the FIN
-    # is actually sent"). `write_eof()` defers the socket's half-close until the transport buffer is empty, but the
-    # fence completes after an ordinary `drain()`, which returns at the low watermark - here with a megabyte still
-    # buffered and no FIN sent. DESIGN 5: success means the transport's output half was shut down.
+    # "decide whether asyncio ShutdownOutput should complete only once the FIN is actually sent"). `write_eof()` defers
+    # the socket's half-close until the transport buffer is empty, but the fence completes after an ordinary `drain()`,
+    # which returns at the low watermark - here with a megabyte still buffered and no FIN sent. Success means the
+    # transport's output half was shut down.
 
     async def test_shutdown_completion_waits_for_transport_half_close(self) -> None:
         socks = _small_sockets()
@@ -731,11 +731,10 @@ class _SendAllThenFinishAndReport(_SendAllThenFinish):
 
 
 class TestAsyncioTimersDuringGracefulClose(AsyncioIsolatedAsyncTestCase):
-    # O8. DESIGN 7: scheduled callbacks run inside the owning pipeline; DESIGN 8: a driver integrates scheduler
-    # deadlines. The asyncio driver handles FinalOutput by awaiting the writer's graceful close inside its command
-    # loop, so while a peer which has stopped reading keeps that close from completing, no command - and so no timer,
-    # including a WriteTimeoutIoPipelineHandler's - runs. The sync and fdio drivers keep running timers while they
-    # wait to write.
+    # scheduled callbacks run inside the owning pipeline; a driver integrates scheduler deadlines. The asyncio driver
+    # handles FinalOutput by awaiting the writer's graceful close inside its command loop, so while a peer which has
+    # stopped reading keeps that close from completing, no command - and so no timer, including a
+    # WriteTimeoutIoPipelineHandler's - runs. The sync and fdio drivers keep running timers while they wait to write.
 
     async def test_write_timeout_fires_while_final_output_drains(self) -> None:
         timed_out: asyncio.Future = asyncio.get_running_loop().create_future()

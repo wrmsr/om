@@ -865,9 +865,9 @@ class PollAsyncioStreamIoPipelineDriver:
     def _set_shutdown_drain_limits(self) -> None:
         """
         `write_eof()` half-closes the transport only once its buffer has emptied, whereas `drain()` returns once the
-        buffer reaches the low watermark. For the shutdown's drain to complete at the half-close - DESIGN 5: success
-        means the transport's output half was shut down - the watermarks are zero until it has completed. Nothing may
-        produce ordinary output once ShutdownOutput reached the terminal, so the zero limits announce nothing.
+        buffer reaches the low watermark. For the shutdown's drain to complete at the half-close - success means the
+        transport's output half was shut down - the watermarks are zero until it has completed. Nothing may produce
+        ordinary output once ShutdownOutput reached the terminal, so the zero limits announce nothing.
         """
 
         if (writer := self._writer) is None:

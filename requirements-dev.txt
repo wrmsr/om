@@ -34,7 +34,7 @@ types-regex==2026.9.29.20261005
 types-setuptools==84.0.0.20261006
 types-ujson==5.10.0.20250822
 
-black==26.10.0
+black==26.10.1
 mypy==2.4.0
 
 astpretty==3.0.0
@@ -100,7 +100,7 @@ pygments==2.21.0
 mwparserfromhell==0.7.2
 wikitextparser==3.0.0  # !! GPL
 
-numpy==2.5.3
+numpy==2.5.4
 
 # !! These install but enable the GIL on import
 tree-sitter==0.26.0  # @om-venv !14t !14dt !15t

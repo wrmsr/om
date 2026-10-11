@@ -64,9 +64,9 @@ def _spec(h: IoPipelineHandler) -> IoPipeline.Spec:
 
 
 class TestWritabilityAfterShutdownOutput(unittest.TestCase):
-    # DESIGN 6: "Once output has been shut down, no further transitions are announced: nothing may produce ordinary
-    # output." The terminal rejects ordinary output as soon as ShutdownOutput reaches it, yet the drivers gate
-    # announcements on the *transport* shutdown, so a ReadyForOutput is announced in between.
+    # Once output has been shut down, no further transitions are announced: nothing may produce ordinary output. The
+    # terminal rejects ordinary output as soon as ShutdownOutput reaches it, yet the drivers gate announcements on the
+    # *transport* shutdown, so a ReadyForOutput is announced in between.
 
     def test_pure_partial_drain(self) -> None:
         h = _Recorder()
@@ -282,7 +282,7 @@ class _SendAllThenFinish(IoPipelineHandler):
         self.final_output = IoPipelineMessages.FinalOutput()
         self.received = 0
 
-        # Outcomes are only observable from listeners (DESIGN 5).
+        # Outcomes are only observable from listeners.
         self.final_exc: ta.Optional[BaseException] = None
         self.final_output.add_listener(self._on_final_done)
 
@@ -307,11 +307,11 @@ class _SendAllThenFinish(IoPipelineHandler):
 
 
 class TestDrainingDuplexDeadlock(unittest.TestCase):
-    # DESIGN 6: "Output backpressure must never stop input ... two peers each blocked on output, each waiting for the
-    # other to read, would otherwise deadlock symmetrically." Both peers send more than the transport holds and then
-    # FinalOutput, ignoring each other's input. A draining driver keeps taking input off the transport (and discards
-    # it), so one side completes; the other's remaining output then has no reader, which with real sockets fails it.
-    # Either way, neither hangs.
+    # Output backpressure must never stop input ... two peers each blocked on output, each waiting for the other to
+    # read, would otherwise deadlock symmetrically. Both peers send more than the transport holds and then FinalOutput,
+    # ignoring each other's input. A draining driver keeps taking input off the transport (and discards it), so one side
+    # completes; the other's remaining output then has no reader, which with real sockets fails it. Either way, neither
+    # hangs.
 
     def test_fdio_both_draining(self) -> None:
         payload = b'x' * (4 * 1024 * 1024)

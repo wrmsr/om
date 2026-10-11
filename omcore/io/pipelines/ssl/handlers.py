@@ -1116,8 +1116,8 @@ class SslIoPipelineHandler(
             eff = self._transport_writable and self._self_writable
             if eff != self._announced_writable:
                 if eff and (self._shutdown_output_sent or self._final_output_sent):
-                    # DESIGN 6: once output shutdown reached the terminal nothing may produce ordinary output, so a
-                    # pause may still be announced for a remaining backlog, but a resume never is.
+                    # Once output shutdown reached the terminal nothing may produce ordinary output, so a pause may
+                    # still be announced for a remaining backlog, but a resume never is.
                     pass
                 else:
                     self._announced_writable = eff

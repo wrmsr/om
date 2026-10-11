@@ -996,7 +996,7 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
                         stream.finish_local()
                     # Completed - and the child finished - behind the parent flush, like a final reached normally: a
                     # fence of this stream emitted earlier may still await that flush, and a later fence must not
-                    # complete ahead of it (DESIGN 5), nor may finishing the child now fail it.
+                    # complete ahead of it, nor may finishing the child now fail it.
                     self._flush_fences.append((child, item.msg, 'final'))
                 else:
                     child.complete(item.msg, StreamResetMultiplexIoPipelineError('closed', by='remote'))
