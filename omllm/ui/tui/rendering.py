@@ -256,6 +256,32 @@ class TerminalTextDisplayer(ui.TextDisplayer):
     async def display_text(self, *texts: ui.CanText) -> None:
         self._file.write(self._renderer.render(*texts))
 
+    async def display_block(self, *texts: ui.CanText) -> None:
+        """
+        Writes the text as the minitui surface commits a block: ended with a newline and set off by a blank line, so
+        output written for that surface's rows - a command's, which ends in a newline or not as it pleases - reads the
+        same on a plain stream. Nothing is written for nothing.
+        """
+
+        if not (rendered := self._renderer.render(*texts)):
+            return
+
+        if not rendered.endswith('\n'):
+            rendered += '\n'
+        self._file.write(rendered + '\n')
+
+
+class BlockTerminalTextDisplayer(ui.TextDisplayer):
+    """A `TerminalTextDisplayer`'s block mode as a displayer of its own, to give to what writes blocks - commands."""
+
+    def __init__(self, *, displayer: TerminalTextDisplayer) -> None:
+        super().__init__()
+
+        self._displayer = displayer
+
+    async def display_text(self, *texts: ui.CanText) -> None:
+        await self._displayer.display_block(*texts)
+
 
 def build_terminal_text_displayer(options: ui.TextRenderingOptions) -> TerminalTextDisplayer:
     return TerminalTextDisplayer(options=options)

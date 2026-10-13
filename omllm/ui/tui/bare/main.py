@@ -18,6 +18,7 @@ from ..yolo import yolo_process_config
 from .inject import bind_bare
 from .input import InputManager
 from .output import display_transcript
+from .prompting import Prompter
 
 
 ##
@@ -40,7 +41,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         session = await injector[har.Session]
         input_manager = await injector[InputManager]
         text_displayer = await injector[ui.TextDisplayer]
-        commands = await injector[har.CommandsManager]
+        prompter = await injector[Prompter]
 
         cwd = check.non_empty_str((await injector[TargetCwd]).v)
 
@@ -56,25 +57,11 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
         #
 
-        async def prompt(input: str) -> None:  # noqa
-            if not input:
-                return
-
-            if input[0] == '/':
-                try:
-                    await commands.parse(input[1:]).run()
-                except har.ParseCommandError as e:
-                    if e.message is not None:
-                        await text_displayer.display_text(e.message)
-                return
-
-            await agent.prompt(input)
-
         for ax in [
             *yolo_autoexec(config, cwd),
             *(config.autoexec or []),
         ]:
-            await prompt(ax)
+            await prompter.prompt(ax, echo=True)
 
         while True:
             try:
@@ -82,7 +69,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             except EOFError:
                 break
 
-            await prompt(entry)
+            await prompter.prompt(entry)
 
 
 def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:

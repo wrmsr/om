@@ -105,8 +105,7 @@ class PermissionsCommand(ParserCommandClass):
 
         new_rules = self._permissions.update_rules(lambda old_rules: agn.PermissionRules([*old_rules, rule]))
 
-        rmd = new_rules.min_digests[rule]
-        await ctx.print(self._render_rules(new_rules, filter=lambda r: r is rmd), '\n')
+        await ctx.print(self._render_rules(new_rules, filter=lambda r: r is rule))
 
     #
 

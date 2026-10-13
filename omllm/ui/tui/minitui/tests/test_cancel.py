@@ -334,6 +334,35 @@ async def test_commands_echo_as_submitted_and_run_in_order():
     await pump.aclose()
 
 
+class NoteCommand(har.CommandClass):
+    async def _run_args(self, ctx, args):
+        await ctx.print('noted')
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_a_command_allowed_during_a_prompt_still_waits_its_turn_behind_commands():
+    app, driver = make_app()
+    agent = await make_agent(scripted_backend())
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, NoteCommand(), har.EchoCommand()))
+
+    # With nothing but commands ahead of it the echo waits for them, busy as the pump is: a run of commands - a boot's -
+    # lands in the order given, the echo rounding it off rather than jumping ahead of what is queued.
+    pump.submit('/note')
+    pump.submit('/note')
+    pump.submit('/echo last')
+
+    await settle(lambda: len(driver.commits) == 6)
+    assert commit_texts(driver) == [
+        '/note\n',
+        '/note\n',
+        '/echo last\n',
+        'noted\n',
+        'noted\n',
+        'last\n',
+    ]
+    await pump.aclose()
+
+
 @pytest.mark.asyncs('asyncio')
 async def test_echo_runs_while_a_prompt_does_and_what_cannot_waits_for_it():
     app, driver = make_app()

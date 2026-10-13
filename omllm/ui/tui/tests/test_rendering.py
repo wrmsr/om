@@ -9,6 +9,7 @@ from omdev import minitui as mt
 
 from ....core import ui
 from ..config import Config
+from ..rendering import BlockTerminalTextDisplayer
 from ..rendering import TerminalTextDisplayer
 from ..rendering import TerminalTextRenderer
 from ..rendering import TextRowsRenderer
@@ -71,6 +72,27 @@ def test_terminal_text_displayer_is_plain_for_a_non_tty_file():
     lang.sync_await(displayer.display_text('hi ', ui.JsonText({'a': 1})))
 
     assert out.getvalue() == 'hi {"a": 1}'
+
+
+def test_terminal_text_displayer_blocks_end_in_one_newline_and_a_blank_line():
+    out = io.StringIO()
+    displayer = TerminalTextDisplayer(file=out)
+
+    lang.sync_await(displayer.display_block('YOLO'))
+    lang.sync_await(displayer.display_block('rule', '\n'))
+    lang.sync_await(displayer.display_block(ui.MarkdownText('# Heading')))
+    lang.sync_await(displayer.display_block(''))
+
+    assert out.getvalue() == 'YOLO\n\nrule\n\n# Heading\n\n'
+
+
+def test_block_terminal_text_displayer_is_its_displayers_block_mode():
+    out = io.StringIO()
+    displayer = BlockTerminalTextDisplayer(displayer=TerminalTextDisplayer(file=out))
+
+    lang.sync_await(displayer.display_text('YOLO'))
+
+    assert out.getvalue() == 'YOLO\n\n'
 
 
 ##

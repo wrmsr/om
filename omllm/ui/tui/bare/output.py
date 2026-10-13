@@ -9,6 +9,7 @@ from .... import llm
 from ....core import ui
 from ..config import Config
 from ..inject import bind_on_agent_event_subscriber
+from ..rendering import BlockTerminalTextDisplayer
 from ..rendering import TerminalTextDisplayer
 from ..rendering import build_terminal_text_displayer
 from .previews import ShownPreviews
@@ -141,6 +142,8 @@ def bind_output(config: Config) -> inj.Elements:
     lst.extend([
         inj.bind(build_terminal_text_displayer, singleton=True),
         inj.bind(ui.TextDisplayer, to_key=TerminalTextDisplayer),
+
+        inj.bind(BlockTerminalTextDisplayer, singleton=True),
 
         inj.bind(ToolResultPrinter, singleton=True),
         bind_on_agent_event_subscriber(ToolResultPrinter),

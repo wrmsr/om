@@ -34,6 +34,8 @@ class PromptPump:
 
         self._queue: collections.deque[Input] = collections.deque()
         self._task: asyncio.Task | None = None
+        # Whether `_task` runs a prompt rather than a command: what a command allowed during a prompt runs alongside.
+        self._prompt_running = False
         self._closing = False
         self._command_tasks: set[asyncio.Task] = set()
 
@@ -58,7 +60,9 @@ class PromptPump:
                     self._app.display_ui_text(e.message)
                 return
 
-            if self._task is not None and input.command.can_run_while_busy:
+            # Allowed during a prompt is during a prompt: behind nothing but commands it waits its turn like any other,
+            # so a run of commands - a boot's - lands in the order given.
+            if self._prompt_running and input.command.can_run_while_busy:
                 task = asyncio.get_running_loop().create_task(self._run_one(input))
                 self._command_tasks.add(task)
                 task.add_done_callback(self._command_tasks.discard)
@@ -79,6 +83,7 @@ class PromptPump:
         input = self._queue.popleft()
         task = asyncio.get_running_loop().create_task(self._run_one(input))
         self._task = task
+        self._prompt_running = isinstance(input, str)
 
         # Slot bookkeeping lives in a done callback rather than in _run_one's finally: a task cancelled before its first
         # step never runs its body at all, and the pump must not wedge on it.
@@ -101,6 +106,7 @@ class PromptPump:
     def _on_task_done(self, task: asyncio.Task) -> None:
         if self._task is task:
             self._task = None
+            self._prompt_running = False
 
         if self._app.is_busy:
             # Backstop for a lost terminal event. The loop shields its AgentEndEvent publish from cancellation, so this
