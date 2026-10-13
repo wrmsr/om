@@ -1,7 +1,7 @@
 {
   "url": "https://github.com/PCRE2Project/pcre2",
   "rev": "6f9d7c1373262c541324a16a358785b33ef116cf",
-  "ref": null,
+  "ref": "pcre2-10.49",
   "files": [
     "LICENCE.md",
     "src/pcre2.h.generic",
