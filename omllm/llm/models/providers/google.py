@@ -25,8 +25,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         )),
         name='Gemini 3.8 Flash',
         backend='google-generative',
+        # The thinkingLevel enum also has MINIMAL, but this model rejects it with "Thinking level MINIMAL is not
+        # supported for this model" (verified against the live API).
         reasoning_efforts=frozenset({
-            ReasoningEffort.MINIMAL,
             ReasoningEffort.LOW,
             ReasoningEffort.MEDIUM,
             ReasoningEffort.HIGH,

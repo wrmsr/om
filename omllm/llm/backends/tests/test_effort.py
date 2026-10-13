@@ -73,15 +73,15 @@ def test_effort_request_shapes_and_defaults(key, preparer, expected):
 def test_gemini_effort_and_returned_thoughts_are_independent(thinking):
     model = provider_model_catalog()[GOOGLE_TEST_API_KEY]
     raw = GoogleRequestPreparer(model, Context(), Options(
-        reasoning_effort=ReasoningEffort.MINIMAL,
+        reasoning_effort=ReasoningEffort.LOW,
         thinking=thinking,
     )).raw_request()
-    expected = {'thinkingLevel': 'MINIMAL'}
+    expected = {'thinkingLevel': 'LOW'}
     if thinking is not None:
         expected['includeThoughts'] = thinking
     assert raw['generationConfig']['thinkingConfig'] == expected
 
-    for effort in [ReasoningEffort.NONE, ReasoningEffort.XHIGH, ReasoningEffort.MAX]:
+    for effort in [ReasoningEffort.NONE, ReasoningEffort.MINIMAL, ReasoningEffort.XHIGH, ReasoningEffort.MAX]:
         with pytest.raises(ValueError, match='does not support effort'):
             GoogleRequestPreparer(model, Context(), Options(reasoning_effort=effort)).raw_request()
 

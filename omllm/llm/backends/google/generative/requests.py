@@ -64,7 +64,8 @@ class RequestPreparer:
             raw_thinking['thinkingLevel'] = effort.value.upper()
 
         # includeThoughts controls the returned summaries, not whether the model reasons. In particular, False does
-        # not disable Gemini 3's thinking, and minimal is a real level rather than an alias for off.
+        # not disable Gemini 3's thinking, and where a model offers minimal it is a real level rather than an alias for
+        # off.
         if self._options.thinking is not None:
             raw_thinking['includeThoughts'] = self._options.thinking
 

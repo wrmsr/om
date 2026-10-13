@@ -103,6 +103,23 @@ class AgentSetup:
                     llm_options=(turn_config.llm_options or llm.Options()).merge(self._initial_llm_options.v),
                 )
 
+            # An unsupported effort is rejected here, at startup, rather than by the first request - and against the
+            # tools actually installed, as some models narrow their supported levels when tools are present.
+            if (
+                    turn_config.llm_options is not None and
+                    (effort := turn_config.llm_options.reasoning_effort) is not None
+            ):
+                llm_backend = self._backends.get_backend(
+                    llm.ImmediateBackend,  # type: ignore[type-abstract]
+                    state.model,
+                )
+
+                llm.validate_reasoning_effort(
+                    llm_backend.model,
+                    effort,
+                    with_tools=bool(self._tools),
+                )
+
             #
 
             return dc.replace(

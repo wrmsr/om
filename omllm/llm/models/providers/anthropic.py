@@ -114,6 +114,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='Claude Haiku 5.5',
         backend='anthropic-messages',
+        reasoning_efforts=_REASONING_EFFORTS,
         cache=CacheCapabilities(
             control_style='anthropic',
             retentions=frozenset({

@@ -63,7 +63,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         ),
         name='GPT 6.1 Sol',
         backend='openai-responses',
-        reasoning_efforts=_REASONING_EFFORTS,
+        # Like astra, this model rejects none (verified against the live API).
+        reasoning_efforts=_REASONING_EFFORTS - {ReasoningEffort.NONE},
         cache=CacheCapabilities(
             control_style='openai_ttl',
             retentions=frozenset({

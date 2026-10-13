@@ -50,6 +50,17 @@ class NURSERY_FIXTURE_PLACEHOLDER:  # noqa
 ##
 
 
+def _iter_leaf_exceptions(exc: BaseException) -> ta.Iterator[BaseException]:
+    if isinstance(exc, BaseExceptionGroup):
+        for e in exc.exceptions:
+            yield from _iter_leaf_exceptions(e)
+    else:
+        yield exc
+
+
+##
+
+
 class AsyncsTestContext:
     def __init__(self, backend: AsyncsBackend) -> None:
         super().__init__()
@@ -141,8 +152,13 @@ class AsyncsFixture:
                 finally:
                     nursery_fixture.cancel_scope.cancel()
 
-        except* (Skipped, XFailed):
-            pass
+        except* (Skipped, XFailed) as eg:
+            # A skip or xfail raised in the test or a fixture is a pytest outcome rather than a failure, but it still
+            # has to reach pytest - swallowing it here would report the test as passed. It is routed through the crash
+            # path like any other exception so the runner re-raises it, but unwrapped from the task group's exception
+            # group, as pytest only recognizes the bare outcome exception.
+            for exc in _iter_leaf_exceptions(eg):
+                test_ctx.crash(self, exc)
 
         except* BaseException as exc:  # noqa
             test_ctx.crash(self, exc)

@@ -4,6 +4,7 @@ from ...types.compat import OpenaiCompletionsCompat
 from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
+from ...types.options import ReasoningEffort
 from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
@@ -29,10 +30,26 @@ _COMPAT = OpenaiCompletionsCompat(
     cost_mode='openrouter',
 )
 
+# Openrouter normalizes the openai-style reasoning_effort field onto its unified reasoning.effort for every upstream,
+# and accepts every level for every model here - but how far the upstream then honors it varies by model (verified
+# against the live API). Only the levels which are meaningful everywhere are declared: none disables reasoning where the
+# upstream permits that, and the models which do not opt out of it below.
+_REASONING_EFFORTS = frozenset({
+    ReasoningEffort.NONE,
+    ReasoningEffort.LOW,
+    ReasoningEffort.MEDIUM,
+    ReasoningEffort.HIGH,
+})
+
+# Rejected with "Reasoning is mandatory for this endpoint and cannot be disabled."
+_MANDATORY_REASONING_EFFORTS = _REASONING_EFFORTS - {ReasoningEffort.NONE}
+
 
 def _make_model(
         id: str,  # noqa
         name: str,
+        *,
+        reasoning_efforts: ta.AbstractSet[ReasoningEffort] = _REASONING_EFFORTS,
 ) -> Model:
     return Model(
         key=ModelKey(
@@ -42,6 +59,7 @@ def _make_model(
         name=name,
         backend='openai-completions',
         compat=_COMPAT,
+        reasoning_efforts=reasoning_efforts,
         cache=_CACHE,
         limits=modeldb_model_limits('openrouter', id),
         pricing=modeldb_token_pricing('openrouter', id),
@@ -83,11 +101,13 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     _make_model(
         id='z-ai/glm-5.3',
         name='GLM 5.3',
+        reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
 
     _make_model(
         id='z-ai/glm-5.3-flash',
         name='GLM 5.3 Flash',
+        reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
 
     ##
@@ -128,6 +148,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     _make_model(
         id='qwen/qwen3.8-max-prime',
         name='Qwen3.8 Max Prime',
+        reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
 
     _make_model(
