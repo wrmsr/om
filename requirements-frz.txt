@@ -6,10 +6,10 @@ aiosqlite==0.22.1
 annotated-doc==0.0.5
 antlr4-python3-runtime==4.9.3
 anyio==4.15.1
-apsw==3.53.4.0
+apsw==3.54.0.0
 asgiref==3.12.1
 asn1crypto==1.5.1
-ast_serialize==0.12.1
+ast_serialize==0.13.0
 astpretty==3.0.0
 asttokens==3.0.2
 asyncpg==0.32.0
@@ -21,8 +21,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.10.1
 blobfile==3.3.0
-boto3==1.43.111
-botocore==1.43.111
+boto3==1.43.112
+botocore==1.43.112
 botocore-stubs==1.43.67
 brotli==1.2.0
 build==1.6.1
@@ -34,7 +34,7 @@ click==8.5.0
 cloudpickle==3.1.2
 colorlog==6.12.0
 contourpy==1.4.0
-cramjam==2.13.0
+cramjam==2.14.0
 cryptography==50.0.2
 cycler==0.12.1
 Cython==3.3.0
@@ -61,7 +61,7 @@ fsspec==2026.6.0
 gguf==0.19.0
 google-api-core==2.42.0
 google-api-python-client==2.201.0
-google-auth==2.61.0
+google-auth==2.62.0
 google-auth-httplib2==0.4.4
 google-cloud-compute==1.55.0
 googleapis-common-protos==1.75.5
@@ -121,7 +121,7 @@ mojo==1.1.0
 mojo-compiler==1.1.0
 mojo-compiler-mojo-libs==1.1.0
 mojo-lldb-libs==1.1.0
-more-itertools==11.1.0
+more-itertools==11.2.0
 mpmath==1.3.0
 multidict==7.1.0
 multiprocess==0.70.19
@@ -175,7 +175,7 @@ pyasn1_modules==0.4.2
 pyclipper==1.4.0
 pycodestyle==2.15.0
 pycparser==3.11
-pycryptodomex==3.24.0
+pycryptodomex==3.24.1
 pydantic-monty==1.1.0
 pydantic-monty-client==1.1.0
 pydantic-monty-runtime==1.1.0
@@ -267,8 +267,8 @@ trino==0.340.0
 trio==0.34.0
 twine==7.0.0
 typer==0.27.3
-types-awscrt==0.36.2
-types-boto3==1.43.111
+types-awscrt==0.37.0
+types-boto3==1.43.112
 types-docutils==0.23.0.20260923
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20261006
@@ -277,7 +277,7 @@ types-Pygments==2.21.0.20260819
 types-PyMySQL==1.2.0.20260923
 types-PyYAML==6.0.12.20260906
 types-regex==2026.9.29.20261005
-types-s3transfer==0.16.0
+types-s3transfer==0.19.2
 types-setuptools==84.0.0.20261006
 types-ujson==5.10.0.20250822
 typing_extensions==4.16.0

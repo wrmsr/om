@@ -22,7 +22,7 @@ ruff==0.17.0
 asyncpg-stubs==0.32.0
 docutils-stubs==0.0.22
 lxml-stubs==0.5.1
-types-awscrt==0.36.2
+types-awscrt==0.37.0
 types-docutils==0.23.0.20260923
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20261006
@@ -148,9 +148,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.111
-botocore==1.43.111
-types-boto3==1.43.111
+boto3==1.43.112
+botocore==1.43.112
+types-boto3==1.43.112
 botocore-stubs==1.43.67
 
 asn1crypto==1.5.1
@@ -161,7 +161,7 @@ bcrypt==5.0.0  # @om-venv !15t
 mlx==0.32.3; sys_platform == "darwin"  # @om-venv !15 !15t
 mlx-lm==0.32.0; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 
-apsw==3.53.4.0
+apsw==3.54.0.0
 
 rapidocr==3.10.0  # @om-venv !14t !14dt !15t
 onnxruntime==1.31.0  # @om-venv !14t !14dt !15 !15t

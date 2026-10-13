@@ -33,7 +33,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'cd50134e4d772bde184c67f567c02d4c2db15a95'
+__om_amalg_sha1__ = '82f3f245a689d566b7d2c7ba03d319230a0ab165'
 
 
 def __om_amalg__():  # noqa
@@ -77,7 +77,7 @@ def __om_amalg__():  # noqa
             dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', path='../../logs/std/loggers.py'),
             dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', path='bytes/decoders.py'),
             dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', path='../../logs/modules.py'),
-            dict(sha1='4b62f0897fca4acbaef987069d7d413f56bbe1d0', path='drivers/asyncio.py'),
+            dict(sha1='f8a5506bb2da8b63b2c475845545c947aeedbe3b', path='drivers/asyncio.py'),
             dict(sha1='41c208295c50c3d65bc0576ff49203cedf4e3773', path='_amalg.py'),
         ],
     )
@@ -9741,9 +9741,9 @@ class PollAsyncioStreamIoPipelineDriver:
     def _set_shutdown_drain_limits(self) -> None:
         """
         `write_eof()` half-closes the transport only once its buffer has emptied, whereas `drain()` returns once the
-        buffer reaches the low watermark. For the shutdown's drain to complete at the half-close - DESIGN 5: success
-        means the transport's output half was shut down - the watermarks are zero until it has completed. Nothing may
-        produce ordinary output once ShutdownOutput reached the terminal, so the zero limits announce nothing.
+        buffer reaches the low watermark. For the shutdown's drain to complete at the half-close - success means the
+        transport's output half was shut down - the watermarks are zero until it has completed. Nothing may produce
+        ordinary output once ShutdownOutput reached the terminal, so the zero limits announce nothing.
         """
 
         if (writer := self._writer) is None:
