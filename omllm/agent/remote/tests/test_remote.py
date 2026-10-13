@@ -3,83 +3,26 @@ The remote agent end to end: the generated amalgam, bootstrapped into a separate
 there is one) exactly as the docker connection does it, and driven through `RemoteAgentClient`.
 """
 import asyncio
-import contextlib
 import fcntl
 import os
 import pathlib
-import sys
+import signal
 import time
 import typing as ta
 
 import pytest
 
 from omcore import dataclasses as dc
-from omcore.os.pyremote.core import PyremoteBootstrapDriver
-from omcore.os.pyremote.core import pyremote_build_bootstrap_source
 
 from ....core import processes
 from ....core.processes.remote.tests.support import TERMINATION_PROCESS_SRC
-from ....core.rpc.channels import AsyncioStreamRpcChannel
 from ...exec.ops import ExecParams
 from ...exec.ops import ProcessesExecOps
 from ...fs.common import FsFileChangedError
 from ...fs.common import fs_file_digest
 from ...fs.remote.client import DEFAULT_REMOTE_FS_CHUNK_BYTES
-from ..client import RemoteAgentClient
-from ..payload import get_remote_agent_payload_src
-
-
-##
-
-
-# FIXME: wow
-_REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
-_PYTHON_38 = _REPO_ROOT / '.venvs' / '8' / 'bin' / 'python'
-_PYTHON = str(_PYTHON_38) if _PYTHON_38.is_file() else sys.executable
-
-
-@contextlib.asynccontextmanager
-async def _remote_agent(*, stderr_sink: list[str] | None = None) -> ta.AsyncIterator[RemoteAgentClient]:
-    proc = await asyncio.create_subprocess_exec(
-        _PYTHON,
-        '-c',
-        pyremote_build_bootstrap_source('omllm-agent-test'),
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    assert proc.stdin is not None
-    assert proc.stdout is not None
-    assert proc.stderr is not None
-
-    client: RemoteAgentClient | None = None
-    try:
-        await PyremoteBootstrapDriver([
-            get_remote_agent_payload_src(),
-            'remote_agent_main()',
-        ]).async_run(proc.stdout, proc.stdin)
-
-        client = RemoteAgentClient(AsyncioStreamRpcChannel(proc.stdout, proc.stdin))
-        await client.start()
-        yield client
-
-    finally:
-        if client is not None:
-            await client.aclose()
-        elif proc.stdin.can_write_eof():
-            proc.stdin.write_eof()
-        else:
-            proc.stdin.close()
-
-        try:
-            returncode = await asyncio.wait_for(proc.wait(), 10.)
-        except TimeoutError:
-            proc.kill()
-            returncode = await proc.wait()
-        stderr = (await proc.stderr.read()).decode('utf-8', 'replace')
-        if stderr_sink is not None:
-            stderr_sink.append(stderr)
-        assert returncode == 0, stderr
+from .support import REMOTE_AGENT_PYTHON
+from .support import remote_agent
 
 
 ##
@@ -87,7 +30,7 @@ async def _remote_agent(*, stderr_sink: list[str] | None = None) -> ta.AsyncIter
 
 @pytest.mark.asyncs('asyncio')
 async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
-    async with _remote_agent() as client:
+    async with remote_agent() as client:
         root = os.path.realpath(tmp_path)
         path = os.path.join(root, 'file.txt')
 
@@ -163,6 +106,19 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
         assert b'got:world' in pty_output
         pty_process.spool.close()
 
+        # A pty child starts with default signal dispositions, as a pipe child does: the bootstrap interpreter's own
+        # ignored SIGPIPE must not leak through its exec.
+        for stdio in (processes.PtyStdio(), processes.ProcessStdio()):
+            piped = await client.processes.root.spawn(processes.ProcessSpec(
+                ['sh', '-c', 'kill -PIPE $$; printf "survived\\n"'],
+                cwd=root,
+                stdio=stdio,
+            ))
+            assert await piped.wait(5.) == -signal.SIGPIPE
+            await piped.aclose()
+            assert b'survived' not in piped.spool.read_available().data()
+            piped.spool.close()
+
         assert not client.processes.root.processes
 
 
@@ -222,7 +178,7 @@ async def _run_until_disconnect(
     """Spawns `argv` through a real agent, waits for its 'ready', then drops the connection and waits the agent out."""
 
     agent_stderr: list[str] = []
-    async with _remote_agent(stderr_sink=agent_stderr) as client:
+    async with remote_agent(stderr_sink=agent_stderr) as client:
         process = await client.processes.root.spawn(processes.ProcessSpec(list(argv), cwd=cwd))
         ready = await process.spool.poll(0, timeout=5.)
         assert ready.data(1) == b'ready'
@@ -264,7 +220,7 @@ async def test_remote_agent_disconnect_terminates_processes(tmp_path) -> None:
     root = os.path.realpath(tmp_path)
     terminated_path = os.path.join(root, 'terminated')
 
-    run = await _run_until_disconnect([_PYTHON, '-c', TERMINATION_PROCESS_SRC, terminated_path], cwd=root)
+    run = await _run_until_disconnect([REMOTE_AGENT_PYTHON, '-c', TERMINATION_PROCESS_SRC, terminated_path], cwd=root)
     await _assert_terminated_gracefully(run, terminated_path)
 
 
@@ -297,7 +253,7 @@ async def test_remote_agent_disconnect_sweeps_the_process_group(tmp_path) -> Non
         assert _lock_held(lock_path)
 
     run = await _run_until_disconnect(
-        [_PYTHON, '-c', TERMINATION_PROCESS_SRC, terminated_path, lock_path],
+        [REMOTE_AGENT_PYTHON, '-c', TERMINATION_PROCESS_SRC, terminated_path, lock_path],
         cwd=root,
         before_disconnect=check_lock_held,
     )
@@ -317,7 +273,7 @@ async def test_remote_agent_disconnect_sweeps_the_process_group(tmp_path) -> Non
 async def test_remote_agent_observes_exits_with_many_live_processes() -> None:
     # Exit observation must not cost a thread per child: with more live children than the default executor has threads,
     # a later child's exit would otherwise go unnoticed until one of the earlier ones died.
-    async with _remote_agent() as client:
+    async with remote_agent() as client:
         n = min(32, (os.cpu_count() or 1) + 4)
         sleepers = [
             await client.processes.root.spawn(processes.ProcessSpec(['sleep', '60']))
@@ -332,7 +288,7 @@ async def test_remote_agent_observes_exits_with_many_live_processes() -> None:
 
 @pytest.mark.asyncs('asyncio')
 async def test_remote_agent_events_are_ordered() -> None:
-    async with _remote_agent() as client:
+    async with remote_agent() as client:
         delivered: list[str] = []
 
         async def on_event(event):

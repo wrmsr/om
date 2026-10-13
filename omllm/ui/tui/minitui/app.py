@@ -236,6 +236,14 @@ class InputMode(lang.Abstract):
     def suggestions(self, text: str) -> ta.Sequence[mt.SuggestionItem]:
         return ()
 
+    def cancel(self) -> bool:
+        """
+        The cancel key, while this is the mode: stop what the mode has running, and say whether there was anything to.
+        The mode gets first refusal - with nothing of its own to stop, the key is the turn's, as ever.
+        """
+
+        return False
+
     def activate(self) -> None:
         pass
 
@@ -891,8 +899,11 @@ class MinituiChatApp(mt.App):
             self.set_browsing(not self._browsing)
             return True
 
-        if app_key is AppKey.CANCEL and (cancel := self.on_cancel) is not None and cancel():
-            return True
+        if app_key is AppKey.CANCEL:
+            if self._input_mode.cancel():
+                return True
+            if (cancel := self.on_cancel) is not None and cancel():
+                return True
 
         if app_key is AppKey.EXIT:
             self._handle_exit_key(event)

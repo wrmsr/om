@@ -18,6 +18,10 @@ from .sessions import Session
 DEFAULT_PYTHON_NAME = 'py'
 DEFAULT_JAVASCRIPT_NAME = 'js'
 
+# Not in the default session: a shell needs a `PtySpawner`, which only a host has. The name is here for the hosts which
+# register one, and the switch commands which look for it.
+DEFAULT_BASH_NAME = 'bash'
+
 
 def make_default_session(
         *,

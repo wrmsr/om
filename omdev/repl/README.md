@@ -1,9 +1,9 @@
 # repl
 
-An embeddable read-eval-print loop: backends for python and javascript (quickjs), frontends for minitui and a bare
-stdin/stdout loop, and the interfaces between them, so that a host process - an llm harness, a server, anything with a
-loop - can offer an interactive interpreter over its own internals (the 'manhole') without the builtin repl's habits of
-owning the process: nothing here touches `sys`, `builtins`, `readline`, or the terminal.
+An embeddable read-eval-print loop: backends for python, javascript (quickjs) and bash, frontends for minitui and a
+bare stdin/stdout loop, and the interfaces between them, so that a host process - an llm harness, a server, anything
+with a loop - can offer an interactive interpreter over its own internals (the 'manhole') without the builtin repl's
+habits of owning the process: nothing here touches `sys`, `builtins`, `readline`, or the terminal.
 
 ## Try it
 
@@ -45,19 +45,41 @@ pdb of sorts, no loop involved. A `Dispatcher` says where the code runs relative
 `AsyncioLoopDispatcher` over the host's loop lets a thread-hosted manhole's python await the host's coroutines.
 `sync.SyncThreadManhole` (a selectors-driven background thread, no asyncio anywhere) is a stub awaiting a need.
 
+## The shell
+
+`omdev.repl.bash` is the odd backend out: its interpreter is not in this process at all, but an interactive bash on a
+pseudo-terminal, kept for as long as the session - so a `cd`, an `export`, a function or a background job is there for
+the next submission, and what runs sees a terminal (colors, line buffering, job control). It is a shell a pane away, not
+a terminal emulator: output is reduced to lines, with its styling; commands are given nothing on their standard input;
+and a program which takes the screen over - an editor, a pager - is stopped and said to be unsupported. Leaving it is
+hanging up: the jobs it still has go with it, unless disowned.
+
+There is no bash in the default session, because there is no process here to run one: the shell comes from a
+`PtySpawner`, which is the host's. One which has a process manager adapts it - and one whose manager reaches into a
+container, or over a connection, has a shell there, with nothing in this package any the wiser:
+
+```python
+session.add(repl.DEFAULT_BASH_NAME, repl.BashInterpreter(spawner, size=lambda: (rows, cols)))
+```
+
 ## Architecture (dependencies point strictly inward)
 
-    frontends (minitui/, bare/) -> sessions, lines -> interpreters -> languages, outputs, executors
+    frontends (minitui/, bare/) -> sessions, lines -> interpreters -> languages, outputs, executors, ptys
 
 - **languages.py** - the stateless half of a backend: prompts, the name highlighters resolve, completeness checking for
   line frontends. One instance per language; interpreters point at it.
 - **interpreters.py** - the stateful half: `Interpreter.execute(source, sink) -> Awaitable[Result]`. An error in the
   code is a `Result`, written to the sink; only the host's own failures raise.
-- **outputs.py** - the typed stream an execution writes: printed text, a result's displayable form, a formatted error.
-  Frontends render these and nothing else.
+- **outputs.py** - the typed stream an execution writes: printed text, a result's displayable form, a formatted error,
+  a terminal's lines, a remark of the interpreter's own. Frontends render these and nothing else.
 - **executors.py** / **runners.py** - the two loop-neutral runtime seams: where an interpreter's blocking work runs,
   and how a frontend starts an execution from a key press. `asyncio.py` is their asyncio implementation and the
   package's only asyncio import; the immediate implementations run inline and drive under `lang.sync_await`.
+- **ptys.py** - a third seam, with no implementation here at all: a process on a pseudo-terminal - bytes each way, a
+  window size, an end - and what starts one. The host's process infrastructure is adapted to it.
+- **terminals.py** - `LineTerminal`: the text a process writes to a terminal, reduced to the lines of a
+  `TerminalOutput`. SGR styling, carriage returns, and the in-line cursor and erase sequences a progress bar uses are
+  honored; everything else is dropped; the alternate screen is reported.
 - **sessions.py** - named interpreters, one active: what a frontend holds. Hosts register whatever interpreters they
   like under whatever names.
 - **lines.py** - the line-at-a-time read-eval-print core for transport frontends (bare today, a socket manhole later).
@@ -67,6 +89,13 @@ pdb of sorts, no loop involved. A `Dispatcher` says where the code runs relative
 - **quickjs/** - one engine context per interpreter (fresh or handed in), evaluating through the executor with the
   engine's interrupt flag wired to cancellation; `print` and `console.*` bound in. Quarantined: the extension may not be
   built.
+- **bash/** - `protocol.py` is the conversation with the shell as bytes and nothing else: source sent as short lines of
+  quoted printable ascii (a terminal's input is no transparent channel) and `eval`ed, and each command's end marked by
+  an escape the shell's `PROMPT_COMMAND` prints, numbered so that a stray prompt is never taken for it. `shells.py` is
+  one live shell and where that conversation stands; `limits.py` bounds what a command's output costs a frontend.
+  `interpreter.py` is the shell's life around them: started on first use (without the user's startup files, should it
+  not come up with them), interrupted when its caller stops waiting, brought back to its prompt before the next command
+  - by a second interrupt, then by stopping and killing the job, then by a new shell - and started again after it exits.
 - **minitui/** - the first-class frontend: `Console` binds a session to any `TextArea` and a commit callback (the
   reusable core a host app composes in), swapping the input's highlighter and prompt with the language; `ReplApp` is
   the standalone app around it.

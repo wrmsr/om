@@ -8,10 +8,13 @@ from omdev import repl
 from ..... import agent as agn
 from ..... import harness as har
 from ..... import llm
+from .....core import processes as procs
 from .....core.asyncs.base import AsyncJobRunner
 from ...config import Config
 from ...inject import harness_commands
+from ...types import TargetCwd
 from ..app import MinituiChatApp
+from .ptys import ProcessScopePtySpawner
 from .repl import JobRunnerExecutor
 from .repl import MinituiRepl
 from .repl import ReplNamespaceSeeds
@@ -30,6 +33,15 @@ def repl_namespace_seeds() -> inj.ItemsBinderHelper[ta.Mapping[str, ta.Any]]:
 ##
 
 
+# The process scope the repl's own processes live in, under the root: the user's, and out of sight of the agent's
+# process tools, which see the root's alone.
+REPL_PROCESS_SCOPE_NAME = 'repl'
+
+# The rows of the terminal a shell is given. There is no screen behind it to have a height: just what a program asking
+# is told.
+REPL_PTY_ROWS = 50
+
+
 def _provide_session(
         injector: inj.AsyncInjector,
         agent: agn.Agent,
@@ -38,6 +50,8 @@ def _provide_session(
         driver: mt.AsyncioDriver,
         job_runner: AsyncJobRunner,
         seeds: ReplNamespaceSeeds,
+        cwd: TargetCwd | None = None,
+        root_process_scope: procs.RootProcessScope | None = None,
 ) -> repl.Session:
     # Not the commands manager: the switch commands need the repl, so that would be a cycle. It is a lookup away.
     namespace: dict[str, ta.Any] = {
@@ -64,6 +78,17 @@ def _provide_session(
             executor=JobRunnerExecutor(job_runner=job_runner),
         ))
 
+    if root_process_scope is not None:
+        # Wherever the bound process manager runs things - here, or in the container the tools are in. Nothing is
+        # started until the shell is first used.
+        session.add(repl.DEFAULT_BASH_NAME, repl.BashInterpreter(
+            ProcessScopePtySpawner(
+                root_process_scope.child(REPL_PROCESS_SCOPE_NAME),
+                cwd=cwd.v if cwd is not None else None,
+            ),
+            size=lambda: (REPL_PTY_ROWS, app.width),
+        ))
+
     return session
 
 
@@ -84,6 +109,9 @@ def bind_repl(config: Config) -> inj.Elements:
 
         inj.bind(har.JsCommand, singleton=True),
         harness_commands().bind_item(to_key=har.JsCommand),
+
+        inj.bind(har.BashCommand, singleton=True),
+        harness_commands().bind_item(to_key=har.BashCommand),
 
         inj.bind(har.ChatCommand, singleton=True),
         harness_commands().bind_item(to_key=har.ChatCommand),

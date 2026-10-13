@@ -165,8 +165,60 @@ class JavascriptLanguage(Language):
         return Completeness.COMPLETE
 
 
+class BashLanguage(Language):
+    @property
+    def name(self) -> str:
+        return 'bash'
+
+    @property
+    def prompt(self) -> str:
+        return '$ '
+
+    @property
+    def continuation_prompt(self) -> str:
+        return '> '
+
+    def check_complete(self, source: str) -> Completeness:
+        """
+        A quote and line-continuation scan, for the line frontends: an open quote or a trailing backslash asks for
+        another line, and everything else - an unfinished `if`, a here-document - is the shell's to report.
+        """
+
+        quote: str | None = None
+
+        i = 0
+        n = len(source)
+        while i < n:
+            c = source[i]
+
+            if quote == "'":
+                if c == "'":
+                    quote = None
+
+            elif c == '\\':
+                if i + 1 >= n:
+                    return Completeness.INCOMPLETE
+                i += 1
+
+            elif quote == '"':
+                if c == '"':
+                    quote = None
+
+            elif c in ('"', "'"):
+                quote = c
+
+            elif c == '#' and (i == 0 or source[i - 1].isspace()):
+                nl = source.find('\n', i)
+                i = n if nl < 0 else nl
+
+            i += 1
+
+        return Completeness.INCOMPLETE if quote is not None else Completeness.COMPLETE
+
+
 ##
 
 
 PYTHON_LANGUAGE = PythonLanguage()
 JAVASCRIPT_LANGUAGE = JavascriptLanguage()
+BASH_LANGUAGE = BashLanguage()

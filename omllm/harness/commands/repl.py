@@ -1,6 +1,6 @@
 """
-The repl switch commands - `/py`, `/js`, `/chat` - over a frontend-provided `ReplModeSwitcher`. Frontend-neutral: a
-frontend with a repl binds a switcher and these; one without binds neither.
+The repl switch commands - `/py`, `/js`, `/bash`, `/chat` - over a frontend-provided `ReplModeSwitcher`.
+Frontend-neutral: a frontend with a repl binds a switcher and these; one without binds neither.
 """
 import abc
 import typing as ta
@@ -69,6 +69,14 @@ class JsCommand(_ReplSwitchCommand):
     @property
     def description(self) -> str:
         return 'Switches the input to the javascript repl.'
+
+
+class BashCommand(_ReplSwitchCommand):
+    _target = repl.DEFAULT_BASH_NAME
+
+    @property
+    def description(self) -> str:
+        return 'Switches the input to a bash shell where the tools run.'
 
 
 class ChatCommand(_ReplSwitchCommand):

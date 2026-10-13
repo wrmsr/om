@@ -23,6 +23,7 @@ with _lang.auto_proxy_init(
     from .defaults import (  # noqa
         DEFAULT_PYTHON_NAME,
         DEFAULT_JAVASCRIPT_NAME,
+        DEFAULT_BASH_NAME,
         make_default_session,
     )
 
@@ -52,8 +53,10 @@ with _lang.auto_proxy_init(
         Language,
         PythonLanguage,
         JavascriptLanguage,
+        BashLanguage,
         PYTHON_LANGUAGE,
         JAVASCRIPT_LANGUAGE,
+        BASH_LANGUAGE,
     )
 
     from .lines import (  # noqa
@@ -69,6 +72,8 @@ with _lang.auto_proxy_init(
         StdoutOutput,
         ResultOutput,
         ErrorOutput,
+        TerminalOutput,
+        NoteOutput,
         output_text,
 
         OutputSink,
@@ -76,6 +81,11 @@ with _lang.auto_proxy_init(
         ListOutputSink,
         CallbackOutputSink,
         TextOutputSink,
+    )
+
+    from .ptys import (  # noqa
+        PtyProcess,
+        PtySpawner,
     )
 
     from .runners import (  # noqa
@@ -94,6 +104,10 @@ with _lang.auto_proxy_init(
         Session,
     )
 
+    from .terminals import (  # noqa
+        LineTerminal,
+    )
+
     ##
     # asyncio
 
@@ -106,6 +120,17 @@ with _lang.auto_proxy_init(
 
     ##
     # languages
+
+    from .bash.interpreter import (  # noqa
+        BashStartError,
+        BashInterpreter,
+    )
+
+    from .bash.protocol import (  # noqa
+        BashPrompt,
+        BashPromptScanner,
+        BashProtocol,
+    )
 
     from .python.interpreter import (  # noqa
         PythonInterpreter,

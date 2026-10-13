@@ -10,11 +10,12 @@ handles (`RemoteProcess`) and output spools, so `ProcessesExecOps` and the foreg
 no remote-specific variants. It is built on a peer and an `RpcNotificationRouter`, through which it takes the agent's
 process notifications, and it poisons its handles when the peer closes.
 
-Target-side, `RemoteProcessService` runs children in owned process groups, retains an unreaped leader until teardown, and
-terminates everything when the RPC connection closes. PTY children use a small bootstrap to acquire a controlling
-terminal before executing the requested argv. Exits are observed by one SIGCHLD handler that probes every unexited child
-with a non-blocking, non-reaping `waitid` - no thread or task per child, and nothing to saturate - which requires the
-agent's event loop to run in its main thread. Per child the agent runs only its pipe (or pty) reader tasks and, on
+Target-side, `RemoteProcessService` runs children in owned process groups, retains an unreaped leader until teardown,
+and terminates everything when the RPC connection closes. PTY children use a small bootstrap to acquire a controlling
+terminal - and to put back the signal dispositions its own interpreter ignored at startup, which would otherwise survive
+the exec - before executing the requested argv. Exits are observed by one SIGCHLD handler that probes every unexited
+child with a non-blocking, non-reaping `waitid` - no thread or task per child, and nothing to saturate - which requires
+the agent's event loop to run in its main thread. Per child the agent runs only its pipe (or pty) reader tasks and, on
 demand, a close.
 
 Output chunks, end-of-output and exit reach the host as notifications, which it applies inline in the RPC receive loop,

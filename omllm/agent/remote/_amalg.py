@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'ce659b00de818cef5e875f1f9cbb989f7d99f396'
+__om_amalg_sha1__ = '060ba208a4bac86ef97e129c06eaf2be2d28ef48'
 
 
 def __om_amalg__():  # noqa
@@ -74,7 +74,7 @@ def __om_amalg__():  # noqa
             dict(sha1='7c04b01527e3691cd50c43a7f996916c8878b8a2', path='../fs/remote/server.py'),
             dict(sha1='8f49bf867159274422557a1f681ecdbffde5c887', path='../../core/rpc/channels.py'),
             dict(sha1='50e7bae64a1e909f546bbb30ab7dbf03cee14fab', path='../../core/rpc/peers.py'),
-            dict(sha1='7e5d412e083b3cf6e65a621967af1a62db3cab18', path='../../core/processes/remote/server.py'),
+            dict(sha1='f62b959a40abbcc89ab640e0e293731efb81a20e', path='../../core/processes/remote/server.py'),
             dict(sha1='59fc035bb714c797787d08b6ffbc619aa622e9e8', path='server.py'),
             dict(sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1', path='main.py'),
         ],
@@ -4812,10 +4812,17 @@ _REMOTE_PTY_CHILD_CODE = """
 import fcntl
 import json
 import os
+import signal
 import sys
 import termios
 
 argv = json.loads(sys.argv[1])
+# This interpreter ignored these at its own startup, and an ignored disposition survives exec: the target would never
+# see a SIGPIPE. Popen's restore_signals undid that for this process only as far as its exec of this interpreter.
+for name in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
+    sig = getattr(signal, name, None)
+    if sig is not None:
+        signal.signal(sig, signal.SIG_DFL)
 os.setsid()
 fcntl.ioctl(0, termios.TIOCSCTTY, 0)
 os.tcsetpgrp(0, os.getpgrp())

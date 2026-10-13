@@ -8,6 +8,7 @@ import typing as ta
 
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.term import styled as tst
 
 
 ##
@@ -38,12 +39,35 @@ class ErrorOutput(Output, lang.Final):
     text: str
 
 
+@dc.dataclass(frozen=True)
+class TerminalOutput(Output, lang.Final):
+    """
+    What a process wrote to its terminal, reduced to lines by a `LineTerminal`: text carrying SGR escapes and no other
+    control sequence, each line styled from the plain style on - whatever the lines before it left set - so any one of
+    them renders on its own. Newlines included, as printed text; a last line without one is a line still being written.
+    """
+
+    text: str
+
+
+@dc.dataclass(frozen=True)
+class NoteOutput(Output, lang.Final):
+    """A remark from the interpreter itself - an exit status, a truncation, a restart - not the code's output."""
+
+    text: str
+
+
 def output_text(output: Output) -> str:
-    """The plain-text form of an output: printed text as it is, a result or an error on a line of its own."""
+    """
+    The plain-text form of an output: printed text as it is (a terminal's without its escapes), a result, an error, or
+    a note on a line of its own.
+    """
 
     if isinstance(output, StdoutOutput):
         return output.text
-    if isinstance(output, (ResultOutput, ErrorOutput)):
+    if isinstance(output, TerminalOutput):
+        return tst.strip_ansi_escapes(output.text)
+    if isinstance(output, (ResultOutput, ErrorOutput, NoteOutput)):
         return output.text if output.text.endswith('\n') else output.text + '\n'
     raise TypeError(output)
 

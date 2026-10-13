@@ -40,8 +40,8 @@ under the ordinary agent interfaces, along with the root process scope the ui ha
 The TUI's `--container CONTAINER` option selects these bindings. `--cwd` is interpreted entirely in the target
 namespace; when omitted, the running container's configured working directory is resolved by the remote filesystem.
 Filesystem, process, bash, and ripgrep tools use the remote capabilities, the ripgrep tool without its host-only
-sandbox. Session storage, model access, permissions, eval and web tools, and the rest of the harness remain on the
-host.
+sandbox - and so does the user's own shell, the repl's `/bash`, which is a pty process on the same manager. Session
+storage, model access, permissions, eval and web tools, and the rest of the harness remain on the host.
 
 The connection is one `docker exec` stream, with no reconnect: should it drop, every live remote process is poisoned
 and further calls fail until the harness restarts. Reconnecting by respawning a fresh agent into the same container -

@@ -32,6 +32,310 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
+    installer_sha1='989e70b5a2ce223eaa7e98cf411a16fee190cc9d',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('executable', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('no_rc', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('rows', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('cols', True, True, None, True, True, False, None), 'instance', 'value', None, F"
+            "alse, False, False), (('start_timeout_s', True, True, None, True, True, False, None), 'instance', 'value',"
+            " None, False, False, False), (('interrupt_timeout_s', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('partial_line_s', True, True, None, True, True, False, None), '"
+            "instance', 'value', None, False, False, False), (('max_output_lines', True, True, None, True, True, False,"
+            " None), 'instance', 'value', None, False, False, False), (('max_tail_lines', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), ("
+            "False,), (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omdev.repl.bash.interpreter', 'BashInterpreter.Config'),
+    ),
+)
+def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__8__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__8__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                executable=self.executable,
+                no_rc=self.no_rc,
+                rows=self.rows,
+                cols=self.cols,
+                start_timeout_s=self.start_timeout_s,
+                interrupt_timeout_s=self.interrupt_timeout_s,
+                partial_line_s=self.partial_line_s,
+                max_output_lines=self.max_output_lines,
+                max_tail_lines=self.max_tail_lines,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.executable == other.executable and
+                self.no_rc == other.no_rc and
+                self.rows == other.rows and
+                self.cols == other.cols and
+                self.start_timeout_s == other.start_timeout_s and
+                self.interrupt_timeout_s == other.interrupt_timeout_s and
+                self.partial_line_s == other.partial_line_s and
+                self.max_output_lines == other.max_output_lines and
+                self.max_tail_lines == other.max_tail_lines
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'executable',
+            'no_rc',
+            'rows',
+            'cols',
+            'start_timeout_s',
+            'interrupt_timeout_s',
+            'partial_line_s',
+            'max_output_lines',
+            'max_tail_lines',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.executable,
+                self.no_rc,
+                self.rows,
+                self.cols,
+                self.start_timeout_s,
+                self.interrupt_timeout_s,
+                self.partial_line_s,
+                self.max_output_lines,
+                self.max_tail_lines,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            executable: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            no_rc: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            rows: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            cols: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            start_timeout_s: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            interrupt_timeout_s: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            partial_line_s: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            max_output_lines: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+            max_tail_lines: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'executable', executable)
+            __dataclass__object_setattr(self, 'no_rc', no_rc)
+            __dataclass__object_setattr(self, 'rows', rows)
+            __dataclass__object_setattr(self, 'cols', cols)
+            __dataclass__object_setattr(self, 'start_timeout_s', start_timeout_s)
+            __dataclass__object_setattr(self, 'interrupt_timeout_s', interrupt_timeout_s)
+            __dataclass__object_setattr(self, 'partial_line_s', partial_line_s)
+            __dataclass__object_setattr(self, 'max_output_lines', max_output_lines)
+            __dataclass__object_setattr(self, 'max_tail_lines', max_tail_lines)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"executable={self.executable!r}")
+            parts.append(f"no_rc={self.no_rc!r}")
+            parts.append(f"rows={self.rows!r}")
+            parts.append(f"cols={self.cols!r}")
+            parts.append(f"start_timeout_s={self.start_timeout_s!r}")
+            parts.append(f"interrupt_timeout_s={self.interrupt_timeout_s!r}")
+            parts.append(f"partial_line_s={self.partial_line_s!r}")
+            parts.append(f"max_output_lines={self.max_output_lines!r}")
+            parts.append(f"max_tail_lines={self.max_tail_lines!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='b7064bf0cc963c347251b9e1e11efcd1b8bad16b',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('seq', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('returncode', True, True, None, True, False, False, None), 'instance', 'missin"
+            "g', None, False, False, False), (('cwd', True, True, None, True, False, False, None), 'instance', 'missing"
+            "', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),"
+            "), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omdev.repl.bash.protocol', 'BashPrompt'),
+    ),
+)
+def _process_dataclass__b7064bf0cc963c347251b9e1e11efcd1b8bad16b():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                seq=self.seq,
+                returncode=self.returncode,
+                cwd=self.cwd,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.seq == other.seq and
+                self.returncode == other.returncode and
+                self.cwd == other.cwd
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'seq',
+            'returncode',
+            'cwd',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.seq,
+                self.returncode,
+                self.cwd,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            seq: __dataclass__init__fields__0__annotation,
+            returncode: __dataclass__init__fields__1__annotation,
+            cwd: __dataclass__init__fields__2__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'seq', seq)
+            __dataclass__object_setattr(self, 'returncode', returncode)
+            __dataclass__object_setattr(self, 'cwd', cwd)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"seq={self.seq!r}")
+            parts.append(f"returncode={self.returncode!r}")
+            parts.append(f"cwd={self.cwd!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='d2017745fac214dd59251519db2e35f4115c0eee',
     spec_keys=(
         (
@@ -44,8 +348,10 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
     cls_names=(
         ('omdev.repl.interpreters', 'Completion'),
         ('omdev.repl.outputs', 'ErrorOutput'),
+        ('omdev.repl.outputs', 'NoteOutput'),
         ('omdev.repl.outputs', 'ResultOutput'),
         ('omdev.repl.outputs', 'StdoutOutput'),
+        ('omdev.repl.outputs', 'TerminalOutput'),
     ),
 )
 def _process_dataclass__d2017745fac214dd59251519db2e35f4115c0eee():

@@ -1,8 +1,10 @@
 """
 The repl as an input mode of the chat app: `omdev.repl`'s minitui console, lent the app's own input box and committing
 into its scrollback. The python interpreter is a manhole into the harness - the root injector, the agent, the session,
-the app - with more seeded through `ReplNamespaceSeeds`; the javascript one evaluates through the harness's job runner.
-`/py`, `/js`, and `/chat` switch; a slash command typed while in a repl still goes to the pump, so `/chat` always works.
+the app - with more seeded through `ReplNamespaceSeeds`; the javascript one evaluates through the harness's job runner;
+the bash one is a shell wherever the process manager runs things (`ptys.py`) - beside the tools, in their directory.
+`/py`, `/js`, `/bash`, and `/chat` switch; a slash command typed while in a repl still goes to the pump, so `/chat`
+always works, and the cancel key stops what the repl is running before it stops the turn.
 """
 import typing as ta
 
@@ -75,6 +77,9 @@ class _ReplInputMode(InputMode):
 
     def suggestions(self, text: str) -> ta.Sequence[mt.SuggestionItem]:
         return self._owner.app.chat_mode.suggestions(text)
+
+    def cancel(self) -> bool:
+        return self._owner.console.cancel()
 
     def activate(self) -> None:
         self._owner.console.activate()

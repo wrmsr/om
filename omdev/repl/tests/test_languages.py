@@ -1,3 +1,4 @@
+from ..languages import BASH_LANGUAGE
 from ..languages import JAVASCRIPT_LANGUAGE
 from ..languages import PYTHON_LANGUAGE
 from ..languages import Completeness
@@ -46,3 +47,25 @@ def test_javascript_language_descriptor():
     assert JAVASCRIPT_LANGUAGE.name == 'javascript'
     assert JAVASCRIPT_LANGUAGE.display_name == 'js'
     assert JAVASCRIPT_LANGUAGE.prompt == 'js> '
+
+
+def test_bash_completeness():
+    c = BASH_LANGUAGE.check_complete
+    assert c('echo hi') is Completeness.COMPLETE
+    assert c('echo "hi') is Completeness.INCOMPLETE
+    assert c("echo 'hi") is Completeness.INCOMPLETE
+    assert c('echo "a\nb"') is Completeness.COMPLETE
+    assert c("echo 'it\\'s'") is Completeness.INCOMPLETE  # no escapes in single quotes: a third one opens
+    assert c('echo "a \\" b') is Completeness.INCOMPLETE
+    assert c('echo one \\') is Completeness.INCOMPLETE
+    assert c('echo one \\\ntwo') is Completeness.COMPLETE
+    assert c('echo hi # it\'s a comment') is Completeness.COMPLETE
+    assert c('echo "#" \'') is Completeness.INCOMPLETE
+    assert c('if true; then') is Completeness.COMPLETE  # the shell's to report
+
+
+def test_bash_language_descriptor():
+    assert BASH_LANGUAGE.name == 'bash'
+    assert BASH_LANGUAGE.highlight_name == 'bash'
+    assert BASH_LANGUAGE.prompt == '$ '
+    assert BASH_LANGUAGE.continuation_prompt == '> '

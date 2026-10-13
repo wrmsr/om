@@ -63,6 +63,7 @@ with _lang.auto_proxy_init(
 
         PyCommand,
         JsCommand,
+        BashCommand,
         ChatCommand,
     )
 

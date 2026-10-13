@@ -74,13 +74,17 @@ def _provide_unsandboxed_ripgrep_tool(
 def bind_tools(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
+    # A process manager is bound either way, whatever tools the agent is given: the user's own shell runs on it too.
     if config.container is not None:
         lst.extend([
             agn.bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
             inj.bind(TargetCwd, singleton=True, to_async_fn=_provide_remote_target_cwd),
         ])
     else:
-        lst.append(inj.bind(TargetCwd, singleton=True, to_fn=_provide_local_target_cwd))
+        lst.extend([
+            processes.bind_process_manager(),
+            inj.bind(TargetCwd, singleton=True, to_fn=_provide_local_target_cwd),
+        ])
 
     if config.eval:
         lst.extend([
@@ -89,9 +93,6 @@ def bind_tools(config: Config) -> inj.Elements:
         ])
 
     if config.exec:
-        if config.container is None:
-            lst.append(processes.bind_process_manager())
-
         lst.extend([
             inj.bind(agn.ProcessesExecOps, singleton=True),
             inj.bind(agn.ExecOps, to_key=agn.ProcessesExecOps),
