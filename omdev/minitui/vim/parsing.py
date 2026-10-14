@@ -27,6 +27,9 @@ type ParseResult = tuple[str, Command | None]  # ('more'|'cmd'|'abort', command)
 
 ESC = '\x1b'
 
+# The frontend token for shift+tab: IdeaVim's unindent, a `<<` the parser accepts whole.
+SHIFT_TAB = '<s-tab>'
+
 OPERATORS: ta.AbstractSet[str] = frozenset('dcy><')
 ACTIONS: ta.AbstractSet[str] = frozenset('xXDCsSYpPiIaAoOuJrvV.~')
 ACTION_NEEDS_ARG: ta.AbstractSet[str] = frozenset('r')
@@ -130,6 +133,12 @@ class Parser:
                 if key in TEXTOBJ_KEYS:
                     return ('cmd', self._cmd(tobj=(around, key)))
                 return self._abort()
+
+        if key == SHIFT_TAB and self.op is None:
+            # IdeaVim's shift+tab unindent is `<<` here, a count picking lines just as it does there. (Visual mode
+            # takes the token ahead of the parser, to keep its selection.)
+            self.op = '<'
+            return ('cmd', self._cmd(doubled=True))
 
         if key == ESC or len(key) > 1:
             # Esc, or a special key token nothing below understands, aborts.

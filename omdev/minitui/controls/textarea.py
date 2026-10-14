@@ -10,8 +10,10 @@ wide, blank on wrapped continuation rows), ahead of any prompt.
 Enter semantics (per design): insert mode Enter inserts a newline (vim-pure); normal mode Enter submits; from insert
 mode, ctrl+j (universal - the other newline byte), ctrl/shift+enter (extended-key terminals), or alt+enter submit.
 Insert mode additionally honors the common readline/emacs chord subset (`_INSERT_CHORD_TOKENS`): ctrl+a/e/f/b/p/n
-movement, alt+f/b word motion, and the ctrl+w / alt+backspace / alt+d / ctrl+k / ctrl+u kill family. Engine decorations
-(visual selection, search matches) render as style tags resolved by the composition theme.
+movement, alt+f/b word motion, and the ctrl+w / alt+backspace / alt+d / ctrl+k / ctrl+u kill family. shift+tab is
+IdeaVim's unindent in every mode (the line in insert mode, `<<` in normal, the selection - kept - in visual) where a
+plain tab is the engine's. Engine decorations (visual selection, search matches) render as style tags resolved by the
+composition theme.
 """
 import typing as ta
 
@@ -38,6 +40,7 @@ from ..vim.engine import VimEngine
 from ..vim.modes import Mode
 from ..vim.options import DEFAULT_OPTIONS
 from ..vim.options import VimOptions
+from ..vim.parsing import SHIFT_TAB
 from .base import Control
 
 
@@ -61,6 +64,9 @@ _KEY_TOKENS: ta.Mapping[str, str] = {
     'delete': '<delete>',
     'tab': '\t',
 }
+
+# The one shifted named key with a meaning of its own: unindent, in every mode, never the self-insert of a plain tab.
+_SHIFT_TAB_KEY = Key('tab', shift=True)
 
 # Readline/emacs chords honored in INSERT mode - the most common movement + kill subset. Chords not listed still fall
 # through to the app (ctrl+d, ctrl+o, ...); an app wanting ctrl+p/n for history should claim them only at the first/last
@@ -541,6 +547,10 @@ class TextArea(Control):
 
         if key.ctrl or key.super_:
             return False  # other chords are the app's business
+
+        if key == _SHIFT_TAB_KEY:
+            engine.feed(SHIFT_TAB)
+            return True
 
         if (token := _KEY_TOKENS.get(key.base)) is not None:
             engine.feed(token)

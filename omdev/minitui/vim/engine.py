@@ -45,6 +45,7 @@ from .options import indent_columns
 from .options import make_indent
 from .parsing import CMDLINE_STARTERS
 from .parsing import ESC
+from .parsing import SHIFT_TAB
 from .parsing import Command
 from .parsing import Parser
 from .registers import Registers
@@ -395,6 +396,41 @@ class VimEngine:
         self._set_all_cursors([clamp_col(self._doc, self._doc.clamp(target))])
 
     ##
+    # Indent plumbing (the > and < operators, and insert / visual mode shift+tab)
+
+    def _reindent_line(self, row: int, delta: int) -> AppliedEdit | None:
+        """
+        Shift one line's indent by `delta` display columns, like vim: measure the leading whitespace in display columns
+        (tabs advance to the next tabstop multiple) and rebuild it per expandtab - so dedent eats tabs correctly and
+        mixed indentation normalizes. Empty lines are skipped (vim does too); None when nothing changed.
+        """
+
+        line = self._doc.line(row)
+        if not line:
+            return None
+
+        opts = self._options
+        lead = len(line) - len(line.lstrip(' \t'))
+        new = make_indent(indent_columns(line[:lead], opts.tabstop) + delta, opts)
+        if new == line[:lead]:
+            return None
+        return self._doc.replace(Pos(row, 0), Pos(row, lead), new)
+
+    def _reindent_rows(self, rows: ta.Iterable[int], delta: int) -> ta.Mapping[int, int]:
+        """Reindent each row by `delta` columns; per changed row, how many characters shorter its indent got."""
+
+        shrunk: dict[int, int] = {}
+        for row in rows:
+            if (a := self._reindent_line(row, delta)) is not None:
+                shrunk[row] = a.edit.end.col - a.edit.new_end.col
+        return shrunk
+
+    def _ride_reindent(self, pos: Pos, shrunk: ta.Mapping[int, int]) -> Pos:
+        """A position keeping its character through its row's reindent - or column 0 if it sat in the stripped part."""
+
+        return Pos(pos.row, max(pos.col - shrunk.get(pos.row, 0), 0))
+
+    ##
     # Normal mode
 
     def _feed_normal(self, key: str) -> None:
@@ -478,6 +514,12 @@ class VimEngine:
             return (pos, pos, ' ' * (ts - pos.col % ts))
 
         self._edit_at_cursors(make, lambda a: a.edit.new_end)
+
+    def _dedent_at_cursors(self) -> None:
+        # One shiftwidth off each cursor's line (vim's insert-mode ctrl+d, IdeaVim's shift+tab) - each line once however
+        # many cursors sit on it. The edits join the open insert group like any other insert-mode edit.
+        shrunk = self._reindent_rows(sorted({c.pos.row for c in self._cursors}), -self._options.shiftwidth)
+        self._set_all_cursors([self._ride_reindent(c.pos, shrunk) for c in self._cursors])
 
     def _backspace_at_cursors(self) -> None:
         doc = self._doc
@@ -638,6 +680,10 @@ class VimEngine:
             self._kill_to_line_edge_at_cursors(to_end=False)
             return
 
+        if key == SHIFT_TAB:
+            self._dedent_at_cursors()
+            return
+
         if key in INSERT_MOTION_TOKENS:
             self._move_cursors_insert(key)
             return
@@ -786,6 +832,11 @@ class VimEngine:
             self._parser.reset()
             return
 
+        if key == SHIFT_TAB:
+            self._parser.reset()
+            self._dedent_selection()
+            return
+
         key = TOKEN_MOTIONS.get(key, key)
 
         state, cmd = self._parser.feed(key)
@@ -880,6 +931,18 @@ class VimEngine:
         if cmd.motion_key:
             if (mr := self._eval_motion(cmd)) is not None:
                 self._move_to(mr)
+
+    def _dedent_selection(self) -> None:
+        # IdeaVim's shift+tab on a selection: the IDE unindents the selected lines and keeps the selection, so unlike
+        # `<` this stays in visual mode - repeated presses step the block out further. Anchor and cursor ride their
+        # characters through the reindents.
+        span = self._visual_span()
+        self._begin_change()
+        shrunk = self._reindent_rows(range(span.start.row, span.end.row + 1), -self._options.shiftwidth)
+        self._end_change()
+        self._visual_anchor = self._ride_reindent(check.not_none(self._visual_anchor), shrunk)
+        cur = self._ride_reindent(self.cursor, shrunk)
+        self._set_cursor(cur, want=cur.col)
 
     def _retreat_or(self, pos: Pos) -> Pos:
         return retreat(self._doc, pos) or pos
@@ -1101,20 +1164,9 @@ class VimEngine:
             return False
 
         if op in '><':
-            # Reindent-to-column, like vim: measure the leading whitespace in display columns (tabs advance to the next
-            # tabstop multiple), shift the width by count*shiftwidth, and rebuild the indent per expandtab - so dedent
-            # eats tabs correctly and mixed indentation normalizes. `count` is the visual `3>` multiplier (normal-mode
-            # counts pick lines instead and arrive here as the span).
-            opts = self._options
-            delta = opts.shiftwidth * max(count, 1) * (1 if op == '>' else -1)
-            for r in range(span.start.row, span.end.row + 1):
-                line = doc.line(r)
-                if not line:  # vim skips empty lines
-                    continue
-                lead = len(line) - len(line.lstrip(' \t'))
-                new = make_indent(indent_columns(line[:lead], opts.tabstop) + delta, opts)
-                if new != line[:lead]:
-                    doc.replace(Pos(r, 0), Pos(r, lead), new)
+            # `count` is the visual `3>` multiplier (normal-mode counts pick lines instead and arrive here as the span).
+            delta = self._options.shiftwidth * max(count, 1) * (1 if op == '>' else -1)
+            self._reindent_rows(range(span.start.row, span.end.row + 1), delta)
             col = first_nonblank(doc, span.start.row)
             self._set_cursor(Pos(span.start.row, col), want=col)
             return True

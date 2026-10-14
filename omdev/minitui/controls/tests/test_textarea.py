@@ -487,3 +487,36 @@ def test_delete_in_normal_and_visual_modes():
     assert ta_.doc.text() == 'bcd'
     press(ta_, 'u', 'v', 'l', 'delete')
     assert ta_.doc.text() == 'cd'
+
+
+def test_shift_tab_dedents_in_insert():
+    ta_ = TextArea()
+    press(ta_, 'tab', 'tab')
+    type_text(ta_, 'foo')
+    assert ta_.doc.text() == '        foo'
+
+    # IdeaVim's unindent, the cursor riding its character - never the self-insert a plain tab is.
+    assert ta_.handle_event(KeyEvent(Key('tab', shift=True)))
+    assert ta_.doc.text() == '    foo'
+    assert ta_.cursor(20) == (7, 0)
+    assert ta_.engine.mode is Mode.INSERT
+
+    # A plain tab still indents.
+    press(ta_, 'home', 'tab')
+    assert ta_.doc.text() == '        foo'
+
+
+def test_shift_tab_dedents_in_normal():
+    ta_ = TextArea()
+    ta_.set_text('        foo')
+    press(ta_, 'escape', Key('tab', shift=True))
+    assert ta_.doc.text() == '    foo'
+    assert ta_.cursor(20) == (4, 0)
+
+
+def test_shift_tab_dedents_visual_keeping_selection():
+    ta_ = TextArea()
+    ta_.set_text('    a\n    b')
+    press(ta_, 'escape', 'V', 'k', Key('tab', shift=True))
+    assert ta_.doc.text() == 'a\nb'
+    assert ta_.engine.mode is Mode.VISUAL_LINE

@@ -3,7 +3,9 @@ from ...docs.positions import Pos
 from ..engine import VimEngine
 from ..modes import Mode
 from ..options import VimOptions
+from ..options import get_language_options
 from ..parsing import ESC
+from ..parsing import SHIFT_TAB
 from ..status import CURSOR_TAG
 from ..status import SEARCH_CURRENT_TAG
 from ..status import SEARCH_MATCH_TAG
@@ -816,3 +818,102 @@ def test_options_expandtab_and_autoindent():
     b.send('i')
     b.feed('\r')
     check('enter at col 0 drags nothing', b, text='\n    foo', cursor=(1, 0))
+
+
+def test_shift_tab_dedents_in_insert():
+    # IdeaVim's shift+tab: one shiftwidth off the line, the cursor keeping its character (vim's insert ctrl+d).
+    e = make('        foo', 'i', (0, 9))
+    e.feed(SHIFT_TAB)
+    check('dedents one shiftwidth', e, text='    foo', cursor=(0, 5), mode='INSERT')
+    e.feed(SHIFT_TAB)
+    check('dedents to the margin', e, text='foo', cursor=(0, 1))
+    e.feed(SHIFT_TAB)
+    check('no-op at the margin', e, text='foo', cursor=(0, 1))
+
+    e = make('        foo', 'i', (0, 2))
+    e.feed(SHIFT_TAB)
+    check('cursor inside the indent slides left', e, text='    foo', cursor=(0, 0))
+
+    # Default profile is expandtab: a tab indent is rebuilt as spaces, and the cursor still rides its character.
+    e = make('\t\tfoo', 'i', (0, 3))
+    e.feed(SHIFT_TAB)
+    check('tabs rebuilt as spaces', e, text='    foo', cursor=(0, 5))
+
+    # go profile: real tabs, one per shiftwidth.
+    g = VimEngine('\t\tfoo', options=get_language_options('go'))
+    g.set_cursor(Pos(0, 3))
+    g.send('i')
+    g.feed(SHIFT_TAB)
+    check('eats a tab', g, text='\tfoo', cursor=(0, 2))
+
+
+def test_shift_tab_multicursor_dedents_each_line_once():
+    e = make('    ab\n    cd', 'i')
+    e.set_cursor(Pos(0, 5))
+    e.add_cursor(Pos(0, 6))
+    e.add_cursor(Pos(1, 4))
+    e.feed(SHIFT_TAB)
+    assert e.render() == 'ab\ncd'
+    assert [(c.pos.row, c.pos.col) for c in e.cursors] == [(0, 1), (0, 2), (1, 0)]
+
+
+def test_shift_tab_insert_undo_and_dot_repeat():
+    e = make('        a\n        b', 'A')
+    e.feed(SHIFT_TAB)
+    e.send('x' + ESC)
+    check('dedent and typing', e, text='    ax\n        b')
+    e.send('j.')
+    check('. replays the dedent with the insert', e, text='    ax\n    bx')
+    e.send('u')
+    check('the insert is one undo unit', e, text='    ax\n        b')
+    e.send('u')
+    check('and so was the first', e, text='        a\n        b')
+
+
+def test_shift_tab_normal_is_double_lt():
+    e = make('        foo\n        bar\n        baz', '', (0, 9))
+    e.feed(SHIFT_TAB)
+    check('dedents the line, cursor to first non-blank', e,
+          text='    foo\n        bar\n        baz', cursor=(0, 4), mode='NORMAL')
+    e.send('2')
+    e.feed(SHIFT_TAB)
+    check('a count picks lines like 2<<', e, text='foo\n    bar\n        baz', cursor=(0, 0))
+    e.send('j.')
+    check('. repeats, count included', e, text='foo\nbar\n    baz', cursor=(1, 0))
+    e.send('u')
+    check('undo', e, text='foo\n    bar\n        baz')
+
+    # A pending operator refuses it, like any stray token.
+    e = make('    foo', 'd')
+    e.feed(SHIFT_TAB)
+    check('d<s-tab> aborts', e, text='    foo')
+    assert e.status().pending == ''
+
+
+def test_shift_tab_visual_keeps_selection():
+    e = make('        a\n        b\n        c', 'Vj', (0, 8))
+    e.feed(SHIFT_TAB)
+    check('dedents the selected lines', e, text='    a\n    b\n        c', cursor=(1, 4), mode='VISUAL_LINE')
+    e.feed(SHIFT_TAB)
+    check('again, the selection kept', e, text='a\nb\n        c', cursor=(1, 0), mode='VISUAL_LINE')
+    e.send('j')
+    e.feed(SHIFT_TAB)
+    check('the extended selection', e, text='a\nb\n    c', cursor=(2, 0))
+    e.send(ESC)
+    check('esc leaves visual', e, mode='NORMAL')
+    e.send('u')
+    check('each press is its own undo unit', e, text='a\nb\n        c')
+
+    # Charwise: anchor and cursor ride their characters.
+    e = make('    foo\n    bar', 'vj', (0, 5))
+    e.feed(SHIFT_TAB)
+    check('charwise dedent', e, text='foo\nbar', cursor=(1, 1), mode='VISUAL')
+    (sel,) = [d.span for d in e.decorations() if d.tag == SELECTION_TAG]
+    assert (sel.start, sel.end) == (Pos(0, 1), Pos(1, 2))
+
+
+def test_shift_tab_ignored_in_cmdline():
+    e = make('    foo', ':ab')
+    e.feed(SHIFT_TAB)
+    assert e.status().cmdline == ':ab'
+    check('untouched', e, text='    foo', mode='CMDLINE')

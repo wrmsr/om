@@ -49,7 +49,8 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   with the (optional, quarantined) tree-sitter implementation riding those same edits.
 - **vim/** - the modal engine (grown from `x/vibes/minivim`): motions/operators/text objects/registers, edit-group
   undo/redo, CMDLINE mode with incremental search, blockwise visual (ctrl+v) with live multi-cursor I/A/c replication,
-  `%`/`~`, `status()`/`decorations()` as its only outputs. Never renders, never reads a keyboard.
+  `%`/`~`, IdeaVim's shift+tab unindent (selection-keeping in visual mode), `status()`/`decorations()` as its only
+  outputs. Never renders, never reads a keyboard.
 - **controls/** - small and passive: `TextArea` (a scrolled vim window - grows to a max height, then the viewport
   follows the cursor; optional syntax highlighting under engine decorations; ctrl+d/u, zz/zt/zb, H/M/L viewport ops;
   vim's line number column), status bar, statics, spinner, suggestions popup, markdown tail, lifecycle cards, input
