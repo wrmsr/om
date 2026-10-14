@@ -24,6 +24,8 @@ from omcore import check
 from omcore import lang
 from omcore import marshal as msh
 from omcore.argparse import all as ap
+from omcore.docker.ps import DEFAULT_PS_FORMAT_STR
+from omcore.formats.json import all as json
 
 from ..home.secrets import load_secrets
 from .build import build_image
@@ -169,7 +171,7 @@ class Cli(ap.Cli):
         accepts_unknown=True,
     )
     def run(self) -> None:
-        run_image(
+        container_id = run_image(
             self._load_config(),
 
             self._build_run_args(),
@@ -181,10 +183,14 @@ class Cli(ap.Cli):
             no_db=bool(self.args.no_db),
         )
 
+        print(container_id)
+
     #
 
     @ap.cmd(
         ap.arg('-j', '--json', action='store_true'),
+        ap.arg('-H', '--no-header', action='store_true'),
+        ap.arg('-I', '--id-only', action='store_true'),
 
         ap.arg('args', nargs=ap.REMAINDER),
         accepts_unknown=True,
@@ -195,11 +201,19 @@ class Cli(ap.Cli):
             'ps',
             *(self.unknown_args or []),
             f'--filter=label={ID_LABEL}',
-            *(['--format=json'] if self.args.json else []),
+            *(
+                ['--format={{.ID}}'] if self.args.id_only else
+                ['--format=json'] if self.args.json else
+                [f'--format={DEFAULT_PS_FORMAT_STR}'] if self.args.no_header else
+                []
+            ),
             *(self.args.args or []),
-        ])
+        ]).decode().strip()
 
-        print(out.decode(), end='')
+        if self.args.id_only and self.args.json:
+            out = json.dumps_compact([sl for l in out.splitlines() if (sl := l.strip())])
+
+        print(out)
 
     #
 

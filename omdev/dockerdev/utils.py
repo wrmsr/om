@@ -1,8 +1,16 @@
+import re
 import subprocess
 import sys
 import typing as ta
 
 from omcore import check
+
+
+##
+
+
+BARE_SHA256_PAT = re.compile(r'[0-9a-f]{64}')
+PREFIXED_SHA256_PAT = re.compile(r'sha256:[0-9a-f]{64}')
 
 
 ##

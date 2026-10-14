@@ -47,6 +47,7 @@ import os.path
 import platform
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import typing as ta
@@ -58,9 +59,11 @@ from omcore import lang
 from omcore import marshal as msh
 from omcore.secrets import all as sec
 from omcore.shlex import shlex_maybe_quote
+from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
 from .build import build_image
 from .config import Config
+from .utils import BARE_SHA256_PAT
 
 
 with lang.auto_proxy_import(globals()):
@@ -570,7 +573,7 @@ def run_image(
         *,
         host: RunHost | None = None,
         no_db: bool = False,
-) -> None:
+) -> str:  # | ta.NoReturn
     if sha is None:
         sha = build_image(
             cfg,
@@ -600,16 +603,35 @@ def run_image(
 
     #
 
-    os.execle(
-        docker := check.not_none(shutil.which('docker')),
+    docker = check.not_none(shutil.which('docker'))
+    exec_args = [
         docker,
         'run',
         *p_args.args,
-        {
-            **os.environ,
-            **({
-                ek: ev.reveal() if isinstance(ev, sec.Secret) else ev
-                for ek, ev in p_args.env.items()
-            } if p_args.env else {}),
-        },
+    ]
+
+    env = {
+        **os.environ,
+        **({
+            ek: ev.reveal() if isinstance(ev, sec.Secret) else ev
+            for ek, ev in p_args.env.items()
+        } if p_args.env else {}),
+    }
+
+    if not args.detach:
+        os.execle(
+            docker,
+            *exec_args,
+            env,
+        )
+
+        raise RuntimeError('unreachable')  # noqa
+
+    out = subprocess.check_output(
+        subprocess_maybe_shell_wrap_exec(*exec_args),
+        stderr=subprocess.PIPE,
     )
+
+    container_id = out.decode().strip()
+    check.not_none(BARE_SHA256_PAT.fullmatch(container_id))
+    return container_id

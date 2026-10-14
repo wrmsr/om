@@ -3,7 +3,6 @@
 docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ubuntu:24.04
 """
 import os.path
-import re
 import subprocess
 import tempfile
 
@@ -11,13 +10,11 @@ from omcore import check
 
 from .config import Config
 from .gen import gen_src
+from .utils import PREFIXED_SHA256_PAT
 from .utils import run_and_tee
 
 
 ##
-
-
-SHA_PAT = re.compile(r'sha256:[0-9a-f]{64}')
 
 
 def build_image(
@@ -68,7 +65,7 @@ def build_image(
 
     if not verbose:
         out = subprocess.check_output(['docker', 'build', '-q', *build_args]).decode()
-        if (m := SHA_PAT.search(out)) is not None:
+        if (m := PREFIXED_SHA256_PAT.search(out)) is not None:
             return m.group(0)
         raise RuntimeError("Can't find sha256 in output")
 
@@ -76,6 +73,6 @@ def build_image(
         proc, out = run_and_tee(['docker', 'build', *build_args])
         check.state(proc.returncode == 0)
         for line in reversed(out.splitlines()):
-            if (m := SHA_PAT.search(line)) is not None:
+            if (m := PREFIXED_SHA256_PAT.search(line)) is not None:
                 return m.group(0)
         raise RuntimeError("Can't find sha256 in output")
