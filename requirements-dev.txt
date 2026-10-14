@@ -148,9 +148,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.113
-botocore==1.43.113
-types-boto3==1.43.113
+boto3==1.43.114
+botocore==1.43.114
+types-boto3==1.43.114
 botocore-stubs==1.43.67
 
 asn1crypto==1.5.1
@@ -158,7 +158,7 @@ pynacl==1.6.2
 
 bcrypt==5.0.0  # @om-venv !15t
 
-mlx==0.32.3; sys_platform == "darwin"  # @om-venv !15 !15t
+mlx==0.32.4; sys_platform == "darwin"  # @om-venv !15 !15t
 mlx-lm==0.32.0; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 
 apsw==3.54.0.0

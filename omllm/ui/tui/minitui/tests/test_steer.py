@@ -47,7 +47,7 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
     async with headless_tui(inj.override(
         bind_headless_tui(config),
         inj.bind(ui.TextDisplayer, to_const=display),
-        inj.bind(agn.BackendManager, to_const=agn.DictBackendManager(backend)),
+        inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend)),
     )) as tui:
         app, _ = make_app()
         renderer = AgentEventRenderer(

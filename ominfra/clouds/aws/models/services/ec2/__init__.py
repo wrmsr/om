@@ -1792,6 +1792,15 @@ class InstanceType(_base.Enum):
     R9GD_48XLARGE = 'r9gd.48xlarge'
     R9GD_METAL_48XL = 'r9gd.metal-48xl'
     M9G_MEDIUM = 'm9g.medium'
+    T8I_NANO = 't8i.nano'
+    T8I_MICRO = 't8i.micro'
+    T8I_SMALL = 't8i.small'
+    T8I_MEDIUM = 't8i.medium'
+    I8G_METAL_48XL = 'i8g.metal-48xl'
+    R8GB_48XLARGE = 'r8gb.48xlarge'
+    R8GB_METAL_48XL = 'r8gb.metal-48xl'
+    M9GD_MEDIUM = 'm9gd.medium'
+    TRN2U_48XLARGE = 'trn2u.48xlarge'
 
 
 class InstanceTypeHypervisor(_base.Enum):
