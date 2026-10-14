@@ -43,6 +43,10 @@ with _lang.auto_proxy_init(
         CompactCommand,
     )
 
+    from .commands.effort import (  # noqa
+        EffortCommand,
+    )
+
     from .commands.manager import (  # noqa
         ParsedCommand,
         ParseCommandError,

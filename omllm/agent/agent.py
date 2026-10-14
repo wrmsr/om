@@ -88,7 +88,7 @@ class Agent(
     def state(self) -> State:
         return self._state
 
-    async def update_state(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> None:
+    async def update_state(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> State:
         old_state = self._state
         out = fn(old_state)
         if isinstance(out, ta.Awaitable):
@@ -102,6 +102,8 @@ class Agent(
             old_state=old_state,
         ))
 
+        return new_state
+
     @contextlib.asynccontextmanager
     async def _exclusive(self) -> ta.AsyncIterator[None]:
         if self._is_busy:
@@ -113,14 +115,14 @@ class Agent(
         finally:
             self._is_busy = False
 
-    async def update_state_exclusively(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> None:
+    async def update_state_exclusively(self, fn: ta.Callable[[State], State | ta.Awaitable[State]]) -> State:
         """
         A state update to the exclusion of prompts, for one which awaits on its way to its new state: nothing else gets
         to run on the state it is about to replace. Raises AgentBusyError if a run is in progress.
         """
 
         async with self._exclusive():
-            await self.update_state(fn)
+            return await self.update_state(fn)
 
     #
 

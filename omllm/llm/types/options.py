@@ -6,6 +6,7 @@ import enum
 import typing as ta
 
 from omcore import dataclasses as dc
+from omcore import lang
 
 
 ##
@@ -40,6 +41,7 @@ class CacheRetention(enum.Enum):
 
 
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class Options:
     """All fields must be optional and default to `None`"""
 

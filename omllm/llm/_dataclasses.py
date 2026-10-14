@@ -2653,7 +2653,7 @@ def _process_dataclass__f1940bdce2f09a064f1feae555b3d46ca457813e():
 
 
 @_register(
-    installer_sha1='d2ab7a668058a4fe241651d81e6f984e78cb900b',
+    installer_sha1='f74588d74786e9ad9e13317c3a17ac9ee0c8e1fb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2663,15 +2663,15 @@ def _process_dataclass__f1940bdce2f09a064f1feae555b3d46ca457813e():
             ", None, False, False, False), (('reasoning_effort', True, True, None, True, True, False, None), 'instance'"
             ", 'value', None, True, False, False), (('cache_key', True, True, None, True, True, False, None), 'instance"
             "', 'value', None, False, False, False), (('cache_retention', True, True, None, True, True, False, None), '"
-            "instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False,"
-            " False, ()), ((),), (), (False,)))"
+            "instance', 'value', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, "
+            "False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.llm.types.options', 'Options'),
     ),
 )
-def _process_dataclass__d2ab7a668058a4fe241651d81e6f984e78cb900b():
+def _process_dataclass__f74588d74786e9ad9e13317c3a17ac9ee0c8e1fb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2690,6 +2690,7 @@ def _process_dataclass__d2ab7a668058a4fe241651d81e6f984e78cb900b():
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
         __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
         __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FieldFnValidationError = __dataclass__globals['__dataclass__FieldFnValidationError']
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -2792,11 +2793,16 @@ def _process_dataclass__d2ab7a668058a4fe241651d81e6f984e78cb900b():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"max_tokens={self.max_tokens!r}")
-            parts.append(f"thinking={self.thinking!r}")
-            parts.append(f"reasoning_effort={self.reasoning_effort!r}")
-            parts.append(f"cache_key={self.cache_key!r}")
-            parts.append(f"cache_retention={self.cache_retention!r}")
+            if (s := __dataclass__repr__default_fn(self.max_tokens)) is not None:
+                parts.append(f"max_tokens={s}")
+            if (s := __dataclass__repr__default_fn(self.thinking)) is not None:
+                parts.append(f"thinking={s}")
+            if (s := __dataclass__repr__default_fn(self.reasoning_effort)) is not None:
+                parts.append(f"reasoning_effort={s}")
+            if (s := __dataclass__repr__default_fn(self.cache_key)) is not None:
+                parts.append(f"cache_key={s}")
+            if (s := __dataclass__repr__default_fn(self.cache_retention)) is not None:
+                parts.append(f"cache_retention={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

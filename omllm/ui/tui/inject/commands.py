@@ -1,3 +1,5 @@
+import typing as ta
+
 from omcore import inject as inj
 from omcore import lang
 
@@ -16,27 +18,24 @@ def harness_commands() -> inj.ItemsBinderHelper[har.Command]:
 ##
 
 
+def _bind_command_singleton(cls: ta.Any) -> inj.Elemental:
+    return inj.as_elements(
+        inj.bind(cls, singleton=True),
+        harness_commands().bind_item(to_key=cls),
+    )
+
+
 def bind_commands(config: Config) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     lst.extend([
-        inj.bind(har.EchoCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.EchoCommand),
-
-        inj.bind(har.QuitCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.QuitCommand),
-
-        inj.bind(har.PermissionsCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.PermissionsCommand),
-
-        inj.bind(har.CompactCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.CompactCommand),
-
-        inj.bind(har.StatusCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.StatusCommand),
-
-        inj.bind(har.SteerCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.SteerCommand),
+        _bind_command_singleton(har.CompactCommand),
+        _bind_command_singleton(har.EchoCommand),
+        _bind_command_singleton(har.EffortCommand),
+        _bind_command_singleton(har.PermissionsCommand),
+        _bind_command_singleton(har.QuitCommand),
+        _bind_command_singleton(har.StatusCommand),
+        _bind_command_singleton(har.SteerCommand),
     ])
 
     if config.exec:
