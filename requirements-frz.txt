@@ -120,7 +120,7 @@ mojo==1.1.0
 mojo-compiler==1.1.0
 mojo-compiler-mojo-libs==1.1.0
 mojo-lldb-libs==1.1.0
-more-itertools==11.2.0
+more-itertools==11.2.1
 mpmath==1.3.0
 multidict==7.1.0
 multiprocess==0.70.19
