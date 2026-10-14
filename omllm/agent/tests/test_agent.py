@@ -34,7 +34,7 @@ async def _test_agent(
         turn_runner=TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+            backends=DictBackendManager.of(svc),
         ),
     )
 
@@ -75,7 +75,7 @@ async def _test_agent_with_tool(harness: Harness, model: ModelForTest) -> None:
         turn_runner=TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager({llm.ImmediateBackend: {None: svc}}),  # type: ignore
+            backends=DictBackendManager.of(svc),
         ),
     )
 

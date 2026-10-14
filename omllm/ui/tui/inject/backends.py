@@ -60,9 +60,7 @@ def bind_backends(config: Config) -> inj.Elements:
 
     lst.append(inj.bind(
         agn.BackendManager,
-        to_const=agn.DictBackendManager({
-            llm.ImmediateBackend: {None: backend},  # type: ignore[type-abstract]
-        }),
+        to_const=agn.DictBackendManager.of(backend),
     ))
 
     #

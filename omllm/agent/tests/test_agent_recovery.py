@@ -50,7 +50,7 @@ async def _agent(backend, tools, *, cwd, scope, sleeps=None, turn_config=None):
         turn_runner=TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
+            backends=DictBackendManager.of(backend),
             sleeps=sleeps,
         ),
     )

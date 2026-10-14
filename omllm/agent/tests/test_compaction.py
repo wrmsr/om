@@ -47,7 +47,7 @@ class _BlockingBackend(llm.ImmediateBackend):
 
 
 def _backends(backend):
-    return DictBackendManager({llm.ImmediateBackend: {None: backend}})  # type: ignore[type-abstract]
+    return DictBackendManager.of(backend)
 
 
 async def _agent(backend, *messages):

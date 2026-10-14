@@ -30,7 +30,7 @@ class _Capture:
 
 
 def _backends(backend):
-    return agn.DictBackendManager({llm.ImmediateBackend: {None: backend}})  # type: ignore[type-abstract]
+    return agn.DictBackendManager.of(backend)
 
 
 @pytest.mark.asyncs('asyncio')

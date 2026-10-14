@@ -372,7 +372,7 @@ async def test_echo_runs_while_a_prompt_does_and_what_cannot_waits_for_it():
     compact = har.CompactCommand(
         agent=agent,
         compaction=agn.ContextCompactionRunner(
-            backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
+            backends=agn.DictBackendManager.of(backend),
         ),
     )
     pump = PromptPump(agent=agent, app=app, commands=_commands(app, har.EchoCommand(), compact))

@@ -39,9 +39,7 @@ async def scripted_session(
         turn_runner=agn.TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=agn.DictBackendManager({
-                llm.ImmediateBackend: {None: scripted_backend(*turns)},  # type: ignore[type-abstract]
-            }),
+            backends=agn.DictBackendManager.of(scripted_backend(*turns)),
         ),
     )
     if tools:

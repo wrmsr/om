@@ -10,7 +10,6 @@ from omcore import inject as inj
 
 from .... import agent as agn
 from .... import harness as har
-from .... import llm
 from ....agent.tests.scripted import scripted_backend
 from ....core import ui
 from ..config import Config
@@ -51,9 +50,7 @@ def bind_scripted_backend(*turns: ta.Any) -> inj.Elemental:
 
     return inj.bind(
         agn.BackendManager,
-        to_const=agn.DictBackendManager({
-            llm.ImmediateBackend: {None: scripted_backend(*turns)},  # type: ignore[type-abstract]
-        }),
+        to_const=agn.DictBackendManager.of(scripted_backend(*turns)),
     )
 
 

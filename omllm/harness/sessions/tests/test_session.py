@@ -72,7 +72,7 @@ def _agent(backend, context_lifecycle_manager=None):
         turn_runner=agn.TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
+            backends=agn.DictBackendManager.of(backend),
             context_lifecycle_manager=context_lifecycle_manager,
         ),
     )

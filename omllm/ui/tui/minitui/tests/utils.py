@@ -86,7 +86,7 @@ async def make_agent(backend: llm.Backend, *, tools: ta.Sequence[agn.Tool] = ())
         turn_runner=agn.TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=agn.DictBackendManager({llm.ImmediateBackend: {None: backend}}),  # type: ignore[type-abstract]
+            backends=agn.DictBackendManager.of(backend),
         ),
     )
 

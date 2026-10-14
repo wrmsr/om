@@ -23,12 +23,10 @@ from .headless import headless_tui
 def _bind_backend(model: llm.Model) -> inj.Elemental:
     return inj.bind(
         agn.BackendManager,
-        to_const=agn.DictBackendManager({
-            llm.ImmediateBackend: {None: llm.ScriptedImmediateBackend(  # type: ignore[type-abstract]
-                model,
-                llm.BackendScript([llm.BackendScriptTurn(text_message('hello'))]),
-            )},
-        }),
+        to_const=agn.DictBackendManager.of(llm.ScriptedImmediateBackend(
+            model,
+            llm.BackendScript([llm.BackendScriptTurn(text_message('hello'))]),
+        )),
     )
 
 
