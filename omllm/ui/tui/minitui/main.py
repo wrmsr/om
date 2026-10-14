@@ -16,7 +16,7 @@ from omcore.logs import all as logs
 from omdev import minitui as mt
 
 from .... import agent as agn
-from .... import harness as har
+from ...commands.manager import CommandsManager
 from ...logs import configure_tui_logging
 from ...types import UiId
 from ..config import Config
@@ -52,8 +52,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         configure_tui_logging(ui_id)
 
         agent = await injector[agn.Agent]
-        session = await injector[har.Session]
-        commands_manager = await injector[har.CommandsManager]
+        session = await injector[agn.Session]
+        commands_manager = await injector[CommandsManager]
         driver = await injector[mt.AsyncioDriver]
         app = await injector[MinituiChatApp]
         event_renderer = await injector[AgentEventRenderer]

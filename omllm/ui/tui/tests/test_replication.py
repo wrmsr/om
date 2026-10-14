@@ -24,12 +24,12 @@ from omcore.sql.replicate.tests.nodes import read_shadow
 from omcore.sql.testing import sandboxes as sbx
 from omcore.sql.tests.harness import HarnessSandboxes
 
-from .... import harness as har
+from .... import agent as agn
 from .... import llm
+from ....agent.sessions.storage.orm.tests.scenarios import check_stored_transcript
 from ....agent.tests.scripted import text_message
 from ....agent.tests.scripted import tool_call_message
 from ....agent.tests.tools import EchoTool
-from ....harness.sessions.storage.orm.tests.scenarios import check_stored_transcript
 from ..config import Config
 from ..inject import bind_agent_tool_class
 from .headless import bind_headless_tui
@@ -109,7 +109,7 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
             # The replication side's own view of things: the schema by way of the mappers, the sqlite file by way of
             # connections it opens itself. The edge's tables are the harness's, so only their triggers are installed,
             # and what is in them already is backfilled; the hub's are created.
-            schema = rep.ReplicationSchema(orm.sql_table_defs(orm.registry(*har.orm_mappers())))
+            schema = rep.ReplicationSchema(orm.sql_table_defs(orm.registry(*agn.orm_session_mappers())))
             assert set(schema.table_names) == {'sessions', 'session_entries'}
 
             async with sql.be.sqlite.connecting.asyncio_sqlite_db(
@@ -151,15 +151,15 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
             #
 
-            storage = await tui.injector[har.OrmSessionStorage]
+            storage = await tui.injector[agn.OrmSessionStorage]
             await check_stored_transcript(storage, tui.agent)
             num_entries = len(await storage.get_entries())
             assert num_entries == 8
 
             # And the session reads back off of the hub, through the same storage, as the transcript it is.
-            async with har.SqlOrm(
-                registry=orm.registry(*har.orm_mappers()),
+            async with agn.SqlOrm(
+                registry=orm.registry(*agn.orm_session_mappers()),
                 db=sql.api.SyncToAsyncDb(sql.api.ImmediateSyncToAsyncRunner, hub_sb.db()),
                 backend=sql.be.postgres.backend.PostgresBackend(),
             ) as hub_orm:
-                await check_stored_transcript(har.OrmSessionStorage(tui.session.id, hub_orm), tui.agent)
+                await check_stored_transcript(agn.OrmSessionStorage(tui.session.id, hub_orm), tui.agent)

@@ -5,7 +5,8 @@ Bare has no input area apart from its scrollback - a typed line stays where it w
 typed, a boot command, is echoed, the way the minitui surface shows every submission.
 """
 from .... import agent as agn
-from .... import harness as har
+from ...commands.manager import CommandsManager
+from ...commands.manager import ParseCommandError
 from ..rendering import BlockTerminalTextDisplayer
 
 
@@ -17,7 +18,7 @@ class Prompter:
             self,
             *,
             agent: agn.Agent,
-            commands: har.CommandsManager,
+            commands: CommandsManager,
             command_output: BlockTerminalTextDisplayer,
     ) -> None:
         super().__init__()
@@ -36,7 +37,7 @@ class Prompter:
 
             try:
                 await self._commands.parse(input[1:]).run()
-            except har.ParseCommandError as e:
+            except ParseCommandError as e:
                 if e.message is not None:
                     await self._command_output.display_text(e.message)
             return

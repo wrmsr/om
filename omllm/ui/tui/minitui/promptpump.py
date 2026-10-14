@@ -6,11 +6,13 @@ import typing as ta
 from omcore import check
 
 from .... import agent as agn
-from .... import harness as har
+from ...commands.manager import CommandsManager
+from ...commands.manager import ParseCommandError
+from ...commands.manager import ParsedCommand
 from .app import MinituiChatApp
 
 
-Input: ta.TypeAlias = str | har.ParsedCommand
+Input: ta.TypeAlias = str | ParsedCommand
 
 
 ##
@@ -24,7 +26,7 @@ class PromptPump:
             *,
             agent: agn.Agent,
             app: MinituiChatApp,
-            commands: har.CommandsManager | None = None,
+            commands: CommandsManager | None = None,
     ) -> None:
         super().__init__()
 
@@ -55,7 +57,7 @@ class PromptPump:
 
             try:
                 input = check.not_none(self._commands).parse(text[1:])
-            except har.ParseCommandError as e:
+            except ParseCommandError as e:
                 if e.message is not None:
                     self._app.display_ui_text(e.message)
                 return
@@ -94,7 +96,7 @@ class PromptPump:
             if isinstance(input, str):
                 await self._agent.prompt(input)
 
-            elif isinstance(input, har.ParsedCommand):
+            elif isinstance(input, ParsedCommand):
                 await input.run()
 
             else:

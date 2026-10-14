@@ -45,7 +45,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ),
     ),
     cls_names=(
-        ('omllm.harness.commands.base', 'ArgsCommandError'),
+        ('omllm.ui.commands.base', 'ArgsCommandError'),
     ),
 )
 def _process_dataclass__cd59d2cc684b567c3d4052eb9f957568d221b6bd():
@@ -135,7 +135,7 @@ def _process_dataclass__cd59d2cc684b567c3d4052eb9f957568d221b6bd():
         ),
     ),
     cls_names=(
-        ('omllm.harness.commands.base', 'CommandContext'),
+        ('omllm.ui.commands.base', 'CommandContext'),
     ),
 )
 def _process_dataclass__82612b4cb3ec401ee2d7d53c977dca37e63c778d():
@@ -238,7 +238,7 @@ def _process_dataclass__82612b4cb3ec401ee2d7d53c977dca37e63c778d():
         ),
     ),
     cls_names=(
-        ('omllm.harness.commands.manager', 'ParseCommandError'),
+        ('omllm.ui.commands.manager', 'ParseCommandError'),
     ),
 )
 def _process_dataclass__0bcf8b801f1c423254465a3db0447538505a12b5():
@@ -311,7 +311,7 @@ def _process_dataclass__0bcf8b801f1c423254465a3db0447538505a12b5():
         ),
     ),
     cls_names=(
-        ('omllm.harness.commands.manager', 'ParsedCommand'),
+        ('omllm.ui.commands.manager', 'ParsedCommand'),
     ),
 )
 def _process_dataclass__5b69954c03d748fa548ad308b0e21ff76d10edc0():

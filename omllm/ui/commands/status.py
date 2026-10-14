@@ -2,7 +2,6 @@ from omcore.argparse import all as argparse
 
 from ... import agent as agn
 from ...core import ui
-from ..sessions.types import SessionId
 from .base import CommandContext
 from .classes import CommandClass
 
@@ -14,7 +13,7 @@ class StatusCommand(CommandClass):
     def __init__(
             self,
             *,
-            session_id: SessionId | None = None,
+            session_id: agn.SessionId | None = None,
             agent: agn.Agent,
     ) -> None:
         super().__init__()

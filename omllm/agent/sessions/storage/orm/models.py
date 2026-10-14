@@ -48,7 +48,7 @@ class OrmSessionEntry:
 ##
 
 
-def orm_mappers() -> ta.Sequence[orm.Mapper]:
+def orm_session_mappers() -> ta.Sequence[orm.Mapper]:
     """Fresh each call: a mapper belongs to the one registry it is given to."""
 
     return [

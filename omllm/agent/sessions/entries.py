@@ -5,7 +5,8 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore import marshal as msh
 
-from ... import agent as agn
+from ..types.lifecycle import ContextProjection
+from ..types.messages import Message
 
 
 ##
@@ -25,7 +26,7 @@ class SessionEntry(lang.Abstract, lang.Sealed):
 @ta.final
 @dc.dataclass(frozen=True)
 class MessageSessionEntry(SessionEntry):
-    message: agn.Message
+    message: Message
 
 
 @ta.final
@@ -36,4 +37,4 @@ class ContextProjectionSessionEntry(SessionEntry):
     transcript is restored under the last of these, or under none.
     """
 
-    projection: agn.ContextProjection
+    projection: ContextProjection

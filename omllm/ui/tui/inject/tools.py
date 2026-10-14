@@ -5,6 +5,7 @@ from omcore import inject as inj
 from omcore import lang
 
 from .... import agent as agn
+from ....agent.remote.inject import bind_docker_remote_agent
 from ....core import processes
 from ..config import Config
 from ..types import TargetCwd
@@ -77,7 +78,7 @@ def bind_tools(config: Config) -> inj.Elements:
     # A process manager is bound either way, whatever tools the agent is given: the user's own shell runs on it too.
     if config.container is not None:
         lst.extend([
-            agn.bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
+            bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
             inj.bind(TargetCwd, singleton=True, to_async_fn=_provide_remote_target_cwd),
         ])
     else:

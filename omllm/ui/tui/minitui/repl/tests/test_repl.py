@@ -9,8 +9,8 @@ from omcore import lang
 from omdev import minitui as mt
 from omdev import repl
 
-from ...... import harness as har
 from ......core import processes
+from .....commands.repl import ReplSwitchError
 from ....config import Config
 from ....tests.headless import bind_headless_tui
 from ....tests.headless import headless_tui
@@ -75,7 +75,7 @@ def test_unknown_repl():
     app, driver = make_app()
     switcher = make_repl(app, driver)
     assert switcher.names == ('py',)
-    with pytest.raises(har.ReplSwitchError, match='nope'):
+    with pytest.raises(ReplSwitchError, match='nope'):
         lang.sync_await(switcher.switch('nope'))
     assert app.input_mode is app.chat_mode
 

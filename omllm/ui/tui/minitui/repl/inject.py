@@ -6,10 +6,14 @@ from omdev import minitui as mt
 from omdev import repl
 
 from ..... import agent as agn
-from ..... import harness as har
 from ..... import llm
 from .....core import processes as procs
 from .....core.asyncs.base import AsyncJobRunner
+from ....commands.repl import BashCommand
+from ....commands.repl import ChatCommand
+from ....commands.repl import JsCommand
+from ....commands.repl import PyCommand
+from ....commands.repl import ReplModeSwitcher
 from ...config import Config
 from ...inject import harness_commands
 from ...types import TargetCwd
@@ -45,7 +49,7 @@ REPL_PTY_ROWS = 50
 def _provide_session(
         injector: inj.AsyncInjector,
         agent: agn.Agent,
-        harness_session: har.Session,
+        harness_session: agn.Session,
         app: MinituiChatApp,
         driver: mt.AsyncioDriver,
         job_runner: AsyncJobRunner,
@@ -62,7 +66,6 @@ def _provide_session(
         'driver': driver,
 
         'agn': agn,
-        'har': har,
         'llm': llm,
         'mt': mt,
     }
@@ -102,17 +105,17 @@ def bind_repl(config: Config) -> inj.Elements:
         inj.bind(repl.Runner, to_key=repl.AsyncioRunner),
 
         inj.bind(MinituiRepl, singleton=True),
-        inj.bind(har.ReplModeSwitcher, to_key=MinituiRepl),
+        inj.bind(ReplModeSwitcher, to_key=MinituiRepl),
 
-        inj.bind(har.PyCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.PyCommand),
+        inj.bind(PyCommand, singleton=True),
+        harness_commands().bind_item(to_key=PyCommand),
 
-        inj.bind(har.JsCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.JsCommand),
+        inj.bind(JsCommand, singleton=True),
+        harness_commands().bind_item(to_key=JsCommand),
 
-        inj.bind(har.BashCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.BashCommand),
+        inj.bind(BashCommand, singleton=True),
+        harness_commands().bind_item(to_key=BashCommand),
 
-        inj.bind(har.ChatCommand, singleton=True),
-        harness_commands().bind_item(to_key=har.ChatCommand),
+        inj.bind(ChatCommand, singleton=True),
+        harness_commands().bind_item(to_key=ChatCommand),
     )

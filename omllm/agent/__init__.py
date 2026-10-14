@@ -236,13 +236,68 @@ with _lang.auto_proxy_init(
         build_docker_remote_agent_argv,
     )
 
-    from .remote.inject import (  # noqa
-        bind_docker_remote_agent,
-    )
-
     from .remote.payload import (  # noqa
         RemoteAgentPayloadFile,
         get_remote_agent_payload_src,
+    )
+
+    ##
+
+    from .sessions.storage.fs import (  # noqa
+        FsSessionStorage,
+    )
+
+    from .sessions.storage.inmemory import (  # noqa
+        InMemorySessionStorage,
+    )
+
+    from .sessions.storage.orm.impl import (  # noqa
+        StoreOrm,
+    )
+
+    from .sessions.storage.orm.models import (  # noqa
+        OrmSession,
+        OrmSessionEntry,
+
+        orm_session_mappers,
+    )
+
+    from .sessions.storage.orm.sql import (  # noqa
+        SqlOrm,
+    )
+
+    from .sessions.storage.orm.storage import (  # noqa
+        OrmSessionStorage,
+    )
+
+    from .sessions.storage.orm.types import (  # noqa
+        Orm,
+    )
+
+    from .sessions.storage.types import (  # noqa
+        SessionNotFoundError,
+        SessionStorage,
+    )
+
+    from .sessions.entries import (  # noqa
+        SessionEntry,
+
+        MessageSessionEntry,
+        ContextProjectionSessionEntry,
+    )
+
+    from .sessions.events import (  # noqa
+        SessionEvent,
+
+        AgentSessionEvent,
+    )
+
+    from .sessions.session import (  # noqa
+        Session,
+    )
+
+    from .sessions.types import (  # noqa
+        SessionId,
     )
 
     ##

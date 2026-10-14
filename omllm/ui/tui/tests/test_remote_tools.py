@@ -12,7 +12,6 @@ from omcore import check
 from omcore import inject as inj
 
 from .... import agent as agn
-from .... import harness as har
 from .... import llm
 from ....agent.tests.scripted import text_message
 from ....agent.tests.scripted import tool_call_message
@@ -113,7 +112,7 @@ async def test_docker_remote_tool_bindings(tmp_path):
         assert isinstance(fs, agn.RemoteFsOps)
         assert isinstance(manager, processes.RemoteProcessManager)
         assert (await tui.injector[TargetCwd]).v == cwd
-        assert isinstance(await tui.injector[har.SessionStorage], har.InMemorySessionStorage)
+        assert isinstance(await tui.injector[agn.SessionStorage], agn.InMemorySessionStorage)
 
         # The root scope is the remote manager's, and it is what the agent hands to tools.
         assert (await tui.injector[processes.RootProcessScope]) is manager.root

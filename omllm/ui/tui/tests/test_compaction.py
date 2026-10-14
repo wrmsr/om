@@ -4,7 +4,7 @@ import pytest
 from omcore import check
 from omcore import inject as inj
 
-from .... import harness as har
+from .... import agent as agn
 from .... import llm
 from ....agent.tests.scripted import text_message
 from ..config import Config
@@ -44,11 +44,11 @@ async def test_compact_command_through_the_tuis_wiring():
         assert projection.first_kept_message_index == 1
         assert len(tui.agent.state.context.messages or ()) == 2
 
-        storage = await tui.injector[har.SessionStorage]
+        storage = await tui.injector[agn.SessionStorage]
         assert [type(e) for e in await storage.get_entries()] == [
-            har.MessageSessionEntry,
-            har.MessageSessionEntry,
-            har.ContextProjectionSessionEntry,
+            agn.MessageSessionEntry,
+            agn.MessageSessionEntry,
+            agn.ContextProjectionSessionEntry,
         ]
 
         await tui.agent.prompt('and again')

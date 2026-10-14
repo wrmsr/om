@@ -6,14 +6,22 @@ import pytest
 from omcore import dataclasses as dc
 from omcore.asyncs.asynclite import all as asl
 
-from .... import agent as agn
 from .... import llm
-from ....agent.tests.scripted import scripted_backend
-from ....agent.tests.scripted import text_message
-from ....agent.tests.scripted import tool_call_message
-from ....agent.tests.tools import EchoTool
-from ....agent.tests.tools import bare_tool
 from ....core.asyncs.asyncio import AsyncioGroupRunner
+from ...agent import Agent
+from ...backends import DictBackendManager
+from ...lifecycle.compactors import ContextCompactor
+from ...lifecycle.managers import StandardContextLifecycleManager
+from ...tests.scripted import scripted_backend
+from ...tests.scripted import text_message
+from ...tests.scripted import tool_call_message
+from ...tests.tools import EchoTool
+from ...tests.tools import bare_tool
+from ...turns.runner import TurnLoopRunner
+from ...types.contexts import Context
+from ...types.lifecycle import ContextProjection
+from ...types.messages import InfoAgentMessage
+from ...types.tools import ToolSet
 from ..entries import ContextProjectionSessionEntry
 from ..entries import MessageSessionEntry
 from ..session import Session
@@ -68,11 +76,11 @@ class _BlockingExecutor:
 
 
 def _agent(backend, context_lifecycle_manager=None):
-    return agn.Agent(
-        turn_runner=agn.TurnLoopRunner(
+    return Agent(
+        turn_runner=TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=agn.DictBackendManager.of(backend),
+            backends=DictBackendManager.of(backend),
             context_lifecycle_manager=context_lifecycle_manager,
         ),
     )
@@ -82,7 +90,7 @@ async def _session(backend, tools=(), storage=None, agent=None):
     if agent is None:
         agent = _agent(backend)
     if tools:
-        await agent.update_state(lambda s: dc.replace(s, context=agn.Context(tools=agn.ToolSet(list(tools)))))
+        await agent.update_state(lambda s: dc.replace(s, context=Context(tools=ToolSet(list(tools)))))
 
     if storage is None:
         storage = _RecordingStorage()
@@ -135,7 +143,7 @@ async def test_resume_restores_and_repairs_transcript():
         llm.AiMessage,
         llm.ToolResultMessage,
         llm.ToolResultMessage,
-        agn.InfoAgentMessage,
+        InfoAgentMessage,
     ]
     repair_result = messages[-2]
     assert isinstance(repair_result, llm.ToolResultMessage)
@@ -189,7 +197,7 @@ async def test_failed_run_is_stored():
 
     await agent.prompt('hi')
 
-    assert _stored_types(storage) == [llm.UserMessage, agn.InfoAgentMessage]
+    assert _stored_types(storage) == [llm.UserMessage, InfoAgentMessage]
     assert 'boom' in storage.entries[-1].message.info
 
 
@@ -204,7 +212,7 @@ async def test_cancelled_run_is_stored():
     with pytest.raises(asyncio.CancelledError):
         await task
 
-    assert _stored_types(storage) == [llm.UserMessage, agn.InfoAgentMessage]
+    assert _stored_types(storage) == [llm.UserMessage, InfoAgentMessage]
 
 
 @pytest.mark.asyncs('asyncio')
@@ -226,7 +234,7 @@ async def test_cancelled_mid_tool_stores_the_repair_tail_once():
         llm.UserMessage,
         llm.AiMessage,
         llm.ToolResultMessage,
-        agn.InfoAgentMessage,
+        InfoAgentMessage,
     ]
     assert storage.entries[2].message.is_error
 
@@ -234,11 +242,11 @@ async def test_cancelled_mid_tool_stores_the_repair_tail_once():
 ##
 
 
-class _FixedCompactor(agn.ContextCompactor):
+class _FixedCompactor(ContextCompactor):
     """Summarizes everything but the newest message, without a model."""
 
     async def compact(self, context, *, backend, target_tokens, reason, instructions=None):
-        return agn.ContextProjection(
+        return ContextProjection(
             summary='Summarized.',
             first_kept_message_index=len(context.messages or ()) - 1,
         )
@@ -262,7 +270,7 @@ def _entry_types(storage):
 
 @pytest.mark.asyncs('asyncio')
 async def test_a_runs_reduction_is_stored_as_it_happens_and_restored_on_resume():
-    manager = agn.StandardContextLifecycleManager(compactor=_FixedCompactor())
+    manager = StandardContextLifecycleManager(compactor=_FixedCompactor())
     _, agent, storage = await _session(
         backend := _pressed_backend(text_message('hello')),
         agent=_agent(backend, manager),
@@ -307,7 +315,7 @@ async def test_a_projection_arriving_by_state_update_is_stored_once():
     assert _entry_types(storage) == [MessageSessionEntry, MessageSessionEntry]
 
     # What a compaction on request does to the state.
-    projection = agn.ContextProjection(summary='By hand.', first_kept_message_index=2)
+    projection = ContextProjection(summary='By hand.', first_kept_message_index=2)
     await agent.update_state(lambda s: dc.replace(s, context=dc.replace(s.context, projection=projection)))
 
     assert _entry_types(storage) == [MessageSessionEntry, MessageSessionEntry, ContextProjectionSessionEntry]

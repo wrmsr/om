@@ -3,8 +3,9 @@ import tempfile
 
 import pytest
 
-from ..... import agent as agn
 from ..... import llm
+from ....types.lifecycle import ContextProjection
+from ....types.lifecycle import ToolResultProjection
 from ...entries import ContextProjectionSessionEntry
 from ...entries import MessageSessionEntry
 from ..fs import FsSessionStorage
@@ -22,10 +23,10 @@ async def test_fs_session_storage_reads_entries():
             dir_path=session_dir,
         ))
 
-        projection = agn.ContextProjection(
+        projection = ContextProjection(
             summary='The greeting.',
             first_kept_message_index=1,
-            tool_results=(agn.ToolResultProjection(message_index=0, max_chars=10),),
+            tool_results=(ToolResultProjection(message_index=0, max_chars=10),),
         )
 
         async with storage:

@@ -11,13 +11,20 @@ from omcore import marshal as msh
 from omcore import orm
 from omcore.asyncs.asynclite import all as asl
 
-from ...... import agent as agn
 from ...... import llm
-from ......agent.tests.scripted import scripted_backend
-from ......agent.tests.scripted import text_message
-from ......agent.tests.scripted import tool_call_message
-from ......agent.tests.tools import EchoTool
 from ......core.asyncs.asyncio import AsyncioGroupRunner
+from .....agent import Agent
+from .....backends import DictBackendManager
+from .....tests.scripted import scripted_backend
+from .....tests.scripted import text_message
+from .....tests.scripted import tool_call_message
+from .....tests.tools import EchoTool
+from .....turns.runner import TurnLoopRunner
+from .....types.contexts import Context
+from .....types.messages import InfoAgentMessage
+from .....types.messages import Message
+from .....types.tools import Tool
+from .....types.tools import ToolSet
 from ....entries import MessageSessionEntry
 from ....session import Session
 from ....types import SessionId
@@ -33,17 +40,17 @@ from ..types import Orm
 async def scripted_session(
         orm_: Orm,
         *turns: ta.Any,
-        tools: ta.Sequence[agn.Tool] = (),
-) -> tuple[Session, agn.Agent, OrmSessionStorage]:
-    agent = agn.Agent(
-        turn_runner=agn.TurnLoopRunner(
+        tools: ta.Sequence[Tool] = (),
+) -> tuple[Session, Agent, OrmSessionStorage]:
+    agent = Agent(
+        turn_runner=TurnLoopRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=agn.DictBackendManager.of(scripted_backend(*turns)),
+            backends=DictBackendManager.of(scripted_backend(*turns)),
         ),
     )
     if tools:
-        await agent.update_state(lambda s: dc.replace(s, context=agn.Context(tools=agn.ToolSet(list(tools)))))
+        await agent.update_state(lambda s: dc.replace(s, context=Context(tools=ToolSet(list(tools)))))
 
     session_id = SessionId(uuid.uuid7())
     storage = OrmSessionStorage(session_id, orm_)
@@ -56,17 +63,17 @@ async def scripted_session(
     return session, agent, storage
 
 
-def transcript(agent: agn.Agent) -> list[agn.Message]:
+def transcript(agent: Agent) -> list[Message]:
     return list(agent.state.context.messages or [])
 
 
-def marshal_messages(messages: ta.Iterable[agn.Message]) -> list[ta.Any]:
+def marshal_messages(messages: ta.Iterable[Message]) -> list[ta.Any]:
     # Compared as marshaled: what comes back from storage has been through it, and is equal to what went in up to the
     # likes of a list having become a tuple.
-    return [msh.marshal(m, agn.Message) for m in messages]
+    return [msh.marshal(m, Message) for m in messages]
 
 
-async def check_stored_transcript(storage: OrmSessionStorage, agent: agn.Agent) -> None:
+async def check_stored_transcript(storage: OrmSessionStorage, agent: Agent) -> None:
     entries = await storage.get_entries()
     assert all(isinstance(e, MessageSessionEntry) for e in entries)
     assert marshal_messages(e.message for e in entries) == marshal_messages(transcript(agent))  # type: ignore[attr-defined]  # noqa
@@ -103,7 +110,7 @@ async def check_orm_session_storage(orm_: Orm) -> None:
     # A later run adds to what is there, and one which fails is stored as far as it got.
     await agent.prompt('again')
     await agent.prompt('and again')
-    assert isinstance(transcript(agent)[-1], agn.InfoAgentMessage)
+    assert isinstance(transcript(agent)[-1], InfoAgentMessage)
     await check_stored_transcript(storage, agent)
 
     # The rows are what they claim to be: a dense 1-based seq, counted on the session, each keyed by its entry's id.

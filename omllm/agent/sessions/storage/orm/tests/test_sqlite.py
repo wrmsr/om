@@ -11,7 +11,7 @@ from omcore import sql
 from ....types import SessionId
 from ...types import SessionNotFoundError
 from ..models import OrmSession
-from ..models import orm_mappers
+from ..models import orm_session_mappers
 from ..sql import SqlOrm
 from ..storage import OrmSessionStorage
 from .scenarios import check_orm_session_storage
@@ -22,7 +22,7 @@ from .scenarios import text_message
 
 def _sql_orm(db: sql.AsyncDb) -> SqlOrm:
     return SqlOrm(
-        registry=orm.registry(*orm_mappers()),
+        registry=orm.registry(*orm_session_mappers()),
         db=db,
         backend=sql.be.sqlite.backend.SqliteBackend(),
     )

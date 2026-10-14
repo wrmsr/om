@@ -4,7 +4,7 @@ from omcore import orm
 from omcore import sql
 from omcore.sql.tests.harness import HarnessSandboxes
 
-from ..models import orm_mappers
+from ..models import orm_session_mappers
 from ..sql import SqlOrm
 from .scenarios import check_orm_session_storage
 
@@ -13,7 +13,7 @@ from .scenarios import check_orm_session_storage
 async def test_postgres(harness):
     with harness[HarnessSandboxes].postgres().allocate() as sb:
         async with SqlOrm(
-            registry=orm.registry(*orm_mappers()),
+            registry=orm.registry(*orm_session_mappers()),
             db=sql.api.SyncToAsyncDb(sql.api.ImmediateSyncToAsyncRunner, sb.db()),
             backend=sql.be.postgres.backend.PostgresBackend(),
         ) as sql_orm:

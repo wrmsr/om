@@ -43,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.entries', 'ContextProjectionSessionEntry'),
+        ('omllm.agent.sessions.entries', 'ContextProjectionSessionEntry'),
     ),
 )
 def _process_dataclass__e08dab38967c70b86ff5e022a502b2f8e40bd39a():
@@ -159,7 +159,7 @@ def _process_dataclass__e08dab38967c70b86ff5e022a502b2f8e40bd39a():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.entries', 'MessageSessionEntry'),
+        ('omllm.agent.sessions.entries', 'MessageSessionEntry'),
     ),
 )
 def _process_dataclass__c15126dbdc6b35724b6e1d74d7c345345bfe7f47():
@@ -274,7 +274,7 @@ def _process_dataclass__c15126dbdc6b35724b6e1d74d7c345345bfe7f47():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.entries', 'SessionEntry'),
+        ('omllm.agent.sessions.entries', 'SessionEntry'),
     ),
 )
 def _process_dataclass__692a650dda2362ce659d061ef653b32cf67dc2e0():
@@ -381,7 +381,7 @@ def _process_dataclass__692a650dda2362ce659d061ef653b32cf67dc2e0():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.events', 'AgentSessionEvent'),
+        ('omllm.agent.sessions.events', 'AgentSessionEvent'),
     ),
 )
 def _process_dataclass__ec08e2ab29c42133cc7e50101dcd812614df679d():
@@ -482,7 +482,7 @@ def _process_dataclass__ec08e2ab29c42133cc7e50101dcd812614df679d():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.events', 'SessionEvent'),
+        ('omllm.agent.sessions.events', 'SessionEvent'),
     ),
 )
 def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
@@ -563,7 +563,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.storage.fs', 'FsSessionStorage.Config'),
+        ('omllm.agent.sessions.storage.fs', 'FsSessionStorage.Config'),
     ),
 )
 def _process_dataclass__4215e92caf5a4b6f1a28d4ed665ff63b1d579f7d():
@@ -671,7 +671,7 @@ def _process_dataclass__4215e92caf5a4b6f1a28d4ed665ff63b1d579f7d():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.storage.orm.models', 'OrmSession'),
+        ('omllm.agent.sessions.storage.orm.models', 'OrmSession'),
     ),
 )
 def _process_dataclass__5f0d7488338161c3b1c4b5500767e00ef754969c():
@@ -778,7 +778,7 @@ def _process_dataclass__5f0d7488338161c3b1c4b5500767e00ef754969c():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.storage.orm.models', 'OrmSessionEntry'),
+        ('omllm.agent.sessions.storage.orm.models', 'OrmSessionEntry'),
     ),
 )
 def _process_dataclass__05302670b6aeb949d32e5871d66cefb339ef68c3():
@@ -882,7 +882,7 @@ def _process_dataclass__05302670b6aeb949d32e5871d66cefb339ef68c3():
         ),
     ),
     cls_names=(
-        ('omllm.harness.sessions.types', 'SessionId'),
+        ('omllm.agent.sessions.types', 'SessionId'),
     ),
 )
 def _process_dataclass__ccd7f1155fc266626a558ba7a57ab4becbe87de5():

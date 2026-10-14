@@ -6,11 +6,11 @@ from omcore import check
 from omcore import inject as inj
 
 from ..... import agent as agn
-from ..... import harness as har
 from ..... import llm
 from .....agent.tests.scripted import scripted_backend
 from .....agent.tests.scripted import text_message
 from .....core import ui
+from ....commands.manager import CommandsManager
 from ...config import Config
 from ...tests.features import RecordingTextDisplayer
 from ...tests.headless import bind_headless_tui
@@ -56,7 +56,7 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
             config=config,
         )
         tui.agent.subscribe(renderer.on_agent_event)
-        commands = await tui.injector[har.CommandsManager]
+        commands = await tui.injector[CommandsManager]
         pump = PromptPump(
             agent=tui.agent,
             app=app,
@@ -167,7 +167,7 @@ async def test_shutdown_owns_immediate_command_tasks(start_command):
         pump = PromptPump(
             agent=tui.agent,
             app=app,
-            commands=await tui.injector[har.CommandsManager],
+            commands=await tui.injector[CommandsManager],
         )
         try:
             pump.submit('initial')

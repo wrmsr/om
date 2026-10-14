@@ -9,12 +9,12 @@ import pytest
 from omcore import inject as inj
 from omcore import sql
 
-from .... import harness as har
+from .... import agent as agn
 from .... import llm
+from ....agent.sessions.storage.orm.tests.scenarios import check_stored_transcript
 from ....agent.tests.scripted import text_message
 from ....agent.tests.scripted import tool_call_message
 from ....agent.tests.tools import EchoTool
-from ....harness.sessions.storage.orm.tests.scenarios import check_stored_transcript
 from ..config import Config
 from ..inject import bind_agent_tool_class
 from .headless import bind_headless_tui
@@ -72,9 +72,9 @@ async def test_sql_sessions():
             text_message('ok'),
             text_message('ok again'),
     )) as tui:
-        storage = await tui.injector[har.SessionStorage]
-        assert isinstance(storage, har.OrmSessionStorage)
-        assert isinstance(await tui.injector[har.Orm], har.SqlOrm)
+        storage = await tui.injector[agn.SessionStorage]
+        assert isinstance(storage, agn.OrmSessionStorage)
+        assert isinstance(await tui.injector[agn.Orm], agn.SqlOrm)
 
         await tui.agent.prompt('hi')
         await tui.agent.prompt('again')
@@ -94,7 +94,7 @@ async def test_sql_sessions():
 
         await tui.agent.prompt('hi')
 
-        await check_stored_transcript(await tui.injector[har.OrmSessionStorage], tui.agent)
+        await check_stored_transcript(await tui.injector[agn.OrmSessionStorage], tui.agent)
 
         second_session_id = tui.session.id
 
@@ -102,7 +102,7 @@ async def test_sql_sessions():
     async with headless_tui(bind(text_message('resumed'), resume=first_session_id.v)) as tui:
         assert tui.session.id == first_session_id
         assert len(tui.agent.state.context.messages or ()) == 6
-        resumed_storage = await tui.injector[har.OrmSessionStorage]
+        resumed_storage = await tui.injector[agn.OrmSessionStorage]
         assert len(await resumed_storage.get_entries()) == 6
 
         await tui.agent.prompt('resuming')

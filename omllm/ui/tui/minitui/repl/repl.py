@@ -11,9 +11,10 @@ import typing as ta
 from omdev import minitui as mt
 from omdev import repl
 
-from ..... import harness as har
 from .....core.asyncs.base import AsyncJob
 from .....core.asyncs.base import AsyncJobRunner
+from ....commands.repl import ReplModeSwitcher
+from ....commands.repl import ReplSwitchError
 from ..app import InputMode
 from ..app import MinituiChatApp
 
@@ -88,7 +89,7 @@ class _ReplInputMode(InputMode):
         self._owner.console.deactivate()
 
 
-class MinituiRepl(har.ReplModeSwitcher):
+class MinituiRepl(ReplModeSwitcher):
     def __init__(
             self,
             *,
@@ -134,7 +135,7 @@ class MinituiRepl(har.ReplModeSwitcher):
             self._session.switch(name)
         except repl.NoSuchInterpreterError:
             have = ', '.join(self._session.names) or 'none'
-            raise har.ReplSwitchError(f'No such repl: {name} (have: {have})') from None
+            raise ReplSwitchError(f'No such repl: {name} (have: {have})') from None
 
         self._app.set_input_mode(self._mode)
 

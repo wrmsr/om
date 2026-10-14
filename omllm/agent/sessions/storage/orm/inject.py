@@ -11,7 +11,7 @@ from omcore import orm
 from omcore import sql
 
 from ..types import SessionStorage
-from .models import orm_mappers
+from .models import orm_session_mappers
 from .sql import SqlOrm
 from .storage import OrmSessionStorage
 from .types import Orm
@@ -24,7 +24,7 @@ SqliteDbConfig: ta.TypeAlias = sql.be.sqlite.connecting.SqliteDbConfig
 
 
 def _provide_registry() -> orm.Registry:
-    return orm.registry(*orm_mappers())
+    return orm.registry(*orm_session_mappers())
 
 
 def bind_orm_session_storage() -> inj.Elements:

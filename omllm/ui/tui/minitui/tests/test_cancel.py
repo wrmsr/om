@@ -10,12 +10,16 @@ import pytest
 from omdev import minitui as mt
 
 from ..... import agent as agn
-from ..... import harness as har
 from ..... import llm
 from .....agent.eval.permissions import EvalLanguage
 from .....agent.eval.permissions import EvalPermissionTarget
 from .....agent.tests.scripted import scripted_backend
 from .....agent.tests.scripted import text_message
+from ....commands.base import Commands
+from ....commands.classes import CommandClass
+from ....commands.compact import CompactCommand
+from ....commands.manager import CommandsManager
+from ....commands.simple import EchoCommand
 from ...config import Config
 from ..app import AppKey
 from ..app import AppQuitSignal
@@ -303,8 +307,8 @@ async def test_abort_withdraws_active_and_queued_asks_as_errors():
 
 
 def _commands(app, *commands):
-    return har.CommandsManager(
-        commands=har.Commands(list(commands)),
+    return CommandsManager(
+        commands=Commands(list(commands)),
         text_displayer=MinituiTextDisplayer(app=app),
     )
 
@@ -313,7 +317,7 @@ def _commands(app, *commands):
 async def test_commands_echo_as_submitted_and_run_in_order():
     app, driver = make_app()
     agent = await make_agent(scripted_backend())
-    pump = PromptPump(agent=agent, app=app, commands=_commands(app, har.EchoCommand()))
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, EchoCommand()))
 
     pump.submit('/echo first')
     pump.submit('/echo second')
@@ -334,7 +338,7 @@ async def test_commands_echo_as_submitted_and_run_in_order():
     await pump.aclose()
 
 
-class NoteCommand(har.CommandClass):
+class NoteCommand(CommandClass):
     async def _run_args(self, ctx, args):
         await ctx.print('noted')
 
@@ -343,7 +347,7 @@ class NoteCommand(har.CommandClass):
 async def test_a_command_allowed_during_a_prompt_still_waits_its_turn_behind_commands():
     app, driver = make_app()
     agent = await make_agent(scripted_backend())
-    pump = PromptPump(agent=agent, app=app, commands=_commands(app, NoteCommand(), har.EchoCommand()))
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, NoteCommand(), EchoCommand()))
 
     # With nothing but commands ahead of it the echo waits for them, busy as the pump is: a run of commands - a boot's -
     # lands in the order given, the echo rounding it off rather than jumping ahead of what is queued.
@@ -369,13 +373,13 @@ async def test_echo_runs_while_a_prompt_does_and_what_cannot_waits_for_it():
     gate = FirstInvocationGate()
     backend = scripted_backend(text_message('one'), stream=True, gate=gate)
     agent = await make_agent(backend)
-    compact = har.CompactCommand(
+    compact = CompactCommand(
         agent=agent,
         compaction=agn.ContextCompactionRunner(
             backends=agn.DictBackendManager.of(backend),
         ),
     )
-    pump = PromptPump(agent=agent, app=app, commands=_commands(app, har.EchoCommand(), compact))
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, EchoCommand(), compact))
 
     pump.submit('first')
     await gate.started.wait()
@@ -403,7 +407,7 @@ async def test_echo_runs_while_a_prompt_does_and_what_cannot_waits_for_it():
 async def test_unknown_command_is_echoed_and_reported_without_being_queued():
     app, driver = make_app()
     agent = await make_agent(scripted_backend())
-    pump = PromptPump(agent=agent, app=app, commands=_commands(app, har.EchoCommand()))
+    pump = PromptPump(agent=agent, app=app, commands=_commands(app, EchoCommand()))
 
     pump.submit('/nope')
 

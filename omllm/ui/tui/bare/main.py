@@ -5,7 +5,6 @@ from omcore import inject as inj
 from omcore import lang
 
 from .... import agent as agn
-from .... import harness as har
 from ....core import ui
 from ...logs import configure_tui_logging
 from ...types import UiId
@@ -38,7 +37,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         configure_tui_logging(ui_id)
 
         agent = await injector[agn.Agent]
-        session = await injector[har.Session]
+        session = await injector[agn.Session]
         input_manager = await injector[InputManager]
         text_displayer = await injector[ui.TextDisplayer]
         prompter = await injector[Prompter]

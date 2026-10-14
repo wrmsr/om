@@ -6,9 +6,9 @@ from omcore import inject as inj
 from omcore import sql
 from omdev.home.paths import get_home_paths
 
-from .... import harness as har
-from ....harness.sessions.storage.orm.inject import bind_asyncio_sqlite_orm
-from ....harness.sessions.storage.orm.inject import bind_orm_session_storage
+from .... import agent as agn
+from ....agent.sessions.storage.orm.inject import bind_asyncio_sqlite_orm
+from ....agent.sessions.storage.orm.inject import bind_orm_session_storage
 from ..config import Config
 
 
@@ -20,12 +20,12 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     #
 
-    session_id = har.SessionId(config.resume if config.resume is not None else uuid.uuid7())
+    session_id = agn.SessionId(config.resume if config.resume is not None else uuid.uuid7())
 
     lst.extend([
         inj.bind(session_id),
 
-        inj.bind(har.Session, singleton=True),
+        inj.bind(agn.Session, singleton=True),
     ])
 
     #
@@ -37,21 +37,21 @@ def bind_sessions(config: Config) -> inj.Elements:
 
     if config.in_memory:
         lst.extend([
-            inj.bind(har.InMemorySessionStorage()),
-            inj.bind(har.SessionStorage, to_key=har.InMemorySessionStorage),
+            inj.bind(agn.InMemorySessionStorage()),
+            inj.bind(agn.SessionStorage, to_key=agn.InMemorySessionStorage),
         ])
 
     elif config.jsonl:
         lst.extend([
-            inj.bind(har.FsSessionStorage.Config(
+            inj.bind(agn.FsSessionStorage.Config(
                 dir_path=os.path.join(state_dir_path, 'sessions', str(session_id.v)),
             )),
             inj.bind(
-                har.FsSessionStorage,
+                agn.FsSessionStorage,
                 singleton=True,
-                to_async_fn=inj.make_async_managed_provider(har.FsSessionStorage),
+                to_async_fn=inj.make_async_managed_provider(agn.FsSessionStorage),
             ),
-            inj.bind(har.SessionStorage, to_key=har.FsSessionStorage),
+            inj.bind(agn.SessionStorage, to_key=agn.FsSessionStorage),
         ])
 
     else:

@@ -9,9 +9,9 @@ from omcore import dataclasses as dc
 from omcore import inject as inj
 
 from .... import agent as agn
-from .... import harness as har
 from ....agent.tests.scripted import scripted_backend
 from ....core import ui
+from ...commands.manager import CommandsManager
 from ..config import Config
 from ..inject import AgentEventSubscribers
 from ..inject import bind_tui
@@ -62,8 +62,8 @@ class HeadlessTui:
     injector: inj.AsyncInjector
 
     agent: agn.Agent
-    session: har.Session
-    commands: har.CommandsManager
+    session: agn.Session
+    commands: CommandsManager
 
 
 @contextlib.asynccontextmanager
@@ -74,8 +74,8 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
     ) as injector:
         # What a frontend's main does with its injector, short of running anything on a terminal.
         agent = await injector[agn.Agent]
-        session = await injector[har.Session]
-        commands = await injector[har.CommandsManager]
+        session = await injector[agn.Session]
+        commands = await injector[CommandsManager]
 
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)

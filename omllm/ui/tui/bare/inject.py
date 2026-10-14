@@ -1,7 +1,8 @@
 from omcore import inject as inj
 
-from .... import harness as har
 from ....core import ui
+from ...commands.base import Commands
+from ...commands.manager import CommandsManager
 from ..config import Config
 from ..inject import bind_tui
 from ..rendering import BlockTerminalTextDisplayer
@@ -14,10 +15,10 @@ from .prompting import Prompter
 
 
 def _provide_commands_manager(
-        commands: har.Commands,
+        commands: Commands,
         command_output: BlockTerminalTextDisplayer,
-) -> har.CommandsManager:
-    return har.CommandsManager(
+) -> CommandsManager:
+    return CommandsManager(
         commands=commands,
         text_displayer=command_output,
     )

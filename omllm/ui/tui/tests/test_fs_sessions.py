@@ -5,7 +5,7 @@ import pytest
 
 from omcore import inject as inj
 
-from .... import harness as har
+from .... import agent as agn
 from ....agent.tests.scripted import text_message
 from ..config import Config
 from .headless import bind_headless_tui
@@ -30,7 +30,7 @@ async def test_fs_session_resume():
                     resume=resume,
                 )),
                 bind_scripted_backend(*turns),
-                inj.bind(har.FsSessionStorage.Config(dir_path=session_dir)),
+                inj.bind(agn.FsSessionStorage.Config(dir_path=session_dir)),
             )
 
         async with headless_tui(bind(text_message('hello'))) as tui:
@@ -44,8 +44,8 @@ async def test_fs_session_resume():
             await tui.agent.prompt('again')
 
             assert len(tui.agent.state.context.messages or ()) == 4
-            storage = await tui.injector[har.FsSessionStorage]
+            storage = await tui.injector[agn.FsSessionStorage]
             assert len(await storage.get_entries()) == 4
 
-        with open(os.path.join(session_dir, har.FsSessionStorage.ENTRIES_FILE_NAME), encoding='utf-8') as f:  # noqa
+        with open(os.path.join(session_dir, agn.FsSessionStorage.ENTRIES_FILE_NAME), encoding='utf-8') as f:  # noqa
             assert len(f.readlines()) == 4
