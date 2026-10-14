@@ -169,6 +169,7 @@ omegaconf==2.4.0
 
 pillow==12.3.0
 
+# peft==0.21.2  # @om-venv !15 !15t
 # accelerate==1.13.0  # @om-venv !15 !15t
 
 bitsandbytes==0.50.2
