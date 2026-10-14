@@ -67,7 +67,8 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   arrives as an `InputEofEvent`, after which the driver stops on its own - unless constructed with `app_handles_eof`,
   which leaves ending the run to the app, so it can wind down work first. `set_alt_screen` toggles the inline
   surface's fullscreen excursion, buffering commits made fullscreen until the return (and through teardown); mouse
-  events reach the app with frame-relative rows.
+  events reach the app with frame-relative rows. `set_mouse_motion` adds pointer motion (any-event tracking, 1003) for
+  as long as something hovers - a menu - with each read's run of motion reaching the app as its last event only.
 
 ## Notes
 

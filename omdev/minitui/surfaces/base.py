@@ -38,6 +38,16 @@ class Surface(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def set_mouse_motion(self, enabled: bool) -> None:
+        """
+        Whether the terminal reports pointer motion with no button held (any-event tracking), for as long as mouse
+        tracking is on at all. Off by default: motion is an event per cell crossed, wanted only while something on
+        screen hovers - a menu - and remembered across the stretches in which tracking itself is off.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def request_sync_output_report(self) -> None:
         """Send the DECRQM query for mode 2026; the answer arrives in the input stream as a ModeReportEvent."""
 

@@ -1117,10 +1117,22 @@ class MinituiChatApp(mt.App):
         )
         self._menu = menu
         self._menu_overlay = mt.Overlay(menu, x, y, menu.width, fill='menu.item')
+        self._driver.set_mouse_motion(True)  # hover, for exactly as long as the menu is up
 
     def _close_context_menu(self) -> None:
+        if self._menu is not None:
+            self._driver.set_mouse_motion(False)
         self._menu = None
         self._menu_overlay = None
+
+    def _handle_hover(self, event: mt.MouseEvent) -> bool:
+        """Pointer motion over the open menu moves its selection; True when it did."""
+
+        if (menu := self._menu) is None or (layout := self._browse_layout) is None:
+            return False
+        if (hit := layout.hit_at(event.x, event.y)) is None or hit.control is not menu:
+            return False
+        return menu.handle_event(dc.replace(event, x=hit.x, y=hit.y))
 
     def _handle_context_menu_event(self, event: mt.Event, layout: mt.StackLayout | None) -> bool:
         """Modal menu routing, independent of which screen owns the layout."""
@@ -1362,6 +1374,12 @@ class MinituiChatApp(mt.App):
         control.handle_event(local)
 
     def handle_event(self, event: mt.Event) -> None:
+        if isinstance(event, mt.MouseEvent) and event.kind is mt.MouseEventKind.MOVE:
+            # Motion arrives only while a menu is up, and only a moved selection is worth a frame.
+            if self._handle_hover(event):
+                self._driver.invalidate()
+            return
+
         if (
                 isinstance(event, mt.PasteEvent) or
                 (isinstance(event, mt.KeyEvent) and APP_KEY_REVERSE_MAP.get(event.key) is not AppKey.EXIT)

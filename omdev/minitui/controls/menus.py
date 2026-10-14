@@ -1,9 +1,10 @@
 """
 The menu: a floating list of actions - a context menu over a transcript row, a small command palette - shown through an
 `Overlay`. One row per item with the selection highlighted; up/down (or j/k) move over the enabled items, wrapping;
-enter or space activates; escape or q closes; a click activates the row under it. The menu knows nothing about where it
-floats: the app opens it (an Overlay at the click, `width` columns wide), and closes it on `on_close` - which the menu
-also calls after an activation, since a menu that has done its job goes away.
+enter or space activates; escape or q closes; a click activates the row under it, and the pointer moving over an enabled
+row selects it (when the app has the terminal reporting motion). The menu knows nothing about where it floats: the app
+opens it (an Overlay at the click, `width` columns wide), and closes it on `on_close` - which the menu also calls after
+an activation, since a menu that has done its job goes away.
 """
 import typing as ta
 
@@ -150,6 +151,14 @@ class Menu(Control):
 
     def handle_event(self, event: Event) -> bool:
         if isinstance(event, MouseEvent):
+            if event.kind is MouseEventKind.MOVE:
+                # Hover follows the pointer over enabled rows; off the items, or over a disabled one, it stays put. True
+                # only when the selection moved - what is worth a frame.
+                y = event.y
+                if 0 <= y < len(self._items) and not self._items[y].disabled and y != self._selected:
+                    self.select(y)
+                    return True
+                return False
             if event.kind is MouseEventKind.DOWN and 0 <= event.y < len(self._items):
                 if self._items[event.y].disabled:
                     return False  # not the selected item's click

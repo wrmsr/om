@@ -75,6 +75,7 @@ class InlineSurface(Surface):
         self._visualize_redraws = visualize_redraws
         self._kitty_keys = kitty_keys
         self._mouse = mouse
+        self._mouse_motion = False  # wanted; written whenever tracking is on, and again each time it comes back on
 
         self._frame: Frame = EMPTY_FRAME
         self._cursor: CursorXY = (0, 0)
@@ -170,6 +171,8 @@ class InlineSurface(Surface):
             w.modify_other_keys(True)
         if self._mouse:
             w.mouse_tracking(True)
+            if self._mouse_motion:
+                w.mouse_motion(True)
         if not defer_origin:
             w.cr()
         w.flush()
@@ -280,6 +283,17 @@ class InlineSurface(Surface):
         self.prepare(defer_origin=True)
 
     ##
+    # Mouse motion
+
+    def set_mouse_motion(self, enabled: bool) -> None:
+        if enabled == self._mouse_motion:
+            return
+        self._mouse_motion = enabled
+        if self._prepared and (self._mouse or self._alt_entered):
+            w = self._writer
+            w.mouse_motion(enabled)
+            w.flush()
+
     # The alt-screen excursion
 
     def set_alt_screen(self, enabled: bool) -> None:
@@ -317,6 +331,8 @@ class InlineSurface(Surface):
         w = self._writer
         if not self._mouse:
             w.mouse_tracking(True)  # the wheel is the point of browsing; the live region's setting returns on leave
+            if self._mouse_motion:
+                w.mouse_motion(True)  # tracking just came back on, and the terminal forgot this with it
         w.alt_screen(True)
         painter.clear()
         self._alt_entered = True

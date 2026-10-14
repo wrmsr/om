@@ -21,6 +21,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 
+from ..events.motion import coalesce_mouse_motion
 from ..events.parsing import Read1
 from ..events.types import CursorPositionEvent
 from ..events.types import Event
@@ -163,6 +164,18 @@ class SyncDriver:
             self._flush_pending_commits()
 
     ##
+    # Mouse motion
+
+    def set_mouse_motion(self, enabled: bool) -> None:
+        """
+        Pointer motion reports (any-event mouse tracking), for hover. Motion is an event per cell crossed, so an app
+        turns this on only while something hovers - a menu - and off with it. Runs of motion within one read reach the
+        app as their last event only. Takes effect whenever the terminal is ours; the surface remembers it meanwhile.
+        """
+
+        self._surface.set_mouse_motion(enabled)
+
+    ##
     # The polite clear
 
     def clear_screen(self) -> None:
@@ -205,7 +218,7 @@ class SyncDriver:
         self._invalidated = True
 
     def _dispatch(self, app: App, events: ta.Iterable[Event]) -> None:
-        for event in events:
+        for event in coalesce_mouse_motion(events):
             # Startup negotiations are plumbing, not app events.
             if self._awaiting_origin and isinstance(event, CursorPositionEvent):
                 self._resolve_origin(event.x, event.y)

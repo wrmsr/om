@@ -84,7 +84,12 @@ _KITTY_KEYS_QUERY = b'\x1b[?u'
 _MODIFY_OTHER_KEYS_ON = b'\x1b[>4;2m'
 _MODIFY_OTHER_KEYS_OFF = b'\x1b[>4;0m'
 _MOUSE_ON = b'\x1b[?1000h\x1b[?1006h'
-_MOUSE_OFF = b'\x1b[?1006l\x1b[?1000l'
+_MOUSE_OFF = b'\x1b[?1006l\x1b[?1003l\x1b[?1000l'
+# Any-event tracking (1003): motion with no button held, over the click tracking already on. The tracking modes are
+# one setting in xterm - resetting 1003 turns tracking off outright - so leaving motion re-asserts click tracking rather
+# than trusting a fallback to 1000; and turning tracking off resets 1003 too, for terminals that keep them apart.
+_MOUSE_MOTION_ON = b'\x1b[?1003h'
+_MOUSE_MOTION_OFF = b'\x1b[?1003l\x1b[?1000h'
 _ALT_SCREEN_ON = b'\x1b[?1049h'
 _ALT_SCREEN_OFF = b'\x1b[?1049l'
 _SYNC_QUERY = b'\x1b[?2026$p'
@@ -207,6 +212,11 @@ class TermWriter:
 
     def mouse_tracking(self, enabled: bool) -> None:  # noqa
         self.raw(_MOUSE_ON if enabled else _MOUSE_OFF)
+
+    def mouse_motion(self, enabled: bool) -> None:  # noqa
+        """Pointer motion reports, meaningful only while `mouse_tracking` is on."""
+
+        self.raw(_MOUSE_MOTION_ON if enabled else _MOUSE_MOTION_OFF)
 
     def alt_screen(self, enabled: bool) -> None:  # noqa
         if (entry := self._cap('smcup' if enabled else 'rmcup')) is not None:

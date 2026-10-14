@@ -92,3 +92,17 @@ def test_menu_all_disabled():
     assert m.selected_index is None
     assert not m.activate()
     assert _tags(m.render(4)) == ['menu.disabled', 'menu.disabled']
+
+
+def test_menu_hover():
+    calls: list[str] = []
+    m = _menu(calls)
+    assert m.selected.label == 'open'
+    assert m.handle_event(MouseEvent(MouseEventKind.MOVE, 2, 2))
+    assert m.selected.label == 'close'
+    assert not m.handle_event(MouseEvent(MouseEventKind.MOVE, 3, 2))  # the same row again: nothing moved
+    assert not m.handle_event(MouseEvent(MouseEventKind.MOVE, 0, 1))  # a disabled row: the selection stays put
+    assert m.selected.label == 'close'
+    assert not m.handle_event(MouseEvent(MouseEventKind.MOVE, 0, 7))  # off the end
+    assert m.selected.label == 'close'
+    assert calls == []  # hover never activates

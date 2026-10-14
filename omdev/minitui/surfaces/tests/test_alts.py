@@ -103,3 +103,27 @@ def test_alt_suspend_and_resume():
     h.present(h.frame('back'))
     assert (left_alt_screen, h.terminal.in_alt_screen) == (True, True)
     assert h.terminal.screen_lines()[0] == 'back'
+
+
+def test_alt_mouse_motion():
+    # Without mouse tracking there is nothing for motion to ride on: the wish is remembered, nothing is written.
+    h = AltHarness()
+    h.surface.set_mouse_motion(True)
+    assert h.pump() == b''
+
+    tty = RecordingTty(height=8, width=30)
+    s = AltSurface(tty, term='xterm-256color', mouse=True)
+    s.set_mouse_motion(True)  # before prepare: remembered, written with the tracking it rides on
+    s.prepare()
+    data = b''.join(tty.writes)
+    assert data.index(b'\x1b[?1000h') < data.index(b'\x1b[?1003h')
+
+    n = len(tty.writes)
+    s.set_mouse_motion(False)
+    assert b''.join(tty.writes[n:]) == b'\x1b[?1003l\x1b[?1000h'
+    n = len(tty.writes)
+    s.set_mouse_motion(False)
+    assert b''.join(tty.writes[n:]) == b''
+    n = len(tty.writes)
+    s.restore()
+    assert b'\x1b[?1000l' in b''.join(tty.writes[n:])

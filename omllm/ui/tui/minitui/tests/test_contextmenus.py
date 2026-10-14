@@ -3,6 +3,7 @@ import pytest
 from omdev import minitui as mt
 
 from .....core import ui
+from ..app import THEME
 from .utils import ListClipboard
 from .utils import frame_lines
 from .utils import make_app
@@ -19,8 +20,20 @@ def click(app, x, y):
     app.handle_event(mt.MouseEvent(mt.MouseEventKind.DOWN, x, y))
 
 
+def move(app, x, y):
+    app.handle_event(mt.MouseEvent(mt.MouseEventKind.MOVE, x, y))
+
+
 def row_of(app, text):
     return next(i for i, line in enumerate(frame_lines(app)) if text in line)
+
+
+def row_style(app, text):
+    """The resolved style of the first cell of `text` on the row it is found on."""
+
+    frame = app.render(80, 24)
+    y = next(i for i, line in enumerate(frame.lines) if text in line.text)
+    return frame.lines[y].cells[frame.lines[y].text.index(text)].style
 
 
 def menu_open(app):
@@ -307,3 +320,56 @@ def test_copy_failure_is_reported_not_raised():
     press(app, 'enter')
     assert "copy failed: RuntimeError('no display')" in '\n'.join(frame_lines(app))
     assert bool(app.is_browsing)
+
+
+def test_hover_follows_the_pointer_while_the_menu_is_up():
+    app, driver, clipboard = copy_app()
+    app.show_user_message('message')
+    press(app, 'f12')
+    assert not driver.mouse_motion
+
+    open_menu(app, 'message')
+    assert driver.mouse_motion
+    assert row_style(app, 'Copy') == THEME.resolve('menu.selected')
+
+    # Over Close: the selection follows, for one frame.
+    n = driver.invalidations
+    move(app, 9, row_of(app, 'Close'))
+    assert driver.invalidations == n + 1
+    assert row_style(app, 'Close') == THEME.resolve('menu.selected')
+    assert row_style(app, 'Copy') == THEME.resolve('menu.item')
+
+    # Still over Close, and then off the menu entirely: nothing moves, and nothing is repainted for it.
+    n = driver.invalidations
+    move(app, 10, row_of(app, 'Close'))
+    move(app, 0, 20)
+    assert driver.invalidations == n
+    assert row_style(app, 'Close') == THEME.resolve('menu.selected')
+
+    # Enter takes what hover selected.
+    press(app, 'enter')
+    assert clipboard.texts == []
+    assert not menu_open(app)
+    assert not driver.mouse_motion
+
+
+def test_motion_without_a_menu_is_inert():
+    app, driver = make_app()
+    app.show_user_message('message')
+    press(app, 'f12')
+    n = driver.invalidations
+    move(app, 5, row_of(app, 'message'))
+    assert driver.invalidations == n
+    assert not menu_open(app)
+
+    # Every way out of the menu turns motion back off.
+    open_menu(app, 'message')
+    press(app, 'escape')
+    assert not driver.mouse_motion
+    open_menu(app, 'message')
+    click(app, 0, 20)
+    assert not driver.mouse_motion
+    open_menu(app, 'message')
+    press(app, 'f12')
+    assert not app.is_browsing
+    assert not driver.mouse_motion

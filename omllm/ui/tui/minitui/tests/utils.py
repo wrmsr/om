@@ -57,6 +57,7 @@ class Driver:
         self.suspends = 0
         self.clears = 0
         self.alt_screen = False
+        self.mouse_motion = False
 
     def commit(self, lines) -> None:
         self.commits.append(tuple(lines))
@@ -66,6 +67,9 @@ class Driver:
 
     def set_alt_screen(self, enabled: bool) -> None:
         self.alt_screen = enabled
+
+    def set_mouse_motion(self, enabled: bool) -> None:
+        self.mouse_motion = enabled
 
     def invalidate(self) -> None:
         self.invalidations += 1

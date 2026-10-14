@@ -147,6 +147,7 @@ class AltSurface(Surface):
         self._depth = depth if depth is not None else detect_color_depth()
         self._kitty_keys = kitty_keys
         self._mouse = mouse
+        self._mouse_motion = False  # wanted; written whenever tracking is on, and again each time it comes back on
 
         self._painter = AltPainter(self._writer, depth=self._depth)
         self._term_height = 0
@@ -195,6 +196,8 @@ class AltSurface(Surface):
             w.modify_other_keys(True)
         if self._mouse:
             w.mouse_tracking(True)
+            if self._mouse_motion:
+                w.mouse_motion(True)
         self._painter = AltPainter(self._writer, depth=self._depth)  # the cursor is shown again after any restore
         self._painter.clear()
         w.flush()
@@ -231,6 +234,15 @@ class AltSurface(Surface):
 
     def set_sync_output(self, enabled: bool) -> None:
         self._sync_output = enabled
+
+    def set_mouse_motion(self, enabled: bool) -> None:
+        if enabled == self._mouse_motion:
+            return
+        self._mouse_motion = enabled
+        if self._prepared and self._mouse:
+            w = self._writer
+            w.mouse_motion(enabled)
+            w.flush()
 
     def request_sync_output_report(self) -> None:
         w = self._writer

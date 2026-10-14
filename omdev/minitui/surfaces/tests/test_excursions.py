@@ -208,3 +208,35 @@ def test_repaint_in_alt_excursion_is_the_grid():
     assert h.scrollback() == []
     # The live region's retained frame was untouched: an identical present costs only the bracket.
     assert h.present(h.frame('live')) == b'\x1b[?2026h\x1b[?2026l'
+
+
+def test_mouse_motion_rides_the_excursion():
+    h = SurfaceHarness(height=8, width=40)
+    h.present(h.frame('live'))
+    s = h.surface
+
+    # Nothing tracks the mouse on the main screen, so there is nothing to write yet: the wish is only remembered.
+    s.set_mouse_motion(True)
+    assert h.pump() == b''
+
+    # Entering the excursion turns tracking on, and motion with it - after the click tracking it rides on.
+    s.set_alt_screen(True)
+    data = h.present(h.frame('FULL'))
+    assert data.index(b'\x1b[?1000h') < data.index(b'\x1b[?1003h')
+
+    # Toggling fullscreen writes at once - and leaving motion re-asserts click tracking, which xterm drops with 1003.
+    s.set_mouse_motion(False)
+    assert h.pump() == b'\x1b[?1003l\x1b[?1000h'
+    s.set_mouse_motion(True)
+    assert h.pump() == b'\x1b[?1003h'
+    s.set_mouse_motion(True)
+    assert h.pump() == b''
+
+    # Leaving takes all of it down, and the wish survives for the next excursion.
+    s.set_alt_screen(False)
+    data = h.pump()
+    assert b'\x1b[?1003l' in data and b'\x1b[?1000l' in data
+    assert h.terminal.screen_lines()[0] == 'live'
+    s.set_alt_screen(True)
+    data = h.present(h.frame('FULL AGAIN'))
+    assert b'\x1b[?1003h' in data
