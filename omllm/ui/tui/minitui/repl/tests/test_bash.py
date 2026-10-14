@@ -250,8 +250,8 @@ async def test_exit_ends_the_shell_whatever_it_leaves_behind(manager, tmp_path):
     async with bash(manager, tmp_path) as (interpreter, scope):
         # A job the shell was told to forget outlives it, with the terminal still in hand: the shell is over all the
         # same, without waiting for an end of output which is not coming.
-        _, outputs = await run(interpreter, 'sleep 5 & disown; echo $!')
-        pid = int(repl.output_text(outputs[-1]))
+        # The shell announces the job (`[1] <pid>`) ahead of the echoed pid, the two as likely as not in one output.
+        pid = int((await run_text(interpreter, 'sleep 5 & disown; echo $!')).splitlines()[-1])
         try:
             result, _ = await run(interpreter, 'exit')
             assert result.status is repl.ResultStatus.EXIT
