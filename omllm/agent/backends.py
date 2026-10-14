@@ -2,6 +2,7 @@ import abc
 import typing as ta
 
 from omcore import check
+from omcore import collections as col
 from omcore import lang
 
 from .. import llm
@@ -37,7 +38,7 @@ class DictBackendManager(BackendManager):
             *backends: llm.Backend,
             no_auto_downcast: bool = False,
     ) -> ta.Self:
-        dct: dict[type[llm.Backend], dict[llm.Model | None, llm.Backend]] = {}
+        dct: dict[type[llm.Backend], ta.MutableMapping[llm.Model | None, llm.Backend]] = {}
 
         for be in backends:
             ck: type[llm.Backend]
@@ -48,7 +49,7 @@ class DictBackendManager(BackendManager):
             else:
                 raise TypeError(be)
 
-            dct2 = dct.setdefault(ck, {})
+            dct2 = dct.setdefault(ck, col.IdentityKeyDict())
 
             mk = be.model
             check.not_in(mk, dct2)
