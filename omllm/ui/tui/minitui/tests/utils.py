@@ -8,6 +8,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore.asyncs.asynclite import all as asl
+from omdev import clipboard as clip
 from omdev import minitui as mt
 
 from ..... import agent as agn
@@ -76,6 +77,25 @@ class Driver:
         return self.timers.fire_due()
 
 
+class ListClipboard(clip.Clipboard):
+    """A clipboard which remembers everything put on it, in order; a get gives the last."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._puts: list[clip.ClipboardContents] = []
+
+    @property
+    def texts(self) -> list[str]:
+        return [check.isinstance(c, clip.TextClipboardContents).s for c in self._puts]
+
+    def get(self) -> list[clip.ClipboardContents]:
+        return self._puts[-1:]
+
+    def put(self, c: clip.ClipboardContents) -> None:
+        self._puts.append(c)
+
+
 ##
 
 
@@ -133,9 +153,9 @@ class FirstInvocationGate:
 ##
 
 
-def make_app() -> tuple[MinituiChatApp, Driver]:
+def make_app(*, clipboard: clip.Clipboard | None = None) -> tuple[MinituiChatApp, Driver]:
     driver = Driver()
-    return MinituiChatApp(ta.cast(mt.AsyncioDriver, driver)), driver
+    return MinituiChatApp(ta.cast(mt.AsyncioDriver, driver), clipboard=clipboard), driver
 
 
 def frame_lines(app: MinituiChatApp) -> list[str]:

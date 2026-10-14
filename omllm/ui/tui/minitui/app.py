@@ -16,6 +16,7 @@ from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore.text import highlights as hl
+from omdev import clipboard as clip
 from omdev import minitui as mt
 from omdev import repl
 
@@ -63,6 +64,16 @@ def _freeze_rows(rows: ta.Sequence[ta.Sequence[mt.Segment]]) -> CardRows:
     return tuple(tuple(row) for row in rows)
 
 
+def _join_rows(rows: ta.Iterable[str]) -> str:
+    """Displayed rows as plain text: trailing space trimmed, trailing blank rows dropped."""
+
+    return '\n'.join(row.rstrip() for row in rows).rstrip('\n')
+
+
+def _join_segment_rows(rows: ta.Iterable[ta.Iterable[mt.Segment]]) -> str:
+    return _join_rows(''.join(seg.text for seg in row) for row in rows)
+
+
 @dc.dataclass(frozen=True)
 class TurnRecord(lang.Final):
     """
@@ -73,7 +84,7 @@ class TurnRecord(lang.Final):
 
     speaker: Speaker
     at: datetime.datetime
-    text: str | None = None  # the prompt, for user turns; ai turns stream
+    text: str | None = None  # the prompt, for user turns; ai turns stream, and the app retains their text by turn
 
 
 @dc.dataclass(frozen=True)
@@ -304,13 +315,19 @@ class MinituiChatApp(mt.App):
             driver: mt.AsyncioDriver,
             *,
             text_renderer: TextRowsRenderer | None = None,
+            clipboard: clip.Clipboard | None = None,
     ) -> None:
-        """With `browse_type_returns`, typing a printable key while browsing returns to the live view and types it."""
+        """
+        With `browse_type_returns`, typing a printable key while browsing returns to the live view and types it.
+
+        `clipboard` is where the browse menu's Copy puts text; without one, Copy says so instead.
+        """
 
         super().__init__()
 
         self._driver = driver
         self._text_renderer = text_renderer if text_renderer is not None else TextRowsRenderer()
+        self._clipboard = clipboard
 
         self._tail = mt.MarkdownTail(backend=mt.get_markdown_stream())
         self._spinner = mt.Spinner()
@@ -327,6 +344,8 @@ class MinituiChatApp(mt.App):
         )
         self._history = mt.InputHistory()
         self._exit_timer: mt.AsyncioTimer | None = None
+        self._flash_message: str | None = None
+        self._flash_timer: mt.AsyncioTimer | None = None
 
         self._cards: collections.OrderedDict[str, _ToolCardEntry] = collections.OrderedDict()
         self._card_spacer = _CardSpacer()
@@ -341,6 +360,12 @@ class MinituiChatApp(mt.App):
         self._browse_layout: mt.StackLayout | None = None
         self._browsing = False
         self._ai_turn: TurnRecord | None = None
+
+        # The source text of ai turns, for copying - the transcript keeps only the rendered rows. By turn identity: the
+        # turn's text content blocks in order, each as streamed or displayed whole. An open stream's chunks wait in
+        # `_stream_text` until the block ends.
+        self._ai_turn_texts: col.IdentityKeyDict[TurnRecord, list[str]] = col.IdentityKeyDict()
+        self._stream_text: list[str] = []
 
         self._menu: mt.Menu | None = None
         self._menu_overlay: mt.Overlay | None = None
@@ -361,7 +386,6 @@ class MinituiChatApp(mt.App):
         self.on_submit: ta.Callable[[str], None] | None = None
         self.on_cancel: ta.Callable[[], bool] | None = None
         self.on_quit: ta.Callable[[], None] | None = None
-        self.on_context_action: ta.Callable[[ContextTarget], None] | None = None
 
         self._refresh_status()
 
@@ -413,6 +437,7 @@ class MinituiChatApp(mt.App):
         return mt.render_markdown_blocks(self._parse_markdown(text), self.width, highlighter=hl.highlight_code)
 
     def display_markdown(self, text: str) -> None:
+        self._record_ai_turn_text(text)
         self.display_rows(self._render_markdown(text))
 
     def display_inline(self, segments: ta.Sequence[mt.Segment]) -> None:
@@ -427,6 +452,8 @@ class MinituiChatApp(mt.App):
         self.display_rows(out)
 
     def display_ui_text(self, *texts: ui.CanText) -> None:
+        # The plain rendering is the source: a markdown node's text as written, inline nodes' characters.
+        self._record_ai_turn_text(ui.render_plain_text(list(texts)))
         rows = self._text_renderer.render_rows(self.width, *texts)
         if rows and not rows[-1]:
             rows = rows[:-1]
@@ -434,6 +461,27 @@ class MinituiChatApp(mt.App):
 
     ##
     # Chat flow
+
+    def _record_ai_turn_text(self, text: str) -> None:
+        """Retain a text content block's source for the open ai turn - nothing, outside a turn."""
+
+        if (turn := self._ai_turn) is not None:
+            self._ai_turn_texts.setdefault(turn, []).append(text)
+
+    def _turn_text(self, turn: TurnRecord) -> str | None:
+        """
+        A turn's text as its author wrote it: the prompt, or an ai turn's content blocks (an open stream included).
+        """
+
+        if turn.text is not None:
+            return turn.text
+
+        parts = list(self._ai_turn_texts.get(turn, ()))
+        if turn is self._ai_turn and self._stream_text:
+            parts.append(''.join(self._stream_text))
+
+        blocks = [block for part in parts if (block := part.strip('\n')).strip()]
+        return '\n\n'.join(blocks) if blocks else None
 
     def _build_turn_header(self, turn: TurnRecord) -> list[mt.Segment]:
         speaker = turn.speaker
@@ -538,6 +586,7 @@ class MinituiChatApp(mt.App):
 
     def stream_feed(self, text: str) -> None:
         self._streaming = True
+        self._stream_text.append(text)
         self._tail.feed(text)
         if (settled := self._tail.pop_settled()):
             self._commit_rows(self._tail.render_settled(settled, self.width), tag=self._ai_turn)
@@ -549,6 +598,8 @@ class MinituiChatApp(mt.App):
         if not self._streaming:
             return
         self._streaming = False
+        self._record_ai_turn_text(''.join(self._stream_text))
+        self._stream_text.clear()
         blocks = self._tail.finalize()
         if blocks:
             self._commit_rows(self._tail.render_settled(blocks, self.width), tag=self._ai_turn)
@@ -865,6 +916,27 @@ class MinituiChatApp(mt.App):
             self._refresh_status()
             self._driver.invalidate()
 
+    _FLASH_S = 2.
+
+    def _set_flash(self, message: str) -> None:
+        """A passing note in the status row - what a menu action did - gone on its own after a moment."""
+
+        if (timer := self._flash_timer) is not None:
+            timer.cancel()
+        self._flash_message = message
+        self._flash_timer = self._driver.timers.call_later(self._FLASH_S, self._clear_flash)
+        self._refresh_status()
+        self._driver.invalidate()
+
+    def _clear_flash(self) -> None:
+        if (timer := self._flash_timer) is not None:
+            timer.cancel()
+            self._flash_timer = None
+        if self._flash_message is not None:
+            self._flash_message = None
+            self._refresh_status()
+            self._driver.invalidate()
+
     def _handle_exit_key(self, event: mt.KeyEvent) -> None:
         if self._input.doc.text():
             self._clear_exit_confirmation()
@@ -982,15 +1054,54 @@ class MinituiChatApp(mt.App):
 
     _browse_type_returns = False
 
-    def _run_context_action(self, target: ContextTarget) -> None:
-        # Deliberately no real action yet; the captured target remains valid even if a live widget has finalized.
-        if (cb := self.on_context_action) is not None:
-            cb(target)
+    def _context_text(self, target: ContextTarget) -> str | None:
+        """What Copy copies for a menu target: a message's text as written; anything else, its text as displayed."""
+
+        if isinstance(target, TurnRecord):
+            return self._turn_text(target)
+
+        if isinstance(target, ToolCardRecord):
+            # The whole card, expanded or not.
+            card = target.card
+            text = _join_rows([
+                ''.join(part for part, _ in card.summary),
+                *(''.join(seg.text for seg in row) for row in card.detail),
+            ])
+
+        elif isinstance(target, mt.TranscriptBlock):
+            text = _join_rows(line.text for line in target.lines)
+
+        else:
+            text = _join_segment_rows(target.render(self.width))
+
+        return text or None
+
+    def _copy_context_target(self, target: ContextTarget) -> None:
+        # The captured target remains valid even if a live widget has finalized meanwhile: its text is read now.
+        if (text := self._context_text(target)) is None:
+            self._set_flash('nothing to copy')
+            return
+
+        if (clipboard := self._clipboard) is None:
+            self._set_flash('no clipboard available')
+            return
+
+        try:
+            clipboard.put(clip.TextClipboardContents(text))
+        except Exception as e:  # noqa: BLE001
+            self._set_flash(f'copy failed: {e!r}')
+            return
+
+        self._set_flash(f'copied {len(text)} chars')
 
     def _open_context_menu(self, target: ContextTarget, x: int, y: int) -> None:
         menu = mt.Menu(
             [
-                mt.MenuItem('Placeholder action', on_select=lambda: self._run_context_action(target)),
+                mt.MenuItem(
+                    'Copy',
+                    on_select=lambda: self._copy_context_target(target),
+                    disabled=self._context_text(target) is None,
+                ),
                 mt.MenuItem('Close'),
             ],
             on_close=self._close_context_menu,
@@ -1211,14 +1322,15 @@ class MinituiChatApp(mt.App):
             activity = 'idle'
 
         exit_hint = self._EXIT_HINT if self._exit_timer is not None else None
-        self._browse_status.set_message(exit_hint)
+        note = exit_hint or self._flash_message
+        self._browse_status.set_message(note)
         self._status.set_left([
             (self._spinner.frame if self._busy else ' ', 'status.spinner'),
             (f' {activity}  ', 'status.dim'),
             (f'{label}  ' if (label := self._input_mode.label) else '', 'input.mode'),
             (mode_part or '', 'status.mode'),
             (f'  {st.pending}' if st.pending else '', 'status.dim'),
-            (f'  {exit_hint or st.message}' if exit_hint or st.message else '', 'status.dim'),
+            (f'  {note or st.message}' if note or st.message else '', 'status.dim'),
         ])
 
         session_usage = self._usage.render_session()

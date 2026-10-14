@@ -84,6 +84,14 @@ class Card(Control):
     def expanded(self) -> bool:
         return self._expanded
 
+    @property
+    def summary(self) -> TextParts:
+        return self._summary
+
+    @property
+    def detail(self) -> ta.Sequence[ta.Sequence[Segment]]:
+        return self._detail
+
     def set_state(self, state: CardState) -> None:
         self._state = state
 

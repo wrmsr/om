@@ -1,4 +1,5 @@
 from omcore import inject as inj
+from omdev import clipboard as clip
 from omdev import minitui as mt
 
 from .... import agent as agn
@@ -26,11 +27,17 @@ def _provide_driver(surface: mt.InlineSurface) -> mt.AsyncioDriver:
 
 
 def bind_app(config: Config) -> inj.Elements:
-    return inj.as_elements(
+    lst: list[inj.Elemental] = [
         inj.bind(mt.InlineSurface(kitty_keys=True)),
         inj.bind(_provide_driver, singleton=True),
         inj.bind(MinituiChatApp, singleton=True),
-    )
+    ]
+
+    # Where the browse menu's Copy puts text. A platform without one leaves the app's clipboard unbound - Copy says so.
+    if (clipboard := clip.get_platform_clipboard()) is not None:
+        lst.append(inj.bind(clip.Clipboard, to_const=clipboard))
+
+    return inj.as_elements(*lst)
 
 
 ##
