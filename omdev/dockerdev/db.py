@@ -13,6 +13,9 @@ from .config import Config
 from .run import RunArgs
 
 
+T = ta.TypeVar('T')
+
+
 ##
 
 
@@ -93,26 +96,11 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
 DEFAULT_DB_FILE_NAME: ta.Final = 'runs.db'
 
 
-def write_run_to_db(
+async def _update_db(
+        fn: ta.Callable[[orm.Session], ta.Awaitable[T]],
         *,
-        id: uuid.UUID,  # noqa
-
-        cfg: Config | None = None,
-        sha: str | None = None,
-        args: RunArgs | None = None,
-
         db_file: str | None = None,
-) -> None:
-    run = Run(
-        id=id,
-
-        cfg=cfg,
-        sha=sha,
-        args=args,
-    )
-
-    #
-
+) -> T:
     if db_file is None:
         db_file = os.path.join(
             get_home_paths().state_dir,
@@ -135,14 +123,43 @@ def write_run_to_db(
         dtype_codec=backend.dtype_codec,
     )
 
-    async def do_write() -> None:
-        await store.ensure_schema()
+    await store.ensure_schema()
 
-        async with orm.session(registry, store):
-            await orm.add_one(OrmRun(
-                id=orm.key(id),
+    async with orm.session(registry, store) as session:
+        return await fn(session)
 
-                json=run,
-            ))
 
-    lang.sync_await(do_write())
+#
+
+
+def write_run_to_db(
+        *,
+        id: uuid.UUID,  # noqa
+
+        cfg: Config | None = None,
+        sha: str | None = None,
+        args: RunArgs | None = None,
+
+        db_file: str | None = None,
+) -> None:
+    run = Run(
+        id=id,
+
+        cfg=cfg,
+        sha=sha,
+        args=args,
+    )
+
+    #
+
+    async def do_write(session: orm.Session) -> None:
+        await orm.add_one(OrmRun(
+            id=orm.key(id),
+
+            json=run,
+        ))
+
+    lang.sync_await(_update_db(
+        do_write,
+        db_file=db_file,
+    ))
