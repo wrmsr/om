@@ -4,7 +4,6 @@ aiomysql==0.3.2
 aiosignal==1.4.0
 aiosqlite==0.22.1
 annotated-doc==0.0.5
-antlr4-python3-runtime==4.9.3
 anyio==4.15.1
 apsw==3.54.0.0
 asgiref==3.12.1
@@ -21,8 +20,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.10.1
 blobfile==3.3.0
-boto3==1.43.112
-botocore==1.43.112
+boto3==1.43.113
+botocore==1.43.113
 botocore-stubs==1.43.67
 brotli==1.2.0
 build==1.6.1
@@ -55,7 +54,7 @@ filelock==3.32.7
 flake8==7.4.1
 Flake8-pyproject==1.2.4
 flatbuffers==25.12.19
-fonttools==4.66.1
+fonttools==4.67.0
 frozenlist==1.8.0
 fsspec==2026.6.0
 gguf==0.19.0
@@ -166,7 +165,7 @@ psutil==7.2.2
 psycopg==3.3.6
 psycopg2==2.9.13
 ptyprocess==0.7.0
-pudb==2025.1.5
+pudb==2026.1
 pure_eval==0.2.4
 py-cpuinfo2==10.1.1
 pyarrow==26.0.0
@@ -268,7 +267,7 @@ trio==0.34.0
 twine==7.0.0
 typer==0.27.3
 types-awscrt==0.37.0
-types-boto3==1.43.112
+types-boto3==1.43.113
 types-docutils==0.23.0.20260923
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20261006
@@ -288,7 +287,7 @@ uritemplate==4.2.0
 urllib3==2.8.0
 urwid==4.2.5
 urwid_readline==0.15.1
-uv==0.13.0
+uv==0.13.1
 uvicorn==0.54.0
 uvloop==0.23.0
 wasmtime==49.0.0

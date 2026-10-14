@@ -4,7 +4,7 @@ build>=1.6.1
 twine>=6.2.0
 wheel>=0.48.0
 
-uv>=0.13.0
+uv>=0.13.1
 
 pytest==9.1.1
 pytest-benchmark==5.3.0
@@ -46,7 +46,7 @@ memray==1.20.0
 
 ipython==9.17.1
 
-pudb==2025.1.5
+pudb==2026.1
 
 
 ##
@@ -148,9 +148,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.112
-botocore==1.43.112
-types-boto3==1.43.112
+boto3==1.43.113
+botocore==1.43.113
+types-boto3==1.43.113
 botocore-stubs==1.43.67
 
 asn1crypto==1.5.1
