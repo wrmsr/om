@@ -12,6 +12,7 @@ from ...surfaces.inlines import InlineSurface
 from ...text.segments import Segment
 from ...text.styles import EMPTY_THEME
 from ..asyncio import AsyncioDriver
+from .test_sync import ClearApp
 from .test_sync import EofApp
 from .test_sync import PipeTty
 from .test_sync import RecordingApp
@@ -267,3 +268,31 @@ def test_async_driver_tmux_reply_zeroes_escape_wait():
     assert b'\x1b[>q' in b''.join(tty.writes)
     assert driver.parser.escape_relay_resolved
     assert [e.key for e in app.events if isinstance(e, KeyEvent)] == [Key('escape'), Key('d', ctrl=True)]
+
+
+def test_async_driver_clear_screen():
+    tty = PipeTty(height=6, width=40)
+    driver = AsyncioDriver(InlineSurface(tty, term='xterm-256color'))
+    app = ClearApp(driver)  # type: ignore[arg-type]
+
+    driver.clear_screen()  # before run: nothing of ours on any screen yet - ignored, not an error
+
+    async def main():
+        tty.send(b'\x1b[3;1R')
+        tty.send(b'c')
+
+        async def later():
+            await asyncio.sleep(.02)
+            tty.send(b'\x0c\x04')
+
+        task = asyncio.get_running_loop().create_task(later())
+        await driver.run(app)
+        await task
+
+    asyncio.run(main())
+    os.close(tty.read_fd)
+
+    term = Vt100Terminal(rows=6, cols=40)
+    term.feed(b''.join(tty.writes))
+    assert term.scrollback_lines() == ['committed']
+    assert term.screen_lines()[0] == 'live'

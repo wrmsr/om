@@ -162,6 +162,26 @@ class SyncDriver:
         if not self._alt_screen_wanted:
             self._flush_pending_commits()
 
+    ##
+    # The polite clear
+
+    def clear_screen(self) -> None:
+        """
+        A repl's ctrl+l: the live region scrolls to the top of the terminal, everything above it into scrollback -
+        nothing is erased, nothing is lost. Fullscreen it is a repaint instead, there being no scrollback to push into.
+        Ignored while there is no screen of ours to clear: before the origin is known, and while suspended. Call from
+        event handlers, like `commit` - never from `render`.
+        """
+
+        if not self._running or self._awaiting_origin or self._job_control.suspended:
+            return
+        surface = check.isinstance(self._surface, InlineSurface)
+        if surface.alt_screen:
+            surface.repaint()
+        else:
+            surface.scroll_to_top()
+        self._invalidated = True
+
     #
 
     def _track_parser_deadline(self) -> None:

@@ -38,8 +38,9 @@ Run them in tmux and scroll back; add `--visualize-redraws` to streamdemo to wat
   floating controls composite through.
 - **surfaces/** - `InlineSurface` (the commit model: relative cursor tracking, `\r\n`-forced scrolling, commit-above
   re-anchoring, CPR origin negotiation; an alt-screen excursion for browse mode, painted by `AltPainter` while the
-  terminal keeps the main screen; the origin's terminal row tracked on the side so mouse rows translate to frame rows)
-  and `AltSurface` (fullscreen, absolute addressing). Terminfo for output capabilities; hardcoded-xterm fallbacks;
+  terminal keeps the main screen; the origin's terminal row tracked on the side so mouse rows translate to frame rows;
+  `scroll_to_top`, the polite ctrl+l - the live region to the top of the terminal, history into scrollback, nothing
+  erased) and `AltSurface` (fullscreen, absolute addressing). Terminfo for output capabilities; hardcoded-xterm fallbacks;
   runtime-negotiated extras (kitty keys, bracketed paste, sync output).
 - **events/** - typed `Key`/events, a generator escape-sequence parser with clock-free cooperative timeouts (indefinite
   once kitty confirms disambiguation, zero once a tmux in front identifies itself via XTVERSION), keymap trie with vim's

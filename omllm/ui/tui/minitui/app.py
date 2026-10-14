@@ -169,6 +169,7 @@ class AppKey(enum.StrEnum):
     CANCEL = enum.auto()
     EXIT = enum.auto()
     SUSPEND = enum.auto()
+    CLEAR_SCREEN = enum.auto()
 
     CARD_ALLOW = enum.auto()
     CARD_DENY = enum.auto()
@@ -189,6 +190,9 @@ APP_KEY_MAP: ta.Final[ta.Mapping[AppKey, mt.Key | ta.Sequence[mt.Key]]] = {
     # Reaches here only on extended-key terminals; on the legacy wire the kernel turns ctrl+z into SIGTSTP itself and
     # the driver's handler takes the same path.
     AppKey.SUSPEND: mt.Key('z', ctrl=True),
+    # The polite clear, as a repl's: the live region to the top of the terminal, the transcript above it into
+    # scrollback, nothing erased. Vim's own ctrl+l is a redraw, so the editor has no claim on it in any mode.
+    AppKey.CLEAR_SCREEN: mt.Key('l', ctrl=True),
 
     AppKey.CARD_ALLOW: mt.Key('f10'),
     AppKey.CARD_DENY: mt.Key('f2'),
@@ -210,6 +214,7 @@ _BROWSE_PASSTHROUGH_KEYS: ta.Final[ta.AbstractSet[AppKey]] = frozenset([
     AppKey.CANCEL,
     AppKey.EXIT,
     AppKey.SUSPEND,
+    AppKey.CLEAR_SCREEN,
     AppKey.CARD_ALLOW,
     AppKey.CARD_DENY,
     AppKey.CARD_EXPAND,
@@ -983,6 +988,10 @@ class MinituiChatApp(mt.App):
 
         if app_key is AppKey.SUSPEND:
             self._driver.suspend()
+            return True
+
+        if app_key is AppKey.CLEAR_SCREEN:
+            self._driver.clear_screen()
             return True
 
         permission_card = None

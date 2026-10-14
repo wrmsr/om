@@ -14,6 +14,10 @@ Autowrap is disabled while active so a width-exact line can never desync the rel
 The one absolute quantity kept on the side is the origin's terminal row, learned from the startup CPR and moved up by
 every bottom-row line feed - solely so mouse reports, which are absolute, can be translated into frame rows.
 
+`scroll_to_top` is the polite clear-screen of a well-behaved repl: enough line feeds from the live region's last row to
+scroll it, intact, to the top of the terminal - the history above it into scrollback, untouched. `repaint` is the other
+ctrl+l: the next present erases and paints from scratch.
+
 The alt-screen excursion (`set_alt_screen`): the terminal's alternate screen saves the main screen and cursor on entry
 and restores both on exit, so the live region and its relative tracking survive a fullscreen interlude untouched - a
 browse mode over the same app draws with an `AltPainter` meanwhile, and nothing it draws propagates back. Commits are
@@ -91,6 +95,9 @@ class InlineSurface(Surface):
         self._alt: AltPainter | None = None
         self._alt_entered = False
         self._alt_entry_size: tuple[int, int] = (0, 0)
+
+        # A `repaint` request, honored by the next present (inside its synchronized-output bracket).
+        self._repaint = False
 
     @property
     def tty(self) -> Tty:
@@ -173,6 +180,7 @@ class InlineSurface(Surface):
         self._origin_row = None
         self._alt = None
         self._alt_entered = False
+        self._repaint = False
         self._prepared = True
 
     def set_sync_output(self, enabled: bool) -> None:
@@ -321,7 +329,10 @@ class InlineSurface(Surface):
             w.sync_start()
 
         if not self._alt_entered:
-            self._enter_alt(painter)
+            self._enter_alt(painter)  # clears the grid itself: a pending repaint is moot
+        elif self._repaint:
+            painter.clear()
+        self._repaint = False
 
         painter.paint(frame, width=self._term_width)
 
@@ -457,11 +468,19 @@ class InlineSurface(Surface):
         cx, cy = frame.cursor
         check.arg(0 <= cy <= max(frame.height - 1, 0) and cx >= 0)
 
-        diff = diff_frames(self._frame, frame)
-
         w = self._writer
         if self._sync_output:
             w.sync_start()
+
+        if self._repaint:
+            # Inside the bracket, so the erase and the paint from scratch land as one update.
+            self._repaint = False
+            self._hide_cursor()
+            self._move(0, 0)
+            w.erase_down()
+            self._frame = EMPTY_FRAME
+
+        diff = diff_frames(self._frame, frame)
         debug_style = self._debug_style() if not diff.is_empty else None
 
         if not diff.is_empty:
@@ -543,6 +562,57 @@ class InlineSurface(Surface):
         if self._sync_output:
             w.sync_end()
         w.flush()
+
+    ##
+    # Clearing
+
+    def scroll_to_top(self) -> None:
+        """
+        Push the live region to the top of the terminal, everything above it into the terminal's scrollback - a
+        well-behaved repl's ctrl+l: the screen looks cleared, nothing is erased, and the history is one scroll away.
+        Nothing is redrawn either: the terminal scrolls the retained frame along with the rest, so the relative tracking
+        holds, and the origin lands on row 0 - known from here on, even if a resize had lost it.
+
+        The count never depends on the origin: line feeds from the frame's last row first walk the cursor down to the
+        bottom row without scrolling, then scroll, and the walk plus the scrolls always total the rows below the frame.
+        """
+
+        check.state(self._prepared)
+        check.state(self._alt is None)  # the alt screen has no scrollback to push into
+
+        self.take_resized()
+
+        rows = max(self._frame.height, 1)
+        if (n := self._term_height - rows) <= 0:
+            return
+
+        w = self._writer
+        if self._sync_output:
+            w.sync_start()
+        self._hide_cursor()
+
+        cx, cy = self._cursor
+        self._move(cx, rows - 1)
+        self._crlf(n)
+        self._cursor = (0, rows - 1 + n)
+        self._move(cx, cy)
+        self._origin_row = 0
+
+        if self._frame.cursor_visible:
+            self._show_cursor()
+        if self._sync_output:
+            w.sync_end()
+        w.flush()
+
+    def repaint(self) -> None:
+        """
+        Have the next present paint from scratch - ctrl+l's other meaning, for a screen something else has scribbled on.
+        The erase happens inside that present's synchronized-output bracket, so nothing blanks visibly in between.
+        Fullscreen it is the alt grid that repaints; the live region keeps its retained frame for the return.
+        """
+
+        check.state(self._prepared)
+        self._repaint = True
 
     ##
     # Misc

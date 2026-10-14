@@ -187,3 +187,77 @@ def test_suspend_erases_live_region_and_resume_repaints():
     h.pump()
     h.present(h.frame('live again', 'status'))
     assert h.all_lines()[:3] == ['done', 'live again', 'status']
+
+
+def test_scroll_to_top_pushes_history_into_scrollback():
+    h = SurfaceHarness(height=6, width=20)
+    h.present(h.frame('one', 'two', 'live', 'status', cursor=(3, 2)))
+    h.commit([h.line('one'), h.line('two')])
+    h.present(h.frame('live', 'status', cursor=(3, 0)))
+    assert h.screen() == ['one', 'two', 'live', 'status', '', '']
+    origin_before = h.surface.origin_row  # never learned (no CPR here): the count must not need it
+
+    h.surface.scroll_to_top()
+    data = h.pump()
+    assert h.screen() == ['live', 'status', '', '', '', '']
+    assert h.scrollback() == ['one', 'two']
+    assert (origin_before, h.surface.origin_row) == (None, 0)
+    assert (h.terminal.cursor_row, h.terminal.cursor_col) == (0, 3)
+    assert b'\x1b[J' not in data  # nothing erased...
+    assert b'live' not in data  # ...and nothing redrawn
+
+    # Relative tracking survived: a minimal update lands on the right row, and growth and commits go on as usual.
+    data = h.present(h.frame('live', 'STATUS'))
+    assert b'live' not in data
+    assert h.screen() == ['live', 'STATUS', '', '', '', '']
+    h.commit([h.line('live')])
+    h.present(h.frame('STATUS', 'more'))
+    assert h.screen() == ['live', 'STATUS', 'more', '', '', '']
+    assert h.scrollback() == ['one', 'two']
+    assert h.surface.origin_row == 1
+
+
+def test_scroll_to_top_with_known_origin_and_at_top():
+    h = SurfaceHarness(height=6, width=20)
+    h.terminal.feed(b'shell\r\n')  # the shell left us on row 1
+    h.surface.resolve_origin(0, 1)
+    h.pump()
+    h.present(h.frame('a', 'b'))
+    assert h.screen() == ['shell', 'a', 'b', '', '', '']
+
+    h.surface.scroll_to_top()
+    h.pump()
+    assert h.screen() == ['a', 'b', '', '', '', '']
+    assert h.scrollback() == ['shell']
+    assert h.surface.origin_row == 0
+
+    # Already at the top: the walk down and back scrolls nothing, and the cursor returns to the frame's.
+    h.surface.scroll_to_top()
+    h.pump()
+    assert h.screen() == ['a', 'b', '', '', '', '']
+    assert h.scrollback() == ['shell']
+    assert (h.terminal.cursor_row, h.terminal.cursor_col) == (1, 0)
+
+    # A frame filling the terminal has nowhere to go.
+    h.present(h.frame(*'abcdef'))
+    h.surface.scroll_to_top()
+    assert h.pump() == b''
+
+
+def test_repaint_paints_from_scratch_on_the_next_present():
+    h = SurfaceHarness(height=6, width=20)
+    h.present(h.frame('one', 'two'))
+
+    h.surface.repaint()
+    assert h.pump() == b''  # deferred to the next present
+    data = h.present(h.frame('one', 'two'))
+    assert b'\x1b[J' in data
+    assert b'one' in data
+    assert b'two' in data
+    assert h.screen() == ['one', 'two', '', '', '', '']
+    assert h.scrollback() == []
+
+    # And it was a one-off: the next present diffs as usual.
+    data = h.present(h.frame('one', 'TWO'))
+    assert b'one' not in data
+    assert h.screen() == ['one', 'TWO', '', '', '', '']

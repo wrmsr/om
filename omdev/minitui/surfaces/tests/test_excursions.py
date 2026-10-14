@@ -185,3 +185,26 @@ def test_origin_row_fresh_line_and_alt_identity():
 
     s.resolve_origin(4, 5)  # mid-line on the bottom row: the fresh line scrolls, and is still the bottom row
     assert s.origin_row == 5
+
+
+def test_repaint_in_alt_excursion_is_the_grid():
+    h = SurfaceHarness(height=6, width=20)
+    h.present(h.frame('live'))
+
+    h.surface.set_alt_screen(True)
+    h.surface.repaint()  # ahead of the entry, which clears the grid anyway
+    data = h.present(h.frame('FULL'))
+    assert data.count(b'\x1b[J') == 1
+
+    h.surface.repaint()
+    data = h.present(h.frame('FULL'))
+    assert data.count(b'\x1b[J') == 1
+    assert b'FULL' in data  # the identical frame was painted again
+    assert h.screen()[0] == 'FULL'
+
+    h.surface.set_alt_screen(False)
+    h.pump()
+    assert h.screen() == ['live', '', '', '', '', '']
+    assert h.scrollback() == []
+    # The live region's retained frame was untouched: an identical present costs only the bracket.
+    assert h.present(h.frame('live')) == b'\x1b[?2026h\x1b[?2026l'

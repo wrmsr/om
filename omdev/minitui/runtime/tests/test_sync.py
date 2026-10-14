@@ -94,6 +94,15 @@ class BrowseApp(RecordingApp):
         return Frame((line_from_segments([Segment(text)], EMPTY_THEME),))
 
 
+class ClearApp(BrowseApp):
+    """...plus ctrl+l for the polite clear."""
+
+    def handle_event(self, event: Event) -> None:
+        super().handle_event(event)
+        if isinstance(event, KeyEvent) and event.key == Key('l', ctrl=True):
+            self._driver.clear_screen()
+
+
 def run_driver(
         data: bytes,
         *,
@@ -438,3 +447,47 @@ def test_driver_translates_mouse_rows_to_frame_rows():
     # rows 0 and 2.
     app, tty = run_driver(b'\x1b[<0;1;3M\x1b[<0;1;5M', then=b'\x04')
     assert [e.y for e in app.events if isinstance(e, MouseEvent)] == [0, 2]
+
+
+##
+# The polite clear
+
+
+def test_driver_clear_screen_scrolls_history_into_scrollback():
+    # The commit lands on the origin row and the live region re-anchors below it. ctrl+l scrolls what is above the
+    # frame into scrollback - the commit, lost nowhere - and leaves the frame on the top row. (The emulator never saw
+    # the shell rows the CPR answer claims are above the origin: the count does not depend on them.)
+    app, tty = run_driver(b'c', then=b'\x0c\x04', app_cls=ClearApp)
+    term = _terminal_after(tty)
+    assert term.scrollback_lines() == ['committed']
+    assert term.screen_lines()[0] == 'live'
+
+
+def test_driver_clear_screen_fullscreen_repaints_the_grid():
+    # Fullscreen there is no scrollback to push into: ctrl+l repaints the alt grid, and the main screen is exactly as it
+    # was on the way back.
+    tty = PipeTty(height=6, width=40)
+    driver = SyncDriver(InlineSurface(tty, term='xterm-256color'))
+    app = ClearApp(driver)
+
+    def quit_() -> None:
+        tty.send(b'\x04')
+        tty.close_input()
+
+    tty.send(b'\x1b[3;1R')
+    driver.timers.call_later(.01, lambda: tty.send(b'\x1b[24~'))
+    driver.timers.call_later(.02, lambda: tty.send(b'\x0c'))
+    driver.timers.call_later(.03, quit_)
+    try:
+        driver.run(app)
+    finally:
+        os.close(tty.read_fd)
+
+    data = b''.join(tty.writes)
+    entered = data.index(b'\x1b[?1049h')
+    assert data[entered:].count(b'alt view') == 2  # painted on entry, and again from scratch
+
+    term = _terminal_after(tty)
+    assert not term.in_alt_screen
+    assert term.scrollback_lines() == []
+    assert term.screen_lines()[0] == 'live'
