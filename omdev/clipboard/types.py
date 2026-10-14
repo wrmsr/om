@@ -1,4 +1,9 @@
-"""https://askubuntu.com/questions/11925/a-command-line-clipboard-copy-and-paste-utility"""
+"""
+https://askubuntu.com/questions/11925/a-command-line-clipboard-copy-and-paste-utility
+
+TODO:
+ - async? timeout?
+"""
 import abc
 import dataclasses as dc
 

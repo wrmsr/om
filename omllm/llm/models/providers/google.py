@@ -16,14 +16,20 @@ from ..modeldb import modeldb_token_pricing
 ##
 
 
-MODELS: ta.Final[ta.Sequence[Model]] = [
+_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 
-    Model(
-        key=(TEST_MODEL_KEY := ModelKey(
+
+def _make_model(
+        *,
+        id: str,  # noqa
+        name: str,
+) -> Model:
+    return Model(
+        key=ModelKey(
             provider='google',
-            id='gemini-3.8-flash',
-        )),
-        name='Gemini 3.8 Flash',
+            id=id,
+        ),
+        name=name,
         backend='google-generative',
         # The thinkingLevel enum also has MINIMAL, but this model rejects it with "Thinking level MINIMAL is not
         # supported for this model" (verified against the live API).
@@ -37,11 +43,32 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         cache=CacheCapabilities(
             control_style='google_implicit',
         ),
-        limits=modeldb_model_limits('google', 'gemini-3.8-flash'),
-        pricing=modeldb_token_pricing('google', 'gemini-3.8-flash'),
+        limits=modeldb_model_limits('google', id),
+        pricing=modeldb_token_pricing('google', id),
         http=Model.Http(
-            base_url='https://generativelanguage.googleapis.com/v1beta',
+            base_url=_BASE_URL,
         ),
+    )
+
+
+##
+
+
+MODELS: ta.Final[ta.Sequence[Model]] = [
+
+    _make_model(
+        id='gemini-4-argon',
+        name='Gemini 4 Argon',
+    ),
+
+    _make_model(
+        id=(TEST_MODEL_KEY := ModelKey('google', 'gemini-3.8-flash')).id,
+        name='Gemini 3.8 Flash',
+    ),
+
+    _make_model(
+        id='gemini-2.5-flash',
+        name='Gemini 2.5 Flash',
     ),
 
 ]

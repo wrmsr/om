@@ -46,9 +46,10 @@ _MANDATORY_REASONING_EFFORTS = _REASONING_EFFORTS - {ReasoningEffort.NONE}
 
 
 def _make_model(
+        *,
         id: str,  # noqa
         name: str,
-        *,
+
         reasoning_efforts: ta.AbstractSet[ReasoningEffort] = _REASONING_EFFORTS,
 ) -> Model:
     return Model(

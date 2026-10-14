@@ -427,14 +427,26 @@
     "module": ".llm.models.providers.google",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/google.py",
-    "line": 50,
+    "line": 77,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "google",
+            "id": "gemini-4-argon",
+            "name": "Gemini 4 Argon",
+            "backend": "google-generative"
+          },
+          {
+            "provider": "google",
             "id": "gemini-3.8-flash",
             "name": "Gemini 3.8 Flash",
+            "backend": "google-generative"
+          },
+          {
+            "provider": "google",
+            "id": "gemini-2.5-flash",
+            "name": "Gemini 2.5 Flash",
             "backend": "google-generative"
           }
         ]
@@ -535,7 +547,7 @@
     "module": ".llm.models.providers.openrouter",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/openrouter.py",
-    "line": 162,
+    "line": 163,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [

@@ -78,9 +78,22 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     # google
 
     DefaultModel(
+        name='gemini-argon',
+        aliases=['argon'],
+        key=ModelKey('google', 'gemini-4-argon'),
+        api_key_name='gemini_api_key',
+    ),
+
+    DefaultModel(
         name='gemini-flash',
         aliases=['gemini', 'google'],
         key=ModelKey('google', 'gemini-3.8-flash'),
+        api_key_name='gemini_api_key',
+    ),
+
+    DefaultModel(
+        name='gemini-cheap',
+        key=ModelKey('google', 'gemini-2.5-flash'),
         api_key_name='gemini_api_key',
     ),
 
