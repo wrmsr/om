@@ -1,8 +1,3 @@
-"""
-TODO:
- - per-feature config, obv
- - install pnpm
-"""
 import io
 import re
 import typing as ta

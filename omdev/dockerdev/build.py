@@ -1,6 +1,6 @@
 """
-TODO:
- - docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ubuntu:24.04
+.
+docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ubuntu:24.04
 """
 import os.path
 import re

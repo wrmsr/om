@@ -569,7 +569,7 @@ def run_image(
         sha: str | None = None,
         *,
         host: RunHost | None = None,
-        write_to_db: bool = False,
+        no_db: bool = False,
 ) -> None:
     if sha is None:
         sha = build_image(
@@ -589,7 +589,7 @@ def run_image(
 
     #
 
-    if write_to_db:
+    if not no_db:
         db.write_run_to_db(
             id=p_args.id,
 

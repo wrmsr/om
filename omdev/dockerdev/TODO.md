@@ -1,0 +1,20 @@
+- if launching detached write-back the container id to the db
+- (run) profiles
+    - auto mount r/o git share
+- autoexec - multiple options
+    - can run `bash -c 'barf barf barf && <user stuff>'
+        - or mount temp dir and exec a file in there
+    - can fast-build new (temp) image w preamble (probably slow and garbagey)
+- launch / manage compose services
+- more cache dirs
+- `--mount=type=bind,src="$(pwd)",dst=/om/pwd`
+- build --no-cache / cache bust
+    - build args
+- `run --pull=never`, `build --pull=false`
+- !! shadow config !!
+    - default autoexec, default env vars
+- idiom: mirror host paths directly (even on dar) - `/Users/spinlock/...`, `/home/spinlock/...`, etc
+    - eases remote debug
+- `docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ubuntu:24.04`
+- build: per-feature config, obv
+- install pnpm

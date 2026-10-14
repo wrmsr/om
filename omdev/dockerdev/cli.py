@@ -1,21 +1,4 @@
 """
-TODO:
- - (run) profiles
-   - auto mount r/o git share
- - autoexec - multiple options
-   - can run 'bash -c 'barf barf barf && <user stuff>'
-     - or mount temp dir and exec a file in there
-   - can fast-build new (temp) image w preamble (probably slow and garbagey)
- - launch / manage compose services
- - more cache dirs
- - --mount=type=bind,src="$(pwd)",dst=/om/pwd
- - build --no-cache / cache bust
-   - build args
- - `run --pull=never`, `build --pull=false`
- - !! shadow config !!
-   - default autoexec, default env vars
- - --runtime=nvidia --gpus=all --rm -it bash
-
 ====
 
 if [ -t 1 ] ; then TTY_ENV_ARGS="-e LINES=$(tput lines) -e COLUMNS=$(tput cols)" ; fi
@@ -180,7 +163,7 @@ class Cli(ap.Cli):
 
         *_SHIFT_UID_ARGS,
 
-        ap.arg('--db', action='store_true'),
+        ap.arg('--no-db', action='store_true'),
 
         ap.arg('args', nargs=ap.REMAINDER),
         accepts_unknown=True,
@@ -195,7 +178,7 @@ class Cli(ap.Cli):
                 load_secrets=load_secrets,
             ),
 
-            write_to_db=bool(self.args.db),
+            no_db=bool(self.args.no_db),
         )
 
     #
