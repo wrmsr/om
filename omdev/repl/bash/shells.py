@@ -7,6 +7,7 @@ import collections
 import typing as ta
 
 from ..ptys import PtyProcess
+from .protocol import INTERRUPT
 from .protocol import BashPrompt
 from .protocol import BashProtocol
 
@@ -65,6 +66,21 @@ class BashShell:
             await self.process.write(data)
         except BrokenPipeError:
             raise BashShellExitedError from None
+
+    async def interrupt(self) -> None:
+        """
+        Interrupts the foreground job: the terminal's interrupt character, which is what reaches it, after SIGINT to the
+        shell itself, which the character does not. With that in hand when its job dies of the character's, the shell
+        abandons the rest of the submission - rather than going on to its next command as a bash before 4.0 (macOS's)
+        does for a job interrupted behind its back. The signal goes first: the shell has to have it before it has the
+        job's end, and sent the other way round the two are a race.
+        """
+
+        try:
+            await self.process.interrupt()
+        except BrokenPipeError:
+            raise BashShellExitedError from None
+        await self.write(INTERRUPT)
 
     async def read_event(self, timeout: float | None = None) -> bytes | BashPrompt | None:
         """The next run of output or prompt; None when `timeout` passes first. Raises once the shell is gone."""

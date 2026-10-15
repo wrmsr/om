@@ -53,6 +53,14 @@ class ProcessPtyProcess(repl.PtyProcess):
         except (OSError, processes.ProcessError, RpcError) as e:
             raise BrokenPipeError(str(e)) from e
 
+    async def interrupt(self) -> None:
+        if self._process.exited:
+            raise BrokenPipeError(repr(self._process))
+        try:
+            await self._process.signal(signal.SIGINT, process_group=False)
+        except (OSError, processes.ProcessError, RpcError) as e:
+            raise BrokenPipeError(str(e)) from e
+
     # The spool takes no timeout to mean "do not wait": an unbounded read is a long one, repeated.
     _UNBOUNDED_POLL_S: ta.ClassVar[float] = 3600.
 

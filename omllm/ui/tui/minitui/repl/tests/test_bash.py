@@ -160,9 +160,10 @@ async def test_source_which_a_terminal_would_mangle(manager, tmp_path):
     async with bash(manager, tmp_path) as (interpreter, _):
         # Longer than a terminal's line, and full of what its line discipline acts on.
         assert await run_text(interpreter, 'x=' + 'a' * 20_000 + '; echo ${#x}') == '20000\n'
-        assert await run_text(interpreter, "printf '%s' 'a\x03b\x15c\x7fd' | od -An -c") == (
-            '   a 003   b 025   c 177   d\n'
-        )
+        # Split: a BSD od (macOS's) blanks the address column rather than dropping it.
+        assert (await run_text(interpreter, "printf '%s' 'a\x03b\x15c\x7fd' | od -An -c")).split() == [
+            'a', '003', 'b', '025', 'c', '177', 'd',
+        ]
         assert await run_text(interpreter, "echo 'héllo → \u65e5\u672c'") == 'héllo → \u65e5\u672c\n'
         assert await run_text(interpreter, "cat <<'EOF'\nheredoc $HOME\n  second\nEOF") == 'heredoc $HOME\n  second\n'
         assert await run_text(interpreter, 'for i in 1 2; do\n  echo "n=$i"\ndone') == 'n=1\nn=2\n'
@@ -191,14 +192,32 @@ async def test_the_terminal_follows_the_host_size(manager, tmp_path):
             await interpreter.aclose()
 
 
-@both_managers
-async def test_a_cancelled_command_is_interrupted(manager, tmp_path):
-    marker = os.path.join(os.path.realpath(tmp_path), 'finished')
+def old_bash(cwd):
+    """
+    The bash at hand playing a bash before 4.0 - macOS's /bin/bash is 3.2 - which goes on to the rest of a list when its
+    foreground job dies of an interrupt it did not itself get, as at a terminal with job control it does not.
+    """
 
-    async with bash(manager, tmp_path) as (interpreter, scope):
+    path = os.path.join(cwd, 'bash32')
+    with open(path, 'w') as f:
+        f.write('#!/bin/sh\nBASH_COMPAT=32 exec bash "$@"\n')
+    os.chmod(path, 0o700)
+    return path
+
+
+@both_managers
+@pytest.mark.parametrize('version', ['current', 'old'])
+async def test_a_cancelled_command_is_interrupted(manager, version, tmp_path):
+    cwd = os.path.realpath(tmp_path)
+    marker = os.path.join(cwd, 'finished')
+    config = {'executable': old_bash(cwd)} if version == 'old' else {}
+
+    async with bash(manager, cwd, **config) as (interpreter, scope):
         await run(interpreter, 'FOO=kept')
         await start_and_cancel(interpreter, f'sh -c "echo started; exec sleep 60"; touch {marker}')
 
+        # The rest of the list did not run - in a shell which abandons it of its own accord, and in one which has to be
+        # told to.
         assert await run_text(interpreter, 'echo "$FOO"; jobs') == 'kept\n'
         assert not os.path.exists(marker)
         assert len(scope.processes) == 1

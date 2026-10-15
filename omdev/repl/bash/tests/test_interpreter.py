@@ -178,7 +178,10 @@ def test_a_cancelled_command_is_interrupted_and_the_shell_kept():
     with pytest.raises(Cancelled):
         lang.sync_await(interpreter.execute('sleep 100', sink))
     assert list(sink.outputs) == [TerminalOutput('before\n')]
-    assert spawner.shell.num_interrupts == 1
+    assert (spawner.shell.num_shell_interrupts, spawner.shell.num_interrupts) == (1, 1)
+    # The shell had the interrupt in hand before its job died of it: the rest of the submission was abandoned, not gone
+    # on to.
+    assert spawner.shell.num_went_on == 0
 
     # The interrupt ended it: the shell is found at its prompt, and nothing of the old command leaks into the new.
     result, outputs = execute(interpreter, 'echo after')
@@ -190,7 +193,7 @@ def test_a_cancelled_command_is_interrupted_and_the_shell_kept():
 
 
 def test_a_cancellation_which_races_the_commands_end():
-    # The command had already finished: the interrupt finds an idle shell, which answers it with a prompt of its own.
+    # The command had already finished: the interrupts find an idle shell, which answers each with a prompt of its own.
     replies = iter([
         Reply(output=[b'done\r\n', Cancelled()]),
         Reply(output=[b'next\r\n']),
@@ -230,6 +233,8 @@ def test_a_lost_interrupt_is_sent_again():
     assert result.ok
     assert outputs == [TerminalOutput('after\n')]
     assert (spawner.shell.num_interrupts, spawner.shell.num_suspends) == (2, 0)
+    assert spawner.shell.num_shell_interrupts == 2
+    assert spawner.shell.num_went_on == 0
     assert spawner.shell.commands == [BashProtocol.SYNC]
     assert spawner.clock.now == pytest.approx(interpreter.config.interrupt_timeout_s)
 
@@ -249,6 +254,7 @@ def test_a_command_deaf_to_interrupts_is_stopped_and_killed():
     assert outputs == [TerminalOutput('after\n')]
     assert len(spawner.shells) == 1
     assert (spawner.shell.num_interrupts, spawner.shell.num_suspends) == (2, 1)
+    assert spawner.shell.num_shell_interrupts == 2
     assert spawner.shell.commands == [BashProtocol.KILL_STOPPED_JOBS]
     assert spawner.shell.num_stopped_jobs == 0
     # One timeout for the interrupt sent with the cancellation, one for the second.
@@ -290,6 +296,7 @@ def test_a_program_taking_the_screen_over_is_stopped_and_killed():
     assert result.value == lang.just(148)
     assert outputs == [NoteOutput('[full-screen programs are not supported here: stopping it]')]
     assert (spawner.shell.num_interrupts, spawner.shell.num_suspends) == (0, 1)
+    assert spawner.shell.num_shell_interrupts == 0
     assert spawner.shell.commands == [BashProtocol.KILL_STOPPED_JOBS]
     assert spawner.shell.num_stopped_jobs == 0
 

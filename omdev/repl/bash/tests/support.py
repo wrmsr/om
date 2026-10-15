@@ -1,8 +1,8 @@
 """
 Test support: a stand-in for a bash on a pty which is one as far as the protocol can tell. It reads what is written to
-it the way the terminal and the shell do between them - control characters acted on, lines queued behind a foreground
-job, a submission decoded back into its source - and answers with prompts. What a submission does is the test's to say:
-a handler from its source to a `Reply`.
+it the way the terminal and the shell do between them - control characters acted on, a signal to the shell taken, lines
+queued behind a foreground job, a submission decoded back into its source - and answers with prompts. What a submission
+does is the test's to say: a handler from its source to a `Reply`.
 
 Nothing here waits: a read with nothing to return times out on the spot, moving a manual clock on by its timeout, and a
 read which could never return fails the test instead of hanging it.
@@ -87,10 +87,15 @@ class ScriptedShell(PtyProcess):
 
         self.sources: list[str] = []
         self.commands: list[str] = []
-        self.num_interrupts = 0
+        self.num_interrupts = 0  # the terminal's interrupt character
+        self.num_shell_interrupts = 0  # SIGINT to the shell itself
         self.num_suspends = 0
         self.num_stopped_jobs = 0
         self.is_closed = False
+
+        # Times a job died of an interrupt the shell did not itself get: a bash before 4.0 then goes on to the rest of
+        # the submission, as if the job had merely failed, where one which had the interrupt abandons it.
+        self.num_went_on = 0
 
         self._nonce: str | None = None
         self._seq = 0
@@ -103,6 +108,7 @@ class ScriptedShell(PtyProcess):
         self._lines: collections.deque[str] = collections.deque()  # lines the shell has yet to read
         self._block: list[str] | None = None  # the compound command being read
         self._running: Reply | None = None  # the foreground job
+        self._has_shell_interrupt = False  # ...and a SIGINT taken while waiting on it, acted on when it ends
 
     def die(self) -> None:
         """Killed from outside, as far as whoever is talking to it can tell."""
@@ -117,6 +123,7 @@ class ScriptedShell(PtyProcess):
 
     def _finish(self, returncode: int) -> None:
         self._running = None
+        self._has_shell_interrupt = False
         self._out.append(self.mark(self._seq, returncode))
         self._read_lines()
 
@@ -197,7 +204,20 @@ class ScriptedShell(PtyProcess):
                 self._running = dc.replace(running, num_interrupts_lost=running.num_interrupts_lost - 1)
             else:
                 self._out.append(b'\r\n')
+                if not self._has_shell_interrupt:
+                    self.num_went_on += 1
                 self._finish(130)
+
+    def _shell_interrupt(self) -> None:
+        self.num_shell_interrupts += 1
+
+        if (running := self._running) is None:
+            # An idle shell abandons the command it was reading and prompts again - though what is queued behind that
+            # stays queued: only the terminal's interrupt character flushes its input.
+            self._block = None
+            self._out.append(b'\r\n' + self.mark(self._seq, 130))
+        elif not running.is_stuck:
+            self._has_shell_interrupt = True
 
     def _suspend(self) -> None:
         self.num_suspends += 1
@@ -246,6 +266,12 @@ class ScriptedShell(PtyProcess):
 
     async def resize(self, rows: int, cols: int) -> None:
         self.size = (rows, cols)
+
+    async def interrupt(self) -> None:
+        if self.is_closed or self._has_exited:
+            raise BrokenPipeError
+
+        self._shell_interrupt()
 
     async def aclose(self) -> None:
         self.is_closed = True

@@ -1,5 +1,6 @@
 """
-A process on a pseudo-terminal, as an interpreter which drives one needs it: bytes each way, a window size, and an end.
+A process on a pseudo-terminal, as an interpreter which drives one needs it: bytes each way, a window size, an
+interrupt, and an end.
 Like the executors and runners this is a seam, and a loop-neutral one - there is no implementation here. Where such a
 process runs (this machine, a container, the far side of a connection) and what looks after it is the host's business:
 it adapts its own process infrastructure to this interface rather than the other way round.
@@ -34,6 +35,16 @@ class PtyProcess(lang.Abstract):
 
     @abc.abstractmethod
     def resize(self, rows: int, cols: int) -> ta.Awaitable[None]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def interrupt(self) -> ta.Awaitable[None]:
+        """
+        SIGINT to the process itself - which is not what the terminal's interrupt character does: that reaches the
+        foreground job, and a shell with job control is not in it. Raises BrokenPipeError when the process is no longer
+        there.
+        """
+
         raise NotImplementedError
 
     @abc.abstractmethod

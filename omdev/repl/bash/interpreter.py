@@ -8,9 +8,10 @@ The shell is a `PtyProcess` from a `PtySpawner` - the host's, wherever that puts
 again after it exits or has to be given up on. Everything said to it and heard from it is `BashProtocol`'s.
 
 A caller which stops waiting (a cancellation) leaves its command running, so the command is interrupted there and then
-- the terminal's own interrupt character, which reaches the foreground job and nothing else - and the next execution
-first makes sure the shell is back at its prompt, escalating to stopping and killing the job, and at last to a new
-shell.
+- the terminal's own interrupt character, which reaches the foreground job and nothing else, after SIGINT to the shell
+itself, so that it abandons the rest of the submission along with the job (`BashShell.interrupt`) - and the next
+execution first makes sure the shell is back at its prompt, escalating to stopping and killing the job, and at last to a
+new shell.
 """
 import time
 import typing as ta
@@ -30,7 +31,6 @@ from ..outputs import OutputSink
 from ..ptys import PtySpawner
 from ..terminals import LineTerminal
 from .limits import LimitedOutput
-from .protocol import INTERRUPT
 from .protocol import SUSPEND
 from .protocol import BashPrompt
 from .protocol import BashProtocol
@@ -194,7 +194,7 @@ class BashInterpreter(Interpreter):
 
             # An interrupt discards what the terminal has yet to hand the shell - the command just sent with it - so
             # each try sends its own after.
-            await shell.write(INTERRUPT)
+            await shell.interrupt()
             if await shell.run_command(protocol.SYNC, timeout) is not None:
                 return True
 
@@ -277,7 +277,7 @@ class BashInterpreter(Interpreter):
             # The caller has stopped waiting, but the command has not stopped running: it is interrupted now, and the
             # shell stays unsettled for the next execution to deal with.
             try:
-                await shell.write(INTERRUPT)
+                await shell.interrupt()
             except BaseException:  # noqa
                 pass
             raise

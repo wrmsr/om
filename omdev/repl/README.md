@@ -76,7 +76,7 @@ session.add(repl.DEFAULT_BASH_NAME, repl.BashInterpreter(spawner, size=lambda: (
   and how a frontend starts an execution from a key press. `asyncio.py` is their asyncio implementation and the
   package's only asyncio import; the immediate implementations run inline and drive under `lang.sync_await`.
 - **ptys.py** - a third seam, with no implementation here at all: a process on a pseudo-terminal - bytes each way, a
-  window size, an end - and what starts one. The host's process infrastructure is adapted to it.
+  window size, an interrupt, an end - and what starts one. The host's process infrastructure is adapted to it.
 - **terminals.py** - `LineTerminal`: the text a process writes to a terminal, reduced to the lines of a
   `TerminalOutput`. SGR styling, carriage returns, and the in-line cursor and erase sequences a progress bar uses are
   honored; everything else is dropped; the alternate screen is reported.
