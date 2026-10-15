@@ -168,9 +168,10 @@ async def test_source_which_a_terminal_would_mangle(manager, tmp_path):
         assert await run_text(interpreter, "cat <<'EOF'\nheredoc $HOME\n  second\nEOF") == 'heredoc $HOME\n  second\n'
         assert await run_text(interpreter, 'for i in 1 2; do\n  echo "n=$i"\ndone') == 'n=1\nn=2\n'
 
-        # An unfinished quote is the shell's to report, not a continuation prompt to wait at.
+        # An unfinished quote is the shell's to report, not a continuation prompt to wait at - as a syntax error, which
+        # bash has said 2 for since 4.0, and 1 before.
         result, outputs = await run(interpreter, 'echo "unfinished')
-        assert result.value == lang.just(2)
+        assert result.value in (lang.just(2), lang.just(1))
         assert 'unexpected EOF' in outputs[0].text
         assert await run_text(interpreter, 'echo fine') == 'fine\n'
 
