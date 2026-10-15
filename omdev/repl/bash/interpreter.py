@@ -4,8 +4,9 @@ environment, functions, jobs - is there for the next one, and what it runs sees 
 control. Not a terminal emulator: output is reduced to lines (`LineTerminal`), commands get nothing on standard input,
 and a program which takes the screen over is stopped and said to be unsupported.
 
-The shell is a `PtyProcess` from a `PtySpawner` - the host's, wherever that puts it - started on first use, and started
-again after it exits or has to be given up on. Everything said to it and heard from it is `BashProtocol`'s.
+The shell is a `PtyProcess` from a `PtySpawner` - the host's, wherever that puts it - started on first use (and refused
+there, unless `Config.no_version_check`, if it is not a bash of at least `MIN_VERSION`), and started again after it
+exits or has to be given up on. Everything said to it and heard from it is `BashProtocol`'s.
 
 A caller which stops waiting (a cancellation) leaves its command running, so the command is interrupted there and then
 - the terminal's own interrupt character, which reaches the foreground job and nothing else, after SIGINT to the shell
@@ -46,6 +47,10 @@ class BashStartError(InterpreterError):
     """The shell could not be started, or never reached its first prompt."""
 
 
+class BashVersionError(BashStartError):
+    """The shell is older than the conversation is written for, or did not say it is a bash at all."""
+
+
 ##
 
 
@@ -57,6 +62,10 @@ class BashInterpreter(Interpreter):
         # Start without the user's startup files. With them, a shell which does not reach its prompt in time is started
         # again without.
         no_rc: bool = False
+
+        # A shell which does not say it is a bash of at least `MIN_VERSION` is refused on startup; this takes its word
+        # for it without asking.
+        no_version_check: bool = False
 
         # The terminal's size when the host does not say.
         rows: int = 50
@@ -76,6 +85,9 @@ class BashInterpreter(Interpreter):
         # `max_tail_lines` are, once it has ended. None passes everything.
         max_output_lines: int | None = 4000
         max_tail_lines: int = 1000
+
+    # The oldest bash the conversation is written for - macOS's /bin/bash is still of it.
+    MIN_VERSION: ta.ClassVar[tuple[int, int]] = (3, 2)
 
     def __init__(
             self,
@@ -162,12 +174,32 @@ class BashInterpreter(Interpreter):
                 await process.aclose()
                 return None
 
+            if not config.no_version_check:
+                await self._check_version(shell)
+
         except BaseException:
             await process.aclose()
             raise
 
         self._cwd = prompt.cwd
         return shell
+
+    async def _check_version(self, shell: BashShell) -> None:
+        config = self._config
+
+        try:
+            reply = await shell.query(shell.protocol.VERSION, config.start_timeout_s)
+        except BashShellExitedError:
+            reply = None
+        if reply is None:
+            raise BashStartError(f'{config.executable} did not report its version')
+
+        answer = shell.decode(reply[0]).strip()
+        version = shell.protocol.parse_version(answer)
+        if version is None or version < self.MIN_VERSION:
+            raise BashVersionError(
+                f'{config.executable} is not bash {".".join(map(str, self.MIN_VERSION))} or later: {answer!r}',
+            )
 
     async def _start(self, sink: OutputSink) -> BashShell:
         if not self._config.no_rc:

@@ -123,6 +123,7 @@ with _lang.auto_proxy_init(
 
     from .bash.interpreter import (  # noqa
         BashStartError,
+        BashVersionError,
         BashInterpreter,
     )
 

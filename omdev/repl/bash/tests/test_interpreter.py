@@ -8,6 +8,7 @@ from ...outputs import NoteOutput
 from ...outputs import TerminalOutput
 from ..interpreter import BashInterpreter
 from ..interpreter import BashStartError
+from ..interpreter import BashVersionError
 from ..protocol import BashProtocol
 from .support import QUIET
 from .support import Cancelled
@@ -53,6 +54,7 @@ def test_execution():
     assert spawner.shell.argv == ('bash', '--noediting', '-i')
     assert spawner.shell.size == (50, 120)
     assert spawner.shell.sources == ['echo one; echo two']
+    assert spawner.shell.commands == [BashProtocol.VERSION]
 
 
 def test_the_shell_is_kept():
@@ -164,6 +166,35 @@ def test_the_terminal_follows_the_host_size():
 
 
 ##
+# Versions
+
+
+def test_an_old_bash_is_refused():
+    interpreter, spawner = make(version='3.0')
+
+    with pytest.raises(BashVersionError, match=r"bash is not bash 3\.2 or later: '3\.0'"):
+        execute(interpreter, 'echo hi')
+    assert not interpreter.is_started
+    assert spawner.shell.is_closed
+    assert spawner.shell.sources == []
+
+
+def test_a_shell_which_is_not_a_bash_is_refused():
+    interpreter, spawner = make(version='sh: 1: Bad substitution')
+
+    with pytest.raises(BashVersionError, match='Bad substitution'):
+        execute(interpreter, 'echo hi')
+    assert spawner.shell.is_closed
+
+
+def test_the_version_check_can_be_skipped():
+    interpreter, spawner = make(version='3.0', config=BashInterpreter.Config(no_version_check=True))
+
+    assert execute(interpreter, 'echo hi')[0].ok
+    assert spawner.shell.commands == []
+
+
+##
 # Abandoned commands
 
 
@@ -189,7 +220,7 @@ def test_a_cancelled_command_is_interrupted_and_the_shell_kept():
     assert outputs == [TerminalOutput('after\n')]
     assert len(spawner.shells) == 1
     assert (spawner.shell.num_interrupts, spawner.shell.num_suspends) == (1, 0)
-    assert spawner.shell.commands == [BashProtocol.SYNC]
+    assert spawner.shell.commands == [BashProtocol.VERSION, BashProtocol.SYNC]
 
 
 def test_a_cancellation_which_races_the_commands_end():
@@ -235,7 +266,7 @@ def test_a_lost_interrupt_is_sent_again():
     assert (spawner.shell.num_interrupts, spawner.shell.num_suspends) == (2, 0)
     assert spawner.shell.num_shell_interrupts == 2
     assert spawner.shell.num_went_on == 0
-    assert spawner.shell.commands == [BashProtocol.SYNC]
+    assert spawner.shell.commands == [BashProtocol.VERSION, BashProtocol.SYNC]
     assert spawner.clock.now == pytest.approx(interpreter.config.interrupt_timeout_s)
 
 
@@ -255,7 +286,7 @@ def test_a_command_deaf_to_interrupts_is_stopped_and_killed():
     assert len(spawner.shells) == 1
     assert (spawner.shell.num_interrupts, spawner.shell.num_suspends) == (2, 1)
     assert spawner.shell.num_shell_interrupts == 2
-    assert spawner.shell.commands == [BashProtocol.KILL_STOPPED_JOBS]
+    assert spawner.shell.commands == [BashProtocol.VERSION, BashProtocol.KILL_STOPPED_JOBS]
     assert spawner.shell.num_stopped_jobs == 0
     # One timeout for the interrupt sent with the cancellation, one for the second.
     assert spawner.clock.now == pytest.approx(2 * interpreter.config.interrupt_timeout_s)
@@ -297,7 +328,7 @@ def test_a_program_taking_the_screen_over_is_stopped_and_killed():
     assert outputs == [NoteOutput('[full-screen programs are not supported here: stopping it]')]
     assert (spawner.shell.num_interrupts, spawner.shell.num_suspends) == (0, 1)
     assert spawner.shell.num_shell_interrupts == 0
-    assert spawner.shell.commands == [BashProtocol.KILL_STOPPED_JOBS]
+    assert spawner.shell.commands == [BashProtocol.VERSION, BashProtocol.KILL_STOPPED_JOBS]
     assert spawner.shell.num_stopped_jobs == 0
 
     spawner.handler = lambda source: Reply(output=[b'fine\r\n'])

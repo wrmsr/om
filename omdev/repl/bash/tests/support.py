@@ -76,6 +76,7 @@ class ScriptedShell(PtyProcess):
             argv: ta.Sequence[str],
             size: tuple[int, int],
             comes_up: bool = True,
+            version: str = '5.2',
     ) -> None:
         super().__init__()
 
@@ -84,6 +85,7 @@ class ScriptedShell(PtyProcess):
         self.argv = tuple(argv)
         self.size = size
         self._comes_up = comes_up
+        self.version = version  # what it says to the protocol's VERSION
 
         self.sources: list[str] = []
         self.commands: list[str] = []
@@ -172,8 +174,10 @@ class ScriptedShell(PtyProcess):
 
         elif (m := re.fullmatch(r' __om_n=(\d+); (.*)', line)):
             self._seq = int(m.group(1))
-            self.commands.append(m.group(2))
-            if 'kill -KILL' in m.group(2):
+            self.commands.append(command := m.group(2))
+            if 'BASH_VERSINFO' in command:
+                self._out.append(self.version.encode() + b'\r\n')
+            elif 'kill -KILL' in command:
                 self.num_stopped_jobs = 0
             self._out.append(self.mark(self._seq, 0))
 
@@ -284,12 +288,14 @@ class ScriptedSpawner(PtySpawner):
             *,
             comes_up: ta.Callable[[ta.Sequence[str]], bool] = lambda argv: True,
             error: Exception | None = None,
+            version: str = '5.2',
     ) -> None:
         super().__init__()
 
         self.handler = handler
         self._comes_up = comes_up
         self._error = error
+        self._version = version
 
         self.clock = Clock()
         self.shells: list[ScriptedShell] = []
@@ -314,6 +320,7 @@ class ScriptedSpawner(PtySpawner):
             argv=argv,
             size=(rows, cols),
             comes_up=self._comes_up(argv),
+            version=self._version,
         )
         self.shells.append(shell)
         return shell

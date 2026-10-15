@@ -226,6 +226,18 @@ class BashProtocol:
     # A command which does nothing: its prompt says the shell has read everything sent before it.
     SYNC: ta.ClassVar[str] = ':'
 
+    # The shell's version as `major.minor`, from the one variable a bash cannot be started with a false one of - and
+    # which a shell that is not a bash does not have.
+    VERSION: ta.ClassVar[str] = 'echo "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"'
+
+    @staticmethod
+    def parse_version(output: str) -> tuple[int, int] | None:
+        """What `VERSION` wrote, as (major, minor) - None when it is not a bash's answer."""
+
+        if (m := re.fullmatch(r'\s*(\d+)\.(\d+)\s*', output)) is None:
+            return None
+        return (int(m.group(1)), int(m.group(2)))
+
     # Kills, by process group, the jobs a SUSPEND stopped - and has the shell forget them first, so that it does not
     # announce their deaths at some later prompt. Only the stopped ones: a job the user put in the background and left
     # running is theirs.

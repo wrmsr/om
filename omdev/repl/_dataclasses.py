@@ -32,52 +32,55 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='989e70b5a2ce223eaa7e98cf411a16fee190cc9d',
+    installer_sha1='da146489fa98dda95f4f10180cc4c5bab8c419b0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('executable', True, True, None, True, True, False, None), 'instance', 'value',"
             " None, False, False, False), (('no_rc', True, True, None, True, True, False, None), 'instance', 'value', N"
-            "one, False, False, False), (('rows', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('cols', True, True, None, True, True, False, None), 'instance', 'value', None, F"
-            "alse, False, False), (('start_timeout_s', True, True, None, True, True, False, None), 'instance', 'value',"
-            " None, False, False, False), (('interrupt_timeout_s', True, True, None, True, True, False, None), 'instanc"
-            "e', 'value', None, False, False, False), (('partial_line_s', True, True, None, True, True, False, None), '"
-            "instance', 'value', None, False, False, False), (('max_output_lines', True, True, None, True, True, False,"
-            " None), 'instance', 'value', None, False, False, False), (('max_tail_lines', True, True, None, True, True,"
-            " False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), ("
-            "False,), (False, False, ()), ((),), (), (False,)))"
+            "one, False, False, False), (('no_version_check', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('rows', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('cols', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('start_timeout_s', True, True, None, True, True, False, None), 'instance',"
+            " 'value', None, False, False, False), (('interrupt_timeout_s', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('partial_line_s', True, True, None, True, True, False,"
+            " None), 'instance', 'value', None, False, False, False), (('max_output_lines', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('max_tail_lines', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False"
+            ",), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.repl.bash.interpreter', 'BashInterpreter.Config'),
     ),
 )
-def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
+def _process_dataclass__da146489fa98dda95f4f10180cc4c5bab8c419b0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
         __dataclass__ctx,
         __dataclass__globals,
     ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
-        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
-        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
-        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
-        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
-        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
-        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
-        __dataclass__init__fields__8__annotation = __dataclass__spec.fields[8].annotation
-        __dataclass__init__fields__8__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__00__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -90,6 +93,7 @@ def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
             return __class__(  # noqa
                 executable=self.executable,
                 no_rc=self.no_rc,
+                no_version_check=self.no_version_check,
                 rows=self.rows,
                 cols=self.cols,
                 start_timeout_s=self.start_timeout_s,
@@ -109,6 +113,7 @@ def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
             return (
                 self.executable == other.executable and
                 self.no_rc == other.no_rc and
+                self.no_version_check == other.no_version_check and
                 self.rows == other.rows and
                 self.cols == other.cols and
                 self.start_timeout_s == other.start_timeout_s and
@@ -123,6 +128,7 @@ def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
         __dataclass___frozen_fields = {
             'executable',
             'no_rc',
+            'no_version_check',
             'rows',
             'cols',
             'start_timeout_s',
@@ -156,6 +162,7 @@ def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
             return hash((
                 self.executable,
                 self.no_rc,
+                self.no_version_check,
                 self.rows,
                 self.cols,
                 self.start_timeout_s,
@@ -170,18 +177,20 @@ def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
         def __init__(
             self,
             *,
-            executable: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
-            no_rc: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            rows: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            cols: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            start_timeout_s: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            interrupt_timeout_s: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            partial_line_s: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
-            max_output_lines: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
-            max_tail_lines: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
+            executable: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
+            no_rc: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            no_version_check: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            rows: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            cols: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            start_timeout_s: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            interrupt_timeout_s: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            partial_line_s: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            max_output_lines: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            max_tail_lines: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'executable', executable)
             __dataclass__object_setattr(self, 'no_rc', no_rc)
+            __dataclass__object_setattr(self, 'no_version_check', no_version_check)
             __dataclass__object_setattr(self, 'rows', rows)
             __dataclass__object_setattr(self, 'cols', cols)
             __dataclass__object_setattr(self, 'start_timeout_s', start_timeout_s)
@@ -197,6 +206,7 @@ def _process_dataclass__989e70b5a2ce223eaa7e98cf411a16fee190cc9d():
             parts = []
             parts.append(f"executable={self.executable!r}")
             parts.append(f"no_rc={self.no_rc!r}")
+            parts.append(f"no_version_check={self.no_version_check!r}")
             parts.append(f"rows={self.rows!r}")
             parts.append(f"cols={self.cols!r}")
             parts.append(f"start_timeout_s={self.start_timeout_s!r}")

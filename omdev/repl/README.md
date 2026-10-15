@@ -94,8 +94,9 @@ session.add(repl.DEFAULT_BASH_NAME, repl.BashInterpreter(spawner, size=lambda: (
   an escape the shell's `PROMPT_COMMAND` prints, numbered so that a stray prompt is never taken for it. `shells.py` is
   one live shell and where that conversation stands; `limits.py` bounds what a command's output costs a frontend.
   `interpreter.py` is the shell's life around them: started on first use (without the user's startup files, should it
-  not come up with them), interrupted when its caller stops waiting, brought back to its prompt before the next command
-  - by a second interrupt, then by stopping and killing the job, then by a new shell - and started again after it exits.
+  not come up with them; refused, unless told not to check, if it is not a bash of at least 3.2), interrupted when its
+  caller stops waiting, brought back to its prompt before the next command - by a second interrupt, then by stopping and
+  killing the job, then by a new shell - and started again after it exits.
 - **minitui/** - the first-class frontend: `Console` binds a session to any `TextArea` and a commit callback (the
   reusable core a host app composes in), swapping the input's highlighter and prompt with the language; `ReplApp` is
   the standalone app around it.

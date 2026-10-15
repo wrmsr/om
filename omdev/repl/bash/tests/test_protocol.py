@@ -104,3 +104,11 @@ def test_commands():
     assert protocol.command(5, protocol.KILL_STOPPED_JOBS).endswith(b'\n')
     with pytest.raises(RuntimeError):
         protocol.command(6, 'x' * 1000)
+
+
+def test_versions():
+    assert BashProtocol.parse_version('5.2\r\n') == (5, 2)
+    assert BashProtocol.parse_version('3.2') == (3, 2)
+    assert BashProtocol.parse_version('sh: 1: Bad substitution') is None
+    assert BashProtocol.parse_version('.') is None
+    assert BashProtocol.parse_version('') is None

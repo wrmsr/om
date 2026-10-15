@@ -118,3 +118,25 @@ class BashShell:
         seq = self.next_seq()
         await self.write(self.protocol.command(seq, command))
         return await self.wait_prompt(seq, timeout)
+
+    async def query(self, command: str, timeout: float) -> tuple[bytes, BashPrompt] | None:
+        """
+        Runs one of the conversation's own commands, keeping what it writes - what came before a stale prompt is not its
+        - and returns that with its prompt; None when it does not finish.
+        """
+
+        seq = self.next_seq()
+        await self.write(self.protocol.command(seq, command))
+
+        deadline = self._clock() + timeout
+        output = b''
+        while (remaining := deadline - self._clock()) > 0:
+            if (event := await self.read_event(remaining)) is None:
+                return None
+            if isinstance(event, BashPrompt):
+                if event.seq == seq:
+                    return output, event
+                output = b''
+            else:
+                output += event
+        return None
