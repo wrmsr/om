@@ -390,7 +390,10 @@ ownership remains explicit:
   only then closes the transport (closing first would stop it reading at once); while a peer which has yet to read
   keeps that from completing, timers, awaits and drain completions are still serviced. A coroutine the driver turns into a
   task for an `Await` is the driver's: it is cancelled if the `Await` is failed by its producer - a multiplexed stream
-  which ended, say - and when the driver closes. A task or future supplied is the caller's.
+  which ended, say - and when the driver closes. A task or future supplied is the caller's. `close()` releases
+  everything - cancels its tasks, aborts the transport, destroys the pipeline - before it awaits anything: the task
+  closing the driver may itself be cancelled while the driver waits for what it cancelled, as when a connection ends on
+  its own just as its owner closes it, and the interrupted wait must leave nothing open.
 - The fdio driver is a driving core, `IoPipelineFdioDriver`, behind handler forms registered with an `FdioManager`,
   which combines descriptor readiness with the earliest handler deadline: an owned socket
   (`IoPipelineDriverSocketFdioHandler`), one duplex descriptor such as a terminal master or a socket by number

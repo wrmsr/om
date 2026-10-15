@@ -887,6 +887,33 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
         await drv.close()
         self.assertEqual(lifecycle.removed, 1)
 
+    async def test_close_interrupted_by_cancellation_still_releases_transport(self) -> None:
+        """
+        The task closing the driver may be cancelled while the close waits for the tasks it cancelled - a connection
+        ending on its own just as its owner closes it, say. The transport has been aborted regardless.
+        """
+
+        writer = LifecycleStreamWriter()
+        drv = PollAsyncioStreamIoPipelineDriver(
+            IoPipeline.Spec(services=[StubIoPipelineFlowService(auto_read=False)]),
+            asyncio.StreamReader(),
+            ta.cast(asyncio.StreamWriter, writer),
+        )
+        self.assertIsNone(await drv.next(read=False))
+
+        close_task = asyncio.ensure_future(drv.close())
+        await asyncio.sleep(0)  # The close has released everything, and now waits for the tasks it cancelled.
+        close_task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await close_task
+
+        self.assertEqual(writer.events, ['abort'])
+        self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+        self.assertFalse(drv.pipeline.is_ready)
+
+        await drv.close()
+        self.assertEqual(writer.events, ['abort'])
+
     async def test_final_output_gracefully_drains_preceding_bytes(self) -> None:
         writer = LifecycleStreamWriter()
         graceful_close = GracefulCloseIoPipelineHandler()

@@ -303,13 +303,11 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
     def _loop_closed(self) -> bool:
         return (loop := self._loop) is not None and loop.is_closed()
 
-    async def _cancel_tasks(
-            self,
-            *tasks: ta.Optional[asyncio.Future],
-            wait: bool = True,
-    ) -> None:
+    def _cancel_tasks_now(self, *tasks: ta.Optional[asyncio.Future]) -> ta.List[asyncio.Future]:
+        """Cancels the tasks without awaiting them, returning those cancelled so they may be waited for."""
+
         if self._loop_closed():
-            return  # Nothing can run any more, and a closed loop refuses the cancellation's callbacks.
+            return []  # Nothing can run any more, and a closed loop refuses the cancellation's callbacks.
 
         cts: ta.List[asyncio.Future] = []
 
@@ -318,8 +316,21 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 t.cancel()
                 cts.append(t)
 
-        if cts and wait:
-            await asyncio.gather(*cts, return_exceptions=True)
+        return cts
+
+    @staticmethod
+    async def _wait_cancelled(tasks: ta.Sequence[asyncio.Future]) -> None:
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _cancel_tasks(
+            self,
+            *tasks: ta.Optional[asyncio.Future],
+            wait: bool = True,
+    ) -> None:
+        cts = self._cancel_tasks_now(*tasks)
+        if wait:
+            await self._wait_cancelled(cts)
 
     #
 
@@ -362,12 +373,14 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
         except (AttributeError, NotImplementedError):
             pass
 
-    async def _abort_writer(self, *, wait: bool = True) -> None:
+    def _abort_writer_now(self) -> ta.Optional[asyncio.StreamWriter]:
+        """Aborts the transport without awaiting its close, returning the writer so the close may be waited for."""
+
         writer = self._writer
         if writer is None:
             writer = self._closing_writer
         if writer is None:
-            return
+            return None
 
         self._writer = None
         self._closing_writer = None
@@ -378,11 +391,25 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             except (AttributeError, NotImplementedError):
                 writer.close()
 
-            if wait:
-                await writer.wait_closed()
-
         except Exception:  # noqa
             pass
+
+        return writer
+
+    @staticmethod
+    async def _wait_writer_closed(writer: ta.Optional[asyncio.StreamWriter]) -> None:
+        if writer is None:
+            return
+
+        try:
+            await writer.wait_closed()
+        except Exception:  # noqa
+            pass
+
+    async def _abort_writer(self, *, wait: bool = True) -> None:
+        writer = self._abort_writer_now()
+        if wait:
+            await self._wait_writer_closed(writer)
 
     ##
 
@@ -979,10 +1006,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
         return None
 
-    async def _cancel_created_awaits(self, *, wait: bool = True) -> None:
+    def _cancel_created_awaits_now(self) -> ta.List[asyncio.Future]:
         tasks = [fut for fut, created in self._pending_awaits.items() if created]
         self._pending_awaits.clear()
-        await self._cancel_tasks(*tasks, wait=wait)
+        return self._cancel_tasks_now(*tasks)
 
     ##
     # command handling
@@ -1363,7 +1390,14 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
         await self.close()
 
     async def close(self) -> None:
-        """Abort the driver without waiting for graceful pipeline output completion."""
+        """
+        Abort the driver without waiting for graceful pipeline output completion.
+
+        Everything is released - the tasks cancelled, the transport aborted, the pipeline destroyed - before anything is
+        awaited. The task closing the driver may itself be cancelled while the driver waits for what it cancelled, as
+        when a connection closes on its own just as its owner closes it: the wait is interrupted, but nothing is left
+        open.
+        """
 
         if self._state is IoPipelineDriverState.CLOSED:
             return
@@ -1373,47 +1407,57 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
         # Only on its own running loop may the driver wait for what it cancels.
         wait = self._own_loop_running()
 
+        cancelled: ta.List[asyncio.Future] = []
+        aborted_writer: ta.Optional[asyncio.StreamWriter] = None
+
         try:
-            self._shutdown_event.set()
+            try:
+                self._shutdown_event.set()
 
-            self._want_read_event.set()
+                self._want_read_event.set()
 
-            self._disarm_timer()
+                self._disarm_timer()
 
-            self._drain_requested = False
-            self._drains_outstanding = 0
-            self._close_requested = False
-            await self._cancel_tasks(self._drainer_task, wait=wait)
-            self._drainer_task = None
-            self._drain_idle_event.set()
-            self._fail_graceful_close(AbortedIoPipelineError('Driver closed before transport flush completion'))
-            self._post_drain_output_q.clear()
-            self._post_drain_output_bytes = 0
+                self._drain_requested = False
+                self._drains_outstanding = 0
+                self._close_requested = False
+                cancelled.extend(self._cancel_tasks_now(self._drainer_task))
+                self._drainer_task = None
+                self._drain_idle_event.set()
+                self._fail_graceful_close(AbortedIoPipelineError('Driver closed before transport flush completion'))
+                self._post_drain_output_q.clear()
+                self._post_drain_output_bytes = 0
 
-            await self._cancel_tasks(self._read_task, wait=wait)
-            await self._cancel_created_awaits(wait=wait)
+                cancelled.extend(self._cancel_tasks_now(self._read_task))
+                cancelled.extend(self._cancel_created_awaits_now())
 
-            # Input never processed is released, and anyone waiting on it is told.
-            self._drain_command_queue(AbortedIoPipelineError('Driver closed before the input was processed'))
-            self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
+                # Input never processed is released, and anyone waiting on it is told.
+                self._drain_command_queue(AbortedIoPipelineError('Driver closed before the input was processed'))
+                self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
 
-            await self._abort_writer(wait=wait)
+                aborted_writer = self._abort_writer_now()
 
-            if hasattr(self, '_sched'):
-                self._sched.cancel_all()
+                if hasattr(self, '_sched'):
+                    self._sched.cancel_all()
 
-            if self._has_init:
-                try:
-                    if self._pipeline.is_ready:
-                        self._pipeline.destroy()
-                except AttributeError:
-                    pass
+                if self._has_init:
+                    try:
+                        if self._pipeline.is_ready:
+                            self._pipeline.destroy()
+                    except AttributeError:
+                        pass
 
-        except BaseException:
-            self._state = IoPipelineDriverState.FAILED
-            raise
+            except BaseException:
+                self._state = IoPipelineDriverState.FAILED
+                raise
 
-        self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
+            self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
+
+        finally:
+            # Waited for even when a handler's removal failed: the close is still the close of the transport.
+            if wait:
+                await self._wait_cancelled(cancelled)
+                await self._wait_writer_closed(aborted_writer)
 
     async def __aenter__(self) -> 'PollAsyncioStreamIoPipelineDriver':  # noqa
         return self

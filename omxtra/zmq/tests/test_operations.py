@@ -305,8 +305,8 @@ async def test_in_house_idle_socket_runs_no_polling_tasks():
         await dealer.send((b'x',))
         await router.recv(timeout=TIMEOUT)
 
-        # Idle and connected: the listener, the connector, and per connection its run task and its driver's read task -
-        # and nothing timed. The handshake deadlines were cancelled on readiness.
+        # Idle and connected: the listener, the connector, and per connection its run task and its driver's two stable
+        # tasks, the reader and the drainer - and nothing timed. The handshake deadlines were cancelled on readiness.
         tasks = sorted(t.get_coro().__qualname__ for t in asyncio.all_tasks() - before)  # type: ignore[union-attr]
         assert tasks == sorted([
             'ListenerAttachment._run',
@@ -315,6 +315,8 @@ async def test_in_house_idle_socket_runs_no_polling_tasks():
             'Connection._run',
             'PollAsyncioStreamIoPipelineDriver._read_task_main',
             'PollAsyncioStreamIoPipelineDriver._read_task_main',
+            'PollAsyncioStreamIoPipelineDriver._drainer_task_main',
+            'PollAsyncioStreamIoPipelineDriver._drainer_task_main',
         ])
         loop = asyncio.get_running_loop()
         assert [h for h in getattr(loop, '_scheduled', []) if not h.cancelled()] == []
