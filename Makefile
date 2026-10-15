@@ -51,9 +51,10 @@ _clean: clean-venv clean-package
 
 ### Venv
 
+SYSTEM_PYTHON=python3
+
 PYPROJECT_SRC=omdev/scripts/pyproject.py
-PYPROJECT_PYTHON=python3
-PYPROJECT=${PYPROJECT_PYTHON} ${PYPROJECT_SRC}
+PYPROJECT=${SYSTEM_PYTHON} ${PYPROJECT_SRC}
 
 VENV?=default
 PYPROJECT_VENV=${PYPROJECT} venv ${VENV}
@@ -531,6 +532,11 @@ venv-debug:
 test-debug:
 	VENV=debug ${MAKE} test
 
+# defaults
+
+.PHONY: venvs
+venvs:
+	${SYSTEM_PYTHON} -m omdev.doall -e VENV=default -e VENV=14t -e VENV=8 -- ${MAKE} venv
 
 ### Docker
 
@@ -604,7 +610,7 @@ docker-pull-wheel-builder:
 
 .PHONY: docker-build-wheels
 docker-build-wheels: venv docker-pull-wheel-builder
-	${PYTHON} -m omdev.tools.shell doall \
+	${SYSTEM_PYTHON} -m omdev.doall \
 		-E DOCKER_WHEEL_ARCH="${DOCKER_WHEEL_ARCHS}" \
 		-E DOCKER_WHEEL_PKG="${DOCKER_WHEEL_PKGS}" \
 		${MAKE} _docker-build-wheel

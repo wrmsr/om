@@ -72,6 +72,20 @@
     }
   },
   {
+    "module": ".doall",
+    "attr": null,
+    "file": "omdev/doall.py",
+    "line": 147,
+    "value": {
+      "!.cli.types.CliModule": {
+        "name": [
+          "doall"
+        ],
+        "module": "omdev.doall"
+      }
+    }
+  },
+  {
     "module": ".dockerdev.__main__",
     "attr": "_CLI_MODULE",
     "file": "omdev/dockerdev/__main__.py",
@@ -562,7 +576,7 @@
     "module": ".tools.shell",
     "attr": "_CLI_MODULE",
     "file": "omdev/tools/shell.py",
-    "line": 253,
+    "line": 127,
     "value": {
       "!.cli.types.CliModule": {
         "name": [
