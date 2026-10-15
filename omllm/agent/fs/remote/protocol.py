@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP007 UP045
+# @om-lite
 """
 The wire shapes of the remote filesystem: the requests the host's `RemoteFsOps` makes of the agent's `RemoteFsService`,
 and their results. Lite: shared with the remote agent amalgam, so Python 3.8 compatible and marshaled with the lite

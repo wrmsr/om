@@ -1,4 +1,4 @@
-# NOTE: not '@om-lite' due to root level __init__ imports, but effectively lite.
+# @om-lite
 import dataclasses as dc
 import fcntl
 import json

@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP007 UP045
+# @om-lite
 """
 The target side of the remote filesystem: `RemoteFsService` serves the `FsOps` operations on behalf of a host's
 `RemoteFsOps`, including the chunked reads and staged writes through which content larger than one chunk crosses the

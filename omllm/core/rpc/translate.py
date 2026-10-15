@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP007 UP045
+# @om-lite
 """Translation of remote errors back into local exception types, for clients layering a typed api over the rpc."""
 import typing as ta
 

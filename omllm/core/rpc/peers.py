@@ -1,4 +1,5 @@
 # ruff: noqa: PYI034 UP006 UP007 UP037 UP045
+# @om-lite
 import asyncio
 import collections
 import functools

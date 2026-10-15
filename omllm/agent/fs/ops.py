@@ -1,10 +1,14 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import abc
+import dataclasses as dc
 import os
 import stat as stat_
 import typing as ta
 
-from omcore import dataclasses as dc
-from omcore import lang
+from omcore.lite.abstract import Abstract
+from omcore.lite.bytes import BytesLike
+from omcore.lite.dataclasses import install_dataclass_kw_only_init
 
 from .common import fs_file_digest
 from .common import fs_glob_paths
@@ -16,7 +20,8 @@ from .common import fs_write_file
 
 
 @ta.final
-@dc.dataclass(frozen=True, kw_only=True)
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class FsFile:
     data: bytes
 
@@ -25,7 +30,8 @@ class FsFile:
 
 
 @ta.final
-@dc.dataclass(frozen=True, kw_only=True)
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class FsStat:
     path: str
 
@@ -37,7 +43,8 @@ class FsStat:
 
 
 @ta.final
-@dc.dataclass(frozen=True, kw_only=True)
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class FsDirEntry:
     name: str
     path: str
@@ -48,13 +55,15 @@ class FsDirEntry:
 
 
 @ta.final
-@dc.dataclass(frozen=True, kw_only=True)
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class FsWriteResult:
     created: bool
 
 
 @ta.final
-@dc.dataclass(frozen=True, kw_only=True)
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
 class FsGlobResult:
     entries: ta.Sequence[FsDirEntry]
 
@@ -64,7 +73,7 @@ class FsGlobResult:
 ##
 
 
-class FsOps(lang.Abstract):
+class FsOps(Abstract):
     @abc.abstractmethod
     def resolve_path(self, path: str) -> ta.Awaitable[str]:
         """Returns the target filesystem's absolute, symlink-resolved form of a path."""
@@ -83,10 +92,10 @@ class FsOps(lang.Abstract):
     def write_file(
             self,
             path: str,
-            content: lang.BytesLike,
+            content: BytesLike,
             *,
             overwrite: bool = False,
-            expected_digest: str | None = None,
+            expected_digest: ta.Optional[str] = None,
     ) -> ta.Awaitable[FsWriteResult]:
         """
         Writes a complete file, optionally replacing an existing regular file. `expected_digest` makes replacement
@@ -105,7 +114,7 @@ class FsOps(lang.Abstract):
             pattern: str,
             *,
             root: str,
-            max_results: int | None = None,
+            max_results: ta.Optional[int] = None,
     ) -> ta.Awaitable[FsGlobResult]:
         """Globs inside `root`, excluding matches whose resolved targets escape it."""
 
@@ -117,7 +126,7 @@ class FsOps(lang.Abstract):
 
 class LocalFsOps(FsOps):
     @staticmethod
-    def _entry(path: str, *, name: str | None = None) -> FsDirEntry:
+    def _entry(path: str, *, name: ta.Optional[str] = None) -> FsDirEntry:
         return FsDirEntry(
             name=os.path.basename(path) if name is None else name,
             path=path,
@@ -154,10 +163,10 @@ class LocalFsOps(FsOps):
     async def write_file(
             self,
             path: str,
-            content: lang.BytesLike,
+            content: BytesLike,
             *,
             overwrite: bool = False,
-            expected_digest: str | None = None,
+            expected_digest: ta.Optional[str] = None,
     ) -> FsWriteResult:
         return FsWriteResult(created=fs_write_file(
             path,
@@ -184,7 +193,7 @@ class LocalFsOps(FsOps):
             pattern: str,
             *,
             root: str,
-            max_results: int | None = None,
+            max_results: ta.Optional[int] = None,
     ) -> FsGlobResult:
         paths, has_more = fs_glob_paths(
             pattern,

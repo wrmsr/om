@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP007 UP045
+# @om-lite
 """
 Filesystem primitives shared by the local `FsOps` and the remote agent's filesystem service. Lite: this is included in
 the remote agent amalgam, so it is Python 3.8 compatible and imports nothing but the standard library.
