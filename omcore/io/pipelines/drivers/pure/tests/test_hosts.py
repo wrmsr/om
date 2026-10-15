@@ -8,6 +8,7 @@ from ......sockets.endpoints import UnixSocketEndpoint
 from ....core import IoPipeline
 from ....core import IoPipelineHandler
 from ....core import IoPipelineHandlerContext
+from ....core import IoPipelineHandlerNotifications
 from ....core import IoPipelineMessages
 from ....hosts.types import ConnectIoPipelineHostError
 from ....hosts.types import IoPipelineHostedDriver
@@ -143,3 +144,37 @@ class TestMemoryIoPipelineHost(unittest.TestCase):
         self.assertTrue(handle.closed)
         self.assertTrue(host.closed)
         host.close()
+
+    def test_failed_pipeline_start_reports_failed_connect_and_closes_peer(self) -> None:
+        class BrokenOnAdd(IoPipelineHandler):
+            def notify(self, ctx, no) -> None:
+                if isinstance(no, IoPipelineHandlerNotifications.Added):
+                    raise TypeError('broken spec')
+
+        for broken_side in ('client', 'server'):
+            with self.subTest(broken_side=broken_side):
+                host = MemoryIoPipelineHost()
+                try:
+                    listener = host.listen(
+                        TcpSocketEndpoint('127.0.0.1', 0),
+                        lambda info: IoPipeline.Spec([BrokenOnAdd()]) if broken_side == 'server' else IoPipeline.Spec(),
+                    )
+                    connected: ta.List[IoPipelineHostedDriver] = []
+                    failed: ta.List[BaseException] = []
+                    host.connect(
+                        listener.bound_endpoint,
+                        lambda info: IoPipeline.Spec([BrokenOnAdd()]) if broken_side == 'client' else IoPipeline.Spec(),
+                        on_connected=lambda ctx, handle: connected.append(handle),
+                        on_failed=lambda ctx, exc: failed.append(exc),
+                    )
+
+                    host.run()
+
+                    self.assertEqual(connected, [])
+                    self.assertEqual(len(failed), 1)
+                    self.assertIsInstance(failed[0], ConnectIoPipelineHostError)
+                    self.assertEqual(len(host.handles), 1)
+                    self.assertEqual(host.drivers, [])
+                    self.assertEqual(host._links, [])
+                finally:
+                    host.close()

@@ -34,7 +34,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'dcb17c23e5103c4fcb9f8f86a5c755c7b20326e3'
+__om_amalg_sha1__ = 'cacf8564b37405f0b024723d0a241fbbc0f0367c'
 
 
 def __om_amalg__():  # noqa
@@ -80,7 +80,7 @@ def __om_amalg__():  # noqa
             dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', path='../../logs/std/loggers.py'),
             dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', path='bytes/decoders.py'),
             dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', path='../../logs/modules.py'),
-            dict(sha1='3380fcd0bcffda8f5e5af296808b75dccbab7d96', path='drivers/asyncio/streams.py'),
+            dict(sha1='5cafe9b7ede11d5ed9abc50b5fac5ebf180b2705', path='drivers/asyncio/streams.py'),
             dict(sha1='06d6b72260d4724fb48ad26921d287f2e77715a1', path='_amalg.py'),
         ],
     )
@@ -9596,9 +9596,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             return []  # Nothing can run any more, and a closed loop refuses the cancellation's callbacks.
 
         cts: ta.List[asyncio.Future] = []
+        current = asyncio.current_task()
 
         for t in tasks:
-            if t is not None and not t.done():
+            if t is not None and t is not current and not t.done():
                 t.cancel()
                 cts.append(t)
 
@@ -10285,7 +10286,11 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
         if created:
             def msg_done(m: IoPipelineMessages.Completable) -> None:
-                if not fut.done():
+                try:
+                    current = asyncio.current_task()
+                except RuntimeError:
+                    current = None
+                if not fut.done() and fut is not current:
                     fut.cancel()
 
             msg.add_listener(msg_done)

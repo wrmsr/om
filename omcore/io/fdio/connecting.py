@@ -71,6 +71,8 @@ class ConnectingSocketFdioHandler(FdioHandler):
 
         self._sock: ta.Optional[socket.socket] = None
         self._deadline: ta.Optional[float] = None
+        self._ready_connected = False
+        self._pending_failure: ta.Optional[FdioConnectError] = None
         self._errors: ta.List[BaseException] = []
         self._done = False
 
@@ -99,6 +101,8 @@ class ConnectingSocketFdioHandler(FdioHandler):
         self._done = True
         self._sock = None
         self._deadline = None
+        self._ready_connected = False
+        self._pending_failure = None
         on_connected = self._on_connected
         on_failed = self._on_failed
         self._on_connected = None
@@ -127,7 +131,10 @@ class ConnectingSocketFdioHandler(FdioHandler):
                 continue
 
             if err == 0:
-                self._finish(connected=sock)
+                # An immediate connect still reports its outcome from the manager's dispatch, never construction.
+                self._sock = sock
+                self._ready_connected = True
+                self._deadline = self._clock()
                 return
 
             if err not in self._IN_PROGRESS_ERRNOS:
@@ -141,9 +148,10 @@ class ConnectingSocketFdioHandler(FdioHandler):
 
         last = self._errors[-1] if self._errors else None
         if isinstance(last, TimeoutError):
-            self._finish(exc=FdioConnectTimeoutError(list(self._errors)))
+            self._pending_failure = FdioConnectTimeoutError(list(self._errors))
         else:
-            self._finish(exc=FdioConnectError(list(self._errors)))
+            self._pending_failure = FdioConnectError(list(self._errors))
+        self._deadline = self._clock()
 
     #
 
@@ -173,6 +181,8 @@ class ConnectingSocketFdioHandler(FdioHandler):
             self._sock = None
             sock.close()
         self._deadline = None
+        self._ready_connected = False
+        self._pending_failure = None
 
     def writable(self) -> bool:
         return not self._done and self._sock is not None
@@ -198,7 +208,15 @@ class ConnectingSocketFdioHandler(FdioHandler):
         self._start_next()
 
     def on_timeout(self) -> None:
+        if (exc := self._pending_failure) is not None:
+            self._finish(exc=exc)
+            return
+
         sock = check.not_none(self._sock)
+        if self._ready_connected:
+            self._finish(connected=sock)
+            return
+
         self._sock = None
         self._deadline = None
         sock.close()

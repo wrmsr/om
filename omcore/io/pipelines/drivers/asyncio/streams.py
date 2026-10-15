@@ -310,9 +310,10 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             return []  # Nothing can run any more, and a closed loop refuses the cancellation's callbacks.
 
         cts: ta.List[asyncio.Future] = []
+        current = asyncio.current_task()
 
         for t in tasks:
-            if t is not None and not t.done():
+            if t is not None and t is not current and not t.done():
                 t.cancel()
                 cts.append(t)
 
@@ -999,7 +1000,11 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
         if created:
             def msg_done(m: IoPipelineMessages.Completable) -> None:
-                if not fut.done():
+                try:
+                    current = asyncio.current_task()
+                except RuntimeError:
+                    current = None
+                if not fut.done() and fut is not current:
                     fut.cancel()
 
             msg.add_listener(msg_done)

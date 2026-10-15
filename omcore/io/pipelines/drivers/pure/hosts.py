@@ -367,8 +367,12 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
         self._drivers[id(handle)] = handle
 
         # A hosted pipeline exists, and has had InitialInput, from the start; what it emits at once is kept.
-        while (out := driver.next(read=False)) is not None:
-            handle.unhandled.append(out)
+        try:
+            while (out := driver.next(read=False)) is not None:
+                handle.unhandled.append(out)
+        except BaseException:
+            handle.close()
+            raise
 
         return handle
 
@@ -426,7 +430,6 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             c._fail(ConnectIoPipelineHostError(endpoint, [ConnectionRefusedError('no listener')]))  # noqa
             return True
 
-        client_end, server_end = self.pair()
         client_address = self._address()
         server_address = self._address()
         client_info = IoPipelineHostTransportInfo(
@@ -454,8 +457,16 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             c._fail(ConnectIoPipelineHostError(endpoint, [e]))  # noqa
             return True
 
-        server = self._host_driver(server_end, server_spec, server_info, listener.owner)
-        client = self._host_driver(client_end, client_spec, client_info, c.owner)
+        client_end, server_end = self.pair()
+        server: ta.Optional[MemoryHostedIoPipelineDriver] = None
+        try:
+            server = self._host_driver(server_end, server_spec, server_info, listener.owner)
+            client = self._host_driver(client_end, client_spec, client_info, c.owner)
+        except Exception as e:  # noqa
+            if server is not None:
+                server.close()
+            c._fail(ConnectIoPipelineHostError(endpoint, [e]))  # noqa
+            return True
 
         c._finish()  # noqa
         if (on_accepted := listener._on_accepted) is not None:  # noqa
