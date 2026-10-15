@@ -176,6 +176,7 @@ class AsyncioHostedIoPipelineDriver(BaseIoPipelineHostHandle, IoPipelineHostedDr
         self._cancelled = False
         # Releases an owned transport the task was to serve, until the task has first run and so taken it over.
         self._release_unstarted: ta.Optional[ta.Callable[[], None]] = None
+        self._failure: ta.Optional[BaseException] = None
         self.unhandled: ta.List[ta.Any] = []
 
         super().__init__(host, owner)
@@ -219,6 +220,15 @@ class AsyncioHostedIoPipelineDriver(BaseIoPipelineHostHandle, IoPipelineHostedDr
     def closed(self) -> bool:
         return self.state in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED)
 
+    @property
+    def failure(self) -> ta.Optional[BaseException]:
+        """
+        What ended the driver, if it was a failure: of its transport, before or after it started. Recorded here, and
+        never raised out of the driving task - nothing awaits that task but `wait_closed`, which would only drop it.
+        """
+
+        return self._failure
+
     def close(self) -> None:
         self._cancelled = True
         if (t := self._task) is not None and not t.done():
@@ -249,21 +259,36 @@ class AsyncioHostedIoPipelineDriver(BaseIoPipelineHostHandle, IoPipelineHostedDr
             self._started.set_exception(exc)
             self._started.exception()  # Retrieved: no "exception was never retrieved" warning.
 
+    def _record_failure(self, exc: BaseException) -> None:
+        """A transport failure, before or after starting: the first one recorded is the one which ended the driver."""
+
+        self._fail_start(exc)
+        if self._failure is None:
+            self._failure = exc
+
     async def _drive(
             self,
             driver: PollAsyncioStreamIoPipelineDriver,
             on_started: ta.Optional[ta.Callable[[], None]] = None,
             cleanup: ta.Optional[ta.Callable[[], None]] = None,
     ) -> None:
-        """The driving task's body: start, report, drive to the end, close."""
+        """
+        The driving task's body: start, report, drive to the end, close.
+
+        A failure of the driver - its transport resetting, a handler raising - ends the task normally, recorded on the
+        handle: the driver's state says it failed, and an exception left in a task nobody awaits is only ever reported
+        as never retrieved when the task is collected.
+        """
 
         self._driver = driver
         try:
             try:
                 check.none(await driver.next(read=False))
-            except BaseException as e:  # noqa
-                self._fail_start(e)
+            except asyncio.CancelledError:
                 raise
+            except BaseException as e:  # noqa
+                self._record_failure(e)
+                return
             if not self._started.done():
                 self._started.set_result(None)
             if on_started is not None:
@@ -275,6 +300,9 @@ class AsyncioHostedIoPipelineDriver(BaseIoPipelineHostHandle, IoPipelineHostedDr
 
         except asyncio.CancelledError:
             pass
+
+        except Exception as e:  # noqa
+            self._record_failure(e)
 
         finally:
             try:
@@ -430,20 +458,20 @@ class AsyncioHostedIoPipelineConnect(BaseIoPipelineHostHandle, IoPipelineHostedC
                 owned=True,
                 on_started=on_started,
             )
-        except BaseException as e:
+        except asyncio.CancelledError:
             if self._done:
                 raise
             self._finish()
-            if isinstance(e, asyncio.CancelledError):
-                self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed'))
-            elif isinstance(e, Exception):
-                self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, [e]))
-            else:
-                raise
+            self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed'))
         else:
+            # Serving records a failure on the hosted driver and returns: one from before it started is this
+            # attempt's failure to report.
             if not self._done:
                 self._finish()
-                self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed before starting'))
+                if (failure := hosted.failure) is not None and isinstance(failure, Exception):
+                    self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, [failure]))
+                else:
+                    self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed before starting'))
 
 
 class AsyncioHostedIoPipelineListener(BaseIoPipelineHostHandle, IoPipelineHostedListener):
@@ -608,7 +636,12 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             # The transport closes what it is given: a duplicate, so the caller's socket survives. Nonblocking mode
             # lives on the shared description, so the caller's is restored afterwards.
             original_timeout = sock.gettimeout()
-            served = sock.dup()
+            try:
+                served = sock.dup()
+            except Exception as e:  # noqa
+                hosted._record_failure(e)  # noqa
+                hosted._unregister()  # noqa
+                return
 
             def restore_caller_socket(caller_sock: socket.socket = sock) -> None:
                 try:
@@ -626,9 +659,11 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             served.close()
             if restore is not None:
                 restore()
-            hosted._fail_start(e)  # noqa
+            hosted._record_failure(e)  # noqa
             hosted._unregister()  # noqa
-            raise
+            if isinstance(e, asyncio.CancelledError):
+                raise
+            return
 
         driver = PollAsyncioStreamIoPipelineDriver(self._hosted_spec(spec), reader, writer, self._driver_config)
         await hosted._drive(driver, on_started, restore)  # noqa
@@ -693,9 +728,11 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
                     except OSError:
                         pass
             restore()
-            hosted._fail_start(e)  # noqa
+            hosted._record_failure(e)  # noqa
             hosted._unregister()  # noqa
-            raise
+            if isinstance(e, asyncio.CancelledError):
+                raise
+            return
 
         # EOF on a pipe transport closes its descriptor: a half-close only for an owned write descriptor of its own.
         if owned and write_fd != read_fd:

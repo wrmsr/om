@@ -4,6 +4,7 @@ import asyncio
 import fcntl
 import os
 import socket
+import struct
 import tempfile
 import tty
 import typing as ta
@@ -335,6 +336,106 @@ class TestAsyncioIoPipelineHostResolution(AsyncioIsolatedAsyncTestCase):
         finally:
             host.close()
             await host.wait_closed()
+
+
+class TestAsyncioIoPipelineHostFailures(AsyncioIsolatedAsyncTestCase):
+    """
+    A hosted driver's failure ends its driving task normally, recorded on the handle: nothing awaits that task but
+    `wait_closed`, which drops its exception, so one left in it is only ever reported as never retrieved when the
+    task is collected.
+    """
+
+    async def test_transport_reset_after_start_is_recorded_on_the_handle(self) -> None:
+        """A peer closing with linger zero resets rather than closes: what a full backlog does on darwin."""
+
+        host = AsyncioIoPipelineHost()
+        srv = socket.socket()
+        srv.bind(('127.0.0.1', 0))
+        srv.listen(1)
+        srv.setblocking(False)
+        loop = asyncio.get_running_loop()
+        try:
+            connected: ta.List[AsyncioHostedIoPipelineDriver] = []
+            failed: ta.List[BaseException] = []
+            host.connect(
+                TcpSocketEndpoint(*srv.getsockname()),
+                lambda info: IoPipeline.Spec([_UpperEchoApp()]),
+                on_connected=lambda c, h: connected.append(ta.cast(AsyncioHostedIoPipelineDriver, h)),
+                on_failed=lambda c, e: failed.append(e),
+                timeout_s=5.,
+            )
+            peer, _ = await loop.sock_accept(srv)
+            await _until(lambda: bool(connected) or bool(failed))
+            self.assertEqual(failed, [])
+            [hosted] = connected
+            self.assertIs(hosted.state, IoPipelineDriverState.RUNNING)
+
+            peer.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
+            peer.close()
+
+            await _until(lambda: hosted.closed)
+            await hosted.wait_closed()
+            await host.wait_closed()
+
+            self.assertIs(hosted.state, IoPipelineDriverState.FAILED)
+            self.assertIsInstance(hosted.failure, ConnectionResetError)
+            task = hosted.task
+            assert task is not None
+            self.assertTrue(task.done())
+            self.assertFalse(task.cancelled())
+            self.assertIsNone(task.exception())
+            self.assertEqual(host.handles, [])
+        finally:
+            host.close()
+            await host.wait_closed()
+            srv.close()
+
+    async def test_start_failure_of_an_adopted_socket_is_recorded_on_the_handle(self) -> None:
+        host = AsyncioIoPipelineHost()
+        a, b = socket.socketpair()
+        b.close()
+        a.close()
+        try:
+            hosted = ta.cast(AsyncioHostedIoPipelineDriver, host.adopt(a, IoPipeline.Spec()))
+            with self.assertRaises(OSError):
+                await hosted.wait_started()
+            await hosted.wait_closed()
+            await host.wait_closed()
+
+            self.assertTrue(hosted.closed)
+            self.assertIsInstance(hosted.failure, OSError)
+            task = hosted.task
+            assert task is not None
+            self.assertTrue(task.done())
+            self.assertIsNone(task.exception())
+            self.assertEqual(host.handles, [])
+        finally:
+            host.close()
+            await host.wait_closed()
+
+    async def test_start_failure_of_adopted_descriptors_is_recorded_on_the_handle(self) -> None:
+        host = AsyncioIoPipelineHost()
+        r, w = os.pipe()
+        try:
+            with tempfile.TemporaryFile() as f:
+                hosted = ta.cast(AsyncioHostedIoPipelineDriver, host.adopt((r, f.fileno()), IoPipeline.Spec()))
+                with self.assertRaises(ValueError):
+                    await hosted.wait_started()
+                await hosted.wait_closed()
+                await host.wait_closed()
+
+                self.assertTrue(hosted.closed)
+                self.assertIsInstance(hosted.failure, ValueError)
+                task = hosted.task
+                assert task is not None
+                self.assertTrue(task.done())
+                self.assertIsNone(task.exception())
+                self.assertEqual(host.handles, [])
+        finally:
+            host.close()
+            await host.wait_closed()
+            os.close(r)
+            os.close(w)
 
 
 class TestAsyncioIoPipelineHostTasks(AsyncioIsolatedAsyncTestCase):
