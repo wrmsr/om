@@ -111,7 +111,12 @@ def doall(args) -> None:
         )
 
     if (jobs := args.jobs) is None:
-        jobs = os.process_cpu_count()
+        if (jobs_fn := getattr(os, 'process_cpu_count', None)) is None:
+            import multiprocessing as mp
+
+            jobs_fn = mp.cpu_count
+
+        jobs = jobs_fn()
 
     with cf.ThreadPoolExecutor(max_workers=jobs) as exe:
         futs: list[cf.Future] = [
