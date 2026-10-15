@@ -23,6 +23,8 @@ def _make_model(
         *,
         id: str,  # noqa
         name: str,
+
+        **kwargs: ta.Any,
 ) -> Model:
     return Model(
         key=ModelKey(
@@ -30,24 +32,36 @@ def _make_model(
             id=id,
         ),
         name=name,
-        backend='google-generative',
-        # The thinkingLevel enum also has MINIMAL, but this model rejects it with "Thinking level MINIMAL is not
-        # supported for this model" (verified against the live API).
-        reasoning_efforts=frozenset({
-            ReasoningEffort.LOW,
-            ReasoningEffort.MEDIUM,
-            ReasoningEffort.HIGH,
-        }),
-        # Gemini 2.5+ prompt caching is implicit and needs no generation-request field. Explicit caching instead uses
-        # separately managed cachedContents resources, which are intentionally outside request Options for now.
-        cache=CacheCapabilities(
-            control_style='google_implicit',
-        ),
-        limits=modeldb_model_limits('google', id),
-        pricing=modeldb_token_pricing('google', id),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
+
+        **{
+            **dict(
+                backend='google-generative',
+
+                # The thinkingLevel enum also has MINIMAL, but this model rejects it with "Thinking level MINIMAL is not
+                # supported for this model" (verified against the live API).
+                reasoning_efforts=frozenset({
+                    ReasoningEffort.LOW,
+                    ReasoningEffort.MEDIUM,
+                    ReasoningEffort.HIGH,
+                }),
+
+                # Gemini 2.5+ prompt caching is implicit and needs no generation-request field. Explicit caching instead
+                # uses separately managed cachedContents resources, which are intentionally outside request Options for
+                # now.
+                cache=CacheCapabilities(
+                    control_style='google_implicit',
+                ),
+
+                limits=modeldb_model_limits('google', id),
+                pricing=modeldb_token_pricing('google', id),
+
+                http=Model.Http(
+                    base_url=_BASE_URL,
+                ),
+            ),
+
+            **kwargs,
+        },
     )
 
 

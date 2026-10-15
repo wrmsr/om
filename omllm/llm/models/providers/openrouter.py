@@ -50,7 +50,7 @@ def _make_model(
         id: str,  # noqa
         name: str,
 
-        reasoning_efforts: ta.AbstractSet[ReasoningEffort] = _REASONING_EFFORTS,
+        **kwargs: ta.Any,
 ) -> Model:
     return Model(
         key=ModelKey(
@@ -58,15 +58,27 @@ def _make_model(
             id=id,
         ),
         name=name,
-        backend='openai-completions',
-        compat=_COMPAT,
-        reasoning_efforts=reasoning_efforts,
-        cache=_CACHE,
-        limits=modeldb_model_limits('openrouter', id),
-        pricing=modeldb_token_pricing('openrouter', id),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
+
+        **{
+            **dict(
+                backend='openai-completions',
+
+                compat=_COMPAT,
+
+                reasoning_efforts=_REASONING_EFFORTS,
+
+                cache=_CACHE,
+
+                limits=modeldb_model_limits('openrouter', id),
+                pricing=modeldb_token_pricing('openrouter', id),
+
+                http=Model.Http(
+                    base_url=_BASE_URL,
+                ),
+            ),
+
+            **kwargs,
+        },
     )
 
 

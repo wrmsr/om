@@ -63,7 +63,7 @@ google-api-core==2.42.0
 google-api-python-client==2.201.0
 google-auth==2.62.0
 google-auth-httplib2==0.4.4
-google-cloud-compute==1.55.0
+google-cloud-compute==1.56.0
 googleapis-common-protos==1.75.5
 gprof2dot==2025.4.14
 greenlet==3.5.6
@@ -155,7 +155,7 @@ pg8000==1.31.5
 pillow==12.3.0
 platformdirs==4.13.0
 playwright==1.64.0
-pluggy==1.6.0
+pluggy==1.7.0
 pprintpp==0.4.0
 primp==2.0.1
 priority==2.0.0
@@ -214,7 +214,7 @@ requests-toolbelt==1.0.0
 rfc3986==2.0.0
 rich==15.0.0
 ripgrep==15.1.0
-ruff==0.17.0
+ruff==0.17.1
 s3transfer==0.19.2
 safetensors==0.8.0
 scikit-image==0.26.0
@@ -247,7 +247,7 @@ torch==2.14.1
 torchvision==0.29.1
 tqdm==4.70.1
 traitlets==5.16.1
-transformers==5.19.0
+transformers==5.20.0
 tree-sitter==0.26.0
 tree-sitter-bash==0.25.1
 tree-sitter-css==0.25.0

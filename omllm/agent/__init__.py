@@ -306,6 +306,20 @@ with _lang.auto_proxy_init(
 
     ##
 
+    from .systemprompt.manager import (  # noqa
+        SystemPromptManager,
+    )
+
+    from .systemprompt.types import (  # noqa
+        SystemPromptPriority,
+        SystemPromptPart,
+
+        SystemPromptContributor,
+        SystemPromptContributors,
+    )
+
+    ##
+
     from .tools.classes import (  # noqa
         ToolClass,
     )

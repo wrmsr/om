@@ -15,7 +15,7 @@ from ....commands.repl import JsCommand
 from ....commands.repl import PyCommand
 from ....commands.repl import ReplModeSwitcher
 from ...config import Config
-from ...inject import harness_commands
+from ...inject import commands_binder
 from ...types import TargetCwd
 from ..app import MinituiChatApp
 from .ptys import ProcessScopePtySpawner
@@ -108,14 +108,14 @@ def bind_repl(config: Config) -> inj.Elements:
         inj.bind(ReplModeSwitcher, to_key=MinituiRepl),
 
         inj.bind(PyCommand, singleton=True),
-        harness_commands().bind_item(to_key=PyCommand),
+        commands_binder().bind_item(to_key=PyCommand),
 
         inj.bind(JsCommand, singleton=True),
-        harness_commands().bind_item(to_key=JsCommand),
+        commands_binder().bind_item(to_key=JsCommand),
 
         inj.bind(BashCommand, singleton=True),
-        harness_commands().bind_item(to_key=BashCommand),
+        commands_binder().bind_item(to_key=BashCommand),
 
         inj.bind(ChatCommand, singleton=True),
-        harness_commands().bind_item(to_key=ChatCommand),
+        commands_binder().bind_item(to_key=ChatCommand),
     )

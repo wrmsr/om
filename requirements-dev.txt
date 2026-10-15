@@ -17,7 +17,7 @@ pytest-xdist==3.8.0
 
 flake8==7.4.1
 flake8-pyproject==1.2.4
-ruff==0.17.0
+ruff==0.17.1
 
 asyncpg-stubs==0.32.0
 docutils-stubs==0.0.22
@@ -136,7 +136,7 @@ pyzmq==27.2.0
 
 datasets==5.1.0
 
-transformers==5.19.0  # @om-venv !15t
+transformers==5.20.0  # @om-venv !15t
 sentence-transformers==6.1.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.2

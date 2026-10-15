@@ -18,7 +18,8 @@ with _lang.auto_proxy_init(globals()):
     )
 
     from .commands import (  # noqa
-        harness_commands,
+        commands_binder,
+        bind_command_singleton,
     )
 
     from .inject import (  # noqa

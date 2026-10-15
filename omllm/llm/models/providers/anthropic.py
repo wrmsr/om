@@ -1,6 +1,9 @@
 """
 .
 https://platform.claude.com/docs/en/models/overview
+
+TODO:
+ - bring back opus 4.8
 """
 import typing as ta
 
@@ -34,6 +37,48 @@ _DEFAULT_HTTP = Model.Http(
         'anthropic-version': '2023-06-01',
     },
 )
+
+
+def _make_model(
+        *,
+        id: str,  # noqa
+        name: str,
+
+        **kwargs: ta.Any,
+) -> Model:
+    return Model(
+        key=ModelKey(
+            provider='anthropic',
+            id=id,
+        ),
+        name=name,
+
+        **{
+            **dict(
+                backend='anthropic-messages',
+
+                reasoning_efforts=_REASONING_EFFORTS,
+
+                cache=CacheCapabilities(
+                    control_style='anthropic',
+                    retentions=frozenset({
+                        CacheRetention.FIVE_MINUTES,
+                        CacheRetention.ONE_HOUR,
+                    }),
+                ),
+
+                limits=modeldb_model_limits('anthropic', id),
+                pricing=modeldb_token_pricing('anthropic', id),
+
+                http=_DEFAULT_HTTP,
+            ),
+
+            **kwargs,
+        },
+    )
+
+
+##
 
 
 MODELS: ta.Final[ta.Sequence[Model]] = [

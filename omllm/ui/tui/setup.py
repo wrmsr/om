@@ -49,6 +49,7 @@ class AgentSetup:
             backends: agn.BackendManager,
             tools: agn.ToolSet,
             cwd: TargetCwd | None = None,
+            system_prompts: agn.SystemPromptManager,
             root_process_scope: procs.RootProcessScope | None = None,
             initial_llm_options: InitialLlmOptions | None = None,
     ) -> None:
@@ -58,6 +59,7 @@ class AgentSetup:
         self._backends = backends
         self._tools = tools
         self._cwd = cwd
+        self._system_prompts = system_prompts
         self._root_process_scope = root_process_scope
         self._initial_llm_options = initial_llm_options
 
@@ -70,9 +72,7 @@ class AgentSetup:
             context = dc.replace(
                 state.context,
 
-                system_prompt='\n\n'.join([
-                    *([f'Current working directory: {cwd}'] if cwd is not None else []),
-                ]),
+                system_prompt=self._system_prompts.build_system_prompt(),
 
                 tools=self._tools,
             )
