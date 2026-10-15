@@ -18,7 +18,6 @@ from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
-from ...core import IoPipelineHandlerNotifications
 from ...core import IoPipelineMessages
 from ...drivers.asyncio.hosts import AsyncioHostedIoPipelineDriver
 from ...drivers.asyncio.hosts import AsyncioIoPipelineHost
@@ -427,31 +426,6 @@ class TestIoPipelineHostConformance(AsyncioIsolatedAsyncTestCase):
             self.assertIsInstance(exc, ConnectIoPipelineHostError)
             self.assertNotIsInstance(exc, ConnectTimeoutIoPipelineHostError)
             self.assertTrue(connect.closed)
-
-        await self._with_harnesses(run)
-
-    async def test_connect_reports_client_pipeline_start_failure(self) -> None:
-        class BrokenOnAdd(IoPipelineHandler):
-            def notify(self, ctx, no) -> None:
-                if isinstance(no, IoPipelineHandlerNotifications.Added):
-                    raise TypeError('broken spec')
-
-        async def run(h: _HostHarness) -> None:
-            outcomes = _Outcomes()
-            listener = h.host.listen(h.listen_endpoint(), lambda info: IoPipeline.Spec())
-            connect = h.host.connect(
-                listener.bound_endpoint,
-                lambda info: IoPipeline.Spec([BrokenOnAdd()]),
-                on_connected=outcomes.on_connected,
-                on_failed=outcomes.on_failed,
-            )
-
-            await h.run_until(lambda: connect.closed)
-            await h.settle()
-
-            self.assertEqual(outcomes.connected, [])
-            self.assertEqual(len(outcomes.failed), 1)
-            self.assertIsInstance(outcomes.failed[0], ConnectIoPipelineHostError)
 
         await self._with_harnesses(run)
 

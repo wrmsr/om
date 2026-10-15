@@ -404,38 +404,16 @@ class AsyncioHostedIoPipelineConnect(BaseIoPipelineHostHandle, IoPipelineHostedC
 
         hosted = AsyncioHostedIoPipelineDriver(host, self.owner, info)
         hosted._task = asyncio.current_task()  # noqa
+        self._finish()
 
         on_connected = self._on_connected
-
-        def on_started() -> None:
-            if self._done:
-                hosted.close()
-                return
-            self._finish()
-            hosted._deliver(on_connected, hosted)  # noqa
-
-        try:
-            await host._serve_socket(  # noqa
-                hosted,
-                sock,
-                spec,
-                owned=True,
-                on_started=on_started,
-            )
-        except BaseException as e:
-            if self._done:
-                raise
-            self._finish()
-            if isinstance(e, asyncio.CancelledError):
-                self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed'))
-            elif isinstance(e, Exception):
-                self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, [e]))
-            else:
-                raise
-        else:
-            if not self._done:
-                self._finish()
-                self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed before starting'))
+        await host._serve_socket(  # noqa
+            hosted,
+            sock,
+            spec,
+            owned=True,
+            on_started=lambda: hosted._deliver(on_connected, hosted),  # noqa
+        )
 
 
 class AsyncioHostedIoPipelineListener(BaseIoPipelineHostHandle, IoPipelineHostedListener):

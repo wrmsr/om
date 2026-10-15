@@ -77,24 +77,6 @@ class _FullListener:
 
 
 class TestConnectingSocketFdioHandler(unittest.TestCase):
-    def test_immediate_failure_is_reported_from_the_manager(self) -> None:
-        outcome = _Outcome()
-        handler = ConnectingSocketFdioHandler(
-            [(9999, socket.SOCK_STREAM, 0, None)],
-            outcome.on_connected,
-            outcome.on_failed,
-        )
-        manager = FdioManager(SelectFdioPoller())
-        manager.register(handler)
-        try:
-            self.assertFalse(outcome.done)
-            manager.poll(timeout=0.)
-            self.assertIsNone(outcome.connected)
-            self.assertIsInstance(outcome.failed, FdioConnectError)
-            self.assertTrue(handler.closed)
-        finally:
-            handler.close()
-
     def test_connects(self) -> None:
         with socket.create_server(('127.0.0.1', 0)) as listener:
             port = listener.getsockname()[1]

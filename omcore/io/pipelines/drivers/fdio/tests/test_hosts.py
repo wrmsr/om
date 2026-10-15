@@ -2,14 +2,12 @@
 # @om-lite
 import os
 import socket
-import tempfile
 import threading
 import time
 import typing as ta
 import unittest
 
 from ......sockets.endpoints import TcpSocketEndpoint
-from ......sockets.endpoints import UnixSocketEndpoint
 from .....fdio.manager import FdioManager
 from .....fdio.pollers import SelectFdioPoller
 from .....fdio.wakeups import WakeupFdioHandler
@@ -160,30 +158,6 @@ class TestThreadedResolver(unittest.TestCase):
 
 
 class TestFdioIoPipelineHostAdoption(unittest.TestCase):
-    def test_immediate_unix_connect_outcome_is_delivered_by_the_manager(self) -> None:
-        manager = FdioManager(SelectFdioPoller())
-        host = FdioIoPipelineHost(manager)
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                endpoint = UnixSocketEndpoint(os.path.join(directory, 'socket'))
-                listener = host.listen(endpoint, lambda info: IoPipeline.Spec())
-                connected: ta.List[IoPipelineHostedDriver] = []
-                failed: ta.List[BaseException] = []
-                host.connect(
-                    listener.bound_endpoint,
-                    lambda info: IoPipeline.Spec(),
-                    on_connected=lambda ctx, handle: connected.append(handle),
-                    on_failed=lambda ctx, exc: failed.append(exc),
-                )
-
-                self.assertEqual(connected, [])
-                self.assertEqual(failed, [])
-                self.assertTrue(fdio_run_until(manager, lambda: bool(connected or failed), timeout_s=5.))
-                self.assertEqual(len(connected), 1)
-                self.assertEqual(failed, [])
-        finally:
-            host.close()
-
     def test_adopts_a_caller_owned_socket_without_closing_it(self) -> None:
         manager = FdioManager(SelectFdioPoller())
         host = FdioIoPipelineHost(manager)

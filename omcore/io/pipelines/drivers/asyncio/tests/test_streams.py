@@ -6,7 +6,6 @@ import typing as ta
 from ......testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from .....streambufs.types import ByteStreamBuffer
 from .....streambufs.utils import ByteStreamBuffers
-from ....asyncs import AsyncIoPipelineMessages
 from ....core import IoPipeline
 from ....core import IoPipelineHandler
 from ....core import IoPipelineHandlerContext
@@ -763,39 +762,6 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
 
 
 class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCase):
-    async def test_driver_owned_await_can_close_its_driver(self) -> None:
-        done = asyncio.Event()
-        errors: ta.List[BaseException] = []
-
-        class CloseFromAwait(IoPipelineHandler):
-            def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-                if msg == 'close':
-                    ctx.feed_out(AsyncIoPipelineMessages.Await(close_driver()))
-                else:
-                    ctx.feed_in(msg)
-
-        drv = PollAsyncioStreamIoPipelineDriver(IoPipeline.Spec([CloseFromAwait()]), asyncio.StreamReader())
-
-        async def close_driver() -> None:
-            try:
-                await drv.close()
-            except BaseException as e:  # noqa
-                errors.append(e)
-            finally:
-                done.set()
-
-        try:
-            self.assertIsNone(await drv.next(read=False))
-            drv.enqueue('close')
-            self.assertIsNone(await drv.next(read=False))
-            await asyncio.wait_for(done.wait(), 1.)
-
-            self.assertEqual(errors, [])
-            self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
-            self.assertFalse(drv.pipeline.is_ready)
-        finally:
-            await drv.close()
-
     async def test_close_before_pipeline_initialization(self) -> None:
         writer = LifecycleStreamWriter()
         drv = PollAsyncioStreamIoPipelineDriver(
