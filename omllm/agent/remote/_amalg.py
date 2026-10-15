@@ -3,7 +3,7 @@
 # @om-lite
 # @om-script
 # @om-generated
-# @om-amalg-output main.py
+# @om-amalg-output _main.py
 # @om-git-diff-omit
 # ruff: noqa: PYI034 UP006 UP007 UP036 UP037 UP043 UP045
 """Entrypoint for the ephemeral remote agent payload launched through pyremote."""
@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '348390378f84ab0799a976aa9fa18b2ab40299af'
+__om_amalg_sha1__ = '156b927ba6cf57e52e40f57a85f953a5fc74dd46'
 
 
 def __om_amalg__():  # noqa
@@ -75,8 +75,8 @@ def __om_amalg__():  # noqa
             dict(sha1='103b39dc4068a45f4e83c3e87312bf4ce5ee2052', path='../../core/rpc/channels.py'),
             dict(sha1='80821e7a5897f00917f0c27596db2f2713ba07ad', path='../../core/rpc/peers.py'),
             dict(sha1='f62b959a40abbcc89ab640e0e293731efb81a20e', path='../../core/processes/remote/server.py'),
-            dict(sha1='59fc035bb714c797787d08b6ffbc619aa622e9e8', path='server.py'),
-            dict(sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1', path='main.py'),
+            dict(sha1='184ef5cea10fe5bca64b254bfb153db902d6f691', path='server.py'),
+            dict(sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1', path='_main.py'),
         ],
     )
 
@@ -5686,7 +5686,7 @@ class RemoteProcessService:
 # ../server.py
 """
 The remote agent payload's request handler: the method tables of each remotable concern's target-side service, merged
-over the one rpc peer. Lite: this is the amalgam's composition root beneath `main.py`. A new remotable concern plugs in
+over the one rpc peer. Lite: this is the amalgam's composition root beneath `_main.py`. A new remotable concern plugs in
 here, and its host-side client into `client.py`; nothing below either knows the others exist.
 """
 
@@ -5730,7 +5730,7 @@ class RemoteAgentRpcHandler(RpcHandler):
 
 
 ########################################
-# main.py
+# _main.py
 
 
 ##

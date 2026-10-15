@@ -1,7 +1,7 @@
 # ruff: noqa: UP006 UP007 UP045
 """
 The remote agent payload's request handler: the method tables of each remotable concern's target-side service, merged
-over the one rpc peer. Lite: this is the amalgam's composition root beneath `main.py`. A new remotable concern plugs in
+over the one rpc peer. Lite: this is the amalgam's composition root beneath `_main.py`. A new remotable concern plugs in
 here, and its host-side client into `client.py`; nothing below either knows the others exist.
 """
 import typing as ta

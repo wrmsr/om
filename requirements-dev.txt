@@ -151,7 +151,7 @@ segno==1.6.6
 boto3==1.43.114
 botocore==1.43.114
 types-boto3==1.43.114
-botocore-stubs==1.43.67
+botocore-stubs==1.43.114
 
 asn1crypto==1.5.1
 pynacl==1.6.2
