@@ -10,6 +10,19 @@
 
 - Do NOT remove an `@om-lite` marker from a source file if one is present. If the file is marked as lite, it is used in
   a lite context, and must remain lite-compatible.
+- In lite code, **DO NOT** exclude a reasonably globally-unique namespacing prefix or suffix on all module-level items!!
+  Lite code exists to be amalgamted together, in which all relevant source files are stitched together into a single big
+  script *with no renaming*: **just because you prefix a module-private name with an underscore does NOT mean it's not
+  going to clash with another lite module with a module-private helper of the same name**! Basically, there's no such
+  thing as module-level namespacing in lite code: all (non-generated, non-test) lite modules effectively share a single
+  giant codebase-wide namespace - **irrespective of underscore prefixes**.
+  - For example, if a hypothetical lite source file `omcore/io/pipelines/flow.py` had a function with optional
+    parameters in which 'not set' and `None` were distinct (and `omcore/lite/maybes.py` weren't appropriate for some
+    reason) - it's **NOT OK** to have a `_UNSET = object()` module global! If any other lite source file did that,
+    the two source files will wind up using the same object instance for their internal 'unset' marker - effectively
+    undefined behavior! In this case, `_IO_PIPELINE_FLOW_UNSET = object()` is a reasonable name in this case.
+  - As an alternative, in the case of many shared helpers, it's a common pattern to have a
+    `class _IoPipelineFlowHelpers` with however many `@classmethod`/`@staticmethod` members as you need.
 - Do NOT forget the **blank line** after a class or function docstring. For example, do NOT do this:
   ```python
   class MyClass:

@@ -32,7 +32,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77',
+    installer_sha1='dd8fd1e2a543faf54378144fc6d42b05f562e850',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -42,22 +42,23 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "'value', None, False, False, False), (('gid', True, True, None, True, False, False, None), 'instance', 'va"
             "lue', None, False, False, False), (('workdir', True, True, None, True, False, False, None), 'instance', 'v"
             "alue', None, False, False, False), (('dep_sets', True, True, None, True, True, False, None), 'instance', '"
-            "value', None, False, False, False), (('cuda_version', True, True, None, True, True, False, None), 'instanc"
-            "e', 'value', None, False, False, False), (('jdks', True, True, None, True, True, False, None), 'instance',"
-            " 'value', None, False, False, False), (('nvm_versions', True, True, None, True, True, False, None), 'insta"
-            "nce', 'value', None, False, False, False), (('rbenv_versions', True, True, None, True, True, False, None),"
-            " 'instance', 'value', None, False, False, False), (('uv_python_versions', True, True, None, True, True, Fa"
-            "lse, None), 'instance', 'value', None, False, False, False), (('pyenv_version_keys', True, True, None, Tru"
-            "e, True, False, None), 'instance', 'value', None, False, False, False), (('cache_mounts', True, True, None"
-            ", True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (F"
-            "alse,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "value', None, False, False, False), (('llvm_versions', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False), (('cuda_version', True, True, None, True, True, False, None), 'i"
+            "nstance', 'value', None, False, False, False), (('jdks', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('nvm_versions', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False), (('rbenv_versions', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False), (('uv_python_versions', True, True, None, True, Tr"
+            "ue, False, None), 'instance', 'value', None, False, False, False), (('pyenv_version_keys', True, True, Non"
+            "e, True, True, False, None), 'instance', 'value', None, False, False, False), (('cache_mounts', True, True"
+            ", None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False"
+            ",), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.config', 'Config'),
     ),
 )
-def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
+def _process_dataclass__dd8fd1e2a543faf54378144fc6d42b05f562e850():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -89,6 +90,8 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
         __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
         __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
         __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -105,6 +108,7 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
                 gid=self.gid,
                 workdir=self.workdir,
                 dep_sets=self.dep_sets,
+                llvm_versions=self.llvm_versions,
                 cuda_version=self.cuda_version,
                 jdks=self.jdks,
                 nvm_versions=self.nvm_versions,
@@ -128,6 +132,7 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
                 self.gid == other.gid and
                 self.workdir == other.workdir and
                 self.dep_sets == other.dep_sets and
+                self.llvm_versions == other.llvm_versions and
                 self.cuda_version == other.cuda_version and
                 self.jdks == other.jdks and
                 self.nvm_versions == other.nvm_versions and
@@ -146,6 +151,7 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
             'gid',
             'workdir',
             'dep_sets',
+            'llvm_versions',
             'cuda_version',
             'jdks',
             'nvm_versions',
@@ -183,6 +189,7 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
                 self.gid,
                 self.workdir,
                 self.dep_sets,
+                self.llvm_versions,
                 self.cuda_version,
                 self.jdks,
                 self.nvm_versions,
@@ -203,13 +210,14 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
             workdir: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
             *,
             dep_sets: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
-            cuda_version: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
-            jdks: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            nvm_versions: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            rbenv_versions: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            uv_python_versions: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            pyenv_version_keys: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            cache_mounts: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            llvm_versions: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            cuda_version: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            jdks: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            nvm_versions: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            rbenv_versions: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            uv_python_versions: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            pyenv_version_keys: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            cache_mounts: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'base_image', base_image)
             __dataclass__object_setattr(self, 'base_image_id', base_image_id)
@@ -217,6 +225,7 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
             __dataclass__object_setattr(self, 'gid', gid)
             __dataclass__object_setattr(self, 'workdir', workdir)
             __dataclass__object_setattr(self, 'dep_sets', dep_sets)
+            __dataclass__object_setattr(self, 'llvm_versions', llvm_versions)
             __dataclass__object_setattr(self, 'cuda_version', cuda_version)
             __dataclass__object_setattr(self, 'jdks', jdks)
             __dataclass__object_setattr(self, 'nvm_versions', nvm_versions)
@@ -236,6 +245,7 @@ def _process_dataclass__ffbc7d6b1d8496146fa0fcaa533c7844a7f7fc77():
             parts.append(f"gid={self.gid!r}")
             parts.append(f"workdir={self.workdir!r}")
             parts.append(f"dep_sets={self.dep_sets!r}")
+            parts.append(f"llvm_versions={self.llvm_versions!r}")
             parts.append(f"cuda_version={self.cuda_version!r}")
             parts.append(f"jdks={self.jdks!r}")
             parts.append(f"nvm_versions={self.nvm_versions!r}")

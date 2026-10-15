@@ -136,6 +136,13 @@ def gen_ops(cfg: Config) -> ta.Sequence[Op]:
         cache_mounts=APT_CACHE_MOUNTS,
     ))
 
+    if cfg.llvm_versions:
+        ops.append(chgrp_fragment_section(
+            'llvm',
+            static_env={'LLVM_VERSIONS': cfg.llvm_versions or []},
+            cache_mounts=APT_CACHE_MOUNTS,
+        ))
+
     if cfg.cuda_version is not None:
         ops.append(chgrp_fragment_section(
             'cuda',

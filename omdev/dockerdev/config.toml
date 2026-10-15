@@ -7,6 +7,11 @@ dep_sets = [
     'x11',
 ]
 
+llvm_versions = [
+    '21',
+    '22',
+]
+
 cuda_version = '13.4'
 
 jdks = [

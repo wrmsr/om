@@ -25,6 +25,8 @@ class Config:
 
     dep_sets: ta.Sequence[str] | None = None
 
+    llvm_versions: ta.Sequence[str] | None = None
+
     cuda_version: str | None = None
 
     jdks: ta.Sequence[str] | None = None

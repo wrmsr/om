@@ -306,6 +306,57 @@ find ${CHGRP_ROOTS} ! -type l \( \
 )
 
 
+## llvm
+
+RUN \
+  --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
+  --mount=target=/var/cache/apt,type=cache,sharing=locked \
+( \
+export LLVM_VERSIONS='21 22' ;\
+export CHGRP_ROOTS='/om' ;\
+export CHGRP_GID='4317' ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+sudo curl -fsSL 'https://apt.llvm.org/llvm-snapshot.gpg.key' -o /etc/apt/keyrings/apt.llvm.org.asc ;\
+sudo chmod 0644 /etc/apt/keyrings/apt.llvm.org.asc ;\
+\
+{\
+  echo 'Types: deb' ;\
+  echo 'URIs: https://apt.llvm.org/noble/' ;\
+  printf 'Suites:' ;\
+  for v in $LLVM_VERSIONS; do \
+    printf ' llvm-toolchain-noble-%s' "$v" ;\
+  done ;\
+  printf '\n' ;\
+  echo 'Components: main' ;\
+  echo 'Signed-By: /etc/apt/keyrings/apt.llvm.org.asc' ;\
+} | sudo tee /etc/apt/sources.list.d/llvm.sources > /dev/null ;\
+\
+sudo apt-get update ;\
+\
+for v in $LLVM_VERSIONS ; do \
+  sudo apt-get install -y --no-install-recommends \
+    "llvm-$v" \
+    "llvm-$v-dev" \
+    "clang-$v" \
+    "lld-$v" ;\
+done ;\
+\
+set -ex ;\
+umask 0002 ;\
+\
+find ${CHGRP_ROOTS} ! -group "${CHGRP_GID:-$(id -g)}" -exec chgrp -h "${CHGRP_GID:-$(id -g)}" {} + ;\
+\
+find ${CHGRP_ROOTS} ! -type l \( \
+  \( -perm -u=r ! -perm -g=r \) -o \( ! -perm -u=r -perm -g=r \) -o \
+  \( -perm -u=w ! -perm -g=w \) -o \( ! -perm -u=w -perm -g=w \) -o \
+  \( -perm -u=x ! -perm -g=x \) -o \( ! -perm -u=x -perm -g=x \) \
+\) -exec chmod g=u {} + ;\
+)
+
+
 ## cuda
 
 RUN \
