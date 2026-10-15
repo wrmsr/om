@@ -393,7 +393,11 @@ ownership remains explicit:
   which ended, say - and when the driver closes. A task or future supplied is the caller's. `close()` releases
   everything - cancels its tasks, aborts the transport, destroys the pipeline - before it awaits anything: the task
   closing the driver may itself be cancelled while the driver waits for what it cancelled, as when a connection ends on
-  its own just as its owner closes it, and the interrupted wait must leave nothing open.
+  its own just as its owner closes it, and the interrupted wait must leave nothing open. Only once the transport is
+  released does it run what may raise - the handlers' removal as the pipeline is destroyed, then the listeners of the
+  input it never processed as that is failed - each regardless of the other, re-raising the first failure once
+  everything has been released and dropping any later one, as `destroy()` does across handlers: Python 3.8 has no
+  exception group to carry them all.
 - The fdio driver is a driving core, `IoPipelineFdioDriver`, behind handler forms registered with an `FdioManager`,
   which combines descriptor readiness with the earliest handler deadline: an owned socket
   (`IoPipelineDriverSocketFdioHandler`), one duplex descriptor such as a terminal master or a socket by number
@@ -728,8 +732,10 @@ destroying its pipeline, closes what it owns. A handle may be released, becoming
 with the host, or transferred to another handler's ref - a listener commonly outlives the request which created it.
 Accepted connections are handles of their own, owned by the listener's owner; closing the listener does not close
 them. The host is itself an `IoPipelineService`, installed into every pipeline it hosts and usable in any other spec -
-a multiplexed stream's, say - and it is through that service's view of handler removals that ownership is enforced.
-Handles hold their owner's context only weakly.
+a multiplexed stream's, say - and it is through that service's view of handler removals that ownership is enforced:
+a request whose owner's pipeline is not driven, or does not have the host among its services, is refused. Handles hold
+their owner's context only weakly. A hosted driver which ends on its own is dropped by its host, which learns of it as
+a service of the pipeline it drove; one closed before its driver started releases the transport it owned.
 
 ### Delivery
 

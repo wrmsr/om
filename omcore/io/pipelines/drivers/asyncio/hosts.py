@@ -9,6 +9,7 @@ injected instead. Listening binds through the sync socket transport and accepts 
 import abc
 import asyncio
 import fcntl
+import functools
 import os
 import socket
 import typing as ta
@@ -173,6 +174,8 @@ class AsyncioHostedIoPipelineDriver(BaseIoPipelineHostHandle, IoPipelineHostedDr
         self._task: ta.Optional[asyncio.Task] = None
         self._started: asyncio.Future = host.loop.create_future()
         self._cancelled = False
+        # Releases an owned transport the task was to serve, until the task has first run and so taken it over.
+        self._release_unstarted: ta.Optional[ta.Callable[[], None]] = None
         self.unhandled: ta.List[ta.Any] = []
 
         super().__init__(host, owner)
@@ -220,6 +223,11 @@ class AsyncioHostedIoPipelineDriver(BaseIoPipelineHostHandle, IoPipelineHostedDr
         self._cancelled = True
         if (t := self._task) is not None and not t.done():
             t.cancel()
+        # A task cancelled before it first ran never reaches the code which would release what it was to serve, so an
+        # owned transport is released here. Once the task has run at all, the transport is the task's to release.
+        if (release := self._release_unstarted) is not None:
+            self._release_unstarted = None
+            release()
         self._unregister()
 
     async def wait_started(self) -> None:
@@ -404,16 +412,38 @@ class AsyncioHostedIoPipelineConnect(BaseIoPipelineHostHandle, IoPipelineHostedC
 
         hosted = AsyncioHostedIoPipelineDriver(host, self.owner, info)
         hosted._task = asyncio.current_task()  # noqa
-        self._finish()
 
         on_connected = self._on_connected
-        await host._serve_socket(  # noqa
-            hosted,
-            sock,
-            spec,
-            owned=True,
-            on_started=lambda: hosted._deliver(on_connected, hosted),  # noqa
-        )
+
+        def on_started() -> None:
+            if self._done:
+                hosted.close()
+                return
+            self._finish()
+            hosted._deliver(on_connected, hosted)  # noqa
+
+        try:
+            await host._serve_socket(  # noqa
+                hosted,
+                sock,
+                spec,
+                owned=True,
+                on_started=on_started,
+            )
+        except BaseException as e:
+            if self._done:
+                raise
+            self._finish()
+            if isinstance(e, asyncio.CancelledError):
+                self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed'))
+            elif isinstance(e, Exception):
+                self._deliver(self._on_failed, ConnectIoPipelineHostError(self._endpoint, [e]))
+            else:
+                raise
+        else:
+            if not self._done:
+                self._finish()
+                self._deliver(self._on_failed, ClosedIoPipelineHostError('connect closed before starting'))
 
 
 class AsyncioHostedIoPipelineListener(BaseIoPipelineHostHandle, IoPipelineHostedListener):
@@ -490,6 +520,7 @@ class AsyncioHostedIoPipelineListener(BaseIoPipelineHostHandle, IoPipelineHosted
                 continue
 
             hosted = AsyncioHostedIoPipelineDriver(ahost, self.owner, info)
+            hosted._release_unstarted = conn.close  # noqa
             on_accepted = self._on_accepted
             ahost._start_task(hosted, ahost._serve_socket(  # noqa
                 hosted,
@@ -570,6 +601,8 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             owned: bool,
             on_started: ta.Optional[ta.Callable[[], None]] = None,
     ) -> None:
+        hosted._release_unstarted = None  # noqa  # The task has run: the transport is its from here on.
+
         restore: ta.Optional[ta.Callable[[], None]] = None
         if not owned:
             # The transport closes what it is given: a duplicate, so the caller's socket survives. Nonblocking mode
@@ -609,6 +642,8 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             *,
             owned: bool,
     ) -> None:
+        hosted._release_unstarted = None  # noqa  # The task has run: the descriptors are its from here on.
+
         loop = self.loop
         fds = {read_fd, write_fd}
         original_flags = {fd: fcntl.fcntl(fd, fcntl.F_GETFL) for fd in fds}
@@ -628,23 +663,33 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
                     pass
 
         read_transport: ta.Optional[asyncio.BaseTransport] = None
+        write_transport: ta.Optional[asyncio.BaseTransport] = None
+        read_file: ta.Optional[ta.BinaryIO] = None
+        write_file: ta.Optional[ta.BinaryIO] = None
         try:
             reader = asyncio.StreamReader(loop=loop)
             read_protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-            read_transport, _ = await loop.connect_read_pipe(lambda: read_protocol, os.fdopen(served_read, 'rb', 0))
+            read_file = os.fdopen(served_read, 'rb', 0)
+            read_transport, _ = await loop.connect_read_pipe(lambda: read_protocol, read_file)
             write_protocol = asyncio.streams.FlowControlMixin(loop=loop)
-            write_transport, _ = await loop.connect_write_pipe(
-                lambda: write_protocol,
-                os.fdopen(served_write, 'wb', 0),
-            )
+            write_file = os.fdopen(served_write, 'wb', 0)
+            write_transport, _ = await loop.connect_write_pipe(lambda: write_protocol, write_file)
             writer: ta.Any = asyncio.StreamWriter(write_transport, write_protocol, None, loop)
         except BaseException as e:  # noqa
-            if read_transport is not None:
-                read_transport.close()
-            for fd in (served_read, served_write):
-                if fd not in fds:
+            # Each descriptor is closed exactly once: by its transport, which closes the file it was given (later, on
+            # the loop); else by that file; else directly, if it is a duplicate not yet wrapped. Closing a number
+            # which something else will close again later would close whatever had reused it meanwhile.
+            for transport, file, served in (
+                    (read_transport, read_file, served_read),
+                    (write_transport, write_file, served_write),
+            ):
+                if transport is not None:
+                    transport.close()
+                elif file is not None:
+                    file.close()
+                elif served not in fds:
                     try:
-                        os.close(fd)
+                        os.close(served)
                     except OSError:
                         pass
             restore()
@@ -678,6 +723,7 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedConnect:
         self._check_open()
+        self._check_owner(owner)
         check.isinstance(endpoint, SocketEndpoint)
         if timeout_s is not None and timeout_s < 0.:
             raise ValueError(timeout_s)
@@ -708,6 +754,7 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedListener:
         self._check_open()
+        self._check_owner(owner)
         check.isinstance(endpoint, SocketEndpoint)
 
         try:
@@ -734,6 +781,7 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedDriver:
         self._check_open()
+        self._check_owner(owner)
 
         if isinstance(transport, socket.socket):
             try:
@@ -747,6 +795,8 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             if info is None:
                 info = IoPipelineHostTransportInfo(local_address=local, peer_address=peer)
             hosted = AsyncioHostedIoPipelineDriver(self, owner, info)
+            if owned:
+                hosted._release_unstarted = transport.close  # noqa
             self._start_task(hosted, self._serve_socket(hosted, transport, spec, owned=owned))
             return hosted
 
@@ -754,6 +804,8 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             if info is None:
                 info = IoPipelineHostTransportInfo()
             hosted = AsyncioHostedIoPipelineDriver(self, owner, info)
+            if owned:
+                hosted._release_unstarted = functools.partial(self._close_descriptors, transport)  # noqa
             self._start_task(hosted, self._serve_fds(hosted, transport, transport, spec, owned=owned))
             return hosted
 
@@ -762,6 +814,8 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             if info is None:
                 info = IoPipelineHostTransportInfo()
             hosted = AsyncioHostedIoPipelineDriver(self, owner, info)
+            if owned:
+                hosted._release_unstarted = functools.partial(self._close_descriptors, read_fd, write_fd)  # noqa
             self._start_task(hosted, self._serve_fds(
                 hosted,
                 check.isinstance(read_fd, int),
@@ -772,6 +826,14 @@ class AsyncioIoPipelineHost(BaseIoPipelineHost):
             return hosted
 
         raise TypeError(transport)
+
+    @staticmethod
+    def _close_descriptors(*fds: int) -> None:
+        for fd in set(fds):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
     #
 

@@ -8,6 +8,7 @@ from ......sockets.endpoints import UnixSocketEndpoint
 from ....core import IoPipeline
 from ....core import IoPipelineHandler
 from ....core import IoPipelineHandlerContext
+from ....core import IoPipelineHandlerNotifications
 from ....core import IoPipelineMessages
 from ....hosts.types import ConnectIoPipelineHostError
 from ....hosts.types import IoPipelineHostedDriver
@@ -135,6 +136,37 @@ class TestMemoryIoPipelineHost(unittest.TestCase):
         finally:
             host.close()
 
+    def test_refused_connects_leave_nothing_behind(self) -> None:
+        """A connect refused by either side's spec factory hosts no driver, and leaves no link in the host."""
+
+        def refuse(info: ta.Any) -> IoPipeline.Spec:
+            raise RuntimeError('refused')
+
+        def accept(info: ta.Any) -> IoPipeline.Spec:
+            return IoPipeline.Spec()
+
+        host = MemoryIoPipelineHost()
+        try:
+            host.listen(TcpSocketEndpoint('127.0.0.1', 5), refuse)
+            host.listen(TcpSocketEndpoint('127.0.0.1', 6), accept)
+            failed: ta.List[BaseException] = []
+            for port, factory in ((5, accept), (6, refuse)):
+                host.connect(
+                    TcpSocketEndpoint('127.0.0.1', port),
+                    factory,
+                    on_connected=lambda c, h: self.fail('connected'),
+                    on_failed=lambda c, e: failed.append(e),
+                )
+            host.run()
+
+            self.assertEqual(len(failed), 2)
+            for exc in failed:
+                self.assertIsInstance(exc, ConnectIoPipelineHostError)
+            self.assertEqual(host.drivers, [])
+            self.assertEqual(host._links, [])
+        finally:
+            host.close()
+
     def test_close_closes_hosted_drivers(self) -> None:
         host = MemoryIoPipelineHost()
         a, _ = host.pair()
@@ -143,3 +175,37 @@ class TestMemoryIoPipelineHost(unittest.TestCase):
         self.assertTrue(handle.closed)
         self.assertTrue(host.closed)
         host.close()
+
+    def test_failed_pipeline_start_reports_failed_connect_and_closes_peer(self) -> None:
+        class BrokenOnAdd(IoPipelineHandler):
+            def notify(self, ctx, no) -> None:
+                if isinstance(no, IoPipelineHandlerNotifications.Added):
+                    raise TypeError('broken spec')
+
+        for broken_side in ('client', 'server'):
+            with self.subTest(broken_side=broken_side):
+                host = MemoryIoPipelineHost()
+                try:
+                    listener = host.listen(
+                        TcpSocketEndpoint('127.0.0.1', 0),
+                        lambda info: IoPipeline.Spec([BrokenOnAdd()]) if broken_side == 'server' else IoPipeline.Spec(),
+                    )
+                    connected: ta.List[IoPipelineHostedDriver] = []
+                    failed: ta.List[BaseException] = []
+                    host.connect(
+                        listener.bound_endpoint,
+                        lambda info: IoPipeline.Spec([BrokenOnAdd()]) if broken_side == 'client' else IoPipeline.Spec(),
+                        on_connected=lambda ctx, handle: connected.append(handle),
+                        on_failed=lambda ctx, exc: failed.append(exc),
+                    )
+
+                    host.run()
+
+                    self.assertEqual(connected, [])
+                    self.assertEqual(len(failed), 1)
+                    self.assertIsInstance(failed[0], ConnectIoPipelineHostError)
+                    self.assertEqual(len(host.handles), 1)
+                    self.assertEqual(host.drivers, [])
+                    self.assertEqual(host._links, [])
+                finally:
+                    host.close()

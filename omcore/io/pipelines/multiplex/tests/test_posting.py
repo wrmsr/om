@@ -127,10 +127,13 @@ class TestChildPosting(unittest.TestCase):
             h.feed(LOpen('k'))
             child = ta.cast(IoPipeline, h.mux.child_pipeline('k'))
             posting = child.services[IoPipelinePosting]
+            ref = child.handlers()[0]
             h.feed(LReset('k'))
 
             with self.assertRaises(ClosedIoPipelinePostingError):
                 posting.post(lambda: None)
+            with self.assertRaises(ClosedIoPipelinePostingError):
+                posting.post_context(ref, lambda ctx: None)
         finally:
             h.close()
 

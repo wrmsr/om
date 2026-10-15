@@ -16,6 +16,7 @@ from ..core import IoPipeline
 from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineHandlerRef
 from ..core import IoPipelineHandlerUpdate
+from ..core import IoPipelineUpdate
 from ..posting.types import IoPipelinePosting
 from .types import ClosedIoPipelineHostError
 from .types import IoPipelineHost
@@ -55,9 +56,7 @@ class BaseIoPipelineHostHandle(IoPipelineHostHandle, Abstract):
         if owner is None:
             self.__owner_ctx_ref = None
             return
-        check.state(not owner.invalidated)
-        # Outcomes are posted into the owner's pipeline, which must therefore be able to run them.
-        check.not_none(owner.pipeline.services.find(IoPipelinePosting))
+        check.not_none(self._host)._check_owner(owner)  # noqa
         self.__owner_ctx_ref = weakref.ref(owner._context)  # noqa
 
     def _owner_ctx(self) -> ta.Optional[IoPipelineHandlerContext]:
@@ -126,6 +125,8 @@ class BaseIoPipelineHost(IoPipelineHost, Abstract):
         self._resolver = resolver
 
         self._handles: ta.Dict[int, BaseIoPipelineHostHandle] = {}
+        # Hosted drivers' handles by the id of the pipeline each drives, while that pipeline lives.
+        self._handles_by_pipeline: ta.Dict[int, BaseIoPipelineHostHandle] = {}
         self._closed = False
 
     @property
@@ -148,9 +149,41 @@ class BaseIoPipelineHost(IoPipelineHost, Abstract):
     def _unregister_handle(self, handle: BaseIoPipelineHostHandle) -> None:
         self._handles.pop(id(handle), None)
 
+    def _register_handle_pipeline(self, handle: BaseIoPipelineHostHandle, pipeline: IoPipeline) -> None:
+        """
+        Has the pipeline's destruction drop the handle of the hosted driver driving it - a driver which ended, in any
+        way, destroyed its pipeline - which the host learns of as a service of every pipeline it hosts.
+        """
+
+        self._handles_by_pipeline[id(pipeline)] = handle
+
+    def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
+        if kind != 'removed':
+            return
+        # A pipeline the host was put into by anyone else is not one of these, and is simply not found.
+        if (handle := self._handles_by_pipeline.pop(id(pipeline), None)) is not None:
+            handle._unregister()  # noqa
+
     def _check_open(self) -> None:
         if self._closed:
             raise ClosedIoPipelineHostError('host is closed')
+
+    def _check_owner(self, owner: ta.Optional[IoPipelineHandlerRef]) -> None:
+        """
+        Checks that a handler may own what the host does for it, before anything is done: outcomes are posted into its
+        pipeline, which must therefore be driven, and its removal is seen only through this host's service in that
+        pipeline, without which nothing would close what it owned.
+        """
+
+        if owner is None:
+            return
+        check.state(not owner.invalidated, 'the owner has been removed')
+        services = owner.pipeline.services
+        check.not_none(
+            services.find(IoPipelinePosting),
+            "the owner's pipeline has no posting service: it is not driven",
+        )
+        check.state(self in services, "the owner's pipeline does not have this host among its services")
 
     def _run_unowned(self, fn: ta.Callable[[], None]) -> None:
         """Runs an outcome callback of a request without an owner: here and now, by default."""
@@ -187,6 +220,7 @@ class BaseIoPipelineHost(IoPipelineHost, Abstract):
                 if first_exc is None:
                     first_exc = e
         self._handles.clear()
+        self._handles_by_pipeline.clear()
         if first_exc is not None:
             raise first_exc
 

@@ -18,14 +18,17 @@ from ....streambufs.utils import ByteStreamBuffers
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
+from ...core import IoPipelineHandlerNotifications
 from ...core import IoPipelineMessages
 from ...drivers.asyncio.hosts import AsyncioHostedIoPipelineDriver
 from ...drivers.asyncio.hosts import AsyncioIoPipelineHost
 from ...drivers.fdio.hosts import FdioIoPipelineHost
 from ...drivers.fdio.running import fdio_run_until
+from ...drivers.pure.drivers import PureIoPipelineDriver
 from ...drivers.pure.hosts import MemoryIoPipelineHost
 from ...drivers.types import IoPipelineDriverState
 from ...posting.types import IoPipelinePosting
+from ..base import BaseIoPipelineHost
 from ..types import ClosedIoPipelineHostError
 from ..types import ConnectIoPipelineHostError
 from ..types import ConnectTimeoutIoPipelineHostError
@@ -429,6 +432,31 @@ class TestIoPipelineHostConformance(AsyncioIsolatedAsyncTestCase):
 
         await self._with_harnesses(run)
 
+    async def test_connect_reports_client_pipeline_start_failure(self) -> None:
+        class BrokenOnAdd(IoPipelineHandler):
+            def notify(self, ctx, no) -> None:
+                if isinstance(no, IoPipelineHandlerNotifications.Added):
+                    raise TypeError('broken spec')
+
+        async def run(h: _HostHarness) -> None:
+            outcomes = _Outcomes()
+            listener = h.host.listen(h.listen_endpoint(), lambda info: IoPipeline.Spec())
+            connect = h.host.connect(
+                listener.bound_endpoint,
+                lambda info: IoPipeline.Spec([BrokenOnAdd()]),
+                on_connected=outcomes.on_connected,
+                on_failed=outcomes.on_failed,
+            )
+
+            await h.run_until(lambda: connect.closed)
+            await h.settle()
+
+            self.assertEqual(outcomes.connected, [])
+            self.assertEqual(len(outcomes.failed), 1)
+            self.assertIsInstance(outcomes.failed[0], ConnectIoPipelineHostError)
+
+        await self._with_harnesses(run)
+
     async def test_connect_timeout(self) -> None:
         async def run(h: _HostHarness) -> None:
             if (ep := h.hanging_endpoint()) is None:
@@ -612,6 +640,47 @@ class TestIoPipelineHostConformance(AsyncioIsolatedAsyncTestCase):
 
         await self._with_harnesses(run)
 
+    async def test_owner_pipeline_must_have_the_host(self) -> None:
+        """
+        A handler whose pipeline the host is not a service of cannot own anything: its removal would never reach the
+        host, so nothing would close what it owned. The request is refused before anything is done for it.
+        """
+
+        async def run(h: _HostHarness) -> None:
+            drv = PureIoPipelineDriver(IoPipeline.Spec([_OwnerApp()]))
+            try:
+                self.assertIsNone(drv.next(read=False))
+                ref = drv.pipeline.handlers()[0]
+                a, b = h.adoptable_pair()
+                try:
+                    with self.assertRaises(RuntimeError):
+                        h.host.listen(h.listen_endpoint(), self._echo_factory, owner=ref)
+                    with self.assertRaises(RuntimeError):
+                        h.host.connect(
+                            h.refused_endpoint(),
+                            self._echo_factory,
+                            on_connected=lambda c, x: None,
+                            on_failed=lambda c, x: None,
+                            owner=ref,
+                        )
+                    with self.assertRaises(RuntimeError):
+                        h.host.adopt(a, self._echo_factory(IoPipelineHostTransportInfo()), owner=ref)
+                    self.assertEqual(list(ta.cast(BaseIoPipelineHost, h.host).handles), [])
+
+                    handle = h.host.adopt(b, self._echo_factory(IoPipelineHostTransportInfo()))
+                    with self.assertRaises(RuntimeError):
+                        handle.transfer(ref)
+                    self.assertIsNone(handle.owner)
+                    handle.close()
+                finally:
+                    for t in (a, b):
+                        if hasattr(t, 'close'):
+                            t.close()
+            finally:
+                drv.close()
+
+        await self._with_harnesses(run)
+
     async def test_release_and_transfer(self) -> None:
         async def run(h: _HostHarness) -> None:
             owner_a = _OwnerApp()
@@ -666,6 +735,56 @@ class TestIoPipelineHostConformance(AsyncioIsolatedAsyncTestCase):
                     on_connected=lambda c, x: None,
                     on_failed=lambda c, x: None,
                 )
+
+        await self._with_harnesses(run)
+
+    async def test_closing_the_host_fails_pending_connects(self) -> None:
+        """A connect still in progress when the host closes is told so, as one closed by itself is - owner or not."""
+
+        async def run(h: _HostHarness) -> None:
+            if (ep := h.hanging_endpoint()) is None:
+                self.skipTest('no hanging endpoint on this host')
+            outcomes = _Outcomes()
+            connect = h.host.connect(
+                ep,
+                self._echo_factory,
+                on_connected=outcomes.on_connected,
+                on_failed=outcomes.on_failed,
+                timeout_s=5.,
+            )
+            h.host.close()
+
+            self.assertTrue(connect.closed)
+            self.assertEqual(outcomes.connected, [])
+            self.assertEqual(len(outcomes.failed), 1)
+            self.assertIsInstance(outcomes.failed[0], ClosedIoPipelineHostError)
+
+        await self._with_harnesses(run)
+
+    async def test_finished_connections_are_dropped_by_the_host(self) -> None:
+        """
+        A hosted driver which ended on its own - gracefully, here - is nothing the host can close any more: its handle
+        is dropped without an explicit close, so a long-lived host does not accumulate one per connection served.
+        """
+
+        async def run(h: _HostHarness) -> None:
+            outcomes = _Outcomes()
+            listener = h.host.listen(h.listen_endpoint(), self._echo_factory, on_accepted=outcomes.on_accepted)
+            client = _ClientApp()
+            h.host.connect(
+                listener.bound_endpoint,
+                lambda info: IoPipeline.Spec([client]),
+                on_connected=outcomes.on_connected,
+                on_failed=outcomes.on_failed,
+                timeout_s=5.,
+            )
+            await h.run_until(lambda: client.saw_final_input and len(outcomes.accepted) == 1)
+            conn = outcomes.connected[0]
+            acc = outcomes.accepted[0]
+            await h.run_until(lambda: conn.closed and acc.closed)
+            await h.settle()
+
+            self.assertEqual(list(ta.cast(BaseIoPipelineHost, h.host).handles), [listener])
 
         await self._with_harnesses(run)
 

@@ -301,7 +301,9 @@ class IoPipelineRelayEndHandler(IoPipelineHandler):
 
     def _peer_post(self, fn: ta.Callable[[IoPipelineHandlerContext], None]) -> bool:
         other = self._relay.other(self._side)
-        if not self._relay.is_attached(other):
+        if not self._relay.is_attached(other) or self._held_posts:
+            # Held until the other side is attached - and, once it is, until what was held before it has been sent,
+            # which the peer-ready post it makes does - so that nothing overtakes what was held.
             if self._relay.aborted:
                 return False
             self._held_posts.append(fn)

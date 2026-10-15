@@ -35,6 +35,11 @@
 
 - move a `Defer` continuation behind the reads and writes already pending in the synchronous drivers' loops, not only
   behind the timers already due: the fuller form of the fairness yield `yielding.py` describes
+- settle one rule for `enqueue()` on a driver which is no longer RUNNING: the asyncio driver refuses DRAINING while
+  its `accept_post` allows it, and the sync, fdio, and pure drivers' `enqueue` checks nothing at all
+- the asyncio driver's `close()` runs the handlers' removal and then the listeners of the input it never processed,
+  each regardless of the other, and re-raises only the first failure, dropping any later one (as `destroy()` does
+  across handlers): revisit with an exception group carrying them all once lite code's floor passes 3.11
 
 ### hosts
 
@@ -54,6 +59,12 @@
 - the asyncio host serves one owned duplex descriptor through two pipe transports on the descriptor and a duplicate
   of it, so closing one does not close the description: good enough for a pseudo-terminal master, worth a look for
   anything stranger
+- the fdio host still runs an unowned request's `on_failed` inside `connect()` when its blocking resolver fails,
+  before the caller has the handle, where every other outcome of every host is delivered later (the connecting
+  handler's are, since its immediate outcomes were moved to the manager's dispatch): make it uniform, by a wakeup or a
+  deadline already due, before a blocking client front end (phase 3's) is built on it
+- the asyncio host's listener stops its accept loop on any `OSError`, where the fdio host's continues past
+  `ECONNABORTED` and `EINTR`; align them
 
 ### multiplex
 
@@ -91,3 +102,9 @@
 - proto / grpc
 - (promote) redis / memcache
 - db drivers?
+
+
+### elsewhere (not this package)
+
+- `x/supervisor/configs.py` imports `install_dataclass_filtered_repr`, removed from `omcore.lite.dataclasses` by
+  750e66234, so `x/supervisor/tests/test_supervisor.py` fails to import; found while running the pipelines' consumers

@@ -329,7 +329,8 @@ class MultiplexChildIoPipelinePosting(IoPipelinePosting, IoPipelineService):
             handler_ref: IoPipelineHandlerRef,
             fn: ta.Callable[[IoPipelineHandlerContext], T],
     ) -> IoPipelinePost[T]:
-        pipeline = check.not_none(self._pipeline)
+        if (pipeline := self._pipeline) is None:
+            raise ClosedIoPipelinePostingError('stream ended')
         check.is_(handler_ref.pipeline, pipeline)
         check.state(not handler_ref.invalidated)
 

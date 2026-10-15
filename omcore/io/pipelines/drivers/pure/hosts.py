@@ -367,8 +367,12 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
         self._drivers[id(handle)] = handle
 
         # A hosted pipeline exists, and has had InitialInput, from the start; what it emits at once is kept.
-        while (out := driver.next(read=False)) is not None:
-            handle.unhandled.append(out)
+        try:
+            while (out := driver.next(read=False)) is not None:
+                handle.unhandled.append(out)
+        except BaseException:
+            handle.close()
+            raise
 
         return handle
 
@@ -395,6 +399,7 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedConnect:
         self._check_open()
+        self._check_owner(owner)
         check.isinstance(endpoint, SocketEndpoint)
         if timeout_s is not None and timeout_s < 0.:
             raise ValueError(timeout_s)
@@ -426,7 +431,6 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             c._fail(ConnectIoPipelineHostError(endpoint, [ConnectionRefusedError('no listener')]))  # noqa
             return True
 
-        client_end, server_end = self.pair()
         client_address = self._address()
         server_address = self._address()
         client_info = IoPipelineHostTransportInfo(
@@ -454,8 +458,18 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             c._fail(ConnectIoPipelineHostError(endpoint, [e]))  # noqa
             return True
 
-        server = self._host_driver(server_end, server_spec, server_info, listener.owner)
-        client = self._host_driver(client_end, client_spec, client_info, c.owner)
+        client_end, server_end = self.pair()
+        server: ta.Optional[MemoryHostedIoPipelineDriver] = None
+        try:
+            server = self._host_driver(server_end, server_spec, server_info, listener.owner)
+            client = self._host_driver(client_end, client_spec, client_info, c.owner)
+        except Exception as e:  # noqa
+            # Either pipeline failing to start - a handler raising when added, say - is the connection failing before
+            # anything crossed it: a driver already hosted for it is closed, and the connect is failed.
+            if server is not None:
+                server.close()
+            c._fail(ConnectIoPipelineHostError(endpoint, [e]))  # noqa
+            return True
 
         c._finish()  # noqa
         if (on_accepted := listener._on_accepted) is not None:  # noqa
@@ -474,6 +488,7 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedListener:
         self._check_open()
+        self._check_owner(owner)
         check.arg(backlog > 0)
 
         bound: SocketEndpoint
@@ -506,6 +521,7 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedDriver:
         self._check_open()
+        self._check_owner(owner)
         end = check.isinstance(transport, MemoryIoPipelineLinkEnd)
         check.state(not end.adopted)
         link = check.not_none(end.link, 'the link is gone: its drivers are done')
@@ -589,4 +605,16 @@ class MemoryIoPipelineHost(BaseIoPipelineHost):
             self._drivers.clear()
             self._listeners.clear()
             self._links.clear()
+            # The outcomes closing produced for requests without an owner - a pending connect's failure - have no
+            # next step to be delivered on: they are delivered now, each of them even if one raises.
+            later = list(self._later)
             self._later.clear()
+            first_exc: ta.Optional[BaseException] = None
+            for fn in later:
+                try:
+                    fn()
+                except Exception as e:  # noqa
+                    if first_exc is None:
+                        first_exc = e
+            if first_exc is not None:
+                raise first_exc

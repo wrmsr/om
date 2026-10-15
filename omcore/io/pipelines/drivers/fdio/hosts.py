@@ -248,13 +248,6 @@ class FdioHostedIoPipelineConnect(FdioHostedIoPipelineHandle, IoPipelineHostedCo
 class FdioHostListenerFdioHandler(FdioHandler):
     """Accepts for a hosted listener. Holds the listener handle only weakly: the handle owns the socket."""
 
-    _EXHAUSTION_ERRNOS: ta.ClassVar[ta.FrozenSet[int]] = frozenset([
-        errno.EMFILE,
-        errno.ENFILE,
-        errno.ENOBUFS,
-        errno.ENOMEM,
-    ])
-
     def __init__(self, sock: socket.socket, listener: 'FdioHostedIoPipelineListener') -> None:
         super().__init__()
 
@@ -410,12 +403,18 @@ class FdioIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef],
     ) -> FdioHostedIoPipelineDriver:
         check.none(form.next(read=False))
+        handle = FdioHostedIoPipelineDriver(self, owner, form, info)
         if form.is_active:
             if isinstance(form, IoPipelineDriverFdPairFdioHandlers):
                 form.register(self._manager)
             else:
                 self._manager.register(form)
-        return FdioHostedIoPipelineDriver(self, owner, form, info)
+            # The handle is dropped when the driver ends, which destroys the pipeline the host is a service of.
+            self._register_handle_pipeline(handle, form.pipeline)
+        else:
+            # Ended during its start - a pipeline finishing at once, say: there is nothing left to close.
+            handle._unregister()  # noqa
+        return handle
 
     def _host_socket(
             self,
@@ -441,6 +440,7 @@ class FdioIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedConnect:
         self._check_open()
+        self._check_owner(owner)
         check.isinstance(endpoint, SocketEndpoint)
         if timeout_s is not None and timeout_s < 0.:
             raise ValueError(timeout_s)
@@ -469,6 +469,7 @@ class FdioIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedListener:
         self._check_open()
+        self._check_owner(owner)
         check.isinstance(endpoint, SocketEndpoint)
 
         try:
@@ -494,6 +495,7 @@ class FdioIoPipelineHost(BaseIoPipelineHost):
             owner: ta.Optional[IoPipelineHandlerRef] = None,
     ) -> IoPipelineHostedDriver:
         self._check_open()
+        self._check_owner(owner)
         hosted_spec = self._hosted_spec(spec)
 
         form: FdioHostedForm

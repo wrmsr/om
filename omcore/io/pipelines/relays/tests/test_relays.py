@@ -429,6 +429,34 @@ class TestRelay(unittest.TestCase):
         spec = relay.spec('a')
         self.assertFalse(ta.cast(ta.Any, next(iter(spec.services))).is_auto_read())
 
+    def test_messages_held_for_an_unattached_side_keep_their_order(self) -> None:
+        """
+        What a side has for the other before it is attached is held and sent once it is, in order - and nothing the
+        side has for it afterwards may overtake what was held. A message already at the holding side's boundary when
+        the other attaches is processed ahead of the post that attachment makes, which is what sends the held ones.
+        """
+
+        relay = IoPipelineRelay()
+        da = PureIoPipelineDriver(relay.spec('a', map_message=lambda m: m))
+        db = PureIoPipelineDriver(relay.spec('b', map_message=lambda m: m))
+        try:
+            self.assertIsNone(da.next(read=False))  # a is attached, b is not yet
+            da.enqueue(_Typed(1))
+            self.assertIsNone(da.next(read=False))  # held for b
+            da.enqueue(_Typed(2))  # at a's boundary before b attaches, so ahead of the post b's attachment makes
+            self.assertIsNone(db.next(read=False))  # b attaches
+
+            while da.next(read=False) is not None:
+                pass
+            got: ta.List[ta.Any] = []
+            while (out := db.next(read=False)) is not None:
+                got.append(out)
+
+            self.assertEqual(got, [_Typed(1), _Typed(2)])
+        finally:
+            da.close()
+            db.close()
+
     def test_finished_relay_is_released_without_cyclic_gc(self) -> None:
         was_enabled = gc.isenabled()
         gc.disable()

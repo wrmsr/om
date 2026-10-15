@@ -4,6 +4,7 @@ import asyncio
 import fcntl
 import os
 import socket
+import tempfile
 import tty
 import typing as ta
 
@@ -133,6 +134,79 @@ class TestAsyncioIoPipelineHostAdoption(AsyncioIsolatedAsyncTestCase):
             await host.wait_closed()
             a.close()
             b.close()
+
+    async def test_closing_an_owned_adoption_before_its_task_runs_closes_the_socket(self) -> None:
+        """An owned socket is the host's to close from the adoption on - even one whose task never got to run."""
+
+        host = AsyncioIoPipelineHost()
+        a, b = socket.socketpair()
+        try:
+            hosted = ta.cast(AsyncioHostedIoPipelineDriver, host.adopt(a, IoPipeline.Spec([_UpperEchoApp()]), owned=True))  # noqa
+            hosted.close()
+            await hosted.wait_closed()
+            await host.wait_closed()
+
+            self.assertTrue(hosted.closed)
+            self.assertEqual(a.fileno(), -1)
+        finally:
+            host.close()
+            await host.wait_closed()
+            a.close()
+            b.close()
+
+    async def test_closing_an_owned_descriptor_adoption_before_its_task_runs_closes_the_descriptors(self) -> None:
+        host = AsyncioIoPipelineHost()
+        r, w = os.pipe()
+        try:
+            hosted = ta.cast(AsyncioHostedIoPipelineDriver, host.adopt((r, w), IoPipeline.Spec(), owned=True))
+            hosted.close()
+            await hosted.wait_closed()
+            await host.wait_closed()
+
+            self.assertTrue(hosted.closed)
+            for fd in (r, w):
+                with self.assertRaises(OSError):
+                    os.fstat(fd)
+        finally:
+            host.close()
+            await host.wait_closed()
+
+    async def test_failed_descriptor_start_closes_each_duplicate_once(self) -> None:
+        """
+        A descriptor pair which cannot be served - a regular file is no pipe transport - is released with each
+        duplicate closed exactly once: a number closed early and then again later, by a transport's own deferred close,
+        would close whatever had reused it in between.
+        """
+
+        host = AsyncioIoPipelineHost()
+        r, w = os.pipe()
+        try:
+            with tempfile.TemporaryFile() as f:
+                hosted = ta.cast(AsyncioHostedIoPipelineDriver, host.adopt((r, f.fileno()), IoPipeline.Spec()))
+                with self.assertRaises(ValueError):
+                    await hosted.wait_started()
+                await hosted.wait_closed()
+                self.assertTrue(hosted.closed)
+
+                # Whatever takes the duplicates' freed numbers now must survive the deferred closes.
+                probe_r, probe_w = os.pipe()
+                try:
+                    for _ in range(5):
+                        await asyncio.sleep(0)
+                    os.fstat(probe_r)
+                    os.fstat(probe_w)
+                finally:
+                    os.close(probe_r)
+                    os.close(probe_w)
+
+            # The caller's descriptors are intact, and back in blocking mode.
+            os.fstat(r)
+            self.assertFalse(fcntl.fcntl(r, fcntl.F_GETFL) & os.O_NONBLOCK)
+        finally:
+            host.close()
+            await host.wait_closed()
+            os.close(r)
+            os.close(w)
 
     async def test_owned_pipe_pair_half_closes_by_closing_the_write_end(self) -> None:
         host = AsyncioIoPipelineHost()

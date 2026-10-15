@@ -2,16 +2,21 @@
 # @om-lite
 import os
 import socket
+import tempfile
 import threading
 import time
 import typing as ta
 import unittest
 
 from ......sockets.endpoints import TcpSocketEndpoint
+from ......sockets.endpoints import UnixSocketEndpoint
 from .....fdio.manager import FdioManager
 from .....fdio.pollers import SelectFdioPoller
 from .....fdio.wakeups import WakeupFdioHandler
 from ....core import IoPipeline
+from ....core import IoPipelineHandler
+from ....core import IoPipelineHandlerContext
+from ....core import IoPipelineMessages
 from ....hosts.types import ConnectIoPipelineHostError
 from ....hosts.types import IoPipelineHostedDriver
 from ....hosts.types import ResolveIoPipelineHostError
@@ -157,7 +162,54 @@ class TestThreadedResolver(unittest.TestCase):
             resolver.close()
 
 
+class _FinishAtOnceApp(IoPipelineHandler):
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            ctx.feed_in(msg)
+            ctx.feed_final_output()
+            return
+        if isinstance(msg, IoPipelineMessages.MayPropagate):
+            ctx.feed_in(msg)
+
+
 class TestFdioIoPipelineHostAdoption(unittest.TestCase):
+    def test_a_driver_ending_during_its_start_is_not_kept(self) -> None:
+        manager = FdioManager(SelectFdioPoller())
+        host = FdioIoPipelineHost(manager)
+        a, b = socket.socketpair()
+        try:
+            handle = host.adopt(a, IoPipeline.Spec([_FinishAtOnceApp()]), owned=True)
+            self.assertTrue(handle.closed)
+            self.assertEqual(list(host.handles), [])
+            self.assertEqual(b.recv(16), b'')
+        finally:
+            host.close()
+            b.close()
+
+    def test_immediate_unix_connect_outcome_is_delivered_by_the_manager(self) -> None:
+        manager = FdioManager(SelectFdioPoller())
+        host = FdioIoPipelineHost(manager)
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                endpoint = UnixSocketEndpoint(os.path.join(directory, 'socket'))
+                listener = host.listen(endpoint, lambda info: IoPipeline.Spec())
+                connected: ta.List[IoPipelineHostedDriver] = []
+                failed: ta.List[BaseException] = []
+                host.connect(
+                    listener.bound_endpoint,
+                    lambda info: IoPipeline.Spec(),
+                    on_connected=lambda ctx, handle: connected.append(handle),
+                    on_failed=lambda ctx, exc: failed.append(exc),
+                )
+
+                self.assertEqual(connected, [])
+                self.assertEqual(failed, [])
+                self.assertTrue(fdio_run_until(manager, lambda: bool(connected or failed), timeout_s=5.))
+                self.assertEqual(len(connected), 1)
+                self.assertEqual(failed, [])
+        finally:
+            host.close()
+
     def test_adopts_a_caller_owned_socket_without_closing_it(self) -> None:
         manager = FdioManager(SelectFdioPoller())
         host = FdioIoPipelineHost(manager)

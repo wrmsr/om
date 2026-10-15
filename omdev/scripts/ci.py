@@ -91,7 +91,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'ad5123ee828c609a60bd0ef4e07c92b12f131d15'
+__om_amalg_sha1__ = 'cdc18d27fed561fe400393ab31f52aae6e604199'
 
 
 def __om_amalg__():  # noqa
@@ -169,7 +169,7 @@ def __om_amalg__():  # noqa
             dict(sha1='bf1d8923427f11b35a9ebde1e10944786c81262f', path='../../omcore/io/pipelines/bytes/buffering.py'),
             dict(sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e', path='../../omcore/io/pipelines/drivers/metadata.py'),  # noqa
             dict(sha1='53f7bc76bff67bc342e8156c2e2eb72fd160598b', path='../../omcore/io/pipelines/flow/types.py'),
-            dict(sha1='2c0b97335a39193bef1d73bc50af3457d64a90c8', path='../../omcore/io/pipelines/posting/types.py'),
+            dict(sha1='d79643be1e692e0ff2a3dc3b6daa330333406775', path='../../omcore/io/pipelines/posting/types.py'),
             dict(sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f', path='../../omcore/io/pipelines/sched/types.py'),
             dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', path='../../omcore/io/streambufs/base.py'),
             dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', path='../../omcore/io/streambufs/utils.py'),
@@ -14926,7 +14926,8 @@ class TargetIoPipelinePostingService(IoPipelinePosting, IoPipelineService):
             handler_ref: IoPipelineHandlerRef,
             fn: ta.Callable[[IoPipelineHandlerContext], T],
     ) -> IoPipelinePost[T]:
-        pipeline = check.not_none(self._pipeline)
+        if (pipeline := self._pipeline) is None:
+            raise ClosedIoPipelinePostingError('pipeline is gone')
         check.is_(handler_ref.pipeline, pipeline)
         check.state(not handler_ref.invalidated)
 

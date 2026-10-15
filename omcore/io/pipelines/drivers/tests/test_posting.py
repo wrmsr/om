@@ -18,6 +18,7 @@ from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
+from ...posting.types import ClosedIoPipelinePostingError
 from ...posting.types import IoPipelinePosting
 from ..asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from ..fdio.sockets import IoPipelineDriverSocketFdioHandler
@@ -251,3 +252,17 @@ class TestPostingWakes(AsyncioIsolatedAsyncTestCase):
             self.assertTrue(post.is_succeeded())
         finally:
             await drv.close()
+
+
+class TestPostingIntoAClosedDriver(unittest.TestCase):
+    def test_post_and_post_context_are_refused_alike(self) -> None:
+        drv = PureIoPipelineDriver(IoPipeline.Spec([_NopIoPipelineHandler()]))
+        self.assertIsNone(drv.next(read=False))
+        ref = drv.pipeline.handlers()[0]
+        posting = drv.pipeline.services[IoPipelinePosting]
+        drv.close()
+
+        with self.assertRaises(ClosedIoPipelinePostingError):
+            posting.post(lambda: None)
+        with self.assertRaises(ClosedIoPipelinePostingError):
+            posting.post_context(ref, lambda ctx: None)

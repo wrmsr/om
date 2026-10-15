@@ -34,7 +34,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'dcb17c23e5103c4fcb9f8f86a5c755c7b20326e3'
+__om_amalg_sha1__ = '34751f3d1964abb5f9884447ec071ebd6fd85701'
 
 
 def __om_amalg__():  # noqa
@@ -61,7 +61,7 @@ def __om_amalg__():  # noqa
             dict(sha1='53f7bc76bff67bc342e8156c2e2eb72fd160598b', path='flow/types.py'),
             dict(sha1='d3e3c43b3359572122b8cb9018c770441c598d48', path='handlers/fns.py'),
             dict(sha1='0672c722e377d67369da3cb4a082b4816eb84875', path='handlers/queues.py'),
-            dict(sha1='2c0b97335a39193bef1d73bc50af3457d64a90c8', path='posting/types.py'),
+            dict(sha1='d79643be1e692e0ff2a3dc3b6daa330333406775', path='posting/types.py'),
             dict(sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f', path='sched/types.py'),
             dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', path='../streambufs/base.py'),
             dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', path='../streambufs/utils.py'),
@@ -80,7 +80,7 @@ def __om_amalg__():  # noqa
             dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', path='../../logs/std/loggers.py'),
             dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', path='bytes/decoders.py'),
             dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', path='../../logs/modules.py'),
-            dict(sha1='3380fcd0bcffda8f5e5af296808b75dccbab7d96', path='drivers/asyncio/streams.py'),
+            dict(sha1='6f1c8fc23d5b5cb8c80cddc0cc0190fab6e44712', path='drivers/asyncio/streams.py'),
             dict(sha1='06d6b72260d4724fb48ad26921d287f2e77715a1', path='_amalg.py'),
         ],
     )
@@ -4996,7 +4996,8 @@ class TargetIoPipelinePostingService(IoPipelinePosting, IoPipelineService):
             handler_ref: IoPipelineHandlerRef,
             fn: ta.Callable[[IoPipelineHandlerContext], T],
     ) -> IoPipelinePost[T]:
-        pipeline = check.not_none(self._pipeline)
+        if (pipeline := self._pipeline) is None:
+            raise ClosedIoPipelinePostingError('pipeline is gone')
         check.is_(handler_ref.pipeline, pipeline)
         check.state(not handler_ref.invalidated)
 
@@ -9596,9 +9597,14 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
             return []  # Nothing can run any more, and a closed loop refuses the cancellation's callbacks.
 
         cts: ta.List[asyncio.Future] = []
+        try:
+            # A driver-owned Await's task may be the one closing the driver: it is not cancelled from under itself.
+            current: ta.Optional[asyncio.Future] = asyncio.current_task()
+        except RuntimeError:
+            current = None
 
         for t in tasks:
-            if t is not None and not t.done():
+            if t is not None and t is not current and not t.done():
                 t.cancel()
                 cts.append(t)
 
@@ -10207,7 +10213,7 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
     @dc.dataclass(frozen=True)
     class _AwaitCompletedCommand(_Command):
         msg: AsyncIoPipelineMessages.Await
-        fut: ta.Optional[asyncio.Future]
+        fut: asyncio.Future
 
     @dc.dataclass(frozen=True)
     class _AwaitFailedCommand(_Command):
@@ -10216,13 +10222,6 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
     async def _handle_command_await_completed(self, cmd: _AwaitCompletedCommand) -> None:
         fut = cmd.fut
-
-        if fut is None:
-            # Bare yield / sleep(0) case.
-            with self._pipeline.enter():
-                cmd.msg.set_succeeded(None)
-            return
-
         self._pending_awaits.pop(fut, None)
 
         if cmd.msg.is_done():
@@ -10285,7 +10284,11 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
 
         if created:
             def msg_done(m: IoPipelineMessages.Completable) -> None:
-                if not fut.done():
+                try:
+                    current = asyncio.current_task()
+                except RuntimeError:
+                    current = None
+                if not fut.done() and fut is not current:
                     fut.cancel()
 
             msg.add_listener(msg_done)
@@ -10717,27 +10720,42 @@ class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
                 cancelled.extend(self._cancel_tasks_now(self._read_task))
                 cancelled.extend(self._cancel_created_awaits_now())
 
-                # Input never processed is released, and anyone waiting on it is told.
-                self._drain_command_queue(AbortedIoPipelineError('Driver closed before the input was processed'))
-                self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
-
                 aborted_writer = self._abort_writer_now()
 
                 if hasattr(self, '_sched'):
                     self._sched.cancel_all()
 
-                if self._has_init:
+                # Closed from here on: nothing more is accepted, by a listener run below or by anyone else.
+                self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
+
+                # Only now, with the transport released, does anything run which may raise: handlers' Removed
+                # callbacks as the pipeline is destroyed, then completion listeners as the input never processed is
+                # failed. Each step runs whatever the other did, so that nothing is left undone, and the first
+                # exception raised is the one re-raised once everything has been released - the rule the pipeline's
+                # own destroy() applies to its handlers - and any later one is dropped. An exception group would carry
+                # them all, but there is none on Python 3.8, and a close is not the place to invent one.
+                first_exc: ta.Optional[BaseException] = None
+
+                if (pipeline := getattr(self, '_pipeline', None)) is not None and pipeline.is_ready:
                     try:
-                        if self._pipeline.is_ready:
-                            self._pipeline.destroy()
-                    except AttributeError:
-                        pass
+                        pipeline.destroy()
+                    except BaseException as e:  # noqa
+                        first_exc = e
+
+                # Input never processed is released, and anyone waiting on it is told.
+                try:
+                    self._drain_command_queue(AbortedIoPipelineError('Driver closed before the input was processed'))
+                except BaseException as e:  # noqa
+                    if first_exc is None:
+                        first_exc = e
+                self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
+
+                if first_exc is not None:
+                    raise first_exc
 
             except BaseException:
                 self._state = IoPipelineDriverState.FAILED
                 raise
-
-            self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
 
         finally:
             # Waited for even when a handler's removal failed: the close is still the close of the transport.
