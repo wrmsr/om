@@ -4,6 +4,7 @@
 import abc
 import asyncio
 import gc
+import select
 import socket
 import typing as ta
 import weakref
@@ -243,7 +244,9 @@ class _SocketHostHarness(_HostHarness, abc.ABC):
             return TcpSocketEndpoint('127.0.0.1', s.getsockname()[1])
 
     def hanging_endpoint(self) -> ta.Optional[SocketEndpoint]:
-        # A listener whose backlog is full drops further connection attempts, which then stay in progress.
+        # A listener whose backlog is full drops further connection attempts, which then stay in progress - on Linux.
+        # darwin completes the loopback handshake regardless and resets the connection, so a probe is given a moment:
+        # an attempt the kernel will not leave hanging becomes writable - connected or failed - at once.
         listener = socket.create_server(('127.0.0.1', 0), backlog=1)
         self._full.append(listener)
         port = listener.getsockname()[1]
@@ -254,10 +257,14 @@ class _SocketHostHarness(_HostHarness, abc.ABC):
             self._full.append(f)
         probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         probe.setblocking(False)
-        err = probe.connect_ex(('127.0.0.1', port))
-        probe.close()
-        if err == 0:
-            return None
+        try:
+            if probe.connect_ex(('127.0.0.1', port)) == 0:
+                return None
+            _, writable, _ = select.select([], [probe], [], .25)
+            if writable:
+                return None
+        finally:
+            probe.close()
         return TcpSocketEndpoint('127.0.0.1', port)
 
     def adoptable_pair(self) -> ta.Tuple[ta.Any, ta.Any]:

@@ -1,6 +1,7 @@
 # ruff: noqa: SLF001 UP006 UP007 UP045
 # @om-lite
 import errno
+import select
 import socket
 import time
 import typing as ta
@@ -58,7 +59,11 @@ def _poll_until(manager: FdioManager, cond: ta.Callable[[], bool]) -> float:
 
 
 class _FullListener:
-    """A listener whose backlog is full, so further connection attempts stay in progress: never accepted or refused."""
+    """
+    A listener whose backlog is full, so further connection attempts stay in progress: never accepted or refused.
+    That is Linux, which drops the attempt's SYN; darwin completes the loopback handshake regardless and resets the
+    connection, so `hangs` is probed, and a test needing a hanging attempt skips where there is none.
+    """
 
     def __init__(self) -> None:
         self.sock = socket.create_server(('127.0.0.1', 0), backlog=1)
@@ -69,6 +74,21 @@ class _FullListener:
             f.setblocking(False)
             f.connect_ex(('127.0.0.1', self.port))
             self.fillers.append(f)
+        self.hangs = self._probe_hangs(self.port)
+
+    @staticmethod
+    def _probe_hangs(port: int, wait_s: float = .25) -> bool:
+        """An attempt the kernel will not leave hanging becomes writable - connected or failed - at once."""
+
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.setblocking(False)
+        try:
+            if probe.connect_ex(('127.0.0.1', port)) == 0:
+                return False
+            _, writable, _ = select.select([], [probe], [], wait_s)
+            return not writable
+        finally:
+            probe.close()
 
     def close(self) -> None:
         for f in self.fillers:
@@ -166,6 +186,8 @@ class TestConnectingSocketFdioHandler(unittest.TestCase):
     def test_timeout_fails_the_attempt(self) -> None:
         full = _FullListener()
         try:
+            if not full.hangs:
+                self.skipTest('connection attempts to a full backlog do not hang here')
             outcome = _Outcome()
             handler = ConnectingSocketFdioHandler(
                 [_tcp(full.port)],

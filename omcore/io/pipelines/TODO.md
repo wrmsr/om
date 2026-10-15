@@ -65,6 +65,12 @@
   deadline already due, before a blocking client front end (phase 3's) is built on it
 - the asyncio host's listener stops its accept loop on any `OSError`, where the fdio host's continues past
   `ECONNABORTED` and `EINTR`; align them
+- a hosted driver's transport failure after it started - the peer resetting the connection, say - escapes the
+  asyncio host's driving task as its exception, which nothing retrieves once the task's done callback has dropped it
+  from the host's set ("Task exception was never retrieved" on darwin, where a full backlog resets rather than
+  hangs):
+  the handle's state is FAILED, so record the failure on the handle and end the task normally, the same for a start
+  failure of an adopted or accepted transport, which only `wait_started` surfaces today
 
 ### multiplex
 
