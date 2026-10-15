@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'e2124bbce4e0105ed53ffb6b4e3123678007fa65'
+__om_amalg_sha1__ = '06d6b20ac461f8e46d6b8134cef999da597764d7'
 
 
 def __om_amalg__():  # noqa
@@ -58,8 +58,10 @@ def __om_amalg__():  # noqa
         src_files=[
             dict(sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab', path='../../../omcore/asyncs/asyncio/streams.py'),
             dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../../omcore/lite/abstract.py'),
+            dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../../omcore/lite/bytes.py'),
             dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../../omcore/lite/cached.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../../omcore/lite/check.py'),
+            dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', path='../../../omcore/lite/dataclasses.py'),
             dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../../omcore/lite/objects.py'),
             dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../../omcore/lite/reflect.py'),
             dict(sha1='1365cb6046eb929358e7c86a3fda20d95fd4a296', path='../../../omcore/lite/resources.py'),
@@ -67,12 +69,13 @@ def __om_amalg__():  # noqa
             dict(sha1='a663184c584cf8d8449981d424337f8fbb61c7e8', path='../../../omcore/os/pyremote/core.py'),
             dict(sha1='2c9a0a731509230c5a632494c3f176792c486b3a', path='../fs/common.py'),
             dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../../omcore/lite/marshal.py'),
+            dict(sha1='45452dfb190b7fdeba144374971959b7733be106', path='../fs/ops.py'),
             dict(sha1='18f353e8fe27cb61dcd1514f6d51f77dbd746887', path='../fs/remote/protocol.py'),
             dict(sha1='995eba7586af040b569b0ff77fb5e3a2d132f18e', path='../../core/processes/remote/protocol.py'),
             dict(sha1='875f2f61c1515d510977f37669e20af0e581fb82', path='../../core/rpc/errors.py'),
             dict(sha1='c6ba6e514b292048509f729d9f99bbd9eb36128a', path='../../core/rpc/handlers.py'),
             dict(sha1='f1082a2b6361ca9f50f4521d9c0d4279ff1a7905', path='../../core/rpc/messages.py'),
-            dict(sha1='1d914f314517da581edfe09dcc992b6dbe387481', path='../fs/remote/server.py'),
+            dict(sha1='667fa99e6ee7d4e3afb4ed5f42fb245726f966a9', path='../fs/remote/server.py'),
             dict(sha1='103b39dc4068a45f4e83c3e87312bf4ce5ee2052', path='../../core/rpc/channels.py'),
             dict(sha1='80821e7a5897f00917f0c27596db2f2713ba07ad', path='../../core/rpc/peers.py'),
             dict(sha1='0e5b30d8fe987b78ab8158de07dc839de4e7ffd1', path='../../core/processes/remote/server.py'),
@@ -87,6 +90,10 @@ def __om_amalg__():  # noqa
 
 # ../../../omcore/lite/abstract.py
 T = ta.TypeVar('T')
+
+# ../../../omcore/lite/bytes.py
+Bytes = ta.Union[bytes, bytearray]  # ta.TypeAlias
+BytesLike = ta.Union[Bytes, memoryview]  # ta.TypeAlias
 
 # ../../../omcore/lite/cached.py
 CallableT = ta.TypeVar('CallableT', bound=ta.Callable)
@@ -327,6 +334,61 @@ class Abstract:
 
         if not isinstance(cls, abc.ABCMeta):
             update_abstracts(cls, force=True)
+
+
+########################################
+# ../../../../omcore/lite/bytes.py
+
+
+##
+
+
+BYTES_TYPES: ta.Tuple[ta.Union[ta.Type[bytes], ta.Type[bytearray]], ...] = (
+    bytes,
+    bytearray,
+)
+
+BYTES_LIKE_TYPES: ta.Tuple[ta.Union[ta.Type[bytes], ta.Type[bytearray], ta.Type[memoryview]], ...] = (
+    *BYTES_TYPES,
+    memoryview,
+)
+
+
+##
+
+
+def bytes_like_to_bytes(bl: BytesLike, /) -> Bytes:
+    if isinstance(bl, BYTES_TYPES):
+        return bl
+
+    return memoryview_to_bytes(bl)  # type: ignore[arg-type]
+
+
+def bytes_like_to_bytes_strict(bl: BytesLike, /) -> bytes:
+    if isinstance(bl, bytes):
+        return bl
+
+    if isinstance(bl, bytearray):
+        return bytes(bl)
+
+    return memoryview_to_bytes_strict(bl)
+
+
+#
+
+
+def memoryview_to_bytes(mv: memoryview, /) -> Bytes:
+    if (mv.c_contiguous and ((ot := type(obj := mv.obj)) is bytes or ot is bytearray or isinstance(obj, BYTES_TYPES)) and len(mv) == len(obj)):  # type: ignore[arg-type]  # noqa
+        return obj  # type: ignore[return-value]
+
+    return mv.tobytes()
+
+
+def memoryview_to_bytes_strict(mv: memoryview, /) -> bytes:
+    if (mv.c_contiguous and ((ot := type(obj := mv.obj)) is bytes or isinstance(obj, bytes)) and len(mv) == len(obj)):  # type: ignore[arg-type]  # noqa
+        return obj  # type: ignore[return-value]
+
+    return mv.tobytes()
 
 
 ########################################
@@ -1022,6 +1084,304 @@ class Checks:
 
 
 check = Checks()
+
+
+########################################
+# ../../../../omcore/lite/dataclasses.py
+
+
+##
+
+
+def dataclass_shallow_astuple(o: ta.Any) -> ta.Tuple[ta.Any, ...]:
+    return tuple(getattr(o, f.name) for f in dc.fields(o))
+
+
+def dataclass_shallow_asdict(o: ta.Any) -> ta.Dict[str, ta.Any]:
+    return {f.name: getattr(o, f.name) for f in dc.fields(o)}
+
+
+##
+
+
+def is_immediate_dataclass(cls: type) -> bool:
+    if not isinstance(cls, type):
+        raise TypeError(cls)
+    return dc._FIELDS in cls.__dict__  # type: ignore[attr-defined]  # noqa
+
+
+##
+
+
+def _install_dataclass_fn(cls: type, fn: ta.Any, fn_name: ta.Optional[str] = None) -> None:
+    if fn_name is None:
+        fn_name = str(fn.__name__)
+    setattr(cls, fn_name, fn)
+    fn.__qualname__ = f'{cls.__qualname__}.{fn_name}'
+
+
+##
+
+
+def install_dataclass_cache_hash(
+        *,
+        cached_hash_attr: str = '__dataclass_hash__',
+) -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
+        if not (isinstance(cls, type) and dc.is_dataclass(cls)):
+            raise TypeError(cls)
+
+        # dict lookup, not attribute - an eq=True/frozen=False dataclass sets __hash__ to None in the class dict, which
+        # is just as unusable here as an absent or inherited one.
+        if (
+                (real_hash := cls.__dict__.get('__hash__')) is None or
+                real_hash is object.__hash__
+        ):
+            raise TypeError(cls)
+
+        def cached_hash(self) -> int:
+            try:
+                return object.__getattribute__(self, cached_hash_attr)
+            except AttributeError:
+                object.__setattr__(self, cached_hash_attr, h := real_hash(self))
+            return h
+
+        _install_dataclass_fn(cls, cached_hash, '__hash__')
+
+        return cls
+
+    return inner
+
+
+##
+
+
+def dataclass_maybe_post_init(sup: ta.Any) -> bool:
+    if not isinstance(sup, super):
+        raise TypeError(sup)
+    try:
+        fn = sup.__post_init__  # type: ignore
+    except AttributeError:
+        return False
+    fn()
+    return True
+
+
+##
+
+
+def dataclass_repr(
+        obj: ta.Any,
+        *,
+        terse: bool = False,
+        filter: ta.Union[  # noqa
+            ta.Callable[[ta.Any, dc.Field, ta.Any], bool],
+            ta.Literal['omit_none', 'omit_falsey'],
+            None,
+        ] = None,
+) -> str:
+    if filter == 'omit_none':
+        filter = lambda o, f, v: v is not None  # noqa
+    elif filter == 'omit_falsey':
+        filter = lambda o, f, v: bool(v)  # noqa
+
+    lst: ta.List[str] = [
+        f'{obj.__class__.__qualname__}(',
+    ]
+
+    i = 0
+    for f in dc.fields(obj):
+        if not f.repr:
+            continue
+
+        v = getattr(obj, f.name)
+
+        if filter is not None and not filter(obj, f, v):
+            continue
+
+        if i:
+            lst.append(', ')
+        i += 1
+
+        if not terse:
+            lst.append(f.name)
+            lst.append('=')
+
+        lst.append(repr(v))
+
+    lst.append(')')
+
+    return ''.join(lst)
+
+
+def dataclass_repr_omit_none(obj: ta.Any) -> str:
+    return dataclass_repr(obj, filter='omit_none')
+
+
+def dataclass_repr_omit_falsey(obj: ta.Any) -> str:
+    return dataclass_repr(obj, filter='omit_falsey')
+
+
+def install_dataclass_repr(
+        *,
+        terse: bool = False,
+        filter: ta.Union[  # noqa
+            ta.Callable[[ta.Any, dc.Field, ta.Any], bool],
+            ta.Literal['omit_none', 'omit_falsey'],
+            None,
+        ] = None,
+) -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
+        if not (isinstance(cls, type) and dc.is_dataclass(cls)):
+            raise TypeError(cls)
+
+        def repr_impl(self) -> str:
+            return dataclass_repr(
+                self,
+                terse=terse,
+                filter=filter,
+            )
+
+        _install_dataclass_fn(cls, repr_impl, '__repr__')
+
+        return cls
+
+    return inner
+
+
+##
+
+
+def dataclass_descriptor_method(*bind_attrs: str, bind_owner: bool = False) -> ta.Callable:
+    if not bind_attrs:
+        def __get__(self, instance, owner=None):  # noqa
+            return self
+
+    elif bind_owner:
+        def __get__(self, instance, owner=None):  # noqa
+            # Guaranteed to return a new instance even with no attrs
+            return dc.replace(self, **{
+                a: v.__get__(instance, owner) if (v := getattr(self, a)) is not None else None
+                for a in bind_attrs
+            })
+
+    else:
+        def __get__(self, instance, owner=None):  # noqa
+            if instance is None:
+                return self
+
+            # Guaranteed to return a new instance even with no attrs
+            return dc.replace(self, **{
+                a: v.__get__(instance, owner) if (v := getattr(self, a)) is not None else None
+                for a in bind_attrs
+            })
+
+    return __get__
+
+
+##
+
+
+def install_dataclass_kw_only_init() -> ta.Callable[[ta.Type[T]], ta.Type[T]]:
+    def inner(cls: ta.Type[T]) -> ta.Type[T]:
+        if not (isinstance(cls, type) and dc.is_dataclass(cls)):
+            raise TypeError(cls)
+
+        real_init = cls.__init__
+
+        # The real __init__'s params are the init=True fields plus InitVar pseudo-fields (which dc.fields omits), in
+        # field order - init=False fields must be excluded or the generated call will not match its signature.
+        flds = [
+            f
+            for f in getattr(cls, dc._FIELDS).values()  # type: ignore[attr-defined]  # noqa
+            if f._field_type is dc._FIELD_INITVAR or (f._field_type is dc._FIELD and f.init)  # type: ignore[attr-defined]  # noqa
+        ]
+
+        if any(f.name == 'self' for f in flds):
+            self_name = '__dataclass_self__'
+        else:
+            self_name = 'self'
+
+        # default_factory fields cannot have their default baked into the signature - a MISSING sentinel default is
+        # filtered out of the forwarded kwargs so the real init invokes the factory per-call.
+        src = '\n'.join([
+            'def __init__(',
+            f'    {self_name},',
+            '    *,',
+            *[
+                ''.join([
+                    f'    {f.name}: __dataclass_type_{f.name}__',
+                    (
+                        f' = __dataclass_default_{f.name}__' if f.default is not dc.MISSING else
+                        ' = __dataclass_MISSING__' if f.default_factory is not dc.MISSING else  # noqa
+                        ''
+                    ),
+                    ',',
+                ])
+                for f in flds
+            ],
+            ') -> __dataclass_None__:',
+            '    __dataclass_real_init__(',
+            f'        {self_name},',
+            *[
+                f'        {f.name}={f.name},'
+                for f in flds
+                if f.default_factory is dc.MISSING  # noqa
+            ],
+            '        **{',
+            '            k: v',
+            '            for k, v in [',
+            *[
+                f'                ({f.name!r}, {f.name}),'
+                for f in flds
+                if f.default_factory is not dc.MISSING  # noqa
+            ],
+            '            ]',
+            '            if v is not __dataclass_MISSING__',
+            '        },',
+            '    )',
+        ])
+
+        ns: dict = {
+            '__dataclass_None__': None,
+            '__dataclass_MISSING__': dc.MISSING,
+            '__dataclass_real_init__': real_init,
+            **{
+                f'__dataclass_type_{f.name}__': f.type
+                for f in flds
+            },
+            **{
+                f'__dataclass_default_{f.name}__': f.default
+                for f in flds
+                if f.default is not dc.MISSING
+            },
+        }
+
+        exec(src, ns)
+
+        kw_only_init = ns['__init__']
+
+        functools.update_wrapper(kw_only_init, real_init)
+
+        _install_dataclass_fn(cls, kw_only_init, '__init__')
+
+        return cls
+
+    return inner
+
+
+##
+
+
+@dc.dataclass()
+class DataclassFieldRequiredError(Exception):
+    name: str
+
+
+def dataclass_field_required(name: str) -> ta.Callable[[], ta.Any]:
+    def inner() -> ta.NoReturn:
+        raise DataclassFieldRequiredError(name)
+    return inner
 
 
 ########################################
@@ -3178,6 +3538,200 @@ unmarshal_obj = OBJ_MARSHALER_MANAGER.unmarshal_obj
 
 
 ########################################
+# ../../fs/ops.py
+
+
+##
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class FsFile:
+    data: bytes
+
+    # Opaque content identity suitable for a compare-before-write check.
+    digest: str
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class FsStat:
+    path: str
+
+    size: int
+
+    is_dir: bool
+    is_file: bool
+    is_symlink: bool
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class FsDirEntry:
+    name: str
+    path: str
+
+    is_dir: bool
+    is_file: bool
+    is_symlink: bool
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class FsWriteResult:
+    created: bool
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class FsGlobResult:
+    entries: ta.Sequence[FsDirEntry]
+
+    has_more: bool = False
+
+
+##
+
+
+class FsOps(Abstract):
+    @abc.abstractmethod
+    def resolve_path(self, path: str) -> ta.Awaitable[str]:
+        """Returns the target filesystem's absolute, symlink-resolved form of a path."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def stat(self, path: str) -> ta.Awaitable[FsStat]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def read_file(self, path: str) -> ta.Awaitable[FsFile]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def write_file(
+            self,
+            path: str,
+            content: BytesLike,
+            *,
+            overwrite: bool = False,
+            expected_digest: ta.Optional[str] = None,
+    ) -> ta.Awaitable[FsWriteResult]:
+        """
+        Writes a complete file, optionally replacing an existing regular file. `expected_digest` makes replacement
+        fail if the current content no longer matches a previously-read `FsFile`.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def list_dir(self, path: str) -> ta.Awaitable[ta.Sequence[FsDirEntry]]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def glob(
+            self,
+            pattern: str,
+            *,
+            root: str,
+            max_results: ta.Optional[int] = None,
+    ) -> ta.Awaitable[FsGlobResult]:
+        """Globs inside `root`, excluding matches whose resolved targets escape it."""
+
+        raise NotImplementedError
+
+
+##
+
+
+class LocalFsOps(FsOps):
+    @staticmethod
+    def _entry(path: str, *, name: ta.Optional[str] = None) -> FsDirEntry:
+        return FsDirEntry(
+            name=os.path.basename(path) if name is None else name,
+            path=path,
+
+            is_dir=os.path.isdir(path),
+            is_file=os.path.isfile(path),
+            is_symlink=os.path.islink(path),
+        )
+
+    async def resolve_path(self, path: str) -> str:
+        return fs_resolve_path(path)
+
+    async def stat(self, path: str) -> FsStat:
+        lst = os.lstat(path)
+        st = os.stat(path)
+        return FsStat(
+            path=path,
+
+            size=st.st_size,
+
+            is_dir=stat_.S_ISDIR(st.st_mode),
+            is_file=stat_.S_ISREG(st.st_mode),
+            is_symlink=stat_.S_ISLNK(lst.st_mode),
+        )
+
+    async def read_file(self, path: str) -> FsFile:
+        with open(path, 'rb') as f:  # noqa
+            data = f.read()
+        return FsFile(
+            data=data,
+            digest=fs_file_digest(data),
+        )
+
+    async def write_file(
+            self,
+            path: str,
+            content: BytesLike,
+            *,
+            overwrite: bool = False,
+            expected_digest: ta.Optional[str] = None,
+    ) -> FsWriteResult:
+        return FsWriteResult(created=fs_write_file(
+            path,
+            content,
+            overwrite=overwrite,
+            expected_digest=expected_digest,
+        ))
+
+    async def list_dir(self, path: str) -> ta.Sequence[FsDirEntry]:
+        return [
+            FsDirEntry(
+                name=e.name,
+                path=e.path,
+
+                is_dir=e.is_dir(),
+                is_file=e.is_file(),
+                is_symlink=e.is_symlink(),
+            )
+            for e in os.scandir(path)
+        ]
+
+    async def glob(
+            self,
+            pattern: str,
+            *,
+            root: str,
+            max_results: ta.Optional[int] = None,
+    ) -> FsGlobResult:
+        paths, has_more = fs_glob_paths(
+            pattern,
+            root=root,
+            max_results=max_results,
+        )
+        return FsGlobResult(
+            entries=[self._entry(p) for p in paths],
+            has_more=has_more,
+        )
+
+
+########################################
 # ../../fs/remote/protocol.py
 """
 The wire shapes of the remote filesystem: the requests the host's `RemoteFsOps` makes of the agent's `RemoteFsService`,
@@ -3850,8 +4404,11 @@ class JsonRpcMessageCodec(RpcMessageCodec):
 """
 The target side of the remote filesystem: `RemoteFsService` serves the `FsOps` operations on behalf of a host's
 `RemoteFsOps`, including the chunked reads and staged writes through which content larger than one chunk crosses the
-connection (see `protocol.py`). Lite: this runs inside the remote agent amalgam under Python 3.8+, and imports nothing
-but the standard library, `omcore.lite`, the rpc package, and the shared lite filesystem helpers.
+connection (see `protocol.py`). The operations which are the same call on either side - paths, metadata, and a write
+that fits one chunk - are a `LocalFsOps`'s; the handle-based reads and staged writes are the service's own, so that
+content streams through it rather than being held whole. Lite: this runs inside the remote agent amalgam under Python
+3.8+, and imports nothing but the standard library, `omcore.lite`, the rpc package, and the shared lite filesystem
+helpers and ops.
 """
 
 
@@ -3887,6 +4444,7 @@ class RemoteFsService:
     def __init__(
             self,
             *,
+            local_ops: ta.Optional[LocalFsOps] = None,
             max_chunk_bytes: int = REMOTE_FS_MAX_CHUNK_BYTES,
             max_open_handles: int = 64,
     ) -> None:
@@ -3895,6 +4453,10 @@ class RemoteFsService:
         check.arg(0 < max_chunk_bytes <= REMOTE_FS_MAX_CHUNK_BYTES)
         check.arg(max_open_handles > 0)
 
+        if local_ops is None:
+            local_ops = LocalFsOps()
+
+        self._local_ops = local_ops
         self._max_chunk_bytes = max_chunk_bytes
         self._max_open_handles = max_open_handles
 
@@ -3920,59 +4482,49 @@ class RemoteFsService:
         return min(requested, self._max_chunk_bytes)
 
     @staticmethod
-    def _entry(path: str, name: ta.Optional[str] = None) -> RemoteFsEntry:
+    def _entry(e: FsDirEntry) -> RemoteFsEntry:
         return RemoteFsEntry(
-            name=os.path.basename(path) if name is None else name,
-            path=path,
-            is_dir=os.path.isdir(path),
-            is_file=os.path.isfile(path),
-            is_symlink=os.path.islink(path),
+            name=e.name,
+            path=e.path,
+            is_dir=e.is_dir,
+            is_file=e.is_file,
+            is_symlink=e.is_symlink,
         )
 
     #
 
     async def resolve_path(self, params: ta.Any) -> str:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
-        return fs_resolve_path(p.path)
+        return await self._local_ops.resolve_path(p.path)
 
     async def stat(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
-        lst = os.lstat(p.path)
-        st = os.stat(p.path)
+        st = await self._local_ops.stat(p.path)
         return marshal_obj(RemoteFsStatResult(
-            path=p.path,
-            size=st.st_size,
-            is_dir=stat_.S_ISDIR(st.st_mode),
-            is_file=stat_.S_ISREG(st.st_mode),
-            is_symlink=stat_.S_ISLNK(lst.st_mode),
+            path=st.path,
+            size=st.size,
+            is_dir=st.is_dir,
+            is_file=st.is_file,
+            is_symlink=st.is_symlink,
         ))
 
     async def list_dir(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
         return marshal_obj(
-            [
-                RemoteFsEntry(
-                    name=entry.name,
-                    path=entry.path,
-                    is_dir=entry.is_dir(),
-                    is_file=entry.is_file(),
-                    is_symlink=entry.is_symlink(),
-                )
-                for entry in os.scandir(p.path)
-            ],
+            [self._entry(e) for e in await self._local_ops.list_dir(p.path)],
             ta.List[RemoteFsEntry],
         )
 
     async def glob(self, params: ta.Any) -> ta.Any:
         p: RemoteFsGlobParams = unmarshal_obj(params, RemoteFsGlobParams)
-        paths, has_more = fs_glob_paths(
+        r = await self._local_ops.glob(
             p.pattern,
             root=p.root,
             max_results=p.max_results,
         )
         return marshal_obj(RemoteFsGlobResult(
-            entries=[self._entry(path) for path in paths],
-            has_more=has_more,
+            entries=[self._entry(e) for e in r.entries],
+            has_more=r.has_more,
         ))
 
     #
@@ -4052,14 +4604,14 @@ class RemoteFsService:
     async def write_file(self, params: ta.Any) -> ta.Any:
         p: RemoteFsWriteFileParams = unmarshal_obj(params, RemoteFsWriteFileParams)
         check.arg(len(p.content) <= self._max_chunk_bytes)
-        created = fs_write_file(
+        r = await self._local_ops.write_file(
             p.path,
             p.content,
             overwrite=p.overwrite,
             expected_digest=p.expected_digest,
         )
         return marshal_obj(RemoteFsWriteFileResult(
-            created=created,
+            created=r.created,
         ))
 
     async def write_begin(self, params: ta.Any) -> ta.Any:

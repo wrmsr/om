@@ -3,12 +3,14 @@
 """
 The target side of the remote filesystem: `RemoteFsService` serves the `FsOps` operations on behalf of a host's
 `RemoteFsOps`, including the chunked reads and staged writes through which content larger than one chunk crosses the
-connection (see `protocol.py`). Lite: this runs inside the remote agent amalgam under Python 3.8+, and imports nothing
-but the standard library, `omcore.lite`, the rpc package, and the shared lite filesystem helpers.
+connection (see `protocol.py`). The operations which are the same call on either side - paths, metadata, and a write
+that fits one chunk - are a `LocalFsOps`'s; the handle-based reads and staged writes are the service's own, so that
+content streams through it rather than being held whole. Lite: this runs inside the remote agent amalgam under Python
+3.8+, and imports nothing but the standard library, `omcore.lite`, the rpc package, and the shared lite filesystem
+helpers and ops.
 """
 import hashlib
 import os
-import stat as stat_
 import typing as ta
 
 from omcore.lite.check import check
@@ -17,9 +19,8 @@ from omcore.lite.marshal import unmarshal_obj
 
 from ....core.rpc.handlers import RpcMethod
 from ..common import FsStagedWrite
-from ..common import fs_glob_paths
-from ..common import fs_resolve_path
-from ..common import fs_write_file
+from ..ops import FsDirEntry
+from ..ops import LocalFsOps
 from .protocol import REMOTE_FS_GLOB_METHOD
 from .protocol import REMOTE_FS_LIST_DIR_METHOD
 from .protocol import REMOTE_FS_MAX_CHUNK_BYTES
@@ -82,6 +83,7 @@ class RemoteFsService:
     def __init__(
             self,
             *,
+            local_ops: ta.Optional[LocalFsOps] = None,
             max_chunk_bytes: int = REMOTE_FS_MAX_CHUNK_BYTES,
             max_open_handles: int = 64,
     ) -> None:
@@ -90,6 +92,10 @@ class RemoteFsService:
         check.arg(0 < max_chunk_bytes <= REMOTE_FS_MAX_CHUNK_BYTES)
         check.arg(max_open_handles > 0)
 
+        if local_ops is None:
+            local_ops = LocalFsOps()
+
+        self._local_ops = local_ops
         self._max_chunk_bytes = max_chunk_bytes
         self._max_open_handles = max_open_handles
 
@@ -115,59 +121,49 @@ class RemoteFsService:
         return min(requested, self._max_chunk_bytes)
 
     @staticmethod
-    def _entry(path: str, name: ta.Optional[str] = None) -> RemoteFsEntry:
+    def _entry(e: FsDirEntry) -> RemoteFsEntry:
         return RemoteFsEntry(
-            name=os.path.basename(path) if name is None else name,
-            path=path,
-            is_dir=os.path.isdir(path),
-            is_file=os.path.isfile(path),
-            is_symlink=os.path.islink(path),
+            name=e.name,
+            path=e.path,
+            is_dir=e.is_dir,
+            is_file=e.is_file,
+            is_symlink=e.is_symlink,
         )
 
     #
 
     async def resolve_path(self, params: ta.Any) -> str:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
-        return fs_resolve_path(p.path)
+        return await self._local_ops.resolve_path(p.path)
 
     async def stat(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
-        lst = os.lstat(p.path)
-        st = os.stat(p.path)
+        st = await self._local_ops.stat(p.path)
         return marshal_obj(RemoteFsStatResult(
-            path=p.path,
-            size=st.st_size,
-            is_dir=stat_.S_ISDIR(st.st_mode),
-            is_file=stat_.S_ISREG(st.st_mode),
-            is_symlink=stat_.S_ISLNK(lst.st_mode),
+            path=st.path,
+            size=st.size,
+            is_dir=st.is_dir,
+            is_file=st.is_file,
+            is_symlink=st.is_symlink,
         ))
 
     async def list_dir(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
         return marshal_obj(
-            [
-                RemoteFsEntry(
-                    name=entry.name,
-                    path=entry.path,
-                    is_dir=entry.is_dir(),
-                    is_file=entry.is_file(),
-                    is_symlink=entry.is_symlink(),
-                )
-                for entry in os.scandir(p.path)
-            ],
+            [self._entry(e) for e in await self._local_ops.list_dir(p.path)],
             ta.List[RemoteFsEntry],
         )
 
     async def glob(self, params: ta.Any) -> ta.Any:
         p: RemoteFsGlobParams = unmarshal_obj(params, RemoteFsGlobParams)
-        paths, has_more = fs_glob_paths(
+        r = await self._local_ops.glob(
             p.pattern,
             root=p.root,
             max_results=p.max_results,
         )
         return marshal_obj(RemoteFsGlobResult(
-            entries=[self._entry(path) for path in paths],
-            has_more=has_more,
+            entries=[self._entry(e) for e in r.entries],
+            has_more=r.has_more,
         ))
 
     #
@@ -247,14 +243,14 @@ class RemoteFsService:
     async def write_file(self, params: ta.Any) -> ta.Any:
         p: RemoteFsWriteFileParams = unmarshal_obj(params, RemoteFsWriteFileParams)
         check.arg(len(p.content) <= self._max_chunk_bytes)
-        created = fs_write_file(
+        r = await self._local_ops.write_file(
             p.path,
             p.content,
             overwrite=p.overwrite,
             expected_digest=p.expected_digest,
         )
         return marshal_obj(RemoteFsWriteFileResult(
-            created=created,
+            created=r.created,
         ))
 
     async def write_begin(self, params: ta.Any) -> ta.Any:
