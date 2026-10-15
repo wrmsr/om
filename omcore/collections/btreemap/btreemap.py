@@ -2,10 +2,10 @@
 import typing as ta
 
 from ... import lang
-from ..intersections import PersistentSortedMapping
 from ..iterators import HasNextIterator
 from ..mappings import IterItemsViewMapping
 from ..mappings import IterValuesViewMapping
+from ..persistentsorted import PersistentSortedMapping
 from . import _btreemap_py as _backend
 
 

@@ -144,6 +144,10 @@ with _lang.auto_proxy_init(
 
     ##
 
+    from .lifecycle.compaction import (  # noqa
+        ContextCompactionRunner,
+    )
+
     from .lifecycle.compactors import (  # noqa
         ContextCompactor,
     )
@@ -488,8 +492,4 @@ with _lang.auto_proxy_init(
         BackendManager,
 
         DictBackendManager,
-    )
-
-    from .compaction import (  # noqa
-        ContextCompactionRunner,
     )

@@ -106,10 +106,6 @@ with _lang.auto_proxy_init(
         new_persistent_sorted_map,
     )
 
-    from .intersections import (  # noqa
-        PersistentSortedMapping,
-    )
-
     from .iterators import (  # noqa
         HasNextIterator,
     )
@@ -171,6 +167,10 @@ with _lang.auto_proxy_init(
 
         PersistentMap,
         PersistentMapping,
+    )
+
+    from .persistentsorted import (  # noqa
+        PersistentSortedMapping,
     )
 
     from .proxy import (  # noqa

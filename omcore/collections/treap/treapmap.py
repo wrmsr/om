@@ -18,10 +18,10 @@ import abc
 import typing as ta
 
 from ... import lang
-from ..intersections import PersistentSortedMapping
 from ..mappings import IterItemsViewMapping
 from ..mappings import IterValuesViewMapping
 from ..mappings import iteritems_itervalues
+from ..persistentsorted import PersistentSortedMapping
 from .treap import TREAP_BACKEND
 from .treap import Comparer
 from .treap import TreapNode

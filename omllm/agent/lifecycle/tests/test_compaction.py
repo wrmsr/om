@@ -7,22 +7,22 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore.asyncs.asynclite import all as asl
 
-from ... import llm
-from ...core.asyncs.asyncio import AsyncioGroupRunner
-from ..agent import Agent
-from ..backends import DictBackendManager
+from .... import llm
+from ....core.asyncs.asyncio import AsyncioGroupRunner
+from ...agent import Agent
+from ...backends import DictBackendManager
+from ...lifecycle.compactors import ContextCompactor
+from ...tests.scripted import scripted_backend
+from ...tests.scripted import text_message
+from ...turns.runner import TurnLoopRunner
+from ...types.contexts import Context
+from ...types.errors import AgentBusyError
+from ...types.errors import NoContextCompactorError
+from ...types.events import StateUpdateEvent
+from ...types.lifecycle import ContextProjection
 from ..compaction import ContextCompactionRunner
-from ..lifecycle.compactors import ContextCompactor
-from ..lifecycle.managers import StandardContextLifecycleManager
-from ..lifecycle.summarizing import SummarizingContextCompactor
-from ..turns.runner import TurnLoopRunner
-from ..types.contexts import Context
-from ..types.errors import AgentBusyError
-from ..types.errors import NoContextCompactorError
-from ..types.events import StateUpdateEvent
-from ..types.lifecycle import ContextProjection
-from .scripted import scripted_backend
-from .scripted import text_message
+from ..managers import StandardContextLifecycleManager
+from ..summarizing import SummarizingContextCompactor
 
 
 ##

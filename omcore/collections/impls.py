@@ -11,9 +11,9 @@ with lang.auto_proxy_import(globals()):
 
 
 if ta.TYPE_CHECKING:
-    from .intersections import PersistentSortedMapping
     from .persistent import PersistentMapping
     from .persistent import PersistentSequence
+    from .persistentsorted import PersistentSortedMapping
     from .sorted import SortedMapping
     from .sorted import SortedMutableMapping
 

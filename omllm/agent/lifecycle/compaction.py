@@ -1,15 +1,15 @@
 from omcore import dataclasses as dc
 
-from .. import llm
-from .agent import Agent
-from .backends import BackendManager
-from .lifecycle.managers import ContextLifecycleManager
-from .lifecycle.managers import StandardContextLifecycleManager
-from .projection.builders import StandardLlmContextBuilder
-from .projection.types import LlmContextBuilder
-from .types.lifecycle import ContextReduction
-from .types.states import State
-from .types.turns import TurnConfig
+from ... import llm
+from ..agent import Agent
+from ..backends import BackendManager
+from ..projection.builders import StandardLlmContextBuilder
+from ..projection.types import LlmContextBuilder
+from ..types.lifecycle import ContextReduction
+from ..types.states import State
+from ..types.turns import TurnConfig
+from .managers import ContextLifecycleManager
+from .managers import StandardContextLifecycleManager
 
 
 ##
