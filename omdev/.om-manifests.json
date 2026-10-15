@@ -75,7 +75,7 @@
     "module": ".doall",
     "attr": null,
     "file": "omdev/doall.py",
-    "line": 152,
+    "line": 154,
     "value": {
       "!.cli.types.CliModule": {
         "name": [

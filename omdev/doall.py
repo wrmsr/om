@@ -1,5 +1,13 @@
 # ruff: noqa: UP006 UP007 UP045
 # @om-lite
+"""
+TODO:
+ - clean up the code lol
+ - shared list of live subprocesses
+ - configurable cancel policy
+ - --shell toggle
+ - interleave / tag / prepend / somehow multiplex stdout/err
+"""
 import argparse
 import concurrent.futures as cf
 import itertools
@@ -21,20 +29,14 @@ class _DoAllCmd(ta.NamedTuple):
 
 
 def doall(args) -> None:
-    # TODO:
-    #  - shared list of live subprocesses
-    #  - configurable cancel policy
-    #  - --shell toggle
-    #  - interleave / tag / prepend / somehow multiplex stdout/err
-
     def collect_axis(
             raw_lst: ta.Optional[ta.Sequence[str]],
             raw_lst_lst: ta.Optional[ta.Sequence[str]],
-    ) -> dict[str, list[str]]:
+    ) -> ta.Dict[str, ta.List[str]]:
         if not raw_lst and not raw_lst_lst:
             return {}
 
-        out: dict[str, list[str]] = {}
+        out: ta.Dict[str, ta.List[str]] = {}
 
         for s in raw_lst or []:
             k, v = s.split('=')
@@ -76,10 +78,10 @@ def doall(args) -> None:
         cmd_args = cmd_args[1:]
     base_cmd = check.non_empty_str(' '.join(cmd_args)).replace('%%', '%')
 
-    def prep_cfg(cfg: ta.Sequence[tuple[tuple[str, str], str]]) -> _DoAllCmd:
+    def prep_cfg(cfg: ta.Sequence[ta.Tuple[ta.Tuple[str, str], str]]) -> _DoAllCmd:
         cmd = base_cmd
-        env: dict[str, str] = {}
-        ph_vs: dict[str, str] = {}
+        env: ta.Dict[str, str] = {}
+        ph_vs: ta.Dict[str, str] = {}
 
         for (tag, k), v in cfg:
             if tag == 'e':
@@ -119,7 +121,7 @@ def doall(args) -> None:
         jobs = jobs_fn()
 
     with cf.ThreadPoolExecutor(max_workers=jobs) as exe:
-        futs: list[cf.Future] = [
+        futs: ta.List[cf.Future] = [
             exe.submit(run_cmd, cmd)
             for cmd in all_cmds
         ]
