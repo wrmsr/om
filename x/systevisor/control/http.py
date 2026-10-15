@@ -27,7 +27,7 @@ from omcore.io.pipelines.core import IoPipelineHandlerContext
 from omcore.io.pipelines.core import IoPipelineHandlerNotification
 from omcore.io.pipelines.core import IoPipelineHandlerNotifications
 from omcore.io.pipelines.core import IoPipelineMessages
-from omcore.io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
+from omcore.io.pipelines.drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
 from omcore.io.pipelines.flow.types import IoPipelineFlow
 from omcore.io.pipelines.flow.types import IoPipelineFlowMessages
 from omcore.io.streambufs.utils import ByteStreamBuffers

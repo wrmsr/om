@@ -7,7 +7,7 @@ from ...bytes.decoders import UnicodeDecoderIoPipelineHandler
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineMessages
-from ...drivers.pure import PureIoPipelineDriver
+from ...drivers.pure.drivers import PureIoPipelineDriver
 from ...flow.stub import StubIoPipelineFlowService
 from ..flatmap import FlatMapIoPipelineHandlerFns
 from ..flatmap import FlatMapIoPipelineHandlers

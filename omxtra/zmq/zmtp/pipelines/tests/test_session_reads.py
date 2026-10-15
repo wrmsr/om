@@ -1,6 +1,6 @@
 """Read flow at the session level after the handshake, stepped deterministically with a pure driver."""
 from omcore.io.pipelines.core import IoPipeline
-from omcore.io.pipelines.drivers.pure import PureIoPipelineDriver
+from omcore.io.pipelines.drivers.pure.drivers import PureIoPipelineDriver
 from omcore.io.pipelines.flow.stub import StubIoPipelineFlowService
 
 from ....api.messages import RoutedMessage

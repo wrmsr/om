@@ -1,43 +1,94 @@
 # ruff: noqa: UP006 UP007 UP037 UP045
 # @om-lite
+"""
+The pipeline-driving core shared by the fdio handler forms.
+
+The core owns the pipeline, its boundary and write queues, watermarks, fences, timers, and the driver state, and
+performs I/O through an `IoPipelineFdioTransport`. The handler forms - a socket, a single duplex descriptor, or a read
+descriptor and a write descriptor registered as two handlers - expose its readiness and deliver the manager's events
+to it. Nothing in the core is an `FdioHandler`.
+"""
+import abc
 import collections
 import dataclasses as dc
-import socket
+import time
 import typing as ta
 
-from ....lite.check import check
-from ....logs.modules import get_module_logger
-from ....sockets.addresses import SocketAddress
-from ...fdio.handlers import SocketFdioHandler
-from ...streambufs.segmented import SegmentedByteStreamBuffer
-from ...streambufs.types import BytesLike
-from ...streambufs.utils import ByteStreamBuffers
-from ..core import IoPipeline
-from ..core import IoPipelineMessages
-from ..flow.types import IoPipelineFlow
-from ..flow.types import IoPipelineFlowMessages
-from ..sched.heap import HeapIoPipelineSchedulingService
-from .metadata import DriverIoPipelineMetadata
-from .types import IoPipelineDriverState
-
-
-log = get_module_logger(globals())  # noqa
+from .....lite.abstract import Abstract
+from .....lite.check import check
+from ....streambufs.segmented import SegmentedByteStreamBuffer
+from ....streambufs.types import BytesLike
+from ....streambufs.utils import ByteStreamBuffers
+from ...core import IoPipeline
+from ...core import IoPipelineMessages
+from ...errors import AbortedIoPipelineError
+from ...errors import UnsupportedIoPipelineError
+from ...flow.types import IoPipelineFlow
+from ...flow.types import IoPipelineFlowMessages
+from ...posting.types import ClosedIoPipelinePostingError
+from ...posting.types import IoPipelinePost
+from ...posting.types import IoPipelinePostingTarget
+from ...posting.types import TargetIoPipelinePostingService
+from ...posting.types import fail_io_pipeline_posts
+from ...sched.heap import HeapIoPipelineSchedulingService
+from ..metadata import DriverIoPipelineMetadata
+from ..types import IoPipelineDriverState
 
 
 ##
 
 
-class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
+class IoPipelineFdioTransport(Abstract):
     """
-    Drive a pipeline over an owned nonblocking socket registered with an `FdioManager`.
+    The descriptor operations a driving core performs, supplied by a handler form. Descriptors are nonblocking while
+    the transport is in use.
+    """
 
-    ShutdownOutput is queued behind the bytes preceding it, then performed with `shutdown(SHUT_WR)`; reading continues
-    afterwards. FinalOutput still drains and closes the socket.
+    @abc.abstractmethod
+    def read_into(self, buf: memoryview) -> int:
+        """Reads up to len(buf) bytes, returning 0 at EOF. Raises BlockingIOError when nothing is available."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def write(self, data: BytesLike) -> int:
+        """Writes some of data, returning the number of bytes accepted. Raises BlockingIOError when none can be."""
+
+        raise NotImplementedError
+
+    def shutdown_output(self) -> None:
+        """
+        Shuts down the transport's output half, leaving its input readable. Called at most once, after all queued
+        output has been written. Raises UnsupportedIoPipelineError if the transport cannot half-close, in which case it
+        must be left intact; any other exception fails the driver.
+        """
+
+        raise UnsupportedIoPipelineError(f'{type(self).__name__} does not support output shutdown')
+
+    @abc.abstractmethod
+    def close(self) -> None:
+        """Releases the transport: owned descriptors are closed, caller-owned ones restored. Idempotent."""
+
+        raise NotImplementedError
+
+
+##
+
+
+class IoPipelineFdioDriver(IoPipelinePostingTarget):
+    """
+    Drives a pipeline over a transport registered, through a handler form, with an `FdioManager`.
+
+    ShutdownOutput is queued behind the bytes preceding it, then performed by the transport; reading continues
+    afterwards. FinalOutput still drains and closes the transport. Enqueued messages and posted work share one boundary
+    queue, processed in order; while it is not empty the driver reports a deadline already due, so the manager
+    dispatches it in its current poll iteration, or its next one without waiting, with no descriptor event or timer
+    involved.
     """
 
     @dc.dataclass(frozen=True)
     class Config:
-        DEFAULT: ta.ClassVar['IoPipelineDriverSocketFdioHandler.Config']
+        DEFAULT: ta.ClassVar['IoPipelineFdioDriver.Config']
 
         read_chunk_size: int = 64 * 1024
         read_batch_max_bytes: int = 1024 * 1024
@@ -69,14 +120,13 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     def __init__(
             self,
-            sock: socket.socket,
-            addr: SocketAddress,
+            transport: IoPipelineFdioTransport,
             spec: IoPipeline.Spec,
             config: ta.Optional[Config] = None,
     ) -> None:
-        sock.setblocking(False)
-        super().__init__(sock, addr)
+        super().__init__()
 
+        self._transport = transport
         self._spec = spec
         if config is None:
             config = self.Config.DEFAULT
@@ -94,9 +144,13 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._output_writable = True
         self._output_shutdown = False
         self._drain_input_ended = False
+        self._transport_closed = False
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
+
+        # Usable before the pipeline exists: a post made then runs once it does.
+        self._posting = TargetIoPipelinePostingService(self)
 
     _state: IoPipelineDriverState = IoPipelineDriverState.NEW
 
@@ -116,8 +170,18 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         return self._config
 
     @property
+    def transport(self) -> IoPipelineFdioTransport:
+        return self._transport
+
+    @property
     def pipeline(self) -> IoPipeline:
         return self._pipeline
+
+    @property
+    def posting(self) -> TargetIoPipelinePostingService:
+        """The pipeline's posting service, usable from construction on."""
+
+        return self._posting
 
     #
 
@@ -135,8 +199,12 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         return self._state in self.ACTIVE_STATES
 
     @property
+    def closed(self) -> bool:
+        return self._state in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED)
+
+    @property
     def output_shutdown(self) -> bool:
-        """Whether a ShutdownOutput has shut down the socket's output half."""
+        """Whether a ShutdownOutput has shut down the transport's output half."""
 
         return self._output_shutdown
 
@@ -187,10 +255,23 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             services=[
                 *self._spec.services,
                 self._sched,
+                self._posting,
             ],
         ))
 
     #
+
+    def _close_transport(self) -> None:
+        if self._transport_closed:
+            return
+        self._transport_closed = True
+        self._transport.close()
+
+    def _fail_queued_posts(self) -> None:
+        """Posts never run are failed, so their submitters are told; the queue is cleared by the caller."""
+
+        if posts := [item for item in self._input_q if isinstance(item, IoPipelinePost)]:
+            fail_io_pipeline_posts(posts, AbortedIoPipelineError('Driver closed before the post ran'))
 
     def close(self) -> None:
         """Abort the driver and discard any queued transport output."""
@@ -199,14 +280,15 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return
 
         if self._state is IoPipelineDriverState.FAILED:
-            if not self.closed:
+            if not self._transport_closed:
                 self._fail()
             return
 
         if self._state is IoPipelineDriverState.NEW:
-            self._input_q.clear()
             try:
-                super().close()
+                self._fail_queued_posts()
+                self._input_q.clear()
+                self._close_transport()
             except BaseException:
                 self._state = IoPipelineDriverState.FAILED
                 raise
@@ -220,6 +302,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             try:
                 if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                     pipeline.destroy()
+                self._fail_queued_posts()
 
             finally:
                 self._input_q.clear()
@@ -228,7 +311,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 self._transport_final_output = None
                 self._pending_read_error = None
 
-                super().close()
+                self._close_transport()
 
                 self._state = IoPipelineDriverState.CLOSED
 
@@ -237,6 +320,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             raise
 
     def _fail(self) -> None:
+        try:
+            self._fail_queued_posts()
+        except Exception:  # noqa
+            pass
+
         try:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
@@ -249,7 +337,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             self._pending_read_error = None
 
             try:
-                super().close()
+                self._close_transport()
             finally:
                 self._state = IoPipelineDriverState.FAILED
 
@@ -269,7 +357,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         check.not_none(self._transport_final_output)
 
         try:
-            super().close()
+            self._close_transport()
             self._complete_transport_final_output()
             pipeline.destroy()
 
@@ -301,7 +389,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         for _ in range(self._config.read_batch_max_reads):
             reserve = buf.reserve(min(self._config.read_chunk_size, remaining))
             try:
-                read = check.not_none(self._sock).recv_into(reserve)
+                read = self._transport.read_into(reserve)
             except BlockingIOError:
                 reserve.release()
                 buf.commit(0)
@@ -352,7 +440,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             write_b = b
 
         try:
-            sr = check.not_none(self._sock).send(write_b)
+            sr = self._transport.write(write_b)
         except BlockingIOError:
             return None
         except OSError:
@@ -360,7 +448,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             raise
 
         if sr < 1:
-            error = BrokenPipeError('socket send returned no progress')
+            error = BrokenPipeError('transport write returned no progress')
             self._fail()
             raise error
 
@@ -368,7 +456,14 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     def _complete_shutdown_output(self, msg: IoPipelineMessages.ShutdownOutput) -> None:
         try:
-            check.not_none(self._sock).shutdown(socket.SHUT_WR)
+            self._transport.shutdown_output()
+
+        except UnsupportedIoPipelineError as e:
+            with self._pipeline.enter():
+                if not msg.is_done():
+                    msg.set_failed(e)
+            return
+
         except BaseException:
             self._fail()
             raise
@@ -488,7 +583,14 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     #
 
     def enqueue(self, *in_msgs: ta.Any) -> None:
+        """Queues already-decoded inbound messages at the driver boundary; the manager then dispatches the handler."""
+
         self._input_q.extend(in_msgs)
+
+    def accept_post(self, post: IoPipelinePost) -> None:
+        if self.closed:
+            raise ClosedIoPipelinePostingError(f'{self!r} is {self._state.name}')
+        self._input_q.append(post)
 
     def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
@@ -523,7 +625,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                     raise RuntimeError(f'Unknown handled value: {handled!r}')
 
             if self._input_q:
-                pipeline.feed_in(self._input_q.popleft())
+                # Boundary input - enqueued messages and posted work - is processed in order, also while draining.
+                if isinstance(item := self._input_q.popleft(), IoPipelinePost):
+                    item.run(pipeline)
+                else:
+                    pipeline.feed_in(item)
                 continue
 
             if (read_error := self._pending_read_error) is not None:
@@ -625,8 +731,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             self.close()
 
     ##
+    # readiness, for the handler forms
 
-    def readable(self) -> bool:
+    def wants_read(self) -> bool:
         if self._state is IoPipelineDriverState.DRAINING:
             # Input has no consumer any more, but is still taken off the transport, so a peer whose own output is
             # blocked on this side reading is not left waiting forever.
@@ -637,21 +744,28 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             self._want_read
         )
 
-    def writable(self) -> bool:
+    def wants_write(self) -> bool:
         return self.is_active and bool(self._write_q)
 
     def next_deadline(self) -> ta.Optional[float]:
         if not self.is_active:
             return None
-        return self._sched.next_deadline()
+        deadline = self._sched.next_deadline()
+        if self._input_q:
+            # Queued boundary input is due at once: the manager then dispatches `on_timeout` without waiting.
+            now = time.monotonic()
+            return now if deadline is None else min(deadline, now)
+        return deadline
 
-    #
+    ##
+    # events, from the handler forms
 
     def _discard_input(self) -> None:
         buf = bytearray(self._config.read_chunk_size)
+        mv = memoryview(buf)
         for _ in range(self._config.read_batch_max_reads):
             try:
-                n = check.not_none(self._sock).recv_into(buf)
+                n = self._transport.read_into(mv)
             except BlockingIOError:
                 return
             except OSError:

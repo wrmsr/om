@@ -3,7 +3,7 @@ import weakref
 
 import pytest
 
-from omcore.io.pipelines.drivers.pure import PureIoPipelineDriver
+from omcore.io.pipelines.drivers.pure.drivers import PureIoPipelineDriver
 
 from ....core.sockettypes import SocketType
 from ...commands import ZmtpCommand

@@ -16,8 +16,8 @@ from ...multiplex.tests.apps import app_spec
 from ...multiplex.tests.h2like import H2LikeAdapter
 from ...multiplex.tests.h2like import h2_like_spec
 from ...multiplex.types import IoPipelineMultiplexMessages
-from ..asyncio import PollAsyncioStreamIoPipelineDriver
-from ..sync import SocketSyncIoPipelineDriver
+from ..asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ..sync.sockets import SocketSyncIoPipelineDriver
 from .producers import DEFER_N_CHUNKS
 from .producers import DeferYieldingProducer
 

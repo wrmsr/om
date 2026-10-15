@@ -62,9 +62,9 @@ from .....io.pipelines.core import IoPipeline
 from .....io.pipelines.core import IoPipelineHandler
 from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
-from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from .....io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
-from .....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from .....io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from .....io.pipelines.drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
+from .....io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.dataclasses import install_dataclass_kw_only_init
 from ....clients.base import HttpClientRequest

@@ -7,23 +7,23 @@ import typing as ta
 import unittest
 import weakref
 
-from .....lite.check import check
-from ....fdio.manager import FdioManager
-from ....fdio.pollers import SelectFdioPoller
-from ....streambufs.types import ByteStreamBuffer
-from ...core import IoPipeline
-from ...core import IoPipelineHandler
-from ...core import IoPipelineHandlerContext
-from ...core import IoPipelineHandlerRef
-from ...core import IoPipelineMessages
-from ...core import IoPipelineService
-from ...core import IoPipelineUpdate
-from ...flow.stub import StubIoPipelineFlowService
-from ...flow.types import IoPipelineFlowMessages
-from ...sched.timeouts import ReadTimeoutIoPipelineHandler
-from ...sched.types import IoPipelineScheduling
-from ..fdio import IoPipelineDriverSocketFdioHandler
-from ..types import IoPipelineDriverState
+from ......lite.check import check
+from .....fdio.manager import FdioManager
+from .....fdio.pollers import SelectFdioPoller
+from .....streambufs.types import ByteStreamBuffer
+from ....core import IoPipeline
+from ....core import IoPipelineHandler
+from ....core import IoPipelineHandlerContext
+from ....core import IoPipelineHandlerRef
+from ....core import IoPipelineMessages
+from ....core import IoPipelineService
+from ....core import IoPipelineUpdate
+from ....flow.stub import StubIoPipelineFlowService
+from ....flow.types import IoPipelineFlowMessages
+from ....sched.timeouts import ReadTimeoutIoPipelineHandler
+from ....sched.types import IoPipelineScheduling
+from ...types import IoPipelineDriverState
+from ..sockets import IoPipelineDriverSocketFdioHandler
 
 
 class ScriptedSendSocket:
@@ -306,15 +306,15 @@ class TestIoPipelineDriverSocketFdioHandlerScheduling(unittest.TestCase):
             second_ref = self.find_handler_ref(drv, second_handler)
             events: ta.List[str] = []
 
-            cancelled_handle = drv._sched.schedule(first_ref, 0., lambda: events.append('handle'))
+            cancelled_handle = drv.driver._sched.schedule(first_ref, 0., lambda: events.append('handle'))
             cancelled_handle.cancel()
             cancelled_handle.cancel()
 
-            drv._sched.schedule(first_ref, 0., lambda: events.append('owner'))
-            drv._sched.cancel_all(first_ref)
-            drv._sched.schedule(second_ref, 0., lambda: events.append('live'))
+            drv.driver._sched.schedule(first_ref, 0., lambda: events.append('owner'))
+            drv.driver._sched.cancel_all(first_ref)
+            drv.driver._sched.schedule(second_ref, 0., lambda: events.append('live'))
 
-            self.assertEqual(drv._sched.run_due(), 1)
+            self.assertEqual(drv.driver._sched.run_due(), 1)
             self.assertEqual(events, ['live'])
         finally:
             drv.close()
@@ -503,13 +503,13 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
                 peer.sendall(b'abc')
                 peer.shutdown(socket.SHUT_WR)
 
-                messages = driver._do_read()
+                messages = driver.driver._do_read()
 
                 self.assertIsInstance(messages[0], ByteStreamBuffer)
                 self.assertEqual([bytes(mv) for mv in messages[0].segments()], [b'ab', b'c'])
                 self.assertIsInstance(messages[1], IoPipelineFlowMessages.FlushInput)
                 self.assertIsInstance(messages[2], IoPipelineMessages.FinalInput)
-                self.assertFalse(driver._want_read)
+                self.assertFalse(driver.driver._want_read)
             finally:
                 driver.close()
 
@@ -564,18 +564,18 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             IoPipeline.Spec(),
         )
 
-        drv._do_write_or_q([b'abcd'])
+        drv.driver._do_write_or_q([b'abcd'])
         assert sock.sent == [b'ab']
-        assert [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv._write_q)] == [b'cd']
+        assert [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv.driver._write_q)] == [b'cd']
 
-        drv._do_write_or_q([b'ef'])
+        drv.driver._do_write_or_q([b'ef'])
         assert sock.sent == [b'ab']
-        assert [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv._write_q)] == [b'cd', b'ef']
+        assert [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv.driver._write_q)] == [b'cd', b'ef']
 
-        drv._try_flush_write_q()
+        drv.driver._try_flush_write_q()
         assert sock.sent == [b'ab', b'cd', b'ef']
-        assert not drv._write_q
-        assert drv._write_q_bytes == 0
+        assert not drv.driver._write_q
+        assert drv.driver._write_q_bytes == 0
 
     def test_write_chunk_max_bounds_each_send(self):
         sock: ta.Any = ScriptedSendSocket()
@@ -586,10 +586,10 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             config=IoPipelineDriverSocketFdioHandler.Config(write_chunk_max=2),
         )
         try:
-            drv._do_write_or_q([b'abcde'])
+            drv.driver._do_write_or_q([b'abcde'])
 
             self.assertEqual(sock.sent, [b'ab', b'cd', b'e'])
-            self.assertEqual(list(drv._write_q), [])
+            self.assertEqual(list(drv.driver._write_q), [])
         finally:
             drv.close()
 
@@ -602,7 +602,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         )
 
         with self.assertRaises(BrokenPipeError):
-            drv._do_write_or_q([b'x'])
+            drv.driver._do_write_or_q([b'x'])
 
         self.assertTrue(sock.closed)
         self.assertIs(drv.state, IoPipelineDriverState.FAILED)
@@ -627,15 +627,15 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         try:
             self.assertIsNone(drv.next(read=False))
 
-            self.assertEqual(drv._handle_output(b'abcde'), 'handled')
-            self.assertEqual(drv._write_q_bytes, 5)
+            self.assertEqual(drv.driver._handle_output(b'abcde'), 'handled')
+            self.assertEqual(drv.driver._write_q_bytes, 5)
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [IoPipelineFlowMessages.PauseOutput],
             )
 
             drv.on_writable()
-            self.assertEqual(drv._write_q_bytes, 0)
+            self.assertEqual(drv.driver._write_q_bytes, 0)
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [
@@ -660,11 +660,11 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         flush_output.add_listener(lambda msg: completions.append(msg.is_succeeded()))
         try:
             self.assertIsNone(drv.next(read=False))
-            self.assertEqual(drv._handle_output(b'payload'), 'handled')
-            self.assertEqual(drv._handle_output(flush_output), 'handled')
+            self.assertEqual(drv.driver._handle_output(b'payload'), 'handled')
+            self.assertEqual(drv.driver._handle_output(flush_output), 'handled')
 
-            self.assertEqual(drv._write_q_bytes, len(b'payload'))
-            self.assertIs(drv._write_q[-1], flush_output)
+            self.assertEqual(drv.driver._write_q_bytes, len(b'payload'))
+            self.assertIs(drv.driver._write_q[-1], flush_output)
             self.assertFalse(flush_output.is_done())
 
             drv.on_writable()
@@ -698,7 +698,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
 
             self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
             self.assertEqual(
-                [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv._write_q)],
+                [bytes(b) for b in ta.cast(ta.Iterable[ta.Any], drv.driver._write_q)],
                 [b'payload'],
             )
             self.assertFalse(sock.closed)
@@ -736,14 +736,14 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
         self.assertIsNone(drv.next(read=False))
 
         self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
-        self.assertEqual(drv._write_q_bytes, len(b'payload'))
+        self.assertEqual(drv.driver._write_q_bytes, len(b'payload'))
         self.assertFalse(graceful_close.final_output.is_done())
 
         drv.close()
 
         self.assertTrue(graceful_close.final_output.is_failed())
-        self.assertEqual(drv._write_q_bytes, 0)
-        self.assertEqual(list(drv._write_q), [])
+        self.assertEqual(drv.driver._write_q_bytes, 0)
+        self.assertEqual(list(drv.driver._write_q), [])
         self.assertEqual(lifecycle.removed, 1)
         self.assertTrue(sock.closed)
         self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
@@ -771,7 +771,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
                 self.assertIsNone(drv.next(read=False))
                 self.assertLess(time.monotonic() - start, .5)
                 self.assertIs(drv.state, IoPipelineDriverState.DRAINING)
-                self.assertEqual(drv._write_q_bytes, len(b'payload'))
+                self.assertEqual(drv.driver._write_q_bytes, len(b'payload'))
 
                 manager.register(drv)
                 manager.poll(timeout=0.)
@@ -845,13 +845,13 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             ),
         )
         self.assertIsNone(drv.next(read=False))
-        drv._do_write_or_q([b'payload'])
-        self.assertEqual(drv._write_q_bytes, 7)
+        drv.driver._do_write_or_q([b'payload'])
+        self.assertEqual(drv.driver._write_q_bytes, 7)
 
         drv.close()
 
-        self.assertEqual(drv._write_q_bytes, 0)
-        self.assertEqual(list(drv._write_q), [])
+        self.assertEqual(drv.driver._write_q_bytes, 0)
+        self.assertEqual(list(drv.driver._write_q), [])
         self.assertEqual(sock.sent, [])
         self.assertTrue(sock.closed)
         self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
@@ -879,7 +879,7 @@ class TestIoPipelineDriverSocketFdioHandler(unittest.TestCase):
             self.assertIs(raised.exception, error)
             self.assertIs(drv.state, IoPipelineDriverState.FAILED)
             self.assertTrue(sock.closed)
-            self.assertEqual(list(drv._write_q), [])
+            self.assertEqual(list(drv.driver._write_q), [])
             self.assertFalse(drv.pipeline.is_ready)
         finally:
             drv.close()

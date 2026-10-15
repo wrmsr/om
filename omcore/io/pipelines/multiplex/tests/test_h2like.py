@@ -3,7 +3,8 @@
 import typing as ta
 import unittest
 
-from ...drivers.pure import PureIoPipelineDriver
+from ...drivers.pure.drivers import PureIoPipelineDriver
+from ...drivers.pure.links import PureLink
 from ...drivers.types import IoPipelineDriverState
 from ..types import ConnectionClosedMultiplexIoPipelineError
 from ..types import IoPipelineMultiplexMessages
@@ -21,7 +22,6 @@ from .h2like import Headers
 from .h2like import SendRaw
 from .h2like import SendSettings
 from .h2like import h2_like_spec
-from .links import PureLink
 
 
 ##

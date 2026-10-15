@@ -27,12 +27,22 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
     the corresponding relative delay. The default clock is `time.monotonic()`; deterministic drivers may inject one.
     Drivers call `run_due()` after waiting. Callbacks execute inside their pipeline and are automatically cancelled
     when their owning handler is removed or the pipeline is destroyed.
+
+    A driver which waits on something other than this scheduler's delay - an asyncio queue, say - may supply
+    `on_earliest_change`, called whenever a newly scheduled callback becomes the earliest, to re-arm whatever wakes it.
+    Cancellations are not reported: a wake at a since cancelled deadline runs nothing and is harmless.
     """
 
-    def __init__(self, clock: ta.Callable[[], float] = time.monotonic) -> None:
+    def __init__(
+            self,
+            clock: ta.Callable[[], float] = time.monotonic,
+            *,
+            on_earliest_change: ta.Optional[ta.Callable[[], None]] = None,
+    ) -> None:
         super().__init__()
 
         self._clock = clock
+        self._on_earliest_change = on_earliest_change
 
         self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
 
@@ -193,6 +203,10 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
         self._seq += 1
         heapq.heappush(self._pending, (handle._deadline, handle._seq, handle))  # noqa
         self._live.add(handle)
+
+        if (cb := self._on_earliest_change) is not None and self._pending[0][2] is handle:
+            cb()
+
         return handle
 
     def schedule(

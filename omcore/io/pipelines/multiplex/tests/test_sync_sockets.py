@@ -5,9 +5,9 @@ import threading
 import typing as ta
 import unittest
 
-from ...drivers.sync import FdSyncIoPipelineDriver
-from ...drivers.sync import SocketSyncIoPipelineDriver
-from ...drivers.sync import SyncIoPipelineDriver
+from ...drivers.sync.core import SyncIoPipelineDriver
+from ...drivers.sync.fds import FdSyncIoPipelineDriver
+from ...drivers.sync.sockets import SocketSyncIoPipelineDriver
 from .test_sockets import _Session
 
 

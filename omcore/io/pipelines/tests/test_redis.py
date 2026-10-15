@@ -6,7 +6,7 @@ import unittest
 
 from ...streambufs.utils import ByteStreamBuffers
 from ..core import IoPipeline
-from ..drivers.sync import SocketSyncIoPipelineDriver
+from ..drivers.sync.sockets import SocketSyncIoPipelineDriver
 from .redis import BaseRedisClient
 from .redis import RedisClient
 from .redis import RedisCommand

@@ -12,7 +12,7 @@ from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
-from ...drivers.pure import PureIoPipelineDriver
+from ...drivers.pure.drivers import PureIoPipelineDriver
 from ...drivers.types import IoPipelineDriverState
 from ...flow.stub import StubIoPipelineFlowService
 from ..adapters import IoPipelineMultiplexAdapter

@@ -34,14 +34,21 @@ from ..core import IoPipelineUpdate
 from ..errors import AbortedIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
+from ..posting.types import ClosedIoPipelinePostingError
+from ..posting.types import IoPipelinePost
+from ..posting.types import IoPipelinePosting
 from ..sched.types import IoPipelineScheduling
 from .streams import IoPipelineMultiplexInputData
 from .streams import IoPipelineMultiplexInputMessage
 from .streams import IoPipelineMultiplexStream
 from .streams import MultiplexInputEnd
+from .types import ConnectionClosedMultiplexIoPipelineError
 from .types import IoPipelineMultiplexStreamMetadata
 from .types import IoPipelineMultiplexStreamOpening
 from .types import UnclaimedOutputMultiplexIoPipelineError
+
+
+T = ta.TypeVar('T')
 
 
 ##
@@ -57,6 +64,15 @@ class IoPipelineMultiplexChildHost(Abstract):
     @abc.abstractmethod
     def on_child_activity(self, ctx: IoPipelineHandlerContext) -> None:
         """Something happened in a child outside the host's own turn; the host should advance."""
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def on_child_post(self, ctx: IoPipelineHandlerContext, key: ta.Any, post: IoPipelinePost) -> None:
+        """
+        Work posted into a stream's pipeline has reached the host through the parent's posting; the host runs it in the
+        child at its next turn, in order with the stream's other boundary input, or fails it if the stream has ended.
+        """
 
         raise NotImplementedError
 
@@ -248,6 +264,81 @@ class MultiplexChildIoPipelineScheduling(IoPipelineScheduling, IoPipelineService
 
 
 @ta.final
+class MultiplexChildIoPipelinePosting(IoPipelinePosting, IoPipelineService):
+    """
+    Posting into a child, through the parent's posting service: each post is wrapped in a post into the parent which
+    hands it to the host, which runs it in the child at its next turn - in order with the stream's `FeedStream`
+    messages. Holds the parent context and the child only weakly; a parent post which fails - the parent closed, or
+    the multiplexer was removed - fails the child's post.
+    """
+
+    def __init__(
+            self,
+            parent_ctx: IoPipelineHandlerContext,
+            child: 'IoPipelineMultiplexChild',
+    ) -> None:
+        super().__init__()
+
+        self.__parent_ctx_ref = weakref.ref(parent_ctx)
+        self.__child_ref = weakref.ref(child)
+
+        self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
+
+    @property
+    def _pipeline(self) -> ta.Optional[IoPipeline]:
+        if self.__pipeline_ref is None:
+            return None
+        return self.__pipeline_ref()
+
+    def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
+        if kind == 'added':
+            check.none(self._pipeline)
+            self.__pipeline_ref = weakref.ref(pipeline)
+
+        elif kind == 'removed':
+            self.__pipeline_ref = None
+
+    @staticmethod
+    def _deliver(key: ta.Any, post: IoPipelinePost, ctx: IoPipelineHandlerContext) -> None:
+        check.isinstance(ctx.handler, IoPipelineMultiplexChildHost).on_child_post(ctx, key, post)
+
+    @staticmethod
+    def _on_parent_post_done(post: IoPipelinePost, parent_post: IoPipelinePost) -> None:
+        if parent_post.is_failed() and not post.is_done():
+            post.set_failed(parent_post.get_exception() or AbortedIoPipelineError('parent post failed'))
+
+    def _submit(self, post: IoPipelinePost) -> None:
+        if (child := self.__child_ref()) is None or not child.is_running:
+            raise ClosedIoPipelinePostingError('stream ended')
+        if (parent_ctx := self.__parent_ctx_ref()) is None or parent_ctx.invalidated:
+            raise ClosedIoPipelinePostingError('multiplexing handler removed')
+
+        parent_post = parent_ctx.services[IoPipelinePosting].post_context(
+            parent_ctx.ref,
+            functools.partial(MultiplexChildIoPipelinePosting._deliver, child.stream.key, post),
+        )
+        parent_post.add_listener(functools.partial(MultiplexChildIoPipelinePosting._on_parent_post_done, post))
+
+    def post(self, fn: ta.Callable[[], T]) -> IoPipelinePost[T]:
+        post: IoPipelinePost[T] = IoPipelinePost(fn)
+        self._submit(post)
+        return post
+
+    def post_context(
+            self,
+            handler_ref: IoPipelineHandlerRef,
+            fn: ta.Callable[[IoPipelineHandlerContext], T],
+    ) -> IoPipelinePost[T]:
+        pipeline = check.not_none(self._pipeline)
+        check.is_(handler_ref.pipeline, pipeline)
+        check.state(not handler_ref.invalidated)
+
+        post: IoPipelinePost[T] = IoPipelinePost(fn, _ctx_ref=weakref.ref(handler_ref._context))  # noqa
+        self._submit(post)
+        return post
+
+
+@ta.final
 class _MultiplexChildLifecycleIoPipelineService(IoPipelineService):
     """Notices the child pipeline being destroyed - by its driver, or by anyone else holding it, such as its opener."""
 
@@ -340,6 +431,11 @@ class IoPipelineMultiplexChild:
                 functools.partial(IoPipelineMultiplexChild._fail_ref, weakref.ref(self)),
             )
             services.append(self._sched)
+
+        self._posting: ta.Optional[MultiplexChildIoPipelinePosting] = None
+        if parent_ctx is not None and parent_ctx.services.find(IoPipelinePosting) is not None:
+            self._posting = MultiplexChildIoPipelinePosting(parent_ctx, self)
+            services.append(self._posting)
 
         # Like the scheduling service, it holds the child and the parent context only weakly.
         services.append(_MultiplexChildLifecycleIoPipelineService(functools.partial(
@@ -445,6 +541,22 @@ class IoPipelineMultiplexChild:
             self._fail(e)
             return False
         return self.is_running
+
+    def run_post(self, post: IoPipelinePost) -> None:
+        """Runs work posted into the child, if it still runs; otherwise fails the post."""
+
+        if not self.is_running:
+            if not post.is_done():
+                try:
+                    post.set_failed(ConnectionClosedMultiplexIoPipelineError('stream ended'))
+                except Exception:  # noqa
+                    pass
+            return
+
+        try:
+            post.run(check.not_none(self._pipeline))
+        except Exception as e:  # noqa
+            self._fail(e)
 
     def deliver_input(self) -> ta.List[int]:
         """

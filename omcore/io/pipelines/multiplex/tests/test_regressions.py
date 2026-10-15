@@ -17,11 +17,11 @@ from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineMessages
-from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
-from ...drivers.pure import PureIoPipelineDriver
-from ...drivers.sync import FdSyncIoPipelineDriver
-from ...drivers.sync import SocketSyncIoPipelineDriver
+from ...drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ...drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ...drivers.pure.drivers import PureIoPipelineDriver
+from ...drivers.sync.fds import FdSyncIoPipelineDriver
+from ...drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ...drivers.tests.producers import DeferYieldingProducer
 from ...drivers.types import IoPipelineDriverState
 from ...flow.types import IoPipelineFlowMessages

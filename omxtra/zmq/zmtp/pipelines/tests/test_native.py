@@ -5,7 +5,7 @@ import typing as ta
 import pytest
 
 from omcore import lang
-from omcore.io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from omcore.testing.pytest import skip
 
 from ....core.sockettypes import SocketType

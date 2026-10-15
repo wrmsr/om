@@ -40,12 +40,12 @@ from ...multiplex.tests.loopback import LOpen
 from ...multiplex.tests.loopback import LReset
 from ...sched.timeouts import WriteTimeoutIoPipelineHandler
 from ...ssl.tests.test_halfclose import _App
-from ..asyncio import PollAsyncioStreamIoPipelineDriver
-from ..fdio import IoPipelineDriverSocketFdioHandler
-from ..pure import PureIoPipelineDriver
-from ..sync import FdSyncIoPipelineDriver
-from ..sync import SocketSyncIoPipelineDriver
-from ..sync import SyncIoPipelineDriver
+from ..asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ..fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ..pure.drivers import PureIoPipelineDriver
+from ..sync.core import SyncIoPipelineDriver
+from ..sync.fds import FdSyncIoPipelineDriver
+from ..sync.sockets import SocketSyncIoPipelineDriver
 from ..types import IoPipelineDriverState
 
 

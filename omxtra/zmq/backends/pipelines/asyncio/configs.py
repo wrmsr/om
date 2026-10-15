@@ -1,5 +1,5 @@
 from omcore import dataclasses as dc
-from omcore.io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 
 
 ##

@@ -20,10 +20,10 @@ from ...core import IoPipelineMessages
 from ...drivers.types import IoPipelineDriverState
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
-from ..fdio import IoPipelineDriverSocketFdioHandler
-from ..pure import PureIoPipelineDriver
-from ..sync import FdSyncIoPipelineDriver
-from ..sync import SocketSyncIoPipelineDriver
+from ..fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ..pure.drivers import PureIoPipelineDriver
+from ..sync.fds import FdSyncIoPipelineDriver
+from ..sync.sockets import SocketSyncIoPipelineDriver
 
 
 class _Emit:

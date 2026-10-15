@@ -35,8 +35,25 @@
 
 - move a `Defer` continuation behind the reads and writes already pending in the synchronous drivers' loops, not only
   behind the timers already due: the fuller form of the fairness yield `yielding.py` describes
-- `PollAsyncioStreamIoPipelineDriver._drain_again` / `_next_drain_flush_outputs` are unreachable now that fences are
-  held behind a pending drain; remove them once the hold-behind-drain path is settled
+
+### hosts
+
+- process transports (phase 2's optional milestone): start a subprocess with its standard streams as a hosted
+  descriptor-pair transport, or on a pseudo-terminal as a hosted duplex transport, with its exit status delivered by
+  posting; the fdio and asyncio hosts can already adopt the descriptors, what is missing is the spawn, the reaping
+  after EOF, and the posted exit status
+- `SimpleHttpHandlerServerIoPipelineHandler.build_standard_pipeline_spec` takes a socket and address only to attach
+  them as metadata: a variant taking `IoPipelineHostTransportInfo` would let the HTTP server stack be served over an
+  in-process transport (a multiplexed stream, say) without one
+- an `Await` reaching the fdio driver is unhandled output, which fails the manager's dispatch of the handler: decide
+  whether the fdio forms should reject it as a typed error, or whether hosted pipelines should get an output sink
+- the descriptor transport in `drivers/fdio/descriptors.py` and `FdSyncIoPipelineDriver` carry the same flag-saving,
+  half-close, and restore logic for descriptor pairs: share it once the sync driver may change
+- the in-memory host reports a listener's refusing spec factory to the connecting side as a refused connect, where a
+  real peer would see a connection which closes at once; revisit if a test needs the latter
+- the asyncio host serves one owned duplex descriptor through two pipe transports on the descriptor and a duplicate
+  of it, so closing one does not close the description: good enough for a pseudo-terminal master, worth a look for
+  anything stranger
 
 ### multiplex
 

@@ -5,7 +5,7 @@ import socket
 import typing as ta
 
 from ......io.pipelines.core import IoPipeline
-from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from ......io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ...apps.wsgi import IoPipelineWsgiSpec
 from ...apps.wsgi import WsgiIoPipelineHandler
 from ...requests import IoPipelineHttpRequestAggregatorDecoder

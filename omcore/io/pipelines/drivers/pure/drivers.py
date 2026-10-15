@@ -5,22 +5,28 @@ import dataclasses as dc
 import math
 import typing as ta
 
-from ....lite.check import check
-from ...streambufs.segmented import SegmentedByteStreamBuffer
-from ...streambufs.utils import ByteStreamBuffers
-from ..core import IoPipeline
-from ..core import IoPipelineMessages
-from ..flow.types import IoPipelineFlow
-from ..flow.types import IoPipelineFlowMessages
-from ..sched.heap import HeapIoPipelineSchedulingService
-from .metadata import DriverIoPipelineMetadata
-from .types import IoPipelineDriverState
+from .....lite.check import check
+from ....streambufs.segmented import SegmentedByteStreamBuffer
+from ....streambufs.utils import ByteStreamBuffers
+from ...core import IoPipeline
+from ...core import IoPipelineMessages
+from ...errors import AbortedIoPipelineError
+from ...flow.types import IoPipelineFlow
+from ...flow.types import IoPipelineFlowMessages
+from ...posting.types import ClosedIoPipelinePostingError
+from ...posting.types import IoPipelinePost
+from ...posting.types import IoPipelinePostingTarget
+from ...posting.types import TargetIoPipelinePostingService
+from ...posting.types import fail_io_pipeline_posts
+from ...sched.heap import HeapIoPipelineSchedulingService
+from ..metadata import DriverIoPipelineMetadata
+from ..types import IoPipelineDriverState
 
 
 ##
 
 
-class PureIoPipelineDriver:
+class PureIoPipelineDriver(IoPipelinePostingTarget):
     """
     Deterministically drive a pipeline without an operating-system transport or event loop.
 
@@ -35,6 +41,8 @@ class PureIoPipelineDriver:
 
     The clock starts at zero and advances only through `advance_time()`. With no scheduled callback the driver remains
     tickless; advancing time does not itself run work, so callers retain the same explicit stepping model as `next()`.
+
+    Enqueued messages and posted work share one boundary queue, processed in order by the next step.
     """
 
     @dc.dataclass(frozen=True)
@@ -105,6 +113,9 @@ class PureIoPipelineDriver:
         self._clock = self._Clock()
         self._state = IoPipelineDriverState.NEW
 
+        # Usable before the pipeline exists: a post made then runs once it does.
+        self._posting = TargetIoPipelinePostingService(self)
+
     _pipeline: IoPipeline
     _flow: ta.Optional[IoPipelineFlow]
     _sched: HeapIoPipelineSchedulingService
@@ -124,6 +135,12 @@ class PureIoPipelineDriver:
     @property
     def pipeline(self) -> IoPipeline:
         return self._pipeline
+
+    @property
+    def posting(self) -> TargetIoPipelinePostingService:
+        """The pipeline's posting service, usable from construction on."""
+
+        return self._posting
 
     @property
     def is_running(self) -> bool:
@@ -161,6 +178,24 @@ class PureIoPipelineDriver:
             self._want_read
         )
 
+    @property
+    def has_runnable_work(self) -> bool:
+        """
+        Whether a `next()` would do something now: boundary input - enqueued messages, posted work - awaits
+        processing, supplied transport input is wanted, a timer is due, or the pipeline has output to hand over.
+        For whoever steps the driver and needs to know when stepping stops mattering.
+        """
+
+        if self._state is IoPipelineDriverState.NEW:
+            return True
+        if self._state not in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+            return False
+        if self._input_q or self._pipeline.output.peek() is not None:
+            return True
+        if self._transport_input_q and (self.wants_input or self._transport_final_output is not None):
+            return True
+        return (delay := self._sched.next_delay()) is not None and delay <= 0.
+
     #
 
     def _opt_pipeline(self) -> ta.Optional[IoPipeline]:
@@ -188,6 +223,7 @@ class PureIoPipelineDriver:
                 services=[
                     *self._spec.services,
                     self._sched,
+                    self._posting,
                 ],
             ))
 
@@ -213,6 +249,7 @@ class PureIoPipelineDriver:
         try:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
+            self._fail_queued_posts()
         except BaseException:
             self._state = IoPipelineDriverState.FAILED
             raise
@@ -225,8 +262,18 @@ class PureIoPipelineDriver:
             self._write_q_bytes = 0
             self._transport_final_output = None
 
+    def _fail_queued_posts(self) -> None:
+        """Posts never run are failed, so their submitters are told; the queue is cleared by the caller."""
+
+        if posts := [item for item in self._input_q if isinstance(item, IoPipelinePost)]:
+            fail_io_pipeline_posts(posts, AbortedIoPipelineError('Driver closed before the post ran'))
+
     def _fail(self) -> None:
         self._state = IoPipelineDriverState.FAILED
+        try:
+            self._fail_queued_posts()
+        except Exception:  # noqa
+            pass
         try:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
@@ -249,6 +296,11 @@ class PureIoPipelineDriver:
         """Queue already-decoded inbound messages directly at the driver boundary."""
 
         self._input_q.extend(in_msgs)
+
+    def accept_post(self, post: IoPipelinePost) -> None:
+        if self._state in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED):
+            raise ClosedIoPipelinePostingError(f'{self!r} is {self._state.name}')
+        self._input_q.append(post)
 
     def feed_input(self, *in_msgs: ta.Any) -> None:
         """Make transport input available for a later `next(read=True)` step."""
@@ -520,7 +572,11 @@ class PureIoPipelineDriver:
                 return ('unhandled', out_msg)
 
             if self._input_q:
-                pipeline.feed_in(self._input_q.popleft())
+                # Boundary input - enqueued messages and posted work - is processed in order, also while draining.
+                if isinstance(item := self._input_q.popleft(), IoPipelinePost):
+                    item.run(pipeline)
+                else:
+                    pipeline.feed_in(item)
                 continue
 
             if self._transport_final_output is not None:

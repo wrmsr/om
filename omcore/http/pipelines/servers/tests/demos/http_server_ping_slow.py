@@ -7,7 +7,7 @@ import typing as ta
 from ......io.pipelines.core import IoPipeline
 from ......io.pipelines.core import IoPipelineHandler
 from ......io.pipelines.core import IoPipelineHandlerContext
-from ......io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from ......io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
 from ......io.pipelines.flow.types import IoPipelineFlowMessages
 from ......io.pipelines.sched.types import IoPipelineScheduling

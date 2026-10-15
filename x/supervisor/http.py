@@ -18,7 +18,7 @@ from omcore.http.urlrouting.types import UrlRoute
 from omcore.http.urlrouting.types import UrlRouteMatch
 from omcore.http.urlrouting.types import UrlRouteSlashStyle
 from omcore.io.fdio.handlers import ServerSocketFdioHandler
-from omcore.io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
+from omcore.io.pipelines.drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
 from omcore.lite.check import check
 from omcore.lite.marshal import marshal_obj
 from omcore.logs.modules import get_module_logger

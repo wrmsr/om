@@ -25,8 +25,8 @@ from ..core import IoPipeline
 from ..core import IoPipelineHandler
 from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineMessages
-from ..drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ..drivers.sync import SocketSyncIoPipelineDriver
+from ..drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ..drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ..errors import IncompleteDecodingIoPipelineError
 
 

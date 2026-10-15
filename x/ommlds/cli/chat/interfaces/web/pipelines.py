@@ -6,7 +6,7 @@ from omcore.http.pipelines.servers.requests import IoPipelineHttpRequestAggregat
 from omcore.http.pipelines.servers.requests import IoPipelineHttpRequestDecoder
 from omcore.http.pipelines.servers.responses import IoPipelineHttpResponseEncoder
 from omcore.io.pipelines.core import IoPipeline
-from omcore.io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 
 
 ##

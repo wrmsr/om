@@ -11,7 +11,7 @@ from omcore.http.simple.types import SimpleHttpHandlerResponse
 from omcore.io.fdio.handlers import ServerSocketFdioHandler
 from omcore.io.fdio.manager import FdioManager
 from omcore.io.fdio.pollers import SelectFdioPoller
-from omcore.io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
+from omcore.io.pipelines.drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
 
 from ..configs.models import SystevisorConfig
 from ..configs.models import SystevisorExecConfig

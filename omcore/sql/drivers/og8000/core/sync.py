@@ -2,7 +2,7 @@ import socket
 import types
 import typing as ta
 
-from .....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from .....io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from .....io.pipelines.drivers.types import IoPipelineDriverState
 from ..converters import InAdapter
 from ..errors import InterfaceError

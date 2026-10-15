@@ -11,7 +11,7 @@ from ......io.fdio.pollers import SelectFdioPoller
 from ......io.pipelines.core import IoPipeline
 from ......io.pipelines.core import IoPipelineHandler
 from ......io.pipelines.core import IoPipelineHandlerContext
-from ......io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
+from ......io.pipelines.drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
 from ......io.pipelines.sched.types import IoPipelineScheduling
 from ......lite.check import check
 from ......sockets.addresses import SocketAddress

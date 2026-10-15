@@ -7,7 +7,7 @@ import socket
 import typing as ta
 
 from ....io.pipelines.core import IoPipelineMessages
-from ....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from ....io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ....io.readers import BytesReader
 from ....io.readers import BytesReaders
 from ....io.streambufs.types import Bytes

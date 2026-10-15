@@ -27,7 +27,7 @@ from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.core import IoPipelineHandler
 from omcore.io.pipelines.core import IoPipelineHandlerContext
 from omcore.io.pipelines.core import IoPipelineMessages
-from omcore.io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 
 from .protocol import DevtoolsWebsocketSend
 from .protocol import decode_message

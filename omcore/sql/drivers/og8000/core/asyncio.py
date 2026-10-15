@@ -2,7 +2,7 @@ import asyncio
 import types
 import typing as ta
 
-from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from .....io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from .....io.pipelines.drivers.types import IoPipelineDriverState
 from ..converters import InAdapter
 from ..errors import InterfaceError

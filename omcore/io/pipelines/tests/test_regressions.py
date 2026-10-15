@@ -17,7 +17,7 @@ from ..core import IoPipelineHandler
 from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineHandlerNotifications
 from ..core import IoPipelineMessages
-from ..drivers.pure import PureIoPipelineDriver
+from ..drivers.pure.drivers import PureIoPipelineDriver
 from ..drivers.types import IoPipelineDriverState
 from ..errors import SawFinalOutputIoPipelineError
 from ..flow.stub import StubIoPipelineFlowService
@@ -230,3 +230,37 @@ class TestDestroyCleanup(unittest.TestCase):
             pipeline.destroy()
             if gc_was_enabled:
                 gc.enable()
+
+
+class _DestroyingDeferIoPipelineHandler(IoPipelineHandler):
+    """Destroys its own pipeline from a deferred callback, as a policy deciding to abort would."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.defers: ta.List[IoPipelineMessages.Defer] = []
+
+    def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, IoPipelineMessages.InitialInput):
+            ctx.feed_in(msg)
+            self.defers.append(ctx.defer(lambda c: c.pipeline.destroy()))
+            return
+        if isinstance(msg, IoPipelineMessages.MayPropagate):
+            ctx.feed_in(msg)
+
+
+class TestDeferredDestruction(unittest.TestCase):
+    def test_a_deferred_callback_may_destroy_the_pipeline(self) -> None:
+        # Destruction fails every pending completable, the Defer being run among them: completing it again afterwards
+        # must not be attempted, and the driver sees an explicit close, not a failure.
+        handler = _DestroyingDeferIoPipelineHandler()
+        drv = PureIoPipelineDriver(IoPipeline.Spec([handler]))
+        try:
+            self.assertIsNone(drv.next(read=False))
+
+            self.assertIs(drv.state, IoPipelineDriverState.CLOSED)
+            self.assertFalse(drv.pipeline.is_ready)
+            self.assertEqual(len(handler.defers), 1)
+            self.assertTrue(handler.defers[0].is_failed())
+        finally:
+            drv.close()

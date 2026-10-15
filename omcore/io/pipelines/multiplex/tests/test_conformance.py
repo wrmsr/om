@@ -15,7 +15,7 @@ import typing as ta
 
 from ....streambufs.segmented import SegmentedByteStreamBufferView
 from ...core import IoPipeline
-from ...drivers.pure import PureIoPipelineDriver
+from ...drivers.pure.drivers import PureIoPipelineDriver
 from ...drivers.tests import test_conformance as tc
 from ...drivers.types import IoPipelineDriverState
 from ...flow.stub import StubIoPipelineFlowService
@@ -243,6 +243,9 @@ class _MultiplexChildConformanceDriverAdapter(tc._ConformanceDriverAdapter):
         self._driver.enqueue(IoPipelineMultiplexMessages.FeedStream(_KEY, msgs))
         return self._step(read=False)
 
+    def submit(self, *msgs: ta.Any) -> None:
+        self._driver.enqueue(IoPipelineMultiplexMessages.FeedStream(_KEY, msgs))
+
     async def feed_input(self, data: bytes) -> ta.Any:
         mv = memoryview(data)
         self._driver.feed_input(_Batch([
@@ -316,3 +319,20 @@ class TestMultiplexChildConformance(tc.TestIoPipelineDriverConformance):
             self.assertEqual(adapter.observed_on_release, [tc._ObservedInput(b'input')])  # type: ignore[attr-defined]
 
         await self._with_adapters(run, manual_input=True)
+
+    async def test_close_fails_pending_posts_and_refuses_new_ones(self) -> None:
+        # The harness closes a stream as its peer would, with a reset arriving as transport input, which is read only
+        # once the boundary input queued before it - the post - has been processed: so the post runs. Posting into the
+        # ended stream is then refused. A parent closing before a post ran fails it, as test_posting shows.
+
+        async def run(adapter: tc._ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            post = adapter.post(lambda: None)
+
+            await adapter.close()
+
+            self.assertTrue(post.is_succeeded())
+            with self.assertRaises(tc.ClosedIoPipelinePostingError):
+                adapter.post(lambda: None)
+
+        await self._with_adapters(run)

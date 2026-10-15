@@ -6,7 +6,7 @@ import asyncio
 import typing as ta
 
 from omcore.io.pipelines.core import IoPipeline
-from omcore.io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from omcore.io.pipelines.drivers.types import IoPipelineDriverState
 from omcore.logs import all as logs
 

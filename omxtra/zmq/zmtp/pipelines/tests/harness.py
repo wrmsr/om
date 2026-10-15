@@ -5,7 +5,7 @@ from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.core import IoPipelineHandler
 from omcore.io.pipelines.core import IoPipelineHandlerContext
 from omcore.io.pipelines.core import IoPipelineMessages
-from omcore.io.pipelines.drivers.pure import PureIoPipelineDriver
+from omcore.io.pipelines.drivers.pure.drivers import PureIoPipelineDriver
 from omcore.io.pipelines.drivers.types import IoPipelineDriverState
 from omcore.io.pipelines.flow.stub import StubIoPipelineFlowService
 from omcore.io.pipelines.flow.types import IoPipelineFlow

@@ -24,10 +24,10 @@ from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
-from ..asyncio import PollAsyncioStreamIoPipelineDriver
-from ..fdio import IoPipelineDriverSocketFdioHandler
-from ..pure import PureIoPipelineDriver
-from ..sync import SocketSyncIoPipelineDriver
+from ..asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ..fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ..pure.drivers import PureIoPipelineDriver
+from ..sync.sockets import SocketSyncIoPipelineDriver
 from ..types import IoPipelineDriverState
 
 

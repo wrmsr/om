@@ -15,14 +15,18 @@ from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
 from ...errors import AbortedIoPipelineError
+from ...errors import ContextInvalidatedIoPipelineError
 from ...errors import SawShutdownOutputIoPipelineError
 from ...flow.stub import StubIoPipelineFlowService
 from ...flow.types import IoPipelineFlowMessages
+from ...posting.types import ClosedIoPipelinePostingError
+from ...posting.types import IoPipelinePost
+from ...posting.types import IoPipelinePosting
 from ...sched.types import IoPipelineScheduling
-from ..asyncio import PollAsyncioStreamIoPipelineDriver
-from ..fdio import IoPipelineDriverSocketFdioHandler
-from ..pure import PureIoPipelineDriver
-from ..sync import SocketSyncIoPipelineDriver
+from ..asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ..fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ..pure.drivers import PureIoPipelineDriver
+from ..sync.sockets import SocketSyncIoPipelineDriver
 from ..types import IoPipelineDriverState
 
 
@@ -54,6 +58,13 @@ class _RequestInput:
     pass
 
 
+@dc.dataclass(frozen=True)
+class _PostFromTurn:
+    """Makes the handler post `fn` from inside its own turn, then record this marker type."""
+
+    fn: ta.Callable[[], None]
+
+
 class _ConformanceIoPipelineHandler(IoPipelineHandler):
     def __init__(self, *, output_after_final_input: ta.Optional[bytes] = None) -> None:
         super().__init__()
@@ -78,6 +89,11 @@ class _ConformanceIoPipelineHandler(IoPipelineHandler):
 
         if isinstance(msg, _RequestInput):
             ctx.feed_out(IoPipelineFlowMessages.ReadyForInput())
+            return
+
+        if isinstance(msg, _PostFromTurn):
+            ctx.services[IoPipelinePosting].post(msg.fn)
+            self.inputs.append(_PostFromTurn)
             return
 
         self.inputs.append(msg)
@@ -141,6 +157,18 @@ class _ConformanceDriverAdapter(abc.ABC):
     @abc.abstractmethod
     async def enqueue(self, *msgs: ta.Any) -> ta.Optional[ta.Any]:
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def submit(self, *msgs: ta.Any) -> None:
+        """Enqueues without stepping."""
+
+        raise NotImplementedError
+
+    def post(self, fn: ta.Callable[[], ta.Any]) -> IoPipelinePost:
+        return self.pipeline.services[IoPipelinePosting].post(fn)
+
+    def post_context(self, handler_ref: ta.Any, fn: ta.Callable[[ta.Any], ta.Any]) -> IoPipelinePost:
+        return self.pipeline.services[IoPipelinePosting].post_context(handler_ref, fn)
 
     @abc.abstractmethod
     async def feed_input(self, data: bytes) -> ta.Any:
@@ -269,6 +297,9 @@ class _SyncConformanceDriverAdapter(_ConformanceDriverAdapter):
         self._driver.enqueue(*msgs)
         return self._driver.next(read=False)
 
+    def submit(self, *msgs: ta.Any) -> None:
+        self._driver.enqueue(*msgs)
+
     async def feed_input(self, data: bytes) -> ta.Any:
         self._peer.sendall(data)
         return self._driver.next(read=True, raise_on_stall=False)
@@ -352,6 +383,9 @@ class _FdioConformanceDriverAdapter(_ConformanceDriverAdapter):
     async def enqueue(self, *msgs: ta.Any) -> ta.Optional[ta.Any]:
         self._driver.enqueue(*msgs)
         return self._driver.next(read=False)
+
+    def submit(self, *msgs: ta.Any) -> None:
+        self._driver.enqueue(*msgs)
 
     async def feed_input(self, data: bytes) -> ta.Any:
         self._peer.sendall(data)
@@ -490,10 +524,7 @@ class _AsyncioConformanceDriverAdapter(_ConformanceDriverAdapter):
             out = await self._driver.next(read=False)
             if out is not None:
                 return out
-            if (
-                    self._driver._command_queue.empty() and
-                    (self._driver._drain_task is None or not self._driver._drain_task.done())
-            ):
+            if self._driver._command_queue.empty():
                 break
         return None
 
@@ -503,6 +534,9 @@ class _AsyncioConformanceDriverAdapter(_ConformanceDriverAdapter):
         if out is not None:
             return out
         return await self._settle()
+
+    def submit(self, *msgs: ta.Any) -> None:
+        self._driver.enqueue(*msgs)
 
     async def feed_input(self, data: bytes) -> ta.Any:
         self._reader.feed_data(data)
@@ -522,10 +556,10 @@ class _AsyncioConformanceDriverAdapter(_ConformanceDriverAdapter):
         self._writer._release.set()
         # Completing one drain can release output queued behind it which starts the next, so settle until none remain.
         for _ in range(8):
-            if (drain_task := self._driver._drain_task) is not None:
-                await drain_task
+            if self._driver._drain_pending:
+                await asyncio.wait_for(self._driver._drain_idle_event.wait(), _ASYNCIO_STEP_TIMEOUT_S)
             assert await self._settle() is None
-            if self._driver._drain_task is None:
+            if not self._driver._drain_pending:
                 break
 
     def take_output(self) -> bytes:
@@ -610,6 +644,9 @@ class _AsyncioSocketConformanceDriverAdapter(_ConformanceDriverAdapter):
             return out
         return await self._settle()
 
+    def submit(self, *msgs: ta.Any) -> None:
+        self.driver.enqueue(*msgs)
+
     async def feed_input(self, data: bytes) -> ta.Any:
         self._peer.sendall(data)
         return await asyncio.wait_for(self.driver.next(read=True, raise_on_stall=False), _ASYNCIO_STEP_TIMEOUT_S)
@@ -632,8 +669,8 @@ class _AsyncioSocketConformanceDriverAdapter(_ConformanceDriverAdapter):
             _drain_socket(self._peer)
             self._output_blocked = False
         if self.driver.state in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
-            if (drain_task := self.driver._drain_task) is not None:
-                await asyncio.wait_for(asyncio.shield(drain_task), _ASYNCIO_STEP_TIMEOUT_S)
+            if self.driver._drain_pending:
+                await asyncio.wait_for(self.driver._drain_idle_event.wait(), _ASYNCIO_STEP_TIMEOUT_S)
             assert await self._settle() is None
 
     def take_output(self) -> bytes:
@@ -693,6 +730,9 @@ class _PureConformanceDriverAdapter(_ConformanceDriverAdapter):
     async def enqueue(self, *msgs: ta.Any) -> ta.Optional[ta.Any]:
         self._driver.enqueue(*msgs)
         return self._driver.next(read=False)
+
+    def submit(self, *msgs: ta.Any) -> None:
+        self._driver.enqueue(*msgs)
 
     async def feed_input(self, data: bytes) -> ta.Any:
         self._driver.feed_input(data)
@@ -1142,3 +1182,91 @@ class TestIoPipelineDriverConformance(AsyncioIsolatedAsyncTestCase):
                 self.assertTrue(msg.is_succeeded())
 
         await self._with_adapters(run, manual_input=True)
+
+    ##
+    # Posting
+
+    async def test_posts_run_in_order_with_enqueued_input(self) -> None:
+        # A post is boundary input like an enqueued message: it runs after what was queued before it and before what
+        # was queued after it, each in its own turn.
+
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            inputs = adapter.handler.inputs
+            marker = object()
+
+            p1 = adapter.post(lambda: inputs.append('p1'))
+            adapter.submit(marker)
+            p2 = adapter.post(lambda: inputs.append('p2'))
+            self.assertFalse(p1.is_done())
+
+            self.assertEqual(await adapter.step_nonblocking(), _ObservedInput(marker))
+            self.assertTrue(p1.is_succeeded())
+            self.assertIsNone(await adapter.step_nonblocking())
+            self.assertTrue(p2.is_succeeded())
+            self.assertEqual(inputs[-3:], ['p1', marker, 'p2'])
+
+        await self._with_adapters(run)
+
+    async def test_post_from_own_turn_runs_after_that_turn(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            inputs = adapter.handler.inputs
+
+            self.assertIsNone(await adapter.enqueue(_PostFromTurn(lambda: inputs.append('posted'))))
+
+            self.assertEqual(inputs[-2:], [_PostFromTurn, 'posted'])
+
+        await self._with_adapters(run)
+
+    async def test_post_exception_fails_only_the_post(self) -> None:
+        error = RuntimeError('post')
+
+        def boom() -> None:
+            raise error
+
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            outcomes: ta.List[ta.Any] = []
+            post = adapter.post(boom)
+            post.add_listener(lambda p: outcomes.append(p.get_exception()))
+
+            self.assertIsNone(await adapter.step_nonblocking())
+
+            self.assertEqual(outcomes, [error])
+            self.assertIs(adapter.state, IoPipelineDriverState.RUNNING)
+            self.assertTrue(adapter.pipeline.is_ready)
+
+        await self._with_adapters(run)
+
+    async def test_post_for_a_removed_handler_fails(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            ref = adapter.pipeline.handlers()[0]
+            ran: ta.List[ta.Any] = []
+            outcomes: ta.List[ta.Any] = []
+            post = adapter.post_context(ref, lambda ctx: ran.append(ctx))
+            post.add_listener(lambda p: outcomes.append(type(p.get_exception())))
+
+            adapter.pipeline.remove(ref)
+            self.assertIsNone(await adapter.step_nonblocking())
+
+            self.assertEqual(ran, [])
+            self.assertEqual(outcomes, [ContextInvalidatedIoPipelineError])
+
+        await self._with_adapters(run)
+
+    async def test_close_fails_pending_posts_and_refuses_new_ones(self) -> None:
+        async def run(adapter: _ConformanceDriverAdapter) -> None:
+            await adapter.start()
+            outcomes: ta.List[ta.Any] = []
+            post = adapter.post(lambda: None)
+            post.add_listener(lambda p: outcomes.append(type(p.get_exception())))
+
+            await adapter.close()
+
+            self.assertEqual(outcomes, [AbortedIoPipelineError])
+            with self.assertRaises(ClosedIoPipelinePostingError):
+                adapter.post(lambda: None)
+
+        await self._with_adapters(run)

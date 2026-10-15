@@ -7,21 +7,21 @@ import typing as ta
 import unittest
 import weakref
 
-from .....lite.check import check
-from ....streambufs.types import ByteStreamBuffer
-from ...core import IoPipeline
-from ...core import IoPipelineHandler
-from ...core import IoPipelineHandlerContext
-from ...core import IoPipelineHandlerRef
-from ...core import IoPipelineMessages
-from ...core import IoPipelineService
-from ...core import IoPipelineUpdate
-from ...flow.stub import StubIoPipelineFlowService
-from ...flow.types import IoPipelineFlowMessages
-from ...sched.timeouts import ReadTimeoutIoPipelineHandler
-from ...sched.types import IoPipelineScheduling
-from ..sync import SocketSyncIoPipelineDriver
-from ..types import IoPipelineDriverState
+from ......lite.check import check
+from .....streambufs.types import ByteStreamBuffer
+from ....core import IoPipeline
+from ....core import IoPipelineHandler
+from ....core import IoPipelineHandlerContext
+from ....core import IoPipelineHandlerRef
+from ....core import IoPipelineMessages
+from ....core import IoPipelineService
+from ....core import IoPipelineUpdate
+from ....flow.stub import StubIoPipelineFlowService
+from ....flow.types import IoPipelineFlowMessages
+from ....sched.timeouts import ReadTimeoutIoPipelineHandler
+from ....sched.types import IoPipelineScheduling
+from ...types import IoPipelineDriverState
+from ..sockets import SocketSyncIoPipelineDriver
 
 
 class TimerOutputIoPipelineHandler(IoPipelineHandler):

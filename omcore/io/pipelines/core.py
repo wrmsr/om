@@ -687,14 +687,19 @@ class IoPipelineHandlerContext:
             raise
 
         except BaseException as e:  # noqa
-            dfl.set_failed(e)
+            # Already done if the callback destroyed the pipeline, which fails every pending completable - this one
+            # among them.
+            if not dfl.is_done():
+                dfl.set_failed(e)
 
             if self._handling_error or pipeline._config.raise_immediately:  # noqa
                 raise
-            self._handle_error(e, 'inbound')
+            if not self._invalidated:
+                self._handle_error(e, 'inbound')
 
         else:
-            dfl.set_succeeded(res)
+            if not dfl.is_done():
+                dfl.set_succeeded(res)
 
     #
 

@@ -5,7 +5,8 @@ import dataclasses as dc
 import random
 import typing as ta
 
-from ...drivers.pure import PureIoPipelineDriver
+from ...drivers.pure.drivers import PureIoPipelineDriver
+from ...drivers.pure.links import PureLink
 from ...drivers.types import IoPipelineDriverState
 from ...ssl.tests.test_halfclose import _ssl_handlers
 from ...yielding import CountingIoPipelineYieldPolicy
@@ -19,7 +20,6 @@ from .apps import payload
 from .h2like import H2LikeAdapter
 from .h2like import Headers
 from .h2like import h2_like_spec
-from .links import PureLink
 from .loopback import Outcome
 from .sshlike import ChannelExtData
 from .sshlike import ChannelRequest

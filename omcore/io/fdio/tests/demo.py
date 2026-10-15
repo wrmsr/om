@@ -8,7 +8,7 @@ from ....http.simple.types import SimpleHttpHandlerResponse
 from ....http.simple.types import SimpleHttpHandlerResponseStreamedData
 from ....lite.check import check
 from ....sockets.addresses import SocketAddress
-from ...pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
+from ...pipelines.drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
 from ..handlers import ServerSocketFdioHandler
 from ..kqueue import KqueueFdioPoller  # noqa
 from ..manager import FdioManager

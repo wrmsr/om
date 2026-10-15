@@ -9,7 +9,7 @@ import unittest
 
 from .....io.pipelines.core import IoPipeline
 from .....io.pipelines.core import IoPipelineMessages
-from .....io.pipelines.drivers.pure import PureIoPipelineDriver
+from .....io.pipelines.drivers.pure.drivers import PureIoPipelineDriver
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.handlers.feedback import FeedbackInboundIoPipelineHandler
 from ...requests import FullIoPipelineHttpRequest

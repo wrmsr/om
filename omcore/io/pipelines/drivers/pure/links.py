@@ -2,8 +2,8 @@
 # @om-lite
 import typing as ta
 
-from ...drivers.pure import PureIoPipelineDriver
-from ...drivers.types import IoPipelineDriverState
+from ..types import IoPipelineDriverState
+from .drivers import PureIoPipelineDriver
 
 
 ##
@@ -38,7 +38,7 @@ class PureLink:
         return self.unhandled[id(d)]
 
     def _step(self, d: PureIoPipelineDriver) -> bool:
-        progressed = False
+        progressed = d.has_runnable_work
         while d.is_running or d.state is IoPipelineDriverState.NEW:
             out = d.next(read=True, raise_on_stall=False)
             if out is None:
@@ -70,15 +70,20 @@ class PureLink:
 
         return moved
 
+    def pump_once(self) -> bool:
+        """Steps both sides and moves what each has for the other, once; returns whether anything progressed."""
+
+        progressed = self._step(self.a)
+        progressed |= self._step(self.b)
+        progressed |= self._move(self.a, self.b)
+        progressed |= self._move(self.b, self.a)
+        return progressed
+
     def pump(self, max_rounds: int = 100_000, *, until: ta.Optional[ta.Callable[[], bool]] = None) -> None:
         for _ in range(max_rounds):
             if until is not None and until():
                 return
-            progressed = self._step(self.a)
-            progressed |= self._step(self.b)
-            progressed |= self._move(self.a, self.b)
-            progressed |= self._move(self.b, self.a)
-            if not progressed:
+            if not self.pump_once():
                 if until is not None and not until():
                     raise RuntimeError('link quiesced before condition')
                 return

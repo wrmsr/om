@@ -7,6 +7,14 @@ with _lang.auto_proxy_init(
 ):
     ##
 
+    from .connecting import (  # noqa
+        FdioConnectError as ConnectError,
+        FdioConnectTimeoutError as ConnectTimeoutError,
+        FdioConnectClosedError as ConnectClosedError,
+
+        ConnectingSocketFdioHandler as ConnectingSocketHandler,
+    )
+
     from .handlers import (  # noqa
         FdioHandler as Handler,
 
@@ -29,4 +37,8 @@ with _lang.auto_proxy_init(
         SelectFdioPoller as SelectPoller,
 
         PollFdioPoller as PollPoller,
+    )
+
+    from .wakeups import (  # noqa
+        WakeupFdioHandler as WakeupHandler,
     )

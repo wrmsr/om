@@ -3,7 +3,8 @@
 import typing as ta
 import unittest
 
-from ...drivers.pure import PureIoPipelineDriver
+from ...drivers.pure.drivers import PureIoPipelineDriver
+from ...drivers.pure.links import PureLink
 from ..types import IoPipelineMultiplexMessages
 from ..types import IoPipelineMultiplexOpenedStream
 from ..types import StreamRefusedMultiplexIoPipelineError
@@ -11,7 +12,6 @@ from .apps import AppFactory
 from .apps import StreamApp
 from .apps import app_spec
 from .apps import payload
-from .links import PureLink
 from .sshlike import ChannelExtData
 from .sshlike import ChannelRequest
 from .sshlike import SshLikeAdapter

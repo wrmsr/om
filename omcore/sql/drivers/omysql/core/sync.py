@@ -18,7 +18,7 @@ import typing as ta
 import warnings
 
 from ..... import check
-from .....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from .....io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from .....io.pipelines.drivers.types import IoPipelineDriverState
 from ..constants import COMMAND
 from ..errors import Error

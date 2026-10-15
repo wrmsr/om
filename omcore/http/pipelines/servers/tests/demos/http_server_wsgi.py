@@ -5,7 +5,7 @@ import time
 import typing as ta
 
 from ......io.pipelines.core import IoPipeline
-from ......io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from ......io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
 from ...apps.wsgi import IoPipelineWsgiSpec
 from ...apps.wsgi import WsgiIoPipelineHandler

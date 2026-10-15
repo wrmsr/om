@@ -113,6 +113,24 @@ Exceptions are raised directly when:
 An error handler must not recursively fail while handling an error. Transport and driver failures must fail the driver
 and tear down the pipeline rather than leaving it partially usable.
 
+### Posting
+
+A driver may be asked to run work inside its pipeline from outside its current turn - from application code between
+steps, from another pipeline's turn on the same thread, or from the pipeline's own turn - through the
+`IoPipelinePosting` service it installs. A post is queued at the driver's boundary like an enqueued message: it runs
+after the boundary input queued before it and before that queued after it, when the driver next processes its queue,
+inside the pipeline's execution boundary and never nested in a turn already in progress. A driver which is idle is woken
+by it: the fdio handler reports a deadline already due, so its manager dispatches it in the current poll iteration or
+the next one without waiting; the asyncio driver's command loop wakes; the sync and pure drivers run it on their next
+step. `post_context` runs the work with a handler's context, held only weakly until then, and fails the post with
+`ContextInvalidatedIoPipelineError` if the handler was removed first. A post completes with its callable's result or
+exception, and is failed with `AbortedIoPipelineError` by a driver which closes before running it; posting into a
+closed driver raises `ClosedIoPipelinePostingError`. Nothing is thread-safe: posts are made on the driver's thread.
+
+Posting is an optional service in the same sense scheduling is: the core knows nothing of it, a pipeline without a
+driver has none since nothing would wake for it, and a handler requiring it validates its presence when added. A
+multiplexed stream's pipeline has one when its parent does, reaching the stream through the parent's (section 13).
+
 ---
 
 ## 4. Lifecycle and propagation
@@ -266,10 +284,11 @@ Prefer `schedule_context()` for handler work. The scheduling implementation can 
 provide it only while running. Do not close over the handler, context, ref, or pipeline from a callback stored in that
 same object graph; doing so recreates low-level reference cycles.
 
-The heap scheduler used by sync and fdio drivers exposes the next absolute monotonic deadline and relative delay. The
-asyncio driver implements the same service with loop tasks. Drivers wait for the earliest of transport readiness and a
-real deadline, then run due callbacks. With no pending callback, there is no timer and no heartbeat: the design is
-tickless.
+The heap scheduler used by the sync, fdio, and pure drivers exposes the next absolute deadline and relative delay in
+its clock's time base. The asyncio driver uses the same heap on the loop's clock, arming one loop timer handle for the
+earliest deadline, which wakes its command loop; it creates no task per callback. Drivers wait for the earliest of
+transport readiness and a real deadline, then run due callbacks. With no pending callback, there is no timer and no
+heartbeat: the design is tickless.
 
 Cancelling a scheduled handle, or running it, releases its callback at once: a cancelled far-future handle may linger
 in a scheduler's heap until it surfaces, and must not keep its callback's captures alive meanwhile.
@@ -318,6 +337,8 @@ A conforming transport driver must:
 13. Run the scheduled callbacks already due before continuing a `Defer`: the deferred boundary is a fairness yield.
 14. On `close()`, release queued input nothing will process, fail the waiters of input it never processed, and cancel
     the work it started on the application's behalf.
+15. Install a posting service; run posted work in order with the other boundary input, never nested in a turn; wake
+    for it when idle; and fail what is still pending on close.
 
 The generic core remains completely bytes-agnostic. At a byte transport boundary, however, the reference drivers
 deliver each bounded read batch as one `ByteStreamBuffer` followed by one `FlushInput` when flow control is installed.
@@ -356,21 +377,34 @@ ownership remains explicit:
 - The sync descriptor-pair driver shuts down a socket write descriptor through a temporary duplicate, never closing the
   caller's descriptor. A non-socket write descriptor can only be half-closed by closing it, which the caller must
   explicitly permit; its original flags are restored first, and the closed number is never touched again.
-- The asyncio driver owns its stream-driving tasks and coordinates `drain()` with flush and shutdown fences: output
-  bytes and fences wait behind a pending drain, while read requests, deferred work, awaits, and output for the caller
-  do not. Output shutdown is `write_eof()`, which the transport performs after its buffered bytes. The transport's own
+- The asyncio driver is task-stable: one task reads the transport and one drains it, both living as long as the
+  driver, and timers are a loop timer handle. Only an `Await` supplied as a coroutine becomes a task, as it must run
+  concurrently. The drainer coordinates `drain()` with flush and shutdown fences: output bytes and fences wait behind a
+  pending drain, while read requests, deferred work, awaits, and output for the caller do not. Output shutdown is `write_eof()`, which the transport performs after its buffered bytes. The transport's own
   write buffer limits are set to the watermarks, and since it writes in the background, a drain is kept pending while
   output is paused: its completion is the return to writable, so a producer which never flushes is still resumed.
   Output bytes held behind a pending drain count toward writability like the transport's own buffer, so a producer
   continuing through `Defer` - which is not held - is still paused. `ShutdownOutput` completes once the transport has
   performed the half-close - its drain runs with zero watermarks, so it returns when the buffer is empty rather than
-  at the low watermark. `FinalOutput` starts the graceful close as a task which flushes everything written and only
-  then closes the transport (closing first would stop it reading at once); while a peer which has yet to read keeps
-  that from completing, timers, awaits and drain completions are still serviced. A coroutine the driver turns into a
+  at the low watermark. `FinalOutput` hands the graceful close to the drainer task, which flushes everything written and
+  only then closes the transport (closing first would stop it reading at once); while a peer which has yet to read
+  keeps that from completing, timers, awaits and drain completions are still serviced. A coroutine the driver turns into a
   task for an `Await` is the driver's: it is cancelled if the `Await` is failed by its producer - a multiplexed stream
   which ended, say - and when the driver closes. A task or future supplied is the caller's.
-- The fdio driver is a nonblocking `FdioHandler`; `FdioManager` combines descriptor readiness with the earliest handler
-  deadline. It is valid in forked or otherwise single-threaded contexts and does not depend on asyncio.
+- The fdio driver is a driving core, `IoPipelineFdioDriver`, behind handler forms registered with an `FdioManager`,
+  which combines descriptor readiness with the earliest handler deadline: an owned socket
+  (`IoPipelineDriverSocketFdioHandler`), one duplex descriptor such as a terminal master or a socket by number
+  (`IoPipelineDriverDuplexFdioHandler`), or a read descriptor and a write descriptor such as a pipe pair or a process's
+  own standard streams, registered as two handlers sharing one core (`IoPipelineDriverFdPairFdioHandlers`). The core
+  performs I/O through a transport the form supplies. Descriptors the caller opened are the caller's: switched to
+  nonblocking mode while driven, restored on release, and never closed unless the form was told it owns them. Output
+  shutdown follows the sync descriptor-pair driver: a socket descriptor is shut down through a temporary duplicate; a
+  non-socket write descriptor is closed only if owned or explicitly permitted, after which the pair's write handler
+  reports itself closed; a single non-socket descriptor fails the message and is left intact. Closing either handler
+  of a pair closes the driver and both. A nonblocking outbound connect is a separate handler,
+  `ConnectingSocketFdioHandler` in `omcore.io.fdio`, which tries resolved addresses in order, each under a timeout,
+  checking `SO_ERROR` on writability, and hands the connected socket to a callback. The fdio runtime is valid in forked
+  or otherwise single-threaded contexts and does not depend on asyncio.
 - While draining after `FinalOutput`, every reference driver keeps taking input off the transport and discards it:
   nothing consumes it any more, but a peer whose own output waits for this side to read must not wait forever.
 - The pure driver queues supplied transport input, accepts output only through explicit drain steps, and advances an
@@ -568,6 +602,9 @@ The multiplexing handler is each child's driver, performing the duties of sectio
 10. Stream reset, connection failure, connection EOF before the peer ended its output, removal of the multiplexing
     handler, and parent destruction abort the child: it is told with an inbound `Error`, its queued fences fail, and it
     is destroyed, failing anything else pending.
+11. When the parent has a posting service, the child has one which reaches it through the parent's: a post into the
+    child runs there at the handler's next turn, in order with the stream's `FeedStream` messages, and fails if the
+    stream has ended, the handler was removed, or the parent closed first.
 
 Additionally: `Defer` reaching a child's terminal runs with the child's `run_deferred`. `Await` is forwarded as a new
 parent `Await` of the same awaitable, its completion relayed into the child; where the parent's driver cannot await,
@@ -671,7 +708,96 @@ each side, closed, active by origin), control output emitted during the current 
 
 ---
 
-## 14. Deliberately separate future decisions
+## 14. Transport hosts
+
+`hosts` defines how a handler, or application code, asks the runtime hosting a pipeline for more transports, as a
+service looked up from `ctx.services` by `IoPipelineHost`. A host connects to an endpoint, listens on one, or adopts a
+transport the requester already holds, and drives each with a pipeline built from a caller-supplied spec factory,
+which is given the transport's addresses; each result is a handle exposing the hosted driver's state, its pipeline and
+posting, and an abortive close. Endpoints are the `omcore.sockets` endpoint types; a listener reports its bound
+endpoint, so port zero may be asked for. Failures are typed: connect errors carry each attempt's failure, a timeout on
+the last attempt is a `ConnectTimeoutIoPipelineHostError`, an unresolvable name a `ResolveIoPipelineHostError`.
+
+### Ownership
+
+Everything a handler requests is owned by that handler's ref, as scheduled callbacks are: removing the handler, or
+destroying its pipeline, closes what it owns. A handle may be released, becoming the host's, closed only explicitly or
+with the host, or transferred to another handler's ref - a listener commonly outlives the request which created it.
+Accepted connections are handles of their own, owned by the listener's owner; closing the listener does not close
+them. The host is itself an `IoPipelineService`, installed into every pipeline it hosts and usable in any other spec -
+a multiplexed stream's, say - and it is through that service's view of handler removals that ownership is enforced.
+Handles hold their owner's context only weakly.
+
+### Delivery
+
+Outcomes which arrive later - connected, failed, accepted - are posted into the owner's pipeline (section 3), and run
+with the owner's context, never by a callback outside a pipeline; a request without an owner has its callbacks run on
+the host's thread, outside any pipeline, with no context, and the in-memory host defers even those to its next step so
+that nothing runs inside the call which made the request. One host and everything it hosts run on one thread, and
+nothing here is thread-safe.
+
+### Implementations
+
+- The fdio host, on one `FdioManager`, connects through `ConnectingSocketFdioHandler`, listens through a handler of
+  its own, and drives connections with the fdio driver forms. Name resolution is injectable; the default blocks the
+  manager's thread for the lookup's duration, and literal addresses are never resolved. A threaded resolver exists,
+  delivering results through a self-pipe `WakeupFdioHandler`, the one deliberate cross-thread entry into an fdio
+  loop; it is not the default, since the fdio runtime is meant to stay single-threaded and forkable, and it must be
+  closed. `fdio_run_until` polls a manager until a condition holds or a timeout expires, which is how blocking code
+  gets multi-transport behavior without asyncio.
+- The asyncio host drives each hosted pipeline in one task of its own, which for a connection also performs the
+  connect, so nothing finer-grained than a pipeline is a task; `on_connected` and `on_accepted` are delivered once
+  the driver has started, and until then a hosted driver's pipeline is not yet there. Resolution is the loop's
+  `getaddrinfo` by default, off the loop's thread, or an injected resolver. Listening binds through the sync socket
+  transport and accepts from a reader callback. Descriptors are served through pipe transports: a caller-owned one
+  through a duplicate, so that it survives and is restored; and since EOF on a pipe transport closes its descriptor,
+  only an owned write descriptor of its own can be half-closed, the rest failing `ShutdownOutput` as the fdio forms do.
+- The in-memory host, on the pure driver, registers listeners by endpoint and connects by wiring two pure-driven
+  pipelines back to back through a bounded link, stepped explicitly; `pair()` gives two adoptable link ends;
+  `advance_time` moves every hosted driver's clock and connect deadlines. It is the deterministic test bed for
+  anything involving a second transport, and a product, not a test helper.
+
+The sync single-transport driver gets no host: blocking callers needing several transports use the fdio host under
+`fdio_run_until`. A host conformance suite runs one set of scenarios against every host.
+
+---
+
+## 15. Relays
+
+`relays` joins two pipelines at their innermost positions, through an `IoPipelineRelayEndHandler` in each, so that
+data, backpressure, end-of-stream, and failure cross in both directions. Either pipeline may be a hosted transport or
+a multiplexed stream's child. The `IoPipelineRelay` owns the pair, makes its ends, and builds specs for them which
+install manual-read flow.
+
+- Each side reaches the other only by posting into it (section 3): a batch of bytes read under one manual-read token
+  is posted to the other side, which feeds it outbound followed by a `FlushOutput`, so that flush boundaries are
+  forwarded and buffering transforms let the batch through.
+- Backpressure crosses in both directions. The reading side asks for its next token only once the other side has
+  taken the batch and, if that paused its output, only once it resumes - the acknowledgement is deferred behind the
+  batch's output, so it sees the writability the batch caused. At most one batch is in flight per direction, and a
+  side whose output is paused stops the other's reading. This needs manual-read input flow on both pipelines: an end
+  added where input is automatic raises `AutoReadRelayIoPipelineError`, since a driver reading regardless could only
+  be buffered or dropped, neither of which is backpressure.
+- End of input on one side becomes `ShutdownOutput` on the other, after all relayed data; a transport which cannot
+  half-close fails it and that side stays open. Once both of a side's directions have ended it finishes with
+  `FinalOutput`, so a relay whose two inputs both end closes both pipelines gracefully.
+- A failure or abort on one side - an inbound `Error`, or the end being removed before it finished - aborts the other,
+  which destroys its pipeline, even one attached only afterwards; the abort's cause is kept on each end and the relay.
+- The two sides need not be attached together: a side reads only once the other is attached, and what it has for the
+  other before then - a mapped message, its end of input - is held and sent, in order, once it is.
+- The relay is for byte streams. Any other message is given to the end's `map_message`, whose result, unless None, is
+  fed outbound on the other side in order with the data; an end without a mapping aborts the relay on such a message,
+  with `UnmappedMessageRelayIoPipelineError` as the cause.
+- The relay holds each side's context only weakly and each side's posting service, which holds its driver weakly, so
+  two joined pipelines, their drivers, and the relay are released by reference counting once finished.
+
+A TCP port forwarder is a listener whose accepted connections are one end of a relay and a connect to the target whose
+pipeline is the other: `relays/tests/forwarder.py` is that, in a page, assembled only from the host service and the
+relay.
+
+---
+
+## 16. Deliberately separate future decisions
 
 The following are not implied by the current contracts and should be designed independently:
 

@@ -3,21 +3,21 @@
 import asyncio
 import typing as ta
 
-from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
-from ....streambufs.types import ByteStreamBuffer
-from ....streambufs.utils import ByteStreamBuffers
-from ...core import IoPipeline
-from ...core import IoPipelineHandler
-from ...core import IoPipelineHandlerContext
-from ...core import IoPipelineHandlerRef
-from ...core import IoPipelineMessages
-from ...core import IoPipelineService
-from ...core import IoPipelineUpdate
-from ...flow.stub import StubIoPipelineFlowService
-from ...flow.types import IoPipelineFlowMessages
-from ...sched.types import IoPipelineScheduling
-from ..asyncio import PollAsyncioStreamIoPipelineDriver
-from ..types import IoPipelineDriverState
+from ......testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
+from .....streambufs.types import ByteStreamBuffer
+from .....streambufs.utils import ByteStreamBuffers
+from ....core import IoPipeline
+from ....core import IoPipelineHandler
+from ....core import IoPipelineHandlerContext
+from ....core import IoPipelineHandlerRef
+from ....core import IoPipelineMessages
+from ....core import IoPipelineService
+from ....core import IoPipelineUpdate
+from ....flow.stub import StubIoPipelineFlowService
+from ....flow.types import IoPipelineFlowMessages
+from ....sched.types import IoPipelineScheduling
+from ...types import IoPipelineDriverState
+from ..streams import PollAsyncioStreamIoPipelineDriver
 
 
 class TimerOutputIoPipelineHandler(IoPipelineHandler):
@@ -304,6 +304,12 @@ class LifecycleIoPipelineService(IoPipelineService):
 _ERROR = object()
 
 
+async def _wait_drained(drv: PollAsyncioStreamIoPipelineDriver) -> None:
+    """Lets the driver's drainer task run until it has no drain pending."""
+
+    await asyncio.wait_for(drv._drain_idle_event.wait(), 1.)
+
+
 class OutputErrorIoPipelineHandler(IoPipelineHandler):
     def __init__(self, error: BaseException) -> None:
         super().__init__()
@@ -366,8 +372,6 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
             drv._sched.cancel_all(ar)
 
             drv._sched.schedule(br, 0., lambda: events.append('live'))
-            await drv._sched._flush_pending()
-            await asyncio.gather(*tuple(drv._sched._tasks))
 
             self.assertIsNone(await drv.next(read=False))
             self.assertEqual(events, ['live'])
@@ -393,8 +397,6 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
                 0.,
                 lambda: events.append('removed'),
             )
-            await drv._sched._flush_pending()
-            await asyncio.gather(*tuple(drv._sched._tasks))
 
             self.assertIsNone(await drv.next(read=False))
             self.assertEqual(events, [])
@@ -411,14 +413,42 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
 
         events = []
         drv._sched.schedule(ref, 60., lambda: events.append('timer'))
-        await drv._sched._flush_pending()
-        tasks = tuple(drv._sched._tasks)
+        self.assertIsNotNone(drv._timer_handle)
 
         await drv.close()
 
         self.assertEqual(drv._sched._live, set())
-        self.assertTrue(all(t.done() for t in tasks))
+        self.assertIsNone(drv._timer_handle)
         self.assertEqual(events, [])
+
+    async def test_timers_create_no_tasks(self):
+        handler = NopIoPipelineHandler()
+        drv = await self.make_driver(handler)
+        try:
+            ref = self.find_handler_ref(drv, handler)
+            tasks_before = len(asyncio.all_tasks())
+
+            handles = [drv._sched.schedule(ref, 60. + i, lambda: None) for i in range(100)]
+
+            self.assertEqual(len(asyncio.all_tasks()), tasks_before)
+            self.assertIsNotNone(drv._timer_handle)
+            for h in handles:
+                h.cancel()
+            self.assertIsNone(await drv.next(read=False))
+            self.assertEqual(drv._sched._live, set())
+        finally:
+            await drv.close()
+
+    async def test_earlier_timer_rearms_the_wake(self):
+        # The outer handler's far timer is armed first; the inner handler's near one must replace it.
+        drv = await self.make_driver(
+            TimerOutputIoPipelineHandler(60., 'late'),
+            TimerOutputIoPipelineHandler(.01, 'soon'),
+        )
+        try:
+            self.assertEqual(await asyncio.wait_for(drv.next(), .5), 'soon')
+        finally:
+            await drv.close()
 
     async def test_due_timer_runs_with_read_false(self):
         drv = await self.make_driver(TimerOutputIoPipelineHandler(0., 'timer'))
@@ -435,9 +465,9 @@ class TestPollAsyncioStreamIoPipelineDriverScheduling(AsyncioIsolatedAsyncTestCa
             await drv.close()
 
     async def test_timer_scheduled_from_deferred_runs(self):
-        # A Defer is drained from pipeline output rather than the command queue, so its scheduled timers must also be
-        # flushed before waiting. A due-on-arrival deadline is rescued by _enqueue_due at the top of next(); only a
-        # future one exercises the flush.
+        # A Defer is drained from pipeline output rather than the command queue, so the loop timer must be armed for
+        # the timers it schedules before waiting. A due-on-arrival deadline is rescued by run_due at the top of next();
+        # only a future one exercises the arming.
 
         drv = await self.make_driver(DeferredTimerIoPipelineHandler(.01, 'timer'))
         try:
@@ -505,7 +535,7 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
             self.assertEqual(await drv._handle_output(flush_output), 'handled')
 
             self.assertTrue(flush_output.is_succeeded())
-            self.assertIsNone(drv._drain_task)
+            self.assertFalse(drv._drain_pending)
         finally:
             await drv.close()
 
@@ -576,11 +606,7 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
                 await drv._handle_output(IoPipelineFlowMessages.FlushOutput()),
                 'handled',
             )
-            drain_task = drv._drain_task
-            if drain_task is None:
-                self.fail('Expected a pending drain task')
-            await drain_task
-            await asyncio.sleep(0)
+            await _wait_drained(drv)
             self.assertIsNone(await drv.next(read=False))
             self.assertEqual(
                 [type(event) for event in capture.events],
@@ -630,7 +656,7 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
             await asyncio.wait_for(timer_fired.wait(), .5)
 
             self.assertIs(await asyncio.wait_for(next_task, .5), timer_error)
-            self.assertIsNotNone(drv._drain_task)
+            self.assertTrue(drv._drain_pending)
 
             self.assertEqual(
                 [type(event) for event in capture.events],
@@ -658,6 +684,7 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
         )
         try:
             self.assertIsNone(await drv.next(read=False))
+            tasks_before = len(asyncio.all_tasks())
             self.assertEqual(await drv._handle_output(b'abcde'), 'handled')
             first_flush_output = IoPipelineFlowMessages.FlushOutput()
             self.assertEqual(
@@ -666,38 +693,28 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
             )
             await writer.drain_started.wait()
             self.assertFalse(first_flush_output.is_done())
+            self.assertTrue(drv._drain_pending)
 
-            first_task = drv._drain_task
-            if first_task is None:
-                self.fail('Expected a pending drain task')
+            # Handled directly, bypassing the command loop's hold behind the pending drain: it joins the next one.
             second_flush_output = IoPipelineFlowMessages.FlushOutput()
             self.assertEqual(
                 await drv._handle_output(second_flush_output),
                 'handled',
             )
-            self.assertIs(drv._drain_task, first_task)
-            self.assertTrue(drv._drain_again)
+            self.assertTrue(drv._drain_requested)
             self.assertFalse(second_flush_output.is_done())
 
             writer.allow_drain.set()
-            await first_task
-            await asyncio.sleep(0)
+            await _wait_drained(drv)
             self.assertIsNone(await drv.next(read=False))
             self.assertTrue(first_flush_output.is_succeeded())
-            self.assertFalse(second_flush_output.is_done())
-
-            second_task = drv._drain_task
-            if second_task is None:
-                self.fail('Expected a coalesced follow-up drain task')
-            self.assertIsNot(second_task, first_task)
-            await second_task
-            await asyncio.sleep(0)
-            self.assertIsNone(await drv.next(read=False))
             self.assertTrue(second_flush_output.is_succeeded())
 
+            # Two drains, one after the other, on the one drainer task.
             self.assertEqual(writer.drain_calls, 2)
             self.assertEqual(writer.max_active_drains, 1)
-            self.assertIsNone(drv._drain_task)
+            self.assertEqual(len(asyncio.all_tasks()), tasks_before)
+            self.assertFalse(drv._drain_pending)
             self.assertEqual(
                 [type(event) for event in capture.events],
                 [
@@ -728,13 +745,6 @@ class TestPollAsyncioStreamIoPipelineDriverOutputWritability(AsyncioIsolatedAsyn
                 'handled',
             )
             self.assertFalse(flush_output.is_done())
-
-            drain_task = drv._drain_task
-            if drain_task is None:
-                self.fail('Expected a pending drain task')
-            with self.assertRaises(BrokenPipeError) as task_raised:
-                await drain_task
-            self.assertIs(task_raised.exception, error)
 
             with self.assertRaises(BrokenPipeError) as driver_raised:
                 await asyncio.wait_for(drv.next(), .5)
@@ -942,7 +952,7 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
             self.assertIsNone(await drv.next(read=False))
 
             self.assertFalse(writer.drain_cancelled.is_set())
-            self.assertIsNotNone(drv._drain_task)
+            self.assertTrue(drv._drain_pending)
             self.assertIs(drv.state, IoPipelineDriverState.RUNNING)
             self.assertEqual(
                 [type(event) for event in capture.events],
@@ -950,15 +960,10 @@ class TestPollAsyncioStreamIoPipelineDriverLifecycle(AsyncioIsolatedAsyncTestCas
             )
 
             writer.allow_drain.set()
-            drain_task = drv._drain_task
-            if drain_task is None:
-                self.fail('Expected a pending drain task')
-            await drain_task
-            await asyncio.sleep(0)
+            await _wait_drained(drv)
             self.assertIsNone(await drv.next(read=False))
 
-            self.assertIsNone(drv._drain_task)
-            self.assertFalse(drv._drain_again)
+            self.assertFalse(drv._drain_pending)
             # The payload was held behind the drain and counted, so queued output never fell to the low watermark: the
             # pause is never lifted.
             self.assertEqual(
@@ -1195,9 +1200,9 @@ class TestPollAsyncioStreamIoPipelineDriverOutputShutdown(AsyncioIsolatedAsyncTe
         # message fails clearly - and the connection carries on.
         import ssl
 
-        from .....secrets import tempssl
-        from .....subprocesses import sync as _  # noqa  # import side-effect installing _DEFAULT_SUBPROCESSES
-        from ...errors import UnsupportedIoPipelineError
+        from ......secrets import tempssl
+        from ......subprocesses import sync as _  # noqa  # import side-effect installing _DEFAULT_SUBPROCESSES
+        from ....errors import UnsupportedIoPipelineError
 
         cert = tempssl.generate_temp_localhost_ssl_cert().cert
         server_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)

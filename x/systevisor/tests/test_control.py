@@ -13,7 +13,7 @@ from omcore.http.pipelines.requests import FullIoPipelineHttpRequest
 from omcore.io.fdio.manager import FdioManager
 from omcore.io.fdio.pollers import SelectFdioPoller
 from omcore.io.pipelines.core import IoPipeline
-from omcore.io.pipelines.drivers.fdio import IoPipelineDriverSocketFdioHandler
+from omcore.io.pipelines.drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
 
 from ..configs.compiling import SystevisorConfigCompiler
 from ..configs.diagnostics import SystevisorConfigDiagnosticStage

@@ -8,7 +8,7 @@ from ......io.pipelines.core import IoPipeline
 from ......io.pipelines.core import IoPipelineHandler
 from ......io.pipelines.core import IoPipelineHandlerContext
 from ......io.pipelines.core import IoPipelineMessages
-from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from ......io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ......lite.check import check
 from .....headers import HttpHeaders
 from ....requests import FullIoPipelineHttpRequest

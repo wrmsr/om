@@ -17,7 +17,7 @@ import types
 import typing as ta
 import warnings
 
-from .....io.pipelines.drivers.asyncio import PollAsyncioStreamIoPipelineDriver
+from .....io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from .....io.pipelines.drivers.types import IoPipelineDriverState
 from ..constants import COMMAND
 from ..errors import Error

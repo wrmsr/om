@@ -3,32 +3,33 @@
 import asyncio
 import collections
 import dataclasses as dc
+import functools
 import typing as ta
 import weakref
 
-from ....lite.abstract import Abstract
-from ....lite.check import check
-from ....logs.modules import get_module_loggers
-from ....logs.utils import async_exception_logging
-from ...streambufs.direct import DirectByteStreamBuffer
-from ...streambufs.segmented import SegmentedByteStreamBuffer
-from ...streambufs.utils import ByteStreamBuffers
-from ..asyncs import AsyncIoPipelineMessages
-from ..core import IoPipeline
-from ..core import IoPipelineHandlerContext
-from ..core import IoPipelineHandlerRef
-from ..core import IoPipelineHandlerUpdate
-from ..core import IoPipelineMessages
-from ..core import IoPipelineService
-from ..core import IoPipelineServices
-from ..core import IoPipelineUpdate
-from ..errors import AbortedIoPipelineError
-from ..errors import UnsupportedIoPipelineError
-from ..flow.types import IoPipelineFlow
-from ..flow.types import IoPipelineFlowMessages
-from ..sched.types import IoPipelineScheduling
-from .metadata import DriverIoPipelineMetadata
-from .types import IoPipelineDriverState
+from .....lite.abstract import Abstract
+from .....lite.check import check
+from .....logs.modules import get_module_loggers
+from .....logs.utils import async_exception_logging
+from ....streambufs.direct import DirectByteStreamBuffer
+from ....streambufs.segmented import SegmentedByteStreamBuffer
+from ....streambufs.utils import ByteStreamBuffers
+from ...asyncs import AsyncIoPipelineMessages
+from ...core import IoPipeline
+from ...core import IoPipelineMessages
+from ...core import IoPipelineServices
+from ...errors import AbortedIoPipelineError
+from ...errors import UnsupportedIoPipelineError
+from ...flow.types import IoPipelineFlow
+from ...flow.types import IoPipelineFlowMessages
+from ...posting.types import ClosedIoPipelinePostingError
+from ...posting.types import IoPipelinePost
+from ...posting.types import IoPipelinePostingTarget
+from ...posting.types import TargetIoPipelinePostingService
+from ...posting.types import fail_io_pipeline_posts
+from ...sched.heap import HeapIoPipelineSchedulingService
+from ..metadata import DriverIoPipelineMetadata
+from ..types import IoPipelineDriverState
 
 
 log, alog = get_module_loggers(globals())  # noqa
@@ -37,7 +38,7 @@ log, alog = get_module_loggers(globals())  # noqa
 ##
 
 
-class PollAsyncioStreamIoPipelineDriver:
+class PollAsyncioStreamIoPipelineDriver(IoPipelinePostingTarget):
     """
     An asyncio pipeline driver with a poll-based interface mirroring the sync driver's API. Unlike
     LoopAsyncioStreamIoPipelineDriver which runs its own internal event loop via run(), this driver exposes next() and
@@ -47,6 +48,14 @@ class PollAsyncioStreamIoPipelineDriver:
     ShutdownOutput calls the writer's `write_eof()`, which the transport performs after the bytes already written, and
     completes after the following drain - the same transport-boundary guarantee FlushOutput receives. A writer which
     cannot write EOF fails the message with UnsupportedIoPipelineError and is left intact. Reading continues afterwards.
+
+    The driver is task-stable: besides whatever task steps it, it runs one task reading the transport and one draining
+    it (which also performs the graceful close), both for its whole life. Timers use the heap scheduler the other
+    drivers use, with one loop timer handle armed for the earliest deadline, which wakes the command loop with a
+    command. Only an Await supplied as a coroutine becomes a task of its own, since it must run concurrently.
+
+    Enqueued messages, posted work, and completed reads are commands on one queue, processed in order; a post wakes a
+    driver waiting on it.
     """
 
     @dc.dataclass(frozen=True)
@@ -110,11 +119,17 @@ class PollAsyncioStreamIoPipelineDriver:
         self._has_init = False
         self._loop: ta.Optional[asyncio.AbstractEventLoop] = None
 
-        # Fences (FlushOutput and ShutdownOutput) completed by the current and the next drain.
-        self._drain_task: ta.Optional[asyncio.Task] = None
-        self._drain_again = False
-        self._drain_flush_outputs: ta.List[IoPipelineMessages.Completable] = []
-        self._next_drain_flush_outputs: ta.List[IoPipelineMessages.Completable] = []
+        # The one task which calls the writer's drain(), and performs the graceful close, woken through an event. A
+        # drain is requested with a flag; the fences (FlushOutput and ShutdownOutput) requested before it is called are
+        # the ones it completes. A drain is outstanding from its start until its completion command has been handled.
+        # The idle event is set while the drainer has nothing requested or running.
+        self._drainer_task: ta.Optional[asyncio.Task] = None
+        self._drainer_event = asyncio.Event()
+        self._drain_requested = False
+        self._drains_outstanding = 0
+        self._drain_idle_event = asyncio.Event()
+        self._drain_idle_event.set()
+        self._pending_drain_fences: ta.List[IoPipelineMessages.Completable] = []
         self._post_drain_output_q: collections.deque[ta.Any] = collections.deque()
         # Output bytes held behind a pending drain count toward writability as much as the transport's own buffer.
         self._post_drain_output_bytes = 0
@@ -122,11 +137,16 @@ class PollAsyncioStreamIoPipelineDriver:
         # Pending awaits, each marked whether the driver created its task (from a coroutine) and so owns it.
         self._pending_awaits: ta.Dict[asyncio.Future, bool] = {}
 
-        # The graceful close performed as a task once FinalOutput reached the terminal, so commands - timers, awaits,
-        # reads to discard - are serviced while the transport flushes.
-        self._close_task: ta.Optional[asyncio.Task] = None
+        # The graceful close is performed by the drainer task once FinalOutput reached the terminal, so commands -
+        # timers, awaits, reads to discard - are serviced while the transport flushes.
+        self._close_requested = False
+        self._close_in_progress = False
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._saved_write_limits: ta.Optional[ta.Tuple[int, int]] = None
+
+        # The loop timer armed for the scheduler's earliest deadline: a timer handle, not a task.
+        self._timer_handle: ta.Optional[asyncio.TimerHandle] = None
+        self._timer_deadline: ta.Optional[float] = None
 
         self._read_task: ta.Optional[asyncio.Task] = None
         self._want_read = False
@@ -143,7 +163,10 @@ class PollAsyncioStreamIoPipelineDriver:
             IoPipelineMessages.InitialInput(),
         ]))
 
-    _sched: 'PollAsyncioStreamIoPipelineDriver._SchedulingService'
+        # Usable before the pipeline exists: a post made then runs once it does.
+        self._posting = TargetIoPipelinePostingService(self)
+
+    _sched: HeapIoPipelineSchedulingService
 
     _pipeline: IoPipeline
 
@@ -163,6 +186,12 @@ class PollAsyncioStreamIoPipelineDriver:
     @property
     def pipeline(self) -> IoPipeline:
         return self._pipeline
+
+    @property
+    def posting(self) -> TargetIoPipelinePostingService:
+        """The pipeline's posting service, usable from construction on."""
+
+        return self._posting
 
     @property
     def is_running(self) -> bool:
@@ -204,8 +233,14 @@ class PollAsyncioStreamIoPipelineDriver:
             raise
 
     def _init(self) -> IoPipeline:
-        self._loop = asyncio.get_running_loop()
-        self._sched = self._SchedulingService(self)
+        self._loop = loop = asyncio.get_running_loop()
+        self._sched = HeapIoPipelineSchedulingService(
+            loop.time,
+            on_earliest_change=functools.partial(
+                PollAsyncioStreamIoPipelineDriver._on_sched_earliest_change,
+                weakref.ref(self),
+            ),
+        )
 
         services = IoPipelineServices.of(self._spec.services)
         self._flow = services.find(IoPipelineFlow)
@@ -219,7 +254,7 @@ class PollAsyncioStreamIoPipelineDriver:
             dc.replace(
                 self._spec,
                 metadata=(*self._spec.metadata, DriverIoPipelineMetadata(self)),
-                services=(*self._spec.services, self._sched),
+                services=(*self._spec.services, self._sched, self._posting),
             ),
             **(self._pipeline_kwargs or {}),
         )
@@ -233,6 +268,8 @@ class PollAsyncioStreamIoPipelineDriver:
         #
 
         self._read_task = asyncio.create_task(self._read_task_main())
+        if self._writer is not None:
+            self._drainer_task = asyncio.create_task(self._drainer_task_main())
 
         if self._is_auto_read():
             self._want_read = True
@@ -391,6 +428,21 @@ class PollAsyncioStreamIoPipelineDriver:
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._FeedInCommand(msgs))
 
     ##
+    # posting
+
+    @dc.dataclass(frozen=True)
+    class _PostCommand(_Command):
+        post: IoPipelinePost
+
+    def accept_post(self, post: IoPipelinePost) -> None:
+        if self._state in (IoPipelineDriverState.CLOSED, IoPipelineDriverState.FAILED):
+            raise ClosedIoPipelinePostingError(f'{self!r} is {self._state.name}')
+        self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._PostCommand(post))
+
+    async def _handle_command_post(self, cmd: _PostCommand) -> None:
+        cmd.post.run(self._pipeline)
+
+    ##
     # read task
 
     async def _read_task_main(self) -> None:
@@ -509,211 +561,61 @@ class PollAsyncioStreamIoPipelineDriver:
     ##
     # scheduling
 
-    class _SchedulingService(IoPipelineScheduling, IoPipelineService):
-        def __init__(self, d: 'PollAsyncioStreamIoPipelineDriver') -> None:
-            super().__init__()
+    def _arm_timer(self) -> None:
+        """
+        Arms one loop timer for the scheduler's earliest deadline, which wakes the command loop with a command, unless
+        one is already armed for it. A wake at a since cancelled deadline runs nothing and is harmless.
+        """
 
-            self.__d_ref = weakref.ref(d)
-
-            self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
-
-            self._seq = 0
-            self._pending: ta.List[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = []
-            self._live: ta.Set[PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle] = set()
-            self._tasks: ta.Set[asyncio.Task] = set()
-
-        @property
-        def _d(self) -> 'PollAsyncioStreamIoPipelineDriver':
-            return check.not_none(self.__d_ref())
-
-        @property
-        def _pipeline(self) -> ta.Optional[IoPipeline]:
-            if self.__pipeline_ref is None:
-                return None
-            return self.__pipeline_ref()
-
-        @_pipeline.setter
-        def _pipeline(self, pipeline: ta.Optional[IoPipeline]) -> None:
-            self.__pipeline_ref = None if pipeline is None else weakref.ref(pipeline)
-
-        def pipeline_update(self, pipeline: IoPipeline, kind: IoPipelineUpdate) -> None:
-            if kind == 'added':
-                check.none(self._pipeline)
-                self._pipeline = pipeline
-
-            elif kind == 'removed':
-                if self._pipeline is None:
-                    return
-
-                check.is_(pipeline, self._pipeline)
-                self.cancel_all()
-                self._pipeline = None
-
-        def handler_update(self, handler_ref: IoPipelineHandlerRef, kind: IoPipelineHandlerUpdate) -> None:
-            if kind == 'removing':
-                self.cancel_all(handler_ref)
-
-        @ta.final
-        class _Handle(IoPipelineScheduling.Handle):
-            def __init__(
-                    self,
-                    sched: 'PollAsyncioStreamIoPipelineDriver._SchedulingService',
-                    handler_ref: IoPipelineHandlerRef,
-                    deadline: float,
-                    seq: int,
-                    fn: ta.Callable[..., None],
-                    with_context: bool,
-            ) -> None:
-                self.__sched_ref = weakref.ref(sched)
-                self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
-                self._deadline = deadline
-                self._seq = seq
-                self._fn: ta.Optional[ta.Callable[..., None]] = fn
-                self._with_context = with_context
-
-                self._task: ta.Optional[asyncio.Task] = None
-                self._queued = False
-                self._cancelled = False
-                self._done = False
-
-            @property
-            def _sched(self) -> 'PollAsyncioStreamIoPipelineDriver._SchedulingService':
-                return check.not_none(self.__sched_ref())
-
-            @property
-            def _handler_context(self) -> IoPipelineHandlerContext:
-                return check.not_none(self.__handler_context_ref())
-
-            def _run(self) -> None:
-                fn = check.not_none(self._fn)
-                self._fn = None
-                if self._with_context:
-                    fn(self._handler_context)
-                else:
-                    fn()
-
-            def cancel(self) -> None:
-                if self._cancelled or self._done:
-                    return
-
-                # A queued command may still reference a cancelled handle, so release what its callback holds now.
-                self._cancelled = True
-                self._fn = None
-                if (sched := self.__sched_ref()) is not None:
-                    sched._live.discard(self)  # noqa
-
-                if self._task is not None:
-                    self._task.cancel()
-
-        def _schedule(
-                self,
-                handler_ref: IoPipelineHandlerRef,
-                delay_s: float,
-                fn: ta.Callable[..., None],
-                *,
-                with_context: bool,
-        ) -> IoPipelineScheduling.Handle:
-            pipeline = check.not_none(self._pipeline)
-            check.is_(handler_ref.pipeline, pipeline)
-            check.state(pipeline.is_ready)
-            check.state(not handler_ref.invalidated)
-
-            loop = asyncio.get_running_loop()
-            h = self._Handle(
-                self,
-                handler_ref,
-                loop.time() + max(0., delay_s),
-                self._seq,
-                fn,
-                with_context,
-            )
-            self._seq += 1
-            self._pending.append(h)
-            self._live.add(h)
-            return h
-
-        def schedule(
-                self,
-                handler_ref: IoPipelineHandlerRef,
-                delay_s: float,
-                fn: ta.Callable[[], None],
-        ) -> IoPipelineScheduling.Handle:
-            return self._schedule(handler_ref, delay_s, fn, with_context=False)
-
-        def schedule_context(
-                self,
-                handler_ref: IoPipelineHandlerRef,
-                delay_s: float,
-                fn: ta.Callable[[IoPipelineHandlerContext], None],
-        ) -> IoPipelineScheduling.Handle:
-            return self._schedule(handler_ref, delay_s, fn, with_context=True)
-
-        def cancel_all(self, handler_ref: ta.Optional[IoPipelineHandlerRef] = None) -> None:
-            for h in tuple(self._live):
-                if handler_ref is None or h._handler_context is handler_ref._context:  # noqa
-                    h.cancel()
-
-            self._pending = [h for h in self._pending if not h._cancelled]  # noqa
-
-        async def _task_body(self, h: _Handle) -> None:
-            delay = max(0., h._deadline - asyncio.get_running_loop().time())  # noqa
-            await asyncio.sleep(delay)
-
-            if not h._cancelled:  # noqa
-                h._queued = True  # noqa
-                self._d._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ScheduledCommand(h))  # noqa
-
-        def _enqueue_due(self, now: float) -> None:
-            due = sorted(
-                (
-                    h._deadline,  # noqa
-                    h._seq,  # noqa
-                    h,
-                )
-                for h in self._live
-                if not h._queued and h._deadline <= now  # noqa
-            )
-
-            for _, _, h in due:
-                if h._task is not None:  # noqa
-                    h._task.cancel()  # noqa
-                h._queued = True  # noqa
-                self._d._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ScheduledCommand(h))  # noqa
-
-        async def _flush_pending(self) -> None:
-            if not (lst := self._pending):
-                return
-
-            self._pending = []
-
-            for h in lst:
-                if h._cancelled or h._queued:  # noqa
-                    continue
-
-                task = asyncio.create_task(self._task_body(h))
-                h._task = task  # noqa
-                self._tasks.add(task)
-                task.add_done_callback(self._tasks.discard)
-
-        def _take(self, h: _Handle) -> bool:
-            if h._cancelled or h._done:  # noqa
-                return False
-
-            check.in_(h, self._live)
-            h._done = True  # noqa
-            self._live.remove(h)
-            return True
-
-    @dc.dataclass(frozen=True)
-    class _ScheduledCommand(_Command):
-        handle: 'PollAsyncioStreamIoPipelineDriver._SchedulingService._Handle'
-
-    async def _handle_command_scheduled(self, cmd: _ScheduledCommand) -> None:
-        if not self._sched._take(cmd.handle):  # noqa
+        if (loop := self._loop) is None or loop.is_closed():
             return
 
-        with self._pipeline.enter():
-            cmd.handle._run()  # noqa
+        deadline = self._sched.next_deadline()
+        if deadline == self._timer_deadline:
+            return
+
+        if (th := self._timer_handle) is not None:
+            self._timer_handle = None
+            th.cancel()
+
+        self._timer_deadline = deadline
+        if deadline is not None and not self._shutdown_event.is_set():
+            self._timer_handle = loop.call_at(
+                deadline,
+                PollAsyncioStreamIoPipelineDriver._on_timer,
+                weakref.ref(self),
+            )
+
+    def _disarm_timer(self) -> None:
+        self._timer_deadline = None
+        if (th := self._timer_handle) is not None:
+            self._timer_handle = None
+            th.cancel()
+
+    @staticmethod
+    def _on_sched_earliest_change(
+            d_ref: ta.Callable[[], ta.Optional['PollAsyncioStreamIoPipelineDriver']],
+    ) -> None:
+        if (d := d_ref()) is not None:
+            d._arm_timer()  # noqa
+
+    @staticmethod
+    def _on_timer(
+            d_ref: ta.Callable[[], ta.Optional['PollAsyncioStreamIoPipelineDriver']],
+    ) -> None:
+        if (d := d_ref()) is None:
+            return
+
+        d._timer_handle = None  # noqa
+        d._timer_deadline = None  # noqa
+        if not d._shutdown_event.is_set():  # noqa
+            d._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._TimerCommand())  # noqa
+
+    class _TimerCommand(_Command):
+        pass
+
+    async def _handle_command_timer(self, cmd: _TimerCommand) -> None:
+        self._sched.run_due()
 
     ##
     # shutdown
@@ -729,6 +631,8 @@ class PollAsyncioStreamIoPipelineDriver:
         msg: IoPipelineMessages.Defer
 
     async def _handle_command_defer(self, cmd: _DeferCommand) -> None:
+        # A deferred continuation is a fairness yield: the timers due go first.
+        self._sched.run_due()
         if self._pipeline.is_ready:
             self._pipeline.run_deferred(cmd.msg)
 
@@ -737,30 +641,21 @@ class PollAsyncioStreamIoPipelineDriver:
 
     @dc.dataclass(frozen=True)
     class _CloseCompletedCommand(_Command):
-        task: asyncio.Task
+        exc: ta.Optional[BaseException] = None
 
-    def _start_close(self) -> None:
-        check.none(self._close_task)
+    @property
+    def _close_pending(self) -> bool:
+        return self._close_requested or self._close_in_progress
 
-        task = asyncio.create_task(self._gracefully_close_writer())
-        self._close_task = task
+    def _request_close(self) -> None:
+        """Asks the drainer task to perform the graceful close, after any drain it has pending."""
 
-        def done_callback(done_task: asyncio.Task) -> None:
-            self._command_queue.put_nowait(
-                PollAsyncioStreamIoPipelineDriver._CloseCompletedCommand(done_task),
-            )
-
-        task.add_done_callback(done_callback)
-
-    async def _cancel_close_task(self, *, wait: bool = True) -> None:
-        task = self._close_task
-        self._close_task = None
-
-        await self._cancel_tasks(task, wait=wait)
+        self._close_requested = True
+        self._drainer_event.set()
 
     def _fail_graceful_close(self, exc: BaseException) -> None:
         self._finish_flush_outputs(
-            self._take_drain_flush_outputs(),
+            self._take_pending_drain_fences(),
             exc,
             raise_listener_errors=False,
         )
@@ -773,7 +668,7 @@ class PollAsyncioStreamIoPipelineDriver:
         self._transport_final_output = None
 
         try:
-            self._finish_flush_outputs(self._take_drain_flush_outputs())
+            self._finish_flush_outputs(self._take_pending_drain_fences())
         finally:
             self._finish_final_output(msg)
 
@@ -783,18 +678,14 @@ class PollAsyncioStreamIoPipelineDriver:
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._ShutdownCommand())
 
     async def _handle_command_close_completed(self, cmd: _CloseCompletedCommand) -> None:
-        if cmd.task is not self._close_task:
-            return
+        if self._transport_final_output is None:
+            return  # Closed or failed meanwhile.
 
-        self._close_task = None
-
-        try:
-            cmd.task.result()
-        except BaseException as e:
+        if (exc := cmd.exc) is not None:
             # The peer reset the connection while it was being flushed, say.
-            self._fail_graceful_close(e)
+            self._fail_graceful_close(exc)
             await self._fail()
-            raise
+            raise exc
 
         await self._complete_graceful_close()
 
@@ -803,7 +694,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
     @dc.dataclass(frozen=True)
     class _DrainCompletedCommand(_Command):
-        task: asyncio.Task
+        fences: ta.Sequence[IoPipelineMessages.Completable]
+        exc: ta.Optional[BaseException] = None
 
     def _finish_flush_outputs(
             self,
@@ -834,13 +726,10 @@ class PollAsyncioStreamIoPipelineDriver:
         if first_listener_exc is not None and raise_listener_errors:
             raise first_listener_exc
 
-    def _take_drain_flush_outputs(self) -> ta.List[IoPipelineMessages.Completable]:
-        flush_outputs = self._drain_flush_outputs
-        self._drain_flush_outputs = []
-        if self._next_drain_flush_outputs:
-            flush_outputs.extend(self._next_drain_flush_outputs)
-            self._next_drain_flush_outputs = []
-        return flush_outputs
+    def _take_pending_drain_fences(self) -> ta.List[IoPipelineMessages.Completable]:
+        fences = self._pending_drain_fences
+        self._pending_drain_fences = []
+        return fences
 
     def _finish_final_output(
             self,
@@ -870,7 +759,7 @@ class PollAsyncioStreamIoPipelineDriver:
         ordinary output once ShutdownOutput reached the terminal, so the zero limits announce nothing.
         """
 
-        if (writer := self._writer) is None:
+        if (writer := self._writer) is None or self._saved_write_limits is not None:
             return
         try:
             self._saved_write_limits = writer.transport.get_write_buffer_limits()  # (low, high)
@@ -891,80 +780,112 @@ class PollAsyncioStreamIoPipelineDriver:
                 low=self._config.write_low_watermark,
             )
 
-    def _start_drain(self) -> None:
-        check.none(self._drain_task)
-        writer = check.not_none(self._writer)
+    @property
+    def _drain_pending(self) -> bool:
+        return self._drain_requested or self._drains_outstanding > 0
 
-        if self._output_shutdown:
-            self._set_shutdown_drain_limits()
+    def _request_drain(self, fence: ta.Optional[IoPipelineMessages.Completable] = None) -> None:
+        """
+        Asks the drainer task for a drain, completing `fence` with it. A fence requested before the drain is called is
+        completed by that drain; one requested while a drain runs - possible only through direct output handling, as
+        the command loop holds fences behind a pending drain - is completed by the drain which follows it.
+        """
 
-        task = asyncio.create_task(writer.drain())
-        self._drain_task = task
-
-        def done_callback(done_task: asyncio.Task) -> None:
-            if not self._shutdown_event.is_set():
-                self._command_queue.put_nowait(
-                    PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand(done_task),
-                )
-
-        task.add_done_callback(done_callback)
-
-    def _request_drain(self, flush_output: IoPipelineMessages.Completable) -> None:
         if self._writer is None:
-            self._finish_flush_outputs([flush_output])
+            if fence is not None:
+                self._finish_flush_outputs([fence])
             return
 
-        if self._drain_task is not None:
-            self._drain_again = True
-            self._next_drain_flush_outputs.append(flush_output)
-            return
+        if fence is not None:
+            self._pending_drain_fences.append(fence)
 
-        self._drain_flush_outputs.append(flush_output)
-        self._start_drain()
+        if not self._drain_requested:
+            self._drain_requested = True
+            self._drain_idle_event.clear()
+            self._drainer_event.set()
 
-    async def _cancel_drain_task(self, *, propagate_done_error: bool = False, wait: bool = True) -> None:
-        task = self._drain_task
-        self._drain_task = None
-        self._drain_again = False
-
-        if task is None:
-            return
-
-        was_done = task.done()
-        await self._cancel_tasks(task, wait=wait)
-
-        if propagate_done_error and was_done and not task.cancelled():
-            task.result()
-
-    async def _handle_command_drain_completed(self, cmd: _DrainCompletedCommand) -> None:
-        if cmd.task is not self._drain_task:
-            return
-
-        self._drain_task = None
-        drain_again = self._drain_again
-        self._drain_again = False
-        flush_outputs = self._drain_flush_outputs
-        self._drain_flush_outputs = []
+    async def _drainer_task_main(self) -> None:
+        """
+        The one task which calls the writer's `drain()`, and performs the graceful close after FinalOutput, woken
+        through an event as the work arises. Drains never overlap, as the stream API requires: a drain requested while
+        one runs follows it. Completions are reported to the command loop as commands.
+        """
 
         try:
-            cmd.task.result()
-        except BaseException as e:
-            flush_outputs.extend(self._next_drain_flush_outputs)
-            self._next_drain_flush_outputs = []
-            self._finish_flush_outputs(flush_outputs, e, raise_listener_errors=False)
-            await self._fail()
-            raise
+            while True:
+                if self._drain_requested:
+                    self._drain_requested = False
+                    fences = self._take_pending_drain_fences()
+                    self._drains_outstanding += 1
+                    exc: ta.Optional[BaseException] = None
+                    try:
+                        await self._drain_writer()
+                    except asyncio.CancelledError:
+                        raise
+                    except BaseException as e:  # noqa
+                        exc = e
+                    finally:
+                        if not self._drain_requested:
+                            self._drain_idle_event.set()
+                    self._command_queue.put_nowait(
+                        PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand(fences, exc),
+                    )
+                    if exc is not None:
+                        return  # The driver fails on it: nothing more can be drained or closed.
+                    continue
 
+                if self._close_requested:
+                    self._close_requested = False
+                    self._close_in_progress = True
+                    exc = None
+                    try:
+                        await self._gracefully_close_writer()
+                    except asyncio.CancelledError:
+                        raise
+                    except BaseException as e:  # noqa
+                        exc = e
+                    finally:
+                        self._close_in_progress = False
+                    self._command_queue.put_nowait(
+                        PollAsyncioStreamIoPipelineDriver._CloseCompletedCommand(exc),
+                    )
+                    return
+
+                await self._drainer_event.wait()
+                self._drainer_event.clear()
+
+        except asyncio.CancelledError:
+            pass
+
+    async def _drain_writer(self) -> None:
+        if (writer := self._writer) is None:
+            return
         if self._output_shutdown:
+            self._set_shutdown_drain_limits()
+        await writer.drain()
+
+    async def _handle_command_drain_completed(self, cmd: _DrainCompletedCommand) -> None:
+        if self._drains_outstanding:
+            self._drains_outstanding -= 1
+
+        if self._state not in (IoPipelineDriverState.RUNNING, IoPipelineDriverState.DRAINING):
+            return
+
+        if (exc := cmd.exc) is not None:
+            self._finish_flush_outputs(
+                [*cmd.fences, *self._take_pending_drain_fences()],
+                exc,
+                raise_listener_errors=False,
+            )
+            await self._fail()
+            raise exc
+
+        if self._output_shutdown and not self._drains_outstanding:
             self._restore_write_limits()
 
-        self._finish_flush_outputs(flush_outputs)
+        self._finish_flush_outputs(cmd.fences)
 
         if self._state is IoPipelineDriverState.RUNNING:
-            if drain_again:
-                self._drain_flush_outputs = self._next_drain_flush_outputs
-                self._next_drain_flush_outputs = []
-                self._start_drain()
             self._update_output_writability(drained=True)
 
     ##
@@ -1073,9 +994,10 @@ class PollAsyncioStreamIoPipelineDriver:
         cls = type(self)
         return {
             PollAsyncioStreamIoPipelineDriver._FeedInCommand: cls._handle_command_feed_in,
+            PollAsyncioStreamIoPipelineDriver._PostCommand: cls._handle_command_post,
             PollAsyncioStreamIoPipelineDriver._ReadCompletedCommand: cls._handle_command_read_completed,
             PollAsyncioStreamIoPipelineDriver._ReadFailedCommand: cls._handle_command_read_failed,
-            PollAsyncioStreamIoPipelineDriver._ScheduledCommand: cls._handle_command_scheduled,
+            PollAsyncioStreamIoPipelineDriver._TimerCommand: cls._handle_command_timer,
             PollAsyncioStreamIoPipelineDriver._DeferCommand: cls._handle_command_defer,
             PollAsyncioStreamIoPipelineDriver._DrainCompletedCommand: cls._handle_command_drain_completed,
             PollAsyncioStreamIoPipelineDriver._CloseCompletedCommand: cls._handle_command_close_completed,
@@ -1110,9 +1032,10 @@ class PollAsyncioStreamIoPipelineDriver:
 
     async def _handle_output_final_output(self, msg: IoPipelineMessages.FinalOutput) -> ta.Optional[str]:
         """
-        The graceful close - flushing everything written, then closing the transport - runs as a task, so that while a
-        peer which has yet to read keeps it from completing, the driver still runs timers, completes awaits, and keeps
-        taking the peer's output off the transport (and dropping it) so the peer can proceed to read this side's.
+        The graceful close - flushing everything written, then closing the transport - is performed by the drainer
+        task, so that while a peer which has yet to read keeps it from completing, the driver still runs timers,
+        completes awaits, and keeps taking the peer's output off the transport (and dropping it) so the peer can
+        proceed to read this side's.
         """
 
         self._state = IoPipelineDriverState.DRAINING
@@ -1121,31 +1044,17 @@ class PollAsyncioStreamIoPipelineDriver:
         # Input is taken but not consumed from now on: let a manual-mode read task read regardless.
         self._want_read_event.set()
 
-        # A pending drain's fences complete with the close, which flushes all the drain was waiting for.
-        if (drain_task := self._drain_task) is not None:
-            self._drain_task = None
-            self._drain_again = False
-            if not drain_task.done():
-                drain_task.cancel()
-            elif not drain_task.cancelled():
-                try:
-                    drain_task.result()
-                except BaseException as e:
-                    self._fail_graceful_close(e)
-                    await self._fail()
-                    raise
-
-        if self._writer is None:
+        if self._writer is None or self._drainer_task is None:
             await self._complete_graceful_close()
             return None
 
-        self._start_close()
+        # A drain still pending completes first, on its own; the drainer task then performs the close.
+        self._request_close()
         return None
 
     async def _handle_output_defer(self, msg: IoPipelineMessages.Defer) -> ta.Optional[str]:
-        # A deferred continuation is a fairness yield: the timers due, and the commands already queued - reads, awaits,
-        # drain completions - go first.
-        self._sched._enqueue_due(asyncio.get_running_loop().time())  # noqa
+        # A deferred continuation is a fairness yield: the commands already queued - reads, awaits, drain completions -
+        # and then the timers due go first.
         self._command_queue.put_nowait(PollAsyncioStreamIoPipelineDriver._DeferCommand(msg))
         return None
 
@@ -1241,12 +1150,12 @@ class PollAsyncioStreamIoPipelineDriver:
 
         if (
                 not self._output_writable and
-                self._drain_task is None and
+                not self._drain_pending and
                 self._state is IoPipelineDriverState.RUNNING and
                 self._writer is not None and
                 not self._output_shutdown
         ):
-            self._start_drain()
+            self._request_drain()
 
     def _build_output_handlers(self) -> ta.Mapping[
         type,
@@ -1298,16 +1207,13 @@ class PollAsyncioStreamIoPipelineDriver:
         if self._pending_awaits:
             return True
 
-        if self._drain_task is not None:
-            return True
-
-        if self._close_task is not None:
+        if self._drain_pending or self._close_pending:
             return True
 
         if self._read_task is not None and not self._read_task.done():
             return True
 
-        if hasattr(self, '_sched') and self._sched._live:  # noqa
+        if hasattr(self, '_sched') and self._sched.next_deadline() is not None:
             return True
 
         return False
@@ -1327,7 +1233,11 @@ class PollAsyncioStreamIoPipelineDriver:
 
         pipeline = await self._ensure_init()
 
-        self._sched._enqueue_due(asyncio.get_running_loop().time())  # noqa
+        try:
+            self._sched.run_due()
+        except BaseException:
+            await self._fail()
+            raise
 
         while True:
             if not pipeline.is_ready:
@@ -1335,7 +1245,7 @@ class PollAsyncioStreamIoPipelineDriver:
                 await self.close()
                 return None
 
-            if self._drain_task is not None:
+            if self._drain_pending:
                 while (blocked_msg := pipeline.output.poll()) is not None:
                     # Only output bytes and output fences are ordered against a pending drain. Everything else - read
                     # requests, deferred work, awaits, unhandled messages for the caller - is not, and must not wait
@@ -1379,10 +1289,9 @@ class PollAsyncioStreamIoPipelineDriver:
 
             self._ensure_paused_output_drain()
 
-            # Handling pipeline output (notably a Defer) can schedule timers just as handling a command can, so flush
-            # before any wait - otherwise a timer scheduled from a deferred callback never gets its sleeping task and
-            # the wait below never wakes.
-            await self._sched._flush_pending()  # noqa
+            # Handling pipeline output (notably a Defer) can schedule timers just as handling a command can, so the
+            # loop timer is (re)armed for the earliest deadline before any wait.
+            self._arm_timer()
 
             try:
                 cmd = self._command_queue.get_nowait()
@@ -1391,7 +1300,7 @@ class PollAsyncioStreamIoPipelineDriver:
                     break
 
                 if not read:
-                    if self._close_task is None:
+                    if not self._close_pending:
                         return None
                     # The graceful close is the driver's own work in flight, not input: it is waited for as it always
                     # was, but with what arrives meanwhile - timers, awaits, reads to discard - serviced.
@@ -1432,17 +1341,22 @@ class PollAsyncioStreamIoPipelineDriver:
     # lifecycle
 
     def _drain_command_queue(self, exc: BaseException) -> None:
+        posts: ta.List[IoPipelinePost] = []
         while True:
             try:
                 cmd = self._command_queue.get_nowait()
             except asyncio.QueueEmpty:
-                return
+                break
             if (
                     isinstance(cmd, PollAsyncioStreamIoPipelineDriver._FeedInCommand) and
                     (fut := cmd.fut) is not None and
                     not fut.done()
             ):
                 fut.set_exception(exc)
+            elif isinstance(cmd, PollAsyncioStreamIoPipelineDriver._PostCommand):
+                posts.append(cmd.post)
+
+        fail_io_pipeline_posts(posts, exc)
 
     async def _fail(self) -> None:
         self._state = IoPipelineDriverState.FAILED
@@ -1464,8 +1378,14 @@ class PollAsyncioStreamIoPipelineDriver:
 
             self._want_read_event.set()
 
-            await self._cancel_drain_task(wait=wait)
-            await self._cancel_close_task(wait=wait)
+            self._disarm_timer()
+
+            self._drain_requested = False
+            self._drains_outstanding = 0
+            self._close_requested = False
+            await self._cancel_tasks(self._drainer_task, wait=wait)
+            self._drainer_task = None
+            self._drain_idle_event.set()
             self._fail_graceful_close(AbortedIoPipelineError('Driver closed before transport flush completion'))
             self._post_drain_output_q.clear()
             self._post_drain_output_bytes = 0
@@ -1479,10 +1399,8 @@ class PollAsyncioStreamIoPipelineDriver:
 
             await self._abort_writer(wait=wait)
 
-            if hasattr(self, '_sched') and not self._loop_closed():
+            if hasattr(self, '_sched'):
                 self._sched.cancel_all()
-                if wait and self._sched._tasks:  # noqa
-                    await asyncio.gather(*self._sched._tasks, return_exceptions=True)  # noqa
 
             if self._has_init:
                 try:

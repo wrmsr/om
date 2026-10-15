@@ -18,8 +18,8 @@ from ....fdio.manager import FdioManager
 from ....fdio.pollers import SelectFdioPoller
 from ...core import IoPipeline
 from ...core import IoPipelineHandler
-from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
+from ...drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ...drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
 from ...drivers.types import IoPipelineDriverState
 from ...flow.stub import StubIoPipelineFlowService
 from ...ssl.handlers import SslIoPipelineHandler

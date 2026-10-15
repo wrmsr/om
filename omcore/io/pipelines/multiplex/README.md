@@ -14,13 +14,13 @@ The core is protocol-agnostic. A protocol plugs in through a `IoPipelineMultiple
   pipeline, inside the handlers decoding and encoding the protocol's frames.
 - `IoPipelineMultiplexAdapter` - the protocol: decodes inbound frames into calls on a `IoPipelineMultiplexConnection`, and encodes what the
   core asks it to emit.
-- A stream spec factory - `(MultiplexStreamOpening) -> IoPipeline.Spec | MultiplexRefusal` - for peer-opened streams.
+- A stream spec factory - `(IoPipelineMultiplexStreamOpening) -> IoPipeline.Spec | IoPipelineMultiplexRefusal` - for peer-opened streams.
 - `IoPipelineMultiplexConfig` and `IoPipelineMultiplexChildConfig` - limits, the per-turn output budget, child batching and watermarks.
 - Credit strategies - `StreamMultiplexCreditStrategy` (per stream, like SSH) and `ConnectionMultiplexCreditStrategy`
   (per stream plus connection, like HTTP/2) - with replenish policies.
 - `RoundRobinIoPipelineMultiplexOutputScheduler` - deficit round robin between streams with sendable output.
-- Messages: `MultiplexMessages.OpenStream` (opens a local stream, completing with a `IoPipelineMultiplexOpenedStream`),
-  `MultiplexMessages.Shutdown` (graceful connection shutdown), and `MultiplexMessages.FeedStream` (feeds a stream's
+- Messages: `IoPipelineMultiplexMessages.OpenStream` (opens a local stream, completing with a `IoPipelineMultiplexOpenedStream`),
+  `IoPipelineMultiplexMessages.Shutdown` (graceful connection shutdown), and `IoPipelineMultiplexMessages.FeedStream` (feeds a stream's
   pipeline at its boundary, like a driver's `enqueue`).
 - `IoPipelineMultiplexStreamMetadata` - attached to each child pipeline: the stream's key, origin, and opening information.
 
@@ -33,7 +33,7 @@ A minimal protocol whose frames are `Open`, `Data`, `End`, `Grant` dataclasses, 
 opens, and per-stream credit:
 
 ```python
-class ToyAdapter(MultiplexAdapter):
+class ToyAdapter(IoPipelineMultiplexAdapter):
     def __init__(self, *, window: int = 64 * 1024) -> None:
         super().__init__()
         self._window = window
@@ -41,11 +41,11 @@ class ToyAdapter(MultiplexAdapter):
 
     # Inbound: tell the core what arrived.
 
-    def inbound(self, conn: MultiplexConnection, msg: ta.Any) -> bool:
+    def inbound(self, conn: IoPipelineMultiplexConnection, msg: ta.Any) -> bool:
         if isinstance(msg, Open):
             conn.open_remote(msg.key, msg.info, recv_window=self._window, send_credit=msg.window)
         elif isinstance(msg, Data):
-            conn.data(msg.key, msg.data)  # raises FlowControlMultiplexError on overrun
+            conn.data(msg.key, msg.data)  # raises FlowControlMultiplexIoPipelineError on overrun
         elif isinstance(msg, End):
             conn.end(msg.key)
         elif isinstance(msg, Grant):
@@ -56,27 +56,27 @@ class ToyAdapter(MultiplexAdapter):
 
     # Local opens: allocate a key and windows.
 
-    def open_local(self, conn: MultiplexConnection, info: ta.Any) -> MultiplexStreamParams:
+    def open_local(self, conn: IoPipelineMultiplexConnection, info: ta.Any) -> IoPipelineMultiplexStreamParams:
         key, self._next_key = self._next_key, self._next_key + 1
-        return MultiplexStreamParams(key, recv_window=self._window, send_credit=self._window, explicit=False)
+        return IoPipelineMultiplexStreamParams(key, recv_window=self._window, send_credit=self._window, explicit=False)
 
     # Outbound: encode what the core decided to emit.
 
-    def encode_open(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_open(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [Open(stream.key, stream.info, self._window)]
 
-    def encode_data(self, stream: MultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
+    def encode_data(self, stream: IoPipelineMultiplexStream, data: SegmentedByteStreamBufferView) -> ta.Sequence[ta.Any]:
         return [Data(stream.key, data.tobytes())]
 
-    def encode_end(self, stream: MultiplexStream) -> ta.Sequence[ta.Any]:
+    def encode_end(self, stream: IoPipelineMultiplexStream) -> ta.Sequence[ta.Any]:
         return [End(stream.key)]
 
-    def encode_credit(self, stream: ta.Optional[MultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
+    def encode_credit(self, stream: ta.Optional[IoPipelineMultiplexStream], amount: int) -> ta.Sequence[ta.Any]:
         return [Grant(stream.key, amount)]
 
     # Policy: a finished stream whose peer has also ended is closed.
 
-    def on_stream_finished(self, conn: MultiplexConnection, stream: MultiplexStream) -> None:
+    def on_stream_finished(self, conn: IoPipelineMultiplexConnection, stream: IoPipelineMultiplexStream) -> None:
         if stream.remote_ended:
             conn.close(stream.key)
 ```

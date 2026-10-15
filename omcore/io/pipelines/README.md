@@ -199,9 +199,15 @@ Beyond the core pipeline abstraction, the package includes:
   (built on top of `omcore.io.streambufs`)
 - **Services**: Cross-cutting pipeline concerns like async/await integration, task scheduling, and cooperative yielding
 - **Flow control**: Backpressure and readiness signaling for producers and consumers (implemented as a service)
+- **Posting**: Running work inside a pipeline from outside its driver's turn, waking an idle driver (a service every
+  driver installs)
+- **Transport hosts**: Asking the runtime for more transports - connect, listen, adopt - with ownership by handler and
+  outcomes posted into the requester, on fdio, asyncio, and in memory
+- **Relays**: Joining two pipelines so that data, backpressure, end-of-stream, and failure cross in both directions
 - **Metadata**: Type-safe attachment of configuration or context to pipelines
-- **Reference drivers**: Sync sockets, asyncio streams, fdio sockets, and a deterministic pure/no-I/O driver sharing
-  one lifecycle, ordering, flow-control, completion, and scheduling conformance suite
+- **Reference drivers**: Sync sockets and descriptor pairs, asyncio streams, fdio sockets, duplex descriptors and
+  descriptor pairs, and a deterministic pure/no-I/O driver sharing one lifecycle, ordering, flow-control, completion,
+  scheduling, and posting conformance suite
 - **Stream multiplexing** ([multiplex](multiplex/README.md)): many logical streams over one pipeline, each driven as a
   child pipeline, with pluggable credit accounting and output scheduling, for protocols such as SSH and HTTP/2
 

@@ -16,7 +16,7 @@ from omcore.io.pipelines.core import IoPipeline
 from omcore.io.pipelines.core import IoPipelineHandler
 from omcore.io.pipelines.core import IoPipelineHandlerContext
 from omcore.io.pipelines.core import IoPipelineMessages
-from omcore.io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from omcore.io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from omcore.io.streambufs.utils import ByteStreamBuffers
 
 from .jsoncodec import SystevisorJsonCodec

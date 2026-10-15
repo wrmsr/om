@@ -9,7 +9,7 @@ import typing as ta
 from ......io.pipelines.bytes.buffers import OutboundBytesBufferIoPipelineHandler
 from ......io.pipelines.core import IoPipeline
 from ......io.pipelines.core import IoPipelineHandler
-from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from ......io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ......io.pipelines.flow.stub import StubIoPipelineFlowService
 from ......io.pipelines.handlers.logs import LoggingIoPipelineHandler
 from ......io.pipelines.ssl.handlers import SslIoPipelineHandler

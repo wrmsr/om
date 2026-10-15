@@ -8,7 +8,7 @@ import socket
 import typing as ta
 
 from ....io.pipelines.core import IoPipeline
-from ....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from ....io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ....lite.check import check
 from ....sockets.addresses import SocketAndAddress
 from ....sockets.bind import CanSocketBinder

@@ -42,6 +42,7 @@ from ..core import IoPipelineMessages
 from ..errors import AbortedIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
+from ..posting.types import IoPipelinePost
 from ..yielding import IoPipelineYieldPolicy
 from ..yielding import NeverIoPipelineYieldPolicy
 from .adapters import IoPipelineMultiplexAdapter
@@ -167,8 +168,11 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
         self._remote_closed: ta.Set[IoPipelineMultiplexStreamKey] = set()
         # Streams whose finish was emitted, awaiting the adapter's decision.
         self._finished_hooks: ta.List[IoPipelineMultiplexStreamKey] = []
-        # Messages to feed into streams' pipelines at their boundary.
-        self._pending_feeds: ta.List[IoPipelineMultiplexMessages.FeedStream] = []
+        # Boundary input for streams' pipelines, in order: messages to feed, and work posted into them.
+        self._pending_feeds: ta.List[ta.Union[
+            IoPipelineMultiplexMessages.FeedStream,
+            ta.Tuple[IoPipelineMultiplexStreamKey, IoPipelinePost],
+        ]] = []
 
         self._control_q: ta.Deque[ta.Any] = collections.deque()
         # The connection error of a failed connection: emitted ahead of its FinalOutput, outside the pause bound.
@@ -370,6 +374,21 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
     def on_child_activity(self, ctx: IoPipelineHandlerContext) -> None:
         if not ctx.invalidated:
             self._turn(ctx)
+
+    def on_child_post(self, ctx: IoPipelineHandlerContext, key: IoPipelineMultiplexStreamKey, post: IoPipelinePost) -> None:  # noqa
+        if ctx.invalidated or self._removed:
+            self._fail_post(post, ConnectionClosedMultiplexIoPipelineError('multiplexing handler removed'))
+            return
+        self._pending_feeds.append((key, post))
+        self._turn(ctx)
+
+    @staticmethod
+    def _fail_post(post: IoPipelinePost, exc: BaseException) -> None:
+        if not post.is_done():
+            try:
+                post.set_failed(exc)
+            except Exception:  # noqa
+                pass
 
     @staticmethod
     def _resume(ctx: IoPipelineHandlerContext) -> None:
@@ -799,6 +818,9 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
         self._child_awaits.clear()
         self._flush_fences.clear()
         self._finished_hooks.clear()
+        for feed in self._pending_feeds:
+            if not isinstance(feed, IoPipelineMultiplexMessages.FeedStream):
+                self._fail_post(feed[1], exc)
         self._pending_feeds.clear()
 
         while self._completions:
@@ -853,8 +875,15 @@ class MultiplexIoPipelineHandler(IoPipelineMultiplexChildHost, IoPipelineHandler
                 feeds = self._pending_feeds
                 self._pending_feeds = []
                 for feed in feeds:
-                    if (child := self._children.get(feed.key)) is not None:
-                        child.feed(*feed.msgs)
+                    if isinstance(feed, IoPipelineMultiplexMessages.FeedStream):
+                        if (child := self._children.get(feed.key)) is not None:
+                            child.feed(*feed.msgs)
+                    else:
+                        key, post = feed
+                        if (child := self._children.get(key)) is not None:
+                            child.run_post(post)
+                        else:
+                            self._fail_post(post, ConnectionClosedMultiplexIoPipelineError('stream ended'))
                 progressed = True
 
             for child in list(self._children.values()):

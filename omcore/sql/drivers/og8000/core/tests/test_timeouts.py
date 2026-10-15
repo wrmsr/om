@@ -8,7 +8,7 @@ import socket
 
 import pytest
 
-from ......io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from ......io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ...errors import InterfaceError
 from ...protocol.session import ProtocolSession
 from ..asyncio import AsyncioCoreConnection

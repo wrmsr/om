@@ -20,9 +20,9 @@ from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
 from ...core import IoPipelineService
-from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
-from ...drivers.sync import SocketSyncIoPipelineDriver
+from ...drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ...drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ...drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ...errors import TimeoutIoPipelineError
 from ...flow.types import IoPipelineFlowMessages
 from ...sched.types import IoPipelineScheduling

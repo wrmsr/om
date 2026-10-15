@@ -77,155 +77,159 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
+__om_amalg_sha1__ = '77ca452838e2b0dfc4272f048bc1fc61714aa5ed'
+
+
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(path='../../omcore/configs/types.py', sha1='6abb34596a340c3804dc53a813473739047b1c7d'),
-            dict(path='../../omcore/formats/ini/sections.py', sha1='66a0b99ffe63766420ec18d25341699dabcfa55e'),
-            dict(path='../../omcore/formats/toml/parser.py', sha1='e7534f4af180c41cedd5257e96e30d79d747b7a0'),
-            dict(path='../../omcore/formats/yaml/goyaml/gostd.py', sha1='34b51b06f942650ae8528eea69af9202a007065e'),
-            dict(path='../../omcore/http/statuses.py', sha1='675eff6e1638e48aebb7aeae422e426c21a612d2'),
-            dict(path='../../omcore/http/versions.py', sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890'),
-            dict(path='../../omcore/io/pipelines/drivers/types.py', sha1='74626aba05c6869daeede82de3b7fec562abe2a7'),
-            dict(path='../../omcore/io/pipelines/errors.py', sha1='4996d5e8a39e1362d979077bd6fb8a6ee19c3d4b'),
-            dict(path='../../omcore/io/streambufs/errors.py', sha1='6b04cc2e4ba5461692128938a2bd5c261486746b'),
-            dict(path='../../omcore/lite/abstract.py', sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac'),
-            dict(path='../../omcore/lite/asyncs.py', sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5'),
-            dict(path='../../omcore/lite/bytes.py', sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c'),
-            dict(path='../../omcore/lite/cached.py', sha1='4f5466ce20a485428519e284b2a388a9ef8e4786'),
-            dict(path='../../omcore/lite/check.py', sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af'),
-            dict(path='../../omcore/lite/dataclasses.py', sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e'),
-            dict(path='../../omcore/lite/imports.py', sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1'),
-            dict(path='../../omcore/lite/injectinspect.py', sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd'),
-            dict(path='../../omcore/lite/io.py', sha1='a60d94f0bdbb2b1541d363c301314682d1686240'),
-            dict(path='../../omcore/lite/namespaces.py', sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1'),
-            dict(path='../../omcore/lite/objects.py', sha1='9566bbf3530fd71fcc56321485216b592fae21e9'),
-            dict(path='../../omcore/lite/reflect.py', sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0'),
-            dict(path='../../omcore/lite/strings.py', sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c'),
-            dict(path='../../omcore/logs/levels.py', sha1='bd87ff6a281e361cbab4f205802187b2080044e6'),
-            dict(path='../../omcore/logs/std/filters.py', sha1='3ec3856ade50561f99ce9463f54737ab1126d410'),
-            dict(path='../../omcore/logs/std/proxy.py', sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a'),
-            dict(path='../../omcore/logs/warnings.py', sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a'),
-            dict(path='../../omcore/os/setproctitle.py', sha1='b9a18de845c1c47438359e240a95f5162dd3ac7e'),
-            dict(path='../../omcore/sockets/addresses.py', sha1='91e74bab525937f7633193c9aecc54530e54b6d2'),
-            dict(path='configs/diagnostics.py', sha1='5ada212c224431ef9ce73239a6a22c7df7d71280'),
-            dict(path='core/identities.py', sha1='f5c1cb45d31f760208253877ad8d791d77d9471b'),
-            dict(path='core/signals.py', sha1='89a31442ba066a40a3e981d7f093e0411d6e4763'),
-            dict(path='core/states.py', sha1='ef98dea5e06abdfabf5d23b5a361170ae6040bf3'),
-            dict(path='platforms/services.py', sha1='a11b1b6165dd9200a01de526a995313a20381c3d'),
-            dict(path='runtime/events.py', sha1='72fe89ded0b44adbff3b5bda67b606979b163851'),
-            dict(path='scheduling/cron.py', sha1='5f52089d3e68bd432ebc4e86e7e77d8c956e9ab2'),
-            dict(path='selfupdate/models.py', sha1='ae48d20260e7e0e75b676429fbd35658ce3d063c'),
-            dict(path='../../omcore/formats/toml/writer.py', sha1='afd0766eb141c12e41b2781a9cff667484017e56'),
-            dict(path='../../omcore/formats/yaml/backends.py', sha1='52ac78eaf9285fcfcaf12b7a4ce1f706b66f1a92'),
-            dict(path='../../omcore/formats/yaml/goyaml/errors.py', sha1='298b4d892d840ce98afb520143da35c56b98fb39'),
-            dict(path='../../omcore/http/headers.py', sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f'),
-            dict(path='../../omcore/http/parsing.py', sha1='174c753698e07d7283989e56804a820e4f76e91e'),
-            dict(path='../../omcore/http/pipelines/compression/codings.py', sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3'),  # noqa
-            dict(path='../../omcore/io/fdio/handlers.py', sha1='58f59c24f21ed88a67a31021735c5fad24103fb5'),
-            dict(path='../../omcore/io/fdio/pollers.py', sha1='85c73f794f2ccb5d002bf0f63bd9acd35c3539cb'),
-            dict(path='../../omcore/io/pipelines/core.py', sha1='bfdf8a42779970de1de82e7531080941d4f078d1'),
-            dict(path='../../omcore/io/pipelines/yielding.py', sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799'),
-            dict(path='../../omcore/io/streambufs/types.py', sha1='b4bb4d4128321c01c58f01bf20397731509e5927'),
-            dict(path='../../omcore/lite/json.py', sha1='01124e62093ebd4078602f16df0ec04cb724a612'),
-            dict(path='../../omcore/lite/marshal.py', sha1='9b3f4ff802344313147f412f8f028922afc52b2f'),
-            dict(path='../../omcore/lite/maybes.py', sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f'),
-            dict(path='../../omcore/logs/infos.py', sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079'),
-            dict(path='../../omcore/logs/metrics/base.py', sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2'),
-            dict(path='../../omcore/os/journald.py', sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2'),
-            dict(path='configs/models.py', sha1='5dccab4dacda35f3a123357dadb4944be4299e9f'),
-            dict(path='runtime/clocks.py', sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6'),
-            dict(path='../../omcore/configs/formats.py', sha1='b0707d98865d269785703cae4186d38d52d0414d'),
-            dict(path='../../omcore/formats/yaml/goyaml/tokens.py', sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d'),
-            dict(path='../../omcore/http/pipelines/bodymodes.py', sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5'),
-            dict(path='../../omcore/io/fdio/kqueue.py', sha1='0a4c1e2b846ac4a32afab4ff8814ea9d9f526905'),
-            dict(path='../../omcore/io/fdio/manager.py', sha1='8304ca98bfebd17f95d18bcaedfbc4ccdbac9d04'),
-            dict(path='../../omcore/io/pipelines/bytes/buffering.py', sha1='bf1d8923427f11b35a9ebde1e10944786c81262f'),
-            dict(path='../../omcore/io/pipelines/drivers/metadata.py', sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e'),  # noqa
-            dict(path='../../omcore/io/pipelines/flow/types.py', sha1='d7182502ec64e84607e4f9cacb32472072307752'),
-            dict(path='../../omcore/io/pipelines/sched/types.py', sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f'),
-            dict(path='../../omcore/io/streambufs/base.py', sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267'),
-            dict(path='../../omcore/io/streambufs/utils.py', sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4'),
-            dict(path='../../omcore/lite/inject.py', sha1='863e777b377faeeacd8061532d009cc1f23e4a07'),
-            dict(path='../../omcore/logs/contexts.py', sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1'),
-            dict(path='../../omcore/logs/std/json.py', sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5'),
-            dict(path='configs/marshal.py', sha1='aab859569796010711a63bffd68474321e93c41f'),
-            dict(path='configs/validation.py', sha1='3861d8e3e1412d06b50f7d0ab22f0e85eba98543'),
-            dict(path='control/jsoncodec.py', sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4'),
-            dict(path='control/operations.py', sha1='f912fa9b9dea5e9677232da26b21df5178f6fd47'),
-            dict(path='core/changes.py', sha1='2cbd01de924b248be7c91fa4a8bd758049c036f0'),
-            dict(path='runtime/signals.py', sha1='17499b8801f10b963e531de5dfb8087348d228ff'),
-            dict(path='../../omcore/formats/yaml/goyaml/ast.py', sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631'),
-            dict(path='../../omcore/formats/yaml/goyaml/scanning.py', sha1='58956f9159780d5532d2d61fb6f11c8ac946003d'),
-            dict(path='../../omcore/http/pipelines/objects.py', sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd'),
-            dict(path='../../omcore/io/pipelines/handlers/decoders.py', sha1='79e73945acbb2eb6c19543950f572bcb51387d72'),  # noqa
-            dict(path='../../omcore/io/pipelines/sched/heap.py', sha1='b13de65444a0f55ce7cd1b8e366f14c1d8124d40'),
-            dict(path='../../omcore/io/streambufs/direct.py', sha1='417d6f20e64dc1088a4a065a549b532bd9be389c'),
-            dict(path='../../omcore/io/streambufs/scanning.py', sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf'),
-            dict(path='../../omcore/logs/base.py', sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4'),
-            dict(path='../../omcore/logs/std/records.py', sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6'),
-            dict(path='../../omcore/logs/std/standard.py', sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c'),
-            dict(path='../../omcore/formats/yaml/goyaml/parsing.py', sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e'),
-            dict(path='../../omcore/http/pipelines/chunking.py', sha1='d58fb8e037a4b8efda5f93ae0646c9af6897b7b2'),
-            dict(path='../../omcore/http/pipelines/compression/compressors.py', sha1='adf54e1de53077c7c1bd8f0f34d4ea8f8172b45f'),  # noqa
-            dict(path='../../omcore/http/pipelines/compression/decompressors.py', sha1='56c33baa20fd8d2a20d53036ed4cc3f0f7ea0aa3'),  # noqa
-            dict(path='../../omcore/http/pipelines/encoders.py', sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b'),
-            dict(path='../../omcore/http/pipelines/requests.py', sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488'),
-            dict(path='../../omcore/http/pipelines/responses.py', sha1='ae664753451a32b654f52a51101e177d339a3064'),
-            dict(path='../../omcore/io/streambufs/framing.py', sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df'),
-            dict(path='../../omcore/io/streambufs/segmented.py', sha1='551e6377cf1152cb40536cc10c46a959dd940da7'),
-            dict(path='../../omcore/logs/asyncs.py', sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251'),
-            dict(path='../../omcore/logs/std/loggers.py', sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9'),
-            dict(path='platforms/runtime.py', sha1='f5d784ac7fc74494a759f872638111fbdf8adc14'),
-            dict(path='../../omcore/formats/yaml/goyaml/decoding.py', sha1='73e387af353d56ed6c3f817e490038aa1ba940c8'),
-            dict(path='../../omcore/http/pipelines/aggregators.py', sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1'),
-            dict(path='../../omcore/http/pipelines/clients/requests.py', sha1='60607306046abc3d5bb0c2e0b40e61251151ae13'),  # noqa
-            dict(path='../../omcore/http/pipelines/servers/responses.py', sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5'),  # noqa
-            dict(path='../../omcore/io/pipelines/bytes/decoders.py', sha1='95cfd81b143427f3dbe12777a728208c3a4daafa'),
-            dict(path='../../omcore/logs/modules.py', sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2'),
-            dict(path='platforms/inject.py', sha1='89ea3048c6ee58d40e3a5835cb85c7757591a12d'),
-            dict(path='../../omcore/formats/yaml/goyaml/backend.py', sha1='465f043f9e1def50013a414abdbec1c37436790d'),
-            dict(path='../../omcore/http/pipelines/decoders.py', sha1='00a5a981594b5f6133b6daec746f75b30da88fd9'),
-            dict(path='../../omcore/io/pipelines/drivers/fdio.py', sha1='bfd36823fcfff9eb6448d5d093eacd122849c0fa'),
-            dict(path='../../omcore/io/pipelines/drivers/sync.py', sha1='ec00345d6192983625190ddb9da1dbd713f16130'),
-            dict(path='../../omcore/http/pipelines/clients/responses.py', sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7'),  # noqa
-            dict(path='../../omcore/http/pipelines/servers/requests.py', sha1='2258c98399fd861ca308ff1ef498513d435f6fbb'),  # noqa
-            dict(path='configs/sources.py', sha1='e97b968cb81f2f9deb973d162f8a69b772209ded'),
-            dict(path='configs/snapshots.py', sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0'),
-            dict(path='control/client.py', sha1='cb4d78120e7b95e3f8ac7621356c78e73442295b'),
-            dict(path='configs/compiling.py', sha1='a748251b2dc5d8b464b9ca4b4e4dbd8743b5f3d7'),
-            dict(path='core/effects.py', sha1='a761ee40562f18064f5357f2dd0533ee4e628f05'),
-            dict(path='core/inputs.py', sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a'),
-            dict(path='core/state.py', sha1='dc415dc57d3dfd8499e2e49e25e5203b4bd17e49'),
-            dict(path='core/events.py', sha1='4986afdaaab96ba06bb894dbe279276b874a32df'),
-            dict(path='runtime/fdio.py', sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090'),
-            dict(path='runtime/logs.py', sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f'),
-            dict(path='runtime/processes.py', sha1='4650bea43d3fc006bcbac4da147829c26800cff4'),
-            dict(path='core/engine.py', sha1='17910ac700fe8e0db0777d3a87a0370e9f67fc96'),
-            dict(path='resources/cgroups.py', sha1='c2ec9703d68dcb767a918c56636ab351f6831148'),
-            dict(path='resources/namespaces.py', sha1='4e87cab38547e636cc91a5f9b845bda8e2924795'),
-            dict(path='resources/sampling.py', sha1='6fa61546905963453297514ada59d9d09cb66dd1'),
-            dict(path='resources/sockets.py', sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911'),
-            dict(path='runtime/emergencies.py', sha1='fb903ba3cd32d441e35b90bb008e4c35ba5b73b1'),
-            dict(path='runtime/health.py', sha1='cc729b15308376a700d23522a4fcbb2f60b19c2a'),
-            dict(path='runtime/coordinator.py', sha1='6bc659bf69f73861fd2d5be110748e3151ac1600'),
-            dict(path='selfupdate/codec.py', sha1='ea7b257f9901639be2b0d7d172cda5f3331d750d'),
-            dict(path='control/configs.py', sha1='750c44ed70324939e257f91d170757d6262f3244'),
-            dict(path='runtime/inject.py', sha1='5d0aff306d333f058fc9bfdbfae9837d716c1e83'),
-            dict(path='control/manager.py', sha1='52f762caa1ed7806d3e54b3a88c02679d3d36e01'),
-            dict(path='control/service.py', sha1='e2916518e8ce8e2badbe89eb6fe9fc0ad7be037a'),
-            dict(path='resources/runtime.py', sha1='224bf2d85f5392f097403f2865ee4465971605b8'),
-            dict(path='selfupdate/runtime.py', sha1='5a50b8aef80636e7dd61d10b95cd326e4c6e2dba'),
-            dict(path='resources/inject.py', sha1='63dcae28924f1511893593d24c567ba61ecb96de'),
-            dict(path='scheduling/runtime.py', sha1='beb4eb40e8c1ea1caf98291e8ed21afb5c4f7af0'),
-            dict(path='selfupdate/inject.py', sha1='7765c7ba3b8dda9ca7e908af2d33f153213a06c0'),
-            dict(path='selfupdate/restore.py', sha1='1bf720f6774cea4077b2ba5e03c95ed821f3edf9'),
-            dict(path='control/api.py', sha1='8ecab21b05576295d7acd0eaa6cb5931d175e795'),
-            dict(path='control/http.py', sha1='e2151e319f030dc27172f87f4e2a4d7660364c10'),
-            dict(path='control/plane.py', sha1='cd5a557b7b75a17470e06195df8e0ab87f4b158c'),
-            dict(path='control/inject.py', sha1='338d7037d4d60b5ff58e4cb38817a2e56dc6347a'),
-            dict(path='main.py', sha1='c6b0f671d72ac7de6c2adec259ec66209874f3b7'),
-            dict(path='__main__.py', sha1='7f67abe616ff38fa814292fe452159be5cf04acb'),
+            dict(sha1='6abb34596a340c3804dc53a813473739047b1c7d', path='../../omcore/configs/types.py'),
+            dict(sha1='66a0b99ffe63766420ec18d25341699dabcfa55e', path='../../omcore/formats/ini/sections.py'),
+            dict(sha1='e7534f4af180c41cedd5257e96e30d79d747b7a0', path='../../omcore/formats/toml/parser.py'),
+            dict(sha1='34b51b06f942650ae8528eea69af9202a007065e', path='../../omcore/formats/yaml/goyaml/gostd.py'),
+            dict(sha1='675eff6e1638e48aebb7aeae422e426c21a612d2', path='../../omcore/http/statuses.py'),
+            dict(sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890', path='../../omcore/http/versions.py'),
+            dict(sha1='74626aba05c6869daeede82de3b7fec562abe2a7', path='../../omcore/io/pipelines/drivers/types.py'),
+            dict(sha1='422d99f57e249f77f8a06ee0a1baca69539d8ee7', path='../../omcore/io/pipelines/errors.py'),
+            dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', path='../../omcore/io/streambufs/errors.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../omcore/lite/abstract.py'),
+            dict(sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5', path='../../omcore/lite/asyncs.py'),
+            dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../omcore/lite/bytes.py'),
+            dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../omcore/lite/cached.py'),
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../omcore/lite/check.py'),
+            dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', path='../../omcore/lite/dataclasses.py'),
+            dict(sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1', path='../../omcore/lite/imports.py'),
+            dict(sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd', path='../../omcore/lite/injectinspect.py'),
+            dict(sha1='a60d94f0bdbb2b1541d363c301314682d1686240', path='../../omcore/lite/io.py'),
+            dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../../omcore/lite/namespaces.py'),
+            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../omcore/lite/objects.py'),
+            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../omcore/lite/reflect.py'),
+            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../../omcore/lite/strings.py'),
+            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='../../omcore/logs/levels.py'),
+            dict(sha1='3ec3856ade50561f99ce9463f54737ab1126d410', path='../../omcore/logs/std/filters.py'),
+            dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', path='../../omcore/logs/std/proxy.py'),
+            dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', path='../../omcore/logs/warnings.py'),
+            dict(sha1='b9a18de845c1c47438359e240a95f5162dd3ac7e', path='../../omcore/os/setproctitle.py'),
+            dict(sha1='91e74bab525937f7633193c9aecc54530e54b6d2', path='../../omcore/sockets/addresses.py'),
+            dict(sha1='5ada212c224431ef9ce73239a6a22c7df7d71280', path='configs/diagnostics.py'),
+            dict(sha1='f5c1cb45d31f760208253877ad8d791d77d9471b', path='core/identities.py'),
+            dict(sha1='89a31442ba066a40a3e981d7f093e0411d6e4763', path='core/signals.py'),
+            dict(sha1='ef98dea5e06abdfabf5d23b5a361170ae6040bf3', path='core/states.py'),
+            dict(sha1='a11b1b6165dd9200a01de526a995313a20381c3d', path='platforms/services.py'),
+            dict(sha1='72fe89ded0b44adbff3b5bda67b606979b163851', path='runtime/events.py'),
+            dict(sha1='5f52089d3e68bd432ebc4e86e7e77d8c956e9ab2', path='scheduling/cron.py'),
+            dict(sha1='ae48d20260e7e0e75b676429fbd35658ce3d063c', path='selfupdate/models.py'),
+            dict(sha1='afd0766eb141c12e41b2781a9cff667484017e56', path='../../omcore/formats/toml/writer.py'),
+            dict(sha1='52ac78eaf9285fcfcaf12b7a4ce1f706b66f1a92', path='../../omcore/formats/yaml/backends.py'),
+            dict(sha1='298b4d892d840ce98afb520143da35c56b98fb39', path='../../omcore/formats/yaml/goyaml/errors.py'),
+            dict(sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f', path='../../omcore/http/headers.py'),
+            dict(sha1='174c753698e07d7283989e56804a820e4f76e91e', path='../../omcore/http/parsing.py'),
+            dict(sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3', path='../../omcore/http/pipelines/compression/codings.py'),  # noqa
+            dict(sha1='58f59c24f21ed88a67a31021735c5fad24103fb5', path='../../omcore/io/fdio/handlers.py'),
+            dict(sha1='85c73f794f2ccb5d002bf0f63bd9acd35c3539cb', path='../../omcore/io/fdio/pollers.py'),
+            dict(sha1='ef5b43c83d67dc6b929e46946e42044d9a5ff1dc', path='../../omcore/io/pipelines/core.py'),
+            dict(sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799', path='../../omcore/io/pipelines/yielding.py'),
+            dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', path='../../omcore/io/streambufs/types.py'),
+            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', path='../../omcore/lite/json.py'),
+            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../omcore/lite/marshal.py'),
+            dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', path='../../omcore/lite/maybes.py'),
+            dict(sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079', path='../../omcore/logs/infos.py'),
+            dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', path='../../omcore/logs/metrics/base.py'),
+            dict(sha1='438afa13e5edc0b5577c32e062cae2d280e7d5d2', path='../../omcore/os/journald.py'),
+            dict(sha1='5dccab4dacda35f3a123357dadb4944be4299e9f', path='configs/models.py'),
+            dict(sha1='12bfc2431807b0fd93d337f9e6372ef7f66bb5d6', path='runtime/clocks.py'),
+            dict(sha1='b0707d98865d269785703cae4186d38d52d0414d', path='../../omcore/configs/formats.py'),
+            dict(sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d', path='../../omcore/formats/yaml/goyaml/tokens.py'),
+            dict(sha1='fa4169dd860a83c00cf13f6f48583fffd3c2bcf5', path='../../omcore/http/pipelines/bodymodes.py'),
+            dict(sha1='0a4c1e2b846ac4a32afab4ff8814ea9d9f526905', path='../../omcore/io/fdio/kqueue.py'),
+            dict(sha1='8304ca98bfebd17f95d18bcaedfbc4ccdbac9d04', path='../../omcore/io/fdio/manager.py'),
+            dict(sha1='bf1d8923427f11b35a9ebde1e10944786c81262f', path='../../omcore/io/pipelines/bytes/buffering.py'),
+            dict(sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e', path='../../omcore/io/pipelines/drivers/metadata.py'),  # noqa
+            dict(sha1='53f7bc76bff67bc342e8156c2e2eb72fd160598b', path='../../omcore/io/pipelines/flow/types.py'),
+            dict(sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f', path='../../omcore/io/pipelines/sched/types.py'),
+            dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', path='../../omcore/io/streambufs/base.py'),
+            dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', path='../../omcore/io/streambufs/utils.py'),
+            dict(sha1='863e777b377faeeacd8061532d009cc1f23e4a07', path='../../omcore/lite/inject.py'),
+            dict(sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1', path='../../omcore/logs/contexts.py'),
+            dict(sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5', path='../../omcore/logs/std/json.py'),
+            dict(sha1='aab859569796010711a63bffd68474321e93c41f', path='configs/marshal.py'),
+            dict(sha1='3861d8e3e1412d06b50f7d0ab22f0e85eba98543', path='configs/validation.py'),
+            dict(sha1='237d3022f5c0e865fcf6dc333759aca8464d8fb4', path='control/jsoncodec.py'),
+            dict(sha1='f912fa9b9dea5e9677232da26b21df5178f6fd47', path='control/operations.py'),
+            dict(sha1='2cbd01de924b248be7c91fa4a8bd758049c036f0', path='core/changes.py'),
+            dict(sha1='17499b8801f10b963e531de5dfb8087348d228ff', path='runtime/signals.py'),
+            dict(sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631', path='../../omcore/formats/yaml/goyaml/ast.py'),
+            dict(sha1='58956f9159780d5532d2d61fb6f11c8ac946003d', path='../../omcore/formats/yaml/goyaml/scanning.py'),
+            dict(sha1='dea84909a01d0b532ec2c7173f13f9674dc486bd', path='../../omcore/http/pipelines/objects.py'),
+            dict(sha1='79e73945acbb2eb6c19543950f572bcb51387d72', path='../../omcore/io/pipelines/handlers/decoders.py'),  # noqa
+            dict(sha1='db882a29d87bd38eb59c00140174a8af5e6325d1', path='../../omcore/io/pipelines/sched/heap.py'),
+            dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', path='../../omcore/io/streambufs/direct.py'),
+            dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', path='../../omcore/io/streambufs/scanning.py'),
+            dict(sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4', path='../../omcore/logs/base.py'),
+            dict(sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6', path='../../omcore/logs/std/records.py'),
+            dict(sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c', path='../../omcore/logs/std/standard.py'),
+            dict(sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e', path='../../omcore/formats/yaml/goyaml/parsing.py'),
+            dict(sha1='06a58986cd080c3f94434e717bc71b46b904345e', path='../../omcore/http/pipelines/chunking.py'),
+            dict(sha1='f8a54befb79fb058b811b2248f63315a36bb6bbb', path='../../omcore/http/pipelines/compression/compressors.py'),  # noqa
+            dict(sha1='e6490c3dd0a6707a7d099a7391a0df3b8d81da6b', path='../../omcore/http/pipelines/compression/decompressors.py'),  # noqa
+            dict(sha1='28131f0adea16efe9d6b3168d8d6275a7f9cf21b', path='../../omcore/http/pipelines/encoders.py'),
+            dict(sha1='e354039d5c8bfa424cd0e3aa92c04d732c54d488', path='../../omcore/http/pipelines/requests.py'),
+            dict(sha1='ae664753451a32b654f52a51101e177d339a3064', path='../../omcore/http/pipelines/responses.py'),
+            dict(sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df', path='../../omcore/io/streambufs/framing.py'),
+            dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', path='../../omcore/io/streambufs/segmented.py'),
+            dict(sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251', path='../../omcore/logs/asyncs.py'),
+            dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', path='../../omcore/logs/std/loggers.py'),
+            dict(sha1='f5d784ac7fc74494a759f872638111fbdf8adc14', path='platforms/runtime.py'),
+            dict(sha1='73e387af353d56ed6c3f817e490038aa1ba940c8', path='../../omcore/formats/yaml/goyaml/decoding.py'),
+            dict(sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1', path='../../omcore/http/pipelines/aggregators.py'),
+            dict(sha1='60607306046abc3d5bb0c2e0b40e61251151ae13', path='../../omcore/http/pipelines/clients/requests.py'),  # noqa
+            dict(sha1='cbc4f27579b5867b9ac51f7d2148715f835c4be5', path='../../omcore/http/pipelines/servers/responses.py'),  # noqa
+            dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', path='../../omcore/io/pipelines/bytes/decoders.py'),
+            dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', path='../../omcore/logs/modules.py'),
+            dict(sha1='89ea3048c6ee58d40e3a5835cb85c7757591a12d', path='platforms/inject.py'),
+            dict(sha1='465f043f9e1def50013a414abdbec1c37436790d', path='../../omcore/formats/yaml/goyaml/backend.py'),
+            dict(sha1='00a5a981594b5f6133b6daec746f75b30da88fd9', path='../../omcore/http/pipelines/decoders.py'),
+            dict(sha1='2af3b5fb7fc09310c07eb77a544e413f96436581', path='../../omcore/io/pipelines/drivers/fdio/sockets.py'),  # noqa
+            dict(sha1='eb919a15be864f64c83259186cbf0ac528ade7a1', path='../../omcore/io/pipelines/drivers/sync/core.py'),  # noqa
+            dict(sha1='dfb8a7c3006b80a5114eac4d0b36cda68b1cb4e7', path='../../omcore/http/pipelines/clients/responses.py'),  # noqa
+            dict(sha1='2258c98399fd861ca308ff1ef498513d435f6fbb', path='../../omcore/http/pipelines/servers/requests.py'),  # noqa
+            dict(sha1='1f23513095e091895162e4c9668cd1194fc2c80e', path='../../omcore/io/pipelines/drivers/sync/sockets.py'),  # noqa
+            dict(sha1='e97b968cb81f2f9deb973d162f8a69b772209ded', path='configs/sources.py'),
+            dict(sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0', path='configs/snapshots.py'),
+            dict(sha1='df55df1742567d9b67666960e395a95df8ed2355', path='control/client.py'),
+            dict(sha1='a748251b2dc5d8b464b9ca4b4e4dbd8743b5f3d7', path='configs/compiling.py'),
+            dict(sha1='a761ee40562f18064f5357f2dd0533ee4e628f05', path='core/effects.py'),
+            dict(sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a', path='core/inputs.py'),
+            dict(sha1='dc415dc57d3dfd8499e2e49e25e5203b4bd17e49', path='core/state.py'),
+            dict(sha1='4986afdaaab96ba06bb894dbe279276b874a32df', path='core/events.py'),
+            dict(sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090', path='runtime/fdio.py'),
+            dict(sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f', path='runtime/logs.py'),
+            dict(sha1='4650bea43d3fc006bcbac4da147829c26800cff4', path='runtime/processes.py'),
+            dict(sha1='17910ac700fe8e0db0777d3a87a0370e9f67fc96', path='core/engine.py'),
+            dict(sha1='c2ec9703d68dcb767a918c56636ab351f6831148', path='resources/cgroups.py'),
+            dict(sha1='4e87cab38547e636cc91a5f9b845bda8e2924795', path='resources/namespaces.py'),
+            dict(sha1='6fa61546905963453297514ada59d9d09cb66dd1', path='resources/sampling.py'),
+            dict(sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911', path='resources/sockets.py'),
+            dict(sha1='fb903ba3cd32d441e35b90bb008e4c35ba5b73b1', path='runtime/emergencies.py'),
+            dict(sha1='396026eddf902d27786dbad3d7664eab9687e0e8', path='runtime/health.py'),
+            dict(sha1='6bc659bf69f73861fd2d5be110748e3151ac1600', path='runtime/coordinator.py'),
+            dict(sha1='ea7b257f9901639be2b0d7d172cda5f3331d750d', path='selfupdate/codec.py'),
+            dict(sha1='750c44ed70324939e257f91d170757d6262f3244', path='control/configs.py'),
+            dict(sha1='5d0aff306d333f058fc9bfdbfae9837d716c1e83', path='runtime/inject.py'),
+            dict(sha1='52f762caa1ed7806d3e54b3a88c02679d3d36e01', path='control/manager.py'),
+            dict(sha1='e2916518e8ce8e2badbe89eb6fe9fc0ad7be037a', path='control/service.py'),
+            dict(sha1='224bf2d85f5392f097403f2865ee4465971605b8', path='resources/runtime.py'),
+            dict(sha1='5a50b8aef80636e7dd61d10b95cd326e4c6e2dba', path='selfupdate/runtime.py'),
+            dict(sha1='63dcae28924f1511893593d24c567ba61ecb96de', path='resources/inject.py'),
+            dict(sha1='beb4eb40e8c1ea1caf98291e8ed21afb5c4f7af0', path='scheduling/runtime.py'),
+            dict(sha1='7765c7ba3b8dda9ca7e908af2d33f153213a06c0', path='selfupdate/inject.py'),
+            dict(sha1='1bf720f6774cea4077b2ba5e03c95ed821f3edf9', path='selfupdate/restore.py'),
+            dict(sha1='8ecab21b05576295d7acd0eaa6cb5931d175e795', path='control/api.py'),
+            dict(sha1='af42e8c6954b14cf93751afcffc57d80a625d199', path='control/http.py'),
+            dict(sha1='cd5a557b7b75a17470e06195df8e0ab87f4b158c', path='control/plane.py'),
+            dict(sha1='338d7037d4d60b5ff58e4cb38817a2e56dc6347a', path='control/inject.py'),
+            dict(sha1='c6b0f671d72ac7de6c2adec259ec66209874f3b7', path='main.py'),
+            dict(sha1='7f67abe616ff38fa814292fe452159be5cf04acb', path='__main__.py'),
         ],
     )
 
@@ -321,7 +325,7 @@ LoggingContextInfoT = ta.TypeVar('LoggingContextInfoT', bound=LoggingContextInfo
 # configs/marshal.py
 SystevisorConfigEnum = ta.TypeVar('SystevisorConfigEnum', bound=enum.Enum)
 
-# ../../omcore/io/pipelines/drivers/sync.py
+# ../../omcore/io/pipelines/drivers/sync/core.py
 SyncIoPipelineDriverT = ta.TypeVar('SyncIoPipelineDriverT', bound='SyncIoPipelineDriver')
 
 # control/http.py
@@ -3379,6 +3383,10 @@ class AbortedIoPipelineError(IoPipelineError):
     pass
 
 
+class UnsupportedIoPipelineError(IoPipelineError):
+    """An operation is not supported by the transport or component asked to perform it."""
+
+
 ##
 
 
@@ -3407,6 +3415,10 @@ class SawFinalInputIoPipelineError(StateIoPipelineError):
 
 
 class SawFinalOutputIoPipelineError(StateIoPipelineError):
+    pass
+
+
+class SawShutdownOutputIoPipelineError(StateIoPipelineError):
     pass
 
 
@@ -11060,6 +11072,15 @@ class IoPipelineMessages(NamespaceClass):
         messages must not, and remain rejected.
         """
 
+    class AfterShutdownOutput(Abstract):
+        """
+        These may reach the outbound pipeline terminal after ShutdownOutput has reached it.
+
+        ShutdownOutput is only an *output* half-close - input continues until FinalInput - so control messages which
+        concern input or driver interaction (notably read requests and deferred work) must remain deliverable
+        afterwards. Ordinary output must not, and is rejected.
+        """
+
     #
 
     class Pinning(Abstract):
@@ -11093,8 +11114,13 @@ class IoPipelineMessages(NamespaceClass):
 
     @ta.final
     @dc.dataclass(frozen=True)
-    class Error(NeverOutbound):
-        """Signals an exception occurred in the pipeline."""
+    class Error(NeverOutbound, AfterFinalInput):
+        """
+        Signals an exception occurred in the pipeline.
+
+        Errors can arise after input has ended - a failed write, a timeout, an aborted stream - so they remain
+        deliverable at the pipeline boundary after FinalInput.
+        """
 
         exc: BaseException
 
@@ -11130,10 +11156,20 @@ class IoPipelineMessages(NamespaceClass):
                 return False
             return cps == 'succeeded'
 
+        def _outcome(self) -> _Completion:
+            try:
+                return self._completion_  # type: ignore[attr-defined]
+            except AttributeError:
+                raise StateIoPipelineError(
+                    'A completable\'s outcome is only available from its completion listeners',
+                ) from None
+
         def get_result(self) -> T:
+            """The result, available only from a completion listener: outcomes are released with the listeners."""
+
             check.state(self._completion_state == 'succeeded')  # type: ignore[attr-defined]
 
-            return self._completion_.result  # type: ignore[attr-defined]
+            return self._outcome().result
 
         def is_failed(self) -> bool:
             try:
@@ -11143,9 +11179,11 @@ class IoPipelineMessages(NamespaceClass):
             return cps == 'failed'
 
         def get_exception(self) -> ta.Optional[BaseException]:
+            """The exception, available only from a completion listener: outcomes are released with the listeners."""
+
             check.state(self._completion_state == 'failed')  # type: ignore[attr-defined]
 
-            return self._completion_.exc  # type: ignore[attr-defined]
+            return self._outcome().exc
 
         def _completion(self) -> _Completion:
             try:
@@ -11250,11 +11288,30 @@ class IoPipelineMessages(NamespaceClass):
         def __repr__(self) -> str:
             return f'{type(self).__name__}@{id(self):x}()'
 
+    @ta.final
+    @dc.dataclass(frozen=True, eq=False)
+    class ShutdownOutput(NeverInbound, MustPropagate, Completable[None]):  # ~ Netty `DuplexChannel::shutdownOutput`
+        """
+        Ends output while input continues: an output half-close.
+
+        This is an ordered barrier like FlushOutput: handlers emit all output accepted before it, and may retain it
+        while finishing protocol-level output shutdown, then forward the same instance. Once it reaches the pipeline
+        terminal only `AfterShutdownOutput` messages and FinalOutput may follow it there. Unlike FinalOutput it does not
+        terminate the driver, which keeps delivering input; FinalOutput remains required to finish the pipeline.
+
+        Successful completion means all preceding output crossed the driver's transport boundary and the transport's
+        output half was shut down (for a socket, `shutdown(SHUT_WR)`). It does not imply peer receipt. A transport which
+        cannot half-close fails the message and is otherwise left intact.
+        """
+
+        def __repr__(self) -> str:
+            return f'{type(self).__name__}@{id(self):x}()'
+
     #
 
     @ta.final
     @dc.dataclass(frozen=True)
-    class Defer(NeverInbound, Pinning, Completable[T], ta.Generic[T]):
+    class Defer(NeverInbound, AfterShutdownOutput, Pinning, Completable[T], ta.Generic[T]):
         fn: ta.Union[
             ta.Callable[['IoPipelineHandlerContext'], T],
             ta.Callable[[], T],
@@ -11680,6 +11737,8 @@ class IoPipelineHandlerContext:
         ...
 
     def feed_in(self, msg):  # ~ Netty `ChannelInboundInvoker::fireChannelRead`
+        if self._invalidated:
+            raise ContextInvalidatedIoPipelineError
         nxt = self._next_in
         while not nxt._handles_inbound:  # noqa
             nxt = nxt._next_in  # noqa
@@ -11702,6 +11761,8 @@ class IoPipelineHandlerContext:
         ...
 
     def feed_out(self, msg):  # ~ Netty `ChannelOutboundInvoker::write`
+        if self._invalidated:
+            raise ContextInvalidatedIoPipelineError
         nxt = self._next_out  # noqa
         while not nxt._handles_outbound:  # noqa
             nxt = nxt._next_out  # noqa
@@ -11711,6 +11772,11 @@ class IoPipelineHandlerContext:
 
     def feed_final_output(self) -> IoPipelineMessages.FinalOutput:
         msg = IoPipelineMessages.FinalOutput()
+        self.feed_out(msg)
+        return msg
+
+    def feed_shutdown_output(self) -> IoPipelineMessages.ShutdownOutput:
+        msg = IoPipelineMessages.ShutdownOutput()
         self.feed_out(msg)
         return msg
 
@@ -12331,6 +12397,7 @@ class IoPipeline:
     _saw_initial_input = False
     _saw_final_input = False
     _saw_final_output = False
+    _saw_shutdown_output = False
 
     @property
     def saw_any_input(self) -> bool:
@@ -12347,6 +12414,10 @@ class IoPipeline:
     @property
     def saw_final_output(self) -> bool:
         return self._saw_final_output
+
+    @property
+    def saw_shutdown_output(self) -> bool:
+        return self._saw_shutdown_output
 
     ##
     # sub-collections
@@ -12416,19 +12487,23 @@ class IoPipeline:
     def _feed_in_to(self, ctx: IoPipelineHandlerContext, msgs: ta.Iterable[ta.Any]) -> None:
         self._step_in()
         try:
+            # The input lifetime - one InitialInput, then input until FinalInput - is transport input crossing the
+            # pipeline boundary. A message injected at a handler's position is not that, and is not checked against it.
+            boundary = ctx is self._outermost
             for msg in msgs:
-                if self._saw_final_input:
-                    if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
-                        raise SawFinalInputIoPipelineError
-                elif isinstance(msg, IoPipelineMessages.FinalInput):
-                    self._saw_final_input = True
+                if boundary:
+                    if self._saw_final_input:
+                        if not isinstance(msg, IoPipelineMessages.AfterFinalInput):
+                            raise SawFinalInputIoPipelineError
+                    elif isinstance(msg, IoPipelineMessages.FinalInput):
+                        self._saw_final_input = True
 
-                if isinstance(msg, IoPipelineMessages.InitialInput):
-                    if self._saw_any_input:
-                        raise SawInitialInputIoPipelineError
-                    check.state(not self._saw_initial_input)
-                    self._saw_initial_input = True
-                self._saw_any_input = True
+                    if isinstance(msg, IoPipelineMessages.InitialInput):
+                        if self._saw_any_input:
+                            raise SawInitialInputIoPipelineError
+                        check.state(not self._saw_initial_input)
+                        self._saw_initial_input = True
+                    self._saw_any_input = True
 
                 ctx._inbound(msg)  # noqa
 
@@ -12555,10 +12630,17 @@ class IoPipeline:
             raise RuntimeError(f'unknown inbound terminal mode {tm}')
 
     def _terminal_outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:  # noqa
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
-            self._saw_final_output = True
-        elif self._saw_final_output:
+        if self._saw_final_output:
+            # Includes a second FinalOutput: nothing may follow the first.
             raise SawFinalOutputIoPipelineError
+        elif isinstance(msg, IoPipelineMessages.FinalOutput):
+            self._saw_final_output = True
+        elif self._saw_shutdown_output:
+            # Includes a second ShutdownOutput, which is not an AfterShutdownOutput.
+            if not isinstance(msg, IoPipelineMessages.AfterShutdownOutput):
+                raise SawShutdownOutputIoPipelineError
+        elif isinstance(msg, IoPipelineMessages.ShutdownOutput):
+            self._saw_shutdown_output = True
 
         self._output._q.append(msg)  # noqa
 
@@ -12575,6 +12657,7 @@ class IoPipeline:
             ignore_name_of: ta.Optional[IoPipelineHandlerContext] = None,
     ) -> IoPipelineHandler:
         check.state(self._state == IoPipeline.State.READY)  # noqa
+        check.isinstance(handler, IoPipelineHandler)
 
         if not isinstance(handler, ShareableIoPipelineHandler):
             check.not_in(handler, self._unique_contexts)
@@ -12953,19 +13036,31 @@ class IoPipeline:
         FinalOutput to the pipeline terminal before destroying it.
         """
 
-        if self._state == IoPipeline.State.DESTROYED:
+        if self._state in (IoPipeline.State.DESTROYED, IoPipeline.State.DESTROYING):
+            # Destroying removes every handler; one whose Removed callback asks for destruction is answered by the
+            # destruction in progress.
             return
 
         check.state(self._state == IoPipeline.State.READY)
         self._set_state(IoPipeline.State.DESTROYING)
 
+        first_exc: ta.Optional[BaseException] = None
         try:
             self._step_in()
             try:
                 im_ctx = self._innermost  # noqa
                 om_ctx = self._outermost  # noqa
                 while (ctx := im_ctx._next_out) is not om_ctx:  # noqa
-                    self.remove(ctx.ref)  # noqa
+                    try:
+                        self.remove(ctx.ref)  # noqa
+                    except BaseException as e:  # noqa
+                        # One handler's Removed callback failing must neither strand the remaining handlers nor hide
+                        # behind DESTROYED: the first failure is raised once everything has been torn down.
+                        if first_exc is None:
+                            first_exc = e
+                        if im_ctx._next_out is ctx:  # noqa
+                            # The removal failed before unlinking the handler: no progress is possible.
+                            raise
 
             finally:
                 self._step_out()
@@ -12977,7 +13072,12 @@ class IoPipeline:
             try:
                 self._fail_pending_completables(AbortedIoPipelineError('Pipeline destroyed before completion'))
             finally:
+                # Output nothing consumed can no longer be used by anyone; completables among it were just failed.
+                self._output._q.clear()  # noqa
                 self._set_state(IoPipeline.State.DESTROYED)
+
+        if first_exc is not None:
+            raise first_exc
 
     def _fail_pending_completables(self, exc: BaseException) -> None:
         first_listener_exc: ta.Optional[BaseException] = None
@@ -17372,6 +17472,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class FlushOutput(  # ~ Netty 'ChannelOutboundInvoker::flush'
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.AfterShutdownOutput,
         IoPipelineMessages.Completable[None],
     ):
         """
@@ -17386,6 +17487,7 @@ class IoPipelineFlowMessages(NamespaceClass):
     class ReadyForInput(  # ~ Netty `ChannelOutboundInvoker::read`
         IoPipelineMessages.MayPropagate,
         IoPipelineMessages.NeverInbound,
+        IoPipelineMessages.AfterShutdownOutput,
     ):
         pass
 
@@ -24838,12 +24940,22 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
     the corresponding relative delay. The default clock is `time.monotonic()`; deterministic drivers may inject one.
     Drivers call `run_due()` after waiting. Callbacks execute inside their pipeline and are automatically cancelled
     when their owning handler is removed or the pipeline is destroyed.
+
+    A driver which waits on something other than this scheduler's delay - an asyncio queue, say - may supply
+    `on_earliest_change`, called whenever a newly scheduled callback becomes the earliest, to re-arm whatever wakes it.
+    Cancellations are not reported: a wake at a since cancelled deadline runs nothing and is harmless.
     """
 
-    def __init__(self, clock: ta.Callable[[], float] = time.monotonic) -> None:
+    def __init__(
+            self,
+            clock: ta.Callable[[], float] = time.monotonic,
+            *,
+            on_earliest_change: ta.Optional[ta.Callable[[], None]] = None,
+    ) -> None:
         super().__init__()
 
         self._clock = clock
+        self._on_earliest_change = on_earliest_change
 
         self.__pipeline_ref: ta.Optional[weakref.ReferenceType] = None
 
@@ -24952,7 +25064,7 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             self._deadline = deadline
             self._seq = seq
             self.__handler_context_ref = weakref.ref(handler_ref._context)  # noqa
-            self._fn = fn
+            self._fn: ta.Optional[ta.Callable[..., None]] = fn
             self._with_context = with_context
 
             self._cancelled = False
@@ -24963,16 +25075,20 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
             return check.not_none(self.__handler_context_ref())
 
         def _run(self) -> None:
+            fn = check.not_none(self._fn)
+            self._fn = None
             if self._with_context:
-                self._fn(self._handler_context)
+                fn(self._handler_context)
             else:
-                self._fn()
+                fn()
 
         def cancel(self) -> None:
             if self._cancelled or self._done:
                 return
 
+            # A cancelled handle may linger in the heap until it surfaces, so release whatever its callback holds now.
             self._cancelled = True
+            self._fn = None
             if (sched := self.__sched_ref()) is not None:
                 sched._live.discard(self)  # noqa
 
@@ -25000,6 +25116,10 @@ class HeapIoPipelineSchedulingService(IoPipelineScheduling, IoPipelineService):
         self._seq += 1
         heapq.heappush(self._pending, (handle._deadline, handle._seq, handle))  # noqa
         self._live.add(handle)
+
+        if (cb := self._on_earliest_change) is not None and self._pending[0][2] is handle:
+            cb()
+
         return handle
 
     def schedule(
@@ -28874,6 +28994,7 @@ class IoPipelineHttpObjectChunker(
         self._self_writable = True
         self._announced_writable = True
         self._outbound_depth = 0
+        self._output_ended = False  # ShutdownOutput or FinalOutput passed: nothing may produce ordinary output
 
     #
 
@@ -28900,6 +29021,9 @@ class IoPipelineHttpObjectChunker(
 
         effective = self._downstream_writable and self._self_writable
         if effective != self._announced_writable:
+            if effective and self._output_ended:
+                # DESIGN 6: a pause may still be announced for a remaining backlog, but a resume never is.
+                return
             self._announced_writable = effective
             ctx.feed_in(
                 IoPipelineFlowMessages.ReadyForOutput() if effective
@@ -28949,6 +29073,9 @@ class IoPipelineHttpObjectChunker(
     #
 
     def _outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
+        if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+            self._output_ended = True
+
         if isinstance(msg, self._head_type):
             self._active = IoPipelineHttpBodyMode.is_chunked_transfer_encoding(msg.headers)
             ctx.feed_out(msg)
@@ -28993,7 +29120,8 @@ class IoPipelineHttpObjectChunker(
                 ctx.feed_out(msg)
                 return
 
-            if isinstance(msg, IoPipelineMessages.FinalOutput):
+            if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+                # Output ends mid-message either way.
                 self._reset()
                 ctx.feed_out(self._make_aborted('eof before end of message'))
                 ctx.feed_out(msg)
@@ -29120,7 +29248,11 @@ class IoPipelineHttpObjectCompressor(
 
     #
 
-    def _on_outbound_final_output(self, ctx: IoPipelineHandlerContext, msg: IoPipelineMessages.FinalOutput) -> None:
+    def _on_outbound_final_output(
+            self,
+            ctx: IoPipelineHandlerContext,
+            msg: ta.Union[IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput],
+    ) -> None:
         if self._compressor is None:
             ctx.feed_out(msg)
             return
@@ -29177,7 +29309,8 @@ class IoPipelineHttpObjectCompressor(
         ctx.feed_out(msg)
 
     def outbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, IoPipelineMessages.FinalOutput):
+        if isinstance(msg, (IoPipelineMessages.FinalOutput, IoPipelineMessages.ShutdownOutput)):
+            # Output ends mid-message either way.
             self._on_outbound_final_output(ctx, msg)
 
         elif isinstance(msg, self._head_type):
@@ -29216,8 +29349,8 @@ class IoPipelineHttpDecompressionConfig:
 
     max_decomp_chunk: int = 64 * 1024  # max bytes emitted per inflate step
 
-    max_decomp_total: ta.Optional[int] = None    # max total decompressed bytes per object
-    max_expansion_ratio: ta.Optional[int] = 200  # max_out <= max(1, in_total) * ratio (+ small slack)
+    max_decomp_total: ta.Optional[int] = None     # max total decompressed bytes per object
+    max_expansion_ratio: ta.Optional[int] = None  # max_out <= max(1, in_total) * ratio (+ small slack)
 
     max_out_pending: ta.Optional[int] = 256 * 1024  # cap decompressed bytes retained by this stage (if you buffer)
 
@@ -29384,6 +29517,10 @@ class IoPipelineHttpObjectDecompressor(
             o = self._out_pending.popleft()
             self._out_pending_bytes -= len(o)
 
+            # Entries are split to fit max_decomp_chunk when appended - a whole entry must fit a single BodyData, as
+            # nothing later accounts for a partially delivered one.
+            check.state(len(o) <= self._config.max_decomp_chunk)
+
             if not self._is_auto_read(ctx):
                 self._read_requested = False
 
@@ -29462,10 +29599,16 @@ class IoPipelineHttpObjectDecompressor(
             if out:
                 self._fresh_member = False
 
-                ol = len(out)
-                self._out_total_bytes += ol
-                self._out_pending.append(out)
-                self._out_pending_bytes += ol
+                # A coding's output limit may be soft (brotli overshoots by up to an internal block), so a step may
+                # produce more than max_decomp_chunk. Split it here: pending entries are delivered whole, one per
+                # BodyData, and nothing accounts for a partially delivered one - most acutely on End in manual mode,
+                # where the message would otherwise complete with its tail silently dropped.
+                mdc = self._config.max_decomp_chunk
+                self._out_total_bytes += len(out)
+                for pos in range(0, len(out), mdc):
+                    part = out[pos:pos + mdc]
+                    self._out_pending.append(part)
+                    self._out_pending_bytes += len(part)
                 self._check_budgets()
 
                 if self._emit_out_pending(ctx):
@@ -33776,9 +33919,15 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
     """
     bytes-like -> frames using longest-match delimiter semantics.
 
+    In manual-read mode a read which completes no frame leaves the reader's request unsatisfied, so the decoder asks
+    the transport for more itself (as the buffered decoders do).
+
     TODO:
-     - flow control, *or* replace with BytesToMessageDecoderIoPipelineHandler
+     - replace with BytesToMessageDecoderIoPipelineHandler
     """
+
+    _decoded_since_flush = False   # bytes arrived since the last FlushInput ...
+    _produced_since_flush = False  # ... and at least one frame was produced from them
 
     def __init__(
             self,
@@ -33814,6 +33963,15 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
             ctx.feed_in(msg)
             return
 
+        if isinstance(msg, IoPipelineFlowMessages.FlushInput):
+            decoded, produced = self._decoded_since_flush, self._produced_since_flush
+            self._decoded_since_flush = self._produced_since_flush = False
+            if decoded and not produced:
+                # The read completed no frame: whoever asked for one is still waiting on it.
+                IoPipelineFlow.maybe_ready_for_input(ctx)
+            ctx.feed_in(msg)
+            return
+
         if not ByteStreamBuffers.can_bytes(msg):
             ctx.feed_in(msg)
             return
@@ -33822,10 +33980,13 @@ class DelimiterFrameDecoderIoPipelineHandler(InboundBytesBufferingIoPipelineHand
             if mv:
                 self._buf.write(mv)
 
+        self._decoded_since_flush = True
         self._produce_frames(ctx)
 
     def _produce_frames(self, ctx: IoPipelineHandlerContext, *, final: bool = False) -> None:
         frames = self._fr.decode(self._buf, final=final)
+        if frames:
+            self._produced_since_flush = True
 
         if final and len(self._buf):
             if (oif := self._on_incomplete_final) == 'allow':
@@ -34940,11 +35101,7 @@ class IoPipelineHttpObjectDecoder(
 
 
 ########################################
-# ../../../omcore/io/pipelines/drivers/fdio.py
-"""
-TODO:
- - self._sock.shutdown(socket.SHUT_WR) ?
-"""
+# ../../../omcore/io/pipelines/drivers/fdio/sockets.py
 
 
 log = get_module_logger(globals())  # noqa
@@ -34954,6 +35111,13 @@ log = get_module_logger(globals())  # noqa
 
 
 class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
+    """
+    Drive a pipeline over an owned nonblocking socket registered with an `FdioManager`.
+
+    ShutdownOutput is queued behind the bytes preceding it, then performed with `shutdown(SHUT_WR)`; reading continues
+    afterwards. FinalOutput still drains and closes the socket.
+    """
+
     @dc.dataclass(frozen=True)
     class Config:
         DEFAULT: ta.ClassVar['IoPipelineDriverSocketFdioHandler.Config']
@@ -35004,11 +35168,15 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: collections.deque[
-            ta.Union[BytesLike, IoPipelineFlowMessages.FlushOutput]
-        ] = collections.deque()
+        self._write_q: collections.deque[ta.Union[
+            BytesLike,
+            IoPipelineFlowMessages.FlushOutput,
+            IoPipelineMessages.ShutdownOutput,
+        ]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
+        self._output_shutdown = False
+        self._drain_input_ended = False
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
@@ -35048,6 +35216,12 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     @property
     def is_active(self) -> bool:
         return self._state in self.ACTIVE_STATES
+
+    @property
+    def output_shutdown(self) -> bool:
+        """Whether a ShutdownOutput has shut down the socket's output half."""
+
+        return self._output_shutdown
 
     #
 
@@ -35113,6 +35287,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             return
 
         if self._state is IoPipelineDriverState.NEW:
+            self._input_q.clear()
             try:
                 super().close()
             except BaseException:
@@ -35130,6 +35305,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                     pipeline.destroy()
 
             finally:
+                self._input_q.clear()
                 self._write_q.clear()
                 self._write_q_bytes = 0
                 self._transport_final_output = None
@@ -35149,6 +35325,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 pipeline.destroy()
 
         finally:
+            self._input_q.clear()
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
@@ -35272,6 +35449,18 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
         return sr
 
+    def _complete_shutdown_output(self, msg: IoPipelineMessages.ShutdownOutput) -> None:
+        try:
+            check.not_none(self._sock).shutdown(socket.SHUT_WR)
+        except BaseException:
+            self._fail()
+            raise
+
+        self._output_shutdown = True
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
+
     def _try_flush_write_q(self) -> None:
         while self._write_q:
             head = self._write_q[0]
@@ -35280,6 +35469,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 with self._pipeline.enter():
                     if not head.is_done():
                         head.set_succeeded(None)
+                continue
+
+            if isinstance(head, IoPipelineMessages.ShutdownOutput):
+                self._write_q.popleft()
+                self._complete_shutdown_output(head)
                 continue
 
             b = head
@@ -35314,7 +35508,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 bl = bl[sr:]
 
     def _update_output_writability(self) -> None:
-        if self._flow is None:
+        if self._flow is None or self._output_shutdown:
             return
 
         if self._output_writable:
@@ -35322,7 +35516,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark:
+        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
+            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
+            # since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
@@ -35343,13 +35539,23 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
                         msg.set_succeeded(None)
             return 'handled'
 
+        elif isinstance(msg, IoPipelineMessages.ShutdownOutput):
+            if self._write_q:
+                self._write_q.append(msg)
+            else:
+                self._complete_shutdown_output(msg)
+            return 'handled'
+
         elif isinstance(msg, IoPipelineMessages.FinalOutput):
             check.none(self._transport_final_output)
             self._transport_final_output = msg
             return 'stop'
 
         elif isinstance(msg, IoPipelineMessages.Defer):
-            self._pipeline.run_deferred(msg)
+            # A deferred continuation is a fairness yield: timers due meanwhile run first.
+            self._sched.run_due()
+            if self._pipeline.is_ready:
+                self._pipeline.run_deferred(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
@@ -35369,11 +35575,10 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'stop'],
+        ta.Literal['read', 'stop', 'destroyed'],
         None,
     ]:
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         try:
             self._sched.run_due()
@@ -35382,6 +35587,9 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
             raise
 
         while True:
+            if not pipeline.is_ready:
+                return 'destroyed'
+
             if (out_msg := pipeline.output.poll()) is not None:
                 handled = self._handle_output(out_msg)
 
@@ -35413,7 +35621,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     def poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'stop'],
+        ta.Literal['read', 'stop', 'destroyed'],
         None,
     ]:
         try:
@@ -35437,7 +35645,6 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
         """
 
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         while True:
             out = self.poll()
@@ -35449,6 +35656,11 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
                 else:
                     raise RuntimeError(f'Unknown output: {ok!r}')
+
+            elif out == 'destroyed':
+                # Destroyed from under the driver - by an application policy in a callback, say: an explicit close.
+                self.close()
+                return None
 
             elif out == 'read':
                 if read:
@@ -35498,6 +35710,10 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
     ##
 
     def readable(self) -> bool:
+        if self._state is IoPipelineDriverState.DRAINING:
+            # Input has no consumer any more, but is still taken off the transport, so a peer whose own output is
+            # blocked on this side reading is not left waiting forever.
+            return not self._drain_input_ended
         return (
             self._state is IoPipelineDriverState.RUNNING and
             not self._pipeline.saw_final_input and
@@ -35514,7 +35730,24 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
     #
 
+    def _discard_input(self) -> None:
+        buf = bytearray(self._config.read_chunk_size)
+        for _ in range(self._config.read_batch_max_reads):
+            try:
+                n = check.not_none(self._sock).recv_into(buf)
+            except BlockingIOError:
+                return
+            except OSError:
+                self._drain_input_ended = True
+                return
+            if not n:
+                self._drain_input_ended = True
+                return
+
     def on_readable(self) -> None:
+        if self._state is IoPipelineDriverState.DRAINING:
+            self._discard_input()
+            return
         check.none(self.next(raise_on_stall=False))
 
     def on_writable(self) -> None:
@@ -35535,7 +35768,7 @@ class IoPipelineDriverSocketFdioHandler(SocketFdioHandler):
 
 
 ########################################
-# ../../../omcore/io/pipelines/drivers/sync.py
+# ../../../omcore/io/pipelines/drivers/sync/core.py
 
 
 log = get_module_logger(globals())  # noqa
@@ -35549,9 +35782,13 @@ class SyncIoPipelineDriver(Abstract):
     Drive a pipeline over a caller-owned synchronous transport, blocking the calling thread.
 
     The transport must be used exclusively through the driver while it is active. Subclasses supply the handful of
-    transport operations - nonblocking reads and writes, the file descriptors to wait on, and switching the transport
-    into and out of nonblocking mode - and everything else (pipeline stepping, queued writes, watermarks, timers, the
-    readiness wait) is shared.
+    transport operations - nonblocking reads and writes, the file descriptors to wait on, switching the transport into
+    and out of nonblocking mode, and shutting down its output half - and everything else (pipeline stepping, queued
+    writes, watermarks, timers, the readiness wait) is shared.
+
+    ShutdownOutput is queued behind the bytes preceding it and performed once they have been written. Reading continues
+    afterwards. A transport which cannot half-close fails the message with UnsupportedIoPipelineError and is otherwise
+    left intact.
     """
 
     @dc.dataclass(frozen=True)
@@ -35601,15 +35838,21 @@ class SyncIoPipelineDriver(Abstract):
         self._input_q: collections.deque[ta.Any] = collections.deque()
         self._input_q.append(IoPipelineMessages.InitialInput())
 
-        self._write_q: ta.Deque[ta.Union[memoryview, IoPipelineFlowMessages.FlushOutput]] = collections.deque()
+        self._write_q: ta.Deque[ta.Union[
+            memoryview,
+            IoPipelineFlowMessages.FlushOutput,
+            IoPipelineMessages.ShutdownOutput,
+        ]] = collections.deque()
         self._write_q_bytes = 0
         self._output_writable = True
+        self._output_shutdown = False
 
         self._transport_prepared = False
         self._wait_timeout_s: ta.Optional[float] = None
 
         self._transport_final_output: ta.Optional[IoPipelineMessages.FinalOutput] = None
         self._pending_read_error: ta.Optional[OSError] = None
+        self._drain_input_ended = False
 
         self._state = IoPipelineDriverState.NEW
 
@@ -35635,6 +35878,12 @@ class SyncIoPipelineDriver(Abstract):
     @property
     def pipeline(self) -> IoPipeline:
         return self._pipeline
+
+    @property
+    def output_shutdown(self) -> bool:
+        """Whether a ShutdownOutput has shut down the transport's output half."""
+
+        return self._output_shutdown
 
     @property
     def wait_timeout_s(self) -> ta.Optional[float]:
@@ -35757,6 +36006,15 @@ class SyncIoPipelineDriver(Abstract):
 
         raise NotImplementedError
 
+    def _shutdown_output(self) -> None:
+        """
+        Shut down the transport's output half, leaving its input readable. Called at most once, after all queued output
+        has been written. Raises UnsupportedIoPipelineError if the transport cannot half-close, in which case it must be
+        left intact; any other exception fails the driver.
+        """
+
+        raise UnsupportedIoPipelineError(f'{type(self).__name__} does not support output shutdown')
+
     #
 
     def _prepare_transport_once(self) -> None:
@@ -35789,17 +36047,21 @@ class SyncIoPipelineDriver(Abstract):
         else:
             self._state = IoPipelineDriverState.FAILED if failed else IoPipelineDriverState.CLOSED
         finally:
+            self._input_q.clear()
             self._write_q.clear()
             self._write_q_bytes = 0
             self._transport_final_output = None
             self._pending_read_error = None
+            self._drain_input_ended = False
             self._restore_transport_if_prepared()
 
     def _fail(self) -> None:
         self._state = IoPipelineDriverState.FAILED
+        self._input_q.clear()
         self._write_q.clear()
         self._write_q_bytes = 0
         self._pending_read_error = None
+        self._drain_input_ended = False
         try:
             if (pipeline := self._opt_pipeline()) is not None and pipeline.is_ready:
                 pipeline.destroy()
@@ -35866,6 +36128,29 @@ class SyncIoPipelineDriver(Abstract):
 
         return out
 
+    def _discard_input(self) -> bool:
+        """
+        While draining after FinalOutput nothing consumes input any more, but it is still taken off the transport and
+        dropped: a peer whose own output waits for this side to read must not wait forever. Returns whether anything
+        was read.
+        """
+
+        buf = memoryview(bytearray(self._config.read_chunk_size))
+        progressed = False
+        for _ in range(self._config.read_batch_max_reads):
+            try:
+                n = self._read_into(buf)
+            except BlockingIOError:
+                return progressed
+            except OSError:
+                self._drain_input_ended = True
+                return True
+            if not n:
+                self._drain_input_ended = True
+                return True
+            progressed = True
+        return progressed
+
     #
 
     def _enqueue_write(self, msg: ta.Any) -> None:
@@ -35875,6 +36160,25 @@ class SyncIoPipelineDriver(Abstract):
                 self._write_q_bytes += len(mv)
 
         self._update_output_writability()
+
+    def _complete_shutdown_output(self, msg: IoPipelineMessages.ShutdownOutput) -> None:
+        try:
+            self._shutdown_output()
+
+        except UnsupportedIoPipelineError as e:
+            with self._pipeline.enter():
+                if not msg.is_done():
+                    msg.set_failed(e)
+            return
+
+        except BaseException:
+            self._fail()
+            raise
+
+        self._output_shutdown = True
+        with self._pipeline.enter():
+            if not msg.is_done():
+                msg.set_succeeded(None)
 
     def _try_write(self) -> bool:
         if not self._write_q:
@@ -35886,6 +36190,11 @@ class SyncIoPipelineDriver(Abstract):
             with self._pipeline.enter():
                 if not head.is_done():
                     head.set_succeeded(None)
+            return True
+
+        if isinstance(head, IoPipelineMessages.ShutdownOutput):
+            self._write_q.popleft()
+            self._complete_shutdown_output(head)
             return True
 
         mv = head
@@ -35917,7 +36226,11 @@ class SyncIoPipelineDriver(Abstract):
         return True
 
     def _update_output_writability(self) -> None:
-        if self._flow is None or self._state is not IoPipelineDriverState.RUNNING:
+        if (
+                self._flow is None or
+                self._state is not IoPipelineDriverState.RUNNING or
+                self._output_shutdown
+        ):
             return
 
         if self._output_writable:
@@ -35925,11 +36238,55 @@ class SyncIoPipelineDriver(Abstract):
                 self._output_writable = False
                 self._pipeline.feed_in(IoPipelineFlowMessages.PauseOutput())
 
-        elif self._write_q_bytes <= self._config.write_low_watermark:
+        elif self._write_q_bytes <= self._config.write_low_watermark and not self._pipeline.saw_shutdown_output:
+            # Never announced once ShutdownOutput reached the terminal - not just once the transport performed it -
+            # since from then on nothing may produce ordinary output.
             self._output_writable = True
             self._pipeline.feed_in(IoPipelineFlowMessages.ReadyForOutput())
 
     #
+
+    @staticmethod
+    def _wait_for_io(
+            read_fd: ta.Optional[int],
+            write_fd: ta.Optional[int],
+            timeout: ta.Optional[float],
+    ) -> ta.Tuple[bool, bool]:
+        """
+        Waits for the wanted readiness, with `poll()` where it exists (Linux and darwin both have it): unlike
+        `select()`, it is not limited to descriptors below FD_SETSIZE. A hung-up or errored descriptor counts as ready
+        so the read or write reports it; an invalid one raises as `select()` would.
+        """
+
+        if (poll := getattr(select, 'poll', None)) is None:
+            rl, wl, _ = select.select(
+                [read_fd] if read_fd is not None else [],
+                [write_fd] if write_fd is not None else [],
+                [],
+                timeout,
+            )
+            return bool(rl), bool(wl)
+
+        events: ta.Dict[int, int] = {}
+        if read_fd is not None:
+            events[read_fd] = select.POLLIN
+        if write_fd is not None:
+            events[write_fd] = events.get(write_fd, 0) | select.POLLOUT
+        poller = poll()
+        for fd, ev in events.items():
+            poller.register(fd, ev)
+
+        ready = poller.poll(None if timeout is None else max(0., timeout * 1000.))
+
+        readable = writable = False
+        for fd, ev in ready:
+            if ev & select.POLLNVAL:
+                raise ValueError(f'filedescriptor {fd} is not open')
+            if fd == read_fd and ev & (select.POLLIN | select.POLLHUP | select.POLLERR):
+                readable = True
+            if fd == write_fd and ev & (select.POLLOUT | select.POLLHUP | select.POLLERR):
+                writable = True
+        return readable, writable
 
     def _wait_for_io_or_timer(
             self,
@@ -35960,10 +36317,9 @@ class SyncIoPipelineDriver(Abstract):
                 timeout = min(timer_delay, socket_timeout)
 
             try:
-                readable, writable, _ = select.select(
-                    [self._read_fileno()] if want_read else [],
-                    [self._write_fileno()] if want_write else [],
-                    [],
+                readable, writable = self._wait_for_io(
+                    self._read_fileno() if want_read else None,
+                    self._write_fileno() if want_write else None,
                     timeout,
                 )
             except (OSError, ValueError):
@@ -36003,7 +36359,7 @@ class SyncIoPipelineDriver(Abstract):
             self._enqueue_write(msg)
             return 'handled'
 
-        elif isinstance(msg, IoPipelineFlowMessages.FlushOutput):
+        elif isinstance(msg, (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput)):
             self._write_q.append(msg)
             return 'handled'
 
@@ -36014,7 +36370,10 @@ class SyncIoPipelineDriver(Abstract):
             return 'handled'
 
         elif isinstance(msg, IoPipelineMessages.Defer):
-            self._pipeline.run_deferred(msg)
+            # A deferred continuation is a fairness yield: timers due meanwhile run first.
+            self._sched.run_due()
+            if self._pipeline.is_ready:
+                self._pipeline.run_deferred(msg)
             return 'handled'
 
         elif isinstance(msg, IoPipelineFlowMessages.ReadyForInput):
@@ -36034,13 +36393,15 @@ class SyncIoPipelineDriver(Abstract):
 
     def _poll(self) -> ta.Union[
         ta.Tuple[ta.Literal['unhandled'], ta.Any],
-        ta.Literal['read', 'write', 'stop'],
+        ta.Literal['read', 'write', 'stop', 'destroyed'],
         None,
     ]:
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         while True:
+            if not pipeline.is_ready:
+                return 'destroyed'
+
             if (out_msg := pipeline.output.poll()) is not None:
                 handled = self._handle_output(out_msg)
 
@@ -36053,7 +36414,10 @@ class SyncIoPipelineDriver(Abstract):
                 else:
                     raise RuntimeError(f'Unknown handled value: {handled!r}')
 
-            if self._write_q and isinstance(self._write_q[0], IoPipelineFlowMessages.FlushOutput):
+            if self._write_q and isinstance(
+                    self._write_q[0],
+                    (IoPipelineFlowMessages.FlushOutput, IoPipelineMessages.ShutdownOutput),
+            ):
                 self._try_write()
                 continue
 
@@ -36091,7 +36455,6 @@ class SyncIoPipelineDriver(Abstract):
         """
 
         pipeline = self._ensure_pipeline()  # noqa
-        check.state(pipeline.is_ready)
 
         try:
             ran_timer = bool(self._sched.run_due())
@@ -36114,6 +36477,11 @@ class SyncIoPipelineDriver(Abstract):
                 else:
                     raise RuntimeError(f'Unknown output: {ok!r}')
 
+            elif out == 'destroyed':
+                # Destroyed from under the driver - by an application policy in a callback, say: an explicit close.
+                self.close()
+                return None
+
             elif out == 'stop':
                 try:
                     self._restore_transport_if_prepared()
@@ -36135,13 +36503,23 @@ class SyncIoPipelineDriver(Abstract):
             if ran_timer:
                 return None
 
-            want_read = not pipeline.saw_final_input and self._want_read
+            draining = self._transport_final_output is not None
+            if draining:
+                # Input has no consumer any more, but is still taken off the transport (and dropped) so a peer blocked
+                # on this side reading can proceed to read this side's remaining output.
+                want_read = not self._drain_input_ended and not pipeline.saw_final_input
+            else:
+                want_read = not pipeline.saw_final_input and self._want_read
             want_write = bool(self._write_q)
 
             if not read:
                 while self._write_q and self._try_write():
                     pass
-                if self._transport_final_output is not None and not self._write_q:
+                # Writing completes fences, whose listeners may have produced more output to process now.
+                if (
+                        (self._transport_final_output is not None and not self._write_q) or
+                        pipeline.output.peek() is not None
+                ):
                     continue
                 return None
 
@@ -36159,8 +36537,11 @@ class SyncIoPipelineDriver(Abstract):
             if writable:
                 progressed |= self._try_write()
             if readable:
-                self._input_q.extend(self._do_read())
-                progressed = True
+                if draining:
+                    progressed |= self._discard_input()
+                else:
+                    self._input_q.extend(self._do_read())
+                    progressed = True
 
             if not (progressed or ran_timer):
                 return None
@@ -36176,150 +36557,6 @@ class SyncIoPipelineDriver(Abstract):
 
         finally:
             self.close()
-
-
-##
-
-
-class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
-    """
-    Drive a pipeline over a caller-owned socket.
-
-    The driver temporarily makes the socket nonblocking so reads, queued writes, and timers can share one readiness
-    wait, then restores the original timeout when the pipeline closes or fails. The socket's original timeout, if any,
-    bounds each wait.
-    """
-
-    def __init__(
-            self,
-            spec: IoPipeline.Spec,
-            sock: ta.Any,
-            config: ta.Optional[SyncIoPipelineDriver.Config] = None,
-    ) -> None:
-        super().__init__(spec, config)
-
-        self._sock = sock
-
-        self._socket_mode_changed = False
-        self._socket_original_timeout: ta.Optional[float] = None
-
-    @property
-    def socket(self) -> ta.Any:
-        return self._sock
-
-    def _prepare_transport(self) -> None:
-        try:
-            gettimeout = self._sock.gettimeout
-            setblocking = self._sock.setblocking
-            _ = self._sock.settimeout
-        except AttributeError:
-            return
-
-        self._socket_original_timeout = gettimeout()
-        setblocking(False)
-        self._socket_mode_changed = True
-
-    def _restore_transport(self) -> None:
-        if not self._socket_mode_changed:
-            return
-        self._socket_mode_changed = False
-
-        try:
-            self._sock.settimeout(self._socket_original_timeout)
-        except OSError:
-            pass
-
-    def _transport_timeout(self) -> ta.Optional[float]:
-        if self._socket_mode_changed:
-            return self._socket_original_timeout
-
-        try:
-            return self._sock.gettimeout()
-        except AttributeError:
-            return None
-
-    def _read_fileno(self) -> int:
-        return self._sock.fileno()
-
-    def _write_fileno(self) -> int:
-        return self._sock.fileno()
-
-    def _read_into(self, buf: memoryview) -> int:
-        return self._sock.recv_into(buf)
-
-    def _write(self, data: memoryview) -> int:
-        return self._sock.send(data)
-
-
-##
-
-
-class FdSyncIoPipelineDriver(SyncIoPipelineDriver):
-    """
-    Drive a pipeline over a pair of caller-owned file descriptors, such as a pipe pair or a process's own stdio.
-
-    Both descriptors are switched to nonblocking mode while the driver is active and restored afterwards. They may be
-    the same descriptor. An optional timeout bounds each readiness wait the same way a socket's timeout would.
-    """
-
-    def __init__(
-            self,
-            spec: IoPipeline.Spec,
-            read_fd: int,
-            write_fd: int,
-            config: ta.Optional[SyncIoPipelineDriver.Config] = None,
-            *,
-            timeout_s: ta.Optional[float] = None,
-    ) -> None:
-        super().__init__(spec, config)
-
-        self._read_fd = read_fd
-        self._write_fd = write_fd
-        self._timeout_s = timeout_s
-
-        self._original_flags: ta.Dict[int, int] = {}
-
-    @property
-    def read_fd(self) -> int:
-        return self._read_fd
-
-    @property
-    def write_fd(self) -> int:
-        return self._write_fd
-
-    def _prepare_transport(self) -> None:
-        for fd in {self._read_fd, self._write_fd}:
-            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-            self._original_flags[fd] = flags
-            if not (flags & os.O_NONBLOCK):
-                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-    def _restore_transport(self) -> None:
-        flags_by_fd = self._original_flags
-        self._original_flags = {}
-        for fd, flags in flags_by_fd.items():
-            try:
-                fcntl.fcntl(fd, fcntl.F_SETFL, flags)
-            except OSError:
-                pass
-
-    def _transport_timeout(self) -> ta.Optional[float]:
-        return self._timeout_s
-
-    def _read_fileno(self) -> int:
-        return self._read_fd
-
-    def _write_fileno(self) -> int:
-        return self._write_fd
-
-    def _read_into(self, buf: memoryview) -> int:
-        data = os.read(self._read_fd, len(buf))
-        n = len(data)
-        buf[:n] = data
-        return n
-
-    def _write(self, data: memoryview) -> int:
-        return os.write(self._write_fd, data)
 
 
 ########################################
@@ -36472,6 +36709,91 @@ class IoPipelineHttpRequestDechunker(IoPipelineHttpRequestObjects, IoPipelineHtt
 
 class IoPipelineHttpRequestDecompressor(IoPipelineHttpRequestObjects, IoPipelineHttpObjectDecompressor):
     pass
+
+
+########################################
+# ../../../omcore/io/pipelines/drivers/sync/sockets.py
+
+
+##
+
+
+class SocketSyncIoPipelineDriver(SyncIoPipelineDriver):
+    """
+    Drive a pipeline over a caller-owned socket.
+
+    The driver temporarily makes the socket nonblocking so reads, queued writes, and timers can share one readiness
+    wait, then restores the original timeout when the pipeline closes or fails. The socket's original timeout, if any,
+    bounds each wait.
+    """
+
+    def __init__(
+            self,
+            spec: IoPipeline.Spec,
+            sock: ta.Any,
+            config: ta.Optional[SyncIoPipelineDriver.Config] = None,
+    ) -> None:
+        super().__init__(spec, config)
+
+        self._sock = sock
+
+        self._socket_mode_changed = False
+        self._socket_original_timeout: ta.Optional[float] = None
+
+    @property
+    def socket(self) -> ta.Any:
+        return self._sock
+
+    def _prepare_transport(self) -> None:
+        try:
+            gettimeout = self._sock.gettimeout
+            setblocking = self._sock.setblocking
+            _ = self._sock.settimeout
+        except AttributeError:
+            return
+
+        self._socket_original_timeout = gettimeout()
+        setblocking(False)
+        self._socket_mode_changed = True
+
+    def _restore_transport(self) -> None:
+        if not self._socket_mode_changed:
+            return
+        self._socket_mode_changed = False
+
+        try:
+            self._sock.settimeout(self._socket_original_timeout)
+        except OSError:
+            pass
+
+    def _transport_timeout(self) -> ta.Optional[float]:
+        if self._socket_mode_changed:
+            return self._socket_original_timeout
+
+        try:
+            return self._sock.gettimeout()
+        except AttributeError:
+            return None
+
+    def _read_fileno(self) -> int:
+        return self._sock.fileno()
+
+    def _write_fileno(self) -> int:
+        return self._sock.fileno()
+
+    def _read_into(self, buf: memoryview) -> int:
+        return self._sock.recv_into(buf)
+
+    def _write(self, data: memoryview) -> int:
+        return self._sock.send(data)
+
+    def _shutdown_output(self) -> None:
+        try:
+            shutdown = self._sock.shutdown
+        except AttributeError:
+            raise UnsupportedIoPipelineError(f'{self._sock!r} has no shutdown method') from None
+
+        shutdown(socket.SHUT_WR)
 
 
 ########################################

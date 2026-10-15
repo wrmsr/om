@@ -2,7 +2,7 @@
 import socket
 import unittest
 
-from ....io.pipelines.drivers.sync import SocketSyncIoPipelineDriver
+from ....io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ....io.pipelines.drivers.types import IoPipelineDriverState
 from ..pipelines.handlers import SimpleHttpHandlerServerIoPipelineHandler
 

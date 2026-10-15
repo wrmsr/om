@@ -30,26 +30,79 @@ with _lang.auto_proxy_init(
 
     #
 
-    from .drivers.asyncio import (  # noqa
+    from .drivers.asyncio.streams import (  # noqa
         PollAsyncioStreamIoPipelineDriver as PollAsyncioStreamDriver,
     )
 
-    from .drivers.fdio import (  # noqa
+    from .drivers.asyncio.hosts import (  # noqa
+        AsyncioIoPipelineHost as AsyncioHost,
+        AsyncioIoPipelineHostResolver as AsyncioHostResolver,
+        LoopAsyncioIoPipelineHostResolver as LoopAsyncioHostResolver,
+        SyncAsyncioIoPipelineHostResolver as SyncAsyncioHostResolver,
+    )
+
+    from .drivers.fdio.core import (  # noqa
+        IoPipelineFdioDriver as FdioDriver,
+        IoPipelineFdioTransport as FdioTransport,
+    )
+
+    from .drivers.fdio.descriptors import (  # noqa
+        DescriptorIoPipelineFdioTransport as DescriptorFdioTransport,
+    )
+
+    from .drivers.fdio.duplex import (  # noqa
+        IoPipelineDriverDuplexFdioHandler as DriverDuplexFdioHandler,
+    )
+
+    from .drivers.fdio.hosts import (  # noqa
+        FdioIoPipelineHost as FdioHost,
+    )
+
+    from .drivers.fdio.pairs import (  # noqa
+        IoPipelineDriverFdPairFdioHandlers as DriverFdPairFdioHandlers,
+    )
+
+    from .drivers.fdio.sockets import (  # noqa
         IoPipelineDriverSocketFdioHandler as DriverSocketFdioHandler,
+        SocketIoPipelineFdioTransport as SocketFdioTransport,
     )
 
     from .drivers.metadata import (  # noqa
         DriverIoPipelineMetadata as DriverMetadata,
     )
 
-    from .drivers.pure import (  # noqa
+    from .drivers.fdio.resolvers import (  # noqa
+        ThreadedFdioIoPipelineHostResolver as ThreadedFdioHostResolver,
+    )
+
+    from .drivers.fdio.running import (  # noqa
+        fdio_run_until,
+    )
+
+    from .drivers.pure.drivers import (  # noqa
         PureIoPipelineDriver as PureDriver,
     )
 
-    from .drivers.sync import (  # noqa
+    from .drivers.pure.hosts import (  # noqa
+        MemoryIoPipelineHost as MemoryHost,
+        MemoryIoPipelineLink as MemoryLink,
+        MemoryIoPipelineLinkEnd as MemoryLinkEnd,
+    )
+
+    from .drivers.pure.links import (  # noqa
+        PureLink,
+    )
+
+    from .drivers.sync.core import (  # noqa
         SyncIoPipelineDriver as SyncDriver,
-        SocketSyncIoPipelineDriver as SocketSyncDriver,
+    )
+
+    from .drivers.sync.fds import (  # noqa
         FdSyncIoPipelineDriver as FdSyncDriver,
+    )
+
+    from .drivers.sync.sockets import (  # noqa
+        SocketSyncIoPipelineDriver as SocketSyncDriver,
     )
 
     from .drivers.types import (  # noqa
@@ -60,6 +113,50 @@ with _lang.auto_proxy_init(
 
     from .flow.stub import (  # noqa
         StubIoPipelineFlowService as StubFlowService,
+    )
+
+    from .hosts.base import (  # noqa
+        BaseIoPipelineHost as BaseHost,
+        BlockingIoPipelineHostResolver as BlockingHostResolver,
+    )
+
+    from .hosts.types import (  # noqa
+        IoPipelineHostError as HostError,
+        ClosedIoPipelineHostError as ClosedHostError,
+        ConnectIoPipelineHostError as ConnectHostError,
+        ConnectTimeoutIoPipelineHostError as ConnectTimeoutHostError,
+        ResolveIoPipelineHostError as ResolveHostError,
+        ListenIoPipelineHostError as ListenHostError,
+
+        IoPipelineHostTransportInfo as HostTransportInfo,
+
+        IoPipelineHostHandle as HostHandle,
+        IoPipelineHostedDriver as HostedDriver,
+        IoPipelineHostedConnect as HostedConnect,
+        IoPipelineHostedListener as HostedListener,
+
+        IoPipelineHost as Host,
+        IoPipelineHostResolver as HostResolver,
+    )
+
+    from .relays.handlers import (  # noqa
+        RelayIoPipelineError as RelayError,
+        AutoReadRelayIoPipelineError as AutoReadRelayError,
+        UnmappedMessageRelayIoPipelineError as UnmappedMessageRelayError,
+        PeerGoneRelayIoPipelineError as PeerGoneRelayError,
+
+        IoPipelineRelay as Relay,
+        IoPipelineRelayEndHandler as RelayEndHandler,
+    )
+
+    from .posting.types import (  # noqa
+        ClosedIoPipelinePostingError as ClosedPostingError,
+
+        IoPipelinePost as Post,
+
+        IoPipelinePosting as Posting,
+        IoPipelinePostingTarget as PostingTarget,
+        TargetIoPipelinePostingService as TargetPostingService,
     )
 
     from .flow.types import (  # noqa

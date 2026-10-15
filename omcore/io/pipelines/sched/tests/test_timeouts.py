@@ -18,9 +18,9 @@ from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineHandlerRef
 from ...core import IoPipelineMessages
 from ...core import IoPipelineService
-from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
-from ...drivers.sync import SocketSyncIoPipelineDriver
+from ...drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ...drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ...drivers.sync.sockets import SocketSyncIoPipelineDriver
 from ...errors import IoPipelineError
 from ...errors import TimeoutIoPipelineError
 from ...flow.stub import StubIoPipelineFlowService
@@ -1127,7 +1127,7 @@ class TestFdioWriteTimeoutIoPipelineHandler(unittest.TestCase):
                 driver.enqueue(_EMIT_OUTPUT)
                 self.assertIsNone(driver.next(read=False))
                 self.assertFalse(flush_output.is_done())
-                self.assertGreater(driver._write_q_bytes, 0)
+                self.assertGreater(driver.driver._write_q_bytes, 0)
                 manager.register(driver)
 
                 start = time.monotonic()

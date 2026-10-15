@@ -19,9 +19,9 @@ from ...core import IoPipeline
 from ...core import IoPipelineHandler
 from ...core import IoPipelineHandlerContext
 from ...core import IoPipelineMessages
-from ...drivers.asyncio import PollAsyncioStreamIoPipelineDriver
-from ...drivers.fdio import IoPipelineDriverSocketFdioHandler
-from ...drivers.pure import PureIoPipelineDriver
+from ...drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from ...drivers.fdio.sockets import IoPipelineDriverSocketFdioHandler
+from ...drivers.pure.drivers import PureIoPipelineDriver
 from ...drivers.types import IoPipelineDriverState
 from ...errors import SawShutdownOutputIoPipelineError
 from ...flow.stub import StubIoPipelineFlowService
