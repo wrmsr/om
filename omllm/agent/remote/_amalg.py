@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '156b927ba6cf57e52e40f57a85f953a5fc74dd46'
+__om_amalg_sha1__ = 'e2124bbce4e0105ed53ffb6b4e3123678007fa65'
 
 
 def __om_amalg__():  # noqa
@@ -62,19 +62,20 @@ def __om_amalg__():  # noqa
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../../omcore/lite/check.py'),
             dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../../omcore/lite/objects.py'),
             dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../../omcore/lite/reflect.py'),
+            dict(sha1='1365cb6046eb929358e7c86a3fda20d95fd4a296', path='../../../omcore/lite/resources.py'),
             dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../../../omcore/lite/strings.py'),
             dict(sha1='a663184c584cf8d8449981d424337f8fbb61c7e8', path='../../../omcore/os/pyremote/core.py'),
             dict(sha1='2c9a0a731509230c5a632494c3f176792c486b3a', path='../fs/common.py'),
             dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../../omcore/lite/marshal.py'),
             dict(sha1='18f353e8fe27cb61dcd1514f6d51f77dbd746887', path='../fs/remote/protocol.py'),
-            dict(sha1='aa2f9c585f9217ddb3d67453171c04ecec0560a1', path='../../core/processes/remote/protocol.py'),
+            dict(sha1='995eba7586af040b569b0ff77fb5e3a2d132f18e', path='../../core/processes/remote/protocol.py'),
             dict(sha1='875f2f61c1515d510977f37669e20af0e581fb82', path='../../core/rpc/errors.py'),
             dict(sha1='c6ba6e514b292048509f729d9f99bbd9eb36128a', path='../../core/rpc/handlers.py'),
             dict(sha1='f1082a2b6361ca9f50f4521d9c0d4279ff1a7905', path='../../core/rpc/messages.py'),
             dict(sha1='1d914f314517da581edfe09dcc992b6dbe387481', path='../fs/remote/server.py'),
             dict(sha1='103b39dc4068a45f4e83c3e87312bf4ce5ee2052', path='../../core/rpc/channels.py'),
             dict(sha1='80821e7a5897f00917f0c27596db2f2713ba07ad', path='../../core/rpc/peers.py'),
-            dict(sha1='f62b959a40abbcc89ab640e0e293731efb81a20e', path='../../core/processes/remote/server.py'),
+            dict(sha1='0e5b30d8fe987b78ab8158de07dc839de4e7ffd1', path='../../core/processes/remote/server.py'),
             dict(sha1='184ef5cea10fe5bca64b254bfb153db902d6f691', path='server.py'),
             dict(sha1='12eef0f46ab416d4ccc8ae492388e5466d5f6be1', path='_main.py'),
         ],
@@ -1243,6 +1244,20 @@ def type_form_repr(ty: ta.Any) -> str:
 
     else:
         raise TypeError(ty)
+
+
+########################################
+# ../../../../omcore/lite/resources.py
+
+
+def read_package_resource_binary(package: str, resource: str) -> bytes:
+    import importlib.resources
+    return importlib.resources.read_binary(package, resource)
+
+
+def read_package_resource_text(package: str, resource: str) -> str:
+    import importlib.resources
+    return importlib.resources.read_text(package, resource)
 
 
 ########################################
@@ -4808,7 +4823,7 @@ _REMOTE_DARWIN_P_PID = 1
 _REMOTE_DARWIN_WEXITED = 0x04
 _REMOTE_DARWIN_WNOWAIT = 0x20
 
-_REMOTE_PTY_CHILD_CODE = """
+_REMOTE_PTY_CHILD_CODE = """\
 import fcntl
 import json
 import os
@@ -4816,18 +4831,23 @@ import signal
 import sys
 import termios
 
-argv = json.loads(sys.argv[1])
-# This interpreter ignored these at its own startup, and an ignored disposition survives exec: the target would never
-# see a SIGPIPE. Popen's restore_signals undid that for this process only as far as its exec of this interpreter.
-for name in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
-    sig = getattr(signal, name, None)
-    if sig is not None:
-        signal.signal(sig, signal.SIG_DFL)
-os.setsid()
-fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-os.tcsetpgrp(0, os.getpgrp())
-os.execvpe(argv[0], argv, os.environ)
-"""
+
+if __name__ == '__main__':
+    argv = json.loads(sys.argv[1])
+    # This interpreter ignored these at its own startup, and an ignored disposition survives exec: the target would
+    # never see a SIGPIPE. Popen's restore_signals undid that for this process only as far as its exec of this
+    # interpreter.
+    for name in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
+        sig = getattr(signal, name, None)
+        if sig is not None:
+            signal.signal(sig, signal.SIG_DFL)
+
+    os.setsid()
+    fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+    os.tcsetpgrp(0, os.getpgrp())
+
+    os.execvpe(argv[0], argv, os.environ)
+"""  # noqa
 
 
 def _remote_process_returncode(si_code: int, si_status: int) -> int:

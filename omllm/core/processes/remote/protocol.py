@@ -1,4 +1,5 @@
 # ruff: noqa: UP006 UP007 UP045
+# @om-lite
 """
 The wire shapes of remote process management: the requests the host's `RemoteProcessManager` makes of the agent's
 `RemoteProcessService`, their results, and the notifications the agent sends back unprompted. Lite: shared with the
