@@ -108,34 +108,25 @@ async def _update_db(
             DEFAULT_DB_FILE_NAME,
         )
 
-    # FIXME: shouldn't need to specify SQLITE lol
-    spec = sql.DbSpec(
-        'dockerdev_runs',
-        sql.DbFamilies.SQLITE,
-        sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_file),
+    db = sql.be.sqlite.connecting.sqlite_db(sql.be.sqlite.connecting.SqliteDbConfig(
+        file_path=db_file,
+    ))
+
+    backend = sql.be.sqlite.backend.SqliteBackend()
+
+    registry = orm.registry(*orm_mappers())
+
+    store = orm.SqlStore(
+        registry,
+        sql.api.SyncToAsyncDb(sql.api.ImmediateSyncToAsyncRunner, db),
+        tabledef_renderer=backend.tabledef_renderer,
+        dtype_codec=backend.dtype_codec,
     )
 
-    # FIXME: why tf do we need a name
-    db_sets = sql.DbSets({'dockerdev_runs': sql.DbSet(writer=spec)})
+    await store.ensure_schema()
 
-    async with sql.AsyncDbs(db_sets) as dbs:
-        db = await dbs.db('dockerdev_runs')
-
-        backend = sql.be.sqlite.backend.SqliteBackend()
-
-        registry = orm.registry(*orm_mappers())
-
-        store = orm.SqlStore(
-            registry,
-            db,
-            tabledef_renderer=backend.tabledef_renderer,
-            dtype_codec=backend.dtype_codec,
-        )
-
-        await store.ensure_schema()
-
-        async with orm.session(registry, store) as session:
-            return await fn(session)
+    async with orm.session(registry, store) as session:
+        return await fn(session)
 
 
 #
