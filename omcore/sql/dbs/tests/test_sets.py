@@ -15,8 +15,10 @@ from ...drivers.omysql.errors import DatabaseError
 from ...tests.harness import HarnessDbs
 from ..dbs import AsyncDbs
 from ..dbs import Dbs
+from ..sets import READONLY_DB_SLOTS
 from ..sets import DbSet
 from ..sets import DbSets
+from ..sets import DbSlot
 from ..specs import DbCaps
 from ..specs import DbFamilies
 from ..specs import DbSpec
@@ -24,6 +26,22 @@ from ..specs import UrlDbLoc
 
 
 ##
+
+
+def test_readonly_slots():
+    assert DbSlot.WRITER not in READONLY_DB_SLOTS
+    assert not DbSlot.WRITER.readonly
+    assert 'writer' not in READONLY_DB_SLOTS
+
+    assert DbSlot.READER in READONLY_DB_SLOTS
+    assert DbSlot.READER.readonly
+    assert 'reader' in READONLY_DB_SLOTS
+
+    assert DbSlot.ANALYTICS in READONLY_DB_SLOTS
+    assert DbSlot.ANALYTICS.readonly
+    assert 'analytics' in READONLY_DB_SLOTS
+
+    assert 'foo' not in READONLY_DB_SLOTS
 
 
 def _sqlite_sets(path: str) -> DbSets:
@@ -39,56 +57,56 @@ def _sqlite_sets(path: str) -> DbSets:
 
 def test_sqlite_set_and_readonly_transactions():
     path = os.path.join(tempfile.mkdtemp(), 'sessions.db')
-    resolver = Dbs(_sqlite_sets(path))
-    writer = resolver.db('sessions')
-    reader = resolver.db('sessions', 'reader')
+    with Dbs(_sqlite_sets(path)) as resolver:
+        writer = resolver.db('sessions')
+        reader = resolver.db('sessions', 'reader')
 
-    api.exec(writer, 'create table entries (value text)')
-    api.exec(writer, "insert into entries values ('one')")
-    assert api.query_scalar(reader, 'select value from entries') == 'one'
-    assert api.query_scalar(resolver.db('sessions', 'analytics'), 'select count(*) from entries') == 1
+        api.exec(writer, 'create table entries (value text)')
+        api.exec(writer, "insert into entries values ('one')")
+        assert api.query_scalar(reader, 'select value from entries') == 'one'
+        assert api.query_scalar(resolver.db('sessions', 'analytics'), 'select count(*) from entries') == 1
 
-    with reader.connect() as conn:
-        with conn.begin() as txn:
-            assert api.query_scalar(txn, 'select count(*) from entries') == 1
-            with pytest.raises(sqlite3.OperationalError):
+        with reader.connect() as conn:
+            with conn.begin() as txn:
+                assert api.query_scalar(txn, 'select count(*) from entries') == 1
+                with pytest.raises(sqlite3.OperationalError):
+                    api.exec(txn, "insert into entries values ('two')")
+
+            with pytest.raises(ValueError, match='readonly'):
+                with conn.begin(readonly=False):
+                    pass
+
+        with writer.connect() as conn:
+            with conn.begin(readonly=True) as txn:
+                with pytest.raises(sqlite3.OperationalError):
+                    api.exec(txn, "insert into entries values ('two')")
+            with conn.begin() as txn:
                 api.exec(txn, "insert into entries values ('two')")
 
-        with pytest.raises(ValueError, match='read-only'):
-            with conn.begin(readonly=False):
-                pass
-
-    with writer.connect() as conn:
-        with conn.begin(readonly=True) as txn:
-            with pytest.raises(sqlite3.OperationalError):
-                api.exec(txn, "insert into entries values ('two')")
-        with conn.begin() as txn:
-            api.exec(txn, "insert into entries values ('two')")
-
-    assert api.query_scalar(reader, 'select count(*) from entries') == 2
+        assert api.query_scalar(reader, 'select count(*) from entries') == 2
 
 
 def test_alias_to_writer_keeps_reader_intent():
     path = os.path.join(tempfile.mkdtemp(), 'sessions.db')
     spec = DbSpec('local', DbFamilies.SQLITE, SqliteDbConfig(file_path=path))
-    resolver = Dbs(DbSets({'sessions': DbSet(writer=spec, reader='writer', analytics='reader')}))
-    writer = resolver.db('sessions')
-    reader = resolver.db('sessions', 'reader')
+    with Dbs(DbSets({'sessions': DbSet(writer=spec, reader='writer', analytics='reader')})) as resolver:
+        writer = resolver.db('sessions')
+        reader = resolver.db('sessions', 'reader')
 
-    api.exec(writer, 'create table entries (value text)')
-    with reader.connect() as conn:
-        with pytest.raises(sqlite3.OperationalError):
-            api.exec(conn, "insert into entries values ('one')")
-        with conn.begin() as txn:
+        api.exec(writer, 'create table entries (value text)')
+        with reader.connect() as conn:
             with pytest.raises(sqlite3.OperationalError):
+                api.exec(conn, "insert into entries values ('one')")
+            with conn.begin() as txn:
+                with pytest.raises(sqlite3.OperationalError):
+                    api.exec(txn, "insert into entries values ('one')")
+            with conn.begin(readonly=False) as txn:
                 api.exec(txn, "insert into entries values ('one')")
-        with conn.begin(readonly=False) as txn:
-            api.exec(txn, "insert into entries values ('one')")
-    api.exec(writer, "insert into entries values ('one')")
-    assert api.query_scalar(reader, 'select count(*) from entries') == 2
+        api.exec(writer, "insert into entries values ('one')")
+        assert api.query_scalar(reader, 'select count(*) from entries') == 2
 
-    with pytest.raises(ValueError, match='Circular'):
-        DbSet(writer=spec, reader='analytics', analytics='reader').reader  # noqa
+        with pytest.raises(ValueError, match='Circular'):
+            DbSet(writer=spec, reader='analytics', analytics='reader').reader  # noqa
 
 
 @pytest.mark.asyncs('asyncio')
@@ -114,42 +132,42 @@ def test_postgres_resolver_readonly(harness):
     assert isinstance(url, UrlDbLoc)
     assert isinstance(url.url, str)
     spec = dc.replace(original, loc=UrlDbLoc(SecretRef('postgres_url')))
-    resolver = Dbs(
+    with Dbs(
         DbSets({'test': DbSet(writer=spec, reader='writer')}),
         secrets=MappingSecrets({'postgres_url': url.url}),
-    )
-    with resolver.db('test', 'reader').connect() as conn:
-        with conn.begin() as txn:
-            assert api.query_scalar(txn, 'show transaction_read_only') == 'on'
-    with resolver.db('test').connect() as conn:
-        with conn.begin() as txn:
-            assert api.query_scalar(txn, 'show transaction_read_only') == 'off'
+    ) as resolver:
+        with resolver.db('test', 'reader').connect() as conn:
+            with conn.begin() as txn:
+                assert api.query_scalar(txn, 'show transaction_read_only') == 'on'
+        with resolver.db('test').connect() as conn:
+            with conn.begin() as txn:
+                assert api.query_scalar(txn, 'show transaction_read_only') == 'off'
 
 
 def test_mysql_resolver_readonly(harness):
     spec = harness[HarnessDbs].specs()['mysql']
-    resolver = Dbs(DbSets({'test': DbSet(writer=spec, reader='writer')}))
-    table = 'om_dbsets_' + uuid.uuid4().hex
-    try:
-        # FIXME: sandboxes, autoexec `USE`, ...
-        with resolver.db('test').connect() as conn:
-            api.exec(conn, 'create database if not exists om_test')
-            api.exec(conn, 'use om_test')
-            api.exec(conn, f'drop table if exists {table}')
-            api.exec(conn, f'create table {table} (value integer)')
-        with resolver.db('test', 'reader').connect() as conn:
-            api.exec(conn, 'use om_test')
-            with conn.begin() as txn:
-                with pytest.raises(DatabaseError):
-                    api.exec(txn, f'insert into {table} values (1)')  # noqa: S608
-        with resolver.db('test').connect() as conn:
-            api.exec(conn, 'use om_test')
-            with conn.begin() as txn:
-                assert api.query_scalar(txn, 'select 1') == 1
-    finally:
-        with resolver.db('test').connect() as conn:
-            api.exec(conn, 'use om_test')
-            api.exec(conn, f'drop table if exists {table}')
+    with Dbs(DbSets({'test': DbSet(writer=spec, reader='writer')})) as resolver:
+        table = 'om_dbsets_' + uuid.uuid4().hex
+        try:
+            # FIXME: sandboxes, autoexec `USE`, ...
+            with resolver.db('test').connect() as conn:
+                api.exec(conn, 'create database if not exists om_test')
+                api.exec(conn, 'use om_test')
+                api.exec(conn, f'drop table if exists {table}')
+                api.exec(conn, f'create table {table} (value integer)')
+            with resolver.db('test', 'reader').connect() as conn:
+                api.exec(conn, 'use om_test')
+                with conn.begin() as txn:
+                    with pytest.raises(DatabaseError):
+                        api.exec(txn, f'insert into {table} values (1)')  # noqa: S608
+            with resolver.db('test').connect() as conn:
+                api.exec(conn, 'use om_test')
+                with conn.begin() as txn:
+                    assert api.query_scalar(txn, 'select 1') == 1
+        finally:
+            with resolver.db('test').connect() as conn:
+                api.exec(conn, 'use om_test')
+                api.exec(conn, f'drop table if exists {table}')
 
 
 # def test_driver_override():

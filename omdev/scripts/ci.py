@@ -91,7 +91,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'b3cc9e3af868f3e7f7ffa10f80f189c2564a4d19'
+__om_amalg_sha1__ = '9948354fa2f140d221e796786e7321f6d85ede95'
 
 
 def __om_amalg__():  # noqa
@@ -111,7 +111,7 @@ def __om_amalg__():  # noqa
             dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../omcore/lite/bytes.py'),
             dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../omcore/lite/cached.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../omcore/lite/check.py'),
-            dict(sha1='3f06d4df40c22bab757b7dfedb6b8bb32120aa30', path='../../omcore/lite/contextmanagers.py'),
+            dict(sha1='d86d3d2ccdd1e92ff95fab03a347e38eaf5d6cb6', path='../../omcore/lite/contextmanagers.py'),
             dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', path='../../omcore/lite/dataclasses.py'),
             dict(sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1', path='../../omcore/lite/imports.py'),
             dict(sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd', path='../../omcore/lite/injectinspect.py'),
@@ -2418,7 +2418,10 @@ class BaseExitStacked(ta.Generic[T]):
 
     def _check_exit_stacked_state(self, *valid: ExitStackedState) -> None:
         if self.__exit_stacked_state not in valid:
-            raise RuntimeError(f'ExitStacked current state {self.__exit_stacked_state!r} in valid state set {valid!r}')
+            raise RuntimeError(
+                f'{type(self).__name__} current state {self.__exit_stacked_state!r} '
+                f'not in valid state set {valid!r}',
+            )
 
     def _set_exit_stacked_state(self, new: ExitStackedState) -> None:
         self.__exit_stacked_state = new
@@ -2466,9 +2469,11 @@ class ExitStacked(BaseExitStacked[contextlib.ExitStack]):
         overriding would likely interfere with that. Override `_enter_contexts` for such init.
         """
 
-        self._check_exit_stacked_state('new')
-        with self._exit_stacked_state_transition('entering', 'entered'):
-            with self._exit_stacked_init_wrapper():
+        # The state check and transition must happen *inside* the init wrapper: if the wrapper is a lock, it has to
+        # serialize the check-and-set, and a racer that fails the check must not touch the winner's state.
+        with self._exit_stacked_init_wrapper():
+            self._check_exit_stacked_state('new')
+            with self._exit_stacked_state_transition('entering', 'entered'):
                 if self._exit_stack is not None:
                     raise RuntimeError
 
@@ -2482,6 +2487,9 @@ class ExitStacked(BaseExitStacked[contextlib.ExitStack]):
                     raise
 
                 return self
+
+        # Only reachable if the init wrapper swallowed an exception - the stack is already unwound and state is 'error'.
+        raise RuntimeError(f'{type(self).__name__} init wrapper suppressed an exception during __enter__')  # noqa
 
     @ta.final
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -2506,6 +2514,7 @@ class ExitStacked(BaseExitStacked[contextlib.ExitStack]):
 
     @ta.final
     def _enter_context(self, cm: ta.ContextManager[T]) -> T:
+        self._check_exit_stacked_state('entering', 'entered')
         if (es := self._exit_stack) is None:
             raise RuntimeError
         return es.enter_context(cm)
@@ -2526,9 +2535,9 @@ class AsyncExitStacked(BaseExitStacked[contextlib.AsyncExitStack]):
 
     @ta.final
     async def __aenter__(self: AsyncExitStackedT) -> AsyncExitStackedT:
-        self._check_exit_stacked_state('new')
-        with self._exit_stacked_state_transition('entering', 'entered'):
-            async with self._async_exit_stacked_init_wrapper():
+        async with self._async_exit_stacked_init_wrapper():
+            self._check_exit_stacked_state('new')
+            with self._exit_stacked_state_transition('entering', 'entered'):
                 if self._exit_stack is not None:
                     raise RuntimeError
 
@@ -2542,6 +2551,8 @@ class AsyncExitStacked(BaseExitStacked[contextlib.AsyncExitStack]):
                     raise
 
                 return self
+
+        raise RuntimeError(f'{type(self).__name__} init wrapper suppressed an exception during __aenter__')  # noqa
 
     @ta.final
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -2566,12 +2577,14 @@ class AsyncExitStacked(BaseExitStacked[contextlib.AsyncExitStack]):
 
     @ta.final
     def _enter_context(self, cm: ta.ContextManager[T]) -> T:
+        self._check_exit_stacked_state('entering', 'entered')
         if (es := self._exit_stack) is None:
             raise RuntimeError
         return es.enter_context(cm)
 
     @ta.final
     async def _enter_async_context(self, cm: ta.AsyncContextManager[T]) -> T:
+        self._check_exit_stacked_state('entering', 'entered')
         if (es := self._exit_stack) is None:
             raise RuntimeError
         return await es.enter_async_context(cm)

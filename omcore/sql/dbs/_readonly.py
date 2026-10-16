@@ -3,6 +3,8 @@ TODO:
  - move to api
  - also wtf
  - god the contextlib.[async]contextmanager overhead
+ - rename spec_readonly ffs
+ - common base classes
 """
 import contextlib
 import typing as ta
@@ -23,12 +25,18 @@ from ..api.queries import Queryable
 
 
 class _DefaultReadonlyConn(Conn):
-    def __init__(self, conn: Conn, readonly: bool, *, cannot_write: bool = False) -> None:
+    def __init__(
+            self,
+            conn: Conn,
+            *,
+            slot_readonly: bool,
+            spec_readonly: bool = False,
+    ) -> None:
         super().__init__()
 
         self._conn = conn
-        self._readonly = readonly
-        self._cannot_write = cannot_write
+        self._slot_readonly = slot_readonly
+        self._spec_readonly = spec_readonly
         self._active_txns = 0
 
     @property
@@ -37,7 +45,7 @@ class _DefaultReadonlyConn(Conn):
 
     @contextlib.contextmanager
     def query(self, query: Queryable) -> ta.Iterator[Rows]:
-        if self._readonly and not self._active_txns:
+        if self._slot_readonly and not self._active_txns:
             with self._conn.begin(readonly=True) as txn:
                 self._active_txns += 1
 
@@ -54,9 +62,9 @@ class _DefaultReadonlyConn(Conn):
 
     @contextlib.contextmanager
     def begin(self, *, readonly: bool | None = None) -> ta.Iterator[Txn]:
-        resolved = self._readonly if readonly is None else readonly
+        resolved = self._slot_readonly if readonly is None else readonly
 
-        if self._cannot_write and not resolved:
+        if self._spec_readonly and not resolved:
             # FIXME: db api error
             raise ValueError('Database is readonly')
 
@@ -71,12 +79,18 @@ class _DefaultReadonlyConn(Conn):
 
 
 class _DefaultReadonlyDb(Db):
-    def __init__(self, db: Db, readonly: bool, *, cannot_write: bool = False) -> None:
+    def __init__(
+            self,
+            db: Db,
+            *,
+            slot_readonly: bool,
+            spec_readonly: bool = False,
+    ) -> None:
         super().__init__()
 
         self._db = db
-        self._readonly = readonly
-        self._cannot_write = cannot_write
+        self._slot_readonly = slot_readonly
+        self._spec_readonly = spec_readonly
 
     @property
     def adapter(self) -> Adapter:
@@ -85,11 +99,15 @@ class _DefaultReadonlyDb(Db):
     @contextlib.contextmanager
     def connect(self) -> ta.Iterator[Conn]:
         with self._db.connect() as conn:
-            yield _DefaultReadonlyConn(conn, self._readonly, cannot_write=self._cannot_write)
+            yield _DefaultReadonlyConn(
+                conn,
+                slot_readonly=self._slot_readonly,
+                spec_readonly=self._spec_readonly,
+            )
 
     @contextlib.contextmanager
     def query(self, query: Queryable) -> ta.Iterator[Rows]:
-        if not self._readonly:
+        if not self._slot_readonly:
             with self._db.query(query) as rows:
                 yield rows
 
@@ -105,12 +123,18 @@ class _DefaultReadonlyDb(Db):
 
 
 class _DefaultReadonlyAsyncConn(AsyncConn):
-    def __init__(self, conn: AsyncConn, readonly: bool, *, cannot_write: bool = False) -> None:
+    def __init__(
+            self,
+            conn: AsyncConn,
+            *,
+            slot_readonly: bool,
+            spec_readonly: bool = False,
+    ) -> None:
         super().__init__()
 
         self._conn = conn
-        self._readonly = readonly
-        self._cannot_write = cannot_write
+        self._slot_readonly = slot_readonly
+        self._spec_readonly = spec_readonly
         self._active_txns = 0
 
     @property
@@ -119,7 +143,7 @@ class _DefaultReadonlyAsyncConn(AsyncConn):
 
     @contextlib.asynccontextmanager
     async def query(self, query: Queryable) -> ta.AsyncIterator[AsyncRows]:
-        if self._readonly and not self._active_txns:
+        if self._slot_readonly and not self._active_txns:
             async with self._conn.begin(readonly=True) as txn:
                 self._active_txns += 1
 
@@ -136,9 +160,9 @@ class _DefaultReadonlyAsyncConn(AsyncConn):
 
     @contextlib.asynccontextmanager
     async def begin(self, *, readonly: bool | None = None) -> ta.AsyncIterator[AsyncTxn]:
-        resolved = self._readonly if readonly is None else readonly
+        resolved = self._slot_readonly if readonly is None else readonly
 
-        if self._cannot_write and not resolved:
+        if self._spec_readonly and not resolved:
             # FIXME: db api error
             raise ValueError('Database is readonly')
 
@@ -153,12 +177,18 @@ class _DefaultReadonlyAsyncConn(AsyncConn):
 
 
 class _DefaultReadonlyAsyncDb(AsyncDb):
-    def __init__(self, db: AsyncDb, readonly: bool, *, cannot_write: bool = False) -> None:
+    def __init__(
+            self,
+            db: AsyncDb,
+            *,
+            slot_readonly: bool,
+            spec_readonly: bool = False,
+    ) -> None:
         super().__init__()
 
         self._db = db
-        self._readonly = readonly
-        self._cannot_write = cannot_write
+        self._slot_readonly = slot_readonly
+        self._spec_readonly = spec_readonly
 
     @property
     def adapter(self) -> Adapter:
@@ -167,11 +197,15 @@ class _DefaultReadonlyAsyncDb(AsyncDb):
     @contextlib.asynccontextmanager
     async def connect(self) -> ta.AsyncIterator[AsyncConn]:
         async with self._db.connect() as conn:
-            yield _DefaultReadonlyAsyncConn(conn, self._readonly, cannot_write=self._cannot_write)
+            yield _DefaultReadonlyAsyncConn(
+                conn,
+                slot_readonly=self._slot_readonly,
+                spec_readonly=self._spec_readonly,
+            )
 
     @contextlib.asynccontextmanager
     async def query(self, query: Queryable) -> ta.AsyncIterator[AsyncRows]:
-        if not self._readonly:
+        if not self._slot_readonly:
             async with self._db.query(query) as rows:
                 yield rows
 

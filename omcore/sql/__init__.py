@@ -83,6 +83,8 @@ with _lang.auto_proxy_init(
 
     from .dbs.sets import (  # noqa
         DbSlot,
+        READONLY_DB_SLOTS,
+        is_readonly_db_slot,
 
         DbSetKey,
         DbSetValue,

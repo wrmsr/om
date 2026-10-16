@@ -10,6 +10,8 @@ from ... import lang
 from ...secrets.secrets import Secrets
 from ..api.core import AsyncDb
 from ..api.core import Db
+from ._readonly import _DefaultReadonlyAsyncDb
+from ._readonly import _DefaultReadonlyDb
 from .factories import AsyncDbFactory
 from .factories import DbFactory
 from .factories import DbFactoryContext
@@ -18,6 +20,7 @@ from .factories import _DefaultDbFactory
 from .sets import DbSetKey
 from .sets import DbSets
 from .sets import DbSlot
+from .sets import is_readonly_db_slot
 from .specs import DbSpec
 
 
@@ -53,17 +56,6 @@ class AnyDbs(
         # NOTE: lock does *not* protect from thread-unsafe context management - e.g. won't block `__exit__`
         self._lock = threading.RLock()
 
-    def _resolve_spec(
-            self,
-            name: str,
-            key: DbSetKey | None = None,
-    ) -> DbSpec:
-        if key is None:
-            key = self._default_key
-        key = check.non_empty_str(key)
-
-        return self._sets[name][key]
-
     def _factory_context(self, spec: DbSpec) -> DbFactoryContext:
         return DbFactoryContext(
             spec,
@@ -98,25 +90,30 @@ class Dbs(
             name: str,
             key: DbSetKey | None = None,
     ) -> Db:
-        spec = self._resolve_spec(
-            name,
-            key=key,
-        )
+        if key is None:
+            key = self._default_key
+        key = check.non_empty_str(key)
+
+        spec = self._sets[name][key]
 
         self._check_exit_stacked_state('entered')
         with self._lock:
             self._check_exit_stacked_state('entered')
 
             try:
-                return self._dbs[spec]
+                db: Db = self._dbs[spec]
+
             except KeyError:
-                pass
+                df_ctx = self._factory_context(spec)
+                db_cm = check.not_none(self._factory(df_ctx))
+                db = self._enter_context(db_cm)
+                self._dbs[spec] = db
 
-            df_ctx = self._factory_context(spec)
-            db_cm = check.not_none(self._factory(df_ctx))
-
-            db = self._enter_context(db_cm)
-            self._dbs[spec] = db
+            db = _DefaultReadonlyDb(
+                db,
+                slot_readonly=is_readonly_db_slot(key),
+                spec_readonly=bool(spec.readonly),
+            )
 
             return db
 
@@ -143,25 +140,34 @@ class AsyncDbs(
             secrets=secrets,
         )
 
-    async def db(self, name: str, key: DbSetKey | None = None) -> AsyncDb:
-        spec = self._resolve_spec(
-            name,
-            key=key,
-        )
+    async def db(
+            self,
+            name: str,
+            key: DbSetKey | None = None,
+    ) -> AsyncDb:
+        if key is None:
+            key = self._default_key
+        key = check.non_empty_str(key)
+
+        spec = self._sets[name][key]
 
         self._check_exit_stacked_state('entered')
         with self._lock:
             self._check_exit_stacked_state('entered')
 
             try:
-                return self._dbs[spec]
+                db: AsyncDb = self._dbs[spec]
+
             except KeyError:
-                pass
+                df_ctx = self._factory_context(spec)
+                db_cm = check.not_none(self._factory(df_ctx))
+                db = await self._enter_async_context(db_cm)
+                self._dbs[spec] = db
 
-            df_ctx = self._factory_context(spec)
-            db_cm = check.not_none(self._factory(df_ctx))
-
-            db = await self._enter_async_context(db_cm)
-            self._dbs[spec] = db
+            db = _DefaultReadonlyAsyncDb(
+                db,
+                slot_readonly=is_readonly_db_slot(key),
+                spec_readonly=bool(spec.readonly),
+            )
 
             return db

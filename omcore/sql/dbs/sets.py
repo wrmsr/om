@@ -16,6 +16,20 @@ class DbSlot(enum.StrEnum):
     READER = 'reader'
     ANALYTICS = 'analytics'
 
+    @property
+    def readonly(self) -> bool:
+        return self in READONLY_DB_SLOTS
+
+
+READONLY_DB_SLOTS: ta.Final[frozenset[DbSlot]] = frozenset([
+    DbSlot.READER,
+    DbSlot.ANALYTICS,
+])
+
+
+def is_readonly_db_slot(slot: DbSlot | str) -> bool:
+    return slot in READONLY_DB_SLOTS
+
 
 ##
 
