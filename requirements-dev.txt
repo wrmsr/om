@@ -136,7 +136,7 @@ pyzmq==27.2.0
 
 datasets==5.1.0
 
-transformers==5.20.0  # @om-venv !15t
+transformers==5.20.1  # @om-venv !15t
 sentence-transformers==6.1.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.2
@@ -159,7 +159,7 @@ pynacl==1.6.2
 bcrypt==5.0.0  # @om-venv !15t
 
 mlx==0.32.4; sys_platform == "darwin"  # @om-venv !15 !15t
-mlx-lm==0.32.0; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
+mlx-lm==0.32.2; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 
 apsw==3.54.0.0
 
