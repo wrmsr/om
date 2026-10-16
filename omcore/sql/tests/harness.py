@@ -10,10 +10,10 @@ from ...os.environ import EnvVar
 from ...testing.pytest import inject as pti
 from ..backends.mysql import connecting as myc
 from ..backends.postgres import connecting as pgc
-from ..dbs import DbSpec
-from ..dbs import DbTypes
-from ..dbs import HostDbLoc
-from ..dbs import UrlDbLoc
+from ..dbs.types import DbSpec
+from ..dbs.types import DbTypes
+from ..dbs.types import HostDbLoc
+from ..dbs.types import UrlDbLoc
 
 
 with lang.auto_proxy_import(globals()):

@@ -16,6 +16,7 @@ from .... import check
 from .... import dataclasses as dc
 from .... import lang
 from ... import api
+from ...dbs import DbLoc
 from .adapters import sqlite_adapter
 
 
@@ -54,7 +55,7 @@ AutoVacuumMode: ta.TypeAlias = ta.Literal[
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-class SqliteDbConfig:
+class SqliteDbConfig(DbLoc):
     file_path: str
 
     # Open

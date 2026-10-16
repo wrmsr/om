@@ -1,13 +1,9 @@
-"""
-TODO:
- - driver preference
-"""
 import typing as ta
 import urllib.parse
 
-from .. import dataclasses as dc
-from .. import lang
-from ..secrets import all as sec
+from ... import dataclasses as dc
+from ... import lang
+from ...secrets import all as sec
 
 
 ##
@@ -15,36 +11,41 @@ from ..secrets import all as sec
 
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
-class DbType(lang.Final):
+class DbFamily(lang.Final):
     name: str
     dialect_name: str
 
     default_port: int | None = None
 
 
-class DbTypes(lang.Namespace, lang.Final):
-    MYSQL = DbType(
+class DbFamilies(lang.Namespace, lang.Final):
+    MYSQL = DbFamily(
         name='mysql',
         dialect_name='mysql',
         default_port=3306,
     )
 
-    POSTGRES = DbType(
+    POSTGRES = DbFamily(
         name='postgres',
         dialect_name='postgresql',
         default_port=5432,
     )
 
-    SQLITE = DbType(
+    SQLITE = DbFamily(
         name='sqlite',
         dialect_name='sqlite',
+    )
+
+    SNOWFLAKE = DbFamily(
+        name='snowflake',
+        dialect_name='snowflake',
     )
 
 
 ##
 
 
-class DbLoc(lang.Abstract, lang.Sealed):
+class DbLoc(lang.Abstract, lang.PackageSealed, sealed_package=__package__.rpartition('.')[0]):
     pass
 
 
@@ -78,12 +79,14 @@ class DbCaps:
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbSpec(lang.Final):
     name: str
-    type: DbType
+    type: DbFamily  # FIXME: -> family
     loc: DbLoc
 
     _: dc.KW_ONLY
 
     caps: DbCaps | None = None
+    database: str | None = None
+    driver: str | None = None
 
 
 ##

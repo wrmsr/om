@@ -8,8 +8,8 @@ from ... import check
 from ... import dataclasses as dc
 from ...secrets.secrets import SecretRef
 from ...secrets.secrets import Secrets
-from ..dbs import DbType
-from ..dbs import HostDbLoc
+from ..dbs.types import DbType
+from ..dbs.types import HostDbLoc
 
 
 ##

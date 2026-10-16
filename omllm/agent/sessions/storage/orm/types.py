@@ -10,7 +10,7 @@ from omcore import orm
 
 class Orm(lang.Abstract):
     @abc.abstractmethod
-    def new_session(self) -> ta.AsyncContextManager[orm.Session]:
+    def new_session(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[orm.Session]:
         raise NotImplementedError
 
     @abc.abstractmethod

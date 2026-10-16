@@ -42,9 +42,8 @@ class Adapter(lang.Abstract):
     def last_insert_id_query(self) -> str | None:
         return self.dialect.last_insert_id_query
 
-    @property
-    def begin_query(self) -> str:
-        return self.dialect.begin_query
+    def begin_query(self, *, readonly: bool | None = None) -> str:
+        return self.dialect.begin_query(readonly=readonly)
 
     @abc.abstractmethod
     def scan_type(self, c: Column) -> type:

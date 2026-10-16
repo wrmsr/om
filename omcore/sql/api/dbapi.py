@@ -114,16 +114,23 @@ class DbapiRows(Rows):
 
 
 class DbapiTxn(Txn, SimpleResource):
-    def __init__(self, conn: DbapiConn) -> None:
+    def __init__(self, conn: DbapiConn, *, readonly: bool = False) -> None:
         super().__init__()
 
         self._conn = conn
+        self._readonly = readonly
+        self._setup = contextlib.ExitStack()
 
     _state: ta.Literal['new', 'open', 'committed', 'aborted'] = 'new'
 
     def _enter(self) -> None:
         check.state(self._state == 'new')
-        qf.exec(self._conn, self._conn.adapter.begin_query)
+        try:
+            self._setup.enter_context(self._conn._adapter.transaction_context(self._conn, readonly=self._readonly))  # noqa
+            qf.exec(self._conn, self._conn.adapter.begin_query(readonly=self._readonly))
+        except BaseException:
+            self._setup.close()
+            raise
         self._state = 'open'
 
     def _commit_internal(self) -> None:
@@ -137,13 +144,16 @@ class DbapiTxn(Txn, SimpleResource):
         self._state = 'aborted'
 
     def _close(self, reason: BaseException | None) -> None:
-        if self._state == 'open':
-            if reason is not None:
-                self._rollback_internal()
-            else:
-                self._commit_internal()
+        try:
+            if self._state == 'open':
+                if reason is not None:
+                    self._rollback_internal()
+                else:
+                    self._commit_internal()
 
-        super()._close(reason)
+            super()._close(reason)
+        finally:
+            self._setup.close()
 
     @property
     def adapter(self) -> Adapter:
@@ -207,8 +217,8 @@ class DbapiConn(Conn):
 
         return inner()
 
-    def begin(self) -> ta.ContextManager[Txn]:
-        return DbapiTxn(self)
+    def begin(self, *, readonly: bool | None = None) -> ta.ContextManager[Txn]:
+        return DbapiTxn(self, readonly=bool(readonly))
 
 
 #
@@ -282,3 +292,6 @@ class DbapiAdapter(Adapter):
 
     def scan_type(self, c: Column) -> type:
         raise NotImplementedError
+
+    def transaction_context(self, conn: DbapiConn, *, readonly: bool) -> ta.ContextManager[None]:
+        return contextlib.nullcontext()

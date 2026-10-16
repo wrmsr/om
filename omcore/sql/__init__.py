@@ -64,6 +64,29 @@ with _lang.auto_proxy_init(
 
     #
 
+    from . import dbs  # noqa
+
+    from .dbs.types import (  # noqa
+        DbType,
+        DbTypes,
+
+        DbLoc,
+        UrlDbLoc,
+        HostDbLoc,
+
+        DbCaps,
+        DbSpec,
+    )
+
+    from .dbs.sets import (  # noqa
+        DbSlot,
+        DbSet,
+        DbSets,
+        DbResolver,
+    )
+
+    #
+
     from . import dtypes  # noqa
     from . import dtypes as dt  # noqa
 
@@ -86,17 +109,6 @@ with _lang.auto_proxy_init(
     from . import tabledefs as td  # noqa
 
     #
-
-    from .dbs import (  # noqa
-        DbType,
-        DbTypes,
-
-        DbLoc,
-        UrlDbLoc,
-        HostDbLoc,
-
-        DbSpec,
-    )
 
     from .params import (  # noqa
         ParamKey,

@@ -38,8 +38,8 @@ from .... import check
 from .... import lang
 from ....diag import pydevd as pdu  # noqa
 from ....testing import pytest as ptu
-from ...dbs import UrlDbLoc
-from ...dbs import set_url_engine
+from ...dbs.types import UrlDbLoc
+from ...dbs.types import set_url_engine
 from ...tests.harness import HarnessDbs
 from ...tests.utils import mark_sql_backend
 

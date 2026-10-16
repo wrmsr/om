@@ -105,7 +105,7 @@ class SqlalchemyApiConn(SqlalchemyApiWrapper[sa.engine.Connection], api.Conn):
             ]
         return SqlalchemyApiRows(cols, rows)
 
-    def begin(self) -> ta.ContextManager[api.Txn]:
+    def begin(self, *, readonly: bool | None = None) -> ta.ContextManager[api.Txn]:
         raise NotImplementedError
 
 

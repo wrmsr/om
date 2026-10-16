@@ -17,14 +17,19 @@ class StoreOrm(Orm):
             *,
             registry: orm.Registry,
             store: orm.Store,
+            read_store: orm.Store | None = None,
     ) -> None:
         super().__init__()
 
         self._registry = registry
         self._store = store
+        self._read_store = read_store
 
-    def new_session(self) -> ta.AsyncContextManager[orm.Session]:
-        return orm.session(self._registry, self._store)
+    def new_session(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[orm.Session]:
+        if readonly:
+            return orm.session(self._registry, self._read_store or self._store, readonly=True)
+        else:
+            return orm.session(self._registry, self._store)
 
     def ensure_session(self) -> ta.AsyncContextManager[orm.Session]:
         if (active_session := orm.opt_active_session()) is not None:

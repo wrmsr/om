@@ -85,11 +85,13 @@ class AsyncpgTxn(AsyncTxn):
     def __init__(
             self,
             conn: AsyncpgConn,
+            *,
+            readonly: bool = False,
     ) -> None:
         super().__init__()
 
         self._conn = conn
-        self._tr = conn._conn.transaction()  # noqa
+        self._tr = conn._conn.transaction(readonly=readonly)  # noqa
 
     _state: ta.Literal['new', 'open', 'committed', 'aborted'] = 'new'
 
@@ -214,8 +216,8 @@ class AsyncpgConn(AsyncConn):
 
         return inner()
 
-    def begin(self) -> ta.AsyncContextManager[AsyncTxn]:
-        return AsyncpgTxn(self)
+    def begin(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[AsyncTxn]:
+        return AsyncpgTxn(self, readonly=bool(readonly))
 
 
 #

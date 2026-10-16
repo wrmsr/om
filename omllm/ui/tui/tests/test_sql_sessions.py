@@ -50,6 +50,10 @@ def test_config_arguments():
 @pytest.mark.asyncs('asyncio')
 async def test_sql_sessions():
     db_path = os.path.join(tempfile.mkdtemp(), 'state', 'llm', 'sessions.db')
+    db_sets = sql.DbSets({'sessions': sql.DbSet(
+        sql.DbSpec('sessions', sql.DbTypes.SQLITE, sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_path)),
+        reader='writer',
+    )})
 
     def bind(*turns, resume=None):
         return inj.as_elements(
@@ -60,7 +64,7 @@ async def test_sql_sessions():
                     resume=resume,
                 )),
                 bind_scripted_backend(*turns),
-                inj.bind(sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_path)),
+                inj.bind(db_sets),
             ),
 
             inj.bind(EchoTool, singleton=True),

@@ -50,16 +50,20 @@ class OmysqlRows(Rows):
 
 
 class OmysqlTxn(Txn, SimpleResource):
-    def __init__(self, conn: OmysqlConn) -> None:
+    def __init__(self, conn: OmysqlConn, *, readonly: bool = False) -> None:
         super().__init__()
 
         self._conn = conn
+        self._readonly = readonly
 
     _state: ta.Literal['new', 'open', 'committed', 'aborted'] = 'new'
 
     def _enter(self) -> None:
         check.state(self._state == 'new')
-        self._conn._conn.begin()  # noqa: SLF001
+        if self._readonly:
+            self._conn._conn.query('start transaction read only')  # noqa: SLF001
+        else:
+            self._conn._conn.begin()  # noqa: SLF001
         self._state = 'open'
 
     def _commit_internal(self) -> None:
@@ -159,8 +163,8 @@ class OmysqlConn(Conn):
 
         return inner()
 
-    def begin(self) -> ta.ContextManager[Txn]:
-        return OmysqlTxn(self)
+    def begin(self, *, readonly: bool | None = None) -> ta.ContextManager[Txn]:
+        return OmysqlTxn(self, readonly=bool(readonly))
 
 
 #

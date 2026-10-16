@@ -51,16 +51,17 @@ class Og8000Rows(Rows):
 
 
 class Og8000Txn(Txn, SimpleResource):
-    def __init__(self, conn: Og8000Conn) -> None:
+    def __init__(self, conn: Og8000Conn, *, readonly: bool = False) -> None:
         super().__init__()
 
         self._conn = conn
+        self._readonly = readonly
 
     _state: ta.Literal['new', 'open', 'committed', 'aborted'] = 'new'
 
     def _enter(self) -> None:
         check.state(self._state == 'new')
-        qf.exec(self._conn, 'begin')
+        qf.exec(self._conn, 'begin read only' if self._readonly else 'begin')
         self._state = 'open'
 
     def _commit_internal(self) -> None:
@@ -145,8 +146,8 @@ class Og8000Conn(Conn):
 
         return inner()
 
-    def begin(self) -> ta.ContextManager[Txn]:
-        return Og8000Txn(self)
+    def begin(self, *, readonly: bool | None = None) -> ta.ContextManager[Txn]:
+        return Og8000Txn(self, readonly=bool(readonly))
 
 
 #

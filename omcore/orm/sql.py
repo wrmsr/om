@@ -201,11 +201,13 @@ class SqlStore(Store):
             tabledef_renderer: sql.td.Renderer,
             tabledef_create_options: sql.td.Renderer.CreateOptions | None = None,
             dtype_codec: sql.dt.DtypeCodec | None = None,
+            manage_schema: bool = True,
     ) -> None:
         super().__init__()
 
         self._registry = registry
         self._db = db
+        self._manage_schema = manage_schema
 
         # The dialect facets are injected, not chosen here - the orm stays backend-agnostic. param_style is taken from
         # the connection's adapter when it declares one, falling back to qmark; the tabledef renderer is required; and
@@ -323,7 +325,7 @@ class SqlStore(Store):
         Creates whatever of the schema does not yet exist. Done on first use regardless, so calling it is optional.
         """
 
-        if self._has_created_schema:
+        if self._has_created_schema or not self._manage_schema:
             return
 
         await self._create_schema()
@@ -337,12 +339,14 @@ class SqlStore(Store):
                 o: SqlStore,
                 *,
                 no_transaction: bool = False,
+                readonly: bool | None = None,
         ) -> None:
             super().__init__()
 
             self._o = o
 
             self._no_transaction = no_transaction
+            self._readonly = readonly
 
             self._es = contextlib.AsyncExitStack()
 
@@ -362,7 +366,7 @@ class SqlStore(Store):
             self._conn = await self._es.enter_async_context(sql.connect(self._o._db))
 
             if not self._no_transaction:
-                self._txn = await self._es.enter_async_context(self._conn.begin())
+                self._txn = await self._es.enter_async_context(self._conn.begin(readonly=self._readonly))
                 self._q = self._txn
             else:
                 self._q = self._conn
@@ -571,8 +575,10 @@ class SqlStore(Store):
             self,
             *,
             transaction: bool | ta.Literal['default'] = 'default',
+            readonly: bool | None = None,
     ) -> ta.AsyncContextManager[Store.Context]:
         return self._Context(
             self,
             no_transaction=False if transaction == 'default' else not transaction,
+            readonly=readonly,
         )

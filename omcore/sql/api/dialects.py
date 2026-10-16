@@ -36,9 +36,10 @@ class Dialect(lang.Abstract):
         # A self-contained query returning the connection's last auto-generated id, for backends without RETURNING.
         return None
 
-    @property
-    def begin_query(self) -> str:
+    def begin_query(self, *, readonly: bool | None = None) -> str:
         # What opens a transaction: a backend may have more than one way to, differing in what they lock and when.
+        if readonly:
+            raise NotImplementedError('Read-only transactions are not supported by this dialect')
         return 'begin'
 
 
