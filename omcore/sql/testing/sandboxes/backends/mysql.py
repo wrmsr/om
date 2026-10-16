@@ -14,7 +14,7 @@ from ....api.core import Conn
 from ....api.core import Db
 from ....api.queriers import Querier
 from ....backends import mysql as be
-from ....dbs import HostDbLoc
+from ....dbs.specs import HostDbLoc
 from ....queries import Q
 from ..backend import SandboxBackend
 from ..backend import UnregisteredSandbox

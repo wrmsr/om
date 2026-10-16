@@ -8,14 +8,14 @@ from ... import check
 from ... import dataclasses as dc
 from ...secrets.secrets import SecretRef
 from ...secrets.secrets import Secrets
-from ..dbs.types import DbType
-from ..dbs.types import HostDbLoc
+from ..dbs.specs import DbFamily
+from ..dbs.specs import HostDbLoc
 
 
 ##
 
 
-def parse_url_db_loc(url: str, db_type: DbType) -> tuple[HostDbLoc, str | None]:
+def parse_url_db_loc(url: str, db_type: DbFamily) -> tuple[HostDbLoc, str | None]:
     """Splits a `scheme://user:password@host:port/database` url into a host location and the database name."""
 
     p_u = urllib.parse.urlparse(url)

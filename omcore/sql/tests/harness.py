@@ -10,10 +10,10 @@ from ...os.environ import EnvVar
 from ...testing.pytest import inject as pti
 from ..backends.mysql import connecting as myc
 from ..backends.postgres import connecting as pgc
-from ..dbs.types import DbSpec
-from ..dbs.types import DbTypes
-from ..dbs.types import HostDbLoc
-from ..dbs.types import UrlDbLoc
+from ..dbs.specs import DbFamilies
+from ..dbs.specs import DbSpec
+from ..dbs.specs import HostDbLoc
+from ..dbs.specs import UrlDbLoc
 
 
 with lang.auto_proxy_import(globals()):
@@ -42,30 +42,30 @@ class HarnessDbs:
     def _build_mysql_db(self, name: str, svc: ta.Mapping[str, ta.Any]) -> DbSpec:
         if self._in_docker():
             host = self._compose_services.prefix + name
-            port = DbTypes.MYSQL.default_port
+            port = DbFamilies.MYSQL.default_port
         else:
             host = '127.0.0.1'
-            port = get_compose_port(svc, check.not_none(DbTypes.MYSQL.default_port))
+            port = get_compose_port(svc, check.not_none(DbFamilies.MYSQL.default_port))
 
         env = svc['environment']
         return DbSpec(
             name,
-            DbTypes.MYSQL,
+            DbFamilies.MYSQL,
             UrlDbLoc(f'mysql://root:{env["MYSQL_ROOT_PASSWORD"]}@{host}:{port}'),
         )
 
     def _build_postgres_db(self, name: str, svc: ta.Mapping[str, ta.Any]) -> DbSpec:
         if self._in_docker():
             host = self._compose_services.prefix + name
-            port = DbTypes.POSTGRES.default_port
+            port = DbFamilies.POSTGRES.default_port
         else:
             host = '127.0.0.1'
-            port = get_compose_port(svc, check.not_none(DbTypes.POSTGRES.default_port))
+            port = get_compose_port(svc, check.not_none(DbFamilies.POSTGRES.default_port))
 
         env = svc['environment']
         return DbSpec(
             name,
-            DbTypes.POSTGRES,
+            DbFamilies.POSTGRES,
             UrlDbLoc(f'postgresql://{env["POSTGRES_USER"]}:{env["POSTGRES_PASSWORD"]}@{host}:{port}'),
         )
 
@@ -79,7 +79,7 @@ class HarnessDbs:
             if url := url_var.get(None):
                 lst.append(DbSpec(
                     name,
-                    DbTypes.MYSQL,
+                    DbFamilies.MYSQL,
                     UrlDbLoc(url),
                 ))
 
@@ -93,7 +93,7 @@ class HarnessDbs:
             if url := url_var.get(None):
                 lst.append(DbSpec(
                     name,
-                    DbTypes.POSTGRES,
+                    DbFamilies.POSTGRES,
                     UrlDbLoc(url),
                 ))
 

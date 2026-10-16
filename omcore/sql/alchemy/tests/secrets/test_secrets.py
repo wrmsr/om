@@ -23,8 +23,8 @@ set search_path to secrets, public;
 # from ... import check
 # from ... import lang
 # from ...testing import pytest as ptu
-# from ..dbs import UrlDbLoc
-# from ..dbs import set_url_engine
+# from ..dbs.specs import UrlDbLoc
+# from ..dbs.specs import set_url_engine
 # from .dbs import Dbs
 #
 #

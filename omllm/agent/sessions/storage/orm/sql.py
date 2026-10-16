@@ -22,9 +22,11 @@ class SqlOrm(Orm, lang.SelfAsyncContextManaged):
             self,
             *,
             registry: orm.Registry,
+
             # FIXME: obvious pairs of something
             db: sql.AsyncDb,
             backend: sql.be.Backend,
+
             read_db: sql.AsyncDb | None = None,
             read_backend: sql.be.Backend | None = None,
     ) -> None:

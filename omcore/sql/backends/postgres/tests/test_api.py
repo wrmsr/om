@@ -5,7 +5,7 @@ from .....testing import pytest as ptu
 from ....api import querierfuncs as qf
 from ....api.dbapi import ClosingDbapiConnector
 from ....api.dbapi import DbapiDb
-from ....dbs import UrlDbLoc
+from ....dbs.specs import UrlDbLoc
 from ....tests.harness import HarnessDbs
 
 

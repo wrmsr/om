@@ -9,7 +9,7 @@ from ....api.asyncs import ImmediateSyncToAsyncRunner
 from ....api.asyncs import SyncToAsyncDb
 from ....api.dbapi import ClosingDbapiConnector
 from ....api.dbapi import DbapiDb
-from ....dbs import UrlDbLoc
+from ....dbs.specs import UrlDbLoc
 from ....dtypes import Integer
 from ....dtypes import String
 from ....params import ParamStyle

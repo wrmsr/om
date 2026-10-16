@@ -64,11 +64,36 @@ with _lang.auto_proxy_init(
 
     #
 
-    from . import dbs  # noqa
+    from .dbs.dbs import (  # noqa
+        AnyDbs,
+        Dbs,
+        AsyncDbs,
+    )
 
-    from .dbs.types import (  # noqa
-        DbType,
-        DbTypes,
+    from .dbs.factories import (  # noqa
+        DbFactoryContext,
+        AnyDbFactory,
+
+        DbFactoryOutput,
+        DbFactory,
+
+        AsyncDbFactoryOutput,
+        AsyncDbFactory,
+    )
+
+    from .dbs.sets import (  # noqa
+        DbSlot,
+
+        DbSetKey,
+        DbSetValue,
+        DbSet,
+
+        DbSets,
+    )
+
+    from .dbs.specs import (  # noqa
+        DbFamily,
+        DbFamilies,
 
         DbLoc,
         UrlDbLoc,
@@ -76,13 +101,10 @@ with _lang.auto_proxy_init(
 
         DbCaps,
         DbSpec,
-    )
 
-    from .dbs.sets import (  # noqa
-        DbSlot,
-        DbSet,
-        DbSets,
-        DbResolver,
+        rebuild_url,
+        set_url_engine,
+        set_url_database,
     )
 
     #

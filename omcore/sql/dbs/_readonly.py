@@ -2,6 +2,7 @@
 TODO:
  - move to api
  - also wtf
+ - god the contextlib.[async]contextmanager overhead
 """
 import contextlib
 import typing as ta
@@ -56,7 +57,8 @@ class _DefaultReadonlyConn(Conn):
         resolved = self._readonly if readonly is None else readonly
 
         if self._cannot_write and not resolved:
-            raise ValueError('Database endpoint is read-only')
+            # FIXME: db api error
+            raise ValueError('Database is readonly')
 
         with self._conn.begin(readonly=resolved) as txn:
             self._active_txns += 1
@@ -137,7 +139,8 @@ class _DefaultReadonlyAsyncConn(AsyncConn):
         resolved = self._readonly if readonly is None else readonly
 
         if self._cannot_write and not resolved:
-            raise ValueError('Database endpoint is read-only')
+            # FIXME: db api error
+            raise ValueError('Database is readonly')
 
         async with self._conn.begin(readonly=resolved) as txn:
             self._active_txns += 1

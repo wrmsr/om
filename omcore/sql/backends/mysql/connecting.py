@@ -8,8 +8,8 @@ from .... import check
 from ....secrets.secrets import Secrets
 from ...api.core import AsyncDb
 from ...api.core import Db
-from ...dbs import DbTypes
-from ...dbs import HostDbLoc
+from ...dbs.specs import DbFamilies
+from ...dbs.specs import HostDbLoc
 from ...drivers.omysql.core.asyncio import AsyncioConnection
 from ...drivers.omysql.core.sync import SyncConnection
 from ..connecting import parse_url_db_loc as _parse_url_db_loc
@@ -23,7 +23,7 @@ from .drivers.omysql.sync import OmysqlDb
 
 
 def parse_url_db_loc(url: str) -> tuple[HostDbLoc, str | None]:
-    return _parse_url_db_loc(url, DbTypes.MYSQL)
+    return _parse_url_db_loc(url, DbFamilies.MYSQL)
 
 
 def _omysql_kwargs(
@@ -38,7 +38,7 @@ def _omysql_kwargs(
         user=check.non_empty_str(loc.username),
         password=password if password is not None else '',
         host=loc.host,
-        port=loc.port if loc.port is not None else check.not_none(DbTypes.MYSQL.default_port),
+        port=loc.port if loc.port is not None else check.not_none(DbFamilies.MYSQL.default_port),
         database=database,
     )
 

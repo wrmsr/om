@@ -13,7 +13,7 @@ AsyncExitStackedT = ta.TypeVar('AsyncExitStackedT', bound='AsyncExitStacked')
 ##
 
 
-ExitStackedState = ta.Literal[  # ta.TypeAlias  # om-amalg-typing-no-move  # noqa
+ExitStackedState = ta.Literal[  # ta.TypeAlias  # om-amalg-typing-no-move
     'new',
 
     'entering',
@@ -26,7 +26,7 @@ ExitStackedState = ta.Literal[  # ta.TypeAlias  # om-amalg-typing-no-move  # noq
 ]
 
 
-class _BaseExitStacked(ta.Generic[T]):
+class BaseExitStacked(ta.Generic[T]):
     _exit_stack: ta.Optional[T] = None
 
     #
@@ -65,7 +65,7 @@ class _BaseExitStacked(ta.Generic[T]):
 
 
 class _ExitStackedStateTransition:
-    def __init__(self, obj: _BaseExitStacked, start: ExitStackedState, end: ExitStackedState) -> None:
+    def __init__(self, obj: BaseExitStacked, start: ExitStackedState, end: ExitStackedState) -> None:
         self._obj, self._start, self._end = obj, start, end
 
     def __enter__(self) -> None:
@@ -75,13 +75,13 @@ class _ExitStackedStateTransition:
         if e is None:
             self._obj._set_exit_stacked_state(self._end)  # noqa
         else:
-            self._obj._set_exit_stacked_state('error')
+            self._obj._set_exit_stacked_state('error')  # noqa
 
 
 #
 
 
-class ExitStacked(_BaseExitStacked[contextlib.ExitStack]):
+class ExitStacked(BaseExitStacked[contextlib.ExitStack]):
     def __init_subclass__(cls, **kwargs: ta.Any) -> None:
         super().__init_subclass__(**kwargs)
 
@@ -151,7 +151,7 @@ class ExitStacked(_BaseExitStacked[contextlib.ExitStack]):
 #
 
 
-class AsyncExitStacked(_BaseExitStacked[contextlib.AsyncExitStack]):
+class AsyncExitStacked(BaseExitStacked[contextlib.AsyncExitStack]):
     def __init_subclass__(cls, **kwargs: ta.Any) -> None:
         super().__init_subclass__(**kwargs)
 

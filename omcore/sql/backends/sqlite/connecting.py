@@ -16,7 +16,7 @@ from .... import check
 from .... import dataclasses as dc
 from .... import lang
 from ... import api
-from ...dbs import DbLoc
+from ...dbs.specs import DbLoc
 from .adapters import sqlite_adapter
 
 

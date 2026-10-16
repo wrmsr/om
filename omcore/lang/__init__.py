@@ -679,11 +679,14 @@ with _auto_proxy_init(
     )
 
     from ..lite.contextmanagers import (  # noqa
-        AsyncExitStacked,
+        BaseExitStacked,
         ExitStacked,
-        adefer,
-        attr_setting,
+        AsyncExitStacked,
+
         defer,
+        adefer,
+
+        attr_setting,
     )
 
     from ..lite.imports import (  # noqa

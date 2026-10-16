@@ -8,7 +8,7 @@ import sys
 
 from ..... import marshal as msh
 from .....formats.json import all as json
-from ....dbs import HostDbLoc
+from ....dbs.specs import HostDbLoc
 from ..backend import SandboxBackend
 from ..backends.mysql import MysqlSandboxBackend
 from ..backends.postgres import PostgresSandboxBackend

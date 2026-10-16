@@ -8,8 +8,8 @@ from .... import check
 from ....secrets.secrets import Secrets
 from ...api.core import AsyncDb
 from ...api.core import Db
-from ...dbs import DbTypes
-from ...dbs import HostDbLoc
+from ...dbs.specs import DbFamilies
+from ...dbs.specs import HostDbLoc
 from ...drivers import og8000 as og8000_
 from ..connecting import parse_url_db_loc as _parse_url_db_loc
 from ..connecting import reveal_password
@@ -21,7 +21,7 @@ from .drivers import og8000
 
 
 def parse_url_db_loc(url: str) -> tuple[HostDbLoc, str | None]:
-    return _parse_url_db_loc(url, DbTypes.POSTGRES)
+    return _parse_url_db_loc(url, DbFamilies.POSTGRES)
 
 
 def _og8000_kwargs(
@@ -38,7 +38,7 @@ def _og8000_kwargs(
         user=check.non_empty_str(loc.username),
         password=password,
         host=loc.host,
-        port=loc.port if loc.port is not None else check.not_none(DbTypes.POSTGRES.default_port),
+        port=loc.port if loc.port is not None else check.not_none(DbFamilies.POSTGRES.default_port),
         database=database,
         application_name=application_name,
         startup_params=dict(startup_params) if startup_params is not None else None,

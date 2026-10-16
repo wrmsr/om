@@ -20,7 +20,7 @@ import pytest
 
 from .... import check
 from ...tests.harness import HarnessDbs
-from ...dbs import UrlDbLoc
+from ...dbs.specs import UrlDbLoc
 from . import dbapi
 
 

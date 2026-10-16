@@ -11,8 +11,8 @@ from ...secrets.secrets import SecretRef
 from ...secrets.secrets import Secrets
 from ..api.core import AsyncDb
 from ..api.core import Db
-from .specs import DbSpec
 from .specs import DbFamilies
+from .specs import DbSpec
 from .specs import HostDbLoc
 from .specs import UrlDbLoc
 
@@ -30,9 +30,12 @@ T_co = ta.TypeVar('T_co', covariant=True)
 ##
 
 
-@dc.dataclass(frozen=True, kw_only=True)
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbFactoryContext:
     spec: DbSpec
+
+    _: dc.KW_ONLY
 
     secrets: Secrets | None = None
 
@@ -41,11 +44,14 @@ class AnyDbFactory(ta.Protocol[T_co]):
     def __call__(self, ctx: DbFactoryContext) -> T_co: ...
 
 
-DbFactory: ta.TypeAlias = ta.Callable[[DbFactoryContext], ta.ContextManager[Db]]
-AsyncDbFactory: ta.TypeAlias = ta.Callable[[DbFactoryContext], ta.AsyncContextManager[AsyncDb]]
+DbFactoryOutput: ta.TypeAlias = ta.ContextManager[Db]
+DbFactory: ta.TypeAlias = ta.Callable[[DbFactoryContext], DbFactoryOutput]
+
+AsyncDbFactoryOutput: ta.TypeAlias = ta.AsyncContextManager[AsyncDb]
+AsyncDbFactory: ta.TypeAlias = ta.Callable[[DbFactoryContext], AsyncDbFactoryOutput]
 
 
-#
+##
 
 
 class _BaseDefaultDbFactory:

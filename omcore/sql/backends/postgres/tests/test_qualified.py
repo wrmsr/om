@@ -7,7 +7,7 @@ from ..... import lang
 from ....api import querierfuncs as qf
 from ....api.asyncs import ImmediateSyncToAsyncRunner
 from ....api.asyncs import SyncToAsyncDb
-from ....dbs import UrlDbLoc
+from ....dbs.specs import UrlDbLoc
 from ....drivers.og8000.core.sync import SyncCoreConnection
 from ....dtypes import DATETIME
 from ....dtypes import STRING

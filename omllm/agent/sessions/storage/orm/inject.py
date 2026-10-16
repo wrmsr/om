@@ -43,31 +43,48 @@ def bind_orm_session_storage() -> inj.Elements:
 
 
 def _provide_sqlite_db_sets(config: SqliteDbConfig) -> sql.DbSets:
-    writer = sql.DbSpec('sessions', sql.DbTypes.SQLITE, config)
+    writer = sql.DbSpec(
+        'sessions',
+        sql.DbFamilies.SQLITE,
+        config,
+    )
+
     reader_config = dc.replace(
         SqliteDbConfig.READONLY,
         file_path=config.file_path,
         page_size=config.page_size,
         application_id=config.application_id,
     )
+
     reader = sql.DbSpec(
         'sessions-reader',
-        sql.DbTypes.SQLITE,
+        sql.DbFamilies.SQLITE,
         reader_config,
         caps=sql.DbCaps(readonly=True),
     )
-    return sql.DbSets({'sessions': sql.DbSet(writer, reader=reader, analytics='reader')})
+
+    return sql.DbSets({
+        'sessions': sql.DbSet(
+            writer=writer,
+            reader=reader,
+            analytics='reader',
+        ),
+    })
 
 
 # FIXME: should be in core lol
 def _backend_for(spec: sql.DbSpec) -> sql.be.Backend:
-    if spec.type == sql.DbTypes.SQLITE:
+    if spec.type == sql.DbFamilies.SQLITE:
         return sql.be.sqlite.backend.SqliteBackend()
-    if spec.type == sql.DbTypes.POSTGRES:
+
+    elif spec.type == sql.DbFamilies.POSTGRES:
         return sql.be.postgres.backend.PostgresBackend()
-    if spec.type == sql.DbTypes.MYSQL:
+
+    elif spec.type == sql.DbFamilies.MYSQL:
         return sql.be.mysql.backend.MysqlBackend()
-    raise ValueError(f'No ORM backend for {spec.type.name}')
+
+    else:
+        raise ValueError(f'No ORM backend for {spec.type.name}')
 
 
 async def _provide_db_sets_orm(
@@ -75,17 +92,21 @@ async def _provide_db_sets_orm(
         registry: orm.Registry,
         aes: contextlib.AsyncExitStack,
 ) -> SqlOrm:
-    resolver = await aes.enter_async_context(sql.DbResolver(sets))
+    resolver = await aes.enter_async_context(sql.AsyncDbs(sets))
+
     db_set = sets['sessions']
-    writer = await resolver.async_db('sessions')
-    reader = await resolver.async_db('sessions', sql.DbSlot.READER)
+
+    writer = await resolver.db('sessions')
+    reader = await resolver.db('sessions', sql.DbSlot.READER)
 
     return await aes.enter_async_context(SqlOrm(
         registry=registry,
+
         db=writer,
-        backend=_backend_for(db_set.spec()),
+        backend=_backend_for(db_set.writer),
+
         read_db=reader,
-        read_backend=_backend_for(db_set.spec(sql.DbSlot.READER)),
+        read_backend=_backend_for(db_set.reader),
     ))
 
 

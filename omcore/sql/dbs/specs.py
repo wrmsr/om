@@ -85,6 +85,13 @@ class DbSpec(lang.Final):
     _: dc.KW_ONLY
 
     caps: DbCaps | None = None
+
+    @property
+    def readonly(self) -> bool | None:
+        if (caps := self.caps) is None:
+            return None
+        return caps.readonly
+
     database: str | None = None
     driver: str | None = None
 

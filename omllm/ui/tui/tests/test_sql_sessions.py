@@ -51,7 +51,11 @@ def test_config_arguments():
 async def test_sql_sessions():
     db_path = os.path.join(tempfile.mkdtemp(), 'state', 'llm', 'sessions.db')
     db_sets = sql.DbSets({'sessions': sql.DbSet(
-        sql.DbSpec('sessions', sql.DbTypes.SQLITE, sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_path)),
+        writer=sql.DbSpec(
+            'sessions',
+            sql.DbFamilies.SQLITE,
+            sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_path),
+        ),
         reader='writer',
     )})
 

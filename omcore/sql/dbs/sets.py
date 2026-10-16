@@ -17,15 +17,17 @@ class DbSlot(enum.StrEnum):
     ANALYTICS = 'analytics'
 
 
-DbSetKey: ta.TypeAlias = DbSlot | str
-DbSetValue: ta.TypeAlias = DbSpec | DbSetKey
-
-
 ##
 
 
+def _check_is_exactly_str(s: str) -> str:
+    if type(s) is not str:
+        raise TypeError(s)
+    return s
+
+
 def _resolve_aliases(items: ta.Iterable[tuple[str | ta.Any, str | T]]) -> dict[str, T]:
-    dct: dict[str, DbSpec | str] = {}
+    dct: dict[str, str | T] = {}
 
     for ek, ev in items:
         if type(ek) is not str:
@@ -62,10 +64,17 @@ def _resolve_aliases(items: ta.Iterable[tuple[str | ta.Any, str | T]]) -> dict[s
         for k in path:
             dct[k] = v
 
-    return {check.isinstance(k, str): check.isinstance(v, DbSpec) for k, v in dct.items()}
+    return {
+        _check_is_exactly_str(k): ta.cast(T, check.not_isinstance(v, str))  # noqa
+        for k, v in dct.items()
+    }
 
 
 ##
+
+
+DbSetKey: ta.TypeAlias = DbSlot | str
+DbSetValue: ta.TypeAlias = DbSpec | DbSetKey
 
 
 class DbSet(ta.Mapping[DbSetKey, DbSpec]):
@@ -89,18 +98,16 @@ class DbSet(ta.Mapping[DbSetKey, DbSpec]):
                     ('analytics', analytics),
                 ]
                 if v is not None
-            ])
+            ]),
         ])
 
-        self._specs = {
-            check.isinstance(k, str): check.isinstance(v, DbSpec)
-            for k, v in resolved.items()
-        }
+        self._specs = {k: check.isinstance(v, DbSpec) for k, v in resolved.items()}
+
+        if (ws := self._specs.get('writer')) is not None and ws.readonly:
+            raise ValueError('Writer slot refers to a readonly spec')
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}<{", ".join(map(repr, self._specs))}>'
-
-    #
 
     #
 
@@ -137,10 +144,7 @@ class DbSets(ta.Mapping[str, DbSet]):
 
         resolved = _resolve_aliases(sets.items())
 
-        self._sets = {
-            check.isinstance(k, str): check.isinstance(v, DbSet)
-            for k, v in resolved.items()
-        }
+        self._sets = {k: check.isinstance(v, DbSet) for k, v in resolved.items()}
 
     #
 

@@ -5,7 +5,7 @@ import pytest
 
 from ....... import check
 from ......api import querierfuncs as qf
-from ......dbs import UrlDbLoc
+from ......dbs.specs import UrlDbLoc
 from ......drivers.og8000.core.asyncio import AsyncioCoreConnection
 from ......drivers.og8000.core.sync import SyncCoreConnection
 from ......queries import Q

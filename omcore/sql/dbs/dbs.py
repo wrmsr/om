@@ -1,162 +1,167 @@
-import contextlib
-import enum
+"""
+TODO:
+ - re-add _DefaultReadonlyDb?
+"""
+import threading
 import typing as ta
 
 from ... import check
-from ... import dataclasses as dc
 from ... import lang
-from ...secrets.secrets import SecretRef
 from ...secrets.secrets import Secrets
-from ..api.adapters import Adapter
-from ..api.core import AsyncConn
 from ..api.core import AsyncDb
-from ..api.core import AnyDb
-from ..api.core import AsyncRows
-from ..api.core import AsyncTxn
-from ..api.core import Conn
 from ..api.core import Db
-from ..api.core import Rows
-from ..api.core import Txn
-from ..api.queries import Queryable
-from .specs import DbSpec
-from .specs import HostDbLoc
-from .specs import UrlDbLoc
-from .sets import DbSets
-from .factories import DbFactory
 from .factories import AsyncDbFactory
+from .factories import DbFactory
+from .factories import DbFactoryContext
 from .factories import _DefaultAsyncDbFactory
 from .factories import _DefaultDbFactory
-from .sets import DbSlot
 from .sets import DbSetKey
+from .sets import DbSets
+from .sets import DbSlot
+from .specs import DbSpec
 
 
-T = ta.TypeVar('T')
+DbT = ta.TypeVar('DbT')
+DbFactoryT = ta.TypeVar('DbFactoryT')
 
 
 ##
 
 
-class AnyDbs(lang.Abstract):
+class AnyDbs(
+    lang.BaseExitStacked,
+    lang.Abstract,
+    ta.Generic[DbT, DbFactoryT],
+):
     def __init__(
             self,
             sets: DbSets,
             *,
+            factory: DbFactoryT,
             secrets: Secrets | None = None,
             default_key: DbSetKey | None = DbSlot.WRITER,
     ) -> None:
         super().__init__()
 
         self._sets = sets
+        self._factory = factory
         self._secrets = secrets
         self._default_key = default_key
 
-        self._entered = False
-        self._closed = False
+        self._dbs: dict[DbSpec, DbT] = {}
+
+        # NOTE: lock does *not* protect from thread-unsafe context management - e.g. won't block `__exit__`
+        self._lock = threading.RLock()
+
+    def _resolve_spec(
+            self,
+            name: str,
+            key: DbSetKey | None = None,
+    ) -> DbSpec:
+        if key is None:
+            key = self._default_key
+        key = check.non_empty_str(key)
+
+        return self._sets[name][key]
+
+    def _factory_context(self, spec: DbSpec) -> DbFactoryContext:
+        return DbFactoryContext(
+            spec,
+            secrets=self._secrets,
+        )
 
 
 ##
 
 
-class Dbs(AnyDbs, lang.ExitStacked):
+class Dbs(
+    lang.ExitStacked,
+    AnyDbs[Db, DbFactory],
+):
     def __init__(
             self,
             sets: DbSets,
             *,
+            factory: DbFactory | None = None,
             default_key: DbSetKey | None = DbSlot.WRITER,
             secrets: Secrets | None = None,
-
-            factory: DbFactory | None = None,
     ) -> None:
         super().__init__(
             sets,
+            factory=factory or _DefaultDbFactory(),
             default_key=default_key,
             secrets=secrets,
         )
 
-        if factory is None:
-            factory = _DefaultDbFactory()
-        self._factory = factory
+    def db(
+            self,
+            name: str,
+            key: DbSetKey | None = None,
+    ) -> Db:
+        spec = self._resolve_spec(
+            name,
+            key=key,
+        )
 
-    def db(self, name: str, key: DbSetKey | None = None) -> Db:
-        check.state(self._entered)
+        self._check_exit_stacked_state('entered')
+        with self._lock:
+            self._check_exit_stacked_state('entered')
 
-        spec = self._sets[name][slot]
-        readonly = slot != DbSlot.WRITER
-        cannot_write = bool(spec.caps and spec.caps.readonly)
-        if cannot_write and not readonly:
-            raise ValueError('Writer slot refers to a read-only endpoint')
+            try:
+                return self._dbs[spec]
+            except KeyError:
+                pass
 
-        try:
-            db = self._sync_dbs[spec]
-        except KeyError:
-            db = self._sync_dbs[spec] = self._sync_db(spec)
-        return _DefaultReadonlyDb(db, readonly, cannot_write=cannot_write)
+            df_ctx = self._factory_context(spec)
+            db_cm = check.not_none(self._factory(df_ctx))
+
+            db = self._enter_context(db_cm)
+            self._dbs[spec] = db
+
+            return db
+
 
 ##
 
 
-class AsyncDbs(AnyDbs, lang.AsyncExitStacked):
+class AsyncDbs(
+    lang.AsyncExitStacked,
+    AnyDbs[AsyncDb, AsyncDbFactory],
+):
     def __init__(
             self,
             sets: DbSets,
             *,
-            factory: DbFactory | None = None,
-            async_factory: AsyncDbFactory | None = None,
-
-            secrets: Secrets | None = None,
-
+            factory: AsyncDbFactory | None = None,
             default_key: DbSetKey | None = DbSlot.WRITER,
+            secrets: Secrets | None = None,
     ) -> None:
-        super().__init__()
+        super().__init__(
+            sets,
+            factory=factory or _DefaultAsyncDbFactory(),
+            default_key=default_key,
+            secrets=secrets,
+        )
 
-        self._sets = sets
-        self._secrets = secrets
-        self._default_key = default_key
+    async def db(self, name: str, key: DbSetKey | None = None) -> AsyncDb:
+        spec = self._resolve_spec(
+            name,
+            key=key,
+        )
 
-        if factory is None:
-            factory = _DefaultDbFactory()
-        if async_factory is None:
-            async_factory = _DefaultAsyncDbFactory()
-        self._factory = factory
-        self._async_factories = async_factory
+        self._check_exit_stacked_state('entered')
+        with self._lock:
+            self._check_exit_stacked_state('entered')
 
-        self._dbs: dict[DbSpec, Db] = {}
-        self._async_dbs: dict[DbSpec, AsyncDb] = {}
+            try:
+                return self._dbs[spec]
+            except KeyError:
+                pass
 
-        self._aes = contextlib.AsyncExitStack()
+            df_ctx = self._factory_context(spec)
+            db_cm = check.not_none(self._factory(df_ctx))
 
-        self._entered = False
-        self._closed = False
+            db = await self._enter_async_context(db_cm)
+            self._dbs[spec] = db
 
-    #
-
-    async def __aenter__(self) -> ta.Self:
-        check.state(not self._entered and not self._closed)
-        await self._aes.__aenter__()
-        self._entered = True
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self._entered = False
-        self._closed = True
-        return await self._aes.__aexit__(exc_type, exc_val, exc_tb)
-
-    #
-
-
-    #
-
-    async def async_db(self, name: str, key: DbSetKey | None = None) -> AsyncDb:
-        check.state(self._entered)
-
-        spec = self._sets[name][slot]
-        readonly = slot != DbSlot.WRITER
-        cannot_write = bool(spec.caps and spec.caps.readonly)
-        if cannot_write and not readonly:
-            raise ValueError('Writer slot refers to a read-only endpoint')
-
-        try:
-            db = self._async_dbs[spec]
-        except KeyError:
-            db = self._async_dbs[spec] = await self._async_db(spec)
-        return _DefaultReadonlyAsyncDb(db, readonly, cannot_write=cannot_write)
+            return db

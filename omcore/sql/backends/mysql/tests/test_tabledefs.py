@@ -5,7 +5,7 @@ import urllib.parse
 from ..... import check
 from ..... import lang
 from .....testing import pytest as ptu
-from ....dbs import UrlDbLoc
+from ....dbs.specs import UrlDbLoc
 from ....dtypes import String
 from ....qualifiedname import qn
 from ....tabledefs.elements import Column

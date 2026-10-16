@@ -9,8 +9,8 @@ from .... import check
 from .... import lang
 from ....diag import pydevd as pdu
 from ....testing import pytest as ptu
-from ...dbs.types import UrlDbLoc
-from ...dbs.types import set_url_engine
+from ...dbs.specs import UrlDbLoc
+from ...dbs.specs import set_url_engine
 from ...tests.harness import HarnessDbs
 from ...tests.utils import mark_sql_backend
 

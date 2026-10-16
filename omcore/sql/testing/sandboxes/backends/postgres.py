@@ -12,7 +12,7 @@ from ....api.core import Conn
 from ....api.core import Db
 from ....api.queriers import Querier
 from ....backends import postgres as be
-from ....dbs import HostDbLoc
+from ....dbs.specs import HostDbLoc
 from ....queries import Q
 from ....tabledefs.rendering import Renderer
 from ..backend import SandboxBackend

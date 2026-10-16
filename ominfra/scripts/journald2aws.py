@@ -58,7 +58,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '4e6882c19c863ddb99308496264b4776953b1f5d'
+__om_amalg_sha1__ = 'e68ecbf7b90bc5aef646450fc77d038338c1a381'
 
 
 def __om_amalg__():  # noqa
@@ -73,7 +73,7 @@ def __om_amalg__():  # noqa
             dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../../../omcore/lite/bytes.py'),
             dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../../../omcore/lite/cached.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../../../omcore/lite/check.py'),
-            dict(sha1='b3275ca829d21eb598092c1448bedd70b72dfd04', path='../../../../omcore/lite/contextmanagers.py'),
+            dict(sha1='3f06d4df40c22bab757b7dfedb6b8bb32120aa30', path='../../../../omcore/lite/contextmanagers.py'),
             dict(sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1', path='../../../../omcore/lite/imports.py'),
             dict(sha1='a60d94f0bdbb2b1541d363c301314682d1686240', path='../../../../omcore/lite/io.py'),
             dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../../../../omcore/lite/namespaces.py'),
@@ -3874,23 +3874,79 @@ check = Checks()
 ##
 
 
-class ExitStacked:
-    def __init_subclass__(cls, **kwargs: ta.Any) -> None:
-        super().__init_subclass__(**kwargs)
+ExitStackedState = ta.Literal[  # ta.TypeAlias  # om-amalg-typing-no-move
+    'new',
 
-        for a in ('__enter__', '__exit__'):
+    'entering',
+    'entered',
+
+    'exiting',
+    'exited',
+
+    'error',
+]
+
+
+class BaseExitStacked(ta.Generic[T]):
+    _exit_stack: ta.Optional[T] = None
+
+    #
+
+    @classmethod
+    def _exit_stacked_check_methods(cls, es_cls, methods: ta.Sequence[str]) -> None:
+        for a in methods:
             for b in cls.__bases__:
-                if b is ExitStacked:
+                if b is es_cls:
                     continue
                 try:
                     fn = getattr(b, a)
                 except AttributeError:
                     pass
                 else:
-                    if fn is not getattr(ExitStacked, a):
-                        raise TypeError(f'ExitStacked subclass {cls} must not override {a} via {b}')
+                    if fn is not getattr(es_cls, a):
+                        raise TypeError(f'{es_cls.__name__} subclass {cls} must not override {a} via {b}')
 
-    _exit_stack: ta.Optional[contextlib.ExitStack] = None
+    #
+
+    __exit_stacked_state: ExitStackedState = 'new'
+
+    @property
+    def _exit_stacked_state(self) -> ExitStackedState:
+        return self.__exit_stacked_state  # noqa
+
+    def _check_exit_stacked_state(self, *valid: ExitStackedState) -> None:
+        if self.__exit_stacked_state not in valid:
+            raise RuntimeError(f'ExitStacked current state {self.__exit_stacked_state!r} in valid state set {valid!r}')
+
+    def _set_exit_stacked_state(self, new: ExitStackedState) -> None:
+        self.__exit_stacked_state = new
+
+    def _exit_stacked_state_transition(self, start: ExitStackedState, end: ExitStackedState) -> ta.ContextManager[None]:
+        return _ExitStackedStateTransition(self, start, end)
+
+
+class _ExitStackedStateTransition:
+    def __init__(self, obj: BaseExitStacked, start: ExitStackedState, end: ExitStackedState) -> None:
+        self._obj, self._start, self._end = obj, start, end
+
+    def __enter__(self) -> None:
+        self._obj._set_exit_stacked_state(self._start)  # noqa
+
+    def __exit__(self, et, e, tb):
+        if e is None:
+            self._obj._set_exit_stacked_state(self._end)  # noqa
+        else:
+            self._obj._set_exit_stacked_state('error')  # noqa
+
+
+#
+
+
+class ExitStacked(BaseExitStacked[contextlib.ExitStack]):
+    def __init_subclass__(cls, **kwargs: ta.Any) -> None:
+        super().__init_subclass__(**kwargs)
+
+        cls._exit_stacked_check_methods(ExitStacked, ('__enter__', '__exit__'))
 
     @contextlib.contextmanager
     def _exit_stacked_init_wrapper(self) -> ta.Iterator[None]:
@@ -3908,28 +3964,37 @@ class ExitStacked:
         overriding would likely interfere with that. Override `_enter_contexts` for such init.
         """
 
-        with self._exit_stacked_init_wrapper():
-            if self._exit_stack is not None:
-                raise RuntimeError
-            es = self._exit_stack = contextlib.ExitStack()
-            es.__enter__()
-            try:
-                self._enter_contexts()
-            except BaseException:  # noqa
-                es.__exit__(*sys.exc_info())
-                raise
-            return self
+        self._check_exit_stacked_state('new')
+        with self._exit_stacked_state_transition('entering', 'entered'):
+            with self._exit_stacked_init_wrapper():
+                if self._exit_stack is not None:
+                    raise RuntimeError
+
+                es = self._exit_stack = contextlib.ExitStack()
+                es.__enter__()
+
+                try:
+                    self._enter_contexts()
+                except BaseException:  # noqa
+                    es.__exit__(*sys.exc_info())
+                    raise
+
+                return self
 
     @ta.final
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if (es := self._exit_stack) is None:
-            return None
-        try:
-            self._exit_contexts()
-        except BaseException:  # noqa
-            es.__exit__(*sys.exc_info())
-            raise
-        return es.__exit__(exc_type, exc_val, exc_tb)
+        self._check_exit_stacked_state('entered')
+        with self._exit_stacked_state_transition('exiting', 'exited'):
+            if (es := self._exit_stack) is None:
+                return None
+
+            try:
+                self._exit_contexts()
+            except BaseException:  # noqa
+                es.__exit__(*sys.exc_info())
+                raise
+
+            return es.__exit__(exc_type, exc_val, exc_tb)
 
     def _enter_contexts(self) -> None:
         pass
@@ -3944,23 +4009,14 @@ class ExitStacked:
         return es.enter_context(cm)
 
 
-class AsyncExitStacked:
+#
+
+
+class AsyncExitStacked(BaseExitStacked[contextlib.AsyncExitStack]):
     def __init_subclass__(cls, **kwargs: ta.Any) -> None:
         super().__init_subclass__(**kwargs)
 
-        for a in ('__aenter__', '__aexit__'):
-            for b in cls.__bases__:
-                if b is AsyncExitStacked:
-                    continue
-                try:
-                    fn = getattr(b, a)
-                except AttributeError:
-                    pass
-                else:
-                    if fn is not getattr(AsyncExitStacked, a):
-                        raise TypeError(f'AsyncExitStacked subclass {cls} must not override {a} via {b}')
-
-    _exit_stack: ta.Optional[contextlib.AsyncExitStack] = None
+        cls._exit_stacked_check_methods(AsyncExitStacked, ('__aenter__', '__aexit__'))
 
     @contextlib.asynccontextmanager
     async def _async_exit_stacked_init_wrapper(self) -> ta.AsyncGenerator[None, None]:
@@ -3968,28 +4024,37 @@ class AsyncExitStacked:
 
     @ta.final
     async def __aenter__(self: AsyncExitStackedT) -> AsyncExitStackedT:
-        async with self._async_exit_stacked_init_wrapper():
-            if self._exit_stack is not None:
-                raise RuntimeError
-            es = self._exit_stack = contextlib.AsyncExitStack()
-            await es.__aenter__()
-            try:
-                await self._async_enter_contexts()
-            except BaseException:  # noqa
-                await es.__aexit__(*sys.exc_info())
-                raise
-            return self
+        self._check_exit_stacked_state('new')
+        with self._exit_stacked_state_transition('entering', 'entered'):
+            async with self._async_exit_stacked_init_wrapper():
+                if self._exit_stack is not None:
+                    raise RuntimeError
+
+                es = self._exit_stack = contextlib.AsyncExitStack()
+                await es.__aenter__()
+
+                try:
+                    await self._async_enter_contexts()
+                except BaseException:  # noqa
+                    await es.__aexit__(*sys.exc_info())
+                    raise
+
+                return self
 
     @ta.final
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if (es := self._exit_stack) is None:
-            return None
-        try:
-            await self._async_exit_contexts()
-        except BaseException:  # noqa
-            await es.__aexit__(*sys.exc_info())
-            raise
-        return await es.__aexit__(exc_type, exc_val, exc_tb)
+        self._check_exit_stacked_state('entered')
+        with self._exit_stacked_state_transition('exiting', 'exited'):
+            if (es := self._exit_stack) is None:
+                return None
+
+            try:
+                await self._async_exit_contexts()
+            except BaseException:  # noqa
+                await es.__aexit__(*sys.exc_info())
+                raise
+
+            return await es.__aexit__(exc_type, exc_val, exc_tb)
 
     async def _async_enter_contexts(self) -> None:
         pass
