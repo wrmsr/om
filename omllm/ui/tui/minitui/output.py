@@ -101,7 +101,28 @@ class AgentEventRenderer:
         args = json.dumps(dict(context.args), default=repr)
         return [[mt.Segment(f'args: {_truncate(args, 200)}', 'card.detail')]]
 
+    def _subagent_result_note(self, details: agn.SubagentToolResultDetails) -> str:
+        notes = [
+            f'run {details.run_id.v}',
+            f'profile {details.profile}',
+            f'{details.num_turns} turns',
+            details.reason.name.lower(),
+        ]
+
+        if (usage := details.usage) is not None:
+            render_int = MinituiChatApp.Usage.render_int
+            notes.append(f'tokens in {render_int(usage.input)} out {render_int(usage.output)}')
+
+        return '; '.join(notes)
+
     def _result_rows(self, result: agn.ToolResult) -> list[list[mt.Segment]]:
+        # A subagent's result is its final word, under the facts of its run - a failure's text says what failed.
+        if isinstance(d := result.details, agn.SubagentToolResultDetails):
+            return [
+                [mt.Segment(self._subagent_result_note(d), 'card.summary.dim')],
+                *_detail_rows(result.content.text),
+            ]
+
         if result.error is not None:
             return _detail_rows(repr(result.error))
 
@@ -232,34 +253,66 @@ class AgentEventRenderer:
                         if isinstance(c, llm.TextContent) and (s := c.text.strip()):
                             await self._text_displayer.display_text(ui.MarkdownText(s))
 
-        elif isinstance(ev, agn.ToolExecutionStartEvent):
+        elif isinstance(ev, agn.ToolExecutionEvent):
+            self._on_tool_execution_event(ev)
+
+    def _on_tool_execution_event(
+            self,
+            ev: agn.ToolExecutionEvent,
+            *,
+            title_prefix: str = '',
+            extra_detail: ta.Sequence[ta.Sequence[mt.Segment]] = (),
+    ) -> None:
+        """
+        One tool call's card, from start to finish. A subagent's tool calls get cards of their own, beside the call
+        which spawned it, titled under its profile and detailed with its run: the events reach here wrapped as progress
+        of the spawning call, and are unwrapped into it.
+        """
+
+        app = self._app
+        key = tool_card_key(ev.context)
+        title = title_prefix + self._tool_title(ev)
+        base_detail = [*extra_detail, *self._tool_detail(ev.context)]
+
+        if isinstance(ev, agn.ToolExecutionStartEvent):
             app.tool_started(
-                tool_card_key(ev.context),
-                self._tool_title(ev),
-                self._tool_detail(ev.context),
+                key,
+                title,
+                base_detail,
                 call_summary=tool_call_summary(ev.context),
             )
 
         elif isinstance(ev, agn.ToolExecutionUpdateEvent):
             if isinstance(upd := ev.update, agn.OutputToolProgressUpdate):
-                key = tool_card_key(ev.context)
                 text = self._tool_output[key] = self._tool_output.get(key, '') + upd.text
                 app.tool_updated(key, [
-                    *self._tool_detail(ev.context),
+                    *base_detail,
                     *_detail_rows(text[-2000:]),
                 ])
 
+            elif isinstance(upd, agn.SubagentEventToolProgressUpdate):
+                # Of all a subagent does, its tool calls are what is shown live. Its model calls and messages are not:
+                # its final word comes back as the spawning call's result.
+                if isinstance(sub_ev := upd.event, agn.ToolExecutionEvent):
+                    self._on_tool_execution_event(
+                        sub_ev,
+                        title_prefix=f'{title_prefix}{upd.profile}/',
+                        extra_detail=[
+                            *extra_detail,
+                            [mt.Segment(f'subagent: {upd.profile} {upd.run_id.v}', 'card.detail')],
+                        ],
+                    )
+
         elif isinstance(ev, agn.ToolExecutionEndEvent):
-            key = tool_card_key(ev.context)
             self._tool_output.pop(key, None)
             result = ev.result
             app.tool_finished(
                 key,
-                self._tool_title(ev),
+                title,
                 ok=result.error is None,
                 call_summary=tool_call_summary(ev.context),
                 detail_rows=[
-                    *self._tool_detail(ev.context),
+                    *base_detail,
                     *self._result_rows(result),
                 ],
                 # A result with something to show shows it, rather than leaving it behind the expander in scrollback.

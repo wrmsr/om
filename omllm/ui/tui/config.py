@@ -29,6 +29,8 @@ class Config:
     fs: bool | None = None
     web: bool | None = None
 
+    subagents: bool | None = None
+
     url: str | None = None
     backend_model_id: str | None = None
 
@@ -61,6 +63,8 @@ class Config:
         parser.add_argument('--exec', action='store_true')
         parser.add_argument('--fs', action='store_true')
         parser.add_argument('--web', action='store_true')
+
+        parser.add_argument('--subagents', action='store_true')
 
         parser.add_argument('--url')
         parser.add_argument('--backend-model-id')
@@ -95,6 +99,8 @@ class Config:
             exec=args.exec,
             fs=args.fs,
             web=args.web,
+
+            subagents=args.subagents,
 
             url=args.url,
             backend_model_id=args.backend_model_id,

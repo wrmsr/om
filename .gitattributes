@@ -59,6 +59,7 @@ omllm/agent/fs/_dataclasses.py linguist-generated
 omllm/agent/permissions/_dataclasses.py linguist-generated
 omllm/agent/remote/_amalg.py linguist-generated
 omllm/agent/sessions/_dataclasses.py linguist-generated
+omllm/agent/subagents/_dataclasses.py linguist-generated
 omllm/agent/web/_dataclasses.py linguist-generated
 omllm/agent/web/backends/google/_dataclasses.py linguist-generated
 omllm/agent/web/backends/tavily/_dataclasses.py linguist-generated

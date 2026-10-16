@@ -8,6 +8,7 @@ from .commands import bind_commands
 from .permissions import bind_permissions
 from .rendering import bind_rendering
 from .session import bind_sessions
+from .subagents import bind_subagents
 from .systemprompt import bind_system_prompt
 from .tools import bind_tools
 from .web import bind_web
@@ -28,6 +29,7 @@ def bind_tui(config: Config) -> inj.Elements:
         bind_permissions(config),
         bind_rendering(),
         bind_sessions(config),
+        bind_subagents(config),
         bind_system_prompt(config),
         bind_tools(config),
         bind_web(config),

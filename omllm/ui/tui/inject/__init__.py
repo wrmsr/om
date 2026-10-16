@@ -26,8 +26,19 @@ with _lang.auto_proxy_init(globals()):
         bind_tui,
     )
 
+    from .subagents import (  # noqa
+        SUBAGENT_TURN_SCOPED,
+        SUBAGENT_TURN_SCOPE,
+
+        bind_subagent_agent,
+        ChildInjectorSubagentRunner,
+    )
+
     from .tools import (  # noqa
         AgentTools,
         agent_tools,
         bind_agent_tool_class,
+
+        bind_tool_infrastructure,
+        bind_tool_classes,
     )

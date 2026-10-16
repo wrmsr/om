@@ -26,6 +26,8 @@ def yolo_process_config(config: Config) -> Config:
             exec=True,
             fs=True,
             web=True,
+
+            subagents=True,
         )
 
     return config
@@ -45,6 +47,10 @@ def yolo_autoexec(config: Config, cwd: str) -> list[str]:
 
             '/permissions add allow regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
 
+            # Spawning a subagent is allowed outright. What the subagent then does is asked about, or not, under the
+            # same rules as the agent which spawned it.
+            '/permissions add allow subagent {}',
+
             '/echo "YOLO"',
         ]
 
@@ -58,6 +64,8 @@ def yolo_autoexec(config: Config, cwd: str) -> list[str]:
             f'/permissions add ask glob_fs \'{{"glob":"{cwd}/**","modes":["w"]}}\'',
 
             '/permissions add ask regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
+
+            '/permissions add allow subagent {}',
 
             '/echo "DIET YOLO"',
         ]

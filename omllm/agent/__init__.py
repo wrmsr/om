@@ -306,6 +306,73 @@ with _lang.auto_proxy_init(
 
     ##
 
+    from .subagents.driving import (  # noqa
+        subagent_process_scope_name,
+
+        final_subagent_text,
+        build_subagent_run_result,
+        drive_subagent,
+    )
+
+    from .subagents.errors import (  # noqa
+        SubagentError,
+        UnknownSubagentProfileError,
+        UnknownSubagentToolsError,
+    )
+
+    from .subagents.permissions import (  # noqa
+        SubagentPermissionTarget,
+        SubagentPermissionMatcher,
+    )
+
+    from .subagents.profiles import (  # noqa
+        DEFAULT_SUBAGENT_MAX_TURNS,
+
+        SubagentProfile,
+        SubagentProfiles,
+
+        apply_subagent_profile,
+
+        GENERAL_SUBAGENT_PROFILE_NAME,
+        GENERAL_SUBAGENT_PROFILE,
+        EXPLORE_SUBAGENT_PROFILE_NAME,
+        explore_subagent_profile,
+    )
+
+    from .subagents.progress import (  # noqa
+        SubagentEventToolProgressUpdate,
+        SubagentEventRelay,
+    )
+
+    from .subagents.runners import (  # noqa
+        AgentSubagentRunner,
+    )
+
+    from .subagents.systemprompt import (  # noqa
+        SUBAGENT_SYSTEM_PROMPT,
+        SubagentProfileSystemPromptContributor,
+    )
+
+    from .subagents.tools.details import (  # noqa
+        SubagentToolResultDetails,
+    )
+
+    from .subagents.tools.subagent import (  # noqa
+        SubagentToolParams,
+        SubagentTool,
+    )
+
+    from .subagents.types import (  # noqa
+        SubagentRunId,
+
+        SubagentRunParams,
+        SubagentRunResult,
+
+        SubagentRunner,
+    )
+
+    ##
+
     from .systemprompt.manager import (  # noqa
         SystemPromptManager,
     )

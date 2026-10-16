@@ -67,19 +67,27 @@ TURN_SCOPE: ta.Final = inj.DelimitedScope(TURN_SCOPED, context=inj.ContextVarSco
 
 
 class ScopedTurnRunner(agn.TurnRunner):
+    """
+    The **sEaM** between an agent and its injector: each turn is run in an opening of the agent's turn scope, seeded
+    with its parameters, so what the loop is built from may be bound per turn. Which scope is the agent's: the root
+    agent's is `TURN_SCOPE`, and an agent scope of its own - a subagent's - has one of its own.
+    """
+
     def __init__(
             self,
             *,
             injector: inj.AsyncInjector,
+            scope: inj.DelimitedScope | None = None,
     ) -> None:
         super().__init__()
 
         self._injector = injector
+        self._scope = scope if scope is not None else TURN_SCOPE
 
     async def run_turn(self, params: agn.TurnParams) -> agn.TurnResult:
         async with inj.async_enter_scope(
                 self._injector,
-                TURN_SCOPE,
+                self._scope,
                 {
                     inj.as_key(agn.TurnParams): params,
                 },
