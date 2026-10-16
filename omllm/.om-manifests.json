@@ -105,6 +105,36 @@
     }
   },
   {
+    "module": ".agent.subagents.permissions",
+    "attr": null,
+    "file": "omllm/agent/subagents/permissions.py",
+    "line": 16,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.subagents.permissions",
+        "attr": "SubagentPermissionTarget",
+        "base": "$.agent.permissions.types.PermissionTarget",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".agent.subagents.permissions",
+    "attr": null,
+    "file": "omllm/agent/subagents/permissions.py",
+    "line": 31,
+    "value": {
+      "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omllm.agent.subagents.permissions",
+        "attr": "SubagentPermissionMatcher",
+        "base": "$.agent.permissions.types.PermissionMatcher",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
     "module": ".agent.web.backends.duckduckgo.search",
     "attr": null,
     "file": "omllm/agent/web/backends/duckduckgo/search.py",

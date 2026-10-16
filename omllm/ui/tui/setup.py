@@ -50,9 +50,11 @@ class AgentSetup:
             tools: agn.ToolSet,
             cwd: TargetCwd | None = None,
             system_prompts: agn.SystemPromptManager,
-            root_process_scope: procs.RootProcessScope | None = None,
+            process_scope: procs.ProcessScope | None = None,
             initial_llm_options: InitialLlmOptions | None = None,
     ) -> None:
+        """The process scope is the agent's own: the root scope for the root agent, a child of its parent's beneath."""
+
         super().__init__()
 
         self._agent = agent
@@ -60,7 +62,7 @@ class AgentSetup:
         self._tools = tools
         self._cwd = cwd
         self._system_prompts = system_prompts
-        self._root_process_scope = root_process_scope
+        self._process_scope = process_scope
         self._initial_llm_options = initial_llm_options
 
     async def run(self) -> None:
@@ -82,7 +84,7 @@ class AgentSetup:
             tool_env = agn.ToolEnvironment(
                 cwd=cwd,
 
-                processes=self._root_process_scope,
+                processes=self._process_scope,
             )
 
             #

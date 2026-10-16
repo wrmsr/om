@@ -54,6 +54,45 @@ async def _provide_remote_target_cwd(config: Config, fs: agn.FsOps) -> TargetCwd
     return TargetCwd(await fs.resolve_path(config.cwd or '.'))
 
 
+def bind_tool_infrastructure(config: Config) -> inj.Elements:
+    """
+    What tools stand on, bound once for the whole app: where they work, what they run processes on, and the ops they
+    share. An agent scope - the root agent's today, a subagent's - binds its own tool classes over these.
+    """
+
+    lst: list[inj.Elemental] = []
+
+    # A process manager is bound either way, whatever tools the agent is given: the user's own shell runs on it too.
+    if config.container is not None:
+        lst.extend([
+            bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
+            inj.bind(TargetCwd, singleton=True, to_async_fn=_provide_remote_target_cwd),
+        ])
+    else:
+        lst.extend([
+            processes.bind_process_manager(),
+            inj.bind(TargetCwd, singleton=True, to_fn=_provide_local_target_cwd),
+        ])
+
+    # Tools are given a process scope, not the root one in particular: the root agent's is the root scope, and an agent
+    # scope beneath it binds a child of its parent's over this.
+    lst.append(inj.bind(processes.ProcessScope, to_key=processes.RootProcessScope))
+
+    if config.exec:
+        lst.extend([
+            inj.bind(agn.ProcessesExecOps, singleton=True),
+            inj.bind(agn.ExecOps, to_key=agn.ProcessesExecOps),
+        ])
+
+    if config.fs and config.container is None:
+        lst.extend([
+            inj.bind(agn.LocalFsOps, singleton=True),
+            inj.bind(agn.FsOps, to_key=agn.LocalFsOps),
+        ])
+
+    return inj.as_elements(*lst)
+
+
 ##
 
 
@@ -72,20 +111,14 @@ def _provide_unsandboxed_ripgrep_tool(
     )
 
 
-def bind_tools(config: Config) -> inj.Elements:
-    lst: list[inj.Elemental] = []
+def bind_tool_classes(config: Config) -> inj.Elements:
+    """
+    The tool classes the config calls for, as singletons of the injector this is bound in, each contributed to that
+    injector's `AgentTools`. Bound per agent scope: every agent gets instances of its own over the shared
+    infrastructure, and an items collection of its own to find them in.
+    """
 
-    # A process manager is bound either way, whatever tools the agent is given: the user's own shell runs on it too.
-    if config.container is not None:
-        lst.extend([
-            bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
-            inj.bind(TargetCwd, singleton=True, to_async_fn=_provide_remote_target_cwd),
-        ])
-    else:
-        lst.extend([
-            processes.bind_process_manager(),
-            inj.bind(TargetCwd, singleton=True, to_fn=_provide_local_target_cwd),
-        ])
+    lst: list[inj.Elemental] = []
 
     if config.eval:
         lst.extend([
@@ -95,9 +128,6 @@ def bind_tools(config: Config) -> inj.Elements:
 
     if config.exec:
         lst.extend([
-            inj.bind(agn.ProcessesExecOps, singleton=True),
-            inj.bind(agn.ExecOps, to_key=agn.ProcessesExecOps),
-
             inj.bind(agn.BashTool, singleton=True),
             bind_agent_tool_class(agn.BashTool),
 
@@ -118,12 +148,6 @@ def bind_tools(config: Config) -> inj.Elements:
         ])
 
     if config.fs:
-        if config.container is None:
-            lst.extend([
-                inj.bind(agn.LocalFsOps, singleton=True),
-                inj.bind(agn.FsOps, to_key=agn.LocalFsOps),
-            ])
-
         lst.extend([
             inj.bind(agn.EditTool, singleton=True),
             bind_agent_tool_class(agn.EditTool),
@@ -161,8 +185,19 @@ def bind_tools(config: Config) -> inj.Elements:
     lst.extend([
         agent_tools().bind_items_provider(singleton=True),
         agent_tool_sets().bind_items_provider(singleton=True),
-
-        inj.bind(agn.ToolSet, to_fn=_provide_tool_set, singleton=True),
     ])
 
     return inj.as_elements(*lst)
+
+
+##
+
+
+def bind_tools(config: Config) -> inj.Elements:
+    return inj.as_elements(
+        bind_tool_infrastructure(config),
+
+        bind_tool_classes(config),
+
+        inj.bind(agn.ToolSet, to_fn=_provide_tool_set, singleton=True),
+    )
