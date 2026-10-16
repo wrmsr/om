@@ -593,7 +593,9 @@ class IoPipelineHandlerContext:
     #
 
     def _notify(self, no: IoPipelineHandlerNotification) -> None:
-        check.isinstance(no, IoPipelineHandlerNotification)
+        # Avoids `check._unpack_isinstance_spec` machinery unless it matches.
+        if not isinstance(no, IoPipelineHandlerNotification):
+            check.isinstance(no, IoPipelineHandlerNotification)  # type: ignore[unreachable,unused-ignore]
         check.state(self._pipeline._execution_depth > 0)  # noqa
 
         self._handler.notify(self, no)
@@ -613,7 +615,9 @@ class IoPipelineHandlerContext:
         check.state(not self._invalidated, ContextInvalidatedIoPipelineError)
         check.state((pipeline := self._pipeline)._state == IoPipeline.State.READY and pipeline._execution_depth > 0)  # noqa
 
-        check.not_isinstance(msg, self._FORBIDDEN_INBOUND_TYPES)
+        # Avoids `check._unpack_isinstance_spec` machinery unless it matches.
+        if isinstance(msg, self._FORBIDDEN_INBOUND_TYPES):
+            check.not_isinstance(msg, self._FORBIDDEN_INBOUND_TYPES)
 
         if (mt := pipeline._message_tap) is not None:  # noqa
             mt(self, 'inbound', msg)
@@ -643,7 +647,9 @@ class IoPipelineHandlerContext:
         check.state(not self._invalidated, ContextInvalidatedIoPipelineError)
         check.state((pipeline := self._pipeline)._state == IoPipeline.State.READY and pipeline._execution_depth > 0)  # noqa
 
-        check.not_isinstance(msg, self._FORBIDDEN_OUTBOUND_TYPES)
+        # Avoids `check._unpack_isinstance_spec` machinery unless it matches.
+        if isinstance(msg, self._FORBIDDEN_OUTBOUND_TYPES):
+            check.not_isinstance(msg, self._FORBIDDEN_OUTBOUND_TYPES)
 
         if (mt := pipeline._message_tap) is not None:  # noqa
             mt(self, 'outbound', msg)

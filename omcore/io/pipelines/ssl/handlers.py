@@ -16,6 +16,7 @@ from ..core import IoPipelineHandlerContext
 from ..core import IoPipelineHandlerNotification
 from ..core import IoPipelineHandlerNotifications
 from ..core import IoPipelineMessages
+from ..errors import IoPipelineError
 from ..errors import SawShutdownOutputIoPipelineError
 from ..errors import TimeoutIoPipelineError
 from ..flow.types import IoPipelineFlow
@@ -150,10 +151,6 @@ class SslIoPipelineHandler(
     ) -> None:
         super().__init__()
 
-        if ssl_ctx is None:
-            ssl_ctx = ssl.create_default_context()
-        self._ssl_ctx = ssl_ctx
-
         self._server_side = server_side
         self._server_hostname = server_hostname
         self._ssl_session = ssl_session
@@ -161,6 +158,38 @@ class SslIoPipelineHandler(
         if config is None:
             config = SslIoPipelineHandler.Config.DEFAULT
         self._config = config
+
+        if ssl_ctx is None:
+            ssl_ctx = ssl.create_default_context()
+            self.configure_ssl_context(ssl_ctx, config)
+        else:
+            self.configure_ssl_context(ssl_ctx, config, check_only=True)
+        self._ssl_ctx = ssl_ctx
+
+    #
+
+    class SslConfigurationError(IoPipelineError):
+        pass
+
+    @classmethod
+    def configure_ssl_context(
+            cls,
+            ssl_ctx: ssl.SSLContext,
+            config: Config,
+            *,
+            check_only: bool = False,
+    ) -> ssl.SSLContext:
+        if (opt := getattr(ssl, 'OP_IGNORE_UNEXPECTED_EOF', None)) is not None:
+            # See Config.suppress_ragged_eofs: with the option set the engine reports a truncated stream as a clean EOF
+            # and strict mode could not see it.
+            if not config.suppress_ragged_eofs and bool(ssl_ctx.options & opt):
+                if check_only:
+                    raise cls.SslConfigurationError(
+                        f'SSLContext not properly configured for suppress_ragged_eofs={config.suppress_ragged_eofs}',
+                    )
+                ssl_ctx.options &= ~opt
+
+        return ssl_ctx
 
     #
 
@@ -250,12 +279,6 @@ class SslIoPipelineHandler(
             return self._state
         except AttributeError:
             pass
-
-        if not self._config.suppress_ragged_eofs:
-            # See Config.suppress_ragged_eofs: with the option set the engine reports a truncated stream as a clean EOF
-            # and strict mode could not see it.
-            if (opt := getattr(ssl, 'OP_IGNORE_UNEXPECTED_EOF', None)) is not None and self._ssl_ctx.options & opt:
-                self._ssl_ctx.options &= ~opt
 
         self._in_bio = ssl.MemoryBIO()
         self._out_bio = ssl.MemoryBIO()

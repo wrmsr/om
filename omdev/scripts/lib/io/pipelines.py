@@ -34,7 +34,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '34751f3d1964abb5f9884447ec071ebd6fd85701'
+__om_amalg_sha1__ = '6105addb08df9d4d9bebc632c15e5fb638b71a34'
 
 
 def __om_amalg__():  # noqa
@@ -50,7 +50,7 @@ def __om_amalg__():  # noqa
             dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../../lite/namespaces.py'),
             dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='../../logs/levels.py'),
             dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', path='../../logs/warnings.py'),
-            dict(sha1='e214a441c29272f8b81f26a48c8bdb02920635ee', path='core.py'),
+            dict(sha1='4b0061643d8b8818651695761faf4c19459a6421', path='core.py'),
             dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', path='../streambufs/types.py'),
             dict(sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079', path='../../logs/infos.py'),
             dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', path='../../logs/metrics/base.py'),
@@ -72,7 +72,7 @@ def __om_amalg__():  # noqa
             dict(sha1='db882a29d87bd38eb59c00140174a8af5e6325d1', path='sched/heap.py'),
             dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', path='../streambufs/direct.py'),
             dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', path='../streambufs/scanning.py'),
-            dict(sha1='f3d9fdd99843b8c45609fbb3e4f5f4444c6a0ea4', path='../../logs/base.py'),
+            dict(sha1='9ee00768f53de350ac8d1f2b98917a9afcf885f5', path='../../logs/base.py'),
             dict(sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6', path='../../logs/std/records.py'),
             dict(sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df', path='../streambufs/framing.py'),
             dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', path='../streambufs/segmented.py'),
@@ -1981,7 +1981,9 @@ class IoPipelineHandlerContext:
     #
 
     def _notify(self, no: IoPipelineHandlerNotification) -> None:
-        check.isinstance(no, IoPipelineHandlerNotification)
+        # Avoids `check._unpack_isinstance_spec` machinery unless it matches.
+        if not isinstance(no, IoPipelineHandlerNotification):
+            check.isinstance(no, IoPipelineHandlerNotification)  # type: ignore[unreachable,unused-ignore]
         check.state(self._pipeline._execution_depth > 0)  # noqa
 
         self._handler.notify(self, no)
@@ -2001,7 +2003,9 @@ class IoPipelineHandlerContext:
         check.state(not self._invalidated, ContextInvalidatedIoPipelineError)
         check.state((pipeline := self._pipeline)._state == IoPipeline.State.READY and pipeline._execution_depth > 0)  # noqa
 
-        check.not_isinstance(msg, self._FORBIDDEN_INBOUND_TYPES)
+        # Avoids `check._unpack_isinstance_spec` machinery unless it matches.
+        if isinstance(msg, self._FORBIDDEN_INBOUND_TYPES):
+            check.not_isinstance(msg, self._FORBIDDEN_INBOUND_TYPES)
 
         if (mt := pipeline._message_tap) is not None:  # noqa
             mt(self, 'inbound', msg)
@@ -2031,7 +2035,9 @@ class IoPipelineHandlerContext:
         check.state(not self._invalidated, ContextInvalidatedIoPipelineError)
         check.state((pipeline := self._pipeline)._state == IoPipeline.State.READY and pipeline._execution_depth > 0)  # noqa
 
-        check.not_isinstance(msg, self._FORBIDDEN_OUTBOUND_TYPES)
+        # Avoids `check._unpack_isinstance_spec` machinery unless it matches.
+        if isinstance(msg, self._FORBIDDEN_OUTBOUND_TYPES):
+            check.not_isinstance(msg, self._FORBIDDEN_OUTBOUND_TYPES)
 
         if (mt := pipeline._message_tap) is not None:  # noqa
             mt(self, 'outbound', msg)
@@ -6510,6 +6516,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def log(self, level: LogLevel, *args, **kwargs):
+        b, t = self._do_not_log_(level)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
                 level,
@@ -6532,9 +6542,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def debug(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.DEBUG)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.DEBUG,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -6554,9 +6568,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def info(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.INFO)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.INFO,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -6576,9 +6594,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def warning(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.WARNING)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.WARNING,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -6598,9 +6620,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def error(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.ERROR)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.ERROR,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -6626,6 +6652,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def exception(self, *args, exc_info=True, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.ERROR)
+        if b:
+            return t
+
         if not args:
             if not exc_info:
                 raise TypeError('exc_info=False is not allowed when no args are passed')
@@ -6638,7 +6668,7 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.ERROR,
+                level,
                 exc_info=exc_info,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
@@ -6659,9 +6689,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def critical(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.CRITICAL)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.CRITICAL,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -6669,6 +6703,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
         )
 
     #
+
+    @abc.abstractmethod
+    def _do_not_log_(self, level: LogLevel) -> ta.Tuple[bool, T]:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def _log(
@@ -6683,6 +6721,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
 class Logger(LoggerMetricCollector, AnyLogger[None], Abstract):
     _level_proxy_method_stack_offset: int = 1
+
+    @ta.final
+    def _do_not_log_(self, level: LogLevel) -> ta.Tuple[bool, None]:
+        return not self.is_enabled_for(level), None
 
     @abc.abstractmethod
     def _log(
@@ -6703,6 +6745,16 @@ class Logger(LoggerMetricCollector, AnyLogger[None], Abstract):
 
 class AsyncLogger(AsyncLoggerMetricCollector, AnyLogger[ta.Awaitable[None]], Abstract):
     _level_proxy_method_stack_offset: int = 0
+
+    @ta.final
+    def _do_not_log_(self, level: LogLevel) -> ta.Tuple[bool, ta.Awaitable[None]]:
+        if self.is_enabled_for(level):
+            return False, None  # type: ignore
+
+        async def nop():
+            return None
+
+        return True, nop()
 
     @abc.abstractmethod
     def _log(

@@ -3,6 +3,8 @@
 import dataclasses as dc
 import errno
 import socket
+import ssl
+import threading
 import typing as ta
 import urllib.parse
 
@@ -98,12 +100,18 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
     def __init__(
             self,
             config: BaseIoPipelineHttpClientConfigT,
+            *,
+            ssl_ctx: ta.Optional[ssl.SSLContext] = None,
+
             **pipeline_kwargs: ta.Any,
     ) -> None:
         super().__init__()
 
         self._config = config
+        self._provided_ssl_ctx = ssl_ctx
         self._pipeline_kwargs = pipeline_kwargs
+
+        self._init_lock = threading.Lock()
 
     @property
     def config(self) -> BaseIoPipelineHttpClientConfigT:
@@ -166,6 +174,28 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
 
     #
 
+    __ssl_ctx: ssl.SSLContext
+
+    def _ssl_ctx(self, config: SslIoPipelineHandler.Config) -> ssl.SSLContext:
+        try:
+            return self.__ssl_ctx
+        except AttributeError:
+            pass
+
+        with self._init_lock:
+            try:
+                return self.__ssl_ctx
+            except AttributeError:
+                pass
+
+            ssl_ctx = ssl.create_default_context()
+            SslIoPipelineHandler.configure_ssl_context(ssl_ctx, config)
+            self.__ssl_ctx = ssl_ctx
+
+        return ssl_ctx
+
+    #
+
     _aggregate_responses: bool = False  # FIXME: jank placeholder lol
 
     def _build_pipeline_spec(
@@ -188,6 +218,13 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
 
             no_decompress: bool = False,
     ) -> IoPipeline.Spec:
+        ssl_handler: ta.Optional[SslIoPipelineHandler] = None
+        if with_ssl:
+            ssl_kwargs = dict(ssl_kwargs or {})
+            if 'ssl_ctx' not in ssl_kwargs:
+                ssl_kwargs['ssl_ctx'] = self._ssl_ctx(ssl_kwargs.get('config') or SslIoPipelineHandler.Config.DEFAULT)
+            ssl_handler = SslIoPipelineHandler(**(ssl_kwargs or {}))
+
         return IoPipeline.Spec(
             [
                 *(outermost_handlers or []),
@@ -196,7 +233,7 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
 
                 *([OutboundBytesBufferIoPipelineHandler()] if not without_flow else []),
 
-                *([SslIoPipelineHandler(**(ssl_kwargs or {}))] if with_ssl else []),
+                *([ssl_handler] if ssl_handler is not None else []),
 
                 IoPipelineHttpRequestEncoder(),
 

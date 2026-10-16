@@ -63,6 +63,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def log(self, level: LogLevel, *args, **kwargs):
+        b, t = self._do_not_log_(level)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
                 level,
@@ -85,9 +89,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def debug(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.DEBUG)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.DEBUG,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -107,9 +115,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def info(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.INFO)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.INFO,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -129,9 +141,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def warning(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.WARNING)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.WARNING,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -151,9 +167,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def error(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.ERROR)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.ERROR,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -179,6 +199,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def exception(self, *args, exc_info=True, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.ERROR)
+        if b:
+            return t
+
         if not args:
             if not exc_info:
                 raise TypeError('exc_info=False is not allowed when no args are passed')
@@ -191,7 +215,7 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.ERROR,
+                level,
                 exc_info=exc_info,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
@@ -212,9 +236,13 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
     @ta.final
     def critical(self, *args, **kwargs):
+        b, t = self._do_not_log_(level := NamedLogLevel.CRITICAL)
+        if b:
+            return t
+
         return self._log(
             CaptureLoggingContextImpl(
-                NamedLogLevel.CRITICAL,
+                level,
                 stack_offset=self._level_proxy_method_stack_offset,
             ),
             *args,
@@ -222,6 +250,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
         )
 
     #
+
+    @abc.abstractmethod
+    def _do_not_log_(self, level: LogLevel) -> ta.Tuple[bool, T]:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def _log(
@@ -236,6 +268,10 @@ class AnyLogger(AnyLoggerMetricCollector[T], Abstract, ta.Generic[T]):
 
 class Logger(LoggerMetricCollector, AnyLogger[None], Abstract):
     _level_proxy_method_stack_offset: int = 1
+
+    @ta.final
+    def _do_not_log_(self, level: LogLevel) -> ta.Tuple[bool, None]:
+        return not self.is_enabled_for(level), None
 
     @abc.abstractmethod
     def _log(
@@ -256,6 +292,16 @@ class Logger(LoggerMetricCollector, AnyLogger[None], Abstract):
 
 class AsyncLogger(AsyncLoggerMetricCollector, AnyLogger[ta.Awaitable[None]], Abstract):
     _level_proxy_method_stack_offset: int = 0
+
+    @ta.final
+    def _do_not_log_(self, level: LogLevel) -> ta.Tuple[bool, ta.Awaitable[None]]:
+        if self.is_enabled_for(level):
+            return False, None  # type: ignore
+
+        async def nop():
+            return None
+
+        return True, nop()
 
     @abc.abstractmethod
     def _log(
