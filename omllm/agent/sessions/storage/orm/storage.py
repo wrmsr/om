@@ -36,7 +36,7 @@ class OrmSessionStorage(SessionStorage):
         ))
 
     async def get_entries(self) -> ta.Sequence[SessionEntry]:
-        async with self._orm.new_session():
+        async with self._orm.read_session():
             if (orm_session := await orm.get(OrmSession, self._session_id.v)) is None:
                 raise SessionNotFoundError(str(self._session_id.v))
 

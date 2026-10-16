@@ -9,6 +9,8 @@ over the loop, by a driver which is really async. Replication is installed db-wi
 """
 import asyncio
 import contextlib
+import os.path
+import tempfile
 import typing as ta
 
 import pytest
@@ -156,10 +158,18 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
             num_entries = len(await storage.get_entries())
             assert num_entries == 8
 
-            # And the session reads back off of the hub, through the same storage, as the transcript it is.
-            async with agn.SqlOrm(
-                registry=orm.registry(*agn.orm_session_mappers()),
-                db=sql.api.SyncToAsyncDb(sql.api.ImmediateSyncToAsyncRunner, hub_sb.db()),
-                backend=sql.be.postgres.backend.PostgresBackend(),
-            ) as hub_orm:
-                await check_stored_transcript(agn.OrmSessionStorage(tui.session.id, hub_orm), tui.agent)
+            # An empty local writer cannot supply the transcript; the ORM's reader must reach the postgres hub.
+            empty_writer_path = os.path.join(tempfile.mkdtemp(), 'empty.db')
+            async with (
+                sql.be.sqlite.connecting.asyncio_sqlite_db(
+                    sql.be.sqlite.connecting.SqliteDbConfig(file_path=empty_writer_path),
+                ) as empty_writer,
+                agn.SqlOrm(
+                    registry=orm.registry(*agn.orm_session_mappers()),
+                    db=empty_writer,
+                    backend=sql.be.sqlite.backend.SqliteBackend(),
+                    read_db=hub_sb.asyncio_db(),
+                    read_backend=sql.be.postgres.backend.PostgresBackend(),
+                ) as routed_orm,
+            ):
+                await check_stored_transcript(agn.OrmSessionStorage(tui.session.id, routed_orm), tui.agent)

@@ -43,6 +43,7 @@ class Session:
             store: Store,
             *,
             transaction: bool | ta.Literal['default'] = 'default',
+            readonly: bool | None = None,
             no_auto_flush: bool = True,
     ) -> None:
         super().__init__()
@@ -51,6 +52,7 @@ class Session:
         self._store = store
 
         self._transaction = transaction
+        self._readonly = readonly
         self._no_auto_flush = no_auto_flush
 
         self._entities_by_key_by_cls: dict[type, dict[Key, Session._Entity]] = {m._cls: {} for m in registry._mappers}
@@ -98,6 +100,7 @@ class Session:
 
         self._store_cm = self._store.create_context(
             transaction=self._transaction,
+            readonly=self._readonly,
         )
         self._store_ctx = await self._store_cm.__aenter__()
 

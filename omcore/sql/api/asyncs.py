@@ -162,8 +162,12 @@ class SyncToAsyncConn(AsyncConn):
     def adapter(self) -> Adapter:
         return self._conn.adapter
 
-    def begin(self) -> ta.AsyncContextManager[AsyncTxn]:
-        return _SyncToAsyncRunnerContextManager(self._runner, self._conn.begin, SyncToAsyncTxn)
+    def begin(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[AsyncTxn]:
+        return _SyncToAsyncRunnerContextManager(
+            self._runner,
+            lambda: self._conn.begin(readonly=readonly),
+            SyncToAsyncTxn,
+        )
 
     def query(self, query: Queryable) -> ta.AsyncContextManager[AsyncRows]:  # ta.Raises[QueryError]
         return _SyncToAsyncRunnerContextManager(self._runner, lambda: self._conn.query(query), SyncToAsyncRows)

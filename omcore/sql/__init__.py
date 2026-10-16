@@ -95,7 +95,15 @@ with _lang.auto_proxy_init(
         UrlDbLoc,
         HostDbLoc,
 
+        DbCaps,
         DbSpec,
+    )
+
+    from .dbsets import (  # noqa
+        DbSlot,
+        DbSet,
+        DbSets,
+        DbResolver,
     )
 
     from .params import (  # noqa

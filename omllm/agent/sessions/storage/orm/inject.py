@@ -6,6 +6,7 @@ them, when the injector's `AsyncExitStack` unwinds.
 import contextlib
 import typing as ta
 
+from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import orm
 from omcore import sql
@@ -41,24 +42,66 @@ def bind_orm_session_storage() -> inj.Elements:
 ##
 
 
-async def _provide_asyncio_sqlite_orm(
-        config: SqliteDbConfig,
+def _provide_sqlite_db_sets(config: SqliteDbConfig) -> sql.DbSets:
+    writer = sql.DbSpec('sessions', sql.DbTypes.SQLITE, config)
+    reader_config = dc.replace(
+        SqliteDbConfig.READONLY,
+        file_path=config.file_path,
+        page_size=config.page_size,
+        application_id=config.application_id,
+    )
+    reader = sql.DbSpec(
+        'sessions-reader',
+        sql.DbTypes.SQLITE,
+        reader_config,
+        caps=sql.DbCaps(readonly=True),
+    )
+    return sql.DbSets({'sessions': sql.DbSet(writer, reader=reader, analytics='reader')})
+
+
+def _backend_for(spec: sql.DbSpec) -> sql.be.Backend:
+    if spec.type == sql.DbTypes.SQLITE:
+        return sql.be.sqlite.backend.SqliteBackend()
+    if spec.type == sql.DbTypes.POSTGRES:
+        return sql.be.postgres.backend.PostgresBackend()
+    if spec.type == sql.DbTypes.MYSQL:
+        return sql.be.mysql.backend.MysqlBackend()
+    raise ValueError(f'No ORM backend for {spec.type.name}')
+
+
+async def _provide_db_sets_orm(
+        sets: sql.DbSets,
         registry: orm.Registry,
         aes: contextlib.AsyncExitStack,
 ) -> SqlOrm:
-    db = await aes.enter_async_context(sql.be.sqlite.connecting.asyncio_sqlite_db(config))
+    resolver = await aes.enter_async_context(sql.DbResolver(sets))
+    db_set = sets['sessions']
+    writer = await resolver.async_db('sessions')
+    reader = await resolver.async_db('sessions', sql.DbSlot.READER)
 
     return await aes.enter_async_context(SqlOrm(
         registry=registry,
-        db=db,
-        backend=sql.be.sqlite.backend.SqliteBackend(),
+        db=writer,
+        backend=_backend_for(db_set.spec()),
+        read_db=reader,
+        read_backend=_backend_for(db_set.spec(sql.DbSlot.READER)),
     ))
+
+
+def bind_db_sets_orm(sets: sql.DbSets) -> inj.Elements:
+    return inj.as_elements(
+        inj.bind(sets),
+
+        inj.bind(SqlOrm, singleton=True, to_async_fn=_provide_db_sets_orm),
+        inj.bind(Orm, to_key=SqlOrm),
+    )
 
 
 def bind_asyncio_sqlite_orm(config: SqliteDbConfig) -> inj.Elements:
     return inj.as_elements(
         inj.bind(config),
+        inj.bind(_provide_sqlite_db_sets, singleton=True),
 
-        inj.bind(SqlOrm, singleton=True, to_async_fn=_provide_asyncio_sqlite_orm),
+        inj.bind(SqlOrm, singleton=True, to_async_fn=_provide_db_sets_orm),
         inj.bind(Orm, to_key=SqlOrm),
     )

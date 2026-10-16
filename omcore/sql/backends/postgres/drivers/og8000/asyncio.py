@@ -55,16 +55,17 @@ class AsyncioOg8000Rows(AsyncRows):
 
 
 class AsyncioOg8000Txn(AsyncTxn, AsyncSimpleResource):
-    def __init__(self, conn: AsyncioOg8000Conn) -> None:
+    def __init__(self, conn: AsyncioOg8000Conn, *, readonly: bool = False) -> None:
         super().__init__()
 
         self._conn = conn
+        self._readonly = readonly
 
     _state: ta.Literal['new', 'open', 'committed', 'aborted'] = 'new'
 
     async def _enter(self) -> None:
         check.state(self._state == 'new')
-        await qf.async_exec(self._conn, 'begin')
+        await qf.async_exec(self._conn, 'begin read only' if self._readonly else 'begin')
         self._state = 'open'
 
     async def _commit_internal(self) -> None:
@@ -149,8 +150,8 @@ class AsyncioOg8000Conn(AsyncConn):
 
         return inner()
 
-    def begin(self) -> ta.AsyncContextManager[AsyncTxn]:
-        return AsyncioOg8000Txn(self)
+    def begin(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[AsyncTxn]:
+        return AsyncioOg8000Txn(self, readonly=bool(readonly))
 
 
 #

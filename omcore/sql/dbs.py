@@ -40,11 +40,16 @@ class DbTypes(lang.Namespace, lang.Final):
         dialect_name='sqlite',
     )
 
+    SNOWFLAKE = DbType(
+        name='snowflake',
+        dialect_name='snowflake',
+    )
+
 
 ##
 
 
-class DbLoc(lang.Abstract, lang.Sealed):
+class DbLoc(lang.Abstract, lang.PackageSealed, sealed_package='omcore.sql'):
     pass
 
 
@@ -84,6 +89,8 @@ class DbSpec(lang.Final):
     _: dc.KW_ONLY
 
     caps: DbCaps | None = None
+    database: str | None = None
+    driver: str | None = None
 
 
 ##

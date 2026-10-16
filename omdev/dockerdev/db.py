@@ -108,9 +108,13 @@ async def _update_db(
             DEFAULT_DB_FILE_NAME,
         )
 
-    db = sql.be.sqlite.connecting.sqlite_db(sql.be.sqlite.connecting.SqliteDbConfig(
-        file_path=db_file,
-    ))
+    spec = sql.DbSpec(
+        'dockerdev_runs',
+        sql.DbTypes.SQLITE,
+        sql.be.sqlite.connecting.SqliteDbConfig(file_path=db_file),
+    )
+    db_sets = sql.DbSets({'dockerdev_runs': sql.DbSet(spec)})
+    db = sql.DbResolver(db_sets).db('dockerdev_runs')
 
     backend = sql.be.sqlite.backend.SqliteBackend()
 

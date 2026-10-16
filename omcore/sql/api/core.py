@@ -76,13 +76,13 @@ class AnyConn(AnyQuerier, lang.Abstract):
 
 class Conn(Querier, AnyConn, lang.Abstract):
     @abc.abstractmethod
-    def begin(self) -> ta.ContextManager[Txn]:
+    def begin(self, *, readonly: bool | None = None) -> ta.ContextManager[Txn]:
         raise NotImplementedError
 
 
 class AsyncConn(AsyncQuerier, AnyConn, lang.Abstract):
     @abc.abstractmethod
-    def begin(self) -> ta.AsyncContextManager[AsyncTxn]:
+    def begin(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[AsyncTxn]:
         raise NotImplementedError
 
 

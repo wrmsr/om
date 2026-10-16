@@ -72,5 +72,6 @@ class Store(lang.Abstract):
             self,
             *,
             transaction: bool | ta.Literal['default'] = 'default',
+            readonly: bool | None = None,
     ) -> ta.AsyncContextManager[Context]:
         raise NotImplementedError

@@ -559,6 +559,7 @@ class InMemoryStore(Store):
             self,
             *,
             transaction: bool | ta.Literal['default'] = 'default',
+            readonly: bool | None = None,  # noqa: ARG002
     ) -> ta.AsyncContextManager[Store.Context]:
         check.in_(transaction, ('default', False))
         return self._Context(self)

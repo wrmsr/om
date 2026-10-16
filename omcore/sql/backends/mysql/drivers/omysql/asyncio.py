@@ -54,16 +54,20 @@ class AsyncioOmysqlRows(AsyncRows):
 
 
 class AsyncioOmysqlTxn(AsyncTxn, AsyncSimpleResource):
-    def __init__(self, conn: AsyncioOmysqlConn) -> None:
+    def __init__(self, conn: AsyncioOmysqlConn, *, readonly: bool = False) -> None:
         super().__init__()
 
         self._conn = conn
+        self._readonly = readonly
 
     _state: ta.Literal['new', 'open', 'committed', 'aborted'] = 'new'
 
     async def _enter(self) -> None:
         check.state(self._state == 'new')
-        await self._conn._conn.begin()  # noqa: SLF001
+        if self._readonly:
+            await self._conn._conn.query('start transaction read only')  # noqa: SLF001
+        else:
+            await self._conn._conn.begin()  # noqa: SLF001
         self._state = 'open'
 
     async def _commit_internal(self) -> None:
@@ -163,8 +167,8 @@ class AsyncioOmysqlConn(AsyncConn):
 
         return inner()
 
-    def begin(self) -> ta.AsyncContextManager[AsyncTxn]:
-        return AsyncioOmysqlTxn(self)
+    def begin(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[AsyncTxn]:
+        return AsyncioOmysqlTxn(self, readonly=bool(readonly))
 
 
 #

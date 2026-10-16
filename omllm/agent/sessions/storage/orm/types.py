@@ -13,6 +13,9 @@ class Orm(lang.Abstract):
     def new_session(self) -> ta.AsyncContextManager[orm.Session]:
         raise NotImplementedError
 
+    def read_session(self) -> ta.AsyncContextManager[orm.Session]:
+        return self.new_session()
+
     @abc.abstractmethod
     def ensure_session(self) -> ta.AsyncContextManager[orm.Session]:
         raise NotImplementedError

@@ -46,6 +46,9 @@ class Adapter(lang.Abstract):
     def begin_query(self) -> str:
         return self.dialect.begin_query
 
+    def begin_query_for(self, *, readonly: bool) -> str:
+        return self.dialect.begin_query_for(readonly=readonly)
+
     @abc.abstractmethod
     def scan_type(self, c: Column) -> type:
         raise NotImplementedError

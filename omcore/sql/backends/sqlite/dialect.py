@@ -25,3 +25,6 @@ class SqliteDialect(Dialect):
         # stale snapshot. An immediate one takes the lock up front, waiting its turn for it, so a database with more
         # than one writer wants its read-then-write transactions immediate.
         return 'begin immediate' if self._immediate else 'begin'
+
+    def begin_query_for(self, *, readonly: bool) -> str:
+        return 'begin' if readonly else self.begin_query

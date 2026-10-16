@@ -41,6 +41,11 @@ class Dialect(lang.Abstract):
         # What opens a transaction: a backend may have more than one way to, differing in what they lock and when.
         return 'begin'
 
+    def begin_query_for(self, *, readonly: bool) -> str:
+        if readonly:
+            raise NotImplementedError('Read-only transactions are not supported by this dialect')
+        return self.begin_query
+
 
 class StandardDialect(Dialect, lang.Final):
     pass

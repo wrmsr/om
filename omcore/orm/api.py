@@ -231,6 +231,7 @@ def session(
         registry: Registry,  # noqa
         store: Store,
         *,
+        readonly: bool | None = None,
         no_auto_flush: bool = False,
 ) -> ta.AsyncContextManager[Session]:
     @contextlib.asynccontextmanager
@@ -238,6 +239,7 @@ def session(
         async with Session(
             registry,
             store,
+            readonly=readonly,
             no_auto_flush=no_auto_flush,
         ) as sess:
             async with sess.activate():

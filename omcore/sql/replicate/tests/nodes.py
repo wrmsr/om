@@ -203,10 +203,10 @@ class _FailingConn(AsyncConn):
         self._db._check(query)  # noqa
         return self._conn.query(query)
 
-    def begin(self) -> ta.AsyncContextManager[AsyncTxn]:
+    def begin(self, *, readonly: bool | None = None) -> ta.AsyncContextManager[AsyncTxn]:
         @contextlib.asynccontextmanager
         async def inner():
-            async with self._conn.begin() as txn:
+            async with self._conn.begin(readonly=readonly) as txn:
                 yield _FailingTxn(self._db, txn)
 
         return inner()
