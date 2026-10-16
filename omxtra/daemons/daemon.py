@@ -1,0 +1,180 @@
+import itertools
+import os.path
+import signal
+import time
+
+from omcore import check
+from omcore import dataclasses as dc
+from omcore import lang
+from omcore.logs import all as logs
+from omcore.os.pidfiles.pidfile import Pidfile
+from omcore.os.pidfiles.pinning import PidfilePinner
+
+from .inspection import DaemonInspection
+from .inspection import DaemonInspector
+from .launching import Launcher
+from .operations import DaemonWaitStoppedResult
+from .operations import wait_daemon_stopped
+from .spawning import Spawning
+from .stopping import DaemonStopResult
+from .stopping import DaemonStopSafety
+from .stopping import stop_daemon
+from .targets import Target
+from .waiting import Wait
+from .waiting import waiter_for
+
+
+log = logs.get_module_logger(globals())
+
+
+##
+
+
+class Daemon:
+    @dc.dataclass(frozen=True, kw_only=True)
+    class Config:
+        spawning: Spawning | None = None
+
+        #
+
+        pid_file: str | None = None
+
+        #
+
+        # TODO: None, defaults, figure out from spawn method
+        reparent_process: bool = False
+
+        launched_timeout_s: float = 5.
+
+        #
+
+        wait: Wait | None = None
+
+        wait_timeout: lang.TimeoutLike = 10.
+        wait_sleep_s: float = .1
+
+        #
+
+        def __post_init__(self) -> None:
+            check.isinstance(self.pid_file, (str, None))
+
+    def __init__(
+            self,
+            target: Target,
+            config: Config = Config(),
+    ) -> None:
+        super().__init__()
+
+        self._target = target
+        self._config = config
+
+    @property
+    def target(self) -> Target:
+        return self._target
+
+    @property
+    def config(self) -> Config:
+        return self._config
+
+    #
+
+    @property
+    def has_pidfile(self) -> bool:
+        return self._config.pid_file is not None
+
+    def _non_inheritable_pidfile(self) -> Pidfile:
+        check.state(self.has_pidfile)
+        return Pidfile(
+            check.non_empty_str(self._config.pid_file),
+            inheritable=False,
+        )
+
+    def is_pidfile_locked(self) -> bool:
+        check.state(self.has_pidfile)
+
+        if not os.path.isfile(check.non_empty_str(self._config.pid_file)):
+            return False
+
+        with self._non_inheritable_pidfile() as pf:
+            return not pf.try_acquire_lock()
+
+    def inspect(self) -> DaemonInspection:
+        check.state(self.has_pidfile)
+        return DaemonInspector(
+            check.non_empty_str(self._config.pid_file),
+            wait=self._config.wait,
+        ).inspect()
+
+    def wait_stopped(
+            self,
+            timeout: lang.TimeoutLike = lang.Timeout.DEFAULT,
+            *,
+            initial: DaemonInspection | None = None,
+    ) -> DaemonWaitStoppedResult:
+        check.state(self.has_pidfile)
+        return wait_daemon_stopped(
+            check.non_empty_str(self._config.pid_file),
+            initial=initial,
+            timeout=lang.Timeout.of(timeout, self._config.wait_timeout),
+            sleep_s=self._config.wait_sleep_s,
+        )
+
+    def stop(
+            self,
+            timeout: lang.TimeoutLike = lang.Timeout.DEFAULT,
+            *,
+            initial: DaemonInspection | None = None,
+            signum: int = signal.SIGTERM,
+            pinner: PidfilePinner | None = None,
+            safety: DaemonStopSafety = DaemonStopSafety.REQUIRE_VERIFIED,
+    ) -> DaemonStopResult:
+        check.state(self.has_pidfile)
+        return stop_daemon(
+            check.non_empty_str(self._config.pid_file),
+            initial=initial,
+            signum=signum,
+            timeout=lang.Timeout.of(timeout, self._config.wait_timeout),
+            pinner=pinner,
+            safety=safety,
+            sleep_s=self._config.wait_sleep_s,
+        )
+
+    #
+
+    def wait_sync(
+            self,
+            timeout: lang.TimeoutLike = lang.Timeout.DEFAULT,
+            *,
+            max_tries: int | None = None,
+    ) -> None:
+        if self._config.wait is None:
+            return
+
+        timeout = lang.Timeout.of(timeout, self._config.wait_timeout)
+        waiter = waiter_for(self._config.wait)
+        for i in itertools.count():
+            if max_tries is not None and i >= max_tries:
+                raise TimeoutError
+            timeout()
+            if waiter.do_wait():
+                break
+            time.sleep(self._config.wait_sleep_s or 0.)
+
+    #
+
+    def launch_no_wait(self) -> bool:
+        launcher = Launcher(
+            target=self._target,
+            spawning=check.not_none(self._config.spawning),
+
+            pid_file=self._config.pid_file,
+            reparent_process=self._config.reparent_process,
+            launched_timeout_s=self._config.launched_timeout_s,
+        )
+
+        return launcher.launch()
+
+    def launch(self, timeout: lang.TimeoutLike = lang.Timeout.DEFAULT) -> None:
+        self.launch_no_wait()
+
+        self.wait_sync(timeout)
