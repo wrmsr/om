@@ -53,7 +53,11 @@ class TestTlsHalfCloseEdges(unittest.TestCase):
         # suppress_ragged_eofs=True, the default). The app then half-closes its output and keeps reading.
         data = _payload(b'data', 60_000)
 
-        client_ssl, server_ssl = _ssl_handlers(strict_eof=False)
+        # Keep an unread suffix regardless of the handler's default batching policy.
+        client_ssl, server_ssl = _ssl_handlers(
+            strict_eof=False,
+            client_config=SslIoPipelineHandler.Config(read_batch_max_bytes=16 * 1024),
+        )
         client_app = _App(close_on_final_input=False)
         server_app = _App(close_on_final_input=False)
         client = _pure(client_ssl, client_app, manual_read=True)
@@ -73,7 +77,7 @@ class TestTlsHalfCloseEdges(unittest.TestCase):
             client.feed_eof()
             self.assertIsNone(client.next(read=True, raise_on_stall=False))
 
-            # One record's plaintext was delivered for the token; the rest is still undelivered.
+            # One bounded batch was delivered for the token; the rest is still undelivered.
             self.assertGreater(len(client_app.received), 0)
             self.assertLess(len(client_app.received), len(data))
             self.assertFalse(client_app.saw_final_input)

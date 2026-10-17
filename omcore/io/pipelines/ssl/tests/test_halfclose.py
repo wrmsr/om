@@ -63,17 +63,25 @@ def _ssl_handlers(
             c = SslIoPipelineHandler.Config(**{**c.__dict__, 'suppress_ragged_eofs': False})
         return c
 
+    client_cfg = cfg(client_config)
+    server_cfg = cfg(server_config)
+
+    # The handler only checks a caller's context: strict mode needs OP_IGNORE_UNEXPECTED_EOF cleared, which the default
+    # contexts of older Pythons set.
+    SslIoPipelineHandler.configure_ssl_context(client_ctx, client_cfg)
+    SslIoPipelineHandler.configure_ssl_context(server_ctx, server_cfg)
+
     return (
         SslIoPipelineHandler(
             client_ctx,
             server_side=False,
             server_hostname='localhost',
-            config=cfg(client_config),
+            config=client_cfg,
         ),
         SslIoPipelineHandler(
             server_ctx,
             server_side=True,
-            config=cfg(server_config),
+            config=server_cfg,
         ),
     )
 

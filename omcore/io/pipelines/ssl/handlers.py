@@ -22,6 +22,8 @@ from ..errors import TimeoutIoPipelineError
 from ..flow.types import IoPipelineFlow
 from ..flow.types import IoPipelineFlowMessages
 from ..sched.types import IoPipelineScheduling
+from ..yielding import CountingIoPipelineYieldPolicy
+from ..yielding import IoPipelineYieldPolicy
 
 
 ##
@@ -61,10 +63,14 @@ class SslIoPipelineHandler(
     arrive at this handler (app writes in response to plaintext, transport feeds more bytes in a loopback test, ...),
     the nested entry point just mutates state and flags the turn dirty; the outer turn loops until quiescent. Combined
     with emitting outbound ciphertext *before* inbound plaintext, this makes TLS record ordering on the wire immune to
-    reentrancy.
+    reentrancy. A turn's read work (engine reads and backlog slices) is bounded by `Config.read_yield_policy`: once
+    exhausted, the turn emits what it has and continues through one context Defer, until which new events only mark
+    the handler dirty.
 
     Flow-control behaviors (all only active when an `IoPipelineFlow` service is present):
-     - Manual read (`ReadyForInput`, ~Netty `read()`): one plaintext delivery per token. The handler also autonomously
+     - Manual read (`ReadyForInput`, ~Netty `read()`): one bounded plaintext batch per token. Several engine reads may
+       contribute to that delivery; the batch limits are ceilings, never fill targets. A short available prefix is
+       delivered immediately without requesting more ciphertext just to fill a batch. The handler also autonomously
        requests transport reads whenever the engine itself is starved (handshake, shutdown awaiting the peer's
        close_notify, or an SSL_write blocked on WANT_READ during renegotiation/KeyUpdate), deduplicated via an
        outstanding-token latch.
@@ -92,7 +98,7 @@ class SslIoPipelineHandler(
      - `suppress_ragged_eofs=False` turns an abrupt transport EOF (no close_notify - i.e. possible truncation) into a
        raised SSLError instead of a normal EOF. The engine only reports the truncation while the SSL context's
        `OP_IGNORE_UNEXPECTED_EOF` option is clear - Python 3.8's default contexts set it, 3.10+'s do not - so strict
-       mode clears it on the caller's context the first time the handler uses it (see `Config`).
+       mode requires a suitably configured caller context (see `configure_ssl_context` and `Config`).
 
     Optional handshake and shutdown timeouts are absolute deadlines for their respective TLS states. Unlike a generic
     read-idle handler, receiving records that fail to complete the operation does not reset them.
@@ -114,8 +120,8 @@ class SslIoPipelineHandler(
         #
         # Strict mode depends on the engine reporting a truncated stream as an error, which it does not while the SSL
         # context has `OP_IGNORE_UNEXPECTED_EOF` set - as Python 3.8's default contexts do (3.10+'s do not). So, as a
-        # documented side effect on the caller's (possibly shared) context, strict mode clears that option when the
-        # handler first wraps the context: every connection made with it afterwards reports truncation.
+        # documented side effect, configure_ssl_context clears that option before the context is shared. A handler
+        # checks caller-provided contexts without mutating them; it configures only contexts it creates itself.
         suppress_ragged_eofs: bool = True
 
         # Begin the handshake eagerly when an InitialInput is observed (if the core defines one), rather than waiting
@@ -131,8 +137,23 @@ class SslIoPipelineHandler(
         handshake_timeout_s: ta.Optional[float] = None
         shutdown_timeout_s: ta.Optional[float] = None
 
+        # One manual read delivers at most this many plaintext bytes / fragments, combining immediately available
+        # engine results and shutdown-backlog slices in one segmented view. Neither limit is a minimum to wait for.
+        # These are delivery limits, NOT bounds on transport admission, native TLS storage, or the shutdown backlog.
+        read_batch_max_bytes: int = 64 * 1024
+        read_batch_max_chunks: int = 16
+
+        # Counts engine read attempts and backlog slices across the ENTIRE outer turn, including synchronous re-reads
+        # and pre-unwrap drainage. Exhaustion emits the available prefix and resumes through one context Defer. It
+        # does not budget handshakes, encryption, or work inside a native call. None restores unbounded read turns.
+        read_yield_policy: ta.Optional[IoPipelineYieldPolicy] = CountingIoPipelineYieldPolicy(256)
+
         def __post_init__(self) -> None:
-            """Validate optional TLS state deadlines."""
+            """Validate read limits and optional TLS state deadlines."""
+
+            for size in (self.read_chunk_size, self.read_batch_max_bytes, self.read_batch_max_chunks):
+                if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+                    raise ValueError(size)
 
             for timeout_s in (self.handshake_timeout_s, self.shutdown_timeout_s):
                 if timeout_s is not None and (not math.isfinite(timeout_s) or timeout_s <= 0.):
@@ -230,11 +251,20 @@ class SslIoPipelineHandler(
 
     # Plaintext decrypted ahead of the app's reads so that an output half-close cannot destroy it (see
     # `_step_half_close`). Served before the engine by later reads.
-    _plaintext_backlog: ta.Optional[ta.Deque[bytes]] = None
+    _plaintext_backlog: ta.Optional[ta.Deque[memoryview]] = None
+    _plaintext_backlog_bytes = 0
+    _staged_plaintext_bytes = 0  # Produced in the current pump but not yet transferred to feed_in.
+
+    # A fatal read can follow an authenticated prefix in the same batch or shutdown drain. The poisoned engine is
+    # never retried; the exception is raised after the prefix is delivered under the existing read policy, not before
+    # it and not as a clean EOF. Only an explicit removal/abort discards a still-undelivered prefix.
+    _pending_read_error: ta.Optional[ssl.SSLError] = None
+    _read_error_output_abandoned = False
 
     # Latches / level state. Everything here is either event-driven or re-derived each pump; _emit() is the sole reader
     # that turns them into messages.
     _want_ciphertext = False      # some engine op hit WANT_READ this pump
+    _write_wants_ciphertext = False  # an attempted write, not merely a queued/transport-paused write, needs input
     _control_activity = False     # engine produced/needed output for its own reasons this turn
     _read_requested = False       # a manual-mode read token from downstream is outstanding
     _read_satisfied = False       # a manual read token was satisfied with data this turn
@@ -266,6 +296,11 @@ class SslIoPipelineHandler(
 
     _in_turn = False
     _dirty = False
+    _removed = False
+    _read_yielded = False
+    _read_starved = False  # No retry within a pump until another engine operation can have changed read readiness.
+    _continuation_pending = False
+    _turn_should_yield: ta.Optional[ta.Callable[[], bool]] = None
 
     _handshake_timeout_handle: ta.Optional[IoPipelineScheduling.Handle] = None
     _shutdown_timeout_handle: ta.Optional[IoPipelineScheduling.Handle] = None
@@ -308,8 +343,10 @@ class SslIoPipelineHandler(
             return 0
         # Undelivered = raw records in the BIO plus decrypted bytes parked inside the engine (manual-read mode
         # deliberately leaves data there between read tokens) or in the half-close backlog.
-        backlog = sum(map(len, self._plaintext_backlog)) if self._plaintext_backlog else 0
-        return self._in_bio.pending + self._ssl_obj.pending() + backlog
+        return (
+            self._in_bio.pending + self._ssl_obj.pending() +
+            self._plaintext_backlog_bytes + self._staged_plaintext_bytes
+        )
 
     def outbound_buffered_bytes(self) -> ta.Optional[int]:
         if self.state is None:
@@ -350,6 +387,7 @@ class SslIoPipelineHandler(
                 check.not_none(ctx.services.find(IoPipelineScheduling))
 
         elif isinstance(no, IoPipelineHandlerNotifications.Removed):
+            self._removed = True
             self._cancel_timeouts()
             self._release()
 
@@ -367,6 +405,12 @@ class SslIoPipelineHandler(
         self._write_q.clear()
         self._write_q_bytes = 0
         self._plaintext_backlog = None
+        self._plaintext_backlog_bytes = 0
+        self._staged_plaintext_bytes = 0
+        self._pending_read_error = None
+        self._read_requested = False
+        self._continuation_pending = False
+        self._turn_should_yield = None
         self._pending_flush_outputs = []
         self._pending_shutdown_output = None
         self._pending_final_output = None
@@ -530,6 +574,7 @@ class SslIoPipelineHandler(
                 self._transport_eof = True
                 self._in_bio.write_eof()
             self._rfi_outstanding = False
+            self._want_ciphertext = False  # A reentrant EOF invalidates the previous pump's starvation result.
             self._turn(ctx)
             return
 
@@ -551,6 +596,7 @@ class SslIoPipelineHandler(
             for seg in ByteStreamBuffers.iter_segments(msg):
                 self._in_bio.write(seg)
             self._rfi_outstanding = False  # The outstanding read token (if any) has been honored.
+            self._want_ciphertext = False  # New bytes invalidate starvation derived before a reentrant delivery.
             self._turn(ctx)
             return
 
@@ -676,24 +722,40 @@ class SslIoPipelineHandler(
     ##
     # Turn driver.
 
+    @staticmethod
+    def _resume_reads(ctx: IoPipelineHandlerContext) -> None:
+        h = check.isinstance(ctx.handler, SslIoPipelineHandler)
+        h._continuation_pending = False  # noqa
+        h._turn(ctx)  # noqa
+
+    def _is_removed(self) -> bool:
+        # A method rather than the attribute: any callback below may remove the handler, which a check of the attribute
+        # after each feed would be narrowed away from.
+        return self._removed
+
     def _turn(self, ctx: IoPipelineHandlerContext) -> None:
-        if self._in_turn:
-            # Reentrant event (something we fed synchronously caused a message back into this handler). State is already
-            # mutated; let the outer turn pick it up so emissions stay ordered.
+        if self._is_removed():
+            return
+        if self._in_turn or self._continuation_pending:
+            # Intake still applies every event, but neither reentrancy nor a fresh event may reset an exhausted turn's
+            # budget ahead of its one queued continuation. No handler/context is captured by that continuation.
             self._dirty = True
             return
 
         self._in_turn = True
+        self._read_yielded = False
+        self._turn_should_yield = None  # Created by the turn's first unit of read work: most turns do none.
         try:
-            while True:
+            while not self._is_removed():
                 self._dirty = False
                 auto_read = self._is_auto_read(ctx)
+                in_chunks: ta.List[ta.Union[bytes, memoryview]] = []
+                out_chunks: ta.List[bytes] = []
                 try:
-                    in_chunks, out_chunks = self._pump(auto_read)
+                    self._pump(in_chunks, out_chunks, auto_read)
                 except ssl.SSLError as e:
-                    # Poison the machine so later events don't grind a broken engine, then let the error propagate as a
-                    # pipeline error. The fences queued ahead of the failure report it: the plaintext they fenced was
-                    # discarded, and no session exists to half-close.
+                    # Handshake/write failures follow the original failure path. Read failures are caught at the
+                    # read boundary so an authenticated prefix cannot be lost before emission.
                     self._state = self.State.CLOSED
                     self._sync_state_timeouts(ctx)
                     self._abandon_output(e)
@@ -702,30 +764,52 @@ class SslIoPipelineHandler(
                     self._handshake_failure = None
                     self._abandon_output(hf)
                 self._sync_state_timeouts(ctx)
+                if self._pending_read_error is not None and not self._read_error_output_abandoned:
+                    self._read_error_output_abandoned = True
+                    self._abandon_output(self._pending_read_error)
                 self._emit(ctx, in_chunks, out_chunks, auto_read)
+                if self._is_removed():
+                    break
+                if self._read_yielded:
+                    self._continuation_pending = True
+                    ctx.defer(SslIoPipelineHandler._resume_reads)
+                    break
                 if not self._dirty:
                     break
         finally:
+            self._turn_should_yield = None
             self._in_turn = False
 
     ##
-    # Phase 2: PUMP - advance the SSL machine to quiescence. No ctx access anywhere below here.
+    # Phase 2: PUMP - advance the SSL machine to quiescence or a read yield. No ctx access below here.
 
-    def _pump(self, auto_read: bool) -> ta.Tuple[ta.List[bytes], ta.List[bytes]]:
-        in_chunks: ta.List[bytes] = []
-        out_chunks: ta.List[bytes] = []
+    def _read_interrupted(self) -> bool:
+        # Reads stopped at a fairness yield or a retained fatal error: the pump ends so the turn can emit what it has.
+        return self._read_yielded or self._pending_read_error is not None
 
+    def _pump(
+            self,
+            in_chunks: ta.List[ta.Union[bytes, memoryview]],
+            out_chunks: ta.List[bytes],
+            auto_read: bool,
+    ) -> None:
         self._want_ciphertext = False  # Re-derived: every starved engine op below re-asserts it.
+        self._write_wants_ciphertext = False
+        self._staged_plaintext_bytes = 0
+        self._read_starved = False
 
         progressed = True
         while progressed:
             progressed = self._step_handshake()
             progressed |= self._step_writes(out_chunks)
-            progressed |= self._step_reads(in_chunks, auto_read)
-            progressed |= self._step_shutdown()
+            progressed |= self._step_reads(in_chunks, out_chunks, auto_read)
+            if self._read_interrupted():
+                break
+            progressed |= self._step_shutdown(out_chunks)
+            if self._read_interrupted():
+                break
 
         self._collect_ciphertext(out_chunks)
-        return (in_chunks, out_chunks)
 
     def _collect_ciphertext(self, out_chunks: ta.List[bytes]) -> bool:
         any_ = False
@@ -743,6 +827,7 @@ class SslIoPipelineHandler(
         if self._state != self.State.HANDSHAKE:
             return False
 
+        self._read_starved = False
         try:
             self._ssl_obj.do_handshake()
 
@@ -771,6 +856,7 @@ class SslIoPipelineHandler(
         return True
 
     def _step_writes(self, out_chunks: ta.List[bytes]) -> bool:
+        self._write_wants_ciphertext = False
         if self._state != self.State.ESTABLISHED:
             # No app data may enter the engine once shutdown has begun; _step_shutdown() refuses to start until this
             # queue is empty, so nothing is stranded.
@@ -787,6 +873,7 @@ class SslIoPipelineHandler(
         progressed = False
         while self._write_q:
             mv = self._write_q[0]
+            self._read_starved = False
             try:
                 self._ssl_obj.write(mv)
 
@@ -794,6 +881,7 @@ class SslIoPipelineHandler(
                 # Renegotiation / KeyUpdate: the engine needs peer bytes before accepting more plaintext. CRITICAL: the
                 # retry must present exactly this same `mv`, and no later segment may be attempted first - hence
                 # head-of-queue discipline and no re-aggregation.
+                self._write_wants_ciphertext = True
                 self._want_ciphertext = True
                 self._control_activity = True
                 break
@@ -811,106 +899,158 @@ class SslIoPipelineHandler(
 
         return progressed
 
-    def _read_engine(self) -> ta.Optional[bytes]:
-        """
-        One engine read: plaintext, b'' at EOF (setting `_plaintext_eof`), or None when the engine is starved for
-        ciphertext (setting `_want_ciphertext`).
-        """
+    def _yield_read(self) -> bool:
+        if self._read_yielded:
+            return True
+        if self._final_output_sent:
+            # Nothing may follow FinalOutput at the outbound terminal, a continuation's Defer included, so what is
+            # still readable past it (a backlog preserved through a shutdown timeout) is served without yielding.
+            return False
+        if (should_yield := self._turn_should_yield) is None:
+            if (policy := self._config.read_yield_policy) is None:
+                return False
+            should_yield = self._turn_should_yield = policy.new_turn()
+        if should_yield():
+            self._read_yielded = True
+            return True
+        return False
 
+    def _read_engine(self, size: int, out_chunks: ta.List[bytes]) -> ta.Optional[bytes]:
+        """One result: plaintext, b'' at EOF, or None at starvation, a fairness yield, or a retained fatal error."""
+
+        # A normal application read and pre-unwrap drainage may meet the same empty/partial input. Retrying that
+        # WANT_READ burns the whole turn again and can starve shutdown forever under a one-unit yield policy.
+        if self._read_starved:
+            return None
         while True:
+            if self._yield_read():
+                return None
             try:
-                b = self._ssl_obj.read(self._config.read_chunk_size)
+                b = self._ssl_obj.read(size)
 
             except ssl.SSLWantReadError:
                 self._want_ciphertext = True
+                self._read_starved = True
                 return None
 
             except ssl.SSLWantWriteError:
-                # Renegotiation wants records flushed first.
+                # Preserve generated control records in this pump's output; draining into a throwaway list would
+                # silently lose them. Each retry consumes read work, including pathological repeated WANT_WRITE.
                 self._control_activity = True
-                if not self._collect_ciphertext([]):  # pragma: no cover - MemoryBIO shouldn't get here
+                if not self._collect_ciphertext(out_chunks):  # MemoryBIO should not need external space.
                     return None
                 continue
 
             except ssl.SSLZeroReturnError:
-                # Clean close_notify from the peer. Note we do NOT initiate our own shutdown: writes remain legal
-                # (half-close) until the app sends FinalOutput.
                 self._plaintext_eof = True
                 return b''
 
-            except ssl.SSLEOFError:
-                if self._config.suppress_ragged_eofs:
+            except ssl.SSLError as e:
+                # Forgiving truncation is not permission to suppress authentication/protocol failures merely
+                # because transport EOF happened to arrive in the same batch as a bad record.
+                ragged = isinstance(e, ssl.SSLEOFError) or (
+                    self._transport_eof and getattr(e, 'reason', None) == 'UNEXPECTED_EOF_WHILE_READING'
+                )
+                if self._config.suppress_ragged_eofs and ragged:
                     self._plaintext_eof = True
                     return b''
-                raise
-
-            except ssl.SSLError:
-                if self._transport_eof and self._config.suppress_ragged_eofs:
-                    self._plaintext_eof = True
-                    return b''
-                raise
+                self._pending_read_error = e.with_traceback(None)
+                self._state = self.State.CLOSED
+                self._plaintext_eof = False
+                return None
 
             if not b:
                 self._plaintext_eof = True
             return b
 
-    def _step_reads(self, in_chunks: ta.List[bytes], auto_read: bool) -> bool:
-        # Reads are only meaningful post-handshake (do_handshake is the consumer before that), and remain legal during
-        # SHUTTING_DOWN (the peer may have sent app data before seeing our close_notify). Never touch a CLOSED engine -
-        # stray late records must not blow up the pipeline - but plaintext already decrypted into the backlog is still
-        # delivered.
+    def _step_reads(
+            self,
+            in_chunks: ta.List[ta.Union[bytes, memoryview]],
+            out_chunks: ta.List[bytes],
+            auto_read: bool,
+    ) -> bool:
+        # A CLOSED engine is never retried, but its already-decrypted backlog remains readable under demand.
         if self._state not in (self.State.ESTABLISHED, self.State.SHUTTING_DOWN):
             if self._state != self.State.CLOSED or not self._plaintext_backlog:
                 return False
 
         progressed = False
         while auto_read or self._read_requested:
+            size = self._config.read_chunk_size
+            if not auto_read:
+                remaining = self._config.read_batch_max_bytes - self._staged_plaintext_bytes
+                if remaining <= 0 or len(in_chunks) >= self._config.read_batch_max_chunks:
+                    break
+                size = min(size, remaining)
+
             if (backlog := self._plaintext_backlog):
-                b = backlog.popleft()
+                if self._yield_read():
+                    break
+                head = backlog[0]
+                if len(head) > size:
+                    b: ta.Union[bytes, memoryview] = head[:size]
+                    backlog[0] = head[size:]
+                else:
+                    b = backlog.popleft()
+                self._plaintext_backlog_bytes -= len(b)
 
             else:
                 if self._plaintext_eof or self._state == self.State.CLOSED:
                     break
-                if (eb := self._read_engine()) is None:
+                if (eb := self._read_engine(size, out_chunks)) is None:
                     break
                 if not eb:
                     progressed = True
                     break
                 b = eb
+                if not self._in_bio.pending and not self._ssl_obj.pending() and not self._transport_eof:
+                    # OpenSSL takes one record at a time from the BIO (it does not read ahead), so with no ciphertext
+                    # left there and no plaintext left in the current record the next read could only be WANT_READ.
+                    # Record that outcome in place of paying for the probe - an exception per batch. A transport EOF
+                    # is still read for, so it is reported along with the data preceding it.
+                    self._want_ciphertext = True
+                    self._read_starved = True
 
             in_chunks.append(b)
+            self._staged_plaintext_bytes += len(b)
             progressed = True
+            if self._read_starved:
+                break  # The engine read above was its last for this pump.
 
-            if not auto_read:
-                # One-read-per-request: a single delivered chunk satisfies the manual token.
-                self._read_requested = False
-                self._read_satisfied = True
-                break
-
+        if in_chunks and not auto_read:
+            # Commit one whole batch before ANY callbacks run. A reentrant ReadyForInput belongs to a new batch and
+            # must not be cleared by cleanup of this one. WANT_READ after a short prefix is not permission to fill it.
+            self._read_requested = False
+            self._read_satisfied = True
         return progressed
 
-    def _drain_plaintext_into_backlog(self) -> None:
+    def _drain_plaintext_into_backlog(self, out_chunks: ta.List[bytes]) -> bool:
         if (backlog := self._plaintext_backlog) is None:
             backlog = self._plaintext_backlog = collections.deque()
 
         while not self._plaintext_eof:
-            if not (b := self._read_engine()):
+            if not (b := self._read_engine(self._config.read_chunk_size, out_chunks)):
                 break
-            backlog.append(b)
+            backlog.append(memoryview(b))
+            self._plaintext_backlog_bytes += len(b)
 
-    def _step_shutdown(self) -> bool:
+        # A yielded drain is not a drained engine. unwrap MUST wait for the continuation, or it can reject and lose
+        # the unread application records this backlog exists to preserve.
+        return not self._read_interrupted()
+
+    def _step_shutdown(self, out_chunks: ta.List[bytes]) -> bool:
         if self._state == self.State.CLOSED:
             return False
 
         if self._close_requested:
-            return self._step_close()
+            return self._step_close(out_chunks)
 
         if self._shutdown_output_requested and not self._close_notify_sent:
-            return self._step_half_close()
+            return self._step_half_close(out_chunks)
 
         return False
 
-    def _step_half_close(self) -> bool:
+    def _step_half_close(self, out_chunks: ta.List[bytes]) -> bool:
         if self._state in (self.State.NEW, self.State.HANDSHAKE):
             # Input may still follow the half-close, so the session is established first.
             return False
@@ -922,8 +1062,10 @@ class SslIoPipelineHandler(
         # unwrap() makes a second SSL_shutdown call which reads incoming records looking for the peer's close_notify,
         # and application data found buffered there is rejected (APPLICATION_DATA_AFTER_CLOSE_NOTIFY) and lost. So first
         # decrypt everything already received into a backlog, which later reads serve as usual.
-        self._drain_plaintext_into_backlog()
+        if not self._drain_plaintext_into_backlog(out_chunks):
+            return False
 
+        self._read_starved = False
         try:
             self._ssl_obj.unwrap()
 
@@ -944,7 +1086,7 @@ class SslIoPipelineHandler(
         self._state = self.State.SHUTTING_DOWN
         return True
 
-    def _step_close(self) -> bool:
+    def _step_close(self, out_chunks: ta.List[bytes]) -> bool:
         if self._state in (self.State.NEW, self.State.HANDSHAKE):
             if self._write_q or self._shutdown_output_requested or self._pending_flush_outputs:
                 # Output accepted before the close must not be dropped, nor reported delivered: the handshake completes
@@ -960,8 +1102,10 @@ class SslIoPipelineHandler(
             return False
 
         # As for a half-close: unwrap() would reject - and lose - application data still buffered in the engine.
-        self._drain_plaintext_into_backlog()
+        if not self._drain_plaintext_into_backlog(out_chunks):
+            return False
 
+        self._read_starved = False
         try:
             self._ssl_obj.unwrap()
 
@@ -1008,17 +1152,17 @@ class SslIoPipelineHandler(
     #                         already produced, or TLS record order breaks on the wire)
     #   2. FlushOutput -> out
     #   3. deferred ShutdownOutput -> out (once close_notify is out, or once CLOSED), then the flushes which followed it
-    #   4. deferred FinalOutput -> out (only once CLOSED; close_notify precedes it)
-    #   5. plaintext -> in
-    #   6. synthetic FinalInput -> in (exactly once)
-    #   7. FlushInput -> in
+    #   4. plaintext -> in
+    #   5. synthetic FinalInput -> in (exactly once)
+    #   6. FlushInput -> in
+    #   7. retained read error / deferred FinalOutput, only after all plaintext and batch completion
     #   8. ReadyForInput -> out (deduplicated request for more wire bytes)
     #   9. ReadyForOutput/PauseOutput -> in (combined writability, edge-emitted)
 
     def _emit(
             self,
             ctx: IoPipelineHandlerContext,
-            in_chunks: ta.List[bytes],
+            in_chunks: ta.List[ta.Union[bytes, memoryview]],
             out_chunks: ta.List[bytes],
             auto_read: bool,
     ) -> None:
@@ -1027,6 +1171,8 @@ class SslIoPipelineHandler(
         # 1) Ciphertext.
         if out_chunks:
             ctx.feed_out(SegmentedByteStreamBufferView([memoryview(b) for b in out_chunks]))
+            if self._is_removed():
+                return
 
         # 2) FlushOutput: forward the app's flush once its bytes (if any) have actually gone out. If downstream
         # backpressure interrupts a write, emit progress flushes for ciphertext already produced while retaining the
@@ -1059,9 +1205,13 @@ class SslIoPipelineHandler(
 
         if emit_progress_flush:
             ctx.feed_out(IoPipelineFlowMessages.FlushOutput())
+            if self._is_removed():
+                return
 
         for flush_output in pending_flush_outputs:
             ctx.feed_out(flush_output)
+            if self._is_removed():
+                return
 
         # 3) Deferred ShutdownOutput, after the close_notify emitted in 1), and the flushes ordered behind it.
         if (
@@ -1070,35 +1220,67 @@ class SslIoPipelineHandler(
                 (self._close_notify_sent or self._state == self.State.CLOSED)
         ):
             self._send_shutdown_output(ctx)
+            if self._is_removed():
+                return
 
-        # 4) Deferred FinalOutput, once any plaintext which preceded the peer's close_notify has been delivered.
-        if self._state == self.State.CLOSED and self._pending_final_output is not None and not self._plaintext_backlog:
-            fo = self._pending_final_output
-            self._pending_final_output = None
-            self._send_final_output(ctx, fo)
-
-        # 5) Plaintext.
+        # 4) Plaintext.
+        if self._is_removed():
+            return
         if in_chunks:
+            self._staged_plaintext_bytes = 0  # Ownership transfers to the receiver, even if it reenters or raises.
             self._delivered_plaintext = True
             ctx.feed_in(SegmentedByteStreamBufferView([memoryview(b) for b in in_chunks]))
+            if self._is_removed():
+                return
 
-        # 6) Synthetic FinalInput, exactly once. An EOF also retires any outstanding manual read token - but
+        # 5) Synthetic FinalInput, exactly once. An EOF also retires any outstanding manual read token - but
         # deliberately does not count as 'delivered' for FlushInput purposes.
         if self._plaintext_eof and not self._plaintext_backlog:
             self._read_requested = False
             if not self._inbound_eof_sent:
                 self._inbound_eof_sent = True
                 ctx.feed_in(IoPipelineMessages.FinalInput())
+                if self._is_removed():
+                    return
 
-        # 7) FlushInput: forwarded when the transport's flush follows plaintext we actually delivered, or synthesized
+        # 6) FlushInput: forwarded when the transport's flush follows plaintext we actually delivered, or synthesized
         # when a manual read was satisfied from internal buffers (no transport flush coming).
         flush_in_seen = self._flush_in_seen
-        self._flush_in_seen = False
+        if not self._read_yielded:
+            # A yielded turn flushes only the prefix it delivered. The transport's flush is kept for the continuation
+            # which finishes that batch, which would otherwise deliver the rest of it unflushed.
+            self._flush_in_seen = False
         read_satisfied = self._read_satisfied
         self._read_satisfied = False
-        if self._delivered_plaintext and (flush_in_seen or read_satisfied):
+        if self._delivered_plaintext and (flush_in_seen or read_satisfied or self._read_yielded):
             self._delivered_plaintext = False
             ctx.feed_in(IoPipelineFlowMessages.FlushInput())
+
+        if self._is_removed():
+            return
+
+        # 7) Never let a final fence overtake a batch already removed from the backlog but staged in this turn.
+        # Errors follow their authenticated prefix too; the pipeline's normal error policy handles the raised error.
+        if self._pending_read_error is not None and not self._plaintext_backlog:
+            exc = self._pending_read_error
+            self._pending_read_error = None
+            self._read_requested = False
+            self._read_yielded = False
+            # An already requested close must not be stranded when raising ends this turn. Its preceding data has
+            # been delivered and its undeliverable output fences have failed; the driver handles the normal error.
+            if self._pending_final_output is not None:
+                fo = self._pending_final_output
+                self._pending_final_output = None
+                self._send_final_output(ctx, fo)
+            if self._is_removed():
+                return
+            raise exc
+        if self._state == self.State.CLOSED and self._pending_final_output is not None and not self._plaintext_backlog:
+            fo = self._pending_final_output
+            self._pending_final_output = None
+            self._send_final_output(ctx, fo)
+            if self._is_removed():
+                return
 
         # 8) ReadyForInput: in manual mode, request wire bytes iff the engine is starved (_want_ciphertext) AND someone
         # actually needs progress - the handshake, a pending close, an outstanding app read, or a write blocked on
@@ -1108,6 +1290,7 @@ class SslIoPipelineHandler(
                 not auto_read and
                 fc is not None and
                 self._want_ciphertext and
+                not self._read_yielded and
                 not self._rfi_outstanding and
                 not self._transport_eof and
                 self._state in (self.State.HANDSHAKE, self.State.ESTABLISHED, self.State.SHUTTING_DOWN)
@@ -1122,10 +1305,12 @@ class SslIoPipelineHandler(
                         not self._plaintext_backlog
                     ) or
                     self._read_requested or
-                    bool(self._write_q)
+                    self._write_wants_ciphertext
             ):
                 self._rfi_outstanding = True
                 ctx.feed_out(IoPipelineFlowMessages.ReadyForInput())
+                if self._is_removed():
+                    return
 
         # 9) Writability: hysteresis on our own plaintext backlog, combined with the transport's signal, announced
         # inbound only on change.

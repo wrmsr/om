@@ -1,3 +1,4 @@
+# @om-lite
 import ssl
 import typing as ta
 import unittest
@@ -111,13 +112,32 @@ def make_pair(
         server_auto=True,
         client_flow=True,
         server_flow=True,
+        client_config=None,
+        server_config=None,
+        tls_version=None,
 ):
     server_ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     server_ssl_ctx.load_cert_chain(cert.cert_file, cert.key_file)
     client_ssl_ctx = ssl.create_default_context(cafile=cert.cert_file)
 
-    ch = SslIoPipelineHandler(client_ssl_ctx, server_side=False, server_hostname='localhost')
-    sh = SslIoPipelineHandler(server_ssl_ctx, server_side=True)
+    if tls_version is not None:
+        for ssl_ctx in (client_ssl_ctx, server_ssl_ctx):
+            ssl_ctx.minimum_version = tls_version
+            ssl_ctx.maximum_version = tls_version
+
+    # The handler only checks a caller's context (see _ssl_handlers in test_halfclose).
+    if client_config is not None:
+        SslIoPipelineHandler.configure_ssl_context(client_ssl_ctx, client_config)
+    if server_config is not None:
+        SslIoPipelineHandler.configure_ssl_context(server_ssl_ctx, server_config)
+
+    ch = SslIoPipelineHandler(
+        client_ssl_ctx,
+        server_side=False,
+        server_hostname='localhost',
+        config=client_config,
+    )
+    sh = SslIoPipelineHandler(server_ssl_ctx, server_side=True, config=server_config)
 
     cctx = Ctx('client', StubIoPipelineFlowService(auto_read=client_auto) if client_flow else None)
     sctx = Ctx('server', StubIoPipelineFlowService(auto_read=server_auto) if server_flow else None)
@@ -257,6 +277,7 @@ class TestSslHandlers(unittest.TestCase):
         server_ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         server_ssl_ctx.load_cert_chain(self._cert.cert_file, self._cert.key_file)
         client_ssl_ctx = ssl.create_default_context(cafile=self._cert.cert_file)
+        SslIoPipelineHandler.configure_ssl_context(server_ssl_ctx, cfg)  # Older Pythons' contexts need it cleared.
         ch = SslIoPipelineHandler(client_ssl_ctx, server_side=False, server_hostname='localhost')
         sh = SslIoPipelineHandler(server_ssl_ctx, server_side=True, config=cfg)
         cctx: ta.Any = Ctx('client', StubIoPipelineFlowService(auto_read=True))
