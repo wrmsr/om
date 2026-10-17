@@ -24,6 +24,8 @@ async def _test_explore(harness, model: str) -> None:
     harness[HarnessSecrets].get_or_skip(check.not_none(llm.default_models_by_name()[model].api_key_name))
 
     with tempfile.TemporaryDirectory() as td:
+        td = os.path.abspath(os.path.realpath(td))
+
         with open(os.path.join(td, 'quokka.txt'), 'w') as f:  # noqa: ASYNC230
             f.write(f'The secret word is {_WORD}.\n')
 
