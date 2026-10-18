@@ -340,6 +340,11 @@ class Block:
         x = x + self.mlp(ops, ops.rms_norm(x, self.ln2, self.eps))
         ops.tap(f'layers.{self.index}.out', x)
 
+        # a lazy backend evaluates here, so the graph is one layer's at a time: its scheduling cost and the memory of
+        # its temporaries (a prefill expands quantized weights) stay bounded, and the state handed on is a buffer, not
+        # a pending graph every later evaluation would walk again (nothing happens elsewhere: see Ops.materialize)
+        ops.materialize(x, *state)
+
         return x, state
 
     def decode(
@@ -365,6 +370,7 @@ class Block:
 
         x = x + m
         x = x + self.mlp(ops, ops.rms_norm(x, self.ln2, self.eps))
+        ops.materialize(x, *state)  # as in __call__; a captured step records it, so the replay is unaffected
         return x, state
 
 
@@ -630,15 +636,15 @@ class Qwen35:
         def quantize_and_cache(arr: np.ndarray, n: str, b: int) -> Weight:
             if cache is not None:
                 try:  # quantize on the device (fast) and export; fall back to the numpy quantizer
-                    p = ops.quantize(arr, b, group, dt, quant_search)
+                    p = ops.quantize(arr, b, group, dt, quant_search, name=n)
                     qw = ops.export_qweight(p)
                 except NotImplementedError:
                     qw = quantize_np(arr, b, group, quant_search)
-                    p = ops.qweight(qw, dt)
+                    p = ops.qweight(qw, dt, name=n)
                 cache.put(n, qw)
                 return p
 
-            return ops.quantize(arr, b, group, dt, quant_search)
+            return ops.quantize(arr, b, group, dt, quant_search, name=n)
 
         n_native = n_quant = 0
 
@@ -673,10 +679,10 @@ class Qwen35:
             cached = cache.get(name) if cache is not None else None
 
             if isinstance(cached, QWeight):
-                p = ops.qweight(cached, dt)
+                p = ops.qweight(cached, dt, name=name)
 
             elif cached is not None:
-                p = ops.weight(cached, f32 if keep_f32 else dt)
+                p = ops.weight(cached, f32 if keep_f32 else dt, name=name)
 
             if p is None and bits is not None and not keep_f32 and not any(s in name for s in NO_QUANT):
                 nq = src.get_quant(name)
@@ -684,7 +690,7 @@ class Qwen35:
                     qw = from_native(nq.values, nq.scale, nq.bias, nq.bits, nq.group)
                     if cache is not None:
                         cache.put(name, qw)
-                    p = ops.qweight(qw, dt)
+                    p = ops.qweight(qw, dt, name=name)
                     n_native += 1
 
             if p is None:
@@ -693,7 +699,7 @@ class Qwen35:
                 if keep_f32:
                     if cache is not None:
                         cache.put(name, arr)
-                    p = ops.weight(arr, f32)
+                    p = ops.weight(arr, f32, name=name)
 
                 elif bits is not None and is_quantizable(name, arr.shape, group):
                     p = quantize_and_cache(arr, name, bits_for(name) or bits)
@@ -702,7 +708,7 @@ class Qwen35:
                 else:
                     if cache is not None:
                         cache.put(name, arr)
-                    p = ops.weight(arr, dt)
+                    p = ops.weight(arr, dt, name=name)
 
             params[name] = p
 
@@ -738,9 +744,9 @@ class Qwen35:
 
         cached = cache.get(fused_name) if cache is not None else None
         if isinstance(cached, QWeight):
-            return ops.qweight(cached, dt)
+            return ops.qweight(cached, dt, name=fused_name)
         if cached is not None:
-            return ops.weight(cached, dt)
+            return ops.weight(cached, dt, name=fused_name)
 
         if fbits is not None:
             natives = [src.get_quant(pn) for pn in parts]
@@ -755,7 +761,7 @@ class Qwen35:
                 )
                 if cache is not None:
                     cache.put(fused_name, qw)
-                return ops.qweight(qw, dt)
+                return ops.qweight(qw, dt, name=fused_name)
 
         arr = np.concatenate([np.asarray(src.get(pn), dtype=np.float32) for pn in parts], 0)
 
@@ -765,7 +771,7 @@ class Qwen35:
         if cache is not None:
             cache.put(fused_name, arr)
 
-        return ops.weight(arr, dt)
+        return ops.weight(arr, dt, name=fused_name)
 
     # forward
 
@@ -977,19 +983,28 @@ class Qwen35:
         snap = prefix_cache.lookup(prompt_ids) if prefix_cache is not None else None
         mtp_kv: FullState | None = None
 
+        # a backend that asks for it prefills through the static decoder's captured step (see Decoder.prefill); the
+        # decoder then is the one decode continues with, and the snapshot comes from its exported cache
+        dec: Decoder | None = None
+
         if snap is not None:
             # resume: the snapshot's cache is a private copy; prefill only the tokens past it
             cache = snap.cache
             n0 = snap.n
             self.last_prefix = (n0, n)
+            if static and ops.static_prefill:
+                dec = Decoder(self, cache, capacity=capacity)
 
             if n0 < n:
-                logits, hidden_new = self.prefill(
-                    prompt_ids[n0:],
-                    cache,
-                    prefill_chunk,
-                    should_stop,
-                )
+                if dec is not None:
+                    logits, hidden_new = dec.prefill(prompt_ids[n0:], should_stop)
+                else:
+                    logits, hidden_new = self.prefill(
+                        prompt_ids[n0:],
+                        cache,
+                        prefill_chunk,
+                        should_stop,
+                    )
                 hidden = ops.concat([snap.hidden, hidden_new], 1)  # positions n0-1 .. n-1
             else:
                 logits = ops.reshape(snap.logits, (1, 1, -1))
@@ -1001,17 +1016,24 @@ class Qwen35:
         else:
             self.last_prefix = (0, n)
             cache = Cache(self.cfg)
-            logits, hidden = self.prefill(
-                prompt_ids,
-                cache,
-                prefill_chunk,
-                should_stop,
-            )
+            if static and ops.static_prefill:
+                dec = Decoder(self, cache, capacity=capacity)
+                logits, hidden = dec.prefill(prompt_ids, should_stop)
+            else:
+                logits, hidden = self.prefill(
+                    prompt_ids,
+                    cache,
+                    prefill_chunk,
+                    should_stop,
+                )
             start = 0
 
-        if prefix_cache is not None or spec:
+        # the draft head's KV up to entry n-2 (entry p: hidden at p, token at p+1), for the snapshot and the spec
+        # decoder. After a static prefill a spec decoder brings it up through the head's captured step instead (see
+        # SpecDecoder._prefill_draft), and the snapshot takes it from there
+        draft_static = dec is not None and bool(spec) and self.mtp is not None
+        if (prefix_cache is not None or spec) and not draft_static:
             if self.mtp is not None and n - 1 > start:
-                # bring the draft head's KV up to entry n-2 (entry p: hidden at p, token at p+1)
                 _, _, mtp_kv = self.mtp.prefill(
                     np.asarray([prompt_ids[start + 1:n]], dtype=np.int32),
                     hidden[:, :n - 1 - start],
@@ -1020,14 +1042,17 @@ class Qwen35:
                     mtp_kv,
                 )
 
-        if prefix_cache is not None:
-            prefix_cache.put(Snapshot(
+        def put_prompt(mkv: FullState | None) -> None:
+            check.not_none(prefix_cache).put(Snapshot(
                 tuple(int(t) for t in prompt_ids),
-                cache.snapshot(ops),
+                dec.export_cache() if dec is not None else cache.snapshot(ops),
                 ops.copy(logits[:, -1]),
                 ops.copy(hidden[:, -1:]),
-                None if mtp_kv is None else tuple(ops.copy(a) for a in mtp_kv),
+                mkv,
             ))
+
+        if prefix_cache is not None and not draft_static:
+            put_prompt(None if mtp_kv is None else tuple(ops.copy(a) for a in mtp_kv))
 
         out: list[int] = []
 
@@ -1046,14 +1071,18 @@ class Qwen35:
                 cache,
                 prompt_ids,
                 logits,
-                hidden[:, -1:],
+                hidden if draft_static else hidden[:, -1:],
                 k=spec,
                 sampler=sampler,
                 capacity=capacity,
                 draft_vocab=draft_vocab,
                 mtp_kv=mtp_kv,
                 constraint=constraint,
+                decoder=dec,
             )
+
+            if prefix_cache is not None and draft_static:
+                put_prompt(ops.kv_slice(tuple(spec_dec.mflat), n - 1) if n > 1 else None)
 
             processed: list[int] = []  # every committed token, including any past an EOS / the budget
 
@@ -1079,7 +1108,8 @@ class Qwen35:
             self.last_spec = spec_dec.stats()
             return out
 
-        dec = Decoder(self, cache, capacity=capacity) if static else None
+        if dec is None and static:
+            dec = Decoder(self, cache, capacity=capacity)
 
         masks = MaskCache(ops, self.cfg.vocab_size)  # allocates nothing until a constraint hands it a real set
 
@@ -1412,9 +1442,7 @@ class Sampler:
     def gather(ops: Ops, probs: Array, toks: Array) -> Array:
         """probs[i, toks[i]] for each row -> [T]."""
 
-        V = probs.shape[1]
-        oh = ops.cast(ops.arange(V)[None, :] == toks[:, None], probs.dtype)
-        return ops.sum(probs * oh, -1)
+        return ops.gather_rows(probs, toks)
 
 
 def speculative_accept(
@@ -1497,12 +1525,62 @@ class Decoder:
             self.capacity = _pow2_at_least(self.seq_len + 1)
         self.flat: list[Array] = []
         for st, kind in zip(cache.layers, model.cfg.layer_types):
-            if st is not None and kind == 'full':
-                st = model.ops.kv_adapt(st, model.dtype)
             if st is None:
-                raise ValueError('cache has no state; run a prefill first')
+                if cache.seq_len:
+                    raise ValueError('cache has no state; run a prefill first')
+                st = self._empty_state(kind)  # a decoder starting from nothing (see `prefill`)
+            if kind == 'full':
+                st = model.ops.kv_adapt(st, model.dtype)
             self.flat.extend(st)
         self._alloc(self.capacity, first=True)
+
+    def _empty_state(self, kind: str) -> tuple[Array, ...]:
+        """A layer's state before any token: a zero-length KV, or zero conv history and recurrent state."""
+
+        ops = self.ops
+        c = self.model.cfg
+        f32 = ops.dtype('f32')
+        if kind == 'full':
+            z = ops.zeros((1, c.num_kv_heads, 0, c.head_dim), self.model.dtype)
+            return ops.kv_new(z, z)
+        return (
+            ops.zeros((1, c.conv_dim, c.conv_kernel - 1), f32),
+            ops.zeros((1, c.num_v_heads, c.head_k_dim, c.head_v_dim), f32),
+        )
+
+    # the static prefill's step length: every chunk of a prompt runs as one `PREFILL_T`-token verify step (the last
+    # one padded, its pad positions rewritten by the next step before anything reads them), so one captured step
+    # serves every prompt. Small enough to capture quickly (its DeltaNet recurrence is sequential per token).
+    PREFILL_T: ta.ClassVar[int] = 16
+
+    def prefill(
+            self,
+            tokens: ta.Sequence[int],
+            should_stop: ta.Callable[[], bool] | None = None,
+    ) -> tuple[Array, Array]:
+        """
+        The prompt through the captured step, `PREFILL_T` tokens at a time, committing each chunk (for a backend
+        whose `forward` would be scheduled eagerly: `Ops.static_prefill`). Returns what `Qwen35.prefill` returns:
+        the last position's logits [B, 1, V] and the final-normed hidden states of every position [B, T, hidden].
+        """
+
+        ops = self.ops
+        T = self.PREFILL_T
+        toks = [int(t) for t in tokens]
+        if not toks:
+            raise ValueError('nothing to prefill')
+        hiddens: list[Array] = []
+        last: Array | None = None
+        for start in range(0, len(toks), T):
+            if should_stop is not None and should_stop():
+                raise Cancelled
+            chunk = toks[start:start + T]
+            n = len(chunk)
+            logits, hidden, flat_all = self.verify(chunk + [chunk[-1]] * (T - n))
+            self.commit(flat_all, n)
+            hiddens.append(hidden[:, :n] if n < T else hidden)
+            last = logits[:, n - 1:n]
+        return check.not_none(last), (hiddens[0] if len(hiddens) == 1 else ops.concat(hiddens, 1))
 
     def _pad_to(self, capacity: int) -> None:
         """Zero-pad every KV buffer to `capacity` positions (no-op for buffers already that long)."""
@@ -1626,6 +1704,7 @@ class Decoder:
         commit are masked by `pos` and overwritten by the next step).
         """
 
+        ops = self.ops
         flat: list[Array] = []
 
         for (o, n), kind in zip(self.model.state_offsets(), self.model.cfg.layer_types):
@@ -1633,7 +1712,7 @@ class Decoder:
             if kind == 'full':
                 flat.extend(st)
             else:
-                flat.extend(a[n_accept - 1] for a in st)
+                flat.extend(ops.select(a, n_accept - 1) for a in st)
 
         self.flat = flat
         self.seq_len += n_accept
@@ -1702,9 +1781,11 @@ class SpecDecoder:
             draft_vocab: int = 0,
             mtp_kv: FullState | None = None,
             constraint: ta.Any = None,
+            decoder: Decoder | None = None,
     ) -> None:
         """
-        `cache` holds the target's state after the n prompt tokens; `logits` its logits at the last position; `hidden`
+        `cache` holds the target's state after the n prompt tokens (or `decoder` is the static decoder that already
+        holds it, after a static prefill); `logits` its logits at the last position; `hidden`
         [1, T, H] the target's final-normed hidden states for positions n-T..n-1 -- all n of them when starting
         from scratch, or just the tail when `mtp_kv` already holds the draft head's KV for entries 0..n-T-1 (a prefix
         snapshot resuming). The draft head is then prefilled over entries n-T..n-1 only.
@@ -1724,7 +1805,7 @@ class SpecDecoder:
         self.mtp = model.mtp
         self.k = k
         self.sampler = sampler
-        self.dec = Decoder(model, cache, capacity)
+        self.dec = decoder if decoder is not None else Decoder(model, cache, capacity)
         n = self.dec.seq_len
         sampler.bind(ops, model.cfg.vocab_size)
         self.i32 = ops.dtype('i32')
@@ -1742,12 +1823,16 @@ class SpecDecoder:
         # from scratch; the position of the first supplied hidden row when resuming on top of `mtp_kv`)
         start = n - hidden.shape[1]
         mtoks = np.asarray([*prompt_ids[start + 1:n], self.next_tok], dtype=np.int32)[None]
-        mlogits, d, mkv = self.mtp.prefill(mtoks, hidden, start, draft_vocab, mtp_kv)
-        self.mflat: list[Array] = list(mkv)
-        self.logits_last = logits[:, -1]  # [1, V]: the target's logits for position n (what next_tok was drawn from)
-        self.hidden_last = hidden[:, -1:]  # [1, 1, H]: the target's hidden at position n-1
         self.mcap = 0
         self.mfns: dict[tuple[int, int], ta.Callable[..., tuple[Array, ...]]] = {}
+        self.mflat: list[Array] = []
+        if ops.static_prefill:
+            mlogits, d = self._prefill_draft(mtoks, hidden, start, mtp_kv)
+        else:
+            mlogits, d, mkv = self.mtp.prefill(mtoks, hidden, start, draft_vocab, mtp_kv)
+            self.mflat = list(mkv)
+        self.logits_last = logits[:, -1]  # [1, V]: the target's logits for position n (what next_tok was drawn from)
+        self.hidden_last = hidden[:, -1:]  # [1, 1, H]: the target's hidden at position n-1
         self.d_last = d[:, -1:]  # [B, 1, H]
         self.mlogits_last = mlogits[:, -1]  # [1, V] on the device
         self.mseq = n  # draft-head entries with true hidden states
@@ -1755,6 +1840,45 @@ class SpecDecoder:
         self.accepted = 0
         # test hook: (seq_len, next_tok, k) -> k draft tokens, replacing the draft head's proposals
         self.draft_fn: ta.Callable[[int, int, int], list[int]] | None = None
+
+    def _prefill_draft(
+            self,
+            mtoks: np.ndarray,
+            hidden: Array,
+            start: int,
+            mtp_kv: FullState | None,
+    ) -> tuple[Array, Array]:
+        """
+        The draft head's prefill through its captured step, `Decoder.PREFILL_T` entries at a time, the last chunk
+        padded with its last entry (as Decoder.prefill does; the pad entries are rewritten before anything attends to
+        them): entries start.. from `mtoks` [1, T] and `hidden` [1, T, H], on top of `mtp_kv` (entries 0..start-1, or
+        None). Leaves `mflat` holding the head's KV at the target's capacity; returns the last chunk's logits and d,
+        the last real entry at index -1.
+        """
+
+        ops = self.ops
+        c = self.model.cfg
+        T = Decoder.PREFILL_T
+        if mtp_kv is None:
+            z = ops.zeros((1, c.num_kv_heads, 0, c.head_dim), self.model.dtype)
+            mtp_kv = ops.kv_new(z, z)
+        self.mflat = list(mtp_kv)
+        total = int(mtoks.shape[1])
+        last: tuple[Array, Array] | None = None
+        for i in range(0, total, T):
+            n = min(T, total - i)
+            pos = start + i
+            self.dec.ensure_capacity(pos + T)
+            self._sync_capacity()
+            tk = mtoks[:, i:i + n]
+            hd = hidden[:, i:i + n]
+            if n < T:
+                tk = np.concatenate([tk, np.repeat(tk[:, -1:], T - n, 1)], 1)
+                hd = ops.concat([hd, ops.repeat(hd[:, -1:], T - n, 1)], 1)
+            ml, d, *mkv = self._mfn(T, pos + T)(ops.array(tk), hd, ops.scalar(pos), *self.dec.tables(), *self.mflat)
+            self.mflat = list(mkv)
+            last = (ml[:, :n], d[:, :n])
+        return check.not_none(last)
 
     def _sync_capacity(self) -> None:
         """Pad the draft head's KV to the target's capacity (re-capturing its steps) whenever the latter grew."""

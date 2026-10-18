@@ -211,10 +211,10 @@ class MlxOps(Ops):
 
     # weights
 
-    def weight(self, w, dtype):
+    def weight(self, w, dtype, name=None):
         return self.array(w, dtype)
 
-    def qweight(self, qw: QWeight, dtype):
+    def qweight(self, qw: QWeight, dtype, name=None):
         return MlxQWeight(
             mx.array(qw.words()),
             self.array(qw.scale, dtype),
@@ -231,6 +231,7 @@ class MlxOps(Ops):
             group,
             dtype,
             search=True,
+            name=None,
     ):
         if search:  # mx.quantize is min/max round-to-nearest; the error-minimising search runs in numpy
             return self.qweight(quantize_np(w, bits, group, True), dtype)

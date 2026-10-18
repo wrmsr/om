@@ -17,7 +17,7 @@ torch_ops.py     torch backend (F.rms_norm / SDPA / conv1d, on-device quantize, 
 backends/torch_triton.py  Triton int4/int8 GEMV for TorchQWeight (decode / verify; prefill stays on dequant + cuBLAS)
 mlx_ops.py       MLX core backend (mx.fast.rms_norm / rope / sdpa, mx.quantized_matmul, MlxQWeight)
 backends/mlx_metal.py  the fused DeltaNet step as an mx.fast.metal_kernel (Metal only)
-tinygrad_ops.py  tinygrad backend (Tensor.scaled_dot_product_attention, grouped conv, TinyQWeight)
+backends/tinygrad.py  tinygrad backend: held-state TinyJit steps, symbolic position and attention window, slab weights
 backends.py      backend selection for the CLIs
 quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
 paramcache.py    on-disk cache of finished parameters (memory-mapped .npy per array), so a 27B loads in seconds
@@ -150,8 +150,9 @@ and `ops.capture` makes it fast:
   27B step becomes one graph launch instead of ~700 kernel launches. `capture_mode='static'` runs the same
   protocol without a graph, which is how it is tested on CPU.
 - MLX: `mx.compile` (the setitem index is a runtime input; verified).
-- tinygrad: `TinyJit`, with inputs and outputs cloned each call because JIT buffers are reused (correct, not yet
-  fast; `__setitem__` bakes the index into recorded kernels, so `kv_write` stays the masked-blend reference there).
+- tinygrad: `TinyJit` over a step whose tables and state are buffers the jitted function closes over and carries in
+  place, with the position a bound `Variable`, so `kv_write` is a symbolic-index write and the attention reads a
+  symbolic-length window (see "The tinygrad backend" below).
 
 `Decoder.step(tok)` moves one token id in and the logits out per token (`Decoder.verify` / `commit` are the
 T = k + 1 variant used by speculative decoding, below); `snapshot()` / `restore()` are the
@@ -274,10 +275,11 @@ On torch with Triton, `sdpa_static` is a length-aware flash-decoding kernel (`to
 number of key blocks comes from `pos` at run time inside one fixed CUDA graph, 32 programs per kv head split the
 sequence and their partial softmaxes are merged, so the cost follows the sequence and a capacity of 262144 costs
 memory (64 KB per position: 17 GB for the 27B) and nothing else. Backends whose attention reads whatever buffer
-it is given (`Ops.attn_bucketed`: MLX, tinygrad, torch without Triton) get the same effect by bucketing: the
+it is given (`Ops.attn_bucketed`: MLX, torch without Triton) get the same effect by bucketing: the
 `Decoder` captures a step per power-of-two window from 1024 up to the capacity and hands attention the slice
 covering the positions in use, so crossing 4096 -> 8192 tokens is one cheap re-capture (an `mx.compile` trace on
-MLX) rather than a bigger graph for every token. Either way the captured / compiled steps are specific to the
+MLX) rather than a bigger graph for every token. tinygrad slices the buffers to a symbolic length `pos + T`
+instead, one capture for the whole capacity. Either way the captured / compiled steps are specific to the
 capacity, so pin it (`--capacity`) to the longest context you will run instead of letting it grow, which
 re-captures (and with `--compile` recompiles) at every doubling.
 
@@ -288,6 +290,77 @@ with Triton, `sdpa` is a flash-attention forward with the KV offset (`torch_trit
 `'causal'` mask aligns bottom-right when there are more keys than queries, which is exactly that. Both kernels
 are checked against the composed references under the Triton interpreter (`test_torch_triton.py`), and
 `test_parity.py::test_attention_buckets` walks a sequence across four bucket boundaries against the golden.
+
+## The tinygrad backend
+
+Tier-2: fully functional, kept current with the submodule's revision, never the fastest. `--backend tinygrad` runs
+on tinygrad's own NV runtime on the 5090 (`--device` picks another; the classic `CUDA` device does not load here,
+its nvrtc being newer than the driver). Two facts about this tinygrad shape the backend: scheduling a graph eagerly
+costs milliseconds of Python per graph and grows worse with its size, while a `TinyJit` replay is one queue
+submission, microseconds per kernel. So nothing per token may be scheduled eagerly:
+
+- The captured step holds its tables and state as buffers the jitted function closes over; a DeltaNet layer's new
+  state is `assign`ed into the buffer it came from and `kv_write` writes in place, so the replay reads and writes
+  fixed memory and the state outputs *are* those buffers. The position is a bound `Variable`: `kv_write` is a
+  symbolic-index write and `sdpa_static` attends over `kbuf[:, :, :pos + T]`, a length-aware attention without a
+  kernel (`attn_bucketed = False`). A decode step's token is a bound variable too, so its embedding is a slice. A
+  step is captured once per process per shape and shared by every `Decoder`; speculative `commit`'s `stacked[m]`
+  selections are copied into the held buffers by a small JIT with `m` bound.
+- What the engine computes between steps -- sampling, the drafts and their probabilities, a round's acceptance --
+  has one structure every time, so `TinygradOps.realized` captures those graphs too, keyed by the graph's structure
+  with the buffers it reads as the JIT's inputs (random pool offsets and token ids are bound variables), realizing
+  every live tensor interior to the graph along with it, as an eager realization would; `numpy()` reads its result
+  through a CPU-mapped buffer. For the structures to recur, nothing in a graph may carry a fresh identity: `zeros`
+  is a constant (tinygrad's buffer form is an allocation with a new id each time), and the random pool is refilled
+  by a JIT. A greedy token is two replays; a speculative round about a dozen, with no eager scheduling at all.
+- tinygrad's general indexing costs half a millisecond of Python per use and a round built over a hundred, so the
+  hot ones are ops (`select` for a commit's per-token state, `gather_rows` for the sampler) that the backend
+  implements as a shrink and a gather; `arange` is one realized buffer per size. A realization points the tensors
+  sharing its graph at the result by scanning the live ones, as tinygrad does, but only those holding pending
+  computation (the weights' slab views, most of what is live, are remembered and skipped).
+- `Ops.materialize` (a no-op on torch) is called per layer in the forward and in the static step: on tinygrad it
+  evaluates there, so a prefill's graph, its scheduling cost and the memory of its expanded weights stay bounded, and
+  a step is captured as 64 small graphs rather than one huge one -- with no layer's output left pending for later
+  layers' evaluations to recompute.
+- A prompt goes through the captured step as well (`Ops.static_prefill`): `Decoder.prefill` runs the 16-token
+  verify step over it chunk by chunk, the last chunk padded with its last token (pad positions are rewritten by the
+  next step before anything attends to them), and a speculative decoder brings the draft head up the same way
+  through the head's own step. The eager forward's scheduling cost ~0.3 s a layer, 42 s of a 47 s first token. A
+  decoder exported before any step wrote it (a prefix hit, stored again) slices its padded KV's prefix rather than
+  realizing the pad: a graph JIT's output is scratch its next replay overwrites, and a layer's K and V pads share one
+  structure.
+- Every JIT captures its first call (`_tg_jit`): tinygrad runs a function through once before capturing on the
+  second, pure cost here since the inputs and held buffers are realized beforehand -- over a minute for the 16-token
+  step, a quarter second per graph JIT. A decoder starting from nothing hands its states in as constants: its KV is
+  left as the held buffer holds it (every position is written before it is read), and its DeltaNet states are
+  filled by one JIT rather than a hundred eager kernels.
+- Weights live in one slab buffer per layer as views (a step's submission takes one argument per buffer, and
+  sixty-four layers of individual tensors are too many); every layer of a kind lays its weights out identically, so
+  the eagerly scheduled graphs of a prefill are one template for all of them. A slab's views are made over an
+  unallocated placeholder while its layer loads and re-pointed at the exact-size buffer the bytes are uploaded into
+  at the first realization. Quantized codes stay packed as uint32 words, dequantized inside the matmul kernel for
+  decode and verify and into a bf16 weight for prefill. The kernel's input rows are materialized first: left as an
+  expression (a norm's scaling, the gate times the up projection), tinygrad folds it into the kernel and recomputes
+  it for every output row, two to three times the kernel's time at four rows.
+- tinygrad's heuristics leave the int4 GEMV at ~20 GB/s; `--compile` selects its kernel search (`BEAM`), which
+  reaches ~1 TB/s (13.9 us for a 5120x5120 int4 GEMV on the 5090), once per kernel shape, persisted in tinygrad's
+  cache database.
+- This GPU has no resizable BAR, and tinygrad's NV runtime maps CPU-visible memory per eagerly compiled graph out of
+  that 256 MiB, kept while its template is cached: the backend keys graphs by structure (`HCQ_CACHE_THRESH`),
+  keeps offsets symbolic so structures recur, drops the template cache past a count, and captures steps once.
+  Two tinygrad processes on the GPU share the budget, so run tests against it one process at a time
+  (`test_parity.py` keeps it disabled by default for that reason).
+
+Measured on the 27B at int4 on the 5090 with a 20-token prompt (the `generate` command under "Serving" with
+`--backend tinygrad`, capacity 131072): the first `--compile` run's warm-up adds ~10 minutes of kernel search, later
+ones are ~3 minutes of capture (the 16-token prefill step is most of it: tinygrad's eager path costs ~20 ms a kernel
+while a step is captured); the first token takes 3-5 s; greedy decode with tinygrad's heuristic kernels runs at
+2.6 tok/s, and speculative decoding with the searched kernels at 38 tok/s over an 11.8k-token generation (3.26
+tokens a round at 75% acceptance, ~85 ms a round; ~72 ms a round and 48 tok/s early in one, before the attention
+window grows), against ~170 tok/s on torch. Correctness is the parity suite's. Of an early round, 33 ms is the GPU
+(the M=4 int4 GEMV runs at 700-780 GB/s against 1.2 TB/s at M=1; `TinyJitStep.DEFAULT_BEAM` 2 gains ~5% for
+several times the search), ~10 ms the step replays' submission, ~13 ms the graph JITs' calls at ~1 ms each, and
+the rest the engine's Python between them.
 
 ## fp8 KV cache
 

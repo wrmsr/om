@@ -375,10 +375,10 @@ class TorchOps(Ops):
 
     # weights
 
-    def weight(self, w, dtype):
+    def weight(self, w, dtype, name=None):
         return self.array(w, dtype)
 
-    def qweight(self, qw: QWeight, dtype):
+    def qweight(self, qw: QWeight, dtype, name=None):
         return TorchQWeight(
             self.array(qw.q),
             self.array(qw.scale, dtype),
@@ -395,6 +395,7 @@ class TorchOps(Ops):
             group,
             dtype,
             search=True,
+            name=None,
     ):
         """
         Quantize + adopt. The error-minimising search runs in the canonical numpy implementation (bit-identical on every

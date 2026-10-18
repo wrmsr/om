@@ -101,6 +101,13 @@ class Ops(lang.Abstract):
     def eval(self, *xs: Array) -> None:
         """Force computation on lazy backends; no-op elsewhere."""
 
+    def materialize(self, *xs: Array) -> None:
+        """
+        A point past which a lazy backend's graph should not grow: the model calls it per layer of a prefill with the
+        layer's output and state. A backend whose scheduling cost or memory depends on the size of the pending graph
+        evaluates here; everything else (torch, numpy) does nothing, so this is not a device sync.
+        """
+
     def nbytes(self, w: Weight) -> int:
         raise NotImplementedError
 
@@ -209,6 +216,18 @@ class Ops(lang.Abstract):
     def random_uniform(self, shape: tuple[int, ...]) -> Array:
         """float32 in [0, 1)."""
 
+    def select(self, x: Array, i: int) -> Array:
+        """x[i]: the entry at a static index along the first axis, that axis dropped (a commit's per-token state)."""
+
+        return x[i]
+
+    def gather_rows(self, probs: Array, toks: Array) -> Array:
+        """probs[i, toks[i]] for each row i of [T, V] -> [T]. Reference: a one-hot sum, O(T V)."""
+
+        V = probs.shape[1]
+        oh = self.cast(self.arange(V)[None, :] == toks[:, None], probs.dtype)
+        return self.sum(probs * oh, -1)
+
     def index_add(self, x: Array, idx: Array, vals: Array) -> Array:
         """
         x [V] with vals [n] added at idx [n] (duplicates accumulate); returns the updated array. Reference: a one-hot
@@ -225,11 +244,11 @@ class Ops(lang.Abstract):
     # weights
 
     @abc.abstractmethod
-    def weight(self, w: np.ndarray, dtype: ta.Any) -> Weight:
-        """Adopt a dense parameter."""
+    def weight(self, w: np.ndarray, dtype: ta.Any, name: str | None = None) -> Weight:
+        """Adopt a dense parameter. `name` is its canonical name, for a backend that places parameters by it."""
 
     @abc.abstractmethod
-    def qweight(self, qw: QWeight, dtype: ta.Any) -> Weight:
+    def qweight(self, qw: QWeight, dtype: ta.Any, name: str | None = None) -> Weight:
         """Adopt an already-quantized parameter (scale/bias stored in `dtype`)."""
 
     def head_rows(self, w: Weight, n: int) -> Weight:
@@ -247,10 +266,11 @@ class Ops(lang.Abstract):
             group: int,
             dtype: ta.Any,
             search: bool = True,
+            name: str | None = None,
     ) -> Weight:
         """Quantize + adopt (see quant.quantize for `search`). Backends may override to quantize on-device."""
 
-        return self.qweight(quantize_np(w, bits, group, search), dtype)
+        return self.qweight(quantize_np(w, bits, group, search), dtype, name)
 
     def export_qweight(self, w: Weight) -> QWeight:
         """
@@ -538,6 +558,11 @@ class Ops(lang.Abstract):
             out = out[:, :, :T]
         return out, S
 
+    # A backend whose eager path is costly (tinygrad schedules each graph in milliseconds of Python, a prefill in
+    # tens of seconds) asks the engine to prefill through the captured static step instead of `forward`: see
+    # `Decoder.prefill` and `Qwen35.generate`
+    static_prefill: bool = False
+
     # The attention layers' KV state is a tuple of `kv_arity` arrays whose meaning only the backend knows: the default
     # is (k, v) in the compute dtype, [B, KV, L, D] each; a backend may store something else (torch: fp8 codes plus
     # per-token scales, four arrays). Model code goes through these methods and never looks inside.
@@ -782,10 +807,10 @@ class NumpyOps(Ops):
         np.add.at(out, np.asarray(idx, dtype=np.int64), np.asarray(vals, dtype=out.dtype))
         return out
 
-    def weight(self, w, dtype):
+    def weight(self, w, dtype, name=None):
         return np.asarray(w, dtype=dtype)
 
-    def qweight(self, qw, dtype):
+    def qweight(self, qw, dtype, name=None):
         return np.asarray(qw.dequantize(), dtype=dtype)
 
     def linear(self, x, w):

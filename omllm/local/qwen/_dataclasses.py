@@ -138,6 +138,122 @@ def _process_dataclass__2bf5818ad4160410a4ee25ace966c7517e477ba1():
 
 
 @_register(
+    installer_sha1='66c61906d4f3b4b48d2a97333b10e19de717c14d',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('q', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False), (('scale', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('bias', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('bits', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('group', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('shape', True, True, None, True, False, False, None), 'instance', 'missing', "
+            "None, False, False, False), (('shifts', True, True, None, True, False, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('GEMV_MAX_M', True, True, None, True, None, False, None), 'class_var', 'va"
+            "lue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ("
+            "(),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.backends.tinygrad', 'TinyQWeight'),
+    ),
+)
+def _process_dataclass__66c61906d4f3b4b48d2a97333b10e19de717c14d():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                q=self.q,
+                scale=self.scale,
+                bias=self.bias,
+                bits=self.bits,
+                group=self.group,
+                shape=self.shape,
+                shifts=self.shifts,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.q == other.q and
+                self.scale == other.scale and
+                self.bias == other.bias and
+                self.bits == other.bits and
+                self.group == other.group and
+                self.shape == other.shape and
+                self.shifts == other.shifts
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            q: __dataclass__init__fields__0__annotation,
+            scale: __dataclass__init__fields__1__annotation,
+            bias: __dataclass__init__fields__2__annotation,
+            bits: __dataclass__init__fields__3__annotation,
+            group: __dataclass__init__fields__4__annotation,
+            shape: __dataclass__init__fields__5__annotation,
+            shifts: __dataclass__init__fields__6__annotation,
+        ) -> __dataclass__None:
+            self.q = q
+            self.scale = scale
+            self.bias = bias
+            self.bits = bits
+            self.group = group
+            self.shape = shape
+            self.shifts = shifts
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"q={self.q!r}")
+            parts.append(f"scale={self.scale!r}")
+            parts.append(f"bias={self.bias!r}")
+            parts.append(f"bits={self.bits!r}")
+            parts.append(f"group={self.group!r}")
+            parts.append(f"shape={self.shape!r}")
+            parts.append(f"shifts={self.shifts!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='8906dd9cf35a7c6060f3652ea8accce5aa449cca',
     spec_keys=(
         (
@@ -153,7 +269,6 @@ def _process_dataclass__2bf5818ad4160410a4ee25ace966c7517e477ba1():
         ),
     ),
     cls_names=(
-        ('omllm.local.qwen.backends.tinygrad', 'TinyQWeight'),
         ('omllm.local.qwen.backends.torch', 'TorchQWeight'),
         ('omllm.local.qwen.quant', 'QWeight'),
     ),
