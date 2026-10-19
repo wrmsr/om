@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '06d6b20ac461f8e46d6b8134cef999da597764d7'
+__om_amalg_sha1__ = '549b4b241a599328bcd22ef8329c7087910c1637'
 
 
 def __om_amalg__():  # noqa
@@ -67,15 +67,16 @@ def __om_amalg__():  # noqa
             dict(sha1='1365cb6046eb929358e7c86a3fda20d95fd4a296', path='../../../omcore/lite/resources.py'),
             dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../../../omcore/lite/strings.py'),
             dict(sha1='a663184c584cf8d8449981d424337f8fbb61c7e8', path='../../../omcore/os/pyremote/core.py'),
-            dict(sha1='2c9a0a731509230c5a632494c3f176792c486b3a', path='../fs/common.py'),
+            dict(sha1='f6572b8c34185813301434c2b1243c2641f52eef', path='../fs/common.py'),
             dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../../omcore/lite/marshal.py'),
-            dict(sha1='45452dfb190b7fdeba144374971959b7733be106', path='../fs/ops.py'),
-            dict(sha1='18f353e8fe27cb61dcd1514f6d51f77dbd746887', path='../fs/remote/protocol.py'),
+            dict(sha1='cccaf9ee9819d6f4daa51a1d26776b682d1a40c5', path='../fs/ops.py'),
+            dict(sha1='e9c931c9b1aafae94c5b5a6468cc218c74483692', path='../fs/remote/protocol.py'),
             dict(sha1='995eba7586af040b569b0ff77fb5e3a2d132f18e', path='../../core/processes/remote/protocol.py'),
+            dict(sha1='e388e9282a7a01d535c7691883351bb8d58d5d11', path='../fs/local.py'),
             dict(sha1='875f2f61c1515d510977f37669e20af0e581fb82', path='../../core/rpc/errors.py'),
             dict(sha1='c6ba6e514b292048509f729d9f99bbd9eb36128a', path='../../core/rpc/handlers.py'),
             dict(sha1='f1082a2b6361ca9f50f4521d9c0d4279ff1a7905', path='../../core/rpc/messages.py'),
-            dict(sha1='667fa99e6ee7d4e3afb4ed5f42fb245726f966a9', path='../fs/remote/server.py'),
+            dict(sha1='335f4005fd85f9ec852f5dbfaef80070819f56a7', path='../fs/remote/server.py'),
             dict(sha1='103b39dc4068a45f4e83c3e87312bf4ce5ee2052', path='../../core/rpc/channels.py'),
             dict(sha1='80821e7a5897f00917f0c27596db2f2713ba07ad', path='../../core/rpc/peers.py'),
             dict(sha1='0e5b30d8fe987b78ab8158de07dc839de4e7ffd1', path='../../core/processes/remote/server.py'),
@@ -2514,40 +2515,25 @@ def fs_glob_root(pattern: str) -> str:
     return root
 
 
-def fs_path_is_under(path: str, root: str) -> bool:
-    """Checks already-resolved target paths using POSIX-compatible lexical path semantics."""
-
-    try:
-        return os.path.commonpath((path, root)) == root
-    except ValueError:
-        return False
-
-
 def fs_glob_paths(
         pattern: str,
         *,
-        root: str,
         max_results: ta.Optional[int] = None,
 ) -> ta.Tuple[ta.List[str], bool]:
     """
-    Globs inside `root`, excluding matches whose resolved targets escape it. Returns the matched paths as the glob
-    produced them, and whether more were available than `max_results` allowed.
+    Returns an absolute pattern's matched paths as the glob produced them, and whether more were available than
+    `max_results` allowed. Nothing is filtered: what a caller may see of the matches is the caller's to decide.
     """
 
     if max_results is not None and max_results < 0:
         raise ValueError(max_results)
 
-    resolved_root = fs_resolve_path(root)
-    resolved_glob_root = fs_resolve_path(fs_glob_root(pattern))
-    if not fs_path_is_under(resolved_glob_root, resolved_root):
-        raise ValueError(f'glob root {resolved_glob_root!r} is outside permitted root {resolved_root!r}')
+    if not os.path.isabs(pattern):
+        raise ValueError(f'glob pattern must be absolute: {pattern!r}')
 
     paths: ta.List[str] = []
     has_more = False
     for path in glob_.iglob(pattern, recursive=True):
-        if not fs_path_is_under(fs_resolve_path(path), resolved_root):
-            continue
-
         if max_results is not None and len(paths) >= max_results:
             has_more = True
             break
@@ -3557,26 +3543,56 @@ class FsFile:
 @ta.final
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
-class FsStat:
-    path: str
+class FsEntry:
+    """
+    A path's metadata, following symlinks as `os.stat` does - `is_symlink` alone is of the path itself, and an entry
+    listed from a directory or a glob which is a dangling symlink is of the link. The numeric fields are
+    `os.stat_result`'s, less their `st_` prefix; the optional ones are those not every platform has.
+    """
 
+    # The path as given, and its absolute, symlink-resolved form.
+    path: str
+    resolved_path: str
+
+    is_dir: bool
+    is_file: bool
+    is_symlink: bool
+
+    mode: int
+    ino: int
+    dev: int
+    nlink: int
+    uid: int
+    gid: int
     size: int
 
-    is_dir: bool
-    is_file: bool
-    is_symlink: bool
+    atime_ns: int
+    mtime_ns: int
+    ctime_ns: int
 
+    blksize: int
+    blocks: int
+    rdev: int
 
-@ta.final
-@install_dataclass_kw_only_init()
-@dc.dataclass(frozen=True)
-class FsDirEntry:
-    name: str
-    path: str
+    flags: ta.Optional[int] = None
+    gen: ta.Optional[int] = None
+    birthtime_ns: ta.Optional[int] = None
 
-    is_dir: bool
-    is_file: bool
-    is_symlink: bool
+    @property
+    def atime(self) -> float:
+        return self.atime_ns / 1e9
+
+    @property
+    def mtime(self) -> float:
+        return self.mtime_ns / 1e9
+
+    @property
+    def ctime(self) -> float:
+        return self.ctime_ns / 1e9
+
+    @property
+    def birthtime(self) -> ta.Optional[float]:
+        return self.birthtime_ns / 1e9 if self.birthtime_ns is not None else None
 
 
 @ta.final
@@ -3590,7 +3606,7 @@ class FsWriteResult:
 @install_dataclass_kw_only_init()
 @dc.dataclass(frozen=True)
 class FsGlobResult:
-    entries: ta.Sequence[FsDirEntry]
+    entries: ta.Sequence[FsEntry]
 
     has_more: bool = False
 
@@ -3606,7 +3622,7 @@ class FsOps(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def stat(self, path: str) -> ta.Awaitable[FsStat]:
+    def stat(self, path: str) -> ta.Awaitable[FsEntry]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -3630,7 +3646,7 @@ class FsOps(Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def list_dir(self, path: str) -> ta.Awaitable[ta.Sequence[FsDirEntry]]:
+    def list_dir(self, path: str) -> ta.Awaitable[ta.Sequence[FsEntry]]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -3638,97 +3654,14 @@ class FsOps(Abstract):
             self,
             pattern: str,
             *,
-            root: str,
             max_results: ta.Optional[int] = None,
     ) -> ta.Awaitable[FsGlobResult]:
-        """Globs inside `root`, excluding matches whose resolved targets escape it."""
+        """
+        The entries matching an absolute pattern, as the glob produced them and with nothing filtered: what a caller
+        may see of them is the caller's to decide, from their resolved paths.
+        """
 
         raise NotImplementedError
-
-
-##
-
-
-class LocalFsOps(FsOps):
-    @staticmethod
-    def _entry(path: str, *, name: ta.Optional[str] = None) -> FsDirEntry:
-        return FsDirEntry(
-            name=os.path.basename(path) if name is None else name,
-            path=path,
-
-            is_dir=os.path.isdir(path),
-            is_file=os.path.isfile(path),
-            is_symlink=os.path.islink(path),
-        )
-
-    async def resolve_path(self, path: str) -> str:
-        return fs_resolve_path(path)
-
-    async def stat(self, path: str) -> FsStat:
-        lst = os.lstat(path)
-        st = os.stat(path)
-        return FsStat(
-            path=path,
-
-            size=st.st_size,
-
-            is_dir=stat_.S_ISDIR(st.st_mode),
-            is_file=stat_.S_ISREG(st.st_mode),
-            is_symlink=stat_.S_ISLNK(lst.st_mode),
-        )
-
-    async def read_file(self, path: str) -> FsFile:
-        with open(path, 'rb') as f:  # noqa
-            data = f.read()
-        return FsFile(
-            data=data,
-            digest=fs_file_digest(data),
-        )
-
-    async def write_file(
-            self,
-            path: str,
-            content: BytesLike,
-            *,
-            overwrite: bool = False,
-            expected_digest: ta.Optional[str] = None,
-    ) -> FsWriteResult:
-        return FsWriteResult(created=fs_write_file(
-            path,
-            content,
-            overwrite=overwrite,
-            expected_digest=expected_digest,
-        ))
-
-    async def list_dir(self, path: str) -> ta.Sequence[FsDirEntry]:
-        return [
-            FsDirEntry(
-                name=e.name,
-                path=e.path,
-
-                is_dir=e.is_dir(),
-                is_file=e.is_file(),
-                is_symlink=e.is_symlink(),
-            )
-            for e in os.scandir(path)
-        ]
-
-    async def glob(
-            self,
-            pattern: str,
-            *,
-            root: str,
-            max_results: ta.Optional[int] = None,
-    ) -> FsGlobResult:
-        paths, has_more = fs_glob_paths(
-            pattern,
-            root=root,
-            max_results=max_results,
-        )
-        return FsGlobResult(
-            entries=[self._entry(p) for p in paths],
-            has_more=has_more,
-        )
 
 
 ########################################
@@ -3780,30 +3713,41 @@ class RemoteFsPathParams:
 
 
 @dc.dataclass(frozen=True)
-class RemoteFsStatResult:
+class RemoteFsEntry:
     path: str
-    size: int
+    resolved_path: str
+
     is_dir: bool
     is_file: bool
     is_symlink: bool
+
+    mode: int
+    ino: int
+    dev: int
+    nlink: int
+    uid: int
+    gid: int
+    size: int
+
+    atime_ns: int
+    mtime_ns: int
+    ctime_ns: int
+
+    blksize: int
+    blocks: int
+    rdev: int
+
+    flags: ta.Optional[int]
+    gen: ta.Optional[int]
+    birthtime_ns: ta.Optional[int]
 
     def __post_init__(self) -> None:
         check.arg(self.size >= 0)
 
 
 @dc.dataclass(frozen=True)
-class RemoteFsEntry:
-    name: str
-    path: str
-    is_dir: bool
-    is_file: bool
-    is_symlink: bool
-
-
-@dc.dataclass(frozen=True)
 class RemoteFsGlobParams:
     pattern: str
-    root: str
     max_results: ta.Optional[int]
 
     def __post_init__(self) -> None:
@@ -4114,6 +4058,125 @@ class RemoteProcessExitedEvent:
 
     def __post_init__(self) -> None:
         check.non_empty_str(self.id)
+
+
+########################################
+# ../../fs/local.py
+
+
+##
+
+
+class LocalFsOps(FsOps):
+    @staticmethod
+    def _entry(path: str, *, dangling_ok: bool = False) -> FsEntry:
+        lst = os.lstat(path)
+        if stat_.S_ISLNK(lst.st_mode):
+            try:
+                st = os.stat(path)
+            except OSError:
+                if not dangling_ok:
+                    raise
+                st = lst
+        else:
+            st = lst
+
+        birthtime_ns: ta.Optional[int] = getattr(st, 'st_birthtime_ns', None)
+        if birthtime_ns is None and (birthtime := getattr(st, 'st_birthtime', None)) is not None:
+            birthtime_ns = int(birthtime * 1_000_000_000)
+
+        return FsEntry(
+            path=path,
+            resolved_path=fs_resolve_path(path),
+
+            is_dir=stat_.S_ISDIR(st.st_mode),
+            is_file=stat_.S_ISREG(st.st_mode),
+            is_symlink=stat_.S_ISLNK(lst.st_mode),
+
+            mode=st.st_mode,
+            ino=st.st_ino,
+            dev=st.st_dev,
+            nlink=st.st_nlink,
+            uid=st.st_uid,
+            gid=st.st_gid,
+            size=st.st_size,
+
+            atime_ns=st.st_atime_ns,
+            mtime_ns=st.st_mtime_ns,
+            ctime_ns=st.st_ctime_ns,
+
+            blksize=st.st_blksize,
+            blocks=st.st_blocks,
+            rdev=st.st_rdev,
+
+            flags=getattr(st, 'st_flags', None),
+            gen=getattr(st, 'st_gen', None),
+            birthtime_ns=birthtime_ns,
+        )
+
+    async def resolve_path(self, path: str) -> str:
+        return fs_resolve_path(path)
+
+    async def stat(self, path: str) -> FsEntry:
+        return self._entry(path)
+
+    async def read_file(self, path: str) -> FsFile:
+        with open(path, 'rb') as f:  # noqa
+            data = f.read()
+        return FsFile(
+            data=data,
+            digest=fs_file_digest(data),
+        )
+
+    async def write_file(
+            self,
+            path: str,
+            content: BytesLike,
+            *,
+            overwrite: bool = False,
+            expected_digest: ta.Optional[str] = None,
+    ) -> FsWriteResult:
+        return FsWriteResult(created=fs_write_file(
+            path,
+            content,
+            overwrite=overwrite,
+            expected_digest=expected_digest,
+        ))
+
+    async def list_dir(self, path: str) -> ta.Sequence[FsEntry]:
+        entries: ta.List[FsEntry] = []
+        with os.scandir(path) as it:
+            for e in it:
+                try:
+                    entries.append(self._entry(e.path, dangling_ok=True))
+                except FileNotFoundError:
+                    # Gone since the directory was read.
+                    continue
+        return entries
+
+    async def glob(
+            self,
+            pattern: str,
+            *,
+            max_results: ta.Optional[int] = None,
+    ) -> FsGlobResult:
+        paths, has_more = fs_glob_paths(
+            pattern,
+            max_results=max_results,
+        )
+
+        entries: ta.List[FsEntry] = []
+        for p in paths:
+            try:
+                entries.append(self._entry(p, dangling_ok=True))
+            except FileNotFoundError:
+                # Gone since the glob saw it.
+                continue
+
+        return FsGlobResult(
+            entries=entries,
+            has_more=has_more,
+        )
 
 
 ########################################
@@ -4482,13 +4545,34 @@ class RemoteFsService:
         return min(requested, self._max_chunk_bytes)
 
     @staticmethod
-    def _entry(e: FsDirEntry) -> RemoteFsEntry:
+    def _entry(e: FsEntry) -> RemoteFsEntry:
         return RemoteFsEntry(
-            name=e.name,
             path=e.path,
+            resolved_path=e.resolved_path,
+
             is_dir=e.is_dir,
             is_file=e.is_file,
             is_symlink=e.is_symlink,
+
+            mode=e.mode,
+            ino=e.ino,
+            dev=e.dev,
+            nlink=e.nlink,
+            uid=e.uid,
+            gid=e.gid,
+            size=e.size,
+
+            atime_ns=e.atime_ns,
+            mtime_ns=e.mtime_ns,
+            ctime_ns=e.ctime_ns,
+
+            blksize=e.blksize,
+            blocks=e.blocks,
+            rdev=e.rdev,
+
+            flags=e.flags,
+            gen=e.gen,
+            birthtime_ns=e.birthtime_ns,
         )
 
     #
@@ -4499,14 +4583,7 @@ class RemoteFsService:
 
     async def stat(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
-        st = await self._local_ops.stat(p.path)
-        return marshal_obj(RemoteFsStatResult(
-            path=st.path,
-            size=st.size,
-            is_dir=st.is_dir,
-            is_file=st.is_file,
-            is_symlink=st.is_symlink,
-        ))
+        return marshal_obj(self._entry(await self._local_ops.stat(p.path)))
 
     async def list_dir(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
@@ -4519,7 +4596,6 @@ class RemoteFsService:
         p: RemoteFsGlobParams = unmarshal_obj(params, RemoteFsGlobParams)
         r = await self._local_ops.glob(
             p.pattern,
-            root=p.root,
             max_results=p.max_results,
         )
         return marshal_obj(RemoteFsGlobResult(

@@ -1,4 +1,5 @@
 import io
+import os.path
 import typing as ta
 
 from omcore import dataclasses as dc
@@ -28,7 +29,7 @@ class LsTool(ToolClass[LsToolParams]):
     params_cls: ta.Final = LsToolParams
 
     description: ta.Final = ToolDescription(
-        'Lists the contents of the specified dir.',
+        'Lists the contents of the specified dir. Directories are listed with a trailing slash.',
         dict(
             dir_path='The dir to list the contents of. Must be an absolute path.',
         ),
@@ -49,15 +50,11 @@ class LsTool(ToolClass[LsToolParams]):
         return params.dir_path
 
     async def execute(self, ctx: ToolContext, params: LsToolParams) -> str:
-        if ctx.env is None or (cwd := ctx.env.cwd) is None:
-            raise ValueError('No working directory configured')
-        dir_path = await validate_tool_path(self._fs, params.dir_path, cwd)
-
-        permission_path = dir_path if dir_path.endswith('/') else dir_path + '/'
+        dir_path = await validate_tool_path(self._fs, params.dir_path)
 
         await self._permissions.check_allowed(PermissionRequest(
             PermissionRequestor(tool_context=ctx),
-            FsPermissionTarget(permission_path, 'r'),
+            FsPermissionTarget(dir_path, 'r'),
         ))
 
         try:
@@ -69,8 +66,8 @@ class LsTool(ToolClass[LsToolParams]):
 
         out = io.StringIO()
         out.write('<dir>\n')
-        for e in sorted(await self._fs.list_dir(dir_path), key=lambda e: e.name):  # noqa
-            out.write(f'{e.name}{"/" if e.is_dir else ""}\n')
+        for e in sorted(await self._fs.list_dir(dir_path), key=lambda e: os.path.basename(e.path)):  # noqa
+            out.write(f'{os.path.basename(e.path)}{"/" if e.is_dir else ""}\n')
         out.write('</dir>\n')
 
         return out.getvalue()

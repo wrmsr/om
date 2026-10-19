@@ -19,8 +19,8 @@ from omcore.lite.marshal import unmarshal_obj
 
 from ....core.rpc.handlers import RpcMethod
 from ..common import FsStagedWrite
-from ..ops import FsDirEntry
-from ..ops import LocalFsOps
+from ..local import LocalFsOps
+from ..ops import FsEntry
 from .protocol import REMOTE_FS_GLOB_METHOD
 from .protocol import REMOTE_FS_LIST_DIR_METHOD
 from .protocol import REMOTE_FS_MAX_CHUNK_BYTES
@@ -44,7 +44,6 @@ from .protocol import RemoteFsReadChunkParams
 from .protocol import RemoteFsReadChunkResult
 from .protocol import RemoteFsReadFileParams
 from .protocol import RemoteFsReadFileResult
-from .protocol import RemoteFsStatResult
 from .protocol import RemoteFsWriteChunkParams
 from .protocol import RemoteFsWriteCommitParams
 from .protocol import RemoteFsWriteFileParams
@@ -121,13 +120,34 @@ class RemoteFsService:
         return min(requested, self._max_chunk_bytes)
 
     @staticmethod
-    def _entry(e: FsDirEntry) -> RemoteFsEntry:
+    def _entry(e: FsEntry) -> RemoteFsEntry:
         return RemoteFsEntry(
-            name=e.name,
             path=e.path,
+            resolved_path=e.resolved_path,
+
             is_dir=e.is_dir,
             is_file=e.is_file,
             is_symlink=e.is_symlink,
+
+            mode=e.mode,
+            ino=e.ino,
+            dev=e.dev,
+            nlink=e.nlink,
+            uid=e.uid,
+            gid=e.gid,
+            size=e.size,
+
+            atime_ns=e.atime_ns,
+            mtime_ns=e.mtime_ns,
+            ctime_ns=e.ctime_ns,
+
+            blksize=e.blksize,
+            blocks=e.blocks,
+            rdev=e.rdev,
+
+            flags=e.flags,
+            gen=e.gen,
+            birthtime_ns=e.birthtime_ns,
         )
 
     #
@@ -138,14 +158,7 @@ class RemoteFsService:
 
     async def stat(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
-        st = await self._local_ops.stat(p.path)
-        return marshal_obj(RemoteFsStatResult(
-            path=st.path,
-            size=st.size,
-            is_dir=st.is_dir,
-            is_file=st.is_file,
-            is_symlink=st.is_symlink,
-        ))
+        return marshal_obj(self._entry(await self._local_ops.stat(p.path)))
 
     async def list_dir(self, params: ta.Any) -> ta.Any:
         p: RemoteFsPathParams = unmarshal_obj(params, RemoteFsPathParams)
@@ -158,7 +171,6 @@ class RemoteFsService:
         p: RemoteFsGlobParams = unmarshal_obj(params, RemoteFsGlobParams)
         r = await self._local_ops.glob(
             p.pattern,
-            root=p.root,
             max_results=p.max_results,
         )
         return marshal_obj(RemoteFsGlobResult(

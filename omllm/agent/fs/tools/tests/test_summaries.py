@@ -3,7 +3,7 @@ import pytest
 from ....permissions.deciders import StaticPermissionDecider
 from ....permissions.types import PermissionState
 from ....types.tools import ToolContext
-from ...ops import LocalFsOps
+from ...local import LocalFsOps
 from ..edit import EditTool
 from ..glob import GlobTool
 from ..ls import LsTool

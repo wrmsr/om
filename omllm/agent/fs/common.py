@@ -51,40 +51,25 @@ def fs_glob_root(pattern: str) -> str:
     return root
 
 
-def fs_path_is_under(path: str, root: str) -> bool:
-    """Checks already-resolved target paths using POSIX-compatible lexical path semantics."""
-
-    try:
-        return os.path.commonpath((path, root)) == root
-    except ValueError:
-        return False
-
-
 def fs_glob_paths(
         pattern: str,
         *,
-        root: str,
         max_results: ta.Optional[int] = None,
 ) -> ta.Tuple[ta.List[str], bool]:
     """
-    Globs inside `root`, excluding matches whose resolved targets escape it. Returns the matched paths as the glob
-    produced them, and whether more were available than `max_results` allowed.
+    Returns an absolute pattern's matched paths as the glob produced them, and whether more were available than
+    `max_results` allowed. Nothing is filtered: what a caller may see of the matches is the caller's to decide.
     """
 
     if max_results is not None and max_results < 0:
         raise ValueError(max_results)
 
-    resolved_root = fs_resolve_path(root)
-    resolved_glob_root = fs_resolve_path(fs_glob_root(pattern))
-    if not fs_path_is_under(resolved_glob_root, resolved_root):
-        raise ValueError(f'glob root {resolved_glob_root!r} is outside permitted root {resolved_root!r}')
+    if not os.path.isabs(pattern):
+        raise ValueError(f'glob pattern must be absolute: {pattern!r}')
 
     paths: ta.List[str] = []
     has_more = False
     for path in glob_.iglob(pattern, recursive=True):
-        if not fs_path_is_under(fs_resolve_path(path), resolved_root):
-            continue
-
         if max_results is not None and len(paths) >= max_results:
             has_more = True
             break

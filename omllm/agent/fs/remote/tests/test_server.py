@@ -7,7 +7,7 @@ from omcore.lite.marshal import marshal_obj
 from omcore.lite.marshal import unmarshal_obj
 
 from ...common import fs_file_digest
-from ...ops import LocalFsOps
+from ...local import LocalFsOps
 from ..protocol import RemoteFsEntry
 from ..protocol import RemoteFsGlobParams
 from ..protocol import RemoteFsGlobResult
@@ -18,7 +18,6 @@ from ..protocol import RemoteFsReadChunkParams
 from ..protocol import RemoteFsReadChunkResult
 from ..protocol import RemoteFsReadFileParams
 from ..protocol import RemoteFsReadFileResult
-from ..protocol import RemoteFsStatResult
 from ..protocol import RemoteFsWriteChunkParams
 from ..protocol import RemoteFsWriteCommitParams
 from ..protocol import RemoteFsWriteFileParams
@@ -88,9 +87,9 @@ async def test_local_ops_serve_what_is_the_same_on_either_side(tmp_path):
     )
     assert resolved == path
 
-    st: RemoteFsStatResult = unmarshal_obj(
+    st: RemoteFsEntry = unmarshal_obj(
         await service.stat(marshal_obj(RemoteFsPathParams(path))),
-        RemoteFsStatResult,
+        RemoteFsEntry,
     )
     assert (st.path, st.size, st.is_file, st.is_dir, st.is_symlink) == (path, len(small), True, False, False)
 
@@ -98,12 +97,11 @@ async def test_local_ops_serve_what_is_the_same_on_either_side(tmp_path):
         await service.list_dir(marshal_obj(RemoteFsPathParams(root))),
         list[RemoteFsEntry],
     )
-    assert [(e.name, e.path, e.is_file) for e in entries] == [('file.bin', path, True)]
+    assert [(e.path, e.is_file) for e in entries] == [(path, True)]
 
     globbed: RemoteFsGlobResult = unmarshal_obj(
         await service.glob(marshal_obj(RemoteFsGlobParams(
             pattern=os.path.join(root, '*.bin'),
-            root=root,
             max_results=None,
         ))),
         RemoteFsGlobResult,

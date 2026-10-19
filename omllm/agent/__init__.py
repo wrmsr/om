@@ -124,15 +124,16 @@ with _lang.auto_proxy_init(
         FsFileChangedError,
     )
 
+    from .fs.local import (  # noqa
+        LocalFsOps,
+    )
+
     from .fs.ops import (  # noqa
-        FsDirEntry,
+        FsEntry,
         FsFile,
         FsGlobResult,
         FsOps,
-        FsStat,
         FsWriteResult,
-
-        LocalFsOps,
     )
 
     from .fs.permissions import (  # noqa

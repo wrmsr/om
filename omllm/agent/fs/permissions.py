@@ -1,4 +1,5 @@
 import glob
+import os
 import re
 import typing as ta
 
@@ -21,13 +22,22 @@ FsPermissionMode: ta.TypeAlias = ta.Literal['r', 'w']
 FS_TOOL_PERMISSION_MODES: ta.Sequence[FsPermissionMode] = ('r', 'w')
 
 
+def _coerce_fs_path(s: str) -> str:
+    """
+    A path or glob as a target or rule spells it: without a trailing separator, the root alone keeping its one. A
+    directory is the same target however a tool or a person wrote it.
+    """
+
+    return check.isinstance(s, str).rstrip(os.sep) or s[:1]
+
+
 # @om-manifest omcore.marshal.SubtypeManifest(base='$.agent.permissions.types.PermissionTarget')
 @ta.final
 @dc.dataclass(frozen=True)
 class FsPermissionTarget(PermissionTarget, lang.Final):
-    path: str
+    path: str = dc.xfield(coerce=_coerce_fs_path)
 
-    mode: FsPermissionMode
+    mode: FsPermissionMode = dc.xfield()
 
     @dc.validate
     def _validate_mode(self) -> bool:
@@ -45,7 +55,7 @@ class FsPermissionTarget(PermissionTarget, lang.Final):
 @ta.final
 @dc.dataclass(frozen=True)
 class GlobFsPermissionMatcher(PermissionMatcher, lang.Final):
-    glob: str
+    glob: str = dc.xfield(coerce=_coerce_fs_path)
 
     modes: ta.Container[FsPermissionMode] | None = dc.xfield(
         default=None,
@@ -74,6 +84,7 @@ class GlobFsPermissionMatcher(PermissionMatcher, lang.Final):
             )),
         ]
 
+        # A tree grant covers its own root.
         if self.glob.endswith('/**'):
             pats.append(re.compile(glob.translate(
                 self.glob[:-3],

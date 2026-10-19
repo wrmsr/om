@@ -88,9 +88,7 @@ class EditTool(ToolClass[EditToolParams]):
         return params.file_path
 
     async def execute(self, ctx: ToolContext, params: EditToolParams) -> ToolResult:
-        if ctx.env is None or (cwd := ctx.env.cwd) is None:
-            raise ValueError('No working directory configured')
-        file_path = await validate_tool_path(self._fs, params.file_path, cwd)
+        file_path = await validate_tool_path(self._fs, params.file_path)
 
         if not params.old_string:
             raise ValueError('The requested edit to was given an empty "old_string" parameter.')

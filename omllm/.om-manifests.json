@@ -63,7 +63,7 @@
     "module": ".agent.fs.permissions",
     "attr": null,
     "file": "omllm/agent/fs/permissions.py",
-    "line": 24,
+    "line": 34,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.fs.permissions",
@@ -78,7 +78,7 @@
     "module": ".agent.fs.permissions",
     "attr": null,
     "file": "omllm/agent/fs/permissions.py",
-    "line": 44,
+    "line": 54,
     "value": {
       "!omcore.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omllm.agent.fs.permissions",

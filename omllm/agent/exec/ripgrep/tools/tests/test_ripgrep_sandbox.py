@@ -5,7 +5,7 @@ import tempfile
 import pytest
 
 from ......core import processes
-from .....fs.ops import LocalFsOps
+from .....fs.local import LocalFsOps
 from .....permissions.deciders import StaticPermissionDecider
 from .....permissions.types import PermissionState
 from .....types.tools import ToolContext

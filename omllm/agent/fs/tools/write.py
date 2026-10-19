@@ -111,9 +111,7 @@ class WriteTool(ToolClass[WriteToolParams]):
         )
 
     async def execute(self, ctx: ToolContext, params: WriteToolParams) -> ToolResult:
-        if ctx.env is None or (cwd := ctx.env.cwd) is None:
-            raise ValueError('No working directory configured')
-        file_path = await validate_tool_path(self._fs, params.file_path, cwd)
+        file_path = await validate_tool_path(self._fs, params.file_path)
 
         requestor = PermissionRequestor(tool_context=ctx)
 

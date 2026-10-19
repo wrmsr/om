@@ -1,3 +1,4 @@
+import dataclasses as dc
 import os.path
 import typing as ta
 import uuid
@@ -8,13 +9,12 @@ from ....permissions.deciders import StaticPermissionDecider
 from ....permissions.types import PermissionState
 from ....types.tools import ToolContext
 from ....types.tools import ToolEnvironment
-from ...ops import FsDirEntry
+from ...local import LocalFsOps
+from ...ops import FsEntry
 from ...ops import FsFile
 from ...ops import FsGlobResult
 from ...ops import FsOps
-from ...ops import FsStat
 from ...ops import FsWriteResult
-from ...ops import LocalFsOps
 from ..edit import EditTool
 from ..glob import GlobTool
 from ..ls import LsTool
@@ -51,28 +51,18 @@ class _MappedFsOps(FsOps):
             raise ValueError(path)
         return os.path.join(self._target_root, path[len(prefix):])
 
-    @staticmethod
-    def _replace_entry_path(entry: FsDirEntry, path: str) -> FsDirEntry:
-        return FsDirEntry(
-            name=entry.name,
-            path=path,
-            is_dir=entry.is_dir,
-            is_file=entry.is_file,
-            is_symlink=entry.is_symlink,
+    def _to_target_entry(self, st: FsEntry) -> FsEntry:
+        return dc.replace(
+            st,
+            path=self._to_target(st.path),
+            resolved_path=self._to_target(st.resolved_path),
         )
 
     async def resolve_path(self, path: str) -> str:
         return self._to_target(await self._local.resolve_path(self._to_local(path)))
 
-    async def stat(self, path: str) -> FsStat:
-        st = await self._local.stat(self._to_local(path))
-        return FsStat(
-            path=path,
-            size=st.size,
-            is_dir=st.is_dir,
-            is_file=st.is_file,
-            is_symlink=st.is_symlink,
-        )
+    async def stat(self, path: str) -> FsEntry:
+        return self._to_target_entry(await self._local.stat(self._to_local(path)))
 
     async def read_file(self, path: str) -> FsFile:
         return await self._local.read_file(self._to_local(path))
@@ -92,29 +82,21 @@ class _MappedFsOps(FsOps):
             expected_digest=expected_digest,
         )
 
-    async def list_dir(self, path: str) -> ta.Sequence[FsDirEntry]:
-        return [
-            self._replace_entry_path(e, self._to_target(e.path))
-            for e in await self._local.list_dir(self._to_local(path))
-        ]
+    async def list_dir(self, path: str) -> ta.Sequence[FsEntry]:
+        return [self._to_target_entry(e) for e in await self._local.list_dir(self._to_local(path))]
 
     async def glob(
             self,
             pattern: str,
             *,
-            root: str,
             max_results: int | None = None,
     ) -> FsGlobResult:
         result = await self._local.glob(
             self._to_local(pattern),
-            root=self._to_local(root),
             max_results=max_results,
         )
         return FsGlobResult(
-            entries=[
-                self._replace_entry_path(e, self._to_target(e.path))
-                for e in result.entries
-            ],
+            entries=[self._to_target_entry(st) for st in result.entries],
             has_more=result.has_more,
         )
 

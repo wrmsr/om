@@ -8,7 +8,7 @@ from ....permissions.deciders import StaticPermissionDecider
 from ....permissions.types import PermissionState
 from ....types.tools import ToolContext
 from ....types.tools import ToolEnvironment
-from ...ops import LocalFsOps
+from ...local import LocalFsOps
 from ..details import EditToolResultDetails
 from ..details import ReadToolResultDetails
 from ..details import WriteToolResultDetails

@@ -12,7 +12,7 @@ from ....permissions.types import PermissionDeniedError
 from ....permissions.types import PermissionState
 from ....types.tools import ToolContext
 from ....types.tools import ToolEnvironment
-from ...ops import LocalFsOps
+from ...local import LocalFsOps
 from ..details import WriteToolResultDetails
 from ..edit import EditTool
 from ..write import WriteTool

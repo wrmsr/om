@@ -12,7 +12,7 @@ and implements the concern's ordinary interface:
 
 - `omllm/agent/fs/remote` - `RemoteFsOps` implements `FsOps` over a `RemoteFsService`. The service serves the
   operations which are the same call on either side - paths, metadata, and a write that fits one chunk - through a
-  `LocalFsOps` (the lite `omllm/agent/fs/ops.py`), and handles file content itself: it crosses in chunks (4 MiB by
+  `LocalFsOps` (the lite `omllm/agent/fs/local.py`), and handles file content itself: it crosses in chunks (4 MiB by
   default, never more than 8), as a handle-based read and a staged, still-atomic write, so a file's size is bounded by
   memory rather than by the rpc's frame limit.
 - `omllm/core/processes/remote` - `RemoteProcessManager` implements `ProcessManager` / `ProcessScope` over a

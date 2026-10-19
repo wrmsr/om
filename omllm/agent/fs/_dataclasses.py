@@ -32,21 +32,21 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='adc8afaff5428e4b73dfc1b537a8cbf44db4f764',
+    installer_sha1='3c568f6dc90e2a8bb4096ed56784f8e4b2538703',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('path', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False), (('mode', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False)), False, 0, (('self',),)), ((False,), (False,), (), (False,), (False, False, ())"
-            ", ((),), (), (False,)))"
+            "se, False, False, False), ((('path', True, True, None, True, False, False, None), 'instance', 'missing', '"
+            "callable', False, False, False), (('mode', True, True, None, True, False, False, None), 'instance', 'missi"
+            "ng', None, False, False, False)), False, 0, (('self',),)), ((False,), (False,), (), (False,), (False, Fals"
+            "e, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.fs.permissions', 'FsPermissionTarget'),
     ),
 )
-def _process_dataclass__adc8afaff5428e4b73dfc1b537a8cbf44db4f764():
+def _process_dataclass__3c568f6dc90e2a8bb4096ed56784f8e4b2538703():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -54,6 +54,7 @@ def _process_dataclass__adc8afaff5428e4b73dfc1b537a8cbf44db4f764():
         __dataclass__globals,
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__coerce = __dataclass__spec.fields[0].coerce
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__validate_fns__0 = __dataclass__spec.validate_fns[0].fn
         __dataclass__FnValidationError = __dataclass__globals['__dataclass__FnValidationError']
@@ -123,6 +124,7 @@ def _process_dataclass__adc8afaff5428e4b73dfc1b537a8cbf44db4f764():
             path: __dataclass__init__fields__0__annotation,
             mode: __dataclass__init__fields__1__annotation,
         ) -> __dataclass__None:
+            path = __dataclass__init__fields__0__coerce(path)
             __dataclass__object_setattr(self, 'path', path)
             __dataclass__object_setattr(self, 'mode', mode)
             if not __dataclass__init__validate_fns__0(
@@ -152,21 +154,21 @@ def _process_dataclass__adc8afaff5428e4b73dfc1b537a8cbf44db4f764():
 
 
 @_register(
-    installer_sha1='4197a20ffd41222c521d50312a189864dde9b012',
+    installer_sha1='59cf9002c3c72941f6a8ecf4e4480311d382c84a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('glob', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False), (('modes', True, True, None, True, False, False, None), 'instance', 'value', 'c"
-            "allable', False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (()"
-            ",), (), (False,)))"
+            "se, False, False, False), ((('glob', True, True, None, True, False, False, None), 'instance', 'missing', '"
+            "callable', False, False, False), (('modes', True, True, None, True, False, False, None), 'instance', 'valu"
+            "e', 'callable', False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()"
+            "), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.fs.permissions', 'GlobFsPermissionMatcher'),
     ),
 )
-def _process_dataclass__4197a20ffd41222c521d50312a189864dde9b012():
+def _process_dataclass__59cf9002c3c72941f6a8ecf4e4480311d382c84a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -174,6 +176,7 @@ def _process_dataclass__4197a20ffd41222c521d50312a189864dde9b012():
         __dataclass__globals,
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__coerce = __dataclass__spec.fields[0].coerce
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__1__coerce = __dataclass__spec.fields[1].coerce
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
@@ -243,6 +246,7 @@ def _process_dataclass__4197a20ffd41222c521d50312a189864dde9b012():
             glob: __dataclass__init__fields__0__annotation,
             modes: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
+            glob = __dataclass__init__fields__0__coerce(glob)
             modes = __dataclass__init__fields__1__coerce(modes)
             __dataclass__object_setattr(self, 'glob', glob)
             __dataclass__object_setattr(self, 'modes', modes)

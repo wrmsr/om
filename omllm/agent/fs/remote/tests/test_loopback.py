@@ -84,15 +84,15 @@ async def test_remote_fs_loopback(tmp_path):
         assert (await fs.read_file(path)).data == b'two'
 
         entries = await fs.list_dir(root)
-        assert [(e.name, e.path, e.is_file) for e in entries] == [('file.txt', path, True)]
+        assert [(e.path, e.resolved_path, e.is_file) for e in entries] == [(path, path, True)]
 
-        globbed = await fs.glob(os.path.join(root, '*.txt'), root=root)
-        assert [e.path for e in globbed.entries] == [path]
+        globbed = await fs.glob(os.path.join(root, '*.txt'))
+        assert [(e.path, e.resolved_path, e.is_file) for e in globbed.entries] == [(path, path, True)]
         assert not globbed.has_more
 
         # Only builtins with the same meaning on both sides are translated; anything else stays a remote error.
-        with pytest.raises(RpcRemoteError, match='outside permitted root'):
-            await fs.glob(os.path.join(root, '..', '*.txt'), root=root)
+        with pytest.raises(RpcRemoteError, match='must be absolute'):
+            await fs.glob('*.txt')
 
         assert service.num_open_handles == 0
 

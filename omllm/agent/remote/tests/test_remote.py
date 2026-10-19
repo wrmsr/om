@@ -44,7 +44,7 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
         with pytest.raises(FsFileChangedError):
             await client.fs.write_file(path, b'three', overwrite=True, expected_digest=first.digest)
 
-        globbed = await client.fs.glob(os.path.join(root, '*.txt'), root=root)
+        globbed = await client.fs.glob(os.path.join(root, '*.txt'))
         assert [entry.path for entry in globbed.entries] == [path]
 
         # Content past a chunk crosses the real agent in pieces, in both directions.

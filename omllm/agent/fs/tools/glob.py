@@ -11,6 +11,7 @@ from ...tools.classes import ToolClass
 from ...types.tools import ToolContext
 from ...types.tools import ToolDescription
 from ...types.tools import ToolResult
+from ..ops import FsEntry
 from ..ops import FsOps
 from ..permissions import FsPermissionTarget
 from .details import GlobToolResultDetails
@@ -34,7 +35,7 @@ class GlobTool(ToolClass[GlobToolParams]):
     params_cls: ta.Final = GlobToolParams
 
     description: ta.Final = ToolDescription(
-        'Find files and directories matching the given glob pattern.',
+        'Find files and directories matching the given glob pattern. Directories are listed with a trailing slash.',
         dict(
             pattern='The glob pattern to find matches for. Must begin with an absolute path.',
         ),
@@ -55,12 +56,12 @@ class GlobTool(ToolClass[GlobToolParams]):
         return params.pattern
 
     async def execute(self, ctx: ToolContext, params: GlobToolParams) -> ToolResult:
-        if ctx.env is None or (cwd := ctx.env.cwd) is None:
-            raise ValueError('No working directory configured')
-        root_path, resolved_cwd = await validate_tool_glob(self._fs, params.pattern, cwd)
+        root_path = await validate_tool_glob(self._fs, params.pattern)
+
+        requestor = PermissionRequestor(tool_context=ctx)
 
         await self._permissions.check_allowed(PermissionRequest(
-            PermissionRequestor(tool_context=ctx),
+            requestor,
             FsPermissionTarget(root_path, 'r'),
         ))
 
@@ -71,13 +72,22 @@ class GlobTool(ToolClass[GlobToolParams]):
 
         result = await self._fs.glob(
             params.pattern,
-            root=resolved_cwd,
             max_results=MAX_MATCHES,
         )
 
+        # Each match is then asked about on its own, as what it resolves to - a matched path may lead anywhere - and
+        # one refused is simply left out.
+        entries: list[FsEntry] = []
+        for e in result.entries:
+            if await self._permissions.is_allowed(PermissionRequest(
+                requestor,
+                FsPermissionTarget(e.resolved_path, 'r'),
+            )):
+                entries.append(e)
+
         out = io.StringIO()
         out.write('<glob>\n')
-        for e in result.entries:
+        for e in entries:
             out.write(f'{e.path}{"/" if e.is_dir else ""}\n')
         out.write('</glob>\n')
         if result.has_more:
@@ -88,7 +98,7 @@ class GlobTool(ToolClass[GlobToolParams]):
             details=GlobToolResultDetails(
                 pattern=params.pattern,
                 root_path=root_path,
-                num_matches=len(result.entries),
+                num_matches=len(entries),
                 has_more=result.has_more,
             ),
         )

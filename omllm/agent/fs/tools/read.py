@@ -83,9 +83,7 @@ class ReadTool(ToolClass[ReadToolParams]):
         return params.file_path
 
     async def execute(self, ctx: ToolContext, params: ReadToolParams) -> ToolResult:
-        if ctx.env is None or (cwd := ctx.env.cwd) is None:
-            raise ValueError('No working directory configured')
-        file_path = await validate_tool_path(self._fs, params.file_path, cwd)
+        file_path = await validate_tool_path(self._fs, params.file_path)
         if params.num_lines > ABSOLUTE_MAX_NUM_LINES:
             raise ValueError(f'Number of lines exceeds maximum of {ABSOLUTE_MAX_NUM_LINES}')
 

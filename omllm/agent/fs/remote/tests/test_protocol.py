@@ -8,16 +8,45 @@ from omcore.lite.marshal import unmarshal_obj
 from .. import protocol as proto
 
 
+def _entry(**kwargs: ta.Any) -> proto.RemoteFsEntry:
+    base: ta.Dict[str, ta.Any] = dict(
+        path='/a',
+        resolved_path='/a',
+        is_dir=False,
+        is_file=True,
+        is_symlink=False,
+        mode=0o100644,
+        ino=1,
+        dev=2,
+        nlink=1,
+        uid=3,
+        gid=4,
+        size=3,
+        atime_ns=5,
+        mtime_ns=6,
+        ctime_ns=7,
+        blksize=4096,
+        blocks=8,
+        rdev=0,
+        flags=None,
+        gen=None,
+        birthtime_ns=None,
+    )
+    base.update(kwargs)
+    return proto.RemoteFsEntry(**base)
+
+
 class TestRemoteFsProtocol(unittest.TestCase):
     def _roundtrip(self, obj: ta.Any) -> None:
         self.assertEqual(unmarshal_obj(marshal_obj(obj), type(obj)), obj)
 
     def test_roundtrips(self) -> None:
         self._roundtrip(proto.RemoteFsPathParams('/a/b'))
-        self._roundtrip(proto.RemoteFsStatResult(path='/a', size=3, is_dir=False, is_file=True, is_symlink=False))
-        self._roundtrip(proto.RemoteFsGlobParams(pattern='*.py', root='/r', max_results=None))
+        self._roundtrip(_entry())
+        self._roundtrip(_entry(flags=1, gen=2, birthtime_ns=3))
+        self._roundtrip(proto.RemoteFsGlobParams(pattern='*.py', max_results=None))
         self._roundtrip(proto.RemoteFsGlobResult(
-            entries=[proto.RemoteFsEntry('a', '/a', True, False, False)],
+            entries=[_entry(path='/a/b', resolved_path='/c/b', is_dir=True, is_file=False)],
             has_more=True,
         ))
 
@@ -44,9 +73,9 @@ class TestRemoteFsProtocol(unittest.TestCase):
 
     def test_invariants(self) -> None:
         with self.assertRaises(Exception):  # noqa
-            proto.RemoteFsStatResult(path='/a', size=-1, is_dir=False, is_file=True, is_symlink=False)
+            _entry(size=-1)
         with self.assertRaises(Exception):  # noqa
-            proto.RemoteFsGlobParams(pattern='*', root='/r', max_results=-1)
+            proto.RemoteFsGlobParams(pattern='*', max_results=-1)
 
         # A first read is either complete, with its digest, or continued through a handle - never both or neither.
         with self.assertRaises(Exception):  # noqa

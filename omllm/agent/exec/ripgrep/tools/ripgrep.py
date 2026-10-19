@@ -116,7 +116,7 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
 
         # Resolve and validate in the filesystem namespace paired with this execution environment. For local execution
         # this still gives the host sandbox its canonical vnode path; a remote FsOps will do the work remotely.
-        cwd = await validate_tool_path(self._fs, cwd, cwd)
+        cwd = await validate_tool_path(self._fs, cwd)
         try:
             cwd_st = await self._fs.stat(cwd)
         except FileNotFoundError:

@@ -51,30 +51,41 @@ class RemoteFsPathParams:
 
 
 @dc.dataclass(frozen=True)
-class RemoteFsStatResult:
+class RemoteFsEntry:
     path: str
-    size: int
+    resolved_path: str
+
     is_dir: bool
     is_file: bool
     is_symlink: bool
+
+    mode: int
+    ino: int
+    dev: int
+    nlink: int
+    uid: int
+    gid: int
+    size: int
+
+    atime_ns: int
+    mtime_ns: int
+    ctime_ns: int
+
+    blksize: int
+    blocks: int
+    rdev: int
+
+    flags: ta.Optional[int]
+    gen: ta.Optional[int]
+    birthtime_ns: ta.Optional[int]
 
     def __post_init__(self) -> None:
         check.arg(self.size >= 0)
 
 
 @dc.dataclass(frozen=True)
-class RemoteFsEntry:
-    name: str
-    path: str
-    is_dir: bool
-    is_file: bool
-    is_symlink: bool
-
-
-@dc.dataclass(frozen=True)
 class RemoteFsGlobParams:
     pattern: str
-    root: str
     max_results: ta.Optional[int]
 
     def __post_init__(self) -> None:

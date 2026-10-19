@@ -16,11 +16,10 @@ from ....core.rpc.errors import RpcRemoteError
 from ....core.rpc.peers import RpcPeer
 from ....core.rpc.translate import translate_rpc_remote_builtin_error
 from ..common import FsFileChangedError
-from ..ops import FsDirEntry
+from ..ops import FsEntry
 from ..ops import FsFile
 from ..ops import FsGlobResult
 from ..ops import FsOps
-from ..ops import FsStat
 from ..ops import FsWriteResult
 from .protocol import REMOTE_FS_GLOB_METHOD
 from .protocol import REMOTE_FS_LIST_DIR_METHOD
@@ -45,7 +44,6 @@ from .protocol import RemoteFsReadChunkParams
 from .protocol import RemoteFsReadChunkResult
 from .protocol import RemoteFsReadFileParams
 from .protocol import RemoteFsReadFileResult
-from .protocol import RemoteFsStatResult
 from .protocol import RemoteFsWriteChunkParams
 from .protocol import RemoteFsWriteCommitParams
 from .protocol import RemoteFsWriteFileParams
@@ -65,13 +63,34 @@ def _translate_remote_error(exc: RpcRemoteError) -> Exception:
     return translate_rpc_remote_builtin_error(exc)
 
 
-def _to_fs_dir_entry(entry: RemoteFsEntry) -> FsDirEntry:
-    return FsDirEntry(
-        name=entry.name,
-        path=entry.path,
-        is_dir=entry.is_dir,
-        is_file=entry.is_file,
-        is_symlink=entry.is_symlink,
+def _to_fs_entry(r: RemoteFsEntry) -> FsEntry:
+    return FsEntry(
+        path=r.path,
+        resolved_path=r.resolved_path,
+
+        is_dir=r.is_dir,
+        is_file=r.is_file,
+        is_symlink=r.is_symlink,
+
+        mode=r.mode,
+        ino=r.ino,
+        dev=r.dev,
+        nlink=r.nlink,
+        uid=r.uid,
+        gid=r.gid,
+        size=r.size,
+
+        atime_ns=r.atime_ns,
+        mtime_ns=r.mtime_ns,
+        ctime_ns=r.ctime_ns,
+
+        blksize=r.blksize,
+        blocks=r.blocks,
+        rdev=r.rdev,
+
+        flags=r.flags,
+        gen=r.gen,
+        birthtime_ns=r.birthtime_ns,
     )
 
 
@@ -120,25 +139,19 @@ class RemoteFsOps(FsOps):
             str,
         )
 
-    async def stat(self, path: str) -> FsStat:
-        r: RemoteFsStatResult = unmarshal_obj(
+    async def stat(self, path: str) -> FsEntry:
+        r: RemoteFsEntry = unmarshal_obj(
             await self._call(
                 REMOTE_FS_STAT_METHOD,
                 marshal_obj(RemoteFsPathParams(
                     path,
                 )),
             ),
-            RemoteFsStatResult,
+            RemoteFsEntry,
         )
-        return FsStat(
-            path=r.path,
-            size=r.size,
-            is_dir=r.is_dir,
-            is_file=r.is_file,
-            is_symlink=r.is_symlink,
-        )
+        return _to_fs_entry(r)
 
-    async def list_dir(self, path: str) -> ta.Sequence[FsDirEntry]:
+    async def list_dir(self, path: str) -> ta.Sequence[FsEntry]:
         entries: list[RemoteFsEntry] = unmarshal_obj(
             await self._call(
                 REMOTE_FS_LIST_DIR_METHOD,
@@ -148,13 +161,12 @@ class RemoteFsOps(FsOps):
             ),
             list[RemoteFsEntry],
         )
-        return [_to_fs_dir_entry(entry) for entry in entries]
+        return [_to_fs_entry(entry) for entry in entries]
 
     async def glob(
             self,
             pattern: str,
             *,
-            root: str,
             max_results: int | None = None,
     ) -> FsGlobResult:
         r: RemoteFsGlobResult = unmarshal_obj(
@@ -162,14 +174,13 @@ class RemoteFsOps(FsOps):
                 REMOTE_FS_GLOB_METHOD,
                 marshal_obj(RemoteFsGlobParams(
                     pattern=pattern,
-                    root=root,
                     max_results=max_results,
                 )),
             ),
             RemoteFsGlobResult,
         )
         return FsGlobResult(
-            entries=[_to_fs_dir_entry(entry) for entry in r.entries],
+            entries=[_to_fs_entry(e) for e in r.entries],
             has_more=r.has_more,
         )
 
