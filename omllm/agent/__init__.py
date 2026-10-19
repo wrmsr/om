@@ -84,6 +84,10 @@ with _lang.auto_proxy_init(
 
     ##
 
+    from .fs.remote.client import (  # noqa
+        RemoteFsOps,
+    )
+
     from .fs.tools.details import (  # noqa
         EditToolResultDetails,
         GlobToolResultDetails,
@@ -138,8 +142,8 @@ with _lang.auto_proxy_init(
         GlobFsPermissionMatcher,
     )
 
-    from .fs.remote.client import (  # noqa
-        RemoteFsOps,
+    from .fs.systemprompt import (  # noqa
+        FsSystemPromptContributor,
     )
 
     ##

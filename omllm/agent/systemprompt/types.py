@@ -10,7 +10,11 @@ from omcore import lang
 
 
 class SystemPromptPriority(enum.IntEnum):
-    DEFAULT = enum.auto()
+    FIRST = enum.auto()
+
+    DEFAULT = enum.auto()  # FIXME: remove lol
+
+    LAST = enum.auto()
 
 
 @dc.dataclass(frozen=True)

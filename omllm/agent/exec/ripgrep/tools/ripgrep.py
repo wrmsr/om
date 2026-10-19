@@ -81,8 +81,8 @@ class RipgrepTool(ToolClass[RipgrepToolParams]):
         """\
         Executes ripgrep with the given arguments in current working directory. Returns stdout and stderr.
 
-        If you are familiar with ripgrep, prefer to use this over invoking regular 'grep' or similar tools via shell
-        execution.
+        If you are familiar with ripgrep, **strongly** prefer to use this over invoking regular 'grep' or similar tools
+        via shell execution.
         """,
         dict(
             args='The arguments to pass to ripgrep.',
