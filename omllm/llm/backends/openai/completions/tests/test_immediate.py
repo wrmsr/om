@@ -6,6 +6,7 @@ from omcore.secrets.tests.harness import HarnessSecrets
 
 from .....models.providers import provider_model_catalog
 from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
+from .....models.providers.openrouter import TEST_MODEL_KEY as OPENROUTER_TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import UserMessage
 from .....types.models import ModelKey
@@ -83,7 +84,7 @@ class TestOpenaiBackend(BaseBackendTest):
 @pytest.mark.timeout(180)
 class TestOpenrouterBackend(BaseBackendTest):
     @pytest.fixture(params=[
-        (ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'), 'openrouter_api_key'),
+        (OPENROUTER_TEST_MODEL_KEY, 'openrouter_api_key'),
     ])
     def model(self, request):
         return request.param

@@ -21,6 +21,7 @@ from ...models.providers.anthropic import TEST_MODEL_KEY as ANTHROPIC_TEST_MODEL
 from ...models.providers.google import TEST_MODEL_KEY as GOOGLE_TEST_MODEL_KEY
 from ...models.providers.openai import COMPLETIONS_TEST_MODEL_KEY as OPENAI_COMPLETIONS_TEST_MODEL_KEY
 from ...models.providers.openai import RESPONSES_TEST_MODEL_KEY as OPENAI_RESPONSES_TEST_MODEL_KEY
+from ...models.providers.openrouter import TEST_MODEL_KEY as OPENROUTER_TEST_MODEL_KEY
 from ...types.context import Context
 from ...types.errors import BackendError
 from ...types.errors import TransientBackendError
@@ -80,7 +81,7 @@ _CASES: ta.Sequence[tuple[str, ModelKey, type, str, bool, ta.Sequence[ta.Any]]] 
     ),
     (
         'openrouter',
-        ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'),
+        OPENROUTER_TEST_MODEL_KEY,
         OpenaiCompletionsImmediateBackend,
         'openrouter_api_key',
         False,

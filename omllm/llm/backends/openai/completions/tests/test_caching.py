@@ -10,6 +10,7 @@ from omcore.secrets.tests.harness import HarnessSecrets
 
 from .....models.providers import provider_model_catalog
 from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
+from .....models.providers.openrouter import TEST_MODEL_KEY as OPENROUTER_TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import UserMessage
 from .....types.models import ModelKey
@@ -84,7 +85,7 @@ async def test_openai_prompt_caching(harness):
 
 
 def test_openrouter_cache_request_translation():
-    model = provider_model_catalog()[ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731')]  # noqa
+    model = provider_model_catalog()[OPENROUTER_TEST_MODEL_KEY]  # noqa
     context = Context(messages=[UserMessage('hi')])
 
     # The cache key becomes the session affinity header, never a request body field.
@@ -104,7 +105,7 @@ def test_openrouter_cache_request_translation():
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.timeout(180)
 @pytest.mark.parametrize('model_id', [
-    'deepseek/deepseek-v4-flash-0731',
+    OPENROUTER_TEST_MODEL_KEY.id,
     'deepseek/deepseek-v4-pro-0813',
     'moonshotai/kimi-k3',
     'z-ai/glm-5.3',

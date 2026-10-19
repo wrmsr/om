@@ -96,7 +96,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     _make_model(
-        id='deepseek/deepseek-v4.1-flash-1017',
+        id=(TEST_MODEL_KEY := ModelKey('openrouter', 'deepseek/deepseek-v4.1-flash-1017')).id,
         name='DeepSeek V4.1 Flash 1017',
     ),
 
