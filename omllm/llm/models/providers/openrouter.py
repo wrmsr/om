@@ -96,8 +96,8 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     _make_model(
-        id='deepseek/deepseek-v4-flash-0731',
-        name='DeepSeek V4 Flash 0731',
+        id='deepseek/deepseek-v4.1-flash-1017',
+        name='DeepSeek V4.1 Flash 1017',
     ),
 
     ##

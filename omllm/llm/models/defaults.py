@@ -173,7 +173,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='deepseek-flash',
         aliases=['deepseek'],
-        key=ModelKey('openrouter', 'deepseek/deepseek-v4-flash-0731'),
+        key=ModelKey('openrouter', 'deepseek/deepseek-v4.1-flash-1017'),
         api_key_name='openrouter_api_key',
     ),
 
