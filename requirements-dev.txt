@@ -9,7 +9,7 @@ uv>=0.13.1
 pytest==9.1.1
 pytest-benchmark==5.3.0
 pytest-clarity==1.0.1
-pytest-mock==3.16.0
+pytest-mock==3.17.0
 pytest-stress==1.0.1
 pytest-subprocess==1.6.0
 pytest-timeout==2.4.0
@@ -30,7 +30,7 @@ types-psutil==7.2.2.20260906
 types-pygments==2.21.0.20260819
 types-pymysql==1.2.0.20260923
 types-pyyaml==6.0.12.20260906
-types-regex==2026.9.29.20261005
+types-regex==2026.9.29.20261017
 types-setuptools==84.0.0.20261006
 types-ujson==5.10.0.20250822
 
@@ -41,7 +41,7 @@ astpretty==3.0.0
 
 gprof2dot==2025.4.14
 guppy3==3.1.7  # @om-venv !14t !14dt !15 !15t  # TODO: abandoned?
-objgraph==3.6.2
+objgraph==3.7.0
 memray==1.20.0
 
 ipython==9.17.1
@@ -88,7 +88,7 @@ pycparser==3.11
 pcpp==1.30
 
 # !! LGPL
-paramiko==5.0.0  # @om-venv !15t
+paramiko==5.1.0  # @om-venv !15t
 
 docutils==0.23
 
@@ -167,7 +167,7 @@ rapidocr==3.10.0  # @om-venv !14t !14dt !15t
 onnxruntime==1.31.0  # @om-venv !14t !14dt !15 !15t
 omegaconf==2.4.0
 
-pillow==12.3.0
+pillow==13.0.0
 
 # peft==0.21.2  # @om-venv !15 !15t
 # accelerate==1.15.0 "linux"  # @omlish-venv !15 !15t

@@ -11,28 +11,28 @@ Python per graph (and grows faster than linearly with its size), whatever the ke
 couple of microseconds per kernel and ~0.15 ms per call, the whole graph being one hardware queue submission. So a
 decode step must be one replay with nothing scheduled eagerly around it:
 
-  * `capture` holds the step's arrays: the first call's tables and state become buffers the jitted function closes
-    over, and the state carry is done inside it -- a DeltaNet layer's new state is `assign`ed into the buffer it came
-    from, `kv_write` writes into the KV buffer in place -- so the replay reads and writes fixed memory and the outputs
-    for the state *are* those buffers (the object identity the torch CUDA-graph step relies on too). A step is
-    captured once per process per shape and shared by every Decoder (`TinyJitStepHandle`); a Decoder that brings
-    other state has it carried in.
-  * The position is a tinygrad `Variable` bound per call: `scalar()` makes a 0-d constant the wrapper swaps for the
-    variable, so the model's arithmetic on it is symbolic, `kv_write` writes at a symbolic index, and `sdpa_static`
-    attends over a symbolic-length window of the buffers (`kbuf[:, :, :pos + T]`): one captured step for the whole
-    capacity whose attention cost follows the sequence (`attn_bucketed = False`). A decode step's token is a bound
-    variable too (`array()` of one int), so the embedding is a slice and nothing is copied to the device per token.
-  * Speculative `commit` selects `stacked[m]` from the verify step's per-token states; that is recognised structurally
-    and copied into the held buffers by a small JIT with `m` bound. Anything else handed back (a prefix-cache restore)
-    is an eager copy, once.
-  * What the engine computes *between* steps -- the token sampled from the logits, the drafts and their probabilities,
-    a round's acceptance -- is captured as well (`realized`): a graph keyed by itself, its bound variables (random pool
-    offsets, token ids) the inputs, replayed whenever the same graph is built again; `numpy()` lands its result in a
-    CPU-mapped buffer so the read schedules nothing. A greedy token is then two replays; a speculative round about a
-    dozen.
-  * A step is realized per layer (`materialize`, which the model calls in its static step as in its forward), so a
-    64-layer step is scheduled as 64 small graphs during capture, not one huge one, and no layer's output is left
-    pending for later layers' realizations to recompute.
+* `capture` holds the step's arrays: the first call's tables and state become buffers the jitted function closes over,
+  and the state carry is done inside it -- a DeltaNet layer's new state is `assign`ed into the buffer it came from,
+  `kv_write` writes into the KV buffer in place -- so the replay reads and writes fixed memory and the outputs for the
+  state *are* those buffers (the object identity the torch CUDA-graph step relies on too). A step is captured once per
+  process per shape and shared by every Decoder (`TinyJitStepHandle`); a Decoder that brings other state has it carried
+  in.
+* The position is a tinygrad `Variable` bound per call: `scalar()` makes a 0-d constant the wrapper swaps for the
+  variable, so the model's arithmetic on it is symbolic, `kv_write` writes at a symbolic index, and `sdpa_static`
+  attends over a symbolic-length window of the buffers (`kbuf[:, :, :pos + T]`): one captured step for the whole
+  capacity whose attention cost follows the sequence (`attn_bucketed = False`). A decode step's token is a bound
+  variable too (`array()` of one int), so the embedding is a slice and nothing is copied to the device per token.
+* Speculative `commit` selects `stacked[m]` from the verify step's per-token states; that is recognised structurally and
+  copied into the held buffers by a small JIT with `m` bound. Anything else handed back (a prefix-cache restore) is an
+  eager copy, once.
+* What the engine computes *between* steps -- the token sampled from the logits, the drafts and their probabilities, a
+  round's acceptance -- is captured as well (`realized`): a graph keyed by itself, its bound variables (random pool
+  offsets, token ids) the inputs, replayed whenever the same graph is built again; `numpy()` lands its result in a
+  CPU-mapped buffer so the read schedules nothing. A greedy token is then two replays; a speculative round about a
+  dozen.
+* A step is realized per layer (`materialize`, which the model calls in its static step as in its forward), so a
+  64-layer step is scheduled as 64 small graphs during capture, not one huge one, and no layer's output is left pending
+  for later layers' realizations to recompute.
 
 Weights are adopted into a few large slab buffers and held as views (`_adopt`): a step's submission takes one argument
 per buffer it touches, and sixty-four layers of individually adopted tensors exceed what tinygrad can call. Quantized
@@ -112,8 +112,10 @@ def _tg_sint(t: ta.Any) -> ta.Any:
     u = _tg_unwrap(t)
     if u.op is tg_uops.Ops.CONST:
         return int(u.arg)
+
     if u.device is None:  # an expression over variables
         return u
+
     return None
 
 
@@ -123,8 +125,10 @@ def _tg_value(t: ta.Any) -> int | None:
     u = _tg_unwrap(t)
     if u.op is tg_uops.Ops.CONST:
         return int(u.arg)
+
     if u.is_bound_var:
         return int(u.arg.val)
+
     return None
 
 
@@ -142,9 +146,9 @@ def _tg_static(b) -> bool:
 
 def _tg_jit(fn: ta.Callable[..., ta.Any]) -> ta.Any:
     """
-    A `TinyJit` that captures its first call. tinygrad's runs the function through once before capturing on the
-    second, a warm-up for inputs that are not yet buffers; here every input and held buffer is realized before the
-    call (`realized`, `TinyJitStep._hold`), and the run-through costs what the capture does: over a minute of eager
+    A `TinyJit` that captures its first call. tinygrad's runs the function through once before capturing on the second,
+    a warm-up for inputs that are not yet buffers; here every input and held buffer is realized before the call
+    (`realized`, `TinyJitStep._hold`), and the run-through costs what the capture does: over a minute of eager
     scheduling for the 16-token prefill step of the 27B, a quarter second for each graph JIT.
     `TinygradOps.CAPTURE_FIRST` off restores the two runs.
     """
@@ -161,9 +165,11 @@ def _tg_const_value(a: ta.Any) -> ta.Any:
     u = a.uop
     if not u.is_virtual:
         return None
+
     b = u.base
     if b.op is not tg_uops.Ops.CONST:
         return None
+
     return b.arg
 
 
@@ -175,20 +181,26 @@ def _tg_slab(a: ta.Any, shape: tuple[int, ...]) -> tuple[ta.Any, int, int] | Non
     """
 
     O = tg_uops.Ops
+
     u = a.uop
     if u.op is not O.RESHAPE or u.src[0].op is not O.SHRINK:
         return None
+
     sh = u.src[0]
+
     base = sh.src[0]
     if not base.has_buffer_identity() or not base.is_realized:
         return None
     if tuple(base.shape[1:]) != tuple(shape):
         return None
+
     (m, size), *rest = sh.marg
     if not isinstance(m, int) or size != 1:
         return None
+
     if any(lo != 0 or sz != d for (lo, sz), d in zip(rest, base.shape[1:])):
         return None
+
     return base.base, m, int(base.shape[0])
 
 
@@ -245,8 +257,8 @@ class TinyQWeight:
         m = x.numel() // x.shape[-1]
 
         if m <= self.GEMV_MAX_M:
-            # one kernel: the packed words stream once and are expanded in registers against the few rows of x. The
-            # rows are materialized first: left as an expression (a norm's scaling, the gate times the up projection),
+            # one kernel: the packed words stream once and are expanded in registers against the few rows of x. The rows
+            # are materialized first: left as an expression (a norm's scaling, the gate times the up projection),
             # tinygrad folds it into the kernel and recomputes it for every output row, two to three times the time
             return x.contiguous() @ self.dequant(x.dtype).T
 
@@ -259,8 +271,10 @@ class TinyQWeight:
             if out > chunk_rows:
                 part = part.realize()
             parts.append(part)
+
         if len(parts) == 1:
             return parts[0]
+
         return tg.Tensor.cat(*parts, dim=-1)
 
 
@@ -271,8 +285,8 @@ class TinyJitStep:
     """
     The capture of a static-shape step function `fn(toks, [hidden,] pos, ar, cos_tab, sin_tab, *state)` (see the module
     docstring): tables and state are held buffers the jitted function closes over, the position is a bound `Variable`,
-    the state carry is in place, and what a caller hands back that is not the held buffer is copied in -- a
-    `stacked[m]` selection by a second JIT with `m` bound, anything else eagerly.
+    the state carry is in place, and what a caller hands back that is not the held buffer is copied in -- a `stacked[m]`
+    selection by a second JIT with `m` bound, anything else eagerly.
     """
 
     DEFAULT_BEAM: ta.ClassVar[int] = 1  # depth 2 gains ~15% on the GEMV for several times the search
@@ -287,9 +301,11 @@ class TinyJitStep:
         self._pos_i = 0
         self._state_i0 = 0  # the first state arg (after pos, ar, cos, sin)
         self._var: ta.Any = None
+
         # inputs that are symbolic values rather than buffers (a token `array()` made from one int): (slot, variable,
         # shape); bound per call like the position, so nothing is scheduled to get them onto the device
         self._sym_in: list[tuple[int, ta.Any, tuple[int, ...]]] = []
+
         self._jit: ta.Any = None
         self._copyins: dict[tuple[ta.Any, ...], tuple[ta.Any, ta.Any]] = {}
         self._fills: dict[tuple[tuple[int, ta.Any], ...], ta.Any] = {}
@@ -299,9 +315,9 @@ class TinyJitStep:
         The held buffers for the state arguments, realized in one schedule. A realized buffer is held as is (another
         step on the same state shares it); a pending value is realized into one (not copied: the pending value's own
         realization would stay alive beside the copy, and at capacity the KV buffers are gigabytes); a view of a
-        realized buffer gets its own; a constant (a state started from zeros, see `TinygradOps.zeros`) has no storage
-        of its own, and gets a buffer filled from it. One schedule for all of them: each costs a quarter second of
-        Python on its own, and a decoder starting from nothing holds a hundred and seventy.
+        realized buffer gets its own; a constant (a state started from zeros, see `TinygradOps.zeros`) has no storage of
+        its own, and gets a buffer filled from it. One schedule for all of them: each costs a quarter second of Python
+        on its own, and a decoder starting from nothing holds a hundred and seventy.
         """
 
         held = []
@@ -369,13 +385,13 @@ class TinyJitStep:
 
     def _copyin(self, slots: tuple[int, ...], n: int, bases: tuple[ta.Any, ...]) -> tuple[ta.Any, ta.Any]:
         """
-        The JIT that copies entry m of each stacked per-token state (`bases`: the producing step's output buffers,
-        which its JIT reuses replay after replay) into the held buffers. The buffers are captured, not passed: a
-        hundred and forty-four inputs cost milliseconds of checking a call. A re-captured producer has new ones, and
-        the key misses.
+        The JIT that copies entry m of each stacked per-token state (`bases`: the producing step's output buffers, which
+        its JIT reuses replay after replay) into the held buffers. The buffers are captured, not passed: a hundred and
+        forty-four inputs cost milliseconds of checking a call. A re-captured producer has new ones, and the key misses.
         """
 
         key = (slots, n, bases)
+
         got = self._copyins.get(key)
         if got is None:
             self._copyins.clear()
@@ -392,15 +408,17 @@ class TinyJitStep:
                 return tuple(outs)
 
             got = self._copyins[key] = (mvar, _tg_jit(run))
+
         return got
 
     def _fill(self, consts: list[tuple[int, ta.Any]]) -> None:
         """
-        The held buffers for states handed in as constants (a decoder starting from zeros) filled by a JIT per
-        (slots, values): scheduled eagerly, the hundred fills of a 27B's DeltaNet states cost a couple of seconds.
+        The held buffers for states handed in as constants (a decoder starting from zeros) filled by a JIT per (slots,
+        values): scheduled eagerly, the hundred fills of a 27B's DeltaNet states cost a couple of seconds.
         """
 
         key = tuple((i, v) for i, v in consts)
+
         jit = self._fills.get(key)
         if jit is None:
             statics = [self._statics[i] for i, _ in consts]
@@ -414,6 +432,7 @@ class TinyJitStep:
                 return tuple(outs)
 
             jit = self._fills[key] = _tg_jit(run)
+
         jit()
 
     def _carry_in(self, args: tuple[ta.Any, ...]) -> None:
@@ -426,10 +445,12 @@ class TinyJitStep:
             s = self._statics[i]
             if a is s:
                 continue
+
             slab = _tg_slab(a, tuple(s.shape))
             if slab is not None:
                 slabs.append((i, *slab))
                 continue
+
             pad = self._ops.padded_prefix(a)
             if pad is not None:
                 # a Decoder's zero-padded KV: only its prefix lands in the held buffer, which is gigabytes at capacity;
@@ -439,7 +460,9 @@ class TinyJitStep:
                 if n:
                     eager.append(s.shrink((None, None, (0, n), None)).assign(prefix.cast(s.dtype)))
                 continue
+
             v = _tg_const_value(a)
+
             if v is not None:
                 consts.append((i, v))
             else:
@@ -452,7 +475,11 @@ class TinyJitStep:
             ms = {m for _, _, m, _ in slabs}
             ns = {n for _, _, _, n in slabs}
             if len(ms) == 1 and len(ns) == 1:
-                mvar, cj = self._copyin(tuple(i for i, *_ in slabs), next(iter(ns)), tuple(b for _, b, _, _ in slabs))
+                mvar, cj = self._copyin(
+                    tuple(i for i, *_ in slabs),
+                    next(iter(ns)),
+                    tuple(b for _, b, _, _ in slabs),
+                )
                 cj(mvar.bind(next(iter(ms))))
             else:
                 eager.extend(self._statics[i].assign(args[i]) for i, *_ in slabs)
@@ -467,16 +494,19 @@ class TinyJitStep:
 
         sym = {i for i, _, _ in self._sym_in}
         bound = [v.bind(_tg_value(args[i])) for i, v, _ in self._sym_in]
-        # a JIT input must be a plain buffer, the same structure every call: a pending value or a view (the draft
-        # head's hidden rows are a slice of a step's output) lands in one through the graph-keyed JIT
+
+        # a JIT input must be a plain buffer, the same structure every call: a pending value or a view (the draft head's
+        # hidden rows are a slice of a step's output) lands in one through the graph-keyed JIT
         ins = [self._ops.realized(a) for i, a in enumerate(args[:self._n_in]) if i not in sym]
         posv = self._var.bind(_tg_value(args[self._pos_i]))
+
         self._carry_in(args)
 
         beam = self._ops.beam or (self.DEFAULT_BEAM if self._ops.compile else 0)
         if beam:
             with tg.Context(BEAM=beam):
                 return self._jit(posv, *bound, *ins)
+
         return self._jit(posv, *bound, *ins)
 
 
@@ -498,6 +528,7 @@ class TinyJitStepHandle:
     def __call__(self, *args: ta.Any) -> tuple[ta.Any, ...]:
         pos_i = next(i for i, a in enumerate(args) if a.ndim == 0)
         key = (self._fn, tuple(tuple(a.shape) for a in args[pos_i + 1:]))
+
         steps = self._ops._steps  # noqa
         step = steps.get(key)
         if step is None:
@@ -505,6 +536,7 @@ class TinyJitStepHandle:
             for k in [k for k in steps if k[0] is self._fn]:
                 del steps[k]
             step = steps[key] = TinyJitStep(self._ops, self._fn)
+
         return step(*args)
 
 
@@ -524,10 +556,11 @@ class TinygradOps(Ops):
 
         self.device = device or tg.Device.DEFAULT
         self.name = f'tinygrad:{self.device}'
+
         # tinygrad's kernel search depth for the captured steps' kernels (0: its heuristics, which leave the GEMVs an
         # order of magnitude short of the memory bandwidth); the results persist in its cache database, so a later
-        # process skips the search. `compile` (the CLIs' --compile) is the same thing at the default depth: a slow
-        # first run, then a fast one, which is what the flag means on torch too
+        # process skips the search. `compile` (the CLIs' --compile) is the same thing at the default depth: a slow first
+        # run, then a fast one, which is what the flag means on torch too
         self.beam = beam
         self.compile = False
         self.compile_cache: str | None = None  # accepted, unused: tinygrad keeps its own cache
@@ -545,16 +578,18 @@ class TinygradOps(Ops):
         self._aranges: dict[int, ta.Any] = {}
         self._copy_jits: dict[ta.Any, ta.Any] = {}  # see `copy`
         self._pads: dict[int, tuple[ta.Any, ta.Any, int]] = {}  # see kv_pad
-        # Every eagerly scheduled graph tinygrad compiles pins a CPU-mapped buffer for the life of the process, out of
-        # a budget that is a few hundred megabytes on a GPU without a resizable BAR (about a thousand graphs). Keyed
-        # by structure rather than by the buffers it touches, a graph that recurs with new buffers -- every layer of a
-        # prefill, every round of a speculative loop -- is one entry, and its scheduling is half the cost. tinygrad
-        # keys only "small" graphs that way by default; this raises the threshold for the process (a context never
-        # left, which is how its settings are made)
+
+        # Every eagerly scheduled graph tinygrad compiles pins a CPU-mapped buffer for the life of the process, out of a
+        # budget that is a few hundred megabytes on a GPU without a resizable BAR (about a thousand graphs). Keyed by
+        # structure rather than by the buffers it touches, a graph that recurs with new buffers -- every layer of a
+        # prefill, every round of a speculative loop -- is one entry, and its scheduling is half the cost. tinygrad keys
+        # only "small" graphs that way by default; this raises the threshold for the process (a context never left,
+        # which is how its settings are made)
         tg.Context(HCQ_CACHE_THRESH=1 << 20).__enter__()
+
         # tinygrad gives a wait on a device signal 30 s before calling the device hung; a first run's kernel search,
-        # compiles and heuristic kernels over the full capacity hold the queues longer than that (a real hang then
-        # takes this long to surface, which is the trade)
+        # compiles and heuristic kernels over the full capacity hold the queues longer than that (a real hang then takes
+        # this long to surface, which is the trade)
         for d in (self.device, 'CPU'):
             tg.Device[d].wait_timeout_ms = self.WAIT_TIMEOUT_MS
 
@@ -563,19 +598,23 @@ class TinygradOps(Ops):
 
     def array(self, a, dtype=None):
         a = np.ascontiguousarray(a)
+
         if a.size == 1 and a.dtype.kind in 'iu' and dtype in (None, tg.dtypes.int32):
             # one int (a decode step's token): a value bound to a variable rather than a buffer, so a captured step
-            # takes it like the position (no copy to schedule) and the embedding is a slice rather than a gather
-            # names cycle so that graphs built on these keep a bounded set of structures (see __init__), and a few
-            # drafted in one round (the test hook's oracle drafts) still get distinct variables
+            # takes it like the position (no copy to schedule) and the embedding is a slice rather than a gather names
+            # cycle so that graphs built on these keep a bounded set of structures (see __init__), and a few drafted in
+            # one round (the test hook's oracle drafts) still get distinct variables
             self._n_sym = (self._n_sym + 1) % 16
             v = tg.Variable(f'sym{self._n_sym}', 0, 2**31 - 1, dtype=tg.dtypes.int32)
             return tg.Tensor(v.bind(int(a.reshape(-1)[0]))).reshape(a.shape)
+
         if not a.flags.writeable:
             a = a.copy()
+
         t = tg.Tensor(a, device=self.device)
         if dtype is not None and t.dtype != dtype:
             t = t.cast(dtype)
+
         return t
 
     def numpy(self, x):
@@ -586,14 +625,13 @@ class TinygradOps(Ops):
         self._guard_templates()
         return out
 
-    # graphs the engine builds between captured steps -- the token sampled from a step's logits, the drafts and their
+    # Graphs the engine builds between captured steps -- the token sampled from a step's logits, the drafts and their
     # probabilities, a speculative round's acceptance -- have the same structure every time and read buffers that stay
     # put (a captured step's outputs, the random pool), so they are captured too, keyed by the graph itself with its
     # bound variables (random pool offsets, token ids) as the inputs; past this many the captures are dropped and
-    # rebuilt
-    # a speculative round builds a few dozen distinct graphs (a view's offset is the accepted count, four variants a
-    # site, host and device reads apart), and the working set is above sixty; the least recently used go when there
-    # are more than this (each holds a few kilobytes of mapped memory: a thrashing cache re-captures one a round)
+    # rebuilt. A speculative round builds a few dozen distinct graphs (a view's offset is the accepted count, four
+    # variants a site, host and device reads apart), and the working set is above sixty; the least recently used go when
+    # there are more than this (each holds a few kilobytes of mapped memory: a thrashing cache re-captures one a round).
     MAX_GRAPH_JITS: ta.ClassVar[int] = 256
     CAPTURE_FIRST: ta.ClassVar[bool] = True  # see `_tg_jit`
     WAIT_TIMEOUT_MS: ta.ClassVar[float] = 600_000.0
@@ -603,27 +641,32 @@ class TinygradOps(Ops):
         `t` as a plain, realized buffer. A pending value is computed through a JIT keyed by its graph (see above) and
         every tensor sharing the computation is pointed at the result, as a realization does; a view of a realized
         buffer is copied the same way. Scheduling eagerly instead costs milliseconds of Python per graph, every time.
-        The result is the JIT's output, scratch its next replay overwrites: what is pointed at it must be consumed
-        (or copied, see `copy`) before another value of the same structure comes through; state that lives on, like a
-        decoder's padded KV, must not.
-        With `host`, the result lands in a CPU-mapped buffer, which `numpy()` then reads without a copy to schedule.
+        The result is the JIT's output, scratch its next replay overwrites: what is pointed at it must be consumed (or
+        copied, see `copy`) before another value of the same structure comes through; state that lives on, like a
+        decoder's padded KV, must not. With `host`, the result lands in a CPU-mapped buffer, which `numpy()` then reads
+        without a copy to schedule.
         """
 
         self._flush_slabs()
         u = t.uop
         if u.is_virtual or (u.has_buffer_identity() and u.is_realized):
             return t
+
         is_view = _tg_static(u.base)
         src = u if is_view else u.base
+
         # the key is the graph's structure: variables unbound, and the buffers it reads stood in for by placeholders,
         # which are the JIT's inputs. Keyed on the buffers themselves, a graph realized afresh (a new output buffer)
         # would change every graph downstream of it, and the misses would cascade round after round.
+
         O = tg_uops.Ops
         order = {x: i for i, x in enumerate(src.toposort())}
         nodes = order.keys()
+
         # every live tensor that is an interior node of this graph is realized along with it, as a realization does:
-        # left pending, it is rebuilt inside the next graph that reads it, whose structure then carries this one's
-        # (a round's inputs would encode the previous round's acceptance, and no key would ever recur)
+        # left pending, it is rebuilt inside the next graph that reads it, whose structure then carries this one's (a
+        # round's inputs would encode the previous round's acceptance, and no key would ever recur)
+
         dyn = self._dynamic_tensors()
         held: dict[ta.Any, None] = {}
         for t2 in dyn:
@@ -632,6 +675,7 @@ class TinygradOps(Ops):
             b = t2.uop.base
             if b in nodes and b is not src and not b.is_virtual and not b.has_buffer_identity():
                 held[b] = None
+
         roots = [src, *sorted(held, key=order.__getitem__)]
         leaves = [x for x in order if x.op is O.BUFFER]
         holders = {x: tg_uops.UOp.placeholder_like(x, slot=i) for i, x in enumerate(leaves)}
@@ -639,11 +683,14 @@ class TinygradOps(Ops):
 
         jkey = (key, host)
         jit = self._graph_jits.get(jkey)
+
         if jit is not None:
             self._graph_jits.move_to_end(jkey)
+
         else:
             while len(self._graph_jits) >= self.MAX_GRAPH_JITS:
                 self._graph_jits.popitem(last=False)
+
             slots = list(holders.values())
 
             def rebuild(bound, ins):
@@ -667,7 +714,6 @@ class TinygradOps(Ops):
                     return tuple(outs)
 
             else:
-
                 def run(nb, *args):
                     outs = [tg.Tensor(g).clone() for g in rebuild(args[:nb], args[nb:])]
                     tg.Tensor.realize(*outs)
@@ -677,11 +723,12 @@ class TinygradOps(Ops):
 
         bound = [v.bind(i) for v, i in vals.items()]
         outs = jit(len(bound), *bound, *[tg.Tensor(x) for x in leaves])
+
         if is_view:
             return outs[0]
 
-        # what tinygrad's own realization does to point every holder at the result, over the dynamic tensors only
-        # (a scan of all of them, mostly the weights' views, costs milliseconds)
+        # what tinygrad's own realization does to point every holder at the result, over the dynamic tensors only (a
+        # scan of all of them, mostly the weights' views, costs milliseconds)
         amap = {r: o.uop for r, o in zip(roots, outs)}
         in_scope: dict[ta.Any, bool] = {}
 
@@ -692,33 +739,40 @@ class TinygradOps(Ops):
         new = tg_uops.UOp.sink(*[x.uop for x in scope]).substitute(amap, name='substitute graph jit', walk=True)
         for x, nu in zip(scope, new.src):
             x.uop = nu
+
         return self.realized(t, host)  # a view of what was pending is now a view of a buffer: copied by the view path
 
     def _dynamic_tensors(self) -> list[ta.Any]:
         """
         The live tensors whose graphs hold pending computation: the only ones a realization can touch. The rest --
         realized buffers, and the weights' views of their slabs, most of what is live -- are remembered along with the
-        graph they were classified by, and skipped while it is unchanged (an in-place assignment makes one pending
-        again until it is realized).
+        graph they were classified by, and skipped while it is unchanged (an in-place assignment makes one pending again
+        until it is realized).
         """
 
         static = self._static_refs
         out = []
+
         for tref in list(tg_tensor.all_tensors):  # noqa
             t2 = tref()
             if t2 is None:
                 continue
+
             u = t2.uop
+
             wr = static.get(tref)
             if wr is not None and wr() is u:
                 continue
+
             if _tg_static(u.base):
                 static[tref] = weakref.ref(u)
             else:
                 out.append(t2)
+
         if len(static) > 2 * len(tg_tensor.all_tensors) + 1024:  # noqa
             for tref in [r for r in static if r() is None]:
                 del static[tref]
+
         return out
 
     def cast(self, x, dtype):
@@ -727,47 +781,55 @@ class TinygradOps(Ops):
     def copy(self, x):
         """
         A copy in a buffer of its own (a snapshot keeps it), made by a JIT per shape into a buffer allocated here:
-        scheduled eagerly, a copy costs a quarter second of Python, and a prefix snapshot takes a hundred; a graph
-        JIT's output would not do, being scratch it reuses.
+        scheduled eagerly, a copy costs a quarter second of Python, and a prefix snapshot takes a hundred; a graph JIT's
+        output would not do, being scratch it reuses.
         """
 
         self._flush_slabs()
+
         pad = self.padded_prefix(x)
         if pad is not None:
             # a decoder's zero-padded KV, before any step wrote it: a pad of a copy of its prefix. Realized through
-            # `realized`, the pad would point the decoder's state at a graph JIT's scratch, which the next replay of
-            # the same graph (the layer's other buffer, the next layer's) overwrites before the step copies it in
+            # `realized`, the pad would point the decoder's state at a graph JIT's scratch, which the next replay of the
+            # same graph (the layer's other buffer, the next layer's) overwrites before the step copies it in
             prefix, _ = pad
             z = self.copy(prefix) if prefix is not None else self.zeros((*x.shape[:2], 0, *x.shape[3:]), x.dtype)
             return self.kv_pad((z,), int(x.shape[2]))[0]
+
         src = self.realized(x)  # a pending value or a view is computed (into a graph JIT's scratch) first
         shape = tuple(int(d) for d in src.shape)
+
         n = 1
         for d in shape:
             n *= d
         if n == 0 or src.uop.is_virtual:
             return src.clone().realize()
+
         u = tg_uops.UOp.new_buffer(self.device, n, src.dtype)
         u.buffer.allocate()
+
         dst = tg.Tensor(u).reshape(shape)
         key = (shape, src.dtype)
+
         jit = self._copy_jits.get(key)
         if jit is None:
             jit = self._copy_jits[key] = _tg_jit(lambda d, s: d.assign(s).realize())
+
         jit(dst, src)
+
         self._guard_templates()  # the capturing call runs eagerly
         return dst
 
     def zeros(self, shape, dtype):
         # a constant, not a buffer: it folds into whatever consumes it (the engine pads with zeros, and starts states
-        # from them), and a graph holding it keeps its structure. tinygrad's buffer form is an allocation with a
-        # fresh identity each time, which made the round's host read a new graph every round. A step that is handed
-        # one as state allocates for it (see `TinyJitStep._hold`).
+        # from them), and a graph holding it keeps its structure. tinygrad's buffer form is an allocation with a fresh
+        # identity each time, which made the round's host read a new graph every round. A step that is handed one as
+        # state allocates for it (see `TinyJitStep._hold`).
         return tg.Tensor.full(tuple(shape), 0, dtype=dtype, buffer=False)
 
     # Eagerly scheduled graphs tinygrad keeps as templates each hold a slice of the device's mapped-memory ring (see
-    # __init__); past this many, the templates are dropped and the ring is reused, at the price of recompiling the
-    # ones that recur (a few tens of milliseconds each). Well under what the budget allows beside the captured steps.
+    # __init__); past this many, the templates are dropped and the ring is reused, at the price of recompiling the ones
+    # that recur (a few tens of milliseconds each). Well under what the budget allows beside the captured steps.
     MAX_EAGER_TEMPLATES: ta.ClassVar[int] = 96
 
     def _guard_templates(self) -> None:
@@ -812,8 +874,8 @@ class TinygradOps(Ops):
         return x.repeat_interleave(n, dim=axis)
 
     def arange(self, n):
-        # one realized buffer per size: the engine asks for the vocabulary's several times a round, and tinygrad's is
-        # a cumulative sum, scheduled eagerly, every time
+        # one realized buffer per size: the engine asks for the vocabulary's several times a round, and tinygrad's is a
+        # cumulative sum, scheduled eagerly, every time
         n = int(n)
         t = self._aranges.get(n)
         if t is None:
@@ -835,25 +897,28 @@ class TinygradOps(Ops):
     def kv_pad(self, state, capacity):
         if len(self._pads) > 512:  # entries whose padded tensor is gone
             self._pads = {k: v for k, v in self._pads.items() if v[0]() is not None}
+
         if all(int(a.shape[2]) == 0 for a in state):
-            # a decoder starting from nothing: the whole buffer is a constant (allocated and filled when first held;
-            # a held buffer is left as it is, every position being written before it is read); no prefix to carry in
+            # a decoder starting from nothing: the whole buffer is a constant (allocated and filled when first held; a
+            # held buffer is left as it is, every position being written before it is read); no prefix to carry in
             out = tuple(self.zeros((*a.shape[:2], capacity, *a.shape[3:]), a.dtype) for a in state)
             for padded in out:
                 self._pads[id(padded)] = (weakref.ref(padded), None, 0)
             return out
+
         out = super().kv_pad(state, capacity)
         for a, padded in zip(state, out):
             if padded is not a:
                 # keyed by identity: a Tensor's == is elementwise, so it cannot key a dict; the weak reference tells a
                 # reused id from the tensor it was made for
                 self._pads[id(padded)] = (weakref.ref(padded), a, int(a.shape[2]))
+
         return out
 
     def padded_prefix(self, t) -> tuple[ta.Any, int] | None:
         """
-        (prefix, n) when `t` is a `kv_pad` result still pending: the state it pads, holding n positions (None, 0 for
-        a pad of nothing).
+        (prefix, n) when `t` is a `kv_pad` result still pending: the state it pads, holding n positions (None, 0 for a
+        pad of nothing).
         """
 
         got = self._pads.get(id(t))
@@ -866,14 +931,18 @@ class TinygradOps(Ops):
         # stored again) come from the prefix the pending pad holds; see `copy` for why the pad itself must not be
         # realized
         out = []
+
         for a in state:
             pad = self.padded_prefix(a)
             if pad is not None and pad[1] >= n:
                 if pad[0] is None:  # nothing written yet, nothing to keep
                     out.append(self.zeros((*a.shape[:2], 0, *a.shape[3:]), a.dtype))
                     continue
+
                 a = pad[0]
+
             out.append(self.copy(a if int(a.shape[2]) == n else a[:, :, :n]))
+
         return tuple(out)
 
     def kv_write(self, buf, pos, x):
@@ -931,24 +1000,26 @@ class TinygradOps(Ops):
         self._pool = None
         self._pool_jit = None  # its generator's key is the seed's
 
-    # uniforms are handed out as slices of a pool drawn in one go: `Tensor.rand` schedules its counter update eagerly
-    # (a millisecond-class cost here), and a speculative round asks for random numbers five times. The pool is
-    # refilled in place by a JIT (the generator's counter advances on the device, so a replay draws fresh numbers;
-    # scheduled eagerly, a refill was a third of a second every dozen rounds). The slice offset is a bound variable,
-    # named by the size, so the graphs built on it keep one structure call after call: tinygrad caches an eagerly
-    # scheduled graph by structure and holds a mapped buffer per entry, and this device's mapping budget is small
+    # uniforms are handed out as slices of a pool drawn in one go: `Tensor.rand` schedules its counter update eagerly (a
+    # millisecond-class cost here), and a speculative round asks for random numbers five times. The pool is refilled in
+    # place by a JIT (the generator's counter advances on the device, so a replay draws fresh numbers; scheduled
+    # eagerly, a refill was a third of a second every dozen rounds). The slice offset is a bound variable, named by the
+    # size, so the graphs built on it keep one structure call after call: tinygrad caches an eagerly scheduled graph by
+    # structure and holds a mapped buffer per entry, and this device's mapping budget is small
     RAND_POOL: ta.ClassVar[int] = 1 << 24
 
     def random_uniform(self, shape):
         n = 1
         for d in shape:
             n *= int(d)
+
         pool = getattr(self, '_pool', None)
         if pool is None or n > pool.shape[0]:
             pool = tg.Tensor.empty(max(self.RAND_POOL, n), dtype=tg.dtypes.float32, device=self.device).realize()
             self._pool = pool
             self._pool_i = pool.shape[0]  # nothing drawn yet: filled below
             self._pool_jit = None
+
         if self._pool_i + n > pool.shape[0]:
             if self._pool_jit is None:
                 size = pool.shape[0]
@@ -958,11 +1029,14 @@ class TinygradOps(Ops):
             self._pool_jit()
             self._guard_templates()  # the capturing call runs eagerly
             self._pool_i = 0
+
         i = self._pool_i
         self._pool_i = i + n
+
         # named by size alone, so a graph drawing the same shapes keeps one structure (the graph-keyed JIT's key);
         # two draws of one size in one graph would conflict -- loudly, at binding -- and no path makes them
         off = tg.Variable(f'rand{n}', 0, pool.shape[0] - n, dtype=tg.dtypes.int32).bind(i)
+
         return pool.shrink(((off, off + n),)).reshape(shape)
 
     # weights
@@ -971,9 +1045,9 @@ class TinygradOps(Ops):
     # captured step takes one argument per buffer it touches, and sixty-four layers of individually adopted tensors
     # (codes, scales, biases, norms, ...) are over a thousand, past what tinygrad can call. There is one slab per layer
     # (by the parameter's name), so that every layer of a kind lays its weights out identically and the eagerly
-    # scheduled graphs of a prefill are one template for all of them, not one each. A slab's size is not known until
-    # its layer is loaded, so its views are made over an unallocated placeholder and re-pointed, through tinygrad's
-    # own tensor map, at the exact-size buffer the bytes are uploaded into at the backend's next realization point.
+    # scheduled graphs of a prefill are one template for all of them, not one each. A slab's size is not known until its
+    # layer is loaded, so its views are made over an unallocated placeholder and re-pointed, through tinygrad's own
+    # tensor map, at the exact-size buffer the bytes are uploaded into at the backend's next realization point.
     SLAB_MAX: ta.ClassVar[int] = 1 << 30  # the placeholder's extent; a group past it continues in another slab
 
     @staticmethod
@@ -1034,16 +1108,18 @@ class TinygradOps(Ops):
 
     def _flush_slabs(self) -> None:
         """
-        Upload every slab that still has its bytes on the host (the open ones included): one exact-size buffer each,
-        the views re-pointed at it, the host copies dropped. Called at every realization point: nothing may run
-        against a slab whose bytes are still on the host.
+        Upload every slab that still has its bytes on the host (the open ones included): one exact-size buffer each, the
+        views re-pointed at it, the host copies dropped. Called at every realization point: nothing may run against a
+        slab whose bytes are still on the host.
         """
 
         pending = self._pending + list(self._open.values())
         if not pending:
             return
+
         self._pending.clear()
         self._open.clear()
+
         reals = []
         for slab in pending:
             host = np.zeros(slab.used, dtype=np.uint8)
@@ -1051,11 +1127,14 @@ class TinygradOps(Ops):
                 host[off:off + raw.nbytes] = raw
             slab.parts.clear()
             reals.append(tg.Tensor(host, device=self.device))
+
         tg.Tensor.realize(*reals)
         tg.Device[self.device].synchronize()
+
         for slab, real in zip(pending, reals):
             tg_tensor._apply_map_to_tensors({slab.placeholder: real.uop}, 'slab')  # noqa
             self._slabs.append(real)
+
         self.release_cached()
 
     def release_cached(self) -> None:
@@ -1125,8 +1204,10 @@ class TinygradOps(Ops):
         rows: ta.Any = ids.reshape(-1)
         if ids.numel() == 1 and (t := _tg_sint(ids)) is not None:
             rows = slice(t, t + 1)  # a constant or symbolic id: the row is a view, not a one-hot gather
+
         if isinstance(w, TinyQWeight):
             return w.dequant(dtype, rows).reshape(*ids.shape, w.shape[1])
+
         return w[rows].cast(dtype).reshape(*ids.shape, w.shape[1])
 
     # fused overrides
@@ -1142,14 +1223,19 @@ class TinygradOps(Ops):
         B, H, T, D = q.shape
         KV = k.shape[1]
         L = k.shape[2]
+
         if abs(scale * D ** 0.5 - 1.0) > 1e-6:  # tinygrad's SDPA has no scale argument
             return super().sdpa(q, k, v, scale, past)
+
         if KV != H:
             k = k.repeat_interleave(H // KV, dim=1)
             v = v.repeat_interleave(H // KV, dim=1)
+
         if T == 1:
             return q.scaled_dot_product_attention(k, v)
+
         mask = self.array(np.tril(np.ones((T, L), dtype=bool), k=past))
+
         return q.scaled_dot_product_attention(k, v, attn_mask=mask)
 
     def sdpa_static(
@@ -1166,6 +1252,7 @@ class TinygradOps(Ops):
         B, H, T, D = q.shape
         KV = kbuf.shape[1]
         G = H // KV
+
         n = _tg_sint(pos) + T
         kw = kbuf.shrink((None, None, (0, n), None))
         vw = vbuf.shrink((None, None, (0, n), None))
@@ -1198,12 +1285,14 @@ class TinygradOps(Ops):
     ):
         key = (offset, x.shape[2], dims, theta, x.dtype)
         tabs = self.__dict__.setdefault('_rope_cache', {})
+
         if key not in tabs:
             if len(tabs) > 256:
                 tabs.clear()
             self._flush_slabs()
             cos_np, sin_np = self.rope_tables(offset, x.shape[2], dims, theta)
             tabs[key] = (self.array(cos_np, x.dtype).realize(), self.array(sin_np, x.dtype).realize())
+
         cos, sin = tabs[key]
         xr = x[..., :dims]
         xp = x[..., dims:]

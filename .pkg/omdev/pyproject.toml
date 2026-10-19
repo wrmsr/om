@@ -49,7 +49,7 @@ ocr = [
     'onnxruntime ~= 1.31',
 ]
 pillow = [
-    'pillow ~= 12.3',
+    'pillow ~= 13.0',
 ]
 prof = [
     'gprof2dot ~= 2025.4',
@@ -99,7 +99,7 @@ all = [
     'docutils ~= 0.23',
     'rapidocr ~= 3.10',
     'onnxruntime ~= 1.31',
-    'pillow ~= 12.3',
+    'pillow ~= 13.0',
     'gprof2dot ~= 2025.4',
     'basedpyright ~= 1.40',
     'segno ~= 1.6',

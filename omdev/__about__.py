@@ -42,7 +42,7 @@ class Project(ProjectBase):
         ],
 
         'pillow': [
-            'pillow ~= 12.3',
+            'pillow ~= 13.0',
         ],
 
         'prof': [

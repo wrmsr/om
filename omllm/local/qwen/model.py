@@ -1566,20 +1566,26 @@ class Decoder:
 
         ops = self.ops
         T = self.PREFILL_T
+
         toks = [int(t) for t in tokens]
         if not toks:
             raise ValueError('nothing to prefill')
+
         hiddens: list[Array] = []
         last: Array | None = None
         for start in range(0, len(toks), T):
             if should_stop is not None and should_stop():
                 raise Cancelled
+
             chunk = toks[start:start + T]
             n = len(chunk)
             logits, hidden, flat_all = self.verify(chunk + [chunk[-1]] * (T - n))
+
             self.commit(flat_all, n)
+
             hiddens.append(hidden[:, :n] if n < T else hidden)
             last = logits[:, n - 1:n]
+
         return check.not_none(last), (hiddens[0] if len(hiddens) == 1 else ops.concat(hiddens, 1))
 
     def _pad_to(self, capacity: int) -> None:
@@ -1800,6 +1806,7 @@ class SpecDecoder:
         self.draft_vocab = draft_vocab
         if not 1 <= k <= 8:
             raise ValueError(f'draft tokens must be 1..8, got {k}')
+
         self.model = model
         self.ops = ops = model.ops
         self.mtp = model.mtp
@@ -1809,6 +1816,7 @@ class SpecDecoder:
         n = self.dec.seq_len
         sampler.bind(ops, model.cfg.vocab_size)
         self.i32 = ops.dtype('i32')
+
         # a grammar.ToolConstraint: masks the next-token distributions (the draft's first pick, every verify row for
         # its own position, the corrections) so what is committed always obeys it; see grammar.py
         self.constraint = constraint
@@ -1819,6 +1827,7 @@ class SpecDecoder:
         self.next_tok = int(ops.numpy(self.next_arr)[0])
         if constraint is not None:
             constraint.feed(self.next_tok)
+
         # draft-head prefill: entry p uses the target hidden at p and the token at p+1, for p = start..n-1 (start = 0
         # from scratch; the position of the first supplied hidden row when resuming on top of `mtp_kv`)
         start = n - hidden.shape[1]
@@ -1835,6 +1844,7 @@ class SpecDecoder:
         self.hidden_last = hidden[:, -1:]  # [1, 1, H]: the target's hidden at position n-1
         self.d_last = d[:, -1:]  # [B, 1, H]
         self.mlogits_last = mlogits[:, -1]  # [1, V] on the device
+
         self.mseq = n  # draft-head entries with true hidden states
         self.rounds = 0
         self.accepted = 0
@@ -1859,25 +1869,31 @@ class SpecDecoder:
         ops = self.ops
         c = self.model.cfg
         T = Decoder.PREFILL_T
+
         if mtp_kv is None:
             z = ops.zeros((1, c.num_kv_heads, 0, c.head_dim), self.model.dtype)
             mtp_kv = ops.kv_new(z, z)
         self.mflat = list(mtp_kv)
+
         total = int(mtoks.shape[1])
         last: tuple[Array, Array] | None = None
         for i in range(0, total, T):
             n = min(T, total - i)
             pos = start + i
+
             self.dec.ensure_capacity(pos + T)
             self._sync_capacity()
+
             tk = mtoks[:, i:i + n]
             hd = hidden[:, i:i + n]
             if n < T:
                 tk = np.concatenate([tk, np.repeat(tk[:, -1:], T - n, 1)], 1)
                 hd = ops.concat([hd, ops.repeat(hd[:, -1:], T - n, 1)], 1)
+
             ml, d, *mkv = self._mfn(T, pos + T)(ops.array(tk), hd, ops.scalar(pos), *self.dec.tables(), *self.mflat)
             self.mflat = list(mkv)
             last = (ml[:, :n], d[:, :n])
+
         return check.not_none(last)
 
     def _sync_capacity(self) -> None:

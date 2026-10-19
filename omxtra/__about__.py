@@ -23,7 +23,7 @@ class Project(ProjectBase):
         'ssh': [
             'asyncssh ~= 2.24',  # cffi
 
-            'paramiko ~= 5.0',  # !! LGPL
+            'paramiko ~= 5.1',  # !! LGPL
         ],
 
         'wiki': [

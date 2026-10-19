@@ -36,7 +36,7 @@ ominfra = [
 ]
 ssh = [
     'asyncssh ~= 2.24',
-    'paramiko ~= 5.0',
+    'paramiko ~= 5.1',
 ]
 wiki = [
     'mwparserfromhell ~= 0.7',
@@ -49,7 +49,7 @@ all = [
     'omdev == 0.0.68',
     'ominfra == 0.0.68',
     'asyncssh ~= 2.24',
-    'paramiko ~= 5.0',
+    'paramiko ~= 5.1',
     'mwparserfromhell ~= 0.7',
     'wikitextparser ~= 3.0',
     'pyzmq ~= 27.2',
