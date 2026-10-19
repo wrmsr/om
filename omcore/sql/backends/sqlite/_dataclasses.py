@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='a657c43da77c4eceb41c9dd2b33ccfe41a35be62',
+    installer_sha1='50e5a2aa0d295060b6726815a52220779fd27b6c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -71,7 +68,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.sql.backends.sqlite.connecting', 'SqliteDbConfig'),
     ),
 )
-def _process_dataclass__a657c43da77c4eceb41c9dd2b33ccfe41a35be62():
+def _process_dataclass__50e5a2aa0d295060b6726815a52220779fd27b6c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

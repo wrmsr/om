@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='398c6d5fda6d31e8337dad564ceb16857fb9da25',
+    installer_sha1='ddcc19e75bd5e36e394dc9a08012c7cfd0ab3418',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.agent.permissions.collection', 'PermissionRules'),
     ),
 )
-def _process_dataclass__398c6d5fda6d31e8337dad564ceb16857fb9da25():
+def _process_dataclass__ddcc19e75bd5e36e394dc9a08012c7cfd0ab3418():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -142,7 +139,7 @@ def _process_dataclass__398c6d5fda6d31e8337dad564ceb16857fb9da25():
 
 
 @_register(
-    installer_sha1='edd58e55751a09116fe7667326f0f100813024db',
+    installer_sha1='59438494e731f3dfd4a14bd7f058dea44d4c94c9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -155,7 +152,7 @@ def _process_dataclass__398c6d5fda6d31e8337dad564ceb16857fb9da25():
         ('omllm.agent.permissions.deciders', 'StaticPermissionDecider'),
     ),
 )
-def _process_dataclass__edd58e55751a09116fe7667326f0f100813024db():
+def _process_dataclass__59438494e731f3dfd4a14bd7f058dea44d4c94c9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -244,7 +241,7 @@ def _process_dataclass__edd58e55751a09116fe7667326f0f100813024db():
 
 
 @_register(
-    installer_sha1='d0c84776eb03219af612dba31edf5227580a106c',
+    installer_sha1='7b89b57797b651c6cec5a46a699deed3e381f1c6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -258,7 +255,7 @@ def _process_dataclass__edd58e55751a09116fe7667326f0f100813024db():
         ('omllm.agent.permissions.tools', 'ToolPermissionMatcher'),
     ),
 )
-def _process_dataclass__d0c84776eb03219af612dba31edf5227580a106c():
+def _process_dataclass__7b89b57797b651c6cec5a46a699deed3e381f1c6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -359,7 +356,7 @@ def _process_dataclass__d0c84776eb03219af612dba31edf5227580a106c():
 
 
 @_register(
-    installer_sha1='4b1648a7a1052dbc68bc0d0c3ae9622e92b84249',
+    installer_sha1='da71dd92bc46c42a9203202c4847333932f84623',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -373,7 +370,7 @@ def _process_dataclass__d0c84776eb03219af612dba31edf5227580a106c():
         ('omllm.agent.permissions.types', 'PermissionDeniedError'),
     ),
 )
-def _process_dataclass__4b1648a7a1052dbc68bc0d0c3ae9622e92b84249():
+def _process_dataclass__da71dd92bc46c42a9203202c4847333932f84623():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -431,7 +428,7 @@ def _process_dataclass__4b1648a7a1052dbc68bc0d0c3ae9622e92b84249():
 
 
 @_register(
-    installer_sha1='39f8906f135aee945c24fb95b6817b37f203af6b',
+    installer_sha1='9da230c5bb5dd8e0853b0dea3e814bf672768fca',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -445,7 +442,7 @@ def _process_dataclass__4b1648a7a1052dbc68bc0d0c3ae9622e92b84249():
         ('omllm.agent.permissions.types', 'PermissionMatchContext'),
     ),
 )
-def _process_dataclass__39f8906f135aee945c24fb95b6817b37f203af6b():
+def _process_dataclass__9da230c5bb5dd8e0853b0dea3e814bf672768fca():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -544,7 +541,7 @@ def _process_dataclass__39f8906f135aee945c24fb95b6817b37f203af6b():
 
 
 @_register(
-    installer_sha1='fd0a33b7948034372d4a1a6fa7c892883eee5fde',
+    installer_sha1='b49349b79bb52519aa6bdeee153f9070f99e6be7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -559,7 +556,7 @@ def _process_dataclass__39f8906f135aee945c24fb95b6817b37f203af6b():
         ('omllm.agent.permissions.types', 'PermissionRequest'),
     ),
 )
-def _process_dataclass__fd0a33b7948034372d4a1a6fa7c892883eee5fde():
+def _process_dataclass__b49349b79bb52519aa6bdeee153f9070f99e6be7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -670,7 +667,7 @@ def _process_dataclass__fd0a33b7948034372d4a1a6fa7c892883eee5fde():
 
 
 @_register(
-    installer_sha1='5626ceab6af520a94189a57e4574290bcb8a5a73',
+    installer_sha1='1011078a3e91a3f72ffa722c82ea0df183c9467a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -683,7 +680,7 @@ def _process_dataclass__fd0a33b7948034372d4a1a6fa7c892883eee5fde():
         ('omllm.agent.permissions.types', 'PermissionRequestor'),
     ),
 )
-def _process_dataclass__5626ceab6af520a94189a57e4574290bcb8a5a73():
+def _process_dataclass__1011078a3e91a3f72ffa722c82ea0df183c9467a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -776,7 +773,7 @@ def _process_dataclass__5626ceab6af520a94189a57e4574290bcb8a5a73():
 
 
 @_register(
-    installer_sha1='ae9c374746a1ef0a3ef6c96a69fc175110b5b19c',
+    installer_sha1='cd04dff427e000568c8b3a788d4ddb3d419e3fb4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -790,7 +787,7 @@ def _process_dataclass__5626ceab6af520a94189a57e4574290bcb8a5a73():
         ('omllm.agent.permissions.types', 'PermissionRule'),
     ),
 )
-def _process_dataclass__ae9c374746a1ef0a3ef6c96a69fc175110b5b19c():
+def _process_dataclass__cd04dff427e000568c8b3a788d4ddb3d419e3fb4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -905,7 +902,7 @@ def _process_dataclass__ae9c374746a1ef0a3ef6c96a69fc175110b5b19c():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -917,7 +914,7 @@ def _process_dataclass__ae9c374746a1ef0a3ef6c96a69fc175110b5b19c():
         ('omllm.agent.permissions.types', 'PermissionTarget'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

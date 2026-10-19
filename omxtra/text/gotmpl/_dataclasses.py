@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='3e95f80dea0498d1fb8cf017afb10aa6f0150d2b',
+    installer_sha1='e4fb060f3116dc835e60b6e35394a8c2d7ce2195',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omxtra.text.gotmpl.exec', 'ExecError'),
     ),
 )
-def _process_dataclass__3e95f80dea0498d1fb8cf017afb10aa6f0150d2b():
+def _process_dataclass__e4fb060f3116dc835e60b6e35394a8c2d7ce2195():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -111,7 +108,7 @@ def _process_dataclass__3e95f80dea0498d1fb8cf017afb10aa6f0150d2b():
 
 
 @_register(
-    installer_sha1='44173097d93e35f65e393bf42b6a21482d1b7eee',
+    installer_sha1='909e4fca2a00b96d18520f30dc9153146f8136e0',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -128,7 +125,7 @@ def _process_dataclass__3e95f80dea0498d1fb8cf017afb10aa6f0150d2b():
         ('omxtra.text.gotmpl.exec', 'State'),
     ),
 )
-def _process_dataclass__44173097d93e35f65e393bf42b6a21482d1b7eee():
+def _process_dataclass__909e4fca2a00b96d18520f30dc9153146f8136e0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -212,7 +209,7 @@ def _process_dataclass__44173097d93e35f65e393bf42b6a21482d1b7eee():
 
 
 @_register(
-    installer_sha1='3431def90bebf3670af0052bc64e0a9c406a73a8',
+    installer_sha1='0413ba7e784478f6ffbbbf2410778210a402ae00',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -226,7 +223,7 @@ def _process_dataclass__44173097d93e35f65e393bf42b6a21482d1b7eee():
         ('omxtra.text.gotmpl.exec', 'Variable'),
     ),
 )
-def _process_dataclass__3431def90bebf3670af0052bc64e0a9c406a73a8():
+def _process_dataclass__0413ba7e784478f6ffbbbf2410778210a402ae00():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -290,7 +287,7 @@ def _process_dataclass__3431def90bebf3670af0052bc64e0a9c406a73a8():
 
 
 @_register(
-    installer_sha1='24bc2c8d3e2c4c2c451513685a6cbd9a255d6103',
+    installer_sha1='693a6b3497f3eff173511b62e153b26a7f976fbf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -305,7 +302,7 @@ def _process_dataclass__3431def90bebf3670af0052bc64e0a9c406a73a8():
         ('omxtra.text.gotmpl.lex', 'LexOptions'),
     ),
 )
-def _process_dataclass__24bc2c8d3e2c4c2c451513685a6cbd9a255d6103():
+def _process_dataclass__693a6b3497f3eff173511b62e153b26a7f976fbf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -414,7 +411,7 @@ def _process_dataclass__24bc2c8d3e2c4c2c451513685a6cbd9a255d6103():
 
 
 @_register(
-    installer_sha1='8cf63883aa92351177e072b87aae929ff60b4bf0',
+    installer_sha1='585b052587128930c9635d97195c8d2d267363dc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -430,7 +427,7 @@ def _process_dataclass__24bc2c8d3e2c4c2c451513685a6cbd9a255d6103():
         ('omxtra.text.gotmpl.lex', 'Token'),
     ),
 )
-def _process_dataclass__8cf63883aa92351177e072b87aae929ff60b4bf0():
+def _process_dataclass__585b052587128930c9635d97195c8d2d267363dc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -543,7 +540,7 @@ def _process_dataclass__8cf63883aa92351177e072b87aae929ff60b4bf0():
 
 
 @_register(
-    installer_sha1='067e09fd0d05283ac55d9bd3a29ed01ec347edd1',
+    installer_sha1='321dd2d21b8fe4898c2d065edb471702c236d476',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -560,7 +557,7 @@ def _process_dataclass__8cf63883aa92351177e072b87aae929ff60b4bf0():
         ('omxtra.text.gotmpl.nodes', 'ActionNode'),
     ),
 )
-def _process_dataclass__067e09fd0d05283ac55d9bd3a29ed01ec347edd1():
+def _process_dataclass__321dd2d21b8fe4898c2d065edb471702c236d476():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -642,7 +639,7 @@ def _process_dataclass__067e09fd0d05283ac55d9bd3a29ed01ec347edd1():
 
 
 @_register(
-    installer_sha1='21ae466e132ff78286b44330a1f090247e77ca41',
+    installer_sha1='4b130624e2587cafc85167d97907232808dd750e',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -658,7 +655,7 @@ def _process_dataclass__067e09fd0d05283ac55d9bd3a29ed01ec347edd1():
         ('omxtra.text.gotmpl.nodes', 'BoolNode'),
     ),
 )
-def _process_dataclass__21ae466e132ff78286b44330a1f090247e77ca41():
+def _process_dataclass__4b130624e2587cafc85167d97907232808dd750e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -734,7 +731,7 @@ def _process_dataclass__21ae466e132ff78286b44330a1f090247e77ca41():
 
 
 @_register(
-    installer_sha1='9b04159c0996c2b95585ab56d24e0f5e38fdbefd',
+    installer_sha1='8fa981769f921f051ad29130ec16cca79e4a7326',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -756,7 +753,7 @@ def _process_dataclass__21ae466e132ff78286b44330a1f090247e77ca41():
         ('omxtra.text.gotmpl.nodes', 'WithNode'),
     ),
 )
-def _process_dataclass__9b04159c0996c2b95585ab56d24e0f5e38fdbefd():
+def _process_dataclass__8fa981769f921f051ad29130ec16cca79e4a7326():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -850,7 +847,7 @@ def _process_dataclass__9b04159c0996c2b95585ab56d24e0f5e38fdbefd():
 
 
 @_register(
-    installer_sha1='4ea8546dbad5698723314eee16de52090763c867',
+    installer_sha1='faf2315502e180f234e7bc7aa5eeb83151be8aad',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -868,7 +865,7 @@ def _process_dataclass__9b04159c0996c2b95585ab56d24e0f5e38fdbefd():
         ('omxtra.text.gotmpl.nodes', 'ElseNode'),
     ),
 )
-def _process_dataclass__4ea8546dbad5698723314eee16de52090763c867():
+def _process_dataclass__faf2315502e180f234e7bc7aa5eeb83151be8aad():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -944,7 +941,7 @@ def _process_dataclass__4ea8546dbad5698723314eee16de52090763c867():
 
 
 @_register(
-    installer_sha1='37a56a79ea598fca4ea73119a3f98c9b46958f86',
+    installer_sha1='1754792d433e0e63383aff47ce9e648966b2be5f',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -961,7 +958,7 @@ def _process_dataclass__4ea8546dbad5698723314eee16de52090763c867():
         ('omxtra.text.gotmpl.nodes', 'ChainNode'),
     ),
 )
-def _process_dataclass__37a56a79ea598fca4ea73119a3f98c9b46958f86():
+def _process_dataclass__1754792d433e0e63383aff47ce9e648966b2be5f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1047,7 +1044,7 @@ def _process_dataclass__37a56a79ea598fca4ea73119a3f98c9b46958f86():
 
 
 @_register(
-    installer_sha1='e35650de2e9bfe512d9b24eeabdb2ab9516a0a81',
+    installer_sha1='232b1b25ab25ae9c94d26fa382811f424247f5cd',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1063,7 +1060,7 @@ def _process_dataclass__37a56a79ea598fca4ea73119a3f98c9b46958f86():
         ('omxtra.text.gotmpl.nodes', 'CommandNode'),
     ),
 )
-def _process_dataclass__e35650de2e9bfe512d9b24eeabdb2ab9516a0a81():
+def _process_dataclass__232b1b25ab25ae9c94d26fa382811f424247f5cd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1143,7 +1140,7 @@ def _process_dataclass__e35650de2e9bfe512d9b24eeabdb2ab9516a0a81():
 
 
 @_register(
-    installer_sha1='946ca2e8e831ed4a11de714dc3f597f6cf5d99dc',
+    installer_sha1='66b31976d7ce84c98389f46c7211ddf1d255acba',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1160,7 +1157,7 @@ def _process_dataclass__e35650de2e9bfe512d9b24eeabdb2ab9516a0a81():
         ('omxtra.text.gotmpl.nodes', 'TextNode'),
     ),
 )
-def _process_dataclass__946ca2e8e831ed4a11de714dc3f597f6cf5d99dc():
+def _process_dataclass__66b31976d7ce84c98389f46c7211ddf1d255acba():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1236,7 +1233,7 @@ def _process_dataclass__946ca2e8e831ed4a11de714dc3f597f6cf5d99dc():
 
 
 @_register(
-    installer_sha1='864b2a02b3155f51fe0f0abe95ac8eb32ed8ee22',
+    installer_sha1='3a7a1790cab483d38e66a91396a66e8f842ce3fd',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1254,7 +1251,7 @@ def _process_dataclass__946ca2e8e831ed4a11de714dc3f597f6cf5d99dc():
         ('omxtra.text.gotmpl.nodes', 'Node'),
     ),
 )
-def _process_dataclass__864b2a02b3155f51fe0f0abe95ac8eb32ed8ee22():
+def _process_dataclass__3a7a1790cab483d38e66a91396a66e8f842ce3fd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1324,7 +1321,7 @@ def _process_dataclass__864b2a02b3155f51fe0f0abe95ac8eb32ed8ee22():
 
 
 @_register(
-    installer_sha1='1d4d5ade19781a4ed4687bc7c251eecf987adf39',
+    installer_sha1='781f220a037092fab632f602738e9bddcc9186bc',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1340,7 +1337,7 @@ def _process_dataclass__864b2a02b3155f51fe0f0abe95ac8eb32ed8ee22():
         ('omxtra.text.gotmpl.nodes', 'FieldNode'),
     ),
 )
-def _process_dataclass__1d4d5ade19781a4ed4687bc7c251eecf987adf39():
+def _process_dataclass__781f220a037092fab632f602738e9bddcc9186bc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1420,7 +1417,7 @@ def _process_dataclass__1d4d5ade19781a4ed4687bc7c251eecf987adf39():
 
 
 @_register(
-    installer_sha1='210a2d0e4d593f360cacaf8d7d39ffd636203849',
+    installer_sha1='3870fd9a9553ed50536fcb7be10930740fb09717',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1437,7 +1434,7 @@ def _process_dataclass__1d4d5ade19781a4ed4687bc7c251eecf987adf39():
         ('omxtra.text.gotmpl.nodes', 'VariableNode'),
     ),
 )
-def _process_dataclass__210a2d0e4d593f360cacaf8d7d39ffd636203849():
+def _process_dataclass__3870fd9a9553ed50536fcb7be10930740fb09717():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1513,7 +1510,7 @@ def _process_dataclass__210a2d0e4d593f360cacaf8d7d39ffd636203849():
 
 
 @_register(
-    installer_sha1='ef9884c55cf32431054fe5f9dcf2dcd99c12f3e5',
+    installer_sha1='7eef1470d44538c750780f7140647e12cfe22f32',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1529,7 +1526,7 @@ def _process_dataclass__210a2d0e4d593f360cacaf8d7d39ffd636203849():
         ('omxtra.text.gotmpl.nodes', 'ListNode'),
     ),
 )
-def _process_dataclass__ef9884c55cf32431054fe5f9dcf2dcd99c12f3e5():
+def _process_dataclass__7eef1470d44538c750780f7140647e12cfe22f32():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1609,7 +1606,7 @@ def _process_dataclass__ef9884c55cf32431054fe5f9dcf2dcd99c12f3e5():
 
 
 @_register(
-    installer_sha1='2e480dd8cc80921513cba8f9169b9c81ea2c17ed',
+    installer_sha1='7f84b87ebf19503495156ca56e66b467ef77cc3b',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1633,7 +1630,7 @@ def _process_dataclass__ef9884c55cf32431054fe5f9dcf2dcd99c12f3e5():
         ('omxtra.text.gotmpl.nodes', 'NumberNode'),
     ),
 )
-def _process_dataclass__2e480dd8cc80921513cba8f9169b9c81ea2c17ed():
+def _process_dataclass__7f84b87ebf19503495156ca56e66b467ef77cc3b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1765,7 +1762,7 @@ def _process_dataclass__2e480dd8cc80921513cba8f9169b9c81ea2c17ed():
 
 
 @_register(
-    installer_sha1='c23259157ad30a8e4a377e2ddfa51d2dfc527c25',
+    installer_sha1='6bcd4338ed1456c8770db83f7d597e40b0ef3389',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1784,7 +1781,7 @@ def _process_dataclass__2e480dd8cc80921513cba8f9169b9c81ea2c17ed():
         ('omxtra.text.gotmpl.nodes', 'PipeNode'),
     ),
 )
-def _process_dataclass__c23259157ad30a8e4a377e2ddfa51d2dfc527c25():
+def _process_dataclass__6bcd4338ed1456c8770db83f7d597e40b0ef3389():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1886,7 +1883,7 @@ def _process_dataclass__c23259157ad30a8e4a377e2ddfa51d2dfc527c25():
 
 
 @_register(
-    installer_sha1='46602c3c54508d1120bc8883cc0da2c0de2d111f',
+    installer_sha1='240433f360d0bd58e859d32ce0a6113407027c78',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1903,7 +1900,7 @@ def _process_dataclass__c23259157ad30a8e4a377e2ddfa51d2dfc527c25():
         ('omxtra.text.gotmpl.nodes', 'StringNode'),
     ),
 )
-def _process_dataclass__46602c3c54508d1120bc8883cc0da2c0de2d111f():
+def _process_dataclass__240433f360d0bd58e859d32ce0a6113407027c78():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1985,7 +1982,7 @@ def _process_dataclass__46602c3c54508d1120bc8883cc0da2c0de2d111f():
 
 
 @_register(
-    installer_sha1='81717b1787ada081182a88dcc93e6d3300b19c89',
+    installer_sha1='3b58442ef070e0f849e8a5b4a43c4a2224587fc4',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2003,7 +2000,7 @@ def _process_dataclass__46602c3c54508d1120bc8883cc0da2c0de2d111f():
         ('omxtra.text.gotmpl.nodes', 'TemplateNode'),
     ),
 )
-def _process_dataclass__81717b1787ada081182a88dcc93e6d3300b19c89():
+def _process_dataclass__3b58442ef070e0f849e8a5b4a43c4a2224587fc4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2091,7 +2088,7 @@ def _process_dataclass__81717b1787ada081182a88dcc93e6d3300b19c89():
 
 
 @_register(
-    installer_sha1='6cbce590bb308e379913d1d0c5db66470907a84c',
+    installer_sha1='c502e934e959ae9a9ef0ada1752f9c6af2866346',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, Fal"
@@ -2109,7 +2106,7 @@ def _process_dataclass__81717b1787ada081182a88dcc93e6d3300b19c89():
         ('omxtra.text.gotmpl.tmpl', 'Common'),
     ),
 )
-def _process_dataclass__6cbce590bb308e379913d1d0c5db66470907a84c():
+def _process_dataclass__c502e934e959ae9a9ef0ada1752f9c6af2866346():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2215,7 +2212,7 @@ def _process_dataclass__6cbce590bb308e379913d1d0c5db66470907a84c():
 
 
 @_register(
-    installer_sha1='149d817b187c548385b5ef1f604df89bcc337a81',
+    installer_sha1='bdd688cd04771b924b73acc6c79e0c6f862dffc6',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2228,7 +2225,7 @@ def _process_dataclass__6cbce590bb308e379913d1d0c5db66470907a84c():
         ('omxtra.text.gotmpl.tmpl', 'Option'),
     ),
 )
-def _process_dataclass__149d817b187c548385b5ef1f604df89bcc337a81():
+def _process_dataclass__bdd688cd04771b924b73acc6c79e0c6f862dffc6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

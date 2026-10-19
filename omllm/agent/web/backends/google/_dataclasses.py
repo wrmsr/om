@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='f15ddbee6740e149707357af65cc994f29a19fd4',
+    installer_sha1='197cfe8533fc3180f796946228758acb6035ca29',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -47,7 +44,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.agent.web.backends.google.protocol', 'CseSearchInfo'),
     ),
 )
-def _process_dataclass__f15ddbee6740e149707357af65cc994f29a19fd4():
+def _process_dataclass__197cfe8533fc3180f796946228758acb6035ca29():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -154,7 +151,7 @@ def _process_dataclass__f15ddbee6740e149707357af65cc994f29a19fd4():
 
 
 @_register(
-    installer_sha1='2841dc085cc800371c986c46f75aa07913ac3c17',
+    installer_sha1='5b696fc64738b54da2b5b9df7e8d9ba972716c44',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -170,7 +167,7 @@ def _process_dataclass__f15ddbee6740e149707357af65cc994f29a19fd4():
         ('omllm.agent.web.backends.google.protocol', 'CseSearchResponse'),
     ),
 )
-def _process_dataclass__2841dc085cc800371c986c46f75aa07913ac3c17():
+def _process_dataclass__5b696fc64738b54da2b5b9df7e8d9ba972716c44():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -286,7 +283,7 @@ def _process_dataclass__2841dc085cc800371c986c46f75aa07913ac3c17():
 
 
 @_register(
-    installer_sha1='efe0845d63bfc65db3ba89dc30e8257b1770d984',
+    installer_sha1='4a1b7c223a982398bfe336b271cb08f67fff7beb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -311,7 +308,7 @@ def _process_dataclass__2841dc085cc800371c986c46f75aa07913ac3c17():
         ('omllm.agent.web.backends.google.protocol', 'CseSearchResult'),
     ),
 )
-def _process_dataclass__efe0845d63bfc65db3ba89dc30e8257b1770d984():
+def _process_dataclass__4a1b7c223a982398bfe336b271cb08f67fff7beb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

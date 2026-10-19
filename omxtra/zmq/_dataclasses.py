@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='11c26a410cb4a0f7aa57d432290c2a5e2bebcbb7',
+    installer_sha1='fc2cafcb95daacd0a70c5917ac5468d1556e535c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -45,7 +42,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omxtra.zmq.api.addresses', 'IpcAddress'),
     ),
 )
-def _process_dataclass__11c26a410cb4a0f7aa57d432290c2a5e2bebcbb7():
+def _process_dataclass__fc2cafcb95daacd0a70c5917ac5468d1556e535c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -135,7 +132,7 @@ def _process_dataclass__11c26a410cb4a0f7aa57d432290c2a5e2bebcbb7():
 
 
 @_register(
-    installer_sha1='a4f94000481b434614caebcef74dc9e91030681a',
+    installer_sha1='78fc7565faab77198d0a33e626ec54477e1bd8c5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -149,7 +146,7 @@ def _process_dataclass__11c26a410cb4a0f7aa57d432290c2a5e2bebcbb7():
         ('omxtra.zmq.api.addresses', 'TcpAddress'),
     ),
 )
-def _process_dataclass__a4f94000481b434614caebcef74dc9e91030681a():
+def _process_dataclass__78fc7565faab77198d0a33e626ec54477e1bd8c5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -247,7 +244,7 @@ def _process_dataclass__a4f94000481b434614caebcef74dc9e91030681a():
 
 
 @_register(
-    installer_sha1='6cf30f76913c2b5e1828c92faf37f53e0d92a70e',
+    installer_sha1='3bf70db4893ff987a53903ba1b28c5fe0372c470',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -267,7 +264,7 @@ def _process_dataclass__a4f94000481b434614caebcef74dc9e91030681a():
         ('omxtra.zmq.api.configs', 'SocketConfig'),
     ),
 )
-def _process_dataclass__6cf30f76913c2b5e1828c92faf37f53e0d92a70e():
+def _process_dataclass__3bf70db4893ff987a53903ba1b28c5fe0372c470():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -421,7 +418,7 @@ def _process_dataclass__6cf30f76913c2b5e1828c92faf37f53e0d92a70e():
 
 
 @_register(
-    installer_sha1='7169a7e7dc743ca4205eb7b878ad7e4d389d7f4e',
+    installer_sha1='a495b2ddff38f1879315a540cd01aa13d7895981',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -437,7 +434,7 @@ def _process_dataclass__6cf30f76913c2b5e1828c92faf37f53e0d92a70e():
         ('omxtra.zmq.api.messages', 'MessageLimits'),
     ),
 )
-def _process_dataclass__7169a7e7dc743ca4205eb7b878ad7e4d389d7f4e():
+def _process_dataclass__a495b2ddff38f1879315a540cd01aa13d7895981():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -555,7 +552,7 @@ def _process_dataclass__7169a7e7dc743ca4205eb7b878ad7e4d389d7f4e():
 
 
 @_register(
-    installer_sha1='1e53098b09db977a40b063b711d2300ea627c1f9',
+    installer_sha1='c8d0ce7d69b51761b664d3c6cfd464b40cb0878e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -569,7 +566,7 @@ def _process_dataclass__7169a7e7dc743ca4205eb7b878ad7e4d389d7f4e():
         ('omxtra.zmq.api.messages', 'RoutedMessage'),
     ),
 )
-def _process_dataclass__1e53098b09db977a40b063b711d2300ea627c1f9():
+def _process_dataclass__c8d0ce7d69b51761b664d3c6cfd464b40cb0878e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -666,7 +663,7 @@ def _process_dataclass__1e53098b09db977a40b063b711d2300ea627c1f9():
 
 
 @_register(
-    installer_sha1='88da80b45a6a815315d91377090a1c440a70c9a5',
+    installer_sha1='2c059ed5f1db5858b557cc3c8e1b126efd02e309',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -686,7 +683,7 @@ def _process_dataclass__1e53098b09db977a40b063b711d2300ea627c1f9():
         ('omxtra.zmq.backends.pipelines.asyncio.configs', 'PipelinesBackendConfig'),
     ),
 )
-def _process_dataclass__88da80b45a6a815315d91377090a1c440a70c9a5():
+def _process_dataclass__2c059ed5f1db5858b557cc3c8e1b126efd02e309():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -840,7 +837,7 @@ def _process_dataclass__88da80b45a6a815315d91377090a1c440a70c9a5():
 
 
 @_register(
-    installer_sha1='41b1a5cdd02f01f4d8337bce91f2b492dbb9bd4a',
+    installer_sha1='443c77240a406c53273e54199b0bd0ad4041849f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -858,7 +855,7 @@ def _process_dataclass__88da80b45a6a815315d91377090a1c440a70c9a5():
         ('omxtra.zmq.core.endpoints', 'EndpointConfig'),
     ),
 )
-def _process_dataclass__41b1a5cdd02f01f4d8337bce91f2b492dbb9bd4a():
+def _process_dataclass__443c77240a406c53273e54199b0bd0ad4041849f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -994,7 +991,7 @@ def _process_dataclass__41b1a5cdd02f01f4d8337bce91f2b492dbb9bd4a():
 
 
 @_register(
-    installer_sha1='8cd4586024e93bfe594d16927b8c72db0b9b216d',
+    installer_sha1='c2c60b9d0088ddd34d880d09ea8187a0e656bcdb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1009,7 +1006,7 @@ def _process_dataclass__41b1a5cdd02f01f4d8337bce91f2b492dbb9bd4a():
         ('omxtra.zmq.ipc.ownership', 'IpcEntry'),
     ),
 )
-def _process_dataclass__8cd4586024e93bfe594d16927b8c72db0b9b216d():
+def _process_dataclass__c2c60b9d0088ddd34d880d09ea8187a0e656bcdb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1114,7 +1111,7 @@ def _process_dataclass__8cd4586024e93bfe594d16927b8c72db0b9b216d():
 
 
 @_register(
-    installer_sha1='ee87d1d450d8a2e03c2c4fb9b9f12a926f6abeef',
+    installer_sha1='dbb3e17af37d09c6b82543de80f29e7c90adc278',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1128,7 +1125,7 @@ def _process_dataclass__8cd4586024e93bfe594d16927b8c72db0b9b216d():
         ('omxtra.zmq.zmtp.commands', 'ZmtpCommand'),
     ),
 )
-def _process_dataclass__ee87d1d450d8a2e03c2c4fb9b9f12a926f6abeef():
+def _process_dataclass__dbb3e17af37d09c6b82543de80f29e7c90adc278():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1226,7 +1223,7 @@ def _process_dataclass__ee87d1d450d8a2e03c2c4fb9b9f12a926f6abeef():
 
 
 @_register(
-    installer_sha1='9c440153dc0f984345360c186a4dee7831803626',
+    installer_sha1='b2a8f48e372aef9d165414a5b9f90196aa642c53',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1242,7 +1239,7 @@ def _process_dataclass__ee87d1d450d8a2e03c2c4fb9b9f12a926f6abeef():
         ('omxtra.zmq.zmtp.pipelines.messages', 'ZmtpPeerReady'),
     ),
 )
-def _process_dataclass__9c440153dc0f984345360c186a4dee7831803626():
+def _process_dataclass__b2a8f48e372aef9d165414a5b9f90196aa642c53():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1349,7 +1346,7 @@ def _process_dataclass__9c440153dc0f984345360c186a4dee7831803626():
 
 
 @_register(
-    installer_sha1='30a990300a3a79280822c88aab3e92b8272b8685',
+    installer_sha1='60c07b679b2310747397b1c9e37bd5a44afd6440',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1365,7 +1362,7 @@ def _process_dataclass__9c440153dc0f984345360c186a4dee7831803626():
         ('omxtra.zmq.zmtp.greetings', 'ZmtpGreeting'),
     ),
 )
-def _process_dataclass__30a990300a3a79280822c88aab3e92b8272b8685():
+def _process_dataclass__60c07b679b2310747397b1c9e37bd5a44afd6440():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1482,7 +1479,7 @@ def _process_dataclass__30a990300a3a79280822c88aab3e92b8272b8685():
 
 
 @_register(
-    installer_sha1='8bcd2d651b29a04dd92e52c2e465f6975dcfd2c7',
+    installer_sha1='8594ce7dfad18a652bc5b1a6fa5bb1f381f2b27c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1496,7 +1493,7 @@ def _process_dataclass__30a990300a3a79280822c88aab3e92b8272b8685():
         ('omxtra.zmq.zmtp.pipelines.codecs', 'ZmtpCodecConfig'),
     ),
 )
-def _process_dataclass__8bcd2d651b29a04dd92e52c2e465f6975dcfd2c7():
+def _process_dataclass__8594ce7dfad18a652bc5b1a6fa5bb1f381f2b27c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1596,7 +1593,7 @@ def _process_dataclass__8bcd2d651b29a04dd92e52c2e465f6975dcfd2c7():
 
 
 @_register(
-    installer_sha1='b6477ecdfb538c831c8c7aad9e223f853915de0c',
+    installer_sha1='c8cdd699b01b42b7540efde8ee0612430852eff4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1609,7 +1606,7 @@ def _process_dataclass__8bcd2d651b29a04dd92e52c2e465f6975dcfd2c7():
         ('omxtra.zmq.zmtp.pipelines.messages', 'ZmtpMessage'),
     ),
 )
-def _process_dataclass__b6477ecdfb538c831c8c7aad9e223f853915de0c():
+def _process_dataclass__c8cdd699b01b42b7540efde8ee0612430852eff4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1698,7 +1695,7 @@ def _process_dataclass__b6477ecdfb538c831c8c7aad9e223f853915de0c():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1710,7 +1707,7 @@ def _process_dataclass__b6477ecdfb538c831c8c7aad9e223f853915de0c():
         ('omxtra.zmq.zmtp.pipelines.sessions', 'ZmtpSessionEnded'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1778,7 +1775,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='be3505e3923029b878d2d94c1c98b8e3a79af9ed',
+    installer_sha1='ff954e01507ddf4042a27192741fb4a66f9fb403',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1791,7 +1788,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omxtra.zmq.zmtp.pipelines.sessions', 'ZmtpSessionWake'),
     ),
 )
-def _process_dataclass__be3505e3923029b878d2d94c1c98b8e3a79af9ed():
+def _process_dataclass__ff954e01507ddf4042a27192741fb4a66f9fb403():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='938ad2688feb0d44b687a617aac3c3b1ffabb252',
+    installer_sha1='88c0424d33b08061545f9e1e574b87f7ae4131d2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -49,7 +46,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.specs.acp.protocol', 'AgentCapabilities'),
     ),
 )
-def _process_dataclass__938ad2688feb0d44b687a617aac3c3b1ffabb252():
+def _process_dataclass__88c0424d33b08061545f9e1e574b87f7ae4131d2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -176,7 +173,7 @@ def _process_dataclass__938ad2688feb0d44b687a617aac3c3b1ffabb252():
 
 
 @_register(
-    installer_sha1='9271e1fc3ef6900d23cdd22579f8500fb96c60cf',
+    installer_sha1='0fa1ac32f241ef62644d96f320b2b0770b85cbe4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -193,7 +190,7 @@ def _process_dataclass__938ad2688feb0d44b687a617aac3c3b1ffabb252():
         ('omllm.specs.acp.protocol', 'UserMessageChunkSessionUpdate'),
     ),
 )
-def _process_dataclass__9271e1fc3ef6900d23cdd22579f8500fb96c60cf():
+def _process_dataclass__0fa1ac32f241ef62644d96f320b2b0770b85cbe4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -300,7 +297,7 @@ def _process_dataclass__9271e1fc3ef6900d23cdd22579f8500fb96c60cf():
 
 
 @_register(
-    installer_sha1='865c68756d01b5ff4e8a4bd480fc94aa7da2caa8',
+    installer_sha1='c569a0d88e5f430b6bcb43b0280048d2c9d115ae',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -315,7 +312,7 @@ def _process_dataclass__9271e1fc3ef6900d23cdd22579f8500fb96c60cf():
         ('omllm.specs.acp.protocol', 'ClientNotification'),
     ),
 )
-def _process_dataclass__865c68756d01b5ff4e8a4bd480fc94aa7da2caa8():
+def _process_dataclass__c569a0d88e5f430b6bcb43b0280048d2c9d115ae():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -414,7 +411,7 @@ def _process_dataclass__865c68756d01b5ff4e8a4bd480fc94aa7da2caa8():
 
 
 @_register(
-    installer_sha1='ceb97ab81ae9e9496b7897c4f89dc17db4f966a0',
+    installer_sha1='7503c27ed0cd971e8b23ed67f8af04b24549ce59',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -430,7 +427,7 @@ def _process_dataclass__865c68756d01b5ff4e8a4bd480fc94aa7da2caa8():
         ('omllm.specs.acp.protocol', 'ClientRequest'),
     ),
 )
-def _process_dataclass__ceb97ab81ae9e9496b7897c4f89dc17db4f966a0():
+def _process_dataclass__7503c27ed0cd971e8b23ed67f8af04b24549ce59():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -537,7 +534,7 @@ def _process_dataclass__ceb97ab81ae9e9496b7897c4f89dc17db4f966a0():
 
 
 @_register(
-    installer_sha1='ac5ee9ce81af84053514705b5374ecb94bb8d4ef',
+    installer_sha1='bc932b4c6e0fa79b24238b385c87ab18b656e2ab',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -552,7 +549,7 @@ def _process_dataclass__ceb97ab81ae9e9496b7897c4f89dc17db4f966a0():
         ('omllm.specs.acp.protocol', 'ClientresponseError'),
     ),
 )
-def _process_dataclass__ac5ee9ce81af84053514705b5374ecb94bb8d4ef():
+def _process_dataclass__bc932b4c6e0fa79b24238b385c87ab18b656e2ab():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -650,7 +647,7 @@ def _process_dataclass__ac5ee9ce81af84053514705b5374ecb94bb8d4ef():
 
 
 @_register(
-    installer_sha1='dc91e8ed2419dd4586641257f5f39ff692ea4041',
+    installer_sha1='775d40503f1ac7f176ee109bbd29b5600ed2361e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -665,7 +662,7 @@ def _process_dataclass__ac5ee9ce81af84053514705b5374ecb94bb8d4ef():
         ('omllm.specs.acp.protocol', 'ClientresponseResult'),
     ),
 )
-def _process_dataclass__dc91e8ed2419dd4586641257f5f39ff692ea4041():
+def _process_dataclass__775d40503f1ac7f176ee109bbd29b5600ed2361e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -763,7 +760,7 @@ def _process_dataclass__dc91e8ed2419dd4586641257f5f39ff692ea4041():
 
 
 @_register(
-    installer_sha1='2d62648081da033bde1a4e7dcb5ef555847789c9',
+    installer_sha1='d9172185d0efff929d9170e22aa07dab2d1b61fe',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -779,7 +776,7 @@ def _process_dataclass__dc91e8ed2419dd4586641257f5f39ff692ea4041():
         ('omllm.specs.acp.protocol', 'Annotations'),
     ),
 )
-def _process_dataclass__2d62648081da033bde1a4e7dcb5ef555847789c9():
+def _process_dataclass__d9172185d0efff929d9170e22aa07dab2d1b61fe():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -897,7 +894,7 @@ def _process_dataclass__2d62648081da033bde1a4e7dcb5ef555847789c9():
 
 
 @_register(
-    installer_sha1='cfdb2824f95f0e1f32dac5ba7572cb99fc1f43a1',
+    installer_sha1='e9bd457885c0aec59ec030b4f1b3bf2e39ba3970',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -913,7 +910,7 @@ def _process_dataclass__2d62648081da033bde1a4e7dcb5ef555847789c9():
         ('omllm.specs.acp.protocol', 'AudioContent'),
     ),
 )
-def _process_dataclass__cfdb2824f95f0e1f32dac5ba7572cb99fc1f43a1():
+def _process_dataclass__e9bd457885c0aec59ec030b4f1b3bf2e39ba3970():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1029,7 +1026,7 @@ def _process_dataclass__cfdb2824f95f0e1f32dac5ba7572cb99fc1f43a1():
 
 
 @_register(
-    installer_sha1='43bd00a4a757dd9af3ba6c110908c110793a5c82',
+    installer_sha1='6bd359fb76451f12937271ef994fb40b73769625',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1046,7 +1043,7 @@ def _process_dataclass__cfdb2824f95f0e1f32dac5ba7572cb99fc1f43a1():
         ('omllm.specs.acp.protocol', 'AudioContentBlock'),
     ),
 )
-def _process_dataclass__43bd00a4a757dd9af3ba6c110908c110793a5c82():
+def _process_dataclass__6bd359fb76451f12937271ef994fb40b73769625():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1170,7 +1167,7 @@ def _process_dataclass__43bd00a4a757dd9af3ba6c110908c110793a5c82():
 
 
 @_register(
-    installer_sha1='04fb5c566526cba4b737db4f7b8c0926d2ad093d',
+    installer_sha1='7d74335963953772b6e5594ac7d1b3b2537a7b3a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1187,7 +1184,7 @@ def _process_dataclass__43bd00a4a757dd9af3ba6c110908c110793a5c82():
         ('omllm.specs.acp.protocol', 'SessionMode'),
     ),
 )
-def _process_dataclass__04fb5c566526cba4b737db4f7b8c0926d2ad093d():
+def _process_dataclass__7d74335963953772b6e5594ac7d1b3b2537a7b3a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1303,7 +1300,7 @@ def _process_dataclass__04fb5c566526cba4b737db4f7b8c0926d2ad093d():
 
 
 @_register(
-    installer_sha1='9cd215828cc67f2588d8cb4b509acee6b8323524',
+    installer_sha1='af32b9646f78372889e33a4c578665a80fa7ceeb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1317,7 +1314,7 @@ def _process_dataclass__04fb5c566526cba4b737db4f7b8c0926d2ad093d():
         ('omllm.specs.acp.protocol', 'AuthenticateRequest'),
     ),
 )
-def _process_dataclass__9cd215828cc67f2588d8cb4b509acee6b8323524():
+def _process_dataclass__af32b9646f78372889e33a4c578665a80fa7ceeb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1416,7 +1413,7 @@ def _process_dataclass__9cd215828cc67f2588d8cb4b509acee6b8323524():
 
 
 @_register(
-    installer_sha1='4ca9526a93566088abca40151c761677c23a98b5',
+    installer_sha1='81b90d0e96163d56a5226f80aaa61896e2116b0a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1434,7 +1431,7 @@ def _process_dataclass__9cd215828cc67f2588d8cb4b509acee6b8323524():
         ('omllm.specs.acp.protocol', 'WriteTextFileResponse'),
     ),
 )
-def _process_dataclass__4ca9526a93566088abca40151c761677c23a98b5():
+def _process_dataclass__81b90d0e96163d56a5226f80aaa61896e2116b0a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1525,7 +1522,7 @@ def _process_dataclass__4ca9526a93566088abca40151c761677c23a98b5():
 
 
 @_register(
-    installer_sha1='ec0a7c361224f0b6531513888f5d3a67f23d4886',
+    installer_sha1='e9c3a5ed73d9b2d74085c739d4f47e6647a95613',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1541,7 +1538,7 @@ def _process_dataclass__4ca9526a93566088abca40151c761677c23a98b5():
         ('omllm.specs.acp.protocol', 'AvailableCommand'),
     ),
 )
-def _process_dataclass__ec0a7c361224f0b6531513888f5d3a67f23d4886():
+def _process_dataclass__e9c3a5ed73d9b2d74085c739d4f47e6647a95613():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1657,7 +1654,7 @@ def _process_dataclass__ec0a7c361224f0b6531513888f5d3a67f23d4886():
 
 
 @_register(
-    installer_sha1='0428f733ecf66205530a8adb06287b4ee16fbc4d',
+    installer_sha1='1e2bf225a9cb69bfd5f6ee931ab3330eff0d8fdd',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1671,7 +1668,7 @@ def _process_dataclass__ec0a7c361224f0b6531513888f5d3a67f23d4886():
         ('omllm.specs.acp.protocol', 'AvailableCommandsUpdate'),
     ),
 )
-def _process_dataclass__0428f733ecf66205530a8adb06287b4ee16fbc4d():
+def _process_dataclass__1e2bf225a9cb69bfd5f6ee931ab3330eff0d8fdd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1770,7 +1767,7 @@ def _process_dataclass__0428f733ecf66205530a8adb06287b4ee16fbc4d():
 
 
 @_register(
-    installer_sha1='1952d263e7d131db042cfefe1f8012e3c33578f2',
+    installer_sha1='7ac3fd69ab5901c975c45db404f3412edbadf2d8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1785,7 +1782,7 @@ def _process_dataclass__0428f733ecf66205530a8adb06287b4ee16fbc4d():
         ('omllm.specs.acp.protocol', 'AvailableCommandsUpdateSessionUpdate'),
     ),
 )
-def _process_dataclass__1952d263e7d131db042cfefe1f8012e3c33578f2():
+def _process_dataclass__7ac3fd69ab5901c975c45db404f3412edbadf2d8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1892,7 +1889,7 @@ def _process_dataclass__1952d263e7d131db042cfefe1f8012e3c33578f2():
 
 
 @_register(
-    installer_sha1='b42a4b6d42574be3e9ec41545f4afe71f1dc6b5e',
+    installer_sha1='e35e6551f3e6d83f04c86dcf03932017e288dd4b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1908,7 +1905,7 @@ def _process_dataclass__1952d263e7d131db042cfefe1f8012e3c33578f2():
         ('omllm.specs.acp.protocol', 'BlobResourceContents'),
     ),
 )
-def _process_dataclass__b42a4b6d42574be3e9ec41545f4afe71f1dc6b5e():
+def _process_dataclass__e35e6551f3e6d83f04c86dcf03932017e288dd4b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2024,7 +2021,7 @@ def _process_dataclass__b42a4b6d42574be3e9ec41545f4afe71f1dc6b5e():
 
 
 @_register(
-    installer_sha1='fca12ecdc4378da99b4ab1f52c8f6a3a2f7583f8',
+    installer_sha1='0b697aa78b5e97451049b13dffaee038df09e838',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2038,7 +2035,7 @@ def _process_dataclass__b42a4b6d42574be3e9ec41545f4afe71f1dc6b5e():
         ('omllm.specs.acp.protocol', 'CancelNotification'),
     ),
 )
-def _process_dataclass__fca12ecdc4378da99b4ab1f52c8f6a3a2f7583f8():
+def _process_dataclass__0b697aa78b5e97451049b13dffaee038df09e838():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2137,7 +2134,7 @@ def _process_dataclass__fca12ecdc4378da99b4ab1f52c8f6a3a2f7583f8():
 
 
 @_register(
-    installer_sha1='db3e2d9ef903379c51b2a78d965b04ba893e110d',
+    installer_sha1='a7186248e6f452dc9eb2c055d0090f325470c5aa',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2150,7 +2147,7 @@ def _process_dataclass__fca12ecdc4378da99b4ab1f52c8f6a3a2f7583f8():
         ('omllm.specs.acp.protocol', 'CancelledRequestPermissionOutcome'),
     ),
 )
-def _process_dataclass__db3e2d9ef903379c51b2a78d965b04ba893e110d():
+def _process_dataclass__a7186248e6f452dc9eb2c055d0090f325470c5aa():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2235,7 +2232,7 @@ def _process_dataclass__db3e2d9ef903379c51b2a78d965b04ba893e110d():
 
 
 @_register(
-    installer_sha1='ee3a6e7d09bf1351d5226aed31b0b4baf3ce69f1',
+    installer_sha1='5c27c9e535b10fe6f71d447dc8ba657d30a20444',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2250,7 +2247,7 @@ def _process_dataclass__db3e2d9ef903379c51b2a78d965b04ba893e110d():
         ('omllm.specs.acp.protocol', 'ClientCapabilities'),
     ),
 )
-def _process_dataclass__ee3a6e7d09bf1351d5226aed31b0b4baf3ce69f1():
+def _process_dataclass__5c27c9e535b10fe6f71d447dc8ba657d30a20444():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2359,7 +2356,7 @@ def _process_dataclass__ee3a6e7d09bf1351d5226aed31b0b4baf3ce69f1():
 
 
 @_register(
-    installer_sha1='d9eb5cbf3cbd5e3aa262a865e88881e3ce01fedf',
+    installer_sha1='416e53bde0178260c57cd1f3f3e2c2196d0590d5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2374,7 +2371,7 @@ def _process_dataclass__ee3a6e7d09bf1351d5226aed31b0b4baf3ce69f1():
         ('omllm.specs.acp.protocol', 'SetSessionConfigOptionResponse'),
     ),
 )
-def _process_dataclass__d9eb5cbf3cbd5e3aa262a865e88881e3ce01fedf():
+def _process_dataclass__416e53bde0178260c57cd1f3f3e2c2196d0590d5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2473,7 +2470,7 @@ def _process_dataclass__d9eb5cbf3cbd5e3aa262a865e88881e3ce01fedf():
 
 
 @_register(
-    installer_sha1='a17c2bbf418b7c1f6ebb69c6709100d8b6cd83de',
+    installer_sha1='054e1a39927ec0c66696b5afbc402d3b361efaf5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2488,7 +2485,7 @@ def _process_dataclass__d9eb5cbf3cbd5e3aa262a865e88881e3ce01fedf():
         ('omllm.specs.acp.protocol', 'ConfigOptionUpdateSessionUpdate'),
     ),
 )
-def _process_dataclass__a17c2bbf418b7c1f6ebb69c6709100d8b6cd83de():
+def _process_dataclass__054e1a39927ec0c66696b5afbc402d3b361efaf5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2595,7 +2592,7 @@ def _process_dataclass__a17c2bbf418b7c1f6ebb69c6709100d8b6cd83de():
 
 
 @_register(
-    installer_sha1='a87fcae31786da24e905d2256c2a11069899379e',
+    installer_sha1='b21d9f250bc62ab5cfe7ba127aa87f72653b5ee0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2611,7 +2608,7 @@ def _process_dataclass__a17c2bbf418b7c1f6ebb69c6709100d8b6cd83de():
         ('omllm.specs.acp.protocol', 'ReadTextFileResponse'),
     ),
 )
-def _process_dataclass__a87fcae31786da24e905d2256c2a11069899379e():
+def _process_dataclass__b21d9f250bc62ab5cfe7ba127aa87f72653b5ee0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2710,7 +2707,7 @@ def _process_dataclass__a87fcae31786da24e905d2256c2a11069899379e():
 
 
 @_register(
-    installer_sha1='cd739b4ff10c690cc0c36dfb97837eb8a2dcd4d2',
+    installer_sha1='584e36a846e40fd5301d91c1177fa2c24e8da3de',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2725,7 +2722,7 @@ def _process_dataclass__a87fcae31786da24e905d2256c2a11069899379e():
         ('omllm.specs.acp.protocol', 'ContentToolCallContent'),
     ),
 )
-def _process_dataclass__cd739b4ff10c690cc0c36dfb97837eb8a2dcd4d2():
+def _process_dataclass__584e36a846e40fd5301d91c1177fa2c24e8da3de():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2832,7 +2829,7 @@ def _process_dataclass__cd739b4ff10c690cc0c36dfb97837eb8a2dcd4d2():
 
 
 @_register(
-    installer_sha1='095657484c1bfcccf5bf0e4d9e8bc298aea397f1',
+    installer_sha1='f00c06a3c86a9c4d98ce54628a14ff33767c9d66',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2851,7 +2848,7 @@ def _process_dataclass__cd739b4ff10c690cc0c36dfb97837eb8a2dcd4d2():
         ('omllm.specs.acp.protocol', 'CreateTerminalRequest'),
     ),
 )
-def _process_dataclass__095657484c1bfcccf5bf0e4d9e8bc298aea397f1():
+def _process_dataclass__f00c06a3c86a9c4d98ce54628a14ff33767c9d66():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2994,7 +2991,7 @@ def _process_dataclass__095657484c1bfcccf5bf0e4d9e8bc298aea397f1():
 
 
 @_register(
-    installer_sha1='48bda8275974a18a2ef65673a28e9af4a674a0c6',
+    installer_sha1='453f8245b4f8dd2786a75ddc852609b1c31fce0a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3009,7 +3006,7 @@ def _process_dataclass__095657484c1bfcccf5bf0e4d9e8bc298aea397f1():
         ('omllm.specs.acp.protocol', 'Terminal'),
     ),
 )
-def _process_dataclass__48bda8275974a18a2ef65673a28e9af4a674a0c6():
+def _process_dataclass__453f8245b4f8dd2786a75ddc852609b1c31fce0a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3108,7 +3105,7 @@ def _process_dataclass__48bda8275974a18a2ef65673a28e9af4a674a0c6():
 
 
 @_register(
-    installer_sha1='2af45762c5919ce22ef5f22b545fa0f873491ac4',
+    installer_sha1='79c65c9cc21dcde68f43e6895c2e2d3c3173fd73',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3122,7 +3119,7 @@ def _process_dataclass__48bda8275974a18a2ef65673a28e9af4a674a0c6():
         ('omllm.specs.acp.protocol', 'CurrentModeUpdate'),
     ),
 )
-def _process_dataclass__2af45762c5919ce22ef5f22b545fa0f873491ac4():
+def _process_dataclass__79c65c9cc21dcde68f43e6895c2e2d3c3173fd73():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3221,7 +3218,7 @@ def _process_dataclass__2af45762c5919ce22ef5f22b545fa0f873491ac4():
 
 
 @_register(
-    installer_sha1='66b03d19ecc3f1ef113d742cfff89ae3c4200935',
+    installer_sha1='197cc58f4a0519f4c4753f0229130880e7da038b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3236,7 +3233,7 @@ def _process_dataclass__2af45762c5919ce22ef5f22b545fa0f873491ac4():
         ('omllm.specs.acp.protocol', 'CurrentModeUpdateSessionUpdate'),
     ),
 )
-def _process_dataclass__66b03d19ecc3f1ef113d742cfff89ae3c4200935():
+def _process_dataclass__197cc58f4a0519f4c4753f0229130880e7da038b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3343,7 +3340,7 @@ def _process_dataclass__66b03d19ecc3f1ef113d742cfff89ae3c4200935():
 
 
 @_register(
-    installer_sha1='9eafe2d793a61c962180da9f65d8ef3f9a24a82b',
+    installer_sha1='3d2741ca6293cb90bdcbb3d8524e1c951bbf0baf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3359,7 +3356,7 @@ def _process_dataclass__66b03d19ecc3f1ef113d742cfff89ae3c4200935():
         ('omllm.specs.acp.protocol', 'Diff'),
     ),
 )
-def _process_dataclass__9eafe2d793a61c962180da9f65d8ef3f9a24a82b():
+def _process_dataclass__3d2741ca6293cb90bdcbb3d8524e1c951bbf0baf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3475,7 +3472,7 @@ def _process_dataclass__9eafe2d793a61c962180da9f65d8ef3f9a24a82b():
 
 
 @_register(
-    installer_sha1='585f03f31a4e165d69f064b8bae4e79a93f57665',
+    installer_sha1='7b32e2d241cd54228a9e1b5c73f6a407bac5cdb7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3492,7 +3489,7 @@ def _process_dataclass__9eafe2d793a61c962180da9f65d8ef3f9a24a82b():
         ('omllm.specs.acp.protocol', 'DiffToolCallContent'),
     ),
 )
-def _process_dataclass__585f03f31a4e165d69f064b8bae4e79a93f57665():
+def _process_dataclass__7b32e2d241cd54228a9e1b5c73f6a407bac5cdb7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3616,7 +3613,7 @@ def _process_dataclass__585f03f31a4e165d69f064b8bae4e79a93f57665():
 
 
 @_register(
-    installer_sha1='8a5c256a0ac5a501590d763b81bf0ff82cfcdf42',
+    installer_sha1='9e50b8556c473ba2183c7bb73627fa8146901766',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3631,7 +3628,7 @@ def _process_dataclass__585f03f31a4e165d69f064b8bae4e79a93f57665():
         ('omllm.specs.acp.protocol', 'EmbeddedResource'),
     ),
 )
-def _process_dataclass__8a5c256a0ac5a501590d763b81bf0ff82cfcdf42():
+def _process_dataclass__9e50b8556c473ba2183c7bb73627fa8146901766():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3739,7 +3736,7 @@ def _process_dataclass__8a5c256a0ac5a501590d763b81bf0ff82cfcdf42():
 
 
 @_register(
-    installer_sha1='2c5a7d1e8d1333cdb588b9ccffbe21b209a370c2',
+    installer_sha1='4bf901098dbe4a7b6e878943967ca75fd93519f2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3755,7 +3752,7 @@ def _process_dataclass__8a5c256a0ac5a501590d763b81bf0ff82cfcdf42():
         ('omllm.specs.acp.protocol', 'HttpHeader'),
     ),
 )
-def _process_dataclass__2c5a7d1e8d1333cdb588b9ccffbe21b209a370c2():
+def _process_dataclass__4bf901098dbe4a7b6e878943967ca75fd93519f2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3862,7 +3859,7 @@ def _process_dataclass__2c5a7d1e8d1333cdb588b9ccffbe21b209a370c2():
 
 
 @_register(
-    installer_sha1='b6c84a0504dbd6066dbc2f93adaff6bf5f161429',
+    installer_sha1='4fcfe26347a9f7864d25a7402936abee8caafd20',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3877,7 +3874,7 @@ def _process_dataclass__2c5a7d1e8d1333cdb588b9ccffbe21b209a370c2():
         ('omllm.specs.acp.protocol', 'Error'),
     ),
 )
-def _process_dataclass__b6c84a0504dbd6066dbc2f93adaff6bf5f161429():
+def _process_dataclass__4fcfe26347a9f7864d25a7402936abee8caafd20():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3984,7 +3981,7 @@ def _process_dataclass__b6c84a0504dbd6066dbc2f93adaff6bf5f161429():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3998,7 +3995,7 @@ def _process_dataclass__b6c84a0504dbd6066dbc2f93adaff6bf5f161429():
         ('omllm.specs.acp.protocol', 'ExtResponse'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4066,7 +4063,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='5026c553b3ac3bad8dbc422c401b08f03b688458',
+    installer_sha1='f2ad62f47d7b566c05b357cf20186ab8543ed77f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4081,7 +4078,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omllm.specs.acp.protocol', 'FileSystemCapabilities'),
     ),
 )
-def _process_dataclass__5026c553b3ac3bad8dbc422c401b08f03b688458():
+def _process_dataclass__f2ad62f47d7b566c05b357cf20186ab8543ed77f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4190,7 +4187,7 @@ def _process_dataclass__5026c553b3ac3bad8dbc422c401b08f03b688458():
 
 
 @_register(
-    installer_sha1='229ca30f54f3ba7e0e080ec3e4336ad804a600ce',
+    installer_sha1='f01081d256ac7b4cfc9c8f8b26fdbf5068bccfba',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4208,7 +4205,7 @@ def _process_dataclass__5026c553b3ac3bad8dbc422c401b08f03b688458():
         ('omllm.specs.acp.protocol', 'SseMcpServer'),
     ),
 )
-def _process_dataclass__229ca30f54f3ba7e0e080ec3e4336ad804a600ce():
+def _process_dataclass__f01081d256ac7b4cfc9c8f8b26fdbf5068bccfba():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4331,7 +4328,7 @@ def _process_dataclass__229ca30f54f3ba7e0e080ec3e4336ad804a600ce():
 
 
 @_register(
-    installer_sha1='11e8bcd958845968a9592066e51ee5ee64a0df36',
+    installer_sha1='c4acfaedc4efc3c23e0a999edeaa5f475bb0637c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4348,7 +4345,7 @@ def _process_dataclass__229ca30f54f3ba7e0e080ec3e4336ad804a600ce():
         ('omllm.specs.acp.protocol', 'ImageContent'),
     ),
 )
-def _process_dataclass__11e8bcd958845968a9592066e51ee5ee64a0df36():
+def _process_dataclass__c4acfaedc4efc3c23e0a999edeaa5f475bb0637c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4473,7 +4470,7 @@ def _process_dataclass__11e8bcd958845968a9592066e51ee5ee64a0df36():
 
 
 @_register(
-    installer_sha1='f1097aca3427b89601cea70fab02b919099c6f30',
+    installer_sha1='1898c2b43b048a619799a2c9e4fa753e4e42849d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4491,7 +4488,7 @@ def _process_dataclass__11e8bcd958845968a9592066e51ee5ee64a0df36():
         ('omllm.specs.acp.protocol', 'ImageContentBlock'),
     ),
 )
-def _process_dataclass__f1097aca3427b89601cea70fab02b919099c6f30():
+def _process_dataclass__1898c2b43b048a619799a2c9e4fa753e4e42849d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4624,7 +4621,7 @@ def _process_dataclass__f1097aca3427b89601cea70fab02b919099c6f30():
 
 
 @_register(
-    installer_sha1='684e5855284d7ed08a00044070d4ab746f065138',
+    installer_sha1='1f29e9194f8c1bf7991cc80c54139a121f5bfe1d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4640,7 +4637,7 @@ def _process_dataclass__f1097aca3427b89601cea70fab02b919099c6f30():
         ('omllm.specs.acp.protocol', 'Implementation'),
     ),
 )
-def _process_dataclass__684e5855284d7ed08a00044070d4ab746f065138():
+def _process_dataclass__1f29e9194f8c1bf7991cc80c54139a121f5bfe1d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4756,7 +4753,7 @@ def _process_dataclass__684e5855284d7ed08a00044070d4ab746f065138():
 
 
 @_register(
-    installer_sha1='5caf51c4bec783dfe6cdbb706cc00d2c0acf22c7',
+    installer_sha1='6feed8764ad3f7dc7b5a6c68a9fa5f494f89ba9f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4772,7 +4769,7 @@ def _process_dataclass__684e5855284d7ed08a00044070d4ab746f065138():
         ('omllm.specs.acp.protocol', 'InitializeRequest'),
     ),
 )
-def _process_dataclass__5caf51c4bec783dfe6cdbb706cc00d2c0acf22c7():
+def _process_dataclass__6feed8764ad3f7dc7b5a6c68a9fa5f494f89ba9f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4889,7 +4886,7 @@ def _process_dataclass__5caf51c4bec783dfe6cdbb706cc00d2c0acf22c7():
 
 
 @_register(
-    installer_sha1='077e795643bdca5b9fabd336e47d2e355af73a82',
+    installer_sha1='5ce7aaac960cc6395260fbb2ec8a34a9f366ac36',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4906,7 +4903,7 @@ def _process_dataclass__5caf51c4bec783dfe6cdbb706cc00d2c0acf22c7():
         ('omllm.specs.acp.protocol', 'InitializeResponse'),
     ),
 )
-def _process_dataclass__077e795643bdca5b9fabd336e47d2e355af73a82():
+def _process_dataclass__5ce7aaac960cc6395260fbb2ec8a34a9f366ac36():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5032,7 +5029,7 @@ def _process_dataclass__077e795643bdca5b9fabd336e47d2e355af73a82():
 
 
 @_register(
-    installer_sha1='6d2a978c4b51002913aaf49248ae655ae5732a41',
+    installer_sha1='d67f90a8bd36b8d5e4c8bb761ce98f04eb994dce',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5050,7 +5047,7 @@ def _process_dataclass__077e795643bdca5b9fabd336e47d2e355af73a82():
         ('omllm.specs.acp.protocol', 'WaitForTerminalExitRequest'),
     ),
 )
-def _process_dataclass__6d2a978c4b51002913aaf49248ae655ae5732a41():
+def _process_dataclass__d67f90a8bd36b8d5e4c8bb761ce98f04eb994dce():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5157,7 +5154,7 @@ def _process_dataclass__6d2a978c4b51002913aaf49248ae655ae5732a41():
 
 
 @_register(
-    installer_sha1='939aa32630b145fa9c63166dcbb6c3cd4aba9d33',
+    installer_sha1='8eaf714fd14b7acd19b6856c392602854ca7e7a0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5172,7 +5169,7 @@ def _process_dataclass__6d2a978c4b51002913aaf49248ae655ae5732a41():
         ('omllm.specs.acp.protocol', 'ListSessionsRequest'),
     ),
 )
-def _process_dataclass__939aa32630b145fa9c63166dcbb6c3cd4aba9d33():
+def _process_dataclass__8eaf714fd14b7acd19b6856c392602854ca7e7a0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5281,7 +5278,7 @@ def _process_dataclass__939aa32630b145fa9c63166dcbb6c3cd4aba9d33():
 
 
 @_register(
-    installer_sha1='8614aee1b56a72ebc81b101c6d76f33e03143edb',
+    installer_sha1='b1c21f0ff31d3a497cb3e2ad126f326ba87d4739',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5296,7 +5293,7 @@ def _process_dataclass__939aa32630b145fa9c63166dcbb6c3cd4aba9d33():
         ('omllm.specs.acp.protocol', 'ListSessionsResponse'),
     ),
 )
-def _process_dataclass__8614aee1b56a72ebc81b101c6d76f33e03143edb():
+def _process_dataclass__b1c21f0ff31d3a497cb3e2ad126f326ba87d4739():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5404,7 +5401,7 @@ def _process_dataclass__8614aee1b56a72ebc81b101c6d76f33e03143edb():
 
 
 @_register(
-    installer_sha1='391cb3a68498d117ce4f669a6264c09c07c36280',
+    installer_sha1='6256c47e1d043e892ae435581ed703337c87839f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5420,7 +5417,7 @@ def _process_dataclass__8614aee1b56a72ebc81b101c6d76f33e03143edb():
         ('omllm.specs.acp.protocol', 'LoadSessionRequest'),
     ),
 )
-def _process_dataclass__391cb3a68498d117ce4f669a6264c09c07c36280():
+def _process_dataclass__6256c47e1d043e892ae435581ed703337c87839f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5535,7 +5532,7 @@ def _process_dataclass__391cb3a68498d117ce4f669a6264c09c07c36280():
 
 
 @_register(
-    installer_sha1='ba39b5bf032ad533b88d5b5e616f7aa91a7dbea0',
+    installer_sha1='50567bc7f4a1778cef4eab3874b2dcea7c9e9dd7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5550,7 +5547,7 @@ def _process_dataclass__391cb3a68498d117ce4f669a6264c09c07c36280():
         ('omllm.specs.acp.protocol', 'LoadSessionResponse'),
     ),
 )
-def _process_dataclass__ba39b5bf032ad533b88d5b5e616f7aa91a7dbea0():
+def _process_dataclass__50567bc7f4a1778cef4eab3874b2dcea7c9e9dd7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5659,7 +5656,7 @@ def _process_dataclass__ba39b5bf032ad533b88d5b5e616f7aa91a7dbea0():
 
 
 @_register(
-    installer_sha1='159c97ca093d99744628c3ae710ba19abe95e495',
+    installer_sha1='871ab26e626902856fdc4f468033f31452ae2f83',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5674,7 +5671,7 @@ def _process_dataclass__ba39b5bf032ad533b88d5b5e616f7aa91a7dbea0():
         ('omllm.specs.acp.protocol', 'McpCapabilities'),
     ),
 )
-def _process_dataclass__159c97ca093d99744628c3ae710ba19abe95e495():
+def _process_dataclass__871ab26e626902856fdc4f468033f31452ae2f83():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5783,7 +5780,7 @@ def _process_dataclass__159c97ca093d99744628c3ae710ba19abe95e495():
 
 
 @_register(
-    installer_sha1='7bcb060d0c53825f47b836964421f7bba1e755c8',
+    installer_sha1='400087e0c8974960fa4a9f758a3a37a8b0c7f700',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5800,7 +5797,7 @@ def _process_dataclass__159c97ca093d99744628c3ae710ba19abe95e495():
         ('omllm.specs.acp.protocol', 'McpServerSse'),
     ),
 )
-def _process_dataclass__7bcb060d0c53825f47b836964421f7bba1e755c8():
+def _process_dataclass__400087e0c8974960fa4a9f758a3a37a8b0c7f700():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5915,7 +5912,7 @@ def _process_dataclass__7bcb060d0c53825f47b836964421f7bba1e755c8():
 
 
 @_register(
-    installer_sha1='e834442d634aee91f10a7bd7067a3d9937ffcc8a',
+    installer_sha1='153507f989e877598390f1087644b8d5066893ca',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5932,7 +5929,7 @@ def _process_dataclass__7bcb060d0c53825f47b836964421f7bba1e755c8():
         ('omllm.specs.acp.protocol', 'McpServerStdio'),
     ),
 )
-def _process_dataclass__e834442d634aee91f10a7bd7067a3d9937ffcc8a():
+def _process_dataclass__153507f989e877598390f1087644b8d5066893ca():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6055,7 +6052,7 @@ def _process_dataclass__e834442d634aee91f10a7bd7067a3d9937ffcc8a():
 
 
 @_register(
-    installer_sha1='34097032984fcf1c1af33d601bac2e60546d7762',
+    installer_sha1='d830f9188f50122273d27b7a6bcc1f1a7b433c19',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6070,7 +6067,7 @@ def _process_dataclass__e834442d634aee91f10a7bd7067a3d9937ffcc8a():
         ('omllm.specs.acp.protocol', 'NewSessionRequest'),
     ),
 )
-def _process_dataclass__34097032984fcf1c1af33d601bac2e60546d7762():
+def _process_dataclass__d830f9188f50122273d27b7a6bcc1f1a7b433c19():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6177,7 +6174,7 @@ def _process_dataclass__34097032984fcf1c1af33d601bac2e60546d7762():
 
 
 @_register(
-    installer_sha1='613d44cbbe23949c4e3037d40e6d774224bb4857',
+    installer_sha1='2a81960a071ad8ac705d12f364a75a5ad9df61df',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6193,7 +6190,7 @@ def _process_dataclass__34097032984fcf1c1af33d601bac2e60546d7762():
         ('omllm.specs.acp.protocol', 'NewSessionResponse'),
     ),
 )
-def _process_dataclass__613d44cbbe23949c4e3037d40e6d774224bb4857():
+def _process_dataclass__2a81960a071ad8ac705d12f364a75a5ad9df61df():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6310,7 +6307,7 @@ def _process_dataclass__613d44cbbe23949c4e3037d40e6d774224bb4857():
 
 
 @_register(
-    installer_sha1='cbd09075ba260506b8ddef47c2eef67834a4fa2a',
+    installer_sha1='4692cd94280021c8200aede675f8be624dc19d36',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6326,7 +6323,7 @@ def _process_dataclass__613d44cbbe23949c4e3037d40e6d774224bb4857():
         ('omllm.specs.acp.protocol', 'PermissionOption'),
     ),
 )
-def _process_dataclass__cbd09075ba260506b8ddef47c2eef67834a4fa2a():
+def _process_dataclass__4692cd94280021c8200aede675f8be624dc19d36():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6441,7 +6438,7 @@ def _process_dataclass__cbd09075ba260506b8ddef47c2eef67834a4fa2a():
 
 
 @_register(
-    installer_sha1='43f0778db3f346f5004900a573e4e7b6516ec82c',
+    installer_sha1='8f0f3e3f0acbd45546900454e33f50d4ff960dbf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6455,7 +6452,7 @@ def _process_dataclass__cbd09075ba260506b8ddef47c2eef67834a4fa2a():
         ('omllm.specs.acp.protocol', 'Plan'),
     ),
 )
-def _process_dataclass__43f0778db3f346f5004900a573e4e7b6516ec82c():
+def _process_dataclass__8f0f3e3f0acbd45546900454e33f50d4ff960dbf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6554,7 +6551,7 @@ def _process_dataclass__43f0778db3f346f5004900a573e4e7b6516ec82c():
 
 
 @_register(
-    installer_sha1='3aca95a0b4bdc39c4b667395ad756995037c0ec0',
+    installer_sha1='7b52396a83dc641b51a3fe6efe3794455f6406b0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6570,7 +6567,7 @@ def _process_dataclass__43f0778db3f346f5004900a573e4e7b6516ec82c():
         ('omllm.specs.acp.protocol', 'PlanEntry'),
     ),
 )
-def _process_dataclass__3aca95a0b4bdc39c4b667395ad756995037c0ec0():
+def _process_dataclass__7b52396a83dc641b51a3fe6efe3794455f6406b0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6685,7 +6682,7 @@ def _process_dataclass__3aca95a0b4bdc39c4b667395ad756995037c0ec0():
 
 
 @_register(
-    installer_sha1='5e15eb1c84101566cb2d1e463e43223ebdb9ae78',
+    installer_sha1='fc8005f3b5f35c1673c736c58d31d0534863d464',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6700,7 +6697,7 @@ def _process_dataclass__3aca95a0b4bdc39c4b667395ad756995037c0ec0():
         ('omllm.specs.acp.protocol', 'PlanSessionUpdate'),
     ),
 )
-def _process_dataclass__5e15eb1c84101566cb2d1e463e43223ebdb9ae78():
+def _process_dataclass__fc8005f3b5f35c1673c736c58d31d0534863d464():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6807,7 +6804,7 @@ def _process_dataclass__5e15eb1c84101566cb2d1e463e43223ebdb9ae78():
 
 
 @_register(
-    installer_sha1='7ab2ae0f490988bdcb67752910e12453f04749bd',
+    installer_sha1='bbad6c730815a611513700c52f12ecb497a22ed0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6823,7 +6820,7 @@ def _process_dataclass__5e15eb1c84101566cb2d1e463e43223ebdb9ae78():
         ('omllm.specs.acp.protocol', 'PromptCapabilities'),
     ),
 )
-def _process_dataclass__7ab2ae0f490988bdcb67752910e12453f04749bd():
+def _process_dataclass__bbad6c730815a611513700c52f12ecb497a22ed0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -6941,7 +6938,7 @@ def _process_dataclass__7ab2ae0f490988bdcb67752910e12453f04749bd():
 
 
 @_register(
-    installer_sha1='dcc1d9ce6097c98c9624b5d9566b316abadf0f1e',
+    installer_sha1='fe500738863f4ed91c4c1a14b102a26948c833cb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -6956,7 +6953,7 @@ def _process_dataclass__7ab2ae0f490988bdcb67752910e12453f04749bd():
         ('omllm.specs.acp.protocol', 'PromptRequest'),
     ),
 )
-def _process_dataclass__dcc1d9ce6097c98c9624b5d9566b316abadf0f1e():
+def _process_dataclass__fe500738863f4ed91c4c1a14b102a26948c833cb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -7063,7 +7060,7 @@ def _process_dataclass__dcc1d9ce6097c98c9624b5d9566b316abadf0f1e():
 
 
 @_register(
-    installer_sha1='e103fe524e94bca3dd49a121388f05b0cf69ec3c',
+    installer_sha1='28d0460dd6fb8b1d76d2ae0729d463c47b3202e6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7077,7 +7074,7 @@ def _process_dataclass__dcc1d9ce6097c98c9624b5d9566b316abadf0f1e():
         ('omllm.specs.acp.protocol', 'PromptResponse'),
     ),
 )
-def _process_dataclass__e103fe524e94bca3dd49a121388f05b0cf69ec3c():
+def _process_dataclass__28d0460dd6fb8b1d76d2ae0729d463c47b3202e6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -7176,7 +7173,7 @@ def _process_dataclass__e103fe524e94bca3dd49a121388f05b0cf69ec3c():
 
 
 @_register(
-    installer_sha1='0a180d6e7951144073a01dce79d5f5da2bed3fa3',
+    installer_sha1='71a5c71af19ec703cc07f144ff976f9f35163842',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7193,7 +7190,7 @@ def _process_dataclass__e103fe524e94bca3dd49a121388f05b0cf69ec3c():
         ('omllm.specs.acp.protocol', 'ReadTextFileRequest'),
     ),
 )
-def _process_dataclass__0a180d6e7951144073a01dce79d5f5da2bed3fa3():
+def _process_dataclass__71a5c71af19ec703cc07f144ff976f9f35163842():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -7318,7 +7315,7 @@ def _process_dataclass__0a180d6e7951144073a01dce79d5f5da2bed3fa3():
 
 
 @_register(
-    installer_sha1='b9b3b33f4b48106f19c39981fa27e2bb6e607110',
+    installer_sha1='ffc8ff3f60d829526ecabb00cae1d499750a15e0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7334,7 +7331,7 @@ def _process_dataclass__0a180d6e7951144073a01dce79d5f5da2bed3fa3():
         ('omllm.specs.acp.protocol', 'RequestPermissionRequest'),
     ),
 )
-def _process_dataclass__b9b3b33f4b48106f19c39981fa27e2bb6e607110():
+def _process_dataclass__ffc8ff3f60d829526ecabb00cae1d499750a15e0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -7449,7 +7446,7 @@ def _process_dataclass__b9b3b33f4b48106f19c39981fa27e2bb6e607110():
 
 
 @_register(
-    installer_sha1='0bc4888616196850ed9f2286c3d39d9d24da2526',
+    installer_sha1='a39a165de6928aa71be00dfc104b44f79edf4b1e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7463,7 +7460,7 @@ def _process_dataclass__b9b3b33f4b48106f19c39981fa27e2bb6e607110():
         ('omllm.specs.acp.protocol', 'RequestPermissionResponse'),
     ),
 )
-def _process_dataclass__0bc4888616196850ed9f2286c3d39d9d24da2526():
+def _process_dataclass__a39a165de6928aa71be00dfc104b44f79edf4b1e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -7562,7 +7559,7 @@ def _process_dataclass__0bc4888616196850ed9f2286c3d39d9d24da2526():
 
 
 @_register(
-    installer_sha1='91075349a5ded1fdf0826d0e3c6ee1e2b061936d',
+    installer_sha1='bf9e8e26a216903957091167f67f45df87f4ad5c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7578,7 +7575,7 @@ def _process_dataclass__0bc4888616196850ed9f2286c3d39d9d24da2526():
         ('omllm.specs.acp.protocol', 'ResourceContentBlock'),
     ),
 )
-def _process_dataclass__91075349a5ded1fdf0826d0e3c6ee1e2b061936d():
+def _process_dataclass__bf9e8e26a216903957091167f67f45df87f4ad5c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -7694,7 +7691,7 @@ def _process_dataclass__91075349a5ded1fdf0826d0e3c6ee1e2b061936d():
 
 
 @_register(
-    installer_sha1='9ceb7e1beac571567aec259833f4da2f2dbf047c',
+    installer_sha1='b87408dcacb70dcc8594f8a2ed39880ff898d7a1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7714,7 +7711,7 @@ def _process_dataclass__91075349a5ded1fdf0826d0e3c6ee1e2b061936d():
         ('omllm.specs.acp.protocol', 'ResourceLink'),
     ),
 )
-def _process_dataclass__9ceb7e1beac571567aec259833f4da2f2dbf047c():
+def _process_dataclass__b87408dcacb70dcc8594f8a2ed39880ff898d7a1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -7866,7 +7863,7 @@ def _process_dataclass__9ceb7e1beac571567aec259833f4da2f2dbf047c():
 
 
 @_register(
-    installer_sha1='44d179dcc468e974508dd82ceed58c76d6b3368d',
+    installer_sha1='404d3cac232f79252a0d657c5640f26c95f5a769',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7887,7 +7884,7 @@ def _process_dataclass__9ceb7e1beac571567aec259833f4da2f2dbf047c():
         ('omllm.specs.acp.protocol', 'ResourceLinkContentBlock'),
     ),
 )
-def _process_dataclass__44d179dcc468e974508dd82ceed58c76d6b3368d():
+def _process_dataclass__404d3cac232f79252a0d657c5640f26c95f5a769():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8047,7 +8044,7 @@ def _process_dataclass__44d179dcc468e974508dd82ceed58c76d6b3368d():
 
 
 @_register(
-    installer_sha1='3681d783bf250b87f42a7b58f5f97ae4f0573f05',
+    installer_sha1='21be9197b30d30106f5b93b720e7bdca9ab95bbc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8062,7 +8059,7 @@ def _process_dataclass__44d179dcc468e974508dd82ceed58c76d6b3368d():
         ('omllm.specs.acp.protocol', 'SelectSessionConfigOption'),
     ),
 )
-def _process_dataclass__3681d783bf250b87f42a7b58f5f97ae4f0573f05():
+def _process_dataclass__21be9197b30d30106f5b93b720e7bdca9ab95bbc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8168,7 +8165,7 @@ def _process_dataclass__3681d783bf250b87f42a7b58f5f97ae4f0573f05():
 
 
 @_register(
-    installer_sha1='de5b8c5cc171bdce7d0627b344f6e98ace30559c',
+    installer_sha1='f71e6c1132c70e4a8e7437b6d4749b20affb2fbd',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8182,7 +8179,7 @@ def _process_dataclass__3681d783bf250b87f42a7b58f5f97ae4f0573f05():
         ('omllm.specs.acp.protocol', 'SelectedPermissionOutcome'),
     ),
 )
-def _process_dataclass__de5b8c5cc171bdce7d0627b344f6e98ace30559c():
+def _process_dataclass__f71e6c1132c70e4a8e7437b6d4749b20affb2fbd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8281,7 +8278,7 @@ def _process_dataclass__de5b8c5cc171bdce7d0627b344f6e98ace30559c():
 
 
 @_register(
-    installer_sha1='33eae3589b8117da8b00bb554d12cce88253fbcb',
+    installer_sha1='3a184ec5bc6f25a72065a1554dd74fbe983b0bab',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8296,7 +8293,7 @@ def _process_dataclass__de5b8c5cc171bdce7d0627b344f6e98ace30559c():
         ('omllm.specs.acp.protocol', 'SelectedRequestPermissionOutcome'),
     ),
 )
-def _process_dataclass__33eae3589b8117da8b00bb554d12cce88253fbcb():
+def _process_dataclass__3a184ec5bc6f25a72065a1554dd74fbe983b0bab():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8403,7 +8400,7 @@ def _process_dataclass__33eae3589b8117da8b00bb554d12cce88253fbcb():
 
 
 @_register(
-    installer_sha1='df92db5587f16ce957efefc84240114896af9375',
+    installer_sha1='0bbde0667bdd7d12f11275554f864ba907d0a190',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8417,7 +8414,7 @@ def _process_dataclass__33eae3589b8117da8b00bb554d12cce88253fbcb():
         ('omllm.specs.acp.protocol', 'SessionCapabilities'),
     ),
 )
-def _process_dataclass__df92db5587f16ce957efefc84240114896af9375():
+def _process_dataclass__0bbde0667bdd7d12f11275554f864ba907d0a190():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8517,7 +8514,7 @@ def _process_dataclass__df92db5587f16ce957efefc84240114896af9375():
 
 
 @_register(
-    installer_sha1='ad8ad8c172cde8831422fbbd7d454aa3b1ae2859',
+    installer_sha1='6d278396ed71f482bfd4f83d65f02f9c714e98b9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8531,7 +8528,7 @@ def _process_dataclass__df92db5587f16ce957efefc84240114896af9375():
         ('omllm.specs.acp.protocol', 'SessionConfigSelect'),
     ),
 )
-def _process_dataclass__ad8ad8c172cde8831422fbbd7d454aa3b1ae2859():
+def _process_dataclass__6d278396ed71f482bfd4f83d65f02f9c714e98b9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8629,7 +8626,7 @@ def _process_dataclass__ad8ad8c172cde8831422fbbd7d454aa3b1ae2859():
 
 
 @_register(
-    installer_sha1='1f4c5fe4829029a5fe2290ff3cf078481f3f510b',
+    installer_sha1='34f7a149c3d033edfc08274bb7cfd613fdf7ba53',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8645,7 +8642,7 @@ def _process_dataclass__ad8ad8c172cde8831422fbbd7d454aa3b1ae2859():
         ('omllm.specs.acp.protocol', 'SessionConfigSelectGroup'),
     ),
 )
-def _process_dataclass__1f4c5fe4829029a5fe2290ff3cf078481f3f510b():
+def _process_dataclass__34f7a149c3d033edfc08274bb7cfd613fdf7ba53():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8760,7 +8757,7 @@ def _process_dataclass__1f4c5fe4829029a5fe2290ff3cf078481f3f510b():
 
 
 @_register(
-    installer_sha1='5707d82506ee2b687fd85f6661aea7b6ec484fb6',
+    installer_sha1='b0250121461d7c61ffe3b883a6541c70c5e8e00c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8776,7 +8773,7 @@ def _process_dataclass__1f4c5fe4829029a5fe2290ff3cf078481f3f510b():
         ('omllm.specs.acp.protocol', 'SessionConfigSelectOption'),
     ),
 )
-def _process_dataclass__5707d82506ee2b687fd85f6661aea7b6ec484fb6():
+def _process_dataclass__b0250121461d7c61ffe3b883a6541c70c5e8e00c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8892,7 +8889,7 @@ def _process_dataclass__5707d82506ee2b687fd85f6661aea7b6ec484fb6():
 
 
 @_register(
-    installer_sha1='06d47f3bb648bfd25afe46f1a0a2626dfca47aa0',
+    installer_sha1='7ae614ffe1b1f4960edacd41b696e1c0f563bca2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8909,7 +8906,7 @@ def _process_dataclass__5707d82506ee2b687fd85f6661aea7b6ec484fb6():
         ('omllm.specs.acp.protocol', 'SessionInfo'),
     ),
 )
-def _process_dataclass__06d47f3bb648bfd25afe46f1a0a2626dfca47aa0():
+def _process_dataclass__7ae614ffe1b1f4960edacd41b696e1c0f563bca2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9034,7 +9031,7 @@ def _process_dataclass__06d47f3bb648bfd25afe46f1a0a2626dfca47aa0():
 
 
 @_register(
-    installer_sha1='a70d1d435cc93583c08ad15aa75359c897407ca9',
+    installer_sha1='2e72def84b0aea1f3c37b9a2ce802173ee43e0ae',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9049,7 +9046,7 @@ def _process_dataclass__06d47f3bb648bfd25afe46f1a0a2626dfca47aa0():
         ('omllm.specs.acp.protocol', 'SessionInfoUpdate'),
     ),
 )
-def _process_dataclass__a70d1d435cc93583c08ad15aa75359c897407ca9():
+def _process_dataclass__2e72def84b0aea1f3c37b9a2ce802173ee43e0ae():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9158,7 +9155,7 @@ def _process_dataclass__a70d1d435cc93583c08ad15aa75359c897407ca9():
 
 
 @_register(
-    installer_sha1='8780ece99b393acebacbe993798bc7d0bfba6e26',
+    installer_sha1='f1fe5f8b39c2403bc0922530cdcff7da52368ee8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9174,7 +9171,7 @@ def _process_dataclass__a70d1d435cc93583c08ad15aa75359c897407ca9():
         ('omllm.specs.acp.protocol', 'SessionInfoUpdateSessionUpdate'),
     ),
 )
-def _process_dataclass__8780ece99b393acebacbe993798bc7d0bfba6e26():
+def _process_dataclass__f1fe5f8b39c2403bc0922530cdcff7da52368ee8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9291,7 +9288,7 @@ def _process_dataclass__8780ece99b393acebacbe993798bc7d0bfba6e26():
 
 
 @_register(
-    installer_sha1='96183ee8e3bc6334168b0d57ef4f73fc03f13daa',
+    installer_sha1='cc9bb6cd85731f5994d0c8f4fdf4dc41f178bcf3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9306,7 +9303,7 @@ def _process_dataclass__8780ece99b393acebacbe993798bc7d0bfba6e26():
         ('omllm.specs.acp.protocol', 'SessionModeState'),
     ),
 )
-def _process_dataclass__96183ee8e3bc6334168b0d57ef4f73fc03f13daa():
+def _process_dataclass__cc9bb6cd85731f5994d0c8f4fdf4dc41f178bcf3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9413,7 +9410,7 @@ def _process_dataclass__96183ee8e3bc6334168b0d57ef4f73fc03f13daa():
 
 
 @_register(
-    installer_sha1='6eee51189a07fe11b6187170dcbe84ec37bf2883',
+    installer_sha1='718647680e2719eaa74b9d1d08295a70e62036c0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9428,7 +9425,7 @@ def _process_dataclass__96183ee8e3bc6334168b0d57ef4f73fc03f13daa():
         ('omllm.specs.acp.protocol', 'SessionNotification'),
     ),
 )
-def _process_dataclass__6eee51189a07fe11b6187170dcbe84ec37bf2883():
+def _process_dataclass__718647680e2719eaa74b9d1d08295a70e62036c0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9535,7 +9532,7 @@ def _process_dataclass__6eee51189a07fe11b6187170dcbe84ec37bf2883():
 
 
 @_register(
-    installer_sha1='329b4817b35a7f914c6cb888cc2c413e2bcfd9eb',
+    installer_sha1='c3095c363cca94e71e7e59afa2d20e62b1fa4845',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9551,7 +9548,7 @@ def _process_dataclass__6eee51189a07fe11b6187170dcbe84ec37bf2883():
         ('omllm.specs.acp.protocol', 'SetSessionConfigOptionRequest'),
     ),
 )
-def _process_dataclass__329b4817b35a7f914c6cb888cc2c413e2bcfd9eb():
+def _process_dataclass__c3095c363cca94e71e7e59afa2d20e62b1fa4845():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9666,7 +9663,7 @@ def _process_dataclass__329b4817b35a7f914c6cb888cc2c413e2bcfd9eb():
 
 
 @_register(
-    installer_sha1='c89074df3bd50181fb1d1fe6d92c609ff8ee3947',
+    installer_sha1='02684fd791a94dccabdb698798f2b444a5e06b69',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9681,7 +9678,7 @@ def _process_dataclass__329b4817b35a7f914c6cb888cc2c413e2bcfd9eb():
         ('omllm.specs.acp.protocol', 'SetSessionModeRequest'),
     ),
 )
-def _process_dataclass__c89074df3bd50181fb1d1fe6d92c609ff8ee3947():
+def _process_dataclass__02684fd791a94dccabdb698798f2b444a5e06b69():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9788,7 +9785,7 @@ def _process_dataclass__c89074df3bd50181fb1d1fe6d92c609ff8ee3947():
 
 
 @_register(
-    installer_sha1='6c30ccad74dff1b8c5bb404610bfaee38034183d',
+    installer_sha1='28bb96e39da29876fd2c76b97ed7bf816face8d6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9804,7 +9801,7 @@ def _process_dataclass__c89074df3bd50181fb1d1fe6d92c609ff8ee3947():
         ('omllm.specs.acp.protocol', 'WaitForTerminalExitResponse'),
     ),
 )
-def _process_dataclass__6c30ccad74dff1b8c5bb404610bfaee38034183d():
+def _process_dataclass__28bb96e39da29876fd2c76b97ed7bf816face8d6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9913,7 +9910,7 @@ def _process_dataclass__6c30ccad74dff1b8c5bb404610bfaee38034183d():
 
 
 @_register(
-    installer_sha1='74c43054468ae397d7bb54c2b7e8b37f66b94885',
+    installer_sha1='563deb5fdafcc960e6f72dc1aa5469b38c369ba6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9929,7 +9926,7 @@ def _process_dataclass__6c30ccad74dff1b8c5bb404610bfaee38034183d():
         ('omllm.specs.acp.protocol', 'TerminalOutputResponse'),
     ),
 )
-def _process_dataclass__74c43054468ae397d7bb54c2b7e8b37f66b94885():
+def _process_dataclass__563deb5fdafcc960e6f72dc1aa5469b38c369ba6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -10045,7 +10042,7 @@ def _process_dataclass__74c43054468ae397d7bb54c2b7e8b37f66b94885():
 
 
 @_register(
-    installer_sha1='5186eaa642ffc2c04384c5c3cff234a26d82f0f4',
+    installer_sha1='5c16d76f615032591600e70925959ca41bf20390',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -10060,7 +10057,7 @@ def _process_dataclass__74c43054468ae397d7bb54c2b7e8b37f66b94885():
         ('omllm.specs.acp.protocol', 'TerminalToolCallContent'),
     ),
 )
-def _process_dataclass__5186eaa642ffc2c04384c5c3cff234a26d82f0f4():
+def _process_dataclass__5c16d76f615032591600e70925959ca41bf20390():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -10167,7 +10164,7 @@ def _process_dataclass__5186eaa642ffc2c04384c5c3cff234a26d82f0f4():
 
 
 @_register(
-    installer_sha1='f8cef50f31b2ec168724f9dc5a46aa01e93d3ed0',
+    installer_sha1='8b4352d8ccd99d3448994c2b52c91b140b807534',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -10182,7 +10179,7 @@ def _process_dataclass__5186eaa642ffc2c04384c5c3cff234a26d82f0f4():
         ('omllm.specs.acp.protocol', 'TextContent'),
     ),
 )
-def _process_dataclass__f8cef50f31b2ec168724f9dc5a46aa01e93d3ed0():
+def _process_dataclass__8b4352d8ccd99d3448994c2b52c91b140b807534():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -10290,7 +10287,7 @@ def _process_dataclass__f8cef50f31b2ec168724f9dc5a46aa01e93d3ed0():
 
 
 @_register(
-    installer_sha1='c19990f6d504bfe2c2f726d44342c91ec83e5d23',
+    installer_sha1='8a0e602f7a55316d1fc2ed7121f13ee3cddd28d8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -10306,7 +10303,7 @@ def _process_dataclass__f8cef50f31b2ec168724f9dc5a46aa01e93d3ed0():
         ('omllm.specs.acp.protocol', 'TextContentBlock'),
     ),
 )
-def _process_dataclass__c19990f6d504bfe2c2f726d44342c91ec83e5d23():
+def _process_dataclass__8a0e602f7a55316d1fc2ed7121f13ee3cddd28d8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -10422,7 +10419,7 @@ def _process_dataclass__c19990f6d504bfe2c2f726d44342c91ec83e5d23():
 
 
 @_register(
-    installer_sha1='92a97abb86f37e4997e92a898e0ca0e29ef49638',
+    installer_sha1='eadbfbe9d305d26aefa4c8e002f548bb7cf7f7ba',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -10438,7 +10435,7 @@ def _process_dataclass__c19990f6d504bfe2c2f726d44342c91ec83e5d23():
         ('omllm.specs.acp.protocol', 'TextResourceContents'),
     ),
 )
-def _process_dataclass__92a97abb86f37e4997e92a898e0ca0e29ef49638():
+def _process_dataclass__eadbfbe9d305d26aefa4c8e002f548bb7cf7f7ba():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -10554,7 +10551,7 @@ def _process_dataclass__92a97abb86f37e4997e92a898e0ca0e29ef49638():
 
 
 @_register(
-    installer_sha1='9fa485be004099c2c1c0db93805d073b770fe6f9',
+    installer_sha1='a48dc8745397072a469cf78a72d1d49723dbf8c4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -10575,7 +10572,7 @@ def _process_dataclass__92a97abb86f37e4997e92a898e0ca0e29ef49638():
         ('omllm.specs.acp.protocol', 'ToolCall'),
     ),
 )
-def _process_dataclass__9fa485be004099c2c1c0db93805d073b770fe6f9():
+def _process_dataclass__a48dc8745397072a469cf78a72d1d49723dbf8c4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -10736,7 +10733,7 @@ def _process_dataclass__9fa485be004099c2c1c0db93805d073b770fe6f9():
 
 
 @_register(
-    installer_sha1='499f390e232d9d32e12ece1ecc7af071491e5029',
+    installer_sha1='fbe5c1a952819ff88a36b8b77baf1c7a49cdf584',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -10751,7 +10748,7 @@ def _process_dataclass__9fa485be004099c2c1c0db93805d073b770fe6f9():
         ('omllm.specs.acp.protocol', 'ToolCallLocation'),
     ),
 )
-def _process_dataclass__499f390e232d9d32e12ece1ecc7af071491e5029():
+def _process_dataclass__fbe5c1a952819ff88a36b8b77baf1c7a49cdf584():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -10859,7 +10856,7 @@ def _process_dataclass__499f390e232d9d32e12ece1ecc7af071491e5029():
 
 
 @_register(
-    installer_sha1='a5b5e4e957eacb9d901abc4f2b8e61b565407cba',
+    installer_sha1='c90427b7eef50dbe247ac02f24c03f8cd5039e94',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -10881,7 +10878,7 @@ def _process_dataclass__499f390e232d9d32e12ece1ecc7af071491e5029():
         ('omllm.specs.acp.protocol', 'ToolCallSessionUpdate'),
     ),
 )
-def _process_dataclass__a5b5e4e957eacb9d901abc4f2b8e61b565407cba():
+def _process_dataclass__c90427b7eef50dbe247ac02f24c03f8cd5039e94():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -11050,7 +11047,7 @@ def _process_dataclass__a5b5e4e957eacb9d901abc4f2b8e61b565407cba():
 
 
 @_register(
-    installer_sha1='a05a5bbb696c90c31b8c95ba72a041a074c0631e',
+    installer_sha1='7c3725fa5e63c4c5a56e4fd227f7989682dc7e2a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -11071,7 +11068,7 @@ def _process_dataclass__a5b5e4e957eacb9d901abc4f2b8e61b565407cba():
         ('omllm.specs.acp.protocol', 'ToolCallUpdate'),
     ),
 )
-def _process_dataclass__a05a5bbb696c90c31b8c95ba72a041a074c0631e():
+def _process_dataclass__7c3725fa5e63c4c5a56e4fd227f7989682dc7e2a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -11233,7 +11230,7 @@ def _process_dataclass__a05a5bbb696c90c31b8c95ba72a041a074c0631e():
 
 
 @_register(
-    installer_sha1='7c276a133a3642ebe0e8b89a5d70f4dd9c632de9',
+    installer_sha1='4f02c3da1e84eacdf5032eca2d45c536d51840e0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -11255,7 +11252,7 @@ def _process_dataclass__a05a5bbb696c90c31b8c95ba72a041a074c0631e():
         ('omllm.specs.acp.protocol', 'ToolCallUpdateSessionUpdate'),
     ),
 )
-def _process_dataclass__7c276a133a3642ebe0e8b89a5d70f4dd9c632de9():
+def _process_dataclass__4f02c3da1e84eacdf5032eca2d45c536d51840e0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -11425,7 +11422,7 @@ def _process_dataclass__7c276a133a3642ebe0e8b89a5d70f4dd9c632de9():
 
 
 @_register(
-    installer_sha1='771c79339b609881c4e5be6cd50615f4984f649b',
+    installer_sha1='228446f729183002e75af18c8dfcd497d2e99947',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -11439,7 +11436,7 @@ def _process_dataclass__7c276a133a3642ebe0e8b89a5d70f4dd9c632de9():
         ('omllm.specs.acp.protocol', 'UnstructuredCommandInput'),
     ),
 )
-def _process_dataclass__771c79339b609881c4e5be6cd50615f4984f649b():
+def _process_dataclass__228446f729183002e75af18c8dfcd497d2e99947():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -11538,7 +11535,7 @@ def _process_dataclass__771c79339b609881c4e5be6cd50615f4984f649b():
 
 
 @_register(
-    installer_sha1='f339ddb07c0003c6d2aaee51ac2efbd3d19a79c4',
+    installer_sha1='b66465d1511406dd36eaf1f814454f8f2d85bb41',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -11554,7 +11551,7 @@ def _process_dataclass__771c79339b609881c4e5be6cd50615f4984f649b():
         ('omllm.specs.acp.protocol', 'WriteTextFileRequest'),
     ),
 )
-def _process_dataclass__f339ddb07c0003c6d2aaee51ac2efbd3d19a79c4():
+def _process_dataclass__b66465d1511406dd36eaf1f814454f8f2d85bb41():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

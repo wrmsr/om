@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='3a67adf2531fe1e9306f34279d749ebfc2bd2b08',
+    installer_sha1='8fa277756239d4b5cfb20acc6300d2c612921ca5',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -45,7 +42,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omxtra.text.shparse.errors', 'GenericError'),
     ),
 )
-def _process_dataclass__3a67adf2531fe1e9306f34279d749ebfc2bd2b08():
+def _process_dataclass__8fa277756239d4b5cfb20acc6300d2c612921ca5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -103,7 +100,7 @@ def _process_dataclass__3a67adf2531fe1e9306f34279d749ebfc2bd2b08():
 
 
 @_register(
-    installer_sha1='a261af455ddffde2c89930232b9201763e49722d',
+    installer_sha1='f277ef8db3dab2896165620cfb41d9f1c2a67e7e',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -119,7 +116,7 @@ def _process_dataclass__3a67adf2531fe1e9306f34279d749ebfc2bd2b08():
         ('omxtra.text.shparse.nodes', 'ArithmCmd'),
     ),
 )
-def _process_dataclass__a261af455ddffde2c89930232b9201763e49722d():
+def _process_dataclass__f277ef8db3dab2896165620cfb41d9f1c2a67e7e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -204,7 +201,7 @@ def _process_dataclass__a261af455ddffde2c89930232b9201763e49722d():
 
 
 @_register(
-    installer_sha1='932e07d884939a4fb129fa6a755baab2a2d256e9',
+    installer_sha1='9ccc217df0e39879bfe7fcfb73e3db1d8e7b3e5a',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -221,7 +218,7 @@ def _process_dataclass__a261af455ddffde2c89930232b9201763e49722d():
         ('omxtra.text.shparse.nodes', 'ArithmExp'),
     ),
 )
-def _process_dataclass__932e07d884939a4fb129fa6a755baab2a2d256e9():
+def _process_dataclass__9ccc217df0e39879bfe7fcfb73e3db1d8e7b3e5a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -313,7 +310,7 @@ def _process_dataclass__932e07d884939a4fb129fa6a755baab2a2d256e9():
 
 
 @_register(
-    installer_sha1='d201643447ff40013c7b75e8d4ff39d2dc23b076',
+    installer_sha1='fb1e278a216e03d79b0facdcf716b2714cdba971',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -330,7 +327,7 @@ def _process_dataclass__932e07d884939a4fb129fa6a755baab2a2d256e9():
         ('omxtra.text.shparse.nodes', 'WordPart'),
     ),
 )
-def _process_dataclass__d201643447ff40013c7b75e8d4ff39d2dc23b076():
+def _process_dataclass__fb1e278a216e03d79b0facdcf716b2714cdba971():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -376,7 +373,7 @@ def _process_dataclass__d201643447ff40013c7b75e8d4ff39d2dc23b076():
 
 
 @_register(
-    installer_sha1='aae9854f7387036b544d816946a1578c8daf5b1c',
+    installer_sha1='7b8eaf4536a9fdc2d530701a34bf65d2d8381c42',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -391,7 +388,7 @@ def _process_dataclass__d201643447ff40013c7b75e8d4ff39d2dc23b076():
         ('omxtra.text.shparse.nodes', 'ArrayElem'),
     ),
 )
-def _process_dataclass__aae9854f7387036b544d816946a1578c8daf5b1c():
+def _process_dataclass__7b8eaf4536a9fdc2d530701a34bf65d2d8381c42():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -467,7 +464,7 @@ def _process_dataclass__aae9854f7387036b544d816946a1578c8daf5b1c():
 
 
 @_register(
-    installer_sha1='3e82d0c8777c0a66349a4448ca29a82f5929e9df',
+    installer_sha1='a2bbcfd92bff0649b8cd4a47e5667af6fb7f8f17',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -483,7 +480,7 @@ def _process_dataclass__aae9854f7387036b544d816946a1578c8daf5b1c():
         ('omxtra.text.shparse.nodes', 'ArrayExpr'),
     ),
 )
-def _process_dataclass__3e82d0c8777c0a66349a4448ca29a82f5929e9df():
+def _process_dataclass__a2bbcfd92bff0649b8cd4a47e5667af6fb7f8f17():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -572,7 +569,7 @@ def _process_dataclass__3e82d0c8777c0a66349a4448ca29a82f5929e9df():
 
 
 @_register(
-    installer_sha1='7313cf512f2a14142ba47ec1a2af9c0eab7c6ed0',
+    installer_sha1='15d80eb01236625dbc4edd1bb1282a6a5d302c63',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -590,7 +587,7 @@ def _process_dataclass__3e82d0c8777c0a66349a4448ca29a82f5929e9df():
         ('omxtra.text.shparse.nodes', 'Assign'),
     ),
 )
-def _process_dataclass__7313cf512f2a14142ba47ec1a2af9c0eab7c6ed0():
+def _process_dataclass__15d80eb01236625dbc4edd1bb1282a6a5d302c63():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -684,7 +681,7 @@ def _process_dataclass__7313cf512f2a14142ba47ec1a2af9c0eab7c6ed0():
 
 
 @_register(
-    installer_sha1='dd277911e2fcabc73f099d40ed9e303687e3cb10',
+    installer_sha1='5d9b9354f7ac23415fef9e35040b6b0295048b4b',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -702,7 +699,7 @@ def _process_dataclass__7313cf512f2a14142ba47ec1a2af9c0eab7c6ed0():
         ('omxtra.text.shparse.nodes', 'BinaryTest'),
     ),
 )
-def _process_dataclass__dd277911e2fcabc73f099d40ed9e303687e3cb10():
+def _process_dataclass__5d9b9354f7ac23415fef9e35040b6b0295048b4b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -785,7 +782,7 @@ def _process_dataclass__dd277911e2fcabc73f099d40ed9e303687e3cb10():
 
 
 @_register(
-    installer_sha1='43e72fe944f777e90f2464a71cc8d1761e5eab11',
+    installer_sha1='582d433f10ca51ecafdb45d5e660b5d69055b20d',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -801,7 +798,7 @@ def _process_dataclass__dd277911e2fcabc73f099d40ed9e303687e3cb10():
         ('omxtra.text.shparse.nodes', 'Block'),
     ),
 )
-def _process_dataclass__43e72fe944f777e90f2464a71cc8d1761e5eab11():
+def _process_dataclass__582d433f10ca51ecafdb45d5e660b5d69055b20d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -890,7 +887,7 @@ def _process_dataclass__43e72fe944f777e90f2464a71cc8d1761e5eab11():
 
 
 @_register(
-    installer_sha1='427d1000e1ed62cbe0ec4cea6ae1d1081121f855',
+    installer_sha1='7bb6d969a9b39943e8c87281ec6f4b08c6ab7775',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -904,7 +901,7 @@ def _process_dataclass__43e72fe944f777e90f2464a71cc8d1761e5eab11():
         ('omxtra.text.shparse.nodes', 'BraceExp'),
     ),
 )
-def _process_dataclass__427d1000e1ed62cbe0ec4cea6ae1d1081121f855():
+def _process_dataclass__7bb6d969a9b39943e8c87281ec6f4b08c6ab7775():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -973,7 +970,7 @@ def _process_dataclass__427d1000e1ed62cbe0ec4cea6ae1d1081121f855():
 
 
 @_register(
-    installer_sha1='14b2c3f481a82be1485432e6726696d1cd8f9224',
+    installer_sha1='20278416695d690d44689eab3f0fa9222b543aed',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -990,7 +987,7 @@ def _process_dataclass__427d1000e1ed62cbe0ec4cea6ae1d1081121f855():
         ('omxtra.text.shparse.nodes', 'CStyleLoop'),
     ),
 )
-def _process_dataclass__14b2c3f481a82be1485432e6726696d1cd8f9224():
+def _process_dataclass__20278416695d690d44689eab3f0fa9222b543aed():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1082,7 +1079,7 @@ def _process_dataclass__14b2c3f481a82be1485432e6726696d1cd8f9224():
 
 
 @_register(
-    installer_sha1='f33cc651957cfc20056d96f4875090ec0b6e736a',
+    installer_sha1='9582bcc6728a7df3ac6c60848f130abae2ef2f6f',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1096,7 +1093,7 @@ def _process_dataclass__14b2c3f481a82be1485432e6726696d1cd8f9224():
         ('omxtra.text.shparse.nodes', 'CallExpr'),
     ),
 )
-def _process_dataclass__f33cc651957cfc20056d96f4875090ec0b6e736a():
+def _process_dataclass__9582bcc6728a7df3ac6c60848f130abae2ef2f6f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1167,7 +1164,7 @@ def _process_dataclass__f33cc651957cfc20056d96f4875090ec0b6e736a():
 
 
 @_register(
-    installer_sha1='198ccc3f88745c63101cee5c32461599b30ea136',
+    installer_sha1='5d76c4bafe38c9e7f29ef9b1920585183c6bb621',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1186,7 +1183,7 @@ def _process_dataclass__f33cc651957cfc20056d96f4875090ec0b6e736a():
         ('omxtra.text.shparse.nodes', 'CaseClause'),
     ),
 )
-def _process_dataclass__198ccc3f88745c63101cee5c32461599b30ea136():
+def _process_dataclass__5d76c4bafe38c9e7f29ef9b1920585183c6bb621():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1298,7 +1295,7 @@ def _process_dataclass__198ccc3f88745c63101cee5c32461599b30ea136():
 
 
 @_register(
-    installer_sha1='a8252bee9b2cff74b0bbd238233d1585aaee1d90',
+    installer_sha1='05173cc7f34588bb76262067bb4444f73d9a3f70',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1316,7 +1313,7 @@ def _process_dataclass__198ccc3f88745c63101cee5c32461599b30ea136():
         ('omxtra.text.shparse.nodes', 'CaseItem'),
     ),
 )
-def _process_dataclass__a8252bee9b2cff74b0bbd238233d1585aaee1d90():
+def _process_dataclass__05173cc7f34588bb76262067bb4444f73d9a3f70():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1421,7 +1418,7 @@ def _process_dataclass__a8252bee9b2cff74b0bbd238233d1585aaee1d90():
 
 
 @_register(
-    installer_sha1='a4d51bf25b346d2cbe11b6106e98656fea9377ff',
+    installer_sha1='61520d51618b48660425f7cb971fb907813fabae',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1440,7 +1437,7 @@ def _process_dataclass__a8252bee9b2cff74b0bbd238233d1585aaee1d90():
         ('omxtra.text.shparse.nodes', 'CmdSubst'),
     ),
 )
-def _process_dataclass__a4d51bf25b346d2cbe11b6106e98656fea9377ff():
+def _process_dataclass__61520d51618b48660425f7cb971fb907813fabae():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1550,7 +1547,7 @@ def _process_dataclass__a4d51bf25b346d2cbe11b6106e98656fea9377ff():
 
 
 @_register(
-    installer_sha1='385a38d6b95a6ba96c0f90e063fb53f5a7bb5de5',
+    installer_sha1='681e8264af94088cf354da8a92e86330db18a8af',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1564,7 +1561,7 @@ def _process_dataclass__a4d51bf25b346d2cbe11b6106e98656fea9377ff():
         ('omxtra.text.shparse.nodes', 'Comment'),
     ),
 )
-def _process_dataclass__385a38d6b95a6ba96c0f90e063fb53f5a7bb5de5():
+def _process_dataclass__681e8264af94088cf354da8a92e86330db18a8af():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1633,7 +1630,7 @@ def _process_dataclass__385a38d6b95a6ba96c0f90e063fb53f5a7bb5de5():
 
 
 @_register(
-    installer_sha1='48922b1a8626c47ed9b7ece728274b19a743ddb4',
+    installer_sha1='c8a08ab769a4175c5a1a026454232a7f2bd27e90',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1648,7 +1645,7 @@ def _process_dataclass__385a38d6b95a6ba96c0f90e063fb53f5a7bb5de5():
         ('omxtra.text.shparse.nodes', 'CoprocClause'),
     ),
 )
-def _process_dataclass__48922b1a8626c47ed9b7ece728274b19a743ddb4():
+def _process_dataclass__c8a08ab769a4175c5a1a026454232a7f2bd27e90():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1724,7 +1721,7 @@ def _process_dataclass__48922b1a8626c47ed9b7ece728274b19a743ddb4():
 
 
 @_register(
-    installer_sha1='ae7f5fee7ddc303cd3484eca7cbf18a37341bfd5',
+    installer_sha1='5dff647833c43a827063f3990f4127d58317a645',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1740,7 +1737,7 @@ def _process_dataclass__48922b1a8626c47ed9b7ece728274b19a743ddb4():
         ('omxtra.text.shparse.nodes', 'DblQuoted'),
     ),
 )
-def _process_dataclass__ae7f5fee7ddc303cd3484eca7cbf18a37341bfd5():
+def _process_dataclass__5dff647833c43a827063f3990f4127d58317a645():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1827,7 +1824,7 @@ def _process_dataclass__ae7f5fee7ddc303cd3484eca7cbf18a37341bfd5():
 
 
 @_register(
-    installer_sha1='1410745696b59c190cc0e7cf7563dc737bdba329',
+    installer_sha1='c355bfb001725b96e27c084db09aa3341df9779d',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1841,7 +1838,7 @@ def _process_dataclass__ae7f5fee7ddc303cd3484eca7cbf18a37341bfd5():
         ('omxtra.text.shparse.nodes', 'DeclClause'),
     ),
 )
-def _process_dataclass__1410745696b59c190cc0e7cf7563dc737bdba329():
+def _process_dataclass__c355bfb001725b96e27c084db09aa3341df9779d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1910,7 +1907,7 @@ def _process_dataclass__1410745696b59c190cc0e7cf7563dc737bdba329():
 
 
 @_register(
-    installer_sha1='6c94db94724fc44df6dc39c7f0082dea082d06c9',
+    installer_sha1='3725cc3ee829592df792697e1a16cce9690d8240',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1924,7 +1921,7 @@ def _process_dataclass__1410745696b59c190cc0e7cf7563dc737bdba329():
         ('omxtra.text.shparse.nodes', 'Expansion'),
     ),
 )
-def _process_dataclass__6c94db94724fc44df6dc39c7f0082dea082d06c9():
+def _process_dataclass__3725cc3ee829592df792697e1a16cce9690d8240():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1990,7 +1987,7 @@ def _process_dataclass__6c94db94724fc44df6dc39c7f0082dea082d06c9():
 
 
 @_register(
-    installer_sha1='0e6f56ff155557f5916da14ca513e529b0813560',
+    installer_sha1='94fc8f6467e0884407fd4e56dff10d3b81ba29a1',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2005,7 +2002,7 @@ def _process_dataclass__6c94db94724fc44df6dc39c7f0082dea082d06c9():
         ('omxtra.text.shparse.nodes', 'ExtGlob'),
     ),
 )
-def _process_dataclass__0e6f56ff155557f5916da14ca513e529b0813560():
+def _process_dataclass__94fc8f6467e0884407fd4e56dff10d3b81ba29a1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2081,7 +2078,7 @@ def _process_dataclass__0e6f56ff155557f5916da14ca513e529b0813560():
 
 
 @_register(
-    installer_sha1='bfa4829e8c74b1850850246b4401bd604822e3d8',
+    installer_sha1='04f4d8de68e1504b606a0662053828aa07785615',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2096,7 +2093,7 @@ def _process_dataclass__0e6f56ff155557f5916da14ca513e529b0813560():
         ('omxtra.text.shparse.nodes', 'File'),
     ),
 )
-def _process_dataclass__bfa4829e8c74b1850850246b4401bd604822e3d8():
+def _process_dataclass__04f4d8de68e1504b606a0662053828aa07785615():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2174,7 +2171,7 @@ def _process_dataclass__bfa4829e8c74b1850850246b4401bd604822e3d8():
 
 
 @_register(
-    installer_sha1='4c0490e7c3ff92e77ccf0daf84b87db37b5269ad',
+    installer_sha1='6a36403bafa6ba559f09f449253e04bcb952c7d9',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2188,7 +2185,7 @@ def _process_dataclass__bfa4829e8c74b1850850246b4401bd604822e3d8():
         ('omxtra.text.shparse.nodes', 'FlagsArithm'),
     ),
 )
-def _process_dataclass__4c0490e7c3ff92e77ccf0daf84b87db37b5269ad():
+def _process_dataclass__6a36403bafa6ba559f09f449253e04bcb952c7d9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2254,7 +2251,7 @@ def _process_dataclass__4c0490e7c3ff92e77ccf0daf84b87db37b5269ad():
 
 
 @_register(
-    installer_sha1='718b50516ac021353a8be221abf870432e812650',
+    installer_sha1='0538da09ca423cd3f7cef38cfc3487b0d139c534',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2274,7 +2271,7 @@ def _process_dataclass__4c0490e7c3ff92e77ccf0daf84b87db37b5269ad():
         ('omxtra.text.shparse.nodes', 'ForClause'),
     ),
 )
-def _process_dataclass__718b50516ac021353a8be221abf870432e812650():
+def _process_dataclass__0538da09ca423cd3f7cef38cfc3487b0d139c534():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2393,7 +2390,7 @@ def _process_dataclass__718b50516ac021353a8be221abf870432e812650():
 
 
 @_register(
-    installer_sha1='639578498a49d29751bbba9a5b248c9b9e823d7c',
+    installer_sha1='09a829267a351a27d1efb41f21676d98ce48ef6f',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2411,7 +2408,7 @@ def _process_dataclass__718b50516ac021353a8be221abf870432e812650():
         ('omxtra.text.shparse.nodes', 'FuncDecl'),
     ),
 )
-def _process_dataclass__639578498a49d29751bbba9a5b248c9b9e823d7c():
+def _process_dataclass__09a829267a351a27d1efb41f21676d98ce48ef6f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2510,7 +2507,7 @@ def _process_dataclass__639578498a49d29751bbba9a5b248c9b9e823d7c():
 
 
 @_register(
-    installer_sha1='7bb33067b19e6a11670eeddc91f3fb8d821bc786',
+    installer_sha1='c5dd38e86f1153a9030c10793a4d8d4cdc32e8df',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2531,7 +2528,7 @@ def _process_dataclass__639578498a49d29751bbba9a5b248c9b9e823d7c():
         ('omxtra.text.shparse.nodes', 'IfClause'),
     ),
 )
-def _process_dataclass__7bb33067b19e6a11670eeddc91f3fb8d821bc786():
+def _process_dataclass__c5dd38e86f1153a9030c10793a4d8d4cdc32e8df():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2663,7 +2660,7 @@ def _process_dataclass__7bb33067b19e6a11670eeddc91f3fb8d821bc786():
 
 
 @_register(
-    installer_sha1='80b20491546de536ebb7675b9cf020fa37845d94',
+    installer_sha1='9d7cc6c4e0cca3cecc583de0f74430e819e5d01b',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2677,7 +2674,7 @@ def _process_dataclass__7bb33067b19e6a11670eeddc91f3fb8d821bc786():
         ('omxtra.text.shparse.nodes', 'LetClause'),
     ),
 )
-def _process_dataclass__80b20491546de536ebb7675b9cf020fa37845d94():
+def _process_dataclass__9d7cc6c4e0cca3cecc583de0f74430e819e5d01b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2748,7 +2745,7 @@ def _process_dataclass__80b20491546de536ebb7675b9cf020fa37845d94():
 
 
 @_register(
-    installer_sha1='7f19e80ab0c30a94aa2dd528022d558b04994beb',
+    installer_sha1='52b3cc9df6a7678203addb55ab4dcf684066a0e5',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, Fal"
@@ -2763,7 +2760,7 @@ def _process_dataclass__80b20491546de536ebb7675b9cf020fa37845d94():
         ('omxtra.text.shparse.nodes', 'Lit'),
     ),
 )
-def _process_dataclass__7f19e80ab0c30a94aa2dd528022d558b04994beb():
+def _process_dataclass__52b3cc9df6a7678203addb55ab4dcf684066a0e5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2842,7 +2839,7 @@ def _process_dataclass__7f19e80ab0c30a94aa2dd528022d558b04994beb():
 
 
 @_register(
-    installer_sha1='60db1017b5cdb43e3d3f9efc582377ba89f3c12e',
+    installer_sha1='3bb99335eb48d21d113806b92c988a278287127b',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2873,7 +2870,7 @@ def _process_dataclass__7f19e80ab0c30a94aa2dd528022d558b04994beb():
         ('omxtra.text.shparse.nodes', 'ParamExp'),
     ),
 )
-def _process_dataclass__60db1017b5cdb43e3d3f9efc582377ba89f3c12e():
+def _process_dataclass__3bb99335eb48d21d113806b92c988a278287127b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3065,7 +3062,7 @@ def _process_dataclass__60db1017b5cdb43e3d3f9efc582377ba89f3c12e():
 
 
 @_register(
-    installer_sha1='b8c35160f9e869467cc7963d35066d9c49497260',
+    installer_sha1='aa7c5b2a93b8bf51ec2cd650186a638e1cd6f032',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3081,7 +3078,7 @@ def _process_dataclass__60db1017b5cdb43e3d3f9efc582377ba89f3c12e():
         ('omxtra.text.shparse.nodes', 'ParenTest'),
     ),
 )
-def _process_dataclass__b8c35160f9e869467cc7963d35066d9c49497260():
+def _process_dataclass__aa7c5b2a93b8bf51ec2cd650186a638e1cd6f032():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3159,7 +3156,7 @@ def _process_dataclass__b8c35160f9e869467cc7963d35066d9c49497260():
 
 
 @_register(
-    installer_sha1='df1eb35fe4645c60aaab9902cb8a8a4cfc470196',
+    installer_sha1='49c58a8d90b1de9e6ee6c62ab6a8adf1ffaaaf4a',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3173,7 +3170,7 @@ def _process_dataclass__b8c35160f9e869467cc7963d35066d9c49497260():
         ('omxtra.text.shparse.nodes', 'Pos'),
     ),
 )
-def _process_dataclass__df1eb35fe4645c60aaab9902cb8a8a4cfc470196():
+def _process_dataclass__49c58a8d90b1de9e6ee6c62ab6a8adf1ffaaaf4a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3239,7 +3236,7 @@ def _process_dataclass__df1eb35fe4645c60aaab9902cb8a8a4cfc470196():
 
 
 @_register(
-    installer_sha1='8382b26f1b39f28cdc75fbfffb3ab86978993aa2',
+    installer_sha1='42a70da8ebd66ca2bcfbe78ab92296b3d744ab83',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3256,7 +3253,7 @@ def _process_dataclass__df1eb35fe4645c60aaab9902cb8a8a4cfc470196():
         ('omxtra.text.shparse.nodes', 'ProcSubst'),
     ),
 )
-def _process_dataclass__8382b26f1b39f28cdc75fbfffb3ab86978993aa2():
+def _process_dataclass__42a70da8ebd66ca2bcfbe78ab92296b3d744ab83():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3352,7 +3349,7 @@ def _process_dataclass__8382b26f1b39f28cdc75fbfffb3ab86978993aa2():
 
 
 @_register(
-    installer_sha1='46085236b56f89fa2e64226a43151632ea133f7d',
+    installer_sha1='aa8cf1fc32e2922295e86409409ed76e65b31fe8',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3369,7 +3366,7 @@ def _process_dataclass__8382b26f1b39f28cdc75fbfffb3ab86978993aa2():
         ('omxtra.text.shparse.nodes', 'Redirect'),
     ),
 )
-def _process_dataclass__46085236b56f89fa2e64226a43151632ea133f7d():
+def _process_dataclass__aa8cf1fc32e2922295e86409409ed76e65b31fe8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3459,7 +3456,7 @@ def _process_dataclass__46085236b56f89fa2e64226a43151632ea133f7d():
 
 
 @_register(
-    installer_sha1='320921465b4af348229a4a99552d294cf6c40900',
+    installer_sha1='96ca102c77e191fe9d63a61bb63d4172ba2b848d',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3474,7 +3471,7 @@ def _process_dataclass__46085236b56f89fa2e64226a43151632ea133f7d():
         ('omxtra.text.shparse.nodes', 'Replace'),
     ),
 )
-def _process_dataclass__320921465b4af348229a4a99552d294cf6c40900():
+def _process_dataclass__96ca102c77e191fe9d63a61bb63d4172ba2b848d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3547,7 +3544,7 @@ def _process_dataclass__320921465b4af348229a4a99552d294cf6c40900():
 
 
 @_register(
-    installer_sha1='2c8351abfc6d7186f894db36d2841b71ebdd72e5',
+    installer_sha1='d9db0585813f29d9163e4c4380e446845adf5718',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3563,7 +3560,7 @@ def _process_dataclass__320921465b4af348229a4a99552d294cf6c40900():
         ('omxtra.text.shparse.nodes', 'SglQuoted'),
     ),
 )
-def _process_dataclass__2c8351abfc6d7186f894db36d2841b71ebdd72e5():
+def _process_dataclass__d9db0585813f29d9163e4c4380e446845adf5718():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3648,7 +3645,7 @@ def _process_dataclass__2c8351abfc6d7186f894db36d2841b71ebdd72e5():
 
 
 @_register(
-    installer_sha1='105384dd0e27050a365360393d452308f59fa5d6',
+    installer_sha1='5c4484275594e1e4a46adafc1c8833532d12c119',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3662,7 +3659,7 @@ def _process_dataclass__2c8351abfc6d7186f894db36d2841b71ebdd72e5():
         ('omxtra.text.shparse.nodes', 'Slice'),
     ),
 )
-def _process_dataclass__105384dd0e27050a365360393d452308f59fa5d6():
+def _process_dataclass__5c4484275594e1e4a46adafc1c8833532d12c119():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3728,7 +3725,7 @@ def _process_dataclass__105384dd0e27050a365360393d452308f59fa5d6():
 
 
 @_register(
-    installer_sha1='2ed74e5d98f84a209e88719db60909e4a8a444d0',
+    installer_sha1='c9d4d73a1f61ec7c3002bfb8bbab8d410aa8fb61',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3749,7 +3746,7 @@ def _process_dataclass__105384dd0e27050a365360393d452308f59fa5d6():
         ('omxtra.text.shparse.nodes', 'Stmt'),
     ),
 )
-def _process_dataclass__2ed74e5d98f84a209e88719db60909e4a8a444d0():
+def _process_dataclass__c9d4d73a1f61ec7c3002bfb8bbab8d410aa8fb61():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3873,7 +3870,7 @@ def _process_dataclass__2ed74e5d98f84a209e88719db60909e4a8a444d0():
 
 
 @_register(
-    installer_sha1='955db194ac6c6d650095a79b5ced1f963470eb70',
+    installer_sha1='2d5767d81a27ac850350ba3dd58407560af0183d',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3889,7 +3886,7 @@ def _process_dataclass__2ed74e5d98f84a209e88719db60909e4a8a444d0():
         ('omxtra.text.shparse.nodes', 'Subshell'),
     ),
 )
-def _process_dataclass__955db194ac6c6d650095a79b5ced1f963470eb70():
+def _process_dataclass__2d5767d81a27ac850350ba3dd58407560af0183d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3978,7 +3975,7 @@ def _process_dataclass__955db194ac6c6d650095a79b5ced1f963470eb70():
 
 
 @_register(
-    installer_sha1='5a72583c55e25908b069020a87f56fd2d6d0805e',
+    installer_sha1='5465d6bf9c4640752499e5c5e657055fab45b091',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3993,7 +3990,7 @@ def _process_dataclass__955db194ac6c6d650095a79b5ced1f963470eb70():
         ('omxtra.text.shparse.nodes', 'TestClause'),
     ),
 )
-def _process_dataclass__5a72583c55e25908b069020a87f56fd2d6d0805e():
+def _process_dataclass__5465d6bf9c4640752499e5c5e657055fab45b091():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4071,7 +4068,7 @@ def _process_dataclass__5a72583c55e25908b069020a87f56fd2d6d0805e():
 
 
 @_register(
-    installer_sha1='95731c3b0aa48fd287369801029c8556df96cc51',
+    installer_sha1='a6f80c722686eaec6a676c08cab6604d819d8ed0',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4086,7 +4083,7 @@ def _process_dataclass__5a72583c55e25908b069020a87f56fd2d6d0805e():
         ('omxtra.text.shparse.nodes', 'TestDecl'),
     ),
 )
-def _process_dataclass__95731c3b0aa48fd287369801029c8556df96cc51():
+def _process_dataclass__a6f80c722686eaec6a676c08cab6604d819d8ed0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4162,7 +4159,7 @@ def _process_dataclass__95731c3b0aa48fd287369801029c8556df96cc51():
 
 
 @_register(
-    installer_sha1='c54fc16b3c0fc956d5a2719be14b1003913168a0',
+    installer_sha1='6f19648b9776d26100d4f3bdb196baeca27748fd',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4177,7 +4174,7 @@ def _process_dataclass__95731c3b0aa48fd287369801029c8556df96cc51():
         ('omxtra.text.shparse.nodes', 'TimeClause'),
     ),
 )
-def _process_dataclass__c54fc16b3c0fc956d5a2719be14b1003913168a0():
+def _process_dataclass__6f19648b9776d26100d4f3bdb196baeca27748fd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4253,7 +4250,7 @@ def _process_dataclass__c54fc16b3c0fc956d5a2719be14b1003913168a0():
 
 
 @_register(
-    installer_sha1='df2da673a406cb1b7ffa6ab20c7a047a48f90082',
+    installer_sha1='5215b8c48d830dbb46110a07ee8ae682352c1364',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4269,7 +4266,7 @@ def _process_dataclass__c54fc16b3c0fc956d5a2719be14b1003913168a0():
         ('omxtra.text.shparse.nodes', 'UnaryArithm'),
     ),
 )
-def _process_dataclass__df2da673a406cb1b7ffa6ab20c7a047a48f90082():
+def _process_dataclass__5215b8c48d830dbb46110a07ee8ae682352c1364():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4352,7 +4349,7 @@ def _process_dataclass__df2da673a406cb1b7ffa6ab20c7a047a48f90082():
 
 
 @_register(
-    installer_sha1='6d0e2a563b0422cb6ee7068f6e3816747c449fa8',
+    installer_sha1='65cac257f112df9124c9005b21da39eb3c2ccc0a',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4367,7 +4364,7 @@ def _process_dataclass__df2da673a406cb1b7ffa6ab20c7a047a48f90082():
         ('omxtra.text.shparse.nodes', 'UnaryTest'),
     ),
 )
-def _process_dataclass__6d0e2a563b0422cb6ee7068f6e3816747c449fa8():
+def _process_dataclass__65cac257f112df9124c9005b21da39eb3c2ccc0a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4443,7 +4440,7 @@ def _process_dataclass__6d0e2a563b0422cb6ee7068f6e3816747c449fa8():
 
 
 @_register(
-    installer_sha1='46a09e9b7a777fbc57c31ef7cf56e5c26cd2ae9e',
+    installer_sha1='6b0a5242800d893d0441a0e474d360905eb15222',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4463,7 +4460,7 @@ def _process_dataclass__6d0e2a563b0422cb6ee7068f6e3816747c449fa8():
         ('omxtra.text.shparse.nodes', 'WhileClause'),
     ),
 )
-def _process_dataclass__46a09e9b7a777fbc57c31ef7cf56e5c26cd2ae9e():
+def _process_dataclass__6b0a5242800d893d0441a0e474d360905eb15222():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4586,7 +4583,7 @@ def _process_dataclass__46a09e9b7a777fbc57c31ef7cf56e5c26cd2ae9e():
 
 
 @_register(
-    installer_sha1='e35fd6a369b3560475ba0269c5ad330bcf0eb5ac',
+    installer_sha1='4daa990fb410f7b8e4233211204499b38f566f89',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4599,7 +4596,7 @@ def _process_dataclass__46a09e9b7a777fbc57c31ef7cf56e5c26cd2ae9e():
         ('omxtra.text.shparse.nodes', 'Word'),
     ),
 )
-def _process_dataclass__e35fd6a369b3560475ba0269c5ad330bcf0eb5ac():
+def _process_dataclass__4daa990fb410f7b8e4233211204499b38f566f89():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4661,7 +4658,7 @@ def _process_dataclass__e35fd6a369b3560475ba0269c5ad330bcf0eb5ac():
 
 
 @_register(
-    installer_sha1='72d83b313018d5ea2898bde48aa0a3a17e686181',
+    installer_sha1='6401240e9bfab648548363b099b000a904e90095',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4676,7 +4673,7 @@ def _process_dataclass__e35fd6a369b3560475ba0269c5ad330bcf0eb5ac():
         ('omxtra.text.shparse.nodes', 'WordIter'),
     ),
 )
-def _process_dataclass__72d83b313018d5ea2898bde48aa0a3a17e686181():
+def _process_dataclass__6401240e9bfab648548363b099b000a904e90095():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4754,7 +4751,7 @@ def _process_dataclass__72d83b313018d5ea2898bde48aa0a3a17e686181():
 
 
 @_register(
-    installer_sha1='d11ae78a78eaab9d44db4ac37578dab1e61c53d1',
+    installer_sha1='a44771c4096f01c4fc0c8f65250e2cdba88f15dd',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4771,7 +4768,7 @@ def _process_dataclass__72d83b313018d5ea2898bde48aa0a3a17e686181():
         ('omxtra.text.shparse.parser', 'LangError'),
     ),
 )
-def _process_dataclass__d11ae78a78eaab9d44db4ac37578dab1e61c53d1():
+def _process_dataclass__a44771c4096f01c4fc0c8f65250e2cdba88f15dd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4853,7 +4850,7 @@ def _process_dataclass__d11ae78a78eaab9d44db4ac37578dab1e61c53d1():
 
 
 @_register(
-    installer_sha1='4b7b12d00243bad9ae960c34a19ea61a4366904d',
+    installer_sha1='1c417d8941458ec2dbc0f1af5546e151c334f964',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -4869,7 +4866,7 @@ def _process_dataclass__d11ae78a78eaab9d44db4ac37578dab1e61c53d1():
         ('omxtra.text.shparse.parser', 'ParseError'),
     ),
 )
-def _process_dataclass__4b7b12d00243bad9ae960c34a19ea61a4366904d():
+def _process_dataclass__1c417d8941458ec2dbc0f1af5546e151c334f964():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4946,7 +4943,7 @@ def _process_dataclass__4b7b12d00243bad9ae960c34a19ea61a4366904d():
 
 
 @_register(
-    installer_sha1='38bbee4a37ab0041a039423f47b7f0c5c20774f4',
+    installer_sha1='90b98588e9e33135b6b06acdbee11724b59c52ec',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4960,7 +4957,7 @@ def _process_dataclass__4b7b12d00243bad9ae960c34a19ea61a4366904d():
         ('omxtra.text.shparse.pattern', 'NegExtGlobGroup'),
     ),
 )
-def _process_dataclass__38bbee4a37ab0041a039423f47b7f0c5c20774f4():
+def _process_dataclass__90b98588e9e33135b6b06acdbee11724b59c52ec():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5057,7 +5054,7 @@ def _process_dataclass__38bbee4a37ab0041a039423f47b7f0c5c20774f4():
 
 
 @_register(
-    installer_sha1='ef1c58b8f0f76ba3588b6ded0d846257ace5454c',
+    installer_sha1='56d3f7e8675cf5b91f2566d89e1fae310100f5c2',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -5071,7 +5068,7 @@ def _process_dataclass__38bbee4a37ab0041a039423f47b7f0c5c20774f4():
         ('omxtra.text.shparse.quote', 'QuoteError'),
     ),
 )
-def _process_dataclass__ef1c58b8f0f76ba3588b6ded0d846257ace5454c():
+def _process_dataclass__56d3f7e8675cf5b91f2566d89e1fae310100f5c2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

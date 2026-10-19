@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='b6c196a8b667f5d194d90ea460a2d1b1853c92a7',
+    installer_sha1='93ab0c4693e88a32fde6f5787178e3d8f1ff0a88',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -47,7 +44,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omdev.minitui.vim.engine', '_UndoEntry'),
     ),
 )
-def _process_dataclass__b6c196a8b667f5d194d90ea460a2d1b1853c92a7():
+def _process_dataclass__93ab0c4693e88a32fde6f5787178e3d8f1ff0a88():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -152,7 +149,7 @@ def _process_dataclass__b6c196a8b667f5d194d90ea460a2d1b1853c92a7():
 
 
 @_register(
-    installer_sha1='fc97faf1cd4ed944e937870b4fdf8b7b71f23e3d',
+    installer_sha1='39f6cb49f0337e258a1095018199087cdff625bd',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -169,7 +166,7 @@ def _process_dataclass__b6c196a8b667f5d194d90ea460a2d1b1853c92a7():
         ('omdev.minitui.vim.motions', 'MotionResult'),
     ),
 )
-def _process_dataclass__fc97faf1cd4ed944e937870b4fdf8b7b71f23e3d():
+def _process_dataclass__39f6cb49f0337e258a1095018199087cdff625bd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -294,7 +291,7 @@ def _process_dataclass__fc97faf1cd4ed944e937870b4fdf8b7b71f23e3d():
 
 
 @_register(
-    installer_sha1='026afb5d024e07e4ec6d695e2bef612a0037cfa4',
+    installer_sha1='dc85d1a587f0ea1e062f7cdafdbaa059fd37ba0e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -312,7 +309,7 @@ def _process_dataclass__fc97faf1cd4ed944e937870b4fdf8b7b71f23e3d():
         ('omdev.minitui.vim.options', 'VimOptions'),
     ),
 )
-def _process_dataclass__026afb5d024e07e4ec6d695e2bef612a0037cfa4():
+def _process_dataclass__dc85d1a587f0ea1e062f7cdafdbaa059fd37ba0e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -447,7 +444,7 @@ def _process_dataclass__026afb5d024e07e4ec6d695e2bef612a0037cfa4():
 
 
 @_register(
-    installer_sha1='1cd6c360edd454d5ccf62c215864d63b48219312',
+    installer_sha1='649d0a009bfd589576a923ed01dead76a71e2592',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -469,7 +466,7 @@ def _process_dataclass__026afb5d024e07e4ec6d695e2bef612a0037cfa4():
         ('omdev.minitui.vim.parsing', 'Command'),
     ),
 )
-def _process_dataclass__1cd6c360edd454d5ccf62c215864d63b48219312():
+def _process_dataclass__649d0a009bfd589576a923ed01dead76a71e2592():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -641,7 +638,7 @@ def _process_dataclass__1cd6c360edd454d5ccf62c215864d63b48219312():
 
 
 @_register(
-    installer_sha1='6ee8ba7554e80f4063a9756b779217bcdb575389',
+    installer_sha1='15a48729eb6452980e683bb4cc25e0bb1f8ef3f0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -655,7 +652,7 @@ def _process_dataclass__1cd6c360edd454d5ccf62c215864d63b48219312():
         ('omdev.minitui.vim.registers', 'RegValue'),
     ),
 )
-def _process_dataclass__6ee8ba7554e80f4063a9756b779217bcdb575389():
+def _process_dataclass__15a48729eb6452980e683bb4cc25e0bb1f8ef3f0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -752,7 +749,7 @@ def _process_dataclass__6ee8ba7554e80f4063a9756b779217bcdb575389():
 
 
 @_register(
-    installer_sha1='e5bf9be8d48b02177ee763afec7b6a832d858b0d',
+    installer_sha1='692026ff61213c5711360c056211b7c3a9f99b68',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -766,7 +763,7 @@ def _process_dataclass__6ee8ba7554e80f4063a9756b779217bcdb575389():
         ('omdev.minitui.vim.status', 'Decoration'),
     ),
 )
-def _process_dataclass__e5bf9be8d48b02177ee763afec7b6a832d858b0d():
+def _process_dataclass__692026ff61213c5711360c056211b7c3a9f99b68():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -863,7 +860,7 @@ def _process_dataclass__e5bf9be8d48b02177ee763afec7b6a832d858b0d():
 
 
 @_register(
-    installer_sha1='3b0eb3b68357b5defd522ed5674fe0a704e705f6',
+    installer_sha1='3961afddcd35dcbe0aa2b219e8631846394fb967',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -880,7 +877,7 @@ def _process_dataclass__e5bf9be8d48b02177ee763afec7b6a832d858b0d():
         ('omdev.minitui.vim.status', 'VimStatus'),
     ),
 )
-def _process_dataclass__3b0eb3b68357b5defd522ed5674fe0a704e705f6():
+def _process_dataclass__3961afddcd35dcbe0aa2b219e8631846394fb967():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1006,7 +1003,7 @@ def _process_dataclass__3b0eb3b68357b5defd522ed5674fe0a704e705f6():
 
 
 @_register(
-    installer_sha1='7eaf9d567a663637ab745102e7f879c735b08b55',
+    installer_sha1='09d08149b5ca0a955b26836820b48dffe71f27bf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1020,7 +1017,7 @@ def _process_dataclass__3b0eb3b68357b5defd522ed5674fe0a704e705f6():
         ('omdev.minitui.vim.substitutes', 'ExRange'),
     ),
 )
-def _process_dataclass__7eaf9d567a663637ab745102e7f879c735b08b55():
+def _process_dataclass__09d08149b5ca0a955b26836820b48dffe71f27bf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1117,7 +1114,7 @@ def _process_dataclass__7eaf9d567a663637ab745102e7f879c735b08b55():
 
 
 @_register(
-    installer_sha1='2d7b7e4322041c9edc9442c6effcd3316d0177ea',
+    installer_sha1='2f38d057e95bba9bf6c44ef39073cdbb1b775d14',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1132,7 +1129,7 @@ def _process_dataclass__7eaf9d567a663637ab745102e7f879c735b08b55():
         ('omdev.minitui.vim.substitutes', 'SubstituteResult'),
     ),
 )
-def _process_dataclass__2d7b7e4322041c9edc9442c6effcd3316d0177ea():
+def _process_dataclass__2f38d057e95bba9bf6c44ef39073cdbb1b775d14():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1237,7 +1234,7 @@ def _process_dataclass__2d7b7e4322041c9edc9442c6effcd3316d0177ea():
 
 
 @_register(
-    installer_sha1='33ade4706fff818fd2a01d9297318d5153143dff',
+    installer_sha1='2b4cc745f1f257f9cb78ab4bf237d2464f6bc2dc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1253,7 +1250,7 @@ def _process_dataclass__2d7b7e4322041c9edc9442c6effcd3316d0177ea():
         ('omdev.minitui.vim.substitutes', 'SubstituteSpec'),
     ),
 )
-def _process_dataclass__33ade4706fff818fd2a01d9297318d5153143dff():
+def _process_dataclass__2b4cc745f1f257f9cb78ab4bf237d2464f6bc2dc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

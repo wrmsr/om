@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -44,7 +41,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.agent.eval.permissions', 'EvalPermissionMatcher'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -112,7 +109,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='e15929a8a3a8049035dd0697a05fa62c388b3128',
+    installer_sha1='4207d7305b2b9af31c436247b41b5c418249fd39',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -126,7 +123,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omllm.agent.eval.permissions', 'EvalPermissionTarget'),
     ),
 )
-def _process_dataclass__e15929a8a3a8049035dd0697a05fa62c388b3128():
+def _process_dataclass__4207d7305b2b9af31c436247b41b5c418249fd39():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -224,7 +221,7 @@ def _process_dataclass__e15929a8a3a8049035dd0697a05fa62c388b3128():
 
 
 @_register(
-    installer_sha1='7d99588187a4e750b5fb38db9e792978199d0c37',
+    installer_sha1='234adbb87279e39f8483e7984886127c53cab5cf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -238,7 +235,7 @@ def _process_dataclass__e15929a8a3a8049035dd0697a05fa62c388b3128():
         ('omllm.agent.eval.tools.quickjs', 'QuickjsToolParams'),
     ),
 )
-def _process_dataclass__7d99588187a4e750b5fb38db9e792978199d0c37():
+def _process_dataclass__234adbb87279e39f8483e7984886127c53cab5cf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

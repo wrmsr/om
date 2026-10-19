@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='4e717c238aa4cb85a7f0dea7e0fbe9992cc7c30f',
+    installer_sha1='1c3784aa69f618ad24cb8d460c8511fa308bd182',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -47,7 +44,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.core.http.sse', 'SseEvent'),
     ),
 )
-def _process_dataclass__4e717c238aa4cb85a7f0dea7e0fbe9992cc7c30f():
+def _process_dataclass__1c3784aa69f618ad24cb8d460c8511fa308bd182():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

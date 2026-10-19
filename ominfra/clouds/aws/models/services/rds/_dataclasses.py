@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='d483803c8b8f15916684dabc6604eda7c61d87d9',
+    installer_sha1='8167aa68e966fa4029d858916338472b8d8da4ed',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -51,7 +48,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('ominfra.clouds.aws.models.services.rds', 'AdditionalStorageVolume'),
     ),
 )
-def _process_dataclass__d483803c8b8f15916684dabc6604eda7c61d87d9():
+def _process_dataclass__8167aa68e966fa4029d858916338472b8d8da4ed():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -188,7 +185,7 @@ def _process_dataclass__d483803c8b8f15916684dabc6604eda7c61d87d9():
 
 
 @_register(
-    installer_sha1='2effd8a3025d3310831df773f6a359de01595aeb',
+    installer_sha1='c2e5cac7fca386a1fe775382b6001eba3d995362',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -211,7 +208,7 @@ def _process_dataclass__d483803c8b8f15916684dabc6604eda7c61d87d9():
         ('ominfra.clouds.aws.models.services.rds', 'AdditionalStorageVolumeOutput'),
     ),
 )
-def _process_dataclass__2effd8a3025d3310831df773f6a359de01595aeb():
+def _process_dataclass__c2e5cac7fca386a1fe775382b6001eba3d995362():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -376,7 +373,7 @@ def _process_dataclass__2effd8a3025d3310831df773f6a359de01595aeb():
 
 
 @_register(
-    installer_sha1='23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6',
+    installer_sha1='9f2b574e4f5ed95f27741e71c5b3173b55b5fd46',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -416,7 +413,7 @@ def _process_dataclass__2effd8a3025d3310831df773f6a359de01595aeb():
         ('ominfra.clouds.aws.models.services.rds', 'VpcEncryptionControlViolationException'),
     ),
 )
-def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
+def _process_dataclass__9f2b574e4f5ed95f27741e71c5b3173b55b5fd46():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -491,7 +488,7 @@ def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
 
 
 @_register(
-    installer_sha1='1d54f0e79f9555ab3393b80415a6078f900b8d21',
+    installer_sha1='d6d95309b9bf28def09e4690e2a0de4efed8a882',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -505,7 +502,7 @@ def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
         ('ominfra.clouds.aws.models.services.rds', 'AvailabilityZone'),
     ),
 )
-def _process_dataclass__1d54f0e79f9555ab3393b80415a6078f900b8d21():
+def _process_dataclass__d6d95309b9bf28def09e4690e2a0de4efed8a882():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -598,7 +595,7 @@ def _process_dataclass__1d54f0e79f9555ab3393b80415a6078f900b8d21():
 
 
 @_register(
-    installer_sha1='bbb1d032a77cb075cd9760117b990a4e2e4a3249',
+    installer_sha1='fbbcab5239be161d231b984c3b710fa7600d9cce',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -613,7 +610,7 @@ def _process_dataclass__1d54f0e79f9555ab3393b80415a6078f900b8d21():
         ('ominfra.clouds.aws.models.services.rds', 'CertificateDetails'),
     ),
 )
-def _process_dataclass__bbb1d032a77cb075cd9760117b990a4e2e4a3249():
+def _process_dataclass__fbbcab5239be161d231b984c3b710fa7600d9cce():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -715,7 +712,7 @@ def _process_dataclass__bbb1d032a77cb075cd9760117b990a4e2e4a3249():
 
 
 @_register(
-    installer_sha1='656a146807f1abd624694d4f11b5988c9b486ea8',
+    installer_sha1='8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -802,7 +799,7 @@ def _process_dataclass__bbb1d032a77cb075cd9760117b990a4e2e4a3249():
         ('ominfra.clouds.aws.models.services.rds', 'CreateDBInstanceMessage'),
     ),
 )
-def _process_dataclass__656a146807f1abd624694d4f11b5988c9b486ea8():
+def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1486,7 +1483,7 @@ def _process_dataclass__656a146807f1abd624694d4f11b5988c9b486ea8():
 
 
 @_register(
-    installer_sha1='b96e3a8edc26faedfc34e34ad72ad81bfee82fee',
+    installer_sha1='b2f0a4eaae34ddb82da127c87aa18a3127781f9b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1504,7 +1501,7 @@ def _process_dataclass__656a146807f1abd624694d4f11b5988c9b486ea8():
         ('ominfra.clouds.aws.models.services.rds', 'StopDBInstanceResult'),
     ),
 )
-def _process_dataclass__b96e3a8edc26faedfc34e34ad72ad81bfee82fee():
+def _process_dataclass__b2f0a4eaae34ddb82da127c87aa18a3127781f9b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1597,7 +1594,7 @@ def _process_dataclass__b96e3a8edc26faedfc34e34ad72ad81bfee82fee():
 
 
 @_register(
-    installer_sha1='e46e35686fba0a8e2aa5d19676cb617b88b3cd22',
+    installer_sha1='67c964771b8dca4e9bee05042eb31559f2e92a02',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1715,7 +1712,7 @@ def _process_dataclass__b96e3a8edc26faedfc34e34ad72ad81bfee82fee():
         ('ominfra.clouds.aws.models.services.rds', 'DBInstance'),
     ),
 )
-def _process_dataclass__e46e35686fba0a8e2aa5d19676cb617b88b3cd22():
+def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2636,7 +2633,7 @@ def _process_dataclass__e46e35686fba0a8e2aa5d19676cb617b88b3cd22():
 
 
 @_register(
-    installer_sha1='119ab1c224ed6a03592aeafab078c63c1c7fd50c',
+    installer_sha1='11103a59bd21307321fc9403e1ff81cb104b9bbb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2650,7 +2647,7 @@ def _process_dataclass__e46e35686fba0a8e2aa5d19676cb617b88b3cd22():
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceAutomatedBackupsReplication'),
     ),
 )
-def _process_dataclass__119ab1c224ed6a03592aeafab078c63c1c7fd50c():
+def _process_dataclass__11103a59bd21307321fc9403e1ff81cb104b9bbb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2743,7 +2740,7 @@ def _process_dataclass__119ab1c224ed6a03592aeafab078c63c1c7fd50c():
 
 
 @_register(
-    installer_sha1='179bc13374d14293e6e4482da15639f7814acdb9',
+    installer_sha1='1e977380f0ac813caed4d75a15a627d00acdf32f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2758,7 +2755,7 @@ def _process_dataclass__119ab1c224ed6a03592aeafab078c63c1c7fd50c():
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceMessage'),
     ),
 )
-def _process_dataclass__179bc13374d14293e6e4482da15639f7814acdb9():
+def _process_dataclass__1e977380f0ac813caed4d75a15a627d00acdf32f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2860,7 +2857,7 @@ def _process_dataclass__179bc13374d14293e6e4482da15639f7814acdb9():
 
 
 @_register(
-    installer_sha1='50b4823012fa2cbc57b26e6cc0de96283b73cd69',
+    installer_sha1='5b1e0bb57083c002cc3d8c0bf760334dafdcf7d8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2876,7 +2873,7 @@ def _process_dataclass__179bc13374d14293e6e4482da15639f7814acdb9():
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceRole'),
     ),
 )
-def _process_dataclass__50b4823012fa2cbc57b26e6cc0de96283b73cd69():
+def _process_dataclass__5b1e0bb57083c002cc3d8c0bf760334dafdcf7d8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2987,7 +2984,7 @@ def _process_dataclass__50b4823012fa2cbc57b26e6cc0de96283b73cd69():
 
 
 @_register(
-    installer_sha1='3bbbfa38a25b94d79376e5c1aa001ac55298e4d4',
+    installer_sha1='be814d4b35b1df37ce62523769ca625fc7c3dd3b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3004,7 +3001,7 @@ def _process_dataclass__50b4823012fa2cbc57b26e6cc0de96283b73cd69():
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceStatusInfo'),
     ),
 )
-def _process_dataclass__3bbbfa38a25b94d79376e5c1aa001ac55298e4d4():
+def _process_dataclass__be814d4b35b1df37ce62523769ca625fc7c3dd3b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3124,7 +3121,7 @@ def _process_dataclass__3bbbfa38a25b94d79376e5c1aa001ac55298e4d4():
 
 
 @_register(
-    installer_sha1='b3784f8712a5cf1b532411ed6964a5dd3fbc6b45',
+    installer_sha1='0e9d2427a812e5a1f23c358e159d800c02c1558e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3139,7 +3136,7 @@ def _process_dataclass__3bbbfa38a25b94d79376e5c1aa001ac55298e4d4():
         ('ominfra.clouds.aws.models.services.rds', 'DBParameterGroupStatus'),
     ),
 )
-def _process_dataclass__b3784f8712a5cf1b532411ed6964a5dd3fbc6b45():
+def _process_dataclass__0e9d2427a812e5a1f23c358e159d800c02c1558e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3241,7 +3238,7 @@ def _process_dataclass__b3784f8712a5cf1b532411ed6964a5dd3fbc6b45():
 
 
 @_register(
-    installer_sha1='f94f767e7e2a53c7bb3f32b1d0245271c39616fb',
+    installer_sha1='4662f20535f925fd2beef71b8bb405aa2bae485c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3256,7 +3253,7 @@ def _process_dataclass__b3784f8712a5cf1b532411ed6964a5dd3fbc6b45():
         ('ominfra.clouds.aws.models.services.rds', 'DBSecurityGroupMembership'),
     ),
 )
-def _process_dataclass__f94f767e7e2a53c7bb3f32b1d0245271c39616fb():
+def _process_dataclass__4662f20535f925fd2beef71b8bb405aa2bae485c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3358,7 +3355,7 @@ def _process_dataclass__f94f767e7e2a53c7bb3f32b1d0245271c39616fb():
 
 
 @_register(
-    installer_sha1='a07601ffc870a42220f37e7ff9d138cee848f927',
+    installer_sha1='589740d0b08d757e92b7ed5dfc4f2a2e1e3e736f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3378,7 +3375,7 @@ def _process_dataclass__f94f767e7e2a53c7bb3f32b1d0245271c39616fb():
         ('ominfra.clouds.aws.models.services.rds', 'DBSubnetGroup'),
     ),
 )
-def _process_dataclass__a07601ffc870a42220f37e7ff9d138cee848f927():
+def _process_dataclass__589740d0b08d757e92b7ed5dfc4f2a2e1e3e736f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3525,7 +3522,7 @@ def _process_dataclass__a07601ffc870a42220f37e7ff9d138cee848f927():
 
 
 @_register(
-    installer_sha1='3b3447da704a504301d048be4b47d0e153c1e5ce',
+    installer_sha1='d1cd981679594be964af974787a2c3e04c9a17c3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3542,7 +3539,7 @@ def _process_dataclass__a07601ffc870a42220f37e7ff9d138cee848f927():
         ('ominfra.clouds.aws.models.services.rds', 'DeleteDBInstanceMessage'),
     ),
 )
-def _process_dataclass__3b3447da704a504301d048be4b47d0e153c1e5ce():
+def _process_dataclass__d1cd981679594be964af974787a2c3e04c9a17c3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3661,7 +3658,7 @@ def _process_dataclass__3b3447da704a504301d048be4b47d0e153c1e5ce():
 
 
 @_register(
-    installer_sha1='d3c7cba42290aba517ae1cb761dedf44a72c5f8a',
+    installer_sha1='70d957eef00457138c2d3f045ad067bac1c0b782',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3678,7 +3675,7 @@ def _process_dataclass__3b3447da704a504301d048be4b47d0e153c1e5ce():
         ('ominfra.clouds.aws.models.services.rds', 'DescribeDBInstancesMessage'),
     ),
 )
-def _process_dataclass__d3c7cba42290aba517ae1cb761dedf44a72c5f8a():
+def _process_dataclass__70d957eef00457138c2d3f045ad067bac1c0b782():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3798,7 +3795,7 @@ def _process_dataclass__d3c7cba42290aba517ae1cb761dedf44a72c5f8a():
 
 
 @_register(
-    installer_sha1='0aaee42e4d1f458c0b19a3773387c2c67ec5606e',
+    installer_sha1='e4d71171b40603143db99508a8a8b5290751040c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3818,7 +3815,7 @@ def _process_dataclass__d3c7cba42290aba517ae1cb761dedf44a72c5f8a():
         ('ominfra.clouds.aws.models.services.rds', 'DomainMembership'),
     ),
 )
-def _process_dataclass__0aaee42e4d1f458c0b19a3773387c2c67ec5606e():
+def _process_dataclass__e4d71171b40603143db99508a8a8b5290751040c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3965,7 +3962,7 @@ def _process_dataclass__0aaee42e4d1f458c0b19a3773387c2c67ec5606e():
 
 
 @_register(
-    installer_sha1='f4b335ac7a2d06019d9f707d8daa1b1a610f024c',
+    installer_sha1='c86fb0b65ee15497fbee596f09207d05be0aadaf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3981,7 +3978,7 @@ def _process_dataclass__0aaee42e4d1f458c0b19a3773387c2c67ec5606e():
         ('ominfra.clouds.aws.models.services.rds', 'Endpoint'),
     ),
 )
-def _process_dataclass__f4b335ac7a2d06019d9f707d8daa1b1a610f024c():
+def _process_dataclass__c86fb0b65ee15497fbee596f09207d05be0aadaf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4092,7 +4089,7 @@ def _process_dataclass__f4b335ac7a2d06019d9f707d8daa1b1a610f024c():
 
 
 @_register(
-    installer_sha1='21142fae7a13d66dd910b350ac4c840d29ae2dfb',
+    installer_sha1='e8c725ee32f89351a43e43b6c46629e342d8c77c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4107,7 +4104,7 @@ def _process_dataclass__f4b335ac7a2d06019d9f707d8daa1b1a610f024c():
         ('ominfra.clouds.aws.models.services.rds', 'Filter'),
     ),
 )
-def _process_dataclass__21142fae7a13d66dd910b350ac4c840d29ae2dfb():
+def _process_dataclass__e8c725ee32f89351a43e43b6c46629e342d8c77c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4207,7 +4204,7 @@ def _process_dataclass__21142fae7a13d66dd910b350ac4c840d29ae2dfb():
 
 
 @_register(
-    installer_sha1='4eb76eae390d6a3e798516034c677b09e9f1dcf0',
+    installer_sha1='c4f6343063efe20170206824941776f7c8f6c79e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4223,7 +4220,7 @@ def _process_dataclass__21142fae7a13d66dd910b350ac4c840d29ae2dfb():
         ('ominfra.clouds.aws.models.services.rds', 'MasterUserSecret'),
     ),
 )
-def _process_dataclass__4eb76eae390d6a3e798516034c677b09e9f1dcf0():
+def _process_dataclass__c4f6343063efe20170206824941776f7c8f6c79e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4334,7 +4331,7 @@ def _process_dataclass__4eb76eae390d6a3e798516034c677b09e9f1dcf0():
 
 
 @_register(
-    installer_sha1='b6eb9e253c256654a786809a982a3eee8fbbeedb',
+    installer_sha1='3c6c305abb0528ccce8fe53cf1f20c6e05b03312',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4349,7 +4346,7 @@ def _process_dataclass__4eb76eae390d6a3e798516034c677b09e9f1dcf0():
         ('ominfra.clouds.aws.models.services.rds', 'OptionGroupMembership'),
     ),
 )
-def _process_dataclass__b6eb9e253c256654a786809a982a3eee8fbbeedb():
+def _process_dataclass__3c6c305abb0528ccce8fe53cf1f20c6e05b03312():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4451,7 +4448,7 @@ def _process_dataclass__b6eb9e253c256654a786809a982a3eee8fbbeedb():
 
 
 @_register(
-    installer_sha1='b6f91ccfac47c466183137ec0d9a608258e7ff52',
+    installer_sha1='36648668ae11f0cc629d28a644f9bd024127eed5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4465,7 +4462,7 @@ def _process_dataclass__b6eb9e253c256654a786809a982a3eee8fbbeedb():
         ('ominfra.clouds.aws.models.services.rds', 'Outpost'),
     ),
 )
-def _process_dataclass__b6f91ccfac47c466183137ec0d9a608258e7ff52():
+def _process_dataclass__36648668ae11f0cc629d28a644f9bd024127eed5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4558,7 +4555,7 @@ def _process_dataclass__b6f91ccfac47c466183137ec0d9a608258e7ff52():
 
 
 @_register(
-    installer_sha1='e36e93701173e1ac63e1c00bb3ff9a1e91837ba8',
+    installer_sha1='442532fa4cf431a41cb5e1f9ad8acb569bf53588',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4573,7 +4570,7 @@ def _process_dataclass__b6f91ccfac47c466183137ec0d9a608258e7ff52():
         ('ominfra.clouds.aws.models.services.rds', 'PendingCloudwatchLogsExports'),
     ),
 )
-def _process_dataclass__e36e93701173e1ac63e1c00bb3ff9a1e91837ba8():
+def _process_dataclass__442532fa4cf431a41cb5e1f9ad8acb569bf53588():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4675,7 +4672,7 @@ def _process_dataclass__e36e93701173e1ac63e1c00bb3ff9a1e91837ba8():
 
 
 @_register(
-    installer_sha1='cfad17bbb4865b56c32437db12745bb934d82dc8',
+    installer_sha1='7aa8c5828a591edaeaf73be8a643dca2f63148ce',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4713,7 +4710,7 @@ def _process_dataclass__e36e93701173e1ac63e1c00bb3ff9a1e91837ba8():
         ('ominfra.clouds.aws.models.services.rds', 'PendingModifiedValues'),
     ),
 )
-def _process_dataclass__cfad17bbb4865b56c32437db12745bb934d82dc8():
+def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5004,7 +5001,7 @@ def _process_dataclass__cfad17bbb4865b56c32437db12745bb934d82dc8():
 
 
 @_register(
-    installer_sha1='868c7bc6021648d31c80e0b7086870081451f48f',
+    installer_sha1='7cff0dce53632a39bb7fddabf9d169ec9d4042af',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5019,7 +5016,7 @@ def _process_dataclass__cfad17bbb4865b56c32437db12745bb934d82dc8():
         ('ominfra.clouds.aws.models.services.rds', 'ProcessorFeature'),
     ),
 )
-def _process_dataclass__868c7bc6021648d31c80e0b7086870081451f48f():
+def _process_dataclass__7cff0dce53632a39bb7fddabf9d169ec9d4042af():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5121,7 +5118,7 @@ def _process_dataclass__868c7bc6021648d31c80e0b7086870081451f48f():
 
 
 @_register(
-    installer_sha1='b59928241da14a4282bcb8db01524244d9941708',
+    installer_sha1='a81ea77ab8641895fa77d53054cd836ac32d058b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5136,7 +5133,7 @@ def _process_dataclass__868c7bc6021648d31c80e0b7086870081451f48f():
         ('ominfra.clouds.aws.models.services.rds', 'RebootDBInstanceMessage'),
     ),
 )
-def _process_dataclass__b59928241da14a4282bcb8db01524244d9941708():
+def _process_dataclass__a81ea77ab8641895fa77d53054cd836ac32d058b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5237,7 +5234,7 @@ def _process_dataclass__b59928241da14a4282bcb8db01524244d9941708():
 
 
 @_register(
-    installer_sha1='230bd3f3eb38398fc5902daf6773b144f1958c8b',
+    installer_sha1='0bccb2e13139f39e2a518cc29e82773f5327e4c3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5251,7 +5248,7 @@ def _process_dataclass__b59928241da14a4282bcb8db01524244d9941708():
         ('ominfra.clouds.aws.models.services.rds', 'StartDBInstanceMessage'),
     ),
 )
-def _process_dataclass__230bd3f3eb38398fc5902daf6773b144f1958c8b():
+def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5343,7 +5340,7 @@ def _process_dataclass__230bd3f3eb38398fc5902daf6773b144f1958c8b():
 
 
 @_register(
-    installer_sha1='1042ae28fa60bffee61ee11505e06e7bfc4a0c1d',
+    installer_sha1='0d21e767eb8d021bb45fa2d23026077f1c720d06',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5358,7 +5355,7 @@ def _process_dataclass__230bd3f3eb38398fc5902daf6773b144f1958c8b():
         ('ominfra.clouds.aws.models.services.rds', 'StopDBInstanceMessage'),
     ),
 )
-def _process_dataclass__1042ae28fa60bffee61ee11505e06e7bfc4a0c1d():
+def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5459,7 +5456,7 @@ def _process_dataclass__1042ae28fa60bffee61ee11505e06e7bfc4a0c1d():
 
 
 @_register(
-    installer_sha1='de9b503562a4d8bd75d2c1e34eeed3af0e5f610d',
+    installer_sha1='ad8cfc9f896b42d9794ceff55f2c9a510952e566',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5476,7 +5473,7 @@ def _process_dataclass__1042ae28fa60bffee61ee11505e06e7bfc4a0c1d():
         ('ominfra.clouds.aws.models.services.rds', 'Subnet'),
     ),
 )
-def _process_dataclass__de9b503562a4d8bd75d2c1e34eeed3af0e5f610d():
+def _process_dataclass__ad8cfc9f896b42d9794ceff55f2c9a510952e566():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5596,7 +5593,7 @@ def _process_dataclass__de9b503562a4d8bd75d2c1e34eeed3af0e5f610d():
 
 
 @_register(
-    installer_sha1='6800d064b1a5156893763a9990ac9f94b500e067',
+    installer_sha1='2c6416fe4be63e9bb077ffe9b9a517cfdd70bbdc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5611,7 +5608,7 @@ def _process_dataclass__de9b503562a4d8bd75d2c1e34eeed3af0e5f610d():
         ('ominfra.clouds.aws.models.services.rds', 'TagSpecification'),
     ),
 )
-def _process_dataclass__6800d064b1a5156893763a9990ac9f94b500e067():
+def _process_dataclass__2c6416fe4be63e9bb077ffe9b9a517cfdd70bbdc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5713,7 +5710,7 @@ def _process_dataclass__6800d064b1a5156893763a9990ac9f94b500e067():
 
 
 @_register(
-    installer_sha1='f89b7da0435b303082e1a81af5436fc49ec8ec0f',
+    installer_sha1='6fd21fa7045ab1577d655ee1124fa46c98802358',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5728,7 +5725,7 @@ def _process_dataclass__6800d064b1a5156893763a9990ac9f94b500e067():
         ('ominfra.clouds.aws.models.services.rds', 'VpcSecurityGroupMembership'),
     ),
 )
-def _process_dataclass__f89b7da0435b303082e1a81af5436fc49ec8ec0f():
+def _process_dataclass__6fd21fa7045ab1577d655ee1124fa46c98802358():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

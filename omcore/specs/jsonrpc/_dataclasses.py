@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='fc684c66945d0605ffba9295cbe4ae60186c8e10',
+    installer_sha1='4851d25313826ca0d70db6a08f90aaa69b74f3e2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -45,7 +42,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.specs.jsonrpc._marshal', 'NotSpecifiedUnionMarshaler'),
     ),
 )
-def _process_dataclass__fc684c66945d0605ffba9295cbe4ae60186c8e10():
+def _process_dataclass__4851d25313826ca0d70db6a08f90aaa69b74f3e2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -134,7 +131,7 @@ def _process_dataclass__fc684c66945d0605ffba9295cbe4ae60186c8e10():
 
 
 @_register(
-    installer_sha1='6bd8f432f86825e503b266ed83167e48a8103415',
+    installer_sha1='2987617b785d5ef7163a161c41d15972d7b7f6d5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -148,7 +145,7 @@ def _process_dataclass__fc684c66945d0605ffba9295cbe4ae60186c8e10():
         ('omcore.specs.jsonrpc.dispatch', 'JsonrpcDispatchContext'),
     ),
 )
-def _process_dataclass__6bd8f432f86825e503b266ed83167e48a8103415():
+def _process_dataclass__2987617b785d5ef7163a161c41d15972d7b7f6d5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -245,7 +242,7 @@ def _process_dataclass__6bd8f432f86825e503b266ed83167e48a8103415():
 
 
 @_register(
-    installer_sha1='dc2bc794cbc3e5de84bf19f3ba25d67c6b3b9fbd',
+    installer_sha1='fc095cc22000e45c2bf9678cb4165200f3c84af8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -259,7 +256,7 @@ def _process_dataclass__6bd8f432f86825e503b266ed83167e48a8103415():
         ('omcore.specs.jsonrpc.dispatch', 'JsonrpcMethod'),
     ),
 )
-def _process_dataclass__dc2bc794cbc3e5de84bf19f3ba25d67c6b3b9fbd():
+def _process_dataclass__fc095cc22000e45c2bf9678cb4165200f3c84af8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -358,7 +355,7 @@ def _process_dataclass__dc2bc794cbc3e5de84bf19f3ba25d67c6b3b9fbd():
 
 
 @_register(
-    installer_sha1='7493bae5e7dc68ae02d72a77f62f33db4339bbf2',
+    installer_sha1='0d6582149a9688574b191c067b6980ad4ad2f659',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -373,7 +370,7 @@ def _process_dataclass__dc2bc794cbc3e5de84bf19f3ba25d67c6b3b9fbd():
         ('omcore.specs.jsonrpc.errors', 'KnownError'),
     ),
 )
-def _process_dataclass__7493bae5e7dc68ae02d72a77f62f33db4339bbf2():
+def _process_dataclass__0d6582149a9688574b191c067b6980ad4ad2f659():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -478,7 +475,7 @@ def _process_dataclass__7493bae5e7dc68ae02d72a77f62f33db4339bbf2():
 
 
 @_register(
-    installer_sha1='97783633aa5fac077ff106f5ed0cff973219e479',
+    installer_sha1='b3d23d8cbeb80b77be5b7bf13654226c60d7ffa3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -493,7 +490,7 @@ def _process_dataclass__7493bae5e7dc68ae02d72a77f62f33db4339bbf2():
         ('omcore.specs.jsonrpc.parsing', 'ParseOptions'),
     ),
 )
-def _process_dataclass__97783633aa5fac077ff106f5ed0cff973219e479():
+def _process_dataclass__b3d23d8cbeb80b77be5b7bf13654226c60d7ffa3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -595,7 +592,7 @@ def _process_dataclass__97783633aa5fac077ff106f5ed0cff973219e479():
 
 
 @_register(
-    installer_sha1='706da66e441baabf373b57160cc87a91529f084b',
+    installer_sha1='1ef3b1054b9ab43fc05d34b5ef3cfad0ee8c452a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -627,7 +624,7 @@ def _process_dataclass__97783633aa5fac077ff106f5ed0cff973219e479():
         ('omcore.specs.jsonrpc.pipelines.configs', 'JsonrpcPipelineConfig'),
     ),
 )
-def _process_dataclass__706da66e441baabf373b57160cc87a91529f084b():
+def _process_dataclass__1ef3b1054b9ab43fc05d34b5ef3cfad0ee8c452a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -874,7 +871,7 @@ def _process_dataclass__706da66e441baabf373b57160cc87a91529f084b():
 
 
 @_register(
-    installer_sha1='df151e2262141f4f7c26168c0ada271a6cfd8b1b',
+    installer_sha1='9df93c60d31dabd7f1db008337818b6e1edba665',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -887,7 +884,7 @@ def _process_dataclass__706da66e441baabf373b57160cc87a91529f084b():
         ('omcore.specs.jsonrpc.pipelines.framing', 'JsonrpcFrame'),
     ),
 )
-def _process_dataclass__df151e2262141f4f7c26168c0ada271a6cfd8b1b():
+def _process_dataclass__9df93c60d31dabd7f1db008337818b6e1edba665():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -976,7 +973,7 @@ def _process_dataclass__df151e2262141f4f7c26168c0ada271a6cfd8b1b():
 
 
 @_register(
-    installer_sha1='4f2831a9700f5a15798efb04340e15656f9bd515',
+    installer_sha1='65925f54033c08a133f31cd1ccf00050c1dd268a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -989,7 +986,7 @@ def _process_dataclass__df151e2262141f4f7c26168c0ada271a6cfd8b1b():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.CancelRequest'),
     ),
 )
-def _process_dataclass__4f2831a9700f5a15798efb04340e15656f9bd515():
+def _process_dataclass__65925f54033c08a133f31cd1ccf00050c1dd268a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1078,7 +1075,7 @@ def _process_dataclass__4f2831a9700f5a15798efb04340e15656f9bd515():
 
 
 @_register(
-    installer_sha1='758ea25356225f58f3b7354aaf99c6916764c98e',
+    installer_sha1='a218ca579ae9eaba5170817ff8cc6dab49138611',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1091,7 +1088,7 @@ def _process_dataclass__4f2831a9700f5a15798efb04340e15656f9bd515():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.Close'),
     ),
 )
-def _process_dataclass__758ea25356225f58f3b7354aaf99c6916764c98e():
+def _process_dataclass__a218ca579ae9eaba5170817ff8cc6dab49138611():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1182,7 +1179,7 @@ def _process_dataclass__758ea25356225f58f3b7354aaf99c6916764c98e():
 
 
 @_register(
-    installer_sha1='d14dbcbb86a604e70aafde57adc9e1bd48bade27',
+    installer_sha1='e9b8db464351f65b75bc3cb468484fef4b8593ba',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1195,7 +1192,7 @@ def _process_dataclass__758ea25356225f58f3b7354aaf99c6916764c98e():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.Closed'),
     ),
 )
-def _process_dataclass__d14dbcbb86a604e70aafde57adc9e1bd48bade27():
+def _process_dataclass__e9b8db464351f65b75bc3cb468484fef4b8593ba():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1285,7 +1282,7 @@ def _process_dataclass__d14dbcbb86a604e70aafde57adc9e1bd48bade27():
 
 
 @_register(
-    installer_sha1='d2b3083a435a63ccd17d0f8476382300f01043b1',
+    installer_sha1='1015257d9807516a7c9ef21fc83a9402b0bb41a1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1299,7 +1296,7 @@ def _process_dataclass__d14dbcbb86a604e70aafde57adc9e1bd48bade27():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.SendNotification'),
     ),
 )
-def _process_dataclass__d2b3083a435a63ccd17d0f8476382300f01043b1():
+def _process_dataclass__1015257d9807516a7c9ef21fc83a9402b0bb41a1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1388,7 +1385,7 @@ def _process_dataclass__d2b3083a435a63ccd17d0f8476382300f01043b1():
 
 
 @_register(
-    installer_sha1='4149dc9ee14e40f241b63a0471d6ebcfe57627d5',
+    installer_sha1='8757da0d135c1486e94a870e96ec052956f70bfa',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1402,7 +1399,7 @@ def _process_dataclass__d2b3083a435a63ccd17d0f8476382300f01043b1():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.OutboundEncodeFailed'),
     ),
 )
-def _process_dataclass__4149dc9ee14e40f241b63a0471d6ebcfe57627d5():
+def _process_dataclass__8757da0d135c1486e94a870e96ec052956f70bfa():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1499,7 +1496,7 @@ def _process_dataclass__4149dc9ee14e40f241b63a0471d6ebcfe57627d5():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1512,7 +1509,7 @@ def _process_dataclass__4149dc9ee14e40f241b63a0471d6ebcfe57627d5():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.OutputResumed'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1580,7 +1577,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='5a8e8c18b331ee95a462fb374979938a5a2568e3',
+    installer_sha1='ba7554f26abdce1727eb82698655e822ba24283a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1595,7 +1592,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.RequestHandlingAborted'),
     ),
 )
-def _process_dataclass__5a8e8c18b331ee95a462fb374979938a5a2568e3():
+def _process_dataclass__ba7554f26abdce1727eb82698655e822ba24283a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1692,7 +1689,7 @@ def _process_dataclass__5a8e8c18b331ee95a462fb374979938a5a2568e3():
 
 
 @_register(
-    installer_sha1='b8cd623120c2caf410a5aa22b0041066e5bbb7bf',
+    installer_sha1='98615765c578ca3584ae8c79237a843cdb4db265',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1705,7 +1702,7 @@ def _process_dataclass__5a8e8c18b331ee95a462fb374979938a5a2568e3():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.RequestReceived'),
     ),
 )
-def _process_dataclass__b8cd623120c2caf410a5aa22b0041066e5bbb7bf():
+def _process_dataclass__98615765c578ca3584ae8c79237a843cdb4db265():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1794,7 +1791,7 @@ def _process_dataclass__b8cd623120c2caf410a5aa22b0041066e5bbb7bf():
 
 
 @_register(
-    installer_sha1='923bc5f79d5e8a3d1b808dc5ebeef1c621cd95c9',
+    installer_sha1='46a109e05645895ce7361a8d8d76b007adba903e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1808,7 +1805,7 @@ def _process_dataclass__b8cd623120c2caf410a5aa22b0041066e5bbb7bf():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.ResponseReceived'),
     ),
 )
-def _process_dataclass__923bc5f79d5e8a3d1b808dc5ebeef1c621cd95c9():
+def _process_dataclass__46a109e05645895ce7361a8d8d76b007adba903e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1905,7 +1902,7 @@ def _process_dataclass__923bc5f79d5e8a3d1b808dc5ebeef1c621cd95c9():
 
 
 @_register(
-    installer_sha1='52f39ee7934eb6e11c1e91f63e424a7f175c8c62',
+    installer_sha1='d12c308ad48f7601806f60bfe5ed0b4886edba10',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1919,7 +1916,7 @@ def _process_dataclass__923bc5f79d5e8a3d1b808dc5ebeef1c621cd95c9():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.SendBatch'),
     ),
 )
-def _process_dataclass__52f39ee7934eb6e11c1e91f63e424a7f175c8c62():
+def _process_dataclass__d12c308ad48f7601806f60bfe5ed0b4886edba10():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2018,7 +2015,7 @@ def _process_dataclass__52f39ee7934eb6e11c1e91f63e424a7f175c8c62():
 
 
 @_register(
-    installer_sha1='caa1844719a4d9168f18f5abc1ea0994c9d4786a',
+    installer_sha1='6b0edd79bc3dcf267917a8669fa52661e83413cc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2032,7 +2029,7 @@ def _process_dataclass__52f39ee7934eb6e11c1e91f63e424a7f175c8c62():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.SendRequest'),
     ),
 )
-def _process_dataclass__caa1844719a4d9168f18f5abc1ea0994c9d4786a():
+def _process_dataclass__6b0edd79bc3dcf267917a8669fa52661e83413cc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2131,7 +2128,7 @@ def _process_dataclass__caa1844719a4d9168f18f5abc1ea0994c9d4786a():
 
 
 @_register(
-    installer_sha1='ea136f14ccf7f03bb392ddee7eb0e9421109e39b',
+    installer_sha1='c9dc8588e270c7555ce74a6ed4b15f5ff5b156f1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2144,7 +2141,7 @@ def _process_dataclass__caa1844719a4d9168f18f5abc1ea0994c9d4786a():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.SendResponse'),
     ),
 )
-def _process_dataclass__ea136f14ccf7f03bb392ddee7eb0e9421109e39b():
+def _process_dataclass__c9dc8588e270c7555ce74a6ed4b15f5ff5b156f1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2233,7 +2230,7 @@ def _process_dataclass__ea136f14ccf7f03bb392ddee7eb0e9421109e39b():
 
 
 @_register(
-    installer_sha1='28f3c4c38c6b14b69baa2dab1948197e94ef5437',
+    installer_sha1='cd111e5a23cdfaa96df3335cf27d4db69bd7cc3b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2246,7 +2243,7 @@ def _process_dataclass__ea136f14ccf7f03bb392ddee7eb0e9421109e39b():
         ('omcore.specs.jsonrpc.pipelines.messages', 'JsonrpcPipelineMessages.Sent'),
     ),
 )
-def _process_dataclass__28f3c4c38c6b14b69baa2dab1948197e94ef5437():
+def _process_dataclass__cd111e5a23cdfaa96df3335cf27d4db69bd7cc3b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2335,7 +2332,7 @@ def _process_dataclass__28f3c4c38c6b14b69baa2dab1948197e94ef5437():
 
 
 @_register(
-    installer_sha1='a57158480ca33361c04605cd148e7a936b0aa62b',
+    installer_sha1='64bab850fce11cd0a6a7153cd8da7c149d9b7d65',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2353,7 +2350,7 @@ def _process_dataclass__28f3c4c38c6b14b69baa2dab1948197e94ef5437():
         ('omcore.specs.jsonrpc.pipelines.servers.asyncio', 'AsyncioJsonrpcServerConfig'),
     ),
 )
-def _process_dataclass__a57158480ca33361c04605cd148e7a936b0aa62b():
+def _process_dataclass__64bab850fce11cd0a6a7153cd8da7c149d9b7d65():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2489,7 +2486,7 @@ def _process_dataclass__a57158480ca33361c04605cd148e7a936b0aa62b():
 
 
 @_register(
-    installer_sha1='2a657f142158a83d53269f067187da0c79b3ab69',
+    installer_sha1='6ec6c78c1e531aa40f9d58d2d39f0f9e05c859d4',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2503,7 +2500,7 @@ def _process_dataclass__a57158480ca33361c04605cd148e7a936b0aa62b():
         ('omcore.specs.jsonrpc.pipelines.sessions', 'JsonrpcSessionHandler._InBatch'),
     ),
 )
-def _process_dataclass__2a657f142158a83d53269f067187da0c79b3ab69():
+def _process_dataclass__6ec6c78c1e531aa40f9d58d2d39f0f9e05c859d4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2567,7 +2564,7 @@ def _process_dataclass__2a657f142158a83d53269f067187da0c79b3ab69():
 
 
 @_register(
-    installer_sha1='a46b91aef22b3bce5b73c19f1584f66390eddae9',
+    installer_sha1='c6983df61b286841ceb7d51752059507cc06f307',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2581,7 +2578,7 @@ def _process_dataclass__2a657f142158a83d53269f067187da0c79b3ab69():
         ('omcore.specs.jsonrpc.pipelines.sessions', 'JsonrpcSessionHandler._InBatchSlot'),
     ),
 )
-def _process_dataclass__a46b91aef22b3bce5b73c19f1584f66390eddae9():
+def _process_dataclass__c6983df61b286841ceb7d51752059507cc06f307():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2678,7 +2675,7 @@ def _process_dataclass__a46b91aef22b3bce5b73c19f1584f66390eddae9():
 
 
 @_register(
-    installer_sha1='04b54ab1b1ac5fe993392c2d74dd6d9a0a2730a9',
+    installer_sha1='b2b2a2a1a472bf543cd6ded9b515cdc0b0211d61',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2693,7 +2690,7 @@ def _process_dataclass__a46b91aef22b3bce5b73c19f1584f66390eddae9():
         ('omcore.specs.jsonrpc.pipelines.sessions', 'JsonrpcSessionHandler._InflightIn'),
     ),
 )
-def _process_dataclass__04b54ab1b1ac5fe993392c2d74dd6d9a0a2730a9():
+def _process_dataclass__b2b2a2a1a472bf543cd6ded9b515cdc0b0211d61():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2765,7 +2762,7 @@ def _process_dataclass__04b54ab1b1ac5fe993392c2d74dd6d9a0a2730a9():
 
 
 @_register(
-    installer_sha1='f1abebdf305d30edbc7f05c46073c6bf23394f2d',
+    installer_sha1='92bbbfbb536e1c1cf73495e6e506a3d0f082682e',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2779,7 +2776,7 @@ def _process_dataclass__04b54ab1b1ac5fe993392c2d74dd6d9a0a2730a9():
         ('omcore.specs.jsonrpc.pipelines.sessions', 'JsonrpcSessionHandler._PendingOut'),
     ),
 )
-def _process_dataclass__f1abebdf305d30edbc7f05c46073c6bf23394f2d():
+def _process_dataclass__92bbbfbb536e1c1cf73495e6e506a3d0f082682e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2844,7 +2841,7 @@ def _process_dataclass__f1abebdf305d30edbc7f05c46073c6bf23394f2d():
 
 
 @_register(
-    installer_sha1='4b5a9782dba3954ad693f5aa774fee8b5c4a38ac',
+    installer_sha1='fc7c7020def38db5097f7d18f15c8c3ae1a7c200',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2857,7 +2854,7 @@ def _process_dataclass__f1abebdf305d30edbc7f05c46073c6bf23394f2d():
         ('omcore.specs.jsonrpc.types', 'Batch'),
     ),
 )
-def _process_dataclass__4b5a9782dba3954ad693f5aa774fee8b5c4a38ac():
+def _process_dataclass__fc7c7020def38db5097f7d18f15c8c3ae1a7c200():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2955,7 +2952,7 @@ def _process_dataclass__4b5a9782dba3954ad693f5aa774fee8b5c4a38ac():
 
 
 @_register(
-    installer_sha1='d9827ee30be2277313ba4b40f165008cf841622c',
+    installer_sha1='5c364a6e515ade00e986244ff58d8763105206a0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2970,7 +2967,7 @@ def _process_dataclass__4b5a9782dba3954ad693f5aa774fee8b5c4a38ac():
         ('omcore.specs.jsonrpc.types', 'Error'),
     ),
 )
-def _process_dataclass__d9827ee30be2277313ba4b40f165008cf841622c():
+def _process_dataclass__5c364a6e515ade00e986244ff58d8763105206a0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3076,7 +3073,7 @@ def _process_dataclass__d9827ee30be2277313ba4b40f165008cf841622c():
 
 
 @_register(
-    installer_sha1='76f7c4812c07d3f858b531fdfc5ec84daceb1afb',
+    installer_sha1='d0a82d050bba2d7e32a315475ad18ddd698247ad',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3093,7 +3090,7 @@ def _process_dataclass__d9827ee30be2277313ba4b40f165008cf841622c():
         ('omcore.specs.jsonrpc.types', 'InvalidMessage'),
     ),
 )
-def _process_dataclass__76f7c4812c07d3f858b531fdfc5ec84daceb1afb():
+def _process_dataclass__d0a82d050bba2d7e32a315475ad18ddd698247ad():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3217,7 +3214,7 @@ def _process_dataclass__76f7c4812c07d3f858b531fdfc5ec84daceb1afb():
 
 
 @_register(
-    installer_sha1='6c8aa94dd135e79803ca8229cec3548452bb8788',
+    installer_sha1='44ece9e7c552cb0d94140320d5e1ede56708941f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3233,7 +3230,7 @@ def _process_dataclass__76f7c4812c07d3f858b531fdfc5ec84daceb1afb():
         ('omcore.specs.jsonrpc.types', 'Request'),
     ),
 )
-def _process_dataclass__6c8aa94dd135e79803ca8229cec3548452bb8788():
+def _process_dataclass__44ece9e7c552cb0d94140320d5e1ede56708941f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3358,7 +3355,7 @@ def _process_dataclass__6c8aa94dd135e79803ca8229cec3548452bb8788():
 
 
 @_register(
-    installer_sha1='96134a2cc2eeffffee822359cc1cb10c224873b9',
+    installer_sha1='43dfe8b2591f59f678e44851f3dddc41b978c329',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3374,7 +3371,7 @@ def _process_dataclass__6c8aa94dd135e79803ca8229cec3548452bb8788():
         ('omcore.specs.jsonrpc.types', 'Response'),
     ),
 )
-def _process_dataclass__96134a2cc2eeffffee822359cc1cb10c224873b9():
+def _process_dataclass__43dfe8b2591f59f678e44851f3dddc41b978c329():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

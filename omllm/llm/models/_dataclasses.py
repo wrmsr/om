@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='5ae012df50cf619e480b7c126c55ae9538975c6f',
+    installer_sha1='41cd7acb9a4f9d26433fb2b4f31fc826cd3e601c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -50,7 +47,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.llm.models.defaults', 'DefaultModel'),
     ),
 )
-def _process_dataclass__5ae012df50cf619e480b7c126c55ae9538975c6f():
+def _process_dataclass__41cd7acb9a4f9d26433fb2b4f31fc826cd3e601c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

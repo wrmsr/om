@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='2cd47d2fab5c05801bed6cba591738df3099b262',
+    installer_sha1='4a6374950aee40f9170541c0b9bf7df6703d1bc7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -52,7 +49,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.marshal.composite.tuples', 'VariadicTupleUnmarshaler'),
     ),
 )
-def _process_dataclass__2cd47d2fab5c05801bed6cba591738df3099b262():
+def _process_dataclass__4a6374950aee40f9170541c0b9bf7df6703d1bc7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -141,7 +138,7 @@ def _process_dataclass__2cd47d2fab5c05801bed6cba591738df3099b262():
 
 
 @_register(
-    installer_sha1='b6998e85aa85c470751111a6c32038e5c5d6550f',
+    installer_sha1='25c755b8cd66e06baeff296c4b98a7fda117b132',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -157,7 +154,7 @@ def _process_dataclass__2cd47d2fab5c05801bed6cba591738df3099b262():
         ('omcore.marshal.composite.persistent', 'PersistentSequenceUnmarshaler'),
     ),
 )
-def _process_dataclass__b6998e85aa85c470751111a6c32038e5c5d6550f():
+def _process_dataclass__25c755b8cd66e06baeff296c4b98a7fda117b132():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -263,7 +260,7 @@ def _process_dataclass__b6998e85aa85c470751111a6c32038e5c5d6550f():
 
 
 @_register(
-    installer_sha1='27605277e487796341bd2e55d95bf638ed4c5812',
+    installer_sha1='8c3a3558e8282cdd735038d1abfbd5b60f4ae31d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -278,7 +275,7 @@ def _process_dataclass__b6998e85aa85c470751111a6c32038e5c5d6550f():
         ('omcore.marshal.composite.literals', 'LiteralUnmarshaler'),
     ),
 )
-def _process_dataclass__27605277e487796341bd2e55d95bf638ed4c5812():
+def _process_dataclass__8c3a3558e8282cdd735038d1abfbd5b60f4ae31d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -375,7 +372,7 @@ def _process_dataclass__27605277e487796341bd2e55d95bf638ed4c5812():
 
 
 @_register(
-    installer_sha1='7a3613ea549794deb1a9f3c38e0554d6234db4e1',
+    installer_sha1='29843e220a6f61ed6cd1677467fc265dffc3333b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -390,7 +387,7 @@ def _process_dataclass__27605277e487796341bd2e55d95bf638ed4c5812():
         ('omcore.marshal.composite.persistent', 'PersistentMappingMarshaler'),
     ),
 )
-def _process_dataclass__7a3613ea549794deb1a9f3c38e0554d6234db4e1():
+def _process_dataclass__29843e220a6f61ed6cd1677467fc265dffc3333b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -487,7 +484,7 @@ def _process_dataclass__7a3613ea549794deb1a9f3c38e0554d6234db4e1():
 
 
 @_register(
-    installer_sha1='7f7030ec91965503710f7e580c076322f3e6fb80',
+    installer_sha1='2c6ce05a7edd5f14a75c9606cbf1988b3a5a0eea',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -504,7 +501,7 @@ def _process_dataclass__7a3613ea549794deb1a9f3c38e0554d6234db4e1():
         ('omcore.marshal.composite.persistent', 'PersistentMappingUnmarshaler'),
     ),
 )
-def _process_dataclass__7f7030ec91965503710f7e580c076322f3e6fb80():
+def _process_dataclass__2c6ce05a7edd5f14a75c9606cbf1988b3a5a0eea():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -618,7 +615,7 @@ def _process_dataclass__7f7030ec91965503710f7e580c076322f3e6fb80():
 
 
 @_register(
-    installer_sha1='265a3078440cabdbe2e032a3768d74faec4e2878',
+    installer_sha1='9f8eec281201719feff38feef453c57ad7a0b89b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -632,7 +629,7 @@ def _process_dataclass__7f7030ec91965503710f7e580c076322f3e6fb80():
         ('omcore.marshal.composite.tuples', 'FixedTupleUnmarshaler'),
     ),
 )
-def _process_dataclass__265a3078440cabdbe2e032a3768d74faec4e2878():
+def _process_dataclass__9f8eec281201719feff38feef453c57ad7a0b89b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -721,7 +718,7 @@ def _process_dataclass__265a3078440cabdbe2e032a3768d74faec4e2878():
 
 
 @_register(
-    installer_sha1='fc4024745873183cb3293c95963f5c8b97e75750',
+    installer_sha1='a3915ac70362ae535a0d8f8b9009038b4dd3bfab',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -737,7 +734,7 @@ def _process_dataclass__265a3078440cabdbe2e032a3768d74faec4e2878():
         ('omcore.marshal.composite.unions.literals', 'LiteralUnionUnmarshaler'),
     ),
 )
-def _process_dataclass__fc4024745873183cb3293c95963f5c8b97e75750():
+def _process_dataclass__a3915ac70362ae535a0d8f8b9009038b4dd3bfab():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -842,7 +839,7 @@ def _process_dataclass__fc4024745873183cb3293c95963f5c8b97e75750():
 
 
 @_register(
-    installer_sha1='0a5fe31dde50542bb3283a98e7780c9d1a36307f',
+    installer_sha1='7389538486f61d1d81e02919285034324e01ae56',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -857,7 +854,7 @@ def _process_dataclass__fc4024745873183cb3293c95963f5c8b97e75750():
         ('omcore.marshal.composite.unions.primitives', 'PrimitiveUnionUnmarshaler'),
     ),
 )
-def _process_dataclass__0a5fe31dde50542bb3283a98e7780c9d1a36307f():
+def _process_dataclass__7389538486f61d1d81e02919285034324e01ae56():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -955,7 +952,7 @@ def _process_dataclass__0a5fe31dde50542bb3283a98e7780c9d1a36307f():
 
 
 @_register(
-    installer_sha1='f23b17c72bf8f3f9ce1c77f877471ae577dbe880',
+    installer_sha1='8f2f935e73c69b535930bb8ae9763b7a83027e4e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -969,7 +966,7 @@ def _process_dataclass__0a5fe31dde50542bb3283a98e7780c9d1a36307f():
         ('omcore.marshal.composite.unions.primitives', 'PrimitiveUnionUnmarshalerFactory'),
     ),
 )
-def _process_dataclass__f23b17c72bf8f3f9ce1c77f877471ae577dbe880():
+def _process_dataclass__8f2f935e73c69b535930bb8ae9763b7a83027e4e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1059,7 +1056,7 @@ def _process_dataclass__f23b17c72bf8f3f9ce1c77f877471ae577dbe880():
 
 
 @_register(
-    installer_sha1='51a0705fe8e1aac8799252b3562245e21a9d9405',
+    installer_sha1='cf2bcb3ceea83a4e886d2cf0b032a481d70cb770',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1073,7 +1070,7 @@ def _process_dataclass__f23b17c72bf8f3f9ce1c77f877471ae577dbe880():
         ('omcore.marshal.composite.wrapped', 'WrappedMarshaler'),
     ),
 )
-def _process_dataclass__51a0705fe8e1aac8799252b3562245e21a9d9405():
+def _process_dataclass__cf2bcb3ceea83a4e886d2cf0b032a481d70cb770():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1170,7 +1167,7 @@ def _process_dataclass__51a0705fe8e1aac8799252b3562245e21a9d9405():
 
 
 @_register(
-    installer_sha1='8e9fbc56c2fb9a15f2ff99701cce9c0e57026adb',
+    installer_sha1='f5b0c53faa27331c2a662f2a7e836feecc50ad48',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1184,7 +1181,7 @@ def _process_dataclass__51a0705fe8e1aac8799252b3562245e21a9d9405():
         ('omcore.marshal.composite.wrapped', 'WrappedUnmarshaler'),
     ),
 )
-def _process_dataclass__8e9fbc56c2fb9a15f2ff99701cce9c0e57026adb():
+def _process_dataclass__f5b0c53faa27331c2a662f2a7e836feecc50ad48():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1281,7 +1278,7 @@ def _process_dataclass__8e9fbc56c2fb9a15f2ff99701cce9c0e57026adb():
 
 
 @_register(
-    installer_sha1='2717f815c51624bf2bdcc41871e5a5f899107dde',
+    installer_sha1='3c2e27a5c57eddc24dca7bf3988a38dd04feae4e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1298,7 +1295,7 @@ def _process_dataclass__8e9fbc56c2fb9a15f2ff99701cce9c0e57026adb():
         ('omcore.marshal.objects.infos', 'FieldInfo'),
     ),
 )
-def _process_dataclass__2717f815c51624bf2bdcc41871e5a5f899107dde():
+def _process_dataclass__3c2e27a5c57eddc24dca7bf3988a38dd04feae4e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1423,7 +1420,7 @@ def _process_dataclass__2717f815c51624bf2bdcc41871e5a5f899107dde():
 
 
 @_register(
-    installer_sha1='f4cae1fb9f5ce6342137dfa4c063938fd121e595',
+    installer_sha1='d8a594bc03ffbd94e88797163afe87c8f57f8689',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1436,7 +1433,7 @@ def _process_dataclass__2717f815c51624bf2bdcc41871e5a5f899107dde():
         ('omcore.marshal.objects.infos', 'FieldInfos'),
     ),
 )
-def _process_dataclass__f4cae1fb9f5ce6342137dfa4c063938fd121e595():
+def _process_dataclass__d8a594bc03ffbd94e88797163afe87c8f57f8689():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1533,7 +1530,7 @@ def _process_dataclass__f4cae1fb9f5ce6342137dfa4c063938fd121e595():
 
 
 @_register(
-    installer_sha1='ff1c2469cad3ca4bdcad985505c500017cc90361',
+    installer_sha1='bf6e855407aad3b157953cde6b29ff0527d8d1a7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1549,7 +1546,7 @@ def _process_dataclass__f4cae1fb9f5ce6342137dfa4c063938fd121e595():
         ('omcore.marshal.objects.marshal', 'ObjectMarshaler'),
     ),
 )
-def _process_dataclass__ff1c2469cad3ca4bdcad985505c500017cc90361():
+def _process_dataclass__bf6e855407aad3b157953cde6b29ff0527d8d1a7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1666,7 +1663,7 @@ def _process_dataclass__ff1c2469cad3ca4bdcad985505c500017cc90361():
 
 
 @_register(
-    installer_sha1='094346d4e3790ee2ae94fcfe5bc4a58b140a8998',
+    installer_sha1='10c2a3716bafad8f80df4f2a4cd7edf0bd47bc74',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1681,7 +1678,7 @@ def _process_dataclass__ff1c2469cad3ca4bdcad985505c500017cc90361():
         ('omcore.marshal.objects.unmarshal', 'SimpleObjectUnmarshalerFactory'),
     ),
 )
-def _process_dataclass__094346d4e3790ee2ae94fcfe5bc4a58b140a8998():
+def _process_dataclass__10c2a3716bafad8f80df4f2a4cd7edf0bd47bc74():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1780,7 +1777,7 @@ def _process_dataclass__094346d4e3790ee2ae94fcfe5bc4a58b140a8998():
 
 
 @_register(
-    installer_sha1='54715d03ca12e917df1d48b6222402c3e6a2ca56',
+    installer_sha1='bb3b612ca511aa9eb11d29ff76b160559a4bdb12',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, True, False, False, False, False"
@@ -1798,7 +1795,7 @@ def _process_dataclass__094346d4e3790ee2ae94fcfe5bc4a58b140a8998():
         ('omcore.marshal.objects.specs', 'ObjectSpec'),
     ),
 )
-def _process_dataclass__54715d03ca12e917df1d48b6222402c3e6a2ca56():
+def _process_dataclass__bb3b612ca511aa9eb11d29ff76b160559a4bdb12():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1944,7 +1941,7 @@ def _process_dataclass__54715d03ca12e917df1d48b6222402c3e6a2ca56():
 
 
 @_register(
-    installer_sha1='92abcb93f224262aa9997af8d2cdf3000bbbf7f9',
+    installer_sha1='1c2b222956a4e1cd857de38e316ab538f3a29fc7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1965,7 +1962,7 @@ def _process_dataclass__54715d03ca12e917df1d48b6222402c3e6a2ca56():
         ('omcore.marshal.objects.unmarshal', 'ObjectUnmarshaler'),
     ),
 )
-def _process_dataclass__92abcb93f224262aa9997af8d2cdf3000bbbf7f9():
+def _process_dataclass__1c2b222956a4e1cd857de38e316ab538f3a29fc7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2126,7 +2123,7 @@ def _process_dataclass__92abcb93f224262aa9997af8d2cdf3000bbbf7f9():
 
 
 @_register(
-    installer_sha1='2f929cef30e48a2f612e907b86a1b6542a06c412',
+    installer_sha1='72da25e10653f301497c6135151da367adada952',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2141,7 +2138,7 @@ def _process_dataclass__92abcb93f224262aa9997af8d2cdf3000bbbf7f9():
         ('omcore.marshal.polymorphism.unmarshal', 'PolymorphismUnmarshalerFactory'),
     ),
 )
-def _process_dataclass__2f929cef30e48a2f612e907b86a1b6542a06c412():
+def _process_dataclass__72da25e10653f301497c6135151da367adada952():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2239,7 +2236,7 @@ def _process_dataclass__2f929cef30e48a2f612e907b86a1b6542a06c412():
 
 
 @_register(
-    installer_sha1='8cd2c336d830d7cec0ce16fe512c30bfcdacd581',
+    installer_sha1='22f3368691aceb16f715831dacaad4ac34f7eb55',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -2252,7 +2249,7 @@ def _process_dataclass__2f929cef30e48a2f612e907b86a1b6542a06c412():
         ('omcore.marshal.polymorphism.specs', 'DisjointPolymorphismSpec'),
     ),
 )
-def _process_dataclass__8cd2c336d830d7cec0ce16fe512c30bfcdacd581():
+def _process_dataclass__22f3368691aceb16f715831dacaad4ac34f7eb55():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2353,7 +2350,7 @@ def _process_dataclass__8cd2c336d830d7cec0ce16fe512c30bfcdacd581():
 
 
 @_register(
-    installer_sha1='0e967fe01dc6a4a22b37974b1be132aa53e41121',
+    installer_sha1='fac8fbfea1e5c45fef8fb45ed5a2f1fdb4d573eb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, True, False, False, False, False"
@@ -2371,7 +2368,7 @@ def _process_dataclass__8cd2c336d830d7cec0ce16fe512c30bfcdacd581():
         ('omcore.marshal.polymorphism.specs', 'PolymorphismSpec'),
     ),
 )
-def _process_dataclass__0e967fe01dc6a4a22b37974b1be132aa53e41121():
+def _process_dataclass__fac8fbfea1e5c45fef8fb45ed5a2f1fdb4d573eb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2519,7 +2516,7 @@ def _process_dataclass__0e967fe01dc6a4a22b37974b1be132aa53e41121():
 
 
 @_register(
-    installer_sha1='e9f15a96e51a4008efa3b767de039a31ad07de94',
+    installer_sha1='8c90fc5f1f7bed4ea4aaa7dc6dbc5b8e306bf146',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2533,7 +2530,7 @@ def _process_dataclass__0e967fe01dc6a4a22b37974b1be132aa53e41121():
         ('omcore.marshal.polymorphism.unmarshal', '_LazySubtypeUnmarshaler'),
     ),
 )
-def _process_dataclass__e9f15a96e51a4008efa3b767de039a31ad07de94():
+def _process_dataclass__8c90fc5f1f7bed4ea4aaa7dc6dbc5b8e306bf146():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2595,7 +2592,7 @@ def _process_dataclass__e9f15a96e51a4008efa3b767de039a31ad07de94():
 
 
 @_register(
-    installer_sha1='2f14d47fd5c8c251ba912310e27a20bf8630d065',
+    installer_sha1='110ad4c0589299e2d2d9553589aec1a4c3209a4a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2614,7 +2611,7 @@ def _process_dataclass__e9f15a96e51a4008efa3b767de039a31ad07de94():
         ('omcore.marshal.singular.primitives', 'PrimitiveMarshalerUnmarshaler'),
     ),
 )
-def _process_dataclass__2f14d47fd5c8c251ba912310e27a20bf8630d065():
+def _process_dataclass__110ad4c0589299e2d2d9553589aec1a4c3209a4a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2703,7 +2700,7 @@ def _process_dataclass__2f14d47fd5c8c251ba912310e27a20bf8630d065():
 
 
 @_register(
-    installer_sha1='207133ec8b279bf2713c1bed24956b43c023a0c1',
+    installer_sha1='191523565db94c83d57a8fa678edabe07916543f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2717,7 +2714,7 @@ def _process_dataclass__2f14d47fd5c8c251ba912310e27a20bf8630d065():
         ('omcore.marshal.singular.datetimes', 'DatetimeMarshaler'),
     ),
 )
-def _process_dataclass__207133ec8b279bf2713c1bed24956b43c023a0c1():
+def _process_dataclass__191523565db94c83d57a8fa678edabe07916543f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2814,7 +2811,7 @@ def _process_dataclass__207133ec8b279bf2713c1bed24956b43c023a0c1():
 
 
 @_register(
-    installer_sha1='95cfa3b002e53877549a96016af87f939f7623fb',
+    installer_sha1='9809f88643694b2e5fb23dca99de72b045041ecf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2829,7 +2826,7 @@ def _process_dataclass__207133ec8b279bf2713c1bed24956b43c023a0c1():
         ('omcore.marshal.singular.datetimes', 'DatetimeUnmarshaler'),
     ),
 )
-def _process_dataclass__95cfa3b002e53877549a96016af87f939f7623fb():
+def _process_dataclass__9809f88643694b2e5fb23dca99de72b045041ecf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2935,7 +2932,7 @@ def _process_dataclass__95cfa3b002e53877549a96016af87f939f7623fb():
 
 
 @_register(
-    installer_sha1='4b69bcd624de1ebb3b321bb595fbc02560c3d844',
+    installer_sha1='e89b421f57cffc0cd78f0b153881d299530164cd',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2949,7 +2946,7 @@ def _process_dataclass__95cfa3b002e53877549a96016af87f939f7623fb():
         ('omcore.marshal.singular.enums', 'EnumUnmarshalerFactory'),
     ),
 )
-def _process_dataclass__4b69bcd624de1ebb3b321bb595fbc02560c3d844():
+def _process_dataclass__e89b421f57cffc0cd78f0b153881d299530164cd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3039,7 +3036,7 @@ def _process_dataclass__4b69bcd624de1ebb3b321bb595fbc02560c3d844():
 
 
 @_register(
-    installer_sha1='a4efb7ac9fb18c77a915284851699addabc80e7f',
+    installer_sha1='053e02e5583ffb2fb821f44b363f9a5faa36546a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3052,7 +3049,7 @@ def _process_dataclass__4b69bcd624de1ebb3b321bb595fbc02560c3d844():
         ('omcore.marshal.trivial.const', 'ConstMarshaler'),
     ),
 )
-def _process_dataclass__a4efb7ac9fb18c77a915284851699addabc80e7f():
+def _process_dataclass__053e02e5583ffb2fb821f44b363f9a5faa36546a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3141,7 +3138,7 @@ def _process_dataclass__a4efb7ac9fb18c77a915284851699addabc80e7f():
 
 
 @_register(
-    installer_sha1='f13da171c5f72c62d2cd28adaf72a0eaca8110ec',
+    installer_sha1='7e0240abd40e13ca90996829096efd1bc5615c90',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3154,7 +3151,7 @@ def _process_dataclass__a4efb7ac9fb18c77a915284851699addabc80e7f():
         ('omcore.marshal.trivial.const', 'ConstUnmarshaler'),
     ),
 )
-def _process_dataclass__f13da171c5f72c62d2cd28adaf72a0eaca8110ec():
+def _process_dataclass__7e0240abd40e13ca90996829096efd1bc5615c90():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

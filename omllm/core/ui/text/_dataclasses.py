@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='3c33aec0a68bb024bc7f68f0718210d17119af7c',
+    installer_sha1='9a034871b30afa91c17efc9e261cfac5031383bc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -50,7 +47,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.core.ui.text.rendering', 'TextRenderingOptions'),
     ),
 )
-def _process_dataclass__3c33aec0a68bb024bc7f68f0718210d17119af7c():
+def _process_dataclass__9a034871b30afa91c17efc9e261cfac5031383bc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -186,7 +183,7 @@ def _process_dataclass__3c33aec0a68bb024bc7f68f0718210d17119af7c():
 
 
 @_register(
-    installer_sha1='77351b547ca4ddaa04f01bf149a4836502a1bd75',
+    installer_sha1='ca255e75d6862875a2390d85d09d42a48b8fcac9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -202,7 +199,7 @@ def _process_dataclass__3c33aec0a68bb024bc7f68f0718210d17119af7c():
         ('omllm.core.ui.text.styled', 'StyledJsonStyles'),
     ),
 )
-def _process_dataclass__77351b547ca4ddaa04f01bf149a4836502a1bd75():
+def _process_dataclass__ca255e75d6862875a2390d85d09d42a48b8fcac9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -320,7 +317,7 @@ def _process_dataclass__77351b547ca4ddaa04f01bf149a4836502a1bd75():
 
 
 @_register(
-    installer_sha1='36e7ea11a916e8e865d5acd5be61f6b59ded1ab3',
+    installer_sha1='2f67b855e8b6e31aeb0124515480cf4b905432e6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -334,7 +331,7 @@ def _process_dataclass__77351b547ca4ddaa04f01bf149a4836502a1bd75():
         ('omllm.core.ui.text.styled', 'StyledTextBlock'),
     ),
 )
-def _process_dataclass__36e7ea11a916e8e865d5acd5be61f6b59ded1ab3():
+def _process_dataclass__2f67b855e8b6e31aeb0124515480cf4b905432e6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -433,7 +430,7 @@ def _process_dataclass__36e7ea11a916e8e865d5acd5be61f6b59ded1ab3():
 
 
 @_register(
-    installer_sha1='c9822fb8b9b1568f2859733b364d1110ba5f735e',
+    installer_sha1='9d322af03d68506a2eab40ce6112a753baceb67c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -446,7 +443,7 @@ def _process_dataclass__36e7ea11a916e8e865d5acd5be61f6b59ded1ab3():
         ('omllm.core.ui.text.styled', 'StyledTextRendering'),
     ),
 )
-def _process_dataclass__c9822fb8b9b1568f2859733b364d1110ba5f735e():
+def _process_dataclass__9d322af03d68506a2eab40ce6112a753baceb67c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -537,7 +534,7 @@ def _process_dataclass__c9822fb8b9b1568f2859733b364d1110ba5f735e():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -550,7 +547,7 @@ def _process_dataclass__c9822fb8b9b1568f2859733b364d1110ba5f735e():
         ('omllm.core.ui.text.types', 'Text'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -618,7 +615,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='7b014feb74e24681b0bf334fc2b4ed627949a6eb',
+    installer_sha1='21de2cd8d2651c604abd9abbebd70ca2851f64fd',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -631,7 +628,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omllm.core.ui.text.types', 'ConcatText'),
     ),
 )
-def _process_dataclass__7b014feb74e24681b0bf334fc2b4ed627949a6eb():
+def _process_dataclass__21de2cd8d2651c604abd9abbebd70ca2851f64fd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -717,7 +714,7 @@ def _process_dataclass__7b014feb74e24681b0bf334fc2b4ed627949a6eb():
 
 
 @_register(
-    installer_sha1='2276730620a339cf4cee0b03a8661a3706d81c54',
+    installer_sha1='18a5b7cccd41dcf659b64decab1f9e0559d106e0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, True, False, False, False, False"
@@ -732,7 +729,7 @@ def _process_dataclass__7b014feb74e24681b0bf334fc2b4ed627949a6eb():
         ('omllm.core.ui.text.types', 'DiffText'),
     ),
 )
-def _process_dataclass__2276730620a339cf4cee0b03a8661a3706d81c54():
+def _process_dataclass__18a5b7cccd41dcf659b64decab1f9e0559d106e0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -848,7 +845,7 @@ def _process_dataclass__2276730620a339cf4cee0b03a8661a3706d81c54():
 
 
 @_register(
-    installer_sha1='f4c29b7dca0a465698d57c81a470d0475f955f30',
+    installer_sha1='7246c353b2d424409a08793091a0c201c4f00520',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -862,7 +859,7 @@ def _process_dataclass__2276730620a339cf4cee0b03a8661a3706d81c54():
         ('omllm.core.ui.text.types', 'JsonText'),
     ),
 )
-def _process_dataclass__f4c29b7dca0a465698d57c81a470d0475f955f30():
+def _process_dataclass__7246c353b2d424409a08793091a0c201c4f00520():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -969,7 +966,7 @@ def _process_dataclass__f4c29b7dca0a465698d57c81a470d0475f955f30():
 
 
 @_register(
-    installer_sha1='8cb02df0fa81b0680adbb7d02a3b2e2e463e1032',
+    installer_sha1='78d60f126ec91c593b70fa7d891fa0d5e6d5c93e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, True, False, False, False, False"
@@ -986,7 +983,7 @@ def _process_dataclass__f4c29b7dca0a465698d57c81a470d0475f955f30():
         ('omllm.core.ui.text.types', 'JsonTextStyle'),
     ),
 )
-def _process_dataclass__8cb02df0fa81b0680adbb7d02a3b2e2e463e1032():
+def _process_dataclass__78d60f126ec91c593b70fa7d891fa0d5e6d5c93e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1121,7 +1118,7 @@ def _process_dataclass__8cb02df0fa81b0680adbb7d02a3b2e2e463e1032():
 
 
 @_register(
-    installer_sha1='c152ef0a908db93c45abdd7e2a3354b1a2efc592',
+    installer_sha1='4e42cbbabb4d2152bc4354d2403ea82c21d6b314',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -1135,7 +1132,7 @@ def _process_dataclass__8cb02df0fa81b0680adbb7d02a3b2e2e463e1032():
         ('omllm.core.ui.text.types', 'StrText'),
     ),
 )
-def _process_dataclass__c152ef0a908db93c45abdd7e2a3354b1a2efc592():
+def _process_dataclass__4e42cbbabb4d2152bc4354d2403ea82c21d6b314():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1233,7 +1230,7 @@ def _process_dataclass__c152ef0a908db93c45abdd7e2a3354b1a2efc592():
 
 
 @_register(
-    installer_sha1='52c2cb49c13447ec70de4f47856538208a0ea945',
+    installer_sha1='ee25fcf0e135ac057af6d45d0dbaca9234655170',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -1247,7 +1244,7 @@ def _process_dataclass__c152ef0a908db93c45abdd7e2a3354b1a2efc592():
         ('omllm.core.ui.text.types', 'StyleText'),
     ),
 )
-def _process_dataclass__52c2cb49c13447ec70de4f47856538208a0ea945():
+def _process_dataclass__ee25fcf0e135ac057af6d45d0dbaca9234655170():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1355,7 +1352,7 @@ def _process_dataclass__52c2cb49c13447ec70de4f47856538208a0ea945():
 
 
 @_register(
-    installer_sha1='7ef05fa3f81f06942abed4987d3c8492889d520c',
+    installer_sha1='807d91c231567c29c3a2951f020d8fb72c396d7f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, True, False, False, False, False"
@@ -1371,7 +1368,7 @@ def _process_dataclass__52c2cb49c13447ec70de4f47856538208a0ea945():
         ('omllm.core.ui.text.types', 'TextStyle'),
     ),
 )
-def _process_dataclass__7ef05fa3f81f06942abed4987d3c8492889d520c():
+def _process_dataclass__807d91c231567c29c3a2951f020d8fb72c396d7f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

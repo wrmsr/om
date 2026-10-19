@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='eb140338f90393d67df1d62f065edfa3e52290e1',
+    installer_sha1='d1c51e30f6068720669fec69393273739e0f50ea',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -50,7 +47,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.lifecycles.base', 'CallbackLifecycle'),
     ),
 )
-def _process_dataclass__eb140338f90393d67df1d62f065edfa3e52290e1():
+def _process_dataclass__d1c51e30f6068720669fec69393273739e0f50ea():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -177,7 +174,7 @@ def _process_dataclass__eb140338f90393d67df1d62f065edfa3e52290e1():
 
 
 @_register(
-    installer_sha1='9381cc37b0e78fd801350183913c16bfc7069893',
+    installer_sha1='ae167c6938d21b06523252d86606eee9a666f39a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -191,7 +188,7 @@ def _process_dataclass__eb140338f90393d67df1d62f065edfa3e52290e1():
         ('omcore.lifecycles.base', '_SyncToAsyncLifecycle'),
     ),
 )
-def _process_dataclass__9381cc37b0e78fd801350183913c16bfc7069893():
+def _process_dataclass__ae167c6938d21b06523252d86606eee9a666f39a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -280,7 +277,7 @@ def _process_dataclass__9381cc37b0e78fd801350183913c16bfc7069893():
 
 
 @_register(
-    installer_sha1='331844b50c86dab3d585ae3c0c823f595f556f6e',
+    installer_sha1='b1ec5e240cba6ae0e0d3a2c3934fa076ec89748d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -294,7 +291,7 @@ def _process_dataclass__9381cc37b0e78fd801350183913c16bfc7069893():
         ('omcore.lifecycles.contextmanagers', 'ContextManagerLifecycle'),
     ),
 )
-def _process_dataclass__331844b50c86dab3d585ae3c0c823f595f556f6e():
+def _process_dataclass__b1ec5e240cba6ae0e0d3a2c3934fa076ec89748d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -383,7 +380,7 @@ def _process_dataclass__331844b50c86dab3d585ae3c0c823f595f556f6e():
 
 
 @_register(
-    installer_sha1='19e77e8af002dfe17ed08b03892a21c0630ad7b3',
+    installer_sha1='bf847cbf36280c012694110cca4e2e10eda20c2b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -398,7 +395,7 @@ def _process_dataclass__331844b50c86dab3d585ae3c0c823f595f556f6e():
         ('omcore.lifecycles.injection', '_LifecycleRegistrar.Dep'),
     ),
 )
-def _process_dataclass__19e77e8af002dfe17ed08b03892a21c0630ad7b3():
+def _process_dataclass__bf847cbf36280c012694110cca4e2e10eda20c2b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -503,7 +500,7 @@ def _process_dataclass__19e77e8af002dfe17ed08b03892a21c0630ad7b3():
 
 
 @_register(
-    installer_sha1='8f9280747aecd924ca34534d13c4d892ccdf59d2',
+    installer_sha1='b8ab52df677f31ee9f39283cc7e81dd489b68772',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -517,7 +514,7 @@ def _process_dataclass__19e77e8af002dfe17ed08b03892a21c0630ad7b3():
         ('omcore.lifecycles.injection', '_LifecycleRegistrar.State'),
     ),
 )
-def _process_dataclass__8f9280747aecd924ca34534d13c4d892ccdf59d2():
+def _process_dataclass__b8ab52df677f31ee9f39283cc7e81dd489b68772():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -618,7 +615,7 @@ def _process_dataclass__8f9280747aecd924ca34534d13c4d892ccdf59d2():
 
 
 @_register(
-    installer_sha1='41ae3d4fac55c4dad42a3f8b18349f5f6f49e78f',
+    installer_sha1='b8a5252f4c49ec96132c95a544b53c74e6ef0d89',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -632,7 +629,7 @@ def _process_dataclass__8f9280747aecd924ca34534d13c4d892ccdf59d2():
         ('omcore.lifecycles.managed', 'LifecycleManaged._Lifecycle'),
     ),
 )
-def _process_dataclass__41ae3d4fac55c4dad42a3f8b18349f5f6f49e78f():
+def _process_dataclass__b8a5252f4c49ec96132c95a544b53c74e6ef0d89():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -721,7 +718,7 @@ def _process_dataclass__41ae3d4fac55c4dad42a3f8b18349f5f6f49e78f():
 
 
 @_register(
-    installer_sha1='b8a00c8f8063ed8f081e86fb56ab2e980b31590b',
+    installer_sha1='fa8f0ac96e55deeac73adc055d56a0bb98749b09',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -736,7 +733,7 @@ def _process_dataclass__41ae3d4fac55c4dad42a3f8b18349f5f6f49e78f():
         ('omcore.lifecycles.manager', 'LifecycleManagerEntry'),
     ),
 )
-def _process_dataclass__b8a00c8f8063ed8f081e86fb56ab2e980b31590b():
+def _process_dataclass__fa8f0ac96e55deeac73adc055d56a0bb98749b09():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -826,7 +823,7 @@ def _process_dataclass__b8a00c8f8063ed8f081e86fb56ab2e980b31590b():
 
 
 @_register(
-    installer_sha1='213d72d6bbccd2f7924f4353e9e22c646b0b2153',
+    installer_sha1='50f26270154cb9660279707221562794ba11420f',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -841,7 +838,7 @@ def _process_dataclass__b8a00c8f8063ed8f081e86fb56ab2e980b31590b():
         ('omcore.lifecycles.states', 'LifecycleState'),
     ),
 )
-def _process_dataclass__213d72d6bbccd2f7924f4353e9e22c646b0b2153():
+def _process_dataclass__50f26270154cb9660279707221562794ba11420f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -924,7 +921,7 @@ def _process_dataclass__213d72d6bbccd2f7924f4353e9e22c646b0b2153():
 
 
 @_register(
-    installer_sha1='c47921ee7c9cddb80df7261199f67bbdfccb7b80',
+    installer_sha1='0ffce6d0a6a7aea508f78d48764be57d78c398cd',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -940,7 +937,7 @@ def _process_dataclass__213d72d6bbccd2f7924f4353e9e22c646b0b2153():
         ('omcore.lifecycles.transitions', 'LifecycleTransition'),
     ),
 )
-def _process_dataclass__c47921ee7c9cddb80df7261199f67bbdfccb7b80():
+def _process_dataclass__0ffce6d0a6a7aea508f78d48764be57d78c398cd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

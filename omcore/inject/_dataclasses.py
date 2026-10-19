@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='f52101242db9f4e52cd9459949a45d87c5dd85fc',
+    installer_sha1='cd208fcb95f4acb0fc1ac745b31e1fd725f18c2a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -47,7 +44,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.inject.bindings', 'Binding'),
     ),
 )
-def _process_dataclass__f52101242db9f4e52cd9459949a45d87c5dd85fc():
+def _process_dataclass__cd208fcb95f4acb0fc1ac745b31e1fd725f18c2a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -169,7 +166,7 @@ def _process_dataclass__f52101242db9f4e52cd9459949a45d87c5dd85fc():
 
 
 @_register(
-    installer_sha1='e404441614fec13c310ba39a4bfeb0c07e24938d',
+    installer_sha1='98e88c06e5f44ca586d65b06f49580d98d365980',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -183,7 +180,7 @@ def _process_dataclass__f52101242db9f4e52cd9459949a45d87c5dd85fc():
         ('omcore.inject.eagers', 'Eager'),
     ),
 )
-def _process_dataclass__e404441614fec13c310ba39a4bfeb0c07e24938d():
+def _process_dataclass__98e88c06e5f44ca586d65b06f49580d98d365980():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -294,7 +291,7 @@ def _process_dataclass__e404441614fec13c310ba39a4bfeb0c07e24938d():
 
 
 @_register(
-    installer_sha1='ff5397828fa66cd9becf51e721f31dec22582f6f',
+    installer_sha1='aac1548ca95469f6738569fa33d44f06ab8dab50',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -308,7 +305,7 @@ def _process_dataclass__e404441614fec13c310ba39a4bfeb0c07e24938d():
         ('omcore.inject.elements', 'Elements'),
     ),
 )
-def _process_dataclass__ff5397828fa66cd9becf51e721f31dec22582f6f():
+def _process_dataclass__aac1548ca95469f6738569fa33d44f06ab8dab50():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -407,7 +404,7 @@ def _process_dataclass__ff5397828fa66cd9becf51e721f31dec22582f6f():
 
 
 @_register(
-    installer_sha1='9115a6694127eba28ac513520ac544e1361e98c6',
+    installer_sha1='c9de43a76d8895b319da241b763a6b8b5d7d6a2d',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -424,7 +421,7 @@ def _process_dataclass__ff5397828fa66cd9becf51e721f31dec22582f6f():
         ('omcore.inject.errors', 'UnboundKeyError'),
     ),
 )
-def _process_dataclass__9115a6694127eba28ac513520ac544e1361e98c6():
+def _process_dataclass__c9de43a76d8895b319da241b763a6b8b5d7d6a2d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -496,7 +493,7 @@ def _process_dataclass__9115a6694127eba28ac513520ac544e1361e98c6():
 
 
 @_register(
-    installer_sha1='327e3399e4b15c2dc1fc56ef919a154201e9b55b',
+    installer_sha1='0b85c27601e14d721527caac2307b4d02cddfaf8',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -512,7 +509,7 @@ def _process_dataclass__9115a6694127eba28ac513520ac544e1361e98c6():
         ('omcore.inject.errors', 'CyclicDependencyError'),
     ),
 )
-def _process_dataclass__327e3399e4b15c2dc1fc56ef919a154201e9b55b():
+def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -591,7 +588,7 @@ def _process_dataclass__327e3399e4b15c2dc1fc56ef919a154201e9b55b():
 
 
 @_register(
-    installer_sha1='d201643447ff40013c7b75e8d4ff39d2dc23b076',
+    installer_sha1='fb1e278a216e03d79b0facdcf716b2714cdba971',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -604,7 +601,7 @@ def _process_dataclass__327e3399e4b15c2dc1fc56ef919a154201e9b55b():
         ('omcore.inject.errors', 'InjectorConcurrencyError'),
     ),
 )
-def _process_dataclass__d201643447ff40013c7b75e8d4ff39d2dc23b076():
+def _process_dataclass__fb1e278a216e03d79b0facdcf716b2714cdba971():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -650,7 +647,7 @@ def _process_dataclass__d201643447ff40013c7b75e8d4ff39d2dc23b076():
 
 
 @_register(
-    installer_sha1='31939e55d02f7c679267ed922defd768c2c16e7f',
+    installer_sha1='de45f3e13e754a20ac8fd1b2f2bf809bc08a8dc1',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -666,7 +663,7 @@ def _process_dataclass__d201643447ff40013c7b75e8d4ff39d2dc23b076():
         ('omcore.inject.errors', 'DuplicateMapKeyError'),
     ),
 )
-def _process_dataclass__31939e55d02f7c679267ed922defd768c2c16e7f():
+def _process_dataclass__de45f3e13e754a20ac8fd1b2f2bf809bc08a8dc1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -745,7 +742,7 @@ def _process_dataclass__31939e55d02f7c679267ed922defd768c2c16e7f():
 
 
 @_register(
-    installer_sha1='76a86b07516fb01dd52323b5a5dbf5cf46964a8b',
+    installer_sha1='a3e135facb47d4a33d232e9cb67c75e96008184d',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -761,7 +758,7 @@ def _process_dataclass__31939e55d02f7c679267ed922defd768c2c16e7f():
         ('omcore.inject.errors', 'ScopeNotOpenError'),
     ),
 )
-def _process_dataclass__76a86b07516fb01dd52323b5a5dbf5cf46964a8b():
+def _process_dataclass__a3e135facb47d4a33d232e9cb67c75e96008184d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -819,7 +816,7 @@ def _process_dataclass__76a86b07516fb01dd52323b5a5dbf5cf46964a8b():
 
 
 @_register(
-    installer_sha1='5a83a52ddb2b39c41cc1559d4e5e26f10de1dfd2',
+    installer_sha1='3c97eb0061aa3f387245abfeb8f50533ad3d49d7',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -836,7 +833,7 @@ def _process_dataclass__76a86b07516fb01dd52323b5a5dbf5cf46964a8b():
         ('omcore.inject.errors', 'ScopeNotRegisteredError'),
     ),
 )
-def _process_dataclass__5a83a52ddb2b39c41cc1559d4e5e26f10de1dfd2():
+def _process_dataclass__3c97eb0061aa3f387245abfeb8f50533ad3d49d7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -901,7 +898,7 @@ def _process_dataclass__5a83a52ddb2b39c41cc1559d4e5e26f10de1dfd2():
 
 
 @_register(
-    installer_sha1='35e91d179c2e52650fd0f8a89c2a539c75bb981f',
+    installer_sha1='93fe0688d4205ba79d22109d5423c01d4073aaaf',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -914,7 +911,7 @@ def _process_dataclass__5a83a52ddb2b39c41cc1559d4e5e26f10de1dfd2():
         ('omcore.inject.helpers.constfn', 'ConstFn'),
     ),
 )
-def _process_dataclass__35e91d179c2e52650fd0f8a89c2a539c75bb981f():
+def _process_dataclass__93fe0688d4205ba79d22109d5423c01d4073aaaf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -986,7 +983,7 @@ def _process_dataclass__35e91d179c2e52650fd0f8a89c2a539c75bb981f():
 
 
 @_register(
-    installer_sha1='e0eade04f16c4cd3c8d4ab01f75bb2cf93648a68',
+    installer_sha1='9ab5a20cbbf4049b0bddefc1f4effbcc2eb1b167',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -1000,7 +997,7 @@ def _process_dataclass__35e91d179c2e52650fd0f8a89c2a539c75bb981f():
         ('omcore.inject.helpers.id', 'Id'),
     ),
 )
-def _process_dataclass__e0eade04f16c4cd3c8d4ab01f75bb2cf93648a68():
+def _process_dataclass__9ab5a20cbbf4049b0bddefc1f4effbcc2eb1b167():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1119,7 +1116,7 @@ def _process_dataclass__e0eade04f16c4cd3c8d4ab01f75bb2cf93648a68():
 
 
 @_register(
-    installer_sha1='8c9894e4828bd739903735989720d663f35aeed0',
+    installer_sha1='83c90a22bdd567da482b554ab48171d6be7b0092',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -1132,7 +1129,7 @@ def _process_dataclass__e0eade04f16c4cd3c8d4ab01f75bb2cf93648a68():
         ('omcore.inject.helpers.wrappers', 'WrapperBinderHelper._Root'),
     ),
 )
-def _process_dataclass__8c9894e4828bd739903735989720d663f35aeed0():
+def _process_dataclass__83c90a22bdd567da482b554ab48171d6be7b0092():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1186,7 +1183,7 @@ def _process_dataclass__8c9894e4828bd739903735989720d663f35aeed0():
 
 
 @_register(
-    installer_sha1='95ca6ccd3e2676b56fd04528959a22edbb4c3b63',
+    installer_sha1='d71d99ce1843d9e1e56faed67031de671904902b',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -1199,7 +1196,7 @@ def _process_dataclass__8c9894e4828bd739903735989720d663f35aeed0():
         ('omcore.inject.helpers.multis', 'ItemsBinderHelper._ItemsBox'),
     ),
 )
-def _process_dataclass__95ca6ccd3e2676b56fd04528959a22edbb4c3b63():
+def _process_dataclass__d71d99ce1843d9e1e56faed67031de671904902b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1270,7 +1267,7 @@ def _process_dataclass__95ca6ccd3e2676b56fd04528959a22edbb4c3b63():
 
 
 @_register(
-    installer_sha1='881c224ce7a73e406464c883be1444a607e93383',
+    installer_sha1='02976acc090f7b5e6a849d74c9f770d8df5b7351',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1284,7 +1281,7 @@ def _process_dataclass__95ca6ccd3e2676b56fd04528959a22edbb4c3b63():
         ('omcore.inject.helpers.wrappers', 'WrapperBinderHelper._Level'),
     ),
 )
-def _process_dataclass__881c224ce7a73e406464c883be1444a607e93383():
+def _process_dataclass__02976acc090f7b5e6a849d74c9f770d8df5b7351():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1381,7 +1378,7 @@ def _process_dataclass__881c224ce7a73e406464c883be1444a607e93383():
 
 
 @_register(
-    installer_sha1='7fa82bd472f1f4704950756c5aa65f30f71a9da8',
+    installer_sha1='6c91fd676fbe0a030f4ee4f3624b602899b97c7c',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, True, False, False, False, Fal"
@@ -1397,7 +1394,7 @@ def _process_dataclass__881c224ce7a73e406464c883be1444a607e93383():
         ('omcore.inject.impl.bindings', 'BindingImpl'),
     ),
 )
-def _process_dataclass__7fa82bd472f1f4704950756c5aa65f30f71a9da8():
+def _process_dataclass__6c91fd676fbe0a030f4ee4f3624b602899b97c7c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1488,7 +1485,7 @@ def _process_dataclass__7fa82bd472f1f4704950756c5aa65f30f71a9da8():
 
 
 @_register(
-    installer_sha1='dd19872fc70191becb35d076e8fccca205f84d3f',
+    installer_sha1='8a9bd3349c3fa05318d243d5a888e4b43c41febf',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -1501,7 +1498,7 @@ def _process_dataclass__7fa82bd472f1f4704950756c5aa65f30f71a9da8():
         ('omcore.inject.impl.multis', 'MapProviderImpl'),
     ),
 )
-def _process_dataclass__dd19872fc70191becb35d076e8fccca205f84d3f():
+def _process_dataclass__8a9bd3349c3fa05318d243d5a888e4b43c41febf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1572,7 +1569,7 @@ def _process_dataclass__dd19872fc70191becb35d076e8fccca205f84d3f():
 
 
 @_register(
-    installer_sha1='a5f058398eed872c7f11ffb7d865557137d9a8b6',
+    installer_sha1='9782f4e3cf9a10842f28e4b5c3494ac8466065db',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -1585,7 +1582,7 @@ def _process_dataclass__dd19872fc70191becb35d076e8fccca205f84d3f():
         ('omcore.inject.impl.multis', 'SetProviderImpl'),
     ),
 )
-def _process_dataclass__a5f058398eed872c7f11ffb7d865557137d9a8b6():
+def _process_dataclass__9782f4e3cf9a10842f28e4b5c3494ac8466065db():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1656,7 +1653,7 @@ def _process_dataclass__a5f058398eed872c7f11ffb7d865557137d9a8b6():
 
 
 @_register(
-    installer_sha1='25bb5ea6829e31bae28bc53c66ffdc42a7868c7f',
+    installer_sha1='592e4142aa2b2f7f1821bc43c896eb95fa2d3408',
     spec_keys=(
         (
             "(((True, True, False, False, False, False, True, False, False, False, False, False, False, False, False, F"
@@ -1670,7 +1667,7 @@ def _process_dataclass__a5f058398eed872c7f11ffb7d865557137d9a8b6():
         ('omcore.inject.impl.privates', 'ExposedPrivateProviderImpl'),
     ),
 )
-def _process_dataclass__25bb5ea6829e31bae28bc53c66ffdc42a7868c7f():
+def _process_dataclass__592e4142aa2b2f7f1821bc43c896eb95fa2d3408():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1720,7 +1717,7 @@ def _process_dataclass__25bb5ea6829e31bae28bc53c66ffdc42a7868c7f():
 
 
 @_register(
-    installer_sha1='b71d05b7a1087f9646a91ef4e250c788d310a31d',
+    installer_sha1='bf5f43366e1c898550ddf2ae268e935586cc3f28',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1734,7 +1731,7 @@ def _process_dataclass__25bb5ea6829e31bae28bc53c66ffdc42a7868c7f():
         ('omcore.inject.impl.privates', 'PrivateInfo'),
     ),
 )
-def _process_dataclass__b71d05b7a1087f9646a91ef4e250c788d310a31d():
+def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1831,7 +1828,7 @@ def _process_dataclass__b71d05b7a1087f9646a91ef4e250c788d310a31d():
 
 
 @_register(
-    installer_sha1='4f2831a9700f5a15798efb04340e15656f9bd515',
+    installer_sha1='65925f54033c08a133f31cd1ccf00050c1dd268a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1844,7 +1841,7 @@ def _process_dataclass__b71d05b7a1087f9646a91ef4e250c788d310a31d():
         ('omcore.inject.impl.privates', 'PrivateInjectorId'),
     ),
 )
-def _process_dataclass__4f2831a9700f5a15798efb04340e15656f9bd515():
+def _process_dataclass__65925f54033c08a133f31cd1ccf00050c1dd268a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1933,7 +1930,7 @@ def _process_dataclass__4f2831a9700f5a15798efb04340e15656f9bd515():
 
 
 @_register(
-    installer_sha1='71da8d9d5096ddb1b4e5e268a4076c5222d790bc',
+    installer_sha1='d6b9994166834f6cbb6e2da652f87c93d231dc12',
     spec_keys=(
         (
             "(((True, True, False, False, False, False, True, False, False, False, False, False, False, False, False, F"
@@ -1947,7 +1944,7 @@ def _process_dataclass__4f2831a9700f5a15798efb04340e15656f9bd515():
         ('omcore.inject.impl.privates', 'PrivateInjectorProviderImpl'),
     ),
 )
-def _process_dataclass__71da8d9d5096ddb1b4e5e268a4076c5222d790bc():
+def _process_dataclass__d6b9994166834f6cbb6e2da652f87c93d231dc12():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1997,7 +1994,7 @@ def _process_dataclass__71da8d9d5096ddb1b4e5e268a4076c5222d790bc():
 
 
 @_register(
-    installer_sha1='e9dbf4705b87d31bea833fac1113dc8708c09789',
+    installer_sha1='d33c39f01c30e3baf0dc6099bb4beb3c01969a7a',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -2012,7 +2009,7 @@ def _process_dataclass__71da8d9d5096ddb1b4e5e268a4076c5222d790bc():
         ('omcore.inject.impl.providers', 'CallableProviderImpl'),
     ),
 )
-def _process_dataclass__e9dbf4705b87d31bea833fac1113dc8708c09789():
+def _process_dataclass__d33c39f01c30e3baf0dc6099bb4beb3c01969a7a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2089,7 +2086,7 @@ def _process_dataclass__e9dbf4705b87d31bea833fac1113dc8708c09789():
 
 
 @_register(
-    installer_sha1='b0750feddd78cbf8cc69b195fbfdadfc02b4f44f',
+    installer_sha1='49e718416cf9b6ce44df57a656e877e4a576af4c',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -2104,7 +2101,7 @@ def _process_dataclass__e9dbf4705b87d31bea833fac1113dc8708c09789():
         ('omcore.inject.impl.scopes', 'ScopeSeededProviderImpl'),
     ),
 )
-def _process_dataclass__b0750feddd78cbf8cc69b195fbfdadfc02b4f44f():
+def _process_dataclass__49e718416cf9b6ce44df57a656e877e4a576af4c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2175,7 +2172,7 @@ def _process_dataclass__b0750feddd78cbf8cc69b195fbfdadfc02b4f44f():
 
 
 @_register(
-    installer_sha1='66b913028f5288eac39b16dcb771ea747340d7f0',
+    installer_sha1='b3f27b8b8650a45e6cc64d11f7bdb9c2248de41d',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -2188,7 +2185,7 @@ def _process_dataclass__b0750feddd78cbf8cc69b195fbfdadfc02b4f44f():
         ('omcore.inject.impl.providers', 'InternalProvider'),
     ),
 )
-def _process_dataclass__66b913028f5288eac39b16dcb771ea747340d7f0():
+def _process_dataclass__b3f27b8b8650a45e6cc64d11f7bdb9c2248de41d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2259,7 +2256,7 @@ def _process_dataclass__66b913028f5288eac39b16dcb771ea747340d7f0():
 
 
 @_register(
-    installer_sha1='2c63bd16aca17a8ef35628a4ddcf64995101f062',
+    installer_sha1='4eae237500838f33795b09a9d4b6865116a1a25b',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -2272,7 +2269,7 @@ def _process_dataclass__66b913028f5288eac39b16dcb771ea747340d7f0():
         ('omcore.inject.impl.provision', 'OnceProvisionMap._Done'),
     ),
 )
-def _process_dataclass__2c63bd16aca17a8ef35628a4ddcf64995101f062():
+def _process_dataclass__4eae237500838f33795b09a9d4b6865116a1a25b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2343,7 +2340,7 @@ def _process_dataclass__2c63bd16aca17a8ef35628a4ddcf64995101f062():
 
 
 @_register(
-    installer_sha1='114aae98fa02ddab285ef5050a4d24f32143c203',
+    installer_sha1='1a3ffef80b6fc6d9085ff120f73975bb448333cc',
     spec_keys=(
         (
             "(((True, True, False, False, False, False, True, False, False, False, False, False, False, False, False, F"
@@ -2357,7 +2354,7 @@ def _process_dataclass__2c63bd16aca17a8ef35628a4ddcf64995101f062():
         ('omcore.inject.impl.provision', 'OnceProvisionMap._Entry'),
     ),
 )
-def _process_dataclass__114aae98fa02ddab285ef5050a4d24f32143c203():
+def _process_dataclass__1a3ffef80b6fc6d9085ff120f73975bb448333cc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2408,7 +2405,7 @@ def _process_dataclass__114aae98fa02ddab285ef5050a4d24f32143c203():
 
 
 @_register(
-    installer_sha1='f05e0d8cb6ece1ccbd84b810c29b72323f174cca',
+    installer_sha1='2f5cb15e6d379da0fc26af9350b774d2f3855927',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -2423,7 +2420,7 @@ def _process_dataclass__114aae98fa02ddab285ef5050a4d24f32143c203():
         ('omcore.inject.impl.provision', '_ProvisionWaitRegistry._Wait'),
     ),
 )
-def _process_dataclass__f05e0d8cb6ece1ccbd84b810c29b72323f174cca():
+def _process_dataclass__2f5cb15e6d379da0fc26af9350b774d2f3855927():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2506,7 +2503,7 @@ def _process_dataclass__f05e0d8cb6ece1ccbd84b810c29b72323f174cca():
 
 
 @_register(
-    installer_sha1='a2ac880fbc57398150937f3e8bfaf92b959110b8',
+    installer_sha1='c39aeef09888f07446f538bc14c677bc6fb42172',
     spec_keys=(
         (
             "(((True, True, False, False, False, False, True, False, False, False, False, False, False, False, False, F"
@@ -2521,7 +2518,7 @@ def _process_dataclass__f05e0d8cb6ece1ccbd84b810c29b72323f174cca():
         ('omcore.inject.impl.scopes', 'DelimitedScopeImpl.State'),
     ),
 )
-def _process_dataclass__a2ac880fbc57398150937f3e8bfaf92b959110b8():
+def _process_dataclass__c39aeef09888f07446f538bc14c677bc6fb42172():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2581,7 +2578,7 @@ def _process_dataclass__a2ac880fbc57398150937f3e8bfaf92b959110b8():
 
 
 @_register(
-    installer_sha1='430dbe96b89d425cebb1ce42692dbdd6962b4d96',
+    installer_sha1='d6d3cedcb66a0d369e049a981572998ab141412f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -2596,7 +2593,7 @@ def _process_dataclass__a2ac880fbc57398150937f3e8bfaf92b959110b8():
         ('omcore.inject.inspect', 'Kwarg'),
     ),
 )
-def _process_dataclass__430dbe96b89d425cebb1ce42692dbdd6962b4d96():
+def _process_dataclass__d6d3cedcb66a0d369e049a981572998ab141412f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2713,7 +2710,7 @@ def _process_dataclass__430dbe96b89d425cebb1ce42692dbdd6962b4d96():
 
 
 @_register(
-    installer_sha1='71d1a0f1e0553d3bf0e1ab4e821860b6c30e93df',
+    installer_sha1='39a3ab9ccfe2b5df3eb73570623b9489fe9a7810',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -2726,7 +2723,7 @@ def _process_dataclass__430dbe96b89d425cebb1ce42692dbdd6962b4d96():
         ('omcore.inject.inspect', 'Kwargs'),
     ),
 )
-def _process_dataclass__71d1a0f1e0553d3bf0e1ab4e821860b6c30e93df():
+def _process_dataclass__39a3ab9ccfe2b5df3eb73570623b9489fe9a7810():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2829,7 +2826,7 @@ def _process_dataclass__71d1a0f1e0553d3bf0e1ab4e821860b6c30e93df():
 
 
 @_register(
-    installer_sha1='647dfe2ed707ef2492e8f861e204af9d247a8f9d',
+    installer_sha1='a4065c04923423b2ef1c8201fcb3f3cf0a9d756c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -2843,7 +2840,7 @@ def _process_dataclass__71d1a0f1e0553d3bf0e1ab4e821860b6c30e93df():
         ('omcore.inject.inspect', 'KwargsTarget'),
     ),
 )
-def _process_dataclass__647dfe2ed707ef2492e8f861e204af9d247a8f9d():
+def _process_dataclass__a4065c04923423b2ef1c8201fcb3f3cf0a9d756c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2949,7 +2946,7 @@ def _process_dataclass__647dfe2ed707ef2492e8f861e204af9d247a8f9d():
 
 
 @_register(
-    installer_sha1='ca29a93b47594ea2a0ca6ee3ce277f80e436591b',
+    installer_sha1='787e47f89a92169242d606260861e996d0e477cc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2963,7 +2960,7 @@ def _process_dataclass__647dfe2ed707ef2492e8f861e204af9d247a8f9d():
         ('omcore.inject.keys', 'Key'),
     ),
 )
-def _process_dataclass__ca29a93b47594ea2a0ca6ee3ce277f80e436591b():
+def _process_dataclass__787e47f89a92169242d606260861e996d0e477cc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3062,7 +3059,7 @@ def _process_dataclass__ca29a93b47594ea2a0ca6ee3ce277f80e436591b():
 
 
 @_register(
-    installer_sha1='09f7ed3c82ef472769b774c1f94d316c1c86b8f7',
+    installer_sha1='4031e67722e7fdc69fc5dade32b13e53310f28ee',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3075,7 +3072,7 @@ def _process_dataclass__ca29a93b47594ea2a0ca6ee3ce277f80e436591b():
         ('omcore.inject.listeners', 'ProvisionListenerBinding'),
     ),
 )
-def _process_dataclass__09f7ed3c82ef472769b774c1f94d316c1c86b8f7():
+def _process_dataclass__4031e67722e7fdc69fc5dade32b13e53310f28ee():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3174,7 +3171,7 @@ def _process_dataclass__09f7ed3c82ef472769b774c1f94d316c1c86b8f7():
 
 
 @_register(
-    installer_sha1='1acc23247fbe6e4a442850392a94f9b7d4b589b5',
+    installer_sha1='577c076f7a17ab6b760bb5b4070319c12f618056',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3189,7 +3186,7 @@ def _process_dataclass__09f7ed3c82ef472769b774c1f94d316c1c86b8f7():
         ('omcore.inject.multis', 'MapBinding'),
     ),
 )
-def _process_dataclass__1acc23247fbe6e4a442850392a94f9b7d4b589b5():
+def _process_dataclass__577c076f7a17ab6b760bb5b4070319c12f618056():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3315,7 +3312,7 @@ def _process_dataclass__1acc23247fbe6e4a442850392a94f9b7d4b589b5():
 
 
 @_register(
-    installer_sha1='1c72fb296946c1ab0bece056b1b6508fcad01961',
+    installer_sha1='914c96dafebb1e71ae96af2845e12e2fd51673dc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3329,7 +3326,7 @@ def _process_dataclass__1acc23247fbe6e4a442850392a94f9b7d4b589b5():
         ('omcore.inject.multis', 'SetProvider'),
     ),
 )
-def _process_dataclass__1c72fb296946c1ab0bece056b1b6508fcad01961():
+def _process_dataclass__914c96dafebb1e71ae96af2845e12e2fd51673dc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3436,7 +3433,7 @@ def _process_dataclass__1c72fb296946c1ab0bece056b1b6508fcad01961():
 
 
 @_register(
-    installer_sha1='59309d65ee111f6c2f8ad8cfa1008b9f079b0d35',
+    installer_sha1='d11575739918b300f083566272cdcaafdc11f11a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3450,7 +3447,7 @@ def _process_dataclass__1c72fb296946c1ab0bece056b1b6508fcad01961():
         ('omcore.inject.multis', 'SetBinding'),
     ),
 )
-def _process_dataclass__59309d65ee111f6c2f8ad8cfa1008b9f079b0d35():
+def _process_dataclass__d11575739918b300f083566272cdcaafdc11f11a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3568,7 +3565,7 @@ def _process_dataclass__59309d65ee111f6c2f8ad8cfa1008b9f079b0d35():
 
 
 @_register(
-    installer_sha1='8da6aa287f317b4af2d165c88450320af4343e81',
+    installer_sha1='2b0055b991afeb3feb266b23847188f104f2cf96',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3582,7 +3579,7 @@ def _process_dataclass__59309d65ee111f6c2f8ad8cfa1008b9f079b0d35():
         ('omcore.inject.origins', 'Origins'),
     ),
 )
-def _process_dataclass__8da6aa287f317b4af2d165c88450320af4343e81():
+def _process_dataclass__2b0055b991afeb3feb266b23847188f104f2cf96():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3680,7 +3677,7 @@ def _process_dataclass__8da6aa287f317b4af2d165c88450320af4343e81():
 
 
 @_register(
-    installer_sha1='be8d0474c3ca5dc52c5012453b5dd932d47374fd',
+    installer_sha1='be5b92762ae4557210b4b4b04eb8ddf096efd52f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3694,7 +3691,7 @@ def _process_dataclass__8da6aa287f317b4af2d165c88450320af4343e81():
         ('omcore.inject.overrides', 'Overrides'),
     ),
 )
-def _process_dataclass__be8d0474c3ca5dc52c5012453b5dd932d47374fd():
+def _process_dataclass__be5b92762ae4557210b4b4b04eb8ddf096efd52f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3805,7 +3802,7 @@ def _process_dataclass__be8d0474c3ca5dc52c5012453b5dd932d47374fd():
 
 
 @_register(
-    installer_sha1='772f32d88b57e2954f4668d3468ff985a56717d4',
+    installer_sha1='76becee99e16418be4839551badef1c0b0ded9f4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3818,7 +3815,7 @@ def _process_dataclass__be8d0474c3ca5dc52c5012453b5dd932d47374fd():
         ('omcore.inject.privates', 'Expose'),
     ),
 )
-def _process_dataclass__772f32d88b57e2954f4668d3468ff985a56717d4():
+def _process_dataclass__76becee99e16418be4839551badef1c0b0ded9f4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3919,7 +3916,7 @@ def _process_dataclass__772f32d88b57e2954f4668d3468ff985a56717d4():
 
 
 @_register(
-    installer_sha1='345b2dd93189c280727a8ecb465acfd6e4e785b4',
+    installer_sha1='ca9109adc63cbeec17b8f5829225af29514e0f92',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -3932,7 +3929,7 @@ def _process_dataclass__772f32d88b57e2954f4668d3468ff985a56717d4():
         ('omcore.inject.privates', 'Private'),
     ),
 )
-def _process_dataclass__345b2dd93189c280727a8ecb465acfd6e4e785b4():
+def _process_dataclass__ca9109adc63cbeec17b8f5829225af29514e0f92():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4033,7 +4030,7 @@ def _process_dataclass__345b2dd93189c280727a8ecb465acfd6e4e785b4():
 
 
 @_register(
-    installer_sha1='0afb8e16d377bb3e3164a02435735f55588167e5',
+    installer_sha1='92046313c2586db0e39dd79bb244bf0feeacf91c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4047,7 +4044,7 @@ def _process_dataclass__345b2dd93189c280727a8ecb465acfd6e4e785b4():
         ('omcore.inject.providers', 'FnProvider'),
     ),
 )
-def _process_dataclass__0afb8e16d377bb3e3164a02435735f55588167e5():
+def _process_dataclass__92046313c2586db0e39dd79bb244bf0feeacf91c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4154,7 +4151,7 @@ def _process_dataclass__0afb8e16d377bb3e3164a02435735f55588167e5():
 
 
 @_register(
-    installer_sha1='d42b125a56ad45cf46e8ddf3eefa83b555875f06',
+    installer_sha1='f64a4a961d9568ee4d88be58a4a2255619d22b22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4167,7 +4164,7 @@ def _process_dataclass__0afb8e16d377bb3e3164a02435735f55588167e5():
         ('omcore.inject.providers', 'ConstProvider'),
     ),
 )
-def _process_dataclass__d42b125a56ad45cf46e8ddf3eefa83b555875f06():
+def _process_dataclass__f64a4a961d9568ee4d88be58a4a2255619d22b22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4265,7 +4262,7 @@ def _process_dataclass__d42b125a56ad45cf46e8ddf3eefa83b555875f06():
 
 
 @_register(
-    installer_sha1='3914f683f7ab9c38797f66c8681563c3ae5da1f0',
+    installer_sha1='d963c54b37e716d42c33c9f2640e23bd6fa99363',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4278,7 +4275,7 @@ def _process_dataclass__d42b125a56ad45cf46e8ddf3eefa83b555875f06():
         ('omcore.inject.providers', 'CtorProvider'),
     ),
 )
-def _process_dataclass__3914f683f7ab9c38797f66c8681563c3ae5da1f0():
+def _process_dataclass__d963c54b37e716d42c33c9f2640e23bd6fa99363():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4385,7 +4382,7 @@ def _process_dataclass__3914f683f7ab9c38797f66c8681563c3ae5da1f0():
 
 
 @_register(
-    installer_sha1='cab1fbeb34bd7bad5fa867d2fec683800c082b5f',
+    installer_sha1='d5b9a3d0561163fdfba4ec343fe3f8b3bb1b3de1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4398,7 +4395,7 @@ def _process_dataclass__3914f683f7ab9c38797f66c8681563c3ae5da1f0():
         ('omcore.inject.providers', 'LinkProvider'),
     ),
 )
-def _process_dataclass__cab1fbeb34bd7bad5fa867d2fec683800c082b5f():
+def _process_dataclass__d5b9a3d0561163fdfba4ec343fe3f8b3bb1b3de1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4498,7 +4495,7 @@ def _process_dataclass__cab1fbeb34bd7bad5fa867d2fec683800c082b5f():
 
 
 @_register(
-    installer_sha1='b9b7c42de9b39c1ecdfb971112e1a04af26c95be',
+    installer_sha1='bf4eba772fd8d73f15aeba83ffb2b1a76749e3eb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4511,7 +4508,7 @@ def _process_dataclass__cab1fbeb34bd7bad5fa867d2fec683800c082b5f():
         ('omcore.inject.scopes', 'ContextVarScopeContext'),
     ),
 )
-def _process_dataclass__b9b7c42de9b39c1ecdfb971112e1a04af26c95be():
+def _process_dataclass__bf4eba772fd8d73f15aeba83ffb2b1a76749e3eb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4611,7 +4608,7 @@ def _process_dataclass__b9b7c42de9b39c1ecdfb971112e1a04af26c95be():
 
 
 @_register(
-    installer_sha1='45e045740d39a8d53ee911bcd6497b7bd11c1a70',
+    installer_sha1='e4c5962c0aa74d574df77c4faac6aba03043eb27',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4625,7 +4622,7 @@ def _process_dataclass__b9b7c42de9b39c1ecdfb971112e1a04af26c95be():
         ('omcore.inject.scopes', 'DelimitedScope'),
     ),
 )
-def _process_dataclass__45e045740d39a8d53ee911bcd6497b7bd11c1a70():
+def _process_dataclass__e4c5962c0aa74d574df77c4faac6aba03043eb27():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4744,7 +4741,7 @@ def _process_dataclass__45e045740d39a8d53ee911bcd6497b7bd11c1a70():
 
 
 @_register(
-    installer_sha1='cca6dad18410e4573f0183c133c649c8c029905f',
+    installer_sha1='05e50f178d25a5f1663fb4a9b1319f2ab4c4689c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4757,7 +4754,7 @@ def _process_dataclass__45e045740d39a8d53ee911bcd6497b7bd11c1a70():
         ('omcore.inject.scopes', 'ScopeBinding'),
     ),
 )
-def _process_dataclass__cca6dad18410e4573f0183c133c649c8c029905f():
+def _process_dataclass__05e50f178d25a5f1663fb4a9b1319f2ab4c4689c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4858,7 +4855,7 @@ def _process_dataclass__cca6dad18410e4573f0183c133c649c8c029905f():
 
 
 @_register(
-    installer_sha1='ed8b87d13a76111c2ea4dfd5db75156a84aabaec',
+    installer_sha1='2ddfa97367d22ab0582af793a7372c5df59c0e74',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4872,7 +4869,7 @@ def _process_dataclass__cca6dad18410e4573f0183c133c649c8c029905f():
         ('omcore.inject.scopes', 'ScopeSeededProvider'),
     ),
 )
-def _process_dataclass__ed8b87d13a76111c2ea4dfd5db75156a84aabaec():
+def _process_dataclass__2ddfa97367d22ab0582af793a7372c5df59c0e74():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

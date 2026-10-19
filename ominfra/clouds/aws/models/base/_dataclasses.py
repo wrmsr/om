@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='2cd47d2fab5c05801bed6cba591738df3099b262',
+    installer_sha1='4a6374950aee40f9170541c0b9bf7df6703d1bc7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -45,7 +42,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('ominfra.clouds.aws.models.base.base', 'ListValueType'),
     ),
 )
-def _process_dataclass__2cd47d2fab5c05801bed6cba591738df3099b262():
+def _process_dataclass__4a6374950aee40f9170541c0b9bf7df6703d1bc7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -134,7 +131,7 @@ def _process_dataclass__2cd47d2fab5c05801bed6cba591738df3099b262():
 
 
 @_register(
-    installer_sha1='edd5e277cf4541cff403b200e1ce8c2d0d89bda7',
+    installer_sha1='efef247ca2856dd524df7773c49d1d8adbbecf2b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -148,7 +145,7 @@ def _process_dataclass__2cd47d2fab5c05801bed6cba591738df3099b262():
         ('ominfra.clouds.aws.models.base.base', 'MapValueType'),
     ),
 )
-def _process_dataclass__edd5e277cf4541cff403b200e1ce8c2d0d89bda7():
+def _process_dataclass__efef247ca2856dd524df7773c49d1d8adbbecf2b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -245,7 +242,7 @@ def _process_dataclass__edd5e277cf4541cff403b200e1ce8c2d0d89bda7():
 
 
 @_register(
-    installer_sha1='1881ea96a7c61442e67ba5e518295b2a1d34b270',
+    installer_sha1='11f771247f9841fe40c5dda6ab382f4251c7b836',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, True, False, False, False, False, False, False, False, Fal"
@@ -264,7 +261,7 @@ def _process_dataclass__edd5e277cf4541cff403b200e1ce8c2d0d89bda7():
         ('ominfra.clouds.aws.models.base.base', 'Operation'),
     ),
 )
-def _process_dataclass__1881ea96a7c61442e67ba5e518295b2a1d34b270():
+def _process_dataclass__11f771247f9841fe40c5dda6ab382f4251c7b836():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -378,7 +375,7 @@ def _process_dataclass__1881ea96a7c61442e67ba5e518295b2a1d34b270():
 
 
 @_register(
-    installer_sha1='23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6',
+    installer_sha1='9f2b574e4f5ed95f27741e71c5b3173b55b5fd46',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -391,7 +388,7 @@ def _process_dataclass__1881ea96a7c61442e67ba5e518295b2a1d34b270():
         ('ominfra.clouds.aws.models.base.base', 'Shape'),
     ),
 )
-def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
+def _process_dataclass__9f2b574e4f5ed95f27741e71c5b3173b55b5fd46():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -466,7 +463,7 @@ def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
 
 
 @_register(
-    installer_sha1='abfcbba10cf3563717dde9558c8a96d4bd8624e7',
+    installer_sha1='3aee19df99ea31bf39c22036fbe6b13f3a2f707b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -480,7 +477,7 @@ def _process_dataclass__23c41b5997eaa88ff7f1b9f5ca1b6c3fab2075c6():
         ('ominfra.clouds.aws.models.base.base', 'Tag'),
     ),
 )
-def _process_dataclass__abfcbba10cf3563717dde9558c8a96d4bd8624e7():
+def _process_dataclass__3aee19df99ea31bf39c22036fbe6b13f3a2f707b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

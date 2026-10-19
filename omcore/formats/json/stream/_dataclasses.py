@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='8825d38c1e7b9232d0d33c9a194d6de70b4fd1cb',
+    installer_sha1='6e78fa2cfd4a7c523e1bc6c89a700920c20ff3c8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -45,7 +42,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.formats.json.stream.building', 'JsonValueBuilder.Config'),
     ),
 )
-def _process_dataclass__8825d38c1e7b9232d0d33c9a194d6de70b4fd1cb():
+def _process_dataclass__6e78fa2cfd4a7c523e1bc6c89a700920c20ff3c8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -136,7 +133,7 @@ def _process_dataclass__8825d38c1e7b9232d0d33c9a194d6de70b4fd1cb():
 
 
 @_register(
-    installer_sha1='cb3a01fe9490f5d99cc4225caa616a3b33788cc1',
+    installer_sha1='08fa750739bbc5e5ab3d50404259168bceb80c56',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -150,7 +147,7 @@ def _process_dataclass__8825d38c1e7b9232d0d33c9a194d6de70b4fd1cb():
         ('omcore.formats.json.stream.lexing', 'JsonStreamLexError'),
     ),
 )
-def _process_dataclass__cb3a01fe9490f5d99cc4225caa616a3b33788cc1():
+def _process_dataclass__08fa750739bbc5e5ab3d50404259168bceb80c56():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -214,7 +211,7 @@ def _process_dataclass__cb3a01fe9490f5d99cc4225caa616a3b33788cc1():
 
 
 @_register(
-    installer_sha1='85ce61e2676d7f450fb758cb0dc057fd00d75fb9',
+    installer_sha1='0aebbf5608b9f071a6d6da5f0f2108c317f27b34',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -237,7 +234,7 @@ def _process_dataclass__cb3a01fe9490f5d99cc4225caa616a3b33788cc1():
         ('omcore.formats.json.stream.lexing', 'JsonStreamLexer.Config'),
     ),
 )
-def _process_dataclass__85ce61e2676d7f450fb758cb0dc057fd00d75fb9():
+def _process_dataclass__0aebbf5608b9f071a6d6da5f0f2108c317f27b34():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -409,7 +406,7 @@ def _process_dataclass__85ce61e2676d7f450fb758cb0dc057fd00d75fb9():
 
 
 @_register(
-    installer_sha1='92bf50d48942893ede3d5020c33ad83774c16997',
+    installer_sha1='41e317c2c571ee36c83ab3172a284dde6f4cb34f',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -423,7 +420,7 @@ def _process_dataclass__85ce61e2676d7f450fb758cb0dc057fd00d75fb9():
         ('omcore.formats.json.stream.parsing', 'JsonStreamParseError'),
     ),
 )
-def _process_dataclass__92bf50d48942893ede3d5020c33ad83774c16997():
+def _process_dataclass__41e317c2c571ee36c83ab3172a284dde6f4cb34f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -488,7 +485,7 @@ def _process_dataclass__92bf50d48942893ede3d5020c33ad83774c16997():
 
 
 @_register(
-    installer_sha1='858476e8034f6c195b071f626f2c4ac91f809acb',
+    installer_sha1='bd2faba65e884b6824680924389cab04ad9c1082',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -503,7 +500,7 @@ def _process_dataclass__92bf50d48942893ede3d5020c33ad83774c16997():
         ('omcore.formats.json.stream.parsing', 'JsonStreamParser.Config'),
     ),
 )
-def _process_dataclass__858476e8034f6c195b071f626f2c4ac91f809acb():
+def _process_dataclass__bd2faba65e884b6824680924389cab04ad9c1082():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -612,7 +609,7 @@ def _process_dataclass__858476e8034f6c195b071f626f2c4ac91f809acb():
 
 
 @_register(
-    installer_sha1='fc85d9ec2f6ac4a083467799b594eb85955cd9e7',
+    installer_sha1='a97db478235b838278afabdfc019ddc43f98f9a9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -630,7 +627,7 @@ def _process_dataclass__858476e8034f6c195b071f626f2c4ac91f809acb():
         ('omcore.formats.json.stream.rendering', 'StreamJsonRenderer.Config'),
     ),
 )
-def _process_dataclass__fc85d9ec2f6ac4a083467799b594eb85955cd9e7():
+def _process_dataclass__a97db478235b838278afabdfc019ddc43f98f9a9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

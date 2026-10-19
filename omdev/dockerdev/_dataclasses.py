@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='dd8fd1e2a543faf54378144fc6d42b05f562e850',
+    installer_sha1='64b8445a3946ebe27924e32c07e8cc534e0b397f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -58,7 +55,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omdev.dockerdev.config', 'Config'),
     ),
 )
-def _process_dataclass__dd8fd1e2a543faf54378144fc6d42b05f562e850():
+def _process_dataclass__64b8445a3946ebe27924e32c07e8cc534e0b397f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -265,7 +262,7 @@ def _process_dataclass__dd8fd1e2a543faf54378144fc6d42b05f562e850():
 
 
 @_register(
-    installer_sha1='c8880e8511382bcc92b796853813d2b74426b00f',
+    installer_sha1='d23c041fe18fbee31537fafdfb86d05571772f6c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -278,7 +275,7 @@ def _process_dataclass__dd8fd1e2a543faf54378144fc6d42b05f562e850():
         ('omdev.dockerdev.content', 'LazyContent'),
     ),
 )
-def _process_dataclass__c8880e8511382bcc92b796853813d2b74426b00f():
+def _process_dataclass__d23c041fe18fbee31537fafdfb86d05571772f6c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -367,7 +364,7 @@ def _process_dataclass__c8880e8511382bcc92b796853813d2b74426b00f():
 
 
 @_register(
-    installer_sha1='625ac4c0cda0f5424cbc5679f0df980830a6c7ce',
+    installer_sha1='8fa044c54e855f73e04e598abd19e75e6e6f3fe4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -381,7 +378,7 @@ def _process_dataclass__c8880e8511382bcc92b796853813d2b74426b00f():
         ('omdev.dockerdev.ops', 'Workdir'),
     ),
 )
-def _process_dataclass__625ac4c0cda0f5424cbc5679f0df980830a6c7ce():
+def _process_dataclass__8fa044c54e855f73e04e598abd19e75e6e6f3fe4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -470,7 +467,7 @@ def _process_dataclass__625ac4c0cda0f5424cbc5679f0df980830a6c7ce():
 
 
 @_register(
-    installer_sha1='78c90d35d12237d630ba8c805ecd2dec24722e5b',
+    installer_sha1='63aee2f63f9009097614eabfcee85befa4585fe4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -484,7 +481,7 @@ def _process_dataclass__625ac4c0cda0f5424cbc5679f0df980830a6c7ce():
         ('omdev.dockerdev.content', 'WithStaticEnv'),
     ),
 )
-def _process_dataclass__78c90d35d12237d630ba8c805ecd2dec24722e5b():
+def _process_dataclass__63aee2f63f9009097614eabfcee85befa4585fe4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -581,7 +578,7 @@ def _process_dataclass__78c90d35d12237d630ba8c805ecd2dec24722e5b():
 
 
 @_register(
-    installer_sha1='74b2c68182e0ad15821fe3bc390648b9e1f938db',
+    installer_sha1='5b99dd94cc312ce96be1497aceb3fda18cfdee5b',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, 'in"
@@ -598,7 +595,7 @@ def _process_dataclass__78c90d35d12237d630ba8c805ecd2dec24722e5b():
         ('omdev.dockerdev.db', 'OrmRun'),
     ),
 )
-def _process_dataclass__74b2c68182e0ad15821fe3bc390648b9e1f938db():
+def _process_dataclass__5b99dd94cc312ce96be1497aceb3fda18cfdee5b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -684,7 +681,7 @@ def _process_dataclass__74b2c68182e0ad15821fe3bc390648b9e1f938db():
 
 
 @_register(
-    installer_sha1='47f85b0ab6a8e89b7246ab4b503f246904d768f1',
+    installer_sha1='b5789bc666b7feb63876ea94973b1a86fe4605f5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -701,7 +698,7 @@ def _process_dataclass__74b2c68182e0ad15821fe3bc390648b9e1f938db():
         ('omdev.dockerdev.db', 'Run'),
     ),
 )
-def _process_dataclass__47f85b0ab6a8e89b7246ab4b503f246904d768f1():
+def _process_dataclass__b5789bc666b7feb63876ea94973b1a86fe4605f5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -826,7 +823,7 @@ def _process_dataclass__47f85b0ab6a8e89b7246ab4b503f246904d768f1():
 
 
 @_register(
-    installer_sha1='b967490ad672a18e651f717554f233aa5f5d647b',
+    installer_sha1='f4508947eaa3a0602bfbb7abc34eb9d8322510ae',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -841,7 +838,7 @@ def _process_dataclass__47f85b0ab6a8e89b7246ab4b503f246904d768f1():
         ('omdev.dockerdev.ops', 'Shell'),
     ),
 )
-def _process_dataclass__b967490ad672a18e651f717554f233aa5f5d647b():
+def _process_dataclass__f4508947eaa3a0602bfbb7abc34eb9d8322510ae():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -930,7 +927,7 @@ def _process_dataclass__b967490ad672a18e651f717554f233aa5f5d647b():
 
 
 @_register(
-    installer_sha1='13b9cdba740f6eef18e22a716c2437094cb63e8b',
+    installer_sha1='564393b1824100abb450fbe9d8303ebd27faafa7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -944,7 +941,7 @@ def _process_dataclass__b967490ad672a18e651f717554f233aa5f5d647b():
         ('omdev.dockerdev.ops', 'Copy'),
     ),
 )
-def _process_dataclass__13b9cdba740f6eef18e22a716c2437094cb63e8b():
+def _process_dataclass__564393b1824100abb450fbe9d8303ebd27faafa7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1042,7 +1039,7 @@ def _process_dataclass__13b9cdba740f6eef18e22a716c2437094cb63e8b():
 
 
 @_register(
-    installer_sha1='717c4fd1a4c856256a000b7ec7acc6a8cd24336e',
+    installer_sha1='2bd701acb2abcd319505c7fa6bc6ed1d54ad8005',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1055,7 +1052,7 @@ def _process_dataclass__13b9cdba740f6eef18e22a716c2437094cb63e8b():
         ('omdev.dockerdev.ops', 'Env'),
     ),
 )
-def _process_dataclass__717c4fd1a4c856256a000b7ec7acc6a8cd24336e():
+def _process_dataclass__2bd701acb2abcd319505c7fa6bc6ed1d54ad8005():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1144,7 +1141,7 @@ def _process_dataclass__717c4fd1a4c856256a000b7ec7acc6a8cd24336e():
 
 
 @_register(
-    installer_sha1='377ce9ccb7a74d95dcbd5f2f742ff49f7fb93001',
+    installer_sha1='e3d110506e6025061fb57f88e632a1edf6207389',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1157,7 +1154,7 @@ def _process_dataclass__717c4fd1a4c856256a000b7ec7acc6a8cd24336e():
         ('omdev.dockerdev.ops', 'From'),
     ),
 )
-def _process_dataclass__377ce9ccb7a74d95dcbd5f2f742ff49f7fb93001():
+def _process_dataclass__e3d110506e6025061fb57f88e632a1edf6207389():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1246,7 +1243,7 @@ def _process_dataclass__377ce9ccb7a74d95dcbd5f2f742ff49f7fb93001():
 
 
 @_register(
-    installer_sha1='342176ad783f8229d17dfc256efa694e3eb198a9',
+    installer_sha1='198036228bed392ac84dd733648c6cc4fcf4d324',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1261,7 +1258,7 @@ def _process_dataclass__377ce9ccb7a74d95dcbd5f2f742ff49f7fb93001():
         ('omdev.dockerdev.ops', 'Run'),
     ),
 )
-def _process_dataclass__342176ad783f8229d17dfc256efa694e3eb198a9():
+def _process_dataclass__198036228bed392ac84dd733648c6cc4fcf4d324():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1369,7 +1366,7 @@ def _process_dataclass__342176ad783f8229d17dfc256efa694e3eb198a9():
 
 
 @_register(
-    installer_sha1='2f2600fcda63cbda0cf6cb04e907d1234ed9e510',
+    installer_sha1='d61b68515b82e1d9f3601de1678a798290a0205c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1383,7 +1380,7 @@ def _process_dataclass__342176ad783f8229d17dfc256efa694e3eb198a9():
         ('omdev.dockerdev.ops', 'Section'),
     ),
 )
-def _process_dataclass__2f2600fcda63cbda0cf6cb04e907d1234ed9e510():
+def _process_dataclass__d61b68515b82e1d9f3601de1678a798290a0205c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1480,7 +1477,7 @@ def _process_dataclass__2f2600fcda63cbda0cf6cb04e907d1234ed9e510():
 
 
 @_register(
-    installer_sha1='390292bd4766147442c143de8a1a98733c85e4a4',
+    installer_sha1='fc1e2f3b568fe86f15eb6aed5b1f8e9b56b016f0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1493,7 +1490,7 @@ def _process_dataclass__2f2600fcda63cbda0cf6cb04e907d1234ed9e510():
         ('omdev.dockerdev.ops', 'User'),
     ),
 )
-def _process_dataclass__390292bd4766147442c143de8a1a98733c85e4a4():
+def _process_dataclass__fc1e2f3b568fe86f15eb6aed5b1f8e9b56b016f0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1582,7 +1579,7 @@ def _process_dataclass__390292bd4766147442c143de8a1a98733c85e4a4():
 
 
 @_register(
-    installer_sha1='a4be24dd66014f5f0d21f21646ad35282ff3a74f',
+    installer_sha1='1b07416972cb88789c40267f6537a5da57242fa7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1597,7 +1594,7 @@ def _process_dataclass__390292bd4766147442c143de8a1a98733c85e4a4():
         ('omdev.dockerdev.ops', 'Write'),
     ),
 )
-def _process_dataclass__a4be24dd66014f5f0d21f21646ad35282ff3a74f():
+def _process_dataclass__1b07416972cb88789c40267f6537a5da57242fa7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1704,7 +1701,7 @@ def _process_dataclass__a4be24dd66014f5f0d21f21646ad35282ff3a74f():
 
 
 @_register(
-    installer_sha1='d6bee31b801e5a122d6639c34c2a6b3e54047ca2',
+    installer_sha1='1a6d789bdeeaf74df0053a9addad95678fd7dff8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1718,7 +1715,7 @@ def _process_dataclass__a4be24dd66014f5f0d21f21646ad35282ff3a74f():
         ('omdev.dockerdev.rendering', 'RenderContext'),
     ),
 )
-def _process_dataclass__d6bee31b801e5a122d6639c34c2a6b3e54047ca2():
+def _process_dataclass__1a6d789bdeeaf74df0053a9addad95678fd7dff8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1818,7 +1815,7 @@ def _process_dataclass__d6bee31b801e5a122d6639c34c2a6b3e54047ca2():
 
 
 @_register(
-    installer_sha1='12ca4d1260a3c17c0b1366d05f55524950502f14',
+    installer_sha1='9b094afd191e8b1c63f146aa91112a120aa52e68',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1833,7 +1830,7 @@ def _process_dataclass__d6bee31b801e5a122d6639c34c2a6b3e54047ca2():
         ('omdev.dockerdev.run', 'ProcessedRunArgs'),
     ),
 )
-def _process_dataclass__12ca4d1260a3c17c0b1366d05f55524950502f14():
+def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1944,7 +1941,7 @@ def _process_dataclass__12ca4d1260a3c17c0b1366d05f55524950502f14():
 
 
 @_register(
-    installer_sha1='e115aea517dcc461987971225ccc7920335dd53a',
+    installer_sha1='7e9065f066e3277553cce9b7322ad652db9e33db',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1978,7 +1975,7 @@ def _process_dataclass__12ca4d1260a3c17c0b1366d05f55524950502f14():
         ('omdev.dockerdev.run', 'RunArgs'),
     ),
 )
-def _process_dataclass__e115aea517dcc461987971225ccc7920335dd53a():
+def _process_dataclass__7e9065f066e3277553cce9b7322ad652db9e33db():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2258,7 +2255,7 @@ def _process_dataclass__e115aea517dcc461987971225ccc7920335dd53a():
 
 
 @_register(
-    installer_sha1='e927e66b9fece0583302921d79b7bb580afaf6d0',
+    installer_sha1='72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2276,7 +2273,7 @@ def _process_dataclass__e115aea517dcc461987971225ccc7920335dd53a():
         ('omdev.dockerdev.run', 'RunHost'),
     ),
 )
-def _process_dataclass__e927e66b9fece0583302921d79b7bb580afaf6d0():
+def _process_dataclass__72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2409,7 +2406,7 @@ def _process_dataclass__e927e66b9fece0583302921d79b7bb580afaf6d0():
 
 
 @_register(
-    installer_sha1='f995dd443af9e88c644b3b484e0ef5575e8bc5c8',
+    installer_sha1='7aed10c9525b940cc48ef836152c92c2eb0a5643',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, Fal"
@@ -2431,7 +2428,7 @@ def _process_dataclass__e927e66b9fece0583302921d79b7bb580afaf6d0():
         ('omdev.dockerdev.run', 'RunPlan'),
     ),
 )
-def _process_dataclass__f995dd443af9e88c644b3b484e0ef5575e8bc5c8():
+def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

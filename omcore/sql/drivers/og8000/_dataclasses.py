@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -56,7 +53,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.sql.drivers.og8000.protocol.messages', 'Terminate'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -124,7 +121,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='838c16cb3284553962e61f41ebe910250ec6fdd9',
+    installer_sha1='2d1c86ebf9c3b91407e6cdb573a6b8299dc1a719',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -137,7 +134,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omcore.sql.drivers.og8000.protocol.messages', 'AuthenticationMd5Password'),
     ),
 )
-def _process_dataclass__838c16cb3284553962e61f41ebe910250ec6fdd9():
+def _process_dataclass__2d1c86ebf9c3b91407e6cdb573a6b8299dc1a719():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -226,7 +223,7 @@ def _process_dataclass__838c16cb3284553962e61f41ebe910250ec6fdd9():
 
 
 @_register(
-    installer_sha1='c63d25b1634abcd1e2a76527770ffeedb8500862',
+    installer_sha1='5cf86b39e61bffb81e3a3ee30f0ed150fd16fb7e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -240,7 +237,7 @@ def _process_dataclass__838c16cb3284553962e61f41ebe910250ec6fdd9():
         ('omcore.sql.drivers.og8000.protocol.messages', 'AuthenticationOther'),
     ),
 )
-def _process_dataclass__c63d25b1634abcd1e2a76527770ffeedb8500862():
+def _process_dataclass__5cf86b39e61bffb81e3a3ee30f0ed150fd16fb7e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -337,7 +334,7 @@ def _process_dataclass__c63d25b1634abcd1e2a76527770ffeedb8500862():
 
 
 @_register(
-    installer_sha1='1fc219a62b0f6899a54be45235952c32d96ee8c8',
+    installer_sha1='a8fd16cbde7191d22d898b0e26d4d84930812a32',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -350,7 +347,7 @@ def _process_dataclass__c63d25b1634abcd1e2a76527770ffeedb8500862():
         ('omcore.sql.drivers.og8000.protocol.messages', 'AuthenticationSasl'),
     ),
 )
-def _process_dataclass__1fc219a62b0f6899a54be45235952c32d96ee8c8():
+def _process_dataclass__a8fd16cbde7191d22d898b0e26d4d84930812a32():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -439,7 +436,7 @@ def _process_dataclass__1fc219a62b0f6899a54be45235952c32d96ee8c8():
 
 
 @_register(
-    installer_sha1='df151e2262141f4f7c26168c0ada271a6cfd8b1b',
+    installer_sha1='9df93c60d31dabd7f1db008337818b6e1edba665',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -455,7 +452,7 @@ def _process_dataclass__1fc219a62b0f6899a54be45235952c32d96ee8c8():
         ('omcore.sql.drivers.og8000.protocol.messages', 'SaslResponse'),
     ),
 )
-def _process_dataclass__df151e2262141f4f7c26168c0ada271a6cfd8b1b():
+def _process_dataclass__9df93c60d31dabd7f1db008337818b6e1edba665():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -544,7 +541,7 @@ def _process_dataclass__df151e2262141f4f7c26168c0ada271a6cfd8b1b():
 
 
 @_register(
-    installer_sha1='38488286d5f9eaf0d84bf30da421ffb2b29eca30',
+    installer_sha1='b227ac7edc435f75164bfae53de2efcfce12621a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -558,7 +555,7 @@ def _process_dataclass__df151e2262141f4f7c26168c0ada271a6cfd8b1b():
         ('omcore.sql.drivers.og8000.protocol.messages', 'BackendKeyData'),
     ),
 )
-def _process_dataclass__38488286d5f9eaf0d84bf30da421ffb2b29eca30():
+def _process_dataclass__b227ac7edc435f75164bfae53de2efcfce12621a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -655,7 +652,7 @@ def _process_dataclass__38488286d5f9eaf0d84bf30da421ffb2b29eca30():
 
 
 @_register(
-    installer_sha1='6fd86a6ad6d5548174e5f18bd686ceac9a1ec103',
+    installer_sha1='d424ba10d88678dae219b3b5ce7931d26cd56e14',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -670,7 +667,7 @@ def _process_dataclass__38488286d5f9eaf0d84bf30da421ffb2b29eca30():
         ('omcore.sql.drivers.og8000.protocol.messages', 'Bind'),
     ),
 )
-def _process_dataclass__6fd86a6ad6d5548174e5f18bd686ceac9a1ec103():
+def _process_dataclass__d424ba10d88678dae219b3b5ce7931d26cd56e14():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -776,7 +773,7 @@ def _process_dataclass__6fd86a6ad6d5548174e5f18bd686ceac9a1ec103():
 
 
 @_register(
-    installer_sha1='761c27874a5d587de8851960955e541460541258',
+    installer_sha1='e3412533a2ddd3e3892aafcd9f50565f41b7e7d7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -791,7 +788,7 @@ def _process_dataclass__6fd86a6ad6d5548174e5f18bd686ceac9a1ec103():
         ('omcore.sql.drivers.og8000.protocol.messages', 'Describe'),
     ),
 )
-def _process_dataclass__761c27874a5d587de8851960955e541460541258():
+def _process_dataclass__e3412533a2ddd3e3892aafcd9f50565f41b7e7d7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -888,7 +885,7 @@ def _process_dataclass__761c27874a5d587de8851960955e541460541258():
 
 
 @_register(
-    installer_sha1='4e5f3771ab738599a6e82e2877b1cc6006e3ba9a',
+    installer_sha1='79e84ae00dcd72adfc5a5271058441cebb542cd0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -901,7 +898,7 @@ def _process_dataclass__761c27874a5d587de8851960955e541460541258():
         ('omcore.sql.drivers.og8000.protocol.messages', 'CommandComplete'),
     ),
 )
-def _process_dataclass__4e5f3771ab738599a6e82e2877b1cc6006e3ba9a():
+def _process_dataclass__79e84ae00dcd72adfc5a5271058441cebb542cd0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -990,7 +987,7 @@ def _process_dataclass__4e5f3771ab738599a6e82e2877b1cc6006e3ba9a():
 
 
 @_register(
-    installer_sha1='69c07176f9f9a8cff73990331fc5fecb1a4e7007',
+    installer_sha1='44bd82cab64555dcae32d8a73bade7cd2f7ce712',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1003,7 +1000,7 @@ def _process_dataclass__4e5f3771ab738599a6e82e2877b1cc6006e3ba9a():
         ('omcore.sql.drivers.og8000.protocol.messages', 'CopyFail'),
     ),
 )
-def _process_dataclass__69c07176f9f9a8cff73990331fc5fecb1a4e7007():
+def _process_dataclass__44bd82cab64555dcae32d8a73bade7cd2f7ce712():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1092,7 +1089,7 @@ def _process_dataclass__69c07176f9f9a8cff73990331fc5fecb1a4e7007():
 
 
 @_register(
-    installer_sha1='8b9917935bd8acb113e6d9827b4e918342a44bc8',
+    installer_sha1='6f2daa9a287b5f1ae354adcb50b0a7bf851420f5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1107,7 +1104,7 @@ def _process_dataclass__69c07176f9f9a8cff73990331fc5fecb1a4e7007():
         ('omcore.sql.drivers.og8000.protocol.messages', 'CopyOutResponse'),
     ),
 )
-def _process_dataclass__8b9917935bd8acb113e6d9827b4e918342a44bc8():
+def _process_dataclass__6f2daa9a287b5f1ae354adcb50b0a7bf851420f5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1204,7 +1201,7 @@ def _process_dataclass__8b9917935bd8acb113e6d9827b4e918342a44bc8():
 
 
 @_register(
-    installer_sha1='6837c15bae221f7864c24e84e1b28cc426410729',
+    installer_sha1='6d7d72d9e5aa08bc6f6fb05eb70f095db8fae24a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1217,7 +1214,7 @@ def _process_dataclass__8b9917935bd8acb113e6d9827b4e918342a44bc8():
         ('omcore.sql.drivers.og8000.protocol.messages', 'DataRow'),
     ),
 )
-def _process_dataclass__6837c15bae221f7864c24e84e1b28cc426410729():
+def _process_dataclass__6d7d72d9e5aa08bc6f6fb05eb70f095db8fae24a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1306,7 +1303,7 @@ def _process_dataclass__6837c15bae221f7864c24e84e1b28cc426410729():
 
 
 @_register(
-    installer_sha1='5d07373c28966d1eb4698b3201ee212ef9bc5f05',
+    installer_sha1='0d0050b27cc6ab69cebf1d8ca819954be195ac88',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1321,7 +1318,7 @@ def _process_dataclass__6837c15bae221f7864c24e84e1b28cc426410729():
         ('omcore.sql.drivers.og8000.protocol.messages', 'RowDescription'),
     ),
 )
-def _process_dataclass__5d07373c28966d1eb4698b3201ee212ef9bc5f05():
+def _process_dataclass__0d0050b27cc6ab69cebf1d8ca819954be195ac88():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1410,7 +1407,7 @@ def _process_dataclass__5d07373c28966d1eb4698b3201ee212ef9bc5f05():
 
 
 @_register(
-    installer_sha1='9bc955730471a4eb19ac51a41d54506d800c1539',
+    installer_sha1='54bb06836d18830310241698280f19f28efb7403',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1424,7 +1421,7 @@ def _process_dataclass__5d07373c28966d1eb4698b3201ee212ef9bc5f05():
         ('omcore.sql.drivers.og8000.protocol.messages', 'Execute'),
     ),
 )
-def _process_dataclass__9bc955730471a4eb19ac51a41d54506d800c1539():
+def _process_dataclass__54bb06836d18830310241698280f19f28efb7403():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1522,7 +1519,7 @@ def _process_dataclass__9bc955730471a4eb19ac51a41d54506d800c1539():
 
 
 @_register(
-    installer_sha1='0b39dabe5f97bfa7b38df93a6dd2542fa52b193f',
+    installer_sha1='a500b3eaf5d8d76da867e17434c85b9b567e8a77',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1541,7 +1538,7 @@ def _process_dataclass__9bc955730471a4eb19ac51a41d54506d800c1539():
         ('omcore.sql.drivers.og8000.protocol.messages', 'FieldDescription'),
     ),
 )
-def _process_dataclass__0b39dabe5f97bfa7b38df93a6dd2542fa52b193f():
+def _process_dataclass__a500b3eaf5d8d76da867e17434c85b9b567e8a77():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1678,7 +1675,7 @@ def _process_dataclass__0b39dabe5f97bfa7b38df93a6dd2542fa52b193f():
 
 
 @_register(
-    installer_sha1='2aad34b4d47b589b9c3d9caf65f8c9e96d47a644',
+    installer_sha1='c4479b806921c44808de897c07c2cf442a49e0bb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1693,7 +1690,7 @@ def _process_dataclass__0b39dabe5f97bfa7b38df93a6dd2542fa52b193f():
         ('omcore.sql.drivers.og8000.protocol.messages', 'NotificationResponse'),
     ),
 )
-def _process_dataclass__2aad34b4d47b589b9c3d9caf65f8c9e96d47a644():
+def _process_dataclass__c4479b806921c44808de897c07c2cf442a49e0bb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1798,7 +1795,7 @@ def _process_dataclass__2aad34b4d47b589b9c3d9caf65f8c9e96d47a644():
 
 
 @_register(
-    installer_sha1='26d6adf64d1d09140774384236216402c32cb6ac',
+    installer_sha1='e6c4af92f75871f1ac265327aafb7df36c93ea63',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1811,7 +1808,7 @@ def _process_dataclass__2aad34b4d47b589b9c3d9caf65f8c9e96d47a644():
         ('omcore.sql.drivers.og8000.protocol.messages', 'ParameterDescription'),
     ),
 )
-def _process_dataclass__26d6adf64d1d09140774384236216402c32cb6ac():
+def _process_dataclass__e6c4af92f75871f1ac265327aafb7df36c93ea63():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1900,7 +1897,7 @@ def _process_dataclass__26d6adf64d1d09140774384236216402c32cb6ac():
 
 
 @_register(
-    installer_sha1='5709b0f52f0566767981cae876b845480163ee63',
+    installer_sha1='2593904b40b37bd12d5f514aa9899536b8439574',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1914,7 +1911,7 @@ def _process_dataclass__26d6adf64d1d09140774384236216402c32cb6ac():
         ('omcore.sql.drivers.og8000.protocol.messages', 'ParameterStatus'),
     ),
 )
-def _process_dataclass__5709b0f52f0566767981cae876b845480163ee63():
+def _process_dataclass__2593904b40b37bd12d5f514aa9899536b8439574():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2011,7 +2008,7 @@ def _process_dataclass__5709b0f52f0566767981cae876b845480163ee63():
 
 
 @_register(
-    installer_sha1='01c9a6d23c20cd74db32a5a4139114e24d3d680d',
+    installer_sha1='82f0d08b5c049789bd97b30fd1d8c7ef2b3486a5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2026,7 +2023,7 @@ def _process_dataclass__5709b0f52f0566767981cae876b845480163ee63():
         ('omcore.sql.drivers.og8000.protocol.messages', 'Parse'),
     ),
 )
-def _process_dataclass__01c9a6d23c20cd74db32a5a4139114e24d3d680d():
+def _process_dataclass__82f0d08b5c049789bd97b30fd1d8c7ef2b3486a5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2132,7 +2129,7 @@ def _process_dataclass__01c9a6d23c20cd74db32a5a4139114e24d3d680d():
 
 
 @_register(
-    installer_sha1='a9111fc6e579c6a8da76b4b30fdfd2d7282f4117',
+    installer_sha1='bcff0f9cbe3869d3c3fa34c667b1e5ce2e1c60d9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2145,7 +2142,7 @@ def _process_dataclass__01c9a6d23c20cd74db32a5a4139114e24d3d680d():
         ('omcore.sql.drivers.og8000.protocol.messages', 'PasswordMessage'),
     ),
 )
-def _process_dataclass__a9111fc6e579c6a8da76b4b30fdfd2d7282f4117():
+def _process_dataclass__bcff0f9cbe3869d3c3fa34c667b1e5ce2e1c60d9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2234,7 +2231,7 @@ def _process_dataclass__a9111fc6e579c6a8da76b4b30fdfd2d7282f4117():
 
 
 @_register(
-    installer_sha1='e9c6dec84842c6a582b4ba399307255d6e89476b',
+    installer_sha1='cc113825cd5c92e874d24f4c7ba5b582da67ec09',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2247,7 +2244,7 @@ def _process_dataclass__a9111fc6e579c6a8da76b4b30fdfd2d7282f4117():
         ('omcore.sql.drivers.og8000.protocol.messages', 'Query'),
     ),
 )
-def _process_dataclass__e9c6dec84842c6a582b4ba399307255d6e89476b():
+def _process_dataclass__cc113825cd5c92e874d24f4c7ba5b582da67ec09():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2336,7 +2333,7 @@ def _process_dataclass__e9c6dec84842c6a582b4ba399307255d6e89476b():
 
 
 @_register(
-    installer_sha1='4916873e86c3cce57cb259e90ee94e06c37b7b7a',
+    installer_sha1='e9fe6f9bd7340106e149b95b810ed8ff73e397b6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2349,7 +2346,7 @@ def _process_dataclass__e9c6dec84842c6a582b4ba399307255d6e89476b():
         ('omcore.sql.drivers.og8000.protocol.messages', 'ReadyForQuery'),
     ),
 )
-def _process_dataclass__4916873e86c3cce57cb259e90ee94e06c37b7b7a():
+def _process_dataclass__e9fe6f9bd7340106e149b95b810ed8ff73e397b6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2438,7 +2435,7 @@ def _process_dataclass__4916873e86c3cce57cb259e90ee94e06c37b7b7a():
 
 
 @_register(
-    installer_sha1='c68d9c767fa543f2f9bd2359f13ecf60462f5265',
+    installer_sha1='496bde28b2d0fb14f8a49e6ced6fff147e6f9c97',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2452,7 +2449,7 @@ def _process_dataclass__4916873e86c3cce57cb259e90ee94e06c37b7b7a():
         ('omcore.sql.drivers.og8000.protocol.messages', 'SaslInitialResponse'),
     ),
 )
-def _process_dataclass__c68d9c767fa543f2f9bd2359f13ecf60462f5265():
+def _process_dataclass__496bde28b2d0fb14f8a49e6ced6fff147e6f9c97():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2549,7 +2546,7 @@ def _process_dataclass__c68d9c767fa543f2f9bd2359f13ecf60462f5265():
 
 
 @_register(
-    installer_sha1='e404783e9b091de7d2d30125504cf610cdc5e797',
+    installer_sha1='eab604096671ef7dc4a602c9752f0f5691447a6a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2562,7 +2559,7 @@ def _process_dataclass__c68d9c767fa543f2f9bd2359f13ecf60462f5265():
         ('omcore.sql.drivers.og8000.protocol.messages', 'SslResponse'),
     ),
 )
-def _process_dataclass__e404783e9b091de7d2d30125504cf610cdc5e797():
+def _process_dataclass__eab604096671ef7dc4a602c9752f0f5691447a6a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2651,7 +2648,7 @@ def _process_dataclass__e404783e9b091de7d2d30125504cf610cdc5e797():
 
 
 @_register(
-    installer_sha1='100a0a994872cf506cf825c8d4f8959fa3c580dd',
+    installer_sha1='8bcc564c6a296384125930476569b2cb6a738b57',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2664,7 +2661,7 @@ def _process_dataclass__e404783e9b091de7d2d30125504cf610cdc5e797():
         ('omcore.sql.drivers.og8000.protocol.messages', 'StartupMessage'),
     ),
 )
-def _process_dataclass__100a0a994872cf506cf825c8d4f8959fa3c580dd():
+def _process_dataclass__8bcc564c6a296384125930476569b2cb6a738b57():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2753,7 +2750,7 @@ def _process_dataclass__100a0a994872cf506cf825c8d4f8959fa3c580dd():
 
 
 @_register(
-    installer_sha1='b05b8b30de3d53654dff51c1881a34b4a1761796',
+    installer_sha1='5d97b7cf1fed4d89e09639badb2e637c40a985f3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2767,7 +2764,7 @@ def _process_dataclass__100a0a994872cf506cf825c8d4f8959fa3c580dd():
         ('omcore.sql.drivers.og8000.protocol.session', 'Step'),
     ),
 )
-def _process_dataclass__b05b8b30de3d53654dff51c1881a34b4a1761796():
+def _process_dataclass__5d97b7cf1fed4d89e09639badb2e637c40a985f3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

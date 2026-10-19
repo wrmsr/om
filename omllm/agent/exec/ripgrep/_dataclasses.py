@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='5abbf33169502e28d892799399eed4cda0446bf1',
+    installer_sha1='6605a6260427ec55d7a7e013a45edc5b6d604bb8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -49,7 +46,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.agent.exec.ripgrep.args.parsing', 'RgFlagSpec'),
     ),
 )
-def _process_dataclass__5abbf33169502e28d892799399eed4cda0446bf1():
+def _process_dataclass__6605a6260427ec55d7a7e013a45edc5b6d604bb8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -173,7 +170,7 @@ def _process_dataclass__5abbf33169502e28d892799399eed4cda0446bf1():
 
 
 @_register(
-    installer_sha1='8f6c38235937d25af139689b20524cb911af8852',
+    installer_sha1='0f3ddf6cf907310d3187806a4266bdfd6eadc868',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -192,7 +189,7 @@ def _process_dataclass__5abbf33169502e28d892799399eed4cda0446bf1():
         ('omllm.agent.exec.ripgrep.args.parsing', 'RgOption'),
     ),
 )
-def _process_dataclass__8f6c38235937d25af139689b20524cb911af8852():
+def _process_dataclass__0f3ddf6cf907310d3187806a4266bdfd6eadc868():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -329,7 +326,7 @@ def _process_dataclass__8f6c38235937d25af139689b20524cb911af8852():
 
 
 @_register(
-    installer_sha1='53f14bffdd10c7601742afdb59ff681122818968',
+    installer_sha1='5122e9342b631ebd630eada2d6f1586a26f510d0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -343,7 +340,7 @@ def _process_dataclass__8f6c38235937d25af139689b20524cb911af8852():
         ('omllm.agent.exec.ripgrep.args.parsing', 'RgPositional'),
     ),
 )
-def _process_dataclass__53f14bffdd10c7601742afdb59ff681122818968():
+def _process_dataclass__5122e9342b631ebd630eada2d6f1586a26f510d0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -440,7 +437,7 @@ def _process_dataclass__53f14bffdd10c7601742afdb59ff681122818968():
 
 
 @_register(
-    installer_sha1='20a657ae4f9614ea8e533067df9368b5c51e1175',
+    installer_sha1='ac3cd91572b5c06c3db88ec4629af43500e3f40c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -454,7 +451,7 @@ def _process_dataclass__53f14bffdd10c7601742afdb59ff681122818968():
         ('omllm.agent.exec.ripgrep.tools.ripgrep', 'RipgrepToolParams'),
     ),
 )
-def _process_dataclass__20a657ae4f9614ea8e533067df9368b5c51e1175():
+def _process_dataclass__ac3cd91572b5c06c3db88ec4629af43500e3f40c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

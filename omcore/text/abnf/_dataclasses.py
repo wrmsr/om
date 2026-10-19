@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='8e0909f1f07bee3d2d4fb3ed2965d882c09c2efb',
+    installer_sha1='8b45ddb99097eff00fac51a3a9a3932fb6e7cec1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -48,7 +45,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.text.abnf.engines.base', 'EngineCapabilities'),
     ),
 )
-def _process_dataclass__8e0909f1f07bee3d2d4fb3ed2965d882c09c2efb():
+def _process_dataclass__8b45ddb99097eff00fac51a3a9a3932fb6e7cec1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -166,7 +163,7 @@ def _process_dataclass__8e0909f1f07bee3d2d4fb3ed2965d882c09c2efb():
 
 
 @_register(
-    installer_sha1='b34a63f9ac6719a48c47a9a26ec41ec7e6ba5302',
+    installer_sha1='e7daab66863f8ab894e8b6d651818d481b23b914',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -181,7 +178,7 @@ def _process_dataclass__8e0909f1f07bee3d2d4fb3ed2965d882c09c2efb():
         ('omcore.text.abnf.engines.lr.cfg', 'Nt'),
     ),
 )
-def _process_dataclass__b34a63f9ac6719a48c47a9a26ec41ec7e6ba5302():
+def _process_dataclass__e7daab66863f8ab894e8b6d651818d481b23b914():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -249,7 +246,7 @@ def _process_dataclass__b34a63f9ac6719a48c47a9a26ec41ec7e6ba5302():
 
 
 @_register(
-    installer_sha1='c342c758dc115f1e323dea1206ed5883fab78246',
+    installer_sha1='8333fe31fd7a493cea64a43f0f1fd9014ec1e3d4',
     spec_keys=(
         (
             "(((True, True, False, False, False, True, True, False, False, False, False, False, False, False, False, Fa"
@@ -265,7 +262,7 @@ def _process_dataclass__b34a63f9ac6719a48c47a9a26ec41ec7e6ba5302():
         ('omcore.text.abnf.engines.lr.cfg', 'Production'),
     ),
 )
-def _process_dataclass__c342c758dc115f1e323dea1206ed5883fab78246():
+def _process_dataclass__8333fe31fd7a493cea64a43f0f1fd9014ec1e3d4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -339,7 +336,7 @@ def _process_dataclass__c342c758dc115f1e323dea1206ed5883fab78246():
 
 
 @_register(
-    installer_sha1='aa245e99865cc9f37cffb3c273912d2fa493ef89',
+    installer_sha1='0b14a83e835ce7bb60eee8837d89812ac9ca3e2c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -354,7 +351,7 @@ def _process_dataclass__c342c758dc115f1e323dea1206ed5883fab78246():
         ('omcore.text.abnf.engines.tokens.specs', 'Token'),
     ),
 )
-def _process_dataclass__aa245e99865cc9f37cffb3c273912d2fa493ef89():
+def _process_dataclass__0b14a83e835ce7bb60eee8837d89812ac9ca3e2c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -459,7 +456,7 @@ def _process_dataclass__aa245e99865cc9f37cffb3c273912d2fa493ef89():
 
 
 @_register(
-    installer_sha1='b80c52950b60957f687ee8489335fc60e269a461',
+    installer_sha1='b21ffeffa1a3493378d9067401b110db8c4ddd14',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -477,7 +474,7 @@ def _process_dataclass__aa245e99865cc9f37cffb3c273912d2fa493ef89():
         ('omcore.text.abnf.engines.tokens.specs', 'TokenSpec'),
     ),
 )
-def _process_dataclass__b80c52950b60957f687ee8489335fc60e269a461():
+def _process_dataclass__b21ffeffa1a3493378d9067401b110db8c4ddd14():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -610,7 +607,7 @@ def _process_dataclass__b80c52950b60957f687ee8489335fc60e269a461():
 
 
 @_register(
-    installer_sha1='89561a9ffb43c52c5d1ba4900b088e4efa0bfabf',
+    installer_sha1='2771889b24c4143ae209f02ef39fc279f06b3f63',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -630,7 +627,7 @@ def _process_dataclass__b80c52950b60957f687ee8489335fc60e269a461():
         ('omcore.text.abnf.engines.tokens.specs', 'TokenizedGrammar'),
     ),
 )
-def _process_dataclass__89561a9ffb43c52c5d1ba4900b088e4efa0bfabf():
+def _process_dataclass__2771889b24c4143ae209f02ef39fc279f06b3f63():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -776,7 +773,7 @@ def _process_dataclass__89561a9ffb43c52c5d1ba4900b088e4efa0bfabf():
 
 
 @_register(
-    installer_sha1='71a3579f9ad08e8688beceb8077de12c2e296678',
+    installer_sha1='ef5ab8ca536e8de444d4f26406b56d9efb40aeba',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -793,7 +790,7 @@ def _process_dataclass__89561a9ffb43c52c5d1ba4900b088e4efa0bfabf():
         ('omcore.text.abnf.opto', '_StringLiteralRegexItem'),
     ),
 )
-def _process_dataclass__71a3579f9ad08e8688beceb8077de12c2e296678():
+def _process_dataclass__ef5ab8ca536e8de444d4f26406b56d9efb40aeba():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -882,7 +879,7 @@ def _process_dataclass__71a3579f9ad08e8688beceb8077de12c2e296678():
 
 
 @_register(
-    installer_sha1='80b814b2f229db79817fde16adc8fb30da5b53c4',
+    installer_sha1='788fcdaccf9c7401358a5f06179562455df1f690',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -896,7 +893,7 @@ def _process_dataclass__71a3579f9ad08e8688beceb8077de12c2e296678():
         ('omcore.text.abnf.meta', 'MetaGrammarRuleMatchVisitor.Modifier'),
     ),
 )
-def _process_dataclass__80b814b2f229db79817fde16adc8fb30da5b53c4():
+def _process_dataclass__788fcdaccf9c7401358a5f06179562455df1f690():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -993,7 +990,7 @@ def _process_dataclass__80b814b2f229db79817fde16adc8fb30da5b53c4():
 
 
 @_register(
-    installer_sha1='87aa3ae0f28901ed43f17a62eab969e032e28a95',
+    installer_sha1='33b95d2f9b21cc273cbcdf0f15e267f39e78d841',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1007,7 +1004,7 @@ def _process_dataclass__80b814b2f229db79817fde16adc8fb30da5b53c4():
         ('omcore.text.abnf.ops', 'RangeLiteral.Range'),
     ),
 )
-def _process_dataclass__87aa3ae0f28901ed43f17a62eab969e032e28a95():
+def _process_dataclass__33b95d2f9b21cc273cbcdf0f15e267f39e78d841():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1105,7 +1102,7 @@ def _process_dataclass__87aa3ae0f28901ed43f17a62eab969e032e28a95():
 
 
 @_register(
-    installer_sha1='ad688da7540f57d316ca0233f646dc7685361a80',
+    installer_sha1='8ac2644b6a51c7361cdd54693f7f6332d5f0b7c6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1119,7 +1116,7 @@ def _process_dataclass__87aa3ae0f28901ed43f17a62eab969e032e28a95():
         ('omcore.text.abnf.ops', 'Repeat.Times'),
     ),
 )
-def _process_dataclass__ad688da7540f57d316ca0233f646dc7685361a80():
+def _process_dataclass__8ac2644b6a51c7361cdd54693f7f6332d5f0b7c6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1205,7 +1202,7 @@ def _process_dataclass__ad688da7540f57d316ca0233f646dc7685361a80():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1217,7 +1214,7 @@ def _process_dataclass__ad688da7540f57d316ca0233f646dc7685361a80():
         ('omcore.text.abnf.opto', '_RegexItem'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1285,7 +1282,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='18810afe6492767bb23f1d2cb1310bd72cef348d',
+    installer_sha1='5bbf2acf7b50f54bf76dc0ca2bff08d7d35c69c5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1298,7 +1295,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omcore.text.abnf.opto', '_RegexRegexItem'),
     ),
 )
-def _process_dataclass__18810afe6492767bb23f1d2cb1310bd72cef348d():
+def _process_dataclass__5bbf2acf7b50f54bf76dc0ca2bff08d7d35c69c5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

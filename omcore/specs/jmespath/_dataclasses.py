@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='3bfc38014dad18232ec3215b983306a7521c314d',
+    installer_sha1='cd6c459bc38ee2dad1870ea36dcd4d87b2387e72',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -50,7 +47,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.specs.jmespath.ast', 'ValueProjection'),
     ),
 )
-def _process_dataclass__3bfc38014dad18232ec3215b983306a7521c314d():
+def _process_dataclass__cd6c459bc38ee2dad1870ea36dcd4d87b2387e72():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -147,7 +144,7 @@ def _process_dataclass__3bfc38014dad18232ec3215b983306a7521c314d():
 
 
 @_register(
-    installer_sha1='7d18e1215369839cb0bab8a2e14c2ed87f58c91d',
+    installer_sha1='15716f4d59463633c3bcd4a98c91bb4c564f6fb2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -162,7 +159,7 @@ def _process_dataclass__3bfc38014dad18232ec3215b983306a7521c314d():
         ('omcore.specs.jmespath.ast', 'Arithmetic'),
     ),
 )
-def _process_dataclass__7d18e1215369839cb0bab8a2e14c2ed87f58c91d():
+def _process_dataclass__15716f4d59463633c3bcd4a98c91bb4c564f6fb2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -267,7 +264,7 @@ def _process_dataclass__7d18e1215369839cb0bab8a2e14c2ed87f58c91d():
 
 
 @_register(
-    installer_sha1='6804a0ad5dadba66c47ef74b85dcddac407c3ab1',
+    installer_sha1='f5b1af85c6c98ab2e22925f9dd7e90dee550000c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -281,7 +278,7 @@ def _process_dataclass__7d18e1215369839cb0bab8a2e14c2ed87f58c91d():
         ('omcore.specs.jmespath.ast', 'ArithmeticUnary'),
     ),
 )
-def _process_dataclass__6804a0ad5dadba66c47ef74b85dcddac407c3ab1():
+def _process_dataclass__f5b1af85c6c98ab2e22925f9dd7e90dee550000c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -378,7 +375,7 @@ def _process_dataclass__6804a0ad5dadba66c47ef74b85dcddac407c3ab1():
 
 
 @_register(
-    installer_sha1='6a50bd977d9cd1a6623d0a958a9cc8b6c62ee770',
+    installer_sha1='4789565b9c6b66a391f0620c39d8fd51fd729d7c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -392,7 +389,7 @@ def _process_dataclass__6804a0ad5dadba66c47ef74b85dcddac407c3ab1():
         ('omcore.specs.jmespath.ast', 'Assign'),
     ),
 )
-def _process_dataclass__6a50bd977d9cd1a6623d0a958a9cc8b6c62ee770():
+def _process_dataclass__4789565b9c6b66a391f0620c39d8fd51fd729d7c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -489,7 +486,7 @@ def _process_dataclass__6a50bd977d9cd1a6623d0a958a9cc8b6c62ee770():
 
 
 @_register(
-    installer_sha1='152147f432ce2fd3a2aebcffd45d697bee899716',
+    installer_sha1='6b73b0b2588eb674bc4f941a52e58826183e402a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -504,7 +501,7 @@ def _process_dataclass__6a50bd977d9cd1a6623d0a958a9cc8b6c62ee770():
         ('omcore.specs.jmespath.ast', 'Comparator'),
     ),
 )
-def _process_dataclass__152147f432ce2fd3a2aebcffd45d697bee899716():
+def _process_dataclass__6b73b0b2588eb674bc4f941a52e58826183e402a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -609,7 +606,7 @@ def _process_dataclass__152147f432ce2fd3a2aebcffd45d697bee899716():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -625,7 +622,7 @@ def _process_dataclass__152147f432ce2fd3a2aebcffd45d697bee899716():
         ('omcore.specs.jmespath.ast', 'RootNode'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -693,7 +690,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='e3090bebfba6aae2dcb96170b2c8db5a5acc9e75',
+    installer_sha1='a36ca9c25fce1e11b84d2f99652b2564c98f5f33',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -706,7 +703,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omcore.specs.jmespath.ast', 'Expref'),
     ),
 )
-def _process_dataclass__e3090bebfba6aae2dcb96170b2c8db5a5acc9e75():
+def _process_dataclass__a36ca9c25fce1e11b84d2f99652b2564c98f5f33():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -795,7 +792,7 @@ def _process_dataclass__e3090bebfba6aae2dcb96170b2c8db5a5acc9e75():
 
 
 @_register(
-    installer_sha1='533b6919241582ced4f75a0971c73377e7d70439',
+    installer_sha1='a7362c742da9b0702fbafcbaf971e36ed37f17dc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -809,7 +806,7 @@ def _process_dataclass__e3090bebfba6aae2dcb96170b2c8db5a5acc9e75():
         ('omcore.specs.jmespath.ast', 'VariableRef'),
     ),
 )
-def _process_dataclass__533b6919241582ced4f75a0971c73377e7d70439():
+def _process_dataclass__a7362c742da9b0702fbafcbaf971e36ed37f17dc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -898,7 +895,7 @@ def _process_dataclass__533b6919241582ced4f75a0971c73377e7d70439():
 
 
 @_register(
-    installer_sha1='98cff44f14bb4cc3e00e844bf6517af88b22af28',
+    installer_sha1='bbcd9285162b23f58e06b01c18200c183ab9bd35',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -913,7 +910,7 @@ def _process_dataclass__533b6919241582ced4f75a0971c73377e7d70439():
         ('omcore.specs.jmespath.ast', 'FilterProjection'),
     ),
 )
-def _process_dataclass__98cff44f14bb4cc3e00e844bf6517af88b22af28():
+def _process_dataclass__bbcd9285162b23f58e06b01c18200c183ab9bd35():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1018,7 +1015,7 @@ def _process_dataclass__98cff44f14bb4cc3e00e844bf6517af88b22af28():
 
 
 @_register(
-    installer_sha1='79821a13231f7748da4880ec0ed057833a73beef',
+    installer_sha1='c9c4a3d54fafc4c82f0f852e3db90c02e1ac3c12',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1031,7 +1028,7 @@ def _process_dataclass__98cff44f14bb4cc3e00e844bf6517af88b22af28():
         ('omcore.specs.jmespath.ast', 'Flatten'),
     ),
 )
-def _process_dataclass__79821a13231f7748da4880ec0ed057833a73beef():
+def _process_dataclass__c9c4a3d54fafc4c82f0f852e3db90c02e1ac3c12():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1120,7 +1117,7 @@ def _process_dataclass__79821a13231f7748da4880ec0ed057833a73beef():
 
 
 @_register(
-    installer_sha1='31ffe1dac5d42bd4fff58df6909b78243a098199',
+    installer_sha1='3b27d0de8a11be0163c79c32e026b4864d3474bd',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1134,7 +1131,7 @@ def _process_dataclass__79821a13231f7748da4880ec0ed057833a73beef():
         ('omcore.specs.jmespath.ast', 'FunctionExpression'),
     ),
 )
-def _process_dataclass__31ffe1dac5d42bd4fff58df6909b78243a098199():
+def _process_dataclass__3b27d0de8a11be0163c79c32e026b4864d3474bd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1231,7 +1228,7 @@ def _process_dataclass__31ffe1dac5d42bd4fff58df6909b78243a098199():
 
 
 @_register(
-    installer_sha1='9fb52e80878b217eaed2801aad1d1d6ba8e98e0e',
+    installer_sha1='d2c803a176a1ab3fdd518d29b3a930f26ffecfa7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1244,7 +1241,7 @@ def _process_dataclass__31ffe1dac5d42bd4fff58df6909b78243a098199():
         ('omcore.specs.jmespath.ast', 'Index'),
     ),
 )
-def _process_dataclass__9fb52e80878b217eaed2801aad1d1d6ba8e98e0e():
+def _process_dataclass__d2c803a176a1ab3fdd518d29b3a930f26ffecfa7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1333,7 +1330,7 @@ def _process_dataclass__9fb52e80878b217eaed2801aad1d1d6ba8e98e0e():
 
 
 @_register(
-    installer_sha1='548d978151e64f8a32811a09ef1926270718c9cf',
+    installer_sha1='d6cfdd0e727c49d54df73250e4f482c09111a5ee',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1348,7 +1345,7 @@ def _process_dataclass__9fb52e80878b217eaed2801aad1d1d6ba8e98e0e():
         ('omcore.specs.jmespath.ast', 'MultiSelectList'),
     ),
 )
-def _process_dataclass__548d978151e64f8a32811a09ef1926270718c9cf():
+def _process_dataclass__d6cfdd0e727c49d54df73250e4f482c09111a5ee():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1437,7 +1434,7 @@ def _process_dataclass__548d978151e64f8a32811a09ef1926270718c9cf():
 
 
 @_register(
-    installer_sha1='b1f592d1fe5ea175ccde54d5e2c560ecf3ae1af8',
+    installer_sha1='07c643ae3a836f3105d565adfeafc0defc8628b8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1451,7 +1448,7 @@ def _process_dataclass__548d978151e64f8a32811a09ef1926270718c9cf():
         ('omcore.specs.jmespath.ast', 'KeyValPair'),
     ),
 )
-def _process_dataclass__b1f592d1fe5ea175ccde54d5e2c560ecf3ae1af8():
+def _process_dataclass__07c643ae3a836f3105d565adfeafc0defc8628b8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1548,7 +1545,7 @@ def _process_dataclass__b1f592d1fe5ea175ccde54d5e2c560ecf3ae1af8():
 
 
 @_register(
-    installer_sha1='05e5802f7df2c85f6b2f12fa7a865d9fbb3afcfb',
+    installer_sha1='d46496b1e5c9d015230a87a4ab1cbcff28e29dc3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1562,7 +1559,7 @@ def _process_dataclass__b1f592d1fe5ea175ccde54d5e2c560ecf3ae1af8():
         ('omcore.specs.jmespath.ast', 'LetExpression'),
     ),
 )
-def _process_dataclass__05e5802f7df2c85f6b2f12fa7a865d9fbb3afcfb():
+def _process_dataclass__d46496b1e5c9d015230a87a4ab1cbcff28e29dc3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1659,7 +1656,7 @@ def _process_dataclass__05e5802f7df2c85f6b2f12fa7a865d9fbb3afcfb():
 
 
 @_register(
-    installer_sha1='194907ae2b10cb460dd09a44e40a6fbe8bfa1df7',
+    installer_sha1='844d8cac100723ce4361f7674995e36e57454c1b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1672,7 +1669,7 @@ def _process_dataclass__05e5802f7df2c85f6b2f12fa7a865d9fbb3afcfb():
         ('omcore.specs.jmespath.ast', 'Literal'),
     ),
 )
-def _process_dataclass__194907ae2b10cb460dd09a44e40a6fbe8bfa1df7():
+def _process_dataclass__844d8cac100723ce4361f7674995e36e57454c1b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1761,7 +1758,7 @@ def _process_dataclass__194907ae2b10cb460dd09a44e40a6fbe8bfa1df7():
 
 
 @_register(
-    installer_sha1='1b42b89ffac03d002047607b3b42e0b83489ca32',
+    installer_sha1='7d2da1240d4f7c2299579090972791b809341973',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1774,7 +1771,7 @@ def _process_dataclass__194907ae2b10cb460dd09a44e40a6fbe8bfa1df7():
         ('omcore.specs.jmespath.ast', 'NotExpression'),
     ),
 )
-def _process_dataclass__1b42b89ffac03d002047607b3b42e0b83489ca32():
+def _process_dataclass__7d2da1240d4f7c2299579090972791b809341973():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1863,7 +1860,7 @@ def _process_dataclass__1b42b89ffac03d002047607b3b42e0b83489ca32():
 
 
 @_register(
-    installer_sha1='f0d8c165eee8df0876897bdb878de970616e13e2',
+    installer_sha1='171a1da059f42d39675e6db79206cb99bd500a32',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1878,7 +1875,7 @@ def _process_dataclass__1b42b89ffac03d002047607b3b42e0b83489ca32():
         ('omcore.specs.jmespath.ast', 'Slice'),
     ),
 )
-def _process_dataclass__f0d8c165eee8df0876897bdb878de970616e13e2():
+def _process_dataclass__171a1da059f42d39675e6db79206cb99bd500a32():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1983,7 +1980,7 @@ def _process_dataclass__f0d8c165eee8df0876897bdb878de970616e13e2():
 
 
 @_register(
-    installer_sha1='2659f5c41d2f92c5abadb023b09d0155107aa4aa',
+    installer_sha1='f8ea1647d25c4e0a07a9e087ecb7f06751048563',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1996,7 +1993,7 @@ def _process_dataclass__f0d8c165eee8df0876897bdb878de970616e13e2():
         ('omcore.specs.jmespath.ast', 'Subexpression'),
     ),
 )
-def _process_dataclass__2659f5c41d2f92c5abadb023b09d0155107aa4aa():
+def _process_dataclass__f8ea1647d25c4e0a07a9e087ecb7f06751048563():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2085,7 +2082,7 @@ def _process_dataclass__2659f5c41d2f92c5abadb023b09d0155107aa4aa():
 
 
 @_register(
-    installer_sha1='87969e557e4b324ba13293da5a26cc2ae0a3017b',
+    installer_sha1='3b27417e6566ff6ee6b883b98162fd2cc48c58f5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2100,7 +2097,7 @@ def _process_dataclass__2659f5c41d2f92c5abadb023b09d0155107aa4aa():
         ('omcore.specs.jmespath.ast', 'TernaryOperator'),
     ),
 )
-def _process_dataclass__87969e557e4b324ba13293da5a26cc2ae0a3017b():
+def _process_dataclass__3b27417e6566ff6ee6b883b98162fd2cc48c58f5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

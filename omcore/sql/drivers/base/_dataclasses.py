@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='4077f72d9de613560975d4412cd5682ebc905712',
+    installer_sha1='1433c22a084a5ec0e53e089de8047da20991ead0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.sql.drivers.base.core.handlers', 'OperationRequest'),
     ),
 )
-def _process_dataclass__4077f72d9de613560975d4412cd5682ebc905712():
+def _process_dataclass__1433c22a084a5ec0e53e089de8047da20991ead0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

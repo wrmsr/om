@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='2bf5818ad4160410a4ee25ace966c7517e477ba1',
+    installer_sha1='73fa29e6a5ed12e668ab903c3a600466a6071e97',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -50,7 +47,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.local.qwen.backends.mlx', 'MlxQWeight'),
     ),
 )
-def _process_dataclass__2bf5818ad4160410a4ee25ace966c7517e477ba1():
+def _process_dataclass__73fa29e6a5ed12e668ab903c3a600466a6071e97():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -138,7 +135,7 @@ def _process_dataclass__2bf5818ad4160410a4ee25ace966c7517e477ba1():
 
 
 @_register(
-    installer_sha1='66c61906d4f3b4b48d2a97333b10e19de717c14d',
+    installer_sha1='030e598f2fd59ebe3517822a2ee45e56cbb497ac',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -158,7 +155,7 @@ def _process_dataclass__2bf5818ad4160410a4ee25ace966c7517e477ba1():
         ('omllm.local.qwen.backends.tinygrad', 'TinyQWeight'),
     ),
 )
-def _process_dataclass__66c61906d4f3b4b48d2a97333b10e19de717c14d():
+def _process_dataclass__030e598f2fd59ebe3517822a2ee45e56cbb497ac():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -254,7 +251,7 @@ def _process_dataclass__66c61906d4f3b4b48d2a97333b10e19de717c14d():
 
 
 @_register(
-    installer_sha1='8906dd9cf35a7c6060f3652ea8accce5aa449cca',
+    installer_sha1='971d90b1116a2f9b60d8a87a9013958cf369f75b',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -273,7 +270,7 @@ def _process_dataclass__66c61906d4f3b4b48d2a97333b10e19de717c14d():
         ('omllm.local.qwen.quant', 'QWeight'),
     ),
 )
-def _process_dataclass__8906dd9cf35a7c6060f3652ea8accce5aa449cca():
+def _process_dataclass__971d90b1116a2f9b60d8a87a9013958cf369f75b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -361,7 +358,7 @@ def _process_dataclass__8906dd9cf35a7c6060f3652ea8accce5aa449cca():
 
 
 @_register(
-    installer_sha1='799681b69f6a44e7ab26f91f04e7ddf81e74bf0c',
+    installer_sha1='47fd67cd5e91a944d3f52443eb9e8484b6fe8c03',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -379,7 +376,7 @@ def _process_dataclass__8906dd9cf35a7c6060f3652ea8accce5aa449cca():
         ('omllm.local.qwen.backends.torch_triton', 'GemvConfig'),
     ),
 )
-def _process_dataclass__799681b69f6a44e7ab26f91f04e7ddf81e74bf0c():
+def _process_dataclass__47fd67cd5e91a944d3f52443eb9e8484b6fe8c03():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -514,7 +511,7 @@ def _process_dataclass__799681b69f6a44e7ab26f91f04e7ddf81e74bf0c():
 
 
 @_register(
-    installer_sha1='9832aac84b6cbcfd6428ff7267dba9d7620bbef5',
+    installer_sha1='90743ff9b91b5e5027b585bbd2fe83f18e29e304',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -529,7 +526,7 @@ def _process_dataclass__799681b69f6a44e7ab26f91f04e7ddf81e74bf0c():
         ('omllm.local.qwen.chat', 'Parsed'),
     ),
 )
-def _process_dataclass__9832aac84b6cbcfd6428ff7267dba9d7620bbef5():
+def _process_dataclass__90743ff9b91b5e5027b585bbd2fe83f18e29e304():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -599,7 +596,7 @@ def _process_dataclass__9832aac84b6cbcfd6428ff7267dba9d7620bbef5():
 
 
 @_register(
-    installer_sha1='6dc42454cd6a6e40790aa3e35df8231d0d809b4c',
+    installer_sha1='9eb19e80462f60f885c4278e8e544ce51a228b7c',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -614,7 +611,7 @@ def _process_dataclass__9832aac84b6cbcfd6428ff7267dba9d7620bbef5():
         ('omllm.local.qwen.grammar', 'JsonConstraint'),
     ),
 )
-def _process_dataclass__6dc42454cd6a6e40790aa3e35df8231d0d809b4c():
+def _process_dataclass__9eb19e80462f60f885c4278e8e544ce51a228b7c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -687,7 +684,7 @@ def _process_dataclass__6dc42454cd6a6e40790aa3e35df8231d0d809b4c():
 
 
 @_register(
-    installer_sha1='5c19b0b9ac70570f4fc6fdcabcf2abae6c293f04',
+    installer_sha1='c70ce9ed277dec4c7b15e920f95e8366be668461',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -703,7 +700,7 @@ def _process_dataclass__6dc42454cd6a6e40790aa3e35df8231d0d809b4c():
         ('omllm.local.qwen.grammar', 'ToolConstraint'),
     ),
 )
-def _process_dataclass__5c19b0b9ac70570f4fc6fdcabcf2abae6c293f04():
+def _process_dataclass__c70ce9ed277dec4c7b15e920f95e8366be668461():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -782,7 +779,7 @@ def _process_dataclass__5c19b0b9ac70570f4fc6fdcabcf2abae6c293f04():
 
 
 @_register(
-    installer_sha1='f3ab7e53fba7b3dc580dfeaeda33fd4ba05f78c4',
+    installer_sha1='ca66ce83d864cc6f999f27e3017264a3983b94bf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -797,7 +794,7 @@ def _process_dataclass__5c19b0b9ac70570f4fc6fdcabcf2abae6c293f04():
         ('omllm.local.qwen.model', 'SpecStats'),
     ),
 )
-def _process_dataclass__f3ab7e53fba7b3dc580dfeaeda33fd4ba05f78c4():
+def _process_dataclass__ca66ce83d864cc6f999f27e3017264a3983b94bf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -902,7 +899,7 @@ def _process_dataclass__f3ab7e53fba7b3dc580dfeaeda33fd4ba05f78c4():
 
 
 @_register(
-    installer_sha1='56e23b89303016228a308dedebb1b271d62785d3',
+    installer_sha1='6f702ddd3cf10a47a0baf244e5b31d8a9f5daec9',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -917,7 +914,7 @@ def _process_dataclass__f3ab7e53fba7b3dc580dfeaeda33fd4ba05f78c4():
         ('omllm.local.qwen.paramcache', 'ParamCache'),
     ),
 )
-def _process_dataclass__56e23b89303016228a308dedebb1b271d62785d3():
+def _process_dataclass__6f702ddd3cf10a47a0baf244e5b31d8a9f5daec9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -989,7 +986,7 @@ def _process_dataclass__56e23b89303016228a308dedebb1b271d62785d3():
 
 
 @_register(
-    installer_sha1='0c39811345dcc877a06255a948b454441703e682',
+    installer_sha1='d21831228f78f009500ed1282a7b74d78e74e075',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1006,7 +1003,7 @@ def _process_dataclass__56e23b89303016228a308dedebb1b271d62785d3():
         ('omllm.local.qwen.prefixcache', 'Snapshot'),
     ),
 )
-def _process_dataclass__0c39811345dcc877a06255a948b454441703e682():
+def _process_dataclass__d21831228f78f009500ed1282a7b74d78e74e075():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1088,7 +1085,7 @@ def _process_dataclass__0c39811345dcc877a06255a948b454441703e682():
 
 
 @_register(
-    installer_sha1='e66247fef380feb524f3d6543a3b59eabf70f441',
+    installer_sha1='dc346acb8d24d224cbb868fd5a4e5b2fe08fcc40',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1104,7 +1101,7 @@ def _process_dataclass__0c39811345dcc877a06255a948b454441703e682():
         ('omllm.local.qwen.prefixcache', '_Entry'),
     ),
 )
-def _process_dataclass__e66247fef380feb524f3d6543a3b59eabf70f441():
+def _process_dataclass__dc346acb8d24d224cbb868fd5a4e5b2fe08fcc40():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1180,7 +1177,7 @@ def _process_dataclass__e66247fef380feb524f3d6543a3b59eabf70f441():
 
 
 @_register(
-    installer_sha1='d053205b4722fe294bf9fefbd28d4635d6ece60b',
+    installer_sha1='cb85da736d989b86f8411668332ebf582b46ed9a',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1208,7 +1205,7 @@ def _process_dataclass__e66247fef380feb524f3d6543a3b59eabf70f441():
         ('omllm.local.qwen.serving', 'Request'),
     ),
 )
-def _process_dataclass__d053205b4722fe294bf9fefbd28d4635d6ece60b():
+def _process_dataclass__cb85da736d989b86f8411668332ebf582b46ed9a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1359,7 +1356,7 @@ def _process_dataclass__d053205b4722fe294bf9fefbd28d4635d6ece60b():
 
 
 @_register(
-    installer_sha1='c48019302faa066acad5f1cf315c314f2d11cec9',
+    installer_sha1='0a1e02fe714bf50e1167fbc2a482aef5fc27befc',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1384,7 +1381,7 @@ def _process_dataclass__d053205b4722fe294bf9fefbd28d4635d6ece60b():
         ('omllm.local.qwen.serving', 'Result'),
     ),
 )
-def _process_dataclass__c48019302faa066acad5f1cf315c314f2d11cec9():
+def _process_dataclass__0a1e02fe714bf50e1167fbc2a482aef5fc27befc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1514,7 +1511,7 @@ def _process_dataclass__c48019302faa066acad5f1cf315c314f2d11cec9():
 
 
 @_register(
-    installer_sha1='aeadcd505a0473f653f113d5ce934ef122ec3caa',
+    installer_sha1='9b4c404260e467053baf01f5efeef718d7ccdff5',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1533,7 +1530,7 @@ def _process_dataclass__c48019302faa066acad5f1cf315c314f2d11cec9():
         ('omllm.local.qwen.serving', 'SamplingDefaults'),
     ),
 )
-def _process_dataclass__aeadcd505a0473f653f113d5ce934ef122ec3caa():
+def _process_dataclass__9b4c404260e467053baf01f5efeef718d7ccdff5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1634,7 +1631,7 @@ def _process_dataclass__aeadcd505a0473f653f113d5ce934ef122ec3caa():
 
 
 @_register(
-    installer_sha1='3ff2a1d64778c1fea14e350f65e18aa8fae199f8',
+    installer_sha1='61eee654341468e0b903b290a26d55ca7efcd519',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1651,7 +1648,7 @@ def _process_dataclass__aeadcd505a0473f653f113d5ce934ef122ec3caa():
         ('omllm.local.qwen.weights', 'NativeQuant'),
     ),
 )
-def _process_dataclass__3ff2a1d64778c1fea14e350f65e18aa8fae199f8():
+def _process_dataclass__61eee654341468e0b903b290a26d55ca7efcd519():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1733,7 +1730,7 @@ def _process_dataclass__3ff2a1d64778c1fea14e350f65e18aa8fae199f8():
 
 
 @_register(
-    installer_sha1='04795627c6271cd9b38624010a3d28e1289b1586',
+    installer_sha1='0a4248d882884871a6c95e286c28594147baa7bd',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1748,7 +1745,7 @@ def _process_dataclass__3ff2a1d64778c1fea14e350f65e18aa8fae199f8():
         ('omllm.local.qwen.weights', 'OllamaModel'),
     ),
 )
-def _process_dataclass__04795627c6271cd9b38624010a3d28e1289b1586():
+def _process_dataclass__0a4248d882884871a6c95e286c28594147baa7bd():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1818,7 +1815,7 @@ def _process_dataclass__04795627c6271cd9b38624010a3d28e1289b1586():
 
 
 @_register(
-    installer_sha1='0c7f910a58079f6f388c514a35dab18d80a24ed6',
+    installer_sha1='bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -1852,7 +1849,7 @@ def _process_dataclass__04795627c6271cd9b38624010a3d28e1289b1586():
         ('omllm.local.qwen.weights', 'Qwen35Config'),
     ),
 )
-def _process_dataclass__0c7f910a58079f6f388c514a35dab18d80a24ed6():
+def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

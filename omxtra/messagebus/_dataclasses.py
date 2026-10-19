@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='b626e24c115ef7a8b3dbddf1132ed121c045b4fa',
+    installer_sha1='5199980cb09c7e784f54fd8bb85a7cd4f0f4df8f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -50,7 +47,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omxtra.messagebus.loop', 'LoopConfig'),
     ),
 )
-def _process_dataclass__b626e24c115ef7a8b3dbddf1132ed121c045b4fa():
+def _process_dataclass__5199980cb09c7e784f54fd8bb85a7cd4f0f4df8f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -185,7 +182,7 @@ def _process_dataclass__b626e24c115ef7a8b3dbddf1132ed121c045b4fa():
 
 
 @_register(
-    installer_sha1='f17300e1a4d4ed0395865dba5be3f53a5db3b0a0',
+    installer_sha1='46028d6ac9a1434e4725e24ec1027708ba617fc2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -199,7 +196,7 @@ def _process_dataclass__b626e24c115ef7a8b3dbddf1132ed121c045b4fa():
         ('omxtra.messagebus.outbox', 'Batch'),
     ),
 )
-def _process_dataclass__f17300e1a4d4ed0395865dba5be3f53a5db3b0a0():
+def _process_dataclass__46028d6ac9a1434e4725e24ec1027708ba617fc2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -296,7 +293,7 @@ def _process_dataclass__f17300e1a4d4ed0395865dba5be3f53a5db3b0a0():
 
 
 @_register(
-    installer_sha1='22ea54f147533a13d35f45f930f005df94efb1c8',
+    installer_sha1='fd006bab06f5a58fe2f482285b75d2b9bc3ad6a8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -316,7 +313,7 @@ def _process_dataclass__f17300e1a4d4ed0395865dba5be3f53a5db3b0a0():
         ('omxtra.messagebus.statements', 'Statements'),
     ),
 )
-def _process_dataclass__22ea54f147533a13d35f45f930f005df94efb1c8():
+def _process_dataclass__fd006bab06f5a58fe2f482285b75d2b9bc3ad6a8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -461,7 +458,7 @@ def _process_dataclass__22ea54f147533a13d35f45f930f005df94efb1c8():
 
 
 @_register(
-    installer_sha1='c1ebe4bfca6c3ed428477e214dda57beb525f5ed',
+    installer_sha1='b5065fc7e81abcd1a5e189c9678acb82933dfc92',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -478,7 +475,7 @@ def _process_dataclass__22ea54f147533a13d35f45f930f005df94efb1c8():
         ('omxtra.messagebus.types', 'Message'),
     ),
 )
-def _process_dataclass__c1ebe4bfca6c3ed428477e214dda57beb525f5ed():
+def _process_dataclass__b5065fc7e81abcd1a5e189c9678acb82933dfc92():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -600,7 +597,7 @@ def _process_dataclass__c1ebe4bfca6c3ed428477e214dda57beb525f5ed():
 
 
 @_register(
-    installer_sha1='a1f79607a72b5ffb5534b4f56843d722eab584b4',
+    installer_sha1='7e625a3394e5b1d9a0e76f5d9c60cd4307f772d9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -614,7 +611,7 @@ def _process_dataclass__c1ebe4bfca6c3ed428477e214dda57beb525f5ed():
         ('omxtra.messagebus.types', 'OutgoingMessage'),
     ),
 )
-def _process_dataclass__a1f79607a72b5ffb5534b4f56843d722eab584b4():
+def _process_dataclass__7e625a3394e5b1d9a0e76f5d9c60cd4307f772d9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -711,7 +708,7 @@ def _process_dataclass__a1f79607a72b5ffb5534b4f56843d722eab584b4():
 
 
 @_register(
-    installer_sha1='3a113d0405f84524c7e3096bfcf9f6f9345b8460',
+    installer_sha1='8b4c76c1ebadcc0223a0ccecd20b6cc2c0897ace',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -727,7 +724,7 @@ def _process_dataclass__a1f79607a72b5ffb5534b4f56843d722eab584b4():
         ('omxtra.messagebus.types', 'WorkerInfo'),
     ),
 )
-def _process_dataclass__3a113d0405f84524c7e3096bfcf9f6f9345b8460():
+def _process_dataclass__8b4c76c1ebadcc0223a0ccecd20b6cc2c0897ace():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

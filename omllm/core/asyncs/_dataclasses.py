@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='ae15d5e5b329834496f04d6965dad21781d34ac8',
+    installer_sha1='0344d0be225f054cc61aceb71745d4a276d0bf10',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -45,7 +42,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.core.asyncs.base', 'AsyncGroupCancelledError'),
     ),
 )
-def _process_dataclass__ae15d5e5b329834496f04d6965dad21781d34ac8():
+def _process_dataclass__0344d0be225f054cc61aceb71745d4a276d0bf10():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -103,7 +100,7 @@ def _process_dataclass__ae15d5e5b329834496f04d6965dad21781d34ac8():
 
 
 @_register(
-    installer_sha1='a4d089838c562cee3490d95778ae21df476577bb',
+    installer_sha1='af2839fc1472bd852152b26269019c9f1e8dfe0e',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -116,7 +113,7 @@ def _process_dataclass__ae15d5e5b329834496f04d6965dad21781d34ac8():
         ('omllm.core.asyncs.base', 'AsyncGroupMemberCancelledError'),
     ),
 )
-def _process_dataclass__a4d089838c562cee3490d95778ae21df476577bb():
+def _process_dataclass__af2839fc1472bd852152b26269019c9f1e8dfe0e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

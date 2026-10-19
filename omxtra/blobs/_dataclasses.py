@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='69dbf2c452a7b8afc34a5a1be81149dd36987731',
+    installer_sha1='58d5c0ca95a7aa60061db9bdc888c0409908d221',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -47,7 +44,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omxtra.blobs.aws.endpoints', 'S3Endpoint'),
     ),
 )
-def _process_dataclass__69dbf2c452a7b8afc34a5a1be81149dd36987731():
+def _process_dataclass__58d5c0ca95a7aa60061db9bdc888c0409908d221():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -155,7 +152,7 @@ def _process_dataclass__69dbf2c452a7b8afc34a5a1be81149dd36987731():
 
 
 @_register(
-    installer_sha1='87dd8f095d75206942daee08e9e70428e590d027',
+    installer_sha1='46c4ff5262582f0ae843f185ed3920befdc4eb05',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -170,7 +167,7 @@ def _process_dataclass__69dbf2c452a7b8afc34a5a1be81149dd36987731():
         ('omxtra.blobs.aws.ops', 'ListPage'),
     ),
 )
-def _process_dataclass__87dd8f095d75206942daee08e9e70428e590d027():
+def _process_dataclass__46c4ff5262582f0ae843f185ed3920befdc4eb05():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -276,7 +273,7 @@ def _process_dataclass__87dd8f095d75206942daee08e9e70428e590d027():
 
 
 @_register(
-    installer_sha1='abac065e42759dd7f2ce6dd6be24800f6d64fcc5',
+    installer_sha1='592d7b48dc350ec7f35436f0f9f7d55aae1cba17',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -294,7 +291,7 @@ def _process_dataclass__87dd8f095d75206942daee08e9e70428e590d027():
         ('omxtra.blobs.aws.restxml', 'RestXmlError'),
     ),
 )
-def _process_dataclass__abac065e42759dd7f2ce6dd6be24800f6d64fcc5():
+def _process_dataclass__592d7b48dc350ec7f35436f0f9f7d55aae1cba17():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -424,7 +421,7 @@ def _process_dataclass__abac065e42759dd7f2ce6dd6be24800f6d64fcc5():
 
 
 @_register(
-    installer_sha1='6af8e55c1f478ba5983cb8520f22cf4868073f94',
+    installer_sha1='d40e4b4079bb600ec61fd8058ede6ac51cb4df6b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -446,7 +443,7 @@ def _process_dataclass__abac065e42759dd7f2ce6dd6be24800f6d64fcc5():
         ('omxtra.blobs.aws.restxml', 'RestXmlField'),
     ),
 )
-def _process_dataclass__6af8e55c1f478ba5983cb8520f22cf4868073f94():
+def _process_dataclass__d40e4b4079bb600ec61fd8058ede6ac51cb4df6b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -608,7 +605,7 @@ def _process_dataclass__6af8e55c1f478ba5983cb8520f22cf4868073f94():
 
 
 @_register(
-    installer_sha1='8dbb5defbfb244ee469f3de1cbce9250b127d5c5',
+    installer_sha1='f6889455dd9559314d52c68ef72b7f0401e533a9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -625,7 +622,7 @@ def _process_dataclass__6af8e55c1f478ba5983cb8520f22cf4868073f94():
         ('omxtra.blobs.aws.restxml', 'RestXmlRequest'),
     ),
 )
-def _process_dataclass__8dbb5defbfb244ee469f3de1cbce9250b127d5c5():
+def _process_dataclass__f6889455dd9559314d52c68ef72b7f0401e533a9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -747,7 +744,7 @@ def _process_dataclass__8dbb5defbfb244ee469f3de1cbce9250b127d5c5():
 
 
 @_register(
-    installer_sha1='4036a40a19a1198d613aad3bdb47fefea7500f73',
+    installer_sha1='23fbb836b01aa474a93377ecbf2cd56b6419c8f0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -762,7 +759,7 @@ def _process_dataclass__8dbb5defbfb244ee469f3de1cbce9250b127d5c5():
         ('omxtra.blobs.aws.restxml', 'RestXmlType'),
     ),
 )
-def _process_dataclass__4036a40a19a1198d613aad3bdb47fefea7500f73():
+def _process_dataclass__23fbb836b01aa474a93377ecbf2cd56b6419c8f0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -879,7 +876,7 @@ def _process_dataclass__4036a40a19a1198d613aad3bdb47fefea7500f73():
 
 
 @_register(
-    installer_sha1='cda2587084dfda9d59a341d92cb0f65a06e5d775',
+    installer_sha1='3ba5d5b101d4f2fa5d03ef2b1a72ebf97003b2f6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -898,7 +895,7 @@ def _process_dataclass__4036a40a19a1198d613aad3bdb47fefea7500f73():
         ('omxtra.blobs.aws.retries', 'S3Failure'),
     ),
 )
-def _process_dataclass__cda2587084dfda9d59a341d92cb0f65a06e5d775():
+def _process_dataclass__3ba5d5b101d4f2fa5d03ef2b1a72ebf97003b2f6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1039,7 +1036,7 @@ def _process_dataclass__cda2587084dfda9d59a341d92cb0f65a06e5d775():
 
 
 @_register(
-    installer_sha1='7e600164f721bb906ccfb5da5f27d9ba8de60b14',
+    installer_sha1='7910810382ff92f038d14ff113e85920d871ef65',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1063,7 +1060,7 @@ def _process_dataclass__cda2587084dfda9d59a341d92cb0f65a06e5d775():
         ('omxtra.blobs.aws.stores', 'S3BlobStore.Config'),
     ),
 )
-def _process_dataclass__7e600164f721bb906ccfb5da5f27d9ba8de60b14():
+def _process_dataclass__7910810382ff92f038d14ff113e85920d871ef65():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1244,7 +1241,7 @@ def _process_dataclass__7e600164f721bb906ccfb5da5f27d9ba8de60b14():
 
 
 @_register(
-    installer_sha1='e73a710c3d1100b2054cc89de7c65eb055eb2994',
+    installer_sha1='b873c904286d00d17dec4fdac820fd6106744017',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1258,7 +1255,7 @@ def _process_dataclass__7e600164f721bb906ccfb5da5f27d9ba8de60b14():
         ('omxtra.blobs.aws.streaming', 'S3StreamBody'),
     ),
 )
-def _process_dataclass__e73a710c3d1100b2054cc89de7c65eb055eb2994():
+def _process_dataclass__b873c904286d00d17dec4fdac820fd6106744017():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1355,7 +1352,7 @@ def _process_dataclass__e73a710c3d1100b2054cc89de7c65eb055eb2994():
 
 
 @_register(
-    installer_sha1='6f30ac3149c2b5a7f8c1e509093a1d845a295167',
+    installer_sha1='7be1929343d621c0cac1745a0011e32ab7d3168d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1370,7 +1367,7 @@ def _process_dataclass__e73a710c3d1100b2054cc89de7c65eb055eb2994():
         ('omxtra.blobs.aws.transport', 'S3Response'),
     ),
 )
-def _process_dataclass__6f30ac3149c2b5a7f8c1e509093a1d845a295167():
+def _process_dataclass__7be1929343d621c0cac1745a0011e32ab7d3168d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1476,7 +1473,7 @@ def _process_dataclass__6f30ac3149c2b5a7f8c1e509093a1d845a295167():
 
 
 @_register(
-    installer_sha1='480cba9b2f32bf6ed651bece6a31c893f10bc48d',
+    installer_sha1='e7030d3860b43ebbe6ea33829c52ab4662610de5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1493,7 +1490,7 @@ def _process_dataclass__6f30ac3149c2b5a7f8c1e509093a1d845a295167():
         ('omxtra.blobs.aws.uploads', 'S3ParallelUploadPlan'),
     ),
 )
-def _process_dataclass__480cba9b2f32bf6ed651bece6a31c893f10bc48d():
+def _process_dataclass__e7030d3860b43ebbe6ea33829c52ab4662610de5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1615,7 +1612,7 @@ def _process_dataclass__480cba9b2f32bf6ed651bece6a31c893f10bc48d():
 
 
 @_register(
-    installer_sha1='eae358fac14218361d4a601bed92683e81608f19',
+    installer_sha1='2f41a9645b91fc4bc5aa776a7111759bc75d9e7b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1630,7 +1627,7 @@ def _process_dataclass__480cba9b2f32bf6ed651bece6a31c893f10bc48d():
         ('omxtra.blobs.aws.uploads', 'S3UploadPart'),
     ),
 )
-def _process_dataclass__eae358fac14218361d4a601bed92683e81608f19():
+def _process_dataclass__2f41a9645b91fc4bc5aa776a7111759bc75d9e7b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1736,7 +1733,7 @@ def _process_dataclass__eae358fac14218361d4a601bed92683e81608f19():
 
 
 @_register(
-    installer_sha1='f8864cbb117579ef542939507a7215a72a57b5a7',
+    installer_sha1='e50d1ae44f7f94fb513e30eabc42eaa864f4b6a1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1751,7 +1748,7 @@ def _process_dataclass__eae358fac14218361d4a601bed92683e81608f19():
         ('omxtra.blobs.aws.uploads', 'S3UploadedPart'),
     ),
 )
-def _process_dataclass__f8864cbb117579ef542939507a7215a72a57b5a7():
+def _process_dataclass__e50d1ae44f7f94fb513e30eabc42eaa864f4b6a1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1859,7 +1856,7 @@ def _process_dataclass__f8864cbb117579ef542939507a7215a72a57b5a7():
 
 
 @_register(
-    installer_sha1='dd674dcb5e9a0be515b525d159d200f68a84291d',
+    installer_sha1='8e52939f0f5420fc2773f596f1ebc4dc608143aa',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1875,7 +1872,7 @@ def _process_dataclass__f8864cbb117579ef542939507a7215a72a57b5a7():
         ('omxtra.blobs.local.listings', 'LocalEntry'),
     ),
 )
-def _process_dataclass__dd674dcb5e9a0be515b525d159d200f68a84291d():
+def _process_dataclass__8e52939f0f5420fc2773f596f1ebc4dc608143aa():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1988,7 +1985,7 @@ def _process_dataclass__dd674dcb5e9a0be515b525d159d200f68a84291d():
 
 
 @_register(
-    installer_sha1='e17a6ae6c0b95b019ca5c6a697eb2cf82245c860',
+    installer_sha1='c7545c5dd06280c6eabf0b88de4cc4ef0be107d0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2003,7 +2000,7 @@ def _process_dataclass__dd674dcb5e9a0be515b525d159d200f68a84291d():
         ('omxtra.blobs.local.stores', 'LocalBlobStore.Config'),
     ),
 )
-def _process_dataclass__e17a6ae6c0b95b019ca5c6a697eb2cf82245c860():
+def _process_dataclass__c7545c5dd06280c6eabf0b88de4cc4ef0be107d0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2112,7 +2109,7 @@ def _process_dataclass__e17a6ae6c0b95b019ca5c6a697eb2cf82245c860():
 
 
 @_register(
-    installer_sha1='086011a7c86d52265c3e8e5b43fd12424d86ffe3',
+    installer_sha1='a4fce0761fb97129d876db350e519d574e4096f7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2126,7 +2123,7 @@ def _process_dataclass__e17a6ae6c0b95b019ca5c6a697eb2cf82245c860():
         ('omxtra.blobs.plans', 'ParallelGetPart'),
     ),
 )
-def _process_dataclass__086011a7c86d52265c3e8e5b43fd12424d86ffe3():
+def _process_dataclass__a4fce0761fb97129d876db350e519d574e4096f7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2224,7 +2221,7 @@ def _process_dataclass__086011a7c86d52265c3e8e5b43fd12424d86ffe3():
 
 
 @_register(
-    installer_sha1='fcfc7fe9d1770cb688d3602bf097014e3a09c032',
+    installer_sha1='6762cc9e3d072ccc3caa5eb2af1f14c8489223d4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2240,7 +2237,7 @@ def _process_dataclass__086011a7c86d52265c3e8e5b43fd12424d86ffe3():
         ('omxtra.blobs.plans', 'ParallelGetPlan'),
     ),
 )
-def _process_dataclass__fcfc7fe9d1770cb688d3602bf097014e3a09c032():
+def _process_dataclass__6762cc9e3d072ccc3caa5eb2af1f14c8489223d4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2354,7 +2351,7 @@ def _process_dataclass__fcfc7fe9d1770cb688d3602bf097014e3a09c032():
 
 
 @_register(
-    installer_sha1='24564bd93152888a807bce66461cea600860be3b',
+    installer_sha1='af88d94b82457c5b7d3481edb40255f647f62c2b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2368,7 +2365,7 @@ def _process_dataclass__fcfc7fe9d1770cb688d3602bf097014e3a09c032():
         ('omxtra.blobs.types', 'Blob'),
     ),
 )
-def _process_dataclass__24564bd93152888a807bce66461cea600860be3b():
+def _process_dataclass__af88d94b82457c5b7d3481edb40255f647f62c2b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2466,7 +2463,7 @@ def _process_dataclass__24564bd93152888a807bce66461cea600860be3b():
 
 
 @_register(
-    installer_sha1='f9cb9d0f61348e9539df020e60349303aed1f250',
+    installer_sha1='db5a9d11dbf4329ee66bf4bd6fc414c03ba37d9a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2482,7 +2479,7 @@ def _process_dataclass__24564bd93152888a807bce66461cea600860be3b():
         ('omxtra.blobs.types', 'BlobInfo'),
     ),
 )
-def _process_dataclass__f9cb9d0f61348e9539df020e60349303aed1f250():
+def _process_dataclass__db5a9d11dbf4329ee66bf4bd6fc414c03ba37d9a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2596,7 +2593,7 @@ def _process_dataclass__f9cb9d0f61348e9539df020e60349303aed1f250():
 
 
 @_register(
-    installer_sha1='2d8d469949908a8999051dfb18c6cf21d2f85259',
+    installer_sha1='fd164cca12b4494bb36cac7b9d6596f2b23a5870',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2609,7 +2606,7 @@ def _process_dataclass__f9cb9d0f61348e9539df020e60349303aed1f250():
         ('omxtra.blobs.types', 'BlobPrefix'),
     ),
 )
-def _process_dataclass__2d8d469949908a8999051dfb18c6cf21d2f85259():
+def _process_dataclass__fd164cca12b4494bb36cac7b9d6596f2b23a5870():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2698,7 +2695,7 @@ def _process_dataclass__2d8d469949908a8999051dfb18c6cf21d2f85259():
 
 
 @_register(
-    installer_sha1='327ed39089b927a67d229d0da0f9bc5937b6df3c',
+    installer_sha1='6f97442b60ed16940ab5f80f3d7a064b3b34327c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2711,7 +2708,7 @@ def _process_dataclass__2d8d469949908a8999051dfb18c6cf21d2f85259():
         ('omxtra.blobs.types', 'BlobVersion'),
     ),
 )
-def _process_dataclass__327ed39089b927a67d229d0da0f9bc5937b6df3c():
+def _process_dataclass__6f97442b60ed16940ab5f80f3d7a064b3b34327c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2800,7 +2797,7 @@ def _process_dataclass__327ed39089b927a67d229d0da0f9bc5937b6df3c():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2812,7 +2809,7 @@ def _process_dataclass__327ed39089b927a67d229d0da0f9bc5937b6df3c():
         ('omxtra.blobs.types', 'IfAbsent'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2880,7 +2877,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='c3829b3cc1b675cf64c5e7ea8640583edeaacfa2',
+    installer_sha1='bdc5d910fe2b3f9859afc904b67d6c04f42f1846',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2894,7 +2891,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omxtra.blobs.types', 'IfNoneMatch'),
     ),
 )
-def _process_dataclass__c3829b3cc1b675cf64c5e7ea8640583edeaacfa2():
+def _process_dataclass__bdc5d910fe2b3f9859afc904b67d6c04f42f1846():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2983,7 +2980,7 @@ def _process_dataclass__c3829b3cc1b675cf64c5e7ea8640583edeaacfa2():
 
 
 @_register(
-    installer_sha1='38ade81e17aa2495f775cb37610cbc8ff1edee19',
+    installer_sha1='a9d58226d172fa72c02a1077deb5f86f4c0fe255',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2997,7 +2994,7 @@ def _process_dataclass__c3829b3cc1b675cf64c5e7ea8640583edeaacfa2():
         ('omxtra.blobs.types', 'OffsetBlobRange'),
     ),
 )
-def _process_dataclass__38ade81e17aa2495f775cb37610cbc8ff1edee19():
+def _process_dataclass__a9d58226d172fa72c02a1077deb5f86f4c0fe255():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3096,7 +3093,7 @@ def _process_dataclass__38ade81e17aa2495f775cb37610cbc8ff1edee19():
 
 
 @_register(
-    installer_sha1='7b2527b6f49ae0bc1cf64f11e25ed722c984f8da',
+    installer_sha1='8db997e62d9355e0223cea80c50316c80ec98c2f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3109,7 +3106,7 @@ def _process_dataclass__38ade81e17aa2495f775cb37610cbc8ff1edee19():
         ('omxtra.blobs.types', 'SuffixBlobRange'),
     ),
 )
-def _process_dataclass__7b2527b6f49ae0bc1cf64f11e25ed722c984f8da():
+def _process_dataclass__8db997e62d9355e0223cea80c50316c80ec98c2f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

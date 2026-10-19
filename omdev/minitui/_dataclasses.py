@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='599d2694c4e74e47e3c7aea3e89eb2a5b11d23b5',
+    installer_sha1='01884df5e48ca6d6fd09c0b0ea02805027a101ab',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -47,7 +44,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omdev.minitui.controls.menus', 'MenuItem'),
     ),
 )
-def _process_dataclass__599d2694c4e74e47e3c7aea3e89eb2a5b11d23b5():
+def _process_dataclass__01884df5e48ca6d6fd09c0b0ea02805027a101ab():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -155,7 +152,7 @@ def _process_dataclass__599d2694c4e74e47e3c7aea3e89eb2a5b11d23b5():
 
 
 @_register(
-    installer_sha1='8350bcc1d5ca4b146fca3c34140ba47265cb958d',
+    installer_sha1='c533cfca92ad1d6e85515f57aba54bb4bcfab1cc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -173,7 +170,7 @@ def _process_dataclass__599d2694c4e74e47e3c7aea3e89eb2a5b11d23b5():
         ('omdev.minitui.controls.overlays', 'Overlay'),
     ),
 )
-def _process_dataclass__8350bcc1d5ca4b146fca3c34140ba47265cb958d():
+def _process_dataclass__c533cfca92ad1d6e85515f57aba54bb4bcfab1cc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -305,7 +302,7 @@ def _process_dataclass__8350bcc1d5ca4b146fca3c34140ba47265cb958d():
 
 
 @_register(
-    installer_sha1='f3c865dca43a8467609f13462f5f402c31f149af',
+    installer_sha1='ad3496f23a77179ba0304e8e72cf34ea34854202',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -322,7 +319,7 @@ def _process_dataclass__8350bcc1d5ca4b146fca3c34140ba47265cb958d():
         ('omdev.minitui.controls.overlays', 'OverlayRegion'),
     ),
 )
-def _process_dataclass__f3c865dca43a8467609f13462f5f402c31f149af():
+def _process_dataclass__ad3496f23a77179ba0304e8e72cf34ea34854202():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -443,7 +440,7 @@ def _process_dataclass__f3c865dca43a8467609f13462f5f402c31f149af():
 
 
 @_register(
-    installer_sha1='f9fc3c5d838f0750427de096af7ae80567b01131',
+    installer_sha1='c9cf17eb4d85fd1d1ba60e93a5f7053eb7860ad3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -458,7 +455,7 @@ def _process_dataclass__f3c865dca43a8467609f13462f5f402c31f149af():
         ('omdev.minitui.controls.stacks', 'LayoutHit'),
     ),
 )
-def _process_dataclass__f9fc3c5d838f0750427de096af7ae80567b01131():
+def _process_dataclass__c9cf17eb4d85fd1d1ba60e93a5f7053eb7860ad3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -563,7 +560,7 @@ def _process_dataclass__f9fc3c5d838f0750427de096af7ae80567b01131():
 
 
 @_register(
-    installer_sha1='e0af0cc016508dd1c81901e9f58aa8908ac4e220',
+    installer_sha1='cd7dc3606c27fffc1241b56391a6379eb8e96d8c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -578,7 +575,7 @@ def _process_dataclass__f9fc3c5d838f0750427de096af7ae80567b01131():
         ('omdev.minitui.controls.stacks', 'StackLayout'),
     ),
 )
-def _process_dataclass__e0af0cc016508dd1c81901e9f58aa8908ac4e220():
+def _process_dataclass__cd7dc3606c27fffc1241b56391a6379eb8e96d8c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -684,7 +681,7 @@ def _process_dataclass__e0af0cc016508dd1c81901e9f58aa8908ac4e220():
 
 
 @_register(
-    installer_sha1='9078c0cd3d478a2cdb82599daaf54f662859f735',
+    installer_sha1='8a26caec9d73222650f385704109adfb32bbb358',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -700,7 +697,7 @@ def _process_dataclass__e0af0cc016508dd1c81901e9f58aa8908ac4e220():
         ('omdev.minitui.controls.stacks', 'StackRegion'),
     ),
 )
-def _process_dataclass__9078c0cd3d478a2cdb82599daaf54f662859f735():
+def _process_dataclass__8a26caec9d73222650f385704109adfb32bbb358():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -814,7 +811,7 @@ def _process_dataclass__9078c0cd3d478a2cdb82599daaf54f662859f735():
 
 
 @_register(
-    installer_sha1='77e9aab4f4e69f462ce81c09a4d9eee4b7dd20af',
+    installer_sha1='fc665eb9d76d0aeaacdea9003fae21e8e68fc2c1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -828,7 +825,7 @@ def _process_dataclass__9078c0cd3d478a2cdb82599daaf54f662859f735():
         ('omdev.minitui.controls.suggestions', 'SuggestionItem'),
     ),
 )
-def _process_dataclass__77e9aab4f4e69f462ce81c09a4d9eee4b7dd20af():
+def _process_dataclass__fc665eb9d76d0aeaacdea9003fae21e8e68fc2c1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -926,7 +923,7 @@ def _process_dataclass__77e9aab4f4e69f462ce81c09a4d9eee4b7dd20af():
 
 
 @_register(
-    installer_sha1='f4c80b7571953ec4dcdc010e3b4e46373a3dc84b',
+    installer_sha1='49c541c2e9e713cb0b3f09b13dab0ac8263890c4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -942,7 +939,7 @@ def _process_dataclass__77e9aab4f4e69f462ce81c09a4d9eee4b7dd20af():
         ('omdev.minitui.controls.textarea', '_WrapRow'),
     ),
 )
-def _process_dataclass__f4c80b7571953ec4dcdc010e3b4e46373a3dc84b():
+def _process_dataclass__49c541c2e9e713cb0b3f09b13dab0ac8263890c4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1055,7 +1052,7 @@ def _process_dataclass__f4c80b7571953ec4dcdc010e3b4e46373a3dc84b():
 
 
 @_register(
-    installer_sha1='a9cbfbad6fd041b8a5c79000fec942a031fd7c00',
+    installer_sha1='819bfe7921a38afe3d5ce8840037c09ee220c5a7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1069,7 +1066,7 @@ def _process_dataclass__f4c80b7571953ec4dcdc010e3b4e46373a3dc84b():
         ('omdev.minitui.controls.transcripts', 'TranscriptBlock'),
     ),
 )
-def _process_dataclass__a9cbfbad6fd041b8a5c79000fec942a031fd7c00():
+def _process_dataclass__819bfe7921a38afe3d5ce8840037c09ee220c5a7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1167,7 +1164,7 @@ def _process_dataclass__a9cbfbad6fd041b8a5c79000fec942a031fd7c00():
 
 
 @_register(
-    installer_sha1='5f394e91ab5fd3efcf3975be3d964388745db84e',
+    installer_sha1='e2ff6bc2c74a3fb08facbc34805e38edccc797e2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1184,7 +1181,7 @@ def _process_dataclass__a9cbfbad6fd041b8a5c79000fec942a031fd7c00():
         ('omdev.minitui.controls.transcripts', 'TranscriptHit'),
     ),
 )
-def _process_dataclass__5f394e91ab5fd3efcf3975be3d964388745db84e():
+def _process_dataclass__e2ff6bc2c74a3fb08facbc34805e38edccc797e2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1310,7 +1307,7 @@ def _process_dataclass__5f394e91ab5fd3efcf3975be3d964388745db84e():
 
 
 @_register(
-    installer_sha1='8a03992b335dccad1afc4f5dd731cc0eab7f3b7b',
+    installer_sha1='37021e35a54c14fcdb6080c8ef8f1cb0504513c4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1324,7 +1321,7 @@ def _process_dataclass__5f394e91ab5fd3efcf3975be3d964388745db84e():
         ('omdev.minitui.docs.cursors', 'Cursor'),
     ),
 )
-def _process_dataclass__8a03992b335dccad1afc4f5dd731cc0eab7f3b7b():
+def _process_dataclass__37021e35a54c14fcdb6080c8ef8f1cb0504513c4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1423,7 +1420,7 @@ def _process_dataclass__8a03992b335dccad1afc4f5dd731cc0eab7f3b7b():
 
 
 @_register(
-    installer_sha1='fcf90a2599761c9d4721f4badf2c7ca94de56767',
+    installer_sha1='609fee6d5cdcbbbe7838fe19592c9bcb765e178f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1437,7 +1434,7 @@ def _process_dataclass__8a03992b335dccad1afc4f5dd731cc0eab7f3b7b():
         ('omdev.minitui.docs.edits', 'AppliedEdit'),
     ),
 )
-def _process_dataclass__fcf90a2599761c9d4721f4badf2c7ca94de56767():
+def _process_dataclass__609fee6d5cdcbbbe7838fe19592c9bcb765e178f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1534,7 +1531,7 @@ def _process_dataclass__fcf90a2599761c9d4721f4badf2c7ca94de56767():
 
 
 @_register(
-    installer_sha1='c59d01d2532ea5a3fa437be31b6ab6e2cb0a2dab',
+    installer_sha1='e03bfc67cc8f1c90bc37487d65b88e39aa76b1ad',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1549,7 +1546,7 @@ def _process_dataclass__fcf90a2599761c9d4721f4badf2c7ca94de56767():
         ('omdev.minitui.docs.edits', 'TextEdit'),
     ),
 )
-def _process_dataclass__c59d01d2532ea5a3fa437be31b6ab6e2cb0a2dab():
+def _process_dataclass__e03bfc67cc8f1c90bc37487d65b88e39aa76b1ad():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1655,7 +1652,7 @@ def _process_dataclass__c59d01d2532ea5a3fa437be31b6ab6e2cb0a2dab():
 
 
 @_register(
-    installer_sha1='da417f219da7af2677c1eebe42bf2a613ba9978c',
+    installer_sha1='18f1bd2a952c97b4a70d5dd848d530b956467027',
     spec_keys=(
         (
             "(((True, True, True, True, False, True, True, False, False, False, False, False, False, False, False, Fals"
@@ -1669,7 +1666,7 @@ def _process_dataclass__c59d01d2532ea5a3fa437be31b6ab6e2cb0a2dab():
         ('omdev.minitui.docs.positions', 'Pos'),
     ),
 )
-def _process_dataclass__da417f219da7af2677c1eebe42bf2a613ba9978c():
+def _process_dataclass__18f1bd2a952c97b4a70d5dd848d530b956467027():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1818,7 +1815,7 @@ def _process_dataclass__da417f219da7af2677c1eebe42bf2a613ba9978c():
 
 
 @_register(
-    installer_sha1='92d46baef4d3e12f51d5ad0dbb1f6bee02292a3f',
+    installer_sha1='e27a07ece201d25b55580d4a9df291864dc35182',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1833,7 +1830,7 @@ def _process_dataclass__da417f219da7af2677c1eebe42bf2a613ba9978c():
         ('omdev.minitui.docs.positions', 'Span'),
     ),
 )
-def _process_dataclass__92d46baef4d3e12f51d5ad0dbb1f6bee02292a3f():
+def _process_dataclass__e27a07ece201d25b55580d4a9df291864dc35182():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1938,7 +1935,7 @@ def _process_dataclass__92d46baef4d3e12f51d5ad0dbb1f6bee02292a3f():
 
 
 @_register(
-    installer_sha1='b59540902ba642bc83b1567b533937e2df1766f1',
+    installer_sha1='016f21232508ab019ac08656f5b1ab4e14ac7f72',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1952,7 +1949,7 @@ def _process_dataclass__92d46baef4d3e12f51d5ad0dbb1f6bee02292a3f():
         ('omdev.minitui.events.keymaps', 'KeymapMatch'),
     ),
 )
-def _process_dataclass__b59540902ba642bc83b1567b533937e2df1766f1():
+def _process_dataclass__016f21232508ab019ac08656f5b1ab4e14ac7f72():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2051,7 +2048,7 @@ def _process_dataclass__b59540902ba642bc83b1567b533937e2df1766f1():
 
 
 @_register(
-    installer_sha1='7a555ea448ae89730a1c7eabbd9d4055d36da5ac',
+    installer_sha1='35d21eb8efa8ef49440a37d2548061cfd0359f78',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2068,7 +2065,7 @@ def _process_dataclass__b59540902ba642bc83b1567b533937e2df1766f1():
         ('omdev.minitui.events.keys', 'Key'),
     ),
 )
-def _process_dataclass__7a555ea448ae89730a1c7eabbd9d4055d36da5ac():
+def _process_dataclass__35d21eb8efa8ef49440a37d2548061cfd0359f78():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2195,7 +2192,7 @@ def _process_dataclass__7a555ea448ae89730a1c7eabbd9d4055d36da5ac():
 
 
 @_register(
-    installer_sha1='6540d73bbf58c3048a776227a132494e97b887d5',
+    installer_sha1='9352071c4f4eede4a95133362e5ec07b8c7f1f2e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2208,7 +2205,7 @@ def _process_dataclass__7a555ea448ae89730a1c7eabbd9d4055d36da5ac():
         ('omdev.minitui.events.parsing', 'Read1'),
     ),
 )
-def _process_dataclass__6540d73bbf58c3048a776227a132494e97b887d5():
+def _process_dataclass__9352071c4f4eede4a95133362e5ec07b8c7f1f2e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2298,7 +2295,7 @@ def _process_dataclass__6540d73bbf58c3048a776227a132494e97b887d5():
 
 
 @_register(
-    installer_sha1='f7faa3f13b52e117341bd31db34c182820332a5a',
+    installer_sha1='dbacacff8c24097d11755129fa6a4ad75a37204a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2312,7 +2309,7 @@ def _process_dataclass__6540d73bbf58c3048a776227a132494e97b887d5():
         ('omdev.minitui.events.types', 'CursorPositionEvent'),
     ),
 )
-def _process_dataclass__f7faa3f13b52e117341bd31db34c182820332a5a():
+def _process_dataclass__dbacacff8c24097d11755129fa6a4ad75a37204a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2409,7 +2406,7 @@ def _process_dataclass__f7faa3f13b52e117341bd31db34c182820332a5a():
 
 
 @_register(
-    installer_sha1='cecdd14aebc903bfa9e28be35322186c25af9fdf',
+    installer_sha1='51c44d806b0b8c73490bff532b5a11c8e3be381d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2422,7 +2419,7 @@ def _process_dataclass__f7faa3f13b52e117341bd31db34c182820332a5a():
         ('omdev.minitui.events.types', 'FocusEvent'),
     ),
 )
-def _process_dataclass__cecdd14aebc903bfa9e28be35322186c25af9fdf():
+def _process_dataclass__51c44d806b0b8c73490bff532b5a11c8e3be381d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2511,7 +2508,7 @@ def _process_dataclass__cecdd14aebc903bfa9e28be35322186c25af9fdf():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2526,7 +2523,7 @@ def _process_dataclass__cecdd14aebc903bfa9e28be35322186c25af9fdf():
         ('omdev.minitui.text.markdown.base', 'MdRule'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2594,7 +2591,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='64f50c128a62b07b6047162735ff51fc237f3636',
+    installer_sha1='60949ae6c1ae8ae302e5a59bff099545ee6eeacc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2608,7 +2605,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omdev.minitui.events.types', 'KeyEvent'),
     ),
 )
-def _process_dataclass__64f50c128a62b07b6047162735ff51fc237f3636():
+def _process_dataclass__60949ae6c1ae8ae302e5a59bff099545ee6eeacc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2707,7 +2704,7 @@ def _process_dataclass__64f50c128a62b07b6047162735ff51fc237f3636():
 
 
 @_register(
-    installer_sha1='1ec5b566b663bad32800e11380297b848348dff4',
+    installer_sha1='1e0f338189dd2e967a7532e23b7f8f889048daaa',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2720,7 +2717,7 @@ def _process_dataclass__64f50c128a62b07b6047162735ff51fc237f3636():
         ('omdev.minitui.events.types', 'KittyFlagsEvent'),
     ),
 )
-def _process_dataclass__1ec5b566b663bad32800e11380297b848348dff4():
+def _process_dataclass__1e0f338189dd2e967a7532e23b7f8f889048daaa():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2809,7 +2806,7 @@ def _process_dataclass__1ec5b566b663bad32800e11380297b848348dff4():
 
 
 @_register(
-    installer_sha1='1c154916d116056c8299fc71f7e937e9a4c01c98',
+    installer_sha1='150928f06e7441a0496812588f72995738d5da6a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2823,7 +2820,7 @@ def _process_dataclass__1ec5b566b663bad32800e11380297b848348dff4():
         ('omdev.minitui.events.types', 'ModeReportEvent'),
     ),
 )
-def _process_dataclass__1c154916d116056c8299fc71f7e937e9a4c01c98():
+def _process_dataclass__150928f06e7441a0496812588f72995738d5da6a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2920,7 +2917,7 @@ def _process_dataclass__1c154916d116056c8299fc71f7e937e9a4c01c98():
 
 
 @_register(
-    installer_sha1='1df56c9cc838d09141deb8a541b74461d222b5f5',
+    installer_sha1='33531e24382ccb6b0eaa2f9bca1f09334f874318',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2938,7 +2935,7 @@ def _process_dataclass__1c154916d116056c8299fc71f7e937e9a4c01c98():
         ('omdev.minitui.events.types', 'MouseEvent'),
     ),
 )
-def _process_dataclass__1df56c9cc838d09141deb8a541b74461d222b5f5():
+def _process_dataclass__33531e24382ccb6b0eaa2f9bca1f09334f874318():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3080,7 +3077,7 @@ def _process_dataclass__1df56c9cc838d09141deb8a541b74461d222b5f5():
 
 
 @_register(
-    installer_sha1='d2017745fac214dd59251519db2e35f4115c0eee',
+    installer_sha1='06fa5b2395e8876b46ef36ce6348c8febaf356fc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3095,7 +3092,7 @@ def _process_dataclass__1df56c9cc838d09141deb8a541b74461d222b5f5():
         ('omdev.minitui.events.types', 'UnknownSequenceEvent'),
     ),
 )
-def _process_dataclass__d2017745fac214dd59251519db2e35f4115c0eee():
+def _process_dataclass__06fa5b2395e8876b46ef36ce6348c8febaf356fc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3184,7 +3181,7 @@ def _process_dataclass__d2017745fac214dd59251519db2e35f4115c0eee():
 
 
 @_register(
-    installer_sha1='92232a8dd1bbecda65ea7c5cc9d3160bc29c6457',
+    installer_sha1='a7d6efe83d449874327cc5767c1e9f6621daf320',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3198,7 +3195,7 @@ def _process_dataclass__d2017745fac214dd59251519db2e35f4115c0eee():
         ('omdev.minitui.events.types', 'ResizeEvent'),
     ),
 )
-def _process_dataclass__92232a8dd1bbecda65ea7c5cc9d3160bc29c6457():
+def _process_dataclass__a7d6efe83d449874327cc5767c1e9f6621daf320():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3295,7 +3292,7 @@ def _process_dataclass__92232a8dd1bbecda65ea7c5cc9d3160bc29c6457():
 
 
 @_register(
-    installer_sha1='a38ddde93e5db90964a47242eec0b5c854f213de',
+    installer_sha1='967450b596bc84185feee9f71a8ab8963feda34f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3309,7 +3306,7 @@ def _process_dataclass__92232a8dd1bbecda65ea7c5cc9d3160bc29c6457():
         ('omdev.minitui.text.markdown.base', 'MdCode'),
     ),
 )
-def _process_dataclass__a38ddde93e5db90964a47242eec0b5c854f213de():
+def _process_dataclass__967450b596bc84185feee9f71a8ab8963feda34f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3406,7 +3403,7 @@ def _process_dataclass__a38ddde93e5db90964a47242eec0b5c854f213de():
 
 
 @_register(
-    installer_sha1='835420ae480bd6399b05ca0b44529cda8abe9477',
+    installer_sha1='cccee0f6de32d24bea84164cbe6fc34d9ca4a1ad',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3420,7 +3417,7 @@ def _process_dataclass__a38ddde93e5db90964a47242eec0b5c854f213de():
         ('omdev.minitui.text.markdown.base', 'MdHeading'),
     ),
 )
-def _process_dataclass__835420ae480bd6399b05ca0b44529cda8abe9477():
+def _process_dataclass__cccee0f6de32d24bea84164cbe6fc34d9ca4a1ad():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3517,7 +3514,7 @@ def _process_dataclass__835420ae480bd6399b05ca0b44529cda8abe9477():
 
 
 @_register(
-    installer_sha1='717c4fd1a4c856256a000b7ec7acc6a8cd24336e',
+    installer_sha1='2bd701acb2abcd319505c7fa6bc6ed1d54ad8005',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3530,7 +3527,7 @@ def _process_dataclass__835420ae480bd6399b05ca0b44529cda8abe9477():
         ('omdev.minitui.text.markdown.base', 'MdList'),
     ),
 )
-def _process_dataclass__717c4fd1a4c856256a000b7ec7acc6a8cd24336e():
+def _process_dataclass__2bd701acb2abcd319505c7fa6bc6ed1d54ad8005():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3619,7 +3616,7 @@ def _process_dataclass__717c4fd1a4c856256a000b7ec7acc6a8cd24336e():
 
 
 @_register(
-    installer_sha1='19e98c5b974bf73003a9dd7087a21a75f20010ed',
+    installer_sha1='0f6410b5e65f3a1958b99ba5f3e59af3b8013b3e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3634,7 +3631,7 @@ def _process_dataclass__717c4fd1a4c856256a000b7ec7acc6a8cd24336e():
         ('omdev.minitui.text.markdown.base', 'MdListItem'),
     ),
 )
-def _process_dataclass__19e98c5b974bf73003a9dd7087a21a75f20010ed():
+def _process_dataclass__0f6410b5e65f3a1958b99ba5f3e59af3b8013b3e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3740,7 +3737,7 @@ def _process_dataclass__19e98c5b974bf73003a9dd7087a21a75f20010ed():
 
 
 @_register(
-    installer_sha1='73d04c2bc6da08164df4e27584faca42e82f5ef0',
+    installer_sha1='7a9fec47035e623dc799a94052332ad6c0134736',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3754,7 +3751,7 @@ def _process_dataclass__19e98c5b974bf73003a9dd7087a21a75f20010ed():
         ('omdev.minitui.text.markdown.base', 'MdQuote'),
     ),
 )
-def _process_dataclass__73d04c2bc6da08164df4e27584faca42e82f5ef0():
+def _process_dataclass__7a9fec47035e623dc799a94052332ad6c0134736():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3843,7 +3840,7 @@ def _process_dataclass__73d04c2bc6da08164df4e27584faca42e82f5ef0():
 
 
 @_register(
-    installer_sha1='0724b4381fbf1cc3c3f13cb392c485b9fb7a9ca1',
+    installer_sha1='f5bdc4fcf29db992677c66d3ca306951db60611b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3858,7 +3855,7 @@ def _process_dataclass__73d04c2bc6da08164df4e27584faca42e82f5ef0():
         ('omdev.minitui.text.markdown.base', 'MdTable'),
     ),
 )
-def _process_dataclass__0724b4381fbf1cc3c3f13cb392c485b9fb7a9ca1():
+def _process_dataclass__f5bdc4fcf29db992677c66d3ca306951db60611b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3965,7 +3962,7 @@ def _process_dataclass__0724b4381fbf1cc3c3f13cb392c485b9fb7a9ca1():
 
 
 @_register(
-    installer_sha1='c96fb235c4bf06984cb3a7f6cda6db7f64eaf5fe',
+    installer_sha1='e5c1325820b9357e30aa49172dc5b43e1a512e06',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3978,7 +3975,7 @@ def _process_dataclass__0724b4381fbf1cc3c3f13cb392c485b9fb7a9ca1():
         ('omdev.minitui.text.markdown.base', 'MdTableRow'),
     ),
 )
-def _process_dataclass__c96fb235c4bf06984cb3a7f6cda6db7f64eaf5fe():
+def _process_dataclass__e5c1325820b9357e30aa49172dc5b43e1a512e06():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4067,7 +4064,7 @@ def _process_dataclass__c96fb235c4bf06984cb3a7f6cda6db7f64eaf5fe():
 
 
 @_register(
-    installer_sha1='5a25b01faffd346891af2c92fdd1293727e9c86b',
+    installer_sha1='514698811229ab25692774a965656eb428253adb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4081,7 +4078,7 @@ def _process_dataclass__c96fb235c4bf06984cb3a7f6cda6db7f64eaf5fe():
         ('omdev.minitui.text.segments', 'Segment'),
     ),
 )
-def _process_dataclass__5a25b01faffd346891af2c92fdd1293727e9c86b():
+def _process_dataclass__514698811229ab25692774a965656eb428253adb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

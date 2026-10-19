@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='801967ffd5ae9ccb31c4385d4e244f0587f139de',
+    installer_sha1='e30419404e9688b0f394909268fe403d9e2d5c3f',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.agent.subagents.errors', 'UnknownSubagentProfileError'),
     ),
 )
-def _process_dataclass__801967ffd5ae9ccb31c4385d4e244f0587f139de():
+def _process_dataclass__e30419404e9688b0f394909268fe403d9e2d5c3f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -111,7 +108,7 @@ def _process_dataclass__801967ffd5ae9ccb31c4385d4e244f0587f139de():
 
 
 @_register(
-    installer_sha1='19e72ac83c3bc5b1d38b6865d2139886acb78a79',
+    installer_sha1='31a7f835d2949c4a49429149aab6b15e2ace5051',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -125,7 +122,7 @@ def _process_dataclass__801967ffd5ae9ccb31c4385d4e244f0587f139de():
         ('omllm.agent.subagents.errors', 'UnknownSubagentToolsError'),
     ),
 )
-def _process_dataclass__19e72ac83c3bc5b1d38b6865d2139886acb78a79():
+def _process_dataclass__31a7f835d2949c4a49429149aab6b15e2ace5051():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -189,7 +186,7 @@ def _process_dataclass__19e72ac83c3bc5b1d38b6865d2139886acb78a79():
 
 
 @_register(
-    installer_sha1='2f988bdc92c4c35ddcb59ab1b564863c10bf66fd',
+    installer_sha1='479cd57df9c6bc3bf73d629d15aad17cc67b6df0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -202,7 +199,7 @@ def _process_dataclass__19e72ac83c3bc5b1d38b6865d2139886acb78a79():
         ('omllm.agent.subagents.permissions', 'SubagentPermissionMatcher'),
     ),
 )
-def _process_dataclass__2f988bdc92c4c35ddcb59ab1b564863c10bf66fd():
+def _process_dataclass__479cd57df9c6bc3bf73d629d15aad17cc67b6df0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -294,7 +291,7 @@ def _process_dataclass__2f988bdc92c4c35ddcb59ab1b564863c10bf66fd():
 
 
 @_register(
-    installer_sha1='8e2d059f9b510b4ba218545f8a32140ab075c28f',
+    installer_sha1='866106cd28e62944f1a3bc3975bfb42e84606243',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -307,7 +304,7 @@ def _process_dataclass__2f988bdc92c4c35ddcb59ab1b564863c10bf66fd():
         ('omllm.agent.subagents.permissions', 'SubagentPermissionTarget'),
     ),
 )
-def _process_dataclass__8e2d059f9b510b4ba218545f8a32140ab075c28f():
+def _process_dataclass__866106cd28e62944f1a3bc3975bfb42e84606243():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -396,7 +393,7 @@ def _process_dataclass__8e2d059f9b510b4ba218545f8a32140ab075c28f():
 
 
 @_register(
-    installer_sha1='f63d153e8624b03c4d9dc2562283a1119e2221db',
+    installer_sha1='6452a76a9e332a17aa0847951f80dfc1c7ef65d9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -413,7 +410,7 @@ def _process_dataclass__8e2d059f9b510b4ba218545f8a32140ab075c28f():
         ('omllm.agent.subagents.profiles', 'SubagentProfile'),
     ),
 )
-def _process_dataclass__f63d153e8624b03c4d9dc2562283a1119e2221db():
+def _process_dataclass__6452a76a9e332a17aa0847951f80dfc1c7ef65d9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -555,7 +552,7 @@ def _process_dataclass__f63d153e8624b03c4d9dc2562283a1119e2221db():
 
 
 @_register(
-    installer_sha1='7c002df87424bc840a827514b8a33df93d5fc634',
+    installer_sha1='f292880c7e60b1fc92d7ad7e74013635e9163941',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -568,7 +565,7 @@ def _process_dataclass__f63d153e8624b03c4d9dc2562283a1119e2221db():
         ('omllm.agent.subagents.profiles', 'SubagentProfiles'),
     ),
 )
-def _process_dataclass__7c002df87424bc840a827514b8a33df93d5fc634():
+def _process_dataclass__f292880c7e60b1fc92d7ad7e74013635e9163941():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -660,7 +657,7 @@ def _process_dataclass__7c002df87424bc840a827514b8a33df93d5fc634():
 
 
 @_register(
-    installer_sha1='4b5d767a6386a2c65790e644364c1de131c01c1e',
+    installer_sha1='97018c5330f9698d99caa3d60eb53414e266153e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -675,7 +672,7 @@ def _process_dataclass__7c002df87424bc840a827514b8a33df93d5fc634():
         ('omllm.agent.subagents.progress', 'SubagentEventToolProgressUpdate'),
     ),
 )
-def _process_dataclass__4b5d767a6386a2c65790e644364c1de131c01c1e():
+def _process_dataclass__97018c5330f9698d99caa3d60eb53414e266153e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -781,7 +778,7 @@ def _process_dataclass__4b5d767a6386a2c65790e644364c1de131c01c1e():
 
 
 @_register(
-    installer_sha1='9affda11349e74bfab2cc236d3c9ecd2ea869bf0',
+    installer_sha1='39887e1407feafeabcaaa47e307679600e12193b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -799,7 +796,7 @@ def _process_dataclass__4b5d767a6386a2c65790e644364c1de131c01c1e():
         ('omllm.agent.subagents.tools.details', 'SubagentToolResultDetails'),
     ),
 )
-def _process_dataclass__9affda11349e74bfab2cc236d3c9ecd2ea869bf0():
+def _process_dataclass__39887e1407feafeabcaaa47e307679600e12193b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -931,7 +928,7 @@ def _process_dataclass__9affda11349e74bfab2cc236d3c9ecd2ea869bf0():
 
 
 @_register(
-    installer_sha1='bfc5b9dd9b19f6c82c63bfa4c6cc7d89fd541034',
+    installer_sha1='095939e0a366dba0d6c93f190788f57f94fa4700',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -946,7 +943,7 @@ def _process_dataclass__9affda11349e74bfab2cc236d3c9ecd2ea869bf0():
         ('omllm.agent.subagents.tools.subagent', 'SubagentToolParams'),
     ),
 )
-def _process_dataclass__bfc5b9dd9b19f6c82c63bfa4c6cc7d89fd541034():
+def _process_dataclass__095939e0a366dba0d6c93f190788f57f94fa4700():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1054,7 +1051,7 @@ def _process_dataclass__bfc5b9dd9b19f6c82c63bfa4c6cc7d89fd541034():
 
 
 @_register(
-    installer_sha1='ccd7f1155fc266626a558ba7a57ab4becbe87de5',
+    installer_sha1='0e3d1e47f89e148b5cca3cb38c1260de116f6bf2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
@@ -1067,7 +1064,7 @@ def _process_dataclass__bfc5b9dd9b19f6c82c63bfa4c6cc7d89fd541034():
         ('omllm.agent.subagents.types', 'SubagentRunId'),
     ),
 )
-def _process_dataclass__ccd7f1155fc266626a558ba7a57ab4becbe87de5():
+def _process_dataclass__0e3d1e47f89e148b5cca3cb38c1260de116f6bf2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1157,7 +1154,7 @@ def _process_dataclass__ccd7f1155fc266626a558ba7a57ab4becbe87de5():
 
 
 @_register(
-    installer_sha1='89fea18e103ba5ef37d2c732801115dd7e4a899b',
+    installer_sha1='9fae8dabb684ae6aba9506ae513078c7e2f847fc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1173,7 +1170,7 @@ def _process_dataclass__ccd7f1155fc266626a558ba7a57ab4becbe87de5():
         ('omllm.agent.subagents.types', 'SubagentRunParams'),
     ),
 )
-def _process_dataclass__89fea18e103ba5ef37d2c732801115dd7e4a899b():
+def _process_dataclass__9fae8dabb684ae6aba9506ae513078c7e2f847fc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1294,7 +1291,7 @@ def _process_dataclass__89fea18e103ba5ef37d2c732801115dd7e4a899b():
 
 
 @_register(
-    installer_sha1='6ad9e63947de147f2cdd805d4dbc1c16d7fa6ac8',
+    installer_sha1='71e30efa542d2cdbaaed3b0559ea4e9ce4db8f25',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1313,7 +1310,7 @@ def _process_dataclass__89fea18e103ba5ef37d2c732801115dd7e4a899b():
         ('omllm.agent.subagents.types', 'SubagentRunResult'),
     ),
 )
-def _process_dataclass__6ad9e63947de147f2cdd805d4dbc1c16d7fa6ac8():
+def _process_dataclass__71e30efa542d2cdbaaed3b0559ea4e9ce4db8f25():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='0371f82a7e4a09f38c44484adfa34341a8273eec',
+    installer_sha1='ee57999d0441d0c7347453ece3c42737fd3521a2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -50,7 +47,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.core.processes.launch.launcher', 'LaunchPlan'),
     ),
 )
-def _process_dataclass__0371f82a7e4a09f38c44484adfa34341a8273eec():
+def _process_dataclass__ee57999d0441d0c7347453ece3c42737fd3521a2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -182,7 +179,7 @@ def _process_dataclass__0371f82a7e4a09f38c44484adfa34341a8273eec():
 
 
 @_register(
-    installer_sha1='df9ce849a02c2c1ff67e515352eb5f46a2eda8ca',
+    installer_sha1='a136e025177a3653b7f6fa257a881b2304c763b7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -196,7 +193,7 @@ def _process_dataclass__0371f82a7e4a09f38c44484adfa34341a8273eec():
         ('omllm.core.processes.launch.transforms', 'EnvScrubTransform'),
     ),
 )
-def _process_dataclass__df9ce849a02c2c1ff67e515352eb5f46a2eda8ca():
+def _process_dataclass__a136e025177a3653b7f6fa257a881b2304c763b7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -296,7 +293,7 @@ def _process_dataclass__df9ce849a02c2c1ff67e515352eb5f46a2eda8ca():
 
 
 @_register(
-    installer_sha1='ef83b825100e9837aac95092c17d0de799082448',
+    installer_sha1='efbd4b67bf5d8e3a8fb6099ab65a800e65510cdb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -316,7 +313,7 @@ def _process_dataclass__df9ce849a02c2c1ff67e515352eb5f46a2eda8ca():
         ('omllm.core.processes.managers.stdio', 'StdioSetup'),
     ),
 )
-def _process_dataclass__ef83b825100e9837aac95092c17d0de799082448():
+def _process_dataclass__efbd4b67bf5d8e3a8fb6099ab65a800e65510cdb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -463,7 +460,7 @@ def _process_dataclass__ef83b825100e9837aac95092c17d0de799082448():
 
 
 @_register(
-    installer_sha1='d12672cc1d8a3b9682433c1dee057488ab91c91d',
+    installer_sha1='4f5b7d30030597116111b96c4d25940f135db65d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -480,7 +477,7 @@ def _process_dataclass__ef83b825100e9837aac95092c17d0de799082448():
         ('omllm.core.processes.managers.types', 'ManagerConfig'),
     ),
 )
-def _process_dataclass__d12672cc1d8a3b9682433c1dee057488ab91c91d():
+def _process_dataclass__4f5b7d30030597116111b96c4d25940f135db65d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -607,7 +604,7 @@ def _process_dataclass__d12672cc1d8a3b9682433c1dee057488ab91c91d():
 
 
 @_register(
-    installer_sha1='c86110517c5f77a5d0964c07a63d08142c9e9556',
+    installer_sha1='929f55e48a19704d04be5ff246e1ca1d658467ff',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -622,7 +619,7 @@ def _process_dataclass__d12672cc1d8a3b9682433c1dee057488ab91c91d():
         ('omllm.core.processes.sandbox.bwrap', 'BwrapSandbox'),
     ),
 )
-def _process_dataclass__c86110517c5f77a5d0964c07a63d08142c9e9556():
+def _process_dataclass__929f55e48a19704d04be5ff246e1ca1d658467ff():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -734,7 +731,7 @@ def _process_dataclass__c86110517c5f77a5d0964c07a63d08142c9e9556():
 
 
 @_register(
-    installer_sha1='3b3d3348cfcd355ed4312dcab4a13f00ff1bdeb6',
+    installer_sha1='41512950625fb6becc2ba47eae2ee6f4049ab79a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -757,7 +754,7 @@ def _process_dataclass__c86110517c5f77a5d0964c07a63d08142c9e9556():
         ('omllm.core.processes.sandbox.policy', 'SandboxPolicy'),
     ),
 )
-def _process_dataclass__3b3d3348cfcd355ed4312dcab4a13f00ff1bdeb6():
+def _process_dataclass__41512950625fb6becc2ba47eae2ee6f4049ab79a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -963,7 +960,7 @@ def _process_dataclass__3b3d3348cfcd355ed4312dcab4a13f00ff1bdeb6():
 
 
 @_register(
-    installer_sha1='e7b34011eabb53e42e089cac515693670229e4e6',
+    installer_sha1='5479f2fcb6e5b1dd8e5efd461ddd6bfda1fa2fc8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -977,7 +974,7 @@ def _process_dataclass__3b3d3348cfcd355ed4312dcab4a13f00ff1bdeb6():
         ('omllm.core.processes.sandbox.seatbelt', 'SeatbeltProfile'),
     ),
 )
-def _process_dataclass__e7b34011eabb53e42e089cac515693670229e4e6():
+def _process_dataclass__5479f2fcb6e5b1dd8e5efd461ddd6bfda1fa2fc8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1075,7 +1072,7 @@ def _process_dataclass__e7b34011eabb53e42e089cac515693670229e4e6():
 
 
 @_register(
-    installer_sha1='742e410c2a6e143141ba7ce7b698dd8d45e44898',
+    installer_sha1='ca278fd79744cfe03742046c795ff3fca92e5ba4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1089,7 +1086,7 @@ def _process_dataclass__e7b34011eabb53e42e089cac515693670229e4e6():
         ('omllm.core.processes.sandbox.seatbelt', 'SeatbeltSandbox'),
     ),
 )
-def _process_dataclass__742e410c2a6e143141ba7ce7b698dd8d45e44898():
+def _process_dataclass__ca278fd79744cfe03742046c795ff3fca92e5ba4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1191,7 +1188,7 @@ def _process_dataclass__742e410c2a6e143141ba7ce7b698dd8d45e44898():
 
 
 @_register(
-    installer_sha1='71a3579f9ad08e8688beceb8077de12c2e296678',
+    installer_sha1='ef5ab8ca536e8de444d4f26406b56d9efb40aeba',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1204,7 +1201,7 @@ def _process_dataclass__742e410c2a6e143141ba7ce7b698dd8d45e44898():
         ('omllm.core.processes.sandbox.seatbelt', '_SxQuote'),
     ),
 )
-def _process_dataclass__71a3579f9ad08e8688beceb8077de12c2e296678():
+def _process_dataclass__ef5ab8ca536e8de444d4f26406b56d9efb40aeba():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1293,7 +1290,7 @@ def _process_dataclass__71a3579f9ad08e8688beceb8077de12c2e296678():
 
 
 @_register(
-    installer_sha1='2ae51b611b6dc44956666ad30933628eb4c1e7f9',
+    installer_sha1='2d8ba2c06a5531aa82a187793a79a21af6cde6d2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1306,7 +1303,7 @@ def _process_dataclass__71a3579f9ad08e8688beceb8077de12c2e296678():
         ('omllm.core.processes.scopes.policies', 'ScopeClosePolicy'),
     ),
 )
-def _process_dataclass__2ae51b611b6dc44956666ad30933628eb4c1e7f9():
+def _process_dataclass__2d8ba2c06a5531aa82a187793a79a21af6cde6d2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1398,7 +1395,7 @@ def _process_dataclass__2ae51b611b6dc44956666ad30933628eb4c1e7f9():
 
 
 @_register(
-    installer_sha1='5ffe12d3ee076b15df5f72262bc81630aa0ca3fe',
+    installer_sha1='0a9bf18c39a9616560114aac8047b2e407e6d259',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1413,7 +1410,7 @@ def _process_dataclass__2ae51b611b6dc44956666ad30933628eb4c1e7f9():
         ('omllm.core.processes.scopes.scope', 'ProcessRun'),
     ),
 )
-def _process_dataclass__5ffe12d3ee076b15df5f72262bc81630aa0ca3fe():
+def _process_dataclass__0a9bf18c39a9616560114aac8047b2e407e6d259():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1519,7 +1516,7 @@ def _process_dataclass__5ffe12d3ee076b15df5f72262bc81630aa0ca3fe():
 
 
 @_register(
-    installer_sha1='2d773a40042aa41ebc92140d5438925f7aa6d7d9',
+    installer_sha1='6314fce94c41c5f56c1387fec59758952aa498ce',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1534,7 +1531,7 @@ def _process_dataclass__5ffe12d3ee076b15df5f72262bc81630aa0ca3fe():
         ('omllm.core.processes.scopes.scope', 'ScopeCloseResult'),
     ),
 )
-def _process_dataclass__2d773a40042aa41ebc92140d5438925f7aa6d7d9():
+def _process_dataclass__6314fce94c41c5f56c1387fec59758952aa498ce():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1642,7 +1639,7 @@ def _process_dataclass__2d773a40042aa41ebc92140d5438925f7aa6d7d9():
 
 
 @_register(
-    installer_sha1='9cce39b7442fc8693e4c57752c11891e035b6a8b',
+    installer_sha1='5359cd75d9791bfe58799357206770f350193035',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -1660,7 +1657,7 @@ def _process_dataclass__2d773a40042aa41ebc92140d5438925f7aa6d7d9():
         ('omllm.core.processes.spool.frames', 'SpoolRecord'),
     ),
 )
-def _process_dataclass__9cce39b7442fc8693e4c57752c11891e035b6a8b():
+def _process_dataclass__5359cd75d9791bfe58799357206770f350193035():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1781,7 +1778,7 @@ def _process_dataclass__9cce39b7442fc8693e4c57752c11891e035b6a8b():
 
 
 @_register(
-    installer_sha1='aba28530a8e5f6106010161989ed3a5617d616e5',
+    installer_sha1='f4bf57ed2a644906eacfa3558845e35fc1681c05',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1799,7 +1796,7 @@ def _process_dataclass__9cce39b7442fc8693e4c57752c11891e035b6a8b():
         ('omllm.core.processes.spool.spool', 'SpoolRead'),
     ),
 )
-def _process_dataclass__aba28530a8e5f6106010161989ed3a5617d616e5():
+def _process_dataclass__f4bf57ed2a644906eacfa3558845e35fc1681c05():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1931,7 +1928,7 @@ def _process_dataclass__aba28530a8e5f6106010161989ed3a5617d616e5():
 
 
 @_register(
-    installer_sha1='81aac9fd77ab66ada6ba11d6c6b15a7529b4f9b1',
+    installer_sha1='7f517a17d054654a220f32ad6c628f4d75110d4e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1947,7 +1944,7 @@ def _process_dataclass__aba28530a8e5f6106010161989ed3a5617d616e5():
         ('omllm.core.processes.targets.docker', 'DockerExecTarget'),
     ),
 )
-def _process_dataclass__81aac9fd77ab66ada6ba11d6c6b15a7529b4f9b1():
+def _process_dataclass__7f517a17d054654a220f32ad6c628f4d75110d4e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2071,7 +2068,7 @@ def _process_dataclass__81aac9fd77ab66ada6ba11d6c6b15a7529b4f9b1():
 
 
 @_register(
-    installer_sha1='1a01e9e4e3a9b0caced2a26e31c9be72049b7d70',
+    installer_sha1='fb37064b193f31d9337f61b102e0892c86cd6d97',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2092,7 +2089,7 @@ def _process_dataclass__81aac9fd77ab66ada6ba11d6c6b15a7529b4f9b1():
         ('omllm.core.processes.targets.ssh', 'SshTarget'),
     ),
 )
-def _process_dataclass__1a01e9e4e3a9b0caced2a26e31c9be72049b7d70():
+def _process_dataclass__fb37064b193f31d9337f61b102e0892c86cd6d97():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2266,7 +2263,7 @@ def _process_dataclass__1a01e9e4e3a9b0caced2a26e31c9be72049b7d70():
 
 
 @_register(
-    installer_sha1='fdadf05e0604cd200484ba64fb548aae8fa0af71',
+    installer_sha1='638acb22d3f778f0696de35dc970471c3d7285fc',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2282,7 +2279,7 @@ def _process_dataclass__1a01e9e4e3a9b0caced2a26e31c9be72049b7d70():
         ('omllm.core.processes.types.errors', 'SpawnError'),
     ),
 )
-def _process_dataclass__fdadf05e0604cd200484ba64fb548aae8fa0af71():
+def _process_dataclass__638acb22d3f778f0696de35dc970471c3d7285fc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2359,7 +2356,7 @@ def _process_dataclass__fdadf05e0604cd200484ba64fb548aae8fa0af71():
 
 
 @_register(
-    installer_sha1='07e3040a2b4c534c29936d07ce8263a463115ce7',
+    installer_sha1='90e818db4b78b194158b4b3dac59ee2b40a45485',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2375,7 +2372,7 @@ def _process_dataclass__fdadf05e0604cd200484ba64fb548aae8fa0af71():
         ('omllm.core.processes.types.events', 'ProcessAbandonedEvent'),
     ),
 )
-def _process_dataclass__07e3040a2b4c534c29936d07ce8263a463115ce7():
+def _process_dataclass__90e818db4b78b194158b4b3dac59ee2b40a45485():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2489,7 +2486,7 @@ def _process_dataclass__07e3040a2b4c534c29936d07ce8263a463115ce7():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2501,7 +2498,7 @@ def _process_dataclass__07e3040a2b4c534c29936d07ce8263a463115ce7():
         ('omllm.core.processes.types.events', 'ProcessEvent'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2569,7 +2566,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='ed91946114af3c03ac94f5f83dfcb1532b7bdd0e',
+    installer_sha1='c0f9f4e0532c1a2be36d2376d6fda96a4d06d49a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2586,7 +2583,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omllm.core.processes.types.events', 'ProcessReapedEvent'),
     ),
 )
-def _process_dataclass__ed91946114af3c03ac94f5f83dfcb1532b7bdd0e():
+def _process_dataclass__c0f9f4e0532c1a2be36d2376d6fda96a4d06d49a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2700,7 +2697,7 @@ def _process_dataclass__ed91946114af3c03ac94f5f83dfcb1532b7bdd0e():
 
 
 @_register(
-    installer_sha1='a7807ec8b489484a630ffdbc3923102f200b1ee6',
+    installer_sha1='25a7cfc56ba42a6db83c8f464fe8c494d079bfe3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2715,7 +2712,7 @@ def _process_dataclass__ed91946114af3c03ac94f5f83dfcb1532b7bdd0e():
         ('omllm.core.processes.types.events', 'ProcessLifecycleEvent'),
     ),
 )
-def _process_dataclass__a7807ec8b489484a630ffdbc3923102f200b1ee6():
+def _process_dataclass__25a7cfc56ba42a6db83c8f464fe8c494d079bfe3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2821,7 +2818,7 @@ def _process_dataclass__a7807ec8b489484a630ffdbc3923102f200b1ee6():
 
 
 @_register(
-    installer_sha1='16d19e443ab9241dd54221760700baf22a17af1a',
+    installer_sha1='dba75713ebe46af5908e2916390d18bd75d519b3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2837,7 +2834,7 @@ def _process_dataclass__a7807ec8b489484a630ffdbc3923102f200b1ee6():
         ('omllm.core.processes.types.events', 'ProcessPoisonedEvent'),
     ),
 )
-def _process_dataclass__16d19e443ab9241dd54221760700baf22a17af1a():
+def _process_dataclass__dba75713ebe46af5908e2916390d18bd75d519b3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2951,7 +2948,7 @@ def _process_dataclass__16d19e443ab9241dd54221760700baf22a17af1a():
 
 
 @_register(
-    installer_sha1='e40259201f6e92e094acf6414d49d38383a9de53',
+    installer_sha1='8fe0f3eca82686c98135e6071f5b64f99dbdc8d5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2967,7 +2964,7 @@ def _process_dataclass__16d19e443ab9241dd54221760700baf22a17af1a():
         ('omllm.core.processes.types.events', 'ProcessReparentedEvent'),
     ),
 )
-def _process_dataclass__e40259201f6e92e094acf6414d49d38383a9de53():
+def _process_dataclass__8fe0f3eca82686c98135e6071f5b64f99dbdc8d5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3081,7 +3078,7 @@ def _process_dataclass__e40259201f6e92e094acf6414d49d38383a9de53():
 
 
 @_register(
-    installer_sha1='d43d5f5e3e6617cc9e5c557a8f4d4d2083aa34fc',
+    installer_sha1='1901e99ee4f9c95b54ca2db00be1ae8567551f94',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3098,7 +3095,7 @@ def _process_dataclass__e40259201f6e92e094acf6414d49d38383a9de53():
         ('omllm.core.processes.types.events', 'ProcessSpawnedEvent'),
     ),
 )
-def _process_dataclass__d43d5f5e3e6617cc9e5c557a8f4d4d2083aa34fc():
+def _process_dataclass__1901e99ee4f9c95b54ca2db00be1ae8567551f94():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3221,7 +3218,7 @@ def _process_dataclass__d43d5f5e3e6617cc9e5c557a8f4d4d2083aa34fc():
 
 
 @_register(
-    installer_sha1='e1d1399b5d759895e310fa36a666a89f96194c35',
+    installer_sha1='9733d9545274549b46c9fb6aa44f57ba53d2b52f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3236,7 +3233,7 @@ def _process_dataclass__d43d5f5e3e6617cc9e5c557a8f4d4d2083aa34fc():
         ('omllm.core.processes.types.events', 'ScopeClosedEvent'),
     ),
 )
-def _process_dataclass__e1d1399b5d759895e310fa36a666a89f96194c35():
+def _process_dataclass__9733d9545274549b46c9fb6aa44f57ba53d2b52f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3343,7 +3340,7 @@ def _process_dataclass__e1d1399b5d759895e310fa36a666a89f96194c35():
 
 
 @_register(
-    installer_sha1='62cf072dbcd094c2f969b9a153e8ddccf5453910',
+    installer_sha1='93fcbbf617b9a324e6336cbff16187509239d3cc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3357,7 +3354,7 @@ def _process_dataclass__e1d1399b5d759895e310fa36a666a89f96194c35():
         ('omllm.core.processes.types.events', 'ScopeOpenedEvent'),
     ),
 )
-def _process_dataclass__62cf072dbcd094c2f969b9a153e8ddccf5453910():
+def _process_dataclass__93fcbbf617b9a324e6336cbff16187509239d3cc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3447,7 +3444,7 @@ def _process_dataclass__62cf072dbcd094c2f969b9a153e8ddccf5453910():
 
 
 @_register(
-    installer_sha1='c2ede84a2bddfbb71a4f115ebb3274de47480920',
+    installer_sha1='eb0dc0ff50d6839febfdd11852411cd89f11696d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3462,7 +3459,7 @@ def _process_dataclass__62cf072dbcd094c2f969b9a153e8ddccf5453910():
         ('omllm.core.processes.types.options', 'Credentials'),
     ),
 )
-def _process_dataclass__c2ede84a2bddfbb71a4f115ebb3274de47480920():
+def _process_dataclass__eb0dc0ff50d6839febfdd11852411cd89f11696d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3571,7 +3568,7 @@ def _process_dataclass__c2ede84a2bddfbb71a4f115ebb3274de47480920():
 
 
 @_register(
-    installer_sha1='36d5209b78c945ea8a4b1b50d99ff5fc43cfac77',
+    installer_sha1='6b392d854a84745087f94e38ca316e7f6dde3c1d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3584,7 +3581,7 @@ def _process_dataclass__c2ede84a2bddfbb71a4f115ebb3274de47480920():
         ('omllm.core.processes.types.options', 'Deathsig'),
     ),
 )
-def _process_dataclass__36d5209b78c945ea8a4b1b50d99ff5fc43cfac77():
+def _process_dataclass__6b392d854a84745087f94e38ca316e7f6dde3c1d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3675,7 +3672,7 @@ def _process_dataclass__36d5209b78c945ea8a4b1b50d99ff5fc43cfac77():
 
 
 @_register(
-    installer_sha1='40733ba6ae9b777bf5e2feb83e79eb04fa032879',
+    installer_sha1='3497e19ce840a3584e6ed07944d113a38b62fe67',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
@@ -3691,7 +3688,7 @@ def _process_dataclass__36d5209b78c945ea8a4b1b50d99ff5fc43cfac77():
         ('omllm.core.processes.types.options', 'Umask'),
     ),
 )
-def _process_dataclass__40733ba6ae9b777bf5e2feb83e79eb04fa032879():
+def _process_dataclass__3497e19ce840a3584e6ed07944d113a38b62fe67():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3780,7 +3777,7 @@ def _process_dataclass__40733ba6ae9b777bf5e2feb83e79eb04fa032879():
 
 
 @_register(
-    installer_sha1='15e6e0a0d75a26916602416a3bfabf241728edce',
+    installer_sha1='5dab134a200d0ba1e1b14378ca0007a611b187a5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3795,7 +3792,7 @@ def _process_dataclass__40733ba6ae9b777bf5e2feb83e79eb04fa032879():
         ('omllm.core.processes.types.options', 'Rlimit'),
     ),
 )
-def _process_dataclass__15e6e0a0d75a26916602416a3bfabf241728edce():
+def _process_dataclass__5dab134a200d0ba1e1b14378ca0007a611b187a5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3900,7 +3897,7 @@ def _process_dataclass__15e6e0a0d75a26916602416a3bfabf241728edce():
 
 
 @_register(
-    installer_sha1='c176d65cd567cd08b713fa0be39730f9d9c0b893',
+    installer_sha1='646bd57aca5d1ebfe5c539a9fe6dde2bd43452b7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3913,7 +3910,7 @@ def _process_dataclass__15e6e0a0d75a26916602416a3bfabf241728edce():
         ('omllm.core.processes.types.options', 'SessionMode'),
     ),
 )
-def _process_dataclass__c176d65cd567cd08b713fa0be39730f9d9c0b893():
+def _process_dataclass__646bd57aca5d1ebfe5c539a9fe6dde2bd43452b7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4004,7 +4001,7 @@ def _process_dataclass__c176d65cd567cd08b713fa0be39730f9d9c0b893():
 
 
 @_register(
-    installer_sha1='7a627fed829a21150ba95491a1df06ae7d6995ed',
+    installer_sha1='cda2ebd9faff5f9cc2b1f3e6938704424cf2519d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4019,7 +4016,7 @@ def _process_dataclass__c176d65cd567cd08b713fa0be39730f9d9c0b893():
         ('omllm.core.processes.types.options', 'SpoolPolicy'),
     ),
 )
-def _process_dataclass__7a627fed829a21150ba95491a1df06ae7d6995ed():
+def _process_dataclass__cda2ebd9faff5f9cc2b1f3e6938704424cf2519d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4129,7 +4126,7 @@ def _process_dataclass__7a627fed829a21150ba95491a1df06ae7d6995ed():
 
 
 @_register(
-    installer_sha1='b7e1f7d13a8d8515b788790b1833e40169f453ec',
+    installer_sha1='a9b79945da207637e12be1c94479a6e5f6a1c268',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4148,7 +4145,7 @@ def _process_dataclass__7a627fed829a21150ba95491a1df06ae7d6995ed():
         ('omllm.core.processes.types.options', 'TerminationPolicy'),
     ),
 )
-def _process_dataclass__b7e1f7d13a8d8515b788790b1833e40169f453ec():
+def _process_dataclass__a9b79945da207637e12be1c94479a6e5f6a1c268():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4294,7 +4291,7 @@ def _process_dataclass__b7e1f7d13a8d8515b788790b1833e40169f453ec():
 
 
 @_register(
-    installer_sha1='eb7fd37a989e2c08ca802524c5e65a9ab93d6436',
+    installer_sha1='4ea339c4251354935c34eeae6ca3c78b2270bd9d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, True, False, False, False, Fals"
@@ -4311,7 +4308,7 @@ def _process_dataclass__b7e1f7d13a8d8515b788790b1833e40169f453ec():
         ('omllm.core.processes.types.specs', 'ProcessSpec'),
     ),
 )
-def _process_dataclass__eb7fd37a989e2c08ca802524c5e65a9ab93d6436():
+def _process_dataclass__4ea339c4251354935c34eeae6ca3c78b2270bd9d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4456,7 +4453,7 @@ def _process_dataclass__eb7fd37a989e2c08ca802524c5e65a9ab93d6436():
 
 
 @_register(
-    installer_sha1='59c3be5a5e41f4ee994054ae35a7e2e1e65ec221',
+    installer_sha1='3df616ea661fbc65499d2f0a5157b8dad0612600',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, True, False, False, False, False"
@@ -4471,7 +4468,7 @@ def _process_dataclass__eb7fd37a989e2c08ca802524c5e65a9ab93d6436():
         ('omllm.core.processes.types.specs', 'ProcessStdio'),
     ),
 )
-def _process_dataclass__59c3be5a5e41f4ee994054ae35a7e2e1e65ec221():
+def _process_dataclass__3df616ea661fbc65499d2f0a5157b8dad0612600():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4590,7 +4587,7 @@ def _process_dataclass__59c3be5a5e41f4ee994054ae35a7e2e1e65ec221():
 
 
 @_register(
-    installer_sha1='b9ed46e78200b5480dfd2b0108f5a3e97735c797',
+    installer_sha1='eb56bb0e941581a1713137a92bc6b69735ebe4b1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, True, False, False, False, False"
@@ -4605,7 +4602,7 @@ def _process_dataclass__59c3be5a5e41f4ee994054ae35a7e2e1e65ec221():
         ('omllm.core.processes.types.specs', 'PtyStdio'),
     ),
 )
-def _process_dataclass__b9ed46e78200b5480dfd2b0108f5a3e97735c797():
+def _process_dataclass__eb56bb0e941581a1713137a92bc6b69735ebe4b1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

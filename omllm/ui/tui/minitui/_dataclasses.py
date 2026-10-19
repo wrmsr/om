@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='99cc714a1fb5115f9896d7c3a83918ccaa3cb9cd',
+    installer_sha1='54052fabc28e9172e11f00c4a5b770fb04c58e2e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -53,7 +50,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.ui.tui.minitui.app', 'MinituiChatApp.Usage'),
     ),
 )
-def _process_dataclass__99cc714a1fb5115f9896d7c3a83918ccaa3cb9cd():
+def _process_dataclass__54052fabc28e9172e11f00c4a5b770fb04c58e2e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -210,7 +207,7 @@ def _process_dataclass__99cc714a1fb5115f9896d7c3a83918ccaa3cb9cd():
 
 
 @_register(
-    installer_sha1='e121ca4bfe02c881c5a162eff50cf83c08174eb5',
+    installer_sha1='4ee2a4a364993ef9c218f233a71e3ab6e8d26f76',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -225,7 +222,7 @@ def _process_dataclass__99cc714a1fb5115f9896d7c3a83918ccaa3cb9cd():
         ('omllm.ui.tui.minitui.app', 'ToolCardRecord'),
     ),
 )
-def _process_dataclass__e121ca4bfe02c881c5a162eff50cf83c08174eb5():
+def _process_dataclass__4ee2a4a364993ef9c218f233a71e3ab6e8d26f76():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -330,7 +327,7 @@ def _process_dataclass__e121ca4bfe02c881c5a162eff50cf83c08174eb5():
 
 
 @_register(
-    installer_sha1='7c8419065adf03ae4b9b38b00947afbeac0905ea',
+    installer_sha1='16069ecedbe689b420be9583ee85855f8bfaccb6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -345,7 +342,7 @@ def _process_dataclass__e121ca4bfe02c881c5a162eff50cf83c08174eb5():
         ('omllm.ui.tui.minitui.app', 'TurnRecord'),
     ),
 )
-def _process_dataclass__7c8419065adf03ae4b9b38b00947afbeac0905ea():
+def _process_dataclass__16069ecedbe689b420be9583ee85855f8bfaccb6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -451,7 +448,7 @@ def _process_dataclass__7c8419065adf03ae4b9b38b00947afbeac0905ea():
 
 
 @_register(
-    installer_sha1='aa668fdad59913367e4c9a882d6a0f66a504904c',
+    installer_sha1='2ead524703cbf6d185ae5a26fd500b1f396e201e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -469,7 +466,7 @@ def _process_dataclass__7c8419065adf03ae4b9b38b00947afbeac0905ea():
         ('omllm.ui.tui.minitui.app', '_PermissionCardRequest'),
     ),
 )
-def _process_dataclass__aa668fdad59913367e4c9a882d6a0f66a504904c():
+def _process_dataclass__2ead524703cbf6d185ae5a26fd500b1f396e201e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -599,7 +596,7 @@ def _process_dataclass__aa668fdad59913367e4c9a882d6a0f66a504904c():
 
 
 @_register(
-    installer_sha1='be05316cadf35ac4ccf90a590fc89bea282729c0',
+    installer_sha1='26f3a29411f2d386df28e40563126da3113cbba5',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -617,7 +614,7 @@ def _process_dataclass__aa668fdad59913367e4c9a882d6a0f66a504904c():
         ('omllm.ui.tui.minitui.app', '_ToolCardEntry'),
     ),
 )
-def _process_dataclass__be05316cadf35ac4ccf90a590fc89bea282729c0():
+def _process_dataclass__26f3a29411f2d386df28e40563126da3113cbba5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='88946816e9bf45643e85d8c3955e69ec3165dc3a',
+    installer_sha1='6bf72123624fac2d92bf96ba24873c948479a435',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.agent.web.backends.duckduckgo.search', '_SearchJob'),
     ),
 )
-def _process_dataclass__88946816e9bf45643e85d8c3955e69ec3165dc3a():
+def _process_dataclass__6bf72123624fac2d92bf96ba24873c948479a435():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -143,7 +140,7 @@ def _process_dataclass__88946816e9bf45643e85d8c3955e69ec3165dc3a():
 
 
 @_register(
-    installer_sha1='c9ad3e3f5267e1125ba427e80cbf76fc40976534',
+    installer_sha1='699287516adb276729494fd180d5777802f00868',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -157,7 +154,7 @@ def _process_dataclass__88946816e9bf45643e85d8c3955e69ec3165dc3a():
         ('omllm.agent.web.tools.fetch', 'WebFetchToolParams'),
     ),
 )
-def _process_dataclass__c9ad3e3f5267e1125ba427e80cbf76fc40976534():
+def _process_dataclass__699287516adb276729494fd180d5777802f00868():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -246,7 +243,7 @@ def _process_dataclass__c9ad3e3f5267e1125ba427e80cbf76fc40976534():
 
 
 @_register(
-    installer_sha1='5dac8c7f2b3349f598362bf9db256f72199efe09',
+    installer_sha1='3201e8872afb879156ae903684da3d3e40440463',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -261,7 +258,7 @@ def _process_dataclass__c9ad3e3f5267e1125ba427e80cbf76fc40976534():
         ('omllm.agent.web.fetching', 'WebFetchedPage'),
     ),
 )
-def _process_dataclass__5dac8c7f2b3349f598362bf9db256f72199efe09():
+def _process_dataclass__3201e8872afb879156ae903684da3d3e40440463():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -366,7 +363,7 @@ def _process_dataclass__5dac8c7f2b3349f598362bf9db256f72199efe09():
 
 
 @_register(
-    installer_sha1='0edb5e1e361c89d2c54e65e413f150a6e1e5b204',
+    installer_sha1='30851d9e87b58359be71e3e75ad2eaebdbef7cd4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -380,7 +377,7 @@ def _process_dataclass__5dac8c7f2b3349f598362bf9db256f72199efe09():
         ('omllm.agent.web.permissions', 'RegexUrlPermissionMatcher'),
     ),
 )
-def _process_dataclass__0edb5e1e361c89d2c54e65e413f150a6e1e5b204():
+def _process_dataclass__30851d9e87b58359be71e3e75ad2eaebdbef7cd4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -481,7 +478,7 @@ def _process_dataclass__0edb5e1e361c89d2c54e65e413f150a6e1e5b204():
 
 
 @_register(
-    installer_sha1='bfb6dfde6f9f54040b5e1382bfb1ead67db03197',
+    installer_sha1='73256918dbff39cc70c08370e2050ac6fb6206b3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -495,7 +492,7 @@ def _process_dataclass__0edb5e1e361c89d2c54e65e413f150a6e1e5b204():
         ('omllm.agent.web.permissions', 'UrlPermissionTarget'),
     ),
 )
-def _process_dataclass__bfb6dfde6f9f54040b5e1382bfb1ead67db03197():
+def _process_dataclass__73256918dbff39cc70c08370e2050ac6fb6206b3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -603,7 +600,7 @@ def _process_dataclass__bfb6dfde6f9f54040b5e1382bfb1ead67db03197():
 
 
 @_register(
-    installer_sha1='7e6bdb52317ef98abbe620304fd2a4c12cb37155',
+    installer_sha1='38331531fc9feff935e430d2e0fb002639f31d6b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -619,7 +616,7 @@ def _process_dataclass__bfb6dfde6f9f54040b5e1382bfb1ead67db03197():
         ('omllm.agent.web.search', 'WebSearchHit'),
     ),
 )
-def _process_dataclass__7e6bdb52317ef98abbe620304fd2a4c12cb37155():
+def _process_dataclass__38331531fc9feff935e430d2e0fb002639f31d6b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -735,7 +732,7 @@ def _process_dataclass__7e6bdb52317ef98abbe620304fd2a4c12cb37155():
 
 
 @_register(
-    installer_sha1='78adc299852b0565e2f0fc070e8f62b229dc34d8',
+    installer_sha1='16f2db123d470d451b1b0decdc516274d747755c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -749,7 +746,7 @@ def _process_dataclass__7e6bdb52317ef98abbe620304fd2a4c12cb37155():
         ('omllm.agent.web.tools.search', 'WebSearchToolParams'),
     ),
 )
-def _process_dataclass__78adc299852b0565e2f0fc070e8f62b229dc34d8():
+def _process_dataclass__16f2db123d470d451b1b0decdc516274d747755c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -838,7 +835,7 @@ def _process_dataclass__78adc299852b0565e2f0fc070e8f62b229dc34d8():
 
 
 @_register(
-    installer_sha1='8ad1d405b73c38bbac457420adb068a8e8223282',
+    installer_sha1='69e99f4a3552446a581bd08561cf8d7f47a2a2ca',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -852,7 +849,7 @@ def _process_dataclass__78adc299852b0565e2f0fc070e8f62b229dc34d8():
         ('omllm.agent.web.search', 'WebSearchResult'),
     ),
 )
-def _process_dataclass__8ad1d405b73c38bbac457420adb068a8e8223282():
+def _process_dataclass__69e99f4a3552446a581bd08561cf8d7f47a2a2ca():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

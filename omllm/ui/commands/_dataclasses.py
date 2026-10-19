@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='cd59d2cc684b567c3d4052eb9f957568d221b6bd',
+    installer_sha1='8f8c660814622acfbe089a9263fb984db1ac6093',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -48,7 +45,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.ui.commands.base', 'ArgsCommandError'),
     ),
 )
-def _process_dataclass__cd59d2cc684b567c3d4052eb9f957568d221b6bd():
+def _process_dataclass__8f8c660814622acfbe089a9263fb984db1ac6093():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -125,7 +122,7 @@ def _process_dataclass__cd59d2cc684b567c3d4052eb9f957568d221b6bd():
 
 
 @_register(
-    installer_sha1='82612b4cb3ec401ee2d7d53c977dca37e63c778d',
+    installer_sha1='89cf0fa894e0f2a13fbd7678a42d35627fc9f4d6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -138,7 +135,7 @@ def _process_dataclass__cd59d2cc684b567c3d4052eb9f957568d221b6bd():
         ('omllm.ui.commands.base', 'CommandContext'),
     ),
 )
-def _process_dataclass__82612b4cb3ec401ee2d7d53c977dca37e63c778d():
+def _process_dataclass__89cf0fa894e0f2a13fbd7678a42d35627fc9f4d6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -228,7 +225,7 @@ def _process_dataclass__82612b4cb3ec401ee2d7d53c977dca37e63c778d():
 
 
 @_register(
-    installer_sha1='0bcf8b801f1c423254465a3db0447538505a12b5',
+    installer_sha1='09a4726d0668b57a4c421de4ea287f03220d4696',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -241,7 +238,7 @@ def _process_dataclass__82612b4cb3ec401ee2d7d53c977dca37e63c778d():
         ('omllm.ui.commands.manager', 'ParseCommandError'),
     ),
 )
-def _process_dataclass__0bcf8b801f1c423254465a3db0447538505a12b5():
+def _process_dataclass__09a4726d0668b57a4c421de4ea287f03220d4696():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -300,7 +297,7 @@ def _process_dataclass__0bcf8b801f1c423254465a3db0447538505a12b5():
 
 
 @_register(
-    installer_sha1='5b69954c03d748fa548ad308b0e21ff76d10edc0',
+    installer_sha1='5a860d1102789fc55c9ed4ee229ddee7f3988d28',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -314,7 +311,7 @@ def _process_dataclass__0bcf8b801f1c423254465a3db0447538505a12b5():
         ('omllm.ui.commands.manager', 'ParsedCommand'),
     ),
 )
-def _process_dataclass__5b69954c03d748fa548ad308b0e21ff76d10edc0():
+def _process_dataclass__5a860d1102789fc55c9ed4ee229ddee7f3988d28():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

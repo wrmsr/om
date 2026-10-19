@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='99dd1792a354e6bb3d28666ba012dd7240fb3859',
+    installer_sha1='60382027b1fa30f68941d60600e39d09b9ce6b13',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -53,7 +50,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omdev.specs.irc.messages.messages', 'RestartMessage'),
     ),
 )
-def _process_dataclass__99dd1792a354e6bb3d28666ba012dd7240fb3859():
+def _process_dataclass__60382027b1fa30f68941d60600e39d09b9ce6b13():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -131,7 +128,7 @@ def _process_dataclass__99dd1792a354e6bb3d28666ba012dd7240fb3859():
 
 
 @_register(
-    installer_sha1='bf82f99ae3c2b0e7f319d571b826bbdf999a6138',
+    installer_sha1='0436f9b5e64141f4dfc12f63d638508fd5fd6192',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -146,7 +143,7 @@ def _process_dataclass__99dd1792a354e6bb3d28666ba012dd7240fb3859():
         ('omdev.specs.irc.messages.formats', 'MessageFormat'),
     ),
 )
-def _process_dataclass__bf82f99ae3c2b0e7f319d571b826bbdf999a6138():
+def _process_dataclass__0436f9b5e64141f4dfc12f63d638508fd5fd6192():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -255,7 +252,7 @@ def _process_dataclass__bf82f99ae3c2b0e7f319d571b826bbdf999a6138():
 
 
 @_register(
-    installer_sha1='c8450525f4b066805c20551e51b4c26d2f3142a6',
+    installer_sha1='82f1fb8ec85d4f8c1e9bc6527e636e3771779a7c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -270,7 +267,7 @@ def _process_dataclass__bf82f99ae3c2b0e7f319d571b826bbdf999a6138():
         ('omdev.specs.irc.messages.formats', 'MessageFormat.KwargParam'),
     ),
 )
-def _process_dataclass__c8450525f4b066805c20551e51b4c26d2f3142a6():
+def _process_dataclass__82f1fb8ec85d4f8c1e9bc6527e636e3771779a7c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -417,7 +414,7 @@ def _process_dataclass__c8450525f4b066805c20551e51b4c26d2f3142a6():
 
 
 @_register(
-    installer_sha1='b3b2ee056c9f64eedde8063aac74aba8c2f67e39',
+    installer_sha1='ecaebfce768a42320555a328d623f23af96ff96a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -430,7 +427,7 @@ def _process_dataclass__c8450525f4b066805c20551e51b4c26d2f3142a6():
         ('omdev.specs.irc.messages.formats', 'MessageFormat.LiteralParam'),
     ),
 )
-def _process_dataclass__b3b2ee056c9f64eedde8063aac74aba8c2f67e39():
+def _process_dataclass__ecaebfce768a42320555a328d623f23af96ff96a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -530,7 +527,7 @@ def _process_dataclass__b3b2ee056c9f64eedde8063aac74aba8c2f67e39():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -542,7 +539,7 @@ def _process_dataclass__b3b2ee056c9f64eedde8063aac74aba8c2f67e39():
         ('omdev.specs.irc.messages.formats', 'MessageFormat.Param'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -610,7 +607,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='f4ee5ed227e9ad37fd6f1ac435f3ab68d7ae3f8b',
+    installer_sha1='9b795c0760f94abced4ad6300eb7ce6021189fb6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -627,7 +624,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omdev.specs.irc.messages.messages', 'VersionMessage'),
     ),
 )
-def _process_dataclass__f4ee5ed227e9ad37fd6f1ac435f3ab68d7ae3f8b():
+def _process_dataclass__9b795c0760f94abced4ad6300eb7ce6021189fb6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -733,7 +730,7 @@ def _process_dataclass__f4ee5ed227e9ad37fd6f1ac435f3ab68d7ae3f8b():
 
 
 @_register(
-    installer_sha1='c4acb1ef55e8bc966c2063caeb2375ce6262e316',
+    installer_sha1='9f72a88cc440e6e56efb147a25959e1ba8188344',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -748,7 +745,7 @@ def _process_dataclass__f4ee5ed227e9ad37fd6f1ac435f3ab68d7ae3f8b():
         ('omdev.specs.irc.messages.messages', 'AwayMessage'),
     ),
 )
-def _process_dataclass__c4acb1ef55e8bc966c2063caeb2375ce6262e316():
+def _process_dataclass__9f72a88cc440e6e56efb147a25959e1ba8188344():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -854,7 +851,7 @@ def _process_dataclass__c4acb1ef55e8bc966c2063caeb2375ce6262e316():
 
 
 @_register(
-    installer_sha1='40944786e72e53142bc602f563858f75b87d93d3',
+    installer_sha1='301e9951d6c2a1f4b3609c992086d0aaf3337e85',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -870,7 +867,7 @@ def _process_dataclass__c4acb1ef55e8bc966c2063caeb2375ce6262e316():
         ('omdev.specs.irc.messages.messages', 'CapMessage'),
     ),
 )
-def _process_dataclass__40944786e72e53142bc602f563858f75b87d93d3():
+def _process_dataclass__301e9951d6c2a1f4b3609c992086d0aaf3337e85():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -993,7 +990,7 @@ def _process_dataclass__40944786e72e53142bc602f563858f75b87d93d3():
 
 
 @_register(
-    installer_sha1='7b89a7dea8c8bec52bda0b95e7085ac032823c01',
+    installer_sha1='ab974bfebfa45427aed03869cc1b5c2ca6ee5f03',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1010,7 +1007,7 @@ def _process_dataclass__40944786e72e53142bc602f563858f75b87d93d3():
         ('omdev.specs.irc.messages.messages', 'ConnectMessage'),
     ),
 )
-def _process_dataclass__7b89a7dea8c8bec52bda0b95e7085ac032823c01():
+def _process_dataclass__ab974bfebfa45427aed03869cc1b5c2ca6ee5f03():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1153,7 +1150,7 @@ def _process_dataclass__7b89a7dea8c8bec52bda0b95e7085ac032823c01():
 
 
 @_register(
-    installer_sha1='a10cba2eb46b6a7a85e44f4cd3e2be4ad2b993b8',
+    installer_sha1='943bb04f76952eb1d84ebbee0671159b4a36a4f2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1169,7 +1166,7 @@ def _process_dataclass__7b89a7dea8c8bec52bda0b95e7085ac032823c01():
         ('omdev.specs.irc.messages.messages', 'QuitMessage'),
     ),
 )
-def _process_dataclass__a10cba2eb46b6a7a85e44f4cd3e2be4ad2b993b8():
+def _process_dataclass__943bb04f76952eb1d84ebbee0671159b4a36a4f2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1275,7 +1272,7 @@ def _process_dataclass__a10cba2eb46b6a7a85e44f4cd3e2be4ad2b993b8():
 
 
 @_register(
-    installer_sha1='663250a31bdce3734c8580be537ff2a2d28d6179',
+    installer_sha1='ae53f655803ff31b986116a61734164c7c3b43b4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1290,7 +1287,7 @@ def _process_dataclass__a10cba2eb46b6a7a85e44f4cd3e2be4ad2b993b8():
         ('omdev.specs.irc.messages.messages', 'HelpMessage'),
     ),
 )
-def _process_dataclass__663250a31bdce3734c8580be537ff2a2d28d6179():
+def _process_dataclass__ae53f655803ff31b986116a61734164c7c3b43b4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1396,7 +1393,7 @@ def _process_dataclass__663250a31bdce3734c8580be537ff2a2d28d6179():
 
 
 @_register(
-    installer_sha1='be1253b77f1722084e66c4770f4dee7c3d6aa9bb',
+    installer_sha1='25c3d9818d881d7f66537608d2f1c1cfd362ba7c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1412,7 +1409,7 @@ def _process_dataclass__663250a31bdce3734c8580be537ff2a2d28d6179():
         ('omdev.specs.irc.messages.messages', 'InviteMessage'),
     ),
 )
-def _process_dataclass__be1253b77f1722084e66c4770f4dee7c3d6aa9bb():
+def _process_dataclass__25c3d9818d881d7f66537608d2f1c1cfd362ba7c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1535,7 +1532,7 @@ def _process_dataclass__be1253b77f1722084e66c4770f4dee7c3d6aa9bb():
 
 
 @_register(
-    installer_sha1='c8a280ac6eec6b43de64fe23644f6edd0b097a2d',
+    installer_sha1='33f5cea30e545684f4db0353123dbb6ade5f3198',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1550,7 +1547,7 @@ def _process_dataclass__be1253b77f1722084e66c4770f4dee7c3d6aa9bb():
         ('omdev.specs.irc.messages.messages', 'JoinMessage'),
     ),
 )
-def _process_dataclass__c8a280ac6eec6b43de64fe23644f6edd0b097a2d():
+def _process_dataclass__33f5cea30e545684f4db0353123dbb6ade5f3198():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1657,7 +1654,7 @@ def _process_dataclass__c8a280ac6eec6b43de64fe23644f6edd0b097a2d():
 
 
 @_register(
-    installer_sha1='9621d64ad0522c560571c0b3a46661eff0a5eacc',
+    installer_sha1='16fa967564f81cea75c80c8664036e8e35e62c8b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1674,7 +1671,7 @@ def _process_dataclass__c8a280ac6eec6b43de64fe23644f6edd0b097a2d():
         ('omdev.specs.irc.messages.messages', 'KickMessage'),
     ),
 )
-def _process_dataclass__9621d64ad0522c560571c0b3a46661eff0a5eacc():
+def _process_dataclass__16fa967564f81cea75c80c8664036e8e35e62c8b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1816,7 +1813,7 @@ def _process_dataclass__9621d64ad0522c560571c0b3a46661eff0a5eacc():
 
 
 @_register(
-    installer_sha1='83d12b52d818f064cd70b80be741584b22e86892',
+    installer_sha1='0c2977abdaea373d7aa32715ad09f4f271b15ece',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1832,7 +1829,7 @@ def _process_dataclass__9621d64ad0522c560571c0b3a46661eff0a5eacc():
         ('omdev.specs.irc.messages.messages', 'KillMessage'),
     ),
 )
-def _process_dataclass__83d12b52d818f064cd70b80be741584b22e86892():
+def _process_dataclass__0c2977abdaea373d7aa32715ad09f4f271b15ece():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1955,7 +1952,7 @@ def _process_dataclass__83d12b52d818f064cd70b80be741584b22e86892():
 
 
 @_register(
-    installer_sha1='b9ea158f23f0755284209e80b0373e448e5a91fe',
+    installer_sha1='2efc8023542d05678e66555fdf23e1c5a1946cb4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -1971,7 +1968,7 @@ def _process_dataclass__83d12b52d818f064cd70b80be741584b22e86892():
         ('omdev.specs.irc.messages.messages', 'ListMessage'),
     ),
 )
-def _process_dataclass__b9ea158f23f0755284209e80b0373e448e5a91fe():
+def _process_dataclass__2efc8023542d05678e66555fdf23e1c5a1946cb4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2094,7 +2091,7 @@ def _process_dataclass__b9ea158f23f0755284209e80b0373e448e5a91fe():
 
 
 @_register(
-    installer_sha1='6c32c351b6def8db5f14045f845b403749e9cd15',
+    installer_sha1='ab3074af1ee9aa9b6842ec571085b1d186833162',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -2111,7 +2108,7 @@ def _process_dataclass__b9ea158f23f0755284209e80b0373e448e5a91fe():
         ('omdev.specs.irc.messages.messages', 'ModeMessage'),
     ),
 )
-def _process_dataclass__6c32c351b6def8db5f14045f845b403749e9cd15():
+def _process_dataclass__ab3074af1ee9aa9b6842ec571085b1d186833162():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2254,7 +2251,7 @@ def _process_dataclass__6c32c351b6def8db5f14045f845b403749e9cd15():
 
 
 @_register(
-    installer_sha1='aaea04ca785efb57006fc6e55bd1cfcdfb9b0c12',
+    installer_sha1='7db92e357640058df6755f4f66b9d09a0e909fd4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -2269,7 +2266,7 @@ def _process_dataclass__6c32c351b6def8db5f14045f845b403749e9cd15():
         ('omdev.specs.irc.messages.messages', 'NamesMessage'),
     ),
 )
-def _process_dataclass__aaea04ca785efb57006fc6e55bd1cfcdfb9b0c12():
+def _process_dataclass__7db92e357640058df6755f4f66b9d09a0e909fd4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2383,7 +2380,7 @@ def _process_dataclass__aaea04ca785efb57006fc6e55bd1cfcdfb9b0c12():
 
 
 @_register(
-    installer_sha1='7075fca6364e493dc8583b6ce20a94c6ae256a44',
+    installer_sha1='d34208c989941a87da2a47900422df8b57d9e8fa',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -2398,7 +2395,7 @@ def _process_dataclass__aaea04ca785efb57006fc6e55bd1cfcdfb9b0c12():
         ('omdev.specs.irc.messages.messages', 'NickMessage'),
     ),
 )
-def _process_dataclass__7075fca6364e493dc8583b6ce20a94c6ae256a44():
+def _process_dataclass__d34208c989941a87da2a47900422df8b57d9e8fa():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2503,7 +2500,7 @@ def _process_dataclass__7075fca6364e493dc8583b6ce20a94c6ae256a44():
 
 
 @_register(
-    installer_sha1='cabf73c843e76b1fb734ff5bf4433530024d0dc5',
+    installer_sha1='9f78263be6ab7019468c2aa06cb4fc0e4f3e7b35',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -2520,7 +2517,7 @@ def _process_dataclass__7075fca6364e493dc8583b6ce20a94c6ae256a44():
         ('omdev.specs.irc.messages.messages', 'PrivmsgMessage'),
     ),
 )
-def _process_dataclass__cabf73c843e76b1fb734ff5bf4433530024d0dc5():
+def _process_dataclass__9f78263be6ab7019468c2aa06cb4fc0e4f3e7b35():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2643,7 +2640,7 @@ def _process_dataclass__cabf73c843e76b1fb734ff5bf4433530024d0dc5():
 
 
 @_register(
-    installer_sha1='2749922256d4b80bdaa396453f51b92b0022ba19',
+    installer_sha1='8fe5024418938960d143a6f897b2aeb1d025d09f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -2659,7 +2656,7 @@ def _process_dataclass__cabf73c843e76b1fb734ff5bf4433530024d0dc5():
         ('omdev.specs.irc.messages.messages', 'OperMessage'),
     ),
 )
-def _process_dataclass__2749922256d4b80bdaa396453f51b92b0022ba19():
+def _process_dataclass__8fe5024418938960d143a6f897b2aeb1d025d09f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2782,7 +2779,7 @@ def _process_dataclass__2749922256d4b80bdaa396453f51b92b0022ba19():
 
 
 @_register(
-    installer_sha1='54ab930212ae90eb51da7d9c49c7cc45ea3cf886',
+    installer_sha1='c65a6356b1efda9e8fed456ad2e12bd009196240',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -2798,7 +2795,7 @@ def _process_dataclass__2749922256d4b80bdaa396453f51b92b0022ba19():
         ('omdev.specs.irc.messages.messages', 'PartMessage'),
     ),
 )
-def _process_dataclass__54ab930212ae90eb51da7d9c49c7cc45ea3cf886():
+def _process_dataclass__c65a6356b1efda9e8fed456ad2e12bd009196240():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2931,7 +2928,7 @@ def _process_dataclass__54ab930212ae90eb51da7d9c49c7cc45ea3cf886():
 
 
 @_register(
-    installer_sha1='1fe59155e772ff24d4ef3ed5679c0325bd7dac9d',
+    installer_sha1='025c1e815ee2501eb12051c935d0cc6b549bc686',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -2946,7 +2943,7 @@ def _process_dataclass__54ab930212ae90eb51da7d9c49c7cc45ea3cf886():
         ('omdev.specs.irc.messages.messages', 'PassMessage'),
     ),
 )
-def _process_dataclass__1fe59155e772ff24d4ef3ed5679c0325bd7dac9d():
+def _process_dataclass__025c1e815ee2501eb12051c935d0cc6b549bc686():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3051,7 +3048,7 @@ def _process_dataclass__1fe59155e772ff24d4ef3ed5679c0325bd7dac9d():
 
 
 @_register(
-    installer_sha1='847af2fcbe53981eec91e73999d2ff253dd1cb3d',
+    installer_sha1='87386a08c5ab595f7f7becabd8b326045973d43c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -3066,7 +3063,7 @@ def _process_dataclass__1fe59155e772ff24d4ef3ed5679c0325bd7dac9d():
         ('omdev.specs.irc.messages.messages', 'PingMessage'),
     ),
 )
-def _process_dataclass__847af2fcbe53981eec91e73999d2ff253dd1cb3d():
+def _process_dataclass__87386a08c5ab595f7f7becabd8b326045973d43c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3171,7 +3168,7 @@ def _process_dataclass__847af2fcbe53981eec91e73999d2ff253dd1cb3d():
 
 
 @_register(
-    installer_sha1='c8733f757e18eb1d2411140096d4fef3242e33eb',
+    installer_sha1='2d288b9b31008c4144c83be27e47647fb9cf2e51',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -3187,7 +3184,7 @@ def _process_dataclass__847af2fcbe53981eec91e73999d2ff253dd1cb3d():
         ('omdev.specs.irc.messages.messages', 'PongMessage'),
     ),
 )
-def _process_dataclass__c8733f757e18eb1d2411140096d4fef3242e33eb():
+def _process_dataclass__2d288b9b31008c4144c83be27e47647fb9cf2e51():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3311,7 +3308,7 @@ def _process_dataclass__c8733f757e18eb1d2411140096d4fef3242e33eb():
 
 
 @_register(
-    installer_sha1='98338053a684cb3cf49ecbb1fd9372d568e76c92',
+    installer_sha1='ec3f775d9f60117f7416b4451915fe13ed038843',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -3327,7 +3324,7 @@ def _process_dataclass__c8733f757e18eb1d2411140096d4fef3242e33eb():
         ('omdev.specs.irc.messages.messages', 'SquitMessage'),
     ),
 )
-def _process_dataclass__98338053a684cb3cf49ecbb1fd9372d568e76c92():
+def _process_dataclass__ec3f775d9f60117f7416b4451915fe13ed038843():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3450,7 +3447,7 @@ def _process_dataclass__98338053a684cb3cf49ecbb1fd9372d568e76c92():
 
 
 @_register(
-    installer_sha1='4b9b1c3ccd910a7d19c9ecbb5164986be025e1f0',
+    installer_sha1='99c6c7c28b3a801f17bc32f466da221e7b27efd8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -3466,7 +3463,7 @@ def _process_dataclass__98338053a684cb3cf49ecbb1fd9372d568e76c92():
         ('omdev.specs.irc.messages.messages', 'StatsMessage'),
     ),
 )
-def _process_dataclass__4b9b1c3ccd910a7d19c9ecbb5164986be025e1f0():
+def _process_dataclass__99c6c7c28b3a801f17bc32f466da221e7b27efd8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3590,7 +3587,7 @@ def _process_dataclass__4b9b1c3ccd910a7d19c9ecbb5164986be025e1f0():
 
 
 @_register(
-    installer_sha1='1fa03a8417daaa6695790f0c4220a78e9b7747e5',
+    installer_sha1='7dec5f6fd5b4e8d95deb6a7c419b8588780da4eb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -3605,7 +3602,7 @@ def _process_dataclass__4b9b1c3ccd910a7d19c9ecbb5164986be025e1f0():
         ('omdev.specs.irc.messages.messages', 'TimeMessage'),
     ),
 )
-def _process_dataclass__1fa03a8417daaa6695790f0c4220a78e9b7747e5():
+def _process_dataclass__7dec5f6fd5b4e8d95deb6a7c419b8588780da4eb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3711,7 +3708,7 @@ def _process_dataclass__1fa03a8417daaa6695790f0c4220a78e9b7747e5():
 
 
 @_register(
-    installer_sha1='0ffa0ef432a06e1a640ab4ad876df237511e25df',
+    installer_sha1='698e8394d3e6d8b3be61321a2393f525a267dee6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -3727,7 +3724,7 @@ def _process_dataclass__1fa03a8417daaa6695790f0c4220a78e9b7747e5():
         ('omdev.specs.irc.messages.messages', 'TopicMessage'),
     ),
 )
-def _process_dataclass__0ffa0ef432a06e1a640ab4ad876df237511e25df():
+def _process_dataclass__698e8394d3e6d8b3be61321a2393f525a267dee6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3851,7 +3848,7 @@ def _process_dataclass__0ffa0ef432a06e1a640ab4ad876df237511e25df():
 
 
 @_register(
-    installer_sha1='07c8ae67da9e381a18ab80a66c6fcb5cd52dd827',
+    installer_sha1='a64ab5575951f1c17d7b81a5f9709bfcd6724929',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -3869,7 +3866,7 @@ def _process_dataclass__0ffa0ef432a06e1a640ab4ad876df237511e25df():
         ('omdev.specs.irc.messages.messages', 'UserMessage'),
     ),
 )
-def _process_dataclass__07c8ae67da9e381a18ab80a66c6fcb5cd52dd827():
+def _process_dataclass__a64ab5575951f1c17d7b81a5f9709bfcd6724929():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4030,7 +4027,7 @@ def _process_dataclass__07c8ae67da9e381a18ab80a66c6fcb5cd52dd827():
 
 
 @_register(
-    installer_sha1='de42bdd50ec125bbb3640e55b35eca33922faf3d',
+    installer_sha1='a64e2a0f9d44ef62cfd88c88931c3dbf63407b47',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -4045,7 +4042,7 @@ def _process_dataclass__07c8ae67da9e381a18ab80a66c6fcb5cd52dd827():
         ('omdev.specs.irc.messages.messages', 'UserhostMessage'),
     ),
 )
-def _process_dataclass__de42bdd50ec125bbb3640e55b35eca33922faf3d():
+def _process_dataclass__a64e2a0f9d44ef62cfd88c88931c3dbf63407b47():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4160,7 +4157,7 @@ def _process_dataclass__de42bdd50ec125bbb3640e55b35eca33922faf3d():
 
 
 @_register(
-    installer_sha1='146baa93fcf25ddc9edc9394bfbd7ee45d83eebe',
+    installer_sha1='34b771a561cb9045f4879f65ce39e6c3b0518e2a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -4175,7 +4172,7 @@ def _process_dataclass__de42bdd50ec125bbb3640e55b35eca33922faf3d():
         ('omdev.specs.irc.messages.messages', 'WallopsMessage'),
     ),
 )
-def _process_dataclass__146baa93fcf25ddc9edc9394bfbd7ee45d83eebe():
+def _process_dataclass__34b771a561cb9045f4879f65ce39e6c3b0518e2a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4280,7 +4277,7 @@ def _process_dataclass__146baa93fcf25ddc9edc9394bfbd7ee45d83eebe():
 
 
 @_register(
-    installer_sha1='c83f4e7bb7a67e3279552318a88be34054bb5737',
+    installer_sha1='4b1fc278e14c63a6492f1e4265663f0feedab198',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -4295,7 +4292,7 @@ def _process_dataclass__146baa93fcf25ddc9edc9394bfbd7ee45d83eebe():
         ('omdev.specs.irc.messages.messages', 'WhoMessage'),
     ),
 )
-def _process_dataclass__c83f4e7bb7a67e3279552318a88be34054bb5737():
+def _process_dataclass__4b1fc278e14c63a6492f1e4265663f0feedab198():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4400,7 +4397,7 @@ def _process_dataclass__c83f4e7bb7a67e3279552318a88be34054bb5737():
 
 
 @_register(
-    installer_sha1='b8699b337267c39ba0c810e4cfe5c9b063192287',
+    installer_sha1='be93e36b8f2a109662e0db4c35f42aa6c7d70655',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -4416,7 +4413,7 @@ def _process_dataclass__c83f4e7bb7a67e3279552318a88be34054bb5737():
         ('omdev.specs.irc.messages.messages', 'WhoisMessage'),
     ),
 )
-def _process_dataclass__b8699b337267c39ba0c810e4cfe5c9b063192287():
+def _process_dataclass__be93e36b8f2a109662e0db4c35f42aa6c7d70655():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4540,7 +4537,7 @@ def _process_dataclass__b8699b337267c39ba0c810e4cfe5c9b063192287():
 
 
 @_register(
-    installer_sha1='cf46b66382e931132a0cbfa7b3d518e07d69737b',
+    installer_sha1='a4e1e20ebeb6a995488c5b341a5fc26b8fd339e0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, True, False, Fals"
@@ -4556,7 +4553,7 @@ def _process_dataclass__b8699b337267c39ba0c810e4cfe5c9b063192287():
         ('omdev.specs.irc.messages.messages', 'WhowasMessage'),
     ),
 )
-def _process_dataclass__cf46b66382e931132a0cbfa7b3d518e07d69737b():
+def _process_dataclass__a4e1e20ebeb6a995488c5b341a5fc26b8fd339e0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4680,7 +4677,7 @@ def _process_dataclass__cf46b66382e931132a0cbfa7b3d518e07d69737b():
 
 
 @_register(
-    installer_sha1='533b6919241582ced4f75a0971c73377e7d70439',
+    installer_sha1='a7362c742da9b0702fbafcbaf971e36ed37f17dc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4693,7 +4690,7 @@ def _process_dataclass__cf46b66382e931132a0cbfa7b3d518e07d69737b():
         ('omdev.specs.irc.numerics.formats', 'Formats.Name'),
     ),
 )
-def _process_dataclass__533b6919241582ced4f75a0971c73377e7d70439():
+def _process_dataclass__a7362c742da9b0702fbafcbaf971e36ed37f17dc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4782,7 +4779,7 @@ def _process_dataclass__533b6919241582ced4f75a0971c73377e7d70439():
 
 
 @_register(
-    installer_sha1='12e9cb8edfa38bbb24f3711fd5b581fae37893d8',
+    installer_sha1='d2e556cffd35c8ef16a83ebe9fa8962562f94f68',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4796,7 +4793,7 @@ def _process_dataclass__533b6919241582ced4f75a0971c73377e7d70439():
         ('omdev.specs.irc.numerics.formats', 'Formats.Variadic'),
     ),
 )
-def _process_dataclass__12e9cb8edfa38bbb24f3711fd5b581fae37893d8():
+def _process_dataclass__d2e556cffd35c8ef16a83ebe9fa8962562f94f68():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4885,7 +4882,7 @@ def _process_dataclass__12e9cb8edfa38bbb24f3711fd5b581fae37893d8():
 
 
 @_register(
-    installer_sha1='0d76fe2a268fbf637a0d35b142366d7ffb7ed23a',
+    installer_sha1='348274680fff3bfd35dfa52f7858b60399a7df02',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4900,7 +4897,7 @@ def _process_dataclass__12e9cb8edfa38bbb24f3711fd5b581fae37893d8():
         ('omdev.specs.irc.numerics.types', 'NumericReply'),
     ),
 )
-def _process_dataclass__0d76fe2a268fbf637a0d35b142366d7ffb7ed23a():
+def _process_dataclass__348274680fff3bfd35dfa52f7858b60399a7df02():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5005,7 +5002,7 @@ def _process_dataclass__0d76fe2a268fbf637a0d35b142366d7ffb7ed23a():
 
 
 @_register(
-    installer_sha1='4417893a95c62d74e85dec9dcdfb1c111f513ded',
+    installer_sha1='56d32f7446f630f6f2f751cb7a88badbc3527196',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -5023,7 +5020,7 @@ def _process_dataclass__0d76fe2a268fbf637a0d35b142366d7ffb7ed23a():
         ('omdev.specs.irc.protocol.message', 'Message'),
     ),
 )
-def _process_dataclass__4417893a95c62d74e85dec9dcdfb1c111f513ded():
+def _process_dataclass__56d32f7446f630f6f2f751cb7a88badbc3527196():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5155,7 +5152,7 @@ def _process_dataclass__4417893a95c62d74e85dec9dcdfb1c111f513ded():
 
 
 @_register(
-    installer_sha1='7dc2e713a728099561db156a2558ed5fd20f3dd6',
+    installer_sha1='7c24abce9d19666ef75be7ea938bb52f4dc73fb3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -5170,7 +5167,7 @@ def _process_dataclass__4417893a95c62d74e85dec9dcdfb1c111f513ded():
         ('omdev.specs.irc.protocol.nuh', 'Nuh'),
     ),
 )
-def _process_dataclass__7dc2e713a728099561db156a2558ed5fd20f3dd6():
+def _process_dataclass__7c24abce9d19666ef75be7ea938bb52f4dc73fb3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

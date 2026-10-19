@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='7886ca3be1192cd2523d953991db71b25ee7d2d3',
+    installer_sha1='7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -64,7 +61,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.ui.tui.config', 'Config'),
     ),
 )
-def _process_dataclass__7886ca3be1192cd2523d953991db71b25ee7d2d3():
+def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -326,7 +323,7 @@ def _process_dataclass__7886ca3be1192cd2523d953991db71b25ee7d2d3():
 
 
 @_register(
-    installer_sha1='40733ba6ae9b777bf5e2feb83e79eb04fa032879',
+    installer_sha1='3497e19ce840a3584e6ed07944d113a38b62fe67',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
@@ -339,7 +336,7 @@ def _process_dataclass__7886ca3be1192cd2523d953991db71b25ee7d2d3():
         ('omllm.ui.tui.types', 'InitialLlmOptions'),
     ),
 )
-def _process_dataclass__40733ba6ae9b777bf5e2feb83e79eb04fa032879():
+def _process_dataclass__3497e19ce840a3584e6ed07944d113a38b62fe67():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -428,7 +425,7 @@ def _process_dataclass__40733ba6ae9b777bf5e2feb83e79eb04fa032879():
 
 
 @_register(
-    installer_sha1='ccd7f1155fc266626a558ba7a57ab4becbe87de5',
+    installer_sha1='0e3d1e47f89e148b5cca3cb38c1260de116f6bf2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
@@ -441,7 +438,7 @@ def _process_dataclass__40733ba6ae9b777bf5e2feb83e79eb04fa032879():
         ('omllm.ui.tui.types', 'TargetCwd'),
     ),
 )
-def _process_dataclass__ccd7f1155fc266626a558ba7a57ab4becbe87de5():
+def _process_dataclass__0e3d1e47f89e148b5cca3cb38c1260de116f6bf2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

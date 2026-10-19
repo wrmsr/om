@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='54a6f87914b5aef20edf5765d8c56e5370c08df6',
+    installer_sha1='6248f41581623360303edcbd9a6847690167e599',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -55,7 +52,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.modeldb.types', 'OutputCost'),
     ),
 )
-def _process_dataclass__54a6f87914b5aef20edf5765d8c56e5370c08df6():
+def _process_dataclass__6248f41581623360303edcbd9a6847690167e599():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -225,7 +222,7 @@ def _process_dataclass__54a6f87914b5aef20edf5765d8c56e5370c08df6():
 
 
 @_register(
-    installer_sha1='49f6c593075daaab3e079c057e638c25739ff3cc',
+    installer_sha1='302fe50504a14b9ccd83c12b9a642cd78bf84d39',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -258,7 +255,7 @@ def _process_dataclass__54a6f87914b5aef20edf5765d8c56e5370c08df6():
         ('omllm.modeldb.types', 'Model'),
     ),
 )
-def _process_dataclass__49f6c593075daaab3e079c057e638c25739ff3cc():
+def _process_dataclass__302fe50504a14b9ccd83c12b9a642cd78bf84d39():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -510,7 +507,7 @@ def _process_dataclass__49f6c593075daaab3e079c057e638c25739ff3cc():
 
 
 @_register(
-    installer_sha1='13838f41f0af7a4d3c6b5e23ca775caf129df177',
+    installer_sha1='65d7a2fd272b958b79eb4dedbdb70554e7346355',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -530,7 +527,7 @@ def _process_dataclass__49f6c593075daaab3e079c057e638c25739ff3cc():
         ('omllm.modeldb.types', 'Cost'),
     ),
 )
-def _process_dataclass__13838f41f0af7a4d3c6b5e23ca775caf129df177():
+def _process_dataclass__65d7a2fd272b958b79eb4dedbdb70554e7346355():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -682,7 +679,7 @@ def _process_dataclass__13838f41f0af7a4d3c6b5e23ca775caf129df177():
 
 
 @_register(
-    installer_sha1='b90c12230740986d9c10e0c4c9307a5fe396a715',
+    installer_sha1='1948800f1d0c472cf3fbf3e7143e76a1c14f96d1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -703,7 +700,7 @@ def _process_dataclass__13838f41f0af7a4d3c6b5e23ca775caf129df177():
         ('omllm.modeldb.types', 'CostTier'),
     ),
 )
-def _process_dataclass__b90c12230740986d9c10e0c4c9307a5fe396a715():
+def _process_dataclass__1948800f1d0c472cf3fbf3e7143e76a1c14f96d1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -863,7 +860,7 @@ def _process_dataclass__b90c12230740986d9c10e0c4c9307a5fe396a715():
 
 
 @_register(
-    installer_sha1='a658340b3f7133e97a14228e97be99864ea90f5d',
+    installer_sha1='7cd6c943c3cb8d84b8ebb60f09746f337d165f6c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -878,7 +875,7 @@ def _process_dataclass__b90c12230740986d9c10e0c4c9307a5fe396a715():
         ('omllm.modeldb.types', 'CostTierTier'),
     ),
 )
-def _process_dataclass__a658340b3f7133e97a14228e97be99864ea90f5d():
+def _process_dataclass__7cd6c943c3cb8d84b8ebb60f09746f337d165f6c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -986,7 +983,7 @@ def _process_dataclass__a658340b3f7133e97a14228e97be99864ea90f5d():
 
 
 @_register(
-    installer_sha1='25216a4db3e8f083e182ea48e17f34b41f5fbc04',
+    installer_sha1='13bcc298d288bf0eabc36f5aba6f8fd7b8c763e9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1000,7 +997,7 @@ def _process_dataclass__a658340b3f7133e97a14228e97be99864ea90f5d():
         ('omllm.modeldb.types', 'Experimental'),
     ),
 )
-def _process_dataclass__25216a4db3e8f083e182ea48e17f34b41f5fbc04():
+def _process_dataclass__13bcc298d288bf0eabc36f5aba6f8fd7b8c763e9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1100,7 +1097,7 @@ def _process_dataclass__25216a4db3e8f083e182ea48e17f34b41f5fbc04():
 
 
 @_register(
-    installer_sha1='0a115b9e7e3b8ffdb976476cfd75b786f2e21431',
+    installer_sha1='4ecd42b82372df1e0a44f4ecc7c8375850af3660',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1115,7 +1112,7 @@ def _process_dataclass__25216a4db3e8f083e182ea48e17f34b41f5fbc04():
         ('omllm.modeldb.types', 'ExperimentalMode'),
     ),
 )
-def _process_dataclass__0a115b9e7e3b8ffdb976476cfd75b786f2e21431():
+def _process_dataclass__4ecd42b82372df1e0a44f4ecc7c8375850af3660():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1224,7 +1221,7 @@ def _process_dataclass__0a115b9e7e3b8ffdb976476cfd75b786f2e21431():
 
 
 @_register(
-    installer_sha1='29db07590df6bbc186d017892ae37247a5a1e0ab',
+    installer_sha1='e1c36d30449e5c22454e290133c86f9565af7d48',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1239,7 +1236,7 @@ def _process_dataclass__0a115b9e7e3b8ffdb976476cfd75b786f2e21431():
         ('omllm.modeldb.types', 'ExperimentalModeProvider'),
     ),
 )
-def _process_dataclass__29db07590df6bbc186d017892ae37247a5a1e0ab():
+def _process_dataclass__e1c36d30449e5c22454e290133c86f9565af7d48():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1348,7 +1345,7 @@ def _process_dataclass__29db07590df6bbc186d017892ae37247a5a1e0ab():
 
 
 @_register(
-    installer_sha1='63ee28ebd729f5ce8a6b8df69266430582792608',
+    installer_sha1='9deae73afb718fd7cf555ad8d1e152b38efe63d9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1362,7 +1359,7 @@ def _process_dataclass__29db07590df6bbc186d017892ae37247a5a1e0ab():
         ('omllm.modeldb.types', 'Interleaved'),
     ),
 )
-def _process_dataclass__63ee28ebd729f5ce8a6b8df69266430582792608():
+def _process_dataclass__9deae73afb718fd7cf555ad8d1e152b38efe63d9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1461,7 +1458,7 @@ def _process_dataclass__63ee28ebd729f5ce8a6b8df69266430582792608():
 
 
 @_register(
-    installer_sha1='14a1de39562780f9a37bcb8f0487837006b586ad',
+    installer_sha1='86d9629c6b5dcdf1cecc80123b98ec40fe0df0a7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1477,7 +1474,7 @@ def _process_dataclass__63ee28ebd729f5ce8a6b8df69266430582792608():
         ('omllm.modeldb.types', 'Limit'),
     ),
 )
-def _process_dataclass__14a1de39562780f9a37bcb8f0487837006b586ad():
+def _process_dataclass__86d9629c6b5dcdf1cecc80123b98ec40fe0df0a7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1593,7 +1590,7 @@ def _process_dataclass__14a1de39562780f9a37bcb8f0487837006b586ad():
 
 
 @_register(
-    installer_sha1='c70af8bbfbf1b2d644f84fc7ef9a2f9a9d94e22d',
+    installer_sha1='ead5d0f6a51b72e11f573f469649448aa883eb57',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1608,7 +1605,7 @@ def _process_dataclass__14a1de39562780f9a37bcb8f0487837006b586ad():
         ('omllm.modeldb.types', 'Modalities'),
     ),
 )
-def _process_dataclass__c70af8bbfbf1b2d644f84fc7ef9a2f9a9d94e22d():
+def _process_dataclass__ead5d0f6a51b72e11f573f469649448aa883eb57():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1715,7 +1712,7 @@ def _process_dataclass__c70af8bbfbf1b2d644f84fc7ef9a2f9a9d94e22d():
 
 
 @_register(
-    installer_sha1='6775424d9911ec6385f6d1f49927130a51433643',
+    installer_sha1='d5d9d427fef74d0879e392ecfdebbe9ab75185e9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1745,7 +1742,7 @@ def _process_dataclass__c70af8bbfbf1b2d644f84fc7ef9a2f9a9d94e22d():
         ('omllm.modeldb.types', 'ModelBase'),
     ),
 )
-def _process_dataclass__6775424d9911ec6385f6d1f49927130a51433643():
+def _process_dataclass__d5d9d427fef74d0879e392ecfdebbe9ab75185e9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1979,7 +1976,7 @@ def _process_dataclass__6775424d9911ec6385f6d1f49927130a51433643():
 
 
 @_register(
-    installer_sha1='30ccf3c77bea4d404026bbdeecbace88585342b7',
+    installer_sha1='5f9d4bc37357ecc4c34760dfd4edfba3b1116aa0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1996,7 +1993,7 @@ def _process_dataclass__6775424d9911ec6385f6d1f49927130a51433643():
         ('omllm.modeldb.types', 'ModelProvider'),
     ),
 )
-def _process_dataclass__30ccf3c77bea4d404026bbdeecbace88585342b7():
+def _process_dataclass__5f9d4bc37357ecc4c34760dfd4edfba3b1116aa0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2132,7 +2129,7 @@ def _process_dataclass__30ccf3c77bea4d404026bbdeecbace88585342b7():
 
 
 @_register(
-    installer_sha1='c137d6d731cc9f81840fc43c10e9a803ddd2960c',
+    installer_sha1='c488cd8989ca2e2be9740ccea22948aab4ed68ae',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2151,7 +2148,7 @@ def _process_dataclass__30ccf3c77bea4d404026bbdeecbace88585342b7():
         ('omllm.modeldb.types', 'Provider'),
     ),
 )
-def _process_dataclass__c137d6d731cc9f81840fc43c10e9a803ddd2960c():
+def _process_dataclass__c488cd8989ca2e2be9740ccea22948aab4ed68ae():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

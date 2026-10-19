@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='7103bb737615e3fb8531599372ef11a2a4b28230',
+    installer_sha1='24e5df8de26c6e7ac63aafa72a34810f5ef54d23',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.text.pdcmark.blocks.containers', 'OpenBlockQuote'),
     ),
 )
-def _process_dataclass__7103bb737615e3fb8531599372ef11a2a4b28230():
+def _process_dataclass__24e5df8de26c6e7ac63aafa72a34810f5ef54d23():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -144,7 +141,7 @@ def _process_dataclass__7103bb737615e3fb8531599372ef11a2a4b28230():
 
 
 @_register(
-    installer_sha1='2e74feeb33128a3272814f5ac8f29f26493a8781',
+    installer_sha1='8d3388a3e99ac3262cf69408206be4d000889c20',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -160,7 +157,7 @@ def _process_dataclass__7103bb737615e3fb8531599372ef11a2a4b28230():
         ('omcore.text.pdcmark.blocks.containers', 'OpenItem'),
     ),
 )
-def _process_dataclass__2e74feeb33128a3272814f5ac8f29f26493a8781():
+def _process_dataclass__8d3388a3e99ac3262cf69408206be4d000889c20():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -274,7 +271,7 @@ def _process_dataclass__2e74feeb33128a3272814f5ac8f29f26493a8781():
 
 
 @_register(
-    installer_sha1='67d60cfed169b5382079ec739315f5db43473d40',
+    installer_sha1='3bbd427149be4aa54d49fe3e5b0ece520fb91ba8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -292,7 +289,7 @@ def _process_dataclass__2e74feeb33128a3272814f5ac8f29f26493a8781():
         ('omcore.text.pdcmark.blocks.containers', 'OpenList'),
     ),
 )
-def _process_dataclass__67d60cfed169b5382079ec739315f5db43473d40():
+def _process_dataclass__3bbd427149be4aa54d49fe3e5b0ece520fb91ba8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -423,7 +420,7 @@ def _process_dataclass__67d60cfed169b5382079ec739315f5db43473d40():
 
 
 @_register(
-    installer_sha1='452a338ac27b3cd59ce74c421ff05d71d5d39bfb',
+    installer_sha1='fc39ae3bfeb560a5b46d7544af70169341222347',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -438,7 +435,7 @@ def _process_dataclass__67d60cfed169b5382079ec739315f5db43473d40():
         ('omcore.text.pdcmark.blocks.leaves', 'BufferedLine'),
     ),
 )
-def _process_dataclass__452a338ac27b3cd59ce74c421ff05d71d5d39bfb():
+def _process_dataclass__fc39ae3bfeb560a5b46d7544af70169341222347():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -543,7 +540,7 @@ def _process_dataclass__452a338ac27b3cd59ce74c421ff05d71d5d39bfb():
 
 
 @_register(
-    installer_sha1='6e7d6d08e42ea47991afa870dfa420189df6a48a',
+    installer_sha1='960b7f7dcf1e4aad106b45d7f743adc24f78b016',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -562,7 +559,7 @@ def _process_dataclass__452a338ac27b3cd59ce74c421ff05d71d5d39bfb():
         ('omcore.text.pdcmark.blocks.leaves', 'OpenFencedCode'),
     ),
 )
-def _process_dataclass__6e7d6d08e42ea47991afa870dfa420189df6a48a():
+def _process_dataclass__960b7f7dcf1e4aad106b45d7f743adc24f78b016():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -699,7 +696,7 @@ def _process_dataclass__6e7d6d08e42ea47991afa870dfa420189df6a48a():
 
 
 @_register(
-    installer_sha1='5c07acfe1eb35aa62e4ccdda5c54c3fc637fa4c5',
+    installer_sha1='d5571c91e3bfefd1e19a794a9543d82091d7df0e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -714,7 +711,7 @@ def _process_dataclass__6e7d6d08e42ea47991afa870dfa420189df6a48a():
         ('omcore.text.pdcmark.blocks.leaves', 'OpenHtmlBlock'),
     ),
 )
-def _process_dataclass__5c07acfe1eb35aa62e4ccdda5c54c3fc637fa4c5():
+def _process_dataclass__d5571c91e3bfefd1e19a794a9543d82091d7df0e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -819,7 +816,7 @@ def _process_dataclass__5c07acfe1eb35aa62e4ccdda5c54c3fc637fa4c5():
 
 
 @_register(
-    installer_sha1='db6982fd7576d0ba14d5e12380a2a0448f2c5107',
+    installer_sha1='43778d4353879bc82a5df547316d57ad84782319',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -833,7 +830,7 @@ def _process_dataclass__5c07acfe1eb35aa62e4ccdda5c54c3fc637fa4c5():
         ('omcore.text.pdcmark.blocks.leaves', 'OpenParagraph'),
     ),
 )
-def _process_dataclass__db6982fd7576d0ba14d5e12380a2a0448f2c5107():
+def _process_dataclass__43778d4353879bc82a5df547316d57ad84782319():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -922,7 +919,7 @@ def _process_dataclass__db6982fd7576d0ba14d5e12380a2a0448f2c5107():
 
 
 @_register(
-    installer_sha1='02186aae7a79f5a52af2f41f01d1a7fa54aac24b',
+    installer_sha1='8456623247fb6ea7d6718e57abd1fb63a84441a1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -936,7 +933,7 @@ def _process_dataclass__db6982fd7576d0ba14d5e12380a2a0448f2c5107():
         ('omcore.text.pdcmark.blocks.leaves', 'OpenTable'),
     ),
 )
-def _process_dataclass__02186aae7a79f5a52af2f41f01d1a7fa54aac24b():
+def _process_dataclass__8456623247fb6ea7d6718e57abd1fb63a84441a1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1033,7 +1030,7 @@ def _process_dataclass__02186aae7a79f5a52af2f41f01d1a7fa54aac24b():
 
 
 @_register(
-    installer_sha1='461c556ec6c059c57cc2c6038be4b64161db8852',
+    installer_sha1='be7ec7d71767f6a3bc31385b76efe3aaed7541b1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1047,7 +1044,7 @@ def _process_dataclass__02186aae7a79f5a52af2f41f01d1a7fa54aac24b():
         ('omcore.text.pdcmark.blocks.refdefs', 'LinkDef'),
     ),
 )
-def _process_dataclass__461c556ec6c059c57cc2c6038be4b64161db8852():
+def _process_dataclass__be7ec7d71767f6a3bc31385b76efe3aaed7541b1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1144,7 +1141,7 @@ def _process_dataclass__461c556ec6c059c57cc2c6038be4b64161db8852():
 
 
 @_register(
-    installer_sha1='b607e6615b90ae61ae307c6821da526997f6fe41',
+    installer_sha1='849bffce989783f94f6a518cb5961321e3cfd67b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1159,7 +1156,7 @@ def _process_dataclass__461c556ec6c059c57cc2c6038be4b64161db8852():
         ('omcore.text.pdcmark.blocks.refdefs', 'RefDefMatch'),
     ),
 )
-def _process_dataclass__b607e6615b90ae61ae307c6821da526997f6fe41():
+def _process_dataclass__849bffce989783f94f6a518cb5961321e3cfd67b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1264,7 +1261,7 @@ def _process_dataclass__b607e6615b90ae61ae307c6821da526997f6fe41():
 
 
 @_register(
-    installer_sha1='bf0a0c7ad9264841c44fc5c56028cdc54abdc5af',
+    installer_sha1='7f4f25fbb54673011d6a42415bda5cbb5e872537',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1279,7 +1276,7 @@ def _process_dataclass__b607e6615b90ae61ae307c6821da526997f6fe41():
         ('omcore.text.pdcmark.brokenlinks', 'BrokenLink'),
     ),
 )
-def _process_dataclass__bf0a0c7ad9264841c44fc5c56028cdc54abdc5af():
+def _process_dataclass__7f4f25fbb54673011d6a42415bda5cbb5e872537():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1384,7 +1381,7 @@ def _process_dataclass__bf0a0c7ad9264841c44fc5c56028cdc54abdc5af():
 
 
 @_register(
-    installer_sha1='bb36d146b339ebda0c43d70a6d30a45dba73df76',
+    installer_sha1='243aa4805fdd90b3322245f127ccfb942ff3e5ae',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1398,7 +1395,7 @@ def _process_dataclass__bf0a0c7ad9264841c44fc5c56028cdc54abdc5af():
         ('omcore.text.pdcmark.brokenlinks', 'BrokenLinkResolution'),
     ),
 )
-def _process_dataclass__bb36d146b339ebda0c43d70a6d30a45dba73df76():
+def _process_dataclass__243aa4805fdd90b3322245f127ccfb942ff3e5ae():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1495,7 +1492,7 @@ def _process_dataclass__bb36d146b339ebda0c43d70a6d30a45dba73df76():
 
 
 @_register(
-    installer_sha1='4d48e2fbbf2c31909c3a6aac32799cd6b4b9e106',
+    installer_sha1='1acc6d0cc77e581dbd5867632507e17882cf4597',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1508,7 +1505,7 @@ def _process_dataclass__bb36d146b339ebda0c43d70a6d30a45dba73df76():
         ('omcore.text.pdcmark.events', 'BlockQuote'),
     ),
 )
-def _process_dataclass__4d48e2fbbf2c31909c3a6aac32799cd6b4b9e106():
+def _process_dataclass__1acc6d0cc77e581dbd5867632507e17882cf4597():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1598,7 +1595,7 @@ def _process_dataclass__4d48e2fbbf2c31909c3a6aac32799cd6b4b9e106():
 
 
 @_register(
-    installer_sha1='ad938796ef8d2d26f754dc7946d216803fa5968c',
+    installer_sha1='33335cfad1cc74bbbdfd2524ede1a0ddb1c27889',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1615,7 +1612,7 @@ def _process_dataclass__4d48e2fbbf2c31909c3a6aac32799cd6b4b9e106():
         ('omcore.text.pdcmark.events', 'Text'),
     ),
 )
-def _process_dataclass__ad938796ef8d2d26f754dc7946d216803fa5968c():
+def _process_dataclass__33335cfad1cc74bbbdfd2524ede1a0ddb1c27889():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1712,7 +1709,7 @@ def _process_dataclass__ad938796ef8d2d26f754dc7946d216803fa5968c():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1733,7 +1730,7 @@ def _process_dataclass__ad938796ef8d2d26f754dc7946d216803fa5968c():
         ('omcore.text.pdcmark.events', 'TableRow'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1801,7 +1798,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='6ce984c6c7d3ce20fd5ecbdee7fc041d61201ef3',
+    installer_sha1='01db5f5691cf3e96b96cb5dd118c9d4ec434d435',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1816,7 +1813,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omcore.text.pdcmark.events', 'Start'),
     ),
 )
-def _process_dataclass__6ce984c6c7d3ce20fd5ecbdee7fc041d61201ef3():
+def _process_dataclass__01db5f5691cf3e96b96cb5dd118c9d4ec434d435():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1913,7 +1910,7 @@ def _process_dataclass__6ce984c6c7d3ce20fd5ecbdee7fc041d61201ef3():
 
 
 @_register(
-    installer_sha1='0f025524a790c7583f9b81495e9af21c0a2ad589',
+    installer_sha1='3109b558e09e4f8d8af7a71c39675115dd9a44f5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -1926,7 +1923,7 @@ def _process_dataclass__6ce984c6c7d3ce20fd5ecbdee7fc041d61201ef3():
         ('omcore.text.pdcmark.events', 'FencedCodeBlock'),
     ),
 )
-def _process_dataclass__0f025524a790c7583f9b81495e9af21c0a2ad589():
+def _process_dataclass__3109b558e09e4f8d8af7a71c39675115dd9a44f5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2015,7 +2012,7 @@ def _process_dataclass__0f025524a790c7583f9b81495e9af21c0a2ad589():
 
 
 @_register(
-    installer_sha1='958d71f7dd322e12e03cb9242fd81a110b1b14dc',
+    installer_sha1='c854f88bb8a22aae6c3b7f594757b1daf088b0e8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2031,7 +2028,7 @@ def _process_dataclass__0f025524a790c7583f9b81495e9af21c0a2ad589():
         ('omcore.text.pdcmark.events', '_OffsetEvent'),
     ),
 )
-def _process_dataclass__958d71f7dd322e12e03cb9242fd81a110b1b14dc():
+def _process_dataclass__c854f88bb8a22aae6c3b7f594757b1daf088b0e8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2120,7 +2117,7 @@ def _process_dataclass__958d71f7dd322e12e03cb9242fd81a110b1b14dc():
 
 
 @_register(
-    installer_sha1='34b94248654f3bbee4e15a5e60de5ea8646cf434',
+    installer_sha1='48953820aabbec210cf12e3e8183234d34863372',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2133,7 +2130,7 @@ def _process_dataclass__958d71f7dd322e12e03cb9242fd81a110b1b14dc():
         ('omcore.text.pdcmark.events', 'Heading'),
     ),
 )
-def _process_dataclass__34b94248654f3bbee4e15a5e60de5ea8646cf434():
+def _process_dataclass__48953820aabbec210cf12e3e8183234d34863372():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2222,7 +2219,7 @@ def _process_dataclass__34b94248654f3bbee4e15a5e60de5ea8646cf434():
 
 
 @_register(
-    installer_sha1='7a2e4fc825e69dcbbbf7311951497b8246f104ae',
+    installer_sha1='0ed03075c5c94c5e98fcae1cdd16ce596b142673',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2240,7 +2237,7 @@ def _process_dataclass__34b94248654f3bbee4e15a5e60de5ea8646cf434():
         ('omcore.text.pdcmark.inlines.links', '_Resolved'),
     ),
 )
-def _process_dataclass__7a2e4fc825e69dcbbbf7311951497b8246f104ae():
+def _process_dataclass__0ed03075c5c94c5e98fcae1cdd16ce596b142673():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2353,7 +2350,7 @@ def _process_dataclass__7a2e4fc825e69dcbbbf7311951497b8246f104ae():
 
 
 @_register(
-    installer_sha1='19dd78437a02f07dbdf07e30dd61fe2fe7031a8a',
+    installer_sha1='d3cd6c2fa1371e86bdd0fc488d735e7e8c98068c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2367,7 +2364,7 @@ def _process_dataclass__7a2e4fc825e69dcbbbf7311951497b8246f104ae():
         ('omcore.text.pdcmark.events', 'List'),
     ),
 )
-def _process_dataclass__19dd78437a02f07dbdf07e30dd61fe2fe7031a8a():
+def _process_dataclass__d3cd6c2fa1371e86bdd0fc488d735e7e8c98068c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2466,7 +2463,7 @@ def _process_dataclass__19dd78437a02f07dbdf07e30dd61fe2fe7031a8a():
 
 
 @_register(
-    installer_sha1='e0d0b650d7551518e533bf5b47c2ccba5ce71964',
+    installer_sha1='db6bd068eb4e20e1153efe94eb506b6de3d3cb97',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2479,7 +2476,7 @@ def _process_dataclass__19dd78437a02f07dbdf07e30dd61fe2fe7031a8a():
         ('omcore.text.pdcmark.events', 'Table'),
     ),
 )
-def _process_dataclass__e0d0b650d7551518e533bf5b47c2ccba5ce71964():
+def _process_dataclass__db6bd068eb4e20e1153efe94eb506b6de3d3cb97():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2568,7 +2565,7 @@ def _process_dataclass__e0d0b650d7551518e533bf5b47c2ccba5ce71964():
 
 
 @_register(
-    installer_sha1='0759dcc9bccaa986d3f67bb5d296e8da36517e7a',
+    installer_sha1='d7726173a32022637ae0d2ce8541e9f19ed928ff',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -2582,7 +2579,7 @@ def _process_dataclass__e0d0b650d7551518e533bf5b47c2ccba5ce71964():
         ('omcore.text.pdcmark.events', 'TaskListMarker'),
     ),
 )
-def _process_dataclass__0759dcc9bccaa986d3f67bb5d296e8da36517e7a():
+def _process_dataclass__d7726173a32022637ae0d2ce8541e9f19ed928ff():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2679,7 +2676,7 @@ def _process_dataclass__0759dcc9bccaa986d3f67bb5d296e8da36517e7a():
 
 
 @_register(
-    installer_sha1='55b26089594cfc4858162d202c8fdd2708ab177b',
+    installer_sha1='ba6ca5045ef02813bb78d4dc01499af42ae15d72',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2692,7 +2689,7 @@ def _process_dataclass__0759dcc9bccaa986d3f67bb5d296e8da36517e7a():
         ('omcore.text.pdcmark.inlines.links', 'Fuel'),
     ),
 )
-def _process_dataclass__55b26089594cfc4858162d202c8fdd2708ab177b():
+def _process_dataclass__ba6ca5045ef02813bb78d4dc01499af42ae15d72():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2750,7 +2747,7 @@ def _process_dataclass__55b26089594cfc4858162d202c8fdd2708ab177b():
 
 
 @_register(
-    installer_sha1='84144cc6c67a213e2b3269b01de5510b515c0007',
+    installer_sha1='0651c8b2387d23cafefb21b3e447eded8b68cc93',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2765,7 +2762,7 @@ def _process_dataclass__55b26089594cfc4858162d202c8fdd2708ab177b():
         ('omcore.text.pdcmark.inlines.links', '_LinkStackEntry'),
     ),
 )
-def _process_dataclass__84144cc6c67a213e2b3269b01de5510b515c0007():
+def _process_dataclass__0651c8b2387d23cafefb21b3e447eded8b68cc93():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2835,7 +2832,7 @@ def _process_dataclass__84144cc6c67a213e2b3269b01de5510b515c0007():
 
 
 @_register(
-    installer_sha1='1915fb5b0e60902e2fe161beae6c65cb9cb2a915',
+    installer_sha1='ae7c661d31638311d1ffa8425ffd8468cebc11aa',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2850,7 +2847,7 @@ def _process_dataclass__84144cc6c67a213e2b3269b01de5510b515c0007():
         ('omcore.text.pdcmark.inlines.nodes', 'AutolinkNode'),
     ),
 )
-def _process_dataclass__1915fb5b0e60902e2fe161beae6c65cb9cb2a915():
+def _process_dataclass__ae7c661d31638311d1ffa8425ffd8468cebc11aa():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2920,7 +2917,7 @@ def _process_dataclass__1915fb5b0e60902e2fe161beae6c65cb9cb2a915():
 
 
 @_register(
-    installer_sha1='af5136605d3a04bd19e00f4e8cb16e1823d8d04e',
+    installer_sha1='d003957bad481d509f4ec2cac33a20338967514a',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2936,7 +2933,7 @@ def _process_dataclass__1915fb5b0e60902e2fe161beae6c65cb9cb2a915():
         ('omcore.text.pdcmark.inlines.nodes', 'TextNode'),
     ),
 )
-def _process_dataclass__af5136605d3a04bd19e00f4e8cb16e1823d8d04e():
+def _process_dataclass__d003957bad481d509f4ec2cac33a20338967514a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3000,7 +2997,7 @@ def _process_dataclass__af5136605d3a04bd19e00f4e8cb16e1823d8d04e():
 
 
 @_register(
-    installer_sha1='ae917885a6a326aae770575405ad16f2262d9d7c',
+    installer_sha1='713f41ac3185d68ecebb95edf01f6304ccff5f73',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3018,7 +3015,7 @@ def _process_dataclass__af5136605d3a04bd19e00f4e8cb16e1823d8d04e():
         ('omcore.text.pdcmark.inlines.nodes', 'DelimNode'),
     ),
 )
-def _process_dataclass__ae917885a6a326aae770575405ad16f2262d9d7c():
+def _process_dataclass__713f41ac3185d68ecebb95edf01f6304ccff5f73():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3106,7 +3103,7 @@ def _process_dataclass__ae917885a6a326aae770575405ad16f2262d9d7c():
 
 
 @_register(
-    installer_sha1='61c533b94195edfbf38ddc268ebf4a6e9b290b60',
+    installer_sha1='a9ea6c4fa61a1b6fd951739b9e9b7ff9840406f5',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3121,7 +3118,7 @@ def _process_dataclass__ae917885a6a326aae770575405ad16f2262d9d7c():
         ('omcore.text.pdcmark.inlines.nodes', 'EmphasisGroup'),
     ),
 )
-def _process_dataclass__61c533b94195edfbf38ddc268ebf4a6e9b290b60():
+def _process_dataclass__a9ea6c4fa61a1b6fd951739b9e9b7ff9840406f5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3191,7 +3188,7 @@ def _process_dataclass__61c533b94195edfbf38ddc268ebf4a6e9b290b60():
 
 
 @_register(
-    installer_sha1='0d9dd332e5956ba46a59b87a3b22a6ddba7cbb54',
+    installer_sha1='196e60f0abd1eb082d1d3bda4367ec936b14a483',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3205,7 +3202,7 @@ def _process_dataclass__61c533b94195edfbf38ddc268ebf4a6e9b290b60():
         ('omcore.text.pdcmark.inlines.nodes', 'SoftBreakNode'),
     ),
 )
-def _process_dataclass__0d9dd332e5956ba46a59b87a3b22a6ddba7cbb54():
+def _process_dataclass__196e60f0abd1eb082d1d3bda4367ec936b14a483():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3263,7 +3260,7 @@ def _process_dataclass__0d9dd332e5956ba46a59b87a3b22a6ddba7cbb54():
 
 
 @_register(
-    installer_sha1='76608cad13fac5e5a48ee797f22c023efe74b52d',
+    installer_sha1='cf1a04a336cd0bbc75173bc9ba8070f36ae12ffe',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3284,7 +3281,7 @@ def _process_dataclass__0d9dd332e5956ba46a59b87a3b22a6ddba7cbb54():
         ('omcore.text.pdcmark.inlines.nodes', 'LinkCloseNode'),
     ),
 )
-def _process_dataclass__76608cad13fac5e5a48ee797f22c023efe74b52d():
+def _process_dataclass__cf1a04a336cd0bbc75173bc9ba8070f36ae12ffe():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3396,7 +3393,7 @@ def _process_dataclass__76608cad13fac5e5a48ee797f22c023efe74b52d():
 
 
 @_register(
-    installer_sha1='ca5613bae833313ec5a330682cbecd3c013d4cd7',
+    installer_sha1='be73fef07f2d280ced70fe825486606f92552619',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3415,7 +3412,7 @@ def _process_dataclass__76608cad13fac5e5a48ee797f22c023efe74b52d():
         ('omcore.text.pdcmark.inlines.nodes', 'LinkGroup'),
     ),
 )
-def _process_dataclass__ca5613bae833313ec5a330682cbecd3c013d4cd7():
+def _process_dataclass__be73fef07f2d280ced70fe825486606f92552619():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3509,7 +3506,7 @@ def _process_dataclass__ca5613bae833313ec5a330682cbecd3c013d4cd7():
 
 
 @_register(
-    installer_sha1='a361ea23e5358973364c91be891e1f18a2a9ff0d',
+    installer_sha1='6e4657c2be8c858b309461a71cd1c51dce346cac',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -3524,7 +3521,7 @@ def _process_dataclass__ca5613bae833313ec5a330682cbecd3c013d4cd7():
         ('omcore.text.pdcmark.inlines.nodes', 'LinkOpenNode'),
     ),
 )
-def _process_dataclass__a361ea23e5358973364c91be891e1f18a2a9ff0d():
+def _process_dataclass__6e4657c2be8c858b309461a71cd1c51dce346cac():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3595,7 +3592,7 @@ def _process_dataclass__a361ea23e5358973364c91be891e1f18a2a9ff0d():
 
 
 @_register(
-    installer_sha1='44ae71c4cb258407ec0292ec60f5ace63f596005',
+    installer_sha1='219cccd455b187efe9b4bafc0991c6d456094422',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3610,7 +3607,7 @@ def _process_dataclass__a361ea23e5358973364c91be891e1f18a2a9ff0d():
         ('omcore.text.pdcmark.inlines.tokenize', 'TokenizedBlock'),
     ),
 )
-def _process_dataclass__44ae71c4cb258407ec0292ec60f5ace63f596005():
+def _process_dataclass__219cccd455b187efe9b4bafc0991c6d456094422():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3715,7 +3712,7 @@ def _process_dataclass__44ae71c4cb258407ec0292ec60f5ace63f596005():
 
 
 @_register(
-    installer_sha1='2d714e898573ee92c0c5b16c6673c8adf27bd015',
+    installer_sha1='28647ab1e11e906c659335dcf7fa6359f98f8e33',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3730,7 +3727,7 @@ def _process_dataclass__44ae71c4cb258407ec0292ec60f5ace63f596005():
         ('omcore.text.pdcmark.inlines.tokenize', '_Joined'),
     ),
 )
-def _process_dataclass__2d714e898573ee92c0c5b16c6673c8adf27bd015():
+def _process_dataclass__28647ab1e11e906c659335dcf7fa6359f98f8e33():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3835,7 +3832,7 @@ def _process_dataclass__2d714e898573ee92c0c5b16c6673c8adf27bd015():
 
 
 @_register(
-    installer_sha1='6274c81dc0f94319ce6a92564445da3802a89786',
+    installer_sha1='3b659149d3619488a1d28631b0fab0e5f7c8ff72',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -3851,7 +3848,7 @@ def _process_dataclass__2d714e898573ee92c0c5b16c6673c8adf27bd015():
         ('omcore.text.pdcmark.inlines.tokenize', '_LineInfo'),
     ),
 )
-def _process_dataclass__6274c81dc0f94319ce6a92564445da3802a89786():
+def _process_dataclass__3b659149d3619488a1d28631b0fab0e5f7c8ff72():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3964,7 +3961,7 @@ def _process_dataclass__6274c81dc0f94319ce6a92564445da3802a89786():
 
 
 @_register(
-    installer_sha1='f5d118e76552e3b001c6ca8a100026f30f7c3257',
+    installer_sha1='8f7541da8b32833821df0e42c7e8c95fc3ff4888',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3985,7 +3982,7 @@ def _process_dataclass__6274c81dc0f94319ce6a92564445da3802a89786():
         ('omcore.text.pdcmark.options', 'Options'),
     ),
 )
-def _process_dataclass__f5d118e76552e3b001c6ca8a100026f30f7c3257():
+def _process_dataclass__8f7541da8b32833821df0e42c7e8c95fc3ff4888():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4148,7 +4145,7 @@ def _process_dataclass__f5d118e76552e3b001c6ca8a100026f30f7c3257():
 
 
 @_register(
-    installer_sha1='be69263d01c7f19dd565ac5a69a4f46670e4d9dc',
+    installer_sha1='4343b15dec9224e9bc9c4de6fdfe2339d0855975',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4163,7 +4160,7 @@ def _process_dataclass__f5d118e76552e3b001c6ca8a100026f30f7c3257():
         ('omcore.text.pdcmark.scanning.atx', 'AtxOpen'),
     ),
 )
-def _process_dataclass__be69263d01c7f19dd565ac5a69a4f46670e4d9dc():
+def _process_dataclass__4343b15dec9224e9bc9c4de6fdfe2339d0855975():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4268,7 +4265,7 @@ def _process_dataclass__be69263d01c7f19dd565ac5a69a4f46670e4d9dc():
 
 
 @_register(
-    installer_sha1='d77686151f60eef59ed75c53a07dffb3d6b44297',
+    installer_sha1='e7071aaf15e9e9b33f77f228aba63cac56ddce45',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4283,7 +4280,7 @@ def _process_dataclass__be69263d01c7f19dd565ac5a69a4f46670e4d9dc():
         ('omcore.text.pdcmark.scanning.autolinks', 'AutolinkMatch'),
     ),
 )
-def _process_dataclass__d77686151f60eef59ed75c53a07dffb3d6b44297():
+def _process_dataclass__e7071aaf15e9e9b33f77f228aba63cac56ddce45():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4388,7 +4385,7 @@ def _process_dataclass__d77686151f60eef59ed75c53a07dffb3d6b44297():
 
 
 @_register(
-    installer_sha1='6c0e7be8b834ac193d202f433970db263406651e',
+    installer_sha1='268ae14af0ea9a15c4388ac6b330d0c373c76653',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4402,7 +4399,7 @@ def _process_dataclass__d77686151f60eef59ed75c53a07dffb3d6b44297():
         ('omcore.text.pdcmark.scanning.entities', 'EntityMatch'),
     ),
 )
-def _process_dataclass__6c0e7be8b834ac193d202f433970db263406651e():
+def _process_dataclass__268ae14af0ea9a15c4388ac6b330d0c373c76653():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4499,7 +4496,7 @@ def _process_dataclass__6c0e7be8b834ac193d202f433970db263406651e():
 
 
 @_register(
-    installer_sha1='36dbcc25b00cd54a11d21f217c87098e61d968e2',
+    installer_sha1='0aea944dd51c687cef12564b7299d4eb312fe5f6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4515,7 +4512,7 @@ def _process_dataclass__6c0e7be8b834ac193d202f433970db263406651e():
         ('omcore.text.pdcmark.scanning.fences', 'FenceOpen'),
     ),
 )
-def _process_dataclass__36dbcc25b00cd54a11d21f217c87098e61d968e2():
+def _process_dataclass__0aea944dd51c687cef12564b7299d4eb312fe5f6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4628,7 +4625,7 @@ def _process_dataclass__36dbcc25b00cd54a11d21f217c87098e61d968e2():
 
 
 @_register(
-    installer_sha1='e483439f4af79e5e00fc7f62737714f60e7fb6e0',
+    installer_sha1='2b19691c04e0914e33b25dd90e890ae3e9d6dcb1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4642,7 +4639,7 @@ def _process_dataclass__36dbcc25b00cd54a11d21f217c87098e61d968e2():
         ('omcore.text.pdcmark.scanning.htmlblocks', 'HtmlBlockStart'),
     ),
 )
-def _process_dataclass__e483439f4af79e5e00fc7f62737714f60e7fb6e0():
+def _process_dataclass__2b19691c04e0914e33b25dd90e890ae3e9d6dcb1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4739,7 +4736,7 @@ def _process_dataclass__e483439f4af79e5e00fc7f62737714f60e7fb6e0():
 
 
 @_register(
-    installer_sha1='235c414c17ab8b531bd8af35dd5d6614e71e81a0',
+    installer_sha1='11e5e5cdc4d43f76ea76c5f9a6d38d25ebd2aebf',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4752,7 +4749,7 @@ def _process_dataclass__e483439f4af79e5e00fc7f62737714f60e7fb6e0():
         ('omcore.text.pdcmark.scanning.inlinehtml', 'InlineHtmlMatch'),
     ),
 )
-def _process_dataclass__235c414c17ab8b531bd8af35dd5d6614e71e81a0():
+def _process_dataclass__11e5e5cdc4d43f76ea76c5f9a6d38d25ebd2aebf():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4841,7 +4838,7 @@ def _process_dataclass__235c414c17ab8b531bd8af35dd5d6614e71e81a0():
 
 
 @_register(
-    installer_sha1='ff7f77dbea22b7e7c0f5da65305d1f4492ec7abe',
+    installer_sha1='47efe55e92c0d271e6cb5400146e43afce3d5d94',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4855,7 +4852,7 @@ def _process_dataclass__235c414c17ab8b531bd8af35dd5d6614e71e81a0():
         ('omcore.text.pdcmark.scanning.links', 'LinkDestScan'),
     ),
 )
-def _process_dataclass__ff7f77dbea22b7e7c0f5da65305d1f4492ec7abe():
+def _process_dataclass__47efe55e92c0d271e6cb5400146e43afce3d5d94():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4952,7 +4949,7 @@ def _process_dataclass__ff7f77dbea22b7e7c0f5da65305d1f4492ec7abe():
 
 
 @_register(
-    installer_sha1='e1d7642cc85a93ea08fee2fd76d9c6d3ebf18684',
+    installer_sha1='c0146bb73953524afe04e69b4e6b9e748346b156',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4966,7 +4963,7 @@ def _process_dataclass__ff7f77dbea22b7e7c0f5da65305d1f4492ec7abe():
         ('omcore.text.pdcmark.scanning.links', 'LinkLabelScan'),
     ),
 )
-def _process_dataclass__e1d7642cc85a93ea08fee2fd76d9c6d3ebf18684():
+def _process_dataclass__c0146bb73953524afe04e69b4e6b9e748346b156():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5063,7 +5060,7 @@ def _process_dataclass__e1d7642cc85a93ea08fee2fd76d9c6d3ebf18684():
 
 
 @_register(
-    installer_sha1='11a792ad97b378754f5e39d459157cae1da053c2',
+    installer_sha1='eedcd234955c0416920ca09e447403022a086106',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -5077,7 +5074,7 @@ def _process_dataclass__e1d7642cc85a93ea08fee2fd76d9c6d3ebf18684():
         ('omcore.text.pdcmark.scanning.links', 'LinkTitleScan'),
     ),
 )
-def _process_dataclass__11a792ad97b378754f5e39d459157cae1da053c2():
+def _process_dataclass__eedcd234955c0416920ca09e447403022a086106():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5174,7 +5171,7 @@ def _process_dataclass__11a792ad97b378754f5e39d459157cae1da053c2():
 
 
 @_register(
-    installer_sha1='bb65b7d5b33ba6cc78cd1a8295cac2d7c0491ab3',
+    installer_sha1='5073e91709e8c000a73003d22eca4a2d1b8e3454',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -5190,7 +5187,7 @@ def _process_dataclass__11a792ad97b378754f5e39d459157cae1da053c2():
         ('omcore.text.pdcmark.scanning.lists', 'ListMarker'),
     ),
 )
-def _process_dataclass__bb65b7d5b33ba6cc78cd1a8295cac2d7c0491ab3():
+def _process_dataclass__5073e91709e8c000a73003d22eca4a2d1b8e3454():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5303,7 +5300,7 @@ def _process_dataclass__bb65b7d5b33ba6cc78cd1a8295cac2d7c0491ab3():
 
 
 @_register(
-    installer_sha1='5621caf134e5479073b33ce4390d1114b53ca50f',
+    installer_sha1='8c18c038f4638034e91a34906d2ed2786c1eec4d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -5317,7 +5314,7 @@ def _process_dataclass__bb65b7d5b33ba6cc78cd1a8295cac2d7c0491ab3():
         ('omcore.text.pdcmark.scanning.lists', 'TaskListMark'),
     ),
 )
-def _process_dataclass__5621caf134e5479073b33ce4390d1114b53ca50f():
+def _process_dataclass__8c18c038f4638034e91a34906d2ed2786c1eec4d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5414,7 +5411,7 @@ def _process_dataclass__5621caf134e5479073b33ce4390d1114b53ca50f():
 
 
 @_register(
-    installer_sha1='6443e0a384bb132956eb0a9b0e5f6ca0e9436516',
+    installer_sha1='428025bb86562ba1dbf453ca00b47d011624d0b3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -5428,7 +5425,7 @@ def _process_dataclass__5621caf134e5479073b33ce4390d1114b53ca50f():
         ('omcore.text.pdcmark.streaming.output', 'FeedOutput'),
     ),
 )
-def _process_dataclass__6443e0a384bb132956eb0a9b0e5f6ca0e9436516():
+def _process_dataclass__428025bb86562ba1dbf453ca00b47d011624d0b3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

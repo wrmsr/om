@@ -10,7 +10,6 @@ from .... import check
 from .... import lang
 from ...clsattrs import IfAttrPresent
 from ..utils import repr_round_trip_value
-from .globals import FN_GLOBAL_IMPORTS
 from .globals import FN_GLOBALS
 from .globals import FUNCTION_TYPE_GLOBAL
 from .globals import PROPERTY_GLOBAL
@@ -52,7 +51,7 @@ class OpCompiler:
             return []
 
         def globals_ns(self) -> ta.Mapping[str, ta.Any]:
-            return dict(FN_GLOBAL_IMPORTS)
+            return {}
 
     class AotStyle(Style):
         HEADER_LINES: ta.ClassVar[ta.Sequence[str]] = [
@@ -65,10 +64,6 @@ class OpCompiler:
         def header_lines(self) -> ta.Sequence[str]:
             return [
                 *self.HEADER_LINES,
-                *[
-                    f'import {i}'
-                    for i in FN_GLOBAL_IMPORTS
-                ],
             ]
 
         def globals_ns(self) -> ta.Mapping[str, ta.Any]:

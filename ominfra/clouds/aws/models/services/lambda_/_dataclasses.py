@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='df90a613a1d162093754d7631f1027d2b37b2c2a',
+    installer_sha1='d00458b3d8009aea7ffc5bc3277a60f25327118b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('ominfra.clouds.aws.models.services.lambda_', 'CapacityProviderConfig'),
     ),
 )
-def _process_dataclass__df90a613a1d162093754d7631f1027d2b37b2c2a():
+def _process_dataclass__d00458b3d8009aea7ffc5bc3277a60f25327118b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -138,7 +135,7 @@ def _process_dataclass__df90a613a1d162093754d7631f1027d2b37b2c2a():
 
 
 @_register(
-    installer_sha1='99f143aa07977396a94025d9431c3a4d264313f0',
+    installer_sha1='706816bf5045f538bcffaa6145b23d2d18e2f1cc',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -152,7 +149,7 @@ def _process_dataclass__df90a613a1d162093754d7631f1027d2b37b2c2a():
         ('ominfra.clouds.aws.models.services.lambda_', 'DeadLetterConfig'),
     ),
 )
-def _process_dataclass__99f143aa07977396a94025d9431c3a4d264313f0():
+def _process_dataclass__706816bf5045f538bcffaa6145b23d2d18e2f1cc():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -245,7 +242,7 @@ def _process_dataclass__99f143aa07977396a94025d9431c3a4d264313f0():
 
 
 @_register(
-    installer_sha1='939c75fa93c8b88a8c1728acd6a1f54544640e7e',
+    installer_sha1='c7343b5fed3d2e926a94c11b18fb46875272b43e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -261,7 +258,7 @@ def _process_dataclass__99f143aa07977396a94025d9431c3a4d264313f0():
         ('ominfra.clouds.aws.models.services.lambda_', 'DurableConfig'),
     ),
 )
-def _process_dataclass__939c75fa93c8b88a8c1728acd6a1f54544640e7e():
+def _process_dataclass__c7343b5fed3d2e926a94c11b18fb46875272b43e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -372,7 +369,7 @@ def _process_dataclass__939c75fa93c8b88a8c1728acd6a1f54544640e7e():
 
 
 @_register(
-    installer_sha1='d2b057f993c117ffa407e785a5e3800cdfca1e25',
+    installer_sha1='7a48f7f54e71124a1f341712b35f15e18b86f73c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -389,7 +386,7 @@ def _process_dataclass__939c75fa93c8b88a8c1728acd6a1f54544640e7e():
         ('ominfra.clouds.aws.models.services.lambda_', 'RuntimeVersionError'),
     ),
 )
-def _process_dataclass__d2b057f993c117ffa407e785a5e3800cdfca1e25():
+def _process_dataclass__7a48f7f54e71124a1f341712b35f15e18b86f73c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -491,7 +488,7 @@ def _process_dataclass__d2b057f993c117ffa407e785a5e3800cdfca1e25():
 
 
 @_register(
-    installer_sha1='560937a002d06232c0bf2dc622cd878163333cc1',
+    installer_sha1='b9521509e12ba7ac9fe0c62f1232f163946d942a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -506,7 +503,7 @@ def _process_dataclass__d2b057f993c117ffa407e785a5e3800cdfca1e25():
         ('ominfra.clouds.aws.models.services.lambda_', 'EnvironmentResponse'),
     ),
 )
-def _process_dataclass__560937a002d06232c0bf2dc622cd878163333cc1():
+def _process_dataclass__b9521509e12ba7ac9fe0c62f1232f163946d942a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -608,7 +605,7 @@ def _process_dataclass__560937a002d06232c0bf2dc622cd878163333cc1():
 
 
 @_register(
-    installer_sha1='50379ba61943e1ed3794d8f48ea71519cf7974e0',
+    installer_sha1='f78032dc7a5eb952eeabf596f9f704796ae575d8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -622,7 +619,7 @@ def _process_dataclass__560937a002d06232c0bf2dc622cd878163333cc1():
         ('ominfra.clouds.aws.models.services.lambda_', 'EphemeralStorage'),
     ),
 )
-def _process_dataclass__50379ba61943e1ed3794d8f48ea71519cf7974e0():
+def _process_dataclass__f78032dc7a5eb952eeabf596f9f704796ae575d8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -714,7 +711,7 @@ def _process_dataclass__50379ba61943e1ed3794d8f48ea71519cf7974e0():
 
 
 @_register(
-    installer_sha1='1473192131b4cd2e9b197d577b3cdf26ac63ce4b',
+    installer_sha1='c6929bebcb32b7957b1742323ad923267c929006',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -730,7 +727,7 @@ def _process_dataclass__50379ba61943e1ed3794d8f48ea71519cf7974e0():
         ('ominfra.clouds.aws.models.services.lambda_', 'FileSystemConfig'),
     ),
 )
-def _process_dataclass__1473192131b4cd2e9b197d577b3cdf26ac63ce4b():
+def _process_dataclass__c6929bebcb32b7957b1742323ad923267c929006():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -839,7 +836,7 @@ def _process_dataclass__1473192131b4cd2e9b197d577b3cdf26ac63ce4b():
 
 
 @_register(
-    installer_sha1='e0c7e45271d2d9861f00aaa7e6d4f873f63b497b',
+    installer_sha1='f72e5d0c5c815ef56bf8406d1136b49208d95d0e',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -894,7 +891,7 @@ def _process_dataclass__1473192131b4cd2e9b197d577b3cdf26ac63ce4b():
         ('ominfra.clouds.aws.models.services.lambda_', 'FunctionConfiguration'),
     ),
 )
-def _process_dataclass__e0c7e45271d2d9861f00aaa7e6d4f873f63b497b():
+def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1338,7 +1335,7 @@ def _process_dataclass__e0c7e45271d2d9861f00aaa7e6d4f873f63b497b():
 
 
 @_register(
-    installer_sha1='61c009c76115874910bc9df7e4844ce4787a4041',
+    installer_sha1='f087b851e1bf33f0ee5749c97d09983dd4f01e16',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1354,7 +1351,7 @@ def _process_dataclass__e0c7e45271d2d9861f00aaa7e6d4f873f63b497b():
         ('ominfra.clouds.aws.models.services.lambda_', 'ImageConfig'),
     ),
 )
-def _process_dataclass__61c009c76115874910bc9df7e4844ce4787a4041():
+def _process_dataclass__f087b851e1bf33f0ee5749c97d09983dd4f01e16():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1465,7 +1462,7 @@ def _process_dataclass__61c009c76115874910bc9df7e4844ce4787a4041():
 
 
 @_register(
-    installer_sha1='dff908dcd9e4875efaa7e4d07e0669d4965cb0b3',
+    installer_sha1='86c8d151eb9b96389f848b4072f8750207ee29b6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1480,7 +1477,7 @@ def _process_dataclass__61c009c76115874910bc9df7e4844ce4787a4041():
         ('ominfra.clouds.aws.models.services.lambda_', 'ImageConfigResponse'),
     ),
 )
-def _process_dataclass__dff908dcd9e4875efaa7e4d07e0669d4965cb0b3():
+def _process_dataclass__86c8d151eb9b96389f848b4072f8750207ee29b6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1582,7 +1579,7 @@ def _process_dataclass__dff908dcd9e4875efaa7e4d07e0669d4965cb0b3():
 
 
 @_register(
-    installer_sha1='d5c2aedadeb5b17df4e88dacf9f45eaeb5ebbc76',
+    installer_sha1='67b3ed3f9d0c0f245c19ca9c7ced51ae02fb5502',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1598,7 +1595,7 @@ def _process_dataclass__dff908dcd9e4875efaa7e4d07e0669d4965cb0b3():
         ('ominfra.clouds.aws.models.services.lambda_', 'ServiceException'),
     ),
 )
-def _process_dataclass__d5c2aedadeb5b17df4e88dacf9f45eaeb5ebbc76():
+def _process_dataclass__67b3ed3f9d0c0f245c19ca9c7ced51ae02fb5502():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1700,7 +1697,7 @@ def _process_dataclass__d5c2aedadeb5b17df4e88dacf9f45eaeb5ebbc76():
 
 
 @_register(
-    installer_sha1='cc49195501e061a7f7a3088ce818c9d3caf99fa9',
+    installer_sha1='dbeafed2796bf81afc8133f572676c9125b1e02b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1716,7 +1713,7 @@ def _process_dataclass__d5c2aedadeb5b17df4e88dacf9f45eaeb5ebbc76():
         ('ominfra.clouds.aws.models.services.lambda_', 'LambdaManagedInstancesCapacityProviderConfig'),
     ),
 )
-def _process_dataclass__cc49195501e061a7f7a3088ce818c9d3caf99fa9():
+def _process_dataclass__dbeafed2796bf81afc8133f572676c9125b1e02b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1826,7 +1823,7 @@ def _process_dataclass__cc49195501e061a7f7a3088ce818c9d3caf99fa9():
 
 
 @_register(
-    installer_sha1='d97a4a04ae99a52ec6599d55fe27d6a7d37722a5',
+    installer_sha1='8a64b47fa398ce99d6f98175a287f98b35fc6cf4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1843,7 +1840,7 @@ def _process_dataclass__cc49195501e061a7f7a3088ce818c9d3caf99fa9():
         ('ominfra.clouds.aws.models.services.lambda_', 'Layer'),
     ),
 )
-def _process_dataclass__d97a4a04ae99a52ec6599d55fe27d6a7d37722a5():
+def _process_dataclass__8a64b47fa398ce99d6f98175a287f98b35fc6cf4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1963,7 +1960,7 @@ def _process_dataclass__d97a4a04ae99a52ec6599d55fe27d6a7d37722a5():
 
 
 @_register(
-    installer_sha1='57b434f04a110c0f56b9b14774bc8d47b96337b5',
+    installer_sha1='7e7d6d4446701104324f323f6109b3ed1378d651',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1980,7 +1977,7 @@ def _process_dataclass__d97a4a04ae99a52ec6599d55fe27d6a7d37722a5():
         ('ominfra.clouds.aws.models.services.lambda_', 'ListFunctionsRequest'),
     ),
 )
-def _process_dataclass__57b434f04a110c0f56b9b14774bc8d47b96337b5():
+def _process_dataclass__7e7d6d4446701104324f323f6109b3ed1378d651():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2100,7 +2097,7 @@ def _process_dataclass__57b434f04a110c0f56b9b14774bc8d47b96337b5():
 
 
 @_register(
-    installer_sha1='d460cefec595794633ce8a866095fef4e10b65f8',
+    installer_sha1='23954c94e8c7d5e8d875e16e6c901b53663ab670',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2115,7 +2112,7 @@ def _process_dataclass__57b434f04a110c0f56b9b14774bc8d47b96337b5():
         ('ominfra.clouds.aws.models.services.lambda_', 'ListFunctionsResponse'),
     ),
 )
-def _process_dataclass__d460cefec595794633ce8a866095fef4e10b65f8():
+def _process_dataclass__23954c94e8c7d5e8d875e16e6c901b53663ab670():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2217,7 +2214,7 @@ def _process_dataclass__d460cefec595794633ce8a866095fef4e10b65f8():
 
 
 @_register(
-    installer_sha1='1284d077f0cc71c5ef31086aa737a90f55f03bc4',
+    installer_sha1='517b063418f0ccfac11441cf4f7a7f74b2dfcd00',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2234,7 +2231,7 @@ def _process_dataclass__d460cefec595794633ce8a866095fef4e10b65f8():
         ('ominfra.clouds.aws.models.services.lambda_', 'LoggingConfig'),
     ),
 )
-def _process_dataclass__1284d077f0cc71c5ef31086aa737a90f55f03bc4():
+def _process_dataclass__517b063418f0ccfac11441cf4f7a7f74b2dfcd00():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2354,7 +2351,7 @@ def _process_dataclass__1284d077f0cc71c5ef31086aa737a90f55f03bc4():
 
 
 @_register(
-    installer_sha1='23e98e87a932914026c76ba176d68ec63c4ba966',
+    installer_sha1='dfde7b5f806f1fe106e153ec0bba55e267709579',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2369,7 +2366,7 @@ def _process_dataclass__1284d077f0cc71c5ef31086aa737a90f55f03bc4():
         ('ominfra.clouds.aws.models.services.lambda_', 'RuntimeVersionConfig'),
     ),
 )
-def _process_dataclass__23e98e87a932914026c76ba176d68ec63c4ba966():
+def _process_dataclass__dfde7b5f806f1fe106e153ec0bba55e267709579():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2471,7 +2468,7 @@ def _process_dataclass__23e98e87a932914026c76ba176d68ec63c4ba966():
 
 
 @_register(
-    installer_sha1='6bb397fe26a491668cc1c4924afbe075d292fa8e',
+    installer_sha1='e92be82a1a50871e44afed646867c92ddbf8a8e6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2485,7 +2482,7 @@ def _process_dataclass__23e98e87a932914026c76ba176d68ec63c4ba966():
         ('ominfra.clouds.aws.models.services.lambda_', 'S3FilesConfig'),
     ),
 )
-def _process_dataclass__6bb397fe26a491668cc1c4924afbe075d292fa8e():
+def _process_dataclass__e92be82a1a50871e44afed646867c92ddbf8a8e6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2578,7 +2575,7 @@ def _process_dataclass__6bb397fe26a491668cc1c4924afbe075d292fa8e():
 
 
 @_register(
-    installer_sha1='081b1b4ea1dee5bd384fec1d5c425e66efbd721a',
+    installer_sha1='22cdbb9a3ce778b29ac223e1d483d4f106719c3c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2593,7 +2590,7 @@ def _process_dataclass__6bb397fe26a491668cc1c4924afbe075d292fa8e():
         ('ominfra.clouds.aws.models.services.lambda_', 'SnapStartResponse'),
     ),
 )
-def _process_dataclass__081b1b4ea1dee5bd384fec1d5c425e66efbd721a():
+def _process_dataclass__22cdbb9a3ce778b29ac223e1d483d4f106719c3c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2695,7 +2692,7 @@ def _process_dataclass__081b1b4ea1dee5bd384fec1d5c425e66efbd721a():
 
 
 @_register(
-    installer_sha1='5809cdf88870b30d1634bf49347781fe4ac5cb0f',
+    installer_sha1='0e6ba2066b44bb987405b92f5c93a1479a90f32a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2709,7 +2706,7 @@ def _process_dataclass__081b1b4ea1dee5bd384fec1d5c425e66efbd721a():
         ('ominfra.clouds.aws.models.services.lambda_', 'TenancyConfig'),
     ),
 )
-def _process_dataclass__5809cdf88870b30d1634bf49347781fe4ac5cb0f():
+def _process_dataclass__0e6ba2066b44bb987405b92f5c93a1479a90f32a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2801,7 +2798,7 @@ def _process_dataclass__5809cdf88870b30d1634bf49347781fe4ac5cb0f():
 
 
 @_register(
-    installer_sha1='e62ab210800b41a05f7aa4da54e40b885ec77836',
+    installer_sha1='a1b08705bf5d88f9dce3b4d9414a55cfc1bd5aa1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2818,7 +2815,7 @@ def _process_dataclass__5809cdf88870b30d1634bf49347781fe4ac5cb0f():
         ('ominfra.clouds.aws.models.services.lambda_', 'TooManyRequestsException'),
     ),
 )
-def _process_dataclass__e62ab210800b41a05f7aa4da54e40b885ec77836():
+def _process_dataclass__a1b08705bf5d88f9dce3b4d9414a55cfc1bd5aa1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2938,7 +2935,7 @@ def _process_dataclass__e62ab210800b41a05f7aa4da54e40b885ec77836():
 
 
 @_register(
-    installer_sha1='feba9996b755c042f36346ae4721712b3989c1e7',
+    installer_sha1='af189a2395b9a6acaf5ef705f27fad99119641b0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2952,7 +2949,7 @@ def _process_dataclass__e62ab210800b41a05f7aa4da54e40b885ec77836():
         ('ominfra.clouds.aws.models.services.lambda_', 'TracingConfigResponse'),
     ),
 )
-def _process_dataclass__feba9996b755c042f36346ae4721712b3989c1e7():
+def _process_dataclass__af189a2395b9a6acaf5ef705f27fad99119641b0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3045,7 +3042,7 @@ def _process_dataclass__feba9996b755c042f36346ae4721712b3989c1e7():
 
 
 @_register(
-    installer_sha1='e5a4f44aa243482eb9fc002170d2a01bb260512e',
+    installer_sha1='8387dfcb841c311b77ffc96500451b62187d154c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3062,7 +3059,7 @@ def _process_dataclass__feba9996b755c042f36346ae4721712b3989c1e7():
         ('ominfra.clouds.aws.models.services.lambda_', 'VpcConfigResponse'),
     ),
 )
-def _process_dataclass__e5a4f44aa243482eb9fc002170d2a01bb260512e():
+def _process_dataclass__8387dfcb841c311b77ffc96500451b62187d154c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

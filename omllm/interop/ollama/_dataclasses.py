@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='da8c5806e7f17fba17eb07bd6b1dde4995d50426',
+    installer_sha1='a7561c50e243b002d79c2ea0366d959401465b57',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -49,7 +46,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omllm.interop.ollama.protocol', 'BaseGenerateRequest'),
     ),
 )
-def _process_dataclass__da8c5806e7f17fba17eb07bd6b1dde4995d50426():
+def _process_dataclass__a7561c50e243b002d79c2ea0366d959401465b57():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -175,7 +172,7 @@ def _process_dataclass__da8c5806e7f17fba17eb07bd6b1dde4995d50426():
 
 
 @_register(
-    installer_sha1='415fdfd053d61c9d186a588adee5d9b9c47b009b',
+    installer_sha1='bf5f0f9975c11faf888c1d969f6d70592ea4e830',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -197,7 +194,7 @@ def _process_dataclass__da8c5806e7f17fba17eb07bd6b1dde4995d50426():
         ('omllm.interop.ollama.protocol', 'BaseGenerateResponse'),
     ),
 )
-def _process_dataclass__415fdfd053d61c9d186a588adee5d9b9c47b009b():
+def _process_dataclass__bf5f0f9975c11faf888c1d969f6d70592ea4e830():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -369,7 +366,7 @@ def _process_dataclass__415fdfd053d61c9d186a588adee5d9b9c47b009b():
 
 
 @_register(
-    installer_sha1='b9700b794f469d90a58fa833a07a7cdbf914bd15',
+    installer_sha1='648829d2164f2fc1a1bb7ccd5c2d9e9b953c9f99',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -382,7 +379,7 @@ def _process_dataclass__415fdfd053d61c9d186a588adee5d9b9c47b009b():
         ('omllm.interop.ollama.protocol', 'BaseRequest'),
     ),
 )
-def _process_dataclass__b9700b794f469d90a58fa833a07a7cdbf914bd15():
+def _process_dataclass__648829d2164f2fc1a1bb7ccd5c2d9e9b953c9f99():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -472,7 +469,7 @@ def _process_dataclass__b9700b794f469d90a58fa833a07a7cdbf914bd15():
 
 
 @_register(
-    installer_sha1='120256592f040eda58f5e8c4007b0b44f1d64e6c',
+    installer_sha1='e9024ff40c1120cb74fffe2979f7bf93d1210305',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -486,7 +483,7 @@ def _process_dataclass__b9700b794f469d90a58fa833a07a7cdbf914bd15():
         ('omllm.interop.ollama.protocol', 'BaseStreamableRequest'),
     ),
 )
-def _process_dataclass__120256592f040eda58f5e8c4007b0b44f1d64e6c():
+def _process_dataclass__e9024ff40c1120cb74fffe2979f7bf93d1210305():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -585,7 +582,7 @@ def _process_dataclass__120256592f040eda58f5e8c4007b0b44f1d64e6c():
 
 
 @_register(
-    installer_sha1='e93c23e33a930da6c8a2918c24e7b0831eeba471',
+    installer_sha1='160f37a252188ad1f6c1650c0937781104beef6c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -605,7 +602,7 @@ def _process_dataclass__120256592f040eda58f5e8c4007b0b44f1d64e6c():
         ('omllm.interop.ollama.protocol', 'ChatRequest'),
     ),
 )
-def _process_dataclass__e93c23e33a930da6c8a2918c24e7b0831eeba471():
+def _process_dataclass__160f37a252188ad1f6c1650c0937781104beef6c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -767,7 +764,7 @@ def _process_dataclass__e93c23e33a930da6c8a2918c24e7b0831eeba471():
 
 
 @_register(
-    installer_sha1='7d8c7645c771078abaa19f5084e82bcc3547a037',
+    installer_sha1='c8252f51462e0e9a5196756c580e868d6fc9cd1c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -790,7 +787,7 @@ def _process_dataclass__e93c23e33a930da6c8a2918c24e7b0831eeba471():
         ('omllm.interop.ollama.protocol', 'ChatResponse'),
     ),
 )
-def _process_dataclass__7d8c7645c771078abaa19f5084e82bcc3547a037():
+def _process_dataclass__c8252f51462e0e9a5196756c580e868d6fc9cd1c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -982,7 +979,7 @@ def _process_dataclass__7d8c7645c771078abaa19f5084e82bcc3547a037():
 
 
 @_register(
-    installer_sha1='11b91e515e3154e8483141c961a17e04c312f892',
+    installer_sha1='5bb8f152cf9f4e7b5166dce67d4579ab3843f2d1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1007,7 +1004,7 @@ def _process_dataclass__7d8c7645c771078abaa19f5084e82bcc3547a037():
         ('omllm.interop.ollama.protocol', 'GenerateRequest'),
     ),
 )
-def _process_dataclass__11b91e515e3154e8483141c961a17e04c312f892():
+def _process_dataclass__5bb8f152cf9f4e7b5166dce67d4579ab3843f2d1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1219,7 +1216,7 @@ def _process_dataclass__11b91e515e3154e8483141c961a17e04c312f892():
 
 
 @_register(
-    installer_sha1='7ac60029e02554cc9ad3482e28d115cbe690f5e0',
+    installer_sha1='b3264641e3785cf662b4f2b47ec5cff3b50b2bff',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1244,7 +1241,7 @@ def _process_dataclass__11b91e515e3154e8483141c961a17e04c312f892():
         ('omllm.interop.ollama.protocol', 'GenerateResponse'),
     ),
 )
-def _process_dataclass__7ac60029e02554cc9ad3482e28d115cbe690f5e0():
+def _process_dataclass__b3264641e3785cf662b4f2b47ec5cff3b50b2bff():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1456,7 +1453,7 @@ def _process_dataclass__7ac60029e02554cc9ad3482e28d115cbe690f5e0():
 
 
 @_register(
-    installer_sha1='7bc1bedc97cae3cf6bc291cf4d9e3cf0dbc833df',
+    installer_sha1='cd32495fd66d6a204daa2d79f6a25c55f51231cb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1476,7 +1473,7 @@ def _process_dataclass__7ac60029e02554cc9ad3482e28d115cbe690f5e0():
         ('omllm.interop.ollama.protocol', 'ListModelResponse'),
     ),
 )
-def _process_dataclass__7bc1bedc97cae3cf6bc291cf4d9e3cf0dbc833df():
+def _process_dataclass__cd32495fd66d6a204daa2d79f6a25c55f51231cb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1634,7 +1631,7 @@ def _process_dataclass__7bc1bedc97cae3cf6bc291cf4d9e3cf0dbc833df():
 
 
 @_register(
-    installer_sha1='7f214bdbe37ae6274b98e86327365fdf2dc65047',
+    installer_sha1='4d065936acdabdf58230c042699ff108641d3465',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1652,7 +1649,7 @@ def _process_dataclass__7bc1bedc97cae3cf6bc291cf4d9e3cf0dbc833df():
         ('omllm.interop.ollama.protocol', 'Message'),
     ),
 )
-def _process_dataclass__7f214bdbe37ae6274b98e86327365fdf2dc65047():
+def _process_dataclass__4d065936acdabdf58230c042699ff108641d3465():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1794,7 +1791,7 @@ def _process_dataclass__7f214bdbe37ae6274b98e86327365fdf2dc65047():
 
 
 @_register(
-    installer_sha1='398df87b16f8f43b9953996d20e3abeee402adc7',
+    installer_sha1='21f9e5e8c59b244beb424f65e2d0cdb4c926e055',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1808,7 +1805,7 @@ def _process_dataclass__7f214bdbe37ae6274b98e86327365fdf2dc65047():
         ('omllm.interop.ollama.protocol', 'Message.ToolCall'),
     ),
 )
-def _process_dataclass__398df87b16f8f43b9953996d20e3abeee402adc7():
+def _process_dataclass__21f9e5e8c59b244beb424f65e2d0cdb4c926e055():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1907,7 +1904,7 @@ def _process_dataclass__398df87b16f8f43b9953996d20e3abeee402adc7():
 
 
 @_register(
-    installer_sha1='e14f6abb8bbef8dc989aadfb3cc47c65d6e7ba72',
+    installer_sha1='e410ac3a28de51cf2d5f728c1fd4a61b79d0ebac',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1922,7 +1919,7 @@ def _process_dataclass__398df87b16f8f43b9953996d20e3abeee402adc7():
         ('omllm.interop.ollama.protocol', 'Message.ToolCall.Function'),
     ),
 )
-def _process_dataclass__e14f6abb8bbef8dc989aadfb3cc47c65d6e7ba72():
+def _process_dataclass__e410ac3a28de51cf2d5f728c1fd4a61b79d0ebac():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2029,7 +2026,7 @@ def _process_dataclass__e14f6abb8bbef8dc989aadfb3cc47c65d6e7ba72():
 
 
 @_register(
-    installer_sha1='4962813809665b0d5ab7a2faed29cdaab7c7ef69',
+    installer_sha1='8f478a54d64cbee6c614ce7105eb26bc5e20859d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2047,7 +2044,7 @@ def _process_dataclass__e14f6abb8bbef8dc989aadfb3cc47c65d6e7ba72():
         ('omllm.interop.ollama.protocol', 'ModelDetails'),
     ),
 )
-def _process_dataclass__4962813809665b0d5ab7a2faed29cdaab7c7ef69():
+def _process_dataclass__8f478a54d64cbee6c614ce7105eb26bc5e20859d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2184,7 +2181,7 @@ def _process_dataclass__4962813809665b0d5ab7a2faed29cdaab7c7ef69():
 
 
 @_register(
-    installer_sha1='2001158470a2091f2a50cf47e99d5574ff1e5d72',
+    installer_sha1='5ea8b31cdf18091aa385791921ab4de7e06b67e5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2226,7 +2223,7 @@ def _process_dataclass__4962813809665b0d5ab7a2faed29cdaab7c7ef69():
         ('omllm.interop.ollama.protocol', 'Options'),
     ),
 )
-def _process_dataclass__2001158470a2091f2a50cf47e99d5574ff1e5d72():
+def _process_dataclass__5ea8b31cdf18091aa385791921ab4de7e06b67e5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2609,7 +2606,7 @@ def _process_dataclass__2001158470a2091f2a50cf47e99d5574ff1e5d72():
 
 
 @_register(
-    installer_sha1='201e8130161d0c81b93711fa61446ee8b1df2e39',
+    installer_sha1='7107a19dac9576385d873935a68bba8caf140456',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2623,7 +2620,7 @@ def _process_dataclass__2001158470a2091f2a50cf47e99d5574ff1e5d72():
         ('omllm.interop.ollama.protocol', 'Tool'),
     ),
 )
-def _process_dataclass__201e8130161d0c81b93711fa61446ee8b1df2e39():
+def _process_dataclass__7107a19dac9576385d873935a68bba8caf140456():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2726,7 +2723,7 @@ def _process_dataclass__201e8130161d0c81b93711fa61446ee8b1df2e39():
 
 
 @_register(
-    installer_sha1='4c0c88424936dfc689da9d4cf5078fd4c445db95',
+    installer_sha1='55f715cbcd12ee39f988d82ef414cb3c5dc0e316',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2741,7 +2738,7 @@ def _process_dataclass__201e8130161d0c81b93711fa61446ee8b1df2e39():
         ('omllm.interop.ollama.protocol', 'Tool.Function'),
     ),
 )
-def _process_dataclass__4c0c88424936dfc689da9d4cf5078fd4c445db95():
+def _process_dataclass__55f715cbcd12ee39f988d82ef414cb3c5dc0e316():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

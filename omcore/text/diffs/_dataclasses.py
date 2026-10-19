@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='a5e8f063c09b5fb8f17bb1974c1df163b510df3d',
+    installer_sha1='559a71629844c3c38cbc2eb22af7bcdbc043fed0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -48,7 +45,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.text.diffs.styled.layouts', 'DiffFileLines'),
     ),
 )
-def _process_dataclass__a5e8f063c09b5fb8f17bb1974c1df163b510df3d():
+def _process_dataclass__559a71629844c3c38cbc2eb22af7bcdbc043fed0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -162,7 +159,7 @@ def _process_dataclass__a5e8f063c09b5fb8f17bb1974c1df163b510df3d():
 
 
 @_register(
-    installer_sha1='da4547812146128c58f19616f3c5c1235d6db7a3',
+    installer_sha1='f347c9891d7c6368cf55d8bfa6c0e4c5f2885aa1',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -176,7 +173,7 @@ def _process_dataclass__a5e8f063c09b5fb8f17bb1974c1df163b510df3d():
         ('omcore.text.diffs.styled.options', 'DiffContextLimits'),
     ),
 )
-def _process_dataclass__da4547812146128c58f19616f3c5c1235d6db7a3():
+def _process_dataclass__f347c9891d7c6368cf55d8bfa6c0e4c5f2885aa1():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -277,7 +274,7 @@ def _process_dataclass__da4547812146128c58f19616f3c5c1235d6db7a3():
 
 
 @_register(
-    installer_sha1='6b1786cc711d9af712331d3be94b3a4cf7f5d346',
+    installer_sha1='02122095a4d9ca1c5b828c7007a85db2498ccbbb',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -295,7 +292,7 @@ def _process_dataclass__da4547812146128c58f19616f3c5c1235d6db7a3():
         ('omcore.text.diffs.styled.options', 'DiffStyledDocOptions'),
     ),
 )
-def _process_dataclass__6b1786cc711d9af712331d3be94b3a4cf7f5d346():
+def _process_dataclass__02122095a4d9ca1c5b828c7007a85db2498ccbbb():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -432,7 +429,7 @@ def _process_dataclass__6b1786cc711d9af712331d3be94b3a4cf7f5d346():
 
 
 @_register(
-    installer_sha1='74a97184cca4f4f6ea28ca57cc05bd847cfa7b00',
+    installer_sha1='c5865a8163860321f24a08458d14a35640f7553d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -446,7 +443,7 @@ def _process_dataclass__6b1786cc711d9af712331d3be94b3a4cf7f5d346():
         ('omcore.text.diffs.styled.sources', 'DiffFileTexts'),
     ),
 )
-def _process_dataclass__74a97184cca4f4f6ea28ca57cc05bd847cfa7b00():
+def _process_dataclass__c5865a8163860321f24a08458d14a35640f7553d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -546,7 +543,7 @@ def _process_dataclass__74a97184cca4f4f6ea28ca57cc05bd847cfa7b00():
 
 
 @_register(
-    installer_sha1='5a3c9660bf07790cde2668ca5e63a9cee76247a1',
+    installer_sha1='c65f0a711fc36aebe5ceef8b83566c33bb2bc551',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -561,7 +558,7 @@ def _process_dataclass__74a97184cca4f4f6ea28ca57cc05bd847cfa7b00():
         ('omcore.text.diffs.styled.split', '_AlignedRow'),
     ),
 )
-def _process_dataclass__5a3c9660bf07790cde2668ca5e63a9cee76247a1():
+def _process_dataclass__c65f0a711fc36aebe5ceef8b83566c33bb2bc551():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -667,7 +664,7 @@ def _process_dataclass__5a3c9660bf07790cde2668ca5e63a9cee76247a1():
 
 
 @_register(
-    installer_sha1='82f6ffeb2d88cf99a0555ac2f435011a8cd69cff',
+    installer_sha1='62500c3aa8ddae78b85a03cfd6bd35b97eff886b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -682,7 +679,7 @@ def _process_dataclass__5a3c9660bf07790cde2668ca5e63a9cee76247a1():
         ('omcore.text.diffs.styled.split', '_SideLine'),
     ),
 )
-def _process_dataclass__82f6ffeb2d88cf99a0555ac2f435011a8cd69cff():
+def _process_dataclass__62500c3aa8ddae78b85a03cfd6bd35b97eff886b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,

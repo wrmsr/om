@@ -2,9 +2,6 @@
 # type: ignore
 # ruff: noqa
 # flake8: noqa
-import dataclasses
-import reprlib
-import types
 
 
 ##
@@ -32,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='f707c5f722747b9f5bf1bdd8e8120f73f21d0b1a',
+    installer_sha1='e0331dc7a5e729e0923ebe15bd7aa2c1b35f9830',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -46,7 +43,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
         ('omcore.sql.api.asquery', 'AsQueryContext'),
     ),
 )
-def _process_dataclass__f707c5f722747b9f5bf1bdd8e8120f73f21d0b1a():
+def _process_dataclass__e0331dc7a5e729e0923ebe15bd7aa2c1b35f9830():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -146,7 +143,7 @@ def _process_dataclass__f707c5f722747b9f5bf1bdd8e8120f73f21d0b1a():
 
 
 @_register(
-    installer_sha1='c735d0bab047bbb6ea9fe052b1212cd31cb545f6',
+    installer_sha1='bd16817219a1780087a092d447c0106c7f652d81',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -161,7 +158,7 @@ def _process_dataclass__f707c5f722747b9f5bf1bdd8e8120f73f21d0b1a():
         ('omcore.sql.api.columns', 'Column'),
     ),
 )
-def _process_dataclass__c735d0bab047bbb6ea9fe052b1212cd31cb545f6():
+def _process_dataclass__bd16817219a1780087a092d447c0106c7f652d81():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -269,7 +266,7 @@ def _process_dataclass__c735d0bab047bbb6ea9fe052b1212cd31cb545f6():
 
 
 @_register(
-    installer_sha1='4f3791c3b2a5406e973759e49a2d906a2e9bb89c',
+    installer_sha1='0e3078e43e5f9c5e003ee9c2f789e1ab9659f7c2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -282,7 +279,7 @@ def _process_dataclass__c735d0bab047bbb6ea9fe052b1212cd31cb545f6():
         ('omcore.sql.api.queries', 'ManyParams'),
     ),
 )
-def _process_dataclass__4f3791c3b2a5406e973759e49a2d906a2e9bb89c():
+def _process_dataclass__0e3078e43e5f9c5e003ee9c2f789e1ab9659f7c2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -371,7 +368,7 @@ def _process_dataclass__4f3791c3b2a5406e973759e49a2d906a2e9bb89c():
 
 
 @_register(
-    installer_sha1='76621be3a57a87d72cb8aa4ed91aa113fed004f8',
+    installer_sha1='61640a38dcd12b0d561504c49a37369aeea16050',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -383,7 +380,7 @@ def _process_dataclass__4f3791c3b2a5406e973759e49a2d906a2e9bb89c():
         ('omcore.sql.api.queries', 'NoParams'),
     ),
 )
-def _process_dataclass__76621be3a57a87d72cb8aa4ed91aa113fed004f8():
+def _process_dataclass__61640a38dcd12b0d561504c49a37369aeea16050():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -443,7 +440,7 @@ def _process_dataclass__76621be3a57a87d72cb8aa4ed91aa113fed004f8():
 
 
 @_register(
-    installer_sha1='135637c62b315b95b8a1a8d7721e34d1e105b5fe',
+    installer_sha1='99049cae1bd556085eef5bb36bf2e58f971bdd4b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -458,7 +455,7 @@ def _process_dataclass__76621be3a57a87d72cb8aa4ed91aa113fed004f8():
         ('omcore.sql.api.queries', 'Query'),
     ),
 )
-def _process_dataclass__135637c62b315b95b8a1a8d7721e34d1e105b5fe():
+def _process_dataclass__99049cae1bd556085eef5bb36bf2e58f971bdd4b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -564,7 +561,7 @@ def _process_dataclass__135637c62b315b95b8a1a8d7721e34d1e105b5fe():
 
 
 @_register(
-    installer_sha1='b437895e997b1cc68c4e36257f02a65e2a894180',
+    installer_sha1='2e9c2c8314bdc172df0c232bdc5c95c17700fd22',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -576,7 +573,7 @@ def _process_dataclass__135637c62b315b95b8a1a8d7721e34d1e105b5fe():
         ('omcore.sql.api.queries', 'QueryParams'),
     ),
 )
-def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
+def _process_dataclass__2e9c2c8314bdc172df0c232bdc5c95c17700fd22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -644,7 +641,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
 
 
 @_register(
-    installer_sha1='6837c15bae221f7864c24e84e1b28cc426410729',
+    installer_sha1='6d7d72d9e5aa08bc6f6fb05eb70f095db8fae24a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -657,7 +654,7 @@ def _process_dataclass__b437895e997b1cc68c4e36257f02a65e2a894180():
         ('omcore.sql.api.queries', 'RowParams'),
     ),
 )
-def _process_dataclass__6837c15bae221f7864c24e84e1b28cc426410729():
+def _process_dataclass__6d7d72d9e5aa08bc6f6fb05eb70f095db8fae24a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -746,7 +743,7 @@ def _process_dataclass__6837c15bae221f7864c24e84e1b28cc426410729():
 
 
 @_register(
-    installer_sha1='31a53c5206a716c6676581fee28ab00580a2a7a6',
+    installer_sha1='c68fa4664fa261394dc7bb8461dcdfe390664281',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -760,7 +757,7 @@ def _process_dataclass__6837c15bae221f7864c24e84e1b28cc426410729():
         ('omcore.sql.api.rows', 'Row'),
     ),
 )
-def _process_dataclass__31a53c5206a716c6676581fee28ab00580a2a7a6():
+def _process_dataclass__c68fa4664fa261394dc7bb8461dcdfe390664281():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
