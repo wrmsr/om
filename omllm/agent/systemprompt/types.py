@@ -12,7 +12,13 @@ from omcore import lang
 class SystemPromptPriority(enum.IntEnum):
     FIRST = enum.auto()
 
-    DEFAULT = enum.auto()  # FIXME: remove lol
+    MISSION = enum.auto()
+
+    USER = enum.auto()
+
+    TOOLS = enum.auto()
+
+    ENVIRONMENT = enum.auto()
 
     LAST = enum.auto()
 

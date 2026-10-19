@@ -31,10 +31,10 @@ class SubagentProfileSystemPromptContributor(SystemPromptContributor):
 
     def get_system_prompt_parts(self) -> ta.Sequence[SystemPromptPart] | None:
         parts = [
-            SystemPromptPart(SystemPromptPriority.DEFAULT, SUBAGENT_SYSTEM_PROMPT),
+            SystemPromptPart(SystemPromptPriority.MISSION, SUBAGENT_SYSTEM_PROMPT),
         ]
 
         if (profile_prompt := self._profile.system_prompt) is not None:
-            parts.append(SystemPromptPart(SystemPromptPriority.DEFAULT, profile_prompt))
+            parts.append(SystemPromptPart(SystemPromptPriority.USER, profile_prompt))
 
         return parts

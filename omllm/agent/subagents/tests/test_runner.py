@@ -280,7 +280,7 @@ async def test_child_gets_the_profiles_tools_and_prompt_and_nothing_of_the_paren
 
     class _Extra:
         def get_system_prompt_parts(self):
-            return [SystemPromptPart(SystemPromptPriority.DEFAULT, 'Working in /tmp/somewhere')]
+            return [SystemPromptPart(SystemPromptPriority.ENVIRONMENT, 'Working in /tmp/somewhere')]
 
     runner = child_runner(
         llm.BackendScriptTurn(text_message('child done'), expect=expect),

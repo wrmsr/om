@@ -27,7 +27,7 @@ class CwdSystemPromptContributor(agn.SystemPromptContributor):
 
         return [
             agn.SystemPromptPart(
-                agn.SystemPromptPriority.DEFAULT,
+                agn.SystemPromptPriority.ENVIRONMENT,
                 f'Current working directory: {self._cwd.v}',
             ),
         ]

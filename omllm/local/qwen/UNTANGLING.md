@@ -35,7 +35,7 @@ models code-switch back into writing what that code looks like -- the extra bran
 shared object, the "just for now" field -- despite explicit instructions, nearby examples and reminders. This
 very codebase, written with that intent, drifted into the same shape within a few features. Expect to catch
 yourself doing it. The defence is to decide the extension point first and the implementation second, every time,
-and to treat "I'll add a parameter to `generate`" as the signal that an interface is missing.
+and to treat "I'll add a parameter to `generate`" as the signal that` an interface is missing.
 
 
 ## 2. State of affairs

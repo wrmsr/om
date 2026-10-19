@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '549b4b241a599328bcd22ef8329c7087910c1637'
+__om_amalg_sha1__ = '62f19e7e156114eb6511bd4385af9d9404751362'
 
 
 def __om_amalg__():  # noqa
@@ -69,7 +69,7 @@ def __om_amalg__():  # noqa
             dict(sha1='a663184c584cf8d8449981d424337f8fbb61c7e8', path='../../../omcore/os/pyremote/core.py'),
             dict(sha1='f6572b8c34185813301434c2b1243c2641f52eef', path='../fs/common.py'),
             dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../../omcore/lite/marshal.py'),
-            dict(sha1='cccaf9ee9819d6f4daa51a1d26776b682d1a40c5', path='../fs/ops.py'),
+            dict(sha1='a1a612dc895e5944561dbfcd40e13209c0b9c302', path='../fs/ops.py'),
             dict(sha1='e9c931c9b1aafae94c5b5a6468cc218c74483692', path='../fs/remote/protocol.py'),
             dict(sha1='995eba7586af040b569b0ff77fb5e3a2d132f18e', path='../../core/processes/remote/protocol.py'),
             dict(sha1='e388e9282a7a01d535c7691883351bb8d58d5d11', path='../fs/local.py'),
