@@ -23,7 +23,7 @@ black==26.10.1
 blobfile==3.3.0
 boto3==1.43.117
 botocore==1.43.117
-botocore-stubs==1.43.116
+botocore-stubs==1.43.117
 brotli==1.2.0
 build==1.6.1
 cbor2==6.1.5
@@ -41,7 +41,7 @@ Cython==3.3.0
 datasets==5.1.0
 ddgs==9.16.0
 debugpy==1.8.22
-deno==2.9.7
+deno==2.9.8
 diffusers==0.41.0
 dill==0.4.1
 diskcache==5.6.3
@@ -222,7 +222,7 @@ scikit-learn==1.9.1
 scipy==1.18.1
 scramp==1.4.17
 segno==1.6.6
-sentence-transformers==6.1.0
+sentence-transformers==6.2.0
 sentencepiece==0.2.2
 setuptools==84.2.1
 shapely==2.2.0
@@ -247,7 +247,7 @@ torch==2.14.1
 torchvision==0.29.1
 tqdm==4.70.1
 traitlets==5.16.1
-transformers==5.20.1
+transformers==5.20.2
 tree-sitter==0.26.0
 tree-sitter-bash==0.25.1
 tree-sitter-css==0.25.0
@@ -272,7 +272,7 @@ types-awscrt==0.37.0
 types-boto3==1.43.116
 types-docutils==0.23.0.20260923
 types-greenlet==3.5.0.20260518
-types-paramiko==5.0.0.20261006
+types-paramiko==5.0.0.20261021
 types-psutil==7.2.2.20260906
 types-Pygments==2.21.0.20260819
 types-PyMySQL==1.2.0.20260923

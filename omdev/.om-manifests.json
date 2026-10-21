@@ -92,7 +92,10 @@
     "line": 4,
     "value": {
       "!.cli.types.CliModule": {
-        "name": "dockerdev",
+        "name": [
+          "dockerdev",
+          "dd"
+        ],
         "module": "omdev.dockerdev.__main__"
       }
     }

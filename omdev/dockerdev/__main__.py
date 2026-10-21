@@ -2,7 +2,7 @@ from ..cli import CliModule
 
 
 # @om-manifest
-_CLI_MODULE = CliModule('dockerdev', __name__)
+_CLI_MODULE = CliModule(['dockerdev', 'dd'], __name__)
 
 
 if __name__ == '__main__':

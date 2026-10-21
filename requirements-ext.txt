@@ -74,7 +74,7 @@ unicorn==2.1.4
 ##
 # bins
 
-deno==2.9.7
+deno==2.9.8
 playwright==1.64.0
 ripgrep==15.1.0
 mojo==1.1.0
