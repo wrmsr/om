@@ -136,7 +136,7 @@ pyzmq==27.2.0
 
 datasets==5.1.0
 
-transformers==5.20.2  # @om-venv !15t
+transformers==5.20.2  # @om-venv !15 !15t
 sentence-transformers==6.2.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.2
@@ -173,7 +173,7 @@ pillow==13.0.0
 # accelerate==1.15.0 "linux"  # @omlish-venv !15 !15t
 # # causal-conv1d==1.7.0; sys_platform == "linux"  # @omlish-venv !15 !15t
 
-bitsandbytes==0.50.2
+bitsandbytes==0.50.2  # @om-venv !15 !15t
 
 regex==2026.9.29
 
