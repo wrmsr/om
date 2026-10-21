@@ -386,6 +386,7 @@ def _process_dataclass__c2e5cac7fca386a1fe775382b6001eba3d995362():
         ('ominfra.clouds.aws.models.services.rds', 'AuthorizationNotFoundFault'),
         ('ominfra.clouds.aws.models.services.rds', 'BackupPolicyNotFoundFault'),
         ('ominfra.clouds.aws.models.services.rds', 'CertificateNotFoundFault'),
+        ('ominfra.clouds.aws.models.services.rds', 'DBCapacityReservationNotFoundFault'),
         ('ominfra.clouds.aws.models.services.rds', 'DBClusterNotFoundFault'),
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceAlreadyExistsFault'),
         ('ominfra.clouds.aws.models.services.rds', 'DBInstanceAutomatedBackupQuotaExceededFault'),
@@ -398,6 +399,7 @@ def _process_dataclass__c2e5cac7fca386a1fe775382b6001eba3d995362():
         ('ominfra.clouds.aws.models.services.rds', 'DomainNotFoundFault'),
         ('ominfra.clouds.aws.models.services.rds', 'InstanceQuotaExceededFault'),
         ('ominfra.clouds.aws.models.services.rds', 'InsufficientDBInstanceCapacityFault'),
+        ('ominfra.clouds.aws.models.services.rds', 'InvalidDBCapacityReservationStateFault'),
         ('ominfra.clouds.aws.models.services.rds', 'InvalidDBClusterStateFault'),
         ('ominfra.clouds.aws.models.services.rds', 'InvalidDBInstanceStateFault'),
         ('ominfra.clouds.aws.models.services.rds', 'InvalidSubnet'),
@@ -712,7 +714,7 @@ def _process_dataclass__fbbcab5239be161d231b984c3b710fa7600d9cce():
 
 
 @_register(
-    installer_sha1='8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7',
+    installer_sha1='d56f8e014b169b333e921ca6ed81db66cdcad8f7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -790,16 +792,17 @@ def _process_dataclass__fbbcab5239be161d231b984c3b710fa7600d9cce():
             "se), (('engine_lifecycle_support', True, True, None, True, True, False, None), 'instance', 'value', None, "
             "False, False, False), (('additional_storage_volumes', True, True, None, True, True, False, None), 'instanc"
             "e', 'value', None, False, False, False), (('tag_specifications', True, True, None, True, True, False, None"
-            "), 'instance', 'value', None, False, False, False), (('master_user_authentication_type', True, True, None,"
-            " True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (Fa"
-            "lse,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "), 'instance', 'value', None, False, False, False), (('db_capacity_reservation_identifier', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', None, False, False, False), (('master_user_authenticati"
+            "on_type', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), Fa"
+            "lse, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'CreateDBInstanceMessage'),
     ),
 )
-def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
+def _process_dataclass__d56f8e014b169b333e921ca6ed81db66cdcad8f7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -938,6 +941,8 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
         __dataclass__init__fields__66__default = __dataclass__spec.fields[66].default.must()
         __dataclass__init__fields__67__annotation = __dataclass__spec.fields[67].annotation
         __dataclass__init__fields__67__default = __dataclass__spec.fields[67].default.must()
+        __dataclass__init__fields__68__annotation = __dataclass__spec.fields[68].annotation
+        __dataclass__init__fields__68__default = __dataclass__spec.fields[68].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -1014,6 +1019,7 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
                 engine_lifecycle_support=self.engine_lifecycle_support,
                 additional_storage_volumes=self.additional_storage_volumes,
                 tag_specifications=self.tag_specifications,
+                db_capacity_reservation_identifier=self.db_capacity_reservation_identifier,
                 master_user_authentication_type=self.master_user_authentication_type,
             )
 
@@ -1091,6 +1097,7 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
                 self.engine_lifecycle_support == other.engine_lifecycle_support and
                 self.additional_storage_volumes == other.additional_storage_volumes and
                 self.tag_specifications == other.tag_specifications and
+                self.db_capacity_reservation_identifier == other.db_capacity_reservation_identifier and
                 self.master_user_authentication_type == other.master_user_authentication_type
             )
 
@@ -1164,6 +1171,7 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
             'engine_lifecycle_support',
             'additional_storage_volumes',
             'tag_specifications',
+            'db_capacity_reservation_identifier',
             'master_user_authentication_type',
         }
 
@@ -1255,6 +1263,7 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
                 self.engine_lifecycle_support,
                 self.additional_storage_volumes,
                 self.tag_specifications,
+                self.db_capacity_reservation_identifier,
                 self.master_user_authentication_type,
             ))
 
@@ -1329,7 +1338,8 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
             engine_lifecycle_support: __dataclass__init__fields__64__annotation = __dataclass__init__fields__64__default,
             additional_storage_volumes: __dataclass__init__fields__65__annotation = __dataclass__init__fields__65__default,
             tag_specifications: __dataclass__init__fields__66__annotation = __dataclass__init__fields__66__default,
-            master_user_authentication_type: __dataclass__init__fields__67__annotation = __dataclass__init__fields__67__default,
+            db_capacity_reservation_identifier: __dataclass__init__fields__67__annotation = __dataclass__init__fields__67__default,
+            master_user_authentication_type: __dataclass__init__fields__68__annotation = __dataclass__init__fields__68__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'db_name', db_name)
             __dataclass__object_setattr(self, 'db_instance_identifier', db_instance_identifier)
@@ -1397,6 +1407,7 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
             __dataclass__object_setattr(self, 'engine_lifecycle_support', engine_lifecycle_support)
             __dataclass__object_setattr(self, 'additional_storage_volumes', additional_storage_volumes)
             __dataclass__object_setattr(self, 'tag_specifications', tag_specifications)
+            __dataclass__object_setattr(self, 'db_capacity_reservation_identifier', db_capacity_reservation_identifier)
             __dataclass__object_setattr(self, 'master_user_authentication_type', master_user_authentication_type)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -1470,6 +1481,7 @@ def _process_dataclass__8be2276ed10bb8a99a6eafdfa1ccffbfc6fb6ae7():
             parts.append(f"engine_lifecycle_support={self.engine_lifecycle_support!r}")
             parts.append(f"additional_storage_volumes={self.additional_storage_volumes!r}")
             parts.append(f"tag_specifications={self.tag_specifications!r}")
+            parts.append(f"db_capacity_reservation_identifier={self.db_capacity_reservation_identifier!r}")
             parts.append(f"master_user_authentication_type={self.master_user_authentication_type!r}")
             return (
                 f"{self.__class__.__qualname__}("
@@ -1594,7 +1606,7 @@ def _process_dataclass__b2f0a4eaae34ddb82da127c87aa18a3127781f9b():
 
 
 @_register(
-    installer_sha1='67c964771b8dca4e9bee05042eb31559f2e92a02',
+    installer_sha1='d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1704,15 +1716,16 @@ def _process_dataclass__b2f0a4eaae34ddb82da127c87aa18a3127781f9b():
             "None, False, False, False), (('storage_volume_status', True, True, None, True, True, False, None), 'instan"
             "ce', 'value', None, False, False, False), (('storage_operation_status', True, True, None, True, True, Fals"
             "e, None), 'instance', 'value', None, False, False, False), (('storage_operation_percent_progress', True, T"
-            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((Fa"
-            "lse,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_capacity_reser"
+            "vation_identifier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
+            "alse)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBInstance'),
     ),
 )
-def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
+def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1906,6 +1919,8 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
         __dataclass__init__fields__92__default = __dataclass__spec.fields[92].default.must()
         __dataclass__init__fields__93__annotation = __dataclass__spec.fields[93].annotation
         __dataclass__init__fields__93__default = __dataclass__spec.fields[93].default.must()
+        __dataclass__init__fields__94__annotation = __dataclass__spec.fields[94].annotation
+        __dataclass__init__fields__94__default = __dataclass__spec.fields[94].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -2009,6 +2024,7 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
                 storage_volume_status=self.storage_volume_status,
                 storage_operation_status=self.storage_operation_status,
                 storage_operation_percent_progress=self.storage_operation_percent_progress,
+                db_capacity_reservation_identifier=self.db_capacity_reservation_identifier,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2111,7 +2127,8 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
                 self.additional_storage_volumes == other.additional_storage_volumes and
                 self.storage_volume_status == other.storage_volume_status and
                 self.storage_operation_status == other.storage_operation_status and
-                self.storage_operation_percent_progress == other.storage_operation_percent_progress
+                self.storage_operation_percent_progress == other.storage_operation_percent_progress and
+                self.db_capacity_reservation_identifier == other.db_capacity_reservation_identifier
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -2211,6 +2228,7 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
             'storage_volume_status',
             'storage_operation_status',
             'storage_operation_percent_progress',
+            'db_capacity_reservation_identifier',
         }
 
         def __setattr__(self, name, value):
@@ -2328,6 +2346,7 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
                 self.storage_volume_status,
                 self.storage_operation_status,
                 self.storage_operation_percent_progress,
+                self.db_capacity_reservation_identifier,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -2428,6 +2447,7 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
             storage_volume_status: __dataclass__init__fields__91__annotation = __dataclass__init__fields__91__default,
             storage_operation_status: __dataclass__init__fields__92__annotation = __dataclass__init__fields__92__default,
             storage_operation_percent_progress: __dataclass__init__fields__93__annotation = __dataclass__init__fields__93__default,
+            db_capacity_reservation_identifier: __dataclass__init__fields__94__annotation = __dataclass__init__fields__94__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'db_instance_identifier', db_instance_identifier)
             __dataclass__object_setattr(self, 'db_instance_class', db_instance_class)
@@ -2522,6 +2542,7 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
             __dataclass__object_setattr(self, 'storage_volume_status', storage_volume_status)
             __dataclass__object_setattr(self, 'storage_operation_status', storage_operation_status)
             __dataclass__object_setattr(self, 'storage_operation_percent_progress', storage_operation_percent_progress)
+            __dataclass__object_setattr(self, 'db_capacity_reservation_identifier', db_capacity_reservation_identifier)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2621,6 +2642,7 @@ def _process_dataclass__67c964771b8dca4e9bee05042eb31559f2e92a02():
             parts.append(f"storage_volume_status={self.storage_volume_status!r}")
             parts.append(f"storage_operation_status={self.storage_operation_status!r}")
             parts.append(f"storage_operation_percent_progress={self.storage_operation_percent_progress!r}")
+            parts.append(f"db_capacity_reservation_identifier={self.db_capacity_reservation_identifier!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -4672,7 +4694,7 @@ def _process_dataclass__442532fa4cf431a41cb5e1f9ad8acb569bf53588():
 
 
 @_register(
-    installer_sha1='7aa8c5828a591edaeaf73be8a643dca2f63148ce',
+    installer_sha1='756f51d79fd8000873f88ae551bde51517d7a5b8',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -4702,15 +4724,16 @@ def _process_dataclass__442532fa4cf431a41cb5e1f9ad8acb569bf53588():
             ", 'value', None, False, False, False), (('dedicated_log_volume', True, True, None, True, True, False, None"
             "), 'instance', 'value', None, False, False, False), (('engine', True, True, None, True, True, False, None)"
             ", 'instance', 'value', None, False, False, False), (('additional_storage_volumes', True, True, None, True,"
-            " True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,),"
-            " (), (False,), (False, False, ()), ((),), (), (False,)))"
+            " True, False, None), 'instance', 'value', None, False, False, False), (('db_capacity_reservation_identifie"
+            "r', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0"
+            ", ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'PendingModifiedValues'),
     ),
 )
-def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
+def _process_dataclass__756f51d79fd8000873f88ae551bde51517d7a5b8():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4764,6 +4787,8 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
         __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
         __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
         __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
+        __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -4797,6 +4822,7 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
                 dedicated_log_volume=self.dedicated_log_volume,
                 engine=self.engine,
                 additional_storage_volumes=self.additional_storage_volumes,
+                db_capacity_reservation_identifier=self.db_capacity_reservation_identifier,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -4829,7 +4855,8 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
                 self.iam_database_authentication_enabled == other.iam_database_authentication_enabled and
                 self.dedicated_log_volume == other.dedicated_log_volume and
                 self.engine == other.engine and
-                self.additional_storage_volumes == other.additional_storage_volumes
+                self.additional_storage_volumes == other.additional_storage_volumes and
+                self.db_capacity_reservation_identifier == other.db_capacity_reservation_identifier
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -4859,6 +4886,7 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
             'dedicated_log_volume',
             'engine',
             'additional_storage_volumes',
+            'db_capacity_reservation_identifier',
         }
 
         def __setattr__(self, name, value):
@@ -4906,6 +4934,7 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
                 self.dedicated_log_volume,
                 self.engine,
                 self.additional_storage_volumes,
+                self.db_capacity_reservation_identifier,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -4936,6 +4965,7 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
             dedicated_log_volume: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
             engine: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
             additional_storage_volumes: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            db_capacity_reservation_identifier: __dataclass__init__fields__24__annotation = __dataclass__init__fields__24__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'db_instance_class', db_instance_class)
             __dataclass__object_setattr(self, 'allocated_storage', allocated_storage)
@@ -4960,6 +4990,7 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
             __dataclass__object_setattr(self, 'dedicated_log_volume', dedicated_log_volume)
             __dataclass__object_setattr(self, 'engine', engine)
             __dataclass__object_setattr(self, 'additional_storage_volumes', additional_storage_volumes)
+            __dataclass__object_setattr(self, 'db_capacity_reservation_identifier', db_capacity_reservation_identifier)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -4989,6 +5020,7 @@ def _process_dataclass__7aa8c5828a591edaeaf73be8a643dca2f63148ce():
             parts.append(f"dedicated_log_volume={self.dedicated_log_volume!r}")
             parts.append(f"engine={self.engine!r}")
             parts.append(f"additional_storage_volumes={self.additional_storage_volumes!r}")
+            parts.append(f"db_capacity_reservation_identifier={self.db_capacity_reservation_identifier!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -5234,21 +5266,22 @@ def _process_dataclass__a81ea77ab8641895fa77d53054cd836ac32d058b():
 
 
 @_register(
-    installer_sha1='0bccb2e13139f39e2a518cc29e82773f5327e4c3',
+    installer_sha1='8ead1f3acfe5df85d84150560b0495a73275d0b4',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
             "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
-            "stance', 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False,"
-            " False, ()), ((),), (), (False,)))"
+            "stance', 'missing', None, False, False, False), (('db_capacity_reservation_identifier', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (Fal"
+            "se,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'StartDBInstanceMessage'),
     ),
 )
-def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
+def _process_dataclass__8ead1f3acfe5df85d84150560b0495a73275d0b4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5257,6 +5290,8 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -5268,6 +5303,7 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
                 raise TypeError(self)
             return __class__(  # noqa
                 db_instance_identifier=self.db_instance_identifier,
+                db_capacity_reservation_identifier=self.db_capacity_reservation_identifier,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -5278,7 +5314,8 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.db_instance_identifier == other.db_instance_identifier
+                self.db_instance_identifier == other.db_instance_identifier and
+                self.db_capacity_reservation_identifier == other.db_capacity_reservation_identifier
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -5286,6 +5323,7 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
         __dataclass___frozen_fields = {
             '__shape__',
             'db_instance_identifier',
+            'db_capacity_reservation_identifier',
         }
 
         def __setattr__(self, name, value):
@@ -5311,6 +5349,7 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
         def __hash__(self):
             return hash((
                 self.db_instance_identifier,
+                self.db_capacity_reservation_identifier,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -5319,8 +5358,10 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
             self,
             *,
             db_instance_identifier: __dataclass__init__fields__1__annotation,
+            db_capacity_reservation_identifier: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'db_instance_identifier', db_instance_identifier)
+            __dataclass__object_setattr(self, 'db_capacity_reservation_identifier', db_capacity_reservation_identifier)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -5328,6 +5369,7 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
         def __repr__(self):
             parts = []
             parts.append(f"db_instance_identifier={self.db_instance_identifier!r}")
+            parts.append(f"db_capacity_reservation_identifier={self.db_capacity_reservation_identifier!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -5340,22 +5382,23 @@ def _process_dataclass__0bccb2e13139f39e2a518cc29e82773f5327e4c3():
 
 
 @_register(
-    installer_sha1='0d21e767eb8d021bb45fa2d23026077f1c720d06',
+    installer_sha1='7e15889e28d57df272252a8a7fdbdffcf00f3519',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
             "', None, False, False, False), (('db_instance_identifier', True, True, None, True, True, False, None), 'in"
             "stance', 'missing', None, False, False, False), (('db_snapshot_identifier', True, True, None, True, True, "
-            "False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (F"
-            "alse,), (False, False, ()), ((),), (), (False,)))"
+            "False, None), 'instance', 'value', None, False, False, False), (('detach_from_db_capacity_reservation', Tr"
+            "ue, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()),"
+            " ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'StopDBInstanceMessage'),
     ),
 )
-def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
+def _process_dataclass__7e15889e28d57df272252a8a7fdbdffcf00f3519():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -5366,6 +5409,8 @@ def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -5378,6 +5423,7 @@ def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
             return __class__(  # noqa
                 db_instance_identifier=self.db_instance_identifier,
                 db_snapshot_identifier=self.db_snapshot_identifier,
+                detach_from_db_capacity_reservation=self.detach_from_db_capacity_reservation,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -5389,7 +5435,8 @@ def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
                 return NotImplemented
             return (
                 self.db_instance_identifier == other.db_instance_identifier and
-                self.db_snapshot_identifier == other.db_snapshot_identifier
+                self.db_snapshot_identifier == other.db_snapshot_identifier and
+                self.detach_from_db_capacity_reservation == other.detach_from_db_capacity_reservation
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -5398,6 +5445,7 @@ def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
             '__shape__',
             'db_instance_identifier',
             'db_snapshot_identifier',
+            'detach_from_db_capacity_reservation',
         }
 
         def __setattr__(self, name, value):
@@ -5424,6 +5472,7 @@ def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
             return hash((
                 self.db_instance_identifier,
                 self.db_snapshot_identifier,
+                self.detach_from_db_capacity_reservation,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -5433,9 +5482,11 @@ def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
             *,
             db_instance_identifier: __dataclass__init__fields__1__annotation,
             db_snapshot_identifier: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            detach_from_db_capacity_reservation: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'db_instance_identifier', db_instance_identifier)
             __dataclass__object_setattr(self, 'db_snapshot_identifier', db_snapshot_identifier)
+            __dataclass__object_setattr(self, 'detach_from_db_capacity_reservation', detach_from_db_capacity_reservation)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -5444,6 +5495,7 @@ def _process_dataclass__0d21e767eb8d021bb45fa2d23026077f1c720d06():
             parts = []
             parts.append(f"db_instance_identifier={self.db_instance_identifier!r}")
             parts.append(f"db_snapshot_identifier={self.db_snapshot_identifier!r}")
+            parts.append(f"detach_from_db_capacity_reservation={self.detach_from_db_capacity_reservation!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

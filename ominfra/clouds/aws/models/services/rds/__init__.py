@@ -69,6 +69,17 @@ class CertificateNotFoundFault(
     pass
 
 
+DBCapacityReservationIdentifier = _ta.NewType('DBCapacityReservationIdentifier', str)
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
+class DBCapacityReservationNotFoundFault(
+    _base.Shape,
+    shape_name='DBCapacityReservationNotFoundFault',
+):
+    pass
+
+
 @_dc.dataclass(frozen=True, kw_only=True)
 class DBClusterNotFoundFault(
     _base.Shape,
@@ -171,6 +182,14 @@ class InsufficientDBInstanceCapacityFault(
 
 
 IntegerOptional = _ta.NewType('IntegerOptional', int)
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
+class InvalidDBCapacityReservationStateFault(
+    _base.Shape,
+    shape_name='InvalidDBCapacityReservationStateFault',
+):
+    pass
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -659,6 +678,11 @@ class StartDBInstanceMessage(
         shape_name='String',
     ))
 
+    db_capacity_reservation_identifier: DBCapacityReservationIdentifier | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DBCapacityReservationIdentifier',
+        shape_name='DBCapacityReservationIdentifier',
+    ))
+
 
 @_dc.dataclass(frozen=True, kw_only=True)
 class StopDBInstanceMessage(
@@ -673,6 +697,11 @@ class StopDBInstanceMessage(
     db_snapshot_identifier: str | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='DBSnapshotIdentifier',
         shape_name='String',
+    ))
+
+    detach_from_db_capacity_reservation: BooleanOptional | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DetachFromDBCapacityReservation',
+        shape_name='BooleanOptional',
     ))
 
 
@@ -1194,6 +1223,11 @@ class CreateDBInstanceMessage(
         shape_name='TagSpecificationList',
     ))
 
+    db_capacity_reservation_identifier: DBCapacityReservationIdentifier | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DBCapacityReservationIdentifier',
+        shape_name='DBCapacityReservationIdentifier',
+    ))
+
     master_user_authentication_type: MasterUserAuthenticationType | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='MasterUserAuthenticationType',
         shape_name='MasterUserAuthenticationType',
@@ -1326,6 +1360,11 @@ class PendingModifiedValues(
         member_name='AdditionalStorageVolumes',
         value_type=_base.ListValueType(AdditionalStorageVolume),
         shape_name='AdditionalStorageVolumesList',
+    ))
+
+    db_capacity_reservation_identifier: DBCapacityReservationIdentifier | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DBCapacityReservationIdentifier',
+        shape_name='DBCapacityReservationIdentifier',
     ))
 
 
@@ -1900,6 +1939,11 @@ class DBInstance(
         shape_name='IntegerOptional',
     ))
 
+    db_capacity_reservation_identifier: DBCapacityReservationIdentifier | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='DBCapacityReservationIdentifier',
+        shape_name='DBCapacityReservationIdentifier',
+    ))
+
 
 @_dc.dataclass(frozen=True, kw_only=True)
 class CreateDBInstanceResult(
@@ -1987,6 +2031,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     CertificateNotFoundFault,
     CreateDBInstanceMessage,
     CreateDBInstanceResult,
+    DBCapacityReservationNotFoundFault,
     DBClusterNotFoundFault,
     DBInstance,
     DBInstanceAlreadyExistsFault,
@@ -2013,6 +2058,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     Filter,
     InstanceQuotaExceededFault,
     InsufficientDBInstanceCapacityFault,
+    InvalidDBCapacityReservationStateFault,
     InvalidDBClusterStateFault,
     InvalidDBInstanceStateFault,
     InvalidSubnet,
@@ -2055,6 +2101,7 @@ CREATE_DB_INSTANCE = _base.Operation(
         AuthorizationNotFoundFault,
         BackupPolicyNotFoundFault,
         CertificateNotFoundFault,
+        DBCapacityReservationNotFoundFault,
         DBClusterNotFoundFault,
         DBInstanceAlreadyExistsFault,
         DBParameterGroupNotFoundFault,
@@ -2064,6 +2111,7 @@ CREATE_DB_INSTANCE = _base.Operation(
         DomainNotFoundFault,
         InstanceQuotaExceededFault,
         InsufficientDBInstanceCapacityFault,
+        InvalidDBCapacityReservationStateFault,
         InvalidDBClusterStateFault,
         InvalidSubnet,
         InvalidVPCNetworkStateFault,
@@ -2127,11 +2175,13 @@ START_DB_INSTANCE = _base.Operation(
     output=StartDBInstanceResult,
     errors=[
         AuthorizationNotFoundFault,
+        DBCapacityReservationNotFoundFault,
         DBClusterNotFoundFault,
         DBInstanceNotFoundFault,
         DBSubnetGroupDoesNotCoverEnoughAZs,
         DBSubnetGroupNotFoundFault,
         InsufficientDBInstanceCapacityFault,
+        InvalidDBCapacityReservationStateFault,
         InvalidDBClusterStateFault,
         InvalidDBInstanceStateFault,
         InvalidSubnet,
@@ -2150,6 +2200,7 @@ STOP_DB_INSTANCE = _base.Operation(
     errors=[
         DBInstanceNotFoundFault,
         DBSnapshotAlreadyExistsFault,
+        InvalidDBCapacityReservationStateFault,
         InvalidDBClusterStateFault,
         InvalidDBInstanceStateFault,
         SnapshotQuotaExceededFault,
