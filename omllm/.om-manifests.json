@@ -397,7 +397,7 @@
     "module": ".llm.models.providers.anthropic",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/anthropic.py",
-    "line": 181,
+    "line": 127,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -457,7 +457,7 @@
     "module": ".llm.models.providers.google",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/google.py",
-    "line": 96,
+    "line": 98,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -541,7 +541,7 @@
     "module": ".llm.models.providers.openai",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/openai.py",
-    "line": 154,
+    "line": 132,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -583,7 +583,7 @@
     "module": ".llm.models.providers.openrouter",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/openrouter.py",
-    "line": 175,
+    "line": 178,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [

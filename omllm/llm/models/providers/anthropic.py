@@ -41,16 +41,18 @@ _DEFAULT_HTTP = Model.Http(
 
 def _make_model(
         *,
-        id: str,  # noqa
+        id: str | ModelKey,  # noqa
         name: str,
 
         **kwargs: ta.Any,
 ) -> Model:
+    key = id if isinstance(id, ModelKey) else ModelKey(
+        provider='anthropic',
+        id=id,
+    )
+
     return Model(
-        key=ModelKey(
-            provider='anthropic',
-            id=id,
-        ),
+        key=key,
         name=name,
 
         **{
@@ -67,8 +69,8 @@ def _make_model(
                     }),
                 ),
 
-                limits=modeldb_model_limits('anthropic', id),
-                pricing=modeldb_token_pricing('anthropic', id),
+                limits=modeldb_model_limits('anthropic', key.id),
+                pricing=modeldb_token_pricing('anthropic', key.id),
 
                 http=_DEFAULT_HTTP,
             ),
@@ -102,7 +104,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     _make_model(
-        id=(TEST_MODEL_KEY := ModelKey('anthropic', 'claude-sonnet-5-5')).id,
+        id=(TEST_MODEL_KEY := ModelKey('anthropic', 'claude-sonnet-5-5')),
         name='Claude Sonnet 5.5',
 
         default_options=Options(

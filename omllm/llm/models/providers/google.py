@@ -21,16 +21,18 @@ _BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 
 def _make_model(
         *,
-        id: str,  # noqa
+        id: str | ModelKey,  # noqa
         name: str,
 
         **kwargs: ta.Any,
 ) -> Model:
+    key = id if isinstance(id, ModelKey) else ModelKey(
+        provider='google',
+        id=id,
+    )
+
     return Model(
-        key=ModelKey(
-            provider='google',
-            id=id,
-        ),
+        key=key,
         name=name,
 
         **{
@@ -52,8 +54,8 @@ def _make_model(
                     control_style='google_implicit',
                 ),
 
-                limits=modeldb_model_limits('google', id),
-                pricing=modeldb_token_pricing('google', id),
+                limits=modeldb_model_limits('google', key.id),
+                pricing=modeldb_token_pricing('google', key.id),
 
                 http=Model.Http(
                     base_url=_BASE_URL,
@@ -76,7 +78,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     _make_model(
-        id=(TEST_MODEL_KEY := ModelKey('google', 'gemini-3.8-flash')).id,
+        id=(TEST_MODEL_KEY := ModelKey('google', 'gemini-3.8-flash')),
         name='Gemini 3.8 Flash',
     ),
 
