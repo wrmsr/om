@@ -19,12 +19,12 @@ librt==0.16.0
 
 lz4==4.4.5
 python-snappy==0.7.3
-brotli==1.2.0  # !! USES_GIL - https://github.com/google/brotli/commit/51be27dbd9782f9fe27bc6e06cee6ff18311702d
+brotli==1.2.1  # !! USES_GIL - https://github.com/google/brotli/commit/51be27dbd9782f9fe27bc6e06cee6ff18311702d
 
 
 ### db:
 
-sqlalchemy[asyncio]==2.1.5
+sqlalchemy[asyncio]==2.1.6
 
 ## sql
 

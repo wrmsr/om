@@ -17,7 +17,7 @@ pytest-xdist==3.8.0
 
 flake8==7.4.1
 flake8-pyproject==1.2.4
-ruff==0.17.1
+ruff==0.17.3
 
 asyncpg-stubs==0.32.0
 docutils-stubs==0.0.22
@@ -69,22 +69,22 @@ psycopg2==2.9.13
 # py/cy
 psycopg==3.3.6
 
-mysql-connector-python==26.7.0
+mysql-connector-python==26.10.0
 mysqlclient==2.3.0; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
 
 ujson==6.0.0
 
 markupsafe==3.0.4
 
-asgiref==3.12.1
+asgiref==3.13.0
 uvicorn[standard]==0.54.0
 
 sqlean.py==3.50.4.5
 # git+https://github.com/wrmsr/sqlean.py.git
 
-duckdb==1.5.6  # @om-venv !14t !14dt !15t  # SLOW COMPILE
+duckdb==2.0.0  # @om-venv !14t !14dt !15t  # SLOW COMPILE
 
-pycparser==3.11
+pycparser==3.12
 pcpp==1.30
 
 # !! LGPL
@@ -111,7 +111,7 @@ tree-sitter-html==0.23.2  # @om-venv !14t !14dt !15t
 tree-sitter-java==0.23.5  # @om-venv !14t !14dt !15t
 tree-sitter-javascript==0.25.0  # @om-venv !14t !14dt !15t
 tree-sitter-json==0.24.8  # @om-venv !14t !14dt !15t
-tree-sitter-markdown==0.5.1  # @om-venv !14t !14dt !15t
+tree-sitter-markdown==0.5.4  # @om-venv !14t !14dt !15t
 tree-sitter-python==0.25.0  # @om-venv !14t !14dt !15t
 tree-sitter-regex==0.25.0  # @om-venv !14t !14dt !15t
 tree-sitter-rust==0.24.2  # @om-venv !14t !14dt !15t
@@ -136,7 +136,7 @@ pyzmq==27.2.0
 
 datasets==5.1.0
 
-transformers==5.20.2  # @om-venv !15 !15t
+transformers==5.21.0  # @om-venv !15 !15t
 sentence-transformers==6.2.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.2
@@ -148,10 +148,10 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.117
-botocore==1.43.117
-types-boto3==1.43.116
-botocore-stubs==1.43.117
+boto3==1.43.119
+botocore==1.43.119
+types-boto3==1.43.119
+botocore-stubs==1.43.119
 
 asn1crypto==1.5.1
 pynacl==1.6.2
@@ -164,7 +164,7 @@ mlx-lm==0.32.2; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 apsw==3.54.1.0
 
 rapidocr==3.10.0  # @om-venv !14t !14dt !15t
-onnxruntime==1.31.0  # @om-venv !14t !14dt !15 !15t
+onnxruntime==1.31.1  # @om-venv !14t !14dt !15 !15t
 omegaconf==2.4.0
 
 pillow==13.0.0

@@ -768,7 +768,7 @@ find ${CHGRP_ROOTS} ! -type l \( \
 RUN \
   --mount=target=/om/.pyenv_cache,type=cache,sharing=locked,uid=4317,gid=4317 \
 ( \
-export PYENV_VERSIONS='3.8.20 3.14.8 3.14.8t 3.15.0 3.15.0t' ;\
+export PYENV_VERSIONS='3.8.20 3.14.10 3.14.10t 3.15.2 3.15.2t' ;\
 export CHGRP_ROOTS='/om' ;\
 export CHGRP_GID='4317' ;\
 \

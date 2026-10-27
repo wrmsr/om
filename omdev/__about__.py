@@ -27,7 +27,7 @@ class Project(ProjectBase):
         ],
 
         'c': [
-            'pycparser ~= 3.11',
+            'pycparser ~= 3.12',
 
             'pcpp ~= 1.30',
         ],

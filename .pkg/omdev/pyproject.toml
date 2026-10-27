@@ -38,7 +38,7 @@ black = [
     'black ~= 26.10',
 ]
 c = [
-    'pycparser ~= 3.11',
+    'pycparser ~= 3.12',
     'pcpp ~= 1.30',
 ]
 doc = [
@@ -94,7 +94,7 @@ all = [
     'ominfra == 0.0.68',
     'omllm == 0.0.68',
     'black ~= 26.10',
-    'pycparser ~= 3.11',
+    'pycparser ~= 3.12',
     'pcpp ~= 1.30',
     'docutils ~= 0.23',
     'rapidocr ~= 3.10',

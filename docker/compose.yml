@@ -67,7 +67,7 @@ services:
       - '35224:5432'
 
   om-mysql:
-    image: 'mysql:9.7.2'
+    image: 'mysql:9.7.4'
     restart: 'unless-stopped'
     environment:
       MYSQL_USER: 'om'
@@ -126,7 +126,7 @@ services:
       - '35231:5432'
 
   om-redis:
-    image: 'redis:7.4.11'
+    image: 'redis:7.4.12'
     restart: 'unless-stopped'
     expose:
       - '6379'

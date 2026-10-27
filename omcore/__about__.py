@@ -98,7 +98,7 @@ class Project(ProjectBase):
             'psycopg ~= 3.3',
 
             'pymysql ~= 1.2',
-            'mysql-connector-python ~= 26.7',
+            'mysql-connector-python ~= 26.10',
             'mysqlclient ~= 2.3',
 
             'snowflake-connector-python ~= 4.8',
@@ -111,7 +111,7 @@ class Project(ProjectBase):
 
             'sqlean.py ~= 3.50',
 
-            'duckdb ~= 1.5',
+            'duckdb ~= 2.0',
         ],
 
         'testing': [

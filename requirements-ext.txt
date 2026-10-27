@@ -23,7 +23,7 @@ torch==2.14.1  # @om-venv !15 !15t
 torchvision==0.29.1
 # torchcodec==0.7.0
 
-diffusers==0.41.0
+diffusers==0.42.0
 
 scipy==1.18.1
 scikit-learn==1.9.1
@@ -35,7 +35,7 @@ tavily-python==0.8.5
 
 sqlite-vec==0.1.9
 
-ddgs==9.16.0
+ddgs==9.16.1
 
 gguf==0.19.0
 
@@ -56,13 +56,13 @@ basedpyright==1.40.2
 
 blobfile==3.3.0
 
-pydantic-monty==1.2.0
+pydantic-monty==1.4.0
 
 
 ##
 # runtimes
 
-wasmtime==49.0.0
+wasmtime==50.0.1
 
 
 ##
@@ -75,9 +75,9 @@ unicorn==2.1.4
 # bins
 
 deno==2.9.8
-playwright==1.64.0
+playwright==1.64.1
 ripgrep==15.1.0
-mojo==1.1.0
+mojo==1.2.0
 
 
 ##
@@ -103,4 +103,4 @@ debugpy==1.8.22
 fsspec==2026.6.0  # via datasets
 mpmath==1.3.0  # via sympy
 jaraco.functools==4.6.0
-pandas==3.0.6
+pandas==3.1.0
