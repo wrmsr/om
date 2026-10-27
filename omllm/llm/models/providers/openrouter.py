@@ -114,12 +114,14 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     _make_model(
         id='z-ai/glm-5.3',
         name='GLM 5.3',
+
         reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
 
     _make_model(
         id='z-ai/glm-5.3-flash',
         name='GLM 5.3 Flash',
+
         reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
 
@@ -161,6 +163,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     _make_model(
         id='qwen/qwen3.8-max-prime',
         name='Qwen3.8 Max Prime',
+
         reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
 

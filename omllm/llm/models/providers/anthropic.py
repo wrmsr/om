@@ -83,93 +83,37 @@ def _make_model(
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
-    Model(
-        key=ModelKey(
-            provider='anthropic',
-            id='claude-fable-5-1',
-        ),
+    _make_model(
+        id='claude-fable-5-1',
         name='Claude Fable 5.1',
-        backend='anthropic-messages',
-        reasoning_efforts=_REASONING_EFFORTS,
-        cache=CacheCapabilities(
-            control_style='anthropic',
-            retentions=frozenset({
-                CacheRetention.FIVE_MINUTES,
-                CacheRetention.ONE_HOUR,
-            }),
-        ),
-        limits=modeldb_model_limits('anthropic', 'claude-fable-5-1'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-fable-5-1'),
-        http=_DEFAULT_HTTP,
+
         default_options=Options(
             max_tokens=128000,
         ),
     ),
 
-    Model(
-        key=ModelKey(
-            provider='anthropic',
-            id='claude-opus-5-5',
-        ),
+    _make_model(
+        id='claude-opus-5-5',
         name='Claude Opus 5.5',
-        backend='anthropic-messages',
-        reasoning_efforts=_REASONING_EFFORTS,
-        cache=CacheCapabilities(
-            control_style='anthropic',
-            retentions=frozenset({
-                CacheRetention.FIVE_MINUTES,
-                CacheRetention.ONE_HOUR,
-            }),
-        ),
-        limits=modeldb_model_limits('anthropic', 'claude-opus-5-5'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-opus-5-5'),
-        http=_DEFAULT_HTTP,
+
         default_options=Options(
             max_tokens=128000,
         ),
     ),
 
-    Model(
-        key=(TEST_MODEL_KEY := ModelKey(
-            provider='anthropic',
-            id='claude-sonnet-5-5',
-        )),
+    _make_model(
+        id=(TEST_MODEL_KEY := ModelKey('anthropic', 'claude-sonnet-5-5')).id,
         name='Claude Sonnet 5.5',
-        backend='anthropic-messages',
-        reasoning_efforts=_REASONING_EFFORTS,
-        cache=CacheCapabilities(
-            control_style='anthropic',
-            retentions=frozenset({
-                CacheRetention.FIVE_MINUTES,
-                CacheRetention.ONE_HOUR,
-            }),
-        ),
-        limits=modeldb_model_limits('anthropic', 'claude-sonnet-5-5'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-sonnet-5-5'),
-        http=_DEFAULT_HTTP,
+
         default_options=Options(
             max_tokens=128000,
         ),
     ),
 
-    Model(
-        key=ModelKey(
-            provider='anthropic',
-            id='claude-haiku-5-5',
-        ),
+    _make_model(
+        id='claude-haiku-5-5',
         name='Claude Haiku 5.5',
-        backend='anthropic-messages',
-        reasoning_efforts=_REASONING_EFFORTS,
-        cache=CacheCapabilities(
-            control_style='anthropic',
-            retentions=frozenset({
-                CacheRetention.FIVE_MINUTES,
-                CacheRetention.ONE_HOUR,
-            }),
-        ),
-        limits=modeldb_model_limits('anthropic', 'claude-haiku-5-5'),
-        pricing=modeldb_token_pricing('anthropic', 'claude-haiku-5-5'),
-        http=_DEFAULT_HTTP,
+
         default_options=Options(
             max_tokens=64000,
         ),

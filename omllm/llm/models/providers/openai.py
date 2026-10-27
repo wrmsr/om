@@ -34,9 +34,6 @@ _REASONING_EFFORTS = frozenset({
 
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
-    ##
-    # 6
-
     Model(
         key=ModelKey(
             provider='openai',
@@ -83,6 +80,28 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     Model(
+        key=ModelKey(
+            provider='openai',
+            id='gpt-6.1-terra',
+        ),
+        name='GPT 6.1 Terra',
+        backend='openai-responses',
+        reasoning_efforts=_REASONING_EFFORTS,
+        cache=CacheCapabilities(
+            control_style='openai_ttl',
+            retentions=frozenset({
+                CacheRetention.THIRTY_MINUTES,
+            }),
+            key=True,
+        ),
+        limits=modeldb_model_limits('openai', 'gpt-6.1-terra'),
+        pricing=modeldb_token_pricing('openai', 'gpt-6.1-terra'),
+        http=Model.Http(
+            base_url=_BASE_URL,
+        ),
+    ),
+
+    Model(
         key=(RESPONSES_TEST_MODEL_KEY := ModelKey(
             provider='openai',
             id='gpt-6-luna',
@@ -103,34 +122,6 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             base_url=_BASE_URL,
         ),
     ),
-
-    ##
-    # 5.6
-
-    Model(
-        key=ModelKey(
-            provider='openai',
-            id='gpt-5.6-terra',
-        ),
-        name='GPT 5.6 Terra',
-        backend='openai-responses',
-        reasoning_efforts=_REASONING_EFFORTS,
-        cache=CacheCapabilities(
-            control_style='openai_ttl',
-            retentions=frozenset({
-                CacheRetention.THIRTY_MINUTES,
-            }),
-            key=True,
-        ),
-        limits=modeldb_model_limits('openai', 'gpt-5.6-terra'),
-        pricing=modeldb_token_pricing('openai', 'gpt-5.6-terra'),
-        http=Model.Http(
-            base_url=_BASE_URL,
-        ),
-    ),
-
-    ##
-    # 5.4
 
     Model(
         key=(COMPLETIONS_TEST_MODEL_KEY := ModelKey(

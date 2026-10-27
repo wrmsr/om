@@ -143,7 +143,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='gpt-terra',
         aliases=['terra'],
-        key=ModelKey('openai', 'gpt-5.6-terra'),
+        key=ModelKey('openai', 'gpt-6.1-terra'),
         api_key_name='openai_api_key',
     ),
 

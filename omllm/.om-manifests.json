@@ -457,7 +457,7 @@
     "module": ".llm.models.providers.google",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/google.py",
-    "line": 91,
+    "line": 96,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -477,6 +477,12 @@
             "provider": "google",
             "id": "gemini-2.5-flash",
             "name": "Gemini 2.5 Flash",
+            "backend": "google-generative"
+          },
+          {
+            "provider": "google",
+            "id": "gemini-2.5-flash-lite",
+            "name": "Gemini 2.5 Flash Lite",
             "backend": "google-generative"
           }
         ]
@@ -535,7 +541,7 @@
     "module": ".llm.models.providers.openai",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/openai.py",
-    "line": 163,
+    "line": 154,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
@@ -553,14 +559,14 @@
           },
           {
             "provider": "openai",
-            "id": "gpt-6-luna",
-            "name": "GPT 6 Luna",
+            "id": "gpt-6.1-terra",
+            "name": "GPT 6.1 Terra",
             "backend": "openai-responses"
           },
           {
             "provider": "openai",
-            "id": "gpt-5.6-terra",
-            "name": "GPT 5.6 Terra",
+            "id": "gpt-6-luna",
+            "name": "GPT 6 Luna",
             "backend": "openai-responses"
           },
           {

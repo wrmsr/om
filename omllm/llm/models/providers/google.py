@@ -85,6 +85,11 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         name='Gemini 2.5 Flash',
     ),
 
+    _make_model(
+        id='gemini-2.5-flash-lite',
+        name='Gemini 2.5 Flash Lite',
+    ),
+
 ]
 
 
