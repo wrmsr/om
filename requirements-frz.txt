@@ -1,4 +1,3 @@
-accelerate==1.15.0
 aiohappyeyeballs==2.7.1
 aiohttp==3.14.5
 aiomysql==0.3.2
@@ -21,8 +20,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.10.1
 blobfile==3.3.0
-boto3==1.43.119
-botocore==1.43.119
+boto3==1.43.120
+botocore==1.43.120
 botocore-stubs==1.43.119
 brotli==1.2.1
 build==1.6.1
@@ -42,7 +41,7 @@ datasets==5.1.0
 ddgs==9.16.1
 debugpy==1.8.22
 deno==2.9.8
-diffusers==0.42.0
+diffusers==0.42.1
 dill==0.4.1
 diskcache==5.6.3
 docutils==0.23
@@ -55,7 +54,7 @@ filelock==3.32.7
 flake8==7.4.1
 Flake8-pyproject==1.2.4
 flatbuffers==25.12.19
-fonttools==4.67.0
+fonttools==4.68.0
 frozenlist==1.8.0
 fsspec==2026.6.0
 gguf==0.19.0
@@ -130,7 +129,7 @@ mypy==2.4.0
 mypy_extensions==1.1.0
 mysql-connector-python==26.10.0
 mysqlclient==2.3.0
-narwhals==2.27.1
+narwhals==2.28.0
 networkx==3.7
 nh3==0.3.7
 nodeenv==1.11.0
@@ -149,11 +148,10 @@ paramiko==5.1.0
 parso==0.8.7
 pathspec==1.1.1
 pcpp==1.30
-peft==0.21.2
 pexpect==4.9.0
 pg8000==1.31.5
 pillow==13.0.0
-platformdirs==4.13.5
+platformdirs==4.13.6
 playwright==1.64.1
 pluggy==1.7.0
 pprintpp==0.4.0
@@ -171,7 +169,7 @@ pudb==2026.1
 pure_eval==0.2.4
 py-cpuinfo2==10.1.1
 pyarrow==26.0.0
-pyasn1==0.6.4
+pyasn1==0.6.5
 pyasn1_modules==0.4.2
 pyclipper==1.4.0
 pycodestyle==2.15.0
@@ -269,7 +267,7 @@ trio==0.34.0
 twine==7.0.0
 typer==0.27.3
 types-awscrt==0.37.0
-types-boto3==1.43.119
+types-boto3==1.43.120
 types-docutils==0.23.0.20260923
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20261021
@@ -295,7 +293,7 @@ uvloop==0.23.0
 wasmtime==50.0.1
 watchdog==6.0.0
 watchfiles==1.3.0
-wcwidth==0.9.3
+wcwidth==0.9.4
 websockets==17.3
 wheel==0.48.0
 wikitextparser==3.0.0

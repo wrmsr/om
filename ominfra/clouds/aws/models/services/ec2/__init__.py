@@ -2195,6 +2195,14 @@ class ServiceManaged(_base.Enum):
     RDS = 'rds'
 
 
+class SeverityLabel(_base.Enum):
+    INFORMATIONAL = 'informational'
+    LOW = 'low'
+    MEDIUM = 'medium'
+    HIGH = 'high'
+    CRITICAL = 'critical'
+
+
 class ShutdownBehavior(_base.Enum):
     STOP = 'stop'
     TERMINATE = 'terminate'
@@ -4485,6 +4493,54 @@ class RunInstancesMonitoringEnabled(
         member_name='Enabled',
         serialization_name='enabled',
         shape_name='Boolean',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
+class ScanResults(
+    _base.Shape,
+    shape_name='ScanResults',
+):
+    highest_finding_severity_label: SeverityLabel | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='HighestFindingSeverityLabel',
+        serialization_name='highestFindingSeverityLabel',
+        shape_name='SeverityLabel',
+    ))
+
+    finding_scan_date: _base.MillisecondDateTime | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='FindingScanDate',
+        serialization_name='findingScanDate',
+        shape_name='MillisecondDateTime',
+    ))
+
+    informational_fix_available_since: _base.MillisecondDateTime | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='InformationalFixAvailableSince',
+        serialization_name='informationalFixAvailableSince',
+        shape_name='MillisecondDateTime',
+    ))
+
+    low_fix_available_since: _base.MillisecondDateTime | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='LowFixAvailableSince',
+        serialization_name='lowFixAvailableSince',
+        shape_name='MillisecondDateTime',
+    ))
+
+    medium_fix_available_since: _base.MillisecondDateTime | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MediumFixAvailableSince',
+        serialization_name='mediumFixAvailableSince',
+        shape_name='MillisecondDateTime',
+    ))
+
+    high_fix_available_since: _base.MillisecondDateTime | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='HighFixAvailableSince',
+        serialization_name='highFixAvailableSince',
+        shape_name='MillisecondDateTime',
+    ))
+
+    critical_fix_available_since: _base.MillisecondDateTime | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='CriticalFixAvailableSince',
+        serialization_name='criticalFixAvailableSince',
+        shape_name='MillisecondDateTime',
     ))
 
 
@@ -7175,6 +7231,12 @@ class Image(
         shape_name='ImageWatermarkList',
     ))
 
+    scan_results: ScanResults | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ScanResults',
+        serialization_name='scanResults',
+        shape_name='ScanResults',
+    ))
+
     instance_type_specification: InstanceTypeSpecification | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='InstanceTypeSpecification',
         serialization_name='instanceTypeSpecification',
@@ -9482,6 +9544,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     RouteTableAssociationState,
     RunInstancesMonitoringEnabled,
     RunInstancesRequest,
+    ScanResults,
     SecurityGroup,
     SpotMarketOptions,
     StartInstancesRequest,

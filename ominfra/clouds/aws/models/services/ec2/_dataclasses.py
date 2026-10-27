@@ -8825,7 +8825,7 @@ def _process_dataclass__88f50b204403563ab40ddf8d903b83df7bcc3cea():
 
 
 @_register(
-    installer_sha1='bc5a055390800b3b80b9fe337900f09eb6136bbd',
+    installer_sha1='87220d581c6604d52d7009a47e01ba03de0a4e14',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -8859,28 +8859,29 @@ def _process_dataclass__88f50b204403563ab40ddf8d903b83df7bcc3cea():
             "ree_tier_eligible', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
             "alse), (('public_ssm_parameter_name', True, True, None, True, True, False, None), 'instance', 'value', Non"
             "e, False, False, False), (('image_watermarks', True, True, None, True, True, False, None), 'instance', 'va"
-            "lue', None, False, False, False), (('instance_type_specification', True, True, None, True, True, False, No"
-            "ne), 'instance', 'value', None, False, False, False), (('image_id', True, True, None, True, True, False, N"
-            "one), 'instance', 'value', None, False, False, False), (('image_location', True, True, None, True, True, F"
-            "alse, None), 'instance', 'value', None, False, False, False), (('state', True, True, None, True, True, Fal"
-            "se, None), 'instance', 'value', None, False, False, False), (('owner_id', True, True, None, True, True, Fa"
-            "lse, None), 'instance', 'value', None, False, False, False), (('creation_date', True, True, None, True, Tr"
-            "ue, False, None), 'instance', 'value', None, False, False, False), (('public', True, True, None, True, Tru"
-            "e, False, None), 'instance', 'value', None, False, False, False), (('product_codes', True, True, None, Tru"
-            "e, True, False, None), 'instance', 'value', None, False, False, False), (('architecture', True, True, None"
-            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('image_type', True, True, N"
-            "one, True, True, False, None), 'instance', 'value', None, False, False, False), (('kernel_id', True, True,"
-            " None, True, True, False, None), 'instance', 'value', None, False, False, False), (('ramdisk_id', True, Tr"
-            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('platform', True, T"
-            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((Fa"
-            "lse,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "lue', None, False, False, False), (('scan_results', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, False, False, False), (('instance_type_specification', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('image_id', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('image_location', True, True, None, True, Tr"
+            "ue, False, None), 'instance', 'value', None, False, False, False), (('state', True, True, None, True, True"
+            ", False, None), 'instance', 'value', None, False, False, False), (('owner_id', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('creation_date', True, True, None, Tru"
+            "e, True, False, None), 'instance', 'value', None, False, False, False), (('public', True, True, None, True"
+            ", True, False, None), 'instance', 'value', None, False, False, False), (('product_codes', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('architecture', True, True,"
+            " None, True, True, False, None), 'instance', 'value', None, False, False, False), (('image_type', True, Tr"
+            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('kernel_id', True, "
+            "True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('ramdisk_id', Tru"
+            "e, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('platform', Tr"
+            "ue, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()),"
+            " ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.ec2', 'Image'),
     ),
 )
-def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
+def _process_dataclass__87220d581c6604d52d7009a47e01ba03de0a4e14():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -8968,6 +8969,8 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
         __dataclass__init__fields__39__default = __dataclass__spec.fields[39].default.must()
         __dataclass__init__fields__40__annotation = __dataclass__spec.fields[40].annotation
         __dataclass__init__fields__40__default = __dataclass__spec.fields[40].default.must()
+        __dataclass__init__fields__41__annotation = __dataclass__spec.fields[41].annotation
+        __dataclass__init__fields__41__default = __dataclass__spec.fields[41].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -9005,6 +9008,7 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
                 free_tier_eligible=self.free_tier_eligible,
                 public_ssm_parameter_name=self.public_ssm_parameter_name,
                 image_watermarks=self.image_watermarks,
+                scan_results=self.scan_results,
                 instance_type_specification=self.instance_type_specification,
                 image_id=self.image_id,
                 image_location=self.image_location,
@@ -9055,6 +9059,7 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
                 self.free_tier_eligible == other.free_tier_eligible and
                 self.public_ssm_parameter_name == other.public_ssm_parameter_name and
                 self.image_watermarks == other.image_watermarks and
+                self.scan_results == other.scan_results and
                 self.instance_type_specification == other.instance_type_specification and
                 self.image_id == other.image_id and
                 self.image_location == other.image_location and
@@ -9101,6 +9106,7 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
             'free_tier_eligible',
             'public_ssm_parameter_name',
             'image_watermarks',
+            'scan_results',
             'instance_type_specification',
             'image_id',
             'image_location',
@@ -9165,6 +9171,7 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
                 self.free_tier_eligible,
                 self.public_ssm_parameter_name,
                 self.image_watermarks,
+                self.scan_results,
                 self.instance_type_specification,
                 self.image_id,
                 self.image_location,
@@ -9212,19 +9219,20 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
             free_tier_eligible: __dataclass__init__fields__25__annotation = __dataclass__init__fields__25__default,
             public_ssm_parameter_name: __dataclass__init__fields__26__annotation = __dataclass__init__fields__26__default,
             image_watermarks: __dataclass__init__fields__27__annotation = __dataclass__init__fields__27__default,
-            instance_type_specification: __dataclass__init__fields__28__annotation = __dataclass__init__fields__28__default,
-            image_id: __dataclass__init__fields__29__annotation = __dataclass__init__fields__29__default,
-            image_location: __dataclass__init__fields__30__annotation = __dataclass__init__fields__30__default,
-            state: __dataclass__init__fields__31__annotation = __dataclass__init__fields__31__default,
-            owner_id: __dataclass__init__fields__32__annotation = __dataclass__init__fields__32__default,
-            creation_date: __dataclass__init__fields__33__annotation = __dataclass__init__fields__33__default,
-            public: __dataclass__init__fields__34__annotation = __dataclass__init__fields__34__default,
-            product_codes: __dataclass__init__fields__35__annotation = __dataclass__init__fields__35__default,
-            architecture: __dataclass__init__fields__36__annotation = __dataclass__init__fields__36__default,
-            image_type: __dataclass__init__fields__37__annotation = __dataclass__init__fields__37__default,
-            kernel_id: __dataclass__init__fields__38__annotation = __dataclass__init__fields__38__default,
-            ramdisk_id: __dataclass__init__fields__39__annotation = __dataclass__init__fields__39__default,
-            platform: __dataclass__init__fields__40__annotation = __dataclass__init__fields__40__default,
+            scan_results: __dataclass__init__fields__28__annotation = __dataclass__init__fields__28__default,
+            instance_type_specification: __dataclass__init__fields__29__annotation = __dataclass__init__fields__29__default,
+            image_id: __dataclass__init__fields__30__annotation = __dataclass__init__fields__30__default,
+            image_location: __dataclass__init__fields__31__annotation = __dataclass__init__fields__31__default,
+            state: __dataclass__init__fields__32__annotation = __dataclass__init__fields__32__default,
+            owner_id: __dataclass__init__fields__33__annotation = __dataclass__init__fields__33__default,
+            creation_date: __dataclass__init__fields__34__annotation = __dataclass__init__fields__34__default,
+            public: __dataclass__init__fields__35__annotation = __dataclass__init__fields__35__default,
+            product_codes: __dataclass__init__fields__36__annotation = __dataclass__init__fields__36__default,
+            architecture: __dataclass__init__fields__37__annotation = __dataclass__init__fields__37__default,
+            image_type: __dataclass__init__fields__38__annotation = __dataclass__init__fields__38__default,
+            kernel_id: __dataclass__init__fields__39__annotation = __dataclass__init__fields__39__default,
+            ramdisk_id: __dataclass__init__fields__40__annotation = __dataclass__init__fields__40__default,
+            platform: __dataclass__init__fields__41__annotation = __dataclass__init__fields__41__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'platform_details', platform_details)
             __dataclass__object_setattr(self, 'usage_operation', usage_operation)
@@ -9253,6 +9261,7 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
             __dataclass__object_setattr(self, 'free_tier_eligible', free_tier_eligible)
             __dataclass__object_setattr(self, 'public_ssm_parameter_name', public_ssm_parameter_name)
             __dataclass__object_setattr(self, 'image_watermarks', image_watermarks)
+            __dataclass__object_setattr(self, 'scan_results', scan_results)
             __dataclass__object_setattr(self, 'instance_type_specification', instance_type_specification)
             __dataclass__object_setattr(self, 'image_id', image_id)
             __dataclass__object_setattr(self, 'image_location', image_location)
@@ -9299,6 +9308,7 @@ def _process_dataclass__bc5a055390800b3b80b9fe337900f09eb6136bbd():
             parts.append(f"free_tier_eligible={self.free_tier_eligible!r}")
             parts.append(f"public_ssm_parameter_name={self.public_ssm_parameter_name!r}")
             parts.append(f"image_watermarks={self.image_watermarks!r}")
+            parts.append(f"scan_results={self.scan_results!r}")
             parts.append(f"instance_type_specification={self.instance_type_specification!r}")
             parts.append(f"image_id={self.image_id!r}")
             parts.append(f"image_location={self.image_location!r}")
@@ -20674,6 +20684,174 @@ def _process_dataclass__16431b03aa377f4c8cdb8c5901a8708169d911ec():
             parts.append(f"network_interfaces={self.network_interfaces!r}")
             parts.append(f"iam_instance_profile={self.iam_instance_profile!r}")
             parts.append(f"ebs_optimized={self.ebs_optimized!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='bb796ced2aabf3db0a6b246e694a6cd7017adc79',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('highest_finding_severity_label', True, True, None, True, True, False, No"
+            "ne), 'instance', 'value', None, False, False, False), (('finding_scan_date', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('informational_fix_available_since', Tru"
+            "e, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('low_fix_avail"
+            "able_since', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), "
+            "(('medium_fix_available_since', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
+            "se, False, False), (('high_fix_available_since', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('critical_fix_available_since', True, True, None, True, True, False,"
+            " None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,)"
+            ", (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.ec2', 'ScanResults'),
+    ),
+)
+def _process_dataclass__bb796ced2aabf3db0a6b246e694a6cd7017adc79():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                highest_finding_severity_label=self.highest_finding_severity_label,
+                finding_scan_date=self.finding_scan_date,
+                informational_fix_available_since=self.informational_fix_available_since,
+                low_fix_available_since=self.low_fix_available_since,
+                medium_fix_available_since=self.medium_fix_available_since,
+                high_fix_available_since=self.high_fix_available_since,
+                critical_fix_available_since=self.critical_fix_available_since,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.highest_finding_severity_label == other.highest_finding_severity_label and
+                self.finding_scan_date == other.finding_scan_date and
+                self.informational_fix_available_since == other.informational_fix_available_since and
+                self.low_fix_available_since == other.low_fix_available_since and
+                self.medium_fix_available_since == other.medium_fix_available_since and
+                self.high_fix_available_since == other.high_fix_available_since and
+                self.critical_fix_available_since == other.critical_fix_available_since
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'highest_finding_severity_label',
+            'finding_scan_date',
+            'informational_fix_available_since',
+            'low_fix_available_since',
+            'medium_fix_available_since',
+            'high_fix_available_since',
+            'critical_fix_available_since',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.highest_finding_severity_label,
+                self.finding_scan_date,
+                self.informational_fix_available_since,
+                self.low_fix_available_since,
+                self.medium_fix_available_since,
+                self.high_fix_available_since,
+                self.critical_fix_available_since,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            highest_finding_severity_label: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            finding_scan_date: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            informational_fix_available_since: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            low_fix_available_since: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            medium_fix_available_since: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            high_fix_available_since: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            critical_fix_available_since: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'highest_finding_severity_label', highest_finding_severity_label)
+            __dataclass__object_setattr(self, 'finding_scan_date', finding_scan_date)
+            __dataclass__object_setattr(self, 'informational_fix_available_since', informational_fix_available_since)
+            __dataclass__object_setattr(self, 'low_fix_available_since', low_fix_available_since)
+            __dataclass__object_setattr(self, 'medium_fix_available_since', medium_fix_available_since)
+            __dataclass__object_setattr(self, 'high_fix_available_since', high_fix_available_since)
+            __dataclass__object_setattr(self, 'critical_fix_available_since', critical_fix_available_since)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"highest_finding_severity_label={self.highest_finding_severity_label!r}")
+            parts.append(f"finding_scan_date={self.finding_scan_date!r}")
+            parts.append(f"informational_fix_available_since={self.informational_fix_available_since!r}")
+            parts.append(f"low_fix_available_since={self.low_fix_available_since!r}")
+            parts.append(f"medium_fix_available_since={self.medium_fix_available_since!r}")
+            parts.append(f"high_fix_available_since={self.high_fix_available_since!r}")
+            parts.append(f"critical_fix_available_since={self.critical_fix_available_since!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
