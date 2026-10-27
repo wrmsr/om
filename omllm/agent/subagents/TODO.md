@@ -7,10 +7,11 @@ Near-term first: what v1 punted on and has to be nailed down before building hig
 ## Near-term
 
 - **Split the root injector into an app injector and an agent injector per agent**, the root agent's included.
-  `bind_subagent_agent` is the shape of the per-agent module; the root agent moves onto it, declares `TURN_SCOPE` for
-  itself, and the subagent injector becomes a sibling under the app rather than a child shadowing the root's `Agent`,
-  `ToolSet`, `SystemPromptManager`, `AgentEventSubscribers`, `TurnRunner`, `AgentSetup` and `ProcessScope`. Then
-  `SUBAGENT_TURN_SCOPE` collapses into `TURN_SCOPE`, and the child shadowing wart in `omcore/inject/TODO.md` is no
+  `bind_subagent_agent` is the shape of the per-agent module; the root agent moves onto it, declares `TURN_SCOPE` and
+  `TOOL_INVOCATION_SCOPE` for itself, and the subagent injector becomes a sibling under the app rather than a child
+  shadowing the root's `Agent`, `ToolSet`, `SystemPromptManager`, `AgentEventSubscribers`, `TurnRunner`,
+  `ToolInvoker`, `AgentSetup` and `ProcessScope`. Then `SUBAGENT_TURN_SCOPE` and `SUBAGENT_TOOL_INVOCATION_SCOPE`
+  collapse into `TURN_SCOPE` and `TOOL_INVOCATION_SCOPE`, and the child shadowing wart in `omcore/inject/TODO.md` is no
   longer relied on here.
 - **Tool membership by concern, not by name.** The `fs` concern should contribute its read-only tools to an explorer's
   tool set through the injector the way every concern contributes to `AgentTools`; `_explore_tool_names` in the tui
@@ -65,9 +66,11 @@ Near-term first: what v1 punted on and has to be nailed down before building hig
   wrappers (the renderer already recurses).
 - **Richer per-profile configuration.** Different tool sets by concern, different models, different turn configs,
   different system prompt contributors, a cwd of their own, a sandbox of their own.
-- **`TOOL_CALL_SCOPE`.** The loop's `_execute_tool_call_inner` has the seam for a per-tool-call injector scope. The
-  subagent runner is a natural first citizen of it, and it is the eventual cure for `ToolContext` and
-  `ToolEnvironment`: what a tool call needs is bound in its scope rather than reached for through a context object.
+- **Citizens of `TOOL_INVOCATION_SCOPE`.** Every tool call is carried out through a `ToolInvoker`, and in the tui in
+  an opening of a per-call injector scope seeded with the `Tool` and its `ToolContext` (`ScopedToolInvoker`), but
+  nothing lives in it yet beyond the `DirectToolInvoker` it delegates to. The subagent runner is a natural first
+  citizen of it, and it is the eventual cure for `ToolContext` and `ToolEnvironment`: what a tool call needs is bound
+  in its scope rather than reached for through a context object.
 - **Process adoption.** A subagent handing a process up to its parent's scope ("keep this server running"), via
   `ProcessScope.adopt`.
 - **Subagent-level compaction.** A long-running child hitting its context window compacts like the root agent does, on

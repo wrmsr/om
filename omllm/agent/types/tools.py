@@ -1,4 +1,5 @@
 # flake8: noqa: F401
+import abc
 import typing as ta
 
 from omcore import cached
@@ -138,3 +139,24 @@ class ToolSet(ta.Sequence[Tool]):
             return self.by_name[index]
         else:
             return self.tools[index]
+
+
+##
+
+
+class ToolInvoker(lang.Abstract):
+    """
+    What the loop hands each tool call it executes to, as an agent hands each turn to a `TurnRunner`: the seam around
+    one execution of a tool, through which whatever is to surround that execution - a scope of its own, say - reaches a
+    loop which knows nothing of it. The tool is the one the call named, already looked up, and the context is the one
+    the call's execution events carry.
+    """
+
+    @abc.abstractmethod
+    def invoke_tool(self, tool: Tool, ctx: ToolContext) -> ta.Awaitable[ToolResult]:
+        """
+        Executes the tool on the context, in the calling task, and returns its result. Whatever the execution raises
+        propagates: the loop makes an Exception the call's error result, and the task's own cancellation unwinds.
+        """
+
+        raise NotImplementedError

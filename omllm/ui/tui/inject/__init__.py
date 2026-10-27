@@ -15,6 +15,9 @@ with _lang.auto_proxy_init(globals()):
 
         TURN_SCOPED,
         TURN_SCOPE,
+
+        TOOL_INVOCATION_SCOPED,
+        TOOL_INVOCATION_SCOPE,
     )
 
     from .commands import (  # noqa
@@ -29,6 +32,9 @@ with _lang.auto_proxy_init(globals()):
     from .subagents import (  # noqa
         SUBAGENT_TURN_SCOPED,
         SUBAGENT_TURN_SCOPE,
+
+        SUBAGENT_TOOL_INVOCATION_SCOPED,
+        SUBAGENT_TOOL_INVOCATION_SCOPE,
 
         bind_subagent_agent,
         ChildInjectorSubagentRunner,

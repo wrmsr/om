@@ -17,6 +17,7 @@ from ..lifecycle.managers import ContextLifecycleResult
 from ..lifecycle.managers import StandardContextLifecycleManager
 from ..projection.builders import StandardLlmContextBuilder
 from ..projection.types import LlmContextBuilder
+from ..tools.invokers import DirectToolInvoker
 from ..types.contexts import Context
 from ..types.errors import ErrorStopReasonError
 from ..types.errors import UnknownToolError
@@ -44,6 +45,7 @@ from ..types.progress import ToolProgressUpdate
 from ..types.tools import Tool
 from ..types.tools import ToolContext
 from ..types.tools import ToolEnvironment
+from ..types.tools import ToolInvoker
 from ..types.tools import ToolResult
 from ..types.turns import AgentEndReason
 from ..types.turns import TurnConfig
@@ -111,6 +113,10 @@ class TurnLoop:
 
     The model's view of the transcript is the context builder's business, not the loop's: the loop appends to the
     transcript and hands the whole of it over for each call.
+
+    Likewise what surrounds a tool's execution is the tool invoker's: the loop looks the tool up, announces the
+    execution, and turns what comes back - or what is raised - into the call's result, but has the invoker carry the
+    execution out.
     """
 
     def __init__(
@@ -122,6 +128,7 @@ class TurnLoop:
             subscriber: EventSubscriber[Event] | None = None,
             llm_backend: llm.ImmediateBackend,
             tool_env: ToolEnvironment | None = None,
+            tool_invoker: ToolInvoker | None = None,
             cancellation: asl.Cancellation,
             group_runner: AsyncGroupRunner,
             sleeps: asl.Sleeps | None = None,
@@ -141,6 +148,9 @@ class TurnLoop:
         self._subscriber = subscriber
         self._llm_backend = llm_backend
         self._tool_env = tool_env
+        if tool_invoker is None:
+            tool_invoker = DirectToolInvoker()
+        self._tool_invoker = tool_invoker
         self._cancellation = cancellation
         self._group_runner = group_runner
         if config.llm_retry is not None:
@@ -333,14 +343,6 @@ class TurnLoop:
 
     #
 
-    async def _execute_tool_call_inner(
-            self,
-            tool: Tool,
-            tool_context: ToolContext,
-    ) -> ToolResult:
-        # TODO: ToolCallRunner -> TOOL_CALL_SCOPE
-        return await tool.executor(tool_context)
-
     def _is_own_cancellation(self, e: BaseException) -> bool:
         """
         Whether `e` is the current task's own cancellation. A cancellation error while no cancellation of the task is
@@ -380,10 +382,11 @@ class TurnLoop:
             )
 
         else:
-            # Any Exception out of an executor is an error result for the model to see and recover from. Tool classes do
-            # this for themselves; this is the backstop for bare executors. The task's own cancellation propagates.
+            # Any Exception out of an execution is an error result for the model to see and recover from. Tool classes
+            # do this for themselves; this is the backstop for bare executors, and for whatever the invoker puts around
+            # them. The task's own cancellation propagates.
             try:
-                tool_result = await self._execute_tool_call_inner(tool, tool_context)
+                tool_result = await self._tool_invoker.invoke_tool(tool, tool_context)
 
             except Exception as e:  # noqa: BLE001
                 tool_result = ToolResult.of_error(e)

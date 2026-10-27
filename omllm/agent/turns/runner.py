@@ -5,6 +5,7 @@ from ...core.asyncs.base import AsyncGroupRunner
 from ..backends import BackendManager
 from ..lifecycle.managers import ContextLifecycleManager
 from ..projection.types import LlmContextBuilder
+from ..types.tools import ToolInvoker
 from ..types.turns import TurnParams
 from ..types.turns import TurnResult
 from ..types.turns import TurnRunner
@@ -24,6 +25,7 @@ class TurnLoopRunner(TurnRunner):
             sleeps: asl.Sleeps | None = None,
             context_builder: LlmContextBuilder | None = None,
             context_lifecycle_manager: ContextLifecycleManager | None = None,
+            tool_invoker: ToolInvoker | None = None,
     ) -> None:
         super().__init__()
 
@@ -33,6 +35,7 @@ class TurnLoopRunner(TurnRunner):
         self._sleeps = sleeps
         self._context_builder = context_builder
         self._context_lifecycle_manager = context_lifecycle_manager
+        self._tool_invoker = tool_invoker
 
     async def run_turn(self, params: TurnParams) -> TurnResult:
         llm_backend = self._backends.get_backend(
@@ -47,6 +50,7 @@ class TurnLoopRunner(TurnRunner):
             subscriber=params.subscriber,
             llm_backend=llm_backend,
             tool_env=params.in_state.tool_env,
+            tool_invoker=self._tool_invoker,
             cancellation=self._cancellation,
             group_runner=self._group_runner,
             sleeps=self._sleeps,

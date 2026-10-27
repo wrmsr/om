@@ -153,18 +153,33 @@ may each declare the same scope of their own. So the subagent wiring declares `S
 own tag over its own `ContextVar`, in every child injector, and `ScopedTurnRunner` took a `scope` keyword to enter it.
 Scope state is per (scope, injector), so any number of subagents run at once without seeing each other's openings.
 
-This is the shape the root agent will take after the split below: every agent injector declaring its turn scope for
-itself. Until then the two constants coexist. Nesting subagents would need a scope per depth, or that split.
+Beneath the turn scope is a scope per tool call. The loop has every call it executes carried out by a `ToolInvoker`,
+the analogue of `TurnRunner` one level down, which `TurnLoopRunner` hands it; the default, `DirectToolInvoker`, calls
+the tool's executor with nothing around it. The root injector's `ScopedToolInvoker` enters `TOOL_INVOCATION_SCOPE` per
+call, seeded with the `Tool` and its `ToolContext`, and provides the `DirectToolInvoker` bound into that scope. A
+message's calls run concurrently, each in a task of its own, so the scope is per context as the turn scope is; the call
+tasks are spawned inside the turn's opening, so what is bound in a call's scope may depend on the turn's as well.
+
+The subagent needs one of these of its own too, and more urgently: it runs inside the parent's subagent tool call,
+which is an opening of the parent's `TOOL_INVOCATION_SCOPE`. Falling through to the root's invoker would open that
+scope again on the root's injector in a task which already sees it open, and every one of the child's tool calls would
+be an error result. So the child declares `SUBAGENT_TOOL_INVOCATION_SCOPE` beside `SUBAGENT_TURN_SCOPE`, and
+`ScopedToolInvoker` takes a `scope` keyword as `ScopedTurnRunner` does.
+
+This is the shape the root agent will take after the split below: every agent injector declaring its turn and tool
+invocation scopes for itself. Until then the two pairs of constants coexist. Nesting subagents would need scopes per
+depth, or that split.
 
 
 ## The root injector is the root agent's injector, and v1 shadows it
 
 `Agent`, `Session`, `SessionId`, `ToolSet`, `SystemPromptManager`, `AgentSetup`, `AgentEventSubscribers`, the
-`TurnRunner`, and the `TurnParams` seed are all bound in the root injector today, because until now the root injector
-and the one agent were the same thing. The child injector binds its own `Agent`, `ToolSet`, `SystemPromptManager`,
-`AgentEventSubscribers`, `TurnRunner`, `AgentSetup` and `ProcessScope`, **shadowing** the root's bindings of those
-keys. `omcore/inject/TODO.md` lists child shadowing of a parent binding as a known wart. It is used here knowingly, as
-the escape hatch it is: a temporary, incremental way to get an agent scope running.
+`TurnRunner` and `ToolInvoker`, and the `TurnParams`, `Tool` and `ToolContext` seeds are all bound in the root injector
+today, because until now the root injector and the one agent were the same thing. The child injector binds its own
+`Agent`, `ToolSet`, `SystemPromptManager`, `AgentEventSubscribers`, `TurnRunner`, `ToolInvoker`, `AgentSetup` and
+`ProcessScope`, and its own seeds, **shadowing** the root's bindings of those keys. `omcore/inject/TODO.md` lists
+child shadowing of a parent binding as a known wart. It is used here knowingly, as the escape hatch it is: a temporary,
+incremental way to get an agent scope running.
 
 The structural fix is to split the root into an **app injector** and one **agent injector per agent**, the root agent's
 included. The app injector holds the backends, permissions, tool infrastructure, session storage, the ui, and the
