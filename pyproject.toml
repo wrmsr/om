@@ -28,7 +28,7 @@ all = [
 #
 
 [tool.om.pyproject.venvs._defaults]
-requires = ['-rrequirements-dev.txt']
+requires = ['-rrequirements-ext.txt']
 srcs = ['@main']
 use_uv = true
 
@@ -41,12 +41,10 @@ alias_for = '14d'
 [tool.om.pyproject.venvs.'14']
 inherits = ['_defaults']
 interp = '@14'
-requires = ['-rrequirements-ext.txt']
 
 [tool.om.pyproject.venvs.'14d']
 inherits = ['_defaults']
 interp = '@14d'
-requires = ['-rrequirements-ext.txt']
 
 [tool.om.pyproject.venvs.'14t']
 inherits = ['_defaults']

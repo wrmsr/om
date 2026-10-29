@@ -60,7 +60,10 @@ class TURN_SCOPED(lang.Marker):  # noqa
 
 _TURN_SCOPE_CONTEXT: contextvars.ContextVar = contextvars.ContextVar(f'{__name__}._TURN_SCOPE_CONTEXT')
 
-TURN_SCOPE: ta.Final = inj.DelimitedScope(TURN_SCOPED, context=inj.ContextVarScopeContext(_TURN_SCOPE_CONTEXT))
+TURN_SCOPE: ta.Final = inj.DelimitedScope(
+    TURN_SCOPED,
+    context=inj.ContextVarScopeContext(_TURN_SCOPE_CONTEXT),
+)
 
 
 #

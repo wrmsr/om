@@ -35,7 +35,7 @@ types-setuptools==84.0.0.20261006
 types-ujson==5.10.0.20250822
 
 black==26.10.1
-mypy==2.4.0
+mypy==2.4.1
 
 astpretty==3.0.0
 
@@ -136,7 +136,7 @@ pyzmq==27.2.0
 
 datasets==5.1.0
 
-transformers==5.21.0  # @om-venv !15 !15t
+transformers==5.21.0  # @om-venv !15t
 sentence-transformers==6.2.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.2
@@ -148,17 +148,17 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.120
-botocore==1.43.120
-types-boto3==1.43.120
-botocore-stubs==1.43.119
+boto3==1.43.121
+botocore==1.43.121
+types-boto3==1.43.121
+botocore-stubs==1.43.121
 
 asn1crypto==1.5.1
 pynacl==1.6.2
 
 bcrypt==5.0.0  # @om-venv !15t
 
-mlx==0.32.4; sys_platform == "darwin"  # @om-venv !15 !15t
+mlx==0.32.4; sys_platform == "darwin"
 mlx-lm==0.32.2; sys_platform == "darwin"  # @om-venv !14t !14dt !15 !15t
 
 apsw==3.54.1.0

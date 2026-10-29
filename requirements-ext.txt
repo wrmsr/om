@@ -11,7 +11,7 @@
 # infra
 
 google-api-python-client==2.201.0
-google-cloud-compute==1.56.0
+google-cloud-compute==1.56.0  # @om-venv !14t !15t
 
 
 ##
@@ -19,8 +19,8 @@ google-cloud-compute==1.56.0
 
 matplotlib==3.11.2
 
-torch==2.14.1  # @om-venv !15 !15t
-torchvision==0.29.1
+torch==2.15.0
+torchvision==0.29.2
 # torchcodec==0.7.0
 
 diffusers==0.42.1
@@ -45,9 +45,6 @@ gguf==0.19.0
 
 jedi==0.20.1
 # jedi-language-server==0.46.0
-
-tree-sitter==0.26.0
-tree-sitter-python==0.25.0
 
 watchdog==6.0.0
 

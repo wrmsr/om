@@ -28,7 +28,7 @@ class Project(ProjectBase):
 
             'tinygrad ~= 0.14',
 
-            'torch ~= 2.14',
+            'torch ~= 2.15',
             'triton ~= 3.8; sys_platform == "linux"',
 
             'transformers ~= 5.21',
