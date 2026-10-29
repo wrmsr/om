@@ -680,22 +680,20 @@ ci-bash:
 
 ### Package
 
+MACOSX_DEPLOYMENT_TARGET=15.0
+
 .PHONY: package
 package: gen check
 	${MAKE} clean-package
 	VENV=14 ${MAKE} _package
-	VENV=14t ${MAKE} _package_ext
+	VENV=14t ${MAKE} _package
 	${MAKE} docker-build-wheels
 
 .PHONY: _package
 _package:
-	MACOSX_DEPLOYMENT_TARGET=15.0 \
-	_PYTHON_HOST_PLATFORM=macosx-15.0-arm64 \
-	PYTHONPATH=. ${PYTHON} ${PYPROJECT_SRC} pkg -b -r gen
-
-.PHONY: _package_ext
-_package_ext:
-	PYTHONPATH=. ${PYTHON} ${PYPROJECT_SRC} pkg -r -S cext -S mypyc build
+	MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+	_PYTHON_HOST_PLATFORM=macosx-${MACOSX_DEPLOYMENT_TARGET}-arm64 \
+	PYTHONPATH=. ${PYTHON} ${PYPROJECT_SRC} pkg -r build
 
 .PHONY: test-install
 test-install: venv

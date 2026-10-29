@@ -1,7 +1,7 @@
 """
 How a `dockerdev run` command line splits: `dockerdev run [OPTIONS] [--] [COMMAND [ARG...]]`. Options are dockerdev's
-own or else forwarded to `docker run`, which requires a forwarded option to be one argument (`--name=foo`, not
-`--name foo`). The command starts at the first argument which is not an option, or after a `--` ending the options, and
+own or else forwarded to `docker run`, which requires a forwarded option to be one argument (`--bar=foo`, not
+`--bar foo`). The command starts at the first argument which is not an option, or after a `--` ending the options, and
 from there on is passed to the container verbatim.
 """
 import shlex
@@ -40,15 +40,15 @@ def test_the_command_starts_at_the_first_non_option():
     assert not args.x11
     assert args.extra_args == ['python3', '-v', '-X', 'dev']
 
-    assert _split('bash --name=foo') == ([], ['bash', '--name=foo'])
+    assert _split('bash --bar=foo') == ([], ['bash', '--bar=foo'])
 
 
 def test_unknown_options_are_forwarded():
-    assert _split('--name=foo --init bash') == (['--name=foo', '--init'], ['bash'])
+    assert _split('--bar=foo --init bash') == (['--bar=foo', '--init'], ['bash'])
     assert _split('--rm -it') == (['--rm', '-it'], [])
 
     # A forwarded option must be one argument: its separate value would be taken for the command.
-    assert _split('--name foo bash') == (['--name'], ['foo', 'bash'])
+    assert _split('--bar foo bash') == (['--bar'], ['foo', 'bash'])
 
 
 def test_a_double_dash_ends_the_options():
@@ -58,7 +58,7 @@ def test_a_double_dash_ends_the_options():
     assert args.extra_args == ['bash', '-v']
 
     assert _split('-- -v') == ([], ['-v'])
-    assert _split('--name=foo --') == (['--name=foo'], [])
+    assert _split('--bar=foo --') == (['--bar=foo'], [])
 
     # Only the first: a later one belongs to the command.
     assert _split('bash -- x') == ([], ['bash', '--', 'x'])
@@ -91,7 +91,7 @@ def test_the_defaults_can_be_disabled():
     assert args.no_tty
     assert args.extra_args == ['bash']
 
-    args = _run_args('--name=foo bash')
+    args = _run_args('--bar=foo bash')
     assert not args.no_rm
     assert not args.no_interactive
     assert not args.no_tty

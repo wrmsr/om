@@ -86,7 +86,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '8801ea533bd1c5f3675793f02522d591b5e4f129'
+__om_amalg_sha1__ = '1142b4c7ba0b0476e27d4fd9d05d93a650557ae5'
 
 
 def __om_amalg__():  # noqa
@@ -170,7 +170,7 @@ def __om_amalg__():  # noqa
             dict(sha1='9042c733bff897c3390b1886de115f1bbaaaa9d0', path='../interp/venvs.py'),
             dict(sha1='e938253bc84400f27e3e0ddab644158441442d3f', path='configs.py'),
             dict(sha1='3c4688c71f5345b199cf29aaa6dd7871b40a8959', path='venvs.py'),
-            dict(sha1='2027b3658bbff4edaffec217e20175f3c5d91e8a', path='cli.py'),
+            dict(sha1='99342168d1da386cc7943dd3ad972725ba09227a', path='cli.py'),
         ],
     )
 
@@ -16282,12 +16282,30 @@ class PyprojectCli(ArgparseCli):
         argparse_arg('-b', '--build', action='store_true'),
         argparse_arg('-r', '--revision', action='store_true'),
         argparse_arg('-j', '--jobs', type=int),
-        argparse_arg('-S', '--suffix', action='append'),
+        argparse_arg('-s', '--suffix', action='append'),
+        argparse_arg('-S', '--no-suffix', action='append'),
         argparse_arg('cmd', nargs='?'),
-        argparse_arg('args', nargs=argparse.REMAINDER),
     )
     async def pkg(self) -> None:
         run = Run()
+
+        def get_pgs() -> ta.List[BasePyprojectPackageGenerator]:
+            pgs: ta.List[BasePyprojectPackageGenerator] = [
+                PyprojectPackageGenerator(
+                    dir_name,
+                    pkgs_root,
+                )
+                for dir_name in run.cfg().pkgs
+            ]
+
+            pgs = list(itertools.chain.from_iterable([pg, *pg.children()] for pg in pgs))
+
+            if self.args.suffix is not None:
+                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') in self.args.suffix]
+            if self.args.no_suffix is not None:
+                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') not in self.args.no_suffix]
+
+            return pgs
 
         cmd = self.args.cmd
         if not cmd:
@@ -16306,16 +16324,7 @@ class PyprojectCli(ArgparseCli):
             if run_build:
                 os.makedirs(build_output_dir, exist_ok=True)
 
-            pgs: ta.List[BasePyprojectPackageGenerator] = [
-                PyprojectPackageGenerator(
-                    dir_name,
-                    pkgs_root,
-                )
-                for dir_name in run.cfg().pkgs
-            ]
-            pgs = list(itertools.chain.from_iterable([pg, *pg.children()] for pg in pgs))
-            if self.args.suffix is not None:
-                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') in self.args.suffix]
+            pgs = get_pgs()
 
             num_threads = self.args.jobs or int(max(mp.cpu_count() // 1.5, 1))
             futs: ta.List[cf.Future]
@@ -16346,16 +16355,7 @@ class PyprojectCli(ArgparseCli):
 
             os.makedirs(build_output_dir, exist_ok=True)
 
-            pgs = [
-                PyprojectPackageGenerator(
-                    dir_name,
-                    pkgs_root,
-                )
-                for dir_name in run.cfg().pkgs
-            ]
-            pgs = list(itertools.chain.from_iterable([pg, *pg.children()] for pg in pgs))
-            if self.args.suffix is not None:
-                pgs = [pg for pg in pgs if pg.pkg_suffix.lstrip('-') in self.args.suffix]
+            pgs = get_pgs()
 
             num_threads = self.args.jobs or int(max(mp.cpu_count() // 1.5, 1))
             with cf.ThreadPoolExecutor(num_threads) as ex:

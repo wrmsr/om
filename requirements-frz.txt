@@ -20,9 +20,9 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.10.1
 blobfile==3.3.0
-boto3==1.43.121
-botocore==1.43.121
-botocore-stubs==1.43.121
+boto3==1.43.122
+botocore==1.43.122
+botocore-stubs==1.43.122
 brotli==1.2.1
 build==1.6.1
 cbor2==6.1.5
@@ -149,7 +149,7 @@ parso==0.8.7
 pathspec==1.1.1
 pcpp==1.30
 pexpect==4.9.0
-pg8000==1.31.5
+pg8000==1.31.6
 pillow==13.0.0
 platformdirs==4.14.0
 playwright==1.64.1
@@ -267,7 +267,7 @@ trio==0.34.0
 twine==7.0.0
 typer==0.27.3
 types-awscrt==0.37.0
-types-boto3==1.43.121
+types-boto3==1.43.122
 types-docutils==0.23.0.20260923
 types-greenlet==3.5.0.20260518
 types-paramiko==5.0.0.20261021
