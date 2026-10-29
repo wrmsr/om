@@ -1,24 +1,61 @@
-# ruff: noqa: SLF001
+# ruff: noqa: N802 S105 SLF001
+import collections
 import hashlib
-import typing as ta
+import ssl
 
 import pytest
 
-from .. import scramp
-from ..certs import tls_server_end_point
+from ..scramp import MECHS
+from ..scramp import CBindData
+from ..scramp import CbName
+from ..scramp import ChannelBinding
 from ..scramp import Gs2Header
+from ..scramp import IterationCount
+from ..scramp import Message
 from ..scramp import Nonce
+from ..scramp import Password
 from ..scramp import Salt
 from ..scramp import ScramClient
 from ..scramp import ScramError
+from ..scramp import ScramMechanism
+from ..scramp import ServerError
+from ..scramp import ServerFinal
+from ..scramp import ServerFirst
 from ..scramp import Username
 from ..scramp import _get_client_final
-from ..scramp import _parse_message
+from ..scramp import _get_client_first
+from ..scramp import _make_auth_message
+from ..scramp import _set_server_final
 from ..scramp import _set_server_first
-from ..scramp import _validate_channel_binding
+from ..scramp import _username_unescape
 from ..scramp import b64dec
-from ..scramp import make_channel_binding
+from ..scramp import hi
+from ..scramp import pbkdf2_hmac_hashlib
+from ..scramp import pbkdf2_hmac_pure_python
+from ..scramp import saslprep
 from ..scramp import xor
+
+
+SCRAMP = __package__.rpartition('.')[0] + '.scramp'
+
+
+@pytest.mark.parametrize(
+    ('msg_in', 'error_in', 'error_msg', 'server_error'),
+    [
+        (
+            'error',
+            'invalid-encoding',
+            'Server error must be None or of type ServerError: other-error',
+            ServerError.OTHER_ERROR,
+        ),
+    ],
+)
+def test_ScramError_init_error(msg_in, error_in, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        ScramError(msg_in, error_in)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
 
 
 @pytest.mark.parametrize(
@@ -26,8 +63,8 @@ from ..scramp import xor
     [
         (
             '!!!!',
-            "Invalid base 64 encoding '!!!!': invalid-encoding",
-            'invalid-encoding',
+            'Invalid base 64 encoding: invalid-encoding',
+            ServerError.INVALID_ENCODING,
         ),
     ],
 )
@@ -36,7 +73,7 @@ def test_b64dec_fails(string, error_msg, server_error):
         b64dec(string)
 
     assert str(exc_info.value) == error_msg
-    assert str(exc_info.value.server_error) == server_error
+    assert exc_info.value.server_error == server_error
 
 
 @pytest.mark.parametrize(
@@ -52,89 +89,312 @@ def test_xor_fails(a, b, msg):
     assert str(exc_info.value) == msg
 
 
+def test_hashlib_pbkdf2_hmac_present(mocker):
+    hi_pbkdf2_hmac_mock = mocker.patch(SCRAMP + '.hi_pbkdf2_hmac', autospec=True)
+    hf = 1
+    password = 2
+    salt = 3
+    iterations = 3
+    hi(hf, password, salt, iterations)  # type: ignore
+    hi_pbkdf2_hmac_mock.assert_called_once_with(
+        pbkdf2_hmac_hashlib, hf, password, salt, iterations,
+    )
+
+
+def test_hashlib_pbkdf2_hmac_missing(monkeypatch, mocker):
+    monkeypatch.delattr('hashlib.pbkdf2_hmac')
+    hi_pbkdf2_hmac_mock = mocker.patch(SCRAMP + '.hi_pbkdf2_hmac', autospec=True)
+    hf = 1
+    password = 2
+    salt = 3
+    iterations = 3
+    hi(hf, password, salt, iterations)  # type: ignore
+    hi_pbkdf2_hmac_mock.assert_called_once_with(
+        pbkdf2_hmac_pure_python, hf, password, salt, iterations,
+    )
+
+
 @pytest.mark.parametrize(
-    ('msg', 'att_sets', 'error_msg'),
+    ('hf', 'password', 'salt', 'iterations'),
     [
         (
-            '',
-            [{'a', 'b', 'c'}],
+            hashlib.sha256,
+            b'a',
+            b64dec('W22ZaJ0SNY7soEsUEjb6gQ=='),
+            4,
+        ),
+    ],
+)
+def test_pbkdf2_hmac_pure_python(hf, password, salt, iterations):
+    hashlib_result = pbkdf2_hmac_hashlib(hf, password, salt, iterations)
+    pure_result = pbkdf2_hmac_pure_python(hf, password, salt, iterations)
+    assert pure_result == hashlib_result
+
+
+@pytest.mark.parametrize(
+    ('source', 'error_msg', 'server_error'),
+    [  # Should use unicode 3.2
+        (
+            '\U0001f130',
+            'unassigned code points forbidden: invalid-encoding',
+            ServerError.INVALID_ENCODING,
+        ),
+    ],
+)
+def test_saslprep_error(source, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        saslprep(source)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
+
+
+@pytest.mark.parametrize(
+    ('msg', 'att_strs', 'result'),
+    [
+        ('c=jk,i=5000', ['ci'], collections.OrderedDict(c='jk', i=IterationCount(5000))),
+        ('c=jk,i=4096', ['abc', 'ci'], collections.OrderedDict(c='jk', i=IterationCount(4096))),
+        ('c=b', ['c'], collections.OrderedDict(c='b')),
+        ('k=k,c=b', ['*c'], collections.OrderedDict(k='k', c='b')),
+    ],
+)
+def test_Message_init(msg, att_strs, result):
+    msg = Message(msg, 'trial', *att_strs)
+    assert msg._msg == result
+
+
+@pytest.mark.parametrize(
+    ('msg', 'att_seqs', 'error_msg'),
+    [
+        (
+            'junk',
+            ['abc'],
             (
-                "Malformed trial message. Attributes must be separated by a ',' and each "
-                "attribute must start with a letter followed by a '=': other-error"
+                "Malformed trial message. Attributes must be separated by a ',' "
+                "and each attribute must start with a letter followed by a '=': "
+                "other-error"
+            ),
+        ),
+        (
+            '',
+            ['abc'],
+            (
+                "Malformed trial message. Attributes must be separated by a ',' and "
+                "each attribute must start with a letter followed by a '=': other-error"
             ),
         ),
         (
             'c=jk,d=kln',
-            [{'a', 'b', 'c'}],
+            ['abc'],
             (
-                'Malformed trial message. Expected the attribute set to be one of '
-                '[{a, b, c}] but found {c}: other-error'
+                "Malformed trial message. Expected the attribute str to be one of "
+                "['abc'] but found 'c*' (where '*' is unrecognised attributes): "
+                "other-error"
             ),
         ),
         (
             'c=jk,c=kln',
-            [{'c'}],
-            'Duplicate attributes not allowed in message. The duplicated attribute is c. : other-error',
+            ['c'],
+            'Duplicate attributes not allowed in message: other-error',
         ),
         (
             'e=error',
-            [{'c'}],
-            'Malformed trial message. Expected the attribute set to be one of [{c}] but found {e}: other-error',
+            ['c'],
+            (
+                "Malformed trial message. Expected the attribute str to be one of "
+                "['c'] but found 'e': other-error"
+            ),
         ),
         (
             'e=\x00',
-            [{'e'}],
-            "Malformed trial message. Attribute values can't contain the NUL character: other-error",
+            ['e'],
+            (
+                "Malformed trial message. Attribute values can't contain the NUL "
+                "character: other-error"
+            ),
+        ),
+        (
+            'r=a,x=b,p=c,y=d',
+            ['r*p'],
+            (
+                "Malformed trial message. Expected the attribute str to be one of "
+                "['r*p'] but found 'r*p*' (where '*' is unrecognised attributes): "
+                "other-error"
+            ),
+        ),
+        (
+            b'c=jk,i=kln',
+            ['r*p'],
+            'A message must be of type str: other-error',
+        ),
+        # Malformed iteration count in server first
+        (
+            (
+                'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
+                's=W22ZaJ0SNY7soEsUEjb6gQ==,i=not_an_integer'
+            ),
+            ['rsi'],
+            'The iteration count can only contain ASCII digits: other-error',
+        ),
+        # Server signature contains invalid base 64 encoding
+        (
+            ('v=é'),
+            ['v'],
+            'Invalid base 64 encoding: invalid-encoding',
         ),
     ],
 )
-def test_parse_message_fail(msg, att_sets, error_msg):
+def test_Message_init_error(msg, att_seqs, error_msg):
     with pytest.raises(ScramError) as exc_info:
-        _parse_message(msg, 'trial', *att_sets)
+        Message(msg, 'trial', *att_seqs)
 
     assert str(exc_info.value) == error_msg
 
 
 @pytest.mark.parametrize(
-    ('msg', 'att_sets', 'result'),
-    [
-        ('c=jk,i=kln', [{'c', 'i'}], {'c': 'jk', 'i': 'kln'}),
-        ('c=jk,i=kln', [{'a', 'b', 'c'}, {'c', 'i'}], {'c': 'jk', 'i': 'kln'}),
-        ('c=b', [{'c'}], {'c': 'b'}),
-        ('k=k,c=b', [{'c'}], {'c': 'b'}),
-    ],
-)
-def test_parse_message_succeed(msg, att_sets, result):
-    assert _parse_message(msg, 'trial', *att_sets) == result
-
-
-@pytest.mark.parametrize(
-    ('cb', 'msg'),
+    ('i', 'error_msg', 'server_error'),
     [
         (
-            ('c', 'd'),
-            (
-                "The channel_binding parameter must either be None or a "
-                "tuple with the first element a str specifying one of the channel types "
-                "('tls-server-end-point', 'tls-unique', 'tls-unique-for-telnet')."
-            ),
+            True,
+            'The value must be an int: other-error',
+            ServerError.OTHER_ERROR,
         ),
     ],
 )
-def test_validate_channel_binding_fail(cb, msg):
+def test_IterationCount_init_error(i, error_msg, server_error):
     with pytest.raises(ScramError) as exc_info:
-        _validate_channel_binding(cb)
+        IterationCount(i)
 
-    assert str(exc_info.value) == msg
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
+
+
+@pytest.mark.parametrize(
+    ('i', 'error_msg', 'server_error'),
+    [
+        (
+            '',
+            'The iteration count must not be empty: other-error',
+            ServerError.OTHER_ERROR,
+        ),
+    ],
+)
+def test_IterationCount_from_str_error(i, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        IterationCount.from_str(i)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
+
+
+def test_IterationCount_lt_error():
+    IterationCount(4096).__lt__(5000)
+    with pytest.raises(TypeError) as exc_info:
+        _ = IterationCount(4096) < 5000
+
+    assert (
+        str(exc_info.value)
+        == "'<' not supported between instances of 'IterationCount' and 'int'"
+    )
+
+
+@pytest.mark.parametrize(
+    ('username', 'expected_username'),
+    [
+        # RFC 5802, section 5.1
+        ('u=3Dse=2Cr', 'u=se,r'),
+    ],
+)
+def test_username_unescape(username, expected_username):
+    actual_username = _username_unescape(username)
+    assert actual_username == expected_username
+
+
+@pytest.mark.parametrize(
+    ('username', 'error_msg', 'server_error'),
+    [
+        # RFC 5802, section 5.1
+        (
+            '=',
+            (
+                "An '=' in a username must be followed by '3D', or  '2C': "
+                "invalid-username-encoding"
+            ),
+            ServerError.INVALID_USERNAME_ENCODING,
+        ),
+    ],
+)
+def test_username_unescape_error(username, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        _username_unescape(username)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
+
+
+@pytest.mark.parametrize(
+    ('data', 'error_msg', 'server_error'),
+    [
+        (
+            b'',
+            'Problem loading certificate from DER: other-error',
+            ServerError.OTHER_ERROR,
+        ),
+    ],
+)
+def test_CBindData_from_der_error(data, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        CBindData.from_der(data)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
+
+
+@pytest.mark.parametrize(
+    ('cb', 'use_binding'),
+    [
+        (
+            ChannelBinding(CbName('tls-unique'), CBindData(b'bee')),
+            True,
+        ),
+    ],
+)
+def test_Gs2Header_from_binding(cb, use_binding):
+    Gs2Header.from_binding(cb, True)
+
+
+@pytest.mark.parametrize(
+    ('header_str', 'error_msg', 'server_error'),
+    [
+        (
+            'p=an=ame,,',
+            (
+                "The channel binding name must contain only ASCII characters that are "
+                "alphabetic or a digit or '.' or '-': other-error"
+            ),
+            ServerError.OTHER_ERROR,
+        ),
+        (
+            'p=tls-unique,,trailing',  # No traling characters after the last comma
+            "The gs2-header can't have characters after the last comma: other-error",
+            ServerError.OTHER_ERROR,
+        ),
+    ],
+)
+def test_Gs2Header_from_str_error(header_str, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        Gs2Header.from_str(header_str)
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
 
 
 @pytest.mark.parametrize(
     ('gs2_char', 'cb_name', 'expected'),
     [
-        ('p', 'aname', 'p=aname,,'),
+        ('p', CbName('tls-unique'), 'p=tls-unique,,'),
     ],
 )
-def test_gs2header_str(gs2_char, cb_name, expected):
+def test_Gs2Header_str(gs2_char, cb_name, expected):
     gs2_header = Gs2Header(gs2_char, cb_name)
     assert str(gs2_header) == expected
 
@@ -142,13 +402,36 @@ def test_gs2header_str(gs2_char, cb_name, expected):
 @pytest.mark.parametrize(
     ('gs2_char', 'cb_name'),
     [
-        ('p', 'aname'),
+        ('p', CbName('tls-unique')),
     ],
 )
-def test_gs2header_eq(gs2_char, cb_name):
+def test_Gs2Header_eq(gs2_char, cb_name):
     gs2_header_a = Gs2Header(gs2_char, cb_name)
     gs2_header_b = Gs2Header(gs2_char, cb_name)
     assert gs2_header_a == gs2_header_b
+
+
+@pytest.mark.parametrize(
+    ('username', 'error_msg', 'server_error'),
+    [
+        (
+            '',
+            'The username cannot be empty: other-error',
+            ServerError.OTHER_ERROR,
+        ),
+        (
+            '\u00ad',
+            'The username cannot be empty: other-error',
+            ServerError.OTHER_ERROR,
+        ),
+    ],
+)
+def test_Username_init_error(username, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        Username(username)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
 
 
 @pytest.mark.parametrize(
@@ -160,16 +443,16 @@ def test_gs2header_eq(gs2_char, cb_name):
                 "The 'salt' must be of type bytes, but found type <class 'str'>: "
                 "other-error"
             ),
-            'other-error',
+            ServerError.OTHER_ERROR,
         ),
     ],
 )
-def test_salt_init_error(salt, error_msg, server_error):
+def test_Salt_init_error(salt, error_msg, server_error):
     with pytest.raises(ScramError) as exc_info:
         Salt(salt)
 
     assert str(exc_info.value) == error_msg
-    assert str(exc_info.value.server_error) == server_error
+    assert exc_info.value.server_error == server_error
 
 
 @pytest.mark.parametrize(
@@ -177,20 +460,17 @@ def test_salt_init_error(salt, error_msg, server_error):
     [
         (
             '!!!',
-            (
-                "Invalid salt encoding: Invalid base 64 encoding '!!!': "
-                "invalid-encoding: invalid-encoding"
-            ),
-            'invalid-encoding',
+            'Invalid base 64 encoding: invalid-encoding',
+            ServerError.INVALID_ENCODING,
         ),
     ],
 )
-def test_salt_from_str_error(salt_str, error_msg, server_error):
+def test_Salt_from_str_error(salt_str, error_msg, server_error):
     with pytest.raises(ScramError) as exc_info:
         Salt.from_str(salt_str)
 
     assert str(exc_info.value) == error_msg
-    assert str(exc_info.value.server_error) == server_error
+    assert exc_info.value.server_error == server_error
 
 
 @pytest.mark.parametrize(
@@ -202,16 +482,133 @@ def test_salt_from_str_error(salt_str, error_msg, server_error):
                 "The 'nonce' must be of type str, but found type <class 'bytes'>: "
                 "other-error"
             ),
-            'other-error',
+            ServerError.OTHER_ERROR,
+        ),
+        (
+            '',  # Can't be empty
+            "An empty string isn't allowed: other-error",
+            ServerError.OTHER_ERROR,
         ),
     ],
 )
-def test_nonce_init_error(nonce, error_msg, server_error):
+def test_Nonce_init_error(nonce, error_msg, server_error):
     with pytest.raises(ScramError) as exc_info:
         Nonce(nonce)
 
     assert str(exc_info.value) == error_msg
-    assert str(exc_info.value.server_error) == server_error
+    assert exc_info.value.server_error == server_error
+
+
+@pytest.mark.parametrize(
+    ('name', 'error_msg', 'server_error'),
+    [
+        (
+            'bogus',
+            (
+                "The channel binding type is not recognised by Scramp. The recognised "
+                "types are ['tls-exporter', 'tls-server-end-point', 'tls-unique', "
+                "'tls-unique-for-telnet']: unsupported-channel-binding-type"
+            ),
+            ServerError.UNSUPPORTED_CHANNEL_BINDING_TYPE,
+        ),
+        (
+            'tls-exporter',
+            (
+                "The channel binding types ['tls-exporter'] are not supported by "
+                "Scramp. Please see the README for details: "
+                "unsupported-channel-binding-type"
+            ),
+            ServerError.UNSUPPORTED_CHANNEL_BINDING_TYPE,
+        ),
+    ],
+)
+def test_CbName_init_error(name, error_msg, server_error):
+    with pytest.raises(ScramError) as exc_info:
+        CbName(name)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
+
+
+@pytest.mark.parametrize(
+    'mechanism_name',
+    ['SCRAM-SHA-256', 'SCRAM-SHA-512-PLUS', 'SCRAM-SHA3-512-PLUS'],
+)
+def test_ScramMechanism_init(mechanism_name):
+    mechanism = ScramMechanism(mechanism_name)
+    mech_data = MECHS[mechanism_name]
+
+    assert mechanism.strength == mech_data.strength
+    assert mechanism.iteration_count == mech_data.iteration_count
+
+
+@pytest.mark.parametrize(
+    ('mechanism_name', 'password', 'iteration_count', 'salt'),
+    [
+        (
+            'SCRAM-SHA3-512',
+            'pencil',
+            50000,
+            b'aaaaaaaaaaaaaaaa',
+        ),
+        (
+            'SCRAM-SHA3-512',
+            'pencil',
+            20000,
+            b'xxxxxxxxxxxxxxxx',
+        ),
+        (
+            'SCRAM-SHA-512-PLUS',
+            'pencil',
+            50000,
+            b'aaaaaaaaaaaaaaaa',
+        ),
+        (
+            'SCRAM-SHA3-512-PLUS',
+            'pencil',
+            20000,
+            b'xxxxxxxxxxxxxxxx',
+        ),
+    ],
+)
+def test_ScramMechanism_make_auth_info(mechanism_name, password, iteration_count, salt):
+    m = ScramMechanism(mechanism=mechanism_name)
+    m.make_auth_info(password, iteration_count, salt)
+
+
+@pytest.mark.parametrize(
+    ('mechanism_name', 'password', 'iteration_count', 'salt', 'error_msg', 'server_error'),
+    [
+        (
+            'SCRAM-SHA3-512',
+            'pencil',
+            1,
+            b'aaaaaaaaaaaaaaaa',
+            'The value must not be < 4096: other-error',
+            ServerError.OTHER_ERROR,
+        ),
+        (
+            'SCRAM-SHA3-512',
+            'pencil',
+            20000,
+            '',
+            (
+                "The 'salt' must be of type bytes, but found type "
+                "<class 'str'>: other-error"
+            ),
+            ServerError.OTHER_ERROR,
+        ),
+    ],
+)
+def test_ScramMechanism_make_auth_info_error(
+    mechanism_name, password, iteration_count, salt, error_msg, server_error,
+):
+    m = ScramMechanism(mechanism=mechanism_name)
+    with pytest.raises(ScramError) as exc_info:
+        m.make_auth_info(password, iteration_count, salt)
+
+    assert str(exc_info.value) == error_msg
+    assert exc_info.value.server_error == server_error
 
 
 EXCHANGE_SCRAM_SHA_256 = {
@@ -231,10 +628,12 @@ EXCHANGE_SCRAM_SHA_256 = {
     'c_nonce': 'rOprNGfwEbeRWgbNEkqO',
     's_nonce': '%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0',
     'nonce': 'rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0',
-    'auth_message': b'n=user,r=rOprNGfwEbeRWgbNEkqO,'
-    b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
-    b's=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096,c=biws,'
-    b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0',
+    'auth_message': (
+        b'n=user,r=rOprNGfwEbeRWgbNEkqO,'
+        b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
+        b's=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096,c=biws,'
+        b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0'
+    ),
     'salt': 'W22ZaJ0SNY7soEsUEjb6gQ==',
     'iterations': 4096,
     'server_signature': '6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=',
@@ -266,10 +665,12 @@ EXCHANGE_SCRAM_SHA_256_PLUS = {
     'c_nonce': 'rOprNGfwEbeRWgbNEkqO',
     's_nonce': '%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0',
     'nonce': 'rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0',
-    'auth_message': b'n=user,r=rOprNGfwEbeRWgbNEkqO,'
-    b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
-    b's=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096,c=cD10bHMtdW5pcXVlLCx4eHg=,'
-    b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0',
+    'auth_message': (
+        b'n=user,r=rOprNGfwEbeRWgbNEkqO,'
+        b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
+        b's=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096,c=cD10bHMtdW5pcXVlLCx4eHg=,'
+        b'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0'
+    ),
     'salt': 'W22ZaJ0SNY7soEsUEjb6gQ==',
     'iterations': 4096,
     'server_signature': 'XjAev9iHBOvTxT+eNzBaFmP1IrqWah2PpZAa0wQrfY4=',
@@ -302,10 +703,12 @@ params = [
         'c_nonce': 'fyko+d2lbbFgONRv9qkxdawL',
         's_nonce': '3rfcNHYJY1ZVvWVs7j',
         'nonce': 'fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
-        'auth_message': b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
-        b's=QSXCR+Q6sek8bf92,i=4096,c=biws,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
+        'auth_message': (
+            b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
+            b's=QSXCR+Q6sek8bf92,i=4096,c=biws,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j'
+        ),
         'salt': 'QSXCR+Q6sek8bf92',
         'iterations': 4096,
         'server_signature': 'rmF9pqV8S7suAoZWja4dJRkFsKQ=',
@@ -335,10 +738,12 @@ params = [
         'c_nonce': 'fyko+d2lbbFgONRv9qkxdawL',
         's_nonce': '3rfcNHYJY1ZVvWVs7j',
         'nonce': 'fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
-        'auth_message': b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
-        b's=QSXCR+Q6sek8bf92,i=4096,c=eSws,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
+        'auth_message': (
+            b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
+            b's=QSXCR+Q6sek8bf92,i=4096,c=eSws,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j'
+        ),
         'salt': 'QSXCR+Q6sek8bf92',
         'iterations': 4096,
         'server_signature': 'dsprQ5R2AGYt1kn4bQRwTAE0PTU=',
@@ -370,10 +775,12 @@ params = [
         'c_nonce': 'fyko+d2lbbFgONRv9qkxdawL',
         's_nonce': '3rfcNHYJY1ZVvWVs7j',
         'nonce': 'fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
-        'auth_message': b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
-        b's=QSXCR+Q6sek8bf92,i=4096,c=cD10bHMtdW5pcXVlLCx4eHg=,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
+        'auth_message': (
+            b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
+            b's=QSXCR+Q6sek8bf92,i=4096,c=cD10bHMtdW5pcXVlLCx4eHg=,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j'
+        ),
         'salt': 'QSXCR+Q6sek8bf92',
         'iterations': 4096,
         'server_signature': 'GCPHy5gy1sRwXTCbwNhiiWIzLtU=',
@@ -405,10 +812,12 @@ params = [
         'c_nonce': 'fyko+d2lbbFgONRv9qkxdawL',
         's_nonce': '3rfcNHYJY1ZVvWVs7j',
         'nonce': 'fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
-        'auth_message': b'n=u=3Dse=2Cr,r=fyko+d2lbbFgONRv9qkxdawL,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
-        b's=QSXCR+Q6sek8bf92,i=4096,c=biws,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
+        'auth_message': (
+            b'n=u=3Dse=2Cr,r=fyko+d2lbbFgONRv9qkxdawL,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
+            b's=QSXCR+Q6sek8bf92,i=4096,c=biws,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j'
+        ),
         'salt': 'QSXCR+Q6sek8bf92',
         'iterations': 4096,
         'server_signature': 'ySs7A8qkVwzSKc4pAqR/R4+/50g=',
@@ -440,10 +849,12 @@ params = [
         'c_nonce': 'fyko+d2lbbFgONRv9qkxdawL',
         's_nonce': '3rfcNHYJY1ZVvWVs7j',
         'nonce': 'fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
-        'auth_message': b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
-        b's=QSXCR+Q6sek8bf92,i=10000,c=biws,'
-        b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j',
+        'auth_message': (
+            b'n=user,r=fyko+d2lbbFgONRv9qkxdawL,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,'
+            b's=QSXCR+Q6sek8bf92,i=10000,c=biws,'
+            b'r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j'
+        ),
         'salt': 'QSXCR+Q6sek8bf92',
         'iterations': 10000,
         'server_signature': 'L8sKlyFigUkpTO8I3eaJSyuQhsDynb2eD1MWl+'
@@ -464,8 +875,14 @@ params = [
 
 @pytest.mark.parametrize('x', params)
 def test_get_client_first(x):
-    gs2_header = Gs2Header.from_binding(x['c_channel_binding'], x['c_use_binding'])
-    cfirst_bare, cfirst = scramp._get_client_first(
+    channel_binding = x['c_channel_binding']
+    if channel_binding is None:
+        cb = None
+    else:
+        cb_name, cb_data = channel_binding
+        cb = ChannelBinding(CbName(cb_name), CBindData(cb_data))
+    gs2_header = Gs2Header.from_binding(cb, x['c_use_binding'])
+    cfirst_bare, cfirst = _get_client_first(
         Username(x['username']), x['c_nonce'], gs2_header,
     )
 
@@ -475,7 +892,7 @@ def test_get_client_first(x):
 
 @pytest.mark.parametrize('x', params)
 def test_make_auth_message(x):
-    auth_msg = scramp._make_auth_message(
+    auth_msg = _make_auth_message(
         x['cfirst_bare'],
         x['sfirst'],
         x['cfinal_without_proof'],
@@ -485,21 +902,28 @@ def test_make_auth_message(x):
 
 @pytest.mark.parametrize('x', params)
 def test_get_client_final(x):
-    gs2_header = Gs2Header.from_binding(x['c_channel_binding'], x['c_use_binding'])
+    channel_binding = x['c_channel_binding']
+    if channel_binding is None:
+        cb = None
+    else:
+        cb_name, cb_data = channel_binding
+        cb = ChannelBinding(CbName(cb_name), CBindData(cb_data))
+    gs2_header = Gs2Header.from_binding(cb, x['c_use_binding'])
     salt = Salt.from_str(x['salt'])
+    password = Password(x['password'])
     server_signature, cfinal = _get_client_final(
         x['hf'],
-        x['password'],
+        password,
         salt,
         x['iterations'],
         x['nonce'],
         x['cfirst_bare'],
         x['sfirst'],
-        x['c_channel_binding'],
+        cb,
         gs2_header,
     )
 
-    assert server_signature == x['server_signature']
+    assert server_signature == b64dec(x['server_signature'])
     assert cfinal == x['cfinal']
 
 
@@ -533,67 +957,202 @@ def test_client(x):
     assert c.get_client_final() == x['cfinal']
 
 
-def test_check_stage():
-    with pytest.raises(
-        ScramError,
-        match=r'The next method to be called is set_server_first, not this method.',
-    ):
-        scramp._check_stage(
-            scramp.ClientStage,
-            scramp.ClientStage.get_client_first,
-            scramp.ClientStage.set_server_final,
-        )
-
-
 @pytest.mark.parametrize(
-    ('server_first', 'c_nonce', 'min_iteration_count', 'error_msg'),
+    ('server_first', 'c_nonce'),
     [
-        # Error from server
         (
-            'e=other-error',
-            'fyko+d2lbbFgONRv9qkxdawL',
-            1000,
-            'The server returned the error: other-error',
-        ),
-        # Malformed server first
-        (
-            'junk',
-            'fyko+d2lbbFgONRv9qkxdawL',
-            1000,
-            (
-                "Malformed server first message. Attributes must be separated by a ',' "
-                "and each attribute must start with a letter followed by a '=': "
-                "other-error"
-            ),
-        ),
-        # Malformed iteration count in server first
-        (
-            (
+            ServerFirst(
                 'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,'
-                's=W22ZaJ0SNY7soEsUEjb6gQ==,i=not_an_integer'
+                's=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096',
             ),
-            'fyko+d2lbbFgONRv9qkxdawL',
-            1000,
-            'Server iteration count not_an_integer is not valid',
+            Nonce('rOprNGfwEbeRWgbNEkqO'),
         ),
     ],
 )
-def test_set_server_first_error(server_first, c_nonce, min_iteration_count, error_msg):
+def test_set_server_first(server_first, c_nonce):
+    _set_server_first(server_first, c_nonce)
+
+
+@pytest.mark.parametrize(
+    ('server_first', 'c_nonce', 'error_msg'),
+    [
+        # Error from server
+        (
+            ServerFirst('e=other-error'),
+            Nonce('fyko+d2lbbFgONRv9qkxdawL'),
+            'The server returned an error: other-error',
+        ),
+        # The nonce must be longer than the c_nonce
+        (
+            ServerFirst('r=fyko+d2lbbFgONRv9qkxdawL,s=W22ZaJ0SNY7soEsUEjb6gQ==,i=5000'),
+            Nonce('fyko+d2lbbFgONRv9qkxdawL'),
+            'The nonce must be longer than the client nonce: other-error',
+        ),
+        (
+            ServerFirst('e=other-error,x=a'),
+            Nonce('fyko+d2lbbFgONRv9qkxdawL'),
+            'The server returned an error: other-error',
+        ),
+    ],
+)
+def test_set_server_first_error(server_first, c_nonce, error_msg):
     with pytest.raises(ScramError) as exc_info:
-        _set_server_first(server_first, c_nonce, min_iteration_count)
+        _set_server_first(server_first, c_nonce)
+
     assert str(exc_info.value) == error_msg
 
 
-def test_set_server_final_missing_param():
-    x: ta.Any = EXCHANGE_SCRAM_SHA_256
+@pytest.mark.parametrize(
+    ('msg', 'server_signature'),
+    [
+        (
+            ServerFinal('v=6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4='),
+            b64dec('6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4='),
+        ),
+    ],
+)
+def test_set_server_final(msg, server_signature):
+    _set_server_final(msg, server_signature)
+
+
+def test_ScramClient_init_error_no_cert(mocker):
+    mechanisms = ['SCRAM-SHA-256-PLUS']
+    username = 'max'
+    password = 'pencil'
+    sock = mocker.MagicMock(spec=ssl.SSLSocket)
+    sock.getpeercert.return_value = None
+    channel_binding = 'tls-server-end-point', sock
+    c_nonce = 'rOprNGfwEbeRWgbNEkqO'
+    with pytest.raises(ScramError) as exc_info:
+        ScramClient(
+            mechanisms,
+            username,
+            password,
+            channel_binding=channel_binding,
+            c_nonce=c_nonce,
+        )
+    expected_error_msg = 'There is no peer certificate for the SSL socket: other-error'
+    assert str(exc_info.value) == expected_error_msg
+
+
+@pytest.mark.parametrize(
+    ('mechanisms', 'username', 'password', 'channel_binding', 'c_nonce'),
+    [
+        (
+            ['SCRAM-SHA-256-PLUS'],
+            'max',
+            'pencil',
+            ('tls-unique', b'xxx'),
+            'rOprNGfwEbeRWgbNEkqO',
+        ),
+    ],
+)
+def test_ScramClient_init(
+    mocker, mechanisms, username, password, channel_binding, c_nonce,
+):
+    ScramClient(
+        mechanisms,
+        username,
+        password,
+        channel_binding=channel_binding,
+        c_nonce=c_nonce,
+    )
+
+
+# @pytest.mark.parametrize(
+#     'ssl_socket_class',
+#     [
+#         ssl.SSLSocket,
+#         ssl.SSLObject,
+#     ],
+# )
+# def test_ScramClient_init_tls_server_end_point(mocker, ssl_socket_class):
+#     mechanisms = ['SCRAM-SHA-512-PLUS']
+#     username = 'max'
+#     password = 'pencil'
+#
+#     ssl_socket = mocker.create_autospec(ssl_socket_class, instance=True)
+#     ssl_socket.getpeercert = mocker.Mock(return_value=b'cafe')
+#     mock_cert = mocker.Mock()
+#     mock_cert.hash_algo = 'sha512'
+#     mocker.patch('scramp.core.Certificate.load', return_value=mock_cert)
+#     channel_binding = 'tls-server-end-point', ssl_socket
+#     c_nonce = None
+#
+#     client = ScramClient(
+#         mechanisms, username, password, channel_binding=channel_binding, c_nonce=c_nonce,
+#     )
+#     assert client.cb == ChannelBinding(
+#         CbName('tls-server-end-point'),
+#         CBindData(
+#             b'5\x9dQ\xe2\xc4a\x17g\x1bK\xeci\x98\x9e\x16R\x96}\xe4~D\x15\xfb\xb3\x1fn]='
+#             b'\re?s\x10\xf2\xf8\xa6+\x91i\x9d\x84,iO\x8emDu\xb4\x19\x06i\xa7\x1a\xf1i\xc6'
+#             b'K\x81\xcbp\xd1\xaf\xd7',
+#         ),
+#     )
+
+
+@pytest.mark.parametrize(
+    'ssl_socket_class',
+    [
+        ssl.SSLSocket,
+        ssl.SSLObject,
+    ],
+)
+def test_ScramClient_init_tls_unique_ssl_socket(mocker, ssl_socket_class):
+    mechanisms = ['SCRAM-SHA-512-PLUS']
+    username = 'max'
+    password = 'pencil'
+    cb_name = 'tls-unique'
+    cb_data = b'x'
+    ssl_socket = mocker.create_autospec(ssl_socket_class, instance=True)
+    ssl_socket.get_channel_binding.return_value = cb_data
+
+    channel_binding = 'tls-unique', ssl_socket
+    client = ScramClient(
+        mechanisms,
+        username=username,
+        password=password,
+        channel_binding=channel_binding,
+    )
+
+    ssl_socket.get_channel_binding.assert_called_once_with(cb_name)
+    assert client.cb == ChannelBinding(CbName(cb_name), CBindData(cb_data))
+
+
+@pytest.mark.parametrize(
+    ('mechanisms', 'username', 'password', 'channel_binding', 'msg'),
+    [
+        (
+            ['SCRAM-SHA-512-PLUS'],
+            'max',
+            'pencil',
+            ('c', 'd'),
+            (
+                "The channel binding type is not recognised by Scramp. The recognised "
+                "types are ['tls-exporter', 'tls-server-end-point', 'tls-unique', "
+                "'tls-unique-for-telnet']: unsupported-channel-binding-type"
+            ),
+        ),
+    ],
+)
+def test_ScramClient_init_error(mechanisms, username, password, channel_binding, msg):
+    with pytest.raises(ScramError) as exc_info:
+        ScramClient(mechanisms, username, password, channel_binding=channel_binding)
+
+    assert str(exc_info.value) == msg
+
+
+def test_ScramClient_set_server_final_missing_param():
+    x = EXCHANGE_SCRAM_SHA_256
     c = ScramClient(
-        x['c_mechanisms'],
-        x['username'],
-        x['password'],
-        c_nonce=x['c_nonce'],
+        x['c_mechanisms'],  # type: ignore
+        x['username'],  # type: ignore
+        x['password'],  # type: ignore
+        c_nonce=x['c_nonce'],  # type: ignore
     )
     c.get_client_first()
-    c.set_server_first(x['sfirst'])
+    c.set_server_first(x['sfirst'])  # type: ignore
     c.get_client_final()
     with pytest.raises(
         ScramError,
@@ -603,76 +1162,3 @@ def test_set_server_final_missing_param():
         ),
     ):
         c.set_server_final('junk')
-
-
-# def test_make_channel_binding_tls_server_end_point(mocker):
-#     ssl_socket = mocker.Mock()
-#     ssl_socket.getpeercert = mocker.Mock(return_value=b'cafe')
-#     mock_cert = mocker.Mock()
-#     mock_cert.hash_algo = 'sha512'
-#     mocker.patch('scramp.core.Certificate.load', return_value=mock_cert)
-#     result = make_channel_binding('tls-server-end-point', ssl_socket)
-#     assert result == (
-#         'tls-server-end-point',
-#         b'5\x9dQ\xe2\xc4a\x17g\x1bK\xeci\x98\x9e\x16R\x96}\xe4~D\x15\xfb\xb3\x1fn]='
-#         b'\re?s\x10\xf2\xf8\xa6+\x91i\x9d\x84,iO\x8emDu\xb4\x19\x06i\xa7\x1a\xf1i\xc6'
-#         b'K\x81\xcbp\xd1\xaf\xd7',
-#     )
-
-
-# A self-signed ECDSA P-256 certificate with a SHA-256 signature, so tls-server-end-point is its plain SHA-256 digest.
-_TEST_CERT_DER = bytes.fromhex(
-    '3082018430820129a0030201020214066c82b1b73a7b99001aee02051b863a02ae596c300a06082a8648ce3d040302301631'
-    '14301206035504030c0b6f67383030302d746573743020170d3236303832303232303535305a180f32313236303732373232'
-    '303535305a30163114301206035504030c0b6f67383030302d746573743059301306072a8648ce3d020106082a8648ce3d03'
-    '010703420004a480dc4432f6d17bb6893a742b3f9000bfd62f6d65c5dce68329ab8cfce3e9d98a03521e6df7ca926e34630d'
-    'f291c43d2f6fa0da0c70e4325677c431289a4943a3533051301d0603551d0e041604142a8d1375cb275f04854a57257328cc'
-    '8b730303c6301f0603551d230418301680142a8d1375cb275f04854a57257328cc8b730303c6300f0603551d130101ff0405'
-    '30030101ff300a06082a8648ce3d0403020349003046022100a70d306145bc05e3404c4294fa1c34c37965d4def196f40684'
-    'ac2ce104f4132a0221008a288761b7c7a965f1f4a550b2d91bc642488075aeffd2e82d748ef47ea8f9e5',
-)
-
-
-class _StaticSslSocket:
-    def __init__(self, *, cert_der=None, channel_binding=None):
-        self._cert_der = cert_der
-        self._channel_binding = channel_binding
-
-    def getpeercert(self, binary_form=False):
-        return self._cert_der
-
-    def get_channel_binding(self, cb_type='tls-unique'):
-        return self._channel_binding
-
-
-def test_make_channel_binding_tls_unique():
-    ssl_socket = _StaticSslSocket(channel_binding=b'cafe')
-    assert make_channel_binding('tls-unique', ssl_socket) == ('tls-unique', b'cafe')  # type: ignore
-
-
-def test_make_channel_binding_tls_unique_unavailable():
-    with pytest.raises(ValueError, match='tls-unique'):
-        make_channel_binding('tls-unique', _StaticSslSocket())  # type: ignore
-
-
-def test_make_channel_binding_tls_server_end_point():
-    ssl_socket = _StaticSslSocket(cert_der=_TEST_CERT_DER)
-    expected = hashlib.sha256(_TEST_CERT_DER).digest()
-    assert tls_server_end_point(_TEST_CERT_DER) == expected
-    assert make_channel_binding('tls-server-end-point', ssl_socket) == ('tls-server-end-point', expected)  # type: ignore  # noqa
-
-
-def test_make_channel_binding_tls_server_end_point_no_certificate():
-    with pytest.raises(ValueError, match='certificate'):
-        make_channel_binding('tls-server-end-point', _StaticSslSocket())  # type: ignore
-
-
-def test_make_channel_binding_certificate_backend_passthrough():
-    ssl_socket = _StaticSslSocket(cert_der=_TEST_CERT_DER)
-    with pytest.raises(ValueError, match='unknown certificate backend'):
-        make_channel_binding('tls-server-end-point', ssl_socket, certificate_backend='bogus')  # type: ignore
-
-
-def test_make_channel_binding_unknown_name():
-    with pytest.raises(ScramError, match='not recognized'):
-        make_channel_binding('tls-bogus', _StaticSslSocket())  # type: ignore

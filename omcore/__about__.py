@@ -115,7 +115,7 @@ class Project(ProjectBase):
         ],
 
         'testing': [
-            'pytest ~= 9.2',
+            'pytest ~= 9.1',
         ],
 
         'text': [
