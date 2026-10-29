@@ -6,6 +6,7 @@ import sys
 import pytest
 
 from ...tests.helpers import make_python_executable
+from ..uv import DEFAULT_UV_PYTHON
 from ..uv import _run_uv_ocr
 from ..uv import _run_worker_process
 
@@ -49,7 +50,7 @@ def test_transport_and_cleanup(tmp_path, capfd):
         requirements=('pillow', 'example>=1,<2'),
         kwargs={'prefix': "quote'\n"},
         uv=executable,
-        python='cpython@3.12',
+        python=DEFAULT_UV_PYTHON,
         timeout=30.,
     )
     assert result == "quote'\nRésumé\r\n"
@@ -64,7 +65,7 @@ def test_transport_and_cleanup(tmp_path, capfd):
         '--no-project',
         '--isolated',
         '--no-config',
-        '--python', 'cpython@3.12',
+        '--python', DEFAULT_UV_PYTHON,
         '--with', 'pillow',
         '--with', 'example>=1,<2',
         '--',

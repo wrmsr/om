@@ -5,8 +5,7 @@ from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
 from ..api.types import DuplexHandler
 from ..api.values import Value
-from ..factories.typemap import TypeMapMarshalerFactory
-from ..factories.typemap import TypeMapUnmarshalerFactory
+from ..factories.typemap import TypeMapDuplexFactory
 
 
 ##
@@ -24,5 +23,6 @@ class AnyMarshalerUnmarshaler(DuplexHandler):
 
 ANY_MARSHALER_UNMARSHALER = AnyMarshalerUnmarshaler()
 
-ANY_MARSHALER_FACTORY = TypeMapMarshalerFactory({ta.Any: ANY_MARSHALER_UNMARSHALER})
-ANY_UNMARSHALER_FACTORY = TypeMapUnmarshalerFactory({ta.Any: ANY_MARSHALER_UNMARSHALER})
+ANY_MARSHALER_FACTORY = ANY_UNMARSHALER_FACTORY = TypeMapDuplexFactory({
+    ta.Any: ANY_MARSHALER_UNMARSHALER,
+})

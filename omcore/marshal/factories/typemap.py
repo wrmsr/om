@@ -5,6 +5,8 @@ from ... import reflect as rfl
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalFactoryContext
 from ..api.specs import Spec
+from ..api.types import DuplexFactory
+from ..api.types import DuplexHandler
 from ..api.types import Marshaler
 from ..api.types import MarshalerFactory
 from ..api.types import Unmarshaler
@@ -13,8 +15,8 @@ from ..api.types import UnmarshalerFactory
 
 T = ta.TypeVar('T')
 
-FactoryT = ta.TypeVar('FactoryT', bound=MarshalerFactory | UnmarshalerFactory)
-HandlerT = ta.TypeVar('HandlerT', bound=Marshaler | Unmarshaler)
+FactoryT = ta.TypeVar('FactoryT', bound=MarshalerFactory | UnmarshalerFactory | DuplexFactory)
+HandlerT = ta.TypeVar('HandlerT', bound=Marshaler | Unmarshaler | DuplexHandler)
 
 
 ##
@@ -35,20 +37,23 @@ class _TypeMapFactory(ta.Generic[FactoryT, HandlerT]):
 
     _value_types: ta.ClassVar[tuple[type, ...]]
 
-
-class TypeMapMarshalerFactory(_TypeMapFactory[MarshalerFactory, Marshaler], MarshalerFactory):
-    _value_types = (MarshalerFactory, Marshaler)
-
-    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+    def _get_impl(self, spec: Spec) -> tuple[rfl.Type, FactoryT | HandlerT] | None:
         if not isinstance(spec, rfl.Type):
             return None
         rty = spec
 
         check.isinstance(rty, rfl.Type)
         try:
-            m = self._dct[rty.type_key()]
+            v = self._dct[rty.type_key()]
         except KeyError:
             return None
+
+        return (rty, v)
+
+    def _make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        if (impl := self._get_impl(spec)) is None:
+            return None
+        rty, m = impl
 
         if isinstance(m, Marshaler):
             return lambda: m
@@ -57,20 +62,10 @@ class TypeMapMarshalerFactory(_TypeMapFactory[MarshalerFactory, Marshaler], Mars
         else:
             raise TypeError(m)
 
-
-class TypeMapUnmarshalerFactory(_TypeMapFactory[UnmarshalerFactory, Unmarshaler], UnmarshalerFactory):
-    _value_types = (UnmarshalerFactory, Unmarshaler)
-
-    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
-        if not isinstance(spec, rfl.Type):
+    def _make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        if (impl := self._get_impl(spec)) is None:
             return None
-        rty = spec
-
-        check.isinstance(rty, rfl.Type)
-        try:
-            u = self._dct[rty.type_key()]
-        except KeyError:
-            return None
+        rty, u = impl
 
         if isinstance(u, Unmarshaler):
             return lambda: u
@@ -78,3 +73,27 @@ class TypeMapUnmarshalerFactory(_TypeMapFactory[UnmarshalerFactory, Unmarshaler]
             return u.make_unmarshaler(ctx, rty)
         else:
             raise TypeError(u)
+
+
+class TypeMapMarshalerFactory(_TypeMapFactory[MarshalerFactory, Marshaler], MarshalerFactory):
+    _value_types = (MarshalerFactory, Marshaler)
+
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        return self._make_marshaler(ctx, spec)
+
+
+class TypeMapUnmarshalerFactory(_TypeMapFactory[UnmarshalerFactory, Unmarshaler], UnmarshalerFactory):
+    _value_types = (UnmarshalerFactory, Unmarshaler)
+
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        return self._make_unmarshaler(ctx, spec)
+
+
+class TypeMapDuplexFactory(_TypeMapFactory[DuplexFactory, DuplexHandler], DuplexFactory):
+    _value_types = (DuplexFactory, DuplexHandler)
+
+    def make_marshaler(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
+        return self._make_marshaler(ctx, spec)
+
+    def make_unmarshaler(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
+        return self._make_unmarshaler(ctx, spec)

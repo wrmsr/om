@@ -15,6 +15,7 @@ finally:
     subprocess.check_call(['docker', 'image', 'rm', tag], stdout=subprocess.DEVNULL)
 """
 import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -128,7 +129,8 @@ class Cli(ap.Cli):
 
             x11=bool(self.args.x11),
 
-            inject_secrets_pats=self.args.inject_secrets,
+            inject_secrets=[s.split('=') if '=' in s else s for s in self.args.inject_secret or []],
+            inject_secret_pats=[re.compile(p) for p in self.args.inject_secret_pat or []],
 
             shift_uid=self._get_args_shift_uid(),
 
@@ -165,7 +167,8 @@ class Cli(ap.Cli):
 
         ap.arg('-X', '--x11', action='store_true'),
 
-        ap.arg('--inject-secrets', action='append'),
+        ap.arg('--inject-secret', action='append'),
+        ap.arg('--inject-secret-pat', action='append'),
 
         *_SHIFT_UID_ARGS,
 

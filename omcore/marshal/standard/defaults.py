@@ -53,6 +53,8 @@ from ..singular.opaquerepr import OPAQUE_REPR_MARSHALER_FACTORY
 from ..singular.opaquerepr import OPAQUE_REPR_UNMARSHALER_FACTORY
 from ..singular.primitives import PRIMITIVE_MARSHALER_FACTORY
 from ..singular.primitives import PRIMITIVE_UNMARSHALER_FACTORY
+from ..singular.re import PATTERN_MARSHALER_FACTORY
+from ..singular.re import PATTERN_UNMARSHALER_FACTORY
 from ..singular.uuids import UUID_MARSHALER_FACTORY
 from ..singular.uuids import UUID_UNMARSHALER_FACTORY
 from ..trivial.any import ANY_MARSHALER_FACTORY
@@ -102,19 +104,18 @@ DEFAULT_STANDARD_FACTORIES: ta.Final = DefaultStandardFactories.of_pairs([
     (TypedValueUnionMarshalerFactory(),      TypedValueUnionUnmarshalerFactory()),
     (TypedValuesMarshalerFactory(),          TypedValuesUnmarshalerFactory()),
     (PrimitiveUnionMarshalerFactory(),       PrimitiveUnionUnmarshalerFactory()),
-    # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
     (PolymorphismMetadataFactory(),          PolymorphismMetadataFactory()),
     (PolymorphismMetadataUnionFactory(),     PolymorphismMetadataUnionFactory()),
     (PolymorphismSpecMarshalerFactory(),     PolymorphismSpecUnmarshalerFactory()),
     (TupleMarshalerFactory(),                TupleUnmarshalerFactory()),
     (ObjectMarshalerFactory(),               ObjectUnmarshalerFactory()),
-    # Stateless FactoryPairs - two instances only to fit the pair-of-columns table shape.
     (DataclassFactory(),                     DataclassFactory()),
     (NamedtupleFactory(),                    NamedtupleFactory()),
     (EnumMarshalerFactory(),                 EnumUnmarshalerFactory()),
     (LiteralMarshalerFactory(),              LiteralUnmarshalerFactory()),
     (NUMBERS_MARSHALER_FACTORY,              NUMBERS_UNMARSHALER_FACTORY),
     (UUID_MARSHALER_FACTORY,                 UUID_UNMARSHALER_FACTORY),
+    (PATTERN_MARSHALER_FACTORY,              PATTERN_UNMARSHALER_FACTORY),
     (DATETIME_MARSHALER_FACTORY,             DATETIME_UNMARSHALER_FACTORY),
     (IPADDRESS_MARSHALER_FACTORY,            IPADDRESS_UNMARSHALER_FACTORY),
     (MaybeMarshalerFactory(),                MaybeUnmarshalerFactory()),

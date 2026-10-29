@@ -10,8 +10,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
 from ..api.types import DuplexHandler
 from ..api.values import Value
-from ..factories.typemap import TypeMapMarshalerFactory
-from ..factories.typemap import TypeMapUnmarshalerFactory
+from ..factories.typemap import TypeMapDuplexFactory
 from .api import PRIMITIVE_TYPES
 
 
@@ -37,10 +36,6 @@ class PrimitiveMarshalerUnmarshaler(DuplexHandler):
         raise TypeError(v)
 
 
-PRIMITIVE_MARSHALER_FACTORY = TypeMapMarshalerFactory({  # noqa
-    t: PrimitiveMarshalerUnmarshaler(t) for t in PRIMITIVE_TYPES
-})
-
-PRIMITIVE_UNMARSHALER_FACTORY = TypeMapUnmarshalerFactory({  # noqa
+PRIMITIVE_MARSHALER_FACTORY = PRIMITIVE_UNMARSHALER_FACTORY = TypeMapDuplexFactory({  # noqa
     t: PrimitiveMarshalerUnmarshaler(t) for t in PRIMITIVE_TYPES
 })

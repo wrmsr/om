@@ -680,7 +680,7 @@ ci-bash:
 
 ### Package
 
-MACOSX_DEPLOYMENT_TARGET=15.0
+MACOSX_DEPLOYMENT_TARGET=26.0
 
 .PHONY: package
 package: gen check

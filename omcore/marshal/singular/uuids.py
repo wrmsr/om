@@ -6,8 +6,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
 from ..api.types import DuplexHandler
 from ..api.values import Value
-from ..factories.typemap import TypeMapMarshalerFactory
-from ..factories.typemap import TypeMapUnmarshalerFactory
+from ..factories.typemap import TypeMapDuplexFactory
 
 
 ##
@@ -26,5 +25,6 @@ class UuidMarshalerUnmarshaler(DuplexHandler):
 
 UUID_MARSHALER_UNMARSHALER = UuidMarshalerUnmarshaler()
 
-UUID_MARSHALER_FACTORY = TypeMapMarshalerFactory({uuid.UUID: UUID_MARSHALER_UNMARSHALER})
-UUID_UNMARSHALER_FACTORY = TypeMapUnmarshalerFactory({uuid.UUID: UUID_MARSHALER_UNMARSHALER})
+UUID_MARSHALER_FACTORY = UUID_UNMARSHALER_FACTORY = TypeMapDuplexFactory({
+    uuid.UUID: UUID_MARSHALER_UNMARSHALER,
+})

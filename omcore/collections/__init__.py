@@ -40,6 +40,8 @@ with _lang.auto_proxy_init(
 
     from . import cache  # noqa
 
+    from . import coerce  # noqa
+
     from .coerce import (  # noqa
         abs_set,
         abs_set_of,

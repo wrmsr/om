@@ -54,6 +54,7 @@ import typing as ta
 import uuid
 
 from omcore import check
+from omcore import collections as col
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore import marshal as msh
@@ -75,11 +76,10 @@ with lang.auto_proxy_import(globals()):
 
 
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
+@msh.update_field_options(omit_if=lang.is_none)
 class RunArgs:
-    names: ta.Sequence[str] | None = dc.xfield(
-        None,
-        coerce=lambda names: tuple(check.non_empty_str(n) for n in names) if names else None,
-    )
+    names: ta.Sequence[str] | None = dc.xfield(None, coerce=col.seq_of_or_none(check.non_empty_str))
 
     verbose: bool | None = None
 
@@ -89,7 +89,7 @@ class RunArgs:
 
     detach: bool | None = None
 
-    mounts: ta.Sequence[str] | None = None
+    mounts: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)
     mount_caches: bool | None = None
     mount_docker_sock: bool | None = None
     mount_git: bool | None = None
@@ -103,26 +103,20 @@ class RunArgs:
 
     no_host_platform: bool | None = None
 
-    autoexecs: ta.Sequence[str] | None = None
+    autoexecs: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)
 
     x11: bool | None = None
 
     id: uuid.UUID | None = None
     no_id_label: bool | None = None
 
-    # TODO: k=v? currently hardcodes env key as `sk.upper()`
-    inject_secrets_pats: ta.Sequence[str | re.Pattern[str]] | None = dc.xfield(
-        default=None,
-    ) | msh.dc_field_options(
-        omit_if=lang.is_none,
-        marshal_via=msh.MarshalVia(str | None),
-        unmarshal_via=msh.UnmarshalVia(str | None),
-    )
+    inject_secrets: ta.Sequence[str | tuple[str, str]] | None = dc.xfield(None, coerce=col.opt_seq)
+    inject_secret_pats: ta.Sequence[re.Pattern[str]] | None = dc.xfield(None, coerce=col.opt_seq)
 
     shift_uid: tuple[int, int] | None = None
 
-    unknown_args: ta.Sequence[str] | None = None
-    extra_args: ta.Sequence[str] | None = None
+    unknown_args: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)
+    extra_args: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)
 
 
 ID_LABEL = 'om.dockerdev'
@@ -492,7 +486,11 @@ class SecretsRunStep(RunStep):
     """
 
     def apply(self, plan: RunPlan) -> None:
-        if not (pats := plan.args.inject_secrets_pats):
+        if plan.args.inject_secrets:
+            # FIXME
+            raise NotImplementedError
+
+        if not (pats := plan.args.inject_secret_pats):
             return
 
         if (load_secrets := plan.host.load_secrets) is None:

@@ -11,8 +11,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
 from ..api.types import DuplexHandler
 from ..api.values import Value
-from ..factories.typemap import TypeMapMarshalerFactory
-from ..factories.typemap import TypeMapUnmarshalerFactory
+from ..factories.typemap import TypeMapDuplexFactory
 
 
 T = ta.TypeVar('T')
@@ -38,10 +37,6 @@ BASE64_TYPES = (
     memoryview,
 )
 
-BASE64_MARSHALER_FACTORY = TypeMapMarshalerFactory({
-    ty: Base64MarshalerUnmarshaler(ty) for ty in BASE64_TYPES
-})
-
-BASE64_UNMARSHALER_FACTORY = TypeMapUnmarshalerFactory({
+BASE64_MARSHALER_FACTORY = BASE64_UNMARSHALER_FACTORY = TypeMapDuplexFactory({
     ty: Base64MarshalerUnmarshaler(ty) for ty in BASE64_TYPES
 })

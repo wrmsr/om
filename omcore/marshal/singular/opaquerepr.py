@@ -6,8 +6,7 @@ from ..api.contexts import MarshalContext
 from ..api.contexts import UnmarshalContext
 from ..api.types import DuplexHandler
 from ..api.values import Value
-from ..factories.typemap import TypeMapMarshalerFactory
-from ..factories.typemap import TypeMapUnmarshalerFactory
+from ..factories.typemap import TypeMapDuplexFactory
 
 
 ##
@@ -23,5 +22,6 @@ class OpaqueReprMarshalerUnmarshaler(DuplexHandler):
         return lang.OpaqueRepr(check.isinstance(v, str))
 
 
-OPAQUE_REPR_MARSHALER_FACTORY = TypeMapMarshalerFactory({lang.OpaqueRepr: OpaqueReprMarshalerUnmarshaler()})
-OPAQUE_REPR_UNMARSHALER_FACTORY = TypeMapUnmarshalerFactory({lang.OpaqueRepr: OpaqueReprMarshalerUnmarshaler()})
+OPAQUE_REPR_MARSHALER_FACTORY = OPAQUE_REPR_UNMARSHALER_FACTORY = TypeMapDuplexFactory({
+    lang.OpaqueRepr: OpaqueReprMarshalerUnmarshaler(),
+})
