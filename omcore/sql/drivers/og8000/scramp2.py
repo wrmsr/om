@@ -34,7 +34,8 @@ from .certs import CertificateBackend
 from .certs import tls_server_end_point
 
 
-ChannelBindingTuple: ta.TypeAlias = tuple[str, bytes | ssl.SSLSocket | ssl.SSLObject]
+ChannelBindingDataSource: ta.TypeAlias = bytes | ssl.SSLSocket | ssl.SSLObject
+ChannelBindingTuple: ta.TypeAlias = tuple[str, ChannelBindingDataSource]
 
 HashFn: ta.TypeAlias = ta.Callable[..., ta.Any]
 
@@ -70,11 +71,20 @@ class ScramError(Exception):
         return super().__str__() + s_str
 
 
-def hmac_digest(hf: HashFn, key: bytes, msg: bytes) -> bytes:
+def hmac_digest(
+        hf: HashFn,
+        key: bytes,
+        msg: bytes,
+) -> bytes:
     return hmac.new(key, msg=msg, digestmod=hf).digest()
 
 
-def pbkdf2_hmac_pure_python(hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
+def pbkdf2_hmac_pure_python(
+        hf: HashFn,
+        password: bytes,
+        salt: bytes,
+        iterations: int,
+) -> bytes:
     u = ui = hmac_digest(hf, password, salt + b'\x00\x00\x00\x01')
     for _ in range(int(iterations) - 1):
         ui = hmac_digest(hf, password, ui)
@@ -82,11 +92,21 @@ def pbkdf2_hmac_pure_python(hf: HashFn, password: bytes, salt: bytes, iterations
     return u
 
 
-def pbkdf2_hmac_hashlib(hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
+def pbkdf2_hmac_hashlib(
+        hf: HashFn,
+        password: bytes,
+        salt: bytes,
+        iterations: int,
+) -> bytes:
     return hashlib.pbkdf2_hmac(hf().name, password, salt, int(iterations))
 
 
-def hi(hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
+def hi(
+        hf: HashFn,
+        password: bytes,
+        salt: bytes,
+        iterations: int,
+) -> bytes:
     if hasattr(hashlib, 'pbkdf2_hmac'):
         pbkdf2_hmac = pbkdf2_hmac_hashlib
     else:
@@ -94,7 +114,21 @@ def hi(hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
     return hi_pbkdf2_hmac(pbkdf2_hmac, hf, password, salt, iterations)
 
 
-def hi_pbkdf2_hmac(pbkdf2_hmac: ta.Callable, hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
+def hi_pbkdf2_hmac(
+        pbkdf2_hmac: ta.Callable[
+            [
+                HashFn,
+                bytes,
+                bytes,
+                int,
+            ],
+            bytes,
+        ],
+        hf: HashFn,
+        password: bytes,
+        salt: bytes,
+        iterations: int,
+) -> bytes:
     return pbkdf2_hmac(hf, password, salt, iterations)
 
 
@@ -186,10 +220,7 @@ class Salt:
 
     def __init__(self, salt: bytes) -> None:
         if type(salt) is not bytes:
-            raise ScramError(
-                f"The 'salt' must be of type bytes, but found type {type(salt)}",
-                ServerError.OTHER_ERROR,
-            )
+            raise ScramError(f"The 'salt' must be of type bytes, but found type {type(salt)}", ServerError.OTHER_ERROR)
 
         len_salt = len(salt)
         if len_salt < self.MIN_LENGTH:
@@ -225,10 +256,7 @@ class Salt:
 class Nonce:
     def __init__(self, nonce: str) -> None:
         if not isinstance(nonce, str):
-            raise ScramError(
-                f"The 'nonce' must be of type str, but found type {type(nonce)}",
-                ServerError.OTHER_ERROR,
-            )
+            raise ScramError(f"The 'nonce' must be of type str, but found type {type(nonce)}", ServerError.OTHER_ERROR)
 
         if not all(0x21 <= ord(c) <= 0x7E and c != ',' for c in nonce):
             raise ScramError('Nonce contains invalid characters', ServerError.OTHER_ERROR)
@@ -327,10 +355,7 @@ class CbName:
 class CBindData:
     def __init__(self, data: bytes) -> None:
         if not isinstance(data, bytes):
-            raise ScramError(
-                f"The 'data' must be of type bytes, but found type {type(data)}",
-                ServerError.OTHER_ERROR,
-            )
+            raise ScramError(f"The 'data' must be of type bytes, but found type {type(data)}", ServerError.OTHER_ERROR)
 
         if len(data) == 0:
             raise ScramError("The 'data' can't be of zero length.", ServerError.OTHER_ERROR)
@@ -470,10 +495,7 @@ class ScramMechanism:
         else:
             i = IterationCount(iteration_count)
             if i < self.iteration_count:
-                raise ScramError(
-                    f'The iteration count must not be < {self.iteration_count}',
-                    ServerError.OTHER_ERROR,
-                )
+                raise ScramError(f'The iteration count must not be < {self.iteration_count}', ServerError.OTHER_ERROR)
 
         out_salt, stored_key, server_key = _make_auth_info(
             self.hf,
@@ -518,7 +540,7 @@ class ScramClient:
             c_nonce: str | None = None,
             *,
             certificate_backend: CertificateBackend = 'auto',
-    ):
+    ) -> None:
         if not isinstance(mechanisms, (list, tuple)):
             raise ScramError(f"'{mechanisms}' The 'mechanisms' parameter must be a list or tuple of mechanism names.")
 
@@ -538,7 +560,7 @@ class ScramClient:
                 ) from None
 
             cb_name = CbName(cb_name_str)
-            cb_data = None
+            cb_data: CBindData
 
             if isinstance(d_s, bytes):
                 cb_data = CBindData(d_s)
