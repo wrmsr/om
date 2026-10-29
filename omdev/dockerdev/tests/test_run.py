@@ -140,7 +140,7 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
     )
 
     # Every field which has an explicit 'off' value: a new one must be added here too.
-    assert {f.name for f in dc.fields(RunArgs)} - set(explicit) == {'id', 'shift_uid'}
+    assert {f.name for f in dc.fields(RunArgs)} - set(explicit) == {'id', 'names', 'shift_uid'}
 
     assert _process(tmp_path / 'a', RunArgs(id=_RUN_ID)) == _process(tmp_path / 'b', RunArgs(id=_RUN_ID, **explicit))
 
@@ -220,6 +220,7 @@ def test_cache_mounts(tmp_path):
         '-i',
         '-t',
         '--mount=type=volume,src=om-dockerdev-cache,dst=/cache',
+        '--env=UV_LINK_MODE=symlink',
         _HOST_PLATFORM,
         _staging_mount(run),
         '--entrypoint=/dockerdev/autoexec.sh',
@@ -235,7 +236,7 @@ def test_cache_mounts(tmp_path):
         'if ! [ -d /cache/uv ] ; then mkdir -p /cache/uv ; fi',
         'rm -rf /om/.cache/uv || true',
         'ln -s /cache/uv /om/.cache/uv',
-        'UV_LINK_MODE=symlink exec "$@"',
+        'exec "$@"',
     ])}
 
 
@@ -427,6 +428,7 @@ def test_kitchen_sink(tmp_path):
         '--privileged',
         '--mount=type=volume,src=om-dockerdev-cache,dst=/cache',
         f'--mount=type=bind,src={tmp_path}/cwd/.git,dst=/git,ro',
+        '--env=UV_LINK_MODE=symlink',
         _HOST_PLATFORM,
         _staging_mount(run),
         *_shift_uid_options('/dockerdev/autoexec.sh'),
@@ -440,4 +442,4 @@ def test_kitchen_sink(tmp_path):
     assert run.image_and_command == [_SHA, 'python3']
     assert run.env == {'FOO_KEY': 'foo-value'}
     assert sorted(run.staged) == ['autoexec.sh', 'shift-uid.sh']
-    assert run.staged['autoexec.sh'].splitlines()[-1] == 'UV_LINK_MODE=symlink exec "$@"'
+    assert run.staged['autoexec.sh'].splitlines()[-1] == 'exec "$@"'
