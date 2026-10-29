@@ -1,10 +1,12 @@
 """
 TODO:
  - class _Knowns - collection/sequence, builds maps, validates, single import
+ - lazy imports
 """
 import collections.abc as cabc
 import contextlib
 import dataclasses as dc
+import re
 import typing as ta
 
 from .core.symbols import VarianceKind
@@ -339,6 +341,23 @@ _KNOWNS: ta.Final[ta.Sequence[_Known]] = [
         'contextlib.AbstractAsyncContextManager',
         arity=2,
         variances=(VarianceKind.CO, VarianceKind.CO),
+        mro_tail=('builtins.object',),
+    ),
+
+    # re
+    # https://github.com/python/mypy/blob/master/mypy/typeshed/stdlib/re.pyi
+
+    _Known(
+        re.Match,
+        're.Match',
+        arity=1,
+        mro_tail=('builtins.object',),
+    ),
+
+    _Known(
+        re.Pattern,
+        're.Pattern',
+        arity=1,
         mro_tail=('builtins.object',),
     ),
 

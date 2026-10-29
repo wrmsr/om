@@ -1,46 +1,8 @@
 """
-====
-
-./om dockerdev run -CG \
-    --user=0:0 \
-    --env=EXTERNAL_UID=1000 \
-    --env=EXTERNAL_GID=1000 \
-    --env=INTERNAL_USER=om \
-    --rm -it bash
-
-====
-
-INTERNAL_UID=$(id -u "$INTERNAL_USER")
-
-if [ "$EXTERNAL_UID" != "$INTERNAL_UID" ]; then
-  # 1. Evict any existing user squatting on our target UID
-  CONFLICT_USER=$(getent passwd "$EXTERNAL_UID" | cut -d: -f1)
-  if [ -n "$CONFLICT_USER" ] && [ "$CONFLICT_USER" != "$INTERNAL_USER" ]; then
-      userdel "$CONFLICT_USER"
-  fi
-
-  # 2. Ensure the target group exists
-  getent group "$EXTERNAL_GID" >/dev/null 2>&1 || groupadd -g "$EXTERNAL_GID" shift-uid
-
-  # 3. DECOY: Temporarily point home dir away to bypass the automatic large chown
-  INTERNAL_HOME=$(getent passwd "$INTERNAL_USER" | cut -d: -f6)
-  usermod -d /tmp "$INTERNAL_USER"
-
-  # 4. Shift user's primary UID and GID to match the host, keeping original group
-  usermod -u "$EXTERNAL_UID" -g "$EXTERNAL_GID" -aG "$INTERNAL_UID" "$INTERNAL_USER"
-
-  # 5. Point the home directory back
-  usermod -d "$INTERNAL_HOME" "$INTERNAL_USER"
-fi
-
-unset EXTERNAL_UID
-unset EXTERNAL_GID
-unset INTERNAL_USER
-
-unset INTERNAL_UID
-unset INTERNAL_HOME
-
-exec gosu om bash  # "$@"
+TODO:
+ - run/ pkg
+ - just injectify this thing already
+ - async (and/or injectable subproc runner)
 """
 import abc
 import os.path
@@ -89,7 +51,7 @@ class RunArgs:
 
     detach: bool | None = None
 
-    mounts: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)
+    mounts: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq_of(check.non_empty_str))
     mount_caches: bool | None = None
     mount_docker_sock: bool | None = None
     mount_git: bool | None = None
@@ -103,15 +65,18 @@ class RunArgs:
 
     no_host_platform: bool | None = None
 
-    autoexecs: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)
+    autoexecs: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq_of(check.of_isinstance(str)))
 
     x11: bool | None = None
 
     id: uuid.UUID | None = None
     no_id_label: bool | None = None
 
-    inject_secrets: ta.Sequence[str | tuple[str, str]] | None = dc.xfield(None, coerce=col.opt_seq)
-    inject_secret_pats: ta.Sequence[re.Pattern[str]] | None = dc.xfield(None, coerce=col.opt_seq)
+    env_secrets: ta.Sequence[str | tuple[str, str]] | None = dc.xfield(None, coerce=col.opt_seq)
+    env_secret_pats: ta.Sequence[re.Pattern[str]] | None = dc.xfield(
+        None,
+        coerce=col.opt_seq_of(check.of_isinstance(re.Pattern)),
+    )
 
     shift_uid: tuple[int, int] | None = None
 
@@ -481,16 +446,16 @@ class RunSecretsUnavailableError(RuntimeError):
 
 class SecretsRunStep(RunStep):
     """
-    Injects every host secret whose name matches any of the patterns, under its name uppercased. The values go into the
+    Adds every host secret whose name matches any of the patterns, under its name uppercased. The values go into the
     docker client's environment, and `--env=KEY` passes each through by name, so that none appears in its argv.
     """
 
     def apply(self, plan: RunPlan) -> None:
-        if plan.args.inject_secrets:
+        if plan.args.env_secrets:
             # FIXME
             raise NotImplementedError
 
-        if not (pats := plan.args.inject_secret_pats):
+        if not (pats := plan.args.env_secret_pats):
             return
 
         if (load_secrets := plan.host.load_secrets) is None:

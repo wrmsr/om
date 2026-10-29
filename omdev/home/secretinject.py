@@ -306,15 +306,23 @@ def main(argv: ta.Any = None) -> int:
         'file',
         help='JSON file to update (created if missing)',
     )
+
     ap.add_argument(
         '--timeout',
         type=float,
         default=DEFAULT_TIMEOUT,
         help='max seconds to wait for the lock (default: 30)',
     )
+
     ap.add_argument(
         '--description',
         help='ignored; only serves as a note in process listings and execution logs',
+    )
+
+    ap.add_argument(
+        '-e',
+        '--env-secret',
+        action='append',
     )
 
     args = ap.parse_args(argv)
@@ -323,11 +331,23 @@ def main(argv: ta.Any = None) -> int:
 
     import sys
 
-    try:
-        update = parse_object(sys.stdin.buffer.read().decode('utf-8'))
-    except ValueError as e:  # covers UnicodeDecodeError and json.JSONDecodeError
-        print(f'error: stdin is not a JSON object: {e}', file=sys.stderr)
-        return 1
+    update: OrderedJsonObject
+
+    if args.env_secret:
+        update = collections.OrderedDict()
+        for es in args.env_secret:
+            if '=' in es:
+                sk, ek = es.split('=')
+            else:
+                sk, ek = es, es.upper()
+            update[sk] = os.environ.get(ek)
+
+    else:
+        try:
+            update = parse_object(sys.stdin.buffer.read().decode('utf-8'))
+        except ValueError as e:  # covers UnicodeDecodeError and json.JSONDecodeError
+            print(f'error: stdin is not a JSON object: {e}', file=sys.stderr)
+            return 1
 
     try:
         inject_secrets(

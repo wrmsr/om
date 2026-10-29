@@ -43,30 +43,36 @@ with _lang.auto_proxy_init(
     from . import coerce  # noqa
 
     from .coerce import (  # noqa
-        abs_set,
-        abs_set_of,
-        abs_set_of_or_none,
-        abs_set_or_none,
-        frozenset_,
-        frozenset_of,
-        frozenset_of_or_none,
-        frozenset_or_none,
-        map,  # noqa
-        map_of,
-        map_of_or_none,
-        map_or_none,
-        opt_abs_set,
-        opt_abs_set_of,
-        opt_frozenset,
-        opt_frozenset_of,
-        opt_map,
-        opt_map_of,
-        opt_seq,
-        opt_seq_of,
         seq,
-        seq_of,
-        seq_of_or_none,
+        opt_seq,
         seq_or_none,
+        seq_of,
+        opt_seq_of,
+        seq_of_or_none,
+
+        tuple_of,
+        opt_tuple_of,
+
+        abs_set,
+        opt_abs_set,
+        abs_set_of,
+        opt_abs_set_of,
+        abs_set_or_none,
+        abs_set_of_or_none,
+
+        frozenset_,
+        opt_frozenset,
+        frozenset_of,
+        opt_frozenset_of,
+        frozenset_or_none,
+        frozenset_of_or_none,
+
+        map,  # noqa
+        opt_map,
+        map_of,
+        opt_map_of,
+        map_or_none,
+        map_of_or_none,
     )
 
     from .frozen import (  # noqa

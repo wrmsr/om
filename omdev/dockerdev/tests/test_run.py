@@ -135,8 +135,8 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
         autoexecs=None,
         x11=False,
         no_id_label=False,
-        inject_secrets=None,
-        inject_secret_pats=None,
+        env_secrets=None,
+        env_secret_pats=None,
         unknown_args=None,
         extra_args=None,
     )
@@ -375,7 +375,7 @@ def _load_secrets() -> sec.Secrets:
 
 
 def test_secrets_inject_every_match(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, inject_secret_pats=[re.compile('.*_key')]), load_secrets=_load_secrets)
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, env_secret_pats=[re.compile('.*_key')]), load_secrets=_load_secrets)
 
     # Passed through by name only: the values are in the docker client's environment, never its argv.
     assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL, '--env=FOO_KEY', '--env=BAR_KEY'])
@@ -383,14 +383,14 @@ def test_secrets_inject_every_match(tmp_path):
 
 
 def test_secrets_patterns_may_be_compiled(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, inject_secret_pats=[re.compile('oth.*')]), load_secrets=_load_secrets)
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, env_secret_pats=[re.compile('oth.*')]), load_secrets=_load_secrets)
     assert '--env=OTHER' in run.options
     assert run.env == {'OTHER': 'other-value'}
 
 
 def test_secrets_need_a_source(tmp_path):
     with pytest.raises(RunSecretsUnavailableError):
-        _process(tmp_path, RunArgs(id=_RUN_ID, inject_secret_pats=[re.compile('.*')]))
+        _process(tmp_path, RunArgs(id=_RUN_ID, env_secret_pats=[re.compile('.*')]))
 
 
 def test_secrets_are_not_loaded_unless_asked_for(tmp_path):
@@ -416,7 +416,7 @@ def test_kitchen_sink(tmp_path):
             autoexecs=['echo hi'],
             shift_uid=(1000, 1001),
             x11=True,
-            inject_secret_pats=[re.compile('foo.*')],
+            env_secret_pats=[re.compile('foo.*')],
             extra_args=['python3'],
         ),
         load_secrets=functools.partial(sec.MappingSecrets, _SECRETS),

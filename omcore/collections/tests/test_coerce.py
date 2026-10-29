@@ -19,3 +19,10 @@ def test_coerce():
 
     c = coerce.seq_of((int, None))
     assert c([1, 2, None]) == [1, 2, None]
+
+
+def test_coerce_tuple():
+    ft = (420, 'hi')
+    tt = coerce.tuple_of(lambda i: str(i + 1), lambda s: len(s))(ft)
+
+    assert tt == ('421', 2)

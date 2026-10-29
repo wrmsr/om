@@ -1941,7 +1941,7 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
 
 
 @_register(
-    installer_sha1='3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5',
+    installer_sha1='e1e00b4056492060baf5334cc7bb1caff93e33b2',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1964,21 +1964,20 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
             "rue, True, False, None), 'instance', 'value', 'callable', False, False, False), (('x11', True, True, None,"
             " True, True, False, None), 'instance', 'value', None, False, False, False), (('id', True, True, None, True"
             ", True, False, None), 'instance', 'value', None, False, False, False), (('no_id_label', True, True, None, "
-            "True, True, False, None), 'instance', 'value', None, False, False, False), (('inject_secrets', True, True,"
-            " None, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('inject_secret_p"
-            "ats', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, False, False), ("
-            "('shift_uid', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False),"
-            " (('unknown_args', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, Fal"
-            "se, False), (('extra_args', True, True, None, True, True, False, None), 'instance', 'value', 'callable', F"
-            "alse, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (Fal"
-            "se,)))"
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('env_secrets', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('env_secret_pats', "
+            "True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('shif"
+            "t_uid', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('un"
+            "known_args', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, False, Fa"
+            "lse), (('extra_args', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, "
+            "False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.run', 'RunArgs'),
     ),
 )
-def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
+def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2070,8 +2069,8 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
                 x11=self.x11,
                 id=self.id,
                 no_id_label=self.no_id_label,
-                inject_secrets=self.inject_secrets,
-                inject_secret_pats=self.inject_secret_pats,
+                env_secrets=self.env_secrets,
+                env_secret_pats=self.env_secret_pats,
                 shift_uid=self.shift_uid,
                 unknown_args=self.unknown_args,
                 extra_args=self.extra_args,
@@ -2104,8 +2103,8 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
                 self.x11 == other.x11 and
                 self.id == other.id and
                 self.no_id_label == other.no_id_label and
-                self.inject_secrets == other.inject_secrets and
-                self.inject_secret_pats == other.inject_secret_pats and
+                self.env_secrets == other.env_secrets and
+                self.env_secret_pats == other.env_secret_pats and
                 self.shift_uid == other.shift_uid and
                 self.unknown_args == other.unknown_args and
                 self.extra_args == other.extra_args
@@ -2133,8 +2132,8 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
             'x11',
             'id',
             'no_id_label',
-            'inject_secrets',
-            'inject_secret_pats',
+            'env_secrets',
+            'env_secret_pats',
             'shift_uid',
             'unknown_args',
             'extra_args',
@@ -2181,8 +2180,8 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
                 self.x11,
                 self.id,
                 self.no_id_label,
-                self.inject_secrets,
-                self.inject_secret_pats,
+                self.env_secrets,
+                self.env_secret_pats,
                 self.shift_uid,
                 self.unknown_args,
                 self.extra_args,
@@ -2212,8 +2211,8 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
             x11: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
             id: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
             no_id_label: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
-            inject_secrets: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
-            inject_secret_pats: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            env_secrets: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            env_secret_pats: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
             shift_uid: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
             unknown_args: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
             extra_args: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
@@ -2221,8 +2220,8 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
             names = __dataclass__init__fields__00__coerce(names)
             mounts = __dataclass__init__fields__06__coerce(mounts)
             autoexecs = __dataclass__init__fields__15__coerce(autoexecs)
-            inject_secrets = __dataclass__init__fields__19__coerce(inject_secrets)
-            inject_secret_pats = __dataclass__init__fields__20__coerce(inject_secret_pats)
+            env_secrets = __dataclass__init__fields__19__coerce(env_secrets)
+            env_secret_pats = __dataclass__init__fields__20__coerce(env_secret_pats)
             unknown_args = __dataclass__init__fields__22__coerce(unknown_args)
             extra_args = __dataclass__init__fields__23__coerce(extra_args)
             __dataclass__object_setattr(self, 'names', names)
@@ -2244,8 +2243,8 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
             __dataclass__object_setattr(self, 'x11', x11)
             __dataclass__object_setattr(self, 'id', id)
             __dataclass__object_setattr(self, 'no_id_label', no_id_label)
-            __dataclass__object_setattr(self, 'inject_secrets', inject_secrets)
-            __dataclass__object_setattr(self, 'inject_secret_pats', inject_secret_pats)
+            __dataclass__object_setattr(self, 'env_secrets', env_secrets)
+            __dataclass__object_setattr(self, 'env_secret_pats', env_secret_pats)
             __dataclass__object_setattr(self, 'shift_uid', shift_uid)
             __dataclass__object_setattr(self, 'unknown_args', unknown_args)
             __dataclass__object_setattr(self, 'extra_args', extra_args)
@@ -2293,10 +2292,10 @@ def _process_dataclass__3d0dea4cf3e24dba86c45e3c41a2ddc3cd89fcf5():
                 parts.append(f"id={s}")
             if (s := __dataclass__repr__default_fn(self.no_id_label)) is not None:
                 parts.append(f"no_id_label={s}")
-            if (s := __dataclass__repr__default_fn(self.inject_secrets)) is not None:
-                parts.append(f"inject_secrets={s}")
-            if (s := __dataclass__repr__default_fn(self.inject_secret_pats)) is not None:
-                parts.append(f"inject_secret_pats={s}")
+            if (s := __dataclass__repr__default_fn(self.env_secrets)) is not None:
+                parts.append(f"env_secrets={s}")
+            if (s := __dataclass__repr__default_fn(self.env_secret_pats)) is not None:
+                parts.append(f"env_secret_pats={s}")
             if (s := __dataclass__repr__default_fn(self.shift_uid)) is not None:
                 parts.append(f"shift_uid={s}")
             if (s := __dataclass__repr__default_fn(self.unknown_args)) is not None:

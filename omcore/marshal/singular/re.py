@@ -1,3 +1,7 @@
+"""
+TODO:
+ - bytes patterns lol
+"""
 import re
 import typing as ta
 
@@ -13,7 +17,7 @@ from ..factories.typemap import TypeMapDuplexFactory
 ##
 
 
-class PatternMarshalerUnmarshaler(DuplexHandler):
+class StrPatternMarshalerUnmarshaler(DuplexHandler):
     def marshal(self, ctx: MarshalContext, o: ta.Any) -> Value:
         return check.isinstance(regex_to_string(check.isinstance(o, re.Pattern)), str)
 
@@ -22,5 +26,6 @@ class PatternMarshalerUnmarshaler(DuplexHandler):
 
 
 PATTERN_MARSHALER_FACTORY = PATTERN_UNMARSHALER_FACTORY = TypeMapDuplexFactory({  # noqa
-    re.Pattern: PatternMarshalerUnmarshaler(),
+    re.Pattern: StrPatternMarshalerUnmarshaler(),
+    re.Pattern[str]: StrPatternMarshalerUnmarshaler(),
 })
