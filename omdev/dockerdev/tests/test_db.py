@@ -16,4 +16,4 @@ def test_write_run_to_db():
     write_run_to_db(id=run_id, db_file=path)
 
     with sqlite3.connect(path) as conn:
-        assert conn.execute('select id from run').fetchall() == [(str(run_id),)]
+        assert conn.execute('select id from runs').fetchall() == [(str(run_id),)]

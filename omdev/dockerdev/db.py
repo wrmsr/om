@@ -55,7 +55,7 @@ def orm_mappers() -> ta.Sequence[orm.Mapper]:
 
         orm.dataclass_mapper(
             OrmRun,
-            store_name='run',
+            store_name='runs',
 
             field_options=dict(
                 created_at=[orm.CreatedAt()],

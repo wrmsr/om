@@ -194,10 +194,14 @@ class RunPlan:
     host: RunHost
 
     options: list[str] = dc.field(default_factory=list)
+
     autoexec_lines: list[str] = dc.field(default_factory=list)
     autoexec_env: dict[str, str] = dc.field(default_factory=dict)
+
     entrypoint: str | None = None
+
     client_env: dict[str, str | sec.Secret] = dc.field(default_factory=dict)
+
     staging_dir: str | None = None
 
     #
