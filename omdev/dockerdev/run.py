@@ -195,7 +195,7 @@ class RunPlan:
 
     options: list[str] = dc.field(default_factory=list)
     autoexec_lines: list[str] = dc.field(default_factory=list)
-    exec_env: dict[str, str] = dc.field(default_factory=dict)
+    autoexec_env: dict[str, str] = dc.field(default_factory=dict)
     entrypoint: str | None = None
     client_env: dict[str, str | sec.Secret] = dc.field(default_factory=dict)
     staging_dir: str | None = None
@@ -208,8 +208,8 @@ class RunPlan:
     def add_autoexec_lines(self, *lines: str) -> None:
         self.autoexec_lines.extend(lines)
 
-    def set_exec_env(self, key: str, value: str) -> None:
-        self.exec_env[key] = value
+    def set_autoexec_env(self, key: str, value: str) -> None:
+        self.autoexec_env[key] = value
 
     def set_entrypoint(self, entrypoint: str) -> None:
         self.entrypoint = entrypoint
@@ -329,7 +329,7 @@ class CacheMountsRunStep(RunStep):
 
             if cr == '/om/.cache/uv':
                 # uv cannot hardlink across the volume boundary.
-                plan.set_exec_env('UV_LINK_MODE', 'symlink')
+                plan.add_options(f'--env=UV_LINK_MODE=symlink')
 
 
 class GitMountRunStep(RunStep):
@@ -369,8 +369,6 @@ class AutoexecRunStep(RunStep):
         ]
 
         if not lines:
-            # The exec environment is only ever applied by this script.
-            check.empty(plan.exec_env)
             return
 
         script = '\n'.join([
@@ -380,7 +378,7 @@ class AutoexecRunStep(RunStep):
             ' '.join([
                 *[
                     f'{shlex_maybe_quote(k)}={shlex_maybe_quote(v)}'
-                    for k, v in plan.exec_env.items()
+                    for k, v in plan.autoexec_env.items()
                 ],
                 'exec "$@"',
             ]),

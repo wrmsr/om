@@ -2406,7 +2406,7 @@ def _process_dataclass__72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c():
 
 
 @_register(
-    installer_sha1='7aed10c9525b940cc48ef836152c92c2eb0a5643',
+    installer_sha1='427233e9c06c72e6cb0e5664c9d8fd6e126ed52c',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, Fal"
@@ -2416,19 +2416,19 @@ def _process_dataclass__72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c():
             "e, False, False, False), (('host', True, True, None, True, True, False, None), 'instance', 'missing', None"
             ", False, False, False), (('options', True, True, None, True, True, False, None), 'instance', 'factory', No"
             "ne, False, False, False), (('autoexec_lines', True, True, None, True, True, False, None), 'instance', 'fac"
-            "tory', None, False, False, False), (('exec_env', True, True, None, True, True, False, None), 'instance', '"
-            "factory', None, False, False, False), (('entrypoint', True, True, None, True, True, False, None), 'instanc"
-            "e', 'value', None, False, False, False), (('client_env', True, True, None, True, True, False, None), 'inst"
-            "ance', 'factory', None, False, False, False), (('staging_dir', True, True, None, True, True, False, None),"
-            " 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (Fals"
-            "e, False, ()), ((),), (), (False,)))"
+            "tory', None, False, False, False), (('autoexec_env', True, True, None, True, True, False, None), 'instance"
+            "', 'factory', None, False, False, False), (('entrypoint', True, True, None, True, True, False, None), 'ins"
+            "tance', 'value', None, False, False, False), (('client_env', True, True, None, True, True, False, None), '"
+            "instance', 'factory', None, False, False, False), (('staging_dir', True, True, None, True, True, False, No"
+            "ne), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), ("
+            "False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.run', 'RunPlan'),
     ),
 )
-def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
+def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2466,7 +2466,7 @@ def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
                 host=self.host,
                 options=self.options,
                 autoexec_lines=self.autoexec_lines,
-                exec_env=self.exec_env,
+                autoexec_env=self.autoexec_env,
                 entrypoint=self.entrypoint,
                 client_env=self.client_env,
                 staging_dir=self.staging_dir,
@@ -2486,7 +2486,7 @@ def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
                 self.host == other.host and
                 self.options == other.options and
                 self.autoexec_lines == other.autoexec_lines and
-                self.exec_env == other.exec_env and
+                self.autoexec_env == other.autoexec_env and
                 self.entrypoint == other.entrypoint and
                 self.client_env == other.client_env and
                 self.staging_dir == other.staging_dir
@@ -2505,7 +2505,7 @@ def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
             host: __dataclass__init__fields__03__annotation,
             options: __dataclass__init__fields__04__annotation = __dataclass__HAS_DEFAULT_FACTORY,
             autoexec_lines: __dataclass__init__fields__05__annotation = __dataclass__HAS_DEFAULT_FACTORY,
-            exec_env: __dataclass__init__fields__06__annotation = __dataclass__HAS_DEFAULT_FACTORY,
+            autoexec_env: __dataclass__init__fields__06__annotation = __dataclass__HAS_DEFAULT_FACTORY,
             entrypoint: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
             client_env: __dataclass__init__fields__08__annotation = __dataclass__HAS_DEFAULT_FACTORY,
             staging_dir: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
@@ -2514,8 +2514,8 @@ def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
                 options = __dataclass__init__fields__04__default_factory()
             if autoexec_lines is __dataclass__HAS_DEFAULT_FACTORY:
                 autoexec_lines = __dataclass__init__fields__05__default_factory()
-            if exec_env is __dataclass__HAS_DEFAULT_FACTORY:
-                exec_env = __dataclass__init__fields__06__default_factory()
+            if autoexec_env is __dataclass__HAS_DEFAULT_FACTORY:
+                autoexec_env = __dataclass__init__fields__06__default_factory()
             if client_env is __dataclass__HAS_DEFAULT_FACTORY:
                 client_env = __dataclass__init__fields__08__default_factory()
             self.cfg = cfg
@@ -2524,7 +2524,7 @@ def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
             self.host = host
             self.options = options
             self.autoexec_lines = autoexec_lines
-            self.exec_env = exec_env
+            self.autoexec_env = autoexec_env
             self.entrypoint = entrypoint
             self.client_env = client_env
             self.staging_dir = staging_dir
@@ -2540,7 +2540,7 @@ def _process_dataclass__7aed10c9525b940cc48ef836152c92c2eb0a5643():
             parts.append(f"host={self.host!r}")
             parts.append(f"options={self.options!r}")
             parts.append(f"autoexec_lines={self.autoexec_lines!r}")
-            parts.append(f"exec_env={self.exec_env!r}")
+            parts.append(f"autoexec_env={self.autoexec_env!r}")
             parts.append(f"entrypoint={self.entrypoint!r}")
             parts.append(f"client_env={self.client_env!r}")
             parts.append(f"staging_dir={self.staging_dir!r}")
