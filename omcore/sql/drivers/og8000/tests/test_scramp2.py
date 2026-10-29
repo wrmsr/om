@@ -1152,7 +1152,7 @@ def test_ScramClient_set_server_final_missing_param():
         c_nonce=x['c_nonce'],  # type: ignore
     )
     c.get_client_first()
-    c.set_server_first(x['sfirst'])
+    c.set_server_first(x['sfirst'])  # type: ignore
     c.get_client_final()
     with pytest.raises(
         ScramError,

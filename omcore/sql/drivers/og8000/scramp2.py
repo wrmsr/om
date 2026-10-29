@@ -74,7 +74,7 @@ def hmac_digest(hf: HashFn, key: bytes, msg: bytes) -> bytes:
     return hmac.new(key, msg=msg, digestmod=hf).digest()
 
 
-def pbkdf2_hmac_pure_python(hf: HashFn, password, salt, iterations):
+def pbkdf2_hmac_pure_python(hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
     u = ui = hmac_digest(hf, password, salt + b'\x00\x00\x00\x01')
     for _ in range(int(iterations) - 1):
         ui = hmac_digest(hf, password, ui)
@@ -82,11 +82,11 @@ def pbkdf2_hmac_pure_python(hf: HashFn, password, salt, iterations):
     return u
 
 
-def pbkdf2_hmac_hashlib(hf: HashFn, password, salt, iterations):
+def pbkdf2_hmac_hashlib(hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
     return hashlib.pbkdf2_hmac(hf().name, password, salt, int(iterations))
 
 
-def hi(hf: HashFn, password, salt, iterations):
+def hi(hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
     if hasattr(hashlib, 'pbkdf2_hmac'):
         pbkdf2_hmac = pbkdf2_hmac_hashlib
     else:
@@ -94,7 +94,7 @@ def hi(hf: HashFn, password, salt, iterations):
     return hi_pbkdf2_hmac(pbkdf2_hmac, hf, password, salt, iterations)
 
 
-def hi_pbkdf2_hmac(pbkdf2_hmac, hf: HashFn, password, salt, iterations):
+def hi_pbkdf2_hmac(pbkdf2_hmac: ta.Callable, hf: HashFn, password: bytes, salt: bytes, iterations: int) -> bytes:
     return pbkdf2_hmac(hf, password, salt, iterations)
 
 
@@ -279,7 +279,7 @@ class CbName:
         'tls-exporter',
     })
 
-    def __init__(self, cb_name):
+    def __init__(self, cb_name: str) -> None:
         if not isinstance(cb_name, str):
             raise ScramError(
                 f"The 'cb_name' must be of type str, but found type {type(cb_name)}",
@@ -386,7 +386,8 @@ def _check_stage(stages, current_stage, next_stage):
 
 
 Mech = collections.namedtuple(  # noqa
-    'Mech', [
+    'Mech',
+    [
         'hf',
         'use_binding',
         'iteration_count',
@@ -489,7 +490,16 @@ class ScramMechanism:
         )
 
 
-def _make_auth_info(hf: HashFn, password, i, salt=None):
+def _make_auth_info(
+        hf: HashFn,
+        password: Password,
+        i: int,
+        salt: Salt | None = None,
+) -> tuple[
+    Salt,
+    bytes,
+    bytes,
+]:
     if salt is None:
         salt = Salt.create()
 
@@ -589,12 +599,12 @@ class ScramClient:
         _check_stage(ClientStage, self.stage, next_stage)
         self.stage = next_stage
 
-    def get_client_first(self):
+    def get_client_first(self) -> str:
         self._set_stage(ClientStage.get_client_first)
         self.client_first_bare, client_first = _get_client_first(self.username, self.c_nonce, self.gs2_header)
         return client_first
 
-    def set_server_first(self, message):
+    def set_server_first(self, message: str) -> None:
         self._set_stage(ClientStage.set_server_first)
         self.server_first = message
         (
@@ -603,7 +613,7 @@ class ScramClient:
             self.iterations,
         ) = _set_server_first(ServerFirst(message), self.c_nonce)
 
-    def get_client_final(self):
+    def get_client_final(self) -> str:
         self._set_stage(ClientStage.get_client_final)
         self.server_signature, cfinal = _get_client_final(
             self.hf,
@@ -618,17 +628,17 @@ class ScramClient:
         )
         return cfinal
 
-    def set_server_final(self, message):
+    def set_server_final(self, message: str) -> None:
         self._set_stage(ClientStage.set_server_final)
         _set_server_final(ServerFinal(message), self.server_signature)
 
 
-def _make_auth_message(client_first_bare, server_first, client_final_without_proof):
+def _make_auth_message(client_first_bare: str, server_first: str, client_final_without_proof: str) -> bytes:
     msg = client_first_bare, server_first, client_final_without_proof
     return uenc(','.join(msg))
 
 
-def _c_key_stored_key_s_key(hf, salted_password):
+def _c_key_stored_key_s_key(hf: HashFn, salted_password: bytes) -> tuple[bytes, bytes, bytes]:
     client_key = hmac_digest(hf, salted_password, b'Client Key')
     stored_key = h(hf, client_key)
     server_key = hmac_digest(hf, salted_password, b'Server Key')
@@ -670,13 +680,15 @@ class Gs2Header:
             self.cb_name == other.cb_name
         )
 
-    def make_cbind_input(self, cb: ChannelBinding) -> bytes:
+    def make_cbind_input(self, cb: ChannelBinding | None) -> bytes:
         gs2_header_bin = bytes(self)
 
         if self.gs2_char in ('y', 'n'):
             return gs2_header_bin
 
         elif self.gs2_char == 'p':
+            if cb is None:
+                raise ScramError('Invalid GS2 char', ServerError.OTHER_ERROR)
             return gs2_header_bin + bytes(cb.data)
 
         else:
@@ -733,13 +745,11 @@ class Gs2Header:
 class Message:
     PROTO_ATTRS = frozenset({'a', 'n', 'm', 'r', 'c', 's', 'i', 'p', 'v', 'e'})
 
-    def __init__(self, msg, desc, *expected_attr_strs):
+    def __init__(self, msg: str, desc: str, *expected_attr_strs: str):
         if not isinstance(msg, str):
-            raise ScramError(
-                'A message must be of type str', ServerError.OTHER_ERROR,
-            )
+            raise ScramError('A message must be of type str', ServerError.OTHER_ERROR)
 
-        m = collections.OrderedDict()
+        m: collections.OrderedDict[str, str] = collections.OrderedDict()
 
         for p in msg.split(','):
             if len(p) < 2 or p[1] != '=':
@@ -804,7 +814,7 @@ class Message:
                 ServerError.OTHER_ERROR,
             )
 
-        self._msg = collections.OrderedDict()
+        self._msg: collections.OrderedDict[str, ta.Any] = collections.OrderedDict()
 
         kv: ta.Any
         for k, v_str in m.items():
@@ -831,35 +841,35 @@ class Message:
 
             self._msg[k] = kv
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> ta.Any:
         return self._msg[key]
 
-    def items(self):
+    def items(self) -> ta.ItemsView[str, ta.Any]:
         return self._msg.items()
 
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         return key in self._msg
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._msg)
 
-    def _iter__(self):
+    def __iter__(self) -> ta.Iterator[str]:
         return iter(self._msg)
 
 
 class ServerFirst(Message):
-    def __init__(self, message):
+    def __init__(self, message: str) -> None:
         super().__init__(message, 'server first', 'rsi*', 'e*')
 
 
 class ServerFinal(Message):
-    def __init__(self, message):
+    def __init__(self, message: str) -> None:
         super().__init__(message, 'server final', 'v*', 'e*')
 
 
 @ta.final
 class Username:
-    def __init__(self, username):
+    def __init__(self, username: str) -> None:
         try:
             self.username = saslprep(username)
         except ScramError as e:
@@ -877,11 +887,11 @@ class Username:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Username) and self.username == other.username
 
-    def escape(self):
+    def escape(self) -> str:
         return _username_escape(self.username)
 
     @classmethod
-    def from_escaped(cls, username):
+    def from_escaped(cls, username: str) -> ta.Self:
         return cls(_username_unescape(username))
 
 
@@ -893,7 +903,7 @@ def _username_escape(username: str) -> str:
     return username.replace('=', ESCAPE_EQUALS).replace(',', ESCAPE_COMMA)
 
 
-def _username_unescape(username):
+def _username_unescape(username: str) -> str:
     for i in (i for i, c in enumerate(username) if c == '='):
         if username[i:i + 3] not in (ESCAPE_EQUALS, ESCAPE_COMMA):
             raise ScramError(
@@ -916,16 +926,16 @@ class Password:
         return uenc(self.password)
 
 
-def _make_message(**kwargs):
+def _make_message(**kwargs: ta.Any) -> str:
     return ','.join((f'{k}={v}' for k, v in kwargs.items()))
 
 
-def _get_client_first(username, c_nonce, gs2_header):
+def _get_client_first(username: Username, c_nonce: Nonce, gs2_header: Gs2Header) -> tuple[str, str]:
     bare = _make_message(n=username.escape(), r=c_nonce)
     return bare, f'{gs2_header}{bare}'
 
 
-def _set_server_first(msg, c_nonce):
+def _set_server_first(msg: Message, c_nonce: Nonce) -> tuple[Nonce, Salt, int]:
     if 'e' in msg:
         raise ScramError('The server returned an error', msg['e'])
 
@@ -943,16 +953,16 @@ def _set_server_first(msg, c_nonce):
 
 
 def _get_client_final(
-    hf,
-    password,
-    salt,
-    iterations,
-    nonce,
-    client_first_bare,
-    server_first,
-    channel_binding,
-    gs2_header,
-):
+    hf: HashFn,
+    password: Password,
+    salt: Salt,
+    iterations: int,
+    nonce: Nonce | str,
+    client_first_bare: str,
+    server_first: str,
+    channel_binding: ChannelBinding | None,
+    gs2_header: Gs2Header,
+) -> tuple[bytes, str]:
     salted_password = hi(hf, bytes(password), bytes(salt), iterations)
     client_key, stored_key, server_key = _c_key_stored_key_s_key(hf, salted_password)
 
@@ -967,7 +977,7 @@ def _get_client_final(
     return server_signature, client_final
 
 
-def _set_server_final(msg, server_signature):
+def _set_server_final(msg: Message, server_signature: bytes) -> None:
     if 'e' in msg:
         raise ScramError('The server returned an error', msg['e'])
 
