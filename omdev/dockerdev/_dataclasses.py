@@ -1941,7 +1941,7 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
 
 
 @_register(
-    installer_sha1='e1e00b4056492060baf5334cc7bb1caff93e33b2',
+    installer_sha1='a45ec9c5f40a7c80c1bdc5463e64853738a54c30',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1965,19 +1965,21 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
             " True, True, False, None), 'instance', 'value', None, False, False, False), (('id', True, True, None, True"
             ", True, False, None), 'instance', 'value', None, False, False, False), (('no_id_label', True, True, None, "
             "True, True, False, None), 'instance', 'value', None, False, False, False), (('env_secrets', True, True, No"
-            "ne, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('env_secret_pats', "
-            "True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('shif"
-            "t_uid', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('un"
-            "known_args', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, False, Fa"
-            "lse), (('extra_args', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, "
-            "False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "ne, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('non_strict_env_sec"
+            "rets', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('env"
+            "_secret_pats', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, False, "
+            "False), (('shift_uid', True, True, None, True, True, False, None), 'instance', 'value', None, False, False"
+            ", False), (('unknown_args', True, True, None, True, True, False, None), 'instance', 'value', 'callable', F"
+            "alse, False, False), (('extra_args', True, True, None, True, True, False, None), 'instance', 'value', 'cal"
+            "lable', False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),),"
+            " (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.run', 'RunArgs'),
     ),
 )
-def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
+def _process_dataclass__a45ec9c5f40a7c80c1bdc5463e64853738a54c30():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2029,16 +2031,18 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
         __dataclass__init__fields__19__coerce = __dataclass__spec.fields[19].coerce
         __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
         __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
-        __dataclass__init__fields__20__coerce = __dataclass__spec.fields[20].coerce
         __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
         __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__coerce = __dataclass__spec.fields[21].coerce
         __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
         __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
-        __dataclass__init__fields__22__coerce = __dataclass__spec.fields[22].coerce
         __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
         __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
         __dataclass__init__fields__23__coerce = __dataclass__spec.fields[23].coerce
         __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
+        __dataclass__init__fields__24__coerce = __dataclass__spec.fields[24].coerce
+        __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -2070,6 +2074,7 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
                 id=self.id,
                 no_id_label=self.no_id_label,
                 env_secrets=self.env_secrets,
+                non_strict_env_secrets=self.non_strict_env_secrets,
                 env_secret_pats=self.env_secret_pats,
                 shift_uid=self.shift_uid,
                 unknown_args=self.unknown_args,
@@ -2104,6 +2109,7 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
                 self.id == other.id and
                 self.no_id_label == other.no_id_label and
                 self.env_secrets == other.env_secrets and
+                self.non_strict_env_secrets == other.non_strict_env_secrets and
                 self.env_secret_pats == other.env_secret_pats and
                 self.shift_uid == other.shift_uid and
                 self.unknown_args == other.unknown_args and
@@ -2133,6 +2139,7 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
             'id',
             'no_id_label',
             'env_secrets',
+            'non_strict_env_secrets',
             'env_secret_pats',
             'shift_uid',
             'unknown_args',
@@ -2181,6 +2188,7 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
                 self.id,
                 self.no_id_label,
                 self.env_secrets,
+                self.non_strict_env_secrets,
                 self.env_secret_pats,
                 self.shift_uid,
                 self.unknown_args,
@@ -2212,18 +2220,19 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
             id: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
             no_id_label: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
             env_secrets: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
-            env_secret_pats: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
-            shift_uid: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
-            unknown_args: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
-            extra_args: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            non_strict_env_secrets: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            env_secret_pats: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            shift_uid: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
+            unknown_args: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            extra_args: __dataclass__init__fields__24__annotation = __dataclass__init__fields__24__default,
         ) -> __dataclass__None:
             names = __dataclass__init__fields__00__coerce(names)
             mounts = __dataclass__init__fields__06__coerce(mounts)
             autoexecs = __dataclass__init__fields__15__coerce(autoexecs)
             env_secrets = __dataclass__init__fields__19__coerce(env_secrets)
-            env_secret_pats = __dataclass__init__fields__20__coerce(env_secret_pats)
-            unknown_args = __dataclass__init__fields__22__coerce(unknown_args)
-            extra_args = __dataclass__init__fields__23__coerce(extra_args)
+            env_secret_pats = __dataclass__init__fields__21__coerce(env_secret_pats)
+            unknown_args = __dataclass__init__fields__23__coerce(unknown_args)
+            extra_args = __dataclass__init__fields__24__coerce(extra_args)
             __dataclass__object_setattr(self, 'names', names)
             __dataclass__object_setattr(self, 'verbose', verbose)
             __dataclass__object_setattr(self, 'no_rm', no_rm)
@@ -2244,6 +2253,7 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
             __dataclass__object_setattr(self, 'id', id)
             __dataclass__object_setattr(self, 'no_id_label', no_id_label)
             __dataclass__object_setattr(self, 'env_secrets', env_secrets)
+            __dataclass__object_setattr(self, 'non_strict_env_secrets', non_strict_env_secrets)
             __dataclass__object_setattr(self, 'env_secret_pats', env_secret_pats)
             __dataclass__object_setattr(self, 'shift_uid', shift_uid)
             __dataclass__object_setattr(self, 'unknown_args', unknown_args)
@@ -2294,6 +2304,8 @@ def _process_dataclass__e1e00b4056492060baf5334cc7bb1caff93e33b2():
                 parts.append(f"no_id_label={s}")
             if (s := __dataclass__repr__default_fn(self.env_secrets)) is not None:
                 parts.append(f"env_secrets={s}")
+            if (s := __dataclass__repr__default_fn(self.non_strict_env_secrets)) is not None:
+                parts.append(f"non_strict_env_secrets={s}")
             if (s := __dataclass__repr__default_fn(self.env_secret_pats)) is not None:
                 parts.append(f"env_secret_pats={s}")
             if (s := __dataclass__repr__default_fn(self.shift_uid)) is not None:

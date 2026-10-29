@@ -37,6 +37,16 @@ with lang.auto_proxy_import(globals()):
 # Args
 
 
+def _coerce_env_secret(v: str | tuple[str, str]) -> str | tuple[str, str]:
+    if isinstance(v, str):
+        check.in_(v, (v.lower(), v.upper()))
+        return check.non_empty_str(v)
+    elif isinstance(v, tuple):
+        return col.tuple_of(check.non_empty_str, check.non_empty_str)(v)
+    else:
+        raise TypeError(v)
+
+
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 @msh.update_field_options(omit_if=lang.is_none)
@@ -72,7 +82,11 @@ class RunArgs:
     id: uuid.UUID | None = None
     no_id_label: bool | None = None
 
-    env_secrets: ta.Sequence[str | tuple[str, str]] | None = dc.xfield(None, coerce=col.opt_seq)
+    env_secrets: ta.Sequence[str | tuple[str, str]] | None = dc.xfield(
+        None,
+        coerce=col.opt_seq_of(_coerce_env_secret),
+    )
+    non_strict_env_secrets: bool | None = None
     env_secret_pats: ta.Sequence[re.Pattern[str]] | None = dc.xfield(
         None,
         coerce=col.opt_seq_of(check.of_isinstance(re.Pattern)),
@@ -451,25 +465,42 @@ class SecretsRunStep(RunStep):
     """
 
     def apply(self, plan: RunPlan) -> None:
-        if plan.args.env_secrets:
-            # FIXME
-            raise NotImplementedError
-
-        if not (pats := plan.args.env_secret_pats):
+        env_secrets = plan.args.env_secrets
+        env_secret_pats = plan.args.env_secret_pats
+        if not (env_secrets or env_secret_pats):
             return
+
+        #
 
         if (load_secrets := plan.host.load_secrets) is None:
             raise RunSecretsUnavailableError('Secrets to inject were requested, but no source of secrets was given')
 
         secrets = check.isinstance(load_secrets(), sec.IterableSecrets)
 
-        compiled = [p if isinstance(p, re.Pattern) else re.compile(p) for p in pats]
+        #
 
-        for sk in secrets:
-            if any(p.fullmatch(sk) for p in compiled):
-                ek = sk.upper()
-                plan.set_client_env(ek, secrets.get(sk))
+        env_keys: dict[str, None] = {}
+
+        def add(ek: str, sv: sec.Secret) -> None:
+            plan.set_client_env(ek, sv)
+            if ek not in env_keys:
                 plan.add_options(f'--env={ek}')
+                env_keys[ek] = None
+
+        if env_secret_pats:
+            for sk in secrets:
+                if any(p.fullmatch(sk) for p in env_secret_pats):
+                    add(sk.upper(), secrets.get(sk))
+
+        for es in env_secrets or []:
+            if isinstance(es, tuple):
+                ek, sk = es
+            else:
+                ek, sk = es.upper(), es.lower()
+            if (sv := secrets.try_get(sk)) is not None:
+                add(ek, sv)
+            elif not plan.args.non_strict_env_secrets:
+                raise KeyError(sk)
 
 
 DEFAULT_RUN_STEPS: ta.Sequence[RunStep] = (

@@ -117,13 +117,13 @@ def test_defaults(tmp_path):
 
 def test_unset_args_behave_as_false_and_empty(tmp_path):
     explicit: dict[str, ta.Any] = dict(
-        names=None,
+        names=(),
         verbose=False,
         no_rm=False,
         no_interactive=False,
         no_tty=False,
         detach=False,
-        mounts=None,
+        mounts=[],
         mount_caches=False,
         mount_docker_sock=False,
         mount_git=False,
@@ -132,13 +132,14 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
         cuda=False,
         offline=False,
         no_host_platform=False,
-        autoexecs=None,
+        autoexecs=[],
         x11=False,
         no_id_label=False,
-        env_secrets=None,
-        env_secret_pats=None,
-        unknown_args=None,
-        extra_args=None,
+        env_secrets=[],
+        non_strict_env_secrets=False,
+        env_secret_pats=[],
+        unknown_args=[],
+        extra_args=[],
     )
 
     # Every field which has an explicit 'off' value: a new one must be added here too.

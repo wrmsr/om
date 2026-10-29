@@ -339,7 +339,10 @@ def main(argv: ta.Any = None) -> int:
             if '=' in es:
                 sk, ek = es.split('=')
             else:
-                sk, ek = es, es.upper()
+                if not es or es not in (es.lower(), es.upper()):
+                    print(f'error: invalid env secret: {es}', file=sys.stderr)
+                    return 1
+                sk, ek = es.lower(), es.upper()
             update[sk] = os.environ.get(ek)
 
     else:

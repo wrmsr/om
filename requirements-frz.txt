@@ -132,7 +132,7 @@ mysqlclient==2.3.0
 narwhals==2.28.0
 networkx==3.7
 nh3==0.3.7
-nodeenv==1.11.0
+nodeenv==1.11.1
 nodejs-wheel-binaries==24.19.0
 numpy==2.5.4
 objgraph==3.7.0
