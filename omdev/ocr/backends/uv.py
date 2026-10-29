@@ -33,11 +33,24 @@ DEFAULT_UV_PYTHON = 'cpython@' + '.'.join(map(str, sys.version_info[:2]))
 DEFAULT_UV_TIMEOUT = 600.
 
 
+def _uv_main(worker):
+    import json
+    import sys
+
+    with open(sys.argv[1], encoding='utf-8') as f:
+        kwargs = json.load(f)
+    result = worker(sys.stdin.buffer.read(), **kwargs)
+    if not isinstance(result, str):
+        raise TypeError(type(result))
+    with open(sys.argv[2], 'w', encoding='utf-8', newline='') as f:
+        f.write(result)
+
+
 def _make_worker_script(worker: ta.Callable[..., str]) -> str:
     # Workers must be undecorated, self-contained free functions with inner imports and no enclosing-scope references.
     worker_source = textwrap.dedent(inspect.getsource(worker))
 
-    main_source = lang.get_relative_resources(globals=globals())['_uv_main.py'].read_text()
+    main_source = inspect.getsource(_uv_main)
 
     return '\n'.join([
         'from __future__ import annotations',

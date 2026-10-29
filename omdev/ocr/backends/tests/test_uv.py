@@ -5,6 +5,8 @@ import sys
 
 import pytest
 
+from omcore import lang
+
 from ...tests.helpers import make_python_executable
 from ..uv import DEFAULT_UV_PYTHON
 from ..uv import _run_uv_ocr
@@ -12,6 +14,18 @@ from ..uv import _run_worker_process
 
 
 ##
+
+
+@lang.cached_function
+def _can_get_source():
+    import inspect
+
+    try:
+        inspect.getsource(_can_get_source)
+    except OSError:
+        return False
+    else:
+        return True
 
 
 def _echo_worker(png: bytes, *, prefix: str) -> str:
@@ -42,6 +56,7 @@ def _make_uv(directory):
     return executable, record
 
 
+@pytest.mark.skipif(not _can_get_source(), reason="can't get source")
 def test_transport_and_cleanup(tmp_path, capfd):
     executable, record = _make_uv(tmp_path)
     result = _run_uv_ocr(
@@ -75,6 +90,7 @@ def test_transport_and_cleanup(tmp_path, capfd):
     assert not os.path.exists(os.path.dirname(args[13]))
 
 
+@pytest.mark.skipif(not _can_get_source(), reason="can't get source")
 @pytest.mark.parametrize('worker', [_failing_worker, _wrong_type_worker])
 def test_failure_and_cleanup(tmp_path, worker):
     executable, record = _make_uv(tmp_path)
@@ -87,6 +103,7 @@ def test_failure_and_cleanup(tmp_path, worker):
     assert not os.path.exists(os.path.dirname(script))
 
 
+@pytest.mark.skipif(not _can_get_source(), reason="can't get source")
 def test_process_timeout():
     # Blocks waiting for a signal, rather than relying on a sleep to arrange the timeout.
     with pytest.raises(subprocess.TimeoutExpired):

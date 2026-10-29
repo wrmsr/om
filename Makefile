@@ -665,7 +665,7 @@ ci:
 		-- \
 		python3 \
 		-m pytest \
-		-n 2 \
+		-n 4 \
 		${PYTEST_OPTS} \
 		--junitxml="${PYTEST_JUNIT_XML_PATH}" \
 		${SRCS}
