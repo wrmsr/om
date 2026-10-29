@@ -100,6 +100,8 @@ class Cli(ap.Cli):
             extra_args = extra_args[1:]
 
         return RunArgs(
+            names=self.args.name,
+
             verbose=bool(self.args.verbose),
 
             no_rm=bool(self.args.no_rm),
@@ -135,6 +137,8 @@ class Cli(ap.Cli):
         )
 
     @ap.cmd(
+        ap.arg('-n', '--name', action='append'),
+
         ap.arg('-v', '--verbose', action='store_true'),
 
         ap.arg('--no-rm', action='store_true'),

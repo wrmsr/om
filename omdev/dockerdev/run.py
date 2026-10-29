@@ -76,6 +76,11 @@ with lang.auto_proxy_import(globals()):
 
 @dc.dataclass(frozen=True, kw_only=True)
 class RunArgs:
+    names: ta.Sequence[str] | None = dc.xfield(
+        None,
+        coerce=lambda names: tuple(check.non_empty_str(n) for n in names) if names else None,
+    )
+
     verbose: bool | None = None
 
     no_rm: bool | None = None
@@ -256,6 +261,12 @@ class RunStep(lang.Abstract):
     @abc.abstractmethod
     def apply(self, plan: RunPlan) -> None:
         raise NotImplementedError
+
+
+class NameRunStep(RunStep):
+    def apply(self, plan: RunPlan) -> None:
+        for name in plan.args.names or []:
+            plan.add_options(f'--name={name}')
 
 
 class BaseOptionsRunStep(RunStep):
@@ -499,6 +510,7 @@ class SecretsRunStep(RunStep):
 
 
 DEFAULT_RUN_STEPS: ta.Sequence[RunStep] = (
+    NameRunStep(),
     BaseOptionsRunStep(),
     PrivilegedRunStep(),
     CudaRunStep(),
