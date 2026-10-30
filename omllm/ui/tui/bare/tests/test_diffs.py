@@ -15,7 +15,7 @@ from ..... import llm
 from .....agent.tests.scripted import text_message
 from .....agent.tests.scripted import tool_call_message
 from .....core import ui
-from ...config import Config
+from ...config import TuiConfig
 from ...rendering import TerminalTextDisplayer
 from ...rendering import TerminalTextRenderer
 from ...tests.headless import bind_scripted_backend
@@ -72,7 +72,7 @@ class _Run:
 
     def tui(self):
         return headless_tui(inj.override(
-            bind_bare(Config(
+            bind_bare(TuiConfig(
                 model='scripted',
                 immediate=True,
                 in_memory=True,

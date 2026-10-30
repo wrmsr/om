@@ -1,37 +1,8 @@
-"""
-await agent.update_state(
-    lambda state: dc.replace(
-        state,
-
-        context=dc.replace(
-            state.context,
-            system_prompt='\n\n'.join([
-                f'Current working directory: {cwd}',
-            ]),
-            tools=tool_set,
-        ),
-    ),
-)
-
-await agent.update_state(
-    lambda state: dc.replace(
-        state,
-
-        context=dc.replace(
-            state.context,
-            system_prompt='\n\n'.join([
-                f'Current working directory: {cwd}',
-            ]),
-            tools=tool_set,
-        ),
-    ),
-)
-"""
 from omcore import dataclasses as dc
 
-from ... import agent as agn
-from ... import llm
-from ...core import processes as procs
+from .. import agent as agn
+from .. import llm
+from ..core import processes as procs
 from .types import InitialLlmOptions
 from .types import TargetCwd
 

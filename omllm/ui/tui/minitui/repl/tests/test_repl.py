@@ -11,7 +11,7 @@ from omdev import repl
 
 from ......core import processes
 from .....commands.repl import ReplSwitchError
-from ....config import Config
+from ....config import TuiConfig
 from ....tests.headless import bind_headless_tui
 from ....tests.headless import headless_tui
 from ...app import AppKey
@@ -152,7 +152,7 @@ def test_cancelling_in_a_repl_with_nothing_running():
 
 @pytest.mark.asyncs('asyncio')
 async def test_wiring():
-    config = Config(
+    config = TuiConfig(
         model='scripted',
         in_memory=True,
     )
@@ -206,7 +206,7 @@ class CommitSignallingDriver(Driver):
 @pytest.mark.asyncs('asyncio')
 async def test_bash_wiring(tmp_path):
     # No `exec`: the user's shell does not depend on what tools the agent was given.
-    config = Config(
+    config = TuiConfig(
         model='scripted',
         in_memory=True,
         cwd=str(tmp_path),

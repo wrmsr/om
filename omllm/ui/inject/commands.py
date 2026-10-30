@@ -3,18 +3,18 @@ import typing as ta
 from omcore import inject as inj
 from omcore import lang
 
-from ...commands.base import Command
-from ...commands.base import Commands
-from ...commands.compact import CompactCommand
-from ...commands.effort import EffortCommand
-from ...commands.manager import CommandsManager
-from ...commands.permissions import PermissionsCommand
-from ...commands.processes import ProcessesCommand
-from ...commands.simple import EchoCommand
-from ...commands.simple import QuitCommand
-from ...commands.status import StatusCommand
-from ...commands.steer import SteerCommand
-from ..config import Config
+from ..commands.base import Command
+from ..commands.base import Commands
+from ..commands.compact import CompactCommand
+from ..commands.effort import EffortCommand
+from ..commands.manager import CommandsManager
+from ..commands.permissions import PermissionsCommand
+from ..commands.processes import ProcessesCommand
+from ..commands.simple import EchoCommand
+from ..commands.simple import QuitCommand
+from ..commands.status import StatusCommand
+from ..commands.steer import SteerCommand
+from ..config import UiConfig
 
 
 ##
@@ -35,7 +35,7 @@ def bind_command_singleton(cls: ta.Any) -> inj.Elemental:
 ##
 
 
-def bind_commands(config: Config) -> inj.Elements:
+def bind_commands(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     lst.extend([

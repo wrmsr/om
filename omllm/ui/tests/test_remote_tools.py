@@ -1,5 +1,5 @@
 """
-The tui's container mode, end to end but for the terminal and the daemon: the remote agent bindings through the
+The ui's container mode, end to end but for the terminal and the daemon: the remote agent bindings through the
 injector, and tool calls through the agent into a (fake) container.
 """
 import os
@@ -11,16 +11,16 @@ import pytest
 from omcore import check
 from omcore import inject as inj
 
-from .... import agent as agn
-from .... import llm
-from ....agent.tests.scripted import text_message
-from ....agent.tests.scripted import tool_call_message
-from ....core import processes
-from ..config import Config
+from ... import agent as agn
+from ... import llm
+from ...agent.tests.scripted import text_message
+from ...agent.tests.scripted import tool_call_message
+from ...core import processes
+from ..config import UiConfig
 from ..types import TargetCwd
-from .headless import bind_headless_tui
+from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
-from .headless import headless_tui
+from .headless import headless_ui
 
 
 ##
@@ -52,8 +52,8 @@ def _make_fake_docker(tmp_path) -> str:
     return str(path)
 
 
-def _container_config() -> Config:
-    return Config(
+def _container_config() -> UiConfig:
+    return UiConfig(
         model='scripted',
         immediate=True,
         in_memory=True,
@@ -63,26 +63,26 @@ def _container_config() -> Config:
     )
 
 
-def _tool_results(tui, name: str) -> list[llm.ToolResultMessage]:
+def _tool_results(hui, name: str) -> list[llm.ToolResultMessage]:
     return [
         m
-        for m in (tui.agent.state.context.messages or [])
+        for m in (hui.agent.state.context.messages or [])
         if isinstance(m, llm.ToolResultMessage) and m.tool_name == name
     ]
 
 
-async def _allow_everything_under(tui, cwd: str) -> None:
+async def _allow_everything_under(hui, cwd: str) -> None:
     # As `--yolo` does: the configured rules ask first and would win, so they go.
-    await tui.commands.parse('permissions clear').run()
-    await tui.commands.parse('permissions add allow exec {}').run()
-    await tui.commands.parse(f'permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'').run()
+    await hui.commands.parse('permissions clear').run()
+    await hui.commands.parse('permissions add allow exec {}').run()
+    await hui.commands.parse(f'permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'').run()
 
 
 ##
 
 
 def test_container_arguments():
-    config = Config.parse_from_arguments([
+    config = UiConfig.parse_from_arguments([
         '--container', 'container-id',
         '--cwd', '/workspace',
         '--exec',
@@ -100,26 +100,26 @@ async def test_docker_remote_tool_bindings(tmp_path):
     cwd = os.path.realpath(tmp_path / 'container-root')
     path = os.path.join(cwd, 'remote.txt')
 
-    async with headless_tui(
+    async with headless_ui(
             inj.override(
-                bind_headless_tui(_container_config()),
+                bind_headless_ui(_container_config()),
                 inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
             ),
-    ) as tui:
-        fs = await tui.injector[agn.FsOps]
-        manager = await tui.injector[processes.ProcessManager]
+    ) as hui:
+        fs = await hui.injector[agn.FsOps]
+        manager = await hui.injector[processes.ProcessManager]
 
         assert isinstance(fs, agn.RemoteFsOps)
         assert isinstance(manager, processes.RemoteProcessManager)
-        assert (await tui.injector[TargetCwd]).v == cwd
-        assert isinstance(await tui.injector[agn.SessionStorage], agn.InMemorySessionStorage)
+        assert (await hui.injector[TargetCwd]).v == cwd
+        assert isinstance(await hui.injector[agn.SessionStorage], agn.InMemorySessionStorage)
 
         # The root scope is the remote manager's, and it is what the agent hands to tools.
-        assert (await tui.injector[processes.RootProcessScope]) is manager.root
-        assert check.not_none(tui.agent.state.tool_env).processes is manager.root
+        assert (await hui.injector[processes.RootProcessScope]) is manager.root
+        assert check.not_none(hui.agent.state.tool_env).processes is manager.root
 
         # The host's platform sandbox cannot confine a process which runs in the container.
-        ripgrep = await tui.injector[agn.RipgrepTool]
+        ripgrep = await hui.injector[agn.RipgrepTool]
         assert not ripgrep._sandbox  # noqa: SLF001
 
         await fs.write_file(path, b'from remote')
@@ -139,8 +139,8 @@ async def test_bash_tool_runs_in_the_container_through_the_agent(tmp_path):
     docker = _make_fake_docker(tmp_path)
     cwd = os.path.realpath(tmp_path / 'container-root')
 
-    async with headless_tui(inj.override(
-            bind_headless_tui(_container_config()),
+    async with headless_ui(inj.override(
+            bind_headless_ui(_container_config()),
             inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
             bind_scripted_backend(
                 tool_call_message(llm.ToolCall(
@@ -150,21 +150,21 @@ async def test_bash_tool_runs_in_the_container_through_the_agent(tmp_path):
                 )),
                 text_message('done'),
             ),
-    )) as tui:
-        tool_env = check.not_none(tui.agent.state.tool_env)
+    )) as hui:
+        tool_env = check.not_none(hui.agent.state.tool_env)
         assert tool_env.cwd == cwd
 
-        await _allow_everything_under(tui, cwd)
-        await tui.agent.prompt('run it')
+        await _allow_everything_under(hui, cwd)
+        await hui.agent.prompt('run it')
 
         # The command ran in the container's working directory, and its stderr and exit code came back framed.
-        [result] = _tool_results(tui, 'bash')
+        [result] = _tool_results(hui, 'bash')
         text = check.isinstance(result.content[0], llm.TextContent).text
         assert f'{cwd}:remote-ok' in text
         assert 'warn' in text
         assert 'exit code 5' in text
 
-        manager = await tui.injector[processes.ProcessManager]
+        manager = await hui.injector[processes.ProcessManager]
         assert not manager.processes
 
 
@@ -175,8 +175,8 @@ async def test_ripgrep_tool_runs_in_the_container_through_the_agent(tmp_path):
     cwd = os.path.realpath(tmp_path / 'container-root')
     (tmp_path / 'container-root' / 'haystack.txt').write_text('hay\nneedle here\n')
 
-    async with headless_tui(inj.override(
-            bind_headless_tui(_container_config()),
+    async with headless_ui(inj.override(
+            bind_headless_ui(_container_config()),
             inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
             bind_scripted_backend(
                 tool_call_message(llm.ToolCall(
@@ -186,10 +186,10 @@ async def test_ripgrep_tool_runs_in_the_container_through_the_agent(tmp_path):
                 )),
                 text_message('done'),
             ),
-    )) as tui:
-        await _allow_everything_under(tui, cwd)
-        await tui.agent.prompt('search')
+    )) as hui:
+        await _allow_everything_under(hui, cwd)
+        await hui.agent.prompt('search')
 
-        [result] = _tool_results(tui, 'ripgrep')
+        [result] = _tool_results(hui, 'ripgrep')
         text = check.isinstance(result.content[0], llm.TextContent).text
         assert 'needle here' in text

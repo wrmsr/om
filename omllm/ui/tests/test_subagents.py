@@ -1,5 +1,5 @@
 """
-The subagent tool through the tui's injector: each spawn an agent scope of its own, as a child of the app's injector.
+The subagent tool through the ui's injector: each spawn an agent scope of its own, as a child of the app's injector.
 """
 import os.path
 import tempfile
@@ -9,17 +9,17 @@ import pytest
 from omcore import check
 from omcore import inject as inj
 
-from .... import agent as agn
-from .... import llm
-from ....agent.tests.scripted import text_message
-from ....agent.tests.scripted import tool_call_message
-from ....core import processes
-from ..config import Config
+from ... import agent as agn
+from ... import llm
+from ...agent.tests.scripted import text_message
+from ...agent.tests.scripted import tool_call_message
+from ...core import processes
+from ..config import UiConfig
 from ..yolo import yolo_autoexec
 from ..yolo import yolo_process_config
-from .headless import bind_headless_tui
+from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
-from .headless import headless_tui
+from .headless import headless_ui
 
 
 ##
@@ -34,7 +34,7 @@ def _allow_rules(cwd):
 
 def _bind(cwd, *turns, autoexec=None, subagents=True):
     return inj.override(
-        bind_headless_tui(Config(
+        bind_headless_ui(UiConfig(
             model='scripted',
             immediate=True,
             in_memory=True,
@@ -75,19 +75,19 @@ async def test_subagent_runs_as_an_agent_scope_of_its_own():
             f.write('hello\n')
 
         # One scripted model answers both agents, in invocation order: parent, child, child, parent.
-        async with headless_tui(_bind(
+        async with headless_ui(_bind(
                 td,
                 tool_call_message(_subagent_call('p1', 'what is in the directory?', profile='explore')),
                 tool_call_message(llm.ToolCall('c1', 'ls', {'dir_path': td})),
                 text_message('one file: note.txt'),
                 text_message('parent done'),
-        )) as tui:
-            assert 'subagent' in check.not_none(tui.agent.state.context.tools).by_name
+        )) as hui:
+            assert 'subagent' in check.not_none(hui.agent.state.context.tools).by_name
 
             events: list = []
-            tui.agent.subscribe(events.append)
+            hui.agent.subscribe(events.append)
 
-            result = await tui.agent.prompt('go')
+            result = await hui.agent.prompt('go')
 
             assert result.reason is agn.AgentEndReason.COMPLETED
             [tr] = _tool_results(result.new_messages)
@@ -103,7 +103,7 @@ async def test_subagent_runs_as_an_agent_scope_of_its_own():
             assert 'note.txt' in child_end.result.content.text
 
             # The parent's session recorded the parent's run alone.
-            storage = await tui.injector[agn.InMemorySessionStorage]
+            storage = await hui.injector[agn.InMemorySessionStorage]
             assert [type(e.message) for e in await storage.get_entries()] == [  # type: ignore[attr-defined]
                 llm.UserMessage,
                 llm.AiMessage,
@@ -112,12 +112,12 @@ async def test_subagent_runs_as_an_agent_scope_of_its_own():
             ]
 
             # The child's process scope is gone with it.
-            pm = await tui.injector[processes.ProcessManager]
+            pm = await hui.injector[processes.ProcessManager]
             assert not pm.root.children
 
             # And the root's own tool instances were not the child's: the child got instances of its own.
             [child_start] = [u.event for u in updates if isinstance(u.event, agn.ToolExecutionStartEvent)]
-            root_ls = check.not_none(tui.agent.state.context.tools)['ls']
+            root_ls = check.not_none(hui.agent.state.context.tools)['ls']
             assert check.not_none(child_start.tool) is not root_ls
             assert check.not_none(child_start.tool).name == root_ls.name
 
@@ -127,7 +127,7 @@ async def test_explore_subagent_has_only_read_tools_and_no_subagent_tool():
     with tempfile.TemporaryDirectory() as td:
         td = os.path.abspath(os.path.realpath(td))
 
-        async with headless_tui(_bind(
+        async with headless_ui(_bind(
                 td,
                 tool_call_message(_subagent_call('p1', 'write something', profile='explore')),
                 tool_call_message(
@@ -136,11 +136,11 @@ async def test_explore_subagent_has_only_read_tools_and_no_subagent_tool():
                 ),
                 text_message('could not'),
                 text_message('parent done'),
-        )) as tui:
+        )) as hui:
             events: list = []
-            tui.agent.subscribe(events.append)
+            hui.agent.subscribe(events.append)
 
-            await tui.agent.prompt('go')
+            await hui.agent.prompt('go')
 
             ends = [u.event for u in _relayed(events) if isinstance(u.event, agn.ToolExecutionEndEvent)]
             assert [e.tool_name for e in ends] == ['write', 'subagent']
@@ -153,7 +153,7 @@ async def test_general_subagent_has_the_parents_tools_but_not_the_subagent_tool(
     with tempfile.TemporaryDirectory() as td:
         td = os.path.abspath(os.path.realpath(td))
 
-        async with headless_tui(_bind(
+        async with headless_ui(_bind(
                 td,
                 tool_call_message(_subagent_call('p1', 'nest')),
                 tool_call_message(
@@ -162,11 +162,11 @@ async def test_general_subagent_has_the_parents_tools_but_not_the_subagent_tool(
                 ),
                 text_message('done'),
                 text_message('parent done'),
-        )) as tui:
+        )) as hui:
             events: list = []
-            tui.agent.subscribe(events.append)
+            hui.agent.subscribe(events.append)
 
-            await tui.agent.prompt('go')
+            await hui.agent.prompt('go')
 
             updates = _relayed(events)
             assert {u.profile for u in updates} == {'general'}
@@ -180,23 +180,23 @@ async def test_subagents_in_one_message_each_get_a_scope_of_their_own():
     with tempfile.TemporaryDirectory() as td:
         td = os.path.abspath(os.path.realpath(td))
 
-        async with headless_tui(_bind(
+        async with headless_ui(_bind(
                 td,
                 tool_call_message(_subagent_call('p1', 'one'), _subagent_call('p2', 'two')),
                 text_message('first'),
                 text_message('second'),
                 text_message('parent done'),
-        )) as tui:
+        )) as hui:
             events: list = []
-            tui.agent.subscribe(events.append)
+            hui.agent.subscribe(events.append)
 
-            result = await tui.agent.prompt('go')
+            result = await hui.agent.prompt('go')
 
             assert result.reason is agn.AgentEndReason.COMPLETED
             assert sorted(tr.content[0].text for tr in _tool_results(result.new_messages)) == ['first', 'second']
             assert len({u.run_id for u in _relayed(events)}) == 2
 
-            pm = await tui.injector[processes.ProcessManager]
+            pm = await hui.injector[processes.ProcessManager]
             assert not pm.root.children
 
 
@@ -205,16 +205,16 @@ async def test_spawn_is_denied_without_a_rule():
     with tempfile.TemporaryDirectory() as td:
         td = os.path.abspath(os.path.realpath(td))
 
-        async with headless_tui(_bind(
+        async with headless_ui(_bind(
                 td,
                 tool_call_message(_subagent_call('p1', 'go')),
                 text_message('parent done'),
                 autoexec=[],
-        )) as tui:
+        )) as hui:
             events: list = []
-            tui.agent.subscribe(events.append)
+            hui.agent.subscribe(events.append)
 
-            result = await tui.agent.prompt('go')
+            result = await hui.agent.prompt('go')
 
             [tr] = _tool_results(result.new_messages)
             assert tr.is_error
@@ -227,19 +227,19 @@ async def test_subagents_are_off_without_the_flag():
     with tempfile.TemporaryDirectory() as td:
         td = os.path.abspath(os.path.realpath(td))
 
-        async with headless_tui(_bind(
+        async with headless_ui(_bind(
                 td,
                 text_message('hi'),
                 subagents=None,
-        )) as tui:
-            assert 'subagent' not in check.not_none(tui.agent.state.context.tools).by_name
+        )) as hui:
+            assert 'subagent' not in check.not_none(hui.agent.state.context.tools).by_name
 
 
 def test_yolo_implies_subagents_and_allows_spawning():
-    for config in [Config(yolo=True), Config(diet_yolo=True)]:
+    for config in [UiConfig(yolo=True), UiConfig(diet_yolo=True)]:
         processed = yolo_process_config(config)
         assert processed.subagents is True
         assert '/permissions add allow subagent {}' in yolo_autoexec(processed, '/somewhere')
 
-    assert yolo_process_config(Config()).subagents is None
-    assert yolo_autoexec(Config(), '/somewhere') == []
+    assert yolo_process_config(UiConfig()).subagents is None
+    assert yolo_autoexec(UiConfig(), '/somewhere') == []

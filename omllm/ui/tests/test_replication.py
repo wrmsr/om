@@ -1,5 +1,5 @@
 """
-The whole way out: a tui's injector storing its session in a local sqlite db, and a replication worker carrying that db
+The whole way out: a ui's injector storing its session in a local sqlite db, and a replication worker carrying that db
 to a postgres hub behind its back.
 
 The worker is in this process but not of it. It is a task on the harness's own event loop, as it would be run for real,
@@ -26,17 +26,17 @@ from omcore.sql.replicate.tests.nodes import read_shadow
 from omcore.sql.testing import sandboxes as sbx
 from omcore.sql.tests.harness import HarnessSandboxes
 
-from .... import agent as agn
-from .... import llm
-from ....agent.sessions.storage.orm.tests.scenarios import check_stored_transcript
-from ....agent.tests.scripted import text_message
-from ....agent.tests.scripted import tool_call_message
-from ....agent.tests.tools import EchoTool
-from ..config import Config
-from ..inject import bind_agent_tool_class
-from .headless import bind_headless_tui
+from ... import agent as agn
+from ... import llm
+from ...agent.sessions.storage.orm.tests.scenarios import check_stored_transcript
+from ...agent.tests.scripted import text_message
+from ...agent.tests.scripted import tool_call_message
+from ...agent.tests.tools import EchoTool
+from ..config import UiConfig
+from ..inject.tools import bind_agent_tool_class
+from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
-from .headless import headless_tui
+from .headless import headless_ui
 
 
 ##
@@ -85,9 +85,9 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
     ):
         edge_db_path = check.isinstance(hs.sqlite().backend, sbx.SqliteSandboxBackend).sandbox_db_path(edge_sb.name)
 
-        async with headless_tui(
+        async with headless_ui(
                 inj.override(
-                    bind_headless_tui(Config(
+                    bind_headless_ui(UiConfig(
                         model='scripted',
                         immediate=True,
                     )),
@@ -102,9 +102,9 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
                 inj.bind(EchoTool, singleton=True),
                 bind_agent_tool_class(EchoTool),
-        ) as tui:
+        ) as hui:
             # The harness was here first: its db exists, with a turn in it, before anyone thinks to replicate it.
-            await tui.agent.prompt('hi')
+            await hui.agent.prompt('hi')
 
             #
 
@@ -129,8 +129,8 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
                 async def hub_has(num_entries: int) -> bool:
                     sessions = await read_rows(hub, schema.table('sessions'))
                     return (
-                        len(await read_rows(hub, schema.table('session_entries'))) == num_entries and
-                        sessions.get(tui.session.id.v, {}).get('num_entries') == num_entries
+                            len(await read_rows(hub, schema.table('session_entries'))) == num_entries and
+                            sessions.get(hui.session.id.v, {}).get('num_entries') == num_entries
                     )
 
                 async with running_worker([link]) as wait_until:
@@ -139,8 +139,8 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
                     # What follows them goes while the worker runs, on the same loop the turns themselves are on: one
                     # with a tool call in it, then one which fails.
-                    await tui.agent.prompt('again')
-                    await tui.agent.prompt('and again')
+                    await hui.agent.prompt('again')
+                    await hui.agent.prompt('and again')
 
                     await wait_until(lambda: hub_has(8))
 
@@ -153,8 +153,8 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
             #
 
-            storage = await tui.injector[agn.OrmSessionStorage]
-            await check_stored_transcript(storage, tui.agent)
+            storage = await hui.injector[agn.OrmSessionStorage]
+            await check_stored_transcript(storage, hui.agent)
             num_entries = len(await storage.get_entries())
             assert num_entries == 8
 
@@ -172,4 +172,4 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
                     read_backend=sql.be.postgres.backend.PostgresBackend(),
                 ) as routed_orm,
             ):
-                await check_stored_transcript(agn.OrmSessionStorage(tui.session.id, routed_orm), tui.agent)
+                await check_stored_transcript(agn.OrmSessionStorage(hui.session.id, routed_orm), hui.agent)

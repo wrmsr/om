@@ -1,38 +1,20 @@
 from omcore import inject as inj
 
-from ...inject import bind_ui
-from ..config import Config
-from .agent import bind_agent
-from .backends import bind_backends
-from .commands import bind_commands
-from .permissions import bind_permissions
+from ..config import TuiConfig
 from .rendering import bind_rendering
-from .session import bind_sessions
-from .subagents import bind_subagents
-from .systemprompt import bind_system_prompt
-from .tools import bind_tools
-from .web import bind_web
+from ...inject.inject import bind_ui
 
 
 ##
 
 
-def bind_tui(config: Config) -> inj.Elements:
+def bind_tui(config: TuiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = [
-        inj.bind(config),
+        inj.bind(TuiConfig, to_const=config),
 
-        bind_ui(),
+        bind_ui(config),
 
-        bind_agent(config),
-        bind_backends(config),
-        bind_commands(config),
-        bind_permissions(config),
-        bind_rendering(),
-        bind_sessions(config),
-        bind_subagents(config),
-        bind_system_prompt(config),
-        bind_tools(config),
-        bind_web(config),
+        bind_rendering(config),
     ]
 
     return inj.as_elements(*lst)

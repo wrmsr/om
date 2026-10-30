@@ -1,5 +1,5 @@
 """
-Tool calls through the tui's injector: each one invoked in an opening of the agent's tool invocation scope, seeded with
+Tool calls through the ui's injector: each one invoked in an opening of the agent's tool invocation scope, seeded with
 the tool and its context, nested in the turn's.
 """
 import asyncio
@@ -11,16 +11,16 @@ import pytest
 from omcore import check
 from omcore import inject as inj
 
-from .... import agent as agn
-from .... import llm
-from ....agent.tests.scripted import text_message
-from ....agent.tests.scripted import tool_call_message
-from ..config import Config
-from ..inject import TOOL_INVOCATION_SCOPE
-from ..inject import agent_tools
-from .headless import bind_headless_tui
+from ... import agent as agn
+from ... import llm
+from ...agent.tests.scripted import text_message
+from ...agent.tests.scripted import tool_call_message
+from ..config import UiConfig
+from ..inject.agent import TOOL_INVOCATION_SCOPE
+from ..inject.tools import agent_tools
+from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
-from .headless import headless_tui
+from .headless import headless_ui
 
 
 ##
@@ -94,9 +94,9 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
     probe = _ScopeProbe()
     provided: list = []
 
-    async with headless_tui(
+    async with headless_ui(
             inj.override(
-                bind_headless_tui(Config(
+                bind_headless_ui(UiConfig(
                     model='scripted',
                     immediate=True,
                     in_memory=True,
@@ -108,11 +108,11 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
                 _bind_recording_direct_tool_invoker(provided),
             ),
             agent_tools().bind_item(to_const=probe.tool()),
-    ) as tui:
-        probe.injector = tui.injector
-        probe_tool = check.not_none(tui.agent.state.context.tools)['probe']
+    ) as hui:
+        probe.injector = hui.injector
+        probe_tool = check.not_none(hui.agent.state.context.tools)['probe']
 
-        result = await tui.agent.prompt('go')
+        result = await hui.agent.prompt('go')
 
         assert result.reason is agn.AgentEndReason.COMPLETED
         assert [tr.content[0].text for tr in _tool_results(result.new_messages)] == ['probed', 'probed']
@@ -142,7 +142,7 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
 
         # And none of it is open once the calls are done.
         with pytest.raises(inj.ScopeNotOpenError):
-            await tui.injector[agn.ToolContext]
+            await hui.injector[agn.ToolContext]
 
 
 @pytest.mark.asyncs('asyncio')
@@ -155,8 +155,8 @@ async def test_a_subagents_tool_calls_are_invoked_in_a_scope_of_its_own():
 
         provided: list = []
 
-        async with headless_tui(inj.override(
-                bind_headless_tui(Config(
+        async with headless_ui(inj.override(
+                bind_headless_ui(UiConfig(
                     model='scripted',
                     immediate=True,
                     in_memory=True,
@@ -175,11 +175,11 @@ async def test_a_subagents_tool_calls_are_invoked_in_a_scope_of_its_own():
                     text_message('parent done'),
                 ),
                 _bind_recording_direct_tool_invoker(provided),
-        )) as tui:
+        )) as hui:
             events: list = []
-            tui.agent.subscribe(events.append)
+            hui.agent.subscribe(events.append)
 
-            result = await tui.agent.prompt('go')
+            result = await hui.agent.prompt('go')
 
             assert result.reason is agn.AgentEndReason.COMPLETED
             [tr] = _tool_results(result.new_messages)

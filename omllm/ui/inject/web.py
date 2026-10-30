@@ -1,14 +1,14 @@
 from omcore import inject as inj
 
-from .... import agent as agn
-from ....agent.web.backends.duckduckgo.search import DuckduckgoWebSearcher
-from ..config import Config
+from ... import agent as agn
+from ...agent.web.backends.duckduckgo.search import DuckduckgoWebSearcher
+from ..config import UiConfig
 
 
 ##
 
 
-def bind_web(config: Config) -> inj.Elements:
+def bind_web(config: UiConfig) -> inj.Elements:
     if not config.web:
         return inj.as_elements()
 

@@ -6,7 +6,7 @@ from ..... import agent as agn
 from ..... import llm
 from .....agent.tests.scripted import scripted_backend
 from .....agent.tests.scripted import text_message
-from ...config import Config
+from ...config import TuiConfig
 from ..app import AppKey
 from ..output import AgentEventRenderer
 from ..output import MinituiTextDisplayer
@@ -147,7 +147,7 @@ def test_aborted_turn_cancels_permissions_and_finalizes_cards(cancelled, status)
 @pytest.mark.asyncs('asyncio')
 async def test_key_cancels_current_prompt_and_runs_next():
     app, _ = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     gate = FirstInvocationGate()
     agent = await make_agent(scripted_backend(text_message('one'), text_message('two'), stream=True, gate=gate))
     agent.subscribe(renderer.on_agent_event)

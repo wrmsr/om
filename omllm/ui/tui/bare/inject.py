@@ -3,8 +3,8 @@ from omcore import inject as inj
 from ....core import ui
 from ...commands.base import Commands
 from ...commands.manager import CommandsManager
-from ..config import Config
-from ..inject import bind_tui
+from ..config import TuiConfig
+from ..inject.inject import bind_tui
 from ..rendering import BlockTerminalTextDisplayer
 from .input import bind_input
 from .output import bind_output
@@ -24,7 +24,7 @@ def _provide_commands_manager(
     )
 
 
-def bind_bare(config: Config) -> inj.Elements:
+def bind_bare(config: TuiConfig) -> inj.Elements:
     return inj.as_elements(
         inj.override(
             bind_tui(config),

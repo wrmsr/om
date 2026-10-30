@@ -7,15 +7,15 @@ from omcore import check
 from omcore import inject as inj
 from omcore.testing import pytest as ptu
 
-from .... import agent as agn
-from .... import llm
-from ....agent.tests.scripted import text_message
-from ....agent.tests.scripted import tool_call_message
-from ....agent.web.backends.duckduckgo.search import DuckduckgoWebSearcher
-from ..config import Config
-from .headless import bind_headless_tui
+from ... import agent as agn
+from ... import llm
+from ...agent.tests.scripted import text_message
+from ...agent.tests.scripted import tool_call_message
+from ...agent.web.backends.duckduckgo.search import DuckduckgoWebSearcher
+from ..config import UiConfig
+from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
-from .headless import headless_tui
+from .headless import headless_ui
 
 
 ##
@@ -52,14 +52,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 @pytest.mark.asyncs('asyncio')
 async def test_web_defaults_resolve_through_injection():
-    async with headless_tui(bind_headless_tui(Config(
+    async with headless_ui(bind_headless_ui(UiConfig(
             model='scripted',
             in_memory=True,
             web=True,
-    ))) as tui:
-        assert isinstance(await tui.injector[agn.WebFetcher], agn.HttpWebFetcher)
-        assert isinstance(await tui.injector[agn.WebSearcher], DuckduckgoWebSearcher)
-        assert {t.name for t in check.not_none(tui.agent.state.context.tools)} == {'web_search', 'web_fetch'}
+    ))) as hui:
+        assert isinstance(await hui.injector[agn.WebFetcher], agn.HttpWebFetcher)
+        assert isinstance(await hui.injector[agn.WebSearcher], DuckduckgoWebSearcher)
+        assert {t.name for t in check.not_none(hui.agent.state.context.tools)} == {'web_search', 'web_fetch'}
 
 
 @pytest.mark.asyncs('asyncio')
@@ -70,8 +70,8 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
     thread.start()
     url = f'http://127.0.0.1:{server.server_address[1]}/'
     try:
-        async with headless_tui(inj.override(
-            bind_headless_tui(Config(
+        async with headless_ui(inj.override(
+            bind_headless_ui(UiConfig(
                 model='scripted',
                 in_memory=True,
                 web=True,
@@ -88,9 +88,9 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
                 ),
                 text_message('done'),
             ),
-        )) as tui:
-            await tui.agent.prompt('Fetch and search.')
-            messages = check.not_none(tui.agent.state.context.messages)
+        )) as hui:
+            await hui.agent.prompt('Fetch and search.')
+            messages = check.not_none(hui.agent.state.context.messages)
             results = {m.tool_name: m for m in messages if isinstance(m, llm.ToolResultMessage)}
             assert all(not r.is_error for r in results.values())
             assert 'Harness web verification' in results['web_fetch'].content[0].text
@@ -105,9 +105,9 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
 @ptu.skip.if_cant_import('ddgs')
 @pytest.mark.online
 @pytest.mark.asyncs('asyncio')
-async def test_live_search_and_fetch_through_the_tui_tools():
-    async with headless_tui(inj.override(
-        bind_headless_tui(Config(
+async def test_live_search_and_fetch_through_the_ui_tools():
+    async with headless_ui(inj.override(
+        bind_headless_ui(UiConfig(
             model='scripted',
             in_memory=True,
             web=True,
@@ -116,8 +116,8 @@ async def test_live_search_and_fetch_through_the_tui_tools():
             ],
         )),
         inj.bind(agn.PermissionAsker, to_const=_AllowingAsker()),
-    )) as tui:
-        tools = await tui.injector[agn.ToolSet]
+    )) as hui:
+        tools = await hui.injector[agn.ToolSet]
         search = await tools['web_search'].executor(agn.ToolContext(args={'query': 'Python official documentation'}))
         assert search.error is None, search.error
         assert 'https://' in search.content.text

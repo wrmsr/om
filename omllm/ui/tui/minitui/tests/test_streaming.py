@@ -2,7 +2,7 @@ from omcore import lang
 
 from ..... import agent as agn
 from ..... import llm
-from ...config import Config
+from ...config import TuiConfig
 from ..output import AgentEventRenderer
 from ..output import MinituiTextDisplayer
 from .utils import commit_texts
@@ -78,7 +78,7 @@ def test_live_tail_separates_from_committed_blocks():
 
 def test_resumed_transcript_is_displayed_settled():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
 
     renderer.display_transcript([
         llm.UserMessage('continue the work'),

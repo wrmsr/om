@@ -6,16 +6,16 @@ from omcore import inject as inj
 from omcore import sql
 from omdev.home.paths import get_home_paths
 
-from .... import agent as agn
-from ....agent.sessions.storage.orm.inject import bind_asyncio_sqlite_orm
-from ....agent.sessions.storage.orm.inject import bind_orm_session_storage
-from ..config import Config
+from ... import agent as agn
+from ...agent.sessions.storage.orm.inject import bind_asyncio_sqlite_orm
+from ...agent.sessions.storage.orm.inject import bind_orm_session_storage
+from ..config import UiConfig
 
 
 ##
 
 
-def bind_sessions(config: Config) -> inj.Elements:
+def bind_sessions(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

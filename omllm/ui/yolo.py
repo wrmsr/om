@@ -1,23 +1,17 @@
-"""
-permission_rules.append(
-    agn.PermissionRule(
-        agn.ToolPermissionMatcher(
-            tool='ripgrep',
-            child=agn.ExecPermissionMatcher(),
-        ),
-        agn.PermissionState.ALLOW,
-    ),
-)
-"""
+import typing as ta
+
 from omcore import dataclasses as dc
 
-from .config import Config
+from .config import UiConfig
+
+
+UiConfigT = ta.TypeVar('UiConfigT', bound=UiConfig)
 
 
 ##
 
 
-def yolo_process_config(config: Config) -> Config:
+def yolo_process_config(config: UiConfigT) -> UiConfigT:
     if config.yolo or config.diet_yolo:
         config = dc.replace(
             config,
@@ -36,7 +30,7 @@ def yolo_process_config(config: Config) -> Config:
 ##
 
 
-def yolo_autoexec(config: Config, cwd: str) -> list[str]:
+def yolo_autoexec(config: UiConfig, cwd: str) -> list[str]:
     if config.yolo:
         return [
             '/permissions clear',

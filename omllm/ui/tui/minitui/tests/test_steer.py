@@ -11,7 +11,7 @@ from .....agent.tests.scripted import scripted_backend
 from .....agent.tests.scripted import text_message
 from .....core import ui
 from ....commands.manager import CommandsManager
-from ...config import Config
+from ...config import TuiConfig
 from ...tests.features import RecordingTextDisplayer
 from ...tests.headless import bind_headless_tui
 from ...tests.headless import headless_tui
@@ -40,7 +40,7 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
         for text in ['first', 'steered', 'followup']
     ], stream=True, gate=gate)
     display = RecordingTextDisplayer()
-    config = Config(
+    config = TuiConfig(
         model='scripted',
         in_memory=True,
     )
@@ -88,7 +88,7 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
 async def test_idle_steering_does_not_leak_into_a_later_prompt():
     display = RecordingTextDisplayer()
     async with headless_tui(inj.override(
-        bind_headless_tui(Config(
+        bind_headless_tui(TuiConfig(
             model='scripted',
             in_memory=True,
         )),
@@ -104,7 +104,7 @@ async def test_idle_steering_does_not_leak_into_a_later_prompt():
 async def test_steer_rejects_exclusive_updates_and_terminal_delivery():
     display = RecordingTextDisplayer()
     async with headless_tui(inj.override(
-        bind_headless_tui(Config(
+        bind_headless_tui(TuiConfig(
             model='scripted',
             in_memory=True,
         )),
@@ -156,7 +156,7 @@ async def test_shutdown_owns_immediate_command_tasks(start_command):
     backend = scripted_backend(text_message('blocked'), stream=True, gate=gate)
     display = BlockingDisplay()
     async with headless_tui(inj.override(
-        bind_headless_tui(Config(
+        bind_headless_tui(TuiConfig(
             model='scripted',
             in_memory=True,
         )),

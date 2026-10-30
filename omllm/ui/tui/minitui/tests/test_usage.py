@@ -2,7 +2,7 @@ import pytest
 
 from ..... import agent as agn
 from ..... import llm
-from ...config import Config
+from ...config import TuiConfig
 from ..app import MinituiChatApp
 from ..output import AgentEventRenderer
 from ..output import MinituiTextDisplayer
@@ -23,7 +23,7 @@ def test_usage_count_format_promotes_rounded_units():
 @pytest.mark.asyncs('asyncio')
 async def test_turn_usage_renders_session_traffic_and_context_occupancy():
     app, _ = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
 
     await renderer.on_agent_event(agn.AgentStartEvent())
     await renderer.on_agent_event(agn.TurnEndEvent(
@@ -52,7 +52,7 @@ async def test_turn_usage_renders_session_traffic_and_context_occupancy():
 @pytest.mark.asyncs('asyncio')
 async def test_context_preparation_shows_estimated_pressure_and_reduction():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
 
     await renderer.on_agent_event(agn.AgentStartEvent())
     await renderer.on_agent_event(agn.ContextWindowEvent(agn.ContextBudget(

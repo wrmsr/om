@@ -1,6 +1,6 @@
 import asyncio
 
-from ....core import ui
+from ...core import ui
 
 
 ##

@@ -3,7 +3,7 @@ import pytest
 
 from ..... import agent as agn
 from ..... import llm
-from ...config import Config
+from ...config import TuiConfig
 from ..output import AgentEventRenderer
 from ..output import MinituiTextDisplayer
 from .utils import commit_texts
@@ -15,7 +15,7 @@ from .utils import make_app
 
 
 def _renderer(app):
-    return AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    return AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
 
 
 async def _end(reason, error=None):

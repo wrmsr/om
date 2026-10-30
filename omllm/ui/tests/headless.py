@@ -1,5 +1,5 @@
 """
-Test support: the tui's injector with no tui on it. `bind_tui` is used as it is; the little a frontend adds to it is
+Test support: the ui's injector with no ui on it. `bind_ui` is used as it is; the little a frontend adds to it is
 stood in for; and what a test has to steer - what the llm says, where the sessions are kept - is overridden.
 """
 import contextlib
@@ -8,13 +8,13 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import inject as inj
 
-from .... import agent as agn
-from ....agent.tests.scripted import scripted_backend
-from ....core import ui
-from ...commands.manager import CommandsManager
-from ..config import Config
-from ..inject import AgentEventSubscribers
-from ..inject import bind_tui
+from ... import agent as agn
+from ...agent.tests.scripted import scripted_backend
+from ...core import ui
+from ..commands.manager import CommandsManager
+from ..config import UiConfig
+from ..inject.agent import AgentEventSubscribers
+from ..inject.inject import bind_ui
 from ..setup import AgentSetup
 
 
@@ -30,9 +30,9 @@ class DenyingPermissionAsker(agn.PermissionAsker):
         return agn.PermissionState.DENY
 
 
-def bind_headless_tui(config: Config) -> inj.Elements:
+def bind_headless_ui(config: UiConfig) -> inj.Elements:
     return inj.as_elements(
-        bind_tui(config),
+        bind_ui(config),
 
         inj.bind(ui.NopTextDisplayer()),
         inj.bind(ui.TextDisplayer, to_key=ui.NopTextDisplayer),
@@ -58,7 +58,7 @@ def bind_scripted_backend(*turns: ta.Any) -> inj.Elemental:
 
 
 @dc.dataclass(frozen=True, kw_only=True)
-class HeadlessTui:
+class HeadlessUi:
     injector: inj.AsyncInjector
 
     agent: agn.Agent
@@ -67,7 +67,7 @@ class HeadlessTui:
 
 
 @contextlib.asynccontextmanager
-async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
+async def headless_ui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessUi]:
     async with inj.create_async_managed_injector(
         *els,
         factory=inj.create_asyncio_injector,
@@ -82,7 +82,7 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
 
         await (await injector[AgentSetup]).run()
 
-        config = await injector[Config]
+        config = await injector[UiConfig]
         if config.resume is not None:
             await session.resume()
 
@@ -101,7 +101,7 @@ async def headless_tui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessTui]:
         ]:
             await prompt(ax)
 
-        yield HeadlessTui(
+        yield HeadlessUi(
             injector=injector,
             agent=agent,
             session=session,

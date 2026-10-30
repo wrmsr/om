@@ -1,4 +1,4 @@
-"""A real model, through the tui's injector, spawning an explorer in a child injector to read a directory it may not."""
+"""A real model, through the ui's injector, spawning an explorer in a child injector to read a directory it may not."""
 import os.path
 import tempfile
 
@@ -7,11 +7,11 @@ import pytest
 from omcore import check
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .... import agent as agn
-from .... import llm
-from ..config import Config
-from .headless import bind_headless_tui
-from .headless import headless_tui
+from ... import agent as agn
+from ... import llm
+from ..config import UiConfig
+from .headless import bind_headless_ui
+from .headless import headless_ui
 
 
 ##
@@ -29,7 +29,7 @@ async def _test_explore(harness, model: str) -> None:
         with open(os.path.join(td, 'quokka.txt'), 'w') as f:  # noqa: ASYNC230
             f.write(f'The secret word is {_WORD}.\n')
 
-        async with headless_tui(bind_headless_tui(Config(
+        async with headless_ui(bind_headless_ui(UiConfig(
                 model=model,
                 in_memory=True,
                 fs=True,
@@ -39,11 +39,11 @@ async def _test_explore(harness, model: str) -> None:
                     '/permissions add allow subagent {}',
                     f'/permissions add allow glob_fs \'{{"glob":"{td}/**","modes":["r"]}}\'',
                 ],
-        ))) as tui:
+        ))) as hui:
             events: list = []
-            tui.agent.subscribe(events.append)
+            hui.agent.subscribe(events.append)
 
-            result = await tui.agent.prompt(
+            result = await hui.agent.prompt(
                 'You must use the subagent tool for this, with its explore profile, and must not read any file '
                 f'yourself. Have the subagent find the secret word written in the only .txt file in the directory {td} '
                 'and report it back to you. Then reply with just that secret word, nothing else.',

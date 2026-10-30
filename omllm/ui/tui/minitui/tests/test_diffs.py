@@ -15,7 +15,7 @@ from .....agent.tests.scripted import scripted_backend
 from .....agent.tests.scripted import text_message
 from .....agent.tests.scripted import tool_call_message
 from .....core import ui
-from ...config import Config
+from ...config import TuiConfig
 from ...rendering import TextRowsRenderer
 from ..app import AppKey
 from ..input import CardPermissionAsker
@@ -97,7 +97,7 @@ class _Run:
         renderer = AgentEventRenderer(
             app=self.app,
             text_displayer=MinituiTextDisplayer(app=self.app),
-            config=Config(),
+            config=TuiConfig(),
             text_renderer=self.text_renderer,
         )
         agent.subscribe(renderer.on_agent_event)

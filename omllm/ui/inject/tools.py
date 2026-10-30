@@ -4,10 +4,10 @@ import typing as ta
 from omcore import inject as inj
 from omcore import lang
 
-from .... import agent as agn
-from ....agent.remote.inject import bind_docker_remote_agent
-from ....core import processes
-from ..config import Config
+from ... import agent as agn
+from ...agent.remote.inject import bind_docker_remote_agent
+from ...core import processes
+from ..config import UiConfig
 from ..types import TargetCwd
 
 
@@ -46,15 +46,15 @@ def _provide_tool_set(tools: AgentTools, tool_sets: AgentToolSets) -> agn.ToolSe
 ##
 
 
-def _provide_local_target_cwd(config: Config) -> TargetCwd:
+def _provide_local_target_cwd(config: UiConfig) -> TargetCwd:
     return TargetCwd(os.path.abspath(os.path.realpath(config.cwd or os.getcwd())))
 
 
-async def _provide_remote_target_cwd(config: Config, fs: agn.FsOps) -> TargetCwd:
+async def _provide_remote_target_cwd(config: UiConfig, fs: agn.FsOps) -> TargetCwd:
     return TargetCwd(await fs.resolve_path(config.cwd or '.'))
 
 
-def bind_tool_infrastructure(config: Config) -> inj.Elements:
+def bind_tool_infrastructure(config: UiConfig) -> inj.Elements:
     """
     What tools stand on, bound once for the whole app: where they work, what they run processes on, and the ops they
     share. An agent scope - the root agent's today, a subagent's - binds its own tool classes over these.
@@ -111,7 +111,7 @@ def _provide_unsandboxed_ripgrep_tool(
     )
 
 
-def bind_tool_classes(config: Config) -> inj.Elements:
+def bind_tool_classes(config: UiConfig) -> inj.Elements:
     """
     The tool classes the config calls for, as singletons of the injector this is bound in, each contributed to that
     injector's `AgentTools`. Bound per agent scope: every agent gets instances of its own over the shared
@@ -193,7 +193,7 @@ def bind_tool_classes(config: Config) -> inj.Elements:
 ##
 
 
-def bind_tools(config: Config) -> inj.Elements:
+def bind_tools(config: UiConfig) -> inj.Elements:
     return inj.as_elements(
         bind_tool_infrastructure(config),
 

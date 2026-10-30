@@ -8,12 +8,12 @@ from .... import agent as agn
 from ....core import ui
 from ...logs import configure_tui_logging
 from ...types import UiId
-from ..config import Config
-from ..inject import AgentEventSubscribers
-from ..setup import AgentSetup
+from ..config import TuiConfig
+from ...inject.agent import AgentEventSubscribers
+from ...setup import AgentSetup
 from ..types import TargetCwd
-from ..yolo import yolo_autoexec
-from ..yolo import yolo_process_config
+from ...yolo import yolo_autoexec
+from ...yolo import yolo_process_config
 from .inject import bind_bare
 from .input import InputManager
 from .output import display_transcript
@@ -24,7 +24,7 @@ from .prompting import Prompter
 
 
 async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
-    config = Config.parse_from_arguments(argv)
+    config = TuiConfig.parse_from_arguments(argv)
     config = yolo_process_config(config)
 
     #

@@ -5,12 +5,12 @@ from omcore import inject as inj
 from omcore import lang
 from omcore.asyncs.asynclite import all as asl
 
-from .... import agent as agn
-from ....core.asyncs.asyncio import AsyncioGroupRunner
-from ....core.asyncs.base import AsyncGroupRunner
-from ....core.asyncs.inject import bind_job_runner
-from ....core.eventbus import EventSubscriber
-from ..config import Config
+from ... import agent as agn
+from ...core.asyncs.asyncio import AsyncioGroupRunner
+from ...core.asyncs.base import AsyncGroupRunner
+from ...core.asyncs.inject import bind_job_runner
+from ...core.eventbus import EventSubscriber
+from ..config import UiConfig
 from ..setup import AgentSetup
 
 
@@ -159,7 +159,7 @@ class ScopedToolInvoker(agn.ToolInvoker):
 ##
 
 
-def bind_agent(config: Config) -> inj.Elements:
+def bind_agent(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

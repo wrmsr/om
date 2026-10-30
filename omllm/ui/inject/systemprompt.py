@@ -3,8 +3,8 @@ import typing as ta
 from omcore import inject as inj
 from omcore import lang
 
-from .... import agent as agn
-from ..config import Config
+from ... import agent as agn
+from ..config import UiConfig
 from ..types import TargetCwd
 
 
@@ -51,7 +51,7 @@ def _bind_system_prompt_contributor_singleton(cls: ta.Any) -> inj.Elemental:
     )
 
 
-def bind_system_prompt(config: Config) -> inj.Elements:
+def bind_system_prompt(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     lst.extend([

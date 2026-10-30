@@ -6,7 +6,7 @@ from omcore import inject as inj
 
 from .... import agent as agn
 from ....core import ui
-from ..config import Config
+from ..config import TuiConfig
 from .previews import ShownPreviews
 
 
@@ -97,7 +97,7 @@ class InputPermissionAsker(agn.PermissionAsker):
 ##
 
 
-def bind_input(config: Config) -> inj.Elements:
+def bind_input(config: TuiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     lst.extend([

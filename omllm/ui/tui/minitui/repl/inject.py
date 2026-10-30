@@ -14,8 +14,8 @@ from ....commands.repl import ChatCommand
 from ....commands.repl import JsCommand
 from ....commands.repl import PyCommand
 from ....commands.repl import ReplModeSwitcher
-from ...config import Config
-from ...inject import commands_binder
+from ...config import TuiConfig
+from ....inject.commands import commands_binder
 from ...types import TargetCwd
 from ..app import MinituiChatApp
 from .ptys import ProcessScopePtySpawner
@@ -95,7 +95,7 @@ def _provide_session(
     return session
 
 
-def bind_repl(config: Config) -> inj.Elements:
+def bind_repl(config: TuiConfig) -> inj.Elements:
     return inj.as_elements(
         repl_namespace_seeds().bind_items_provider(singleton=True),
 

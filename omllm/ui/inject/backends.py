@@ -4,17 +4,17 @@ from omcore import inject as inj
 from omcore import lang
 from omdev.home.secrets import load_secrets
 
-from .... import agent as agn
-from .... import llm
-from ....core import registry as reg
-from ..config import Config
+from ... import agent as agn
+from ... import llm
+from ...core import registry as reg
+from ..config import UiConfig
 from ..types import InitialLlmOptions
 
 
 ##
 
 
-def bind_backends(config: Config) -> inj.Elements:
+def bind_backends(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

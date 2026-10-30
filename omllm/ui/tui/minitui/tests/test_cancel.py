@@ -20,7 +20,7 @@ from ....commands.classes import CommandClass
 from ....commands.compact import CompactCommand
 from ....commands.manager import CommandsManager
 from ....commands.simple import EchoCommand
-from ...config import Config
+from ...config import TuiConfig
 from ..app import AppKey
 from ..app import AppQuitSignal
 from ..app import MinituiChatApp
@@ -439,7 +439,7 @@ async def test_queued_prompts_run_in_submission_order():
 @pytest.mark.asyncs('asyncio')
 async def test_failed_prompt_displays_error_and_runs_next():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     agent = await make_agent(scripted_backend(text_message('one'), text_message('two')))
 
     # A run's own failures come back from the agent as results. What raises out of a prompt is a subscriber failing
@@ -547,7 +547,7 @@ def _wire(app, agent):
 @pytest.mark.asyncs('asyncio')
 async def test_cancel_key_unwinds_running_tool_into_cancelled_card():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     tool = _BlockingTool()
     agent = await make_agent(_tool_call_backend('t1', 'block'), tools=[tool.tool()])
     agent.subscribe(renderer.on_agent_event)
@@ -598,7 +598,7 @@ class _LingeringTool:
 @pytest.mark.asyncs('asyncio')
 async def test_cancel_key_shows_cancelling_until_the_turn_ends():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     tool = _LingeringTool()
     agent = await make_agent(_tool_call_backend('t1', 'linger'), tools=[tool.tool()])
     agent.subscribe(renderer.on_agent_event)
@@ -638,7 +638,7 @@ async def test_cancel_key_shows_cancelling_until_the_turn_ends():
 @pytest.mark.asyncs('asyncio')
 async def test_cancel_key_during_model_call_ends_turn_idle():
     app, _ = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     backend = _BlockingBackend()
     agent = await make_agent(backend)
     agent.subscribe(renderer.on_agent_event)
@@ -682,7 +682,7 @@ class _StallingEndSubscriber:
 @pytest.mark.asyncs('asyncio')
 async def test_cancel_landing_in_end_event_publish_still_closes_turn():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     stalling = _StallingEndSubscriber()
 
     async def subscriber(ev):
@@ -760,7 +760,7 @@ def _tool_calls_backend(*calls: tuple[str, str]):
 @pytest.mark.asyncs('asyncio')
 async def test_cancel_key_unwinds_parallel_asks_as_cancellations_before_the_turn_ends():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     asker = CardPermissionAsker(app=app)
     alpha, beta = _AskingTool('alpha', asker), _AskingTool('beta', asker)
     at_end = []
@@ -802,7 +802,7 @@ async def test_cancel_key_unwinds_parallel_asks_as_cancellations_before_the_turn
 @pytest.mark.asyncs('asyncio')
 async def test_renderer_drops_stragglers_after_turn_ends():
     app, _ = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     tool = agn.Tool(llm_tool=llm.Tool(name='late'), executor=_unused_executor)
     context = agn.ToolContext(tool=tool, args={}, llm_tool_call=llm.ToolCall('t9', 'late', {}))
 
@@ -913,7 +913,7 @@ async def test_quit_drains_pump_before_stopping_driver():
 async def test_input_eof_mid_turn_commits_cancelled_cards_before_driver_stops():
     driver = _QuitDriver(commit_texts)
     app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     tool = _BlockingTool()
     agent = await make_agent(_tool_call_backend('t1', 'block'), tools=[tool.tool()])
     agent.subscribe(renderer.on_agent_event)
@@ -940,7 +940,7 @@ async def test_input_eof_mid_turn_commits_cancelled_cards_before_driver_stops():
 async def test_quit_commits_cancelled_cards_before_driver_stops():
     driver = _QuitDriver(commit_texts)
     app = MinituiChatApp(ta.cast(mt.AsyncioDriver, driver))
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
     tool = _BlockingTool()
     agent = await make_agent(_tool_call_backend('t1', 'block'), tools=[tool.tool()])
     agent.subscribe(renderer.on_agent_event)

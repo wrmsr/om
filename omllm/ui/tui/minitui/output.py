@@ -13,7 +13,7 @@ from omdev import minitui as mt
 from .... import agent as agn
 from .... import llm
 from ....core import ui
-from ..config import Config
+from ..config import TuiConfig
 from ..rendering import TextRowsRenderer
 from .app import MinituiChatApp
 from .toolcards import card_text_rows
@@ -66,7 +66,7 @@ class AgentEventRenderer:
             *,
             app: MinituiChatApp,
             text_displayer: ui.TextDisplayer,
-            config: Config,
+            config: TuiConfig,
             text_renderer: TextRowsRenderer | None = None,
     ) -> None:
         super().__init__()

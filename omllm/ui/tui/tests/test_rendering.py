@@ -8,7 +8,7 @@ from omcore.term import styled as tst
 from omdev import minitui as mt
 
 from ....core import ui
-from ..config import Config
+from ..config import TuiConfig
 from ..rendering import BlockTerminalTextDisplayer
 from ..rendering import TerminalTextDisplayer
 from ..rendering import TerminalTextRenderer
@@ -129,7 +129,7 @@ def test_terminal_text_displayer_builds_its_renderer_with_the_options():
 @pytest.mark.asyncs('asyncio')
 async def test_bound_options_reach_the_frontends():
     async with headless_tui(inj.override(
-            bind_headless_tui(Config(
+            bind_headless_tui(TuiConfig(
                 model='scripted',
                 in_memory=True,
             )),

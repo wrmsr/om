@@ -5,7 +5,7 @@ from omcore import lang
 
 from ..... import agent as agn
 from ..... import llm
-from ...config import Config
+from ...config import TuiConfig
 from ..output import AgentEventRenderer
 from ..output import MinituiTextDisplayer
 from .utils import commit_texts
@@ -30,7 +30,7 @@ def _wrap(parent: agn.ToolContext, run_id: agn.SubagentRunId, event: agn.Event) 
 
 def test_subagent_tool_calls_are_prefixed_sibling_cards():
     app, driver = make_app()
-    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=Config())
+    renderer = AgentEventRenderer(app=app, text_displayer=MinituiTextDisplayer(app=app), config=TuiConfig())
 
     def feed(*events):
         for ev in events:

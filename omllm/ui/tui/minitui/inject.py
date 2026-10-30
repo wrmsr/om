@@ -4,9 +4,9 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from ....core import ui
-from ..config import Config
-from ..inject import bind_on_agent_event_subscriber
-from ..inject import bind_tui
+from ..config import TuiConfig
+from ...inject.agent import bind_on_agent_event_subscriber
+from ..inject.inject import bind_tui
 from .app import AppQuitSignal
 from .app import MinituiChatApp
 from .input import CardPermissionAsker
@@ -26,7 +26,7 @@ def _provide_driver(surface: mt.InlineSurface) -> mt.AsyncioDriver:
     return mt.AsyncioDriver(surface, app_handles_eof=True)
 
 
-def bind_app(config: Config) -> inj.Elements:
+def bind_app(config: TuiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = [
         inj.bind(mt.InlineSurface(kitty_keys=True)),
         inj.bind(_provide_driver, singleton=True),
@@ -43,7 +43,7 @@ def bind_app(config: Config) -> inj.Elements:
 ##
 
 
-def bind_input(config: Config) -> inj.Elements:
+def bind_input(config: TuiConfig) -> inj.Elements:
     return inj.as_elements(
         inj.bind(CardPermissionAsker, singleton=True),
         inj.bind(agn.PermissionAsker, to_key=CardPermissionAsker),
@@ -53,7 +53,7 @@ def bind_input(config: Config) -> inj.Elements:
 ##
 
 
-def bind_output(config: Config) -> inj.Elements:
+def bind_output(config: TuiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = [
         inj.bind(MinituiTextDisplayer, singleton=True),
         inj.bind(ui.TextDisplayer, to_key=MinituiTextDisplayer),
@@ -74,7 +74,7 @@ def bind_output(config: Config) -> inj.Elements:
 ##
 
 
-def bind_minitui(config: Config) -> inj.Elements:
+def bind_minitui(config: TuiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = [
         bind_tui(config),
 
