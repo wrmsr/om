@@ -7,6 +7,8 @@ from omcore import lang
 from omcore.formats.json import all as json
 
 from ..types.models import ModelKey
+from .apikeys import ApiKey
+from .apikeys import secret_or_env_var_api_key
 
 
 ##
@@ -19,7 +21,7 @@ class DefaultModel:
 
     key: ModelKey
 
-    api_key_name: str | None = None
+    api_keys: ta.Sequence[ApiKey] | None = None
 
     include_platforms: ta.AbstractSet[str] | None = None
     exclude_platforms: ta.AbstractSet[str] | None = None
@@ -40,28 +42,28 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
         name='claude-fable',
         aliases=['fable'],
         key=ModelKey('anthropic', 'claude-fable-5-1'),
-        api_key_name='anthropic_api_key',
+        api_keys=(ANTHROPIC_API_KEYS := secret_or_env_var_api_key('anthropic_api_key')),
     ),
 
     DefaultModel(
         name='claude-opus',
         aliases=['opus'],
         key=ModelKey('anthropic', 'claude-opus-5-5'),
-        api_key_name='anthropic_api_key',
+        api_keys=ANTHROPIC_API_KEYS,
     ),
 
     DefaultModel(
         name='claude-sonnet',
         aliases=['sonnet', 'claude'],
         key=ModelKey('anthropic', 'claude-sonnet-5-5'),
-        api_key_name='anthropic_api_key',
+        api_keys=ANTHROPIC_API_KEYS,
     ),
 
     DefaultModel(
         name='claude-haiku',
         aliases=['haiku'],
         key=ModelKey('anthropic', 'claude-haiku-5-5'),
-        api_key_name='anthropic_api_key',
+        api_keys=ANTHROPIC_API_KEYS,
     ),
 
     ##
@@ -71,7 +73,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
         name='cerebras-gpt',
         aliases=['cerebras'],
         key=ModelKey('cerebras', 'gpt-oss-120b'),
-        api_key_name='cerebras_api_key',
+        api_keys=(CEREBRAS_API_KEYS := secret_or_env_var_api_key('cerebras_api_key')),
     ),
 
     ##
@@ -81,20 +83,20 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
         name='gemini-argon',
         aliases=['argon'],
         key=ModelKey('google', 'gemini-4-argon'),
-        api_key_name='gemini_api_key',
+        api_keys=(GEMINI_API_KEYS := secret_or_env_var_api_key('gemini_api_key')),
     ),
 
     DefaultModel(
         name='gemini-flash',
         aliases=['gemini', 'google'],
         key=ModelKey('google', 'gemini-3.8-flash'),
-        api_key_name='gemini_api_key',
+        api_keys=GEMINI_API_KEYS,
     ),
 
     DefaultModel(
         name='gemini-cheap',
         key=ModelKey('google', 'gemini-2.5-flash'),
-        api_key_name='gemini_api_key',
+        api_keys=GEMINI_API_KEYS,
     ),
 
     ##
@@ -103,7 +105,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='groq',
         key=ModelKey('groq', 'openai/gpt-oss-120b'),
-        api_key_name='groq_api_key',
+        api_keys=(GROQ_API_KEYS := secret_or_env_var_api_key('groq_api_key')),
     ),
 
     ##
@@ -130,35 +132,35 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
         name='gpt-astra',
         aliases=['astra'],
         key=ModelKey('openai', 'gpt-6-astra'),
-        api_key_name='openai_api_key',
+        api_keys=(OPENAI_API_KEYS := secret_or_env_var_api_key('openai_api_key')),
     ),
 
     DefaultModel(
         name='gpt-sol',
         aliases=['sol'],
         key=ModelKey('openai', 'gpt-6.1-sol'),
-        api_key_name='openai_api_key',
+        api_keys=OPENAI_API_KEYS,
     ),
 
     DefaultModel(
         name='gpt-terra',
         aliases=['terra'],
         key=ModelKey('openai', 'gpt-6.1-terra'),
-        api_key_name='openai_api_key',
+        api_keys=OPENAI_API_KEYS,
     ),
 
     DefaultModel(
         name='gpt-luna',
         aliases=['luna', 'gpt'],
         key=ModelKey('openai', 'gpt-6-luna'),
-        api_key_name='openai_api_key',
+        api_keys=OPENAI_API_KEYS,
     ),
 
     DefaultModel(
         name='gpt-nano',
         aliases=['nano'],
         key=ModelKey('openai', 'gpt-5.4-nano'),
-        api_key_name='openai_api_key',
+        api_keys=OPENAI_API_KEYS,
     ),
 
     ##
@@ -167,50 +169,50 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='deepseek-pro',
         key=ModelKey('openrouter', 'deepseek/deepseek-v4-pro-0813'),
-        api_key_name='openrouter_api_key',
+        api_keys=(OPENROUTER_API_KEYS := secret_or_env_var_api_key('openrouter_api_key')),
     ),
 
     DefaultModel(
         name='deepseek-flash',
         aliases=['deepseek'],
         key=ModelKey('openrouter', 'deepseek/deepseek-v4.1-flash-1017'),
-        api_key_name='openrouter_api_key',
+        api_keys=OPENROUTER_API_KEYS,
     ),
 
     DefaultModel(
         name='kimi',
         key=ModelKey('openrouter', 'moonshotai/kimi-k3'),
-        api_key_name='openrouter_api_key',
+        api_keys=OPENROUTER_API_KEYS,
     ),
 
     DefaultModel(
         name='glm',
         key=ModelKey('openrouter', 'z-ai/glm-5.3'),
-        api_key_name='openrouter_api_key',
+        api_keys=OPENROUTER_API_KEYS,
     ),
 
     DefaultModel(
         name='ling',
         key=ModelKey('openrouter', 'inclusionai/ling-3.0-flash'),
-        api_key_name='openrouter_api_key',
+        api_keys=OPENROUTER_API_KEYS,
     ),
 
     DefaultModel(
         name='mercury',
         key=ModelKey('openrouter', 'inception/mercury-2.5'),
-        api_key_name='openrouter_api_key',
+        api_keys=OPENROUTER_API_KEYS,
     ),
 
     DefaultModel(
         name='mimo',
         key=ModelKey('openrouter', 'xiaomi/mimo-v2.6-pro'),
-        api_key_name='openrouter_api_key',
+        api_keys=OPENROUTER_API_KEYS,
     ),
 
     DefaultModel(
         name='mistral',
         key=ModelKey('openrouter', 'mistralai/mistral-large-4-0'),
-        api_key_name='openrouter_api_key',
+        api_keys=OPENROUTER_API_KEYS,
     ),
 
 ]
