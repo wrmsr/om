@@ -7,6 +7,7 @@ from omcore import lang
 from omcore.secrets import all as sec
 from omcore.shlex import shlex_maybe_quote
 
+from .consts import CACHE_DIR
 from .consts import CACHE_VOLUME
 from .consts import CONTAINER_STAGING_DIR
 from .consts import ID_LABEL
@@ -97,19 +98,28 @@ class CacheMountsRunStep(RunStep):
         if not (plan.args.mount_caches and (cache_mounts := plan.cfg.cache_mounts)):
             return
 
-        plan.add_options(f'--mount=type=volume,src={CACHE_VOLUME},dst=/cache')
-        plan.add_autoexec_lines('sudo chown om:om /cache')
+        plan.add_options(f'--mount=type=volume,src={CACHE_VOLUME},dst={CACHE_DIR}')
+        plan.add_autoexec_lines(f'sudo chown om:om {CACHE_DIR}')
 
         for cl, cr in cache_mounts.items():
             plan.add_autoexec_lines(
-                f'if ! [ -d /cache/{cl} ] ; then mkdir -p /cache/{cl} ; fi',
+                f'if ! [ -d {CACHE_DIR}/{cl} ] ; then mkdir -p {CACHE_DIR}/{cl} ; fi',
                 f'rm -rf {cr} || true',
-                f'ln -s /cache/{cl} {cr}',
+                f'ln -s {CACHE_DIR}/{cl} {cr}',
             )
 
             if cr == '/om/.cache/uv':
                 # uv cannot hardlink across the volume boundary.
                 plan.add_options(f'--env=UV_LINK_MODE=symlink')
+
+
+class PersistMountRunStep(RunStep):
+    def apply(self, plan: RunPlan) -> None:
+        if not plan.args.mount_persist:
+            pass
+
+        # FIXME
+        raise NotImplementedError
 
 
 class GitMountRunStep(RunStep):
