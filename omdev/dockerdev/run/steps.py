@@ -191,7 +191,7 @@ class ShiftUidRunStep(RunStep):
         uid, gid = shift_uid
         inner_entrypoint = plan.entrypoint
 
-        script_src = lang.get_relative_resources('.resources', globals=globals())['shift-uid.sh'].read_text()
+        script_src = lang.get_relative_resources('..build.resources', globals=globals())['shift-uid.sh'].read_text()
         script = plan.stage_file('shift-uid.sh', script_src)
 
         plan.add_options('--user=0:0')

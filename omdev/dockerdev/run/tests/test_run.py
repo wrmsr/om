@@ -127,6 +127,7 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
         mount_caches=False,
         mount_docker_sock=False,
         mount_git=False,
+        mount_persist=False,
         clone_mount_git=False,
         privileged=False,
         cuda=False,
@@ -286,7 +287,7 @@ def test_autoexecs_follow_the_steps_lines(tmp_path):
 
 
 def _shift_uid_src() -> str:
-    return lang.get_relative_resources('..resources', globals=globals())['shift-uid.sh'].read_text()
+    return lang.get_relative_resources('...build.resources', globals=globals())['shift-uid.sh'].read_text()
 
 
 def _shift_uid_options(inner_entrypoint: str) -> list[str]:

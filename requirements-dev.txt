@@ -25,14 +25,14 @@ asyncpg-stubs==0.32.0
 docutils-stubs==0.0.22
 lxml-stubs==0.5.1
 types-awscrt==0.37.0
-types-docutils==0.23.0.20260923
+types-docutils==0.23.0.20261030
 types-greenlet==3.5.0.20260518
-types-paramiko==5.0.0.20261021
+types-paramiko==5.1.0.20261030
 types-psutil==7.2.2.20260906
 types-pygments==2.21.0.20260819
 types-pymysql==1.2.0.20260923
-types-pyyaml==6.0.12.20260906
-types-regex==2026.9.29.20261017
+types-pyyaml==6.0.12.20261030
+types-regex==2026.9.29.20261030
 types-setuptools==84.0.0.20261006
 types-ujson==5.10.0.20250822
 
@@ -46,7 +46,7 @@ guppy3==3.1.7  # @om-venv !14t !14dt !15 !15t  # TODO: abandoned?
 objgraph==3.7.0
 memray==1.20.0
 
-ipython==9.17.1
+ipython==9.18.0
 
 pudb==2026.1
 
