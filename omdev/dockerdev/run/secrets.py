@@ -17,7 +17,7 @@ from ...home.paths import HomePaths
 from ...home.secretinject import inject_secrets
 from ...home.secrets import DEFAULT_INJECTED_SECRETS_FILE_NAME
 from ...home.secrets import load_secrets
-from .run import ID_LABEL
+from .consts import ID_LABEL
 
 
 ##

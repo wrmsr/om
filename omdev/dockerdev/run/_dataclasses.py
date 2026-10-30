@@ -29,377 +29,6 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='5b99dd94cc312ce96be1497aceb3fda18cfdee5b',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, 'in"
-            "stance', False, False, False), ((('id', True, True, None, True, True, False, None), 'instance', 'missing',"
-            " None, False, False, False), (('created_at', True, True, None, True, True, False, None), 'instance', 'valu"
-            "e', None, False, False, False), (('updated_at', True, True, None, True, True, False, None), 'instance', 'v"
-            "alue', None, False, False, False), (('container_id', True, True, None, True, True, False, None), 'instance"
-            "', 'value', None, False, False, False), (('json', True, True, None, True, True, False, None), 'instance', "
-            "'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ("
-            ")), ((),), (), (False,)))"
-        ),
-    ),
-    cls_names=(
-        ('omdev.dockerdev.run.db', 'OrmRun'),
-    ),
-)
-def _process_dataclass__5b99dd94cc312ce96be1497aceb3fda18cfdee5b():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                id=self.id,
-                created_at=self.created_at,
-                updated_at=self.updated_at,
-                container_id=self.container_id,
-                json=self.json,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.id == other.id and
-                self.created_at == other.created_at and
-                self.updated_at == other.updated_at and
-                self.container_id == other.container_id and
-                self.json == other.json
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
-
-        def __init__(
-            self,
-            *,
-            id: __dataclass__init__fields__0__annotation,
-            created_at: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            updated_at: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            container_id: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            json: __dataclass__init__fields__4__annotation,
-        ) -> __dataclass__None:
-            self.id = id
-            self.created_at = created_at
-            self.updated_at = updated_at
-            self.container_id = container_id
-            self.json = json
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"id={self.id!r}")
-            parts.append(f"created_at={self.created_at!r}")
-            parts.append(f"updated_at={self.updated_at!r}")
-            parts.append(f"container_id={self.container_id!r}")
-            parts.append(f"json={self.json!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    installer_sha1='b5789bc666b7feb63876ea94973b1a86fe4605f5',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('id', True, True, None, True, False, False, None), 'instance', 'missing', Non"
-            "e, False, False, False), (('container_id', True, True, None, True, False, False, None), 'instance', 'value"
-            "', None, False, False, False), (('cfg', True, True, None, True, False, False, None), 'instance', 'value', "
-            "None, False, False, False), (('sha', True, True, None, True, False, False, None), 'instance', 'value', Non"
-            "e, False, False, False), (('args', True, True, None, True, False, False, None), 'instance', 'value', None,"
-            " False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), ("
-            "False,)))"
-        ),
-    ),
-    cls_names=(
-        ('omdev.dockerdev.run.db', 'Run'),
-    ),
-)
-def _process_dataclass__b5789bc666b7feb63876ea94973b1a86fe4605f5():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
-        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                id=self.id,
-                container_id=self.container_id,
-                cfg=self.cfg,
-                sha=self.sha,
-                args=self.args,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.id == other.id and
-                self.container_id == other.container_id and
-                self.cfg == other.cfg and
-                self.sha == other.sha and
-                self.args == other.args
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'id',
-            'container_id',
-            'cfg',
-            'sha',
-            'args',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.id,
-                self.container_id,
-                self.cfg,
-                self.sha,
-                self.args,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            id: __dataclass__init__fields__0__annotation,
-            container_id: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            cfg: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            sha: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            args: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'id', id)
-            __dataclass__object_setattr(self, 'container_id', container_id)
-            __dataclass__object_setattr(self, 'cfg', cfg)
-            __dataclass__object_setattr(self, 'sha', sha)
-            __dataclass__object_setattr(self, 'args', args)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"id={self.id!r}")
-            parts.append(f"container_id={self.container_id!r}")
-            parts.append(f"cfg={self.cfg!r}")
-            parts.append(f"sha={self.sha!r}")
-            parts.append(f"args={self.args!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    installer_sha1='9b094afd191e8b1c63f146aa91112a120aa52e68',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('id', True, True, None, True, False, False, None), 'instance', 'missing', Non"
-            "e, False, False, False), (('args', True, True, None, True, False, False, None), 'instance', 'missing', Non"
-            "e, False, False, False), (('env', True, True, None, True, True, False, None), 'instance', 'value', None, F"
-            "alse, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (Fal"
-            "se,)))"
-        ),
-    ),
-    cls_names=(
-        ('omdev.dockerdev.run.run', 'ProcessedRunArgs'),
-    ),
-)
-def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
-        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                id=self.id,
-                args=self.args,
-                env=self.env,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.id == other.id and
-                self.args == other.args and
-                self.env == other.env
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'id',
-            'args',
-            'env',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.id,
-                self.args,
-                self.env,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            id: __dataclass__init__fields__0__annotation,
-            args: __dataclass__init__fields__1__annotation,
-            *,
-            env: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'id', id)
-            __dataclass__object_setattr(self, 'args', args)
-            __dataclass__object_setattr(self, 'env', env)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            if (s := __dataclass__repr__default_fn(self.id)) is not None:
-                parts.append(f"id={s}")
-            if (s := __dataclass__repr__default_fn(self.args)) is not None:
-                parts.append(f"args={s}")
-            if (s := __dataclass__repr__default_fn(self.env)) is not None:
-                parts.append(f"env={s}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
     installer_sha1='a45ec9c5f40a7c80c1bdc5463e64853738a54c30',
     spec_keys=(
         (
@@ -435,7 +64,7 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
         ),
     ),
     cls_names=(
-        ('omdev.dockerdev.run.run', 'RunArgs'),
+        ('omdev.dockerdev.run.args', 'RunArgs'),
     ),
 )
 def _process_dataclass__a45ec9c5f40a7c80c1bdc5463e64853738a54c30():
@@ -785,6 +414,251 @@ def _process_dataclass__a45ec9c5f40a7c80c1bdc5463e64853738a54c30():
 
 
 @_register(
+    installer_sha1='5b99dd94cc312ce96be1497aceb3fda18cfdee5b',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, 'in"
+            "stance', False, False, False), ((('id', True, True, None, True, True, False, None), 'instance', 'missing',"
+            " None, False, False, False), (('created_at', True, True, None, True, True, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('updated_at', True, True, None, True, True, False, None), 'instance', 'v"
+            "alue', None, False, False, False), (('container_id', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False), (('json', True, True, None, True, True, False, None), 'instance', "
+            "'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ("
+            ")), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omdev.dockerdev.run.db', 'OrmRun'),
+    ),
+)
+def _process_dataclass__5b99dd94cc312ce96be1497aceb3fda18cfdee5b():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                id=self.id,
+                created_at=self.created_at,
+                updated_at=self.updated_at,
+                container_id=self.container_id,
+                json=self.json,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.id == other.id and
+                self.created_at == other.created_at and
+                self.updated_at == other.updated_at and
+                self.container_id == other.container_id and
+                self.json == other.json
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            *,
+            id: __dataclass__init__fields__0__annotation,
+            created_at: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            updated_at: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            container_id: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            json: __dataclass__init__fields__4__annotation,
+        ) -> __dataclass__None:
+            self.id = id
+            self.created_at = created_at
+            self.updated_at = updated_at
+            self.container_id = container_id
+            self.json = json
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"id={self.id!r}")
+            parts.append(f"created_at={self.created_at!r}")
+            parts.append(f"updated_at={self.updated_at!r}")
+            parts.append(f"container_id={self.container_id!r}")
+            parts.append(f"json={self.json!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='b5789bc666b7feb63876ea94973b1a86fe4605f5',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('id', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False), (('container_id', True, True, None, True, False, False, None), 'instance', 'value"
+            "', None, False, False, False), (('cfg', True, True, None, True, False, False, None), 'instance', 'value', "
+            "None, False, False, False), (('sha', True, True, None, True, False, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('args', True, True, None, True, False, False, None), 'instance', 'value', None,"
+            " False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), ("
+            "False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omdev.dockerdev.run.db', 'Run'),
+    ),
+)
+def _process_dataclass__b5789bc666b7feb63876ea94973b1a86fe4605f5():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                id=self.id,
+                container_id=self.container_id,
+                cfg=self.cfg,
+                sha=self.sha,
+                args=self.args,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.id == other.id and
+                self.container_id == other.container_id and
+                self.cfg == other.cfg and
+                self.sha == other.sha and
+                self.args == other.args
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'id',
+            'container_id',
+            'cfg',
+            'sha',
+            'args',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.id,
+                self.container_id,
+                self.cfg,
+                self.sha,
+                self.args,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            id: __dataclass__init__fields__0__annotation,
+            container_id: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            cfg: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            sha: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            args: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'id', id)
+            __dataclass__object_setattr(self, 'container_id', container_id)
+            __dataclass__object_setattr(self, 'cfg', cfg)
+            __dataclass__object_setattr(self, 'sha', sha)
+            __dataclass__object_setattr(self, 'args', args)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"id={self.id!r}")
+            parts.append(f"container_id={self.container_id!r}")
+            parts.append(f"cfg={self.cfg!r}")
+            parts.append(f"sha={self.sha!r}")
+            parts.append(f"args={self.args!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c',
     spec_keys=(
         (
@@ -800,7 +674,7 @@ def _process_dataclass__a45ec9c5f40a7c80c1bdc5463e64853738a54c30():
         ),
     ),
     cls_names=(
-        ('omdev.dockerdev.run.run', 'RunHost'),
+        ('omdev.dockerdev.run.plans', 'RunHost'),
     ),
 )
 def _process_dataclass__72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c():
@@ -955,7 +829,7 @@ def _process_dataclass__72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c():
         ),
     ),
     cls_names=(
-        ('omdev.dockerdev.run.run', 'RunPlan'),
+        ('omdev.dockerdev.run.plans', 'RunPlan'),
     ),
 )
 def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
@@ -1074,6 +948,132 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
             parts.append(f"entrypoint={self.entrypoint!r}")
             parts.append(f"client_env={self.client_env!r}")
             parts.append(f"staging_dir={self.staging_dir!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='9b094afd191e8b1c63f146aa91112a120aa52e68',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('id', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False), (('args', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False), (('env', True, True, None, True, True, False, None), 'instance', 'value', None, F"
+            "alse, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (Fal"
+            "se,)))"
+        ),
+    ),
+    cls_names=(
+        ('omdev.dockerdev.run.run', 'ProcessedRunArgs'),
+    ),
+)
+def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                id=self.id,
+                args=self.args,
+                env=self.env,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.id == other.id and
+                self.args == other.args and
+                self.env == other.env
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'id',
+            'args',
+            'env',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.id,
+                self.args,
+                self.env,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            id: __dataclass__init__fields__0__annotation,
+            args: __dataclass__init__fields__1__annotation,
+            *,
+            env: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'id', id)
+            __dataclass__object_setattr(self, 'args', args)
+            __dataclass__object_setattr(self, 'env', env)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            if (s := __dataclass__repr__default_fn(self.id)) is not None:
+                parts.append(f"id={s}")
+            if (s := __dataclass__repr__default_fn(self.args)) is not None:
+                parts.append(f"args={s}")
+            if (s := __dataclass__repr__default_fn(self.env)) is not None:
+                parts.append(f"env={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

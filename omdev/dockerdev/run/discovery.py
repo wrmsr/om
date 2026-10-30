@@ -4,7 +4,7 @@ higher-level "run command X in dev container Y and stream it" API (in omllm) wil
 """
 from omcore.docker import cli as docker_cli
 
-from .run import ID_LABEL
+from .consts import ID_LABEL
 
 
 ##

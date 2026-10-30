@@ -10,7 +10,7 @@ from omcore import sql
 
 from ...home.paths import get_home_paths
 from ..build.config import Config
-from .run import RunArgs
+from .args import RunArgs
 
 
 T = ta.TypeVar('T')

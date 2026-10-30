@@ -15,11 +15,11 @@ from omcore import lang
 from omcore.secrets import all as sec
 
 from ...build.config import Config
-from ..run import ID_LABEL
-from ..run import RunArgs
-from ..run import RunHost
-from ..run import RunSecretsUnavailableError
+from ..args import RunArgs
+from ..consts import ID_LABEL
+from ..plans import RunHost
 from ..run import process_run_args
+from ..steps import RunSecretsUnavailableError
 
 
 ##
