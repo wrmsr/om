@@ -24,9 +24,9 @@ from omcore.secrets import all as sec
 from omcore.shlex import shlex_maybe_quote
 from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
-from .build import build_image
-from .config import Config
-from .utils import BARE_SHA256_PAT
+from ..build.build import build_image
+from ..build.config import Config
+from ..utils import BARE_SHA256_PAT
 
 
 with lang.auto_proxy_import(globals()):

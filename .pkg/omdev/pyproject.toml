@@ -170,7 +170,7 @@ exclude = [
 'omdev.cc' = [
     'cdeps.toml',
 ]
-'omdev.dockerdev' = [
+'omdev.dockerdev.build' = [
     'config.toml',
     'resources/*',
     'resources/.*',

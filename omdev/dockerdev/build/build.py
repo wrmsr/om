@@ -8,10 +8,10 @@ import tempfile
 
 from omcore import check
 
+from ..utils import PREFIXED_SHA256_PAT
+from ..utils import run_and_tee
 from .config import Config
 from .gen import gen_src
-from .utils import PREFIXED_SHA256_PAT
-from .utils import run_and_tee
 
 
 ##

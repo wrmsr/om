@@ -29,13 +29,13 @@ from omcore.docker.ps import DEFAULT_PS_FORMAT_STR
 from omcore.formats.json import all as json
 
 from ..home.secrets import load_secrets
-from .build import build_image
-from .config import Config
-from .gen import gen_src
-from .run import ID_LABEL
-from .run import RunArgs
-from .run import RunHost
-from .run import run_image
+from .build.build import build_image
+from .build.config import Config
+from .build.gen import gen_src
+from .run.run import ID_LABEL
+from .run.run import RunArgs
+from .run.run import RunHost
+from .run.run import run_image
 
 
 ##
@@ -43,7 +43,7 @@ from .run import run_image
 
 class Cli(ap.Cli):
     def _load_config(self) -> Config:
-        cfg_src = lang.get_relative_resources(globals=globals())['config.toml'].read_text()
+        cfg_src = lang.get_relative_resources('build', globals=globals())['config.toml'].read_text()
         cfg_dct = tomllib.loads(cfg_src)
         return msh.unmarshal(cfg_dct, Config)
 
@@ -242,7 +242,7 @@ class Cli(ap.Cli):
 
         #
 
-        from .secrets import inject_dockerdev_secrets
+        from .run.secrets import inject_dockerdev_secrets
 
         inject_dockerdev_secrets(
             self.args.container_id,

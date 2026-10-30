@@ -11,12 +11,12 @@ from omcore.os.pyremote.core import pyremote
 from omcore.secrets import all as sec
 from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
-from ..home import secretinject
-from ..home.paths import DEFAULT_HOME_DIR
-from ..home.paths import HomePaths
-from ..home.secretinject import inject_secrets
-from ..home.secrets import DEFAULT_INJECTED_SECRETS_FILE_NAME
-from ..home.secrets import load_secrets
+from ...home import secretinject
+from ...home.paths import DEFAULT_HOME_DIR
+from ...home.paths import HomePaths
+from ...home.secretinject import inject_secrets
+from ...home.secrets import DEFAULT_INJECTED_SECRETS_FILE_NAME
+from ...home.secrets import load_secrets
 from .run import ID_LABEL
 
 

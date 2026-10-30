@@ -14,7 +14,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.secrets import all as sec
 
-from ..config import Config
+from ...build.config import Config
 from ..run import ID_LABEL
 from ..run import RunArgs
 from ..run import RunHost

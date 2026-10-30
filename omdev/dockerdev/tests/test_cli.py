@@ -6,11 +6,11 @@ from there on is passed to the container verbatim.
 """
 import shlex
 
+from ..build.config import Config
 from ..cli import Cli
-from ..config import Config
-from ..run import RunArgs
-from ..run import RunHost
-from ..run import process_run_args
+from ..run.run import RunArgs
+from ..run.run import RunHost
+from ..run.run import process_run_args
 
 
 ##

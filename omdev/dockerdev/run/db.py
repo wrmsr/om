@@ -8,8 +8,8 @@ from omcore import lang
 from omcore import orm
 from omcore import sql
 
-from ..home.paths import get_home_paths
-from .config import Config
+from ...home.paths import get_home_paths
+from ..build.config import Config
 from .run import RunArgs
 
 
