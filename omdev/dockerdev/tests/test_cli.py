@@ -35,7 +35,7 @@ def test_the_command_starts_at_the_first_non_option():
 
     # Once the command has started, nothing is read as an option - not even one of dockerdev's own.
     args = _run_args('-C python3 -v -X dev')
-    assert args.mount_caches
+    assert args.mount_cache
     assert not args.verbose
     assert not args.x11
     assert args.extra_args == ['python3', '-v', '-X', 'dev']
@@ -53,7 +53,7 @@ def test_unknown_options_are_forwarded():
 
 def test_a_double_dash_ends_the_options():
     args = _run_args('-C -- bash -v')
-    assert args.mount_caches
+    assert args.mount_cache
     assert not args.verbose
     assert args.extra_args == ['bash', '-v']
 

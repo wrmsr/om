@@ -112,8 +112,12 @@ class Cli(ap.Cli):
             detach=bool(self.args.detach),
 
             mounts=self.args.mount,
-            mount_caches=bool(self.args.mount_caches),
             mount_docker_sock=bool(self.args.mount_docker_sock),
+
+            mount_cache=bool(self.args.mount_cache),
+
+            mount_persist=bool(self.args.mount_persist),
+
             mount_git=bool(self.args.mount_git),
             clone_mount_git=bool(self.args.clone_mount_git),
 
@@ -150,12 +154,16 @@ class Cli(ap.Cli):
         ap.arg('-d', '--detach', action='store_true'),
 
         ap.arg('--mount', action='append'),
-        ap.arg('-C', '--mount-caches', action='store_true'),
         ap.arg('-D', '--mount-docker-sock', action='store_true'),
+
+        ap.arg('-C', '--mount-cache', action='store_true'),
+
+        ap.arg('-P', '--mount-persist', action='store_true'),
+
         ap.arg('--mount-git', action='store_true'),
         ap.arg('-G', '--clone-mount-git', action='store_true'),
 
-        ap.arg('-P', '--privileged', action='store_true'),
+        ap.arg('--privileged', action='store_true'),
 
         ap.arg('--cuda', action='store_true'),
 

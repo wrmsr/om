@@ -124,7 +124,7 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
         no_tty=False,
         detach=False,
         mounts=[],
-        mount_caches=False,
+        mount_cache=False,
         mount_docker_sock=False,
         mount_git=False,
         mount_persist=False,
@@ -218,7 +218,7 @@ def test_run_id_is_generated(tmp_path):
 
 
 def test_cache_mounts(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_caches=True))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_cache=True))
     assert run.options == sorted([
         '--rm',
         '-i',
@@ -245,7 +245,7 @@ def test_cache_mounts(tmp_path):
 
 
 def test_cache_mounts_need_configured_caches(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_caches=True), cfg=Config('ubuntu:24.04'))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_cache=True), cfg=Config('ubuntu:24.04'))
     assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL])
     assert run.staging_dir is None
 
@@ -413,7 +413,7 @@ def test_kitchen_sink(tmp_path):
             id=_RUN_ID,
             unknown_args=['--name=sink'],
             privileged=True,
-            mount_caches=True,
+            mount_cache=True,
             clone_mount_git=True,
             autoexecs=['echo hi'],
             shift_uid=(1000, 1001),

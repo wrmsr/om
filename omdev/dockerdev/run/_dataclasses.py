@@ -29,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='2698f5c80412b77a8280162cb88e31b14d3c521f',
+    installer_sha1='2a45ea38dc686aa20659010123b83845014d39c3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -41,34 +41,34 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "lue', None, False, False, False), (('detach', True, True, None, True, True, False, None), 'instance', 'val"
             "ue', None, False, False, False), (('mounts', True, True, None, True, True, False, None), 'instance', 'valu"
             "e', 'callable', False, False, False), (('mount_docker_sock', True, True, None, True, True, False, None), '"
-            "instance', 'value', None, False, False, False), (('mount_caches', True, True, None, True, True, False, Non"
-            "e), 'instance', 'value', None, False, False, False), (('mount_persist', True, True, None, True, True, Fals"
-            "e, None), 'instance', 'value', None, False, False, False), (('mount_git', True, True, None, True, True, Fa"
-            "lse, None), 'instance', 'value', None, False, False, False), (('clone_mount_git', True, True, None, True, "
-            "True, False, None), 'instance', 'value', None, False, False, False), (('privileged', True, True, None, Tru"
-            "e, True, False, None), 'instance', 'value', None, False, False, False), (('cuda', True, True, None, True, "
-            "True, False, None), 'instance', 'value', None, False, False, False), (('offline', True, True, None, True, "
-            "True, False, None), 'instance', 'value', None, False, False, False), (('no_host_platform', True, True, Non"
-            "e, True, True, False, None), 'instance', 'value', None, False, False, False), (('autoexecs', True, True, N"
-            "one, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('x11', True, True,"
-            " None, True, True, False, None), 'instance', 'value', None, False, False, False), (('id', True, True, None"
-            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('no_id_label', True, True, "
-            "None, True, True, False, None), 'instance', 'value', None, False, False, False), (('env_secrets', True, Tr"
-            "ue, None, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('non_strict_e"
-            "nv_secrets', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), "
-            "(('env_secret_pats', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, F"
-            "alse, False), (('shift_uid', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('unknown_args', True, True, None, True, True, False, None), 'instance', 'value', 'callab"
-            "le', False, False, False), (('extra_args', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", 'callable', False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), "
-            "((),), (), (False,)))"
+            "instance', 'value', None, False, False, False), (('mount_cache', True, True, None, True, True, False, None"
+            "), 'instance', 'value', None, False, False, False), (('mount_persist', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False), (('mount_git', True, True, None, True, True, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('clone_mount_git', True, True, None, True, T"
+            "rue, False, None), 'instance', 'value', None, False, False, False), (('privileged', True, True, None, True"
+            ", True, False, None), 'instance', 'value', None, False, False, False), (('cuda', True, True, None, True, T"
+            "rue, False, None), 'instance', 'value', None, False, False, False), (('offline', True, True, None, True, T"
+            "rue, False, None), 'instance', 'value', None, False, False, False), (('no_host_platform', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('autoexecs', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('x11', True, True, "
+            "None, True, True, False, None), 'instance', 'value', None, False, False, False), (('id', True, True, None,"
+            " True, True, False, None), 'instance', 'value', None, False, False, False), (('no_id_label', True, True, N"
+            "one, True, True, False, None), 'instance', 'value', None, False, False, False), (('env_secrets', True, Tru"
+            "e, None, True, True, False, None), 'instance', 'value', 'callable', False, False, False), (('non_strict_en"
+            "v_secrets', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), ("
+            "('env_secret_pats', True, True, None, True, True, False, None), 'instance', 'value', 'callable', False, Fa"
+            "lse, False), (('shift_uid', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
+            "False, False), (('unknown_args', True, True, None, True, True, False, None), 'instance', 'value', 'callabl"
+            "e', False, False, False), (('extra_args', True, True, None, True, True, False, None), 'instance', 'value',"
+            " 'callable', False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ("
+            "(),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.run.args', 'RunArgs'),
     ),
 )
-def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
+def _process_dataclass__2a45ea38dc686aa20659010123b83845014d39c3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -153,7 +153,7 @@ def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
                 detach=self.detach,
                 mounts=self.mounts,
                 mount_docker_sock=self.mount_docker_sock,
-                mount_caches=self.mount_caches,
+                mount_cache=self.mount_cache,
                 mount_persist=self.mount_persist,
                 mount_git=self.mount_git,
                 clone_mount_git=self.clone_mount_git,
@@ -189,7 +189,7 @@ def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
                 self.detach == other.detach and
                 self.mounts == other.mounts and
                 self.mount_docker_sock == other.mount_docker_sock and
-                self.mount_caches == other.mount_caches and
+                self.mount_cache == other.mount_cache and
                 self.mount_persist == other.mount_persist and
                 self.mount_git == other.mount_git and
                 self.clone_mount_git == other.clone_mount_git and
@@ -220,7 +220,7 @@ def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
             'detach',
             'mounts',
             'mount_docker_sock',
-            'mount_caches',
+            'mount_cache',
             'mount_persist',
             'mount_git',
             'clone_mount_git',
@@ -270,7 +270,7 @@ def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
                 self.detach,
                 self.mounts,
                 self.mount_docker_sock,
-                self.mount_caches,
+                self.mount_cache,
                 self.mount_persist,
                 self.mount_git,
                 self.clone_mount_git,
@@ -303,7 +303,7 @@ def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
             detach: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
             mounts: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
             mount_docker_sock: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            mount_caches: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            mount_cache: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
             mount_persist: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
             mount_git: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
             clone_mount_git: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
@@ -337,7 +337,7 @@ def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
             __dataclass__object_setattr(self, 'detach', detach)
             __dataclass__object_setattr(self, 'mounts', mounts)
             __dataclass__object_setattr(self, 'mount_docker_sock', mount_docker_sock)
-            __dataclass__object_setattr(self, 'mount_caches', mount_caches)
+            __dataclass__object_setattr(self, 'mount_cache', mount_cache)
             __dataclass__object_setattr(self, 'mount_persist', mount_persist)
             __dataclass__object_setattr(self, 'mount_git', mount_git)
             __dataclass__object_setattr(self, 'clone_mount_git', clone_mount_git)
@@ -377,8 +377,8 @@ def _process_dataclass__2698f5c80412b77a8280162cb88e31b14d3c521f():
                 parts.append(f"mounts={s}")
             if (s := __dataclass__repr__default_fn(self.mount_docker_sock)) is not None:
                 parts.append(f"mount_docker_sock={s}")
-            if (s := __dataclass__repr__default_fn(self.mount_caches)) is not None:
-                parts.append(f"mount_caches={s}")
+            if (s := __dataclass__repr__default_fn(self.mount_cache)) is not None:
+                parts.append(f"mount_cache={s}")
             if (s := __dataclass__repr__default_fn(self.mount_persist)) is not None:
                 parts.append(f"mount_persist={s}")
             if (s := __dataclass__repr__default_fn(self.mount_git)) is not None:
@@ -821,7 +821,7 @@ def _process_dataclass__72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c():
 
 
 @_register(
-    installer_sha1='427233e9c06c72e6cb0e5664c9d8fd6e126ed52c',
+    installer_sha1='b30b24f24e8f5bed609c5524539ee8d30dab2181',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, True, False, False, False, False, False, False, False, Fal"
@@ -835,15 +835,16 @@ def _process_dataclass__72a12bb3cd03e128c2f5d032d7ed0a5c9397a10c():
             "', 'factory', None, False, False, False), (('entrypoint', True, True, None, True, True, False, None), 'ins"
             "tance', 'value', None, False, False, False), (('client_env', True, True, None, True, True, False, None), '"
             "instance', 'factory', None, False, False, False), (('staging_dir', True, True, None, True, True, False, No"
-            "ne), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), ("
-            "False, False, ()), ((),), (), (False,)))"
+            "ne), 'instance', 'value', None, False, False, False), (('setup_runs', True, True, None, True, True, False,"
+            " None), 'instance', 'factory', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False"
+            ",), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.run.plans', 'RunPlan'),
     ),
 )
-def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
+def _process_dataclass__b30b24f24e8f5bed609c5524539ee8d30dab2181():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -866,6 +867,8 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
         __dataclass__init__fields__08__default_factory = __dataclass__spec.fields[8].default.must().fn
         __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
         __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default_factory = __dataclass__spec.fields[10].default.must().fn
         __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -885,6 +888,7 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
                 entrypoint=self.entrypoint,
                 client_env=self.client_env,
                 staging_dir=self.staging_dir,
+                setup_runs=self.setup_runs,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -904,7 +908,8 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
                 self.autoexec_env == other.autoexec_env and
                 self.entrypoint == other.entrypoint and
                 self.client_env == other.client_env and
-                self.staging_dir == other.staging_dir
+                self.staging_dir == other.staging_dir and
+                self.setup_runs == other.setup_runs
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -924,6 +929,7 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
             entrypoint: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
             client_env: __dataclass__init__fields__08__annotation = __dataclass__HAS_DEFAULT_FACTORY,
             staging_dir: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            setup_runs: __dataclass__init__fields__10__annotation = __dataclass__HAS_DEFAULT_FACTORY,
         ) -> __dataclass__None:
             if options is __dataclass__HAS_DEFAULT_FACTORY:
                 options = __dataclass__init__fields__04__default_factory()
@@ -933,6 +939,8 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
                 autoexec_env = __dataclass__init__fields__06__default_factory()
             if client_env is __dataclass__HAS_DEFAULT_FACTORY:
                 client_env = __dataclass__init__fields__08__default_factory()
+            if setup_runs is __dataclass__HAS_DEFAULT_FACTORY:
+                setup_runs = __dataclass__init__fields__10__default_factory()
             self.cfg = cfg
             self.args = args
             self.run_id = run_id
@@ -943,6 +951,7 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
             self.entrypoint = entrypoint
             self.client_env = client_env
             self.staging_dir = staging_dir
+            self.setup_runs = setup_runs
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -959,6 +968,7 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
             parts.append(f"entrypoint={self.entrypoint!r}")
             parts.append(f"client_env={self.client_env!r}")
             parts.append(f"staging_dir={self.staging_dir!r}")
+            parts.append(f"setup_runs={self.setup_runs!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -971,22 +981,23 @@ def _process_dataclass__427233e9c06c72e6cb0e5664c9d8fd6e126ed52c():
 
 
 @_register(
-    installer_sha1='9b094afd191e8b1c63f146aa91112a120aa52e68',
+    installer_sha1='c3f5c5200637330654e937dd6ce0d9c6ac552bb0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, False, False), ((('id', True, True, None, True, False, False, None), 'instance', 'missing', Non"
             "e, False, False, False), (('args', True, True, None, True, False, False, None), 'instance', 'missing', Non"
             "e, False, False, False), (('env', True, True, None, True, True, False, None), 'instance', 'value', None, F"
-            "alse, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (Fal"
-            "se,)))"
+            "alse, False, False), (('setup_runs', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), ("
+            "False,)))"
         ),
     ),
     cls_names=(
         ('omdev.dockerdev.run.run', 'ProcessedRunArgs'),
     ),
 )
-def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
+def _process_dataclass__c3f5c5200637330654e937dd6ce0d9c6ac552bb0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -997,6 +1008,8 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -1011,6 +1024,7 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
                 id=self.id,
                 args=self.args,
                 env=self.env,
+                setup_runs=self.setup_runs,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1023,7 +1037,8 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
             return (
                 self.id == other.id and
                 self.args == other.args and
-                self.env == other.env
+                self.env == other.env and
+                self.setup_runs == other.setup_runs
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -1032,6 +1047,7 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
             'id',
             'args',
             'env',
+            'setup_runs',
         }
 
         def __setattr__(self, name, value):
@@ -1059,6 +1075,7 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
                 self.id,
                 self.args,
                 self.env,
+                self.setup_runs,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -1069,10 +1086,12 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
             args: __dataclass__init__fields__1__annotation,
             *,
             env: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            setup_runs: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'id', id)
             __dataclass__object_setattr(self, 'args', args)
             __dataclass__object_setattr(self, 'env', env)
+            __dataclass__object_setattr(self, 'setup_runs', setup_runs)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1085,6 +1104,8 @@ def _process_dataclass__9b094afd191e8b1c63f146aa91112a120aa52e68():
                 parts.append(f"args={s}")
             if (s := __dataclass__repr__default_fn(self.env)) is not None:
                 parts.append(f"env={s}")
+            if (s := __dataclass__repr__default_fn(self.setup_runs)) is not None:
+                parts.append(f"setup_runs={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

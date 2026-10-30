@@ -11,6 +11,8 @@ from .consts import CACHE_DIR
 from .consts import CACHE_VOLUME
 from .consts import CONTAINER_STAGING_DIR
 from .consts import ID_LABEL
+from .consts import PERSIST_DIR
+from .consts import PERSIST_VOLUME
 from .plans import RunPlan
 
 
@@ -88,14 +90,14 @@ class MountsRunStep(RunStep):
             plan.add_options('--mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock')
 
 
-class CacheMountsRunStep(RunStep):
+class CacheMountRunStep(RunStep):
     """
     Mounts the shared cache volume, and has the entrypoint replace each configured cache directory with a symlink into
     it.
     """
 
     def apply(self, plan: RunPlan) -> None:
-        if not (plan.args.mount_caches and (cache_mounts := plan.cfg.cache_mounts)):
+        if not (plan.args.mount_cache and (cache_mounts := plan.cfg.cache_mounts)):
             return
 
         plan.add_options(f'--mount=type=volume,src={CACHE_VOLUME},dst={CACHE_DIR}')
@@ -118,8 +120,22 @@ class PersistMountRunStep(RunStep):
         if not plan.args.mount_persist:
             pass
 
-        # FIXME
-        raise NotImplementedError
+        plan.add_setup_run([
+            '-it',
+            '--rm',
+            f'--mount=type=volume,src={PERSIST_VOLUME},dst={PERSIST_DIR}',
+            check.not_none(plan.cfg.base_image_id),  # FIXME: :|
+            'bash', '-c', f'mkdir -p /persist/runs/{str(plan.run_id)}',
+        ])
+
+        plan.add_options((
+            f'--mount='
+            f'type=volume,'
+            f'src={PERSIST_VOLUME},'
+            f'dst={PERSIST_DIR},'
+            f'volume-subpath=runs/{str(plan.run_id)}'
+        ))
+        plan.add_autoexec_lines(f'sudo chown om:om {PERSIST_DIR}')
 
 
 class GitMountRunStep(RunStep):
@@ -312,7 +328,8 @@ DEFAULT_RUN_STEPS: ta.Sequence[RunStep] = (
     CudaRunStep(),
     OfflineRunStep(),
     MountsRunStep(),
-    CacheMountsRunStep(),
+    CacheMountRunStep(),
+    PersistMountRunStep(),
     GitMountRunStep(),
     HostPlatformRunStep(),
     AutoexecRunStep(),

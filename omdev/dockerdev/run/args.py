@@ -40,7 +40,7 @@ class RunArgs:
     mounts: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq_of(check.non_empty_str))
     mount_docker_sock: bool | None = None
 
-    mount_caches: bool | None = None
+    mount_cache: bool | None = None
 
     mount_persist: bool | None = None
 

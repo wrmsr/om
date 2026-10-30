@@ -73,24 +73,22 @@ class RunPlan:
 
     cfg: Config
     args: RunArgs
+
     run_id: uuid.UUID
+
     host: RunHost
-
-    options: list[str] = dc.field(default_factory=list)
-
-    autoexec_lines: list[str] = dc.field(default_factory=list)
-    autoexec_env: dict[str, str] = dc.field(default_factory=dict)
-
-    entrypoint: str | None = None
-
-    client_env: dict[str, str | sec.Secret] = dc.field(default_factory=dict)
-
-    staging_dir: str | None = None
 
     #
 
+    options: list[str] = dc.field(default_factory=list)
+
     def add_options(self, *options: str) -> None:
         self.options.extend(options)
+
+    #
+
+    autoexec_lines: list[str] = dc.field(default_factory=list)
+    autoexec_env: dict[str, str] = dc.field(default_factory=dict)
 
     def add_autoexec_lines(self, *lines: str) -> None:
         self.autoexec_lines.extend(lines)
@@ -98,13 +96,23 @@ class RunPlan:
     def set_autoexec_env(self, key: str, value: str) -> None:
         self.autoexec_env[key] = value
 
+    #
+
+    entrypoint: str | None = None
+
     def set_entrypoint(self, entrypoint: str) -> None:
         self.entrypoint = entrypoint
+
+    #
+
+    client_env: dict[str, str | sec.Secret] = dc.field(default_factory=dict)
 
     def set_client_env(self, key: str, value: str | sec.Secret) -> None:
         self.client_env[key] = value
 
     #
+
+    staging_dir: str | None = None
 
     def stage_file(self, name: str, content: str, *, mode: int = 0o755) -> str:
         """Writes a file for the container to see in its staging dir, returning its path there."""
@@ -123,3 +131,11 @@ class RunPlan:
         os.chmod(path, mode)  # noqa
 
         return f'{CONTAINER_STAGING_DIR}/{name}'
+
+    #
+
+    setup_runs: list[ta.Sequence[str]] = dc.field(default_factory=list)
+
+    def add_setup_run(self, args: ta.Sequence[str]) -> None:
+        check.not_isinstance(args, str)
+        self.setup_runs.append(tuple(args))

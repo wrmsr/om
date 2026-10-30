@@ -47,6 +47,8 @@ class ProcessedRunArgs:
 
     env: dict[str, str | sec.Secret] | None = None
 
+    setup_runs: list[ta.Sequence[str]] | None = None
+
 
 def process_run_args(
         cfg: Config,
@@ -80,6 +82,7 @@ def process_run_args(
             *(args.extra_args or ['bash']),
         ],
         env=dict(plan.client_env) or None,
+        setup_runs=plan.setup_runs,
     )
 
 
@@ -121,11 +124,6 @@ def run_image(
     #
 
     docker = check.not_none(shutil.which('docker'))
-    exec_args = [
-        docker,
-        'run',
-        *p_args.args,
-    ]
 
     env = {
         **os.environ,
@@ -134,6 +132,15 @@ def run_image(
             for ek, ev in p_args.env.items()
         } if p_args.env else {}),
     }
+
+    for setup_run in p_args.setup_runs or []:
+        raise NotImplementedError  # noqa
+
+    exec_args = [
+        docker,
+        'run',
+        *p_args.args,
+    ]
 
     if not args.detach:
         os.execle(
