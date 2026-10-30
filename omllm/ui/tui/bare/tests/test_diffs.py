@@ -15,11 +15,11 @@ from ..... import llm
 from .....agent.tests.scripted import text_message
 from .....agent.tests.scripted import tool_call_message
 from .....core import ui
+from ....tests.headless import bind_scripted_backend
+from ....tests.headless import headless_ui
 from ...config import TuiConfig
 from ...rendering import TerminalTextDisplayer
 from ...rendering import TerminalTextRenderer
-from ...tests.headless import bind_scripted_backend
-from ...tests.headless import headless_tui
 from ..inject import bind_bare
 from ..input import InputManager
 
@@ -71,7 +71,7 @@ class _Run:
         )
 
     def tui(self):
-        return headless_tui(inj.override(
+        return headless_ui(inj.override(
             bind_bare(TuiConfig(
                 model='scripted',
                 immediate=True,

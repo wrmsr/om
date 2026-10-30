@@ -1,5 +1,4 @@
 # ruff: noqa: UP006 UP007 UP037
-# @om-lite
 """
 Obviously inspired by kotlin. This is intended to complement, not compete with, dependency injection: where DI replaces
 kwargs, this replaces globals. Or, in more 'coarse' terms: DI is for classes, this is for functions.

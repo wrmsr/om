@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '62f19e7e156114eb6511bd4385af9d9404751362'
+__om_amalg_sha1__ = '2141d340cfa9fddeddd3a3951b2a0d8646908504'
 
 
 def __om_amalg__():  # noqa
@@ -58,7 +58,7 @@ def __om_amalg__():  # noqa
         src_files=[
             dict(sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab', path='../../../omcore/asyncs/asyncio/streams.py'),
             dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../../omcore/lite/abstract.py'),
-            dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../../omcore/lite/bytes.py'),
+            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', path='../../../omcore/lite/bytes.py'),
             dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../../omcore/lite/cached.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../../omcore/lite/check.py'),
             dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', path='../../../omcore/lite/dataclasses.py'),

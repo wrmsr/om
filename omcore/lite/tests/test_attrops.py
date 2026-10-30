@@ -1,5 +1,4 @@
 # ruff: noqa: PT009
-# @om-lite
 import unittest
 
 from ..attrops import AttrOps

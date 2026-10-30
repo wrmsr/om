@@ -58,7 +58,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '088dc11c9defff224e4d08a6905b62c0bb5d6ff2'
+__om_amalg_sha1__ = '5465b8b7b4e2a3fa12f2150a7b93a76f21760eb4'
 
 
 def __om_amalg__():  # noqa
@@ -70,12 +70,12 @@ def __om_amalg__():  # noqa
             dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', path='../../../../omcore/io/streambufs/errors.py'),
             dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../../../omcore/lite/abstract.py'),
             dict(sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5', path='../../../../omcore/lite/asyncs.py'),
-            dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../../../omcore/lite/bytes.py'),
+            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', path='../../../../omcore/lite/bytes.py'),
             dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../../../omcore/lite/cached.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../../../omcore/lite/check.py'),
             dict(sha1='d86d3d2ccdd1e92ff95fab03a347e38eaf5d6cb6', path='../../../../omcore/lite/contextmanagers.py'),
             dict(sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1', path='../../../../omcore/lite/imports.py'),
-            dict(sha1='a60d94f0bdbb2b1541d363c301314682d1686240', path='../../../../omcore/lite/io.py'),
+            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', path='../../../../omcore/lite/io.py'),
             dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../../../../omcore/lite/namespaces.py'),
             dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../../../omcore/lite/objects.py'),
             dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../../../omcore/lite/reflect.py'),
@@ -4213,9 +4213,6 @@ def import_attr(dotted_path: str) -> ta.Any:
 
 ########################################
 # ../../../../../omcore/lite/io.py
-
-
-##
 
 
 class FnWriter:

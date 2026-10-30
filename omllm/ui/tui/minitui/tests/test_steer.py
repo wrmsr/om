@@ -11,10 +11,10 @@ from .....agent.tests.scripted import scripted_backend
 from .....agent.tests.scripted import text_message
 from .....core import ui
 from ....commands.manager import CommandsManager
+from ....tests.features import RecordingTextDisplayer
+from ....tests.headless import bind_headless_ui
+from ....tests.headless import headless_ui
 from ...config import TuiConfig
-from ...tests.features import RecordingTextDisplayer
-from ...tests.headless import bind_headless_tui
-from ...tests.headless import headless_tui
 from ..output import AgentEventRenderer
 from ..promptpump import PromptPump
 from .utils import make_app
@@ -44,8 +44,8 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
         model='scripted',
         in_memory=True,
     )
-    async with headless_tui(inj.override(
-        bind_headless_tui(config),
+    async with headless_ui(inj.override(
+        bind_headless_ui(config),
         inj.bind(ui.TextDisplayer, to_const=display),
         inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend)),
     )) as tui:
@@ -87,8 +87,8 @@ async def test_steer_reaches_running_prompt_ahead_of_queued_input():
 @pytest.mark.asyncs('asyncio')
 async def test_idle_steering_does_not_leak_into_a_later_prompt():
     display = RecordingTextDisplayer()
-    async with headless_tui(inj.override(
-        bind_headless_tui(TuiConfig(
+    async with headless_ui(inj.override(
+        bind_headless_ui(TuiConfig(
             model='scripted',
             in_memory=True,
         )),
@@ -103,8 +103,8 @@ async def test_idle_steering_does_not_leak_into_a_later_prompt():
 @pytest.mark.asyncs('asyncio')
 async def test_steer_rejects_exclusive_updates_and_terminal_delivery():
     display = RecordingTextDisplayer()
-    async with headless_tui(inj.override(
-        bind_headless_tui(TuiConfig(
+    async with headless_ui(inj.override(
+        bind_headless_ui(TuiConfig(
             model='scripted',
             in_memory=True,
         )),
@@ -155,8 +155,8 @@ async def test_shutdown_owns_immediate_command_tasks(start_command):
 
     backend = scripted_backend(text_message('blocked'), stream=True, gate=gate)
     display = BlockingDisplay()
-    async with headless_tui(inj.override(
-        bind_headless_tui(TuiConfig(
+    async with headless_ui(inj.override(
+        bind_headless_ui(TuiConfig(
             model='scripted',
             in_memory=True,
         )),

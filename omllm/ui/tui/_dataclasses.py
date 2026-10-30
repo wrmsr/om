@@ -29,7 +29,7 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
 
 
 @_register(
-    installer_sha1='7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc',
+    installer_sha1='1bec1e080fc3dba9f3b46177e00a0d604aa74901',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -50,18 +50,18 @@ IMPLEMENTATION_KEY = 'ec0d825a77daf2010440f2135dbf8d063599428f1d09d40e22d60773f9
             "alse, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
             "lse, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
             "alse, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
             " False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
             "lse, False), (('diet_yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
+            "False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
             "False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,))"
             ")"
         ),
     ),
     cls_names=(
-        ('omllm.ui.tui.config', 'Config'),
+        ('omllm.ui.tui.config', 'TuiConfig'),
     ),
 )
-def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
+def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -135,9 +135,9 @@ def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
                 resume=self.resume,
                 autoexec=self.autoexec,
                 immediate=self.immediate,
-                verbose=self.verbose,
                 yolo=self.yolo,
                 diet_yolo=self.diet_yolo,
+                verbose=self.verbose,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -165,9 +165,9 @@ def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
                 self.resume == other.resume and
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
-                self.verbose == other.verbose and
                 self.yolo == other.yolo and
-                self.diet_yolo == other.diet_yolo
+                self.diet_yolo == other.diet_yolo and
+                self.verbose == other.verbose
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -190,9 +190,9 @@ def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
             'resume',
             'autoexec',
             'immediate',
-            'verbose',
             'yolo',
             'diet_yolo',
+            'verbose',
         }
 
         def __setattr__(self, name, value):
@@ -234,9 +234,9 @@ def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
                 self.resume,
                 self.autoexec,
                 self.immediate,
-                self.verbose,
                 self.yolo,
                 self.diet_yolo,
+                self.verbose,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -261,9 +261,9 @@ def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
             resume: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
             autoexec: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
             immediate: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
-            verbose: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
-            yolo: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
-            diet_yolo: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            yolo: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            diet_yolo: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            verbose: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'effort', effort)
@@ -282,9 +282,9 @@ def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
             __dataclass__object_setattr(self, 'resume', resume)
             __dataclass__object_setattr(self, 'autoexec', autoexec)
             __dataclass__object_setattr(self, 'immediate', immediate)
-            __dataclass__object_setattr(self, 'verbose', verbose)
             __dataclass__object_setattr(self, 'yolo', yolo)
             __dataclass__object_setattr(self, 'diet_yolo', diet_yolo)
+            __dataclass__object_setattr(self, 'verbose', verbose)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -308,214 +308,9 @@ def _process_dataclass__7391c38e4e3f4d9ec603af6ffc1b4c3eeccf60bc():
             parts.append(f"resume={self.resume!r}")
             parts.append(f"autoexec={self.autoexec!r}")
             parts.append(f"immediate={self.immediate!r}")
-            parts.append(f"verbose={self.verbose!r}")
             parts.append(f"yolo={self.yolo!r}")
             parts.append(f"diet_yolo={self.diet_yolo!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    installer_sha1='3497e19ce840a3584e6ed07944d113a38b62fe67',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
-            "e, False, True, True), ((('v', True, True, None, True, False, False, None), 'instance', 'missing', None, F"
-            "alse, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (F"
-            "alse,)))"
-        ),
-    ),
-    cls_names=(
-        ('omllm.ui.tui.types', 'InitialLlmOptions'),
-    ),
-)
-def _process_dataclass__3497e19ce840a3584e6ed07944d113a38b62fe67():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__ctx['omcore.dataclasses.impl.concerns.init.InitGenericAnnotations']['v']
-        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                v=self.v,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.v == other.v
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'v',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.v,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            v: __dataclass__init__fields__0__annotation,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'v', v)
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"{self.v!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    installer_sha1='0e3d1e47f89e148b5cca3cb38c1260de116f6bf2',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, True, True, False, False, False, False, False, True, False, False, Fals"
-            "e, False, True, True), ((('v', True, True, None, True, False, False, None), 'instance', 'missing', None, F"
-            "alse, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), (), (Fa"
-            "lse,)))"
-        ),
-    ),
-    cls_names=(
-        ('omllm.ui.tui.types', 'TargetCwd'),
-    ),
-)
-def _process_dataclass__0e3d1e47f89e148b5cca3cb38c1260de116f6bf2():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__ctx['omcore.dataclasses.impl.concerns.init.InitGenericAnnotations']['v']
-        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                v=self.v,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.v == other.v
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass___frozen_fields = {
-            'v',
-        }
-
-        def __setattr__(self, name, value):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
-            super(__class__, self).__setattr__(name, value)
-
-        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
-
-        def __delattr__(self, name):
-            if (
-                type(self) is __class__
-                or name in __dataclass___frozen_fields
-            ):
-                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
-            super(__class__, self).__delattr__(name)
-
-        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
-
-        def __hash__(self):
-            return hash((
-                self.v,
-            ))
-
-        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
-
-        def __init__(
-            self,
-            v: __dataclass__init__fields__0__annotation,
-        ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'v', v)
-            self.__post_init__()
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"{self.v!r}")
+            parts.append(f"verbose={self.verbose!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

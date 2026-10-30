@@ -71,7 +71,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '0c03b2ddd161a9683a556feec7f5dd46cfafdaf9'
+__om_amalg_sha1__ = '4ee9d65e5e24d8dedf9ac15ef1e4c2a6f531b627'
 
 
 def __om_amalg__():  # noqa
@@ -83,14 +83,14 @@ def __om_amalg__():  # noqa
             dict(sha1='e7534f4af180c41cedd5257e96e30d79d747b7a0', path='../../omcore/formats/toml/parser.py'),
             dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../omcore/lite/abstract.py'),
             dict(sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5', path='../../omcore/lite/asyncs.py'),
-            dict(sha1='536474f5dfc9375c8fcb7e0ad1066ac0727a7d1b', path='../../omcore/lite/attrops.py'),
-            dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../omcore/lite/bytes.py'),
+            dict(sha1='b93555f8ac59c98235a8bef6b211e4bb775b71cb', path='../../omcore/lite/attrops.py'),
+            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', path='../../omcore/lite/bytes.py'),
             dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../omcore/lite/cached.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../omcore/lite/check.py'),
             dict(sha1='d86d3d2ccdd1e92ff95fab03a347e38eaf5d6cb6', path='../../omcore/lite/contextmanagers.py'),
             dict(sha1='4da0a0694c57af8fb213ae0fc9f1f01ccb2784f1', path='../../omcore/lite/imports.py'),
-            dict(sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd', path='../../omcore/lite/injectinspect.py'),
-            dict(sha1='a60d94f0bdbb2b1541d363c301314682d1686240', path='../../omcore/lite/io.py'),
+            dict(sha1='743b7ec7c0600161e8437071e84bfb65b1a6c0af', path='../../omcore/lite/injectinspect.py'),
+            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', path='../../omcore/lite/io.py'),
             dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../omcore/lite/objects.py'),
             dict(sha1='498c05eaf9d2bf9ff9449a9b4ec7d44336a7f5b4', path='../../omcore/lite/pycharm.py'),
             dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../omcore/lite/reflect.py'),
@@ -4879,9 +4879,6 @@ def injection_inspect(obj: ta.Any) -> InjectionInspection:
 
 ########################################
 # ../../../omcore/lite/io.py
-
-
-##
 
 
 class FnWriter:

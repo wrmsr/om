@@ -129,8 +129,8 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
                 async def hub_has(num_entries: int) -> bool:
                     sessions = await read_rows(hub, schema.table('sessions'))
                     return (
-                            len(await read_rows(hub, schema.table('session_entries'))) == num_entries and
-                            sessions.get(hui.session.id.v, {}).get('num_entries') == num_entries
+                        len(await read_rows(hub, schema.table('session_entries'))) == num_entries and
+                        sessions.get(hui.session.id.v, {}).get('num_entries') == num_entries
                     )
 
                 async with running_worker([link]) as wait_until:

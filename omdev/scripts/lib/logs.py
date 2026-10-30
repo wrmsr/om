@@ -30,14 +30,14 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '886524586f2a932a80d8f4c4a5179e8ec5e23cac'
+__om_amalg_sha1__ = 'a0dfb4f46c1be938fe4139d081bddc7bf4350d73'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
             dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../lite/abstract.py'),
-            dict(sha1='a60d94f0bdbb2b1541d363c301314682d1686240', path='../lite/io.py'),
+            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', path='../lite/io.py'),
             dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='levels.py'),
             dict(sha1='3ec3856ade50561f99ce9463f54737ab1126d410', path='std/filters.py'),
             dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', path='std/proxy.py'),
@@ -228,9 +228,6 @@ class Abstract:
 
 ########################################
 # ../../lite/io.py
-
-
-##
 
 
 class FnWriter:

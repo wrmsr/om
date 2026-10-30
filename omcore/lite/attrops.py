@@ -1,5 +1,4 @@
 # ruff: noqa: UP006 UP007 UP037 UP045
-# @om-lite
 """
 TODO:
  - dotted paths!

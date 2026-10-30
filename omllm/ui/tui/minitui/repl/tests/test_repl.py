@@ -11,9 +11,9 @@ from omdev import repl
 
 from ......core import processes
 from .....commands.repl import ReplSwitchError
+from .....tests.headless import bind_headless_ui
+from .....tests.headless import headless_ui
 from ....config import TuiConfig
-from ....tests.headless import bind_headless_tui
-from ....tests.headless import headless_tui
 from ...app import AppKey
 from ...app import InputMode
 from ...app import MinituiChatApp
@@ -157,9 +157,9 @@ async def test_wiring():
         in_memory=True,
     )
     driver = Driver()
-    async with headless_tui(inj.override(
+    async with headless_ui(inj.override(
         inj.as_elements(
-            bind_headless_tui(config),
+            bind_headless_ui(config),
             bind_repl(config),
             inj.bind(mt.AsyncioDriver, to_const=ta.cast(mt.AsyncioDriver, driver)),
             inj.bind(MinituiChatApp, singleton=True),
@@ -212,8 +212,8 @@ async def test_bash_wiring(tmp_path):
         cwd=str(tmp_path),
     )
     driver = CommitSignallingDriver()
-    async with headless_tui(
-        bind_headless_tui(config),
+    async with headless_ui(
+        bind_headless_ui(config),
         bind_repl(config),
         inj.bind(mt.AsyncioDriver, to_const=ta.cast(mt.AsyncioDriver, driver)),
         inj.bind(MinituiChatApp, singleton=True),

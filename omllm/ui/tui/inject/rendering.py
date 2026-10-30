@@ -1,9 +1,9 @@
 from omcore import inject as inj
 
 from ....core import ui
-from ..rendering import TextRowsRenderer
-from ..types import TargetCwd
+from ...types import TargetCwd
 from ..config import TuiConfig
+from ..rendering import TextRowsRenderer
 
 
 ##

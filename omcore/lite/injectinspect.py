@@ -1,4 +1,3 @@
-# @om-lite
 import functools
 import inspect
 import typing as ta

@@ -6,14 +6,14 @@ from omcore import lang
 
 from .... import agent as agn
 from ....core import ui
-from ...logs import configure_tui_logging
-from ...types import UiId
-from ..config import TuiConfig
 from ...inject.agent import AgentEventSubscribers
+from ...logs import configure_tui_logging
 from ...setup import AgentSetup
-from ..types import TargetCwd
+from ...types import TargetCwd
+from ...types import UiId
 from ...yolo import yolo_autoexec
 from ...yolo import yolo_process_config
+from ..config import TuiConfig
 from .inject import bind_bare
 from .input import InputManager
 from .output import display_transcript

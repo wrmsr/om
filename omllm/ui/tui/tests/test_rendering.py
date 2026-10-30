@@ -8,13 +8,14 @@ from omcore.term import styled as tst
 from omdev import minitui as mt
 
 from ....core import ui
+from ...tests.headless import bind_headless_ui
+from ...tests.headless import headless_ui
 from ..config import TuiConfig
+from ..inject.rendering import bind_rendering
 from ..rendering import BlockTerminalTextDisplayer
 from ..rendering import TerminalTextDisplayer
 from ..rendering import TerminalTextRenderer
 from ..rendering import TextRowsRenderer
-from .headless import bind_headless_tui
-from .headless import headless_tui
 
 
 def test_text_rows_resolve_semantic_styles():
@@ -128,12 +129,15 @@ def test_terminal_text_displayer_builds_its_renderer_with_the_options():
 
 @pytest.mark.asyncs('asyncio')
 async def test_bound_options_reach_the_frontends():
-    async with headless_tui(inj.override(
-            bind_headless_tui(TuiConfig(
+    async with headless_ui(inj.override(
+        inj.as_elements(
+            bind_headless_ui(tui_config := TuiConfig(
                 model='scripted',
                 in_memory=True,
             )),
-            inj.bind(ui.TextRenderingOptions(diff_layout='split')),
+            bind_rendering(tui_config),
+        ),
+        inj.bind(ui.TextRenderingOptions(diff_layout='split')),
     )) as tui:
         rows_renderer = await tui.injector[TextRowsRenderer]
 

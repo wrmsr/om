@@ -1,5 +1,4 @@
 # ruff: noqa: UP045
-# @om-lite
 import dataclasses as dc
 import typing as ta
 import unittest

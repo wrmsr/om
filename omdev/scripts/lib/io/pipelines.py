@@ -34,7 +34,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '6105addb08df9d4d9bebc632c15e5fb638b71a34'
+__om_amalg_sha1__ = '5f0fa43ae31e6fef405bbc2d19db11c7960c294f'
 
 
 def __om_amalg__():  # noqa
@@ -45,7 +45,7 @@ def __om_amalg__():  # noqa
             dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', path='../streambufs/errors.py'),
             dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../lite/abstract.py'),
             dict(sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5', path='../../lite/asyncs.py'),
-            dict(sha1='8efb16035a9da52a70b346f603eac6e04b28dc8c', path='../../lite/bytes.py'),
+            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', path='../../lite/bytes.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../lite/check.py'),
             dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../../lite/namespaces.py'),
             dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='../../logs/levels.py'),

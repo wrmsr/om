@@ -17,14 +17,14 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from ...commands.manager import CommandsManager
-from ...logs import configure_tui_logging
-from ...types import UiId
-from ..config import TuiConfig
 from ...inject.agent import AgentEventSubscribers
+from ...logs import configure_tui_logging
 from ...setup import AgentSetup
-from ..types import TargetCwd
+from ...types import TargetCwd
+from ...types import UiId
 from ...yolo import yolo_autoexec
 from ...yolo import yolo_process_config
+from ..config import TuiConfig
 from .app import MinituiChatApp
 from .inject import bind_minitui
 from .output import AgentEventRenderer

@@ -1,9 +1,3 @@
-# @om-lite
-
-
-##
-
-
 class FnWriter:
     def __init__(self, fn):
         self._fn = fn

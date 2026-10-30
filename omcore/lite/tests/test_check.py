@@ -1,4 +1,3 @@
-# @om-lite
 import unittest
 
 from ..check import check

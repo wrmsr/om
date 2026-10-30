@@ -14,9 +14,9 @@ from ....commands.repl import ChatCommand
 from ....commands.repl import JsCommand
 from ....commands.repl import PyCommand
 from ....commands.repl import ReplModeSwitcher
-from ...config import TuiConfig
 from ....inject.commands import commands_binder
-from ...types import TargetCwd
+from ....types import TargetCwd
+from ...config import TuiConfig
 from ..app import MinituiChatApp
 from .ptys import ProcessScopePtySpawner
 from .repl import JobRunnerExecutor

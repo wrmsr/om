@@ -28,7 +28,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '6965cc34019ca22ef25bf8878cbf63dca4cad0ab'
+__om_amalg_sha1__ = '7cf7152838e635166e4409f907dd5b985456ada8'
 
 
 def __om_amalg__():  # noqa
@@ -36,7 +36,7 @@ def __om_amalg__():  # noqa
         src_files=[
             dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='abstract.py'),
             dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='check.py'),
-            dict(sha1='fb45c2fdf144bdbe558e3427f38bc39121e277bd', path='injectinspect.py'),
+            dict(sha1='743b7ec7c0600161e8437071e84bfb65b1a6c0af', path='injectinspect.py'),
             dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='reflect.py'),
             dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', path='maybes.py'),
             dict(sha1='863e777b377faeeacd8061532d009cc1f23e4a07', path='inject.py'),

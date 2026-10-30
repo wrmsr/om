@@ -10,13 +10,13 @@ import pytest
 from omcore import inject as inj
 
 from .....core import ui
+from ....tests.headless import bind_scripted_backend
+from ....tests.headless import headless_ui
+from ....yolo import yolo_autoexec
+from ....yolo import yolo_process_config
 from ...config import TuiConfig
 from ...rendering import TerminalTextDisplayer
 from ...rendering import TerminalTextRenderer
-from ...tests.headless import bind_scripted_backend
-from ...tests.headless import headless_tui
-from ....yolo import yolo_autoexec
-from ....yolo import yolo_process_config
 from ..inject import bind_bare
 from ..prompting import Prompter
 
@@ -38,7 +38,7 @@ async def test_bare_boot_commands_read_as_blocks(tmp_path):
         cwd=root,
         yolo=True,
     ))
-    async with headless_tui(inj.override(
+    async with headless_ui(inj.override(
         bind_bare(config),
         inj.bind(TerminalTextDisplayer, singleton=True, to_fn=build_text_displayer),
         bind_scripted_backend(),
@@ -74,7 +74,7 @@ async def test_bare_shows_a_typed_commands_output_as_a_block_without_echoing_it(
     def build_text_displayer(options: ui.TextRenderingOptions) -> TerminalTextDisplayer:
         return TerminalTextDisplayer(file=out, renderer=TerminalTextRenderer(options, color_depth=None))
 
-    async with headless_tui(inj.override(
+    async with headless_ui(inj.override(
         bind_bare(TuiConfig(
             model='scripted',
             in_memory=True,
