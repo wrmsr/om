@@ -133,7 +133,7 @@ def run_image(
         } if p_args.env else {}),
     }
 
-    for setup_run in p_args.setup_runs or []:
+    for setup_run in p_args.setup_runs or []:  # noqa
         raise NotImplementedError  # noqa
 
     exec_args = [

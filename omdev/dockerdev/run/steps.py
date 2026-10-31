@@ -118,23 +118,23 @@ class CacheMountRunStep(RunStep):
 class PersistMountRunStep(RunStep):
     def apply(self, plan: RunPlan) -> None:
         if not plan.args.mount_persist:
-            pass
+            return
 
         plan.add_setup_run([
             '-it',
             '--rm',
             f'--mount=type=volume,src={PERSIST_VOLUME},dst={PERSIST_DIR}',
             check.not_none(plan.cfg.base_image_id),  # FIXME: :|
-            'bash', '-c', f'mkdir -p /persist/runs/{str(plan.run_id)}',
+            'bash', '-c', f'mkdir -p /persist/runs/{plan.run_id!s}',
         ])
 
-        plan.add_options((
+        plan.add_options(
             f'--mount='
             f'type=volume,'
             f'src={PERSIST_VOLUME},'
             f'dst={PERSIST_DIR},'
-            f'volume-subpath=runs/{str(plan.run_id)}'
-        ))
+            f'volume-subpath=runs/{plan.run_id!s}',
+        )
         plan.add_autoexec_lines(f'sudo chown om:om {PERSIST_DIR}')
 
 
