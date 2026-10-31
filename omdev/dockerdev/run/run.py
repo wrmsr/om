@@ -2,6 +2,7 @@
 TODO:
  - just injectify this thing already
  - async (and/or injectable subproc runner)
+ - don't pipe stderr
 """
 import os.path
 import shutil
@@ -21,6 +22,7 @@ from ..utils import BARE_SHA256_PAT
 from .args import RunArgs
 from .plans import RunHost
 from .plans import RunPlan
+from .plans import SetupRun
 from .steps import DEFAULT_RUN_STEPS
 from .steps import RunStep
 
@@ -47,7 +49,7 @@ class ProcessedRunArgs:
 
     env: dict[str, str | sec.Secret] | None = None
 
-    setup_runs: list[ta.Sequence[str]] | None = None
+    setup_runs: list[SetupRun] | None = None
 
 
 def process_run_args(
@@ -133,8 +135,17 @@ def run_image(
         } if p_args.env else {}),
     }
 
-    for setup_run in p_args.setup_runs or []:  # noqa
-        raise NotImplementedError  # noqa
+    for setup_run in p_args.setup_runs or []:
+        exec_args = [
+            docker,
+            'run',
+            *setup_run.args,
+        ]
+
+        subprocess.check_call(
+            subprocess_maybe_shell_wrap_exec(*exec_args),
+            stderr=subprocess.PIPE,
+        )
 
     exec_args = [
         docker,

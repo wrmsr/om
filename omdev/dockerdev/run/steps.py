@@ -14,6 +14,7 @@ from .consts import ID_LABEL
 from .consts import PERSIST_DIR
 from .consts import PERSIST_VOLUME
 from .plans import RunPlan
+from .plans import SetupRun
 
 
 ##
@@ -120,13 +121,16 @@ class PersistMountRunStep(RunStep):
         if not plan.args.mount_persist:
             return
 
-        plan.add_setup_run([
+        plan.add_setup_run(SetupRun((
             '-it',
             '--rm',
             f'--mount=type=volume,src={PERSIST_VOLUME},dst={PERSIST_DIR}',
-            check.not_none(plan.cfg.base_image_id),  # FIXME: :|
+            ''.join([
+                plan.cfg.base_image,
+                *([f'@{plan.cfg.base_image_id}'] if plan.cfg.base_image_id is not None else []),
+            ]),
             'bash', '-c', f'mkdir -p /persist/runs/{plan.run_id!s}',
-        ])
+        )))
 
         plan.add_options(
             f'--mount='

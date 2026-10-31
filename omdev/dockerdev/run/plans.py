@@ -63,6 +63,14 @@ class RunHost:
 ##
 
 
+@dc.dataclass(frozen=True)
+class SetupRun:
+    args: ta.Sequence[str] = dc.xfield(validate=lambda a: not isinstance(a, str))
+
+
+##
+
+
 @dc.dataclass(kw_only=True)
 class RunPlan:
     """
@@ -134,8 +142,7 @@ class RunPlan:
 
     #
 
-    setup_runs: list[ta.Sequence[str]] = dc.field(default_factory=list)
+    setup_runs: list[SetupRun] = dc.field(default_factory=list)
 
-    def add_setup_run(self, args: ta.Sequence[str]) -> None:
-        check.not_isinstance(args, str)
-        self.setup_runs.append(tuple(args))
+    def add_setup_run(self, setup_run: SetupRun) -> None:
+        self.setup_runs.append(setup_run)
