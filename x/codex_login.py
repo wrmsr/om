@@ -1,11 +1,32 @@
 import dataclasses as dc
 import json
+import time
 import typing as ta
 import urllib.error
 import urllib.request
 
 from omcore import check
 from omcore import lang
+
+
+##
+
+
+class Consts(lang.Namespace):
+    AUTH_BASE_URL = 'https://auth.openai.com'
+
+    CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann'
+
+    USER_AGENT = 'omcore-http-client/0.1'
+
+    #
+
+    DEVICE_AUTH_USER_CODE_URL = f'{AUTH_BASE_URL}/api/accounts/deviceauth/usercode'
+    DEVICE_AUTH_TOKEN_URL = f'{AUTH_BASE_URL}/api/accounts/deviceauth/token'
+
+    DEVICE_AUTH_VERIFY_URL = f'{AUTH_BASE_URL}/codex/device'
+
+    DEVICE_AUTH_POLL_TIMEOUT_S = 15 * 60
 
 
 ##
@@ -55,28 +76,17 @@ def _post_json(
 ##
 
 
-class Consts(lang.Namespace):
-    USER_AGENT = 'omcore-http-client/0.1'
-
-    AUTH_BASE_URL = 'https://auth.openai.com'
-
-    CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann'
-
-
-##
-
-
 @dc.dataclass(frozen=True, kw_only=True)
 class _DeviceAuthUserCode:
     device_auth_id: str  # deviceauth_0123abcd...
-    user_code: str       # ABCD-EFGHI
+    user_code: str  # ABCD-EFGHI
     interval: int | float
-    expires_at: str      # 2026-11-02T21:27:42.011383+00:00
+    expires_at: str  # 2026-11-02T21:27:42.011383+00:00
 
 
 def _get_device_auth_user_code() -> _DeviceAuthUserCode:
     resp = _post_json(
-        f'{Consts.AUTH_BASE_URL}/api/accounts/deviceauth/usercode',
+        Consts.DEVICE_AUTH_USER_CODE_URL,
         {
             'client_id': Consts.CLIENT_ID,
         },
@@ -93,13 +103,64 @@ def _get_device_auth_user_code() -> _DeviceAuthUserCode:
     )
 
 
+@dc.dataclass(frozen=True, kw_only=True)
+class _PollDeviceAuthTokenResult:
+    status: str  # 'success'
+    user_code: str  # ABCD-EFGHI
+    user_code_expiration: str  # 2026-11-02T21:42:24.971193+00:00
+    authorization_code: str
+    code_challenge: str
+    code_verifier: str
+
+
+def _poll_device_auth_token(user_code: _DeviceAuthUserCode) -> _PollDeviceAuthTokenResult:
+    deadline = time.time() + Consts.DEVICE_AUTH_POLL_TIMEOUT_S
+    while True:
+        resp = _post_json(
+            Consts.DEVICE_AUTH_TOKEN_URL,
+            {
+                'device_auth_id': user_code.device_auth_id,
+                'user_code': user_code.user_code,
+            },
+        )
+
+        if resp.status not in (403, 404):
+            break
+
+        remaining = deadline - time.time()
+        check.state(remaining > 0)
+        time.sleep(min(user_code.interval, remaining))
+        continue
+
+    check.state(resp.status == 200)
+    obj = resp.json()
+
+    return _PollDeviceAuthTokenResult(
+        status=check.non_empty_str(obj['status']),
+        user_code=check.non_empty_str(obj['user_code']),
+        user_code_expiration=check.non_empty_str(obj['user_code_expiration']),
+        authorization_code=check.non_empty_str(obj['authorization_code']),
+        code_challenge=check.non_empty_str(obj['code_challenge']),
+        code_verifier=check.non_empty_str(obj['code_verifier']),
+    )
+
+
+def device_auth() -> None:
+    user_code = _get_device_auth_user_code()
+
+    print(f'{Consts.DEVICE_AUTH_VERIFY_URL}')
+    print(user_code.user_code)
+
+    polled = _poll_device_auth_token(user_code)
+
+    print(polled)
+
+
 ##
 
 
 def _main() -> None:
-    resp = _get_device_auth_user_code()
-
-    print(resp)
+    device_auth()
 
 
 if __name__ == '__main__':
