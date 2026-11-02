@@ -3,4 +3,4 @@ set -e
 
 command -v pi >/dev/null 2>&1 && exit 0
 
-curl -fsSL https://pi.dev/install.sh | sh
+curl -fsSL 'https://pi.dev/install.sh' | sh

@@ -899,6 +899,14 @@ set -e
 
 command -v claude >/dev/null 2>&1 && exit 0
 
+if [ -d /persist ] ; then
+  mkdir -p ~/.claude
+  for d in projects sessions ; do
+    mkdir -p /persist/claude/"$d"
+    ln -s /persist/claude/"$d" ~/.claude/"$d"
+  done
+fi
+
 curl -fsSL 'https://claude.ai/install.sh' | bash
 EOF
 
@@ -908,6 +916,14 @@ RUN cat > /om/scripts/install-codex <<'EOF' && chmod 664 /om/scripts/install-cod
 set -e
 
 command -v codex >/dev/null 2>&1 && exit 0
+
+if [ -d /persist ] ; then
+  mkdir -p ~/.codex
+  for d in sessions ; do
+    mkdir -p /persist/codex/"$d"
+    ln -s /persist/codex/"$d" ~/.codex/"$d"
+  done
+fi
 
 npm i -g @openai/codex
 EOF
@@ -919,7 +935,7 @@ set -e
 
 command -v pi >/dev/null 2>&1 && exit 0
 
-curl -fsSL https://pi.dev/install.sh | sh
+curl -fsSL 'https://pi.dev/install.sh' | sh
 EOF
 
 

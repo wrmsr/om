@@ -3,4 +3,12 @@ set -e
 
 command -v codex >/dev/null 2>&1 && exit 0
 
+if [ -d /persist ] ; then
+  mkdir -p ~/.codex
+  for d in sessions ; do
+    mkdir -p /persist/codex/"$d"
+    ln -s /persist/codex/"$d" ~/.codex/"$d"
+  done
+fi
+
 npm i -g @openai/codex

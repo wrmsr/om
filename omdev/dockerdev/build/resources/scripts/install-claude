@@ -3,4 +3,12 @@ set -e
 
 command -v claude >/dev/null 2>&1 && exit 0
 
+if [ -d /persist ] ; then
+  mkdir -p ~/.claude
+  for d in projects sessions ; do
+    mkdir -p /persist/claude/"$d"
+    ln -s /persist/claude/"$d" ~/.claude/"$d"
+  done
+fi
+
 curl -fsSL 'https://claude.ai/install.sh' | bash
