@@ -75,7 +75,7 @@
     "module": ".doall",
     "attr": null,
     "file": "omdev/doall.py",
-    "line": 154,
+    "line": 155,
     "value": {
       "!.cli.types.CliModule": {
         "name": [
@@ -497,6 +497,20 @@
           "mkenv"
         ],
         "module": "omdev.tools.mkenv"
+      }
+    }
+  },
+  {
+    "module": ".tools.ncdu",
+    "attr": null,
+    "file": "omdev/tools/ncdu.py",
+    "line": 2001,
+    "value": {
+      "!.cli.types.CliModule": {
+        "name": [
+          "ncdu"
+        ],
+        "module": "omdev.tools.ncdu"
       }
     }
   },

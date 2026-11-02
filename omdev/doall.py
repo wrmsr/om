@@ -8,7 +8,6 @@ TODO:
  - --shell toggle
  - interleave / tag / prepend / somehow multiplex stdout/err
 """
-import argparse
 import concurrent.futures as cf
 import itertools
 import os
@@ -132,6 +131,8 @@ def doall(args) -> None:
 
 
 def _main(argv=None) -> None:
+    import argparse
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-e', '--env', action='append')
