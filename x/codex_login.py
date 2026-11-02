@@ -4,6 +4,7 @@ import json
 import time
 import typing as ta
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from omcore import check
@@ -22,12 +23,18 @@ class Consts(lang.Namespace):
 
     #
 
+    POST_TOKEN_URL = f'{AUTH_BASE_URL}/oauth/token'
+
+    #
+
     DEVICE_AUTH_USER_CODE_URL = f'{AUTH_BASE_URL}/api/accounts/deviceauth/usercode'
     DEVICE_AUTH_TOKEN_URL = f'{AUTH_BASE_URL}/api/accounts/deviceauth/token'
+    DEVICE_AUTH_REDIRECT_URL = f'{AUTH_BASE_URL}/deviceauth/callback'
 
     DEVICE_AUTH_VERIFY_URL = f'{AUTH_BASE_URL}/codex/device'
 
     DEVICE_AUTH_POLL_TIMEOUT_S = 15 * 60
+
 
 
 ##
@@ -70,6 +77,83 @@ def _post_json(
             **(headers or {}),
         },
     ))
+
+
+def _post_form(
+        url: str,
+        fields: ta.Mapping[str, ta.Any],
+        *,
+        headers: ta.Mapping[str, str] | None = None,
+) -> _UrlResponse:
+    return _url_request(urllib.request.Request(
+        url,
+        data=urllib.parse.urlencode(fields).encode('utf-8'),  # noqa
+        headers={
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': Consts.USER_AGENT,
+            **(headers or {}),
+        },
+    ))
+
+
+##
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class _PostAuthTokenResult:
+    access_token: str
+    token_type: str  # "Bearer"
+    expires_in: int | float  # 864000
+    scope: str  # "openid profile email offline_access"
+    id_token: str
+    earliest_refresh_at: int | float  # 1794433452
+    refresh_token: str
+
+
+def _post_auth_token(
+        *,
+        code: str,
+        code_verifier: str,
+        redirect_uri: str,
+) -> _PostAuthTokenResult:
+    resp = _post_form(
+        Consts.POST_TOKEN_URL,
+        {
+            'client_id': Consts.CLIENT_ID,
+            'grant_type': 'authorization_code',
+            'code': code,
+            'code_verifier': code_verifier,
+            'redirect_uri': redirect_uri,
+        },
+    )
+
+    check.state(resp.status == 200)
+    obj = resp.json()
+
+    return _PostAuthTokenResult(
+        access_token=check.non_empty_str(obj['access_token']),
+        token_type=check.non_empty_str(obj['token_type']),
+        expires_in=float(obj['expires_in']),
+        scope=check.non_empty_str(obj['scope']),
+        id_token=check.non_empty_str(obj['id_token']),
+        earliest_refresh_at=float(obj['earliest_refresh_at']),
+        refresh_token=check.non_empty_str(obj['refresh_token']),
+    )
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class AuthTokens:
+    access_token: str
+    id_token: str
+    refresh_token: str
+
+
+def _build_auth_tokens(post_result: _PostAuthTokenResult) -> AuthTokens:
+    return AuthTokens(
+        access_token=check.non_empty_str(post_result.access_token),
+        id_token=check.non_empty_str(post_result.id_token),
+        refresh_token=check.non_empty_str(post_result.refresh_token),
+    )
 
 
 ##
@@ -150,9 +234,17 @@ def device_auth() -> None:
     print(f'{Consts.DEVICE_AUTH_VERIFY_URL}')
     print(user_code.user_code)
 
-    polled = _poll_device_auth_token(user_code)
+    poll_result = _poll_device_auth_token(user_code)
 
-    print(polled)
+    post_result = _post_auth_token(
+        code=poll_result.authorization_code,
+        code_verifier=poll_result.code_verifier,
+        redirect_uri=Consts.DEVICE_AUTH_REDIRECT_URL,
+    )
+
+    tokens = _build_auth_tokens(post_result)
+
+    print(tokens)
 
 
 ##
