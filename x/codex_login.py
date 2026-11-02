@@ -1,3 +1,4 @@
+# ruff: noqa: S310
 import dataclasses as dc
 import json
 import time
@@ -64,10 +65,8 @@ def _post_json(
         url,
         data=json.dumps(obj).encode('utf-8'),  # noqa
         headers={
-            **{
-                'Content-Type': 'application/json',
-                'User-Agent': Consts.USER_AGENT,
-            },
+            'Content-Type': 'application/json',
+            'User-Agent': Consts.USER_AGENT,
             **(headers or {}),
         },
     ))
