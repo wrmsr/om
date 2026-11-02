@@ -1,6 +1,7 @@
 # ruff: noqa: S310
 import dataclasses as dc
-import json
+import datetime
+import os.path
 import time
 import typing as ta
 import urllib.error
@@ -9,6 +10,18 @@ import urllib.request
 
 from omcore import check
 from omcore import lang
+from omcore import marshal as msh
+from omcore.formats.json import all as json
+from omdev.home.paths import get_home_paths
+
+
+##
+
+
+@dc.dataclass(frozen=True, kw_only=True)
+class AuthTokens:
+    access_token: str
+    id_token: str
 
 
 ##
@@ -103,10 +116,10 @@ def _post_form(
 class _PostAuthTokenResult:
     access_token: str
     token_type: str  # "Bearer"
-    expires_in: int | float  # 864000
+    expires_in: int | float  # 864000 (10 days)
     scope: str  # "openid profile email offline_access"
     id_token: str
-    earliest_refresh_at: int | float  # 1794433452
+    earliest_refresh_at: int | float  # 1794433452 (+3 days)
     refresh_token: str
 
 
@@ -141,18 +154,34 @@ def _post_auth_token(
     )
 
 
+##
+
+
 @dc.dataclass(frozen=True, kw_only=True)
-class AuthTokens:
-    access_token: str
-    id_token: str
-    refresh_token: str
+@msh.update_field_options(omit_if=lang.is_none)
+class AuthEnvelope:
+    tokens: AuthTokens
+
+    created_at: datetime.datetime
+    expires_at: datetime.datetime | None = None
+
+    refresh_token: str | None = None
+    earliest_refresh_at: datetime.datetime | None = None
+    refreshed_at: datetime.datetime | None = None
 
 
-def _build_auth_tokens(post_result: _PostAuthTokenResult) -> AuthTokens:
-    return AuthTokens(
-        access_token=check.non_empty_str(post_result.access_token),
-        id_token=check.non_empty_str(post_result.id_token),
+def _build_auth_envelope(post_result: _PostAuthTokenResult) -> AuthEnvelope:
+    return AuthEnvelope(
+        tokens=AuthTokens(
+            access_token=check.non_empty_str(post_result.access_token),
+            id_token=check.non_empty_str(post_result.id_token),
+        ),
+
+        created_at=lang.utcnow(),
+        expires_at=lang.utcnow() + datetime.timedelta(seconds=post_result.expires_in),
+
         refresh_token=check.non_empty_str(post_result.refresh_token),
+        earliest_refresh_at=lang.utcfromtimestamp(post_result.earliest_refresh_at),
     )
 
 
@@ -164,7 +193,7 @@ class _DeviceAuthUserCode:
     device_auth_id: str  # deviceauth_0123abcd...
     user_code: str  # ABCD-EFGHI
     interval: int | float
-    expires_at: str  # 2026-11-02T21:27:42.011383+00:00
+    expires_at: datetime.datetime  # 2026-11-02T21:27:42.011383+00:00
 
 
 def _get_device_auth_user_code() -> _DeviceAuthUserCode:
@@ -182,7 +211,7 @@ def _get_device_auth_user_code() -> _DeviceAuthUserCode:
         device_auth_id=check.non_empty_str(obj['device_auth_id']),
         user_code=check.non_empty_str(obj['user_code']),
         interval=float(obj['interval']),
-        expires_at=check.non_empty_str(obj['expires_at']),
+        expires_at=datetime.datetime.fromisoformat(check.non_empty_str(obj['expires_at'])),
     )
 
 
@@ -190,7 +219,7 @@ def _get_device_auth_user_code() -> _DeviceAuthUserCode:
 class _PollDeviceAuthTokenResult:
     status: str  # 'success'
     user_code: str  # ABCD-EFGHI
-    user_code_expiration: str  # 2026-11-02T21:42:24.971193+00:00
+    user_code_expiration: datetime.datetime  # 2026-11-02T21:42:24.971193+00:00
     authorization_code: str
     code_challenge: str
     code_verifier: str
@@ -213,7 +242,6 @@ def _poll_device_auth_token(user_code: _DeviceAuthUserCode) -> _PollDeviceAuthTo
         remaining = deadline - time.time()
         check.state(remaining > 0)
         time.sleep(min(user_code.interval, remaining))
-        continue
 
     check.state(resp.status == 200)
     obj = resp.json()
@@ -221,14 +249,14 @@ def _poll_device_auth_token(user_code: _DeviceAuthUserCode) -> _PollDeviceAuthTo
     return _PollDeviceAuthTokenResult(
         status=check.non_empty_str(obj['status']),
         user_code=check.non_empty_str(obj['user_code']),
-        user_code_expiration=check.non_empty_str(obj['user_code_expiration']),
+        user_code_expiration=datetime.datetime.fromisoformat(check.non_empty_str(obj['user_code_expiration'])),
         authorization_code=check.non_empty_str(obj['authorization_code']),
         code_challenge=check.non_empty_str(obj['code_challenge']),
         code_verifier=check.non_empty_str(obj['code_verifier']),
     )
 
 
-def device_auth() -> None:
+def device_auth() -> AuthEnvelope:
     user_code = _get_device_auth_user_code()
 
     print(f'{Consts.DEVICE_AUTH_VERIFY_URL}')
@@ -242,16 +270,45 @@ def device_auth() -> None:
         redirect_uri=Consts.DEVICE_AUTH_REDIRECT_URL,
     )
 
-    tokens = _build_auth_tokens(post_result)
+    auth = _build_auth_envelope(post_result)
 
-    print(tokens)
+    return auth
+
+
+##
+
+
+def get_auth_file_path() -> str:
+    return os.path.join(get_home_paths().state_dir, 'llm', 'codex-auth.json')
+
+
+def write_auth(auth: AuthEnvelope) -> None:
+    auth_file_path = get_auth_file_path()
+    os.makedirs(os.path.dirname(auth_file_path), exist_ok=True)
+    with open(auth_file_path, 'w') as f:
+        os.chmod(auth_file_path, 0o640)
+        f.write(json.dumps_pretty(msh.marshal(auth)))
+
+
+def read_auth() -> AuthEnvelope | None:
+    auth_file_path = get_auth_file_path()
+    try:
+        with open(auth_file_path) as f:
+            src = f.read()
+    except FileNotFoundError:
+        return None
+    return msh.unmarshal(json.loads(src), AuthEnvelope)
 
 
 ##
 
 
 def _main() -> None:
-    device_auth()
+    # auth = device_auth()
+    # write_auth(auth)
+
+    auth = read_auth()
+    print(auth)
 
 
 if __name__ == '__main__':
