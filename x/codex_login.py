@@ -107,42 +107,24 @@ class DeviceCodeOpenaiOauthLoginImpl(DeviceCodeOpenaiOauthLogin):
 
     #
 
-    @dc.dataclass(frozen=True)
-    class _UrlResponse:
-        status: int
-        data: bytes
-
-        @lang.cached_function
-        def text(self) -> str:
-            return self.data.decode('utf-8')
-
-        @lang.cached_function
-        def json(self) -> ta.Any:
-            return json.loads(self.text())
-
-    async def _url_request(self, req: urllib.request.Request) -> _UrlResponse:
-        try:
-            with urllib.request.urlopen(req) as r:
-                return self._UrlResponse(r.status, r.read())
-        except urllib.error.HTTPError as e:
-            return self._UrlResponse(e.code, e.read())
-
     async def _post_json(
             self,
             url: str,
             obj: ta.Any,
             *,
             headers: ta.Mapping[str, str] | None = None,
-    ) -> _UrlResponse:
-        return await self._url_request(urllib.request.Request(
+    ) -> http.HttpClientResponse:
+        return await http.async_request(
             url,
-            data=json.dumps(obj).encode('utf-8'),  # noqa
+            'POST',
+            data=json.dumps(obj).encode('utf-8'),
             headers={
                 'Content-Type': 'application/json',
                 'User-Agent': OpenaiOauthConsts.USER_AGENT,
                 **(headers or {}),
             },
-        ))
+            client=self._http_client,
+        )
 
     async def _post_form(
             self,
@@ -150,16 +132,18 @@ class DeviceCodeOpenaiOauthLoginImpl(DeviceCodeOpenaiOauthLogin):
             fields: ta.Mapping[str, ta.Any],
             *,
             headers: ta.Mapping[str, str] | None = None,
-    ) -> _UrlResponse:
-        return await self._url_request(urllib.request.Request(
+    ) -> http.HttpClientResponse:
+        return await http.async_request(
             url,
-            data=urllib.parse.urlencode(fields).encode('utf-8'),  # noqa
+            'POST',
+            data=urllib.parse.urlencode(fields).encode('utf-8'),
             headers={
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'User-Agent': OpenaiOauthConsts.USER_AGENT,
                 **(headers or {}),
             },
-        ))
+            client=self._http_client,
+        )
 
     #
 
@@ -179,7 +163,7 @@ class DeviceCodeOpenaiOauthLoginImpl(DeviceCodeOpenaiOauthLogin):
         )
 
         check.state(resp.status == 200)
-        obj = resp.json()
+        obj = json.loads(check.not_none(resp.data).decode('utf-8'))
 
         return self._DeviceAuthUserCode(
             device_auth_id=check.non_empty_str(obj['device_auth_id']),
@@ -218,7 +202,7 @@ class DeviceCodeOpenaiOauthLoginImpl(DeviceCodeOpenaiOauthLogin):
             time.sleep(min(user_code.interval, remaining))
 
         check.state(resp.status == 200)
-        obj = resp.json()
+        obj = json.loads(check.not_none(resp.data).decode('utf-8'))
 
         return self._PollDeviceAuthTokenResult(
             status=check.non_empty_str(obj['status']),
@@ -260,7 +244,7 @@ class DeviceCodeOpenaiOauthLoginImpl(DeviceCodeOpenaiOauthLogin):
         )
 
         check.state(resp.status == 200)
-        obj = resp.json()
+        obj = json.loads(check.not_none(resp.data).decode('utf-8'))
 
         return self._PostAuthTokenResult(
             access_token=check.non_empty_str(obj['access_token']),
@@ -396,8 +380,8 @@ def do_request(
 ##
 
 
-DO_LOGIN = False
-# DO_LOGIN = True
+# DO_LOGIN = False
+DO_LOGIN = True
 
 
 def _main() -> None:
