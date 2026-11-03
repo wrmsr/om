@@ -111,7 +111,12 @@ class Cli(ap.Cli):
 
             detach=bool(self.args.detach),
 
+            envs=self.args.env,
+
             mounts=self.args.mount,
+
+            #
+
             mount_docker_sock=bool(self.args.mount_docker_sock),
 
             mount_cache=bool(self.args.mount_cache),
@@ -153,7 +158,12 @@ class Cli(ap.Cli):
 
         ap.arg('-d', '--detach', action='store_true'),
 
+        ap.arg('-e', '--env', action='append'),
+
         ap.arg('--mount', action='append'),
+
+        #
+
         ap.arg('-D', '--mount-docker-sock', action='store_true'),
 
         ap.arg('-C', '--mount-cache', action='store_true'),

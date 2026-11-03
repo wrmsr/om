@@ -1505,7 +1505,7 @@ class DiskUsageUi:
             normal,
         )
         if width >= 90:
-            heading = '      Size      %   [relative  ]     Items   Name'
+            heading = '      Size      % [relative  ]     Items   Name'
         elif width >= 64:
             heading = '      Size      %       Items   Name'
         else:

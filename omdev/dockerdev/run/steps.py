@@ -56,6 +56,12 @@ class BaseOptionsRunStep(RunStep):
         if plan.args.detach:
             plan.add_options('-d')
 
+        if plan.args.envs:
+            plan.add_options(*[f'--env={e}' for e in plan.args.envs])
+
+        if plan.args.mounts:
+            plan.add_options(*[f'--mount={m}' for m in plan.args.mounts])
+
         if plan.args.unknown_args:
             plan.add_options(*plan.args.unknown_args)
 
@@ -80,13 +86,10 @@ class OfflineRunStep(RunStep):
             plan.add_options('--pull=never')
 
 
-class MountsRunStep(RunStep):
+class DockerSockMountRunStep(RunStep):
     """The mounts asked for by spec, and the host's docker socket."""
 
     def apply(self, plan: RunPlan) -> None:
-        if plan.args.mounts:
-            plan.add_options(*[f'--mount={m}' for m in plan.args.mounts])
-
         if plan.args.mount_docker_sock:
             plan.add_options('--mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock')
 
@@ -331,7 +334,7 @@ DEFAULT_RUN_STEPS: ta.Sequence[RunStep] = (
     PrivilegedRunStep(),
     CudaRunStep(),
     OfflineRunStep(),
-    MountsRunStep(),
+    DockerSockMountRunStep(),
     CacheMountRunStep(),
     PersistMountRunStep(),
     GitMountRunStep(),

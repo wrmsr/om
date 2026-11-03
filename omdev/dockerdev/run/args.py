@@ -37,7 +37,12 @@ class RunArgs:
 
     detach: bool | None = None
 
+    envs: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq_of(check.non_empty_str))
+
     mounts: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq_of(check.non_empty_str))
+
+    #
+
     mount_docker_sock: bool | None = None
 
     mount_cache: bool | None = None
