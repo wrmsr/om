@@ -1,3 +1,4 @@
+import contextvars
 import os
 import types
 import typing as ta
@@ -16,67 +17,101 @@ from ..types import InitialLlmOptions
 ##
 
 
+class BACKEND_SCOPED(lang.Marker):  # noqa
+    pass
+
+
+_BACKEND_SCOPE_CONTEXT: contextvars.ContextVar = contextvars.ContextVar(f'{__name__}._BACKEND_SCOPE_CONTEXT')
+
+BACKEND_SCOPE: ta.Final = inj.DelimitedScope(
+    BACKEND_SCOPED,
+    context=inj.ContextVarScopeContext(_BACKEND_SCOPE_CONTEXT),
+)
+
+
+##
+
+
+def _bind_scripted_backend(config: UiConfig) -> inj.Elements:
+    lst: list[inj.Elemental] = []
+
+    # Offline development / testing: the scripted backend's built-in canned responses, no keys or network.
+    if config.immediate:
+        backend_cls: ta.Any = llm.ScriptedImmediateBackend
+    else:
+        backend_cls = llm.ScriptedStreamBackend
+
+    backend = backend_cls(
+        llm.Model(
+            key=llm.ModelKey('scripted', 'scripted'),
+            backend='scripted',
+            reasoning_efforts=frozenset(llm.ReasoningEffort),
+        ),
+    )
+
+    lst.append(inj.bind(
+        agn.BackendManager,
+        to_const=agn.DictBackendManager.of(backend),
+    ))
+
+    return inj.as_elements(*lst)
+
+
+def _bind_backend(config: UiConfig) -> inj.Elements:
+    lst: list[inj.Elemental] = []
+
+    model = llm.default_models_by_name()[config.model or llm.DEFAULT_MODEL_NAME]
+    llm_model = llm.provider_model_catalog()[model.key]
+
+    if config.immediate:
+        backend_cls: ta.Any = llm.ImmediateBackend
+    else:
+        backend_cls = llm.StreamBackend
+
+    backend_impl_cls = reg.get_registry_cls(backend_cls, llm_model.backend_)
+
+    async def provide_backend() -> agn.BackendManager:
+        akr = llm.ApiKeyResolverImpl(
+            secrets=load_secrets(),
+            environ=types.MappingProxyType(os.environ),  # noqa
+        )
+        api_key = akr.resolve_first_api_key(model.api_keys or [])
+
+        backend = backend_impl_cls(
+            llm_model,
+            **lang.opt_kw(
+                api_key=api_key,
+                base_url=config.url,
+                model_id=config.backend_model_id,
+            ),
+        )
+
+        return agn.DictBackendManager.of(backend)
+
+    lst.append(inj.bind(
+        agn.BackendManager,
+        to_async_fn=provide_backend,
+        singleton=True,
+    ))
+
+    return inj.as_elements(*lst)
+
+
 def bind_backends(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #
 
-    backend_cls: ta.Any
-    backend: ta.Any
+    lst.extend([
+        inj.bind_scope(BACKEND_SCOPE),
+    ])
+
+    #
+
     if (config.model or llm.DEFAULT_MODEL_NAME) == 'scripted':
-        # Offline development / testing: the scripted backend's built-in canned responses, no keys or network.
-        if config.immediate:
-            backend_cls = llm.ScriptedImmediateBackend
-        else:
-            backend_cls = llm.ScriptedStreamBackend
-
-        backend = backend_cls(
-            llm.Model(
-                key=llm.ModelKey('scripted', 'scripted'),
-                backend='scripted',
-                reasoning_efforts=frozenset(llm.ReasoningEffort),
-            ),
-        )
-
-        lst.append(inj.bind(
-            agn.BackendManager,
-            to_const=agn.DictBackendManager.of(backend),
-        ))
-
+        lst.append(_bind_scripted_backend(config))
     else:
-        model = llm.default_models_by_name()[config.model or llm.DEFAULT_MODEL_NAME]
-        llm_model = llm.provider_model_catalog()[model.key]
-
-        if config.immediate:
-            backend_cls = llm.ImmediateBackend
-        else:
-            backend_cls = llm.StreamBackend
-
-        backend_impl_cls = reg.get_registry_cls(backend_cls, llm_model.backend_)
-
-        async def provide_backend() -> agn.BackendManager:
-            akr = llm.ApiKeyResolverImpl(
-                secrets=load_secrets(),
-                environ=types.MappingProxyType(os.environ),  # noqa
-            )
-            api_key = akr.resolve_first_api_key(model.api_keys or [])
-
-            backend = backend_impl_cls(
-                llm_model,
-                **lang.opt_kw(
-                    api_key=api_key,
-                    base_url=config.url,
-                    model_id=config.backend_model_id,
-                ),
-            )
-
-            return agn.DictBackendManager.of(backend)
-
-        lst.append(inj.bind(
-            agn.BackendManager,
-            to_async_fn=provide_backend,
-            singleton=True,
-        ))
+        lst.append(_bind_backend(config))
 
     #
 
