@@ -57,6 +57,19 @@
   `os.path` by default, unless there's a *good **specific** reason* to also support `pathlib` (such as dep interop). Our
   internal code does not pass around `pathlib.Path`, it passes around `str`'s, so it's almost never necessary to support
   `pathlib` even optionally.
+- **DO NOT** universally assume premature abstraction: just because an abstraction already present may look unnecessary
+  at the moment **DOES NOT** mean that it wasn't added for a future purpose.
+  - Our codebase is dependency-injector-heavy: there's frequently going to be an interface with a single impl, and even
+    if nothing else currently visible in the codebase implements the interface, that does **NOT** mean that it wasn't
+    added and isn't actively retained as either a future point of extension or an actively used one in code not visible
+    here. You, here, necessarily don't have a full picture of where this codebase is going, so you're simply not capable
+    of universally assessing whether or not these kinds of abstractions are truly unnecessary.
+  - This is *not* to say however that *all* present abstractions are perpetually necessary: simplification and
+    consolidation are still virtues to strive for! However, particularly in higher levels of the stack, be increasingly
+    cautious about this pitfall.
+  - As an example, when asked to implement subagent injector scopes in my llm agent code, agents would *consistently*
+    implement the new injector scope, then see that nothing was bound in the new scope and just remove it despite it
+    being their entire task to begin with!
 
 
 ### Running stuff
