@@ -35,10 +35,10 @@ class Project(ProjectBase):
 
     optional_dependencies = {
         'async': [
-            'anyio ~= 4.15',
+            'anyio ~= 4.16',
             'sniffio ~= 1.3',
 
-            'trio ~= 0.34',
+            'trio ~= 0.35',
             'trio-asyncio ~= 0.15',
         ],
 
@@ -67,7 +67,7 @@ class Project(ProjectBase):
 
             'pyyaml ~= 6.0',
 
-            'cbor2 ~= 6.1',
+            'cbor2 ~= 6.2',
 
             'cloudpickle ~= 3.1',
         ],
@@ -101,7 +101,7 @@ class Project(ProjectBase):
             'mysql-connector-python ~= 26.10',
             'mysqlclient ~= 2.3',
 
-            'snowflake-connector-python ~= 4.8',
+            'snowflake-connector-python ~= 5.1',
 
             'aiomysql ~= 0.3',
             'aiosqlite ~= 0.22',
