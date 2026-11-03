@@ -20,7 +20,7 @@ from ...oauth import OpenaiOauthTokens
 
 
 def get_auth_file_path() -> str:
-    return os.path.join(get_home_paths().state_dir, 'llm', 'codex-auth.json')
+    return os.path.join(get_home_paths().state_dir, 'llm', 'openai-oauth.json')
 
 
 def write_auth(auth: OpenaiOauthEnvelope) -> None:
