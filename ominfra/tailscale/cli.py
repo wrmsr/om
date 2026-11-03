@@ -1,3 +1,43 @@
+"""
+====
+---- darwin
+
+sudo mkdir -p /etc/resolver
+printf 'nameserver 100.100.100.100\n' | sudo tee /etc/resolver/tailXXXXX.ts.net
+
+---- ubuntu/systemd
+
+sudo tailscale set --accept-dns=false
+
+---- ubuntu/systemd transient
+
+sudo resolvectl dns tailscale0 100.100.100.100
+sudo resolvectl domain tailscale0 '~tailXXXXX.ts.net'
+sudo resolvectl default-route tailscale0 false
+
+---- ubuntu/systemd persistent (maybe?)
+/etc/systemd/system/tailscale-split-dns.service
+
+  [Unit]
+  Description=Manually configured Tailscale split DNS
+  Wants=tailscaled.service systemd-resolved.service
+  After=tailscaled.service systemd-resolved.service
+  PartOf=tailscaled.service systemd-resolved.service
+
+  [Service]
+  Type=oneshot
+  RemainAfterExit=yes
+
+  # Wait for Tailscale's interface to exist.
+  ExecStartPre=/usr/bin/timeout 30 /bin/sh -c 'until test -d /sys/class/net/tailscale0; do sleep 1; done'
+
+  ExecStart=/usr/bin/resolvectl dns tailscale0 100.100.100.100
+  ExecStart=/usr/bin/resolvectl domain tailscale0 ~tailXXXXX.ts.net
+  ExecStart=/usr/bin/resolvectl default-route tailscale0 false
+
+  [Install]
+  WantedBy=tailscaled.service
+"""
 import re
 import subprocess
 import sys
