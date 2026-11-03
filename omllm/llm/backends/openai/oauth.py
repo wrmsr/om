@@ -1,14 +1,10 @@
-# ruff: noqa: S310
 import abc
 import base64
 import dataclasses as dc
 import datetime
-import os.path
 import time
 import typing as ta
-import urllib.error
 import urllib.parse
-import urllib.request
 
 from omcore import check
 from omcore import lang
@@ -16,8 +12,6 @@ from omcore import marshal as msh
 from omcore.asyncs.asynclite import all as asl
 from omcore.formats.json import all as json
 from omcore.http import all as http
-from omcore.secrets import all as sec
-from omdev.home.paths import get_home_paths
 
 
 ##
@@ -27,6 +21,9 @@ from omdev.home.paths import get_home_paths
 class OpenaiOauthTokens:
     access_token: str
     id_token: str
+
+    def account_id(self) -> str | None:
+        return _id_token_account_id(self.id_token)
 
 
 @dc.dataclass(frozen=True, kw_only=True)
@@ -70,6 +67,32 @@ class OpenaiOauthConsts(lang.Namespace):
 
     ACCOUNT_ID_JWT_CLAIM_KEY = 'chatgpt_account_id'
     AUTH_NS_JWT_CLAIM_KEY = 'https://api.openai.com/auth'
+
+
+##
+
+
+def _jwt_claims(token: str) -> dict:
+    payload = token.split('.')[1]
+    payload += '=' * (-len(payload) % 4)
+    return json.loads(base64.urlsafe_b64decode(payload))
+
+
+def _id_token_account_id(id_token: str) -> str | None:
+    claims = _jwt_claims(id_token)
+
+    try:
+        return claims[OpenaiOauthConsts.ACCOUNT_ID_JWT_CLAIM_KEY]
+    except KeyError:
+        pass
+
+    if isinstance(ns := claims.get(OpenaiOauthConsts.AUTH_NS_JWT_CLAIM_KEY), ta.Mapping):
+        try:
+            return ns[OpenaiOauthConsts.ACCOUNT_ID_JWT_CLAIM_KEY]
+        except KeyError:
+            pass
+
+    return None
 
 
 ##
@@ -199,7 +222,7 @@ class DeviceCodeOpenaiOauthLoginImpl(DeviceCodeOpenaiOauthLogin):
 
             remaining = deadline - time.time()
             check.state(remaining > 0)
-            time.sleep(min(user_code.interval, remaining))
+            await self._sleeps.sleep(min(user_code.interval, remaining))
 
         check.state(resp.status == 200)
         obj = json.loads(check.not_none(resp.data).decode('utf-8'))
@@ -298,119 +321,3 @@ class DeviceCodeOpenaiOauthLoginImpl(DeviceCodeOpenaiOauthLogin):
         auth = self._build_auth_envelope(post_result)
 
         return auth
-
-
-##
-
-
-def get_auth_file_path() -> str:
-    return os.path.join(get_home_paths().state_dir, 'llm', 'codex-auth.json')
-
-
-def write_auth(auth: OpenaiOauthEnvelope) -> None:
-    auth_file_path = get_auth_file_path()
-    os.makedirs(os.path.dirname(auth_file_path), exist_ok=True)
-    with open(auth_file_path, 'w') as f:
-        os.chmod(auth_file_path, 0o640)
-        f.write(json.dumps_pretty(msh.marshal(auth)))
-
-
-def read_auth() -> OpenaiOauthEnvelope | None:
-    auth_file_path = get_auth_file_path()
-    try:
-        with open(auth_file_path) as f:
-            src = f.read()
-    except FileNotFoundError:
-        return None
-    return msh.unmarshal(json.loads(src), OpenaiOauthEnvelope)
-
-
-##
-
-
-def _jwt_claims(token: str) -> dict:
-    payload = token.split('.')[1]
-    payload += '=' * (-len(payload) % 4)
-    return json.loads(base64.urlsafe_b64decode(payload))
-
-
-def _account_id(id_token: str) -> str | None:
-    claims = _jwt_claims(id_token)
-
-    try:
-        return claims[OpenaiOauthConsts.ACCOUNT_ID_JWT_CLAIM_KEY]
-    except KeyError:
-        pass
-
-    if isinstance(ns := claims.get(OpenaiOauthConsts.AUTH_NS_JWT_CLAIM_KEY), ta.Mapping):
-        try:
-            return ns[OpenaiOauthConsts.ACCOUNT_ID_JWT_CLAIM_KEY]
-        except KeyError:
-            pass
-
-    return None
-
-
-##
-
-
-from omllm import llm  # noqa
-
-
-def do_request(
-        auth_tokens: OpenaiOauthTokens,
-        context: llm.Context,
-        options: llm.Options | None = None,
-) -> llm.AiMessage:
-
-    be = llm.OpenaiResponsesStreamBackend(
-        model=llm.provider_model_catalog()[llm.default_models_by_name()['luna'].key],
-        oauth_tokens=llm.OpenaiResponsesImmediateBackend.OauthTokens(
-            access_token=sec.Secret(value=auth_tokens.access_token),
-            account_id=sec.Secret(value=check.not_none(_account_id(auth_tokens.id_token))),
-            originator='pi',
-        ),
-        http_client=http.SyncAsyncHttpClient(http.client()),
-        base_url='https://chatgpt.com/backend-api/codex',
-    )
-
-    return lang.sync_await(be.immediate(context, options))
-
-
-##
-
-
-# DO_LOGIN = False
-DO_LOGIN = True
-
-
-def _main() -> None:
-    if DO_LOGIN:
-        def print_user_code(uc: DeviceCodeOpenaiOauthLogin.UserCode) -> None:
-            print(uc.verify_url)
-            print(uc.user_code)
-
-        auth = lang.sync_await(DeviceCodeOpenaiOauthLoginImpl(
-            http_client=http.SyncAsyncHttpClient(http.client()),
-            sleeps=asl.sync.Sleeps(),
-        ).device_auth(
-            display_user_code=lang.as_async(print_user_code),
-        ))
-
-        write_auth(auth)
-
-    auth = check.not_none(read_auth())
-
-    resp = do_request(
-        auth.tokens,
-        llm.Context(
-            messages=[
-                llm.UserMessage('hi!'),
-            ],
-        )
-    )
-    print(resp)
-
-
-if __name__ == '__main__':
-    _main()
