@@ -1,3 +1,4 @@
+# @om-recommended-import-alias "asl"
 from ... import lang as _lang
 
 
