@@ -22,10 +22,11 @@ class BaseGoogleGenerativeBackend(BaseHttpBackend, lang.Abstract):
     ) -> None:
         super().__init__(
             model,
-            api_key=api_key,
             http_client=http_client,
             base_url=base_url,
         )
+
+        self._api_key = api_key
 
     def _is_context_overflow_http_error(self, error: HttpErrorDetails) -> bool:
         return is_google_context_overflow_error(error)

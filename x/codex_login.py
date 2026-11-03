@@ -1,4 +1,5 @@
 # ruff: noqa: S310
+import base64
 import dataclasses as dc
 import datetime
 import os.path
@@ -47,6 +48,11 @@ class Consts(lang.Namespace):
     DEVICE_AUTH_VERIFY_URL = f'{AUTH_BASE_URL}/codex/device'
 
     DEVICE_AUTH_POLL_TIMEOUT_S = 15 * 60
+
+    #
+
+    ACCOUNT_ID_JWT_CLAIM_KEY = 'chatgpt_account_id'
+    AUTH_NS_JWT_CLAIM_KEY = 'https://api.openai.com/auth'
 
 
 
@@ -162,7 +168,7 @@ def _post_auth_token(
 class AuthEnvelope:
     tokens: AuthTokens
 
-    created_at: datetime.datetime
+    created_at: datetime.datetime  # FIXME: all utc
     expires_at: datetime.datetime | None = None
 
     refresh_token: str | None = None
@@ -303,12 +309,75 @@ def read_auth() -> AuthEnvelope | None:
 ##
 
 
+def _jwt_claims(token: str) -> dict:
+    payload = token.split('.')[1]
+    payload += '=' * (-len(payload) % 4)
+    return json.loads(base64.urlsafe_b64decode(payload))
+
+
+def _account_id(id_token: str) -> str | None:
+    claims = _jwt_claims(id_token)
+
+    try:
+        return claims[Consts.ACCOUNT_ID_JWT_CLAIM_KEY]
+    except KeyError:
+        pass
+
+    if isinstance(ns := claims.get(Consts.AUTH_NS_JWT_CLAIM_KEY), ta.Mapping):
+        try:
+            return ns[Consts.ACCOUNT_ID_JWT_CLAIM_KEY]
+        except KeyError:
+            pass
+
+    return None
+
+
+##
+
+
+from omllm import llm  # noqa
+
+
+def do_request(
+        auth_tokens: AuthTokens,
+        context: llm.Context,
+        options: llm.Options | None = None,
+) -> llm.AiMessage:
+    from omcore.secrets import all as sec
+    from omcore.http import all as http
+
+    be = llm.OpenaiResponsesStreamBackend(
+        model=llm.provider_model_catalog()[llm.default_models_by_name()['luna'].key],
+        oauth_tokens=llm.OpenaiResponsesImmediateBackend.OauthTokens(
+            access_token=sec.Secret(value=auth_tokens.access_token),
+            account_id=sec.Secret(value=check.not_none(_account_id(auth_tokens.id_token))),
+            originator='pi',
+        ),
+        http_client=http.SyncAsyncHttpClient(http.client()),
+        base_url='https://chatgpt.com/backend-api/codex',
+    )
+
+    return lang.sync_await(be.immediate(context, options))
+
+
+##
+
+
 def _main() -> None:
     # auth = device_auth()
     # write_auth(auth)
 
-    auth = read_auth()
-    print(auth)
+    auth = check.not_none(read_auth())
+
+    resp = do_request(
+        auth.tokens,
+        llm.Context(
+            messages=[
+                llm.UserMessage('hi!'),
+            ],
+        )
+    )
+    print(resp)
 
 
 if __name__ == '__main__':

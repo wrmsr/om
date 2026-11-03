@@ -8,7 +8,6 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore.http import all as http
-from omcore.secrets import all as sec
 
 from ...types.backends import Backend
 from ...types.errors import BackendError
@@ -221,14 +220,12 @@ class BaseHttpBackend(Backend, lang.Abstract):
             self,
             model: Model,
             *,
-            api_key: sec.Secret | None = None,
             http_client: http.AsyncHttpClient | None = None,
             base_url: str | None = None,
     ) -> None:
         super().__init__()
 
         self._model = model
-        self._api_key = api_key
         self._http_client = http_client
 
         self._model_http = check.not_none(model.http)

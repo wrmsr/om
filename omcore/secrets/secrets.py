@@ -38,7 +38,7 @@ log = logs.get_module_logger(globals())
 class Secret(lang.NotPicklable, lang.Sensitive, lang.Final):
     _VALUE_ATTR = '__secret_value__'
 
-    def __init__(self, *, key: str | None, value: str) -> None:
+    def __init__(self, *, key: str | None = None, value: str) -> None:
         super().__init__()
 
         self._key = key

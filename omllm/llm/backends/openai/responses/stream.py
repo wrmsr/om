@@ -236,7 +236,7 @@ class OpenaiResponsesStreamBackend(BaseOpenaiResponsesBackend, StreamBackend):
         #
 
         http_headers = {
-            **({'authorization': f'Bearer {self._api_key.reveal()}'} if self._api_key is not None else {}),
+            **(self._get_auth_headers() or {}),
             'content-type': 'application/json',
             'accept': 'application/json',
             **(self._model_http.extra_headers or {}),

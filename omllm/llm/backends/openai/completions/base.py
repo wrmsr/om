@@ -29,11 +29,11 @@ class BaseOpenaiCompletionsBackend(BaseHttpBackend, lang.Abstract):
     ) -> None:
         super().__init__(
             model,
-            api_key=api_key,
             http_client=http_client,
             base_url=base_url,
         )
 
+        self._api_key = api_key
         self._model_id = model_id
 
         if model.compat is not None:
