@@ -123,6 +123,7 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
         no_interactive=False,
         no_tty=False,
         detach=False,
+        envs=[],
         mounts=[],
         mount_cache=False,
         mount_docker_sock=False,
