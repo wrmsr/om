@@ -32,8 +32,8 @@ pipeline                     [buffering] [ssl] [write timeout] framing  envelope
   whose clients connect per call.
 - **Connection** (`connection.py`): one class, async-colored, over a runtime. `BaseRpcConnection` is the
   protocol-agnostic part, reusable for another session vocabulary; `RpcConnection` is this protocol's.
-- **Runtimes**: the only place sync and asyncio differ. `syncs.py` pumps in the caller's thread and runs handlers
-  inline; `asyncios.py` runs a pump task and a tracked task per handler; `fdios.py` hosts connections in an fdio
+- **Runtimes**: the only place sync and asyncio differ. `sync.py` pumps in the caller's thread and runs handlers
+  inline; `asyncio.py` runs a pump task and a tracked task per handler; `fdio.py` hosts connections in an fdio
   manager's callbacks, many to a thread, where nothing may wait - a server's runtime; `pure.py` steps two pure drivers
   on a virtual clock, for tests and in-process loopback.
 - **Dispatch and serde** (`dispatch.py`, `serde.py`): method tables, and typed methods and calls over a pluggable

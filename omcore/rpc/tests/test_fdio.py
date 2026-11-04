@@ -7,6 +7,7 @@ import unittest
 
 from ...io.fdio.handlers import ServerSocketFdioHandler
 from ...io.fdio.manager import FdioManager
+from ...io.fdio.pollers import PollFdioPoller
 from ...io.fdio.pollers import SelectFdioPoller
 from ...lite.asyncs import sync_await
 from ..closing import RpcCloseAfterRequestsIoPipelineHandler
@@ -28,7 +29,9 @@ class _FdioRpcTestServer:
     def __init__(self, *, one_request: bool = False) -> None:
         super().__init__()
 
-        self.manager = FdioManager(SelectFdioPoller())
+        # poll() where there is one: select() fails outright on a descriptor numbered 1024 or above, which a test
+        # process running many others can reach.
+        self.manager = FdioManager(PollFdioPoller() if PollFdioPoller is not None else SelectFdioPoller())
         self.connections: ta.List[RpcConnection] = []
         self.notes: ta.List[ta.Any] = []
         self._one_request = one_request

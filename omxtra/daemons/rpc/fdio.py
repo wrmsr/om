@@ -67,6 +67,14 @@ class _FdioRpcListener(fdio.SocketHandler):
             self._on_connect(conn, addr)
 
 
+def _new_fdio_rpc_poller() -> fdio.Poller:
+    # select() cannot watch a descriptor numbered 1024 or above, which a busy process soon has; poll() has no such
+    # limit, and is everywhere this runs but Windows.
+    if (poll_cls := fdio.PollPoller) is not None:
+        return poll_cls()
+    return fdio.SelectPoller()
+
+
 ##
 
 
@@ -109,7 +117,7 @@ class FdioRpcServer(lang.Final):
             RpcResponseRegistry(max_entries=self._config.response_cache_size),
             max_frame_bytes=self._config.max_frame_bytes,
         )
-        manager = fdio.Manager(fdio.SelectPoller())
+        manager = fdio.Manager(_new_fdio_rpc_poller())
         connections: set[RpcSocketFdioHandler] = set()
 
         socket_listener = self._transport.listen(

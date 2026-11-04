@@ -400,7 +400,7 @@ The seam, as an abstract class with a `RpcRuntimeSink` callback interface (`on_e
 
 ### 5.4 The sync runtime
 
-`syncs.py`. `BaseSyncRpcRuntime` holds the shared part: a pumping promise (`RpcSyncPromise`, implementing the asynclite
+`sync.py`. `BaseSyncRpcRuntime` holds the shared part: a pumping promise (`RpcSyncPromise`, implementing the asynclite
 promise interface) whose `wait` loops - if done, return; if the driver is done, raise closed; step once, bounded by the
 time remaining; repeat - and inline `spawn`. `SyncRpcRuntime` steps a `SyncIoPipelineDriver` with
 `next(read=True, raise_on_stall=True)` and the driver's wait bound set to the time remaining; a wait-bound timeout just
@@ -420,7 +420,7 @@ is a no-op and `is_cancelled_exception` is always False.
 
 ### 5.5 The asyncio runtime
 
-`asyncios.py`. Holds a `PollAsyncioStreamIoPipelineDriver`. `start` creates one pump task which loops on `await
+`asyncio.py`. Holds a `PollAsyncioStreamIoPipelineDriver`. `start` creates one pump task which loops on `await
 driver.next()`, delivering events to the sink, and on exit (driver stopped, transport failure, or the task itself
 cancelled) reports driver completion, closes the driver, and sets a closed event. Promises are asynclite's asyncio
 promises. `spawn` creates a task per handler, kept in a map by key (unkeyed ones in a set), with done callbacks which
@@ -611,7 +611,7 @@ A handler which awaits `to_thread` (standard code; lite code on 3.8 uses the loo
 
 As built, under `tests/`: `test_codecs` (value and envelope codecs, a non-JSON value codec, framing), `test_session`
 (the session and keepalive at the wire, against `raw.py`'s raw peer on one pure driver), `test_pure` (the connection
-over the pure link: the bulk), `test_syncs` and `test_asyncios` (real sockets, threads, child processes over stdio,
+over the pure link: the bulk), `test_sync` and `test_asyncio` (real sockets, threads, child processes over stdio,
 every cancellation path), `test_serde`, `test_stress` (seeded randomized traffic, cancellation, and closes racing
 traffic on both runtimes, checking invariants), and two standard-code modules: `test_examples` (the demos) and
 `test_jsonrpc_seam` (12.1). The plan, as written beforehand:
@@ -736,17 +736,16 @@ a dropped waiter is ignored.
 
 `RpcIdCreator` with integer, uuid, and callable implementations, and `rpc_id_creator_of`.
 
-### 11.13 `syncs.py` — done
+### 11.13 `sync.py` — done
 
 `RpcSyncPromise`, `BaseSyncRpcRuntime`, `SyncRpcRuntime`, and `SyncRpcConnections` (of a driver, a socket, an fd pair,
-`connect_tcp`, `connect_unix`, a `subprocess.Popen`, this process's stdio). Named in the plural, like `asyncios.py`, so
-neither shadows a stdlib module name within the package.
+`connect_tcp`, `connect_unix`, a `subprocess.Popen`, this process's stdio).
 
 ### 11.14 `pure.py` — done
 
 `PureRpcLink`, `PureRpcRuntime`, `PureRpcLinkDeadlockError`, and `pure_rpc_connection_pair`, as 5.4.
 
-### 11.15 `asyncios.py` — done
+### 11.15 `asyncio.py` — done
 
 `AsyncioRpcRuntime`, `AsyncioSerializingRpcHandler`, and `AsyncioRpcConnections` (of streams, `connect_tcp`,
 `connect_unix`, an asyncio subprocess, this process's stdio).
@@ -938,7 +937,7 @@ being public API with users, and needing nothing from the transport.
 The protocol needed four things the toolbox lacked, and they became toolbox pieces rather than daemons code, each
 small and each tested apart: the hello handshake (`handshake.py`), closing after a number of requests (`closing.py`),
 whole-message request handling with verbatim error answers (`RpcHandler.handle_request_message` and
-`RpcHandlerError`), and the fdio runtime (`fdios.py`). The fdio runtime's one requirement of `omcore.io.pipelines` was
+`RpcHandlerError`), and the fdio runtime (`fdio.py`). The fdio runtime's one requirement of `omcore.io.pipelines` was
 an optional callback on the fdio driver's readiness methods, taking the outputs an event-emitting pipeline produces
 instead of failing the check that there are none.
 

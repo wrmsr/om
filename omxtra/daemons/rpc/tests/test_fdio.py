@@ -1,7 +1,6 @@
 import os
 import tempfile
 import threading
-import time
 import typing as ta
 
 import pytest
@@ -46,11 +45,8 @@ def test_fdio_rpc_server_real_unix_socket_replay_and_remote_error():
         thread = threading.Thread(target=serve)
         thread.start()
         try:
-            deadline = time.monotonic() + TEST_TIMEOUT_S
-            while not os.path.exists(socket_path):
-                if time.monotonic() >= deadline:
-                    raise TimeoutError('fdio RPC server did not bind')
-                time.sleep(.01)
+            # Started means listening, which the socket path's appearing does not: it appears at the bind.
+            assert server.wait_started(TEST_TIMEOUT_S), 'fdio RPC server did not start'
 
             client = RpcClient(RpcClient.Config(
                 socket_path=socket_path,
@@ -72,6 +68,11 @@ def test_fdio_rpc_server_real_unix_socket_replay_and_remote_error():
                 client.call('fail', 'boom')
             assert exc_info.value.remote_type == 'builtins.RuntimeError'
             assert exc_info.value.message == 'boom'
+        except BaseException:
+            if errors:
+                # A server which died explains whatever the client saw.
+                raise RuntimeError('fdio RPC server failed') from errors[0]
+            raise
         finally:
             runtime.request_shutdown()
             thread.join(TEST_TIMEOUT_S)
