@@ -3,9 +3,9 @@ import typing as ta
 from omcore import inject as inj
 from omcore import lang
 
-from ... import agent as agn
-from ..config import UiConfig
-from ..types import TargetCwd
+from .... import agent as agn
+from ...config import UiConfig
+from ...types import TargetCwd
 
 
 ##

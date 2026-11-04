@@ -16,8 +16,8 @@ from ... import llm
 from ...agent.tests.scripted import text_message
 from ...agent.tests.scripted import tool_call_message
 from ..config import UiConfig
-from ..inject.agent import TOOL_INVOCATION_SCOPE
-from ..inject.tools import agent_tools
+from ..inject.agent.toolinvocation import TOOL_INVOCATION_SCOPE
+from ..inject.agent.tools import agent_tools
 from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
 from .headless import headless_ui

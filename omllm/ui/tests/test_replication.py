@@ -33,7 +33,7 @@ from ...agent.tests.scripted import text_message
 from ...agent.tests.scripted import tool_call_message
 from ...agent.tests.tools import EchoTool
 from ..config import UiConfig
-from ..inject.tools import bind_agent_tool_class
+from ..inject.agent.tools import bind_agent_tool_class
 from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
 from .headless import headless_ui

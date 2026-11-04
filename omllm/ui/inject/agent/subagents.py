@@ -17,20 +17,20 @@ from omcore import check
 from omcore import inject as inj
 from omcore import lang
 
-from ... import agent as agn
-from ...core import processes as procs
-from ..config import UiConfig
-from ..setup import AgentSetup
-from .agent import AgentEventSubscribers
-from .agent import ScopedToolInvoker
-from .agent import ScopedTurnRunner
-from .agent import agent_event_subscribers
+from .... import agent as agn
+from ....core import processes as procs
+from ...config import UiConfig
+from ...setup import AgentSetup
+from .events import AgentEventSubscribers
+from .events import agent_event_subscribers
 from .systemprompt import CwdSystemPromptContributor
 from .systemprompt import system_prompt_contributors_binder
+from .toolinvocation import ScopedToolInvoker
 from .tools import AgentTools
 from .tools import AgentToolSets
 from .tools import bind_agent_tool_class
 from .tools import bind_tool_classes
+from .turns import ScopedTurnRunner
 
 
 ##

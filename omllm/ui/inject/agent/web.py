@@ -1,8 +1,8 @@
 from omcore import inject as inj
 
-from ... import agent as agn
-from ...agent.web.backends.duckduckgo.search import DuckduckgoWebSearcher
-from ..config import UiConfig
+from .... import agent as agn
+from ....agent.web.backends.duckduckgo.search import DuckduckgoWebSearcher
+from ...config import UiConfig
 
 
 ##

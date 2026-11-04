@@ -1,8 +1,8 @@
 from omcore import inject as inj
 
-from ... import agent as agn
-from ..config import UiConfig
-from ..types import TargetCwd
+from .... import agent as agn
+from ...config import UiConfig
+from ...types import TargetCwd
 
 
 ##

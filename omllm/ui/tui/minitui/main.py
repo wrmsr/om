@@ -17,7 +17,7 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from ...commands.manager import CommandsManager
-from ...inject.agent import AgentEventSubscribers
+from ...inject.agent.events import AgentEventSubscribers
 from ...logs import configure_tui_logging
 from ...setup import AgentSetup
 from ...types import TargetCwd

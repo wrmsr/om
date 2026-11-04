@@ -13,7 +13,7 @@ from ...agent.tests.scripted import scripted_backend
 from ...core import ui
 from ..commands.manager import CommandsManager
 from ..config import UiConfig
-from ..inject.agent import AgentEventSubscribers
+from ..inject.agent.events import AgentEventSubscribers
 from ..inject.inject import bind_ui
 from ..setup import AgentSetup
 
