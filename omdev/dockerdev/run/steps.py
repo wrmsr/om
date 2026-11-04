@@ -156,11 +156,28 @@ class GitMountRunStep(RunStep):
         check.state(os.path.isdir(git_path))
         plan.add_options(f'--mount=type=bind,src={git_path},dst=/git,ro')
 
-        if plan.args.clone_mount_git:
+        if cmg := plan.args.clone_mount_git:
             plan.add_autoexec_lines(
                 'git config --global --add safe.directory /git',
-                'git clone -q /git /work/git',
             )
+
+            if cmg == 'persist':
+                check.state(bool(plan.args.mount_persist))
+                # FIXME: blah
+                # plan.add_autoexec_lines(
+                #     'git clone -q --bare --single-branch --branch master --no-tags /git /persist/git',
+                #     'git -C /persist/git worktree add /work/git master',
+                # )
+                plan.add_autoexec_lines(
+                    'git clone -q /git /work/git',
+                    'mv /work/git/.git /persist/git',
+                    'ln -s /persist/git /work/git/.git',
+                )
+
+            else:
+                plan.add_autoexec_lines(
+                    'git clone -q /git /work/git',
+                )
 
 
 class HostPlatformRunStep(RunStep):

@@ -50,7 +50,7 @@ class RunArgs:
     mount_persist: bool | None = None
 
     mount_git: bool | None = None
-    clone_mount_git: bool | None = None
+    clone_mount_git: bool | ta.Literal['persist'] | None = None
 
     privileged: bool | None = None
 

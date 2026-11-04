@@ -21,3 +21,7 @@
 - `docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ubuntu:24.04`
 - build: per-feature config, obv
 - install pnpm
+- persist+git+worktrees, maybe try to dedupe git data
+- cli helpers:
+  - run a dd but mount /persist as /work/persist, full and writeable
+  - exec or bash if only to add -u om but probably do name stuff
