@@ -23,12 +23,21 @@ InitFn: ta.TypeAlias = ta.Callable[[ta.Any], None]
 ClassValidateFn: ta.TypeAlias = ta.Callable[..., bool]
 
 
+@ta.final
 @dc.dataclass(frozen=True)
 class DefaultFactory(ta.Generic[T]):
     fn: ta.Callable[..., T]
     params: ta.Sequence[str] | None = None
 
+    @classmethod
+    def of(cls, fn: ta.Callable[..., T]) -> DefaultFactory[T]:
+        if isinstance(fn, DefaultFactory):
+            return fn
+        else:
+            return cls(fn)
+
     def __post_init__(self) -> None:
+        check.not_isinstance(self.fn, DefaultFactory)
         check.not_isinstance(self.params, str)
         if self.params is not None:
             check.arg(len(self.params) > 0)
@@ -38,7 +47,10 @@ class DefaultFactory(ta.Generic[T]):
 
 
 def default_derive(fn: ta.Callable[..., T]) -> DefaultFactory[T]:
-    return DefaultFactory(fn, get_fn_params(fn) or None)
+    return DefaultFactory(
+        check.not_isinstance(fn, DefaultFactory),
+        get_fn_params(fn) or None,
+    )
 
 
 ##

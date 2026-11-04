@@ -105,7 +105,7 @@ def spec_key(cs: ClassSpec) -> tuple:
             dk = 'missing'
         elif isinstance(dfl := fd.must(), DefaultFactory):  # noqa
             if dfl.params:
-                raise NotImplementedError
+                dk = ('factory', *dfl.params)
             else:
                 dk = 'factory'
         else:

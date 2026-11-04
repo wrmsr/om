@@ -8,6 +8,7 @@ import itertools
 import typing as ta
 
 from .... import check
+from .... import lang
 from ..._internals import STD_POST_INIT_NAME
 from ...inspect import FieldsInspection
 from ...specs import CoerceFn
@@ -117,8 +118,20 @@ class _InitField:
     name: str
     annotation: OpRef[ta.Any]
 
-    default: OpRef[ta.Any] | None
-    default_factory: OpRef[ta.Any] | None
+    @dc.dataclass(frozen=True)
+    class Default(lang.Abstract):
+        pass
+
+    @dc.dataclass(frozen=True)
+    class ValueDefault(Default):
+        ref: OpRef[ta.Any]
+
+    @dc.dataclass(frozen=True)
+    class FactoryDefault(Default):
+        ref: OpRef[ta.Any]
+        params: ta.Sequence[str] | None
+
+    default: Default | None
 
     init: bool
     override: bool
@@ -162,19 +175,19 @@ class InitGenerator(Generator):
         ann_ref: OpRef = ref_gen('init.fields.{i}.annotation', i)
         orm[ann_ref] = ann
 
-        default_ref: OpRef[ta.Any] | None = None
-        default_factory_ref: OpRef[ta.Any] | None = None
+        default: _InitField.Default | None = None
         if f.default.present:
             dfl = f.default.must()
             if isinstance(dfl, DefaultFactory):
                 if dfl.params:
                     raise NotImplementedError
-                else:
-                    default_factory_ref = ref_gen('init.fields.{i}.default_factory', i)
-                    orm[default_factory_ref] = SpecVal(('fields', i, 'default', ValOp.MUST, 'fn'))
+                default_factory_ref = ref_gen('init.fields.{i}.default_factory', i)
+                orm[default_factory_ref] = SpecVal(('fields', i, 'default', ValOp.MUST, 'fn'))
+                default = _InitField.FactoryDefault(default_factory_ref, dfl.params)
             else:
                 default_ref = ref_gen('init.fields.{i}.default', i)
                 orm[default_ref] = SpecVal(('fields', i, 'default', ValOp.MUST))
+                default = _InitField.ValueDefault(default_ref)
 
         coerce: bool | OpRef[CoerceFn] | None = None
         if isinstance(f.coerce, bool):
@@ -198,8 +211,7 @@ class InitGenerator(Generator):
             name=f.name,
             annotation=ann_ref,
 
-            default=default_ref,
-            default_factory=default_factory_ref,
+            default=default,
 
             init=f.init,
 
@@ -290,12 +302,13 @@ class InitGenerator(Generator):
 
             p = f'{pf.name}: {add_ref(pf.annotation, refs).ident()}'
 
-            if pf.default_factory is not None:
-                check.none(pf.default)
-                p += f' = {add_ref(HAS_DEFAULT_FACTORY_GLOBAL, refs).ident}'
-            elif pf.default is not None:
-                check.none(pf.default_factory)
-                p += f' = {add_ref(pf.default, refs).ident()}'
+            if (dfl := pf.default) is not None:
+                if isinstance(dfl, _InitField.FactoryDefault):
+                    p += f' = {add_ref(HAS_DEFAULT_FACTORY_GLOBAL, refs).ident}'
+                elif isinstance(dfl, _InitField.ValueDefault):
+                    p += f' = {add_ref(dfl.ref, refs).ident()}'
+                else:
+                    raise TypeError(dfl)
 
             params.append(p)
 
@@ -320,31 +333,34 @@ class InitGenerator(Generator):
         }
 
         for pf in fields:
-            if pf.default_factory is not None:
-                check.none(pf.default)
-                refs.add(pf.default_factory)
+            dfl = pf.default
+
+            if isinstance(dfl, _InitField.FactoryDefault):
+                if dfl.params:
+                    raise NotImplementedError
+                refs.add(dfl.ref)
                 if pf.init:
                     lines.extend([
                         f'    if {pf.name} is {add_ref(HAS_DEFAULT_FACTORY_GLOBAL, refs).ident}:',
-                        f'        {pf.name} = {pf.default_factory.ident()}()',
+                        f'        {pf.name} = {dfl.ref.ident()}()',
                     ])
                 else:
                     lines.append(
-                        f'    {pf.name} = {pf.default_factory.ident()}()',
+                        f'    {pf.name} = {dfl.ref.ident()}()',
                     )
                 values[pf.name] = pf.name
 
             elif pf.init:
-                if pf.default is not None:
-                    check.none(pf.default_factory)
+                if dfl is not None:
+                    check.isinstance(dfl, _InitField.ValueDefault)
                     values[pf.name] = pf.name
 
                 else:
                     values[pf.name] = pf.name
 
-            elif ctx.cs.slots and pf.default is not None:
+            elif ctx.cs.slots and isinstance(dfl, _InitField.ValueDefault):
                 lines.append(
-                    f'    {pf.name} = {add_ref(pf.default, refs).ident()}',
+                    f'    {pf.name} = {add_ref(dfl.ref, refs).ident()}',
                 )
                 values[pf.name] = pf.name
 

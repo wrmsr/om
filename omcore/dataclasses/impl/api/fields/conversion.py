@@ -37,7 +37,7 @@ def std_to_spec_field_default(
         check.state(default_factory is dc.MISSING)
         return lang.just(default)
     elif default_factory is not dc.MISSING:
-        return lang.just(DefaultFactory(default_factory))
+        return lang.just(DefaultFactory.of(default_factory))
     else:
         return lang.nothing()
 
@@ -59,7 +59,7 @@ def spec_field_default_to_std_defaults(dfl: lang.Maybe[DefaultFactory | ta.Any])
         return StdDefaults(dc.MISSING, dc.MISSING)
     elif isinstance(dfv := dfl.must(), DefaultFactory):
         if dfv.params:
-            raise NotImplementedError
+            return StdDefaults(dc.MISSING, dfv)
         else:
             return StdDefaults(dc.MISSING, dfv.fn)
     else:
