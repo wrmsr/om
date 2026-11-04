@@ -5,7 +5,7 @@ from omcore import lang
 
 from .... import agent as agn
 from ....core.eventbus import EventSubscriber
-from ...config import UiConfig
+from ..config import AgentConfig
 
 
 ##
@@ -33,7 +33,7 @@ def bind_on_agent_event_subscriber(cls: type[HasOnEventAgent]) -> inj.Elements:
 ##
 
 
-def bind_events(config: UiConfig) -> inj.Elements:
+def bind_events(config: AgentConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

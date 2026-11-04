@@ -2,9 +2,14 @@ import os.path
 import uuid
 
 from omcore import check
+from omcore import lang
 from omcore import typedvalues as tv
 
 from .. import llm
+
+
+with lang.auto_proxy_import(globals()):
+    pass
 
 
 ##

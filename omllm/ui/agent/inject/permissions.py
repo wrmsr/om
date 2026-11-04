@@ -1,20 +1,20 @@
 from omcore import inject as inj
 
 from .... import agent as agn
-from ...config import UiConfig
 from ...types import TargetCwd
+from ..config import AgentConfig
 
 
 ##
 
 
-def _provide_permissions_manager(config: UiConfig, cwd: TargetCwd) -> agn.StandardPermissionsManager:
+def _provide_permissions_manager(config: AgentConfig, cwd: TargetCwd) -> agn.StandardPermissionsManager:
     permission_rules: list[agn.PermissionRule] = []
 
     return agn.StandardPermissionsManager(permission_rules)
 
 
-def bind_permissions(config: UiConfig) -> inj.Elements:
+def bind_permissions(config: AgentConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     lst.extend([

@@ -3,13 +3,13 @@ from omcore.asyncs.asynclite import all as asl
 
 from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ....core.asyncs.base import AsyncGroupRunner
-from ...config import UiConfig
+from ..config import AgentConfig
 
 
 ##
 
 
-def bind_runtime(config: UiConfig) -> inj.Elements:
+def bind_runtime(config: AgentConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

@@ -19,7 +19,7 @@ from omcore import lang
 
 from .... import agent as agn
 from ....core import processes as procs
-from ...config import UiConfig
+from ..config import AgentConfig
 from ..setup import AgentSetup
 from .events import AgentEventSubscribers
 from .events import agent_event_subscribers
@@ -117,7 +117,7 @@ def _provide_subagent_tool_set(
 
 
 def bind_subagent_agent(
-        config: UiConfig,
+        config: AgentConfig,
         *,
         run_id: agn.SubagentRunId,
         profile: agn.SubagentProfile,
@@ -188,7 +188,7 @@ class ChildInjectorSubagentRunner(agn.SubagentRunner):
             self,
             *,
             injector: inj.AsyncInjector,
-            config: UiConfig,
+            config: AgentConfig,
     ) -> None:
         super().__init__()
 
@@ -234,7 +234,7 @@ class ChildInjectorSubagentRunner(agn.SubagentRunner):
 ##
 
 
-def _explore_tool_names(config: UiConfig) -> list[str]:
+def _explore_tool_names(config: AgentConfig) -> list[str]:
     """
     The read-only tools among those configured. Decided here, by the names of the tool classes bound for the config,
     which is a weak linkage: the concern owning a tool should be the one to say whether an explorer gets it.
@@ -261,7 +261,7 @@ def _explore_tool_names(config: UiConfig) -> list[str]:
     return names
 
 
-def _provide_subagent_profiles(config: UiConfig) -> agn.SubagentProfiles:
+def _provide_subagent_profiles(config: AgentConfig) -> agn.SubagentProfiles:
     profiles = [agn.GENERAL_SUBAGENT_PROFILE]
 
     # With nothing read-only to give it, there is no explorer to offer.
@@ -271,7 +271,7 @@ def _provide_subagent_profiles(config: UiConfig) -> agn.SubagentProfiles:
     return agn.SubagentProfiles(profiles)
 
 
-def bind_subagents(config: UiConfig) -> inj.Elements:
+def bind_subagents(config: AgentConfig) -> inj.Elements:
     if not config.subagents:
         return inj.as_elements()
 

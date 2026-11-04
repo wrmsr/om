@@ -9,13 +9,13 @@ from omdev.home.paths import get_home_paths
 from .... import agent as agn
 from ....agent.sessions.storage.orm.inject import bind_asyncio_sqlite_orm
 from ....agent.sessions.storage.orm.inject import bind_orm_session_storage
-from ...config import UiConfig
+from ..config import AgentConfig
 
 
 ##
 
 
-def bind_sessions(config: UiConfig) -> inj.Elements:
+def bind_sessions(config: AgentConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

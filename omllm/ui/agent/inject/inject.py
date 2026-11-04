@@ -2,7 +2,7 @@ from omcore import inject as inj
 
 from .... import agent as agn
 from ....core.asyncs.inject import bind_job_runner
-from ...config import UiConfig
+from ..config import AgentConfig
 from ..setup import AgentSetup
 from .context import bind_context
 from .events import bind_events
@@ -20,8 +20,14 @@ from .web import bind_web
 ##
 
 
-def bind_agent(config: UiConfig) -> inj.Elements:
+def bind_agent(config: AgentConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
+
+    #
+
+    lst.append(
+        inj.bind(AgentConfig, to_const=config),
+    )
 
     #
 

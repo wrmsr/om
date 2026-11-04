@@ -29,25 +29,25 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='1bec1e080fc3dba9f3b46177e00a0d604aa74901',
+    installer_sha1='0113067108562cddfb6a65eeb58af5505cd6091f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
-            "e, False, False, False), ((('model', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('effort', True, True, None, True, True, False, None), 'instance', 'value', None,"
-            " False, False, False), (('thinking', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('cwd', True, True, None, True, True, False, None), 'instance', 'value', None, Fa"
-            "lse, False, False), (('container', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('eval', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
-            "se, False, False), (('exec', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('fs', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fals"
-            "e, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
-            "alse), (('subagents', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
-            " False), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fal"
-            "se), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
-            "alse, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
-            "alse, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "e, False, False, False), ((('cwd', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('container', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('eval', True, True, None, True, True, False, None), 'instance', 'value', None, F"
+            "alse, False, False), (('exec', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
+            "e, False, False), (('fs', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
+            " False), (('subagents', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fals"
+            "e, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fals"
+            "e, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value', None, False, False"
+            ", False), (('model', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('effort', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
+            "alse), (('thinking', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('url', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fals"
+            "e), (('backend_model_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
             "lse, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
             "alse, False), (('immediate', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
             " False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
@@ -61,7 +61,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
         ('omllm.ui.tui.config', 'TuiConfig'),
     ),
 )
-def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
+def _process_dataclass__0113067108562cddfb6a65eeb58af5505cd6091f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -118,9 +118,6 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
-                model=self.model,
-                effort=self.effort,
-                thinking=self.thinking,
                 cwd=self.cwd,
                 container=self.container,
                 eval=self.eval,
@@ -128,11 +125,14 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
                 fs=self.fs,
                 web=self.web,
                 subagents=self.subagents,
-                url=self.url,
-                backend_model_id=self.backend_model_id,
                 in_memory=self.in_memory,
                 jsonl=self.jsonl,
                 resume=self.resume,
+                model=self.model,
+                effort=self.effort,
+                thinking=self.thinking,
+                url=self.url,
+                backend_model_id=self.backend_model_id,
                 autoexec=self.autoexec,
                 immediate=self.immediate,
                 yolo=self.yolo,
@@ -148,9 +148,6 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.model == other.model and
-                self.effort == other.effort and
-                self.thinking == other.thinking and
                 self.cwd == other.cwd and
                 self.container == other.container and
                 self.eval == other.eval and
@@ -158,11 +155,14 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
                 self.fs == other.fs and
                 self.web == other.web and
                 self.subagents == other.subagents and
-                self.url == other.url and
-                self.backend_model_id == other.backend_model_id and
                 self.in_memory == other.in_memory and
                 self.jsonl == other.jsonl and
                 self.resume == other.resume and
+                self.model == other.model and
+                self.effort == other.effort and
+                self.thinking == other.thinking and
+                self.url == other.url and
+                self.backend_model_id == other.backend_model_id and
                 self.autoexec == other.autoexec and
                 self.immediate == other.immediate and
                 self.yolo == other.yolo and
@@ -173,9 +173,6 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
-            'model',
-            'effort',
-            'thinking',
             'cwd',
             'container',
             'eval',
@@ -183,11 +180,14 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
             'fs',
             'web',
             'subagents',
-            'url',
-            'backend_model_id',
             'in_memory',
             'jsonl',
             'resume',
+            'model',
+            'effort',
+            'thinking',
+            'url',
+            'backend_model_id',
             'autoexec',
             'immediate',
             'yolo',
@@ -217,9 +217,6 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
 
         def __hash__(self):
             return hash((
-                self.model,
-                self.effort,
-                self.thinking,
                 self.cwd,
                 self.container,
                 self.eval,
@@ -227,11 +224,14 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
                 self.fs,
                 self.web,
                 self.subagents,
-                self.url,
-                self.backend_model_id,
                 self.in_memory,
                 self.jsonl,
                 self.resume,
+                self.model,
+                self.effort,
+                self.thinking,
+                self.url,
+                self.backend_model_id,
                 self.autoexec,
                 self.immediate,
                 self.yolo,
@@ -244,30 +244,27 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
         def __init__(
             self,
             *,
-            model: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
-            effort: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
-            thinking: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
-            cwd: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
-            container: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
-            eval: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
-            exec: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
-            fs: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            web: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            subagents: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            url: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            backend_model_id: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            in_memory: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            jsonl: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            resume: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            cwd: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
+            container: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            eval: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            exec: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            fs: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            web: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            subagents: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            in_memory: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            jsonl: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            resume: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            model: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            effort: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            thinking: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            url: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            backend_model_id: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
             autoexec: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
             immediate: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
             yolo: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
             diet_yolo: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
             verbose: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
         ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'model', model)
-            __dataclass__object_setattr(self, 'effort', effort)
-            __dataclass__object_setattr(self, 'thinking', thinking)
             __dataclass__object_setattr(self, 'cwd', cwd)
             __dataclass__object_setattr(self, 'container', container)
             __dataclass__object_setattr(self, 'eval', eval)
@@ -275,11 +272,14 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
             __dataclass__object_setattr(self, 'fs', fs)
             __dataclass__object_setattr(self, 'web', web)
             __dataclass__object_setattr(self, 'subagents', subagents)
-            __dataclass__object_setattr(self, 'url', url)
-            __dataclass__object_setattr(self, 'backend_model_id', backend_model_id)
             __dataclass__object_setattr(self, 'in_memory', in_memory)
             __dataclass__object_setattr(self, 'jsonl', jsonl)
             __dataclass__object_setattr(self, 'resume', resume)
+            __dataclass__object_setattr(self, 'model', model)
+            __dataclass__object_setattr(self, 'effort', effort)
+            __dataclass__object_setattr(self, 'thinking', thinking)
+            __dataclass__object_setattr(self, 'url', url)
+            __dataclass__object_setattr(self, 'backend_model_id', backend_model_id)
             __dataclass__object_setattr(self, 'autoexec', autoexec)
             __dataclass__object_setattr(self, 'immediate', immediate)
             __dataclass__object_setattr(self, 'yolo', yolo)
@@ -291,9 +291,6 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"model={self.model!r}")
-            parts.append(f"effort={self.effort!r}")
-            parts.append(f"thinking={self.thinking!r}")
             parts.append(f"cwd={self.cwd!r}")
             parts.append(f"container={self.container!r}")
             parts.append(f"eval={self.eval!r}")
@@ -301,11 +298,14 @@ def _process_dataclass__1bec1e080fc3dba9f3b46177e00a0d604aa74901():
             parts.append(f"fs={self.fs!r}")
             parts.append(f"web={self.web!r}")
             parts.append(f"subagents={self.subagents!r}")
-            parts.append(f"url={self.url!r}")
-            parts.append(f"backend_model_id={self.backend_model_id!r}")
             parts.append(f"in_memory={self.in_memory!r}")
             parts.append(f"jsonl={self.jsonl!r}")
             parts.append(f"resume={self.resume!r}")
+            parts.append(f"model={self.model!r}")
+            parts.append(f"effort={self.effort!r}")
+            parts.append(f"thinking={self.thinking!r}")
+            parts.append(f"url={self.url!r}")
+            parts.append(f"backend_model_id={self.backend_model_id!r}")
             parts.append(f"autoexec={self.autoexec!r}")
             parts.append(f"immediate={self.immediate!r}")
             parts.append(f"yolo={self.yolo!r}")
