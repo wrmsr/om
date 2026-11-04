@@ -1,6 +1,7 @@
 from omcore.argparse import all as ap
 from omcore.formats.json import all as json
 
+from .ids import get_home_id
 from .paths import HomePaths
 from .paths import get_home_paths
 
@@ -25,6 +26,10 @@ class Cli(ap.Cli):
                 dkn.lower(): hp.get_dir(dk)
                 for dkn, dk in HomePaths.DirKind.__members__.items()
             }))
+
+    @ap.cmd(name='id')
+    def id_cmd(self) -> None:
+        print(str(get_home_id()))
 
 
 def _main() -> None:
