@@ -86,6 +86,7 @@ cython_debug/
 
 # Misc / Project specific
 .cache/
+.om/
 /.cache/
 /.data/
 /.vector_cache/

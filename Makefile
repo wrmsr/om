@@ -14,6 +14,17 @@ all: fgc test
 fgc: fix gen check
 
 
+### Home
+
+.PHONY: home
+home:
+	if ! [[ -d .om ]] ; then \
+		mkdir .om ; \
+		ln -s ~/.om/config .om/config ; \
+		ln -s ~/.om/shadow .om/shadow ; \
+	fi
+
+
 ### Clean
 
 .PHONY: clean-pycache
