@@ -20,7 +20,7 @@ from omcore import lang
 from .... import agent as agn
 from ....core import processes as procs
 from ...config import UiConfig
-from ...setup import AgentSetup
+from ..setup import AgentSetup
 from .events import AgentEventSubscribers
 from .events import agent_event_subscribers
 from .systemprompt import CwdSystemPromptContributor

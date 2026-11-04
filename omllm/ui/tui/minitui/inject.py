@@ -4,7 +4,7 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from ....core import ui
-from ...inject.agent.events import bind_on_agent_event_subscriber
+from ...agent.inject.events import bind_on_agent_event_subscriber
 from ..config import TuiConfig
 from ..inject.inject import bind_tui
 from .app import AppQuitSignal

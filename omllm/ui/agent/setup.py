@@ -1,10 +1,10 @@
 from omcore import dataclasses as dc
 
-from .. import agent as agn
-from .. import llm
-from ..core import processes as procs
-from .types import InitialLlmOptions
-from .types import TargetCwd
+from ... import agent as agn
+from ... import llm
+from ...core import processes as procs
+from ..types import InitialLlmOptions
+from ..types import TargetCwd
 
 
 ##

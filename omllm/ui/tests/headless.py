@@ -11,11 +11,11 @@ from omcore import inject as inj
 from ... import agent as agn
 from ...agent.tests.scripted import scripted_backend
 from ...core import ui
+from ..agent.inject.events import AgentEventSubscribers
+from ..agent.setup import AgentSetup
 from ..commands.manager import CommandsManager
 from ..config import UiConfig
-from ..inject.agent.events import AgentEventSubscribers
 from ..inject.inject import bind_ui
-from ..setup import AgentSetup
 
 
 ##

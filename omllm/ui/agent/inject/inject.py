@@ -3,7 +3,7 @@ from omcore import inject as inj
 from .... import agent as agn
 from ....core.asyncs.inject import bind_job_runner
 from ...config import UiConfig
-from ...setup import AgentSetup
+from ..setup import AgentSetup
 from .context import bind_context
 from .events import bind_events
 from .permissions import bind_permissions

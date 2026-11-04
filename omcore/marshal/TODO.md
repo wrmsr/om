@@ -26,6 +26,8 @@
 - streaming?
 - non-strict object deser option: either just discard or provide IdentityDict obj -> unknown fields
   - general non-strict option for all type errors? general reflective 'path' concept?
+- strict uuid parsing option
+- timezones lol
 
 - Demand-driven config-module discovery (planned, parked):
   - `msh.ConfigModuleManifest(modules=['.requirements'])` - manifest comment in the non-lite bridge module (e.g.

@@ -6,9 +6,9 @@ from omcore import lang
 
 from .... import agent as agn
 from ....core import ui
-from ...inject.agent.events import AgentEventSubscribers
+from ...agent.inject.events import AgentEventSubscribers
+from ...agent.setup import AgentSetup
 from ...logs import configure_tui_logging
-from ...setup import AgentSetup
 from ...types import TargetCwd
 from ...types import UiId
 from ...yolo import yolo_autoexec
