@@ -8,8 +8,8 @@ import typing as ta
 import unittest
 
 from ...testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
-from ..asyncios import AsyncioRpcConnections
-from ..asyncios import AsyncioRpcRuntime
+from ..asyncio import AsyncioRpcConnections
+from ..asyncio import AsyncioRpcRuntime
 from ..configs import RpcConfig
 from ..connection import RpcConnection
 from ..dispatch import RpcHandler

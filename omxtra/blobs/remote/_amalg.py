@@ -61,7 +61,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'd72be35702f6eb9d0f81fb9cd4ed84364c9b84b1'
+__om_amalg_sha1__ = 'e41698a814e25001c6ae93a59f0186d50615ec1d'
 
 
 def __om_amalg__():  # noqa
@@ -141,9 +141,9 @@ def __om_amalg__():  # noqa
             dict(sha1='7e78b3a83293eb745623f0cc7ea2acaba2ad6b8a', path='../../../omcore/rpc/connection.py'),
             dict(sha1='794c066829347c8c009f0fb41d993684e92bc661', path='../../../omcore/rpc/serde.py'),
             dict(sha1='ca8a8fb82ebe6265b38e35e4e375a483377e7b74', path='../../../omcore/rpc/specs.py'),
-            dict(sha1='0e8774b7d8c16f87f4048c6a830fb7065cadcc57', path='../../../omcore/rpc/syncs.py'),
+            dict(sha1='0e8774b7d8c16f87f4048c6a830fb7065cadcc57', path='../../../omcore/rpc/sync.py'),
             dict(sha1='49dda0725c623d311319debfd10f07a81b853bca', path='server.py'),
-            dict(sha1='bccf1471d706cc5bce17114f29a05ce7114e2084', path='_main.py'),
+            dict(sha1='284273991d95f3a7c545ddbe7949b17176d78333', path='_main.py'),
         ],
     )
 
@@ -17268,7 +17268,7 @@ def rpc_build_pipeline_spec(
 
 
 ########################################
-# ../../../../omcore/rpc/syncs.py
+# ../../../../omcore/rpc/sync.py
 """
 Sync runtimes: the caller's thread is the pump.
 

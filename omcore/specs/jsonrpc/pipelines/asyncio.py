@@ -19,7 +19,7 @@ from ....asyncs.asyncio.streams import asyncio_open_stream_reader
 from ....asyncs.asyncio.streams import asyncio_open_stream_writer
 from ....asyncs.asyncio.timeouts import asyncio_maybe_timeout
 from ....io.pipelines import all as ipl
-from ....rpc.asyncios import AsyncioRpcRuntime
+from ....rpc.asyncio import AsyncioRpcRuntime
 from ..dispatch import AsyncJsonrpcDispatcher
 from ..ids import JsonrpcIdCreatorLike
 from .base import AsyncJsonrpcNotificationHandler

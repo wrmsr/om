@@ -326,7 +326,7 @@ class AsyncioSerializingRpcHandler(RpcHandler):
 ##
 
 
-def _rpc_asyncios_try_set_nodelay(sock: socket.socket) -> None:
+def _rpc_asyncio_try_set_nodelay(sock: socket.socket) -> None:
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     except OSError as e:
@@ -380,7 +380,7 @@ class AsyncioRpcConnections:
 
         try:
             if (sock := writer.get_extra_info('socket')) is not None:
-                _rpc_asyncios_try_set_nodelay(sock)
+                _rpc_asyncio_try_set_nodelay(sock)
 
             return cls.of_streams(reader, writer, config, **kwargs)
 

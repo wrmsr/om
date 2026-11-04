@@ -24,7 +24,7 @@ from ...specs.jsonrpc.pipelines.sync import SyncJsonrpcConnections
 from ...specs.jsonrpc.types import notification
 from ...specs.jsonrpc.types import request
 from ...testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
-from ..asyncios import AsyncioRpcRuntime
+from ..asyncio import AsyncioRpcRuntime
 from ..pure import PureRpcLink
 
 

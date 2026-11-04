@@ -14,9 +14,9 @@ from ..connection import RpcConnection
 from ..dispatch import RpcMethodTableHandler
 from ..dispatch import rpc_async_method
 from ..errors import RpcRemoteError
-from ..fdios import RpcSocketFdioHandler
+from ..fdio import RpcSocketFdioHandler
 from ..specs import rpc_build_pipeline_spec
-from ..syncs import SyncRpcConnections
+from ..sync import SyncRpcConnections
 
 
 ##

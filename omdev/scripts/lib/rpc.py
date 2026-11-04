@@ -53,7 +53,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'c330c74977fe1a11d9dc6705436c6d14629a5e2c'
+__om_amalg_sha1__ = '3d077b58371ca33f0c3f6c2a7447977c10f6bd26'
 
 
 def __om_amalg__():  # noqa
@@ -136,13 +136,13 @@ def __om_amalg__():  # noqa
             dict(sha1='1f23513095e091895162e4c9668cd1194fc2c80e', path='../io/pipelines/drivers/sync/sockets.py'),
             dict(sha1='7b010944f06cf59d6c3ece8ed6472c7888fa6c4d', path='codecs.py'),
             dict(sha1='7e78b3a83293eb745623f0cc7ea2acaba2ad6b8a', path='connection.py'),
-            dict(sha1='bf23f98b0741fe0d6cf90521b8485aad32b5d767', path='fdios.py'),
+            dict(sha1='bf23f98b0741fe0d6cf90521b8485aad32b5d767', path='fdio.py'),
             dict(sha1='794c066829347c8c009f0fb41d993684e92bc661', path='serde.py'),
             dict(sha1='ca8a8fb82ebe6265b38e35e4e375a483377e7b74', path='specs.py'),
-            dict(sha1='dfdaa5be30d56c513daab47239e631d8f74d9922', path='asyncios.py'),
-            dict(sha1='0e8774b7d8c16f87f4048c6a830fb7065cadcc57', path='syncs.py'),
-            dict(sha1='fc6f348a7619fc6a1712ecc632b08d862564bace', path='pure.py'),
-            dict(sha1='39ced7562b14f9f403b748581136da80edf8457c', path='_amalg.py'),
+            dict(sha1='3558e03f33fcb35f5afc06f23103bec306cef809', path='asyncio.py'),
+            dict(sha1='0e8774b7d8c16f87f4048c6a830fb7065cadcc57', path='sync.py'),
+            dict(sha1='9a972240574b7749f5b56e5e7635128c810cda82', path='pure.py'),
+            dict(sha1='c5fd4d09081be1107cc885f6274cf78d2240a117', path='_amalg.py'),
         ],
     )
 
@@ -19137,7 +19137,7 @@ class SyncRpcConnection(BaseSyncRpcConnection):
 
 
 ########################################
-# ../fdios.py
+# ../fdio.py
 """
 The fdio runtime: a connection hosted in an fdio manager's callbacks, beside any number of others, on one thread.
 
@@ -19636,7 +19636,7 @@ def rpc_build_pipeline_spec(
 
 
 ########################################
-# ../asyncios.py
+# ../asyncio.py
 """
 The asyncio runtime: one pump task steps the driver and delivers events; every handler runs as a tracked task.
 
@@ -19940,7 +19940,7 @@ class AsyncioSerializingRpcHandler(RpcHandler):
 ##
 
 
-def _rpc_asyncios_try_set_nodelay(sock: socket.socket) -> None:
+def _rpc_asyncio_try_set_nodelay(sock: socket.socket) -> None:
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     except OSError as e:
@@ -19994,7 +19994,7 @@ class AsyncioRpcConnections:
 
         try:
             if (sock := writer.get_extra_info('socket')) is not None:
-                _rpc_asyncios_try_set_nodelay(sock)
+                _rpc_asyncio_try_set_nodelay(sock)
 
             return cls.of_streams(reader, writer, config, **kwargs)
 
@@ -20056,7 +20056,7 @@ class AsyncioRpcConnections:
 
 
 ########################################
-# ../syncs.py
+# ../sync.py
 """
 Sync runtimes: the caller's thread is the pump.
 

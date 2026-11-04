@@ -20,7 +20,7 @@ from .configs import RpcConfig
 from .connection import RpcConnection
 from .connection import SyncRpcConnection
 from .specs import rpc_build_pipeline_spec
-from .syncs import BaseSyncRpcRuntime
+from .sync import BaseSyncRpcRuntime
 
 
 ##

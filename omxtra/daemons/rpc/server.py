@@ -13,7 +13,7 @@ from omcore.io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from omcore.logs import all as logs
 from omcore.rpc.connection import RpcConnection
 from omcore.rpc.connection import SyncRpcConnection
-from omcore.rpc.syncs import SyncRpcRuntime
+from omcore.rpc.sync import SyncRpcRuntime
 from omcore.sockets.endpoints import SocketEndpoint as RpcEndpoint
 from omcore.sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
 from omcore.sockets.io import close_socket_immediately

@@ -9,7 +9,7 @@ import typing as ta
 
 from omcore.os.pyremote.core import pyremote_bootstrap_finalize
 from omcore.rpc.dispatch import RpcMethodTableHandler
-from omcore.rpc.syncs import SyncRpcConnections
+from omcore.rpc.sync import SyncRpcConnections
 
 from ..local.stores import LocalBlobStore
 from ..stores import BlobStore

@@ -18,7 +18,7 @@ from .... import check
 from .... import lang
 from ....io.pipelines import all as ipl
 from ....rpc.connection import BaseSyncRpcConnection
-from ....rpc.syncs import SyncRpcRuntime
+from ....rpc.sync import SyncRpcRuntime
 from ..conns import JsonrpcConnection
 from ..dispatch import AsyncJsonrpcDispatcher
 from ..dispatch import JsonrpcDispatcher

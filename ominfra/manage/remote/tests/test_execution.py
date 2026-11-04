@@ -6,7 +6,7 @@ import typing as ta
 import unittest
 
 from omcore.lite.marshal import ObjMarshalerManager
-from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.asyncio import AsyncioRpcConnections
 from omcore.rpc.connection import RpcConnection
 from omcore.rpc.dispatch import RpcMethodTableHandler
 

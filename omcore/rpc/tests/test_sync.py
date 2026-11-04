@@ -17,7 +17,7 @@ from ..dispatch import rpc_async_method
 from ..errors import RpcConnectionClosedError
 from ..errors import RpcRemoteError
 from ..errors import RpcTimeoutError
-from ..syncs import SyncRpcConnections
+from ..sync import SyncRpcConnections
 
 
 ##

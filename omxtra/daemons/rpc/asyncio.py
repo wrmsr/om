@@ -9,7 +9,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from omcore.logs import all as logs
-from omcore.rpc.asyncios import AsyncioRpcRuntime
+from omcore.rpc.asyncio import AsyncioRpcRuntime
 from omcore.rpc.connection import RpcConnection
 from omcore.sockets.endpoints import SocketEndpoint as RpcEndpoint
 from omcore.sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint

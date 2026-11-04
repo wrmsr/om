@@ -7,7 +7,7 @@ import typing as ta
 
 import pytest
 
-from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.asyncio import AsyncioRpcConnections
 from omcore.rpc.dispatch import RpcMethodTableHandler
 from omcore.rpc.errors import RpcRemoteError
 

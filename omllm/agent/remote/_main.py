@@ -7,7 +7,7 @@ import typing as ta
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_reader
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_writer
 from omcore.os.pyremote.core import pyremote_bootstrap_finalize
-from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.asyncio import AsyncioRpcConnections
 
 from .server import RemoteAgentRpcHandler
 

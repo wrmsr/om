@@ -7,7 +7,7 @@ from omcore import typedvalues as tv
 from omcore.os.pyremote.bestpython import get_best_python_sh
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
-from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.asyncio import AsyncioRpcConnections
 from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
 from .client import RemoteAgentClient

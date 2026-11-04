@@ -10,7 +10,7 @@ from omcore.io.fdio import all as fdio
 from omcore.lite.asyncs import sync_await
 from omcore.logs import all as logs
 from omcore.rpc.connection import RpcConnection
-from omcore.rpc.fdios import RpcSocketFdioHandler
+from omcore.rpc.fdio import RpcSocketFdioHandler
 from omcore.sockets.addresses import SocketAddress
 from omcore.sockets.endpoints import SocketEndpoint as RpcEndpoint
 from omcore.sockets.transports.sync import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT

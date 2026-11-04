@@ -19,7 +19,7 @@ from omcore.lite.pycharm import pycharm_debug_connect
 from omcore.logs.modules import get_module_logger
 from omcore.os.deathsig import set_process_deathsig
 from omcore.os.pyremote.core import pyremote_bootstrap_finalize
-from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.asyncio import AsyncioRpcConnections
 from omcore.rpc.connection import RpcConnection
 from omcore.rpc.dispatch import RpcMethodTableHandler
 

@@ -7,9 +7,9 @@ import textwrap
 import typing as ta
 
 from ...testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
-from ..asyncios import AsyncioRpcConnections
-from ..asyncios import AsyncioRpcRuntime
-from ..asyncios import AsyncioSerializingRpcHandler
+from ..asyncio import AsyncioRpcConnections
+from ..asyncio import AsyncioRpcRuntime
+from ..asyncio import AsyncioSerializingRpcHandler
 from ..configs import RpcConfig
 from ..connection import RpcConnection
 from ..dispatch import RpcHandler

@@ -75,7 +75,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '789ffb0611a9942754f383a584bc4f6c3e25d408'
+__om_amalg_sha1__ = '15314e1e9c9829f1416ae63163183d7139801498'
 
 
 def __om_amalg__():  # noqa
@@ -243,13 +243,13 @@ def __om_amalg__():  # noqa
             dict(sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23', path='../../omdev/interp/uv/inject.py'),
             dict(sha1='e66138947a41e8a49576885cf4b1390315d44f88', path='bootstrap.py'),
             dict(sha1='0e7370ec9926baca33e62183a10d4e1ad476a6a1', path='system/inject.py'),
-            dict(sha1='dfdaa5be30d56c513daab47239e631d8f74d9922', path='../../omcore/rpc/asyncios.py'),
+            dict(sha1='3558e03f33fcb35f5afc06f23103bec306cef809', path='../../omcore/rpc/asyncio.py'),
             dict(sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b', path='../../omdev/interp/pyenv/inject.py'),
             dict(sha1='134aa80d7038487d24c10f4803705b06ba635d07', path='remote/execution.py'),
             dict(sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143', path='../../omdev/interp/inject.py'),
-            dict(sha1='eedeb62eed39f7a252e497c43a481857f190e7d7', path='remote/_main.py'),
+            dict(sha1='0ef58104802f1bdd7a7483fca5b4c4fa8541e627', path='remote/_main.py'),
             dict(sha1='7ea7b7d7aa191aedd4716f3616ca0d07a4a3d875', path='../../omdev/interp/default.py'),
-            dict(sha1='470dd6fd50ce0f9fecb753822bab0ce3073bb475', path='remote/connection.py'),
+            dict(sha1='7b7e40e0761c5dd41533473f0dbf7bfb612d19e3', path='remote/connection.py'),
             dict(sha1='adcbd777b4df0d566a90f8f679b1f9b1be3e8c5c', path='deploy/interp.py'),
             dict(sha1='42d8cc298fe2eb407c6f8ed18b256d0cf98f8b7d', path='deploy/venvs.py'),
             dict(sha1='648d3c5306e0aa037b763661c24089dbafbadbd5', path='remote/inject.py'),
@@ -29788,7 +29788,7 @@ def bind_system(
 
 
 ########################################
-# ../../../omcore/rpc/asyncios.py
+# ../../../omcore/rpc/asyncio.py
 """
 The asyncio runtime: one pump task steps the driver and delivers events; every handler runs as a tracked task.
 
@@ -30092,7 +30092,7 @@ class AsyncioSerializingRpcHandler(RpcHandler):
 ##
 
 
-def _rpc_asyncios_try_set_nodelay(sock: socket.socket) -> None:
+def _rpc_asyncio_try_set_nodelay(sock: socket.socket) -> None:
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     except OSError as e:
@@ -30146,7 +30146,7 @@ class AsyncioRpcConnections:
 
         try:
             if (sock := writer.get_extra_info('socket')) is not None:
-                _rpc_asyncios_try_set_nodelay(sock)
+                _rpc_asyncio_try_set_nodelay(sock)
 
             return cls.of_streams(reader, writer, config, **kwargs)
 

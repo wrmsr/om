@@ -9,7 +9,7 @@ from omcore.lite.marshal import ObjMarshalerManager
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import PyremoteBootstrapOptions
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
-from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.asyncio import AsyncioRpcConnections
 from omcore.rpc.connection import RpcConnection
 from omcore.rpc.dispatch import RpcMethodTableHandler
 

@@ -61,7 +61,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '57c83dabf16404eede33e8356bbde3a045d4d1a6'
+__om_amalg_sha1__ = 'e0a6ff8099815c4bf65bded381be67694eeeb7d1'
 
 
 def __om_amalg__():  # noqa
@@ -145,9 +145,9 @@ def __om_amalg__():  # noqa
             dict(sha1='1c922f568c67fa82941c8833abb728f378e9ca4d', path='../fs/remote/server.py'),
             dict(sha1='ca8a8fb82ebe6265b38e35e4e375a483377e7b74', path='../../../omcore/rpc/specs.py'),
             dict(sha1='0da45b7302e2ee2edee527bdf20f272e2c53c479', path='../../core/processes/remote/server.py'),
-            dict(sha1='dfdaa5be30d56c513daab47239e631d8f74d9922', path='../../../omcore/rpc/asyncios.py'),
+            dict(sha1='3558e03f33fcb35f5afc06f23103bec306cef809', path='../../../omcore/rpc/asyncio.py'),
             dict(sha1='ccc3bb82c2470ca130bc10c14f29fd884d54c6a1', path='server.py'),
-            dict(sha1='9f04d16941e2525575927105f198691f269a1a1a', path='_main.py'),
+            dict(sha1='8bad618c4bae0d2120cd99b80e8fd82967ff086b', path='_main.py'),
         ],
     )
 
@@ -19395,7 +19395,7 @@ class RemoteProcessService:
 
 
 ########################################
-# ../../../../omcore/rpc/asyncios.py
+# ../../../../omcore/rpc/asyncio.py
 """
 The asyncio runtime: one pump task steps the driver and delivers events; every handler runs as a tracked task.
 
@@ -19699,7 +19699,7 @@ class AsyncioSerializingRpcHandler(RpcHandler):
 ##
 
 
-def _rpc_asyncios_try_set_nodelay(sock: socket.socket) -> None:
+def _rpc_asyncio_try_set_nodelay(sock: socket.socket) -> None:
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     except OSError as e:
@@ -19753,7 +19753,7 @@ class AsyncioRpcConnections:
 
         try:
             if (sock := writer.get_extra_info('socket')) is not None:
-                _rpc_asyncios_try_set_nodelay(sock)
+                _rpc_asyncio_try_set_nodelay(sock)
 
             return cls.of_streams(reader, writer, config, **kwargs)
 

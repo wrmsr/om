@@ -9,7 +9,7 @@ import sys
 import threading
 import typing as ta
 
-from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.asyncio import AsyncioRpcConnections
 
 from ...local.stores import LocalBlobStore
 from ...tests.runners import ScenarioRunner

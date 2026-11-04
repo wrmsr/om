@@ -8,7 +8,7 @@ with _lang.auto_proxy_init(
 ):
     ##
 
-    from .asyncios import (  # noqa
+    from .asyncio import (  # noqa
         AsyncioRpcRuntime as AsyncioRuntime,
         AsyncioSerializingRpcHandler as AsyncioSerializingHandler,
         AsyncioRpcConnections as AsyncioConnections,
@@ -80,7 +80,7 @@ with _lang.auto_proxy_init(
         rpc_remote_error_for_data as remote_error_for_data,
     )
 
-    from .fdios import (  # noqa
+    from .fdio import (  # noqa
         RpcFdioPromise as FdioPromise,
         FdioRpcRuntime as FdioRuntime,
         RpcSocketFdioHandler as SocketFdioHandler,
@@ -173,7 +173,7 @@ with _lang.auto_proxy_init(
         rpc_build_pipeline_spec as build_pipeline_spec,
     )
 
-    from .syncs import (  # noqa
+    from .sync import (  # noqa
         RpcSyncPromise as SyncPromise,
 
         BaseSyncRpcRuntime as BaseSyncRuntime,
