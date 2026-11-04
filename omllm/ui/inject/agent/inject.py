@@ -2,6 +2,7 @@ from omcore import inject as inj
 
 from ....core.asyncs.inject import bind_job_runner
 from ...config import UiConfig
+from .context import bind_context
 from .core import bind_core
 from .events import bind_events
 from .permissions import bind_permissions
@@ -22,6 +23,7 @@ def bind_agent(config: UiConfig) -> inj.Elements:
         bind_core(config),
         bind_events(config),
         bind_permissions(config),
+        bind_context(config),
         bind_tool_invocation(config),
         bind_turns(config),
         bind_sessions(config),
