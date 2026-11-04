@@ -1,8 +1,10 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import os
 import typing as ta
 import uuid
 
-from omcore import check
+from omcore.lite.check import check
 
 from ..stores import BlobWriter
 from ..types import BlobVersion
@@ -11,14 +13,14 @@ from ..types import BlobVersion
 ##
 
 
-class LocalTmpFile:
+class LocalBlobTmpFile:
     """An in-flight write: a uniquely named file in the store's tmp directory, kept open until commit or discard."""
 
     def __init__(self, tmp_dir: str) -> None:
         super().__init__()
 
-        self._path = os.path.join(tmp_dir, f'{uuid.uuid7().hex}.tmp')
-        self._fd: int | None = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_CLOEXEC, 0o644)
+        self._path = os.path.join(tmp_dir, f'{uuid.uuid4().hex}.tmp')
+        self._fd: ta.Optional[int] = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_CLOEXEC, 0o644)
         self._size = 0
 
     @property
@@ -54,7 +56,7 @@ class LocalTmpFile:
 
 
 class LocalBlobWriter(BlobWriter):
-    def __init__(self, tmp: LocalTmpFile, commit: ta.Callable[[LocalTmpFile], BlobVersion]) -> None:
+    def __init__(self, tmp: LocalBlobTmpFile, commit: ta.Callable[[LocalBlobTmpFile], BlobVersion]) -> None:
         super().__init__()
 
         self._tmp = tmp

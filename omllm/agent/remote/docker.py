@@ -7,9 +7,9 @@ from omcore import typedvalues as tv
 from omcore.os.pyremote.bestpython import get_best_python_sh
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
+from omcore.rpc.asyncios import AsyncioRpcConnections
 from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
-from ...core.rpc.channels import AsyncioStreamRpcChannel
 from .client import RemoteAgentClient
 from .payload import RemoteAgentPayloadFile
 from .payload import get_remote_agent_payload_src
@@ -183,7 +183,7 @@ class DockerRemoteAgentConnection:
                 self._config.startup_timeout_s,
             )
 
-            client = RemoteAgentClient(AsyncioStreamRpcChannel(stdout, stdin))
+            client = RemoteAgentClient(AsyncioRpcConnections.of_streams(stdout, stdin))
             self._client = client
             await client.start()
 

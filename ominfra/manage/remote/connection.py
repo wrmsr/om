@@ -1,25 +1,39 @@
 # ruff: noqa: UP006 UP007 UP043 UP045
 import asyncio
 import contextlib
+import socket
 import typing as ta
 
-from omcore.asyncs.asyncio.channels import asyncio_create_bytes_channel
 from omcore.lite.cached import cached_nullary
-from omcore.lite.contextmanagers import aclosing
 from omcore.lite.marshal import ObjMarshalerManager
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import PyremoteBootstrapOptions
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
+from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.dispatch import RpcMethodTableHandler
 
 from ..bootstrap import MainBootstrap
 from ..commands.local import LocalCommandExecutor
 from ._main import _remote_execution_main  # noqa
-from .channel import RemoteChannelImpl
 from .execution import RemoteCommandExecutor
 from .execution import _RemoteCommandHandler
 from .payload import RemoteExecutionPayloadFile
 from .payload import get_remote_payload_src
+from .protocol import REMOTE_EXECUTION_BOOTSTRAP_METHOD
+from .protocol import REMOTE_EXECUTION_LOG_METHOD
 from .spawning import RemoteSpawning
+
+
+##
+
+
+def _remote_execution_host_handler() -> RpcMethodTableHandler:
+    """The host only ever receives the remote's forwarded log records, applied inline in the order sent."""
+
+    return RpcMethodTableHandler(inline_notifications={
+        REMOTE_EXECUTION_LOG_METHOD: RemoteCommandExecutor.handle_log_notification,
+    })
 
 
 ##
@@ -82,19 +96,19 @@ class PyremoteRemoteExecutionConnector:
                 proc.stdin,
             )
 
-            chan = RemoteChannelImpl(
+            connection = AsyncioRpcConnections.of_streams(
                 proc.stdout,
                 proc.stdin,
-                msh=self._msh,
+                handler=_remote_execution_host_handler(),
             )
 
-            await chan.send_obj(bs)
+            async with connection:
+                await connection.request(
+                    REMOTE_EXECUTION_BOOTSTRAP_METHOD,
+                    self._msh.marshal_obj(bs, MainBootstrap),
+                )
 
-            rce: RemoteCommandExecutor
-            async with aclosing(RemoteCommandExecutor(chan)) as rce:
-                await rce.start()
-
-                yield rce
+                yield RemoteCommandExecutor(connection, self._msh)
 
 
 ##
@@ -114,24 +128,25 @@ class InProcessRemoteExecutionConnector:
 
     @contextlib.asynccontextmanager
     async def connect(self) -> ta.AsyncGenerator[RemoteCommandExecutor, None]:
-        r0, w0 = asyncio_create_bytes_channel()
-        r1, w1 = asyncio_create_bytes_channel()
+        """Both ends in this process, over a socketpair: the whole protocol, short of spawning anything."""
 
-        remote_chan = RemoteChannelImpl(r0, w1, msh=self._msh)
-        local_chan = RemoteChannelImpl(r1, w0, msh=self._msh)
+        local_sock, remote_sock = socket.socketpair()
+        local_reader, local_writer = await asyncio.open_connection(sock=local_sock)
+        remote_reader, remote_writer = await asyncio.open_connection(sock=remote_sock)
 
-        rch = _RemoteCommandHandler(
-            remote_chan,
-            self._local_executor,
+        remote: RpcConnection = AsyncioRpcConnections.of_streams(
+            remote_reader,
+            remote_writer,
+            handler=RpcMethodTableHandler(_RemoteCommandHandler(
+                self._local_executor,
+                self._msh,
+            ).method_table()),
         )
-        rch_task = asyncio.create_task(rch.run())  # noqa
-        try:
-            rce: RemoteCommandExecutor
-            async with aclosing(RemoteCommandExecutor(local_chan)) as rce:
-                await rce.start()
+        local: RpcConnection = AsyncioRpcConnections.of_streams(
+            local_reader,
+            local_writer,
+            handler=_remote_execution_host_handler(),
+        )
 
-                yield rce
-
-        finally:
-            rch.stop()
-            await rch_task
+        async with remote, local:
+            yield RemoteCommandExecutor(local, self._msh)

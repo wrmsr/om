@@ -186,7 +186,7 @@ def test_cross_thread_use_refused():
             t.join()
             return value * 2
 
-        conn._dispatcher = DictJsonrpcDispatcher({'double': double})  # noqa
+        conn.set_dispatcher(DictJsonrpcDispatcher({'double': double}))
         assert conn.request('callback', {'value': 1}) == 2
         assert len(errors) == 1
         assert isinstance(errors[0], RuntimeError)
@@ -202,3 +202,22 @@ def test_close_with_unread_peer_is_bounded():
     # Clean close of an idle connection completes without waiting on the peer.
     assert conn.is_closed
     sb.close()
+
+
+def test_notification_handler():
+    sa, sb = socket.socketpair()
+    got: list[tuple[str, object, bool]] = []
+
+    def on_note(conn: SyncJsonrpcConnection, note) -> None:
+        got.append((note.method, note.params, isinstance(conn, SyncJsonrpcConnection)))
+
+    server = _Peer(sb, notification_handler=on_note, dispatcher=_sync_dispatcher())
+    server.start()
+
+    with SyncJsonrpcConnections.of_socket(sa) as conn:
+        conn.notify('hello', {'x': 1})
+        # A round trip after it: the notification was handled inline, in order, before the response went out.
+        assert conn.request('add', [1, 1]) == 2
+
+    server.join(5.)
+    assert got == [('hello', {'x': 1}, True)]

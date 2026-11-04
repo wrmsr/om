@@ -2,8 +2,8 @@
 # @om-lite
 """
 The target side of remote process management: `RemoteProcessService` spawns, streams, signals, and reaps children on
-behalf of a host's `RemoteProcessManager`, over the rpc peer it is given. Lite: this runs inside the remote agent
-amalgam under Python 3.8+, and imports nothing but the standard library, `omcore.lite`, and the rpc package.
+behalf of a host's `RemoteProcessManager`, over the rpc connection it is given. Lite: this runs inside the remote agent
+amalgam under Python 3.8+, and imports nothing but the standard library, `omcore.lite`, and `omcore.rpc`.
 
 Children run in owned process groups and keep an unreaped leader until `close` deliberately reaps them, so their pid
 and pgid stay ours to signal. Exits are observed by one SIGCHLD handler probing every unexited child with a
@@ -29,9 +29,9 @@ from omcore.lite.check import check
 from omcore.lite.marshal import marshal_obj
 from omcore.lite.marshal import unmarshal_obj
 from omcore.lite.resources import read_package_resource_text
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.dispatch import RpcMethodFn
 
-from ...rpc.handlers import RpcMethod
-from ...rpc.peers import RpcPeer
 from .protocol import REMOTE_PROCESS_CLOSE_METHOD
 from .protocol import REMOTE_PROCESS_EXITED_METHOD
 from .protocol import REMOTE_PROCESS_OUTPUT_END_METHOD
@@ -639,7 +639,7 @@ class RemoteProcessService:
     def __init__(self) -> None:
         super().__init__()
 
-        self._peer: ta.Optional[RpcPeer] = None
+        self._connection: ta.Optional[RpcConnection] = None
         self._processes: ta.Dict[str, _RemoteServerProcess] = {}
         self._next_id = 1
         self._closed = False
@@ -651,21 +651,21 @@ class RemoteProcessService:
         self._events: ta.Deque[ta.Tuple[str, ta.Any]] = collections.deque()
         self._event_task: ta.Optional[asyncio.Task] = None
 
-    def set_peer(self, peer: RpcPeer) -> None:
-        if self._peer is not None:
-            raise RuntimeError('peer already set')
-        self._peer = peer
+    def set_connection(self, connection: RpcConnection) -> None:
+        if self._connection is not None:
+            raise RuntimeError('connection already set')
+        self._connection = connection
 
     async def notify(self, method: str, params: ta.Any) -> None:
-        if self._peer is None or self._peer.closed:
+        if (connection := self._connection) is None or connection.is_closed:
             return
         try:
             # Fire-and-forget on an ordered stream that the host applies inline, in its receive loop: wire order is
             # delivery order. Awaiting the write is what makes process.close's reply - sent after it - an ordering
             # barrier: by the time the host sees that reply, every preceding output chunk is in its spool.
-            await self._peer.notify(method, params)
+            await connection.notify(method, params)
         except Exception:  # noqa
-            # The peer owns the connection failure. Keep draining child pipes until server teardown reaches us.
+            # The connection owns its failure. Keep draining child pipes until server teardown reaches us.
             pass
 
     def queue_event(self, method: str, params: ta.Any) -> None:
@@ -866,7 +866,7 @@ class RemoteProcessService:
         p: RemoteProcessResizeParams = unmarshal_obj(params, RemoteProcessResizeParams)
         await self._lookup(p.id).resize(p.rows, p.cols)
 
-    def methods(self) -> ta.Mapping[str, RpcMethod]:
+    def methods(self) -> ta.Mapping[str, RpcMethodFn]:
         return {
             REMOTE_PROCESS_SPAWN_METHOD: self.spawn,
             REMOTE_PROCESS_SIGNAL_METHOD: self.signal,

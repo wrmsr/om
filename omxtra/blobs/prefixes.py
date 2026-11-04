@@ -9,13 +9,13 @@ from .asyncs import AsyncBlobWriter
 from .caps import BlobCapability
 from .keys import check_blob_key
 from .types import Blob
+from .types import BlobIfMatch
 from .types import BlobInfo
 from .types import BlobPrefix
 from .types import BlobRange
 from .types import BlobReadPrecondition
 from .types import BlobVersion
 from .types import BlobWritePrecondition
-from .types import IfMatch
 
 
 ##
@@ -107,7 +107,7 @@ class PrefixedBlobStore(AsyncBlobStore):
     async def copy(self, src: str, dst: str, *, cond: BlobWritePrecondition | None = None) -> BlobVersion:
         return await self._store.copy(self._k(src), self._k(dst), cond=cond)
 
-    async def delete(self, key: str, *, cond: IfMatch | None = None) -> None:
+    async def delete(self, key: str, *, cond: BlobIfMatch | None = None) -> None:
         await self._store.delete(self._k(key), cond=cond)
 
     async def delete_many(self, keys: ta.Iterable[str]) -> None:

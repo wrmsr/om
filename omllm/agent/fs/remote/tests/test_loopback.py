@@ -1,15 +1,16 @@
-"""The remote filesystem's two halves speaking to each other in process, over memory streams."""
+"""The remote filesystem's two halves speaking to each other in process, over a socketpair."""
+import asyncio
 import contextlib
 import os
+import socket
 import typing as ta
 
 import pytest
 
-from .....core.rpc.channels import AsyncioStreamRpcChannel
-from .....core.rpc.errors import RpcRemoteError
-from .....core.rpc.handlers import RpcMethodHandler
-from .....core.rpc.peers import RpcPeer
-from .....core.rpc.tests.support import memory_rpc_stream_pair
+from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.dispatch import RpcMethodTableHandler
+from omcore.rpc.errors import RpcRemoteError
+
 from ...common import FsFileChangedError
 from ...common import fs_file_digest
 from ..client import DEFAULT_REMOTE_FS_CHUNK_BYTES
@@ -29,21 +30,24 @@ async def _loopback_fs(
     if service is None:
         service = RemoteFsService()
 
-    (client_reader, client_writer), (server_reader, server_writer) = memory_rpc_stream_pair()
+    client_sock, server_sock = socket.socketpair()
+    client_reader, client_writer = await asyncio.open_connection(sock=client_sock)
+    server_reader, server_writer = await asyncio.open_connection(sock=server_sock)
 
-    server = RpcPeer(
-        AsyncioStreamRpcChannel(server_reader, server_writer),
-        handler=RpcMethodHandler(service.methods()),
+    server = AsyncioRpcConnections.of_streams(
+        server_reader,
+        server_writer,
+        handler=RpcMethodTableHandler(service.methods()),
     )
-    client = RpcPeer(AsyncioStreamRpcChannel(client_reader, client_writer))
+    client = AsyncioRpcConnections.of_streams(client_reader, client_writer)
 
     await server.start()
     await client.start()
     try:
         yield RemoteFsOps(client, chunk_bytes=chunk_bytes), service
     finally:
-        await client.aclose()
-        await server.aclose()
+        await client.close()
+        await server.close()
         await service.aclose()
 
 

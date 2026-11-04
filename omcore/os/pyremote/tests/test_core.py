@@ -115,6 +115,45 @@ class TestPyremote(unittest.TestCase):
         self.assertEqual(stdout.read(), b'(0.0, 0.0)')
         self.assertEqual(proc.wait(), 0)
 
+    def test_module_registered_before_finalize(self) -> None:
+        # Module-level payload code runs before finalization, and some of it needs its module in sys.modules already:
+        # on Python 3.8 a dataclass with a string-annotated field looks its module up there while it is being created.
+        with open(os.path.join(os.path.dirname(__file__), '..', 'core.py')) as f:
+            pyr_src = f.read()
+
+        payload_src = '\n'.join([
+            pyr_src,
+            'import dataclasses as _test_dc',
+            'registered = sys.modules.get(__name__) is sys.modules["__main__"]',
+            '@_test_dc.dataclass(frozen=True)',
+            'class _TestPayloadThing:',
+            '    other: "_TestPayloadThing"',
+            'rt = pyremote_bootstrap_finalize()',
+            'rt.output.write(repr((__name__, registered)).encode())',
+        ])
+
+        proc = subprocess.Popen(
+            subprocess_maybe_shell_wrap_exec(
+                sys.executable,
+                '-c',
+                core.pyremote_build_bootstrap_source('test'),
+            ),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
+
+        stdin = check.not_none(proc.stdin)
+        stdout = check.not_none(proc.stdout)
+
+        core.PyremoteBootstrapDriver(payload_src, core.PyremoteBootstrapOptions()).run(stdout, stdin)
+        try:
+            stdin.close()
+        except BrokenPipeError:
+            pass
+
+        self.assertEqual(stdout.read(), repr((core.PyremoteBootstrapOptions.DEFAULT_MAIN_NAME_OVERRIDE, True)).encode())
+        self.assertEqual(proc.wait(), 0)
+
     def test_alarm_cancelled(self) -> None:
         self._run_alarm_test(core.PyremoteBootstrapOptions())
 

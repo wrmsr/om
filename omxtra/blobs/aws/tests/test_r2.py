@@ -36,8 +36,8 @@ def test_copy_uses_cf_destination_headers():
     c = CannedAsyncHttpClient(ok, ok)
     rec = RecordingAsyncHttpClient(c)
     st = _r2_store(rec)
-    lang.sync_await(st.copy('a', 'b', cond=blobs.IfAbsent()))
-    lang.sync_await(st.copy('a', 'b', cond=blobs.IfMatch(blobs.BlobVersion('"v"'))))
+    lang.sync_await(st.copy('a', 'b', cond=blobs.BlobIfAbsent()))
+    lang.sync_await(st.copy('a', 'b', cond=blobs.BlobIfMatch(blobs.BlobVersion('"v"'))))
     r1, r2 = rec.requests()
     assert r1.header('cf-copy-destination-if-none-match') == '*'
     assert r1.header('if-none-match') is None
@@ -53,7 +53,7 @@ def test_copy_uses_cf_destination_headers():
 def test_r2_rejects_unverified_delete_condition():
     st = _r2_store(CannedAsyncHttpClient())
     with pytest.raises(blobs.UnsupportedBlobOperationError):
-        lang.sync_await(st.delete('k', cond=blobs.IfMatch(blobs.BlobVersion('"v"'))))
+        lang.sync_await(st.delete('k', cond=blobs.BlobIfMatch(blobs.BlobVersion('"v"'))))
 
 
 @pytest.mark.integration

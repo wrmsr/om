@@ -7,23 +7,22 @@ import uuid
 from omcore import check
 from omcore import lang
 from omcore.io.fdio import all as fdio
-from omcore.io.pipelines import all as ipl
+from omcore.lite.asyncs import sync_await
 from omcore.logs import all as logs
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.fdios import RpcSocketFdioHandler
 from omcore.sockets.addresses import SocketAddress
 from omcore.sockets.endpoints import SocketEndpoint as RpcEndpoint
 from omcore.sockets.transports.sync import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
 from omcore.sockets.transports.sync import SyncSocketListener as SyncRpcListener
 from omcore.sockets.transports.sync import SyncSocketTransport as SyncRpcTransport
 
+from .connections import RpcServerHandler
 from .dispatch import RpcRequestDispatcher
-from .pipelines import RpcPipelineFailure
-from .pipelines import RpcServerDispatch
-from .pipelines import RpcServerSendResponse
-from .pipelines import RpcWireError
 from .pipelines import RpcWireResponse
-from .pipelines import rpc_server_pipeline_spec
+from .pipelines import rpc_server_pipeline
 from .protocol import RPC_PROTOCOL_VERSION
-from .protocol import RpcProtocolError
+from .protocol import RpcRequest
 from .registry import RpcResponseRegistry
 from .server import RpcServerConfig
 from .server import RpcServerDrainTimeoutError
@@ -34,133 +33,6 @@ log = logs.get_module_logger(globals())
 
 
 ##
-
-
-class _FdioRpcConnection(ipl.DriverSocketFdioHandler):
-    def __init__(
-            self,
-            sock: socket.socket,
-            addr: SocketAddress,
-            *,
-            config: RpcServerConfig,
-            instance_id: uuid.UUID,
-            runtime: RpcServerRuntime,
-            dispatcher: RpcRequestDispatcher,
-    ) -> None:
-        super().__init__(
-            sock,
-            addr,
-            rpc_server_pipeline_spec(
-                protocol_version=RPC_PROTOCOL_VERSION,
-                instance_id=instance_id,
-                max_frame_bytes=config.max_frame_bytes,
-            ),
-        )
-
-        self._connection_timeout_s = config.connection_timeout_s
-        self._runtime = runtime
-        self._dispatcher = dispatcher
-        self._activity: ta.ContextManager[ta.Any] | None = None
-        self._connection_deadline: float | None = None
-        self._reset_connection_deadline()
-        self.next(read=False)
-
-    def _reset_connection_deadline(self) -> None:
-        if self._connection_timeout_s is not None:
-            self._connection_deadline = time.monotonic() + self._connection_timeout_s
-
-    def _release_activity(self) -> None:
-        if (activity := self._activity) is None:
-            return
-        self._activity = None
-        activity.__exit__(None, None, None)
-
-    def close(self) -> None:
-        try:
-            super().close()
-        finally:
-            self._release_activity()
-
-    def _handle_event(self, event: ta.Any) -> None:
-        if isinstance(event, RpcPipelineFailure):
-            raise event.exc
-        if not isinstance(event, RpcServerDispatch):
-            raise RpcProtocolError(f'Unexpected fdio RPC server event: {event!r}')
-
-        request = event.request
-        if (activity := self._runtime.acquire_activity()) is None:
-            response: RpcWireResponse = RpcWireError(
-                client_id=request.client_id,
-                request_id=request.request_id,
-                code='unavailable',
-                remote_type='omxtra.daemons.rpc.RpcServerActivityRejectedError',
-                message='RPC server is shutting down',
-            )
-        else:
-            activity.__enter__()
-            self._activity = activity
-            response = self._dispatcher.dispatch(request)
-
-        self.enqueue(RpcServerSendResponse(response=response))
-
-    def _drive(self, *, read: bool) -> None:
-        try:
-            first = True
-            while self.is_active:
-                event = self.next(
-                    read=read if first else False,
-                    raise_on_stall=False,
-                )
-                first = False
-                if event is None:
-                    break
-                self._handle_event(event)
-        finally:
-            if self.closed:
-                self._release_activity()
-
-    def on_readable(self) -> None:
-        self._reset_connection_deadline()
-        try:
-            self._drive(read=True)
-        except (EOFError, OSError, RpcProtocolError):
-            self.close()
-        except BaseException:  # noqa
-            log.exception('Unhandled fdio RPC connection error')
-            self.close()
-
-    def on_writable(self) -> None:
-        try:
-            super().on_writable()
-            if self.closed:
-                self._release_activity()
-            elif self.is_active:
-                self._drive(read=False)
-        except (EOFError, OSError, RpcProtocolError):
-            self.close()
-        except BaseException:  # noqa
-            log.exception('Unhandled fdio RPC connection error')
-            self.close()
-
-    def next_deadline(self) -> float | None:
-        deadlines = [
-            deadline
-            for deadline in (
-                super().next_deadline(),
-                self._connection_deadline,
-            )
-            if deadline is not None
-        ]
-        return min(deadlines) if deadlines else None
-
-    def on_timeout(self) -> None:
-        if (
-                self._connection_deadline is not None and
-                self._connection_deadline <= time.monotonic()
-        ):
-            self.close()
-        else:
-            super().on_timeout()
 
 
 class _FdioRpcListener(fdio.SocketHandler):
@@ -238,7 +110,7 @@ class FdioRpcServer(lang.Final):
             max_frame_bytes=self._config.max_frame_bytes,
         )
         manager = fdio.Manager(fdio.SelectPoller())
-        connections: set[_FdioRpcConnection] = set()
+        connections: set[RpcSocketFdioHandler] = set()
 
         socket_listener = self._transport.listen(
             self._config.resolved_endpoint,
@@ -248,15 +120,24 @@ class FdioRpcServer(lang.Final):
         self._bound_endpoint = socket_listener.bound_endpoint
         self._started.set()
         try:
+            async def dispatch(request: RpcRequest) -> RpcWireResponse:
+                return dispatcher.dispatch(request)
+
             def on_connect(conn: socket.socket, addr: SocketAddress) -> None:
-                connection = _FdioRpcConnection(
-                    conn,
-                    addr,
-                    config=self._config,
+                pipeline = rpc_server_pipeline(
+                    protocol_version=RPC_PROTOCOL_VERSION,
                     instance_id=instance_id,
-                    runtime=runtime,
-                    dispatcher=dispatcher,
+                    max_frame_bytes=self._config.max_frame_bytes,
+                    connection_timeout_s=self._config.connection_timeout_s,
                 )
+                connection = RpcSocketFdioHandler(conn, addr, pipeline.spec)
+
+                handler = RpcServerHandler(dispatch, runtime.acquire_activity)
+                rpc_conn = RpcConnection(connection.runtime, pipeline.config, handler=handler)
+                rpc_conn.add_close_callback(handler.release_activity)
+
+                # Starting brings the pipeline up without touching the socket; the manager does the rest.
+                sync_await(rpc_conn.start())
                 connections.add(connection)
                 manager.register(connection)
 

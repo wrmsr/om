@@ -48,7 +48,7 @@ async def begin_parallel_upload(
         cond: blobs.BlobWritePrecondition | None = None,
 ) -> S3ParallelUploadPlan:
     blobs.check_blob_key(key)
-    blobs.check_blob_capabilities(store.capabilities(), blobs.put_capability(cond))
+    blobs.check_blob_capabilities(store.capabilities(), blobs.blob_put_capability(cond))
     ps = store.config.part_size
     if size <= ps:
         return S3ParallelUploadPlan(

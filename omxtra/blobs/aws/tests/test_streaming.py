@@ -85,13 +85,13 @@ def test_streamed_put_stream_s3mock(harness, s3_client, size):
     first_call_sends = []
 
     async def inner():
-        v = await st.put_stream(k, achunks(data, 300_000), length=size, cond=blobs.IfAbsent())
+        v = await st.put_stream(k, achunks(data, 300_000), length=size, cond=blobs.BlobIfAbsent())
         first_call_sends.append(len(sender.sent))
         got = await st.get(k)
         assert got.data == data
         assert got.info.version == v
         with pytest.raises(blobs.BlobAlreadyExistsError):
-            await st.put_stream(k, achunks(data, 300_000), length=size, cond=blobs.IfAbsent())
+            await st.put_stream(k, achunks(data, 300_000), length=size, cond=blobs.BlobIfAbsent())
 
     s3_client.make_runner().run(inner)
     assert sender.sent

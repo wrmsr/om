@@ -18,11 +18,11 @@ from ..errors import BlobPreconditionFailedError
 from ..errors import BlobStreamLengthError
 from ..errors import InvalidBlobKeyError
 from ..errors import UnsupportedBlobOperationError
+from ..types import BlobIfAbsent
+from ..types import BlobIfMatch
+from ..types import BlobIfNoneMatch
 from ..types import BlobPrefix
 from ..types import BlobVersion
-from ..types import IfAbsent
-from ..types import IfMatch
-from ..types import IfNoneMatch
 from ..types import OffsetBlobRange
 from ..types import SuffixBlobRange
 from .runners import ScenarioRunner
@@ -329,15 +329,15 @@ class BlobStoreConformance:
     def test_range_with_if_match(self, store, runner):
         async def inner():
             v1 = await store.put('k', b'0123456789')
-            assert (await store.get('k', byte_range=OffsetBlobRange(1, 3), cond=IfMatch(v1))).data == b'12'
+            assert (await store.get('k', byte_range=OffsetBlobRange(1, 3), cond=BlobIfMatch(v1))).data == b'12'
             await store.put('k', b'abcdefghij')
             await raises(
                 BlobPreconditionFailedError,
-                store.get('k', byte_range=OffsetBlobRange(1, 3), cond=IfMatch(v1)),
+                store.get('k', byte_range=OffsetBlobRange(1, 3), cond=BlobIfMatch(v1)),
             )
             await raises(
                 BlobPreconditionFailedError,
-                store.get('k', byte_range=OffsetBlobRange(20), cond=IfMatch(v1)),
+                store.get('k', byte_range=OffsetBlobRange(20), cond=BlobIfMatch(v1)),
             )
 
         runner.run(inner)
@@ -349,13 +349,13 @@ class BlobStoreConformance:
         async def inner():
             v1 = await store.put('k', b'1')
             v2 = await store.put('k', b'2')
-            assert (await store.get('k', cond=IfMatch(v2))).data == b'2'
-            assert (await store.head('k', cond=IfMatch(v2))).version == v2
-            await raises(BlobPreconditionFailedError, store.get('k', cond=IfMatch(v1)))
-            await raises(BlobPreconditionFailedError, store.head('k', cond=IfMatch(v1)))
-            e = await raises(BlobPreconditionFailedError, store.get('missing', cond=IfMatch(v2)))
+            assert (await store.get('k', cond=BlobIfMatch(v2))).data == b'2'
+            assert (await store.head('k', cond=BlobIfMatch(v2))).version == v2
+            await raises(BlobPreconditionFailedError, store.get('k', cond=BlobIfMatch(v1)))
+            await raises(BlobPreconditionFailedError, store.head('k', cond=BlobIfMatch(v1)))
+            e = await raises(BlobPreconditionFailedError, store.get('missing', cond=BlobIfMatch(v2)))
             assert not isinstance(e, BlobNotFoundError)
-            await raises(BlobPreconditionFailedError, store.head('missing', cond=IfMatch(v2)))
+            await raises(BlobPreconditionFailedError, store.head('missing', cond=BlobIfMatch(v2)))
 
         runner.run(inner)
 
@@ -363,12 +363,12 @@ class BlobStoreConformance:
         async def inner():
             v1 = await store.put('k', b'1')
             v2 = await store.put('k', b'2')
-            await raises(BlobNotModifiedError, store.get('k', cond=IfNoneMatch(v2)))
-            await raises(BlobNotModifiedError, store.head('k', cond=IfNoneMatch(v2)))
-            assert (await store.get('k', cond=IfNoneMatch(v1))).data == b'2'
-            assert (await store.head('k', cond=IfNoneMatch(v1))).version == v2
-            await raises(BlobNotFoundError, store.get('missing', cond=IfNoneMatch(v1)))
-            await raises(BlobNotFoundError, store.head('missing', cond=IfNoneMatch(v1)))
+            await raises(BlobNotModifiedError, store.get('k', cond=BlobIfNoneMatch(v2)))
+            await raises(BlobNotModifiedError, store.head('k', cond=BlobIfNoneMatch(v2)))
+            assert (await store.get('k', cond=BlobIfNoneMatch(v1))).data == b'2'
+            assert (await store.head('k', cond=BlobIfNoneMatch(v1))).version == v2
+            await raises(BlobNotFoundError, store.get('missing', cond=BlobIfNoneMatch(v1)))
+            await raises(BlobNotFoundError, store.head('missing', cond=BlobIfNoneMatch(v1)))
 
         runner.run(inner)
 
@@ -379,16 +379,16 @@ class BlobStoreConformance:
         require(store, BlobCapability.PUT_IF_ABSENT)
 
         async def inner():
-            await store.put('k', b'first', cond=IfAbsent())
+            await store.put('k', b'first', cond=BlobIfAbsent())
             try:
-                await store.put('k', b'second', cond=IfAbsent())
+                await store.put('k', b'second', cond=BlobIfAbsent())
             except BlobAlreadyExistsError:
                 pass
             else:
-                raise AssertionError('backend claims PUT_IF_ABSENT but accepted a second IfAbsent put')
-            await raises(BlobAlreadyExistsError, store.put_stream('k', achunks(b'x'), cond=IfAbsent()))
+                raise AssertionError('backend claims PUT_IF_ABSENT but accepted a second BlobIfAbsent put')
+            await raises(BlobAlreadyExistsError, store.put_stream('k', achunks(b'x'), cond=BlobIfAbsent()))
             assert (await store.get('k')).data == b'first'
-            await store.put_stream('k2', achunks(b'a', b'b'), cond=IfAbsent())
+            await store.put_stream('k2', achunks(b'a', b'b'), cond=BlobIfAbsent())
             assert (await store.get('k2')).data == b'ab'
 
         runner.run(inner)
@@ -398,19 +398,19 @@ class BlobStoreConformance:
 
         async def inner():
             v1 = await store.put('k', b'1')
-            v2 = await store.put('k', b'2', cond=IfMatch(v1))
+            v2 = await store.put('k', b'2', cond=BlobIfMatch(v1))
             try:
-                await store.put('k', b'3', cond=IfMatch(v1))
+                await store.put('k', b'3', cond=BlobIfMatch(v1))
             except BlobPreconditionFailedError:
                 pass
             else:
-                raise AssertionError('backend claims PUT_IF_MATCH but accepted a stale IfMatch put')
-            await raises(BlobPreconditionFailedError, store.put_stream('k', achunks(b'3'), cond=IfMatch(v1)))
-            e = await raises(BlobPreconditionFailedError, store.put('missing', b'x', cond=IfMatch(v2)))
+                raise AssertionError('backend claims PUT_IF_MATCH but accepted a stale BlobIfMatch put')
+            await raises(BlobPreconditionFailedError, store.put_stream('k', achunks(b'3'), cond=BlobIfMatch(v1)))
+            e = await raises(BlobPreconditionFailedError, store.put('missing', b'x', cond=BlobIfMatch(v2)))
             assert not isinstance(e, BlobAlreadyExistsError)
             assert (await store.get('k')).data == b'2'
             await raises(BlobNotFoundError, store.head('missing'))
-            v3 = await store.put_stream('k', achunks(b'3'), cond=IfMatch(v2))
+            v3 = await store.put_stream('k', achunks(b'3'), cond=BlobIfMatch(v2))
             assert (await store.head('k')).version == v3
 
         runner.run(inner)
@@ -422,15 +422,15 @@ class BlobStoreConformance:
             v1 = await store.put('k', b'1')
             v2 = await store.put('k', b'2')
             try:
-                await store.delete('k', cond=IfMatch(v1))
+                await store.delete('k', cond=BlobIfMatch(v1))
             except BlobPreconditionFailedError:
                 pass
             else:
-                raise AssertionError('backend claims DELETE_IF_MATCH but accepted a stale IfMatch delete')
+                raise AssertionError('backend claims DELETE_IF_MATCH but accepted a stale BlobIfMatch delete')
             assert (await store.get('k')).data == b'2'
-            await store.delete('k', cond=IfMatch(v2))
+            await store.delete('k', cond=BlobIfMatch(v2))
             await raises(BlobNotFoundError, store.head('k'))
-            await raises(BlobPreconditionFailedError, store.delete('k', cond=IfMatch(v2)))
+            await raises(BlobPreconditionFailedError, store.delete('k', cond=BlobIfMatch(v2)))
 
         runner.run(inner)
 
@@ -465,16 +465,16 @@ class BlobStoreConformance:
         async def inner():
             await store.put('src', b'data')
             await store.put('taken', b'mine')
-            await store.copy('src', 'dst', cond=IfAbsent())
+            await store.copy('src', 'dst', cond=BlobIfAbsent())
             assert (await store.get('dst')).data == b'data'
             try:
-                await store.copy('src', 'taken', cond=IfAbsent())
+                await store.copy('src', 'taken', cond=BlobIfAbsent())
             except BlobAlreadyExistsError:
                 pass
             else:
                 raise AssertionError('backend claims COPY_IF_ABSENT but overwrote an existing destination')
             assert (await store.get('taken')).data == b'mine'
-            await raises(BlobNotFoundError, store.copy('missing', 'dst3', cond=IfAbsent()))
+            await raises(BlobNotFoundError, store.copy('missing', 'dst3', cond=BlobIfAbsent()))
 
         runner.run(inner)
 
@@ -486,16 +486,16 @@ class BlobStoreConformance:
             v1 = await store.put('dst', b'1')
             v2 = await store.put('dst', b'2')
             try:
-                await store.copy('src', 'dst', cond=IfMatch(v1))
+                await store.copy('src', 'dst', cond=BlobIfMatch(v1))
             except BlobPreconditionFailedError:
                 pass
             else:
-                raise AssertionError('backend claims COPY_IF_MATCH but accepted a stale destination IfMatch')
+                raise AssertionError('backend claims COPY_IF_MATCH but accepted a stale destination BlobIfMatch')
             assert (await store.get('dst')).data == b'2'
-            await store.copy('src', 'dst', cond=IfMatch(v2))
+            await store.copy('src', 'dst', cond=BlobIfMatch(v2))
             assert (await store.get('dst')).data == b'data'
-            await raises(BlobPreconditionFailedError, store.copy('src', 'missing', cond=IfMatch(v2)))
-            await raises(BlobNotFoundError, store.copy('nosrc', 'dst', cond=IfMatch(v2)))
+            await raises(BlobPreconditionFailedError, store.copy('src', 'missing', cond=BlobIfMatch(v2)))
+            await raises(BlobNotFoundError, store.copy('nosrc', 'dst', cond=BlobIfMatch(v2)))
 
         runner.run(inner)
 
@@ -504,16 +504,16 @@ class BlobStoreConformance:
             v = await store.put('k', b'1')
             await store.put('src', b's')
             if lacks(store, BlobCapability.PUT_IF_ABSENT):
-                await raises(UnsupportedBlobOperationError, store.put('n', b'', cond=IfAbsent()))
-                await raises(UnsupportedBlobOperationError, store.put_stream('n', achunks(b''), cond=IfAbsent()))
+                await raises(UnsupportedBlobOperationError, store.put('n', b'', cond=BlobIfAbsent()))
+                await raises(UnsupportedBlobOperationError, store.put_stream('n', achunks(b''), cond=BlobIfAbsent()))
             if lacks(store, BlobCapability.PUT_IF_MATCH):
-                await raises(UnsupportedBlobOperationError, store.put('k', b'2', cond=IfMatch(v)))
+                await raises(UnsupportedBlobOperationError, store.put('k', b'2', cond=BlobIfMatch(v)))
             if lacks(store, BlobCapability.DELETE_IF_MATCH):
-                await raises(UnsupportedBlobOperationError, store.delete('k', cond=IfMatch(v)))
+                await raises(UnsupportedBlobOperationError, store.delete('k', cond=BlobIfMatch(v)))
             if lacks(store, BlobCapability.COPY_IF_ABSENT):
-                await raises(UnsupportedBlobOperationError, store.copy('src', 'n', cond=IfAbsent()))
+                await raises(UnsupportedBlobOperationError, store.copy('src', 'n', cond=BlobIfAbsent()))
             if lacks(store, BlobCapability.COPY_IF_MATCH):
-                await raises(UnsupportedBlobOperationError, store.copy('src', 'k', cond=IfMatch(v)))
+                await raises(UnsupportedBlobOperationError, store.copy('src', 'k', cond=BlobIfMatch(v)))
             assert (await store.get('k')).data == b'1'
             assert await list_keys(store) == ['k', 'src']
 
@@ -559,7 +559,7 @@ class BlobStoreConformance:
         require(store, BlobCapability.PUT_IF_ABSENT)
 
         async def inner():
-            async with store.open_writer('w', cond=IfAbsent()) as w:
+            async with store.open_writer('w', cond=BlobIfAbsent()) as w:
                 await w.write(b'mine')
                 await store.put('w', b'rival')
                 await raises(BlobAlreadyExistsError, w.commit())
@@ -765,7 +765,7 @@ class BlobStoreConformance:
 
         async def inner():
             def put(i):
-                return lambda: store.put('race', str(i).encode(), cond=IfAbsent())
+                return lambda: store.put('race', str(i).encode(), cond=BlobIfAbsent())
 
             results = await runner.gather([put(i) for i in range(n)])
             wins = [r for r in results if isinstance(r, BlobVersion)]
@@ -790,7 +790,7 @@ class BlobStoreConformance:
                 while done < m:
                     b = await store.get('ctr')
                     try:
-                        await store.put('ctr', str(int(b.data) + 1).encode(), cond=IfMatch(b.info.version))
+                        await store.put('ctr', str(int(b.data) + 1).encode(), cond=BlobIfMatch(b.info.version))
                     except (BlobPreconditionFailedError, BlobConflictError):
                         continue
                     done += 1

@@ -1,6 +1,6 @@
 import datetime
 
-from ..listings import shallow_list
+from ..listings import shallow_list_blobs
 from ..types import BlobInfo
 from ..types import BlobPrefix
 from ..types import BlobVersion
@@ -19,20 +19,20 @@ def _render(es):
 
 def test_nested():
     infos = _infos('a/b', 'a/c/d', 'a/c/e', 'a/f', 'a/g/h/i')
-    assert _render(shallow_list(infos, prefix='a/', delimiter='/')) == ['a/b', 'P:a/c/', 'a/f', 'P:a/g/']
+    assert _render(shallow_list_blobs(infos, prefix='a/', delimiter='/')) == ['a/b', 'P:a/c/', 'a/f', 'P:a/g/']
 
 
 def test_prefix_without_delimiter():
     infos = _infos('a/b', 'ab/c', 'abc', 'ab')
-    assert _render(shallow_list(infos, prefix='a', delimiter='/')) == ['P:a/', 'ab', 'P:ab/', 'abc']
+    assert _render(shallow_list_blobs(infos, prefix='a', delimiter='/')) == ['P:a/', 'ab', 'P:ab/', 'abc']
 
 
 def test_prefix_is_key():
     infos = _infos('a', 'a/b')
-    assert _render(shallow_list(infos, prefix='a', delimiter='/')) == ['a', 'P:a/']
+    assert _render(shallow_list_blobs(infos, prefix='a', delimiter='/')) == ['a', 'P:a/']
 
 
 def test_other_delimiter():
     infos = _infos('x|y|z', 'x|w', 'xy')
-    assert _render(shallow_list(infos, prefix='x|', delimiter='|')) == ['x|w', 'P:x|y|']
-    assert _render(shallow_list(infos, prefix='', delimiter='|')) == ['xy', 'P:x|']
+    assert _render(shallow_list_blobs(infos, prefix='x|', delimiter='|')) == ['x|w', 'P:x|y|']
+    assert _render(shallow_list_blobs(infos, prefix='', delimiter='|')) == ['xy', 'P:x|']

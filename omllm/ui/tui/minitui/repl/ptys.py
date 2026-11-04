@@ -7,10 +7,10 @@ import asyncio
 import signal
 import typing as ta
 
+from omcore.rpc.errors import RpcError
 from omdev import repl
 
 from .....core import processes
-from .....core.rpc.errors import RpcError
 
 
 ##

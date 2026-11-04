@@ -97,7 +97,7 @@ def test_ambiguous_conditional_write_never_retried():
     for fail in [TimeoutError(), err(500, 'InternalError'), err(503, 'ServiceUnavailable')]:
         c = CannedAsyncHttpClient(fail, OK_PUT)
         with pytest.raises(blobs.BlobIndeterminateError) as ei:
-            run(_store(c, policy=_policy()).put('k', b'x', cond=blobs.IfAbsent()))
+            run(_store(c, policy=_policy()).put('k', b'x', cond=blobs.BlobIfAbsent()))
         assert type(ei.value) is blobs.BlobIndeterminateError
         assert len(c.requests) == 1
 
@@ -115,24 +115,24 @@ def test_ambiguous_unconditional_write():
 def test_not_applied():
     c = CannedAsyncHttpClient(err(409, 'ConditionalRequestConflict'))
     with pytest.raises(blobs.BlobConflictError):
-        run(_store(c).put('k', b'x', cond=blobs.IfAbsent()))
+        run(_store(c).put('k', b'x', cond=blobs.BlobIfAbsent()))
 
     c = CannedAsyncHttpClient(err(409, 'ConditionalRequestConflict'), ConnectionRefusedError(), OK_PUT)
-    assert run(_store(c, policy=_policy()).put('k', b'x', cond=blobs.IfAbsent())) == blobs.BlobVersion('"e"')
+    assert run(_store(c, policy=_policy()).put('k', b'x', cond=blobs.BlobIfAbsent())) == blobs.BlobVersion('"e"')
     assert len(c.requests) == 3
 
     c = CannedAsyncHttpClient(ConnectionRefusedError())
     with pytest.raises(blobs.BlobTransportError):
-        run(_store(c).put('k', b'x', cond=blobs.IfAbsent()))
+        run(_store(c).put('k', b'x', cond=blobs.BlobIfAbsent()))
 
 
 def test_throttled():
     c = CannedAsyncHttpClient(err(503, 'SlowDown'))
     with pytest.raises(blobs.BlobThrottledError):
-        run(_store(c).put('k', b'x', cond=blobs.IfAbsent()))
+        run(_store(c).put('k', b'x', cond=blobs.BlobIfAbsent()))
 
     c = CannedAsyncHttpClient(err(503, 'SlowDown'), OK_PUT)
-    assert run(_store(c, policy=_policy()).put('k', b'x', cond=blobs.IfAbsent())) == blobs.BlobVersion('"e"')
+    assert run(_store(c, policy=_policy()).put('k', b'x', cond=blobs.BlobIfAbsent())) == blobs.BlobVersion('"e"')
 
     c = CannedAsyncHttpClient(err(503, 'SlowDown'), OK_PUT)
     with pytest.raises(blobs.BlobThrottledError):
@@ -157,7 +157,7 @@ def test_200_with_error():
     c = CannedAsyncHttpClient((200, {}, b'<Error><Code>InternalError</Code></Error>'), copy_ok)
     all_caps = S3BlobStore.Config(capabilities=blobs.ALL_BLOB_CAPABILITIES)
     with pytest.raises(blobs.BlobIndeterminateError):
-        run(_store(c, policy=_policy(), config=all_caps).copy('a', 'b', cond=blobs.IfAbsent()))
+        run(_store(c, policy=_policy(), config=all_caps).copy('a', 'b', cond=blobs.BlobIfAbsent()))
     assert len(c.requests) == 1
 
     c = CannedAsyncHttpClient((200, {}, b'<Error><Code>AccessDenied</Code></Error>'))
@@ -182,16 +182,16 @@ def test_complete_after_ambiguous():
 def test_not_implemented_condition():
     c = CannedAsyncHttpClient(err(501, 'NotImplemented'))
     with pytest.raises(blobs.UnsupportedBlobOperationError):
-        run(_store(c).put('k', b'x', cond=blobs.IfMatch(blobs.BlobVersion('"v"'))))
+        run(_store(c).put('k', b'x', cond=blobs.BlobIfMatch(blobs.BlobVersion('"v"'))))
 
 
 def test_checks_before_io():
     c = CannedAsyncHttpClient()
     st = _store(c, config=S3BlobStore.Config(capabilities=blobs.BlobCapability.PUT_IF_ABSENT))
     with pytest.raises(blobs.UnsupportedBlobOperationError):
-        run(st.put('k', b'', cond=blobs.IfMatch(blobs.BlobVersion('"v"'))))
+        run(st.put('k', b'', cond=blobs.BlobIfMatch(blobs.BlobVersion('"v"'))))
     with pytest.raises(blobs.UnsupportedBlobOperationError):
-        run(st.copy('a', 'b', cond=blobs.IfAbsent()))
+        run(st.copy('a', 'b', cond=blobs.BlobIfAbsent()))
     with pytest.raises(blobs.InvalidBlobKeyError):
         run(st.get('a//b'))
     with pytest.raises(ValueError):  # noqa

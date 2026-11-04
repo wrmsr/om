@@ -1,0 +1,12 @@
+diff a/omcore/rpc/codecs.py b/omcore/rpc/codecs.py	(rejected hunks)
+@@ -51,7 +51,9 @@ class RpcValueCodec(Abstract):
+ 
+ 
+ class JsonRpcValueCodec(RpcValueCodec):
+-    """Compact UTF-8 JSON. NaN and infinities are rejected rather than emitted as the non-standard tokens json allows."""  # noqa
++    """
++    Compact UTF-8 JSON. NaN and infinities are rejected rather than emitted as the non-standard tokens json allows.
++    """  # noqa
+ 
+     def __init__(
+             self,

@@ -1,3 +1,5 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import fcntl
 import os
 
@@ -5,7 +7,7 @@ import os
 ##
 
 
-def fsync_fd(fd: int, *, full: bool = False) -> None:
+def local_blob_fsync_fd(fd: int, *, full: bool = False) -> None:
     """With full, uses F_FULLFSYNC where available (darwin), which also flushes the drive's write cache."""
 
     if full and (op := getattr(fcntl, 'F_FULLFSYNC', None)) is not None:
@@ -14,9 +16,9 @@ def fsync_fd(fd: int, *, full: bool = False) -> None:
         os.fsync(fd)
 
 
-def fsync_dir(path: str, *, full: bool = False) -> None:
+def local_blob_fsync_dir(path: str, *, full: bool = False) -> None:
     fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
     try:
-        fsync_fd(fd, full=full)
+        local_blob_fsync_fd(fd, full=full)
     finally:
         os.close(fd)

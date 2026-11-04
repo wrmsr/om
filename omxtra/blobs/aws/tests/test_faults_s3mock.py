@@ -78,7 +78,7 @@ def test_conditional_put_raise_after_is_indeterminate(harness):
     r = _Rig(harness, policy=_policy())
     r.faults.add(HttpFault(method='PUT', path=r.path('k'), action=RaiseAfter()))
     with pytest.raises(blobs.BlobIndeterminateError):
-        run(r.store.put(r.key('k'), b'mine', cond=blobs.IfAbsent()))
+        run(r.store.put(r.key('k'), b'mine', cond=blobs.BlobIfAbsent()))
     assert len(r.sent('PUT', 'k')) == 1  # never retried
     assert run(r.plain.get(r.key('k'))).data == b'mine'  # but it did land
 
@@ -87,11 +87,11 @@ def test_conflict(harness):
     r = _Rig(harness)
     r.faults.add(HttpFault(method='PUT', path=r.path('k'), action=Respond(409, 'ConditionalRequestConflict')))
     with pytest.raises(blobs.BlobConflictError):
-        run(r.store.put(r.key('k'), b'v', cond=blobs.IfAbsent()))
+        run(r.store.put(r.key('k'), b'v', cond=blobs.BlobIfAbsent()))
 
     r = _Rig(harness, policy=_policy())
     r.faults.add(HttpFault(method='PUT', path=r.path('k'), action=Respond(409, 'ConditionalRequestConflict')))
-    run(r.store.put(r.key('k'), b'v', cond=blobs.IfAbsent()))
+    run(r.store.put(r.key('k'), b'v', cond=blobs.BlobIfAbsent()))
     assert run(r.plain.get(r.key('k'))).data == b'v'
 
 
@@ -103,14 +103,14 @@ def test_throttled(harness):
 
     r = _Rig(harness, policy=_policy())
     r.faults.add(HttpFault(method='PUT', path=r.path('k'), action=Respond(503, 'SlowDown')))
-    run(r.store.put(r.key('k'), b'v', cond=blobs.IfAbsent()))
+    run(r.store.put(r.key('k'), b'v', cond=blobs.BlobIfAbsent()))
     assert run(r.plain.get(r.key('k'))).data == b'v'
 
 
 def test_refused_is_retried_for_conditional_writes(harness):
     r = _Rig(harness, policy=_policy())
     r.faults.add(HttpFault(method='PUT', path=r.path('k'), action=refuse()))
-    run(r.store.put(r.key('k'), b'v', cond=blobs.IfAbsent()))
+    run(r.store.put(r.key('k'), b'v', cond=blobs.BlobIfAbsent()))
     assert len(r.sent('PUT', 'k')) == 1
 
 

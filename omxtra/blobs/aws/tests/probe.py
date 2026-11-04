@@ -55,7 +55,7 @@ async def probe_s3_capabilities(make_store: ta.Callable[[S3BlobStore.Config], S3
     st = make_store(S3BlobStore.Config(capabilities=all_caps))
     r2ish = make_store(dc.replace(R2_CONFIG, capabilities=all_caps))
     p = f'blobs-probe/{uuid.uuid7().hex}/'
-    stale = blobs.IfMatch(blobs.BlobVersion('"00000000000000000000000000000000"'))
+    stale = blobs.BlobIfMatch(blobs.BlobVersion('"00000000000000000000000000000000"'))
     out: list[ProbeResult] = []
 
     try:
@@ -64,7 +64,7 @@ async def probe_s3_capabilities(make_store: ta.Callable[[S3BlobStore.Config], S3
         await st.put(p + 'dst', b'd')
 
         out.append(ProbeResult(capability='PUT_IF_ABSENT', outcome=await _probe_one(
-            lambda: st.put(p + 'k', b'2', cond=blobs.IfAbsent()),
+            lambda: st.put(p + 'k', b'2', cond=blobs.BlobIfAbsent()),
             blobs.BlobAlreadyExistsError,
         )))
         out.append(ProbeResult(capability='PUT_IF_MATCH', outcome=await _probe_one(
@@ -73,7 +73,7 @@ async def probe_s3_capabilities(make_store: ta.Callable[[S3BlobStore.Config], S3
         )))
         for name, s in [('aws headers', st), ('cf- headers', r2ish)]:
             out.append(ProbeResult(capability=f'COPY_IF_ABSENT ({name})', outcome=await _probe_one(
-                lambda s=s: s.copy(p + 'src', p + 'dst', cond=blobs.IfAbsent()),  # type: ignore[misc]
+                lambda s=s: s.copy(p + 'src', p + 'dst', cond=blobs.BlobIfAbsent()),  # type: ignore[misc]
                 blobs.BlobAlreadyExistsError,
             )))
             await st.put(p + 'dst', b'd')

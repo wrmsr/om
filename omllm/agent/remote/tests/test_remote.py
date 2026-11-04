@@ -190,7 +190,7 @@ async def _run_until_disconnect(
             f'{process.state.name}, returncode={process.returncode}, output_ended={process.output_ended}'
         )
         disconnected_at = time.monotonic()
-        await client.peer.aclose()
+        await client.connection.close(graceful=False)
         await client.wait_closed()
 
     return _DisconnectRun(

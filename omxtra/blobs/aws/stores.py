@@ -219,7 +219,7 @@ class S3BlobStore(blobs.AsyncBlobStore, S3MultipartOps):
 
     def _check_put(self, key: str, cond: blobs.BlobWritePrecondition | None) -> None:
         blobs.check_blob_key(key)
-        blobs.check_blob_capabilities(self.capabilities(), blobs.put_capability(cond))
+        blobs.check_blob_capabilities(self.capabilities(), blobs.blob_put_capability(cond))
 
     async def put(self, key: str, data: bytes, *, cond: blobs.BlobWritePrecondition | None = None) -> blobs.BlobVersion:
         self._check_put(key, cond)
@@ -333,7 +333,7 @@ class S3BlobStore(blobs.AsyncBlobStore, S3MultipartOps):
 
     async def copy(self, src: str, dst: str, *, cond: blobs.BlobWritePrecondition | None = None) -> blobs.BlobVersion:
         blobs.check_blob_copy_keys(src, dst)
-        blobs.check_blob_capabilities(self.capabilities(), blobs.copy_capability(cond))
+        blobs.check_blob_capabilities(self.capabilities(), blobs.blob_copy_capability(cond))
         req, extra = ops.build_copy(
             self._bucket,
             src,
@@ -352,8 +352,8 @@ class S3BlobStore(blobs.AsyncBlobStore, S3MultipartOps):
             )
         except S3ResponseError as e:
             if e.status == 404 and e.code in ('NoSuchKey', None):
-                if isinstance(cond, blobs.IfMatch):
-                    # Ambiguous: a missing source, or a missing destination failing IfMatch.
+                if isinstance(cond, blobs.BlobIfMatch):
+                    # Ambiguous: a missing source, or a missing destination failing BlobIfMatch.
                     try:
                         await self.head(src)
                     except blobs.BlobNotFoundError:
@@ -364,9 +364,9 @@ class S3BlobStore(blobs.AsyncBlobStore, S3MultipartOps):
             # TODO: sources over 5GiB need UploadPartCopy - S3 rejects them with InvalidRequest.
         return ops.version_from_copy(out)
 
-    async def delete(self, key: str, *, cond: blobs.IfMatch | None = None) -> None:
+    async def delete(self, key: str, *, cond: blobs.BlobIfMatch | None = None) -> None:
         blobs.check_blob_key(key)
-        blobs.check_blob_capabilities(self.capabilities(), blobs.delete_capability(cond))
+        blobs.check_blob_capabilities(self.capabilities(), blobs.blob_delete_capability(cond))
         try:
             await self._transport.execute(
                 s3.DELETE_OBJECT,

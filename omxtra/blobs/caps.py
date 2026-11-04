@@ -1,9 +1,12 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import enum
+import typing as ta
 
 from .errors import UnsupportedBlobOperationError
+from .types import BlobIfAbsent
+from .types import BlobIfMatch
 from .types import BlobWritePrecondition
-from .types import IfAbsent
-from .types import IfMatch
 
 
 ##
@@ -33,27 +36,25 @@ def check_blob_capabilities(have: BlobCapability, need: BlobCapability) -> None:
 ##
 
 
-def put_capability(cond: BlobWritePrecondition | None) -> BlobCapability:
-    match cond:
-        case None:
-            return BlobCapability(0)
-        case IfAbsent():
-            return BlobCapability.PUT_IF_ABSENT
-        case IfMatch():
-            return BlobCapability.PUT_IF_MATCH
+def blob_put_capability(cond: ta.Optional[BlobWritePrecondition]) -> BlobCapability:
+    if cond is None:
+        return BlobCapability(0)
+    elif isinstance(cond, BlobIfAbsent):
+        return BlobCapability.PUT_IF_ABSENT
+    elif isinstance(cond, BlobIfMatch):
+        return BlobCapability.PUT_IF_MATCH
     raise TypeError(cond)
 
 
-def copy_capability(cond: BlobWritePrecondition | None) -> BlobCapability:
-    match cond:
-        case None:
-            return BlobCapability(0)
-        case IfAbsent():
-            return BlobCapability.COPY_IF_ABSENT
-        case IfMatch():
-            return BlobCapability.COPY_IF_MATCH
+def blob_copy_capability(cond: ta.Optional[BlobWritePrecondition]) -> BlobCapability:
+    if cond is None:
+        return BlobCapability(0)
+    elif isinstance(cond, BlobIfAbsent):
+        return BlobCapability.COPY_IF_ABSENT
+    elif isinstance(cond, BlobIfMatch):
+        return BlobCapability.COPY_IF_MATCH
     raise TypeError(cond)
 
 
-def delete_capability(cond: IfMatch | None) -> BlobCapability:
+def blob_delete_capability(cond: ta.Optional[BlobIfMatch]) -> BlobCapability:
     return BlobCapability(0) if cond is None else BlobCapability.DELETE_IF_MATCH

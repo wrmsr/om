@@ -1,6 +1,8 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import typing as ta
 
-from omcore import check
+from omcore.lite.check import check
 
 from .types import BlobInfo
 from .types import BlobPrefix
@@ -9,16 +11,16 @@ from .types import BlobPrefix
 ##
 
 
-def shallow_list(
+def shallow_list_blobs(
         infos: ta.Iterable[BlobInfo],
         *,
         prefix: str,
         delimiter: str,
-) -> ta.Iterator[BlobInfo | BlobPrefix]:
+) -> ta.Iterator[ta.Union[BlobInfo, BlobPrefix]]:
     """Folds an ordered deep listing of keys under prefix into S3-style common prefixes."""
 
     check.non_empty_str(delimiter)
-    last: str | None = None
+    last: ta.Optional[str] = None
     for info in infos:
         if not info.key.startswith(prefix):
             continue

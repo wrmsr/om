@@ -10,13 +10,13 @@ from ..asyncs import AsyncBlobWriter
 from ..caps import BlobCapability
 from ..errors import BlobIndeterminateError
 from ..types import Blob
+from ..types import BlobIfMatch
 from ..types import BlobInfo
 from ..types import BlobPrefix
 from ..types import BlobRange
 from ..types import BlobReadPrecondition
 from ..types import BlobVersion
 from ..types import BlobWritePrecondition
-from ..types import IfMatch
 
 
 T = ta.TypeVar('T')
@@ -153,7 +153,7 @@ class FaultInjectingBlobStore(AsyncBlobStore):
     async def copy(self, src: str, dst: str, *, cond: BlobWritePrecondition | None = None) -> BlobVersion:
         return await self._call('copy', dst, lambda: self._store.copy(src, dst, cond=cond))
 
-    async def delete(self, key: str, *, cond: IfMatch | None = None) -> None:
+    async def delete(self, key: str, *, cond: BlobIfMatch | None = None) -> None:
         await self._call('delete', key, lambda: self._store.delete(key, cond=cond))
 
     async def delete_many(self, keys: ta.Iterable[str]) -> None:

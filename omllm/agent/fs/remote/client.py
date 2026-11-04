@@ -1,8 +1,8 @@
 """
-The host side of the remote filesystem: `RemoteFsOps` implements the ordinary `FsOps` interface over an rpc peer to a
-remote agent's `RemoteFsService`, so the filesystem tools need no remote-specific variants. Content crosses in chunks of
-`chunk_bytes`: a file that fits one is a single call each way, a larger one a handle-based sequence (see `protocol.py`),
-and a handle the host gives up on is released even when it is being cancelled.
+The host side of the remote filesystem: `RemoteFsOps` implements the ordinary `FsOps` interface over an rpc connection
+to a remote agent's `RemoteFsService`, so the filesystem tools need no remote-specific variants. Content crosses in
+chunks of `chunk_bytes`: a file that fits one is a single call each way, a larger one a handle-based sequence (see
+`protocol.py`), and a handle the host gives up on is released even when it is being cancelled.
 """
 import asyncio
 import typing as ta
@@ -11,10 +11,10 @@ from omcore import check
 from omcore import lang
 from omcore.lite.marshal import marshal_obj
 from omcore.lite.marshal import unmarshal_obj
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.errors import RpcRemoteError
+from omcore.rpc.translate import translate_rpc_remote_builtin_error
 
-from ....core.rpc.errors import RpcRemoteError
-from ....core.rpc.peers import RpcPeer
-from ....core.rpc.translate import translate_rpc_remote_builtin_error
 from ..common import FsFileChangedError
 from ..ops import FsEntry
 from ..ops import FsFile
@@ -97,7 +97,7 @@ def _to_fs_entry(r: RemoteFsEntry) -> FsEntry:
 class RemoteFsOps(FsOps):
     def __init__(
             self,
-            peer: RpcPeer,
+            connection: RpcConnection,
             *,
             chunk_bytes: int = DEFAULT_REMOTE_FS_CHUNK_BYTES,
     ) -> None:
@@ -105,12 +105,12 @@ class RemoteFsOps(FsOps):
 
         check.arg(0 < chunk_bytes <= REMOTE_FS_MAX_CHUNK_BYTES)
 
-        self._peer = peer
+        self._connection = connection
         self._chunk_bytes = chunk_bytes
 
     async def _call(self, method: str, params: ta.Any) -> ta.Any:
         try:
-            return await self._peer.call(method, params)
+            return await self._connection.request(method, params)
         except RpcRemoteError as e:
             raise _translate_remote_error(e) from e
 

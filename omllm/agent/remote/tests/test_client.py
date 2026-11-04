@@ -5,7 +5,6 @@ import pytest
 
 from ....core import processes
 from ....core.processes.remote.tests.support import ScriptedRemoteAgent
-from ....core.rpc.channels import AsyncioStreamRpcChannel
 from ..client import RemoteAgentClient
 
 
@@ -15,8 +14,8 @@ async def test_close_with_an_unresponsive_agent_is_bounded():
     # connection is severed instead, which fails the pending teardown and poisons its handle.
     agent = ScriptedRemoteAgent()
     agent.hang_close = True
-    client = RemoteAgentClient(AsyncioStreamRpcChannel(agent.client_reader, agent.client_writer))
     await agent.start()
+    client = RemoteAgentClient(await agent.connect_client())
     await client.start()
     process = await client.processes.root.spawn(processes.ProcessSpec(['sleep', '9']))
 

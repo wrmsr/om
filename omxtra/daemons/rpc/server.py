@@ -9,25 +9,26 @@ import uuid
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
-from omcore.io.pipelines import all as ipl
+from omcore.io.pipelines.drivers.sync.sockets import SocketSyncIoPipelineDriver
 from omcore.logs import all as logs
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.connection import SyncRpcConnection
+from omcore.rpc.syncs import SyncRpcRuntime
 from omcore.sockets.endpoints import SocketEndpoint as RpcEndpoint
 from omcore.sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
 from omcore.sockets.io import close_socket_immediately
 from omcore.sockets.transports.sync import DEFAULT_SYNC_SOCKET_TRANSPORT as DEFAULT_SYNC_RPC_TRANSPORT
 from omcore.sockets.transports.sync import SyncSocketTransport as SyncRpcTransport
 
+from .connections import RpcServerHandler
 from .dispatch import RpcRequestDispatcher
-from .pipelines import RpcPipelineFailure
-from .pipelines import RpcServerDispatch
-from .pipelines import RpcServerSendResponse
-from .pipelines import RpcWireError
 from .pipelines import RpcWireResponse
-from .pipelines import rpc_server_pipeline_spec
+from .pipelines import rpc_server_pipeline
 from .protocol import RPC_DEFAULT_MAX_FRAME_BYTES
 from .protocol import RPC_PROTOCOL_VERSION
 from .protocol import RpcHandler
 from .protocol import RpcProtocolError
+from .protocol import RpcRequest
 from .registry import RpcResponseRegistry
 
 
@@ -193,51 +194,33 @@ class RpcServer(lang.Final):
             runtime: RpcServerRuntime,
             dispatcher: RpcRequestDispatcher,
     ) -> None:
-        conn.settimeout(self._config.connection_timeout_s)
-        with ipl.SocketSyncDriver(
-                rpc_server_pipeline_spec(
-                    protocol_version=RPC_PROTOCOL_VERSION,
-                    instance_id=instance_id,
-                    max_frame_bytes=self._config.max_frame_bytes,
-                ),
-                conn,
-        ) as driver:
-            while True:
-                event = driver.next()
-                if isinstance(event, RpcPipelineFailure):
-                    raise event.exc
-                if isinstance(event, RpcServerDispatch):
-                    request = event.request
-                    break
-                if event is not None:
-                    raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
-                if not driver.is_running:
-                    return
+        # Every timeout is the session's.
+        conn.settimeout(None)
 
-            if (activity := runtime.acquire_activity()) is None:
-                response: RpcWireResponse = RpcWireError(
-                    client_id=request.client_id,
-                    request_id=request.request_id,
-                    code='unavailable',
-                    remote_type='omxtra.daemons.rpc.RpcServerActivityRejectedError',
-                    message='RPC server is shutting down',
-                )
-                driver.enqueue(RpcServerSendResponse(response=response))
-                while driver.is_running:
-                    if (event := driver.next()) is not None:
-                        if isinstance(event, RpcPipelineFailure):
-                            raise event.exc
-                        raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
-                return
+        pipeline = rpc_server_pipeline(
+            protocol_version=RPC_PROTOCOL_VERSION,
+            instance_id=instance_id,
+            max_frame_bytes=self._config.max_frame_bytes,
+            connection_timeout_s=self._config.connection_timeout_s,
+        )
 
-            with activity:
-                response = dispatcher.dispatch(request)
-                driver.enqueue(RpcServerSendResponse(response=response))
-                while driver.is_running:
-                    if (event := driver.next()) is not None:
-                        if isinstance(event, RpcPipelineFailure):
-                            raise event.exc
-                        raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
+        async def dispatch(request: RpcRequest) -> RpcWireResponse:
+            return dispatcher.dispatch(request)
+
+        handler = RpcServerHandler(dispatch, runtime.acquire_activity)
+        rpc_conn = RpcConnection(
+            SyncRpcRuntime(SocketSyncIoPipelineDriver(pipeline.spec, conn)),
+            pipeline.config,
+            handler=handler,
+        )
+        rpc_conn.add_close_callback(handler.release_activity)
+
+        with SyncRpcConnection(rpc_conn) as sync_conn:
+            # Serves the one request, answering it inline, until the connection closes behind its answer.
+            sync_conn.wait_closed()
+
+        if (exc := rpc_conn.close_exception) is not None:
+            log.debug('RPC connection failed: %r', exc)
 
     def run(
             self,

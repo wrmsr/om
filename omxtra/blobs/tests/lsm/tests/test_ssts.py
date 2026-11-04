@@ -4,7 +4,7 @@ from omcore import lang
 
 from ....adapters import SyncToAsyncBlobStore
 from ....dicts import DictBlobStore
-from ....types import IfMatch
+from ....types import BlobIfMatch
 from ...recording import RecordingBlobStore
 from ..errors import LsmCorruptionError
 from ..errors import LsmSnapshotExpiredError
@@ -49,7 +49,7 @@ def test_round_trip():
         assert await r.get(b'k00001x') is None
         assert [x async for x in r.scan(b'k00100', b'k00110')] == recs[100:110]
         assert [x async for x in r.scan(b'k00100x', b'k00102')] == recs[101:102]
-        assert all(c.cond == IfMatch(r.info.version) for c in s.calls('get')[1:])
+        assert all(c.cond == BlobIfMatch(r.info.version) for c in s.calls('get')[1:])
 
     lang.sync_await(inner())
 

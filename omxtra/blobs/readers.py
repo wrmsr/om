@@ -1,7 +1,7 @@
 """
 Streaming reads built from ranged gets. The first get learns the object's size and version, and every later get is
-pinned to that version with IfMatch, so a concurrent replace surfaces as BlobPreconditionFailedError rather than a torn
-read.
+pinned to that version with BlobIfMatch, so a concurrent replace surfaces as BlobPreconditionFailedError rather than a
+torn read.
 """
 import io
 import typing as ta
@@ -9,9 +9,9 @@ import typing as ta
 from omcore import check
 
 from .asyncs import AsyncBlobStore
+from .types import BlobIfMatch
 from .types import BlobInfo
 from .types import BlobVersion
-from .types import IfMatch
 from .types import OffsetBlobRange
 
 
@@ -67,7 +67,7 @@ class BlobReader:
         blob = await self._store.get(
             self._info.key,
             byte_range=OffsetBlobRange(start, stop),
-            cond=IfMatch(self._info.version),
+            cond=BlobIfMatch(self._info.version),
         )
         check.equal(len(blob.data), stop - start)
         self._block_start = start
@@ -97,7 +97,7 @@ async def open_blob_reader(
     blob = await store.get(
         key,
         byte_range=OffsetBlobRange(0, block_size),
-        cond=IfMatch(version) if version is not None else None,
+        cond=BlobIfMatch(version) if version is not None else None,
     )
     return BlobReader(
         store,

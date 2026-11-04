@@ -14,17 +14,20 @@ from omcore.lite.cached import cached_nullary
 from omcore.lite.check import check
 from omcore.lite.inject import Injector
 from omcore.lite.marshal import ObjMarshalerManager
+from omcore.lite.marshal import unmarshal_obj
 from omcore.lite.pycharm import pycharm_debug_connect
 from omcore.logs.modules import get_module_logger
 from omcore.os.deathsig import set_process_deathsig
 from omcore.os.pyremote.core import pyremote_bootstrap_finalize
+from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.dispatch import RpcMethodTableHandler
 
 from ..bootstrap import MainBootstrap
 from ..commands.local import LocalCommandExecutor
-from .channel import RemoteChannel
-from .channel import RemoteChannelImpl
 from .execution import _RemoteCommandHandler
 from .execution import _RemoteLogHandler
+from .protocol import REMOTE_EXECUTION_BOOTSTRAP_METHOD
 
 
 if ta.TYPE_CHECKING:
@@ -39,31 +42,34 @@ log = get_module_logger(globals())  # noqa
 ##
 
 
-class _RemoteExecutionLogHandler(logging.Handler):
-    def __init__(self, fn: ta.Callable[[str], None]) -> None:
-        super().__init__()
-
-        self._fn = fn
-
-    def emit(self, record):
-        msg = self.format(record)
-        self._fn(msg)
-
-
-##
-
-
 class _RemoteExecutionMain:
-    def __init__(
-            self,
-            chan: RemoteChannel,
-    ) -> None:
+    """
+    The remote end of a manage connection. It serves `manage.bootstrap` first; once that has built the injector, the
+    command handler's `manage.execute` is added to the connection's method table.
+    """
+
+    def __init__(self) -> None:
         super().__init__()
 
-        self._chan = chan
+        self._handler = RpcMethodTableHandler({
+            REMOTE_EXECUTION_BOOTSTRAP_METHOD: self._rpc_bootstrap,
+        })
 
+        self.__connection: ta.Optional[RpcConnection] = None
         self.__bootstrap: ta.Optional[MainBootstrap] = None
         self.__injector: ta.Optional[Injector] = None
+
+    @property
+    def handler(self) -> RpcMethodTableHandler:
+        return self._handler
+
+    def set_connection(self, connection: RpcConnection) -> None:
+        check.none(self.__connection)
+        self.__connection = connection
+
+    @property
+    def _connection(self) -> RpcConnection:
+        return check.not_none(self.__connection)
 
     @property
     def _bootstrap(self) -> MainBootstrap:
@@ -110,24 +116,20 @@ class _RemoteExecutionMain:
 
     @cached_nullary
     def _log_handler(self) -> _RemoteLogHandler:
-        return _RemoteLogHandler(self._chan)
+        return _RemoteLogHandler(self._connection, asyncio.get_running_loop())
 
     #
 
-    async def _setup(self) -> None:
-        check.none(self.__bootstrap)
-        check.none(self.__injector)
+    async def _rpc_bootstrap(self, params: ta.Any) -> None:
+        check.none(self.__bootstrap, 'already bootstrapped')
 
-        # Bootstrap
-
-        self.__bootstrap = check.not_none(await self._chan.recv_obj(MainBootstrap))
+        # Unmarshaled with the default marshaler: the configured one comes from the injector this builds.
+        self.__bootstrap = unmarshal_obj(params, MainBootstrap)
 
         if (prd := self._bootstrap.remote_config.pycharm_remote_debug) is not None:
             pycharm_debug_connect(prd)
 
         self.__injector = main_bootstrap(self._bootstrap)
-
-        self._chan.set_marshaler(self._injector[ObjMarshalerManager])
 
         # Post-bootstrap
 
@@ -146,16 +148,10 @@ class _RemoteExecutionMain:
             log.debug('Installing log forwarder')
             logging.root.addHandler(self._log_handler())
 
-    #
-
-    async def run(self) -> None:
-        await self._setup()
-
-        executor = self._injector[LocalCommandExecutor]
-
-        handler = _RemoteCommandHandler(self._chan, executor)
-
-        await handler.run()
+        self._handler.add_methods(_RemoteCommandHandler(
+            self._injector[LocalCommandExecutor],
+            self._injector[ObjMarshalerManager],
+        ).method_table())
 
 
 def _remote_execution_main() -> None:
@@ -165,11 +161,14 @@ def _remote_execution_main() -> None:
         input = await asyncio_open_stream_reader(rt.input)  # noqa
         output = await asyncio_open_stream_writer(rt.output)
 
-        chan = RemoteChannelImpl(
-            input,
-            output,
-        )
+        main = _RemoteExecutionMain()
+        connection = AsyncioRpcConnections.of_streams(input, output, handler=main.handler)
+        main.set_connection(connection)
 
-        await _RemoteExecutionMain(chan).run()
+        await connection.start()
+        try:
+            await connection.serve()
+        finally:
+            await connection.close()
 
     asyncio.run(inner())

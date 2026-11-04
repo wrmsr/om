@@ -1,23 +1,25 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import abc
 import typing as ta
 
-from omcore import lang
+from omcore.lite.abstract import Abstract
 
 from .caps import BlobCapability
 from .types import Blob
+from .types import BlobIfMatch
 from .types import BlobInfo
 from .types import BlobPrefix
 from .types import BlobRange
 from .types import BlobReadPrecondition
 from .types import BlobVersion
 from .types import BlobWritePrecondition
-from .types import IfMatch
 
 
 ##
 
 
-class BlobWriter(lang.Abstract):
+class BlobWriter(Abstract):
     """
     Nothing is visible until commit(), which applies the writer's precondition atomically. Leaving the open_writer
     context without committing discards everything written - on a normal exit too, not just on an exception. Writers
@@ -33,7 +35,7 @@ class BlobWriter(lang.Abstract):
         raise NotImplementedError
 
 
-class BlobStore(lang.Abstract):
+class BlobStore(Abstract):
     """
     A flat keyspace of immutable, atomically replaced objects. '/' means nothing except to list_shallow. Listings are
     in code point order, which is UTF-8 byte order, which is what S3 and R2 use. Listings are not snapshots: concurrent
@@ -48,7 +50,7 @@ class BlobStore(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def head(self, key: str, *, cond: BlobReadPrecondition | None = None) -> BlobInfo:
+    def head(self, key: str, *, cond: ta.Optional[BlobReadPrecondition] = None) -> BlobInfo:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -56,21 +58,21 @@ class BlobStore(lang.Abstract):
             self,
             key: str,
             *,
-            byte_range: BlobRange | None = None,
-            cond: BlobReadPrecondition | None = None,
+            byte_range: ta.Optional[BlobRange] = None,
+            cond: ta.Optional[BlobReadPrecondition] = None,
     ) -> Blob:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def list(self, *, prefix: str = '', start_after: str | None = None) -> ta.Iterator[BlobInfo]:
+    def list(self, *, prefix: str = '', start_after: ta.Optional[str] = None) -> ta.Iterator[BlobInfo]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def list_shallow(self, *, prefix: str = '', delimiter: str = '/') -> ta.Iterator[BlobInfo | BlobPrefix]:
+    def list_shallow(self, *, prefix: str = '', delimiter: str = '/') -> ta.Iterator[ta.Union[BlobInfo, BlobPrefix]]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def put(self, key: str, data: bytes, *, cond: BlobWritePrecondition | None = None) -> BlobVersion:
+    def put(self, key: str, data: bytes, *, cond: ta.Optional[BlobWritePrecondition] = None) -> BlobVersion:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -79,8 +81,8 @@ class BlobStore(lang.Abstract):
             key: str,
             source: ta.Iterable[bytes],
             *,
-            length: int | None = None,
-            cond: BlobWritePrecondition | None = None,
+            length: ta.Optional[int] = None,
+            cond: ta.Optional[BlobWritePrecondition] = None,
     ) -> BlobVersion:
         """
         Consumes the whole source. If length is given and does not match, raises BlobStreamLengthError and publishes
@@ -90,17 +92,22 @@ class BlobStore(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def open_writer(self, key: str, *, cond: BlobWritePrecondition | None = None) -> ta.ContextManager[BlobWriter]:
+    def open_writer(
+            self,
+            key: str,
+            *,
+            cond: ta.Optional[BlobWritePrecondition] = None,
+    ) -> ta.ContextManager[BlobWriter]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def copy(self, src: str, dst: str, *, cond: BlobWritePrecondition | None = None) -> BlobVersion:
+    def copy(self, src: str, dst: str, *, cond: ta.Optional[BlobWritePrecondition] = None) -> BlobVersion:
         """The precondition applies to dst. Copying a key onto itself raises ValueError."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def delete(self, key: str, *, cond: IfMatch | None = None) -> None:
+    def delete(self, key: str, *, cond: ta.Optional[BlobIfMatch] = None) -> None:
         """Unconditionally deleting a missing key is a no-op, as on S3."""
 
         raise NotImplementedError

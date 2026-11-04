@@ -102,9 +102,9 @@ def read_precondition(cond: blobs.BlobReadPrecondition | None) -> tuple[str | No
     match cond:
         case None:
             return None, None
-        case blobs.IfMatch(version=v):
+        case blobs.BlobIfMatch(version=v):
             return v.etag, None
-        case blobs.IfNoneMatch(version=v):
+        case blobs.BlobIfNoneMatch(version=v):
             return None, v.etag
         case _:
             raise TypeError(cond)
@@ -116,9 +116,9 @@ def write_precondition(cond: blobs.BlobWritePrecondition | None) -> tuple[str | 
     match cond:
         case None:
             return None, None
-        case blobs.IfMatch(version=v):
+        case blobs.BlobIfMatch(version=v):
             return v.etag, None
-        case blobs.IfAbsent():
+        case blobs.BlobIfAbsent():
             return None, '*'
         case _:
             raise TypeError(cond)
@@ -298,7 +298,7 @@ def version_from_copy(out: s3.CopyObjectOutput) -> blobs.BlobVersion:
     return normalize_etag(check.not_none(check.not_none(out.copy_object_result).etag))
 
 
-def build_delete(bucket: str, key: str, cond: blobs.IfMatch | None) -> s3.DeleteObjectRequest:
+def build_delete(bucket: str, key: str, cond: blobs.BlobIfMatch | None) -> s3.DeleteObjectRequest:
     return s3.DeleteObjectRequest(
         bucket=s3.BucketName(bucket),
         key=s3.ObjectKey(key),
@@ -411,22 +411,22 @@ def map_error(
         if status == 412:
             return blobs.BlobPreconditionFailedError(key)
         if status == 404:
-            if isinstance(cond, blobs.IfMatch):
+            if isinstance(cond, blobs.BlobIfMatch):
                 return blobs.BlobPreconditionFailedError(key)
             return blobs.BlobNotFoundError(key)
 
     elif op in ('put', 'complete', 'copy'):
         if status == 412:
-            if isinstance(cond, blobs.IfAbsent):
+            if isinstance(cond, blobs.BlobIfAbsent):
                 return blobs.BlobAlreadyExistsError(key)
             return blobs.BlobPreconditionFailedError(key)
-        if op != 'copy' and status == 404 and code in ('NoSuchKey', None) and isinstance(cond, blobs.IfMatch):
+        if op != 'copy' and status == 404 and code in ('NoSuchKey', None) and isinstance(cond, blobs.BlobIfMatch):
             return blobs.BlobPreconditionFailedError(key)
 
     elif op == 'delete':
         if status == 412:
             return blobs.BlobPreconditionFailedError(key)
-        if status == 404 and isinstance(cond, blobs.IfMatch):
+        if status == 404 and isinstance(cond, blobs.BlobIfMatch):
             return blobs.BlobPreconditionFailedError(key)
 
     return e

@@ -26,9 +26,9 @@ from .caps import (  # noqa
     ALL_BLOB_CAPABILITIES,
     BlobCapability,
     check_blob_capabilities,
-    copy_capability,
-    delete_capability,
-    put_capability,
+    blob_copy_capability,
+    blob_delete_capability,
+    blob_put_capability,
 )
 
 from .checks import (  # noqa
@@ -62,7 +62,7 @@ from .keys import (  # noqa
 )
 
 from .listings import (  # noqa
-    shallow_list,
+    shallow_list_blobs,
 )
 
 from .local import (  # noqa
@@ -107,9 +107,9 @@ from .types import (  # noqa
     BlobReadPrecondition,
     BlobVersion,
     BlobWritePrecondition,
-    IfAbsent,
-    IfMatch,
-    IfNoneMatch,
+    BlobIfAbsent,
+    BlobIfMatch,
+    BlobIfNoneMatch,
     OffsetBlobRange,
     SuffixBlobRange,
 )

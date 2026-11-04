@@ -16,8 +16,8 @@ import typing as ta
 from omcore.lite.check import check
 from omcore.lite.marshal import marshal_obj
 from omcore.lite.marshal import unmarshal_obj
+from omcore.rpc.dispatch import RpcMethodFn
 
-from ....core.rpc.handlers import RpcMethod
 from ..common import FsStagedWrite
 from ..local import LocalFsOps
 from ..ops import FsEntry
@@ -306,7 +306,7 @@ class RemoteFsService:
 
     #
 
-    def methods(self) -> ta.Mapping[str, RpcMethod]:
+    def methods(self) -> ta.Mapping[str, RpcMethodFn]:
         return {
             REMOTE_FS_RESOLVE_PATH_METHOD: self.resolve_path,
             REMOTE_FS_STAT_METHOD: self.stat,

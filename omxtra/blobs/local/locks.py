@@ -1,3 +1,5 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import contextlib
 import fcntl
 import os
@@ -8,7 +10,7 @@ import zlib
 ##
 
 
-class StripedFileLocks:
+class LocalBlobStripedFileLocks:
     """
     Cross-process and cross-thread exclusive locks over a fixed pool of lock files, striped by key. The stripe is a
     crc32 of the key rather than hash(), which is randomized per process. Every acquisition opens its stripe file

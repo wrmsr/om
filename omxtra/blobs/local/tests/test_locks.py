@@ -2,18 +2,18 @@ import subprocess
 import sys
 import threading
 
-from ..locks import StripedFileLocks
+from ..locks import LocalBlobStripedFileLocks
 
 
 def test_stripes_stable(tmp_path):
-    locks = StripedFileLocks(str(tmp_path), stripes=256)
+    locks = LocalBlobStripedFileLocks(str(tmp_path), stripes=256)
     assert locks.stripe('abc') == locks.stripe('abc')
     assert locks.path('abc').endswith(f'{locks.stripe("abc"):02x}.lock')
     assert len({locks.stripe(f'k{i}') for i in range(1000)}) > 200
 
 
 def test_thread_exclusion(tmp_path):
-    locks = StripedFileLocks(str(tmp_path))
+    locks = LocalBlobStripedFileLocks(str(tmp_path))
     held = threading.Event()
     release = threading.Event()
 
@@ -35,7 +35,7 @@ def test_thread_exclusion(tmp_path):
 
 
 def test_process_exclusion(tmp_path):
-    locks = StripedFileLocks(str(tmp_path))
+    locks = LocalBlobStripedFileLocks(str(tmp_path))
     code = (
         'import fcntl, os, sys\n'
         'fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT)\n'

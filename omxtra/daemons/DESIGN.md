@@ -76,7 +76,11 @@ connect these into an on-demand policy.
 RPC is colocated under `omxtra.daemons` for now, but it is not part of the daemon lifecycle abstraction. Its modules
 make the boundary explicit:
 
-- `rpc.pipelines` implements runtime-neutral framing, JSON translation, and connection sessions;
+- `rpc.pipelines` is the protocol's wire dialect and pipeline assembly over `omcore.rpc`: a codec mapping its JSON
+  objects onto `omcore.rpc` envelopes, and client and server specs of `omcore.rpc` framing, a hello handshake, and -
+  server side - a close after the one request;
+- `rpc.connections` holds the pieces every host and client shares: the async-colored client conversation and the
+  server's dispatching, activity-leasing request handler;
 - `rpc.registry` and `rpc.dispatch` implement lifecycle-independent identity, replay, and synchronous dispatch;
 - `omcore.sockets.endpoints` and `omcore.sockets.transports` (re-exported by `rpc` under their historical `Rpc*` names) describe and establish byte streams without importing daemon lifecycle;
 - `rpc.client`, `rpc.server`, `rpc.asyncio`, `rpc.fdio`, and `rpc.objects` are lifecycle-independent RPC pieces;
@@ -438,11 +442,19 @@ Unix-domain stream sockets and plaintext TCP. Each message is encoded as UTF-8 J
 big-endian byte count. Frame size is checked as soon as its header is available, and inbound and outbound JSON are
 validated against the configured bound.
 
-The protocol core is a sans-I/O `IoPipeline.Spec`, freshly constructed for each connection because its handlers own
-session-local state. Inbound bytes pass through a bounded frame decoder, a typed JSON wire codec, and a one-request
-client or server session. Outbound application commands traverse those handlers in reverse. Connected-stream drivers
-own reads, writes, flush completion, half-close observation, output watermarks, and graceful final output. They do not
-own listening sockets or application concurrency.
+The protocol is a dialect of `omcore.rpc`, the shared rpc toolbox, and its hosts and clients are `omcore.rpc`
+connections. Each connection's `IoPipeline.Spec` is freshly constructed, because its handlers own connection-local
+state: `omcore.rpc`'s bounded length framing, the daemons envelope codec, a hello handshake, and the `omcore.rpc`
+session - plus, server side, a handler closing the connection once its one request is answered. The codec carries
+`(client_id, request_id)` as the envelope id, so the session correlates the response and the registry sees the
+identity the client chose; the dialect has no cancels, notifications, or pings, and receiving one is a protocol error.
+The connection runtime - sync, asyncio, or fdio - owns stepping the driver; drivers own reads, writes, flush
+completion, half-close observation, output watermarks, and graceful final output. Neither owns listening sockets or
+application concurrency.
+
+Timeouts are the session's: the client's `io_timeout_s` bounds the handshake, the request, and each flush; the
+server's `connection_timeout_s` closes a connection with nothing in flight - one whose client connected and said
+nothing - and bounds flushes, but never a request being handled.
 
 ### Endpoints and transports
 
@@ -476,11 +488,13 @@ Handshake-only probes do not acquire activity and therefore do not keep an idle 
 acquire runtime activity before handler execution. Once shutdown begins, the service sends an explicit unavailable
 response instead of accepting the request.
 
-The synchronous server accepts connections concurrently in tracked daemon threads and drives each through the sync
-socket pipeline driver. The asyncio host tracks one task and pipeline driver per stream and requires an async handler;
-`ThreadedAsyncRpcHandler` is the explicit adapter for synchronous work. The fdio host dispatches driver-visible RPC
-events on its single poll loop and retains a runtime activity lease until queued response output has drained. Shutdown
-closes the listener and drains tracked connections up to the host's configured deadline.
+The synchronous server accepts connections concurrently in tracked daemon threads and serves each as a sync
+`omcore.rpc` connection, answering inline. The asyncio host tracks one task and connection per stream and requires an
+async handler; `ThreadedAsyncRpcHandler` is the explicit adapter for synchronous work. Its dispatches run apart from
+their connections, so a client vanishing mid-request does not cancel it: the answer still reaches the registry for the
+retry, and the drain waits for it. The fdio host serves every connection on its single poll loop with the `omcore.rpc`
+fdio runtime. All three hold a request's runtime activity lease until its connection closes - until its answer has
+drained. Shutdown closes the listener and drains tracked connections up to the host's configured deadline.
 
 Unix endpoints use inode-safe socket cleanup: an old instance compares device/inode identity before unlinking and
 therefore cannot remove a replacement's socket. Bind refuses to replace a non-socket path, probes an existing socket

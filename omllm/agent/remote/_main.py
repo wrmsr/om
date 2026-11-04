@@ -7,9 +7,8 @@ import typing as ta
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_reader
 from omcore.asyncs.asyncio.streams import asyncio_open_stream_writer
 from omcore.os.pyremote.core import pyremote_bootstrap_finalize
+from omcore.rpc.asyncios import AsyncioRpcConnections
 
-from ...core.rpc.channels import AsyncioStreamRpcChannel
-from ...core.rpc.peers import RpcPeer
 from .server import RemoteAgentRpcHandler
 
 
@@ -21,10 +20,14 @@ async def serve_remote_agent(input: ta.BinaryIO, output: ta.BinaryIO) -> None:  
     writer = await asyncio_open_stream_writer(output)
 
     handler = RemoteAgentRpcHandler()
-    peer = RpcPeer(AsyncioStreamRpcChannel(reader, writer), handler=handler)
-    handler.set_peer(peer)
+    connection = AsyncioRpcConnections.of_streams(reader, writer, handler=handler)
+    handler.set_connection(connection)
     try:
-        await peer.serve()
+        await connection.start()
+        try:
+            await connection.serve()
+        finally:
+            await connection.close()
     finally:
         await handler.aclose()
 

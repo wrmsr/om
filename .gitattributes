@@ -38,6 +38,7 @@ omdev/scripts/lib/io/pipelines.py linguist-generated
 omdev/scripts/lib/io/streambufs.py linguist-generated
 omdev/scripts/lib/logs.py linguist-generated
 omdev/scripts/lib/marshal.py linguist-generated
+omdev/scripts/lib/rpc.py linguist-generated
 omdev/scripts/pidfiles.py linguist-generated
 omdev/scripts/pyproject.py linguist-generated
 omdev/specs/irc/_dataclasses.py linguist-generated
@@ -88,6 +89,7 @@ omllm/ui/tui/_dataclasses.py linguist-generated
 omllm/ui/tui/bare/_dataclasses.py linguist-generated
 omllm/ui/tui/minitui/_dataclasses.py linguist-generated
 omxtra/blobs/_dataclasses.py linguist-generated
+omxtra/blobs/remote/_amalg.py linguist-generated
 omxtra/messagebus/_dataclasses.py linguist-generated
 omxtra/text/gotmpl/_dataclasses.py linguist-generated
 omxtra/text/shparse/_dataclasses.py linguist-generated

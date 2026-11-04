@@ -56,15 +56,21 @@ Every knob lives in `JsonrpcPipelineConfig`; `build_jsonrpc_pipeline_spec` turns
 
 ### Connections
 
-`BaseJsonrpcConnection` holds everything a host does with a session other than pumping the driver: id assignment,
-demultiplexing events to waiters, result and error conversion, closure bookkeeping. Two subclasses tape drivers on:
+The connection is written once, on `omcore.rpc`: `BaseJsonrpcConnection` (`pipelines/base.py`) is an `omcore.rpc`
+`BaseRpcConnection` over this session's vocabulary - id assignment, demultiplexing events to waiters, dispatch, result
+and error conversion, closure - and an `omcore.rpc` runtime decides how waiting, pumping, and handler execution happen.
+The session stays JSON-RPC's own. Two forms tape drivers on:
 
-- `AsyncioJsonrpcConnection` (`pipelines/asyncio.py`) runs a pump task over a `PollAsyncioStreamDriver`. Callers await
-  futures; inbound requests each get a task running the dispatcher. `AsyncioJsonrpcConnections` builds one over tcp,
-  a unix socket, a subprocess's stdio, or the process's own stdio.
-- `SyncJsonrpcConnection` (`pipelines/sync.py`) has no pump task: the calling thread pumps a `SyncIoPipelineDriver`
-  (socket or file descriptor pair) while it waits. Inbound requests are dispatched inline between driver steps, so a
-  handler may call back into the peer. One thread at a time may use it; `serve()` pumps until the peer closes.
+- `AsyncioJsonrpcConnection` (`pipelines/asyncio.py`) is the connection on an asyncio runtime over a
+  `PollAsyncioStreamDriver`: one pump task, a tracked task per inbound request. `AsyncioJsonrpcConnections` builds one
+  over tcp, a unix socket, a subprocess's stdio, or the process's own stdio.
+- `SyncJsonrpcConnection` (`pipelines/sync.py`) is a facade driving the same connection with `sync_await` on a sync
+  runtime over a `SyncIoPipelineDriver` (socket or file descriptor pair): the calling thread pumps while it waits.
+  Inbound requests are dispatched inline as they arrive, so a handler may call back into the peer; its dispatchers and
+  notification handlers are sync, and are handed the sync connection. One thread at a time may use it; `serve()` pumps
+  until the peer closes.
+
+The connection also runs on `omcore.rpc`'s pure link, two pure drivers on a virtual clock, for deterministic tests.
 
 `AsyncioJsonrpcServer` (`pipelines/servers.py`) accepts connections on a unix or tcp endpoint and runs one asyncio
 connection per client, each a full peer the server may call back into.

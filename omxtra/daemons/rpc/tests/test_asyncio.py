@@ -243,3 +243,51 @@ def test_asyncio_client_interoperates_with_sync_server():
             assert not errors
 
     asyncio.run(run())
+
+
+def test_asyncio_rpc_vanished_client_does_not_cancel_its_request():
+    async def run() -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            socket_path = os.path.join(temp_dir, 'rpc.sock')
+            started = asyncio.Event()
+            release = asyncio.Event()
+            calls: list[str] = []
+
+            async def handler(request: RpcRequest) -> ta.Any:
+                calls.append(request.request_id)
+                started.set()
+                await release.wait()
+                return request.params
+
+            server = AsyncioRpcServer(AsyncioRpcServerConfig(
+                socket_path=socket_path,
+                handler=handler,
+                connection_timeout_s=TEST_TIMEOUT_S,
+                drain_timeout_s=TEST_TIMEOUT_S,
+            ))
+            await server.start()
+            try:
+                client = AsyncioRpcClient(RpcClient.Config(
+                    socket_path=socket_path,
+                    io_timeout_s=TEST_TIMEOUT_S,
+                ))
+                request = client.new_request('block', 'kept')
+
+                # Send, then vanish before the answer.
+                conn = await client.connect()
+                await conn.send(request)
+                await asyncio.wait_for(started.wait(), TEST_TIMEOUT_S)
+                await conn.close()
+                await asyncio.sleep(.05)
+
+                # The handler ran on regardless, and its answer is replayed to the retry rather than run again.
+                release.set()
+                assert await asyncio.wait_for(
+                    client.call_request(request, expected_instance_id=server.instance_id),
+                    TEST_TIMEOUT_S,
+                ) == 'kept'
+                assert calls == [request.request_id]
+            finally:
+                await server.close()
+
+    asyncio.run(run())

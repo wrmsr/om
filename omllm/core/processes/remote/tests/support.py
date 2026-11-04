@@ -1,15 +1,15 @@
 """
-A `RemoteProcessManager` wired over memory streams to a scripted stand-in for the agent, for tests of the manager's own
+A `RemoteProcessManager` wired over a socketpair to a scripted stand-in for the agent, for tests of the manager's own
 behavior against an agent that answers exactly as told - and a TERM-trapping child for teardown tests.
 """
 import asyncio
+import socket
 import typing as ta
 
-from ....rpc.channels import AsyncioStreamRpcChannel
-from ....rpc.handlers import RpcMethodHandler
-from ....rpc.handlers import RpcNotificationRouter
-from ....rpc.peers import RpcPeer
-from ....rpc.tests.support import memory_rpc_stream_pair
+from omcore.rpc.asyncios import AsyncioRpcConnections
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.dispatch import RpcMethodTableHandler
+
 from ..client import RemoteProcessManager
 from ..protocol import REMOTE_PROCESS_CLOSE_METHOD
 from ..protocol import REMOTE_PROCESS_SIGNAL_METHOD
@@ -88,7 +88,7 @@ class ScriptedRemoteAgent:
     spawn replies until it is released; `before_spawn_reply` runs, with the new id, just before a spawn is answered;
     `hang_close` never answers `process.close`; `on_close` replaces the close reply entirely; `write_error` and
     `signal_error` are raised by `process.write` and `process.signal` in place of their usual silence. The host's end
-    of the connection is `client_reader` / `client_writer`, for whichever client a test builds on it.
+    of the connection comes from `connect_client`, for whichever client a test builds on it.
     """
 
     def __init__(self) -> None:
@@ -109,16 +109,14 @@ class ScriptedRemoteAgent:
 
         self._next_id = 1
 
-        (self.client_reader, self.client_writer), (agent_reader, agent_writer) = memory_rpc_stream_pair()
-        self.peer = RpcPeer(
-            AsyncioStreamRpcChannel(agent_reader, agent_writer),
-            handler=RpcMethodHandler({
-                REMOTE_PROCESS_SPAWN_METHOD: self._spawn,
-                REMOTE_PROCESS_CLOSE_METHOD: self._close,
-                REMOTE_PROCESS_SIGNAL_METHOD: self._signal,
-                REMOTE_PROCESS_WRITE_METHOD: self._write,
-            }),
-        )
+        self._agent_sock, self._client_sock = socket.socketpair()
+        self.connection: RpcConnection | None = None
+        self.handler = RpcMethodTableHandler({
+            REMOTE_PROCESS_SPAWN_METHOD: self._spawn,
+            REMOTE_PROCESS_CLOSE_METHOD: self._close,
+            REMOTE_PROCESS_SIGNAL_METHOD: self._signal,
+            REMOTE_PROCESS_WRITE_METHOD: self._write,
+        })
 
     async def _spawn(self, params: ta.Any) -> ta.Any:
         self.spawns.append(params)
@@ -151,41 +149,52 @@ class ScriptedRemoteAgent:
             raise self.write_error
 
     async def notify(self, method: str, params: ta.Any) -> None:
-        await self.peer.notify(method, params)
+        assert self.connection is not None
+        await self.connection.notify(method, params)
+
+    async def connect_client(self) -> RpcConnection:
+        """The host's end of the connection, unstarted."""
+
+        reader, writer = await asyncio.open_connection(sock=self._client_sock)
+        return AsyncioRpcConnections.of_streams(reader, writer)
 
     async def start(self) -> None:
-        await self.peer.start()
+        reader, writer = await asyncio.open_connection(sock=self._agent_sock)
+        self.connection = AsyncioRpcConnections.of_streams(reader, writer, handler=self.handler)
+        await self.connection.start()
 
     async def aclose(self) -> None:
-        await self.peer.aclose()
+        # Abortive: a handler told to hang must not hold the close for the drain timeout.
+        if self.connection is not None:
+            await self.connection.close(graceful=False)
+        else:
+            self._agent_sock.close()
 
 
 class ScriptedRemoteProcessClient:
-    """The host side: a `RemoteProcessManager` on its own peer to a `ScriptedRemoteAgent`."""
+    """The host side: a `RemoteProcessManager` on its own connection to a `ScriptedRemoteAgent`."""
 
-    def __init__(self, agent: ScriptedRemoteAgent) -> None:
+    def __init__(self, connection: RpcConnection) -> None:
         super().__init__()
 
-        self.notifications = RpcNotificationRouter()
-        self.peer = RpcPeer(
-            AsyncioStreamRpcChannel(agent.client_reader, agent.client_writer),
-            handler=self.notifications,
-        )
-        self.manager = RemoteProcessManager(self.peer, notifications=self.notifications)
+        self.notifications = RpcMethodTableHandler()
+        self.connection = connection
+        connection.set_handler(self.notifications)
+        self.manager = RemoteProcessManager(connection, notifications=self.notifications)
 
     async def start(self) -> None:
-        await self.peer.start()
+        await self.connection.start()
         await self.manager.start()
 
     async def aclose(self) -> None:
         await self.manager.aclose()
-        await self.peer.aclose()
+        await self.connection.close(graceful=False)
 
 
 async def scripted_remote_process_client(agent: ScriptedRemoteAgent) -> ScriptedRemoteProcessClient:
     """Starts the agent, and a fresh client over it."""
 
-    client = ScriptedRemoteProcessClient(agent)
     await agent.start()
+    client = ScriptedRemoteProcessClient(await agent.connect_client())
     await client.start()
     return client

@@ -1,5 +1,8 @@
+"""
+The daemons protocol's response records: what the replay registry keeps and the dispatchers produce, kept apart from
+the wire envelopes so a stored answer is independent of how it travels.
+"""
 import typing as ta
-import uuid
 
 from omcore import dataclasses as dc
 
@@ -7,25 +10,6 @@ from ..protocol import RpcRequest
 
 
 ##
-
-
-@dc.dataclass(frozen=True)
-class RpcFrame:
-    data: bytes
-
-
-##
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcClientHello:
-    version: int
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcServerHello:
-    version: int
-    instance_id: uuid.UUID
 
 
 @dc.dataclass(frozen=True, kw_only=True)
@@ -53,48 +37,3 @@ RpcWireResponse: ta.TypeAlias = ta.Union[  # noqa: UP007
     RpcWireResult,
     RpcWireError,
 ]
-
-RpcWireMessage: ta.TypeAlias = ta.Union[  # noqa: UP007
-    RpcClientHello,
-    RpcServerHello,
-    RpcWireRequest,
-    RpcWireResponse,
-]
-
-
-##
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcClientConnected:
-    instance_id: uuid.UUID
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcClientSendRequest:
-    request: RpcRequest
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcClientRequestSent:
-    request: RpcRequest
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcClientResponse:
-    response: RpcWireResponse
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcPipelineFailure:
-    exc: BaseException
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcServerDispatch:
-    request: RpcRequest
-
-
-@dc.dataclass(frozen=True, kw_only=True)
-class RpcServerSendResponse:
-    response: RpcWireResponse

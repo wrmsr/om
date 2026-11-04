@@ -122,7 +122,7 @@ def test_copy_missing_source(harness, rec):
         await st.put(_key('dst'), b'')
         rec.clear()
         with pytest.raises(blobs.BlobNotFoundError):
-            await st.copy(_key('missing'), _key('dst2'), cond=blobs.IfMatch(blobs.BlobVersion('"x"')))
+            await st.copy(_key('missing'), _key('dst2'), cond=blobs.BlobIfMatch(blobs.BlobVersion('"x"')))
 
     lang.sync_await(inner())
     assert _ops(rec) == ['put', 'head']

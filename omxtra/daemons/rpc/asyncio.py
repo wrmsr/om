@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import inspect
 import typing as ta
 import uuid
@@ -6,8 +7,10 @@ import uuid
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
-from omcore.io.pipelines import all as ipl
+from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
 from omcore.logs import all as logs
+from omcore.rpc.asyncios import AsyncioRpcRuntime
+from omcore.rpc.connection import RpcConnection
 from omcore.sockets.endpoints import SocketEndpoint as RpcEndpoint
 from omcore.sockets.endpoints import resolve_socket_endpoint as resolve_rpc_endpoint
 from omcore.sockets.transports.asyncio import DEFAULT_ASYNCIO_SOCKET_TRANSPORT as DEFAULT_ASYNCIO_RPC_TRANSPORT
@@ -15,28 +18,18 @@ from omcore.sockets.transports.asyncio import AsyncioSocketListener as AsyncioRp
 from omcore.sockets.transports.asyncio import AsyncioSocketTransport as AsyncioRpcTransport
 
 from .client import RpcClient
+from .connections import RpcClientRpcConnection
+from .connections import RpcServerHandler
 from .dispatch import rpc_remote_error_response
 from .dispatch import validate_rpc_response
-from .pipelines import RpcClientConnected
-from .pipelines import RpcClientRequestSent
-from .pipelines import RpcClientResponse
-from .pipelines import RpcClientSendRequest
-from .pipelines import RpcPipelineFailure
-from .pipelines import RpcServerDispatch
-from .pipelines import RpcServerSendResponse
-from .pipelines import RpcWireError
-from .pipelines import RpcWireRequest
 from .pipelines import RpcWireResponse
 from .pipelines import RpcWireResult
-from .pipelines import rpc_client_pipeline_spec
-from .pipelines import rpc_server_pipeline_spec
-from .pipelines.codecs import encode_rpc_wire_message_payload
+from .pipelines import rpc_client_pipeline
+from .pipelines import rpc_server_pipeline
 from .protocol import RPC_DEFAULT_MAX_FRAME_BYTES
 from .protocol import RPC_PROTOCOL_VERSION
 from .protocol import RpcCallIndeterminateError
 from .protocol import RpcHandler
-from .protocol import RpcProtocolError
-from .protocol import RpcRemoteError
 from .protocol import RpcRequest
 from .protocol import RpcUnavailableError
 from .registry import RpcResponseExecute
@@ -146,137 +139,48 @@ class AsyncRpcRequestDispatcher:
 
 
 class AsyncioRpcClientConnection(lang.Final):
-    def __init__(
-            self,
-            driver: ipl.PollAsyncioStreamDriver,
-            *,
-            instance_id: uuid.UUID,
-            io_timeout_s: float | None,
-            max_frame_bytes: int,
-    ) -> None:
+    """A handshaken, single-request RPC connection: the shared client core, on asyncio."""
+
+    def __init__(self, conn: RpcClientRpcConnection) -> None:
         super().__init__()
 
-        self._driver: ipl.PollAsyncioStreamDriver | None = driver
-        self._instance_id = instance_id
-        self._io_timeout_s = io_timeout_s
-        self._max_frame_bytes = max_frame_bytes
-        self._request: RpcRequest | None = None
-        self._response: RpcWireResponse | None = None
-        self._response_received = False
+        self._conn: RpcClientRpcConnection | None = conn
+        self._instance_id: uuid.UUID | None = None
 
     @property
     def instance_id(self) -> uuid.UUID:
-        return self._instance_id
+        if (conn := self._conn) is not None:
+            return conn.instance_id
+        return check.not_none(self._instance_id)
 
     @property
     def closed(self) -> bool:
-        return self._driver is None
+        return self._conn is None
 
-    def _pipeline_driver(self) -> ipl.PollAsyncioStreamDriver:
-        if self._driver is None:
+    def _live(self) -> RpcClientRpcConnection:
+        if (conn := self._conn) is None:
             raise RuntimeError('RPC client connection is closed')
-        return self._driver
-
-    async def _next(self) -> ta.Any:
-        return await asyncio.wait_for(
-            self._pipeline_driver().next(),
-            self._io_timeout_s,
-        )
-
-    def _indeterminate(self, request: RpcRequest, exc: BaseException | None = None) -> ta.NoReturn:
-        error = RpcCallIndeterminateError(
-            request,
-            instance_id=self._instance_id,
-        )
-        if exc is None:
-            raise error
-        raise error from exc
+        return conn
 
     async def send(self, request: RpcRequest) -> None:
-        if self._request is not None:
-            raise RuntimeError('RPC client connection already has a request')
-
-        payload = encode_rpc_wire_message_payload(RpcWireRequest(request=request))
-        if len(payload) > self._max_frame_bytes:
-            raise RpcProtocolError(
-                f'RPC frame is {len(payload)} bytes, exceeding limit {self._max_frame_bytes}',
-            )
-
-        self._request = request
-        self._pipeline_driver().enqueue(RpcClientSendRequest(request=request))
-        try:
-            while True:
-                event = await self._next()
-                if isinstance(event, RpcClientRequestSent):
-                    if event.request is not request:
-                        self._indeterminate(request)
-                    return
-                if isinstance(event, RpcClientResponse):
-                    self._response = event.response
-                    continue
-                if isinstance(event, RpcPipelineFailure):
-                    self._indeterminate(request, event.exc)
-                if event is not None:
-                    self._indeterminate(request)
-        except RpcCallIndeterminateError:
-            raise
-        except (EOFError, OSError, RpcProtocolError) as exc:
-            self._indeterminate(request, exc)
-
-    async def _receive_response(self, request: RpcRequest) -> RpcWireResponse:
-        if (response := self._response) is not None:
-            return response
-
-        try:
-            while True:
-                event = await self._next()
-                if isinstance(event, RpcClientResponse):
-                    self._response = event.response
-                    return event.response
-                if isinstance(event, RpcPipelineFailure):
-                    self._indeterminate(request, event.exc)
-                if event is not None:
-                    self._indeterminate(request)
-        except RpcCallIndeterminateError:
-            raise
-        except (EOFError, OSError, RpcProtocolError) as exc:
-            self._indeterminate(request, exc)
+        await self._live().send_rpc(request)
 
     async def receive(self) -> ta.Any:
-        request = check.not_none(self._request)
-        if self._response_received:
-            raise RuntimeError('RPC client connection already received its response')
-
-        response = await self._receive_response(request)
-        self._response_received = True
-        if response.client_id != request.client_id or response.request_id != request.request_id:
-            self._indeterminate(request)
-
-        if isinstance(response, RpcWireResult):
-            return response.result
-        if not isinstance(response, RpcWireError):
-            self._indeterminate(request)
-
-        if response.code == 'unavailable':
-            raise RpcUnavailableError(response.message)
-        if response.code == 'remote':
-            raise RpcRemoteError(
-                remote_type=response.remote_type,
-                message=response.message,
-            )
-        if response.code == 'protocol':
-            raise RpcProtocolError(response.message)
-        return self._indeterminate(request)
+        return await self._live().receive_rpc()
 
     async def call(self, request: RpcRequest) -> ta.Any:
         await self.send(request)
         return await self.receive()
 
     async def close(self) -> bool:
-        if (driver := self._driver) is None:
+        if (conn := self._conn) is None:
             return False
-        self._driver = None
-        await driver.close()
+        self._conn = None
+        try:
+            self._instance_id = conn.instance_id
+        except Exception:  # noqa
+            pass
+        await conn.close(graceful=False)
         return True
 
     async def __aenter__(self) -> ta.Self:
@@ -337,36 +241,25 @@ class AsyncioRpcClient(lang.Final):
         except OSError as exc:
             raise RpcUnavailableError(str(exc)) from exc
 
-        driver = ipl.PollAsyncioStreamDriver(
-            rpc_client_pipeline_spec(
-                protocol_version=self._config.protocol_version,
-                max_frame_bytes=self._config.max_frame_bytes,
-            ),
-            reader,
-            writer,
+        pipeline = rpc_client_pipeline(
+            protocol_version=self._config.protocol_version,
+            max_frame_bytes=self._config.max_frame_bytes,
+            io_timeout_s=self._config.io_timeout_s,
         )
+        conn = RpcClientRpcConnection(
+            AsyncioRpcRuntime(PollAsyncioStreamIoPipelineDriver(pipeline.spec, reader, writer)),
+            pipeline.config,
+            max_frame_bytes=self._config.max_frame_bytes,
+            io_timeout_s=self._config.io_timeout_s,
+        )
+        client_conn = AsyncioRpcClientConnection(conn)
         try:
-            while True:
-                event = await asyncio.wait_for(driver.next(), self._config.io_timeout_s)
-                if isinstance(event, RpcClientConnected):
-                    return AsyncioRpcClientConnection(
-                        driver,
-                        instance_id=event.instance_id,
-                        io_timeout_s=self._config.io_timeout_s,
-                        max_frame_bytes=self._config.max_frame_bytes,
-                    )
-                if isinstance(event, RpcPipelineFailure):
-                    if isinstance(event.exc, RpcProtocolError):
-                        raise event.exc
-                    raise RpcUnavailableError(str(event.exc)) from event.exc
-                if event is not None:
-                    raise RpcProtocolError(f'Unexpected RPC handshake event: {event!r}')
-        except (RpcProtocolError, RpcUnavailableError):
-            await driver.close()
+            await conn.start()
+            await conn.handshake()
+        except BaseException:
+            await client_conn.close()
             raise
-        except (EOFError, OSError) as exc:
-            await driver.close()
-            raise RpcUnavailableError(str(exc)) from exc
+        return client_conn
 
     async def ping(self) -> uuid.UUID:
         async with await self.connect() as conn:
@@ -449,7 +342,8 @@ class AsyncioRpcServer(lang.Final):
         self._instance_id: uuid.UUID | None = None
         self._dispatcher: AsyncRpcRequestDispatcher | None = None
         self._connections: set[asyncio.Task[None]] = set()
-        self._drivers: dict[asyncio.Task[None], ipl.PollAsyncioStreamDriver] = {}
+        self._rpc_connections: dict[asyncio.Task[ta.Any], RpcConnection] = {}
+        self._dispatches: set[asyncio.Task[RpcWireResponse]] = set()
         self._closing = False
 
     @property
@@ -497,42 +391,18 @@ class AsyncioRpcServer(lang.Final):
         self._connections.add(task)
         task.add_done_callback(self._connections.discard)
 
-    async def _driver_next(self, driver: ipl.PollAsyncioStreamDriver) -> ta.Any:
-        return await asyncio.wait_for(
-            driver.next(),
-            self._config.connection_timeout_s,
-        )
-
-    async def _handle_connection(self, driver: ipl.PollAsyncioStreamDriver) -> None:
-        while True:
-            event = await self._driver_next(driver)
-            if isinstance(event, RpcPipelineFailure):
-                raise event.exc
-            if isinstance(event, RpcServerDispatch):
-                request = event.request
-                break
-            if event is not None:
-                raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
-            if not driver.is_running:
-                return
-
+    def _acquire_activity(self) -> ta.ContextManager[ta.Any] | None:
         if self._closing:
-            response: RpcWireResponse = RpcWireError(
-                client_id=request.client_id,
-                request_id=request.request_id,
-                code='unavailable',
-                remote_type='omxtra.daemons.rpc.RpcServerActivityRejectedError',
-                message='RPC server is shutting down',
-            )
-        else:
-            response = await check.not_none(self._dispatcher).dispatch(request)
+            return None
+        return contextlib.nullcontext()
 
-        driver.enqueue(RpcServerSendResponse(response=response))
-        while driver.is_running:
-            if (event := await self._driver_next(driver)) is not None:
-                if isinstance(event, RpcPipelineFailure):
-                    raise event.exc
-                raise RpcProtocolError(f'Unexpected RPC server event: {event!r}')
+    async def _dispatch(self, request: RpcRequest) -> RpcWireResponse:
+        # Run apart from the connection, so a client vanishing mid-request does not cancel it: its answer must still
+        # reach the replay registry, for the retry. The drain waits for it all the same.
+        task = asyncio.create_task(check.not_none(self._dispatcher).dispatch(request))
+        self._dispatches.add(task)
+        task.add_done_callback(self._dispatches.discard)
+        return await asyncio.shield(task)
 
     async def _run_connection(
             self,
@@ -540,27 +410,33 @@ class AsyncioRpcServer(lang.Final):
             writer: asyncio.StreamWriter,
     ) -> None:
         task = check.not_none(asyncio.current_task())
-        driver = ipl.PollAsyncioStreamDriver(
-            rpc_server_pipeline_spec(
-                protocol_version=RPC_PROTOCOL_VERSION,
-                instance_id=self.instance_id,
-                max_frame_bytes=self._config.max_frame_bytes,
-            ),
-            reader,
-            writer,
+
+        pipeline = rpc_server_pipeline(
+            protocol_version=RPC_PROTOCOL_VERSION,
+            instance_id=self.instance_id,
+            max_frame_bytes=self._config.max_frame_bytes,
+            connection_timeout_s=self._config.connection_timeout_s,
         )
-        self._drivers[task] = driver
+        handler = RpcServerHandler(self._dispatch, self._acquire_activity)
+        conn = RpcConnection(
+            AsyncioRpcRuntime(PollAsyncioStreamIoPipelineDriver(pipeline.spec, reader, writer)),
+            pipeline.config,
+            handler=handler,
+        )
+        conn.add_close_callback(handler.release_activity)
+
+        self._rpc_connections[task] = conn
         try:
-            async with driver:
-                await self._handle_connection(driver)
-        except (EOFError, OSError, RpcProtocolError):
-            pass
+            await conn.start()
+            await conn.wait_closed()
+            if (exc := conn.close_exception) is not None:
+                log.debug('Asyncio RPC connection failed: %r', exc)
         except asyncio.CancelledError:
             raise
         except BaseException:  # noqa
             log.exception('Unhandled asyncio RPC connection error')
         finally:
-            self._drivers.pop(task, None)
+            self._rpc_connections.pop(task, None)
 
     async def serve_forever(self) -> ta.NoReturn:
         await check.not_none(self._listener).serve_forever()
@@ -575,17 +451,19 @@ class AsyncioRpcServer(lang.Final):
             self._listener = None
             await listener.close()
 
-        if self._connections:
+        waiting: set[asyncio.Task[ta.Any]] = {*self._connections, *self._dispatches}
+        if waiting:
             done, pending = await asyncio.wait(
-                self._connections,
+                waiting,
                 timeout=self._config.drain_timeout_s,
             )
             for task in done:
-                task.result()
+                if task in self._connections or not task.cancelled():
+                    task.result()
             if pending:
                 for task in pending:
-                    if (driver := self._drivers.get(task)) is not None:
-                        await driver.close()
+                    if (conn := self._rpc_connections.get(task)) is not None:
+                        await conn.close(graceful=False)
                     task.cancel()
                 await asyncio.gather(*pending, return_exceptions=True)
                 raise RpcServerDrainTimeoutError('Asyncio RPC connections did not drain before timeout')

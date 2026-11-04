@@ -775,13 +775,42 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
                 self._drain_input_ended = True
                 return
 
-    def on_readable(self) -> None:
+    def _step_unhandled(
+            self,
+            *,
+            read: bool,
+            on_unhandled: ta.Optional[ta.Callable[[ta.Any], None]],
+    ) -> None:
+        """
+        Steps the pipeline. Without `on_unhandled`, a pipeline is expected to produce no unhandled output, as one whose
+        host never consumes any does not. With it, each unhandled output is handed over as it appears - for hosts
+        whose pipelines emit events, such as a session's - and stepping continues until no work remains.
+        """
+
+        if on_unhandled is None:
+            check.none(self.next(read=read, raise_on_stall=False))
+            return
+
+        while self.is_active:
+            if (out := self.next(read=read, raise_on_stall=False)) is None:
+                return
+            on_unhandled(out)
+
+    def on_readable(
+            self,
+            *,
+            on_unhandled: ta.Optional[ta.Callable[[ta.Any], None]] = None,
+    ) -> None:
         if self._state is IoPipelineDriverState.DRAINING:
             self._discard_input()
             return
-        check.none(self.next(raise_on_stall=False))
+        self._step_unhandled(read=True, on_unhandled=on_unhandled)
 
-    def on_writable(self) -> None:
+    def on_writable(
+            self,
+            *,
+            on_unhandled: ta.Optional[ta.Callable[[ta.Any], None]] = None,
+    ) -> None:
         check.not_empty(self._write_q)
 
         self._try_flush_write_q()
@@ -791,8 +820,12 @@ class IoPipelineFdioDriver(IoPipelinePostingTarget):
 
         elif self._state is IoPipelineDriverState.RUNNING:
             self._update_output_writability()
-            check.none(self.next(read=False))
+            self._step_unhandled(read=False, on_unhandled=on_unhandled)
 
-    def on_timeout(self) -> None:
+    def on_timeout(
+            self,
+            *,
+            on_unhandled: ta.Optional[ta.Callable[[ta.Any], None]] = None,
+    ) -> None:
         check.state(self.is_active)
-        check.none(self.next(read=False))
+        self._step_unhandled(read=False, on_unhandled=on_unhandled)

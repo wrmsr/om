@@ -586,7 +586,14 @@ class PyremoteBootstrapDriver:
         if (mn := options.main_name_override) is not None:
             # Must go on same single line as first line of user payload to preserve '<stdin>' line numbers. If more
             # things wind up having to be done here, it can still be crammed on one line into a single `exec()`.
-            parts.insert(0, f'__name__ = {mn!r}; ')
+            #
+            # The overriding name is registered in sys.modules right away, not just at finalization: module-level code
+            # runs first, and some of it inspects its module while it does - dataclasses with string-annotated fields
+            # look the module up in sys.modules while the class is being created, on Python 3.8 at least.
+            parts.insert(0, (
+                f'__name__ = {mn!r}; '
+                f'__import__("sys").modules.setdefault(__name__, __import__("sys").modules["__main__"]); '
+            ))
 
         if len(parts) == 1:
             return parts[0]

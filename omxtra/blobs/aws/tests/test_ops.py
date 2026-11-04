@@ -50,15 +50,15 @@ def test_etags():
 
 
 def test_builds():
-    r = build_get('b', 'k', blobs.OffsetBlobRange(1, 3), blobs.IfMatch(V))
+    r = build_get('b', 'k', blobs.OffsetBlobRange(1, 3), blobs.BlobIfMatch(V))
     assert (r.range, r.if_match, r.if_none_match) == ('bytes=1-2', '"v"', None)
-    r2 = build_put('b', 'k', b'x', blobs.IfAbsent())
+    r2 = build_put('b', 'k', b'x', blobs.BlobIfAbsent())
     assert (r2.if_none_match, r2.if_match, r2.body) == ('*', None, b'x')
     c, extra = build_copy(
         'b',
         'a b/c',
         'dst',
-        blobs.IfAbsent(),
+        blobs.BlobIfAbsent(),
         dst_if_none_match_header='cf-copy-destination-if-none-match',
         dst_if_match_header='cf-copy-destination-if-match',
     )
@@ -140,23 +140,23 @@ def _err(status, code=None):
 
 
 @pytest.mark.parametrize(('op', 'status', 'code', 'cond', 'expected'), [
-    ('get', 304, None, blobs.IfNoneMatch(V), blobs.BlobNotModifiedError),
-    ('head', 412, 'PreconditionFailed', blobs.IfMatch(V), blobs.BlobPreconditionFailedError),
-    ('get', 404, 'NoSuchKey', blobs.IfMatch(V), blobs.BlobPreconditionFailedError),
-    ('head', 404, None, blobs.IfMatch(V), blobs.BlobPreconditionFailedError),
+    ('get', 304, None, blobs.BlobIfNoneMatch(V), blobs.BlobNotModifiedError),
+    ('head', 412, 'PreconditionFailed', blobs.BlobIfMatch(V), blobs.BlobPreconditionFailedError),
+    ('get', 404, 'NoSuchKey', blobs.BlobIfMatch(V), blobs.BlobPreconditionFailedError),
+    ('head', 404, None, blobs.BlobIfMatch(V), blobs.BlobPreconditionFailedError),
     ('get', 404, 'NoSuchKey', None, blobs.BlobNotFoundError),
-    ('head', 404, None, blobs.IfNoneMatch(V), blobs.BlobNotFoundError),
+    ('head', 404, None, blobs.BlobIfNoneMatch(V), blobs.BlobNotFoundError),
     ('get', 404, 'NoSuchBucket', None, S3ResponseError),
-    ('put', 412, 'PreconditionFailed', blobs.IfAbsent(), blobs.BlobAlreadyExistsError),
-    ('put', 412, 'PreconditionFailed', blobs.IfMatch(V), blobs.BlobPreconditionFailedError),
-    ('put', 404, 'NoSuchKey', blobs.IfMatch(V), blobs.BlobPreconditionFailedError),
-    ('complete', 412, 'PreconditionFailed', blobs.IfAbsent(), blobs.BlobAlreadyExistsError),
-    ('put', 409, 'ConditionalRequestConflict', blobs.IfAbsent(), blobs.BlobConflictError),
-    ('copy', 412, 'PreconditionFailed', blobs.IfAbsent(), blobs.BlobAlreadyExistsError),
+    ('put', 412, 'PreconditionFailed', blobs.BlobIfAbsent(), blobs.BlobAlreadyExistsError),
+    ('put', 412, 'PreconditionFailed', blobs.BlobIfMatch(V), blobs.BlobPreconditionFailedError),
+    ('put', 404, 'NoSuchKey', blobs.BlobIfMatch(V), blobs.BlobPreconditionFailedError),
+    ('complete', 412, 'PreconditionFailed', blobs.BlobIfAbsent(), blobs.BlobAlreadyExistsError),
+    ('put', 409, 'ConditionalRequestConflict', blobs.BlobIfAbsent(), blobs.BlobConflictError),
+    ('copy', 412, 'PreconditionFailed', blobs.BlobIfAbsent(), blobs.BlobAlreadyExistsError),
     ('copy', 404, 'NoSuchKey', None, S3ResponseError),
-    ('delete', 412, 'PreconditionFailed', blobs.IfMatch(V), blobs.BlobPreconditionFailedError),
-    ('delete', 404, 'NoSuchKey', blobs.IfMatch(V), blobs.BlobPreconditionFailedError),
-    ('put', 501, 'NotImplemented', blobs.IfAbsent(), blobs.UnsupportedBlobOperationError),
+    ('delete', 412, 'PreconditionFailed', blobs.BlobIfMatch(V), blobs.BlobPreconditionFailedError),
+    ('delete', 404, 'NoSuchKey', blobs.BlobIfMatch(V), blobs.BlobPreconditionFailedError),
+    ('put', 501, 'NotImplemented', blobs.BlobIfAbsent(), blobs.UnsupportedBlobOperationError),
     ('put', 403, 'AccessDenied', None, S3ResponseError),
     ('get', 301, 'PermanentRedirect', None, S3ResponseError),
 ])

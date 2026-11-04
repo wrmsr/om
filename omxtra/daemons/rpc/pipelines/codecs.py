@@ -1,81 +1,37 @@
-import math
-import struct
+"""
+The daemons wire dialect, as an `omcore.rpc` envelope codec.
+
+The wire is unchanged: four-byte big-endian length frames of compact JSON objects, a `hello` greeting each way, then
+`request`, `result`, and `error` objects carrying a `client_id` and `request_id` in place of an envelope id. The codec
+maps that pair onto the envelope id, a `(client_id, request_id)` tuple, so the session correlates responses as with any
+other id, and the replay registry sees the identity a client chose. Envelope kinds the dialect lacks - cancels,
+notifications, pings - cannot be sent, and arriving are protocol errors.
+"""
 import typing as ta
 import uuid
 
-from omcore.formats.json import all as json
-from omcore.io.pipelines import all as ipl
-from omcore.io.streambufs import all as isb
+from omcore.rpc.codecs import JsonRpcValueCodec
+from omcore.rpc.codecs import RpcValueEnvelopeCodec
+from omcore.rpc.errors import RpcRemoteErrorData
+from omcore.rpc.messages import RpcEnvelope
+from omcore.rpc.messages import RpcErrorMessage
+from omcore.rpc.messages import RpcHelloMessage
+from omcore.rpc.messages import RpcRequestMessage
+from omcore.rpc.messages import RpcResultMessage
 
 from ..protocol import RPC_PROTOCOL_NAME
 from ..protocol import RpcProtocolError
 from ..protocol import RpcRequest
-from .messages import RpcClientHello
-from .messages import RpcFrame
-from .messages import RpcPipelineFailure
-from .messages import RpcServerHello
 from .messages import RpcWireError
-from .messages import RpcWireMessage
 from .messages import RpcWireRequest
 from .messages import RpcWireResult
 
 
-##
-
-
-_FRAME_HEADER = struct.Struct('!I')
-
-
-class RpcFrameCodecIoPipelineHandler(ipl.BufferedBytesToMessageDecoderHandler):
-    """Decode and encode bounded length-prefixed RPC frames."""
-
-    def __init__(self, max_frame_bytes: int) -> None:
-        super().__init__()
-
-        if max_frame_bytes < 1:
-            raise ValueError(max_frame_bytes)
-        self._max_frame_bytes = max_frame_bytes
-        self._frame_size: int | None = None
-
-    def _decode_buffer(
-            self,
-            ctx: ipl.HandlerContext,
-            buf: isb.Buffer,
-            out: list[ta.Any],
-            *,
-            final: bool = False,
-    ) -> None:
-        while True:
-            if self._frame_size is None:
-                if len(buf) < _FRAME_HEADER.size:
-                    break
-                self._frame_size = size = _FRAME_HEADER.unpack(buf.coalesce(_FRAME_HEADER.size))[0]
-                buf.advance(_FRAME_HEADER.size)
-                if size > self._max_frame_bytes:
-                    raise RpcProtocolError(f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}')
-
-            size = self._frame_size
-            if len(buf) < size:
-                break
-
-            out.append(RpcFrame(isb.Buffers.to_bytes(buf.split_to(size), strict=True)))
-            self._frame_size = None
-
-        if final and (self._frame_size is not None or len(buf)):
-            self._frame_size = None
-            buf.advance(len(buf))
-            out.append(RpcPipelineFailure(
-                exc=RpcProtocolError('RPC connection closed within a frame'),
-            ))
-
-    def outbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, RpcFrame):
-            size = len(msg.data)
-            if size > self._max_frame_bytes:
-                raise RpcProtocolError(f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}')
-            msg = _FRAME_HEADER.pack(size) + msg.data
-
-        ctx.feed_out(msg)
+RpcWireMessage: ta.TypeAlias = ta.Union[  # noqa: UP007
+    RpcWireRequest,
+    RpcWireResult,
+    RpcWireError,
+]
 
 
 ##
@@ -96,164 +52,182 @@ def _required_str(
     return value
 
 
-def rpc_wire_message_from_obj(obj: ta.Any) -> RpcWireMessage:
-    if not isinstance(obj, dict):
-        raise RpcProtocolError(f'RPC message must be an object, got {type(obj).__name__}')
+def rpc_request_id(client_id: str, request_id: str) -> tuple[str, str]:
+    return (client_id, request_id)
 
-    message_type = obj.get('type')
-    if message_type == 'hello':
-        if obj.get('protocol') != RPC_PROTOCOL_NAME:
-            raise RpcProtocolError(f'Unexpected RPC protocol: {obj.get("protocol")!r}')
-        version = obj.get('version')
-        if not isinstance(version, int):
-            raise RpcProtocolError(f'Invalid RPC protocol version: {version!r}')
 
-        if 'instance_id' not in obj:
-            return RpcClientHello(version=version)
+def rpc_request_of_message(msg: RpcRequestMessage) -> RpcRequest:
+    client_id, request_id = msg.id
+    return RpcRequest(
+        client_id=client_id,
+        request_id=request_id,
+        method=msg.method,
+        params=msg.params,
+    )
 
-        raw_instance_id = _required_str(obj, 'instance_id')
+
+def rpc_message_of_request(request: RpcRequest) -> RpcRequestMessage:
+    return RpcRequestMessage(
+        rpc_request_id(request.client_id, request.request_id),
+        request.method,
+        request.params,
+    )
+
+
+##
+
+
+class DaemonsRpcEnvelopeCodec(RpcValueEnvelopeCodec):
+    def __init__(self) -> None:
+        # Escaped like the blocking wire helpers in `..protocol`, so both spell a message the same way.
+        super().__init__(JsonRpcValueCodec(ensure_ascii=True))
+
+    def envelope_to_value(self, envelope: RpcEnvelope) -> ta.Any:
+        if isinstance(envelope, RpcRequestMessage):
+            client_id, request_id = envelope.id
+            return {
+                'type': 'request',
+                'client_id': client_id,
+                'request_id': request_id,
+                'method': envelope.method,
+                'params': envelope.params,
+            }
+
+        if isinstance(envelope, RpcResultMessage):
+            client_id, request_id = envelope.id
+            return {
+                'type': 'result',
+                'client_id': client_id,
+                'request_id': request_id,
+                'result': envelope.result,
+            }
+
+        if isinstance(envelope, RpcErrorMessage):
+            client_id, request_id = envelope.id
+            return {
+                'type': 'error',
+                'client_id': client_id,
+                'request_id': request_id,
+                'error': {
+                    'code': envelope.error.code,
+                    'type': envelope.error.remote_type,
+                    'message': envelope.error.message,
+                },
+            }
+
+        if isinstance(envelope, RpcHelloMessage):
+            return super().envelope_to_value(envelope)
+
+        raise TypeError(f'not part of the daemons rpc dialect: {envelope!r}')
+
+    def envelope_from_value(self, value: ta.Any) -> RpcEnvelope:
+        if not isinstance(value, dict):
+            raise RpcProtocolError(f'RPC message must be an object, got {type(value).__name__}')
+
+        message_type = value.get('type')
+
+        if message_type == 'hello':
+            return super().envelope_from_value(value)
+
+        if message_type == 'request':
+            try:
+                return rpc_message_of_request(RpcRequest(
+                    client_id=_required_str(value, 'client_id'),
+                    request_id=_required_str(value, 'request_id'),
+                    method=_required_str(value, 'method'),
+                    params=value.get('params'),
+                ))
+            except RpcProtocolError:
+                raise
+            except (TypeError, ValueError) as exc:
+                raise RpcProtocolError(f'Invalid RPC request: {exc}') from exc
+
+        rid = rpc_request_id(_required_str(value, 'client_id'), _required_str(value, 'request_id'))
+
+        if message_type == 'result':
+            if 'result' not in value:
+                raise RpcProtocolError('Missing RPC result')
+            return RpcResultMessage(rid, value['result'])
+
+        if message_type == 'error':
+            error = value.get('error')
+            if not isinstance(error, dict):
+                raise RpcProtocolError(f'Invalid RPC error: {error!r}')
+            return RpcErrorMessage(rid, RpcRemoteErrorData(
+                code=_required_str(error, 'code'),
+                remote_type=_required_str(error, 'type'),
+                message=_required_str(error, 'message', allow_empty=True),
+            ))
+
+        raise RpcProtocolError(f'Unknown RPC message type: {message_type!r}')
+
+    def decode(self, data: bytes) -> RpcEnvelope:
         try:
-            instance_id = uuid.UUID(raw_instance_id)
-        except ValueError as exc:
-            raise RpcProtocolError(f'Invalid RPC service instance id: {raw_instance_id!r}') from exc
-        return RpcServerHello(
-            version=version,
-            instance_id=instance_id,
-        )
-
-    if message_type == 'request':
-        try:
-            request = RpcRequest(
-                client_id=_required_str(obj, 'client_id'),
-                request_id=_required_str(obj, 'request_id'),
-                method=_required_str(obj, 'method'),
-                params=obj.get('params'),
-            )
-        except (TypeError, ValueError) as exc:
-            raise RpcProtocolError(f'Invalid RPC request: {exc}') from exc
-        return RpcWireRequest(request=request)
-
-    client_id = _required_str(obj, 'client_id')
-    request_id = _required_str(obj, 'request_id')
-    if message_type == 'result':
-        if 'result' not in obj:
-            raise RpcProtocolError('Missing RPC result')
-        return RpcWireResult(
-            client_id=client_id,
-            request_id=request_id,
-            result=obj['result'],
-        )
-
-    if message_type == 'error':
-        error = obj.get('error')
-        if not isinstance(error, dict):
-            raise RpcProtocolError(f'Invalid RPC error: {error!r}')
-        return RpcWireError(
-            client_id=client_id,
-            request_id=request_id,
-            code=_required_str(error, 'code'),
-            remote_type=_required_str(error, 'type'),
-            message=_required_str(error, 'message', allow_empty=True),
-        )
-
-    raise RpcProtocolError(f'Unknown RPC message type: {message_type!r}')
+            value = self.value_codec.decode(data)
+        except Exception as exc:  # noqa
+            raise RpcProtocolError(f'Invalid RPC JSON: {exc}') from exc
+        return self.envelope_from_value(value)
 
 
-def rpc_wire_message_to_obj(msg: RpcWireMessage) -> ta.Mapping[str, ta.Any]:
-    if isinstance(msg, RpcClientHello):
-        return {
-            'type': 'hello',
-            'protocol': RPC_PROTOCOL_NAME,
-            'version': msg.version,
-        }
+DAEMONS_RPC_ENVELOPE_CODEC = DaemonsRpcEnvelopeCodec()
 
-    if isinstance(msg, RpcServerHello):
-        return {
-            'type': 'hello',
-            'protocol': RPC_PROTOCOL_NAME,
-            'version': msg.version,
-            'instance_id': str(msg.instance_id),
-        }
 
+##
+# hellos
+
+
+def rpc_client_hello(protocol_version: int) -> ta.Mapping[str, ta.Any]:
+    return {
+        'protocol': RPC_PROTOCOL_NAME,
+        'version': protocol_version,
+    }
+
+
+def rpc_server_hello(protocol_version: int, instance_id: uuid.UUID) -> ta.Mapping[str, ta.Any]:
+    return {
+        'protocol': RPC_PROTOCOL_NAME,
+        'version': protocol_version,
+        'instance_id': str(instance_id),
+    }
+
+
+def rpc_hello_version(hello: ta.Mapping[str, ta.Any]) -> int:
+    if hello.get('protocol') != RPC_PROTOCOL_NAME:
+        raise RpcProtocolError(f'Unexpected RPC protocol: {hello.get("protocol")!r}')
+    version = hello.get('version')
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise RpcProtocolError(f'Invalid RPC protocol version: {version!r}')
+    return version
+
+
+def rpc_hello_instance_id(hello: ta.Mapping[str, ta.Any]) -> uuid.UUID:
+    raw = _required_str(hello, 'instance_id')
+    try:
+        return uuid.UUID(raw)
+    except ValueError as exc:
+        raise RpcProtocolError(f'Invalid RPC service instance id: {raw!r}') from exc
+
+
+##
+# payloads, for size checks ahead of sending
+
+
+def _wire_message_envelope(msg: RpcWireMessage) -> RpcEnvelope:
     if isinstance(msg, RpcWireRequest):
-        return {
-            'type': 'request',
-            'client_id': msg.request.client_id,
-            'request_id': msg.request.request_id,
-            'method': msg.request.method,
-            'params': msg.request.params,
-        }
-
+        return rpc_message_of_request(msg.request)
     if isinstance(msg, RpcWireResult):
-        return {
-            'type': 'result',
-            'client_id': msg.client_id,
-            'request_id': msg.request_id,
-            'result': msg.result,
-        }
-
+        return RpcResultMessage(rpc_request_id(msg.client_id, msg.request_id), msg.result)
     if isinstance(msg, RpcWireError):
-        return {
-            'type': 'error',
-            'client_id': msg.client_id,
-            'request_id': msg.request_id,
-            'error': {
-                'code': msg.code,
-                'type': msg.remote_type,
-                'message': msg.message,
-            },
-        }
-
+        return RpcErrorMessage(rpc_request_id(msg.client_id, msg.request_id), RpcRemoteErrorData(
+            code=msg.code,
+            remote_type=msg.remote_type,
+            message=msg.message,
+        ))
     raise TypeError(msg)
 
 
-def _validate_json_numbers(obj: ta.Any, seen: set[int]) -> None:
-    if isinstance(obj, float):
-        if not math.isfinite(obj):
-            raise ValueError(f'Out of range float values are not JSON compliant: {obj!r}')
-        return
-
-    if isinstance(obj, dict):
-        if id(obj) in seen:
-            return
-        seen.add(id(obj))
-        for key, value in obj.items():
-            _validate_json_numbers(key, seen)
-            _validate_json_numbers(value, seen)
-        return
-
-    if isinstance(obj, (list, tuple)):
-        if id(obj) in seen:
-            return
-        seen.add(id(obj))
-        for value in obj:
-            _validate_json_numbers(value, seen)
-
-
 def encode_rpc_wire_message_payload(msg: RpcWireMessage) -> bytes:
-    obj = rpc_wire_message_to_obj(msg)
     try:
-        _validate_json_numbers(obj, set())
-        return json.dumps_compact(obj).encode('utf-8')
+        return DAEMONS_RPC_ENVELOPE_CODEC.encode(_wire_message_envelope(msg))
     except (TypeError, ValueError) as exc:
         raise RpcProtocolError(f'RPC message is not JSON-compatible: {exc}') from exc
-
-
-class RpcJsonCodecIoPipelineHandler(ipl.Handler):
-    """Translate JSON RPC frames to and from typed wire messages."""
-
-    def inbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, RpcFrame):
-            try:
-                obj = json.loads(msg.data.decode('utf-8'))
-            except ValueError as exc:
-                raise RpcProtocolError(f'Invalid RPC JSON: {exc}') from exc
-            msg = rpc_wire_message_from_obj(obj)
-
-        ctx.feed_in(msg)
-
-    def outbound(self, ctx: ipl.HandlerContext, msg: ta.Any) -> None:
-        if isinstance(msg, (RpcClientHello, RpcServerHello, RpcWireRequest, RpcWireResult, RpcWireError)):
-            msg = RpcFrame(encode_rpc_wire_message_payload(msg))
-
-        ctx.feed_out(msg)

@@ -6,7 +6,7 @@ SST layout:
     footer        40 bytes: magic, format version, index offset, index length, entry count, crc32 of the preceding 36
 
 Readers open an SST with a single suffix-ranged get, whose returned object size locates the footer and index without a
-HEAD. Every later block read is pinned to the opened version with IfMatch.
+HEAD. Every later block read is pinned to the opened version with BlobIfMatch.
 """
 import bisect
 import collections
@@ -21,9 +21,9 @@ from ...asyncs import AsyncBlobStore
 from ...asyncs import AsyncBlobWriter
 from ...errors import BlobNotFoundError
 from ...errors import BlobPreconditionFailedError
+from ...types import BlobIfAbsent
+from ...types import BlobIfMatch
 from ...types import BlobInfo
-from ...types import IfAbsent
-from ...types import IfMatch
 from ...types import OffsetBlobRange
 from ...types import SuffixBlobRange
 from .blocks import BlockBuilder
@@ -187,14 +187,14 @@ async def write_ssts(
 ) -> list[SstRef]:
     """
     Writes records into as many SSTs as needed, starting a new one once the current one reaches target_size. Writes
-    nothing for no records. SSTs are published with IfAbsent.
+    nothing for no records. SSTs are published with BlobIfAbsent.
     """
 
     refs: list[SstRef] = []
     pending = await anext(records, None)
     while pending is not None:
         key = new_key()
-        async with store.open_writer(key, cond=IfAbsent()) as w:
+        async with store.open_writer(key, cond=BlobIfAbsent()) as w:
             sw = SstWriter(w, key=key, block_size=block_size)
             while pending is not None:
                 await sw.add(pending)
@@ -276,7 +276,7 @@ class SstReader:
                 store,
                 key,
                 byte_range=OffsetBlobRange(index_offset, index_offset + index_length),
-                cond=IfMatch(info.version),
+                cond=BlobIfMatch(info.version),
             )).data
         return cls(
             store,
@@ -299,7 +299,7 @@ class SstReader:
                 self._store,
                 self._info.key,
                 byte_range=OffsetBlobRange(e.offset, e.offset + e.length),
-                cond=IfMatch(self._info.version),
+                cond=BlobIfMatch(self._info.version),
             )).data
         recs = parse_block(buf)
         self._cache[i] = recs

@@ -9,18 +9,16 @@ with _lang.auto_proxy_init(
     ##
 
     from .asyncio import (  # noqa
-        AsyncJsonrpcNotificationHandler as AsyncNotificationHandler,
-
         AsyncioJsonrpcConnection as AsyncioConnection,
         AsyncioJsonrpcConnections as AsyncioConnections,
     )
 
     from .base import (  # noqa
-        JsonrpcResponseWaiter as ResponseWaiter,
+        TimeoutArg,
+
+        AsyncJsonrpcNotificationHandler as AsyncNotificationHandler,
 
         BaseJsonrpcConnection as BaseConnection,
-        BaseSyncJsonrpcConnection as BaseSyncConnection,
-        BaseAsyncJsonrpcConnection as BaseAsyncConnection,
     )
 
     from .codecs import (  # noqa

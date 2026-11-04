@@ -1,3 +1,5 @@
+# ruff: noqa: UP006 UP007 UP045
+# @om-lite
 import typing as ta
 
 
@@ -25,7 +27,7 @@ class BlobNotFoundError(BlobStoreError):
 
 
 class BlobPreconditionFailedError(BlobStoreError):
-    """Raised for every failed precondition, including IfMatch against a missing key - never BlobNotFoundError."""
+    """Raised for every failed precondition, including BlobIfMatch against a missing key - never BlobNotFoundError."""
 
 
 class BlobAlreadyExistsError(BlobPreconditionFailedError):

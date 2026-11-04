@@ -1,49 +1,36 @@
 # ruff: noqa: UP006 UP007 UP045
 """
 The remote agent payload's request handler: the method tables of each remotable concern's target-side service, merged
-over the one rpc peer. Lite: this is the amalgam's composition root beneath `_main.py`. A new remotable concern plugs in
-here, and its host-side client into `client.py`; nothing below either knows the others exist.
+into one table over the one rpc connection. Lite: this is the amalgam's composition root beneath `_main.py`. A new
+remotable concern plugs in here, and its host-side client into `client.py`; nothing below either knows the others exist.
 """
-import typing as ta
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.dispatch import RpcMethodTableHandler
+from omcore.rpc.dispatch import rpc_merge_method_tables
 
 from ...core.processes.remote.server import RemoteProcessService
-from ...core.rpc.errors import RpcMethodNotFoundError
-from ...core.rpc.handlers import RpcHandler
-from ...core.rpc.handlers import RpcMethod
-from ...core.rpc.peers import RpcPeer
 from ..fs.remote.server import RemoteFsService
 
 
 ##
 
 
-class RemoteAgentRpcHandler(RpcHandler):
+class RemoteAgentRpcHandler(RpcMethodTableHandler):
     def __init__(self) -> None:
         super().__init__()
 
         self._fs = RemoteFsService()
         self._processes = RemoteProcessService()
 
-        self._methods: ta.Dict[str, RpcMethod] = {}
-        for table in (
-                self._fs.methods(),
-                self._processes.methods(),
-        ):
-            for method, fn in table.items():
-                if method in self._methods:
-                    raise ValueError(f'Duplicate remote agent method: {method!r}')
-                self._methods[method] = fn
+        self.add_methods(rpc_merge_method_tables(
+            self._fs.methods(),
+            self._processes.methods(),
+        ))
 
-    def set_peer(self, peer: RpcPeer) -> None:
-        # Only the process service speaks unprompted - its output and exit notifications - so only it needs the peer.
-        self._processes.set_peer(peer)
-
-    async def handle(self, method: str, params: ta.Any) -> ta.Any:
-        try:
-            fn = self._methods[method]
-        except KeyError:
-            raise RpcMethodNotFoundError(method) from None
-        return await fn(params)
+    def set_connection(self, connection: RpcConnection) -> None:
+        # Only the process service speaks unprompted - its output and exit notifications - so only it needs the
+        # connection.
+        self._processes.set_connection(connection)
 
     async def aclose(self) -> None:
         try:

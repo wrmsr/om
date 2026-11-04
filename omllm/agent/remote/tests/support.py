@@ -10,8 +10,8 @@ import typing as ta
 
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
+from omcore.rpc.asyncios import AsyncioRpcConnections
 
-from ....core.rpc.channels import AsyncioStreamRpcChannel
 from ..client import RemoteAgentClient
 from ..payload import get_remote_agent_payload_src
 
@@ -46,7 +46,7 @@ async def remote_agent(*, stderr_sink: list[str] | None = None) -> ta.AsyncItera
             'remote_agent_main()',
         ]).async_run(proc.stdout, proc.stdin)
 
-        client = RemoteAgentClient(AsyncioStreamRpcChannel(proc.stdout, proc.stdin))
+        client = RemoteAgentClient(AsyncioRpcConnections.of_streams(proc.stdout, proc.stdin))
         await client.start()
         yield client
 

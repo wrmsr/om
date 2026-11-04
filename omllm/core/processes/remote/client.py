@@ -1,14 +1,15 @@
 """
 The host side of remote process management: `RemoteProcessManager` implements the ordinary `ProcessManager` and
-`ScopeManager` contracts over an rpc peer to a remote agent's `RemoteProcessService`, with local proxy handles
+`ScopeManager` contracts over an rpc connection to a remote agent's `RemoteProcessService`, with local proxy handles
 (`RemoteProcess`) and local output spools, so the exec and process tools need no remote-specific variants.
 
-Output chunks, end of output, and exits arrive as notifications, applied inline in the peer's receive loop in wire
+Output chunks, end of output, and exits arrive as notifications, applied inline on the connection's pump in wire
 order: every chunk the agent sent before its reply to a `close` is in the spool by the time that reply is seen. Events
 are published in the order they happened, from one drain, exactly like the local manager's. A spawn the caller cancels
 still closes the child the agent forked for it as soon as its id is known, and a lost connection poisons every handle.
 """
 import asyncio
+import functools
 import os
 import shutil
 import signal
@@ -21,12 +22,12 @@ from omcore.asyncs.asynclite import all as asl
 from omcore.lite.marshal import marshal_obj
 from omcore.lite.marshal import unmarshal_obj
 from omcore.logs import all as logs
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.dispatch import RpcMethodTableHandler
+from omcore.rpc.errors import RpcConnectionClosedError
+from omcore.rpc.errors import RpcRemoteError
+from omcore.rpc.translate import translate_rpc_remote_builtin_error
 
-from ...rpc.errors import RpcConnectionClosedError
-from ...rpc.errors import RpcRemoteError
-from ...rpc.handlers import RpcNotificationRouter
-from ...rpc.peers import RpcPeer
-from ...rpc.translate import translate_rpc_remote_builtin_error
 from ..asyncio.notifier import AsyncioSpoolNotifier
 from ..handles import Process
 from ..managers.events import ProcessEventDrain
@@ -371,14 +372,14 @@ _REMOTE_PROCESS_SUPPORTED_OPTIONS: ta.Final = (
 class RemoteProcessManager(ProcessManager, ScopeManager):
     def __init__(
             self,
-            peer: RpcPeer,
+            connection: RpcConnection,
             *,
-            notifications: RpcNotificationRouter,
+            notifications: RpcMethodTableHandler,
             config: ManagerConfig | None = None,
     ) -> None:
         super().__init__()
 
-        self._peer = peer
+        self._connection = connection
         self._config = config if config is not None else ManagerConfig()
         self._state: ta.Literal['new', 'started', 'closing', 'closed'] = 'new'
         self._processes: dict[ProcessId, RemoteProcess] = {}
@@ -405,10 +406,13 @@ class RemoteProcessManager(ProcessManager, ScopeManager):
             close_policy=self._config.close_policy,
         ))
 
-        # The agent's process events arrive as notifications, applied inline in the peer's receive loop in wire order;
+        # The agent's process events arrive as notifications, applied inline on the connection's pump in wire order;
         # and when the connection goes, so do the processes behind it.
-        notifications.add_routes(REMOTE_PROCESS_EVENT_METHODS, self.handle_event)
-        peer.add_close_callback(self._on_peer_closed)
+        notifications.add_inline_notifications({
+            method: functools.partial(self.handle_event, method)
+            for method in REMOTE_PROCESS_EVENT_METHODS
+        })
+        connection.add_close_callback(self._on_connection_closed)
 
     @property
     def config(self) -> ManagerConfig:
@@ -465,7 +469,7 @@ class RemoteProcessManager(ProcessManager, ScopeManager):
 
     async def _call(self, method: str, params: ta.Any) -> ta.Any:
         try:
-            return await self._peer.call(method, params)
+            return await self._connection.request(method, params)
         except RpcRemoteError as e:
             raise translate_rpc_remote_builtin_error(e) from e
 
@@ -678,7 +682,7 @@ class RemoteProcessManager(ProcessManager, ScopeManager):
 
     def handle_event(self, method: str, params: ta.Any) -> None:
         """
-        Applies a process event notification from the agent. Synchronous, and called from the peer's receive loop in
+        Applies a process event notification from the agent. Synchronous, and called from the connection's pump in
         wire order: an output chunk is in its spool before anything the agent sent after it - the reply to a
         `process.close` in particular - is seen.
         """
@@ -699,8 +703,8 @@ class RemoteProcessManager(ProcessManager, ScopeManager):
             # Ahead of its spawn's reply: kept for registration.
             self._pending_events.setdefault(process_id, []).append((method, event))
 
-    def _on_peer_closed(self, peer: RpcPeer) -> None:
-        self.connection_lost(peer.failure)
+    def _on_connection_closed(self, connection: RpcConnection) -> None:
+        self.connection_lost(connection.close_exception)
 
     def connection_lost(self, failure: BaseException | None) -> None:
         reason = f'RPC connection lost: {failure!r}' if failure is not None else 'RPC connection closed'

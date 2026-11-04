@@ -1,40 +1,36 @@
 """
-The synchronous connection: a session handler taped to a SyncIoPipelineDriver (socket or file descriptor pair).
+The synchronous connection: the JSON-RPC connection (`base.py`) on an `omcore.rpc` sync runtime over a
+SyncIoPipelineDriver (socket or file descriptor pair), driven from this thread with `sync_await`.
 
 There is no pump task: the calling thread pumps the driver while it waits for what it asked for. Inbound requests are
-dispatched inline between driver steps, so a handler may itself call back into the peer. One thread at a time may use
-the connection; a nested use from a handler on that same thread is fine.
+dispatched inline as they arrive, so a handler may itself call back into the peer. Dispatchers and notification
+handlers here are sync, and are handed this connection. One thread at a time may use the connection; a nested use from
+a handler on that same thread is fine.
 """
 import errno
 import os
 import socket
 import subprocess
 import sys
-import threading
 import typing as ta
 
 from .... import check
 from .... import lang
 from ....io.pipelines import all as ipl
-from ....logs import all as logs
+from ....rpc.connection import BaseSyncRpcConnection
+from ....rpc.syncs import SyncRpcRuntime
+from ..conns import JsonrpcConnection
+from ..dispatch import AsyncJsonrpcDispatcher
 from ..dispatch import JsonrpcDispatcher
-from ..errors import JsonrpcConnectionClosedError
-from ..errors import JsonrpcMethodError
-from ..errors import KnownErrors
 from ..ids import JsonrpcIdCreatorLike
-from ..types import Batch
 from ..types import NotSpecified
 from ..types import Params
 from ..types import Request
 from ..types import Response
-from .base import BaseSyncJsonrpcConnection
-from .base import JsonrpcResponseWaiter
+from .base import BaseJsonrpcConnection
+from .base import TimeoutArg
 from .configs import JsonrpcPipelineConfig
-from .messages import JsonrpcPipelineMessages as Jpm
 from .specs import build_jsonrpc_pipeline_spec
-
-
-log = logs.get_module_logger(globals())
 
 
 type SyncJsonrpcNotificationHandler = ta.Callable[
@@ -46,35 +42,24 @@ type SyncJsonrpcNotificationHandler = ta.Callable[
 ##
 
 
-class _SyncWaiter(JsonrpcResponseWaiter):
-    def __init__(self) -> None:
+class _SyncJsonrpcDispatcherAdapter(AsyncJsonrpcDispatcher):
+    """Runs a sync dispatcher inline, handing it the sync connection so its handlers can call back synchronously."""
+
+    def __init__(self, dispatcher: JsonrpcDispatcher, connection: SyncJsonrpcConnection) -> None:
         super().__init__()
 
-        self.response: Response | None = None
-        self.exc: BaseException | None = None
+        self._dispatcher = dispatcher
+        self._connection = connection
 
     @property
-    def done(self) -> bool:
-        return self.response is not None or self.exc is not None
+    def dispatcher(self) -> JsonrpcDispatcher:
+        return self._dispatcher
 
-    def set_response(self, response: Response) -> None:
-        if not self.done:
-            self.response = response
-
-    def set_exception(self, exc: BaseException) -> None:
-        if not self.done:
-            self.exc = exc
-
-    def result(self) -> Response:
-        if (exc := self.exc) is not None:
-            raise exc
-        return check.not_none(self.response)
+    async def dispatch(self, connection: ta.Any, request: Request) -> ta.Any:
+        return self._dispatcher.dispatch(self._connection, request)
 
 
-##
-
-
-class SyncJsonrpcConnection(BaseSyncJsonrpcConnection):
+class SyncJsonrpcConnection(BaseSyncRpcConnection, JsonrpcConnection):
     def __init__(
             self,
             driver: ipl.SyncDriver,
@@ -91,50 +76,73 @@ class SyncJsonrpcConnection(BaseSyncJsonrpcConnection):
         open, so whoever owns it registers its closing here (which is also what lets the peer see EOF).
         """
 
-        super().__init__(
+        self._driver = driver
+
+        jc = BaseJsonrpcConnection(
+            SyncRpcRuntime(driver, closers=closers),
             config,
             id_creator=id_creator,
             include_error_details=include_error_details,
         )
 
-        self._driver = driver
-        self._dispatcher = dispatcher
-        self._notification_handler = notification_handler
-        self._closers = list(closers)
+        super().__init__(jc)
 
-        self._owner_thread: int | None = None
-        self._sent: set[int] = set()
-        self._driver_done = False
+        self._jc = jc
+        self.set_dispatcher(dispatcher)
+        self.set_notification_handler(notification_handler)
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}@{id(self):x}<{self._driver!r}>'
 
     @property
+    def connection(self) -> BaseJsonrpcConnection:
+        return self._jc
+
+    @property
     def driver(self) -> ipl.SyncDriver:
         return self._driver
+
+    @property
+    def config(self) -> JsonrpcPipelineConfig:
+        return self._jc.config
+
+    @property
+    def dispatcher(self) -> JsonrpcDispatcher | None:
+        if isinstance(d := self._jc.dispatcher, _SyncJsonrpcDispatcherAdapter):
+            return d.dispatcher
+        return None
+
+    def set_dispatcher(self, dispatcher: JsonrpcDispatcher | None) -> None:
+        """May be called at any time; requests already being handled keep the dispatcher they started with."""
+
+        self._jc.set_dispatcher(_SyncJsonrpcDispatcherAdapter(dispatcher, self) if dispatcher is not None else None)
+
+    def set_notification_handler(self, handler: SyncJsonrpcNotificationHandler | None) -> None:
+        if handler is None:
+            self._jc.set_notification_handler(None)
+            return
+
+        async def handle(connection: ta.Any, note: Request) -> None:
+            handler(self, note)
+
+        self._jc.set_notification_handler(handle)
 
     ##
     # lifecycle
 
+    def run(self, aw: ta.Awaitable[ta.Any]) -> ta.Any:
+        # Starting is optional for a sync connection: the first operation does it.
+        if not self._jc.is_started and not self._jc.is_closed:
+            super().run(self._jc.start())
+        return super().run(aw)
+
     def start(self) -> None:
-        """Bring the pipeline up without touching the transport. Optional: the first operation does this too."""
+        """Bring the connection up without touching the transport. Optional: the first operation does this too."""
 
-        with self._owned():
-            self._step(read=False)
+        if not self._jc.is_started:
+            super().run(self._jc.start())
 
-    def __enter__(self) -> ta.Self:
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.close(graceful=exc_type is None)
-
-    def _default_close_timeout_s(self, graceful: bool) -> float | None:
-        c = self._config
-        parts = [t for t in ((c.close_drain_timeout_s if graceful else None), c.write_timeout_s) if t is not None]
-        return sum(parts) if parts else None
-
-    def close(
+    def close(  # type: ignore[override]
             self,
             *,
             graceful: bool = True,
@@ -148,42 +156,7 @@ class SyncJsonrpcConnection(BaseSyncJsonrpcConnection):
         earlier.
         """
 
-        if timeout_s is NotSpecified:
-            timeout_s = self._default_close_timeout_s(graceful)
-
-        with self._owned():
-            if self._driver_done:
-                self._mark_closed(None)
-                return
-
-            if not self._closed:
-                if not self._enqueue(Jpm.Close(graceful=graceful)):
-                    self._mark_closed(None)
-
-            prev_wait = self._driver.wait_timeout_s
-            self._driver.wait_timeout_s = ta.cast('float | None', timeout_s)
-            try:
-                self._pump_until(lambda: self._driver_done)
-            except (TimeoutError, OSError) as e:
-                log.warning('Close did not complete cleanly, abandoning transport: %r', e)
-            finally:
-                self._driver.wait_timeout_s = prev_wait
-                self._finish_driver()
-
-    def _finish_driver(self) -> None:
-        if self._driver_done:
-            return
-        self._driver_done = True
-        try:
-            self._driver.close()
-        except Exception:  # noqa
-            log.debug('Error closing driver', exc_info=True)
-        for c in self._closers:
-            try:
-                c()
-            except Exception:  # noqa
-                log.debug('Error in closer', exc_info=True)
-        self._mark_closed(self._close_exc)
+        self.run(self._jc.close(graceful=graceful, timeout_s=timeout_s))
 
     def serve(self) -> None:
         """
@@ -192,215 +165,44 @@ class SyncJsonrpcConnection(BaseSyncJsonrpcConnection):
         Raises nothing for a peer which simply goes away; the reason, if any, is left in `close_exception`.
         """
 
-        with self._owned():
-            try:
-                self._pump_until(lambda: self._driver_done)
-            except JsonrpcConnectionClosedError:
-                pass
-
-    ##
-    # pumping
-
-    class _Owned:
-        def __init__(self, conn: SyncJsonrpcConnection) -> None:
-            self._conn = conn
-            self._acquired = False
-
-        def __enter__(self) -> None:
-            conn = self._conn
-            me = threading.get_ident()
-            if conn._owner_thread is None:  # noqa
-                conn._owner_thread = me  # noqa
-                self._acquired = True
-            elif conn._owner_thread != me:  # noqa
-                raise RuntimeError('SyncJsonrpcConnection is in use by another thread')
-
-        def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-            if self._acquired:
-                self._conn._owner_thread = None  # noqa
-
-    def _owned(self) -> _Owned:
-        """Guards against use from two threads at once while permitting nested use from handlers."""
-
-        return self._Owned(self)
-
-    def _enqueue(self, *cmds: Jpm.Command) -> bool:
-        if self._closed or self._driver_done:
-            return False
-        try:
-            self._driver.enqueue(*cmds)
-        except Exception:  # noqa
-            log.debug('Driver refused commands', exc_info=True)
-            return False
-        return True
-
-    def _step(self, *, read: bool = True) -> None:
-        """Advance the driver one step, routing whatever it returns."""
-
-        try:
-            out = self._driver.next(read=read, raise_on_stall=False)
-        except TimeoutError:
-            raise
-        except Exception as e:  # noqa
-            # Transport failure: the driver has failed itself and destroyed the pipeline.
-            self._mark_closed(e)
-            self._finish_driver()
-            raise self._closed_error() from e
-
-        if out is None:
-            if not self._driver.is_running:
-                self._finish_driver()
-            return
-
-        if isinstance(out, BaseException):
-            self._mark_closed(out)
-            self._finish_driver()
-            return
-
-        self._handle_event(out)
-
-    def _pump_until(self, pred: ta.Callable[[], bool]) -> None:
-        while not pred():
-            if self._driver_done:
-                return
-            self._step()
+        self.run(self._jc.serve())
 
     ##
     # sending
-
-    def _send(self, cmd: Jpm.Command) -> None:
-        """Hand a send command to the driver and pump until the session reports it Sent, for backpressure."""
-
-        if self._closed:
-            raise self._closed_error()
-
-        if not self._enqueue(cmd):
-            raise self._closed_error()
-
-        key = id(cmd)
-        try:
-            self._pump_until(lambda: key in self._sent or self._closed)
-        finally:
-            self._sent.discard(key)
-
-    def _on_sent(self, cmd: Jpm.Command) -> None:
-        self._sent.add(id(cmd))
 
     def send_request(
             self,
             req: Request,
             *,
-            timeout_s: float | None | type[NotSpecified] = NotSpecified,
+            timeout_s: TimeoutArg = NotSpecified,
     ) -> Response:
         """Send a prepared request (with id) and pump until its raw response arrives."""
 
-        check.arg(not req.is_notification, 'request must have an id')
-
-        with self._owned():
-            if self._closed:
-                raise self._closed_error()
-
-            waiter = _SyncWaiter()
-            self._add_waiter(req, waiter)
-            try:
-                self._send(Jpm.SendRequest(req, timeout_s=timeout_s))
-                self._pump_until(lambda: waiter.done)
-                if not waiter.done:
-                    raise self._closed_error()
-                return waiter.result()
-
-            finally:
-                if self._pop_waiter(req.id_value()) is not None and not waiter.done:
-                    self._enqueue(Jpm.CancelRequest(req.id_value()))
+        return self.run(self._jc.send_request(req, timeout_s=timeout_s))
 
     def request(
             self,
             method: str,
             params: Params | None = None,
             *,
-            timeout_s: float | None | type[NotSpecified] = NotSpecified,
+            timeout_s: TimeoutArg = NotSpecified,
     ) -> ta.Any:
-        return self._result_of(self.send_request(self._new_request(method, params), timeout_s=timeout_s))
+        return self.run(self._jc.request(method, params, timeout_s=timeout_s))
 
     def notify(self, method: str, params: Params | None = None) -> None:
-        with self._owned():
-            self._send(Jpm.SendNotification(self._new_notification(method, params)))
+        self.run(self._jc.notify(method, params))
 
     def send_batch(
             self,
             reqs: ta.Sequence[Request],
             *,
-            timeout_s: float | None | type[NotSpecified] = NotSpecified,
+            timeout_s: TimeoutArg = NotSpecified,
     ) -> list[Response | None]:
         """
         Send prepared requests and notifications as one batch, returning responses in order (None for notifications).
-        """  # noqa
+        """
 
-        with self._owned():
-            if self._closed:
-                raise self._closed_error()
-
-            waiters: list[_SyncWaiter | None] = []
-            for req in reqs:
-                if req.is_notification:
-                    waiters.append(None)
-                    continue
-                nw = _SyncWaiter()
-                self._add_waiter(req, nw)
-                waiters.append(nw)
-
-            try:
-                self._send(Jpm.SendBatch(Batch(reqs), timeout_s=timeout_s))
-                self._pump_until(lambda: all(ww is None or ww.done for ww in waiters))
-                out: list[Response | None] = []
-                for ow in waiters:
-                    if ow is None:
-                        out.append(None)
-                    elif not ow.done:
-                        raise self._closed_error()
-                    else:
-                        out.append(ow.result())
-                return out
-
-            finally:
-                for req, fw in zip(reqs, waiters):
-                    if fw is not None and self._pop_waiter(req.id_value()) is not None and not fw.done:
-                        self._enqueue(Jpm.CancelRequest(req.id_value()))
-
-    ##
-    # receiving
-
-    def _on_request_received(self, req: Request) -> None:
-        response: Response
-        try:
-            if (d := self._dispatcher) is None:
-                raise JsonrpcMethodError(KnownErrors.METHOD_NOT_FOUND, data=req.method)
-
-            result = d.dispatch(self, req)
-            response = Response(req.id_value(), result=result)
-
-        except JsonrpcMethodError as e:
-            response = Response(req.id_value(), error=e.error)
-
-        except Exception as e:  # noqa
-            log.exception('Unhandled error handling request %r', req.method)
-            response = self._error_response(req, e)
-
-        self._enqueue(Jpm.SendResponse(response))
-
-    def _on_request_handling_aborted(self, req: Request, exc: BaseException) -> None:
-        # Handlers run to completion inline, so there is nothing to cancel.
-        pass
-
-    def _on_notification_received(self, note: Request) -> None:
-        if (h := self._notification_handler) is None:
-            log.debug('Dropping notification with no handler: %r', note.method)
-            return
-
-        try:
-            h(self, note)
-        except Exception:  # noqa
-            log.exception('Unhandled error handling notification %r', note.method)
+        return self.run(self._jc.send_batch(reqs, timeout_s=timeout_s))
 
 
 ##

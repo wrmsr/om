@@ -14,12 +14,13 @@ Temporarily lives in `x/`. Core is headed for `omcore/blobs`, `aws/` for `ominfr
   control or XML-invalid characters, and `/`-separated segments that are neither empty nor `.` or `..`. `/` means
   nothing except to `list_shallow`.
 - **Versions** (`BlobVersion`) are opaque etags. They change whenever content changes, but may recur when identical
-  content is rewritten (an S3 single-part etag is the MD5 of the content), so never use `IfMatch` as a fencing token
-  over content that can repeat.
+  content is rewritten (an S3 single-part etag is the MD5 of the content), so never use `BlobIfMatch` as a fencing
+  token over content that can repeat.
 - **Preconditions:**
-  - `IfAbsent` (writes only), `IfMatch(version)` (reads and writes), and `IfNoneMatch(version)` (reads only).
-  - `IfMatch` against a missing key is always `BlobPreconditionFailedError`, never `BlobNotFoundError`.
-  - `IfNoneMatch` of the current version raises `BlobNotModifiedError`.
+  - `BlobIfAbsent` (writes only), `BlobIfMatch(version)` (reads and writes), and `BlobIfNoneMatch(version)` (reads
+    only).
+  - `BlobIfMatch` against a missing key is always `BlobPreconditionFailedError`, never `BlobNotFoundError`.
+  - `BlobIfNoneMatch` of the current version raises `BlobNotModifiedError`.
 - **Ranges** (`OffsetBlobRange`, `SuffixBlobRange`) clamp like Python slices, on every backend. `BlobInfo.size` is
   always the whole object's size.
 - **Listings** are in code point order (which is UTF-8 byte order, as S3 and R2 use), and are not snapshots.
@@ -35,7 +36,7 @@ Temporarily lives in `x/`. Core is headed for `omcore/blobs`, `aws/` for `ominfr
     5xx after the body was sent.
   - A conditional write is never blindly retried past that point, because a retry of a write that did land would fail
     its precondition against itself.
-  - `ManifestStore` shows how to resolve it: numbered manifests published with `IfAbsent`, each with a unique body,
+  - `ManifestStore` shows how to resolve it: numbered manifests published with `BlobIfAbsent`, each with a unique body,
     are read back after an indeterminate failure.
 - `BlobConflictError` means nothing was written, and `BlobTransportError` means retrying is safe.
   `BlobThrottledError` (a `BlobIndeterminateError`) means the backend asked us to slow down and nothing retried.
@@ -57,6 +58,14 @@ Temporarily lives in `x/`. Core is headed for `omcore/blobs`, `aws/` for `ominfr
     store never actually suspends: for example an `S3BlobStore` given an `http.SyncAsyncHttpClient` over a sync client.
 - For example, the LSM (async) runs over `SyncToAsyncBlobStore(DictBlobStore())`. A sync caller of S3 uses
   `AsyncToSyncBlobStore(S3BlobStore(..., http_client=http.SyncAsyncHttpClient(http.client())))`.
+
+## Lite
+
+The core types, errors, keys, capabilities, the sync `BlobStore` interface, and the local backend are `@om-lite`
+(Python 3.8+, stdlib and `omcore.lite` only), so a local store can be amalgamated into a script and run on another
+host. Being lite, every module-level name is unambiguously prefixed - hence `BlobIfMatch` rather than `IfMatch`, and
+`local_blob_`-prefixed helpers in `local/`. The async side, the adapters, the dict store, the helpers, and `aws/` are
+standard code.
 
 ## Capabilities
 
@@ -88,7 +97,7 @@ live conformance tier, and then flipped in the relevant `Config`.
 - **Writes:**
   - A write goes to a tmp file under `.tmp/`, which is stamped with a full-precision mtime, fsync'd, and then
     committed.
-  - `IfAbsent` commits with an unlocked `os.link`, an atomic create-if-absent.
+  - `BlobIfAbsent` commits with an unlocked `os.link`, an atomic create-if-absent.
   - Every other mutation holds the key's striped flock under `.locks/`.
   - Readers never lock.
 - **Requirements:** a local filesystem (flock is unreliable over NFS) with nanosecond timestamps, because versions are
@@ -123,11 +132,39 @@ live conformance tier, and then flipped in the relevant `Config`.
 - **Parallel transfers:** `plans.plan_parallel_get` (any store) and `aws.uploads` (S3) split a transfer into
   independent operations to run concurrently and then finalize.
 
+### Remote (`x.blobs.remote.RemoteBlobStore`)
+
+A local store on another host, over `omcore.rpc` - the way omllm's agent tools run remotely.
+
+- **Target:** `remote/_main.py` is amalgamated into `remote/_amalg.py`, a lite script needing only Python 3.8+. It
+  serves a `LocalBlobStore` at a root through `RemoteBlobStoreService`, under the sync runtime, so the store's
+  blocking calls run inline and one at a time. The service serves any sync `BlobStore`.
+- **Launching:** `remote_blob_store_subprocess(root, python=..., argv_prefix=...)` bootstraps the amalgam through
+  pyremote into an interpreter at the other end of a command's stdio - a local subprocess, or `docker exec -i
+  <container>` - and yields a connected store; the target exits when the connection closes.
+- **Host:** `RemoteBlobStore` is an `AsyncBlobStore` over any rpc connection (`RemoteBlobStore.connect(conn)` asks the
+  target for its capabilities). Over a sync-runtime connection nothing suspends, so `AsyncToSyncBlobStore` makes it a
+  sync store.
+- **Wire** (`remote/protocol.py`):
+  - Content moves in chunks of at most `chunk_bytes` (1 MiB by default, 4 MiB at most), so object size is not bounded
+    by the rpc frame limit.
+  - Reads are stateless: each chunk after the first is pinned with `BlobIfMatch` to the version the first saw, and a
+    read whose object is replaced midway starts over - unless the caller's own precondition was `BlobIfMatch`, which
+    then fails.
+  - Writes larger than a chunk go through a target-side writer, published only by its commit. Writers the host
+    abandons, or which its connection leaves open, are discarded.
+  - Listings page by `start_after`.
+- **Errors:**
+  - Store errors are raised again as their own classes.
+  - Static checks - keys, capabilities, copy keys - run on the host before any call.
+  - When the connection fails, reads and calls which never left raise `BlobTransportError`, and mutations which may
+    have reached the target raise `BlobIndeterminateError`.
+
 ## The LSM
 
 `x/blobs/tests/lsm/` holds a deliberately simple LSM, written as an integration test of the abstraction and due to be
 promoted. It is async-only and IO-pure over any `AsyncBlobStore`:
-- SSTs are opened with one suffix-ranged get, with IfMatch-pinned block reads.
+- SSTs are opened with one suffix-ranged get, with BlobIfMatch-pinned block reads.
 - Numbered manifests use epoch fencing.
 - There are snapshot readers, and grace-period garbage collection.
 - There is no WAL: only flushed data is durable.
@@ -138,6 +175,8 @@ promoted. It is async-only and IO-pure over any `AsyncBlobStore`:
   - it runs through `SyncToAsyncBlobStore` for the sync stores
   - it runs against s3mock on the sync pipelines, urllib and httpx clients, and the asyncio pipelines and async httpx
     clients
+- The remote store runs the conformance suite in process and against an amalgam target under the Python 3.8 venv (or
+  the current interpreter without one), with small chunks and pages so that both are exercised.
 - s3mock tests are marked `integration`. They use the `om-s3` compose service, or `OM_TEST_S3_URL`, e.g.
   `http://127.0.0.1:9090` for `~/scripts/run-s3mock`.
 - Live AWS/R2 tests are marked `online` and skip without their secrets (see `aws/tests/test_live.py`).

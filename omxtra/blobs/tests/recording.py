@@ -8,6 +8,7 @@ from ..asyncs import AsyncBlobStore
 from ..asyncs import AsyncBlobWriter
 from ..caps import BlobCapability
 from ..types import Blob
+from ..types import BlobIfMatch
 from ..types import BlobInfo
 from ..types import BlobPrecondition
 from ..types import BlobPrefix
@@ -15,7 +16,6 @@ from ..types import BlobRange
 from ..types import BlobReadPrecondition
 from ..types import BlobVersion
 from ..types import BlobWritePrecondition
-from ..types import IfMatch
 
 
 ##
@@ -108,7 +108,7 @@ class RecordingBlobStore(AsyncBlobStore):
         self._record('copy', dst, cond=cond)
         return await self._store.copy(src, dst, cond=cond)
 
-    async def delete(self, key: str, *, cond: IfMatch | None = None) -> None:
+    async def delete(self, key: str, *, cond: BlobIfMatch | None = None) -> None:
         self._record('delete', key, cond=cond)
         await self._store.delete(key, cond=cond)
 

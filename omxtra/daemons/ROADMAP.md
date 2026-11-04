@@ -65,6 +65,12 @@ The initial hosts may remain RPC-specific. They should record what listener owne
 driver construction, dispatch, graceful drain, and abort behavior a future general-purpose pipeline server actually
 needs, rather than prematurely placing an unproven abstraction in `omcore.io.pipelines`.
 
+7. **Complete:** Rebase the protocol onto `omcore.rpc`, the shared rpc toolbox, retiring its own framing, codec, and
+   session handlers. The wire is unchanged - pinned byte-for-byte against the blocking helpers - and so are the public
+   client, server, and service APIs, the replay registry, and the outcome taxonomy. What the daemons protocol needed
+   which the toolbox lacked became toolbox pieces: a hello handshake, a close after a number of requests, whole-message
+   request handling with verbatim error answers, and an fdio runtime.
+
 ## 2. First-class non-RPC services
 
 **Local-worker slice complete.** `omxtra.daemons.local` now provides identity-keyed worker specifications, reusable

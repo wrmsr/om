@@ -10,10 +10,10 @@ from omcore import check
 
 from .caps import ALL_BLOB_CAPABILITIES
 from .caps import BlobCapability
+from .caps import blob_copy_capability
+from .caps import blob_delete_capability
+from .caps import blob_put_capability
 from .caps import check_blob_capabilities
-from .caps import copy_capability
-from .caps import delete_capability
-from .caps import put_capability
 from .checks import check_blob_copy_keys
 from .checks import check_blob_stream_length
 from .errors import BlobAlreadyExistsError
@@ -21,19 +21,19 @@ from .errors import BlobNotFoundError
 from .errors import BlobNotModifiedError
 from .errors import BlobPreconditionFailedError
 from .keys import check_blob_key
-from .listings import shallow_list
+from .listings import shallow_list_blobs
 from .stores import BlobStore
 from .stores import BlobWriter
 from .types import Blob
+from .types import BlobIfAbsent
+from .types import BlobIfMatch
+from .types import BlobIfNoneMatch
 from .types import BlobInfo
 from .types import BlobPrefix
 from .types import BlobRange
 from .types import BlobReadPrecondition
 from .types import BlobVersion
 from .types import BlobWritePrecondition
-from .types import IfAbsent
-from .types import IfMatch
-from .types import IfNoneMatch
 from .types import OffsetBlobRange
 from .types import SuffixBlobRange
 
@@ -91,11 +91,11 @@ class DictBlobStore(BlobStore):
     def _get(self, key: str, cond: BlobReadPrecondition | None) -> Blob:
         check_blob_key(key)
         blob = self._blobs.get(key)
-        if isinstance(cond, IfMatch) and (blob is None or blob.info.version != cond.version):
+        if isinstance(cond, BlobIfMatch) and (blob is None or blob.info.version != cond.version):
             raise BlobPreconditionFailedError(key)
         if blob is None:
             raise BlobNotFoundError(key)
-        if isinstance(cond, IfNoneMatch) and blob.info.version == cond.version:
+        if isinstance(cond, BlobIfNoneMatch) and blob.info.version == cond.version:
             raise BlobNotModifiedError(key)
         return blob
 
@@ -136,7 +136,7 @@ class DictBlobStore(BlobStore):
             yield snap[k].info
 
     def list_shallow(self, *, prefix: str = '', delimiter: str = '/') -> ta.Iterator[BlobInfo | BlobPrefix]:
-        return shallow_list(self.list(prefix=prefix), prefix=prefix, delimiter=delimiter)
+        return shallow_list_blobs(self.list(prefix=prefix), prefix=prefix, delimiter=delimiter)
 
     #
 
@@ -153,14 +153,14 @@ class DictBlobStore(BlobStore):
 
     @staticmethod
     def _check_write(key: str, cur: Blob | None, cond: BlobWritePrecondition | None) -> None:
-        if isinstance(cond, IfAbsent) and cur is not None:
+        if isinstance(cond, BlobIfAbsent) and cur is not None:
             raise BlobAlreadyExistsError(key)
-        if isinstance(cond, IfMatch) and (cur is None or cur.info.version != cond.version):
+        if isinstance(cond, BlobIfMatch) and (cur is None or cur.info.version != cond.version):
             raise BlobPreconditionFailedError(key)
 
     def put(self, key: str, data: bytes, *, cond: BlobWritePrecondition | None = None) -> BlobVersion:
         check_blob_key(key)
-        check_blob_capabilities(self._capabilities, put_capability(cond))
+        check_blob_capabilities(self._capabilities, blob_put_capability(cond))
         with self._lock:
             self._check_write(key, self._blobs.get(key), cond)
             blob = self._blobs[key] = self._new_blob(key, data)
@@ -175,7 +175,7 @@ class DictBlobStore(BlobStore):
             cond: BlobWritePrecondition | None = None,
     ) -> BlobVersion:
         check_blob_key(key)
-        check_blob_capabilities(self._capabilities, put_capability(cond))
+        check_blob_capabilities(self._capabilities, blob_put_capability(cond))
         data = b''.join(source)
         check_blob_stream_length(len(data), length)
         return self.put(key, data, cond=cond)
@@ -183,7 +183,7 @@ class DictBlobStore(BlobStore):
     @contextlib.contextmanager
     def open_writer(self, key: str, *, cond: BlobWritePrecondition | None = None) -> ta.Iterator[BlobWriter]:
         check_blob_key(key)
-        check_blob_capabilities(self._capabilities, put_capability(cond))
+        check_blob_capabilities(self._capabilities, blob_put_capability(cond))
         w = _DictBlobWriter(lambda data: self.put(key, data, cond=cond))
         try:
             yield w
@@ -192,7 +192,7 @@ class DictBlobStore(BlobStore):
 
     def copy(self, src: str, dst: str, *, cond: BlobWritePrecondition | None = None) -> BlobVersion:
         check_blob_copy_keys(src, dst)
-        check_blob_capabilities(self._capabilities, copy_capability(cond))
+        check_blob_capabilities(self._capabilities, blob_copy_capability(cond))
         with self._lock:
             if (sb := self._blobs.get(src)) is None:
                 raise BlobNotFoundError(src)
@@ -200,9 +200,9 @@ class DictBlobStore(BlobStore):
             blob = self._blobs[dst] = self._new_blob(dst, sb.data)
         return blob.info.version
 
-    def delete(self, key: str, *, cond: IfMatch | None = None) -> None:
+    def delete(self, key: str, *, cond: BlobIfMatch | None = None) -> None:
         check_blob_key(key)
-        check_blob_capabilities(self._capabilities, delete_capability(cond))
+        check_blob_capabilities(self._capabilities, blob_delete_capability(cond))
         with self._lock:
             self._check_write(key, self._blobs.get(key), cond)
             self._blobs.pop(key, None)

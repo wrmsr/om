@@ -1,210 +1,311 @@
+import contextlib
+import typing as ta
 import uuid
 
-from omcore.io.pipelines import all as ipl
+import pytest
 
+from omcore.io.pipelines.drivers.pure.drivers import PureIoPipelineDriver
+from omcore.rpc.connection import RpcConnection
+from omcore.rpc.connection import SyncRpcConnection
+from omcore.rpc.errors import RpcMessageTooLargeError
+from omcore.rpc.handshake import RpcHandshakeCompletedEvent
+from omcore.rpc.messages import RpcErrorMessage
+from omcore.rpc.messages import RpcResultMessage
+from omcore.rpc.messages import RpcSessionMessages
+from omcore.rpc.pure import PureRpcLink
+
+from ...connections import RpcClientRpcConnection
+from ...connections import RpcServerHandler
+from ...protocol import RPC_PROTOCOL_NAME
 from ...protocol import RPC_PROTOCOL_VERSION
+from ...protocol import RpcCallIndeterminateError
 from ...protocol import RpcProtocolError
+from ...protocol import RpcRemoteError
 from ...protocol import RpcRequest
-from .. import RpcClientConnected
-from .. import RpcClientRequestSent
-from .. import RpcClientResponse
-from .. import RpcClientSendRequest
-from .. import RpcPipelineFailure
-from .. import RpcServerDispatch
-from .. import RpcServerSendResponse
+from ...protocol import RpcUnavailableError
+from ...protocol import encode_rpc_message
+from ...protocol import error_message
+from ...protocol import hello_message
+from ...protocol import request_message
+from ...protocol import result_message
 from .. import RpcWireError
+from .. import RpcWireResponse
 from .. import RpcWireResult
-from .. import rpc_client_pipeline_spec
-from .. import rpc_server_pipeline_spec
+from .. import rpc_client_pipeline
+from .. import rpc_request_id
+from .. import rpc_server_pipeline
 
 
 ##
 
 
-def _drive_initial_output(driver: ipl.PureDriver) -> bytes:
-    assert driver.next(read=False) is None
-    return driver.drain_output()
+class _Pair(ta.NamedTuple):
+    link: PureRpcLink
+    instance_id: uuid.UUID
+    client: RpcClientRpcConnection
+    client_sync: SyncRpcConnection
+    server: RpcConnection
+    server_sync: SyncRpcConnection
+    dispatched: list[RpcRequest]
 
 
-def _feed_fragmented(driver: ipl.PureDriver, data: bytes) -> None:
-    for byte in data:
-        driver.feed_input(bytes([byte]))
+def _echo_response(request: RpcRequest) -> RpcWireResponse:
+    return RpcWireResult(
+        client_id=request.client_id,
+        request_id=request.request_id,
+        result={'method': request.method, 'params': request.params},
+    )
 
 
 def _new_pair(
         *,
-        max_frame_bytes: int = 1_024,
-) -> tuple[ipl.PureDriver, ipl.PureDriver, uuid.UUID]:
+        respond: ta.Callable[[RpcRequest], RpcWireResponse] = _echo_response,
+        acquire_activity: ta.Callable[[], ta.ContextManager[ta.Any] | None] = contextlib.nullcontext,
+        client_version: int = RPC_PROTOCOL_VERSION,
+        client_max_frame_bytes: int = 1_024,
+        server_max_frame_bytes: int = 1_024,
+        io_timeout_s: float | None = 30.,
+        connection_timeout_s: float | None = 30.,
+        capacity: int | None = None,
+) -> _Pair:
     instance_id = uuid.uuid7()
-    return (
-        ipl.PureDriver(rpc_client_pipeline_spec(
-            protocol_version=RPC_PROTOCOL_VERSION,
-            max_frame_bytes=max_frame_bytes,
-        )),
-        ipl.PureDriver(rpc_server_pipeline_spec(
-            protocol_version=RPC_PROTOCOL_VERSION,
-            instance_id=instance_id,
-            max_frame_bytes=max_frame_bytes,
-        )),
-        instance_id,
+    cp = rpc_client_pipeline(
+        protocol_version=client_version,
+        max_frame_bytes=client_max_frame_bytes,
+        io_timeout_s=io_timeout_s,
     )
+    sp = rpc_server_pipeline(
+        protocol_version=RPC_PROTOCOL_VERSION,
+        instance_id=instance_id,
+        max_frame_bytes=server_max_frame_bytes,
+        connection_timeout_s=connection_timeout_s,
+    )
+    link = PureRpcLink(cp.spec, sp.spec, capacity=capacity)
+
+    dispatched: list[RpcRequest] = []
+
+    async def dispatch(request: RpcRequest) -> RpcWireResponse:
+        dispatched.append(request)
+        return respond(request)
+
+    client = RpcClientRpcConnection(
+        link.a,
+        cp.config,
+        max_frame_bytes=client_max_frame_bytes,
+        io_timeout_s=io_timeout_s,
+    )
+    handler = RpcServerHandler(dispatch, acquire_activity)
+    server = RpcConnection(link.b, sp.config, handler=handler)
+    server.add_close_callback(handler.release_activity)
+
+    client_sync = SyncRpcConnection(client)
+    server_sync = SyncRpcConnection(server)
+    client_sync.start()
+    server_sync.start()
+
+    return _Pair(link, instance_id, client, client_sync, server, server_sync, dispatched)
 
 
-def _handshake(
-        client: ipl.PureDriver,
-        server: ipl.PureDriver,
-) -> RpcClientConnected:
-    _feed_fragmented(server, _drive_initial_output(client))
-    assert server.next() is None
-
-    _feed_fragmented(client, server.drain_output())
-    connected = client.next()
-    assert isinstance(connected, RpcClientConnected)
-    return connected
+def _request(method: str = 'echo', params: ta.Any = None) -> RpcRequest:
+    return RpcRequest(
+        client_id='client',
+        request_id='request',
+        method=method,
+        params=params,
+    )
 
 
 ##
 
 
-def test_rpc_pipeline_pure_driver_fragmented_conversation():
-    client, server, instance_id = _new_pair()
-    assert _handshake(client, server).instance_id == instance_id
+def test_fragmented_conversation_closes_after_the_answer():
+    p = _new_pair(capacity=1)
+    assert p.client_sync.run(p.client.handshake()) == p.instance_id
 
-    request = RpcRequest(
-        client_id='client',
-        request_id='request',
-        method='echo',
-        params={'value': 42},
-    )
-    client.enqueue(RpcClientSendRequest(request=request))
-    request_bytes = _drive_initial_output(client)
-    assert client.next(read=False) == RpcClientRequestSent(request=request)
-    _feed_fragmented(server, request_bytes)
+    request = _request(params={'value': 42})
+    p.client_sync.run(p.client.send_rpc(request))
+    assert p.client_sync.run(p.client.receive_rpc()) == {'method': 'echo', 'params': {'value': 42}}
+    assert p.dispatched == [request]
 
-    dispatch = server.next()
-    assert dispatch == RpcServerDispatch(request=request)
-
-    server.enqueue(RpcServerSendResponse(response=RpcWireResult(
-        client_id=request.client_id,
-        request_id=request.request_id,
-        result={'value': 42},
-    )))
-    assert server.next(read=False) is None
-    response_bytes = server.drain_output()
-    assert not server.is_running
-
-    _feed_fragmented(client, response_bytes)
-    response = client.next()
-    assert response == RpcClientResponse(response=RpcWireResult(
-        client_id=request.client_id,
-        request_id=request.request_id,
-        result={'value': 42},
-    ))
-    assert client.next(read=False) is None
-    assert client.drain_output() == b''
-    assert not client.is_running
+    # The server closes behind its one answer, and the client hears it end.
+    p.server_sync.wait_closed()
+    assert p.server.close_exception is None
+    p.client_sync.wait_closed()
+    assert p.client.close_exception is None
 
 
-def test_rpc_pipeline_pure_driver_error_response():
-    client, server, _ = _new_pair()
-    _handshake(client, server)
+@pytest.mark.parametrize(('response', 'exc_type'), [
+    (RpcWireError(client_id='client', request_id='request', code='remote', remote_type='builtins.RuntimeError', message='boom'), RpcRemoteError),  # noqa
+    (RpcWireError(client_id='client', request_id='request', code='unavailable', remote_type='x.Busy', message='busy'), RpcUnavailableError),  # noqa
+    (RpcWireError(client_id='client', request_id='request', code='protocol', remote_type='x.Bad', message='bad'), RpcProtocolError),  # noqa
+    (RpcWireError(client_id='client', request_id='request', code='weird', remote_type='x.Weird', message='?'), RpcCallIndeterminateError),  # noqa
+])
+def test_error_responses_classify_by_code(response: RpcWireError, exc_type: type):
+    p = _new_pair(respond=lambda _: response)
+    p.client_sync.run(p.client.handshake())
 
-    request = RpcRequest(
-        client_id='client',
-        request_id='request',
-        method='fail',
-    )
-    client.enqueue(RpcClientSendRequest(request=request))
-    request_bytes = _drive_initial_output(client)
-    assert client.next(read=False) == RpcClientRequestSent(request=request)
-    server.feed_input(request_bytes)
-    assert server.next() == RpcServerDispatch(request=request)
+    request = _request()
+    p.client_sync.run(p.client.send_rpc(request))
+    with pytest.raises(exc_type) as ei:
+        p.client_sync.run(p.client.receive_rpc())
 
-    wire_error = RpcWireError(
-        client_id=request.client_id,
-        request_id=request.request_id,
-        code='remote',
-        remote_type='builtins.RuntimeError',
-        message='boom',
-    )
-    server.enqueue(RpcServerSendResponse(response=wire_error))
-    assert server.next(read=False) is None
-    client.feed_input(server.drain_output())
-    assert client.next() == RpcClientResponse(response=wire_error)
+    if isinstance(ei.value, RpcRemoteError):
+        assert ei.value.remote_type == 'builtins.RuntimeError'
+        assert ei.value.message == 'boom'
+    elif isinstance(ei.value, RpcCallIndeterminateError):
+        assert ei.value.instance_id == p.instance_id
+    else:
+        assert str(ei.value) == response.message
 
 
-def test_rpc_pipeline_rejects_oversized_inbound_frame_before_payload():
-    _, server, _ = _new_pair(max_frame_bytes=8)
-    server.feed_input((9).to_bytes(4, 'big'))
-
-    error = server.next()
-    assert isinstance(error, RpcPipelineFailure)
-    assert isinstance(error.exc, RpcProtocolError)
-    assert 'exceeding limit 8' in str(error.exc)
-    assert server.next(read=False) is None
-    assert server.drain_output() == b''
-    assert not server.is_running
+def test_shutting_down_server_refuses_unrun():
+    p = _new_pair(acquire_activity=lambda: None)
+    p.client_sync.run(p.client.handshake())
+    p.client_sync.run(p.client.send_rpc(_request()))
+    with pytest.raises(RpcUnavailableError):
+        p.client_sync.run(p.client.receive_rpc())
+    assert p.dispatched == []
 
 
-def test_rpc_pipeline_rejects_truncated_frame_at_eof():
-    _, server, _ = _new_pair()
-    server.feed_input((12).to_bytes(4, 'big') + b'{}')
-    server.feed_eof()
+def test_activity_is_held_until_the_connection_closes():
+    events: list[str] = []
 
-    error = server.next()
-    assert isinstance(error, RpcPipelineFailure)
-    assert isinstance(error.exc, RpcProtocolError)
-    assert str(error.exc) == 'RPC connection closed within a frame'
+    @contextlib.contextmanager
+    def activity():
+        events.append('enter')
+        yield
+        events.append('exit')
+
+    def respond(request: RpcRequest) -> RpcWireResponse:
+        events.append('dispatch')
+        return _echo_response(request)
+
+    p = _new_pair(respond=respond, acquire_activity=activity)
+    p.client_sync.run(p.client.handshake())
+    p.client_sync.run(p.client.send_rpc(_request()))
+    p.client_sync.run(p.client.receive_rpc())
+    p.server_sync.wait_closed()
+    assert events == ['enter', 'dispatch', 'exit']
 
 
-def test_rpc_pipeline_rejects_invalid_json_without_a_socket():
-    _, server, _ = _new_pair()
-    payload = b'not json'
-    server.feed_input(len(payload).to_bytes(4, 'big') + payload)
+def test_oversized_inbound_frame_fails_the_connection():
+    # The client's greeting alone exceeds what the server accepts.
+    p = _new_pair(server_max_frame_bytes=8)
+    with pytest.raises(RpcUnavailableError):
+        p.client_sync.run(p.client.handshake())
 
-    error = server.next()
-    assert isinstance(error, RpcPipelineFailure)
-    assert isinstance(error.exc, RpcProtocolError)
-    assert 'Invalid RPC JSON' in str(error.exc)
+    p.server_sync.wait_closed()
+    assert isinstance(p.server.close_exception, RpcMessageTooLargeError)
 
 
-def test_rpc_pipeline_version_mismatch_returns_hello_then_closes():
+def test_version_mismatch_greets_then_refuses():
+    p = _new_pair(client_version=RPC_PROTOCOL_VERSION + 1)
+    with pytest.raises(RpcProtocolError, match='version mismatch'):
+        p.client_sync.run(p.client.handshake())
+
+    p.server_sync.wait_closed()
+    assert p.server.close_exception is not None
+
+
+def test_unsendable_requests_are_refused_unsent():
+    p = _new_pair(client_max_frame_bytes=256)
+    p.client_sync.run(p.client.handshake())
+
+    with pytest.raises(RpcProtocolError, match='not JSON-compatible'):
+        p.client_sync.run(p.client.send_rpc(_request(params=object())))
+    with pytest.raises(RpcProtocolError, match='not JSON-compatible'):
+        p.client_sync.run(p.client.send_rpc(_request(params=float('nan'))))
+    with pytest.raises(RpcProtocolError, match='exceeding limit 256'):
+        p.client_sync.run(p.client.send_rpc(_request(params='x' * 300)))
+
+    # Nothing was sent, so the connection is still good for its one request.
+    p.client_sync.run(p.client.send_rpc(_request(params=1)))
+    assert p.client_sync.run(p.client.receive_rpc()) == {'method': 'echo', 'params': 1}
+    assert len(p.dispatched) == 1
+
+
+def test_silent_client_is_closed_after_the_connection_timeout():
+    p = _new_pair(connection_timeout_s=5.)
+    p.client_sync.run(p.client.handshake())
+
+    p.server_sync.wait_closed()
+    assert p.link.now >= 5.
+    assert p.dispatched == []
+
+
+##
+# bytes
+
+
+def _frame(obj: ta.Mapping[str, ta.Any]) -> bytes:
+    return encode_rpc_message(obj, 1_024)
+
+
+def test_bytes_match_the_blocking_wire_helpers():
     instance_id = uuid.uuid7()
-    client = ipl.PureDriver(rpc_client_pipeline_spec(
-        protocol_version=RPC_PROTOCOL_VERSION + 1,
+    client = PureIoPipelineDriver(rpc_client_pipeline(
+        protocol_version=RPC_PROTOCOL_VERSION,
         max_frame_bytes=1_024,
-    ))
-    server = ipl.PureDriver(rpc_server_pipeline_spec(
+    ).spec)
+    server = PureIoPipelineDriver(rpc_server_pipeline(
         protocol_version=RPC_PROTOCOL_VERSION,
         instance_id=instance_id,
         max_frame_bytes=1_024,
-    ))
+    ).spec)
 
-    server.feed_input(_drive_initial_output(client))
-    assert server.next() is None
-    client.feed_input(server.drain_output())
-
-    error = client.next()
-    assert isinstance(error, RpcPipelineFailure)
-    assert isinstance(error.exc, RpcProtocolError)
-    assert 'version mismatch' in str(error.exc)
-
-
-def test_rpc_pipeline_non_json_request_fails_without_reentrant_final_output():
-    client, server, _ = _new_pair()
-    _handshake(client, server)
-
-    request = RpcRequest(
-        client_id='client',
-        request_id='request',
-        method='invalid',
-        params=object(),
-    )
-    client.enqueue(RpcClientSendRequest(request=request))
-    failure = client.next(read=False)
-    assert isinstance(failure, RpcPipelineFailure)
-    assert isinstance(failure.exc, RpcProtocolError)
-    assert 'not JSON-compatible' in str(failure.exc)
     assert client.next(read=False) is None
-    assert client.drain_output() == b''
-    assert not client.is_running
+    assert client.drain_output() == _frame(hello_message(version=RPC_PROTOCOL_VERSION))
+
+    for b in _frame(hello_message(version=RPC_PROTOCOL_VERSION)):
+        server.feed_input(bytes([b]))
+    completed = server.next()
+    assert isinstance(completed, RpcHandshakeCompletedEvent)
+    assert completed.peer_hello == {'protocol': RPC_PROTOCOL_NAME, 'version': RPC_PROTOCOL_VERSION}
+    assert server.next(read=False) is None
+    assert server.drain_output() == _frame(hello_message(version=RPC_PROTOCOL_VERSION, instance_id=instance_id))
+
+    request = _request(params={'value': 'ü'})
+    server.feed_input(_frame(request_message(request)))
+    received = server.next()
+    assert isinstance(received, RpcSessionMessages.RequestReceived)
+    assert received.request.id == rpc_request_id('client', 'request')
+    assert received.request.params == {'value': 'ü'}
+
+    server.enqueue(RpcSessionMessages.SendResponse(RpcResultMessage(received.request.id, {'ok': 'ü'})))
+    while server.next(read=False) is not None:
+        pass
+    assert server.drain_output().startswith(_frame(result_message(request, {'ok': 'ü'})))
+
+
+def test_error_bytes_match_the_blocking_wire_helpers():
+    from omcore.rpc.errors import RpcRemoteErrorData
+
+    from .. import DAEMONS_RPC_ENVELOPE_CODEC
+
+    request = _request()
+    envelope = RpcErrorMessage(rpc_request_id('client', 'request'), RpcRemoteErrorData(
+        code='remote',
+        remote_type='builtins.RuntimeError',
+        message='boom',
+    ))
+    assert DAEMONS_RPC_ENVELOPE_CODEC.encode(envelope) == _frame(error_message(
+        request,
+        code='remote',
+        remote_type='builtins.RuntimeError',
+        message='boom',
+    ))[4:]
+
+
+@pytest.mark.parametrize(('payload', 'match'), [
+    (b'not json', 'Invalid RPC JSON'),
+    (b'[]', 'must be an object'),
+    (b'{"type":"nope","client_id":"c","request_id":"r"}', 'Unknown RPC message type'),
+    (b'{"type":"result","client_id":"c","request_id":"r"}', 'Missing RPC result'),
+    (b'{"type":"request","client_id":"","request_id":"r","method":"m"}', "Invalid RPC message field 'client_id'"),
+    (b'{"type":"error","client_id":"c","request_id":"r","error":{"code":"x","type":"y"}}', "Missing RPC message field: 'message'"),  # noqa
+])
+def test_malformed_messages_are_protocol_errors(payload: bytes, match: str):
+    from .. import DAEMONS_RPC_ENVELOPE_CODEC
+
+    with pytest.raises(RpcProtocolError, match=match):
+        DAEMONS_RPC_ENVELOPE_CODEC.decode(payload)

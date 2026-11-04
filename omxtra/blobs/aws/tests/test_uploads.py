@@ -52,7 +52,7 @@ def test_sync_random_order(harness, size):
     data = DATA[:size]
 
     async def inner():
-        plan = await begin_parallel_upload(st, k, size=size, cond=blobs.IfAbsent())
+        plan = await begin_parallel_upload(st, k, size=size, cond=blobs.BlobIfAbsent())
         parts = list(plan.parts)
         random.Random(size).shuffle(parts)
         done = [await upload_part(st, plan, p, data[p.start:p.stop]) for p in parts]
@@ -90,7 +90,7 @@ def test_missing_part_and_rival_and_abort(harness):
     k = _key()
 
     async def inner():
-        plan = await begin_parallel_upload(st, k, size=len(DATA), cond=blobs.IfAbsent())
+        plan = await begin_parallel_upload(st, k, size=len(DATA), cond=blobs.BlobIfAbsent())
         done = [await upload_part(st, plan, p, DATA[p.start:p.stop]) for p in plan.parts[:-1]]
         with pytest.raises(blobs.BlobStoreError):
             await finish_parallel_upload(st, plan, done)

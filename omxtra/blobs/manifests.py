@@ -1,5 +1,5 @@
 """
-Numbered manifests: `<prefix>/<id, zero-padded>`, each published with IfAbsent. Needs only PUT_IF_ABSENT and ordered
+Numbered manifests: `<prefix>/<id, zero-padded>`, each published with BlobIfAbsent. Needs only PUT_IF_ABSENT and ordered
 listing, keeps history for free, and GC is plain deletes of old ids.
 """
 import typing as ta
@@ -12,8 +12,8 @@ from .caps import check_blob_capabilities
 from .errors import BlobAlreadyExistsError
 from .errors import BlobIndeterminateError
 from .keys import check_blob_key
+from .types import BlobIfAbsent
 from .types import BlobVersion
-from .types import IfAbsent
 
 
 ##
@@ -82,7 +82,7 @@ class ManifestStore:
         maybe_landed = False
         for _ in range(self._max_attempts):
             try:
-                return await self._store.put(key, data, cond=IfAbsent())
+                return await self._store.put(key, data, cond=BlobIfAbsent())
             except BlobIndeterminateError:
                 maybe_landed = True
                 continue

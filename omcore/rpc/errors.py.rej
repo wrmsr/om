@@ -1,0 +1,12 @@
+diff a/omcore/rpc/errors.py b/omcore/rpc/errors.py	(rejected hunks)
+@@ -23,7 +23,9 @@ class RpcError(Exception):
+ 
+ 
+ class RpcProtocolError(RpcError):
+-    """The peer violated the protocol in a way the connection cannot recover from: framing desync, malformed envelopes."""  # noqa
++    """
++    The peer violated the protocol in a way the connection cannot recover from: framing desync, malformed envelopes.
++    """  # noqa
+ 
+ 
+ class RpcConnectionClosedError(RpcError, ConnectionError):

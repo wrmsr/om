@@ -5,13 +5,13 @@ from omcore import lang
 
 from .caps import BlobCapability
 from .types import Blob
+from .types import BlobIfMatch
 from .types import BlobInfo
 from .types import BlobPrefix
 from .types import BlobRange
 from .types import BlobReadPrecondition
 from .types import BlobVersion
 from .types import BlobWritePrecondition
-from .types import IfMatch
 
 
 ##
@@ -87,7 +87,7 @@ class AsyncBlobStore(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def delete(self, key: str, *, cond: IfMatch | None = None) -> ta.Awaitable[None]:
+    def delete(self, key: str, *, cond: BlobIfMatch | None = None) -> ta.Awaitable[None]:
         raise NotImplementedError
 
     @abc.abstractmethod

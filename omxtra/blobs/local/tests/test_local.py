@@ -9,9 +9,9 @@ from ...errors import BlobNotFoundError
 from ...errors import BlobPreconditionFailedError
 from ...errors import BlobStreamLengthError
 from ...errors import InvalidBlobKeyError
+from ...types import BlobIfAbsent
+from ...types import BlobIfMatch
 from ...types import BlobPrefix
-from ...types import IfAbsent
-from ...types import IfMatch
 from ..stores import LocalBlobStore
 
 
@@ -91,9 +91,9 @@ def test_no_tmp_leftovers(tmp_path):
     with pytest.raises(BlobStreamLengthError):
         s.put_stream('p', [b'ab'], length=3)
     with pytest.raises(BlobAlreadyExistsError):
-        s.put('k', b'y', cond=IfAbsent())
+        s.put('k', b'y', cond=BlobIfAbsent())
     with pytest.raises(BlobPreconditionFailedError):
-        s.put('k', b'y', cond=IfMatch(s.head('k').version.__class__('nope')))
+        s.put('k', b'y', cond=BlobIfMatch(s.head('k').version.__class__('nope')))
     with pytest.raises(BlobNotFoundError):
         s.copy('missing', 'c')
     assert os.listdir(os.path.join(tmp_path, '.tmp')) == []
@@ -124,7 +124,7 @@ def test_version_churn(tmp_path):
         assert v not in seen
         seen.add(v)
         with pytest.raises(BlobPreconditionFailedError):
-            s.put('k', b'xxxx', cond=IfMatch(prev))
+            s.put('k', b'xxxx', cond=BlobIfMatch(prev))
         prev = v
 
 
@@ -166,7 +166,7 @@ def _race_if_absent(root, barrier, i):
     s = LocalBlobStore(root)
     barrier.wait()
     try:
-        s.put('race', str(i).encode(), cond=IfAbsent())
+        s.put('race', str(i).encode(), cond=BlobIfAbsent())
     except BlobAlreadyExistsError:
         return False
     return True
@@ -179,7 +179,7 @@ def _race_cas(root, barrier, n):
     while done < n:
         b = s.get('ctr')
         try:
-            s.put('ctr', str(int(b.data) + 1).encode(), cond=IfMatch(b.info.version))
+            s.put('ctr', str(int(b.data) + 1).encode(), cond=BlobIfMatch(b.info.version))
         except BlobPreconditionFailedError:
             continue
         done += 1

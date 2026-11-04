@@ -9,9 +9,9 @@ from omcore import dataclasses as dc
 from .asyncs import AsyncBlobStore
 from .errors import BlobStoreError
 from .types import Blob
+from .types import BlobIfMatch
 from .types import BlobInfo
 from .types import BlobVersion
-from .types import IfMatch
 from .types import OffsetBlobRange
 
 
@@ -57,7 +57,7 @@ def plan_parallel_get(info: BlobInfo, *, part_size: int) -> ParallelGetPlan:
 
 
 def get_part(store: AsyncBlobStore, plan: ParallelGetPlan, part: ParallelGetPart) -> ta.Awaitable[Blob]:
-    return store.get(plan.key, byte_range=part.byte_range, cond=IfMatch(plan.version))
+    return store.get(plan.key, byte_range=part.byte_range, cond=BlobIfMatch(plan.version))
 
 
 def finish_parallel_get(plan: ParallelGetPlan, blobs: ta.Mapping[int, Blob]) -> bytes:

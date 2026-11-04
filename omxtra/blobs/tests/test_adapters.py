@@ -8,15 +8,15 @@ from ..dicts import DictBlobStore
 from ..errors import BlobAlreadyExistsError
 from ..errors import BlobNotFoundError
 from ..errors import BlobStreamLengthError
+from ..types import BlobIfAbsent
 from ..types import BlobPrefix
-from ..types import IfAbsent
 from ..types import OffsetBlobRange
 
 
 def test_sync_to_async():
     async def inner():
         s = SyncToAsyncBlobStore(DictBlobStore())
-        v = await s.put('a/b', b'xyz', cond=IfAbsent())
+        v = await s.put('a/b', b'xyz', cond=BlobIfAbsent())
         assert (await s.head('a/b')).version == v
         assert (await s.get('a/b', byte_range=OffsetBlobRange(1))).data == b'yz'
         await s.put('a/c/d', b'')
@@ -42,7 +42,7 @@ def test_sync_to_async_writer():
         with pytest.raises(BlobNotFoundError):
             await s.head('w')
 
-        async with s.open_writer('w', cond=IfAbsent()) as w:
+        async with s.open_writer('w', cond=BlobIfAbsent()) as w:
             await w.write(b'a')
             await w.write(b'b')
             await w.commit()
@@ -59,7 +59,7 @@ def test_sync_to_async_writer():
             await s.head('w2')
 
         with pytest.raises(BlobAlreadyExistsError):
-            async with s.open_writer('w', cond=IfAbsent()) as w:
+            async with s.open_writer('w', cond=BlobIfAbsent()) as w:
                 await w.commit()
 
     lang.sync_await(inner())
