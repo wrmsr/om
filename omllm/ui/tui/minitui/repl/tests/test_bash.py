@@ -141,8 +141,10 @@ async def test_commands_see_a_terminal_and_nothing_to_read(manager, tmp_path):
     async with bash(manager, tmp_path) as (interpreter, _):
         assert await run_text(interpreter, '[ -t 1 ] && [ -t 2 ] && echo tty; echo $TERM') == 'tty\nxterm-256color\n'
 
+        # Two writes, which arrive as one output or as two, depending on whether a read falls between them.
         _, outputs = await run(interpreter, r"printf 'plain \033[1;31mred\033[0m\n'; printf 'working\rdone   \n'")
-        assert outputs == [repl.TerminalOutput('plain \x1b[0;1;31mred\x1b[0m\ndone\n')]
+        assert all(isinstance(o, repl.TerminalOutput) for o in outputs)
+        assert ''.join(o.text for o in outputs) == 'plain \x1b[0;1;31mred\x1b[0m\ndone\n'
 
         # Nothing can be typed to a command, so one which reads finds the end of its input rather than waiting.
         assert await run_text(interpreter, 'cat; echo "rc=$?"; [ -t 0 ] || echo "no tty in"') == 'rc=0\nno tty in\n'

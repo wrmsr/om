@@ -9,6 +9,7 @@ import asyncio
 import errno
 import os
 import typing as ta
+import uuid
 
 from omcore import check
 from omcore import lang
@@ -52,6 +53,7 @@ from ...ipc.ownership import unlink_ipc_entry_if_owned
 with lang.auto_proxy_import(globals()):
     import zmq
     import zmq.asyncio
+    import zmq.utils.monitor
 
 
 log = logs.get_module_logger(globals())
@@ -146,6 +148,8 @@ class PyzmqSocket(Socket, lang.Abstract):
         self._closed_fut: asyncio.Future[None] | None = None
         self._receiving = False
         self._attachments: list[PyzmqAttachment] = []
+        self._unbind_lock = asyncio.Lock()
+        self._is_monitored = False
         self._dropped_oversized = 0
 
     def __repr__(self) -> str:
@@ -172,6 +176,11 @@ class PyzmqSocket(Socket, lang.Abstract):
             return None
         return asyncio.get_running_loop().time() + t
 
+    def _get_closed_fut(self) -> asyncio.Future[None]:
+        if (closed_fut := self._closed_fut) is None:
+            closed_fut = self._closed_fut = asyncio.get_running_loop().create_future()
+        return closed_fut
+
     async def _wait(self, event: int, deadline: float | None) -> None:
         loop = asyncio.get_running_loop()
 
@@ -181,8 +190,7 @@ class PyzmqSocket(Socket, lang.Abstract):
             if remaining <= 0:
                 raise ZmqTimeoutError
 
-        if (closed_fut := self._closed_fut) is None:
-            closed_fut = self._closed_fut = loop.create_future()
+        closed_fut = self._get_closed_fut()
 
         # The stubs omit poll's flags parameter.
         poll_fut: asyncio.Future = asyncio.ensure_future(ta.cast(ta.Any, self._zsock).poll(None, event))
@@ -246,6 +254,77 @@ class PyzmqSocket(Socket, lang.Abstract):
 
     #
 
+    # How long an unbind waits for libzmq to actually close the listener.
+    _UNBIND_TIMEOUT_S: ta.ClassVar[float] = 10.
+
+    async def _await_listener_closed(self, monitor: zmq.asyncio.Socket, endpoint: str) -> None:
+        """
+        Until the monitor reports the listener on `endpoint` closed, or until this socket is closed, which closes its
+        listeners as well.
+        """
+
+        closed_fut = self._get_closed_fut()
+        target = endpoint.encode()
+
+        while True:
+            recv_fut: asyncio.Future = asyncio.ensure_future(monitor.recv_multipart())
+            try:
+                await asyncio.wait([recv_fut, closed_fut], return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                if not recv_fut.done():
+                    recv_fut.cancel()
+
+            if closed_fut.done():
+                return
+
+            if zmq.utils.monitor.parse_monitor_message(recv_fut.result())['endpoint'] == target:
+                return
+
+    def _disable_monitor(self) -> None:
+        """
+        Must precede closing either the native socket or its monitor socket. libzmq's I/O thread sends events to the
+        monitor with a blocking send, so an event with nobody left to receive it - a closing socket's listeners still
+        report their closing - blocks that thread for good, and with it every socket of the context.
+        """
+
+        if self._is_monitored:
+            self._is_monitored = False
+            self._zsock.disable_monitor()
+
+    async def _unbind(self, endpoint: str) -> None:
+        """
+        Unbinds, returning once the native listener is closed. libzmq only asks its I/O thread to close it, and `unbind`
+        returns before that has happened: until it has, the listener still accepts connections.
+        """
+
+        # A socket has at most one monitor, so unbinds take turns.
+        async with self._unbind_lock:
+            if self._closed:
+                return
+
+            monitor: zmq.asyncio.Socket | None = None
+            self._is_monitored = True
+            try:
+                monitor = self._zsock.get_monitor_socket(
+                    zmq.EVENT_CLOSED | zmq.EVENT_CLOSE_FAILED,
+                    # Not pyzmq's default address, which is the same every time: libzmq releases the last monitor's
+                    # asynchronously, and may not have yet.
+                    addr=f'inproc://omxtra-zmq-unbind-{uuid.uuid7().hex}',
+                )
+
+                self._sync.unbind(endpoint)
+
+                try:
+                    async with asyncio.timeout(self._UNBIND_TIMEOUT_S):
+                        await self._await_listener_closed(monitor, endpoint)
+                except TimeoutError:
+                    log.warning('Native listener still open after unbinding: %s: %s', self, endpoint)
+
+            finally:
+                self._disable_monitor()
+                if monitor is not None:
+                    monitor.close(linger=0)
+
     async def _remove_attachment(self, att: PyzmqAttachment) -> None:
         if self._closed or att not in self._attachments:
             return
@@ -253,7 +332,7 @@ class PyzmqSocket(Socket, lang.Abstract):
         self._attachments.remove(att)
         try:
             if att.kind == 'bind':
-                self._sync.unbind(att.endpoint)
+                await self._unbind(att.endpoint)
             else:
                 self._sync.disconnect(att.endpoint)
         except zmq.ZMQError as e:
@@ -335,6 +414,7 @@ class PyzmqSocket(Socket, lang.Abstract):
 
         atts = list(self._attachments)
         self._attachments.clear()
+        self._disable_monitor()
         self._zsock.close(linger=0)
         self._on_close(self)
 
