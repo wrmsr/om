@@ -25,3 +25,5 @@
 - cli helpers:
   - run a dd but mount /persist as /work/persist, full and writeable
   - exec or bash if only to add -u om but probably do name stuff
+- track unsafe run args:
+  - threat vectors
