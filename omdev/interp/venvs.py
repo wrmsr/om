@@ -66,6 +66,41 @@ class InterpVenv:
             raise Exception(f'venv exe {ve} does not exist or is not a file!')
         return ve
 
+    BASE_PRE_INSTALL_PACKAGES: ta.ClassVar[ta.Sequence[str]] = (
+        'pip',
+        'setuptools',
+        'wheel',
+    )
+
+    @cached_nullary
+    def pre_install_packages(self) -> ta.Sequence[str]:
+        return [
+            *self.BASE_PRE_INSTALL_PACKAGES,
+            *(['uv'] if self._cfg.use_uv else []),
+        ]
+
+    def _build_install_args(
+            self,
+            packages: ta.Sequence[str],
+            *,
+            no_uv: bool = False,
+            no_verbose: bool = False,
+            upgrade: bool = False,
+    ) -> ta.Sequence[str]:
+        uv = self._cfg.use_uv and not no_uv
+        return [
+            '-m',
+            *(['uv'] if uv else []),
+            'pip',
+            'install',
+
+            *(['-v'] if not no_verbose and not uv else []),
+
+            *(['--upgrade'] if upgrade else []),
+
+            *check.not_isinstance(packages, str),
+        ]
+
     @async_cached_nullary
     async def create(self) -> bool:
         if os.path.exists(dn := self._path):
@@ -81,16 +116,14 @@ class InterpVenv:
         await asyncio_subprocesses.check_call(ie, '-m', 'venv', dn)
 
         ve = self.exe()
-        uv = self._cfg.use_uv
 
         await asyncio_subprocesses.check_call(
             ve,
-            '-m', 'pip',
-            'install', '-v', '--upgrade',
-            'pip',
-            'setuptools',
-            'wheel',
-            *(['uv'] if uv else []),
+            *self._build_install_args(
+                self.pre_install_packages(),
+                no_uv=True,
+                upgrade=True,
+            ),
         )
 
         if sr := self._cfg.requires:
@@ -104,12 +137,9 @@ class InterpVenv:
 
             await asyncio_subprocesses.check_call(
                 ve,
-                '-m',
-                *(['uv'] if uv else []),
-                'pip',
-                'install',
-                *([] if uv else ['-v']),
-                *reqs,
+                *self._build_install_args(
+                    reqs,
+                ),
             )
 
         return True

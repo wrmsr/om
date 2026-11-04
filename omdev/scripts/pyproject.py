@@ -86,7 +86,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'c8c916c2c2949a749101df53500603e366cb68b5'
+__om_amalg_sha1__ = 'b0d85a93ce023687e3798330d9540a4e0fb00800'
 
 
 def __om_amalg__():  # noqa
@@ -167,7 +167,7 @@ def __om_amalg__():  # noqa
             dict(sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b', path='../interp/pyenv/inject.py'),
             dict(sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143', path='../interp/inject.py'),
             dict(sha1='7ea7b7d7aa191aedd4716f3616ca0d07a4a3d875', path='../interp/default.py'),
-            dict(sha1='9042c733bff897c3390b1886de115f1bbaaaa9d0', path='../interp/venvs.py'),
+            dict(sha1='2890acb8710bfa792dec9e89bf38f8ee4702fb21', path='../interp/venvs.py'),
             dict(sha1='e938253bc84400f27e3e0ddab644158441442d3f', path='configs.py'),
             dict(sha1='3c4688c71f5345b199cf29aaa6dd7871b40a8959', path='venvs.py'),
             dict(sha1='99342168d1da386cc7943dd3ad972725ba09227a', path='cli.py'),
@@ -15836,6 +15836,41 @@ class InterpVenv:
             raise Exception(f'venv exe {ve} does not exist or is not a file!')
         return ve
 
+    BASE_PRE_INSTALL_PACKAGES: ta.ClassVar[ta.Sequence[str]] = (
+        'pip',
+        'setuptools',
+        'wheel',
+    )
+
+    @cached_nullary
+    def pre_install_packages(self) -> ta.Sequence[str]:
+        return [
+            *self.BASE_PRE_INSTALL_PACKAGES,
+            *(['uv'] if self._cfg.use_uv else []),
+        ]
+
+    def _build_install_args(
+            self,
+            packages: ta.Sequence[str],
+            *,
+            no_uv: bool = False,
+            no_verbose: bool = False,
+            upgrade: bool = False,
+    ) -> ta.Sequence[str]:
+        uv = self._cfg.use_uv and not no_uv
+        return [
+            '-m',
+            *(['uv'] if uv else []),
+            'pip',
+            'install',
+
+            *(['-v'] if not no_verbose and not uv else []),
+
+            *(['--upgrade'] if upgrade else []),
+
+            *check.not_isinstance(packages, str),
+        ]
+
     @async_cached_nullary
     async def create(self) -> bool:
         if os.path.exists(dn := self._path):
@@ -15851,16 +15886,14 @@ class InterpVenv:
         await asyncio_subprocesses.check_call(ie, '-m', 'venv', dn)
 
         ve = self.exe()
-        uv = self._cfg.use_uv
 
         await asyncio_subprocesses.check_call(
             ve,
-            '-m', 'pip',
-            'install', '-v', '--upgrade',
-            'pip',
-            'setuptools',
-            'wheel',
-            *(['uv'] if uv else []),
+            *self._build_install_args(
+                self.pre_install_packages(),
+                no_uv=True,
+                upgrade=True,
+            ),
         )
 
         if sr := self._cfg.requires:
@@ -15874,12 +15907,9 @@ class InterpVenv:
 
             await asyncio_subprocesses.check_call(
                 ve,
-                '-m',
-                *(['uv'] if uv else []),
-                'pip',
-                'install',
-                *([] if uv else ['-v']),
-                *reqs,
+                *self._build_install_args(
+                    reqs,
+                ),
             )
 
         return True
