@@ -8,7 +8,7 @@ import itertools
 import typing as ta
 
 from .... import check
-from .... import lang
+from ....algorithm.toposort import mut_toposort
 from ..._internals import STD_POST_INIT_NAME
 from ...inspect import FieldsInspection
 from ...specs import CoerceFn
@@ -119,19 +119,15 @@ class _InitField:
     annotation: OpRef[ta.Any]
 
     @dc.dataclass(frozen=True)
-    class Default(lang.Abstract):
-        pass
-
-    @dc.dataclass(frozen=True)
-    class ValueDefault(Default):
+    class ValueDefault:
         ref: OpRef[ta.Any]
 
     @dc.dataclass(frozen=True)
-    class FactoryDefault(Default):
+    class FactoryDefault:
         ref: OpRef[ta.Any]
-        params: ta.Sequence[str] | None
+        params: frozenset[str] | None
 
-    default: Default | None
+    default: ValueDefault | FactoryDefault | None
 
     init: bool
     override: bool
@@ -152,7 +148,12 @@ class _InitCacheKey:
 @register_generator_type
 class InitGenerator(Generator):
     cache_version = 2
-    cache_schema = (_InitCacheKey, _InitField)
+    cache_schema = (
+        _InitCacheKey,
+        _InitField,
+        _InitField.ValueDefault,
+        _InitField.FactoryDefault,
+    )
 
     def cache_key(self, ctx: ProcessingContext) -> _InitCacheKey:
         has_own_init = '__init__' in ctx.cls.__dict__
@@ -175,15 +176,16 @@ class InitGenerator(Generator):
         ann_ref: OpRef = ref_gen('init.fields.{i}.annotation', i)
         orm[ann_ref] = ann
 
-        default: _InitField.Default | None = None
+        default: _InitField.ValueDefault | _InitField.FactoryDefault | None = None
         if f.default.present:
             dfl = f.default.must()
             if isinstance(dfl, DefaultFactory):
-                if dfl.params:
-                    raise NotImplementedError
                 default_factory_ref = ref_gen('init.fields.{i}.default_factory', i)
                 orm[default_factory_ref] = SpecVal(('fields', i, 'default', ValOp.MUST, 'fn'))
-                default = _InitField.FactoryDefault(default_factory_ref, dfl.params)
+                default = _InitField.FactoryDefault(
+                    default_factory_ref,
+                    frozenset(dfl.params) if dfl.params else None,
+                )
             else:
                 default_ref = ref_gen('init.fields.{i}.default', i)
                 orm[default_ref] = SpecVal(('fields', i, 'default', ValOp.MUST))
@@ -332,21 +334,34 @@ class InitGenerator(Generator):
             self_param: self_param,
         }
 
-        for pf in fields:
+        if any(isinstance(pf.default, _InitField.FactoryDefault) and pf.default.params for pf in fields):
+            field_idxs = {pf.name: i for i, pf in enumerate(fields)}
+            default_ordered_fields = [
+                fields_by_name[fn]
+                for ts_fns in mut_toposort({
+                    pf.name: set(pfd.params or ()) if isinstance(pfd, _InitField.FactoryDefault) else set()
+                    for pf in fields
+                    for pfd in [pf.default]
+                })
+                for fn in sorted(ts_fns, key=lambda fn: field_idxs[fn])
+            ]
+        else:
+            default_ordered_fields = fields
+
+        for pf in default_ordered_fields:
             dfl = pf.default
 
             if isinstance(dfl, _InitField.FactoryDefault):
-                if dfl.params:
-                    raise NotImplementedError
                 refs.add(dfl.ref)
+                pf_args = ', '.join(f'{a}={a}' for a in dfl.params) if dfl.params else ''
                 if pf.init:
                     lines.extend([
                         f'    if {pf.name} is {add_ref(HAS_DEFAULT_FACTORY_GLOBAL, refs).ident}:',
-                        f'        {pf.name} = {dfl.ref.ident()}()',
+                        f'        {pf.name} = {dfl.ref.ident()}({pf_args})',
                     ])
                 else:
                     lines.append(
-                        f'    {pf.name} = {dfl.ref.ident()}()',
+                        f'    {pf.name} = {dfl.ref.ident()}({pf_args})',
                     )
                 values[pf.name] = pf.name
 

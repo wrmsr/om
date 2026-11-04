@@ -38,18 +38,19 @@ class DefaultFactory(ta.Generic[T]):
 
     def __post_init__(self) -> None:
         check.not_isinstance(self.fn, DefaultFactory)
-        check.not_isinstance(self.params, str)
-        if self.params is not None:
-            check.arg(len(self.params) > 0)
+        check.not_isinstance(params := self.params, str)
+        if params is not None:
+            check.arg(len(params) > 0)
+            check.equal(params, tuple(sorted(set(params))))
 
     def __call__(self, *args: ta.Any, **kwargs: ta.Any) -> T:
         return self.fn(*args, **kwargs)
 
 
-def default_derive(fn: ta.Callable[..., T]) -> DefaultFactory[T]:
+def derive(fn: ta.Callable[..., T]) -> DefaultFactory[T]:
     return DefaultFactory(
         check.not_isinstance(fn, DefaultFactory),
-        get_fn_params(fn) or None,
+        tuple(sorted(fps)) if (fps := get_fn_params(fn)) else None,
     )
 
 

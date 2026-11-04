@@ -113,7 +113,7 @@ with _lang.auto_proxy_init(globals()) as _api_cap:
         ClassValidateFn,
 
         DefaultFactory,
-        default_derive,
+        derive,
 
         FieldType,
 

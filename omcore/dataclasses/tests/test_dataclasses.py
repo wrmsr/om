@@ -537,3 +537,14 @@ def test_install_class_field_attrs():
 
     with pytest.raises(dc.FrozenInstanceError):
         B(4).y = 'bar'  # noqa
+
+
+def test_derive():
+    @dc.dataclass()
+    class Foo:
+        x: int
+        y: int
+        z: int = dc.field(default_factory=dc.derive(lambda x, y: x + y))
+
+    assert Foo(1, 2, 4) == Foo(1, 2, 4)
+    assert Foo(1, 2) == Foo(1, 2, 3)
