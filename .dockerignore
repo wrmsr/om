@@ -1,12 +1,15 @@
+*.pyc
+*.pyo
 .benchmarks
 .cache
 .data
 .idea
-.pytest_cache
 .mypy_cache
+.pytest_cache
 .ruff_cache
 .vector_cache
 .venv*
+__pycache__/
 tinygrad_
 
 .git

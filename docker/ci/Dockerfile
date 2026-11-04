@@ -14,6 +14,7 @@ RUN ( \
     clang \
     cmake \
     curl \
+    fd-find \
     gdb \
     iputils-ping \
     jq \
@@ -22,6 +23,7 @@ RUN ( \
     llvm \
     nginx \
     nodejs \
+    ripgrep \
     tmux \
     vim \
 \

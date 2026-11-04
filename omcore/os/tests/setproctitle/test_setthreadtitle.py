@@ -55,15 +55,22 @@ with open(fn) as f:
 
 import setproctitle
 
-def worker(title):
+def worker(title, ready):
     setproctitle.setthreadtitle(title)
+    ready.set()
     while 1:
         time.sleep(1)
 
-t1 = threading.Thread(target=worker, args=('reader',), daemon=True)
-t2 = threading.Thread(target=worker, args=('writer',), daemon=True)
+ready1 = threading.Event()
+ready2 = threading.Event()
+t1 = threading.Thread(target=worker, args=('reader', ready1), daemon=True)
+t2 = threading.Thread(target=worker, args=('writer', ready2), daemon=True)
 t1.start()
 t2.start()
+
+# Starting a thread does not guarantee that it has set its title yet.
+assert ready1.wait(5), "reader did not become ready"
+assert ready2.wait(5), "writer did not become ready"
 
 comms = []
 for fn in glob("/proc/self/task/*/comm"):
