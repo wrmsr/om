@@ -820,8 +820,36 @@ later. It now yields until the tracking settles, so "no task left behind" holds 
 ### 12.7 Performance
 
 On a socketpair, one round trip costs about the same as JSON-RPC's on the same driver (about 0.65 against 0.72
-milliseconds sequentially, in one measurement), and concurrency does not improve it: each send waits for its own flush
-fence. Batching sends behind one fence is the obvious lever if it ever matters; nothing here precludes it.
+milliseconds sequentially, in one measurement). Throughput under concurrency was bounded by each send flushing on its
+own: an asyncio connection plateaued around 2,300 to 3,200 calls a second from eight callers up, and 64 concurrent
+notifiers went no faster than one. A profile put JSON encoding at a few percent of the client's time. The rest was
+per-message pipeline work: the envelope, its fence, and its `Sent` each crossing every outer handler, and each
+fence's flush, drain request, write-timeout timer, and completion trip back through the loop. Under strace a burst
+cost one socket write and three to four event loop polls per message.
+
+`consolidate_flushes` is the lever. A send made with no flush under way flushes at once, as before; one made while a
+flush is under way joins the single flush which follows it, fed the moment that one completes. A burst - many callers,
+or a server answering many requests - so takes a few flushes rather than one each, and every send is still reported
+sent only once its bytes are out. The one behavioral difference: a send made during a flush reaches the transport one
+flush completion later. A first version deferred every flush behind the commands already queued with the driver
+instead; it batched about as well, but cost sequential traffic 10 to 19 percent for the extra hop through the queue.
+The in-flight rule costs a lone send nothing measurable.
+
+Medians per second, `tests/bench.py`, client and server pinned to two cores and the configurations interleaved:
+
+| scenario | off | on |
+| --- | --- | --- |
+| sequential calls | 1,300 | 1,280 |
+| 8 concurrent callers | 2,300 | 3,300 |
+| 64 concurrent callers | 2,400 | 5,200 |
+| 256 concurrent callers | 2,350 | 5,700 to 8,800 |
+| 1 notifier | 3,450 | 3,350 |
+| 64 concurrent notifiers | 3,500 | 10,800 |
+
+With 1 KiB payloads the gains are slightly smaller (256 callers 2,330 to 5,700, 64 notifiers 3,440 to 9,250), the
+outbound buffer flushing on its own once 8 KiB accumulate. A burst of 20,000 notifications from 64 senders took 1,030
+socket writes rather than 20,374, and 6,202 event loop polls rather than 71,194. Every test here, and every migrated
+user's, passes with it on, under 3.8, 3.14, and 3.14t. It is off by default for now.
 
 ### 12.8 Sync connections move only while called
 

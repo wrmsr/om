@@ -59,11 +59,17 @@ class RawRpcPeer:
         self.step()
 
     def recv(self) -> ta.List[ta.Any]:
-        """Accepts all queued output across the transport boundary and decodes it."""
+        """
+        Accepts all output across the transport boundary, as a transport with room to spare would, and decodes it.
+        Accepting output can complete flushes which release more, so this drains until nothing more comes.
+        """
 
-        if self.is_live:
-            self._buf += self.driver.drain_output()
+        while self.is_live:
+            data = self.driver.drain_output()
+            self._buf += data
             self.step()
+            if not data:
+                break
 
         out: ta.List[ta.Any] = []
         while len(self._buf) >= 4:

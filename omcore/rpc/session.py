@@ -106,6 +106,11 @@ class RpcSessionIoPipelineHandler(IoPipelineHandler):
         # The flush fence issued while handling the current send command, if any, so completion can be reported.
         self._current_fence: ta.Optional[IoPipelineFlowMessages.FlushOutput] = None
 
+        # Under consolidate_flushes: the fence fed last and not yet completed, if any, and the fence the sends made
+        # meanwhile share, fed once that one completes.
+        self._inflight_fence: ta.Optional[IoPipelineFlowMessages.FlushOutput] = None
+        self._pending_fence: ta.Optional[IoPipelineFlowMessages.FlushOutput] = None
+
     def __repr__(self) -> str:
         return (
             f'{type(self).__name__}@{id(self):x}'
@@ -182,11 +187,54 @@ class RpcSessionIoPipelineHandler(IoPipelineHandler):
             return False
 
         if ctx.services.find(IoPipelineFlow) is not None:
-            fence = IoPipelineFlowMessages.FlushOutput()
-            self._current_fence = fence
-            ctx.feed_out(fence)
+            if not self._config.consolidate_flushes:
+                fence = IoPipelineFlowMessages.FlushOutput()
+                self._current_fence = fence
+                ctx.feed_out(fence)
+
+            elif self._inflight_fence is not None:
+                # A flush is under way: this send joins the one which follows it.
+                if self._pending_fence is None:
+                    self._pending_fence = IoPipelineFlowMessages.FlushOutput()
+                self._current_fence = self._pending_fence
+
+            else:
+                fence = IoPipelineFlowMessages.FlushOutput()
+                self._current_fence = fence
+                self._feed_consolidated_fence(ctx, fence)
 
         return not self._is_closed()
+
+    def _feed_consolidated_fence(
+            self,
+            ctx: IoPipelineHandlerContext,
+            fence: IoPipelineFlowMessages.FlushOutput,
+    ) -> None:
+        self._inflight_fence = fence
+        fence.add_listener(functools.partial(self._on_consolidated_fence_done, weakref.ref(ctx)))
+        ctx.feed_out(fence)
+
+    @staticmethod
+    def _on_consolidated_fence_done(
+            ctx_ref: ta.Callable[[], ta.Optional[IoPipelineHandlerContext]],
+            fence: IoPipelineMessages.Completable[None],
+    ) -> None:
+        if (ctx := ctx_ref()) is None or ctx.invalidated:
+            return
+        h = ta.cast('RpcSessionIoPipelineHandler', ctx.handler)
+        if h._inflight_fence is fence:  # noqa
+            h._inflight_fence = None  # noqa
+        if fence.is_succeeded():
+            h._flush_pending_fence(ctx)  # noqa
+
+    def _flush_pending_fence(self, ctx: IoPipelineHandlerContext) -> None:
+        if (fence := self._pending_fence) is None or self._inflight_fence is not None:
+            return
+        self._pending_fence = None
+        if ctx.invalidated or self._sent_final_output or ctx.pipeline.saw_final_output:
+            # Closed meanwhile: the fence is never fed, and closure has failed whatever waited on it.
+            return
+        self._feed_consolidated_fence(ctx, fence)
 
     @staticmethod
     def _on_send_fence_done(
@@ -687,6 +735,10 @@ class RpcSessionIoPipelineHandler(IoPipelineHandler):
             ctx.feed_out(exc)
 
         if not self._sent_final_output and not ctx.pipeline.saw_final_output:
+            if transport_ok and (fence := self._pending_fence) is not None:
+                # Sends awaiting a flush are reported sent once their bytes are out, as ever.
+                self._pending_fence = None
+                ctx.feed_out(fence)
             self._sent_final_output = True
             ctx.feed_final_output()
 

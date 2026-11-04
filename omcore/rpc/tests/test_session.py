@@ -1,9 +1,11 @@
 # ruff: noqa: PT009 PT027 UP006 UP007 UP045
 # @om-lite
+import typing as ta
 import unittest
 
 from ...io.pipelines.bytes.buffers import OutboundBytesBufferIoPipelineHandler
 from ...io.pipelines.core import IoPipelineHandler
+from ...io.pipelines.flow.types import IoPipelineFlowMessages
 from ..configs import RpcConfig
 from ..errors import RpcCancelledError
 from ..errors import RpcConnectionClosedError
@@ -468,3 +470,80 @@ class TestSpecs(unittest.TestCase):
             [RpcLengthPrefixedFramingIoPipelineHandler],
         )
         self.assertEqual(len(spec.handlers), 3)
+
+
+##
+
+
+class _FlushCountingIoPipelineHandler(IoPipelineHandler):
+    """Outermost: counts the flush fences reaching the transport."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.fences = 0
+
+    def inbound(self, ctx, msg):
+        ctx.feed_in(msg)
+
+    def outbound(self, ctx, msg):
+        if isinstance(msg, IoPipelineFlowMessages.FlushOutput):
+            self.fences += 1
+        ctx.feed_out(msg)
+
+
+class TestFlushConsolidation(unittest.TestCase):
+    def _peer(self, consolidate: bool) -> ta.Tuple[RawRpcPeer, _FlushCountingIoPipelineHandler]:
+        counter = _FlushCountingIoPipelineHandler()
+        p = RawRpcPeer(RpcConfig(consolidate_flushes=consolidate), outermost_handlers=[counter])
+        return p, counter
+
+    def _burst(self, consolidate: bool) -> ta.Tuple[RawRpcPeer, _FlushCountingIoPipelineHandler, ta.List[ta.Any]]:
+        p, counter = self._peer(consolidate)
+        cmds = [Rsm.SendNotification(RpcNotificationMessage('n', i)) for i in range(5)]
+        p.cmd(*cmds)
+        return p, counter, cmds
+
+    def test_off_flushes_each_send(self):
+        p, counter, cmds = self._burst(False)
+        self.assertEqual(p.recv(), [RpcNotificationMessage('n', i) for i in range(5)])
+        self.assertEqual(p.take_events(Rsm.Sent), [Rsm.Sent(c) for c in cmds])
+        self.assertEqual(counter.fences, 5)
+
+    def test_burst_shares_a_flush(self):
+        p, counter, cmds = self._burst(True)
+
+        # The first send flushes at once; the rest wait for that flush, then share one.
+        self.assertEqual(counter.fences, 1)
+        self.assertEqual(p.take_events(Rsm.Sent), [])
+
+        self.assertEqual(p.recv(), [RpcNotificationMessage('n', i) for i in range(5)])
+        self.assertEqual(p.take_events(Rsm.Sent), [Rsm.Sent(c) for c in cmds])
+        self.assertEqual(counter.fences, 2)
+
+        # Idle again: the next send flushes at once.
+        cmd = Rsm.SendNotification(RpcNotificationMessage('n', 5))
+        p.cmd(cmd)
+        self.assertEqual(counter.fences, 3)
+        self.assertEqual(p.recv(), [RpcNotificationMessage('n', 5)])
+        self.assertEqual(p.take_events(Rsm.Sent), [Rsm.Sent(cmd)])
+
+    def test_responses_share_a_flush(self):
+        p, counter = self._peer(True)
+        p.send(*[RpcRequestMessage(i, 'm') for i in range(4)])
+        self.assertEqual(len(p.take_events(Rsm.RequestReceived)), 4)
+        before = counter.fences
+
+        p.cmd(*[Rsm.SendResponse(RpcResultMessage(i, i)) for i in range(4)])
+        self.assertEqual(p.recv(), [RpcResultMessage(i, i) for i in range(4)])
+        self.assertEqual(counter.fences - before, 2)
+
+    def test_close_flushes_pending_sends(self):
+        # As without consolidation: everything sent before the close goes out, though their flushes complete only after
+        # final output, past which the session reports nothing - closure has already settled what waited on them.
+        for consolidate in (False, True):
+            p, _ = self._peer(consolidate)
+            p.cmd(*[Rsm.SendNotification(RpcNotificationMessage('n', i)) for i in range(3)], Rsm.Close())
+            self.assertEqual(p.recv(), [RpcNotificationMessage('n', i) for i in range(3)])
+            self.assertEqual(p.take_events(Rsm.Closed), [Rsm.Closed(None)])
+            self.assertFalse(p.is_live)

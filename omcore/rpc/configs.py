@@ -94,6 +94,12 @@ class RpcConfig:
     # before the connection closes.
     respond_to_aborted_inbound: bool = True
 
+    # Whether sends share flushes. With no flush under way a send flushes at once, exactly as with this off; sends made
+    # while one is under way wait for it, then share the next. A burst - many callers at once, or a server answering
+    # many requests - so costs a few writes and flushes instead of one each, and a lone send costs what it did. Every
+    # send is still reported sent only once its bytes are out. Off, each send flushes on its own.
+    consolidate_flushes: bool = False
+
     ##
     # errors
 

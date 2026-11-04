@@ -61,7 +61,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'e0a6ff8099815c4bf65bded381be67694eeeb7d1'
+__om_amalg_sha1__ = '8a8347e57078deb46da6f0507f5e9d8cb74c49f3'
 
 
 def __om_amalg__():  # noqa
@@ -86,7 +86,7 @@ def __om_amalg__():  # noqa
             dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='../../../omcore/logs/levels.py'),
             dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', path='../../../omcore/logs/warnings.py'),
             dict(sha1='e0ccddd9b2a4604e74eb9c67a1a85516b3796aec', path='../../../omcore/os/pyremote/core.py'),
-            dict(sha1='e6c76461e7b1cf0cac146f57ff6efa9aa67d765e', path='../../../omcore/rpc/configs.py'),
+            dict(sha1='2ac241e59ff5a7aadd487f43ceb715f6c57cce95', path='../../../omcore/rpc/configs.py'),
             dict(sha1='f6572b8c34185813301434c2b1243c2641f52eef', path='../fs/common.py'),
             dict(sha1='6c881b9d48a55ce791b21dfdc7469c9507432ebd', path='../../../omcore/asyncs/asynclite/base.py'),
             dict(sha1='4b0061643d8b8818651695761faf4c19459a6421', path='../../../omcore/io/pipelines/core.py'),
@@ -139,7 +139,7 @@ def __om_amalg__():  # noqa
             dict(sha1='6f1c8fc23d5b5cb8c80cddc0cc0190fab6e44712', path='../../../omcore/io/pipelines/drivers/asyncio/streams.py'),  # noqa
             dict(sha1='aeac0f77a018bb20d9dfbdc8ecd5538da333e3d2', path='../../../omcore/rpc/dispatch.py'),
             dict(sha1='06854fb803e6ec9cbf87d4d76f44bccd180b5a54', path='../../../omcore/rpc/framing.py'),
-            dict(sha1='38810d6b24e7254fda3edaae6b98e43ac14583cf', path='../../../omcore/rpc/session.py'),
+            dict(sha1='e93a3ce2e3c836ca431ec638faa921a22b94aad8', path='../../../omcore/rpc/session.py'),
             dict(sha1='7b010944f06cf59d6c3ece8ed6472c7888fa6c4d', path='../../../omcore/rpc/codecs.py'),
             dict(sha1='7e78b3a83293eb745623f0cc7ea2acaba2ad6b8a', path='../../../omcore/rpc/connection.py'),
             dict(sha1='1c922f568c67fa82941c8833abb728f378e9ca4d', path='../fs/remote/server.py'),
@@ -3304,6 +3304,12 @@ class RpcConfig:
     # Whether inbound requests aborted by a graceful close or handling timeout are answered with an error response
     # before the connection closes.
     respond_to_aborted_inbound: bool = True
+
+    # Whether sends share flushes. With no flush under way a send flushes at once, exactly as with this off; sends made
+    # while one is under way wait for it, then share the next. A burst - many callers at once, or a server answering
+    # many requests - so costs a few writes and flushes instead of one each, and a lone send costs what it did. Every
+    # send is still reported sent only once its bytes are out. Off, each send flushes on its own.
+    consolidate_flushes: bool = False
 
     ##
     # errors
@@ -16265,6 +16271,11 @@ class RpcSessionIoPipelineHandler(IoPipelineHandler):
         # The flush fence issued while handling the current send command, if any, so completion can be reported.
         self._current_fence: ta.Optional[IoPipelineFlowMessages.FlushOutput] = None
 
+        # Under consolidate_flushes: the fence fed last and not yet completed, if any, and the fence the sends made
+        # meanwhile share, fed once that one completes.
+        self._inflight_fence: ta.Optional[IoPipelineFlowMessages.FlushOutput] = None
+        self._pending_fence: ta.Optional[IoPipelineFlowMessages.FlushOutput] = None
+
     def __repr__(self) -> str:
         return (
             f'{type(self).__name__}@{id(self):x}'
@@ -16341,11 +16352,54 @@ class RpcSessionIoPipelineHandler(IoPipelineHandler):
             return False
 
         if ctx.services.find(IoPipelineFlow) is not None:
-            fence = IoPipelineFlowMessages.FlushOutput()
-            self._current_fence = fence
-            ctx.feed_out(fence)
+            if not self._config.consolidate_flushes:
+                fence = IoPipelineFlowMessages.FlushOutput()
+                self._current_fence = fence
+                ctx.feed_out(fence)
+
+            elif self._inflight_fence is not None:
+                # A flush is under way: this send joins the one which follows it.
+                if self._pending_fence is None:
+                    self._pending_fence = IoPipelineFlowMessages.FlushOutput()
+                self._current_fence = self._pending_fence
+
+            else:
+                fence = IoPipelineFlowMessages.FlushOutput()
+                self._current_fence = fence
+                self._feed_consolidated_fence(ctx, fence)
 
         return not self._is_closed()
+
+    def _feed_consolidated_fence(
+            self,
+            ctx: IoPipelineHandlerContext,
+            fence: IoPipelineFlowMessages.FlushOutput,
+    ) -> None:
+        self._inflight_fence = fence
+        fence.add_listener(functools.partial(self._on_consolidated_fence_done, weakref.ref(ctx)))
+        ctx.feed_out(fence)
+
+    @staticmethod
+    def _on_consolidated_fence_done(
+            ctx_ref: ta.Callable[[], ta.Optional[IoPipelineHandlerContext]],
+            fence: IoPipelineMessages.Completable[None],
+    ) -> None:
+        if (ctx := ctx_ref()) is None or ctx.invalidated:
+            return
+        h = ta.cast('RpcSessionIoPipelineHandler', ctx.handler)
+        if h._inflight_fence is fence:  # noqa
+            h._inflight_fence = None  # noqa
+        if fence.is_succeeded():
+            h._flush_pending_fence(ctx)  # noqa
+
+    def _flush_pending_fence(self, ctx: IoPipelineHandlerContext) -> None:
+        if (fence := self._pending_fence) is None or self._inflight_fence is not None:
+            return
+        self._pending_fence = None
+        if ctx.invalidated or self._sent_final_output or ctx.pipeline.saw_final_output:
+            # Closed meanwhile: the fence is never fed, and closure has failed whatever waited on it.
+            return
+        self._feed_consolidated_fence(ctx, fence)
 
     @staticmethod
     def _on_send_fence_done(
@@ -16846,6 +16900,10 @@ class RpcSessionIoPipelineHandler(IoPipelineHandler):
             ctx.feed_out(exc)
 
         if not self._sent_final_output and not ctx.pipeline.saw_final_output:
+            if transport_ok and (fence := self._pending_fence) is not None:
+                # Sends awaiting a flush are reported sent once their bytes are out, as ever.
+                self._pending_fence = None
+                ctx.feed_out(fence)
             self._sent_final_output = True
             ctx.feed_final_output()
 

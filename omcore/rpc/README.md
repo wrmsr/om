@@ -121,6 +121,9 @@ point = await caller.call('bounds', box, Point)
   `CancelledError` propagate. Every task is tracked, and `wait_closed` waits for them.
 - **Backpressure** is real: `request`, `notify`, and `ping` wait until their bytes reach the transport. The in-flight
   limit answers excess requests `busy`, or with the `pause` policy stops reading (pure servers only).
+- **Flushes** are one per send unless `consolidate_flushes` is set, which lets sends made while a flush is under way
+  share the next one: two to four times the throughput under concurrency, at no measurable cost to a lone caller. See
+  `DESIGN.md` 12.7, and `tests/bench.py` to measure.
 - **Closing** is graceful by default and always bounded. A graceful close from inside a request handler waits for that
   very request, so it only ends at the drain timeout: answer first, close from elsewhere.
 - **Failures surface once.** A transport-level failure aborts; a failure with a healthy transport still flushes the
