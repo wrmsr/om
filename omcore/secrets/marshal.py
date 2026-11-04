@@ -17,7 +17,7 @@ from .secrets import SecretRefOrStr
 ##
 
 
-class StrOrSecretRefMarshalerUnmarshaler(msh.DuplexHandler):
+class SecretRefOrStrMarshalerUnmarshaler(msh.DuplexHandler):
     def marshal(self, ctx: msh.MarshalContext, o: ta.Any) -> msh.Value:
         if isinstance(o, str):
             return o
@@ -45,8 +45,8 @@ def marshal_secret_field(f: dc.Field) -> dc.Field:
     return dc.set_field_metadata(f, {
         msh.FieldOptions: dc.replace(
             f.metadata.get(msh.FieldOptions, msh.FieldOptions()),
-            marshaler=StrOrSecretRefMarshalerUnmarshaler(),
-            unmarshaler=StrOrSecretRefMarshalerUnmarshaler(),
+            marshaler=SecretRefOrStrMarshalerUnmarshaler(),
+            unmarshaler=SecretRefOrStrMarshalerUnmarshaler(),
         ),
     })
 
@@ -60,9 +60,9 @@ def _install_standard_marshaling(cfgs: msh.ConfigRegistry) -> None:
         msh.ForbiddenTypeUnmarshalerFactory({Secret}),
 
         msh.TypeMapMarshalerFactory({
-            SecretRefOrStr: StrOrSecretRefMarshalerUnmarshaler(),
+            SecretRefOrStr: SecretRefOrStrMarshalerUnmarshaler(),
         }),
         msh.TypeMapUnmarshalerFactory({
-            SecretRefOrStr: StrOrSecretRefMarshalerUnmarshaler(),
+            SecretRefOrStr: SecretRefOrStrMarshalerUnmarshaler(),
         }),
     )

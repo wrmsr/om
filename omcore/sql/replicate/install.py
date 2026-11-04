@@ -39,6 +39,7 @@ async def install_node(
         *,
         no_manage_base_tables: bool = False,
         capture_trigger_version: int = CAPTURE_TRIGGER_VERSION,
+        node_id: uuid.UUID | None = None,
 ) -> InstallReport:
     """
     Idempotently brings a node up to the schema: its identity row, its cursor table, its change log if it keeps one, and
@@ -58,7 +59,14 @@ async def install_node(
 
         await migrate(node_table_def(node.node_table))
         created_node = False
-        if (node_id := await node.backend.read_node_id(conn, node.node_table)) is None:
+        if (read_node_id := await node.backend.read_node_id(conn, node.node_table)) is not None:
+            if node_id is None:
+                node_id = read_node_id
+            elif read_node_id != node_id:
+                raise ReplicationInstallError(
+                    f'provided node_id {node_id!s} does match existing node_id of {read_node_id!s}',
+                )
+        else:
             node_id = uuid.uuid7()
             await node.backend.insert_node_id(conn, node.node_table, node_id)
             created_node = True
