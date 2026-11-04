@@ -314,7 +314,7 @@ class TestAsyncioMisc(_Base):
 
 _ASYNCIO_CHILD_SERVER_SRC = textwrap.dedent("""
     import asyncio
-    from omcore.rpc.asyncios import AsyncioRpcConnections
+    from omcore.rpc.asyncio import AsyncioRpcConnections
     from omcore.rpc.dispatch import RpcMethodTableHandler
 
     async def mul(p):
