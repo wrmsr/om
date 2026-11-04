@@ -99,24 +99,31 @@ def _spec_getters() -> tuple[ta.Callable, ta.Callable]:
 def spec_key(cs: ClassSpec) -> tuple:
     get_class, get_field = _spec_getters()
 
+    def _field_spec_key(f: FieldSpec) -> tuple:
+        dk: ta.Any
+        if not (fd := f.default).present:
+            dk = 'missing'
+        elif isinstance(dfl := fd.must(), DefaultFactory):  # noqa
+            if dfl.params:
+                raise NotImplementedError
+            else:
+                dk = 'factory'
+        else:
+            dk = 'value'
+
+        return (
+            literal_key(get_field(f)),
+            f.field_type.value,
+            dk,
+            f.coerce if isinstance(f.coerce, bool) or f.coerce is None else 'callable',
+            f.validate is not None,
+            f.check_type is not None and f.check_type is not False,
+            f.repr_fn is not None,
+        )
+
     return (
         literal_key(get_class(cs)),
-
-        tuple(
-            (
-                literal_key(get_field(f)),
-                f.field_type.value,
-                'missing' if not f.default.present else
-                'factory' if isinstance(f.default.must(), DefaultFactory) else
-                'value',
-                f.coerce if isinstance(f.coerce, bool) or f.coerce is None else 'callable',
-                f.validate is not None,
-                f.check_type is not None and f.check_type is not False,
-                f.repr_fn is not None,
-            )
-            for f in cs.fields
-        ),
-
+        tuple(_field_spec_key(f) for f in cs.fields),
         cs.default_repr_fn is not None,
         len(cs.init_fns or ()),
         tuple(literal_key(v.params) for v in cs.validate_fns or ()),

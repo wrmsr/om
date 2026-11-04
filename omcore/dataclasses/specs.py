@@ -22,8 +22,15 @@ InitFn: ta.TypeAlias = ta.Callable[[ta.Any], None]
 ClassValidateFn: ta.TypeAlias = ta.Callable[..., bool]
 
 
-class DefaultFactory(ta.NamedTuple):
+@dc.dataclass(frozen=True)
+class DefaultFactory:
     fn: ta.Callable[..., ta.Any]
+    params: ta.Sequence[str] | None = None
+
+    def __post_init__(self) -> None:
+        check.not_isinstance(self.params, str)
+        if self.params is not None:
+            check.arg(len(self.params) > 0)
 
 
 ##

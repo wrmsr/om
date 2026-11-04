@@ -58,7 +58,10 @@ def spec_field_default_to_std_defaults(dfl: lang.Maybe[DefaultFactory | ta.Any])
     if not dfl.present:
         return StdDefaults(dc.MISSING, dc.MISSING)
     elif isinstance(dfv := dfl.must(), DefaultFactory):
-        return StdDefaults(dc.MISSING, dfv.fn)
+        if dfv.params:
+            raise NotImplementedError
+        else:
+            return StdDefaults(dc.MISSING, dfv.fn)
     else:
         return StdDefaults(dfv, dc.MISSING)
 
