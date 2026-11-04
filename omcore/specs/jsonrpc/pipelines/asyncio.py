@@ -19,7 +19,7 @@ from ....asyncs.asyncio.streams import asyncio_open_stream_reader
 from ....asyncs.asyncio.streams import asyncio_open_stream_writer
 from ....asyncs.asyncio.timeouts import asyncio_maybe_timeout
 from ....io.pipelines import all as ipl
-from ....rpc.asyncio import AsyncioRpcRuntime
+from ....rpc import all as rpc
 from ..dispatch import AsyncJsonrpcDispatcher
 from ..ids import JsonrpcIdCreatorLike
 from .base import AsyncJsonrpcNotificationHandler
@@ -50,7 +50,7 @@ class AsyncioJsonrpcConnection(BaseJsonrpcConnection):
             closers: ta.Sequence[ta.Callable[[], None]] = (),
     ) -> None:
         super().__init__(
-            AsyncioRpcRuntime(driver, closers=closers),
+            rpc.AsyncioRuntime(driver, closers=closers),
             config,
             dispatcher=dispatcher,
             notification_handler=notification_handler,

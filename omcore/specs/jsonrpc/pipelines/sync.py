@@ -17,8 +17,7 @@ import typing as ta
 from .... import check
 from .... import lang
 from ....io.pipelines import all as ipl
-from ....rpc.connection import BaseSyncRpcConnection
-from ....rpc.sync import SyncRpcRuntime
+from ....rpc import all as rpc
 from ..conns import JsonrpcConnection
 from ..dispatch import AsyncJsonrpcDispatcher
 from ..dispatch import JsonrpcDispatcher
@@ -59,7 +58,7 @@ class _SyncJsonrpcDispatcherAdapter(AsyncJsonrpcDispatcher):
         return self._dispatcher.dispatch(self._connection, request)
 
 
-class SyncJsonrpcConnection(BaseSyncRpcConnection, JsonrpcConnection):
+class SyncJsonrpcConnection(rpc.BaseSyncConnection, JsonrpcConnection):
     def __init__(
             self,
             driver: ipl.SyncDriver,
@@ -79,7 +78,7 @@ class SyncJsonrpcConnection(BaseSyncRpcConnection, JsonrpcConnection):
         self._driver = driver
 
         jc = BaseJsonrpcConnection(
-            SyncRpcRuntime(driver, closers=closers),
+            rpc.SyncRuntime(driver, closers=closers),
             config,
             id_creator=id_creator,
             include_error_details=include_error_details,

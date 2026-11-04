@@ -15,9 +15,7 @@ import typing as ta
 
 from .... import check
 from ....logs import all as logs
-from ....rpc.connection import BaseRpcConnection
-from ....rpc.messages import RpcUnspecified
-from ....rpc.runtime import RpcRuntime
+from ....rpc import all as rpc
 from ..conns import AsyncJsonrpcConnection
 from ..dispatch import AsyncJsonrpcDispatcher
 from ..dispatch import jsonrpc_error_for_exception
@@ -55,7 +53,7 @@ type AsyncJsonrpcNotificationHandler = ta.Callable[
 ##
 
 
-class BaseJsonrpcConnection(BaseRpcConnection, AsyncJsonrpcConnection):
+class BaseJsonrpcConnection(rpc.BaseConnection, AsyncJsonrpcConnection):
     """
     Must be started (via `start` or `async with`) before use. Under asyncio it pumps only while its runtime's pump task
     runs: a connection which is never started never reads its transport.
@@ -63,7 +61,7 @@ class BaseJsonrpcConnection(BaseRpcConnection, AsyncJsonrpcConnection):
 
     def __init__(
             self,
-            runtime: RpcRuntime,
+            runtime: rpc.Runtime,
             config: JsonrpcPipelineConfig = JsonrpcPipelineConfig.DEFAULT,
             *,
             dispatcher: AsyncJsonrpcDispatcher | None = None,
@@ -133,7 +131,7 @@ class BaseJsonrpcConnection(BaseRpcConnection, AsyncJsonrpcConnection):
             self,
             *,
             graceful: bool = True,
-            timeout_s: type[NotSpecified | RpcUnspecified] | float | None = NotSpecified,
+            timeout_s: type[NotSpecified | rpc.Unspecified] | float | None = NotSpecified,
     ) -> None:
         """
         Close the connection, gracefully by default (see Close), waiting for closure to complete.
@@ -145,7 +143,7 @@ class BaseJsonrpcConnection(BaseRpcConnection, AsyncJsonrpcConnection):
 
         await super().close(
             graceful=graceful,
-            timeout_s=RpcUnspecified if timeout_s is NotSpecified else ta.cast('float | None', timeout_s),
+            timeout_s=rpc.Unspecified if timeout_s is NotSpecified else ta.cast('float | None', timeout_s),
         )
 
     ##

@@ -169,7 +169,7 @@ class TestSyncSockets(unittest.TestCase):
 
 _CHILD_SERVER_SRC = textwrap.dedent("""
     from omcore.rpc.dispatch import RpcMethodTableHandler, rpc_async_method
-    from omcore.rpc.syncs import SyncRpcConnections
+    from omcore.rpc.sync import SyncRpcConnections
 
     h = RpcMethodTableHandler({'add': rpc_async_method(lambda p: p[0] + p[1])})
     with SyncRpcConnections.of_stdio(handler=h) as c:
