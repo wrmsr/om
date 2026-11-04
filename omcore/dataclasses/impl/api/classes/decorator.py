@@ -2,7 +2,6 @@
 TODO:
  - collect init_fn's / validate_fns from superclass ClassSpecs
 """
-import inspect
 import typing as ta
 
 from ..... import check
@@ -13,6 +12,7 @@ from ....specs import ClassSpec
 from ....specs import ReprFn
 from ...processing.driving import drive_cls_processing
 from ...utils import class_decorator
+from ...utils import get_fn_params
 from ..fields.building import build_cls_std_fields
 from ..fields.conversion import std_field_to_field_spec
 from .metadata import extract_cls_metadata
@@ -121,10 +121,7 @@ def dataclass(
     for md_vf in cmd.validate_fns or []:
         if isinstance(md_vf, staticmethod):
             md_vf = md_vf.__func__
-        vfp_lst.append(ClassSpec.ValidateFnWithParams(
-            md_vf,
-            [p.name for p in inspect.signature(md_vf).parameters.values()],
-        ))
+        vfp_lst.append(ClassSpec.ValidateFnWithParams(md_vf, get_fn_params(md_vf)))
 
     #
 

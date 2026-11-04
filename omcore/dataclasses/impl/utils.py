@@ -1,6 +1,7 @@
 import ast
 import collections
 import functools
+import inspect
 import types
 import typing as ta
 
@@ -96,3 +97,12 @@ def chain_mapping_proxy(*ms: ta.Mapping) -> types.MappingProxyType:
         m = _EMPTY_MAPPING_PROXY
 
     return types.MappingProxyType(m)
+
+
+##
+
+
+def get_fn_params(fn: ta.Any) -> ta.Sequence[str]:
+    if isinstance(fn, staticmethod):
+        fn = fn.__func__
+    return tuple(p.name for p in inspect.signature(fn).parameters.values())

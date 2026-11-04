@@ -169,8 +169,9 @@ class InitGenerator(Generator):
             if isinstance(dfl, DefaultFactory):
                 if dfl.params:
                     raise NotImplementedError
-                default_factory_ref = ref_gen('init.fields.{i}.default_factory', i)
-                orm[default_factory_ref] = SpecVal(('fields', i, 'default', ValOp.MUST, 'fn'))
+                else:
+                    default_factory_ref = ref_gen('init.fields.{i}.default_factory', i)
+                    orm[default_factory_ref] = SpecVal(('fields', i, 'default', ValOp.MUST, 'fn'))
             else:
                 default_ref = ref_gen('init.fields.{i}.default', i)
                 orm[default_ref] = SpecVal(('fields', i, 'default', ValOp.MUST))
