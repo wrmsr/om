@@ -50,7 +50,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '2141d340cfa9fddeddd3a3951b2a0d8646908504'
+__om_amalg_sha1__ = 'ddf7af6373da6a07a799ba32dc7505687f9bad71'
 
 
 def __om_amalg__():  # noqa
@@ -77,7 +77,7 @@ def __om_amalg__():  # noqa
             dict(sha1='c6ba6e514b292048509f729d9f99bbd9eb36128a', path='../../core/rpc/handlers.py'),
             dict(sha1='f1082a2b6361ca9f50f4521d9c0d4279ff1a7905', path='../../core/rpc/messages.py'),
             dict(sha1='335f4005fd85f9ec852f5dbfaef80070819f56a7', path='../fs/remote/server.py'),
-            dict(sha1='103b39dc4068a45f4e83c3e87312bf4ce5ee2052', path='../../core/rpc/channels.py'),
+            dict(sha1='a759dd2d92212da81cc47e1c556cb157192a4c0e', path='../../core/rpc/channels.py'),
             dict(sha1='80821e7a5897f00917f0c27596db2f2713ba07ad', path='../../core/rpc/peers.py'),
             dict(sha1='0e5b30d8fe987b78ab8158de07dc839de4e7ffd1', path='../../core/processes/remote/server.py'),
             dict(sha1='184ef5cea10fe5bca64b254bfb153db902d6f691', path='server.py'),
@@ -4776,7 +4776,7 @@ DEFAULT_RPC_MAX_FRAME_BYTES = 16 * 1024 * 1024
 # within this has stopped reading.
 DEFAULT_RPC_CLOSE_TIMEOUT_S = 1.
 
-_FRAME_HEADER = struct.Struct('!I')
+_RPC_CHANNEL_FRAME_HEADER = struct.Struct('!I')
 
 
 class RpcStreamReader(ta.Protocol):
@@ -4856,7 +4856,7 @@ class AsyncioStreamRpcChannel(RpcChannel):
                 f'RPC frame is {len(payload)} bytes, exceeding limit {self._max_frame_bytes}',
             )
 
-        frame = _FRAME_HEADER.pack(len(payload)) + payload
+        frame = _RPC_CHANNEL_FRAME_HEADER.pack(len(payload)) + payload
         async with self._write_lock:
             if self._closed:
                 raise RpcConnectionClosedError('RPC channel is closed')
@@ -4883,10 +4883,10 @@ class AsyncioStreamRpcChannel(RpcChannel):
             if self._closed:
                 return None
 
-            header = await self._read_exactly(_FRAME_HEADER.size, allow_eof=True)
+            header = await self._read_exactly(_RPC_CHANNEL_FRAME_HEADER.size, allow_eof=True)
             if header is None:
                 return None
-            size = _FRAME_HEADER.unpack(header)[0]
+            size = _RPC_CHANNEL_FRAME_HEADER.unpack(header)[0]
             if size > self._max_frame_bytes:
                 raise RpcProtocolError(
                     f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}',

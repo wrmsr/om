@@ -24,7 +24,7 @@ DEFAULT_RPC_MAX_FRAME_BYTES = 16 * 1024 * 1024
 # within this has stopped reading.
 DEFAULT_RPC_CLOSE_TIMEOUT_S = 1.
 
-_FRAME_HEADER = struct.Struct('!I')
+_RPC_CHANNEL_FRAME_HEADER = struct.Struct('!I')
 
 
 class RpcStreamReader(ta.Protocol):
@@ -104,7 +104,7 @@ class AsyncioStreamRpcChannel(RpcChannel):
                 f'RPC frame is {len(payload)} bytes, exceeding limit {self._max_frame_bytes}',
             )
 
-        frame = _FRAME_HEADER.pack(len(payload)) + payload
+        frame = _RPC_CHANNEL_FRAME_HEADER.pack(len(payload)) + payload
         async with self._write_lock:
             if self._closed:
                 raise RpcConnectionClosedError('RPC channel is closed')
@@ -131,10 +131,10 @@ class AsyncioStreamRpcChannel(RpcChannel):
             if self._closed:
                 return None
 
-            header = await self._read_exactly(_FRAME_HEADER.size, allow_eof=True)
+            header = await self._read_exactly(_RPC_CHANNEL_FRAME_HEADER.size, allow_eof=True)
             if header is None:
                 return None
-            size = _FRAME_HEADER.unpack(header)[0]
+            size = _RPC_CHANNEL_FRAME_HEADER.unpack(header)[0]
             if size > self._max_frame_bytes:
                 raise RpcProtocolError(
                     f'RPC frame is {size} bytes, exceeding limit {self._max_frame_bytes}',
