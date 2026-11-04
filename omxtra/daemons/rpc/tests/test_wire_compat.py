@@ -2,7 +2,6 @@ import os
 import socket
 import tempfile
 import threading
-import time
 import typing as ta
 import uuid
 
@@ -22,14 +21,6 @@ from ..server import SimpleRpcServerRuntime
 
 
 ##
-
-
-def _wait_path(path: str) -> None:
-    deadline = time.monotonic() + TEST_TIMEOUT_S
-    while not os.path.exists(path):
-        if time.monotonic() >= deadline:
-            raise TimeoutError(f'Path was not created: {path!r}')
-        time.sleep(.01)
 
 
 def test_blocking_wire_helpers_interoperate_with_pipeline_server():
@@ -56,7 +47,9 @@ def test_blocking_wire_helpers_interoperate_with_pipeline_server():
         thread = threading.Thread(target=serve)
         thread.start()
         try:
-            _wait_path(socket_path)
+            # Not the socket path appearing: that is the bind, and until the listen which follows it a connection is
+            # refused.
+            assert server.wait_started(TEST_TIMEOUT_S), errors
             request = RpcRequest(
                 client_id='legacy-client',
                 request_id='legacy-request',
