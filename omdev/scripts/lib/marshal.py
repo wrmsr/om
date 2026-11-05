@@ -37,18 +37,18 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'fe2b79ed624f6936154b2c9a2c46d3eb94f1b7fa'
+__om_amalg_sha1__ = 'a7928f1cf896df64f7c842092709eae18695ccf2'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='abstract.py'),
-            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='check.py'),
-            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='objects.py'),
-            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='reflect.py'),
-            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='strings.py'),
-            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='marshal.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='abstract.py'),
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', mod='omcore.lite.check', path='check.py'),
+            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', mod='omcore.lite.objects', path='objects.py'),
+            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', mod='omcore.lite.reflect', path='reflect.py'),
+            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', mod='omcore.lite.strings', path='strings.py'),
+            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', mod='-', path='marshal.py'),
         ],
     )
 

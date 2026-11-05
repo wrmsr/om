@@ -32,23 +32,23 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '66b242a7bb8b35ed48bd1d98d7ca8deab2efbb04'
+__om_amalg_sha1__ = '7e79193c74ea9a46577defc9545375df512b0a38'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='34b51b06f942650ae8528eea69af9202a007065e', path='gostd.py'),
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../../lite/abstract.py'),
-            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../../lite/check.py'),
-            dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', path='../../../lite/dataclasses.py'),
-            dict(sha1='298b4d892d840ce98afb520143da35c56b98fb39', path='errors.py'),
-            dict(sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d', path='tokens.py'),
-            dict(sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631', path='ast.py'),
-            dict(sha1='58956f9159780d5532d2d61fb6f11c8ac946003d', path='scanning.py'),
-            dict(sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e', path='parsing.py'),
-            dict(sha1='73e387af353d56ed6c3f817e490038aa1ba940c8', path='decoding.py'),
-            dict(sha1='c442d50504a5899fc39a9b739dc6518849ff3220', path='_amalg.py'),
+            dict(sha1='34b51b06f942650ae8528eea69af9202a007065e', mod='omcore.formats.yaml.goyaml.gostd', path='gostd.py'),  # noqa
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='../../../lite/abstract.py'),  # noqa
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', mod='omcore.lite.check', path='../../../lite/check.py'),  # noqa
+            dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', mod='omcore.lite.dataclasses', path='../../../lite/dataclasses.py'),  # noqa
+            dict(sha1='298b4d892d840ce98afb520143da35c56b98fb39', mod='omcore.formats.yaml.goyaml.errors', path='errors.py'),  # noqa
+            dict(sha1='3c3cb038c1008425577157906ec0ccce4b5ce14d', mod='omcore.formats.yaml.goyaml.tokens', path='tokens.py'),  # noqa
+            dict(sha1='e06a0e8a88ef896e4194e4f053dc7e2e14bbe631', mod='omcore.formats.yaml.goyaml.ast', path='ast.py'),
+            dict(sha1='58956f9159780d5532d2d61fb6f11c8ac946003d', mod='omcore.formats.yaml.goyaml.scanning', path='scanning.py'),  # noqa
+            dict(sha1='46c0a4008cdbce7493f2358eb9541a48adacf64e', mod='omcore.formats.yaml.goyaml.parsing', path='parsing.py'),  # noqa
+            dict(sha1='73e387af353d56ed6c3f817e490038aa1ba940c8', mod='omcore.formats.yaml.goyaml.decoding', path='decoding.py'),  # noqa
+            dict(sha1='c442d50504a5899fc39a9b739dc6518849ff3220', mod='-', path='_amalg.py'),
         ],
     )
 

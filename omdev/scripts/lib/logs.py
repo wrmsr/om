@@ -30,28 +30,28 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'a0dfb4f46c1be938fe4139d081bddc7bf4350d73'
+__om_amalg_sha1__ = '9985da04c686f8581da9ee37714d4fd3194247cf'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../lite/abstract.py'),
-            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', path='../lite/io.py'),
-            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='levels.py'),
-            dict(sha1='3ec3856ade50561f99ce9463f54737ab1126d410', path='std/filters.py'),
-            dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', path='std/proxy.py'),
-            dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', path='warnings.py'),
-            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', path='../lite/json.py'),
-            dict(sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079', path='infos.py'),
-            dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', path='metrics/base.py'),
-            dict(sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1', path='contexts.py'),
-            dict(sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5', path='std/json.py'),
-            dict(sha1='9ee00768f53de350ac8d1f2b98917a9afcf885f5', path='base.py'),
-            dict(sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6', path='std/records.py'),
-            dict(sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c', path='std/standard.py'),
-            dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', path='std/loggers.py'),
-            dict(sha1='396b3ff436de60d3c5205f6eeb3f973395a166cf', path='_amalg.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='../lite/abstract.py'),  # noqa
+            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', mod='omcore.lite.io', path='../lite/io.py'),
+            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', mod='omcore.logs.levels', path='levels.py'),
+            dict(sha1='3ec3856ade50561f99ce9463f54737ab1126d410', mod='omcore.logs.std.filters', path='std/filters.py'),  # noqa
+            dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', mod='omcore.logs.std.proxy', path='std/proxy.py'),
+            dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', mod='omcore.logs.warnings', path='warnings.py'),
+            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', mod='omcore.lite.json', path='../lite/json.py'),
+            dict(sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079', mod='omcore.logs.infos', path='infos.py'),
+            dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', mod='omcore.logs.metrics.base', path='metrics/base.py'),  # noqa
+            dict(sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1', mod='omcore.logs.contexts', path='contexts.py'),
+            dict(sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5', mod='omcore.logs.std.json', path='std/json.py'),
+            dict(sha1='9ee00768f53de350ac8d1f2b98917a9afcf885f5', mod='omcore.logs.base', path='base.py'),
+            dict(sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6', mod='omcore.logs.std.records', path='std/records.py'),  # noqa
+            dict(sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c', mod='omcore.logs.std.standard', path='std/standard.py'),  # noqa
+            dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', mod='omcore.logs.std.loggers', path='std/loggers.py'),  # noqa
+            dict(sha1='396b3ff436de60d3c5205f6eeb3f973395a166cf', mod='-', path='_amalg.py'),
         ],
     )
 

@@ -5,6 +5,7 @@ import textwrap
 import typing as ta
 
 from omcore import cached
+from omcore import check
 from omcore import lang
 from omcore.algorithm import all as alg
 from omcore.lite.runtime import LITE_REQUIRED_PYTHON_VERSION
@@ -55,21 +56,22 @@ class AmalgGenerator:
     @cached.function
     def _src_files(self) -> dict[str, SrcFile]:
         src_files: dict[str, SrcFile] = {}
-        todo = [self._main_path]
+        todo: list[tuple[str, str | None]] = [(self._main_path, None)]
         while todo:
-            src_path = todo.pop()
+            src_path, mod = todo.pop()
             if src_path in src_files:
                 continue
 
             f = make_src_file(
                 src_path,
+                mod=mod,
                 mounts=self._mounts,
             )
             src_files[src_path] = f
 
             for imp in f.imports:
-                if (mp := imp.mod_path) is not None:
-                    todo.append(mp)
+                if (mp := imp.mod_src_path) is not None:
+                    todo.append((mp, imp.mod))
 
         return src_files
 
@@ -118,7 +120,8 @@ class AmalgGenerator:
 
         sf_dcts = [
             dict(
-                sha1=src_files[sfn].sha1,
+                sha1=(sf := src_files[sfn]).sha1,
+                mod=sf.mod or '-',
                 path=os.path.relpath(sfn, md),
             )
             for sfn in sfs
@@ -138,7 +141,7 @@ class AmalgGenerator:
             ]
 
         file_sha1_src = ''.join([
-            f'{sfd["sha1"]} {sfd["path"]} \n'
+            f'{sfd["sha1"]} {sfd["mod"]} {sfd["path"]}\n'
             for sfd in sf_dcts
         ])
         file_sha1 = hashlib.sha1(file_sha1_src.encode('utf-8')).hexdigest()  # noqa
@@ -171,7 +174,7 @@ class AmalgGenerator:
         ##
 
         all_imps = [i for f in src_files.values() for i in f.imports]
-        gl_imps = [i for i in all_imps if i.mod_path is None]
+        gl_imps = [i for i in all_imps if i.mod_src_path is None]
 
         dct: dict = {
             ('sys', None, None): ['import sys\n'],
@@ -179,7 +182,7 @@ class AmalgGenerator:
         if any(sf.has_binary_resources for sf in src_files.values()):
             dct[('base64', None, None)] = ['import base64\n']
         for imp in gl_imps:
-            dct.setdefault((imp.mod, imp.item, imp.as_), []).append(imp)
+            dct.setdefault((check.not_none(imp.mod), imp.item, imp.as_), []).append(imp)
         for _, l in sorted(
                 dct.items(),
                 key=lambda t: (t[0][0], t[0][1] or '', t[0][2] or ''),
@@ -191,7 +194,7 @@ class AmalgGenerator:
         ##
 
         ts = list(alg.toposort({  # noqa
-            f.path: {mp for i in f.imports if (mp := i.mod_path) is not None}
+            f.path: {mp for i in f.imports if (mp := i.mod_src_path) is not None}
             for f in src_files.values()
         }))
         sfs = [sf for ss in ts for sf in sorted(ss)]

@@ -19,27 +19,27 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'ad283e0f4f14485ac5b72b8f97937a9f196fcb14'
+__om_amalg_sha1__ = '77de3cf8ee3375e7ef625e3b957eb2d35cc32fed'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', path='errors.py'),
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../lite/abstract.py'),
-            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', path='../../lite/bytes.py'),
-            dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../../lite/namespaces.py'),
-            dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', path='types.py'),
-            dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', path='base.py'),
-            dict(sha1='36ca4cdf831d8913088dc82a5a512ea7ad0aa66b', path='reading.py'),
-            dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', path='utils.py'),
-            dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', path='direct.py'),
-            dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', path='scanning.py'),
-            dict(sha1='46f94df341c7b7e67375942dc5b76991f8a13251', path='adapters.py'),
-            dict(sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df', path='framing.py'),
-            dict(sha1='110520fd317355e92c246e09c47afcba9d86c8cb', path='linear.py'),
-            dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', path='segmented.py'),
-            dict(sha1='795e3dc80a8acd501be0ff3fd579e9e4a5f74794', path='_amalg.py'),
+            dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', mod='omcore.io.streambufs.errors', path='errors.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='../../lite/abstract.py'),  # noqa
+            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', mod='omcore.lite.bytes', path='../../lite/bytes.py'),
+            dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', mod='omcore.lite.namespaces', path='../../lite/namespaces.py'),  # noqa
+            dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', mod='omcore.io.streambufs.types', path='types.py'),
+            dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', mod='omcore.io.streambufs.base', path='base.py'),
+            dict(sha1='36ca4cdf831d8913088dc82a5a512ea7ad0aa66b', mod='omcore.io.streambufs.reading', path='reading.py'),  # noqa
+            dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', mod='omcore.io.streambufs.utils', path='utils.py'),
+            dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', mod='omcore.io.streambufs.direct', path='direct.py'),
+            dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', mod='omcore.io.streambufs.scanning', path='scanning.py'),  # noqa
+            dict(sha1='46f94df341c7b7e67375942dc5b76991f8a13251', mod='omcore.io.streambufs.adapters', path='adapters.py'),  # noqa
+            dict(sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df', mod='omcore.io.streambufs.framing', path='framing.py'),  # noqa
+            dict(sha1='110520fd317355e92c246e09c47afcba9d86c8cb', mod='omcore.io.streambufs.linear', path='linear.py'),
+            dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', mod='omcore.io.streambufs.segmented', path='segmented.py'),  # noqa
+            dict(sha1='795e3dc80a8acd501be0ff3fd579e9e4a5f74794', mod='-', path='_amalg.py'),
         ],
     )
 

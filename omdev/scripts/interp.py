@@ -51,57 +51,57 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'a041c73cfac1ec8dbedbf22d697ee79e51b78458'
+__om_amalg_sha1__ = 'e761cb4fc97275e01a32f8c34bb0c4a307f146bb'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../omcore/lite/abstract.py'),
-            dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../omcore/lite/cached.py'),
-            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../omcore/lite/check.py'),
-            dict(sha1='743b7ec7c0600161e8437071e84bfb65b1a6c0af', path='../../omcore/lite/injectinspect.py'),
-            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', path='../../omcore/lite/io.py'),
-            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../omcore/lite/reflect.py'),
-            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../../omcore/lite/strings.py'),
-            dict(sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079', path='../../omcore/lite/typing.py'),
-            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='../../omcore/logs/levels.py'),
-            dict(sha1='3ec3856ade50561f99ce9463f54737ab1126d410', path='../../omcore/logs/std/filters.py'),
-            dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', path='../../omcore/logs/std/proxy.py'),
-            dict(sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200', path='../packaging/versions.py'),
-            dict(sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223', path='../../omcore/argparse/parsers.py'),
-            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', path='../../omcore/lite/json.py'),
-            dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', path='../../omcore/lite/maybes.py'),
-            dict(sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70', path='../../omcore/lite/runtime.py'),
-            dict(sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072', path='../../omcore/lite/timeouts.py'),
-            dict(sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb', path='../../omcore/logs/protocols.py'),
-            dict(sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252', path='../packaging/specifiers.py'),
-            dict(sha1='643ea018c916268b80efe227a13979c84c59be3c', path='../../omcore/argparse/cli.py'),
-            dict(sha1='79905340353b28e51bcd02a62026787f41b731b9', path='../../omcore/asyncs/asyncio/timeouts.py'),
-            dict(sha1='863e777b377faeeacd8061532d009cc1f23e4a07', path='../../omcore/lite/inject.py'),
-            dict(sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5', path='../../omcore/logs/std/json.py'),
-            dict(sha1='425596d73f3b5cbe1ab936718c77e39a88283350', path='../../omcore/subprocesses/run.py'),
-            dict(sha1='12d94dc2357951cd0fed1c50a46817d30d628927', path='../../omcore/subprocesses/wrap.py'),
-            dict(sha1='c53a8d45d29f2010244760adeb8dcd02a4a240e1', path='types.py'),
-            dict(sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c', path='../../omcore/logs/std/standard.py'),
-            dict(sha1='9c2f2d0a7627a255953315ae429224822407c597', path='../../omcore/subprocesses/base.py'),
-            dict(sha1='bb952ac8a8c2ceeac41a777753a1a4e60439f3d4', path='providers/base.py'),
-            dict(sha1='8d428af73220f793d2c0e93f5c9966fac9474246', path='../../omcore/subprocesses/asyncs.py'),
-            dict(sha1='817b8e76401cd7a19eb43ca54d65272e4c8a4b0e', path='resolvers.py'),
-            dict(sha1='901e82ac03fb6ce967728a715f1785e6e591ff8b', path='../../omcore/asyncs/asyncio/subprocesses.py'),
-            dict(sha1='121c6c547bd359ca436cb14886a081bb7762a032', path='inspect.py'),
-            dict(sha1='8c3d0fee72f4e52d2c48beb51cd223f555dfdc87', path='pyenv/pyenv.py'),
-            dict(sha1='1239cb13aad6669a638fdc2c390442a8588460b2', path='uv/uv.py'),
-            dict(sha1='90e9d89b4c20897644f2ee4f8b30d1632f6cfa07', path='providers/running.py'),
-            dict(sha1='5b337476498d3187d4a8774f04f9e634f60972fb', path='providers/system.py'),
-            dict(sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81', path='pyenv/install.py'),
-            dict(sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c', path='uv/provider.py'),
-            dict(sha1='558f0761ce1bd375136f9e733c8674895eec9e62', path='providers/inject.py'),
-            dict(sha1='5f67d16ef12e21499a65017d5432a1e76e9fe522', path='pyenv/provider.py'),
-            dict(sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23', path='uv/inject.py'),
-            dict(sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b', path='pyenv/inject.py'),
-            dict(sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143', path='inject.py'),
-            dict(sha1='103a96006c010a4cbd634b3c35813cdc108e3087', path='cli.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='../../omcore/lite/abstract.py'),  # noqa
+            dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', mod='omcore.lite.cached', path='../../omcore/lite/cached.py'),  # noqa
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', mod='omcore.lite.check', path='../../omcore/lite/check.py'),  # noqa
+            dict(sha1='743b7ec7c0600161e8437071e84bfb65b1a6c0af', mod='omcore.lite.injectinspect', path='../../omcore/lite/injectinspect.py'),  # noqa
+            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', mod='omcore.lite.io', path='../../omcore/lite/io.py'),  # noqa
+            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', mod='omcore.lite.reflect', path='../../omcore/lite/reflect.py'),  # noqa
+            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', mod='omcore.lite.strings', path='../../omcore/lite/strings.py'),  # noqa
+            dict(sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079', mod='omcore.lite.typing', path='../../omcore/lite/typing.py'),  # noqa
+            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', mod='omcore.logs.levels', path='../../omcore/logs/levels.py'),  # noqa
+            dict(sha1='3ec3856ade50561f99ce9463f54737ab1126d410', mod='omcore.logs.std.filters', path='../../omcore/logs/std/filters.py'),  # noqa
+            dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', mod='omcore.logs.std.proxy', path='../../omcore/logs/std/proxy.py'),  # noqa
+            dict(sha1='cd6a636f9944f3c8b410c40a5212b538cc7f4200', mod='omdev.packaging.versions', path='../packaging/versions.py'),  # noqa
+            dict(sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223', mod='omcore.argparse.parsers', path='../../omcore/argparse/parsers.py'),  # noqa
+            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', mod='omcore.lite.json', path='../../omcore/lite/json.py'),  # noqa
+            dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', mod='omcore.lite.maybes', path='../../omcore/lite/maybes.py'),  # noqa
+            dict(sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70', mod='omcore.lite.runtime', path='../../omcore/lite/runtime.py'),  # noqa
+            dict(sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072', mod='omcore.lite.timeouts', path='../../omcore/lite/timeouts.py'),  # noqa
+            dict(sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb', mod='omcore.logs.protocols', path='../../omcore/logs/protocols.py'),  # noqa
+            dict(sha1='baec4e53b7187f99e8d8b36bdf48bf61af82c252', mod='omdev.packaging.specifiers', path='../packaging/specifiers.py'),  # noqa
+            dict(sha1='643ea018c916268b80efe227a13979c84c59be3c', mod='omcore.argparse.cli', path='../../omcore/argparse/cli.py'),  # noqa
+            dict(sha1='79905340353b28e51bcd02a62026787f41b731b9', mod='omcore.asyncs.asyncio.timeouts', path='../../omcore/asyncs/asyncio/timeouts.py'),  # noqa
+            dict(sha1='863e777b377faeeacd8061532d009cc1f23e4a07', mod='omcore.lite.inject', path='../../omcore/lite/inject.py'),  # noqa
+            dict(sha1='d1ff35ac871de63efec2b64ae5c63e63d295a8d5', mod='omcore.logs.std.json', path='../../omcore/logs/std/json.py'),  # noqa
+            dict(sha1='425596d73f3b5cbe1ab936718c77e39a88283350', mod='omcore.subprocesses.run', path='../../omcore/subprocesses/run.py'),  # noqa
+            dict(sha1='12d94dc2357951cd0fed1c50a46817d30d628927', mod='omcore.subprocesses.wrap', path='../../omcore/subprocesses/wrap.py'),  # noqa
+            dict(sha1='c53a8d45d29f2010244760adeb8dcd02a4a240e1', mod='omdev.interp.types', path='types.py'),
+            dict(sha1='223e3cba0f2854c5093fb60d6cef2f27b80c193c', mod='omcore.logs.std.standard', path='../../omcore/logs/std/standard.py'),  # noqa
+            dict(sha1='9c2f2d0a7627a255953315ae429224822407c597', mod='omcore.subprocesses.base', path='../../omcore/subprocesses/base.py'),  # noqa
+            dict(sha1='bb952ac8a8c2ceeac41a777753a1a4e60439f3d4', mod='omdev.interp.providers.base', path='providers/base.py'),  # noqa
+            dict(sha1='8d428af73220f793d2c0e93f5c9966fac9474246', mod='omcore.subprocesses.asyncs', path='../../omcore/subprocesses/asyncs.py'),  # noqa
+            dict(sha1='817b8e76401cd7a19eb43ca54d65272e4c8a4b0e', mod='omdev.interp.resolvers', path='resolvers.py'),
+            dict(sha1='901e82ac03fb6ce967728a715f1785e6e591ff8b', mod='omcore.asyncs.asyncio.subprocesses', path='../../omcore/asyncs/asyncio/subprocesses.py'),  # noqa
+            dict(sha1='121c6c547bd359ca436cb14886a081bb7762a032', mod='omdev.interp.inspect', path='inspect.py'),
+            dict(sha1='8c3d0fee72f4e52d2c48beb51cd223f555dfdc87', mod='omdev.interp.pyenv.pyenv', path='pyenv/pyenv.py'),  # noqa
+            dict(sha1='1239cb13aad6669a638fdc2c390442a8588460b2', mod='omdev.interp.uv.uv', path='uv/uv.py'),
+            dict(sha1='90e9d89b4c20897644f2ee4f8b30d1632f6cfa07', mod='omdev.interp.providers.running', path='providers/running.py'),  # noqa
+            dict(sha1='5b337476498d3187d4a8774f04f9e634f60972fb', mod='omdev.interp.providers.system', path='providers/system.py'),  # noqa
+            dict(sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81', mod='omdev.interp.pyenv.install', path='pyenv/install.py'),  # noqa
+            dict(sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c', mod='omdev.interp.uv.provider', path='uv/provider.py'),  # noqa
+            dict(sha1='558f0761ce1bd375136f9e733c8674895eec9e62', mod='omdev.interp.providers.inject', path='providers/inject.py'),  # noqa
+            dict(sha1='5f67d16ef12e21499a65017d5432a1e76e9fe522', mod='omdev.interp.pyenv.provider', path='pyenv/provider.py'),  # noqa
+            dict(sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23', mod='omdev.interp.uv.inject', path='uv/inject.py'),
+            dict(sha1='1fe5f906720082a73332f98199e3dd1b2dccd67b', mod='omdev.interp.pyenv.inject', path='pyenv/inject.py'),  # noqa
+            dict(sha1='1bb2d07e46745fcd0126aee0a5ad5ab75b407143', mod='omdev.interp.inject', path='inject.py'),
+            dict(sha1='103a96006c010a4cbd634b3c35813cdc108e3087', mod='-', path='cli.py'),
         ],
     )
 

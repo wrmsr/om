@@ -51,39 +51,39 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '24fc417d0a61cb1336efec2e6bf71f819c03f21e'
+__om_amalg_sha1__ = 'e02077cafc8a1dbdb3a509055b62dfd06cbeacee'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../lite/abstract.py'),
-            dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', path='../../lite/cached.py'),
-            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../lite/check.py'),
-            dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', path='../../lite/dataclasses.py'),
-            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../lite/objects.py'),
-            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../lite/reflect.py'),
-            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../../lite/strings.py'),
-            dict(sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079', path='../../lite/typing.py'),
-            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='../../logs/levels.py'),
-            dict(sha1='1082f109ec1272d7c281707b9620ae6a9a241a9f', path='pidfile.py'),
-            dict(sha1='03690b977dc4ef5545ee4279c0016a9c11f21f92', path='../signals.py'),
-            dict(sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223', path='../../argparse/parsers.py'),
-            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../lite/marshal.py'),
-            dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', path='../../lite/maybes.py'),
-            dict(sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70', path='../../lite/runtime.py'),
-            dict(sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072', path='../../lite/timeouts.py'),
-            dict(sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb', path='../../logs/protocols.py'),
-            dict(sha1='643ea018c916268b80efe227a13979c84c59be3c', path='../../argparse/cli.py'),
-            dict(sha1='ae96b0baeb376617a63c0e64632ab2c5ff4171a8', path='../../lite/args.py'),
-            dict(sha1='425596d73f3b5cbe1ab936718c77e39a88283350', path='../../subprocesses/run.py'),
-            dict(sha1='12d94dc2357951cd0fed1c50a46817d30d628927', path='../../subprocesses/wrap.py'),
-            dict(sha1='46725d80fd8e016d2d13a4b5c1ad1352b982841e', path='../../diag/cmds/lslocks.py'),
-            dict(sha1='cdb2aaaed6f7c6fbddbd8cc165fd82c1f8f2ebb3', path='../../diag/cmds/lsof.py'),
-            dict(sha1='9c2f2d0a7627a255953315ae429224822407c597', path='../../subprocesses/base.py'),
-            dict(sha1='df383531e888c4652a285defb522dd90ce916b6a', path='../../subprocesses/sync.py'),
-            dict(sha1='436eb3fc76ae7106605c8c26de60e36899ad0b8a', path='pinning.py'),
-            dict(sha1='fb926284e3a92c28573c91a69295ea8d99f6f134', path='cli.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='../../lite/abstract.py'),  # noqa
+            dict(sha1='4f5466ce20a485428519e284b2a388a9ef8e4786', mod='omcore.lite.cached', path='../../lite/cached.py'),  # noqa
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', mod='omcore.lite.check', path='../../lite/check.py'),
+            dict(sha1='cb20ca2cb6f69b1519851282b4b8a3418b62103e', mod='omcore.lite.dataclasses', path='../../lite/dataclasses.py'),  # noqa
+            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', mod='omcore.lite.objects', path='../../lite/objects.py'),  # noqa
+            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', mod='omcore.lite.reflect', path='../../lite/reflect.py'),  # noqa
+            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', mod='omcore.lite.strings', path='../../lite/strings.py'),  # noqa
+            dict(sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079', mod='omcore.lite.typing', path='../../lite/typing.py'),  # noqa
+            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', mod='omcore.logs.levels', path='../../logs/levels.py'),  # noqa
+            dict(sha1='1082f109ec1272d7c281707b9620ae6a9a241a9f', mod='omcore.os.pidfiles.pidfile', path='pidfile.py'),
+            dict(sha1='03690b977dc4ef5545ee4279c0016a9c11f21f92', mod='omcore.os.signals', path='../signals.py'),
+            dict(sha1='a329fdf481e5bbd9cafb54bc4430410e865a7223', mod='omcore.argparse.parsers', path='../../argparse/parsers.py'),  # noqa
+            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', mod='omcore.lite.marshal', path='../../lite/marshal.py'),  # noqa
+            dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', mod='omcore.lite.maybes', path='../../lite/maybes.py'),  # noqa
+            dict(sha1='2e752a27ae2bf89b1bb79b4a2da522a3ec360c70', mod='omcore.lite.runtime', path='../../lite/runtime.py'),  # noqa
+            dict(sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072', mod='omcore.lite.timeouts', path='../../lite/timeouts.py'),  # noqa
+            dict(sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb', mod='omcore.logs.protocols', path='../../logs/protocols.py'),  # noqa
+            dict(sha1='643ea018c916268b80efe227a13979c84c59be3c', mod='omcore.argparse.cli', path='../../argparse/cli.py'),  # noqa
+            dict(sha1='ae96b0baeb376617a63c0e64632ab2c5ff4171a8', mod='omcore.lite.args', path='../../lite/args.py'),
+            dict(sha1='425596d73f3b5cbe1ab936718c77e39a88283350', mod='omcore.subprocesses.run', path='../../subprocesses/run.py'),  # noqa
+            dict(sha1='12d94dc2357951cd0fed1c50a46817d30d628927', mod='omcore.subprocesses.wrap', path='../../subprocesses/wrap.py'),  # noqa
+            dict(sha1='46725d80fd8e016d2d13a4b5c1ad1352b982841e', mod='omcore.diag.cmds.lslocks', path='../../diag/cmds/lslocks.py'),  # noqa
+            dict(sha1='cdb2aaaed6f7c6fbddbd8cc165fd82c1f8f2ebb3', mod='omcore.diag.cmds.lsof', path='../../diag/cmds/lsof.py'),  # noqa
+            dict(sha1='9c2f2d0a7627a255953315ae429224822407c597', mod='omcore.subprocesses.base', path='../../subprocesses/base.py'),  # noqa
+            dict(sha1='df383531e888c4652a285defb522dd90ce916b6a', mod='omcore.subprocesses.sync', path='../../subprocesses/sync.py'),  # noqa
+            dict(sha1='436eb3fc76ae7106605c8c26de60e36899ad0b8a', mod='omcore.os.pidfiles.pinning', path='pinning.py'),
+            dict(sha1='fb926284e3a92c28573c91a69295ea8d99f6f134', mod='-', path='cli.py'),
         ],
     )
 

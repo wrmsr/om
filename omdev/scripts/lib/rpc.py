@@ -53,96 +53,96 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '54c37e2321df59c935c4e4e29157de652d6b72d1'
+__om_amalg_sha1__ = '254f1f536e674433eb080b07250f6b53657173ae'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab', path='../asyncs/asyncio/streams.py'),
-            dict(sha1='74626aba05c6869daeede82de3b7fec562abe2a7', path='../io/pipelines/drivers/types.py'),
-            dict(sha1='422d99f57e249f77f8a06ee0a1baca69539d8ee7', path='../io/pipelines/errors.py'),
-            dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', path='../io/streambufs/errors.py'),
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../lite/abstract.py'),
-            dict(sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5', path='../lite/asyncs.py'),
-            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', path='../lite/bytes.py'),
-            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../lite/check.py'),
-            dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', path='../lite/namespaces.py'),
-            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../lite/objects.py'),
-            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../lite/reflect.py'),
-            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../lite/strings.py'),
-            dict(sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079', path='../lite/typing.py'),
-            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', path='../logs/levels.py'),
-            dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', path='../logs/warnings.py'),
-            dict(sha1='2ac241e59ff5a7aadd487f43ceb715f6c57cce95', path='configs.py'),
-            dict(sha1='91e74bab525937f7633193c9aecc54530e54b6d2', path='../sockets/addresses.py'),
-            dict(sha1='6c881b9d48a55ce791b21dfdc7469c9507432ebd', path='../asyncs/asynclite/base.py'),
-            dict(sha1='58f59c24f21ed88a67a31021735c5fad24103fb5', path='../io/fdio/handlers.py'),
-            dict(sha1='4b0061643d8b8818651695761faf4c19459a6421', path='../io/pipelines/core.py'),
-            dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', path='../io/streambufs/types.py'),
-            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../lite/marshal.py'),
-            dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', path='../lite/maybes.py'),
-            dict(sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072', path='../lite/timeouts.py'),
-            dict(sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079', path='../logs/infos.py'),
-            dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', path='../logs/metrics/base.py'),
-            dict(sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb', path='../logs/protocols.py'),
-            dict(sha1='ad20a59ef95f12688de0f2e13e105eab6f149b75', path='ids.py'),
-            dict(sha1='79905340353b28e51bcd02a62026787f41b731b9', path='../asyncs/asyncio/timeouts.py'),
-            dict(sha1='0d8b13a0e2db34d50c6dc05a9d9aa37c4d1a89b9', path='../asyncs/asynclite/asyncio/base.py'),
-            dict(sha1='2e9a88b28c93e6ba503f09e8ad16ed092e4696e6', path='../asyncs/asynclite/events.py'),
-            dict(sha1='a8c275c24aa9b9ca6962ee042cb8514ff7b18641', path='../asyncs/asynclite/promises.py'),
-            dict(sha1='6e87c8b0feec5428ba4ed9ed0c871fa8ed88d036', path='../io/pipelines/asyncs.py'),
-            dict(sha1='bf1d8923427f11b35a9ebde1e10944786c81262f', path='../io/pipelines/bytes/buffering.py'),
-            dict(sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e', path='../io/pipelines/drivers/metadata.py'),
-            dict(sha1='53f7bc76bff67bc342e8156c2e2eb72fd160598b', path='../io/pipelines/flow/types.py'),
-            dict(sha1='d79643be1e692e0ff2a3dc3b6daa330333406775', path='../io/pipelines/posting/types.py'),
-            dict(sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f', path='../io/pipelines/sched/types.py'),
-            dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', path='../io/streambufs/base.py'),
-            dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', path='../io/streambufs/utils.py'),
-            dict(sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1', path='../logs/contexts.py'),
-            dict(sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c', path='../logs/utils.py'),
-            dict(sha1='3d6b40c040640a850360da97ae6400784af9b85b', path='errors.py'),
-            dict(sha1='ff50841e3d4ffa489e490d3403edd10b28485bff', path='../asyncs/asynclite/asyncio/events.py'),
-            dict(sha1='17452fd7825201c915b8df4114941d283de54d2d', path='../asyncs/asynclite/eventpromises.py'),
-            dict(sha1='a68c9f698b62e02157af6864bfb14cdd5f22bc21', path='../io/pipelines/flow/stub.py'),
-            dict(sha1='db882a29d87bd38eb59c00140174a8af5e6325d1', path='../io/pipelines/sched/heap.py'),
-            dict(sha1='b3dff93590f5122ab3de67fc5ba0866d261ff9cf', path='../io/pipelines/sched/timeouts.py'),
-            dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', path='../io/streambufs/direct.py'),
-            dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', path='../io/streambufs/scanning.py'),
-            dict(sha1='9ee00768f53de350ac8d1f2b98917a9afcf885f5', path='../logs/base.py'),
-            dict(sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6', path='../logs/std/records.py'),
-            dict(sha1='946120a610fe335aac9b7b301127511addff8eec', path='messages.py'),
-            dict(sha1='f9a245b2fd6f7379116a5b4d5f0cedd082d7f506', path='runtime.py'),
-            dict(sha1='d607d129b7295eb212180366c5c8508dd4eb0572', path='translate.py'),
-            dict(sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df', path='../io/streambufs/framing.py'),
-            dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', path='../io/streambufs/segmented.py'),
-            dict(sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251', path='../logs/asyncs.py'),
-            dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', path='../logs/std/loggers.py'),
-            dict(sha1='2cfcce89e4a375e5d07342b89a25a6c9ed663345', path='closing.py'),
-            dict(sha1='364a251f2153acedc24d460a958a3b2ed26dfff9', path='handshake.py'),
-            dict(sha1='4c3e5a1ee3fb7feb016a343a2f8f0afeca29586f', path='keepalive.py'),
-            dict(sha1='9f1d9c52817a484d62eee8ec49b2b5abaa14e3e6', path='../io/pipelines/bytes/buffers.py'),
-            dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', path='../io/pipelines/bytes/decoders.py'),
-            dict(sha1='e248f6d9b6fd38ce330e39a45dc7ae0285fb7bc7', path='../io/pipelines/drivers/fdio/core.py'),
-            dict(sha1='de051755d22b8b93b351e8d2433ac53f4f901db4', path='../io/pipelines/drivers/pure/drivers.py'),
-            dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', path='../logs/modules.py'),
-            dict(sha1='6f1c8fc23d5b5cb8c80cddc0cc0190fab6e44712', path='../io/pipelines/drivers/asyncio/streams.py'),
-            dict(sha1='d6de09d6ebaa1ab0f52091d46235f259209845f8', path='../io/pipelines/drivers/fdio/sockets.py'),
-            dict(sha1='00f4dac1554aee42d50383c0b84c57b54918d254', path='../io/pipelines/drivers/sync/core.py'),
-            dict(sha1='aeac0f77a018bb20d9dfbdc8ecd5538da333e3d2', path='dispatch.py'),
-            dict(sha1='06854fb803e6ec9cbf87d4d76f44bccd180b5a54', path='framing.py'),
-            dict(sha1='e93a3ce2e3c836ca431ec638faa921a22b94aad8', path='session.py'),
-            dict(sha1='1db7fd9a31c185f1c38bcb1d56aa8b56363922b4', path='../io/pipelines/drivers/sync/fds.py'),
-            dict(sha1='1f23513095e091895162e4c9668cd1194fc2c80e', path='../io/pipelines/drivers/sync/sockets.py'),
-            dict(sha1='7b010944f06cf59d6c3ece8ed6472c7888fa6c4d', path='codecs.py'),
-            dict(sha1='7e78b3a83293eb745623f0cc7ea2acaba2ad6b8a', path='connection.py'),
-            dict(sha1='bf23f98b0741fe0d6cf90521b8485aad32b5d767', path='fdio.py'),
-            dict(sha1='794c066829347c8c009f0fb41d993684e92bc661', path='serde.py'),
-            dict(sha1='ca8a8fb82ebe6265b38e35e4e375a483377e7b74', path='specs.py'),
-            dict(sha1='3558e03f33fcb35f5afc06f23103bec306cef809', path='asyncio.py'),
-            dict(sha1='0e8774b7d8c16f87f4048c6a830fb7065cadcc57', path='sync.py'),
-            dict(sha1='9a972240574b7749f5b56e5e7635128c810cda82', path='pure.py'),
-            dict(sha1='c5fd4d09081be1107cc885f6274cf78d2240a117', path='_amalg.py'),
+            dict(sha1='980c47ed90047f93bdcc9effe70d5249eeeb8eab', mod='omcore.asyncs.asyncio.streams', path='../asyncs/asyncio/streams.py'),  # noqa
+            dict(sha1='74626aba05c6869daeede82de3b7fec562abe2a7', mod='omcore.io.pipelines.drivers.types', path='../io/pipelines/drivers/types.py'),  # noqa
+            dict(sha1='422d99f57e249f77f8a06ee0a1baca69539d8ee7', mod='omcore.io.pipelines.errors', path='../io/pipelines/errors.py'),  # noqa
+            dict(sha1='6b04cc2e4ba5461692128938a2bd5c261486746b', mod='omcore.io.streambufs.errors', path='../io/streambufs/errors.py'),  # noqa
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='../lite/abstract.py'),  # noqa
+            dict(sha1='6bd4b8ecc310ac1df19bafaf6eb85a1a284f65d5', mod='omcore.lite.asyncs', path='../lite/asyncs.py'),
+            dict(sha1='3d2d2c29ac4e1b0b86f34975beaa7d3ea43b3afe', mod='omcore.lite.bytes', path='../lite/bytes.py'),
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', mod='omcore.lite.check', path='../lite/check.py'),
+            dict(sha1='27b12b6592403c010fb8b2a0af7c24238490d3a1', mod='omcore.lite.namespaces', path='../lite/namespaces.py'),  # noqa
+            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', mod='omcore.lite.objects', path='../lite/objects.py'),  # noqa
+            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', mod='omcore.lite.reflect', path='../lite/reflect.py'),  # noqa
+            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', mod='omcore.lite.strings', path='../lite/strings.py'),  # noqa
+            dict(sha1='9d6caabc7b31534109e3f2e249d21f8610c9c079', mod='omcore.lite.typing', path='../lite/typing.py'),
+            dict(sha1='bd87ff6a281e361cbab4f205802187b2080044e6', mod='omcore.logs.levels', path='../logs/levels.py'),
+            dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', mod='omcore.logs.warnings', path='../logs/warnings.py'),  # noqa
+            dict(sha1='2ac241e59ff5a7aadd487f43ceb715f6c57cce95', mod='omcore.rpc.configs', path='configs.py'),
+            dict(sha1='91e74bab525937f7633193c9aecc54530e54b6d2', mod='omcore.sockets.addresses', path='../sockets/addresses.py'),  # noqa
+            dict(sha1='6c881b9d48a55ce791b21dfdc7469c9507432ebd', mod='omcore.asyncs.asynclite.base', path='../asyncs/asynclite/base.py'),  # noqa
+            dict(sha1='58f59c24f21ed88a67a31021735c5fad24103fb5', mod='omcore.io.fdio.handlers', path='../io/fdio/handlers.py'),  # noqa
+            dict(sha1='4b0061643d8b8818651695761faf4c19459a6421', mod='omcore.io.pipelines.core', path='../io/pipelines/core.py'),  # noqa
+            dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', mod='omcore.io.streambufs.types', path='../io/streambufs/types.py'),  # noqa
+            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', mod='omcore.lite.marshal', path='../lite/marshal.py'),  # noqa
+            dict(sha1='627d486a678e9dd2dfdba3acfc015a5aa026f95f', mod='omcore.lite.maybes', path='../lite/maybes.py'),
+            dict(sha1='f534acc131c6506d485f4d29e9597dfd3f0fb072', mod='omcore.lite.timeouts', path='../lite/timeouts.py'),  # noqa
+            dict(sha1='c6a4599ad727fbee7c3d8eb1bce80846f8106079', mod='omcore.logs.infos', path='../logs/infos.py'),
+            dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', mod='omcore.logs.metrics.base', path='../logs/metrics/base.py'),  # noqa
+            dict(sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb', mod='omcore.logs.protocols', path='../logs/protocols.py'),  # noqa
+            dict(sha1='ad20a59ef95f12688de0f2e13e105eab6f149b75', mod='omcore.rpc.ids', path='ids.py'),
+            dict(sha1='79905340353b28e51bcd02a62026787f41b731b9', mod='omcore.asyncs.asyncio.timeouts', path='../asyncs/asyncio/timeouts.py'),  # noqa
+            dict(sha1='0d8b13a0e2db34d50c6dc05a9d9aa37c4d1a89b9', mod='omcore.asyncs.asynclite.asyncio.base', path='../asyncs/asynclite/asyncio/base.py'),  # noqa
+            dict(sha1='2e9a88b28c93e6ba503f09e8ad16ed092e4696e6', mod='omcore.asyncs.asynclite.events', path='../asyncs/asynclite/events.py'),  # noqa
+            dict(sha1='a8c275c24aa9b9ca6962ee042cb8514ff7b18641', mod='omcore.asyncs.asynclite.promises', path='../asyncs/asynclite/promises.py'),  # noqa
+            dict(sha1='6e87c8b0feec5428ba4ed9ed0c871fa8ed88d036', mod='omcore.io.pipelines.asyncs', path='../io/pipelines/asyncs.py'),  # noqa
+            dict(sha1='bf1d8923427f11b35a9ebde1e10944786c81262f', mod='omcore.io.pipelines.bytes.buffering', path='../io/pipelines/bytes/buffering.py'),  # noqa
+            dict(sha1='e961e3afbbbba46fcf7f1907543b3dfd3ece764e', mod='omcore.io.pipelines.drivers.metadata', path='../io/pipelines/drivers/metadata.py'),  # noqa
+            dict(sha1='53f7bc76bff67bc342e8156c2e2eb72fd160598b', mod='omcore.io.pipelines.flow.types', path='../io/pipelines/flow/types.py'),  # noqa
+            dict(sha1='d79643be1e692e0ff2a3dc3b6daa330333406775', mod='omcore.io.pipelines.posting.types', path='../io/pipelines/posting/types.py'),  # noqa
+            dict(sha1='823850ee7ea1ef8baffd94b4e80b6e3d7812933f', mod='omcore.io.pipelines.sched.types', path='../io/pipelines/sched/types.py'),  # noqa
+            dict(sha1='aeaf1ba2f72c4fc8557de728e9688c0f0513a267', mod='omcore.io.streambufs.base', path='../io/streambufs/base.py'),  # noqa
+            dict(sha1='cd3956ccfc59c3e60098225af3e7c19a8dc638f4', mod='omcore.io.streambufs.utils', path='../io/streambufs/utils.py'),  # noqa
+            dict(sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1', mod='omcore.logs.contexts', path='../logs/contexts.py'),  # noqa
+            dict(sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c', mod='omcore.logs.utils', path='../logs/utils.py'),
+            dict(sha1='3d6b40c040640a850360da97ae6400784af9b85b', mod='omcore.rpc.errors', path='errors.py'),
+            dict(sha1='ff50841e3d4ffa489e490d3403edd10b28485bff', mod='omcore.asyncs.asynclite.asyncio.events', path='../asyncs/asynclite/asyncio/events.py'),  # noqa
+            dict(sha1='17452fd7825201c915b8df4114941d283de54d2d', mod='omcore.asyncs.asynclite.eventpromises', path='../asyncs/asynclite/eventpromises.py'),  # noqa
+            dict(sha1='a68c9f698b62e02157af6864bfb14cdd5f22bc21', mod='omcore.io.pipelines.flow.stub', path='../io/pipelines/flow/stub.py'),  # noqa
+            dict(sha1='db882a29d87bd38eb59c00140174a8af5e6325d1', mod='omcore.io.pipelines.sched.heap', path='../io/pipelines/sched/heap.py'),  # noqa
+            dict(sha1='b3dff93590f5122ab3de67fc5ba0866d261ff9cf', mod='omcore.io.pipelines.sched.timeouts', path='../io/pipelines/sched/timeouts.py'),  # noqa
+            dict(sha1='417d6f20e64dc1088a4a065a549b532bd9be389c', mod='omcore.io.streambufs.direct', path='../io/streambufs/direct.py'),  # noqa
+            dict(sha1='5189edf484ef79bcea92069a55e0aafbdcff83bf', mod='omcore.io.streambufs.scanning', path='../io/streambufs/scanning.py'),  # noqa
+            dict(sha1='9ee00768f53de350ac8d1f2b98917a9afcf885f5', mod='omcore.logs.base', path='../logs/base.py'),
+            dict(sha1='fb1e2d887248cc24b0463156836d9965a06c8ab6', mod='omcore.logs.std.records', path='../logs/std/records.py'),  # noqa
+            dict(sha1='946120a610fe335aac9b7b301127511addff8eec', mod='omcore.rpc.messages', path='messages.py'),
+            dict(sha1='f9a245b2fd6f7379116a5b4d5f0cedd082d7f506', mod='omcore.rpc.runtime', path='runtime.py'),
+            dict(sha1='d607d129b7295eb212180366c5c8508dd4eb0572', mod='omcore.rpc.translate', path='translate.py'),
+            dict(sha1='4ef65169c8706bd86c91a9ad92aae1fb9c2092df', mod='omcore.io.streambufs.framing', path='../io/streambufs/framing.py'),  # noqa
+            dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', mod='omcore.io.streambufs.segmented', path='../io/streambufs/segmented.py'),  # noqa
+            dict(sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251', mod='omcore.logs.asyncs', path='../logs/asyncs.py'),
+            dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', mod='omcore.logs.std.loggers', path='../logs/std/loggers.py'),  # noqa
+            dict(sha1='2cfcce89e4a375e5d07342b89a25a6c9ed663345', mod='omcore.rpc.closing', path='closing.py'),
+            dict(sha1='364a251f2153acedc24d460a958a3b2ed26dfff9', mod='omcore.rpc.handshake', path='handshake.py'),
+            dict(sha1='4c3e5a1ee3fb7feb016a343a2f8f0afeca29586f', mod='omcore.rpc.keepalive', path='keepalive.py'),
+            dict(sha1='9f1d9c52817a484d62eee8ec49b2b5abaa14e3e6', mod='omcore.io.pipelines.bytes.buffers', path='../io/pipelines/bytes/buffers.py'),  # noqa
+            dict(sha1='44f0ed191a654bf66dcb03b99bf81b4dbb680ef3', mod='omcore.io.pipelines.bytes.decoders', path='../io/pipelines/bytes/decoders.py'),  # noqa
+            dict(sha1='e248f6d9b6fd38ce330e39a45dc7ae0285fb7bc7', mod='omcore.io.pipelines.drivers.fdio.core', path='../io/pipelines/drivers/fdio/core.py'),  # noqa
+            dict(sha1='de051755d22b8b93b351e8d2433ac53f4f901db4', mod='omcore.io.pipelines.drivers.pure.drivers', path='../io/pipelines/drivers/pure/drivers.py'),  # noqa
+            dict(sha1='b51c2d4396854b515d29cee17f906d5cc47eb7f2', mod='omcore.logs.modules', path='../logs/modules.py'),  # noqa
+            dict(sha1='6f1c8fc23d5b5cb8c80cddc0cc0190fab6e44712', mod='omcore.io.pipelines.drivers.asyncio.streams', path='../io/pipelines/drivers/asyncio/streams.py'),  # noqa
+            dict(sha1='d6de09d6ebaa1ab0f52091d46235f259209845f8', mod='omcore.io.pipelines.drivers.fdio.sockets', path='../io/pipelines/drivers/fdio/sockets.py'),  # noqa
+            dict(sha1='00f4dac1554aee42d50383c0b84c57b54918d254', mod='omcore.io.pipelines.drivers.sync.core', path='../io/pipelines/drivers/sync/core.py'),  # noqa
+            dict(sha1='aeac0f77a018bb20d9dfbdc8ecd5538da333e3d2', mod='omcore.rpc.dispatch', path='dispatch.py'),
+            dict(sha1='06854fb803e6ec9cbf87d4d76f44bccd180b5a54', mod='omcore.rpc.framing', path='framing.py'),
+            dict(sha1='e93a3ce2e3c836ca431ec638faa921a22b94aad8', mod='omcore.rpc.session', path='session.py'),
+            dict(sha1='1db7fd9a31c185f1c38bcb1d56aa8b56363922b4', mod='omcore.io.pipelines.drivers.sync.fds', path='../io/pipelines/drivers/sync/fds.py'),  # noqa
+            dict(sha1='1f23513095e091895162e4c9668cd1194fc2c80e', mod='omcore.io.pipelines.drivers.sync.sockets', path='../io/pipelines/drivers/sync/sockets.py'),  # noqa
+            dict(sha1='7b010944f06cf59d6c3ece8ed6472c7888fa6c4d', mod='omcore.rpc.codecs', path='codecs.py'),
+            dict(sha1='7e78b3a83293eb745623f0cc7ea2acaba2ad6b8a', mod='omcore.rpc.connection', path='connection.py'),
+            dict(sha1='bf23f98b0741fe0d6cf90521b8485aad32b5d767', mod='omcore.rpc.fdio', path='fdio.py'),
+            dict(sha1='794c066829347c8c009f0fb41d993684e92bc661', mod='omcore.rpc.serde', path='serde.py'),
+            dict(sha1='ca8a8fb82ebe6265b38e35e4e375a483377e7b74', mod='omcore.rpc.specs', path='specs.py'),
+            dict(sha1='3558e03f33fcb35f5afc06f23103bec306cef809', mod='omcore.rpc.asyncio', path='asyncio.py'),
+            dict(sha1='0e8774b7d8c16f87f4048c6a830fb7065cadcc57', mod='omcore.rpc.sync', path='sync.py'),
+            dict(sha1='9a972240574b7749f5b56e5e7635128c810cda82', mod='omcore.rpc.pure', path='pure.py'),
+            dict(sha1='c5fd4d09081be1107cc885f6274cf78d2240a117', mod='-', path='_amalg.py'),
         ],
     )
 

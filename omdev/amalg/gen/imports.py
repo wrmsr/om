@@ -12,14 +12,14 @@ from ...py.tokens import all as tks
 
 @dc.dataclass(frozen=True, kw_only=True)
 class Import:
-    mod: str
+    mod: str | None
+    mod_src_path: str | None
+
     item: str | None
     as_: str | None
 
     src_path: str
     line: int
-
-    mod_path: str | None
 
     toks: tks.Tokens = dc.field(repr=False)
 
@@ -60,38 +60,54 @@ def make_import(
     mod = ''.join(ml)
     item = ''.join(il) if il is not None else None
 
-    if (mnt := mounts.get(mod.partition('.')[0])) is not None:
+    mod_src_path: str | None
+    out_mod: str | None
+
+    if mod.startswith('.'):
+        parts = mod.split('.')
+        nd = len(parts) - parts[::-1].index('')
+        if src_mount := check.opt_single([mk for mk, mp in mounts.items() if os.path.commonpath([src_path, mp]) == mp]):
+            rel_mnt = mounts[src_mount]
+            mod_ps = [src_mount, *os.path.relpath(src_path, start=rel_mnt).split('/')[:-1]]
+            mod = '.'.join([*mod_ps[:-(nd - 1) or None], *parts[nd:]])
+            ps = mod.split('.')
+            mod_src_path = os.path.abspath(os.path.join(
+                rel_mnt,
+                *ps[1:-1],
+                ps[-1] + '.py',
+            ))
+            out_mod = mod
+        else:
+            mod_src_path = os.path.abspath(os.path.join(
+                os.path.dirname(src_path),
+                '../' * (nd - 1),
+                *parts[nd:-1],
+                parts[-1] + '.py',
+            ))
+            out_mod = None
+
+    elif (mnt := mounts.get(mod.partition('.')[0])) is not None:
         ps = mod.split('.')
-        mod_path = os.path.abspath(os.path.join(
+        mod_src_path = os.path.abspath(os.path.join(
             mnt,
             *ps[1:-1],
             ps[-1] + '.py',
         ))
-
-    elif not mod.startswith('.'):
-        mod_path = None
+        out_mod = mod
 
     else:
-        parts = mod.split('.')
-        nd = len(parts) - parts[::-1].index('')
-        mod_path = os.path.abspath(os.path.join(
-            os.path.dirname(src_path),
-            '../' * (nd - 1),
-            *parts[nd:-1],
-            parts[-1] + '.py',
-        ))
-
-        mod = check.isinstance(mod_path, str)
+        mod_src_path = None
+        out_mod = mod
 
     return Import(
-        mod=mod,
+        mod=out_mod,
+        mod_src_path=mod_src_path,
+
         item=item,
         as_=as_,
 
         src_path=src_path,
         line=check.not_none(ft.line),
-
-        mod_path=mod_path,
 
         toks=lts,
     )

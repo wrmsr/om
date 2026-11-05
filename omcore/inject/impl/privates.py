@@ -49,9 +49,9 @@ class PrivateInjectorProviderImpl(ProviderImpl, lang.Final):
         # it - a strong parent ref would cycle the pair.
         return await create_async_injector(self.ec, injector, weak_parent=True)
 
-    # FIXME:
-    # def known_dependencies(self) -> frozenset[Key] | None:
-    #     raise NotImplementedError
+    def known_dependencies(self) -> frozenset[Key] | None:
+        # FIXME:
+        return None
 
 
 ##
@@ -70,9 +70,9 @@ class ExposedPrivateProviderImpl(ProviderImpl, lang.Final):
         pi = await injector.provide(self.pik)
         return await pi.provide(self.k)
 
-    # FIXME:
-    # def known_dependencies(self) -> frozenset[Key] | None:
-    #     raise NotImplementedError
+    def known_dependencies(self) -> frozenset[Key] | None:
+        # FIXME:
+        return None
 
 
 ##

@@ -35,21 +35,21 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '366d8029e13e692aa2e81fc2fc928fa653defaba'
+__om_amalg_sha1__ = '2559adb22cd68050073eb3b3380e5327bb9f269f'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', path='../../omcore/lite/abstract.py'),
-            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', path='../../omcore/lite/check.py'),
-            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', path='../../omcore/lite/io.py'),
-            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', path='../../omcore/lite/objects.py'),
-            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', path='../../omcore/lite/reflect.py'),
-            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', path='../../omcore/lite/strings.py'),
-            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', path='../../omcore/lite/json.py'),
-            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', path='../../omcore/lite/marshal.py'),
-            dict(sha1='ae2f3a87e05e31449ea9afb2e8b5998a854d78a1', path='dumping.py'),
+            dict(sha1='a2fc3f3697fa8de5247761e9d554e70176f37aac', mod='omcore.lite.abstract', path='../../omcore/lite/abstract.py'),  # noqa
+            dict(sha1='62b9ccea94c4f7bcef97e7adae8674b8cb11d4af', mod='omcore.lite.check', path='../../omcore/lite/check.py'),  # noqa
+            dict(sha1='f24551273be9342d5a26522d0e06d08f52496db9', mod='omcore.lite.io', path='../../omcore/lite/io.py'),  # noqa
+            dict(sha1='9566bbf3530fd71fcc56321485216b592fae21e9', mod='omcore.lite.objects', path='../../omcore/lite/objects.py'),  # noqa
+            dict(sha1='64d51b5de91131349d56e4154ed235eb7fff4fd0', mod='omcore.lite.reflect', path='../../omcore/lite/reflect.py'),  # noqa
+            dict(sha1='b31b8e4b0e4fec4562ea3fa602e4ef2475e5fe7c', mod='omcore.lite.strings', path='../../omcore/lite/strings.py'),  # noqa
+            dict(sha1='01124e62093ebd4078602f16df0ec04cb724a612', mod='omcore.lite.json', path='../../omcore/lite/json.py'),  # noqa
+            dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', mod='omcore.lite.marshal', path='../../omcore/lite/marshal.py'),  # noqa
+            dict(sha1='ae2f3a87e05e31449ea9afb2e8b5998a854d78a1', mod='-', path='dumping.py'),
         ],
     )
 

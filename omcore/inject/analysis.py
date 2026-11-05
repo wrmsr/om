@@ -1,3 +1,11 @@
+"""
+TODO:
+ - unbound keys
+ - unreferenced keys
+ - full toposort/dag
+ - togglable unbound/cycle handling (lax default)
+ - explicit opaques
+"""
 import typing as ta
 
 from .. import check

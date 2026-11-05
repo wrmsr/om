@@ -26,6 +26,7 @@ from .typing import skip_root_level_if_type_checking_block
 @dc.dataclass(frozen=True, kw_only=True)
 class SrcFile:
     path: str
+    mod: str | None = None
 
     src_bytes: bytes = dc.field(repr=False)
     sha1: str = dc.field(repr=False)
@@ -58,6 +59,7 @@ def drop_amalg_comment_lines(lines: ta.Iterable[tks.Tokens]) -> list[tks.Tokens]
 def make_src_file(
         path: str,
         *,
+        mod: str | None = None,
         mounts: ta.Mapping[str, str],
 ) -> SrcFile:
     with open(path, 'rb') as f:
@@ -121,6 +123,7 @@ def make_src_file(
 
     return SrcFile(
         path=path,
+        mod=mod,
 
         src_bytes=src_bytes,
         sha1=sha1,
