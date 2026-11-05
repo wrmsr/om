@@ -9,12 +9,12 @@ from ..... import agent as agn
 from ..... import llm
 from .....core import processes as procs
 from .....core.asyncs.base import AsyncJobRunner
+from ....commands.inject import commands_binder
 from ....commands.repl import BashCommand
 from ....commands.repl import ChatCommand
 from ....commands.repl import JsCommand
 from ....commands.repl import PyCommand
 from ....commands.repl import ReplModeSwitcher
-from ....inject.commands import commands_binder
 from ....types import TargetCwd
 from ...config import TuiConfig
 from ..app import MinituiChatApp

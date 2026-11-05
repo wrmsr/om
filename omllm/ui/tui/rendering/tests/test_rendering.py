@@ -7,15 +7,15 @@ from omcore import lang
 from omcore.term import styled as tst
 from omdev import minitui as mt
 
-from ....core import ui
-from ...tests.headless import bind_headless_ui
-from ...tests.headless import headless_ui
-from ..config import TuiConfig
-from ..inject.rendering import bind_rendering
-from ..rendering import BlockTerminalTextDisplayer
-from ..rendering import TerminalTextDisplayer
-from ..rendering import TerminalTextRenderer
-from ..rendering import TextRowsRenderer
+from .....core import ui
+from ....tests.headless import bind_headless_ui
+from ....tests.headless import headless_ui
+from ...config import TuiConfig
+from ..inject import bind_rendering
+from ..text import BlockTerminalTextDisplayer
+from ..text import TerminalTextDisplayer
+from ..text import TerminalTextRenderer
+from ..text import TextRowsRenderer
 
 
 def test_text_rows_resolve_semantic_styles():

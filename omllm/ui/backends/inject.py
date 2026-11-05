@@ -9,14 +9,14 @@ from omdev.home.secrets import load_secrets
 from ... import agent as agn
 from ... import llm
 from ...core import registry as reg
-from ..config import UiConfig
 from ..types import InitialLlmOptions
+from .config import BackendsConfig
 
 
 ##
 
 
-def _bind_scripted_backend(config: UiConfig) -> inj.Elements:
+def _bind_scripted_backend(config: BackendsConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     # Offline development / testing: the scripted backend's built-in canned responses, no keys or network.
@@ -41,7 +41,7 @@ def _bind_scripted_backend(config: UiConfig) -> inj.Elements:
     return inj.as_elements(*lst)
 
 
-def _bind_backend(config: UiConfig) -> inj.Elements:
+def _bind_backend(config: BackendsConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     model = llm.default_models_by_name()[config.model or llm.DEFAULT_MODEL_NAME]
@@ -81,8 +81,14 @@ def _bind_backend(config: UiConfig) -> inj.Elements:
     return inj.as_elements(*lst)
 
 
-def bind_backends(config: UiConfig) -> inj.Elements:
+def bind_backends(config: BackendsConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
+
+    #
+
+    lst.append(
+        inj.bind(BackendsConfig, to_const=config),
+    )
 
     #
 

@@ -9,9 +9,9 @@ from .... import llm
 from ....core import ui
 from ...agent.inject.events import bind_on_agent_event_subscriber
 from ..config import TuiConfig
-from ..rendering import BlockTerminalTextDisplayer
-from ..rendering import TerminalTextDisplayer
-from ..rendering import build_terminal_text_displayer
+from ..rendering.text import BlockTerminalTextDisplayer
+from ..rendering.text import TerminalTextDisplayer
+from ..rendering.text import build_terminal_text_displayer
 from .previews import ShownPreviews
 
 

@@ -14,7 +14,7 @@ from omcore import check
 from omdev import minitui as mt
 
 from .... import agent as agn
-from ..rendering import TextRowsRenderer
+from ..rendering.text import TextRowsRenderer
 from .app import MinituiChatApp
 from .toolcards import card_text_rows
 from .toolcards import tool_call_summary

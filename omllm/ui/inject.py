@@ -2,11 +2,11 @@ import uuid
 
 from omcore import inject as inj
 
-from ..agent.inject.inject import bind_agent
-from ..config import UiConfig
-from ..types import UiId
-from .backends import bind_backends
-from .commands import bind_commands
+from .agent.inject.inject import bind_agent
+from .backends.inject import bind_backends
+from .commands.inject import bind_commands
+from .config import UiConfig
+from .types import UiId
 
 
 ##

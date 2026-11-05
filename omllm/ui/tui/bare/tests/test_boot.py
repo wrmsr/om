@@ -15,8 +15,8 @@ from ....tests.headless import headless_ui
 from ....yolo import yolo_autoexec
 from ....yolo import yolo_process_config
 from ...config import TuiConfig
-from ...rendering import TerminalTextDisplayer
-from ...rendering import TerminalTextRenderer
+from ...rendering.text import TerminalTextDisplayer
+from ...rendering.text import TerminalTextRenderer
 from ..inject import bind_bare
 from ..prompting import Prompter
 

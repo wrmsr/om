@@ -14,7 +14,7 @@ from .... import agent as agn
 from .... import llm
 from ....core import ui
 from ..config import TuiConfig
-from ..rendering import TextRowsRenderer
+from ..rendering.text import TextRowsRenderer
 from .app import MinituiChatApp
 from .toolcards import card_text_rows
 from .toolcards import tool_call_summary

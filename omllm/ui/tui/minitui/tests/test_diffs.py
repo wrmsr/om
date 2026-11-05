@@ -16,7 +16,7 @@ from .....agent.tests.scripted import text_message
 from .....agent.tests.scripted import tool_call_message
 from .....core import ui
 from ...config import TuiConfig
-from ...rendering import TextRowsRenderer
+from ...rendering.text import TextRowsRenderer
 from ..app import AppKey
 from ..input import CardPermissionAsker
 from ..output import AgentEventRenderer

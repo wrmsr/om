@@ -62,6 +62,7 @@ with _lang.auto_proxy_init(
 
     from .analysis import (  # noqa
         ElementsAnalysis,
+        analyze_elements,
     )
 
     from .asyncio import (  # noqa

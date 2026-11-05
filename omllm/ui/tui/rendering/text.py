@@ -10,7 +10,7 @@ from omcore.text import styled as st
 from omcore.text.styled import grid
 from omdev import minitui as mt
 
-from ...core import ui
+from ....core import ui
 
 
 ##

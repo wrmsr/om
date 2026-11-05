@@ -56,3 +56,7 @@ class ElementsAnalysis:
             k: bi.provider.known_dependencies()
             for k, bi in self._ec.binding_impl_map().items()
         }
+
+
+def analyze_elements(es: Elements | CollectedElements) -> ElementsAnalysis:
+    return ElementsAnalysis(es)

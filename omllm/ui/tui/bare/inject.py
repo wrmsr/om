@@ -4,8 +4,8 @@ from ....core import ui
 from ...commands.base import Commands
 from ...commands.manager import CommandsManager
 from ..config import TuiConfig
-from ..inject.inject import bind_tui
-from ..rendering import BlockTerminalTextDisplayer
+from ..inject import bind_tui
+from ..rendering.text import BlockTerminalTextDisplayer
 from .input import bind_input
 from .output import bind_output
 from .prompting import Prompter

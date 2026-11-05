@@ -2,7 +2,7 @@ from omdev import minitui as mt
 
 from .... import agent as agn
 from ....core import ui
-from ..rendering import TextRowsRenderer
+from ..rendering.text import TextRowsRenderer
 
 
 ##

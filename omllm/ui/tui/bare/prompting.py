@@ -7,7 +7,7 @@ typed, a boot command, is echoed, the way the minitui surface shows every submis
 from .... import agent as agn
 from ...commands.manager import CommandsManager
 from ...commands.manager import ParseCommandError
-from ..rendering import BlockTerminalTextDisplayer
+from ..rendering.text import BlockTerminalTextDisplayer
 
 
 ##

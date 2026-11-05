@@ -21,7 +21,7 @@ from omdev import minitui as mt
 from omdev import repl
 
 from ....core import ui
-from ..rendering import TextRowsRenderer
+from ..rendering.text import TextRowsRenderer
 
 
 CardRows: ta.TypeAlias = tuple[tuple[mt.Segment, ...], ...]

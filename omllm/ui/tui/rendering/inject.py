@@ -3,7 +3,7 @@ from omcore import inject as inj
 from ....core import ui
 from ...types import TargetCwd
 from ..config import TuiConfig
-from ..rendering import TextRowsRenderer
+from .text import TextRowsRenderer
 
 
 ##

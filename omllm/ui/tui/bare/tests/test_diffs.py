@@ -18,8 +18,8 @@ from .....core import ui
 from ....tests.headless import bind_scripted_backend
 from ....tests.headless import headless_ui
 from ...config import TuiConfig
-from ...rendering import TerminalTextDisplayer
-from ...rendering import TerminalTextRenderer
+from ...rendering.text import TerminalTextDisplayer
+from ...rendering.text import TerminalTextRenderer
 from ..inject import bind_bare
 from ..input import InputManager
 
