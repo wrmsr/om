@@ -44,12 +44,7 @@ class LoopTurnRunner(TurnRunner):
         )
 
         loop = TurnLoop(
-            config=params.in_state.turn_config,
-            context=params.in_state.context,
-            tool_env=params.in_state.tool_env,
-            new_messages=params.new_messages,
-            subscriber=params.subscriber,
-            inbox=params.inbox,
+            params,
 
             llm_backend=llm_backend,
 

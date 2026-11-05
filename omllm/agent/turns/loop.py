@@ -50,6 +50,7 @@ from ..types.tools import ToolResult
 from ..types.turns import AgentEndReason
 from ..types.turns import TurnConfig
 from ..types.turns import TurnResult
+from ..types.turns import TurnParams
 from .repairs import build_unanswered_tool_call_results
 
 
@@ -121,14 +122,8 @@ class TurnLoop:
 
     def __init__(
             self,
+            params: TurnParams,
             *,
-            config: TurnConfig | None = None,
-            context: Context | None = None,
-            tool_env: ToolEnvironment | None = None,
-            new_messages: ta.Sequence[Message],
-            subscriber: EventSubscriber[Event] | None = None,
-            inbox: TurnInbox | None = None,
-
             llm_backend: llm.ImmediateBackend,
 
             tool_invoker: ToolInvoker | None = None,
@@ -140,43 +135,46 @@ class TurnLoop:
     ) -> None:
         super().__init__()
 
-        self._initial_new_messages = list(new_messages)
-        if config is None:
-            config = TurnConfig()
-        self._initial_config = config
-        if context is None:
-            context = Context()
-        self._initial_context = context
-        self._subscriber = subscriber
-        self._llm_backend = llm_backend
-        self._tool_env = tool_env
-        if tool_invoker is None:
-            tool_invoker = DirectToolInvoker()
-        self._tool_invoker = tool_invoker
-        self._cancellation = cancellation
-        self._group_runner = group_runner
-        if config.llm_retry is not None:
+        #
+
+        self._initial_params = params
+
+        self._initial_new_messages = list(params.new_messages)
+
+        self._initial_config = params.in_state.turn_config or TurnConfig()
+        self._config = self._initial_config
+        if self._config.llm_retry is not None:
             check.state(sleeps is not None, 'Retries need a sleeper for their backoff')
-        self._sleeps = sleeps
-        if context_builder is None:
-            context_builder = StandardLlmContextBuilder()
-        self._context_builder = context_builder
-        if context_lifecycle_manager is None:
-            context_lifecycle_manager = StandardContextLifecycleManager()
-        self._context_lifecycle_manager = context_lifecycle_manager
-        self._inbox = inbox
+
+        self._initial_context = params.in_state.context or Context()
+        self._context = self._initial_context
+
+        self._tool_env = params.in_state.tool_env
+
+        self._subscriber = params.subscriber
+        self._inbox = params.inbox
 
         #
 
-        self._config = config
-        self._context = context
+        self._llm_backend = llm_backend
+
+        #
+
+        self._tool_invoker = tool_invoker or DirectToolInvoker()
+        self._cancellation = cancellation
+        self._group_runner = group_runner
+        self._sleeps = sleeps
+        self._context_builder = context_builder or StandardLlmContextBuilder()
+        self._context_lifecycle_manager = context_lifecycle_manager or StandardContextLifecycleManager()
+
+        #
 
         self._new_messages: list[Message] = []
 
         self._num_turns = 0
         self._num_llm_content_events = 0
 
-        self._add_new_message(*new_messages)
+        self._add_new_message(*self._initial_new_messages)
 
     #
 
