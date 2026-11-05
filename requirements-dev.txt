@@ -31,9 +31,9 @@ types-paramiko==5.1.0.20261030
 types-psutil==7.2.2.20260906
 types-pygments==2.21.0.20260819
 types-pymysql==1.2.0.20260923
-types-pyyaml==6.0.12.20261030
+types-pyyaml==6.0.12.20261103
 types-regex==2026.9.29.20261030
-types-setuptools==84.0.0.20261006
+types-setuptools==84.2.0.20261104
 types-ujson==5.10.0.20250822
 
 black==26.10.1
@@ -69,12 +69,12 @@ json5==0.17.3
 # c/libpq
 psycopg2==2.9.13
 # py/cy
-psycopg==3.3.6
+psycopg==3.3.8
 
 mysql-connector-python==26.10.0
 mysqlclient==2.3.0; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
 
-ujson==6.0.0
+ujson==6.1.0
 
 markupsafe==3.0.4
 
@@ -122,7 +122,7 @@ tree-sitter-toml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-xml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-yaml==0.7.2  # @om-venv !14t !14dt !15t
 
-snowflake-connector-python==5.1.0
+snowflake-connector-python==5.2.0
 # snowflake-sqlalchemy==1.7.7
 
 trino==0.340.0  # @om-venv !14t !14dt !15t  # orjson
@@ -132,7 +132,7 @@ hf-xet==1.6.0
 
 greenlet==3.5.6
 
-pyzmq==27.2.0
+pyzmq==27.3.0
 
 ## NOTE: the following add a full minute to CI just setting up the deps..
 
@@ -141,7 +141,7 @@ datasets==5.1.0
 transformers==5.22.1  # @om-venv !15t
 sentence-transformers==6.2.0  # @om-venv !15 !15t
 
-sentencepiece==0.2.2
+sentencepiece==0.2.3
 tiktoken==0.14.0
 tokenizers==0.23.3  # @om-venv !14t !14dt !15t
 
@@ -150,10 +150,10 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.123
-botocore==1.43.123
-types-boto3==1.43.123
-botocore-stubs==1.43.123
+boto3==1.43.124
+botocore==1.43.124
+types-boto3==1.43.124
+botocore-stubs==1.43.124
 
 asn1crypto==1.5.1
 pynacl==1.6.2

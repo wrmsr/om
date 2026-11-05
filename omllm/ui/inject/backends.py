@@ -1,4 +1,3 @@
-import contextvars
 import os
 import types
 import typing as ta
@@ -12,21 +11,6 @@ from ... import llm
 from ...core import registry as reg
 from ..config import UiConfig
 from ..types import InitialLlmOptions
-
-
-##
-
-
-class BACKEND_SCOPED(lang.Marker):  # noqa
-    pass
-
-
-_BACKEND_SCOPE_CONTEXT: contextvars.ContextVar = contextvars.ContextVar(f'{__name__}._BACKEND_SCOPE_CONTEXT')
-
-BACKEND_SCOPE: ta.Final = inj.DelimitedScope(
-    BACKEND_SCOPED,
-    context=inj.ContextVarScopeContext(_BACKEND_SCOPE_CONTEXT),
-)
 
 
 ##
@@ -99,12 +83,6 @@ def _bind_backend(config: UiConfig) -> inj.Elements:
 
 def bind_backends(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
-
-    #
-
-    lst.extend([
-        inj.bind_scope(BACKEND_SCOPE),
-    ])
 
     #
 

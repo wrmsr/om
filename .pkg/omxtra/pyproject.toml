@@ -43,7 +43,7 @@ wiki = [
     'wikitextparser ~= 3.0',
 ]
 zmq = [
-    'pyzmq ~= 27.2',
+    'pyzmq ~= 27.3',
 ]
 all = [
     'omdev == 0.0.71',
@@ -52,7 +52,7 @@ all = [
     'paramiko ~= 5.1',
     'mwparserfromhell ~= 0.7',
     'wikitextparser ~= 3.0',
-    'pyzmq ~= 27.2',
+    'pyzmq ~= 27.3',
 ]
 
 [project.entry-points]

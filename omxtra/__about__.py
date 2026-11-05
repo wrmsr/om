@@ -33,7 +33,7 @@ class Project(ProjectBase):
         ],
 
         'zmq': [
-            'pyzmq ~= 27.2',
+            'pyzmq ~= 27.3',
         ],
     }
 

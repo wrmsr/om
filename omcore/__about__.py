@@ -63,7 +63,7 @@ class Project(ProjectBase):
 
         'formats': [
             'orjson ~= 3.13',
-            'ujson ~= 6.0',
+            'ujson ~= 6.1',
 
             'pyyaml ~= 6.0',
 
@@ -101,7 +101,7 @@ class Project(ProjectBase):
             'mysql-connector-python ~= 26.10',
             'mysqlclient ~= 2.3',
 
-            'snowflake-connector-python ~= 5.1',
+            'snowflake-connector-python ~= 5.2',
 
             'aiomysql ~= 0.3',
             'aiosqlite ~= 0.22',
