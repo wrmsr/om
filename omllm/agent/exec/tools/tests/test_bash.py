@@ -15,6 +15,7 @@ from ....tests.scripted import scripted_backend
 from ....tests.scripted import text_message
 from ....tests.scripted import tool_call_message
 from ....turns.loop import TurnLoop
+from ....types.turns import TurnParams
 from ....types.contexts import Context
 from ....types.events import ToolExecutionEndEvent
 from ....types.events import ToolExecutionUpdateEvent
@@ -23,6 +24,7 @@ from ....types.tools import ToolContext
 from ....types.tools import ToolEnvironment
 from ....types.tools import ToolSet
 from ....types.turns import AgentEndReason
+from ....types.states import State
 from ...ops import ExecOps
 from ...ops import ExecParams
 from ...ops import ExecResult
@@ -58,16 +60,20 @@ async def _run(command, *, timeout_s=None):
             )
 
             loop = TurnLoop(
-                new_messages=[llm.UserMessage('go')],
-                context=Context(tools=ToolSet([tool.tool()])),
-                subscriber=events.append,
-                cancellation=asl.asyncio.Cancellation(),
-                group_runner=AsyncioGroupRunner(),
+                TurnParams(
+                    in_state=State(
+                        context=Context(tools=ToolSet([tool.tool()])),
+                        tool_env=ToolEnvironment(cwd=td, processes=m.root),
+                    ),
+                    new_messages=[llm.UserMessage('go')],
+                    subscriber=events.append,
+                ),
                 llm_backend=scripted_backend(
                     tool_call_message(llm.ToolCall('t1', 'bash', args)),
                     text_message('done'),
                 ),
-                tool_env=ToolEnvironment(cwd=td, processes=m.root),
+                cancellation=asl.asyncio.Cancellation(),
+                group_runner=AsyncioGroupRunner(),
             )
 
             result = await loop.run()
