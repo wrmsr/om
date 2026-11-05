@@ -54,7 +54,7 @@ class ElementsAnalysis:
     @lang.cached_function
     def known_dependencies_by_key(self) -> ta.Mapping[Key, Dependencies | None]:
         return {
-            k: bi.provider.known_dependencies()
+            k: bi.provider.deep_known_dependencies()
             for k, bi in self._ec.binding_impl_map().items()
         }
 

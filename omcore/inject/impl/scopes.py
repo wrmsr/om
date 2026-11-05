@@ -156,8 +156,10 @@ class ScopeSeededProviderImpl(ProviderImpl):
     p: ScopeSeededProvider
 
     @property
-    def providers(self) -> ta.Iterable[Provider]:
+    def providers(self) -> ta.Sequence[Provider]:
         return (self.p,)
+
+    #
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         ii = check.isinstance(injector, _injector.AsyncInjectorImpl)

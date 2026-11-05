@@ -5,7 +5,6 @@ from ... import cached
 from ... import dataclasses as dc
 from ... import lang
 from ..bindings import Binding
-from ..dependencies import Dependencies
 from ..eagers import Eager
 from ..elements import Element
 from ..injector import AsyncInjector
@@ -13,7 +12,6 @@ from ..keys import Key
 from ..keys import as_key
 from ..privates import Expose
 from ..privates import Private
-from ..providers import Provider
 from ..scopes import Singleton
 from .elements import ElementCollection
 from .injector import AsyncInjectorImpl
@@ -41,18 +39,14 @@ class PrivateInjectorProviderImpl(ProviderImpl, lang.Final):
     id: PrivateInjectorId
     ec: ElementCollection
 
-    @property
-    def providers(self) -> ta.Iterable[Provider]:
-        return ()
+    # FIXME: children + known_dependencies
+
+    #
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         # weak_parent: the private child lives in this injector's own singleton cache, and is only ever reached through
         # it - a strong parent ref would cycle the pair.
         return await create_async_injector(self.ec, injector, weak_parent=True)
-
-    def known_dependencies(self) -> Dependencies | None:
-        # FIXME:
-        return None
 
 
 ##
@@ -63,17 +57,13 @@ class ExposedPrivateProviderImpl(ProviderImpl, lang.Final):
     pik: Key
     k: Key
 
-    @property
-    def providers(self) -> ta.Iterable[Provider]:
-        return ()
+    # FIXME: children + known_dependencies
+
+    #
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         pi = await injector.provide(self.pik)
         return await pi.provide(self.k)
-
-    def known_dependencies(self) -> Dependencies | None:
-        # FIXME:
-        return None
 
 
 ##

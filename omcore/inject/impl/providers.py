@@ -1,7 +1,3 @@
-"""
-TODO:
- - recursion is wonky - yield_known_dependencies? self_providers? self_children -> [ProviderImpl]? ...
-"""
 import abc
 import typing as ta
 
@@ -22,17 +18,43 @@ from ..providers import Provider
 
 
 class ProviderImpl(lang.Abstract):
+    ##
+    # **Shallow** accessors.
+
     @property
-    @abc.abstractmethod
-    def providers(self) -> ta.Iterable[Provider]:
-        raise NotImplementedError
+    def providers(self) -> ta.Sequence[Provider]:
+        return ()
+
+    @property
+    def children(self) -> ta.Sequence[ProviderImpl]:
+        return ()
+
+    def known_dependencies(self) -> Dependencies | None:
+        return None
+
+    ##
+
+    @ta.final
+    def traverse(self) -> ta.Iterator[ProviderImpl]:
+        yield self
+        for child in self.children:
+            yield from child.traverse()
+
+    @ta.final
+    @lang.cached_function
+    def deep_known_dependencies(self) -> Dependencies | None:
+        return Dependencies.merge(*[
+            ds
+            for c in self.traverse()
+            for ds in [c.known_dependencies()]
+            if ds
+        ]) or None
+
+    ##
 
     @abc.abstractmethod
     def provide(self, injector: AsyncInjector) -> ta.Awaitable[ta.Any]:
         raise NotImplementedError
-
-    def known_dependencies(self) -> Dependencies | None:
-        return None
 
 
 ##
@@ -52,14 +74,16 @@ class AsyncCallableProviderImpl(ProviderImpl, lang.Final):
     kt: KwargsTarget
 
     @property
-    def providers(self) -> ta.Iterable[Provider]:
+    def providers(self) -> ta.Sequence[Provider]:
         return (self.p,)
-
-    async def provide(self, injector: AsyncInjector) -> ta.Any:
-        return await (await injector.inject(self.kt))
 
     def known_dependencies(self) -> Dependencies | None:
         return self.kt.kwargs.dependencies or None
+
+    #
+
+    async def provide(self, injector: AsyncInjector) -> ta.Any:
+        return await (await injector.inject(self.kt))
 
 
 ##
@@ -71,14 +95,16 @@ class CallableProviderImpl(ProviderImpl, lang.Final):
     kt: KwargsTarget
 
     @property
-    def providers(self) -> ta.Iterable[Provider]:
+    def providers(self) -> ta.Sequence[Provider]:
         return (self.p,)
-
-    async def provide(self, injector: AsyncInjector) -> ta.Any:
-        return await injector.inject(self.kt)
 
     def known_dependencies(self) -> Dependencies | None:
         return self.kt.kwargs.dependencies or None
+
+    #
+
+    async def provide(self, injector: AsyncInjector) -> ta.Any:
+        return await injector.inject(self.kt)
 
 
 ##
@@ -89,8 +115,10 @@ class ConstProviderImpl(ProviderImpl, lang.Final):
     p: ConstProvider
 
     @property
-    def providers(self) -> ta.Iterable[Provider]:
+    def providers(self) -> ta.Sequence[Provider]:
         return (self.p,)
+
+    #
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         return self.p.v
@@ -104,12 +132,13 @@ class LinkProviderImpl(ProviderImpl, lang.Final):
     p: LinkProvider
 
     @property
-    def providers(self) -> ta.Iterable[Provider]:
+    def providers(self) -> ta.Sequence[Provider]:
         return (self.p,)
+
+    def known_dependencies(self) -> Dependencies:
+        return Dependencies(frozenset([self.p.k]))
+
+    #
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         return await injector.provide(self.p.k)
-
-    @lang.cached_function
-    def known_dependencies(self) -> Dependencies | None:
-        return Dependencies(frozenset([self.p.k]))

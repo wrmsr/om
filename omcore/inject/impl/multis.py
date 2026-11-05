@@ -1,9 +1,9 @@
 import typing as ta
 
+from ... import cached
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
-from ..dependencies import Dependencies
 from ..elements import Element
 from ..errors import DuplicateMapKeyError
 from ..injector import AsyncInjector
@@ -25,9 +25,10 @@ class SetProviderImpl(ProviderImpl, lang.Final):
     ps: ta.Sequence[ProviderImpl]
 
     @property
-    def providers(self) -> ta.Iterator[Provider]:
-        for p in self.ps:
-            yield from p.providers
+    def children(self) -> ta.Sequence[ProviderImpl]:
+        return self.ps
+
+    #
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         rv = set()
@@ -35,10 +36,6 @@ class SetProviderImpl(ProviderImpl, lang.Final):
             o = await ep.provide(injector)
             rv.add(o)
         return rv
-
-    @lang.cached_function
-    def known_dependencies(self) -> Dependencies | None:
-        return Dependencies.merge(*[p.known_dependencies() for p in self.ps]) or None
 
 
 @dc.dataclass(frozen=True, eq=False)
@@ -49,10 +46,11 @@ class MapProviderImpl(ProviderImpl, lang.Final):
 
     es: ta.Sequence[Entry]
 
-    @property
-    def providers(self) -> ta.Iterator[Provider]:
-        for e in self.es:
-            yield from e.v.providers
+    @cached.property
+    def children(self) -> ta.Sequence[ProviderImpl]:
+        return tuple(e.v for e in self.es)
+
+    #
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         rv = {}
@@ -60,10 +58,6 @@ class MapProviderImpl(ProviderImpl, lang.Final):
             o = await e.v.provide(injector)
             rv[e.k] = o
         return rv
-
-    @lang.cached_function
-    def known_dependencies(self) -> Dependencies | None:
-        return Dependencies.merge(*[e.v.known_dependencies() for e in self.es]) or None
 
 
 def make_multi_provider_impl(p: Provider, es_by_ty: ta.MutableMapping[type, list[Element]]) -> ProviderImpl:

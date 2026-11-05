@@ -17,8 +17,7 @@ from .classes import ParserCommandClass
 
 class ProcessesCommand(ParserCommandClass):
     """
-    Inspects and manages the processes owned by the process manager (the same ones the agent's process_* tools
-    see).
+    Inspects and manages the processes owned by the process manager (the same ones the agent's process_* tools see).
     """
 
     def __init__(self, processes: processes.ProcessManager) -> None:
