@@ -7,9 +7,18 @@ from .impl.origins import HasOriginsImpl
 
 
 if ta.TYPE_CHECKING:
+    from . import analysis as _analysis
     from .impl import elements as _elements
 else:
+    _analysis = lang.proxy_import('.analysis', __package__)
     _elements = lang.proxy_import('.impl.elements', __package__)
+
+
+type Elemental = ta.Union[  # noqa: UP007
+    Element,
+    Elements,
+    ElementGenerator,
+]
 
 
 ##
@@ -19,10 +28,16 @@ class Element(HasOriginsImpl, lang.Abstract, lang.PackageSealed):
     """Note: inheritors must be dataclasses."""
 
 
+##
+
+
 class ElementGenerator(lang.Abstract, lang.PackageSealed):
     @abc.abstractmethod
     def __iter__(self) -> ta.Iterator[Element]:
         raise NotImplementedError
+
+
+##
 
 
 @dc.dataclass(frozen=True)
@@ -41,12 +56,8 @@ class Elements(lang.Final):
     def debug(self) -> ta.Sequence[Element]:
         return list(self)
 
-
-Elemental: ta.TypeAlias = ta.Union[  # noqa: UP007
-    Element,
-    Elements,
-    ElementGenerator,
-]
+    def analyze(self) -> _analysis.ElementsAnalysis:
+        return _analysis.ElementsAnalysis(self)
 
 
 def as_elements(*args: Elemental) -> Elements:

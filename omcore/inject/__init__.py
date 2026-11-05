@@ -58,6 +58,12 @@ with _lang.auto_proxy_init(
         wrapper_binder_helper,
     )
 
+    #
+
+    from .analysis import (  # noqa
+        ElementsAnalysis,
+    )
+
     from .asyncio import (  # noqa
         create_asyncio_injector,
     )
@@ -76,10 +82,11 @@ with _lang.auto_proxy_init(
     )
 
     from .elements import (  # noqa
-        Element,
-        Elements,
         Elemental,
 
+        Element,
+
+        Elements,
         as_elements,
         iter_elements,
 

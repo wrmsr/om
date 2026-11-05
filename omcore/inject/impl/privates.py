@@ -45,9 +45,13 @@ class PrivateInjectorProviderImpl(ProviderImpl, lang.Final):
         return ()
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
-        # weak_parent: the private child lives in this injector's own singleton cache, and is only ever reached
-        # through it - a strong parent ref would cycle the pair.
+        # weak_parent: the private child lives in this injector's own singleton cache, and is only ever reached through
+        # it - a strong parent ref would cycle the pair.
         return await create_async_injector(self.ec, injector, weak_parent=True)
+
+    # FIXME:
+    # def known_dependencies(self) -> frozenset[Key] | None:
+    #     raise NotImplementedError
 
 
 ##
@@ -66,13 +70,16 @@ class ExposedPrivateProviderImpl(ProviderImpl, lang.Final):
         pi = await injector.provide(self.pik)
         return await pi.provide(self.k)
 
+    # FIXME:
+    # def known_dependencies(self) -> frozenset[Key] | None:
+    #     raise NotImplementedError
+
 
 ##
 
 
 @dc.dataclass(frozen=True)
 class PrivateInfo(lang.Final):
-    owner: ElementCollection
     p: Private
 
     @cached.property

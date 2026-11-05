@@ -5,6 +5,7 @@ from ... import dataclasses as dc
 from ... import lang
 from ..injector import AsyncInjector
 from ..inspect import KwargsTarget
+from ..keys import Key
 from ..providers import AsyncFnProvider
 from ..providers import ConstProvider
 from ..providers import CtorProvider
@@ -25,6 +26,9 @@ class ProviderImpl(lang.Abstract):
     @abc.abstractmethod
     def provide(self, injector: AsyncInjector) -> ta.Awaitable[ta.Any]:
         raise NotImplementedError
+
+    def known_dependencies(self) -> frozenset[Key] | None:
+        return None
 
 
 ##
@@ -50,6 +54,9 @@ class AsyncCallableProviderImpl(ProviderImpl, lang.Final):
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         return await (await injector.inject(self.kt))
 
+    def known_dependencies(self) -> frozenset[Key] | None:
+        return self.kt.kwargs.keys or None
+
 
 ##
 
@@ -65,6 +72,9 @@ class CallableProviderImpl(ProviderImpl, lang.Final):
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         return await injector.inject(self.kt)
+
+    def known_dependencies(self) -> frozenset[Key] | None:
+        return self.kt.kwargs.keys or None
 
 
 ##
@@ -95,3 +105,7 @@ class LinkProviderImpl(ProviderImpl, lang.Final):
 
     async def provide(self, injector: AsyncInjector) -> ta.Any:
         return await injector.provide(self.p.k)
+
+    @lang.cached_function
+    def known_dependencies(self) -> frozenset[Key]:
+        return frozenset([self.p.k])

@@ -42,6 +42,7 @@ from ..multis import SetProvider
 from ..overrides import Overrides
 from ..privates import Expose
 from ..privates import Private
+from ..providers import Provider
 from ..scopes import ScopeBinding
 from ..types import Scope
 from .bindings import BindingImpl
@@ -93,6 +94,10 @@ class ElementCollection(CollectedElements, lang.Final):
         self._private_infos: ta.MutableMapping[Private, _privates.PrivateInfo] | None = None
         self._scope_auto_elements: dict[Scope, Elements | None] = {}
 
+    @property
+    def elements(self) -> Elements:
+        return self._es
+
     ##
 
     def _get_private_info(self, p: Private) -> _privates.PrivateInfo:
@@ -101,7 +106,7 @@ class ElementCollection(CollectedElements, lang.Final):
         try:
             return pis[p]
         except KeyError:
-            pis[p] = ec = _privates.PrivateInfo(self, p)
+            pis[p] = ec = _privates.PrivateInfo(p)
             return ec
 
     ##
@@ -204,8 +209,14 @@ class ElementCollection(CollectedElements, lang.Final):
         else:
             return check.isinstance(check.single(bs), Binding)
 
-    def _build_binding_impl_map(self, em: ta.Mapping[Key | None, ta.Sequence[Element]]) -> dict[Key, BindingImpl]:
-        pm: dict[Key, BindingImpl] = {}
+    class _ImplMaps(ta.NamedTuple):
+        bindings: ta.Mapping[Key, BindingImpl]
+        providers: ta.Mapping[Provider, ProviderImpl]
+
+    def _build_impl_maps(self, em: ta.Mapping[Key | None, ta.Sequence[Element]]) -> _ImplMaps:
+        bm: dict[Key, BindingImpl] = {}
+        pm: ta.MutableMapping[Provider, ProviderImpl] = col.IdentityKeyDict()
+
         for k, es in em.items():
             if k is None:
                 continue
@@ -218,45 +229,43 @@ class ElementCollection(CollectedElements, lang.Final):
             if (bs := es_by_ty.pop(Binding, None)):
                 b = self._get_single_binding(k, bs)  # type: ignore
 
-                p: ProviderImpl
+                pi: ProviderImpl
                 if isinstance(b.provider, (SetProvider, MapProvider)):
-                    p = make_multi_provider_impl(b.provider, es_by_ty)
+                    pi = make_multi_provider_impl(b.provider, es_by_ty)
                 else:
-                    p = make_provider_impl(b.provider)
+                    pi = make_provider_impl(b.provider)
 
-                pm[k] = BindingImpl(b.key, p, b.scope, b)
+                bm[k] = BindingImpl(b.key, pi, b.scope, b)
+                pm[b.provider] = pi
 
             if es_by_ty:
                 raise TypeError(es_by_ty)
 
-        return pm
+        return self._ImplMaps(
+            bm,
+            pm,
+        )
+
+    @lang.cached_function
+    def _impl_maps(self) -> _ImplMaps:
+        return self._build_impl_maps(self.element_multimap())
 
     @lang.cached_function
     def binding_impl_map(self) -> ta.Mapping[Key, BindingImpl]:
-        return self._build_binding_impl_map(self.element_multimap())
+        return self._impl_maps().bindings
+
+    @lang.cached_function
+    def bindings_by_key(self) -> ta.Mapping[Key, Binding]:
+        return {
+            k: check.not_none(b.binding)
+            for k, b in self.binding_impl_map().items()
+        }
 
     ##
 
     @lang.cached_function
     def scope_binding_scopes(self) -> ta.Sequence[Scope]:
         return [sb.scope for sb in self.elements_of_type(ScopeBinding)]
-
-    @lang.cached_function
-    def provision_plan(self, key: Key) -> _plans.ProvisionPlan | None:
-        """
-        The compiled provision plan for a locally-bound key, or None where compilation would be degenerate (the
-        key's own node is an interpreter hole - async providers, multis, privates, ThreadScope) and interpretation
-        is simply correct. Raises UnboundKeyError for keys this collection does not bind at all - and, exceptions
-        being uncached (the cached_function default), bad keys never stick in the cache. Cached per key on the
-        collection, so plans are shared by every injector over it - the injector's provision fast path consults this.
-        """
-
-        check.isinstance(key, Key)
-        if key not in self.binding_impl_map():
-            raise UnboundKeyError(key)
-
-        p = _plans.ProvisionPlanCompiler(self).compile(key)
-        return p if not p.is_degenerate else None
 
     @lang.cached_function
     def keys_by_scope(self) -> ta.Mapping[Scope, frozenset[Key]]:
@@ -287,6 +296,25 @@ class ElementCollection(CollectedElements, lang.Final):
             sc: tuple(eg.key for eg in sorted(egs, key=lambda eg: eg.priority))
             for sc, egs in dct.items()
         }
+
+    ##
+
+    @lang.cached_function
+    def provision_plan(self, key: Key) -> _plans.ProvisionPlan | None:
+        """
+        The compiled provision plan for a locally-bound key, or None where compilation would be degenerate (the key's
+        own node is an interpreter hole - async providers, multis, privates, ThreadScope) and interpretation is simply
+        correct. Raises UnboundKeyError for keys this collection does not bind at all - and, exceptions being uncached
+        (the cached_function default), bad keys never stick in the cache. Cached per key on the collection, so plans are
+        shared by every injector over it - the injector's provision fast path consults this.
+        """
+
+        check.isinstance(key, Key)
+        if key not in self.binding_impl_map():
+            raise UnboundKeyError(key)
+
+        p = _plans.ProvisionPlanCompiler(self).compile(key)
+        return p if not p.is_degenerate else None
 
 
 ##

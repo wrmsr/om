@@ -1717,13 +1717,12 @@ def _process_dataclass__592e4142aa2b2f7f1821bc43c896eb95fa2d3408():
 
 
 @_register(
-    installer_sha1='bf5f43366e1c898550ddf2ae268e935586cc3f28',
+    installer_sha1='a34db7b2a18d309dca8339c1161d61a88bb42505',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
-            "se, False, False, False), ((('owner', True, True, None, True, False, False, None), 'instance', 'missing', "
-            "None, False, False, False), (('p', True, True, None, True, False, False, None), 'instance', 'missing', Non"
-            "e, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (),"
+            "se, False, False, False), ((('p', True, True, None, True, False, False, None), 'instance', 'missing', None"
+            ", False, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (),"
             " (False,)))"
         ),
     ),
@@ -1731,7 +1730,7 @@ def _process_dataclass__592e4142aa2b2f7f1821bc43c896eb95fa2d3408():
         ('omcore.inject.impl.privates', 'PrivateInfo'),
     ),
 )
-def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
+def _process_dataclass__a34db7b2a18d309dca8339c1161d61a88bb42505():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1739,7 +1738,6 @@ def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
         __dataclass__globals,
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -1750,7 +1748,6 @@ def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
-                owner=self.owner,
                 p=self.p,
             )
 
@@ -1762,14 +1759,12 @@ def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.owner == other.owner and
                 self.p == other.p
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
-            'owner',
             'p',
         }
 
@@ -1795,7 +1790,6 @@ def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
 
         def __hash__(self):
             return hash((
-                self.owner,
                 self.p,
             ))
 
@@ -1803,10 +1797,8 @@ def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
 
         def __init__(
             self,
-            owner: __dataclass__init__fields__0__annotation,
-            p: __dataclass__init__fields__1__annotation,
+            p: __dataclass__init__fields__0__annotation,
         ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'owner', owner)
             __dataclass__object_setattr(self, 'p', p)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -1814,7 +1806,6 @@ def _process_dataclass__bf5f43366e1c898550ddf2ae268e935586cc3f28():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            parts.append(f"owner={self.owner!r}")
             parts.append(f"p={self.p!r}")
             return (
                 f"{self.__class__.__qualname__}("

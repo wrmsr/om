@@ -68,6 +68,10 @@ class Kwargs(ta.Sequence[Kwarg], lang.Final):
         return col.make_map(((kw.name, kw) for kw in self.seq), strict=True)
 
     @lang.cached_property
+    def keys(self) -> frozenset[Key]:
+        return frozenset(kw.key for kw in self.seq)
+
+    @lang.cached_property
     def by_key(self) -> ta.Mapping[Key, ta.Sequence[Kwarg]]:
         return col.multi_map((kw.key, kw) for kw in self.seq)
 

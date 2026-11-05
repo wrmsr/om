@@ -3,6 +3,7 @@ import typing as ta
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
+from .. import Key
 from ..elements import Element
 from ..errors import DuplicateMapKeyError
 from ..injector import AsyncInjector
@@ -35,6 +36,10 @@ class SetProviderImpl(ProviderImpl, lang.Final):
             rv.add(o)
         return rv
 
+    @lang.cached_function
+    def known_dependencies(self) -> frozenset[Key] | None:
+        return frozenset(k for p in self.ps for k in p.known_dependencies() or ()) or None
+
 
 @dc.dataclass(frozen=True, eq=False)
 class MapProviderImpl(ProviderImpl, lang.Final):
@@ -55,6 +60,10 @@ class MapProviderImpl(ProviderImpl, lang.Final):
             o = await e.v.provide(injector)
             rv[e.k] = o
         return rv
+
+    @lang.cached_function
+    def known_dependencies(self) -> frozenset[Key] | None:
+        return frozenset(k for e in self.es for k in e.v.known_dependencies() or ()) or None
 
 
 def make_multi_provider_impl(p: Provider, es_by_ty: ta.MutableMapping[type, list[Element]]) -> ProviderImpl:
