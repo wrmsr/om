@@ -102,8 +102,9 @@ class AgentEndReason(enum.Enum):
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class TurnParams:
-    in_state: State
+    state: State
     new_messages: ta.Sequence[Message]
+    llm_backend: llm.ImmediateBackend
 
     subscriber: EventSubscriber[Event] | None = None
 

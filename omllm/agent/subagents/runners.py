@@ -5,6 +5,7 @@ from omcore import dataclasses as dc
 
 from ... import llm
 from ..agent import Agent
+from ..backends import BackendManager
 from ..systemprompt.manager import SystemPromptManager
 from ..systemprompt.types import SystemPromptContributors
 from ..types.contexts import Context
@@ -37,6 +38,7 @@ class AgentSubagentRunner(SubagentRunner):
     def __init__(
             self,
             *,
+            backends: BackendManager,
             turn_runner: TurnRunner,
             tools: ToolSet,
             profiles: SubagentProfiles | None = None,
@@ -52,6 +54,7 @@ class AgentSubagentRunner(SubagentRunner):
 
         super().__init__()
 
+        self._backends = backends
         self._turn_runner = turn_runner
         self._tools = tools
         self._model = model
@@ -74,7 +77,10 @@ class AgentSubagentRunner(SubagentRunner):
         tools = profile.select_tools(self._tools)
         system_prompt = self._build_system_prompt(params)
 
-        agent = Agent(turn_runner=self._turn_runner)
+        agent = Agent(
+            backends=self._backends,
+            turn_runner=self._turn_runner,
+        )
 
         if (progress := params.progress) is not None:
             agent.subscribe(SubagentEventRelay(

@@ -1,8 +1,6 @@
 from omcore.asyncs.asynclite import all as asl
 
-from ... import llm
 from ...core.asyncs.base import AsyncGroupRunner
-from ..backends import BackendManager
 from ..lifecycle.managers import ContextLifecycleManager
 from ..projection.types import LlmContextBuilder
 from ..types.tools import ToolInvoker
@@ -19,8 +17,6 @@ class LoopTurnRunner(TurnRunner):
     def __init__(
             self,
             *,
-            backends: BackendManager,
-
             tool_invoker: ToolInvoker | None = None,
             cancellation: asl.Cancellation,
             group_runner: AsyncGroupRunner,
@@ -30,8 +26,6 @@ class LoopTurnRunner(TurnRunner):
     ) -> None:
         super().__init__()
 
-        self._backends = backends
-
         self._cancellation = cancellation
         self._group_runner = group_runner
         self._sleeps = sleeps
@@ -40,15 +34,8 @@ class LoopTurnRunner(TurnRunner):
         self._tool_invoker = tool_invoker
 
     async def run_turn(self, params: TurnParams) -> TurnResult:
-        llm_backend = self._backends.get_backend(
-            llm.ImmediateBackend,  # type: ignore[type-abstract]
-            params.in_state.model,
-        )
-
         loop = TurnLoop(
             params,
-
-            llm_backend=llm_backend,
 
             tool_invoker=self._tool_invoker,
             cancellation=self._cancellation,

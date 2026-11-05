@@ -31,10 +31,10 @@ async def _test_agent(
     )
 
     agent = Agent(
+        backends=DictBackendManager.of(svc),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(svc),
         ),
     )
 
@@ -72,10 +72,10 @@ async def _test_agent_with_tool(harness: Harness, model: ModelForTest) -> None:
     )
 
     agent = Agent(
+        backends=DictBackendManager.of(svc),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(svc),
         ),
     )
 

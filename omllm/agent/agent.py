@@ -6,6 +6,7 @@ from omcore import dataclasses as dc
 
 from .. import llm
 from ..core.eventbus import EventPublisher
+from .backends import BackendManager
 from .turns.inboxes import ListTurnInbox
 from .types.contexts import Context
 from .types.errors import AgentBusyError
@@ -59,10 +60,12 @@ class Agent(
     def __init__(
             self,
             *,
+            backends: BackendManager,
             turn_runner: TurnRunner,
     ) -> None:
         super().__init__()
 
+        self._backends = backends
         self._turn_runner = turn_runner
 
         self._state = State()
@@ -185,10 +188,16 @@ class Agent(
 
         capture = _TerminalEventCapture(self._on_turn_event)
 
+        llm_backend = self._backends.get_backend(
+            llm.ImmediateBackend,  # type: ignore[type-abstract]
+            in_state.model,
+        )
+
         try:
             result = await self._turn_runner.run_turn(TurnParams(
-                in_state=in_state,
+                state=in_state,
                 new_messages=new_messages,
+                llm_backend=llm_backend,
                 subscriber=capture,
                 inbox=self._inbox,
             ))

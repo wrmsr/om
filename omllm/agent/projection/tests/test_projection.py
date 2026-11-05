@@ -170,12 +170,12 @@ async def test_loop_sends_the_builders_view():
 
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(messages=[InfoAgentMessage('earlier')]),
             ),
             new_messages=[llm.UserMessage('hi')],
+            llm_backend=scripted_backend(llm.BackendScriptTurn(text_message('ok'), expect=expect)),
         ),
-        llm_backend=scripted_backend(llm.BackendScriptTurn(text_message('ok'), expect=expect)),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
         context_builder=StandardLlmContextBuilder(

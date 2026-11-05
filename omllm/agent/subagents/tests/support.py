@@ -76,7 +76,9 @@ async def parent_agent(
         tools: ta.Sequence[Tool],
         env: ToolEnvironment | None = None,
 ) -> Agent:
-    agent = Agent(turn_runner=turn_loop_runner(*turns))
+    agent = Agent(
+        turn_runner=turn_loop_runner(*turns),
+    )
 
     await agent.update_state(lambda s: dc.replace(
         s,

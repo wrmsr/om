@@ -43,10 +43,10 @@ async def scripted_session(
         tools: ta.Sequence[Tool] = (),
 ) -> tuple[Session, Agent, OrmSessionStorage]:
     agent = Agent(
+        backends=DictBackendManager.of(scripted_backend(*turns)),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(scripted_backend(*turns)),
         ),
     )
     if tools:

@@ -47,10 +47,10 @@ def _bash_tool():
 
 async def _agent(backend, tools, *, cwd, scope, sleeps=None, turn_config=None):
     agent = Agent(
+        backends=DictBackendManager.of(backend),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(backend),
             sleeps=sleeps,
         ),
     )

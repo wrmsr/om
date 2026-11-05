@@ -77,10 +77,10 @@ class _BlockingExecutor:
 
 def _agent(backend, context_lifecycle_manager=None):
     return Agent(
+        backends=DictBackendManager.of(backend),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(backend),
             context_lifecycle_manager=context_lifecycle_manager,
         ),
     )

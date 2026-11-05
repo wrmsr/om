@@ -52,10 +52,10 @@ def _backends(backend):
 
 async def _agent(backend, *messages):
     agent = Agent(
+        backends=_backends(backend),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=_backends(backend),
         ),
     )
     if messages:

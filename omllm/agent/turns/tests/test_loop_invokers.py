@@ -11,7 +11,6 @@ from omcore.asyncs.asynclite import all as asl
 
 from .... import llm
 from ....core.asyncs.asyncio import AsyncioGroupRunner
-from ...backends import DictBackendManager
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
@@ -64,13 +63,13 @@ class _RaisingToolInvoker(ToolInvoker):
 def _loop(backend, tools, *, tool_invoker=None, subscriber=None):
     return TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet(list(tools))),
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=backend,
             subscriber=subscriber,
         ),
-        llm_backend=backend,
         tool_invoker=tool_invoker,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
@@ -194,12 +193,6 @@ async def test_the_runner_hands_its_invoker_to_every_turn():
     invoker = _SurroundingToolInvoker()
 
     runner = LoopTurnRunner(
-        backends=DictBackendManager.of(scripted_backend(
-            tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'a'})),
-            text_message('one'),
-            tool_call_message(llm.ToolCall('t2', 'echo', {'text': 'b'})),
-            text_message('two'),
-        )),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
         tool_invoker=invoker,
@@ -208,8 +201,14 @@ async def test_the_runner_hands_its_invoker_to_every_turn():
     state = State(context=Context(tools=ToolSet([echo.tool()])))
     for text in ['first', 'second']:
         result = await runner.run_turn(TurnParams(
-            in_state=state,
+            state=state,
             new_messages=[llm.UserMessage(text)],
+            llm_backend=scripted_backend(
+                tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'a'})),
+                text_message('one'),
+                tool_call_message(llm.ToolCall('t2', 'echo', {'text': 'b'})),
+                text_message('two'),
+            ),
         ))
         assert result.reason is AgentEndReason.COMPLETED
         state = State(context=result.context)

@@ -38,13 +38,13 @@ async def test_loop_accumulates_usage_and_publishes_the_context_budget():
 
     result = await TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(usage=UsageLedger(input=100, output=10)),
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=backend,
             subscriber=events.append,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     ).run()

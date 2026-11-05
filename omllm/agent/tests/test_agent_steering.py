@@ -24,10 +24,10 @@ from .tools import bare_tool
 
 def _agent(backend):
     return Agent(
+        backends=DictBackendManager.of(backend),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(backend),
         ),
     )
 

@@ -74,11 +74,11 @@ async def test_loop_returns_failed_result_and_publishes_terminal_event():
     events: list[Event] = []
     loop = TurnLoop(
         TurnParams(
-            in_state=State(),
+            state=State(),
             new_messages=[llm.UserMessage('hi')],
+            llm_backend=scripted_backend(error),
             subscriber=events.append,
         ),
-        llm_backend=scripted_backend(error),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )
@@ -110,14 +110,14 @@ async def test_loop_failure_after_tool_keeps_the_work():
 
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet([bare_tool('act', executor)])),
             ),
             new_messages=[llm.UserMessage('go')],
-        ),
-        llm_backend=scripted_backend(
-            tool_call_message(llm.ToolCall('t1', 'act', {'n': 1})),
-            RuntimeError('boom'),
+            llm_backend=scripted_backend(
+                tool_call_message(llm.ToolCall('t1', 'act', {'n': 1})),
+                RuntimeError('boom'),
+            ),
         ),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
@@ -140,11 +140,11 @@ async def test_loop_publishes_cancelled_terminal_event():
     events: list[Event] = []
     loop = TurnLoop(
         TurnParams(
-            in_state=State(),
+            state=State(),
             new_messages=[llm.UserMessage('hi')],
+            llm_backend=backend,
             subscriber=events.append,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )
@@ -169,17 +169,17 @@ async def test_loop_cancelled_mid_tool_repairs_transcript():
     events: list[Event] = []
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet([bare_tool('block', executor)])),
             ),
             new_messages=[llm.UserMessage('go')],
-            subscriber=events.append,
-        ),
-        llm_backend=scripted_backend(
-            tool_call_message(
-                llm.ToolCall('t1', 'block', {}),
-                llm.ToolCall('t2', 'block', {}),
+            llm_backend=scripted_backend(
+                tool_call_message(
+                    llm.ToolCall('t1', 'block', {}),
+                    llm.ToolCall('t2', 'block', {}),
+                ),
             ),
+            subscriber=events.append,
         ),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
@@ -217,11 +217,11 @@ async def test_loop_does_not_publish_on_base_exception():
     events: list[Event] = []
     loop = TurnLoop(
         TurnParams(
-            in_state=State(),
+            state=State(),
             new_messages=[llm.UserMessage('hi')],
+            llm_backend=scripted_backend(FooError()),
             subscriber=events.append,
         ),
-        llm_backend=scripted_backend(FooError()),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )
@@ -238,11 +238,11 @@ async def test_loop_completes_with_text():
     events: list[Event] = []
     loop = TurnLoop(
         TurnParams(
-            in_state=State(),
+            state=State(),
             new_messages=[llm.UserMessage('hi')],
+            llm_backend=scripted_backend(text_message('hello')),
             subscriber=events.append,
         ),
-        llm_backend=scripted_backend(text_message('hello')),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )
@@ -271,12 +271,12 @@ async def _test_loop(
 
     loop = TurnLoop(
         TurnParams(
-            in_state=State(),
+            state=State(),
             new_messages=[
                 llm.UserMessage('Hi there!'),
             ],
+            llm_backend=svc,
         ),
-        llm_backend=svc,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )
@@ -316,7 +316,7 @@ async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
 
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(
                     tools=ToolSet([
                         GetWeatherTool().tool(),
@@ -326,8 +326,8 @@ async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
             new_messages=[
                 llm.UserMessage('What is the weather in Edinburgh, Scotland?'),
             ],
+            llm_backend=svc,
         ),
-        llm_backend=svc,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )

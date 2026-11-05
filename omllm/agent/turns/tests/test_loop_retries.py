@@ -34,13 +34,13 @@ def _retry_config(**kwargs):
 async def _run(backend, *, retry=None, sleeps=None, events=None):
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 turn_config=TurnConfig(llm_retry=retry),
             ),
             new_messages=[llm.UserMessage('hi')],
+            llm_backend=backend,
             subscriber=events.append if events is not None else None,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
         sleeps=sleeps,
@@ -140,12 +140,12 @@ def test_retry_config_needs_a_sleeper():
     with pytest.raises(RuntimeError, match='sleeper'):
         TurnLoop(
             TurnParams(
-                in_state=State(
+                state=State(
                     turn_config=TurnConfig(llm_retry=_retry_config()),
                 ),
                 new_messages=[llm.UserMessage('hi')],
+                llm_backend=scripted_backend(text_message('ok')),
             ),
-            llm_backend=scripted_backend(text_message('ok')),
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
         )

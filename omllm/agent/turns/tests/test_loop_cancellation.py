@@ -71,13 +71,13 @@ class _StallingEndSubscriber:
 def _loop(backend, *, tools=(), subscriber=None):
     return TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet(list(tools))),
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=backend,
             subscriber=subscriber,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )
@@ -204,13 +204,13 @@ async def test_cancel_timeout_cuts_a_hung_terminal_publish_short():
     stalling = _StallingEndSubscriber()
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 turn_config=TurnConfig(cancel_timeout_s=.05),
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=scripted_backend(text_message('hello')),
             subscriber=stalling,
         ),
-        llm_backend=scripted_backend(text_message('hello')),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )
@@ -229,13 +229,13 @@ async def test_cancel_timeout_bounds_how_long_a_cancellation_waits():
     stalling = _StallingEndSubscriber()
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 turn_config=TurnConfig(cancel_timeout_s=.05),
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=backend,
             subscriber=stalling,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )

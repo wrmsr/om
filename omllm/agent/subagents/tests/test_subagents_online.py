@@ -58,7 +58,6 @@ async def _test_subagent(harness: Harness, model: ModelForTest) -> None:
         return LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(backend),
             sleeps=asl.asyncio.Sleeps(),
         )
 
@@ -66,7 +65,9 @@ async def _test_subagent(harness: Harness, model: ModelForTest) -> None:
 
     echo = EchoTool()
     profiles = SubagentProfiles([GENERAL_SUBAGENT_PROFILE])
+    backends = DictBackendManager.of(backend)
     runner = AgentSubagentRunner(
+        backends=backends,
         turn_runner=turn_runner(),
         tools=ToolSet([echo.tool()]),
         profiles=profiles,
@@ -78,7 +79,10 @@ async def _test_subagent(harness: Harness, model: ModelForTest) -> None:
         profiles=profiles,
     )
 
-    agent = Agent(turn_runner=turn_runner())
+    agent = Agent(
+        backends=backends,
+        turn_runner=turn_runner(),
+    )
     await agent.update_state(lambda s: dc.replace(
         s,
         context=Context(tools=ToolSet([tool.tool()])),

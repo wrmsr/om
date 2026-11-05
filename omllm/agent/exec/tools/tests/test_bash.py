@@ -61,16 +61,16 @@ async def _run(command, *, timeout_s=None):
 
             loop = TurnLoop(
                 TurnParams(
-                    in_state=State(
+                    state=State(
                         context=Context(tools=ToolSet([tool.tool()])),
                         tool_env=ToolEnvironment(cwd=td, processes=m.root),
                     ),
                     new_messages=[llm.UserMessage('go')],
+                    llm_backend=scripted_backend(
+                        tool_call_message(llm.ToolCall('t1', 'bash', args)),
+                        text_message('done'),
+                    ),
                     subscriber=events.append,
-                ),
-                llm_backend=scripted_backend(
-                    tool_call_message(llm.ToolCall('t1', 'bash', args)),
-                    text_message('done'),
                 ),
                 cancellation=asl.asyncio.Cancellation(),
                 group_runner=AsyncioGroupRunner(),

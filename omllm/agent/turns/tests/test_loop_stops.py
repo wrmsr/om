@@ -32,14 +32,14 @@ def _tool_results(result):
 async def _run(backend, tools, *, config=None, events=None):
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet(list(tools))),
                 turn_config=config,
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=backend,
             subscriber=events.append if events is not None else None,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )

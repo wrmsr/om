@@ -47,15 +47,15 @@ def _calls(*ns):
 async def _run(backend, tools, inbox, *, config=None, subscriber=None):
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet(list(tools))),
                 turn_config=config,
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=backend,
             subscriber=subscriber,
             inbox=inbox,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )

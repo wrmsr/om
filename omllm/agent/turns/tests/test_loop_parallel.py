@@ -66,14 +66,14 @@ def _calls(*names):
 def _loop(backend, tools, *, config=None, subscriber=None):
     return TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet(list(tools))),
                 turn_config=config,
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=backend,
             subscriber=subscriber,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )

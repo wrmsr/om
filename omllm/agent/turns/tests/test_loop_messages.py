@@ -48,15 +48,15 @@ async def test_messages_are_announced_in_order_with_indices():
     events: list = []
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet([echo.tool()])),
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=scripted_backend(
+                tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'hi'})),
+                text_message('done'),
+            ),
             subscriber=events.append,
-        ),
-        llm_backend=scripted_backend(
-            tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'hi'})),
-            text_message('done'),
         ),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
@@ -85,13 +85,13 @@ async def test_repair_messages_are_not_announced_but_carried():
     events: list = []
     loop = TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet([bare_tool('block', executor)])),
             ),
             new_messages=[llm.UserMessage('go')],
+            llm_backend=scripted_backend(tool_call_message(llm.ToolCall('t1', 'block', {}))),
             subscriber=events.append,
         ),
-        llm_backend=scripted_backend(tool_call_message(llm.ToolCall('t1', 'block', {}))),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )

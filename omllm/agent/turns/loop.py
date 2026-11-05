@@ -120,8 +120,6 @@ class TurnLoop:
             self,
             params: TurnParams,
             *,
-            llm_backend: llm.ImmediateBackend,
-
             tool_invoker: ToolInvoker | None = None,
             cancellation: asl.Cancellation,
             group_runner: AsyncGroupRunner,
@@ -137,22 +135,19 @@ class TurnLoop:
 
         self._initial_new_messages = list(params.new_messages)
 
-        self._initial_config = params.in_state.turn_config or TurnConfig()
+        self._initial_config = params.state.turn_config or TurnConfig()
         self._config = self._initial_config
         if self._config.llm_retry is not None:
             check.state(sleeps is not None, 'Retries need a sleeper for their backoff')
 
-        self._initial_context = params.in_state.context
+        self._initial_context = params.state.context
         self._context = self._initial_context
 
-        self._tool_env = params.in_state.tool_env
+        self._tool_env = params.state.tool_env
 
+        self._llm_backend = params.llm_backend
         self._subscriber = params.subscriber
         self._inbox = params.inbox
-
-        #
-
-        self._llm_backend = llm_backend
 
         #
 

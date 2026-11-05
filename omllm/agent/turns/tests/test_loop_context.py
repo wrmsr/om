@@ -68,14 +68,14 @@ def _backend(*turns, stream=False, gate=None, model=None):
 async def _run(backend, *, context=None, events=None):
     return await TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=context or Context(),
                 turn_config=_config(),
             ),
             new_messages=[llm.UserMessage('continue')],
+            llm_backend=backend,
             subscriber=events.append if events is not None else None,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     ).run()
@@ -194,7 +194,7 @@ async def test_tool_output_is_bounded_before_the_post_tool_llm_call():
 
     result = await TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=Context(tools=ToolSet([bare_tool('read', execute)])),
                 turn_config=TurnConfig(
                     context_lifecycle=ContextLifecycleConfig(
@@ -203,9 +203,9 @@ async def test_tool_output_is_bounded_before_the_post_tool_llm_call():
                 ),
             ),
             new_messages=[llm.UserMessage('read')],
+            llm_backend=backend,
             subscriber=events.append,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     ).run()
@@ -265,7 +265,7 @@ async def test_threshold_compaction_summarizes_the_older_transcript_inside_the_l
 
     result = await TurnLoop(
         TurnParams(
-            in_state=State(
+            state=State(
                 context=context,
                 turn_config=TurnConfig(
                     context_lifecycle=ContextLifecycleConfig(
@@ -276,9 +276,9 @@ async def test_threshold_compaction_summarizes_the_older_transcript_inside_the_l
                 ),
             ),
             new_messages=[llm.UserMessage('continue')],
+            llm_backend=backend,
             subscriber=events.append,
         ),
-        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
         context_lifecycle_manager=StandardContextLifecycleManager(

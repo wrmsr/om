@@ -40,10 +40,10 @@ def _scripted_backend():
 async def _run_agent(td, m):
     backend = _scripted_backend()
     agent = Agent(
+        backends=DictBackendManager.of(backend),
         turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            backends=DictBackendManager.of(backend),
         ),
     )
 

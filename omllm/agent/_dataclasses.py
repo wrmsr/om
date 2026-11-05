@@ -4895,23 +4895,24 @@ def _process_dataclass__768114af10393989818894df60399fdcae369695():
 
 
 @_register(
-    installer_sha1='e0077e76389929cf6183d76bc50356541c955654',
+    installer_sha1='02aa0ebca645cd8b1c8e0adcaa0b54391ac9f73b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
-            "e, False, False, False), ((('in_state', True, True, None, True, True, False, None), 'instance', 'missing',"
-            " None, False, False, False), (('new_messages', True, True, None, True, True, False, None), 'instance', 'mi"
-            "ssing', None, False, False, False), (('subscriber', True, True, None, True, True, False, None), 'instance'"
-            ", 'value', None, False, False, False), (('inbox', True, True, None, True, True, False, None), 'instance', "
-            "'value', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()),"
-            " ((),), (), (False,)))"
+            "e, False, False, False), ((('state', True, True, None, True, True, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('new_messages', True, True, None, True, True, False, None), 'instance', 'missi"
+            "ng', None, False, False, False), (('llm_backend', True, True, None, True, True, False, None), 'instance', "
+            "'missing', None, False, False, False), (('subscriber', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False), (('inbox', True, True, None, True, True, False, None), 'instance"
+            "', 'value', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ("
+            ")), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.types.turns', 'TurnParams'),
     ),
 )
-def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
+def _process_dataclass__02aa0ebca645cd8b1c8e0adcaa0b54391ac9f73b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4921,9 +4922,10 @@ def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -4935,8 +4937,9 @@ def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
-                in_state=self.in_state,
+                state=self.state,
                 new_messages=self.new_messages,
+                llm_backend=self.llm_backend,
                 subscriber=self.subscriber,
                 inbox=self.inbox,
             )
@@ -4949,8 +4952,9 @@ def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.in_state == other.in_state and
+                self.state == other.state and
                 self.new_messages == other.new_messages and
+                self.llm_backend == other.llm_backend and
                 self.subscriber == other.subscriber and
                 self.inbox == other.inbox
             )
@@ -4958,8 +4962,9 @@ def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
-            'in_state',
+            'state',
             'new_messages',
+            'llm_backend',
             'subscriber',
             'inbox',
         }
@@ -4986,8 +4991,9 @@ def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
 
         def __hash__(self):
             return hash((
-                self.in_state,
+                self.state,
                 self.new_messages,
+                self.llm_backend,
                 self.subscriber,
                 self.inbox,
             ))
@@ -4997,13 +5003,15 @@ def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
         def __init__(
             self,
             *,
-            in_state: __dataclass__init__fields__0__annotation,
+            state: __dataclass__init__fields__0__annotation,
             new_messages: __dataclass__init__fields__1__annotation,
-            subscriber: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            inbox: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            llm_backend: __dataclass__init__fields__2__annotation,
+            subscriber: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            inbox: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
-            __dataclass__object_setattr(self, 'in_state', in_state)
+            __dataclass__object_setattr(self, 'state', state)
             __dataclass__object_setattr(self, 'new_messages', new_messages)
+            __dataclass__object_setattr(self, 'llm_backend', llm_backend)
             __dataclass__object_setattr(self, 'subscriber', subscriber)
             __dataclass__object_setattr(self, 'inbox', inbox)
 
@@ -5012,10 +5020,12 @@ def _process_dataclass__e0077e76389929cf6183d76bc50356541c955654():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            if (s := __dataclass__repr__default_fn(self.in_state)) is not None:
-                parts.append(f"in_state={s}")
+            if (s := __dataclass__repr__default_fn(self.state)) is not None:
+                parts.append(f"state={s}")
             if (s := __dataclass__repr__default_fn(self.new_messages)) is not None:
                 parts.append(f"new_messages={s}")
+            if (s := __dataclass__repr__default_fn(self.llm_backend)) is not None:
+                parts.append(f"llm_backend={s}")
             if (s := __dataclass__repr__default_fn(self.subscriber)) is not None:
                 parts.append(f"subscriber={s}")
             if (s := __dataclass__repr__default_fn(self.inbox)) is not None:
