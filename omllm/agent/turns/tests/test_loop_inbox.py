@@ -12,10 +12,12 @@ from ...tests.scripted import tool_call_message
 from ...tests.tools import bare_tool
 from ...types.contexts import Context
 from ...types.events import TurnEndEvent
+from ...types.states import State
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
 from ...types.turns import TurnConfig
+from ...types.turns import TurnParams
 from ..inboxes import ListTurnInbox
 from ..loop import TurnLoop
 
@@ -44,14 +46,18 @@ def _calls(*ns):
 
 async def _run(backend, tools, inbox, *, config=None, subscriber=None):
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        config=config,
-        context=Context(tools=ToolSet(list(tools))),
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet(list(tools))),
+                turn_config=config,
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=subscriber,
+            inbox=inbox,
+        ),
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
-        inbox=inbox,
-        subscriber=subscriber,
     )
     return await loop.run()
 

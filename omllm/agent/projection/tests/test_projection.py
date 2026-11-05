@@ -15,7 +15,9 @@ from ...types.lifecycle import ContextProjection
 from ...types.lifecycle import ToolResultProjection
 from ...types.messages import AgentMessage
 from ...types.messages import InfoAgentMessage
+from ...types.states import State
 from ...types.tools import ToolSet
+from ...types.turns import TurnParams
 from ..builders import StandardLlmContextBuilder
 from ..messages import TypeMapAgentMessageProjector
 from ..types import AgentMessageProjector
@@ -167,11 +169,15 @@ async def test_loop_sends_the_builders_view():
         seen.append(inv.context)
 
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('hi')],
-        context=Context(messages=[InfoAgentMessage('earlier')]),
+        TurnParams(
+            in_state=State(
+                context=Context(messages=[InfoAgentMessage('earlier')]),
+            ),
+            new_messages=[llm.UserMessage('hi')],
+        ),
+        llm_backend=scripted_backend(llm.BackendScriptTurn(text_message('ok'), expect=expect)),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=scripted_backend(llm.BackendScriptTurn(text_message('ok'), expect=expect)),
         context_builder=StandardLlmContextBuilder(
             projector=TypeMapAgentMessageProjector({InfoAgentMessage: _NoteProjector()}),
         ),

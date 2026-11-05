@@ -119,12 +119,6 @@ class DiffStyledDocRenderer(lang.Final):
         lines.extend(self._render_patch_set_header(patch_set))
         for patch in patch_set.files:
             lines.extend(self._render_file(patch))
-        lines.append(grid.fit(st.StyledText.assemble(
-            ('/', 'diff.summary.changed'),
-            ('/', 'diff.summary.removed'),
-            ('/', 'diff.summary.added'),
-            (' diff   ', st.StylePatch(dim=True)),
-        ), self._options.width, align='right'))
         return st.StyledDocument(tuple(lines), trailing_newline=True)
 
     def _render_patch_set_header(self, patch_set: diffs.PatchSet) -> list[st.StyledText]:

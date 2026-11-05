@@ -18,10 +18,12 @@ from ...types.events import MessageAddedEvent
 from ...types.events import ToolExecutionEndEvent
 from ...types.events import ToolExecutionStartEvent
 from ...types.messages import InfoAgentMessage
+from ...types.states import State
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
 from ...types.turns import TurnConfig
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -63,10 +65,14 @@ def _calls(*names):
 
 def _loop(backend, tools, *, config=None, subscriber=None):
     return TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        config=config,
-        context=Context(tools=ToolSet(list(tools))),
-        subscriber=subscriber,
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet(list(tools))),
+                turn_config=config,
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=subscriber,
+        ),
         llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),

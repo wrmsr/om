@@ -16,9 +16,11 @@ from ...types.contexts import Context
 from ...types.errors import UnknownToolError
 from ...types.events import ToolExecutionEndEvent
 from ...types.events import ToolExecutionStartEvent
+from ...types.states import State
 from ...types.tools import ToolDescription
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -31,12 +33,16 @@ def _tool_results(result):
 
 async def _run(backend, tools, events=None):
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(tools=ToolSet(list(tools))),
-        subscriber=events.append if events is not None else None,
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet(list(tools))),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=events.append if events is not None else None,
+        ),
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
     )
     return await loop.run()
 

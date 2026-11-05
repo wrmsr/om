@@ -19,9 +19,11 @@ from ...types.events import AgentEndEvent
 from ...types.events import ToolExecutionEndEvent
 from ...types.events import TurnStartEvent
 from ...types.messages import InfoAgentMessage
+from ...types.states import State
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
 from ...types.turns import TurnConfig
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -68,9 +70,13 @@ class _StallingEndSubscriber:
 
 def _loop(backend, *, tools=(), subscriber=None):
     return TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(tools=ToolSet(list(tools))),
-        subscriber=subscriber,
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet(list(tools))),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=subscriber,
+        ),
         llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
@@ -197,9 +203,13 @@ async def test_a_second_cancellation_landing_in_the_terminal_publish_waits_too()
 async def test_cancel_timeout_cuts_a_hung_terminal_publish_short():
     stalling = _StallingEndSubscriber()
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        config=TurnConfig(cancel_timeout_s=.05),
-        subscriber=stalling,
+        TurnParams(
+            in_state=State(
+                turn_config=TurnConfig(cancel_timeout_s=.05),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=stalling,
+        ),
         llm_backend=scripted_backend(text_message('hello')),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
@@ -218,9 +228,13 @@ async def test_cancel_timeout_bounds_how_long_a_cancellation_waits():
     backend = _BlockingBackend()
     stalling = _StallingEndSubscriber()
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        config=TurnConfig(cancel_timeout_s=.05),
-        subscriber=stalling,
+        TurnParams(
+            in_state=State(
+                turn_config=TurnConfig(cancel_timeout_s=.05),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=stalling,
+        ),
         llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),

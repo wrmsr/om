@@ -19,7 +19,6 @@ EXPECTED_MODIFIED_PLAIN = '\n'.join([
     '╲' * 30 + '  3 │   print(message)'.ljust(30),
     '  3 │   return message'.ljust(30) + '  4 │   return message'.ljust(30),
     '▔' * 60,
-    '/// diff   '.rjust(60),
     '',
 ])
 

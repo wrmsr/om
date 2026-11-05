@@ -11,14 +11,12 @@ from ... import llm
 from ...core.asyncs.base import AsyncGroupCancelledError
 from ...core.asyncs.base import AsyncGroupFailedError
 from ...core.asyncs.base import AsyncGroupRunner
-from ...core.eventbus import EventSubscriber
 from ..lifecycle.managers import ContextLifecycleManager
 from ..lifecycle.managers import ContextLifecycleResult
 from ..lifecycle.managers import StandardContextLifecycleManager
 from ..projection.builders import StandardLlmContextBuilder
 from ..projection.types import LlmContextBuilder
 from ..tools.invokers import DirectToolInvoker
-from ..types.contexts import Context
 from ..types.errors import ErrorStopReasonError
 from ..types.errors import UnknownToolError
 from ..types.events import AgentEndEvent
@@ -34,7 +32,6 @@ from ..types.events import ToolExecutionStartEvent
 from ..types.events import ToolExecutionUpdateEvent
 from ..types.events import TurnEndEvent
 from ..types.events import TurnStartEvent
-from ..types.inboxes import TurnInbox
 from ..types.lifecycle import ContextBudget
 from ..types.lifecycle import ContextLifecycleConfig
 from ..types.lifecycle import UsageLedger
@@ -44,13 +41,12 @@ from ..types.progress import ToolProgressSink
 from ..types.progress import ToolProgressUpdate
 from ..types.tools import Tool
 from ..types.tools import ToolContext
-from ..types.tools import ToolEnvironment
 from ..types.tools import ToolInvoker
 from ..types.tools import ToolResult
 from ..types.turns import AgentEndReason
 from ..types.turns import TurnConfig
-from ..types.turns import TurnResult
 from ..types.turns import TurnParams
+from ..types.turns import TurnResult
 from .repairs import build_unanswered_tool_call_results
 
 
@@ -146,7 +142,7 @@ class TurnLoop:
         if self._config.llm_retry is not None:
             check.state(sleeps is not None, 'Retries need a sleeper for their backoff')
 
-        self._initial_context = params.in_state.context or Context()
+        self._initial_context = params.in_state.context
         self._context = self._initial_context
 
         self._tool_env = params.in_state.tool_env

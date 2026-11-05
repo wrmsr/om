@@ -63,9 +63,13 @@ class _RaisingToolInvoker(ToolInvoker):
 
 def _loop(backend, tools, *, tool_invoker=None, subscriber=None):
     return TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(tools=ToolSet(list(tools))),
-        subscriber=subscriber,
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet(list(tools))),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=subscriber,
+        ),
         llm_backend=backend,
         tool_invoker=tool_invoker,
         cancellation=asl.asyncio.Cancellation(),

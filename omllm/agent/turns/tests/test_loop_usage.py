@@ -7,6 +7,8 @@ from ....core.asyncs.asyncio import AsyncioGroupRunner
 from ...types.contexts import Context
 from ...types.events import TurnEndEvent
 from ...types.lifecycle import UsageLedger
+from ...types.states import State
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -35,12 +37,16 @@ async def test_loop_accumulates_usage_and_publishes_the_context_budget():
     events: list = []
 
     result = await TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(usage=UsageLedger(input=100, output=10)),
-        subscriber=events.append,
+        TurnParams(
+            in_state=State(
+                context=Context(usage=UsageLedger(input=100, output=10)),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=events.append,
+        ),
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
     ).run()
 
     assert result.context.usage == UsageLedger(

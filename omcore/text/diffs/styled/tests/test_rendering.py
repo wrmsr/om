@@ -129,7 +129,7 @@ def test_layouts_share_the_frame():
 
     # Summary, file header, hunk header - and after the body, the closing rule and trailer.
     assert split[:5] == unified[:5]
-    assert split[-2:] == unified[-2:]
+    assert split[-1:] == unified[-1:]
 
 
 def test_diffs_package_exports_the_layouts():

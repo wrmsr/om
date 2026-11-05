@@ -10,9 +10,11 @@ from ...tests.scripted import text_message
 from ...tests.sleeps import RecordingSleeps
 from ...types.events import LlmAiStreamEvent
 from ...types.events import LlmRetryEvent
+from ...types.states import State
 from ...types.turns import AgentEndReason
 from ...types.turns import LlmRetryConfig
 from ...types.turns import TurnConfig
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -31,12 +33,16 @@ def _retry_config(**kwargs):
 
 async def _run(backend, *, retry=None, sleeps=None, events=None):
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('hi')],
-        config=TurnConfig(llm_retry=retry),
-        subscriber=events.append if events is not None else None,
+        TurnParams(
+            in_state=State(
+                turn_config=TurnConfig(llm_retry=retry),
+            ),
+            new_messages=[llm.UserMessage('hi')],
+            subscriber=events.append if events is not None else None,
+        ),
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
         sleeps=sleeps,
     )
     return await loop.run()
@@ -133,11 +139,15 @@ async def test_no_retry_config_means_no_retries():
 def test_retry_config_needs_a_sleeper():
     with pytest.raises(RuntimeError, match='sleeper'):
         TurnLoop(
-            new_messages=[llm.UserMessage('hi')],
-            config=TurnConfig(llm_retry=_retry_config()),
+            TurnParams(
+                in_state=State(
+                    turn_config=TurnConfig(llm_retry=_retry_config()),
+                ),
+                new_messages=[llm.UserMessage('hi')],
+            ),
+            llm_backend=scripted_backend(text_message('ok')),
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
-            llm_backend=scripted_backend(text_message('ok')),
         )
 
 

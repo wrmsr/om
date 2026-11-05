@@ -22,9 +22,11 @@ from ...types.contexts import Context
 from ...types.events import AgentEndEvent
 from ...types.events import Event
 from ...types.messages import InfoAgentMessage
+from ...types.states import State
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -71,11 +73,14 @@ async def test_loop_returns_failed_result_and_publishes_terminal_event():
     error = RuntimeError('boom')
     events: list[Event] = []
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('hi')],
-        subscriber=events.append,
+        TurnParams(
+            in_state=State(),
+            new_messages=[llm.UserMessage('hi')],
+            subscriber=events.append,
+        ),
+        llm_backend=scripted_backend(error),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=scripted_backend(error),
     )
 
     # A failure is an outcome of the run, not an exception out of it.
@@ -104,14 +109,18 @@ async def test_loop_failure_after_tool_keeps_the_work():
         return ToolResult(content=llm.TextContent('did it'))
 
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(tools=ToolSet([bare_tool('act', executor)])),
-        cancellation=asl.asyncio.Cancellation(),
-        group_runner=AsyncioGroupRunner(),
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet([bare_tool('act', executor)])),
+            ),
+            new_messages=[llm.UserMessage('go')],
+        ),
         llm_backend=scripted_backend(
             tool_call_message(llm.ToolCall('t1', 'act', {'n': 1})),
             RuntimeError('boom'),
         ),
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
     )
 
     result = await loop.run()
@@ -130,11 +139,14 @@ async def test_loop_publishes_cancelled_terminal_event():
     backend = _BlockingBackend()
     events: list[Event] = []
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('hi')],
-        subscriber=events.append,
+        TurnParams(
+            in_state=State(),
+            new_messages=[llm.UserMessage('hi')],
+            subscriber=events.append,
+        ),
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
     )
 
     task = asyncio.create_task(loop.run())
@@ -156,17 +168,21 @@ async def test_loop_cancelled_mid_tool_repairs_transcript():
     executor = _BlockingExecutor()
     events: list[Event] = []
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(tools=ToolSet([bare_tool('block', executor)])),
-        subscriber=events.append,
-        cancellation=asl.asyncio.Cancellation(),
-        group_runner=AsyncioGroupRunner(),
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet([bare_tool('block', executor)])),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=events.append,
+        ),
         llm_backend=scripted_backend(
             tool_call_message(
                 llm.ToolCall('t1', 'block', {}),
                 llm.ToolCall('t2', 'block', {}),
             ),
         ),
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
     )
 
     task = asyncio.create_task(loop.run())
@@ -200,11 +216,14 @@ async def test_loop_does_not_publish_on_base_exception():
 
     events: list[Event] = []
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('hi')],
-        subscriber=events.append,
+        TurnParams(
+            in_state=State(),
+            new_messages=[llm.UserMessage('hi')],
+            subscriber=events.append,
+        ),
+        llm_backend=scripted_backend(FooError()),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=scripted_backend(FooError()),
     )
 
     task = asyncio.create_task(loop.run())
@@ -218,11 +237,14 @@ async def test_loop_does_not_publish_on_base_exception():
 async def test_loop_completes_with_text():
     events: list[Event] = []
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('hi')],
-        subscriber=events.append,
+        TurnParams(
+            in_state=State(),
+            new_messages=[llm.UserMessage('hi')],
+            subscriber=events.append,
+        ),
+        llm_backend=scripted_backend(text_message('hello')),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=scripted_backend(text_message('hello')),
     )
 
     result = await loop.run()
@@ -248,12 +270,15 @@ async def _test_loop(
     )
 
     loop = TurnLoop(
-        new_messages=[
-            llm.UserMessage('Hi there!'),
-        ],
+        TurnParams(
+            in_state=State(),
+            new_messages=[
+                llm.UserMessage('Hi there!'),
+            ],
+        ),
+        llm_backend=svc,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=svc,
     )
 
     loop_res = await loop.run()
@@ -290,17 +315,21 @@ async def _test_loop_with_tool(harness: Harness, model: ModelForTest) -> None:
     )
 
     loop = TurnLoop(
-        new_messages=[
-            llm.UserMessage('What is the weather in Edinburgh, Scotland?'),
-        ],
+        TurnParams(
+            in_state=State(
+                context=Context(
+                    tools=ToolSet([
+                        GetWeatherTool().tool(),
+                    ]),
+                ),
+            ),
+            new_messages=[
+                llm.UserMessage('What is the weather in Edinburgh, Scotland?'),
+            ],
+        ),
+        llm_backend=svc,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=svc,
-        context=Context(
-            tools=ToolSet([
-                GetWeatherTool().tool(),
-            ]),
-        ),
     )
 
     loop_res = await loop.run()

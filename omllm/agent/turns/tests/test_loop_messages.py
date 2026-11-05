@@ -16,7 +16,9 @@ from ...types.contexts import Context
 from ...types.events import AgentEndEvent
 from ...types.events import MessageAddedEvent
 from ...types.messages import InfoAgentMessage
+from ...types.states import State
 from ...types.tools import ToolSet
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -45,15 +47,19 @@ async def test_messages_are_announced_in_order_with_indices():
     echo = EchoTool()
     events: list = []
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(tools=ToolSet([echo.tool()])),
-        subscriber=events.append,
-        cancellation=asl.asyncio.Cancellation(),
-        group_runner=AsyncioGroupRunner(),
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet([echo.tool()])),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=events.append,
+        ),
         llm_backend=scripted_backend(
             tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'hi'})),
             text_message('done'),
         ),
+        cancellation=asl.asyncio.Cancellation(),
+        group_runner=AsyncioGroupRunner(),
     )
 
     result = await loop.run()
@@ -78,12 +84,16 @@ async def test_repair_messages_are_not_announced_but_carried():
     executor = _BlockingExecutor()
     events: list = []
     loop = TurnLoop(
-        new_messages=[llm.UserMessage('go')],
-        context=Context(tools=ToolSet([bare_tool('block', executor)])),
-        subscriber=events.append,
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet([bare_tool('block', executor)])),
+            ),
+            new_messages=[llm.UserMessage('go')],
+            subscriber=events.append,
+        ),
+        llm_backend=scripted_backend(tool_call_message(llm.ToolCall('t1', 'block', {}))),
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=scripted_backend(tool_call_message(llm.ToolCall('t1', 'block', {}))),
     )
 
     task = asyncio.create_task(loop.run())

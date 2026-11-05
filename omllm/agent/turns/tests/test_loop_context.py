@@ -12,10 +12,12 @@ from ...types.contexts import Context
 from ...types.events import ContextReductionEvent
 from ...types.events import LlmRetryEvent
 from ...types.lifecycle import ContextLifecycleConfig
+from ...types.states import State
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
 from ...types.turns import TurnConfig
+from ...types.turns import TurnParams
 from ..loop import TurnLoop
 
 
@@ -65,13 +67,17 @@ def _backend(*turns, stream=False, gate=None, model=None):
 
 async def _run(backend, *, context=None, events=None):
     return await TurnLoop(
-        new_messages=[llm.UserMessage('continue')],
-        config=_config(),
-        context=context,
-        subscriber=events.append if events is not None else None,
+        TurnParams(
+            in_state=State(
+                context=context or Context(),
+                turn_config=_config(),
+            ),
+            new_messages=[llm.UserMessage('continue')],
+            subscriber=events.append if events is not None else None,
+        ),
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
     ).run()
 
 
@@ -187,17 +193,21 @@ async def test_tool_output_is_bounded_before_the_post_tool_llm_call():
     events: list = []
 
     result = await TurnLoop(
-        new_messages=[llm.UserMessage('read')],
-        config=TurnConfig(
-            context_lifecycle=ContextLifecycleConfig(
-                max_tool_result_chars=30_000,
+        TurnParams(
+            in_state=State(
+                context=Context(tools=ToolSet([bare_tool('read', execute)])),
+                turn_config=TurnConfig(
+                    context_lifecycle=ContextLifecycleConfig(
+                        max_tool_result_chars=30_000,
+                    ),
+                ),
             ),
+            new_messages=[llm.UserMessage('read')],
+            subscriber=events.append,
         ),
-        context=Context(tools=ToolSet([bare_tool('read', execute)])),
-        subscriber=events.append,
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
     ).run()
 
     assert result.reason is AgentEndReason.COMPLETED
@@ -254,19 +264,23 @@ async def test_threshold_compaction_summarizes_the_older_transcript_inside_the_l
     events: list = []
 
     result = await TurnLoop(
-        new_messages=[llm.UserMessage('continue')],
-        config=TurnConfig(
-            context_lifecycle=ContextLifecycleConfig(
-                max_tool_result_chars=None,
-                safety_margin_tokens=0,
-                prune_headroom_tokens=100,
+        TurnParams(
+            in_state=State(
+                context=context,
+                turn_config=TurnConfig(
+                    context_lifecycle=ContextLifecycleConfig(
+                        safety_margin_tokens=0,
+                        max_tool_result_chars=None,
+                        prune_headroom_tokens=100,
+                    ),
+                ),
             ),
+            new_messages=[llm.UserMessage('continue')],
+            subscriber=events.append,
         ),
-        context=context,
-        subscriber=events.append,
+        llm_backend=backend,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        llm_backend=backend,
         context_lifecycle_manager=StandardContextLifecycleManager(
             compactor=SummarizingContextCompactor(
                 config=SummarizingContextCompactor.Config(
