@@ -143,7 +143,7 @@ subagent tool out of it.
 ## Turn scopes
 
 The root injector's `ScopedTurnRunner` enters `TURN_SCOPE`, a `DelimitedScope` with a `ContextVarScopeContext`, per
-turn, seeded with the `TurnParams`, and provides the `TurnLoopRunner` bound into that scope. It is the seam through
+turn, seeded with the `TurnParams`, and provides the `LoopTurnRunner` bound into that scope. It is the seam through
 which injector-ness reaches the injector-oblivious loop, and the subagent uses it as designed rather than bypassing it.
 
 A subagent cannot enter `TURN_SCOPE`. The parent's opening is visible in the task the subagent runs in (contextvars
@@ -154,7 +154,7 @@ own tag over its own `ContextVar`, in every child injector, and `ScopedTurnRunne
 Scope state is per (scope, injector), so any number of subagents run at once without seeing each other's openings.
 
 Beneath the turn scope is a scope per tool call. The loop has every call it executes carried out by a `ToolInvoker`,
-the analogue of `TurnRunner` one level down, which `TurnLoopRunner` hands it; the default, `DirectToolInvoker`, calls
+the analogue of `TurnRunner` one level down, which `LoopTurnRunner` hands it; the default, `DirectToolInvoker`, calls
 the tool's executor with nothing around it. The root injector's `ScopedToolInvoker` enters `TOOL_INVOCATION_SCOPE` per
 call, seeded with the `Tool` and its `ToolContext`, and provides the `DirectToolInvoker` bound into that scope. A
 message's calls run concurrently, each in a task of its own, so the scope is per context as the turn scope is; the call

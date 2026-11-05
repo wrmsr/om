@@ -19,7 +19,7 @@ from .....tests.scripted import scripted_backend
 from .....tests.scripted import text_message
 from .....tests.scripted import tool_call_message
 from .....tests.tools import EchoTool
-from .....turns.runner import TurnLoopRunner
+from .....turns.runner import LoopTurnRunner
 from .....types.contexts import Context
 from .....types.messages import InfoAgentMessage
 from .....types.messages import Message
@@ -43,7 +43,7 @@ async def scripted_session(
         tools: ta.Sequence[Tool] = (),
 ) -> tuple[Session, Agent, OrmSessionStorage]:
     agent = Agent(
-        turn_runner=TurnLoopRunner(
+        turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager.of(scripted_backend(*turns)),

@@ -427,7 +427,7 @@ with _lang.auto_proxy_init(
     )
 
     from .turns.runner import (  # noqa
-        TurnLoopRunner,
+        LoopTurnRunner,
     )
 
     ##

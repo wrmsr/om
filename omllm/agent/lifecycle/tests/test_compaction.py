@@ -14,7 +14,7 @@ from ...backends import DictBackendManager
 from ...lifecycle.compactors import ContextCompactor
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
-from ...turns.runner import TurnLoopRunner
+from ...turns.runner import LoopTurnRunner
 from ...types.contexts import Context
 from ...types.errors import AgentBusyError
 from ...types.errors import NoContextCompactorError
@@ -52,7 +52,7 @@ def _backends(backend):
 
 async def _agent(backend, *messages):
     agent = Agent(
-        turn_runner=TurnLoopRunner(
+        turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=_backends(backend),

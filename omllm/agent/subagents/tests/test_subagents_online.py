@@ -18,7 +18,7 @@ from ...tests.models import GOOGLE
 from ...tests.models import OPENAI
 from ...tests.models import ModelForTest
 from ...tests.tools import EchoTool
-from ...turns.runner import TurnLoopRunner
+from ...turns.runner import LoopTurnRunner
 from ...types.contexts import Context
 from ...types.events import ToolExecutionEndEvent
 from ...types.events import ToolExecutionStartEvent
@@ -55,7 +55,7 @@ async def _test_subagent(harness: Harness, model: ModelForTest) -> None:
     )
 
     def turn_runner():
-        return TurnLoopRunner(
+        return LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager.of(backend),

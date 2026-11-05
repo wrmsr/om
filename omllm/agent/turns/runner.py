@@ -15,7 +15,7 @@ from .loop import TurnLoop
 ##
 
 
-class TurnLoopRunner(TurnRunner):
+class LoopTurnRunner(TurnRunner):
     def __init__(
             self,
             *,

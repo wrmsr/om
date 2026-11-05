@@ -29,7 +29,7 @@ from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
 from ...types.turns import TurnParams
 from ..loop import TurnLoop
-from ..runner import TurnLoopRunner
+from ..runner import LoopTurnRunner
 
 
 ##
@@ -189,7 +189,7 @@ async def test_the_runner_hands_its_invoker_to_every_turn():
     echo = EchoTool()
     invoker = _SurroundingToolInvoker()
 
-    runner = TurnLoopRunner(
+    runner = LoopTurnRunner(
         backends=DictBackendManager.of(scripted_backend(
             tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'a'})),
             text_message('one'),

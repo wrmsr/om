@@ -136,8 +136,7 @@ def bind_subagent_agent(
         # Its own turn scope, seeded and populated as the root agent's is.
         inj.bind_scope(SUBAGENT_TURN_SCOPE),
         inj.bind_scope_seed(agn.TurnParams, SUBAGENT_TURN_SCOPE),
-        inj.bind(agn.TurnLoop, in_=SUBAGENT_TURN_SCOPE),
-        inj.bind(agn.TurnLoopRunner, in_=SUBAGENT_TURN_SCOPE),
+        inj.bind(agn.LoopTurnRunner, in_=SUBAGENT_TURN_SCOPE),
         inj.bind(ScopedTurnRunner, singleton=True, to_fn=_provide_subagent_turn_runner),
         inj.bind(agn.TurnRunner, to_key=ScopedTurnRunner),
 

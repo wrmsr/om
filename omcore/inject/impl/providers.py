@@ -1,3 +1,7 @@
+"""
+TODO:
+ - recursion is wonky - yield_known_dependencies? self_providers? self_children -> [ProviderImpl]? ...
+"""
 import abc
 import typing as ta
 

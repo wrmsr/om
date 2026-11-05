@@ -42,7 +42,7 @@ async def test_compact_command():
 
     backend = scripted_backend(llm.BackendScriptTurn(text_message('Summary.'), expect=expect))
     agent = agn.Agent(
-        turn_runner=agn.TurnLoopRunner(
+        turn_runner=agn.LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=_backends(backend),

@@ -11,7 +11,7 @@ from ... import llm
 from ...core.asyncs.asyncio import AsyncioGroupRunner
 from ..agent import Agent
 from ..backends import DictBackendManager
-from ..turns.runner import TurnLoopRunner
+from ..turns.runner import LoopTurnRunner
 from ..types.errors import AgentBusyError
 from ..types.events import AgentEndEvent
 from ..types.events import StateUpdateEvent
@@ -44,7 +44,7 @@ class _BlockingBackend(llm.ImmediateBackend):
 
 def _agent(backend):
     return Agent(
-        turn_runner=TurnLoopRunner(
+        turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager.of(backend),

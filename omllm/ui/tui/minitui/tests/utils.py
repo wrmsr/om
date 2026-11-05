@@ -111,7 +111,7 @@ async def make_agent(backend: llm.Backend, *, tools: ta.Sequence[agn.Tool] = ())
     """A real agent on a real turn loop: the model is the only thing stood in for, by whatever backend is given."""
 
     agent = agn.Agent(
-        turn_runner=agn.TurnLoopRunner(
+        turn_runner=agn.LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=agn.DictBackendManager.of(backend),

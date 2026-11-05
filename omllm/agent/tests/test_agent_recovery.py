@@ -19,7 +19,7 @@ from ..exec.ops import ProcessesExecOps
 from ..exec.tools.bash import BashTool
 from ..permissions.deciders import StaticPermissionDecider
 from ..permissions.types import PermissionState
-from ..turns.runner import TurnLoopRunner
+from ..turns.runner import LoopTurnRunner
 from ..types.contexts import Context
 from ..types.events import AgentEndEvent
 from ..types.messages import InfoAgentMessage
@@ -47,7 +47,7 @@ def _bash_tool():
 
 async def _agent(backend, tools, *, cwd, scope, sleeps=None, turn_config=None):
     agent = Agent(
-        turn_runner=TurnLoopRunner(
+        turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager.of(backend),

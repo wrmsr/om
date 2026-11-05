@@ -17,7 +17,7 @@ from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
 from ...tests.tools import EchoTool
 from ...tests.tools import bare_tool
-from ...turns.runner import TurnLoopRunner
+from ...turns.runner import LoopTurnRunner
 from ...types.contexts import Context
 from ...types.lifecycle import ContextProjection
 from ...types.messages import InfoAgentMessage
@@ -77,7 +77,7 @@ class _BlockingExecutor:
 
 def _agent(backend, context_lifecycle_manager=None):
     return Agent(
-        turn_runner=TurnLoopRunner(
+        turn_runner=LoopTurnRunner(
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             backends=DictBackendManager.of(backend),

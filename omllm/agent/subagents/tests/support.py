@@ -18,7 +18,7 @@ from ...permissions.types import PermissionDecider
 from ...permissions.types import PermissionState
 from ...tests.scripted import scripted_backend
 from ...tests.tools import bare_tool
-from ...turns.runner import TurnLoopRunner
+from ...turns.runner import LoopTurnRunner
 from ...types.contexts import Context
 from ...types.events import Event
 from ...types.events import StateUpdateEvent
@@ -38,8 +38,8 @@ from ..tools.subagent import SubagentTool
 ##
 
 
-def turn_loop_runner(*turns: ta.Any) -> TurnLoopRunner:
-    return TurnLoopRunner(
+def turn_loop_runner(*turns: ta.Any) -> LoopTurnRunner:
+    return LoopTurnRunner(
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
         backends=DictBackendManager.of(scripted_backend(*turns)),
