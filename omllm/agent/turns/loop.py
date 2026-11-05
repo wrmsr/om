@@ -122,19 +122,21 @@ class TurnLoop:
     def __init__(
             self,
             *,
-            new_messages: ta.Sequence[Message],
             config: TurnConfig | None = None,
             context: Context | None = None,
-            subscriber: EventSubscriber[Event] | None = None,
-            llm_backend: llm.ImmediateBackend,
             tool_env: ToolEnvironment | None = None,
+            new_messages: ta.Sequence[Message],
+            subscriber: EventSubscriber[Event] | None = None,
+            inbox: TurnInbox | None = None,
+
+            llm_backend: llm.ImmediateBackend,
+
             tool_invoker: ToolInvoker | None = None,
             cancellation: asl.Cancellation,
             group_runner: AsyncGroupRunner,
             sleeps: asl.Sleeps | None = None,
             context_builder: LlmContextBuilder | None = None,
             context_lifecycle_manager: ContextLifecycleManager | None = None,
-            inbox: TurnInbox | None = None,
     ) -> None:
         super().__init__()
 
