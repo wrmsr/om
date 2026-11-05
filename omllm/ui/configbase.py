@@ -12,6 +12,7 @@ with lang.auto_proxy_import(globals()):
 
 
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class ConfigBase:
     @classmethod
     def configure_argument_parser(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

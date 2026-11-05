@@ -4,6 +4,7 @@ from .. import check
 from .. import collections as col
 from .. import dataclasses as dc
 from .. import lang
+from .dependencies import Dependencies
 from .keys import Key
 from .keys import as_key
 
@@ -68,12 +69,27 @@ class Kwargs(ta.Sequence[Kwarg], lang.Final):
         return col.make_map(((kw.name, kw) for kw in self.seq), strict=True)
 
     @lang.cached_property
+    def by_key(self) -> ta.Mapping[Key, ta.Sequence[Kwarg]]:
+        return col.multi_map((kw.key, kw) for kw in self.seq)
+
+    #
+
+    @lang.cached_property
     def keys(self) -> frozenset[Key]:
         return frozenset(kw.key for kw in self.seq)
 
     @lang.cached_property
-    def by_key(self) -> ta.Mapping[Key, ta.Sequence[Kwarg]]:
-        return col.multi_map((kw.key, kw) for kw in self.seq)
+    def optional_keys(self) -> frozenset[Key]:
+        return frozenset(kw.key for kw in self.seq if kw.has_default)
+
+    #
+
+    @lang.cached_property
+    def dependencies(self) -> Dependencies:
+        return Dependencies(
+            self.keys,
+            optional=self.optional_keys,
+        ) if bool(self.seq) else Dependencies.empty()
 
     #
 
@@ -90,6 +106,9 @@ class Kwargs(ta.Sequence[Kwarg], lang.Final):
             return self.by_key[index]
         else:
             return self.seq[index]
+
+    def __bool__(self) -> bool:
+        return bool(self.seq)
 
     def __len__(self) -> int:
         return len(self.seq)

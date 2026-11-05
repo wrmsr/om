@@ -78,6 +78,10 @@ with _lang.auto_proxy_init(
         Binding,
     )
 
+    from .dependencies import (  # noqa
+        Dependencies,
+    )
+
     from .eagers import (  # noqa
         Eager,
     )

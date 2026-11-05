@@ -15,6 +15,7 @@ with lang.auto_proxy_import(globals()):
 
 
 @dc.dataclass(frozen=True, kw_only=True)
+@dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class AgentConfig(ConfigBase):
     cwd: str | None = None
     container: str | None = None
