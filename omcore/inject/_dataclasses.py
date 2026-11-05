@@ -166,22 +166,22 @@ def _process_dataclass__cd208fcb95f4acb0fc1ac745b31e1fd725f18c2a():
 
 
 @_register(
-    installer_sha1='a74cccbf5eb2c42db50980f6a9c97098850be2e8',
+    installer_sha1='7b38af01e371dd976ad8057a22a573b7cb0bc5a6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, True, False), ((('keys', True, True, None, True, False, False, None), 'instance', 'missing', No"
-            "ne, False, False, False), (('optional', True, True, None, True, True, False, None), 'instance', 'value', N"
-            "one, False, False, False), (('_EMPTY', True, True, None, True, None, False, None), 'class_var', 'missing',"
-            " None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), ("
-            "), (False,)))"
+            "ne, False, False, True), (('optional', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, True), (('_EMPTY', True, True, None, True, None, False, None), 'class_var', 'missing', N"
+            "one, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), ()"
+            ", (False,)))"
         ),
     ),
     cls_names=(
         ('omcore.inject.dependencies', 'Dependencies'),
     ),
 )
-def _process_dataclass__a74cccbf5eb2c42db50980f6a9c97098850be2e8():
+def _process_dataclass__7b38af01e371dd976ad8057a22a573b7cb0bc5a6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -192,7 +192,8 @@ def _process_dataclass__a74cccbf5eb2c42db50980f6a9c97098850be2e8():
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
+        __dataclass__repr__fns__0__fn = __dataclass__spec.fields[0].repr_fn
+        __dataclass__repr__fns__1__fn = __dataclass__spec.fields[1].repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -270,9 +271,9 @@ def _process_dataclass__a74cccbf5eb2c42db50980f6a9c97098850be2e8():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
-            if (s := __dataclass__repr__default_fn(self.keys)) is not None:
+            if (s := __dataclass__repr__fns__0__fn(self.keys)) is not None:
                 parts.append(f"{s}")
-            if (s := __dataclass__repr__default_fn(self.optional)) is not None:
+            if (s := __dataclass__repr__fns__1__fn(self.optional)) is not None:
                 parts.append(f"optional={s}")
             return (
                 f"{self.__class__.__qualname__}("

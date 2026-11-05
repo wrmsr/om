@@ -52,6 +52,7 @@ class ScopedTurnRunner(agn.TurnRunner):
                     inj.as_key(agn.TurnParams): params,
                 },
         ):
+            # FIXME: lol nope
             runner = await self._injector[agn.TurnLoopRunner]
 
             return await runner.run_turn(params)

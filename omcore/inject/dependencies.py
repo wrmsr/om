@@ -2,8 +2,8 @@ import functools
 import typing as ta
 
 from .. import cached
+from .. import check
 from .. import dataclasses as dc
-from .. import lang
 from .keys import Key
 
 
@@ -18,17 +18,23 @@ def _merge_hack(fn):
     return compose
 
 
+def _set_repr(s: frozenset) -> str | None:
+    return f'{{{", ".join(map(repr, s))}}}' if s else None
+
+
 @ta.final
 @dc.dataclass(frozen=True)
-@dc.extra_class_params(terse_repr=True, default_repr_fn=lang.truthy_repr)
+@dc.extra_class_params(terse_repr=True)
 class Dependencies(ta.Collection[Key]):
-    keys: frozenset[Key]
+    keys: frozenset[Key] = dc.xfield(repr_fn=_set_repr)
 
     _: dc.KW_ONLY
 
-    optional: frozenset[Key] = frozenset()
+    optional: frozenset[Key] = dc.xfield(frozenset(), repr_fn=_set_repr)
 
     def __post_init__(self) -> None:
+        check.isinstance(self.keys, frozenset)
+        check.isinstance(self.optional, frozenset)
         if self.optional and (missing := (self.optional - self.keys)):
             raise ValueError(missing)
 

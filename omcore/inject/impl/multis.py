@@ -3,7 +3,7 @@ import typing as ta
 from ... import check
 from ... import dataclasses as dc
 from ... import lang
-from .. import Key
+from ..dependencies import Dependencies
 from ..elements import Element
 from ..errors import DuplicateMapKeyError
 from ..injector import AsyncInjector
@@ -37,8 +37,8 @@ class SetProviderImpl(ProviderImpl, lang.Final):
         return rv
 
     @lang.cached_function
-    def known_dependencies(self) -> frozenset[Key] | None:
-        return frozenset(k for p in self.ps for k in p.known_dependencies() or ()) or None
+    def known_dependencies(self) -> Dependencies | None:
+        return Dependencies.merge(*[p.known_dependencies() for p in self.ps]) or None
 
 
 @dc.dataclass(frozen=True, eq=False)
@@ -62,8 +62,8 @@ class MapProviderImpl(ProviderImpl, lang.Final):
         return rv
 
     @lang.cached_function
-    def known_dependencies(self) -> frozenset[Key] | None:
-        return frozenset(k for e in self.es for k in e.v.known_dependencies() or ()) or None
+    def known_dependencies(self) -> Dependencies | None:
+        return Dependencies.merge(*[e.v.known_dependencies() for e in self.es]) or None
 
 
 def make_multi_provider_impl(p: Provider, es_by_ty: ta.MutableMapping[type, list[Element]]) -> ProviderImpl:

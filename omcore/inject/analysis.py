@@ -11,6 +11,7 @@ import typing as ta
 from .. import check
 from .. import lang
 from .bindings import Binding
+from .dependencies import Dependencies
 from .elements import CollectedElements
 from .elements import Element
 from .elements import Elements
@@ -51,7 +52,7 @@ class ElementsAnalysis:
     #
 
     @lang.cached_function
-    def known_dependencies_by_key(self) -> ta.Mapping[Key, frozenset[Key] | None]:
+    def known_dependencies_by_key(self) -> ta.Mapping[Key, Dependencies | None]:
         return {
             k: bi.provider.known_dependencies()
             for k, bi in self._ec.binding_impl_map().items()

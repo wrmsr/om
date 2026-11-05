@@ -26,5 +26,5 @@ def test_analyze():
     assert ana.known_dependencies_by_key() == {
         inj.as_key(int): None,
         inj.as_key(str): None,
-        inj.as_key(FooStr): frozenset([inj.as_key(int), inj.as_key(str)]),
+        inj.as_key(FooStr): inj.Dependencies(frozenset([inj.as_key(int), inj.as_key(str)])),
     }

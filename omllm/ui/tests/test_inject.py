@@ -9,7 +9,8 @@ def test_inject():
     unk = {
         k
         for ks in deps.values()
-        for k in ks or ()
+        if ks
+        for k in ks.required
         if k not in deps
     }
     print(unk)
