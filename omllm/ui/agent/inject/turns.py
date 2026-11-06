@@ -52,9 +52,9 @@ class ScopedTurnRunner(agn.TurnRunner):
                     inj.as_key(agn.TurnParams): params,
                 },
         ):
-            runner = await self._injector[agn.LoopTurnRunner]
+            loop = await self._injector[agn.TurnLoop]
 
-            return await runner.run_turn(params)
+            return await loop.run()
 
 
 ##
@@ -72,7 +72,7 @@ def bind_turns(config: AgentConfig) -> inj.Elements:
         inj.bind(ScopedTurnRunner, singleton=True),
         inj.bind(agn.TurnRunner, to_key=ScopedTurnRunner),
 
-        inj.bind(agn.LoopTurnRunner, in_=TURN_SCOPE),
+        inj.bind(agn.TurnLoop, in_=TURN_SCOPE),
     ])
 
     #
