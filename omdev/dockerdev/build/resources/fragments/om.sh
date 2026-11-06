@@ -2,7 +2,7 @@ curl -LsSf 'https://raw.githubusercontent.com/wrmsr/om/master/omdev/cli/install.
   --ft \
   \
   'omcore[cext,mypyc,plus]' \
-  'omdev[cext]' \
+  'omdev[cext,plus]' \
   'ominfra' \
   'omllm' \
   \

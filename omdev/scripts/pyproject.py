@@ -86,7 +86,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '86a3aa2f9632129b4dbab0c6df6a4b6ba07559dd'
+__om_amalg_sha1__ = 'f7eeb17e1ab788bebe1a867ac446404fdc053263'
 
 
 def __om_amalg__():  # noqa
@@ -160,7 +160,7 @@ def __om_amalg__():  # noqa
             dict(sha1='5b337476498d3187d4a8774f04f9e634f60972fb', mod='omdev.interp.providers.system', path='../interp/providers/system.py'),  # noqa
             dict(sha1='c2e2a6c9ebb36b1dd09482662bdafdb59c75ae81', mod='omdev.interp.pyenv.install', path='../interp/pyenv/install.py'),  # noqa
             dict(sha1='fcb5939d4038b41c1a3e887feb10cfcb0924107c', mod='omdev.interp.uv.provider', path='../interp/uv/provider.py'),  # noqa
-            dict(sha1='6cdba8bece4ee9eaef720c8f100b78add8058229', mod='omdev.pyproject.pkg', path='pkg.py'),
+            dict(sha1='e8e1418d6bc0bd9b6aa7ae397db0808227cbdf35', mod='omdev.pyproject.pkg', path='pkg.py'),
             dict(sha1='558f0761ce1bd375136f9e733c8674895eec9e62', mod='omdev.interp.providers.inject', path='../interp/providers/inject.py'),  # noqa
             dict(sha1='5f67d16ef12e21499a65017d5432a1e76e9fe522', mod='omdev.interp.pyenv.provider', path='../interp/pyenv/provider.py'),  # noqa
             dict(sha1='86cc5b6b8fa88beaa9f468bf05c078f8af330a23', mod='omdev.interp.uv.inject', path='../interp/uv/inject.py'),  # noqa
@@ -14764,6 +14764,17 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         pyp_dct['project'] = prj
 
+        if (mods := prj.pop('meta-optional-dependencies', None)):
+            ods = prj['optional-dependencies']
+            ds_dct = {
+                **{s.split()[0]: [s] for l in ods.values() for s in l},
+                **ods,
+            }
+            ods.update({  # noqa
+                k: [d for n in pd for d in ds_dct[n]]
+                for k, pd in mods.items()
+            })
+
         self._move_dict_key(
             prj,
             'optional-dependencies',
@@ -14918,6 +14929,7 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
 
         for k in [
             'optional-dependencies',
+            'meta-optional-dependencies',
             'entry-points',
             'scripts',
             'cli-scripts',
@@ -15488,6 +15500,7 @@ class _PyprojectCliPackageGenerator(BasePyprojectPackageGenerator):
         prj['name'] += self._pkg_suffix
         for k in [
             'optional-dependencies',
+            'meta-optional-dependencies',
             'entry-points',
             'scripts',
         ]:

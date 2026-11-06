@@ -1,15 +1,15 @@
 from omcore import inject as inj
 from omcore.asyncs.asynclite import all as asl
 
-from ....core.asyncs.asyncio import AsyncioGroupRunner
-from ....core.asyncs.base import AsyncGroupRunner
-from ..config import AgentConfig
+from ...core.asyncs.asyncio import AsyncioGroupRunner
+from ...core.asyncs.base import AsyncGroupRunner
+from ..config import UiConfig
 
 
 ##
 
 
-def bind_runtime(config: AgentConfig) -> inj.Elements:
+def bind_runtime(config: UiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

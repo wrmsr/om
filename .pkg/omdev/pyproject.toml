@@ -81,6 +81,9 @@ tui-syntax = [
     'tree-sitter-xml ~= 0.7',
     'tree-sitter-yaml ~= 0.7',
 ]
+plus = [
+    'pillow ~= 13.0',
+]
 cext = [
     'omdev-cext == 0.0.71',
 ]
@@ -120,6 +123,7 @@ all = [
     'tree-sitter-toml ~= 0.7',
     'tree-sitter-xml ~= 0.7',
     'tree-sitter-yaml ~= 0.7',
+    'pillow ~= 13.0',
     'omdev-cext == 0.0.71',
     'omdev-rs == 0.0.71',
     'omdev-cli == 0.0.71',

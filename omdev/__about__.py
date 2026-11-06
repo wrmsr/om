@@ -3,6 +3,9 @@ from omcore.__about__ import SetuptoolsBase
 from omcore.__about__ import __version__
 
 
+##
+
+
 class Project(ProjectBase):
     name = 'omdev'
     description = 'omdev'
@@ -84,6 +87,12 @@ class Project(ProjectBase):
             'tree-sitter-toml ~= 0.7',
             'tree-sitter-xml ~= 0.7',
             'tree-sitter-yaml ~= 0.7',
+        ],
+    }
+
+    meta_optional_dependencies = {
+        'plus': [
+            'pillow',
         ],
     }
 

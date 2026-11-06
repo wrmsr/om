@@ -3,7 +3,7 @@ from omcore import inject as inj
 from ... import agent as agn
 from ...core import ui
 from ..agent.inject.events import bind_on_agent_event_subscriber
-from ..inject import bind_ui
+from ..inject.inject import bind_ui
 from ..types import TargetCwd
 from .config import WebConfig
 from .feed.feed import Feed

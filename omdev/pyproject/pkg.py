@@ -367,6 +367,17 @@ class PyprojectPackageGenerator(BasePyprojectPackageGenerator):
 
         pyp_dct['project'] = prj
 
+        if (mods := prj.pop('meta-optional-dependencies', None)):
+            ods = prj['optional-dependencies']
+            ds_dct = {
+                **{s.split()[0]: [s] for l in ods.values() for s in l},
+                **ods,
+            }
+            ods.update({  # noqa
+                k: [d for n in pd for d in ds_dct[n]]
+                for k, pd in mods.items()
+            })
+
         self._move_dict_key(
             prj,
             'optional-dependencies',
@@ -521,6 +532,7 @@ class _PyprojectExtensionPackageGenerator(BasePyprojectPackageGenerator, Abstrac
 
         for k in [
             'optional-dependencies',
+            'meta-optional-dependencies',
             'entry-points',
             'scripts',
             'cli-scripts',
@@ -1091,6 +1103,7 @@ class _PyprojectCliPackageGenerator(BasePyprojectPackageGenerator):
         prj['name'] += self._pkg_suffix
         for k in [
             'optional-dependencies',
+            'meta-optional-dependencies',
             'entry-points',
             'scripts',
         ]:

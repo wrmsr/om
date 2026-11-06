@@ -2,7 +2,7 @@ __version__ = '0.0.71'
 __revision__ = None
 
 
-#
+##
 
 
 class ProjectBase:
@@ -30,8 +30,6 @@ class ProjectBase:
 class Project(ProjectBase):
     name = 'omcore'
     description = 'omcore'
-
-    #
 
     optional_dependencies = {
         'async': [
@@ -132,9 +130,7 @@ class Project(ProjectBase):
         ],
     }
 
-    #
-
-    _meta_dependencies = {
+    meta_optional_dependencies = {
         'plus': [
             'check',
 
@@ -143,18 +139,6 @@ class Project(ProjectBase):
             'pygments',
         ],
     }
-
-    _dependency_specs_by_name = (lambda od: {  # noqa
-        **{s.split()[0]: [s] for l in od.values() for s in l},
-        **od,
-    })(optional_dependencies)
-
-    optional_dependencies.update((lambda ds, k_pd_tups: {  # noqa
-        k: [d for n in pd for d in ds[n]]
-        for k, pd in k_pd_tups
-    })(_dependency_specs_by_name, _meta_dependencies.items()))
-
-    #
 
     entry_points = {
         'omcore.manifests': {name: name},

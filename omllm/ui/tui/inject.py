@@ -1,6 +1,6 @@
 from omcore import inject as inj
 
-from ..inject import bind_ui
+from ..inject.inject import bind_ui
 from .config import TuiConfig
 from .rendering.inject import bind_rendering
 

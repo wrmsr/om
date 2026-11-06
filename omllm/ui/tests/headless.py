@@ -15,7 +15,7 @@ from ..agent.inject.events import AgentEventSubscribers
 from ..agent.setup import AgentSetup
 from ..commands.manager import CommandsManager
 from ..config import UiConfig
-from ..inject import bind_ui
+from ..inject.inject import bind_ui
 
 
 ##
