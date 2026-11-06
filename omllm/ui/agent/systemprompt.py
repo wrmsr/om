@@ -36,10 +36,13 @@ class StandardSystemPromptContributor(agn.SystemPromptContributor):
     text: str | None = None
 
     def get_system_prompt_parts(self) -> ta.Sequence[agn.SystemPromptPart] | None:
+        if (text := self.text) is None:
+            text = DEFAULT_SYSTEM_PROMPT
+
         return [
             agn.SystemPromptPart(
                 agn.SystemPromptPriority.MISSION,
-                self.text or DEFAULT_SYSTEM_PROMPT,
+                text,
             ),
         ]
 
