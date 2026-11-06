@@ -24,7 +24,7 @@ brotli==1.2.1  # !! USES_GIL - https://github.com/google/brotli/commit/51be27dbd
 
 ### db:
 
-sqlalchemy[asyncio]==2.1.6
+sqlalchemy[asyncio]==2.1.8
 
 ## sql
 
