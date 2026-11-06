@@ -75,7 +75,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'bc9d4ef9a6bf31c5f8982607d89f55a0a79b77a1'
+__om_amalg_sha1__ = '67f81c0c03364ed8358ea68412cfa469b2eae3ee'
 
 
 def __om_amalg__():  # noqa
@@ -111,7 +111,7 @@ def __om_amalg__():  # noqa
             dict(sha1='be09a6fd1f168c1a6c9b66afee54733896c94810', mod='omcore.os.deathsig', path='../../omcore/os/deathsig.py'),  # noqa
             dict(sha1='52998c8802914655fe20f0a44b3f151687b12fba', mod='omcore.os.environ', path='../../omcore/os/environ.py'),  # noqa
             dict(sha1='fabaaa7bdef848bcde100a917cd4e4a864970088', mod='omcore.os.linux', path='../../omcore/os/linux.py'),  # noqa
-            dict(sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e', mod='omcore.os.paths', path='../../omcore/os/paths.py'),  # noqa
+            dict(sha1='79e7f102bf627a74af2694cc3e5493ada622651f', mod='omcore.os.paths', path='../../omcore/os/paths.py'),  # noqa
             dict(sha1='e0ccddd9b2a4604e74eb9c67a1a85516b3796aec', mod='omcore.os.pyremote.core', path='../../omcore/os/pyremote/core.py'),  # noqa
             dict(sha1='2ac241e59ff5a7aadd487f43ceb715f6c57cce95', mod='omcore.rpc.configs', path='../../omcore/rpc/configs.py'),  # noqa
             dict(sha1='a0507bf476ce0e1035b405129bac05d8d225041d', mod='omcore.shlex', path='../../omcore/shlex.py'),
@@ -223,7 +223,7 @@ def __om_amalg__():  # noqa
             dict(sha1='ce887c9f8773a40e65e91f5b44b2bf051b7930f7', mod='ominfra.manage.deploy.conf.inject', path='deploy/conf/inject.py'),  # noqa
             dict(sha1='01eec7fc7564eef717df26ab3ad2d48c22312fc2', mod='ominfra.manage.deploy.git', path='deploy/git.py'),  # noqa
             dict(sha1='9a21dc122a90c6e540ec38abe18cf6a9886a8aea', mod='ominfra.manage.deploy.paths.inject', path='deploy/paths/inject.py'),  # noqa
-            dict(sha1='b49196fefdea2330c58c4eb55a5726ef266cb95a', mod='ominfra.manage.deploy.systemd', path='deploy/systemd.py'),  # noqa
+            dict(sha1='33764cf01527ee483f8a8aa7c239ee5b70b10d76', mod='ominfra.manage.deploy.systemd', path='deploy/systemd.py'),  # noqa
             dict(sha1='c661c86ab1ff07f30be5520ee88a6fd1731b6e76', mod='ominfra.manage.remote.spawning', path='remote/spawning.py'),  # noqa
             dict(sha1='aa14eec8d1c552218793de3fd08fcd57ac2e778d', mod='ominfra.manage.system.packages', path='system/packages.py'),  # noqa
             dict(sha1='553889c097ac6ca763658317d3a0ff2f2f4b06f9', mod='ominfra.manage.system.platforms', path='system/platforms.py'),  # noqa
@@ -256,7 +256,7 @@ def __om_amalg__():  # noqa
             dict(sha1='39213edda6bd3da49f8b5a6684772c530cf527c9', mod='ominfra.manage.targets.connection', path='targets/connection.py'),  # noqa
             dict(sha1='f1bcbef6b04eecfe4d2fddbd20c3e4842102096f', mod='ominfra.manage.deploy.apps', path='deploy/apps.py'),  # noqa
             dict(sha1='c5a01e811a877552bcf642c09dd80515f3d6960d', mod='ominfra.manage.targets.inject', path='targets/inject.py'),  # noqa
-            dict(sha1='659539cf2f1bc4a94c1d33a0a6b566097b0a1927', mod='ominfra.manage.deploy.deploy', path='deploy/deploy.py'),  # noqa
+            dict(sha1='fd2964ad64bfcf291ac24c2137899fd09825fb9b', mod='ominfra.manage.deploy.deploy', path='deploy/deploy.py'),  # noqa
             dict(sha1='323d6404a844ed52956c7b36cd7c8258ef8ae9bb', mod='ominfra.manage.deploy.commands', path='deploy/commands.py'),  # noqa
             dict(sha1='d494a0274f220dc49cf5cf4d54ad1892081b2d57', mod='ominfra.manage.deploy.inject', path='deploy/inject.py'),  # noqa
             dict(sha1='b402979b14ba0f75f4a753c8d3186070bceca581', mod='ominfra.manage.inject', path='inject.py'),
@@ -6365,13 +6365,9 @@ def path_dirname(p, n=1):
     return head
 
 
-def abs_real_path(p: str) -> str:
-    return os.path.abspath(os.path.realpath(p))
-
-
 def is_path_in_dir(base_dir: str, target_path: str) -> bool:
-    base_dir = abs_real_path(base_dir)
-    target_path = abs_real_path(target_path)
+    base_dir = os.path.realpath(base_dir)
+    target_path = os.path.realpath(target_path)
 
     return target_path != base_dir and target_path.startswith(base_dir.rstrip(os.path.sep) + os.path.sep)
 
@@ -27242,7 +27238,7 @@ class DeploySystemdManager:
             fp = os.path.join(d, f)
             if strict:
                 check.state(os.path.islink(fp))
-            o[f] = abs_real_path(fp)
+            o[f] = os.path.realpath(fp)
         return o
 
     async def sync_systemd(
@@ -27261,7 +27257,7 @@ class DeploySystemdManager:
         if not (ud := spec.unit_dir):
             return
 
-        ud = abs_real_path(os.path.expanduser(ud))
+        ud = os.path.realpath(os.path.expanduser(ud))
 
         os.makedirs(ud, exist_ok=True)
 
@@ -31458,7 +31454,7 @@ class DeployDriver:
         #
 
         if not self._spec.app_links.exclude_unspecified:
-            cad = abs_real_path(os.path.join(current_link, 'apps'))
+            cad = os.path.realpath(os.path.join(current_link, 'apps'))
             if os.path.exists(cad):
                 for d in os.listdir(cad):
                     if (da := DeployApp(d)) not in das and da not in ras:
@@ -31525,10 +31521,10 @@ class DeployDriver:
             app: DeployApp,
             current_link: str,
     ) -> None:
-        app_link = os.path.join(abs_real_path(current_link), 'apps', app.s)
+        app_link = os.path.join(os.path.realpath(current_link), 'apps', app.s)
         check.state(os.path.islink(app_link))
 
-        app_dir = abs_real_path(app_link)
+        app_dir = os.path.realpath(app_link)
         check.state(os.path.isdir(app_dir))
 
         #

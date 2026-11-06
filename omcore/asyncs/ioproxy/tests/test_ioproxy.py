@@ -75,22 +75,22 @@ class TestIoProxy(unittest.IsolatedAsyncioTestCase):
             print(af.fileno())
             print(len(await af.read()))
 
-        with open('pyproject.toml') as sf:  # noqa
+        with open(__file__) as sf:  # noqa
             # reveal_type(sf)
             # af1 = asyncio_io_proxy(sf)
             af1 = ASYNCIO_ASYNC_IO_PROXIER.proxy_obj(sf)
             # reveal_type(af1)
             await poke(af1)
 
-        async with await asyncio_io_proxy(open)('pyproject.toml') as af2:  # noqa
+        async with await asyncio_io_proxy(open)(__file__) as af2:  # noqa
             # reveal_type(af2)
             await poke(af2)
 
-        async with await asyncio_open_text('pyproject.toml') as af3:
+        async with await asyncio_open_text(__file__) as af3:
             # reveal_type(af3)
             await poke(af3)
 
-        af4 = await asyncio_open_text('pyproject.toml')
+        af4 = await asyncio_open_text(__file__)
         try:
             # reveal_type(af4)
             await poke(af4)

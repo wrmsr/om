@@ -2,9 +2,11 @@ import os.path
 import subprocess
 import sys
 
+import pytest
+
 from omcore.os.temp import temp_dir_context
 
-from ..lite import LiteSourceMirror
+from ..mirror import LiteSourceMirror
 
 
 NON_LITE_SRC = "raise RuntimeError('non-lite code executed')\n"
@@ -121,7 +123,8 @@ def test_lite_source_mirror():
         assert b'non-lite code executed' in proc.stderr
 
 
-def test_lite_source_mirror_nested_root():
+@pytest.mark.parametrize('lite_only', [False, True])
+def test_lite_source_mirror_nested_root(lite_only):
     with temp_dir_context() as src_dir, temp_dir_context() as dst_dir:
         _build_src_tree(src_dir)
 
@@ -129,6 +132,7 @@ def test_lite_source_mirror_nested_root():
             ['root/pkg'],
             LITE_FILES,
             src_dir=src_dir,
+            lite_only=lite_only,
         )
 
         mirror.build(dst_dir)
@@ -147,3 +151,88 @@ def test_lite_source_mirror_nested_root():
             cwd=dst_dir,
             check=True,
         )
+
+
+def test_lite_source_mirror_lite_only():
+    with temp_dir_context() as src_dir, temp_dir_context() as dst_dir:
+        _build_src_tree(src_dir)
+
+        test_src = (
+            'import unittest\n'
+            'class TestLite(unittest.TestCase):\n'
+            '    def test_lite(self):\n'
+            '        assert True\n'
+        )
+        _write(os.path.join(src_dir, 'root/pkg/test_lite.py'), '# @om-lite\n' + test_src)
+        _write(os.path.join(src_dir, 'root/pkg/litepkg/test_inherited.py'), test_src)
+        _write(os.path.join(src_dir, 'root/pkg/litepkg/data.txt'), 'lite package resource\n')
+        _write(os.path.join(src_dir, 'root/pkg/data.txt'), 'non-lite resource\n')
+        for rel in ['root/test_nonlite.py', 'root/pkg/test_nonlite.py', 'root/plain/test_nonlite.py']:
+            _write(os.path.join(src_dir, rel), NON_LITE_SRC)
+
+        LiteSourceMirror(
+            ['root', 'other'],
+            [*LITE_FILES, 'root/pkg/test_lite.py'],
+            src_dir=src_dir,
+            lite_only=True,
+        ).build(dst_dir)
+
+        def d(rel):
+            return os.path.join(dst_dir, rel)
+
+        assert set(os.listdir(dst_dir)) == {'root'}
+        assert set(os.listdir(d('root'))) == {'__init__.py', 'pkg'}
+        assert set(os.listdir(d('root/pkg'))) == {'__init__.py', 'litemod.py', 'test_lite.py', 'litepkg'}
+        for rel in ['root/__init__.py', 'root/pkg/__init__.py']:
+            assert not os.path.islink(d(rel))
+            assert os.path.getsize(d(rel)) == 0
+        for rel in ['root/pkg/litemod.py', 'root/pkg/test_lite.py', 'root/pkg/litepkg']:
+            assert os.path.islink(d(rel))
+            assert os.readlink(d(rel)) == os.path.join(src_dir, rel)
+        with open(d('root/pkg/litepkg/data.txt')) as f:
+            assert f.read() == 'lite package resource\n'
+
+        proc = subprocess.run(
+            [sys.executable, '-B', '-m', 'unittest', 'discover', '-s', 'root', '-t', '.', '-v'],
+            cwd=dst_dir,
+            capture_output=True,
+            check=False,
+        )
+        assert proc.returncode == 0, proc.stderr.decode()
+        assert b'Ran 2 tests' in proc.stderr
+        assert b'root.pkg.test_lite' in proc.stderr
+        assert b'root.pkg.litepkg.test_inherited' in proc.stderr
+
+
+@pytest.mark.parametrize('discover', [False, True])
+@pytest.mark.parametrize('lite_only', [False, True])
+def test_lite_source_mirror_cli(discover, lite_only):
+    with temp_dir_context() as src_dir, temp_dir_context() as dst_dir:
+        _build_src_tree(src_dir)
+        _write(os.path.join(src_dir, 'root/pkg/explicit.py'), 'EXPLICIT = 1\n')
+        repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join([repo_dir, os.environ.get('PYTHONPATH', '')]))
+        args = [sys.executable, '-B', '-m', 'omdev.lite.mirror']
+        if discover:
+            args.append('--discover')
+        else:
+            for fp in sorted([*LITE_FILES, 'root/pkg/explicit.py']):
+                args.extend(['--lite-file', fp])
+        if lite_only:
+            args.append('--lite-only')
+        args.extend([dst_dir, 'root', 'other'])
+
+        proc = subprocess.run(args, cwd=src_dir, env=env, capture_output=True, check=False)
+        assert proc.returncode == 0, proc.stderr.decode()
+
+        for rel in ['root/pkg/litemod.py', 'root/pkg/litepkg']:
+            dst = os.path.join(dst_dir, rel)
+            assert os.path.islink(dst)
+            assert os.readlink(dst) == os.path.join(src_dir, rel)
+        assert os.path.lexists(os.path.join(dst_dir, 'root/pkg/explicit.py')) == (not discover or not lite_only)
+        for rel in ['root/plain', 'root/pkg/other.py', 'root/pkg/deep', 'other']:
+            assert os.path.lexists(os.path.join(dst_dir, rel)) == (not lite_only)
+        for rel in ['root/__init__.py', 'root/pkg/__init__.py']:
+            dst = os.path.join(dst_dir, rel)
+            assert not os.path.islink(dst)
+            assert os.path.getsize(dst) == 0

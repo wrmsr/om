@@ -1,4 +1,6 @@
 # ruff: noqa: I001
+# @om-lite
+# Import facade only; not intended for amalgamation.
 from .api import (  # noqa
     bluelet,
 )

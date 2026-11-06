@@ -31,7 +31,6 @@ import typing as ta
 
 from .. import cached
 from .. import lang
-from ..os.paths import abs_real_path
 
 
 ##
@@ -132,7 +131,7 @@ class TextFileCache:
     #
 
     def normalize_path(self, path: str) -> str:
-        return abs_real_path(path)
+        return os.path.realpath(path)
 
     #
 

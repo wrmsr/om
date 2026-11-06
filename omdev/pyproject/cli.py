@@ -196,10 +196,14 @@ class PyprojectCli(ArgparseCli):
                 *self.args.args,
             )
 
-        elif cmd == 'exe':
+        elif cmd in ('exe', 'real-exe'):
+            # FIXME: omg refactor this stupid cli already
             await venv.create()
             check.arg(not self.args.args)
-            print(venv.exe())
+            exe = venv.exe()
+            if cmd == 'real-exe':
+                exe = os.path.realpath(exe)
+            print(exe)
 
         elif cmd == 'run':
             await venv.create()

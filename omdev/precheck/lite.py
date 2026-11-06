@@ -1,6 +1,5 @@
 import asyncio
 import dataclasses as dc
-import glob
 import inspect
 import os.path
 import subprocess
@@ -12,7 +11,8 @@ from omcore.logs import all as logs
 from omcore.os.temp import temp_dir_context
 from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
-from .. import magic
+from ..lite.discovery import LiteSourceTarget
+from ..lite.discovery import discover_lite_sources
 from ..lite.mirror import LiteSourceMirror
 from .base import Precheck
 from .base import PrecheckContext
@@ -34,50 +34,6 @@ class LitePython8Precheck(Precheck['LitePython8Precheck.Config']):
         super().__init__(config)
 
         self._context = context
-
-    #
-
-    @dc.dataclass(frozen=True)
-    class _Target:
-        path: str
-        kind: ta.Literal['script', 'module']
-
-    @dc.dataclass(frozen=True)
-    class _Plan:
-        lite_files: ta.AbstractSet[str]
-        targets: ta.Sequence[LitePython8Precheck._Target]
-
-    def _collect_plan(self) -> _Plan:
-        lite_files = frozenset(magic.find_magic_files(
-            magic.PY_MAGIC_STYLE,
-            self._context.src_roots,
-            keys=['@om-lite'],
-        ))
-
-        # A module both carrying its own marker and sitting under a lite-marked package is reached both ways, hence the
-        # set.
-        tgts: set[LitePython8Precheck._Target] = set()
-
-        for fp in sorted(lite_files):
-            with open(fp) as f:  # noqa  # FIXME
-                src = f.read()
-
-            is_script = '# @om-script' in src.splitlines()
-
-            if is_script:
-                tgts.add(self._Target(fp, 'script'))
-
-            elif fp.endswith('__init__.py'):
-                for g in glob.glob(os.path.join(os.path.dirname(fp), '**/*.py'), recursive=True):
-                    tgts.add(self._Target(g, 'module'))
-
-            else:
-                tgts.add(self._Target(fp, 'module'))
-
-        return self._Plan(
-            lite_files,
-            sorted(tgts, key=lambda t: t.path),
-        )
 
     #
 
@@ -172,7 +128,7 @@ class LitePython8Precheck(Precheck['LitePython8Precheck.Config']):
 
     #
 
-    async def _run_one(self, tgt: _Target, mirror_dir: str) -> list[Precheck.Violation]:
+    async def _run_one(self, tgt: LiteSourceTarget, mirror_dir: str) -> list[Precheck.Violation]:
         if tgt.kind == 'script':
             return await self._run_script(tgt.path)
 
@@ -183,13 +139,13 @@ class LitePython8Precheck(Precheck['LitePython8Precheck.Config']):
             raise RuntimeError(f'Unknown target kind: {tgt.kind}')
 
     async def run(self) -> ta.AsyncGenerator[Precheck.Violation]:
-        plan = self._collect_plan()
-        if not plan.targets:
+        sources = discover_lite_sources(self._context.src_roots)
+        if not sources.targets:
             return
 
         mirror = LiteSourceMirror(
             self._context.src_roots,
-            plan.lite_files,
+            sources.lite_files,
         )
 
         with temp_dir_context() as mirror_dir:
@@ -202,7 +158,7 @@ class LitePython8Precheck(Precheck['LitePython8Precheck.Config']):
                 async with sem:
                     return await self._run_one(tgt, mirror_dir)
 
-            tasks = [asyncio.create_task(run(tgt)) for tgt in plan.targets]
+            tasks = [asyncio.create_task(run(tgt)) for tgt in sources.targets]
 
             for coro in asyncio.as_completed(tasks):
                 for v in await coro:

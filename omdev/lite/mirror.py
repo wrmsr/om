@@ -3,6 +3,8 @@ import typing as ta
 
 from omcore import cached
 
+from .discovery import discover_lite_sources
+
 
 ##
 
@@ -17,6 +19,10 @@ class LiteSourceMirror:
     its `__init__.py` replaced by an empty file and its remaining entries symlinked - non-lite siblings included, so a
     lite module importing one still fails as it should.
 
+    With `lite_only=True`, non-lite sibling files and directories are omitted instead. Lite packages are still
+    symlinked wholesale, including their resources, since all their descendants are implicitly lite. This allows test
+    discovery to traverse the mirror without trying to import non-lite test modules.
+
     All paths are relative to `src_dir`, which defaults to the current directory.
     """
 
@@ -26,6 +32,7 @@ class LiteSourceMirror:
             lite_files: ta.Iterable[str],
             *,
             src_dir: str | None = None,
+            lite_only: bool = False,
     ) -> None:
         super().__init__()
 
@@ -35,6 +42,7 @@ class LiteSourceMirror:
         self._roots = [os.path.normpath(r) for r in roots]
         self._lite_files = frozenset(os.path.normpath(f) for f in lite_files)
         self._src_dir = os.path.abspath(src_dir if src_dir is not None else os.getcwd())
+        self._lite_only = lite_only
 
     @property
     def roots(self) -> ta.Sequence[str]:
@@ -87,7 +95,8 @@ class LiteSourceMirror:
         src = os.path.join(self._src_dir, rel)
 
         if rel not in self.materialized_dirs:
-            os.symlink(src, dst)
+            if not self._lite_only or self.is_in_lite_package(rel):
+                os.symlink(src, dst)
             return
 
         os.mkdir(dst)
@@ -107,7 +116,7 @@ class LiteSourceMirror:
             elif e.name == '__init__.py':
                 self._write_empty_init(dst)
 
-            else:
+            elif not self._lite_only or os.path.join(rel, e.name) in self._lite_files:
                 os.symlink(e.path, e_dst)
 
     def build(self, dst_dir: str) -> None:
@@ -127,3 +136,26 @@ class LiteSourceMirror:
             dst = os.path.join(dst_dir, root)
             if not os.path.lexists(dst):
                 self._mirror_dir(root, dst)
+
+
+##
+
+
+def _main() -> None:
+    import argparse  # noqa
+
+    parser = argparse.ArgumentParser(description='Build a source mirror importable by lite Python interpreters.')
+    parser.add_argument('dst_dir', help='Existing destination directory')
+    parser.add_argument('roots', nargs='+', help='Source roots relative to the current directory')
+    sources = parser.add_mutually_exclusive_group(required=True)
+    sources.add_argument('--discover', action='store_true', help='Discover lite markers under the source roots')
+    sources.add_argument('--lite-file', action='append', help='Explicit lite-marked file (repeatable)')
+    parser.add_argument('--lite-only', action='store_true', help='Omit non-lite siblings for test discovery')
+    args = parser.parse_args()
+
+    lite_files = discover_lite_sources(args.roots).lite_files if args.discover else args.lite_file
+    LiteSourceMirror(args.roots, lite_files, lite_only=args.lite_only).build(args.dst_dir)
+
+
+if __name__ == '__main__':
+    _main()

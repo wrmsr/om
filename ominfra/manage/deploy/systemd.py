@@ -14,7 +14,6 @@ import typing as ta
 
 from omcore.asyncs.asyncio.subprocesses import asyncio_subprocesses
 from omcore.lite.check import check
-from omcore.os.paths import abs_real_path
 from omcore.os.paths import is_path_in_dir
 
 from .specs import DeploySystemdSpec
@@ -46,7 +45,7 @@ class DeploySystemdManager:
             fp = os.path.join(d, f)
             if strict:
                 check.state(os.path.islink(fp))
-            o[f] = abs_real_path(fp)
+            o[f] = os.path.realpath(fp)
         return o
 
     async def sync_systemd(
@@ -65,7 +64,7 @@ class DeploySystemdManager:
         if not (ud := spec.unit_dir):
             return
 
-        ud = abs_real_path(os.path.expanduser(ud))
+        ud = os.path.realpath(os.path.expanduser(ud))
 
         os.makedirs(ud, exist_ok=True)
 

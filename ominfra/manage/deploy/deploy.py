@@ -9,7 +9,6 @@ from omcore.lite.json import json_dumps_pretty
 from omcore.lite.marshal import ObjMarshalerManager
 from omcore.lite.typing import Func0
 from omcore.lite.typing import Func1
-from omcore.os.paths import abs_real_path
 from omcore.os.paths import relative_symlink
 
 from .apps import DeployAppManager
@@ -228,7 +227,7 @@ class DeployDriver:
         #
 
         if not self._spec.app_links.exclude_unspecified:
-            cad = abs_real_path(os.path.join(current_link, 'apps'))
+            cad = os.path.realpath(os.path.join(current_link, 'apps'))
             if os.path.exists(cad):
                 for d in os.listdir(cad):
                     if (da := DeployApp(d)) not in das and da not in ras:
@@ -295,10 +294,10 @@ class DeployDriver:
             app: DeployApp,
             current_link: str,
     ) -> None:
-        app_link = os.path.join(abs_real_path(current_link), 'apps', app.s)
+        app_link = os.path.join(os.path.realpath(current_link), 'apps', app.s)
         check.state(os.path.islink(app_link))
 
-        app_dir = abs_real_path(app_link)
+        app_dir = os.path.realpath(app_link)
         check.state(os.path.isdir(app_dir))
 
         #

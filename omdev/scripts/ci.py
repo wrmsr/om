@@ -91,7 +91,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '8fced21aca63e2e15afe55c2eb63b599f5fd497a'
+__om_amalg_sha1__ = '141e300af3fd52285f3aed2d19f1f492aa4b0091'
 
 
 def __om_amalg__():  # noqa
@@ -100,7 +100,7 @@ def __om_amalg__():  # noqa
             dict(sha1='4f3e1678dab2b1baf6cb3407ed2bd972a5b6bb49', mod='omcore.asyncs.asyncio.utils', path='../../omcore/asyncs/asyncio/utils.py'),  # noqa
             dict(sha1='087c5375697aaf247921786f89e46ed71b8218ee', mod='omcore.docker.ports', path='../../omcore/docker/ports.py'),  # noqa
             dict(sha1='34b51b06f942650ae8528eea69af9202a007065e', mod='omcore.formats.yaml.goyaml.gostd', path='../../omcore/formats/yaml/goyaml/gostd.py'),  # noqa
-            dict(sha1='675eff6e1638e48aebb7aeae422e426c21a612d2', mod='omcore.http.statuses', path='../../omcore/http/statuses.py'),  # noqa
+            dict(sha1='f026d0fe4567b68d31ce774ce8a05eadb5a36e8b', mod='omcore.http.statuses', path='../../omcore/http/statuses.py'),  # noqa
             dict(sha1='fc273565255546f42152ab2dfc264feb8c8b8dc6', mod='omcore.http.urllib', path='../../omcore/http/urllib.py'),  # noqa
             dict(sha1='b903c3bec4fdbe699ff0536c89c0f9c40b6ee890', mod='omcore.http.versions', path='../../omcore/http/versions.py'),  # noqa
             dict(sha1='74626aba05c6869daeede82de3b7fec562abe2a7', mod='omcore.io.pipelines.drivers.types', path='../../omcore/io/pipelines/drivers/types.py'),  # noqa
@@ -127,7 +127,7 @@ def __om_amalg__():  # noqa
             dict(sha1='98c8cad9f65c6b76349bcde830a2e9770108a52a', mod='omcore.logs.std.proxy', path='../../omcore/logs/std/proxy.py'),  # noqa
             dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', mod='omcore.logs.warnings', path='../../omcore/logs/warnings.py'),  # noqa
             dict(sha1='0815ed435c8c7dc8b8bfe82026581abfe1ae610d', mod='omcore.os.files', path='../../omcore/os/files.py'),  # noqa
-            dict(sha1='347d4342a06770e0f76d1a2fa235268b072dcd8e', mod='omcore.os.paths', path='../../omcore/os/paths.py'),  # noqa
+            dict(sha1='79e7f102bf627a74af2694cc3e5493ada622651f', mod='omcore.os.paths', path='../../omcore/os/paths.py'),  # noqa
             dict(sha1='a1927a9b862f5732c8f958020b2162e2599e5071', mod='omcore.secrets.ssl', path='../../omcore/secrets/ssl.py'),  # noqa
             dict(sha1='91e74bab525937f7633193c9aecc54530e54b6d2', mod='omcore.sockets.addresses', path='../../omcore/sockets/addresses.py'),  # noqa
             dict(sha1='6be0d17f88f429ab9c7f477d730b67895c93d97a', mod='omcore.sockets.io', path='../../omcore/sockets/io.py'),  # noqa
@@ -4021,13 +4021,9 @@ def path_dirname(p, n=1):
     return head
 
 
-def abs_real_path(p: str) -> str:
-    return os.path.abspath(os.path.realpath(p))
-
-
 def is_path_in_dir(base_dir: str, target_path: str) -> bool:
-    base_dir = abs_real_path(base_dir)
-    target_path = abs_real_path(target_path)
+    base_dir = os.path.realpath(base_dir)
+    target_path = os.path.realpath(target_path)
 
     return target_path != base_dir and target_path.startswith(base_dir.rstrip(os.path.sep) + os.path.sep)
 

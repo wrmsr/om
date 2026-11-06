@@ -462,8 +462,11 @@ venv-8:
 
 .PHONY: test-8
 test-8: venv-8
-	LITE_PATHS=$$(${PYTHON} -m omdev.magic find --modules -k '@om-lite' ${SRCS}) ; \
-	$$(${PYPROJECT} venv 8 exe) -m omcore.testing.unittest -vb $$LITE_PATHS
+	set -eu ; \
+	MIRROR=$$(mktemp -d) ; trap 'rm -rf "$$MIRROR"' EXIT ; \
+	${PYTHON} -m omdev.lite.mirror --discover --lite-only "$$MIRROR" ${SRCS} ; \
+	PYTHON8=$$(${PYPROJECT} venv 8 real-exe) ; \
+	(cd "$$MIRROR" && "$$PYTHON8" -m omcore.testing.unittest -vb .)
 
 # pyodide
 
@@ -489,9 +492,12 @@ venv-lite:
 
 .PHONY: test-lite
 test-lite:
-	LITE_PATHS=$$(${PYTHON} -m omdev.magic find --modules -k '@om-lite' ${SRCS}) ; \
+	set -eu ; \
+	MIRROR=$$(mktemp -d) ; trap 'rm -rf "$$MIRROR"' EXIT ; \
+	${PYTHON} -m omdev.lite.mirror --discover --lite-only "$$MIRROR" ${SRCS} ; \
 	for V in ${LITE_VENVS} ; do \
-		$$(${PYPROJECT} venv $$V exe) -m omcore.testing.unittest -vb $$LITE_PATHS ; \
+		LITE_PYTHON=$$(${PYPROJECT} venv 8 real-exe) ; \
+		(cd "$$MIRROR" && "$$LITE_PYTHON" -m omcore.testing.unittest -vb .) ; \
 	done
 
 .PHONY: test-lite-fast

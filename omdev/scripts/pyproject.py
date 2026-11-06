@@ -86,7 +86,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'f7eeb17e1ab788bebe1a867ac446404fdc053263'
+__om_amalg_sha1__ = 'cdf142bdf3f8d8667bf4344cb1835edce308b6a4'
 
 
 def __om_amalg__():  # noqa
@@ -170,7 +170,7 @@ def __om_amalg__():  # noqa
             dict(sha1='2890acb8710bfa792dec9e89bf38f8ee4702fb21', mod='omdev.interp.venvs', path='../interp/venvs.py'),
             dict(sha1='e938253bc84400f27e3e0ddab644158441442d3f', mod='omdev.pyproject.configs', path='configs.py'),
             dict(sha1='3c4688c71f5345b199cf29aaa6dd7871b40a8959', mod='omdev.pyproject.venvs', path='venvs.py'),
-            dict(sha1='99342168d1da386cc7943dd3ad972725ba09227a', mod='-', path='cli.py'),
+            dict(sha1='0d8f6d229d9f7495ca60156d5426ef0842b903f6', mod='-', path='cli.py'),
         ],
     )
 
@@ -16289,10 +16289,14 @@ class PyprojectCli(ArgparseCli):
                 *self.args.args,
             )
 
-        elif cmd == 'exe':
+        elif cmd in ('exe', 'real-exe'):
+            # FIXME: omg refactor this stupid cli already
             await venv.create()
             check.arg(not self.args.args)
-            print(venv.exe())
+            exe = venv.exe()
+            if cmd == 'real-exe':
+                exe = os.path.realpath(exe)
+            print(exe)
 
         elif cmd == 'run':
             await venv.create()
