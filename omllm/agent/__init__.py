@@ -422,10 +422,6 @@ with _lang.auto_proxy_init(
         build_unanswered_tool_call_results,
     )
 
-    from .turns.runner import (  # noqa
-        LoopTurnRunner,
-    )
-
     ##
 
     from .types.contexts import (  # noqa

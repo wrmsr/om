@@ -11,12 +11,13 @@ from ... import llm
 from ...core.asyncs.asyncio import AsyncioGroupRunner
 from ..agent import Agent
 from ..backends import DictBackendManager
-from ..turns.runner import LoopTurnRunner
+from ..turns.loop import TurnLoop
 from ..types.errors import AgentBusyError
 from ..types.events import AgentEndEvent
 from ..types.events import StateUpdateEvent
 from ..types.messages import InfoAgentMessage
 from ..types.turns import AgentEndReason
+from ..types.turns import NullaryFactoryTurnRunner
 from .scripted import scripted_backend
 from .scripted import text_message
 
@@ -45,7 +46,8 @@ class _BlockingBackend(llm.ImmediateBackend):
 def _agent(backend):
     return Agent(
         backends=DictBackendManager.of(backend),
-        turn_runner=LoopTurnRunner(
+        turn_runner=NullaryFactoryTurnRunner(
+            TurnLoop,
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
         ),

@@ -26,9 +26,9 @@ from ...types.tools import ToolInvoker
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
+from ...types.turns import NullaryFactoryTurnRunner
 from ...types.turns import TurnParams
 from ..loop import TurnLoop
-from ..runner import LoopTurnRunner
 
 
 ##
@@ -192,7 +192,8 @@ async def test_the_runner_hands_its_invoker_to_every_turn():
     echo = EchoTool()
     invoker = _SurroundingToolInvoker()
 
-    runner = LoopTurnRunner(
+    runner = NullaryFactoryTurnRunner(
+        TurnLoop,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
         tool_invoker=invoker,

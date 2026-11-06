@@ -10,8 +10,9 @@ from ...core.asyncs.asyncio import AsyncioGroupRunner
 from ..agent import Agent
 from ..backends import DictBackendManager
 from ..dummy.weather import GetWeatherTool
-from ..turns.runner import LoopTurnRunner
+from ..turns.loop import TurnLoop
 from ..types.tools import ToolSet
+from ..types.turns import NullaryFactoryTurnRunner
 from .models import ANTHROPIC
 from .models import GOOGLE
 from .models import OPENAI
@@ -32,7 +33,8 @@ async def _test_agent(
 
     agent = Agent(
         backends=DictBackendManager.of(svc),
-        turn_runner=LoopTurnRunner(
+        turn_runner=NullaryFactoryTurnRunner(
+            TurnLoop,
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
         ),
@@ -73,7 +75,8 @@ async def _test_agent_with_tool(harness: Harness, model: ModelForTest) -> None:
 
     agent = Agent(
         backends=DictBackendManager.of(svc),
-        turn_runner=LoopTurnRunner(
+        turn_runner=NullaryFactoryTurnRunner(
+            TurnLoop,
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
         ),

@@ -8,11 +8,12 @@ from ... import llm
 from ...core.asyncs.asyncio import AsyncioGroupRunner
 from ..agent import Agent
 from ..backends import DictBackendManager
-from ..turns.runner import LoopTurnRunner
+from ..turns.loop import TurnLoop
 from ..types.contexts import Context
 from ..types.tools import ToolResult
 from ..types.tools import ToolSet
 from ..types.turns import AgentEndReason
+from ..types.turns import NullaryFactoryTurnRunner
 from .scripted import scripted_backend
 from .scripted import text_message
 from .scripted import tool_call_message
@@ -25,7 +26,8 @@ from .tools import bare_tool
 def _agent(backend):
     return Agent(
         backends=DictBackendManager.of(backend),
-        turn_runner=LoopTurnRunner(
+        turn_runner=NullaryFactoryTurnRunner(
+            TurnLoop,
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
         ),
