@@ -46,6 +46,7 @@ class RunningWeb:
 
     address: WebServerAddress
     token: WebToken
+    url: str
 
     session: agn.Session
     feed: Feed
@@ -109,11 +110,15 @@ async def running_web(
                 ]:
                     await (await submitter.submit(ax)).join()
 
+                address = await injector[WebServerAddress]
+                token = await injector[WebToken]
+
                 yield RunningWeb(
                     injector=injector,
 
-                    address=await injector[WebServerAddress],
-                    token=await injector[WebToken],
+                    address=address,
+                    token=token,
+                    url=address.url if config.no_auth else f'{address.url}?token={token.v}',
 
                     session=session,
                     feed=feed,
@@ -132,7 +137,7 @@ async def serve_web(
         overrides: ta.Sequence[inj.Elemental] = (),
 ) -> None:
     async with running_web(config, overrides=overrides) as rw:
-        log.info('Serving session %s on %s', rw.session.id.v, rw.address.url)
+        log.info('Serving session %s on %s', rw.session.id.v, rw.url)
 
         await rw.quit_signal.wait_announced()
 

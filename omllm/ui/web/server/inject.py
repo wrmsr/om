@@ -53,8 +53,12 @@ def _provide_web_server_address(sock: WebServerSocket) -> WebServerAddress:
     return get_web_server_socket_address(sock)
 
 
-def _provide_web_request_guard(token: WebToken, address: WebServerAddress) -> WebRequestGuard:
-    if not is_loopback_host(address.host):
+def _provide_web_request_guard(
+        token: WebToken,
+        address: WebServerAddress,
+        config: WebConfig,
+) -> WebRequestGuard:
+    if config.no_auth and not is_loopback_host(address.host):
         log.warning(
             'Serving on %s, beyond this machine: anyone who can reach it can load the page, and so drive the agent.',
             address.host,
@@ -62,6 +66,7 @@ def _provide_web_request_guard(token: WebToken, address: WebServerAddress) -> We
 
     return WebRequestGuard(
         token=token,
+        no_auth=config.no_auth,
         allowed_hosts=build_allowed_hosts(address.host, address.port),
     )
 

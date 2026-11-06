@@ -5,6 +5,13 @@ terminal frontends do, and serves it on a local port - `http://127.0.0.1:8077/` 
 tabs open it. It takes the same arguments as the other frontends, plus `--host`, `-p/--port` (`0` for an ephemeral
 one), and `-v/--verbose`.
 
+Open the URL printed at startup: it includes a securely generated, per-process secret (`?token=...`) required to load
+the page. Use that same URL for other tabs and reloads. Restarting the server generates a new secret. Treat the URL as
+a password: anyone who has it can drive the agent. No login, cookies, or browser storage are needed.
+
+`--no-auth` (`WebConfig.no_auth=True`) disables this URL requirement; it is off by default. Only use it when everyone
+who can reach the server is trusted. Host, Origin, and api-header checks remain enabled.
+
 For a look without api keys, `python -m omllm.ui.web.tests.demo` serves a scripted model working through a little
 project in a temporary directory: thinking, streaming markdown, tool calls, permission asks with diffs, and a final
 answer.
@@ -89,14 +96,16 @@ page - can reach. So:
 
 - The Host header must name the server - by an ip address, which dns rebinding cannot produce, or as `localhost` or
   the name it was bound to - and an Origin header, where sent, must be its own.
-- Api requests must carry a per-process token, which only the page the server serves is given.
+- Loading the page requires the secret URL token, unless `--no-auth` is set. Static files contain no secrets and are
+  public. Api requests must carry the token in a custom header, which the authenticated page supplies.
 - Model output is untrusted: raw html in markdown is shown as text, links are kept only to `http`, `https`, and
   `mailto`, and images are shown as links rather than loaded - a loaded image is a request made on the reader's
   behalf, which is a way out for whatever a model was talked into putting in its url. A strict content security
   policy stands behind all of that.
 
-None of this defends against something which can already read the page - another local user, for one, or, bound to
-a non-loopback address, anyone who can reach it. Bind to one only knowing that.
+This is a shared bearer secret, not user accounts or encryption. Anyone who can read the URL or page can drive the
+agent. Plain http does not protect it from network eavesdropping; use a trusted network or an encrypted tunnel when
+binding beyond loopback.
 
 # Serving
 

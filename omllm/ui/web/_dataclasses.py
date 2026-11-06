@@ -29,7 +29,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='dab3dd1fcd4d724428a9d5e00867596836531209',
+    installer_sha1='0a0cf3ff2bbc8de48bcf497832740e3db5fd8008',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -54,6 +54,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
             "lse, False), (('diet_yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
             "False, False), (('host', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
             "se, False), (('port', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
+            " False), (('no_auth', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
             " False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
             " False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
@@ -62,7 +63,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
         ('omllm.ui.web.config', 'WebConfig'),
     ),
 )
-def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
+def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -113,6 +114,8 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
         __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
         __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
         __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
+        __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
+        __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -144,6 +147,7 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
                 diet_yolo=self.diet_yolo,
                 host=self.host,
                 port=self.port,
+                no_auth=self.no_auth,
                 verbose=self.verbose,
             )
 
@@ -176,6 +180,7 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
                 self.diet_yolo == other.diet_yolo and
                 self.host == other.host and
                 self.port == other.port and
+                self.no_auth == other.no_auth and
                 self.verbose == other.verbose
             )
 
@@ -203,6 +208,7 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
             'diet_yolo',
             'host',
             'port',
+            'no_auth',
             'verbose',
         }
 
@@ -249,6 +255,7 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
                 self.diet_yolo,
                 self.host,
                 self.port,
+                self.no_auth,
                 self.verbose,
             ))
 
@@ -278,7 +285,8 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
             diet_yolo: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
             host: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
             port: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
-            verbose: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            no_auth: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            verbose: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'effort', effort)
@@ -301,6 +309,7 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
             __dataclass__object_setattr(self, 'diet_yolo', diet_yolo)
             __dataclass__object_setattr(self, 'host', host)
             __dataclass__object_setattr(self, 'port', port)
+            __dataclass__object_setattr(self, 'no_auth', no_auth)
             __dataclass__object_setattr(self, 'verbose', verbose)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -329,6 +338,7 @@ def _process_dataclass__dab3dd1fcd4d724428a9d5e00867596836531209():
             parts.append(f"diet_yolo={self.diet_yolo!r}")
             parts.append(f"host={self.host!r}")
             parts.append(f"port={self.port!r}")
+            parts.append(f"no_auth={self.no_auth!r}")
             parts.append(f"verbose={self.verbose!r}")
             return (
                 f"{self.__class__.__qualname__}("
@@ -2482,26 +2492,27 @@ def _process_dataclass__3c14e4103e03f358b20851ece2b0fcbf5c4a0c78():
 
 
 @_register(
-    installer_sha1='0ba2d1bfdbdec78141f1571fc5bc487018ead16b',
+    installer_sha1='134d87f940a7f8c7cf99bc3b841f76d6a32ad163',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('injector', True, True, None, True, True, False, None), 'instance', 'missing',"
             " None, False, False, False), (('address', True, True, None, True, True, False, None), 'instance', 'missing"
             "', None, False, False, False), (('token', True, True, None, True, True, False, None), 'instance', 'missing"
-            "', None, False, False, False), (('session', True, True, None, True, True, False, None), 'instance', 'missi"
-            "ng', None, False, False, False), (('feed', True, True, None, True, True, False, None), 'instance', 'missin"
-            "g', None, False, False, False), (('submitter', True, True, None, True, True, False, None), 'instance', 'mi"
-            "ssing', None, False, False, False), (('quit_signal', True, True, None, True, True, False, None), 'instance"
-            "', 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False"
-            ", ()), ((),), (), (False,)))"
+            "', None, False, False, False), (('url', True, True, None, True, True, False, None), 'instance', 'missing',"
+            " None, False, False, False), (('session', True, True, None, True, True, False, None), 'instance', 'missing"
+            "', None, False, False, False), (('feed', True, True, None, True, True, False, None), 'instance', 'missing'"
+            ", None, False, False, False), (('submitter', True, True, None, True, True, False, None), 'instance', 'miss"
+            "ing', None, False, False, False), (('quit_signal', True, True, None, True, True, False, None), 'instance',"
+            " 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, "
+            "()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.web.main', 'RunningWeb'),
     ),
 )
-def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
+def _process_dataclass__134d87f940a7f8c7cf99bc3b841f76d6a32ad163():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2515,6 +2526,7 @@ def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
         __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
         __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -2528,6 +2540,7 @@ def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
                 injector=self.injector,
                 address=self.address,
                 token=self.token,
+                url=self.url,
                 session=self.session,
                 feed=self.feed,
                 submitter=self.submitter,
@@ -2545,6 +2558,7 @@ def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
                 self.injector == other.injector and
                 self.address == other.address and
                 self.token == other.token and
+                self.url == other.url and
                 self.session == other.session and
                 self.feed == other.feed and
                 self.submitter == other.submitter and
@@ -2557,6 +2571,7 @@ def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
             'injector',
             'address',
             'token',
+            'url',
             'session',
             'feed',
             'submitter',
@@ -2588,6 +2603,7 @@ def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
                 self.injector,
                 self.address,
                 self.token,
+                self.url,
                 self.session,
                 self.feed,
                 self.submitter,
@@ -2602,14 +2618,16 @@ def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
             injector: __dataclass__init__fields__0__annotation,
             address: __dataclass__init__fields__1__annotation,
             token: __dataclass__init__fields__2__annotation,
-            session: __dataclass__init__fields__3__annotation,
-            feed: __dataclass__init__fields__4__annotation,
-            submitter: __dataclass__init__fields__5__annotation,
-            quit_signal: __dataclass__init__fields__6__annotation,
+            url: __dataclass__init__fields__3__annotation,
+            session: __dataclass__init__fields__4__annotation,
+            feed: __dataclass__init__fields__5__annotation,
+            submitter: __dataclass__init__fields__6__annotation,
+            quit_signal: __dataclass__init__fields__7__annotation,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'injector', injector)
             __dataclass__object_setattr(self, 'address', address)
             __dataclass__object_setattr(self, 'token', token)
+            __dataclass__object_setattr(self, 'url', url)
             __dataclass__object_setattr(self, 'session', session)
             __dataclass__object_setattr(self, 'feed', feed)
             __dataclass__object_setattr(self, 'submitter', submitter)
@@ -2623,6 +2641,7 @@ def _process_dataclass__0ba2d1bfdbdec78141f1571fc5bc487018ead16b():
             parts.append(f"injector={self.injector!r}")
             parts.append(f"address={self.address!r}")
             parts.append(f"token={self.token!r}")
+            parts.append(f"url={self.url!r}")
             parts.append(f"session={self.session!r}")
             parts.append(f"feed={self.feed!r}")
             parts.append(f"submitter={self.submitter!r}")

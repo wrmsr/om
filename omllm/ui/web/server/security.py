@@ -1,21 +1,17 @@
 """
-What keeps everything but the page's own scripts away from the api. This is the frontend to an agent which may run
-commands, served on a port any local process can reach - and through which any web page open in a local browser can
-try to reach it too.
+The page requires a per-process secret in its URL, unless authentication is explicitly disabled. Static assets contain
+no secrets and are public; the page embeds the token for subsequent api requests. No cookies or browser storage are
+needed, and reloading the same URL works.
 
-  - The Host header must name this server - by an address, or by a name it knows to be its own - so that a page
-    elsewhere cannot reach it by rebinding a name of its own to the server's address.
-  - An Origin header, where a browser sends one, must be this server's.
-  - An api request must carry the token which the page this server serves is given - which a page served from anywhere
-    else cannot read, and which, being a custom header, a page cannot make a cross-origin request carry without the
-    preflight the server never approves.
-
-None of this defends against something which can already read the page: any local user, for one.
+Host and Origin checks prevent dns rebinding and cross-origin browser access. Api requests must carry the token in a
+custom header, including when URL authentication is disabled, so cross-origin requests still need a preflight which
+the server never approves.
 """
 import hmac
 import ipaddress
 import secrets
 import typing as ta
+import urllib.parse
 
 from omcore import check
 from omcore import dataclasses as dc
@@ -125,11 +121,13 @@ class WebRequestGuard:
             *,
             token: WebToken,
             allowed_hosts: AllowedHosts,
+            no_auth: bool = False,
     ) -> None:
         super().__init__()
 
         self._token = token
         self._allowed_hosts = allowed_hosts
+        self._no_auth = no_auth
 
     @staticmethod
     def _header(scope: asgi.Scope, name: bytes) -> bytes | None:
@@ -152,4 +150,12 @@ class WebRequestGuard:
         if api:
             token = self._header(scope, TOKEN_HEADER) or b''
             if not hmac.compare_digest(token, self._token.v.encode('ascii')):
+                raise WebRequestRejectedError('token')
+
+        elif not self._no_auth and not scope['path'].startswith('/static/'):
+            tokens = urllib.parse.parse_qs(
+                scope['query_string'].decode('latin-1'),
+                keep_blank_values=True,
+            ).get('token', [])
+            if len(tokens) != 1 or not hmac.compare_digest(tokens[0].encode('utf-8'), self._token.v.encode('ascii')):
                 raise WebRequestRejectedError('token')

@@ -23,6 +23,8 @@ class WebConfig(UiConfig):
     # Zero binds an ephemeral port, which is then logged.
     port: int | None = None
 
+    no_auth: bool = False
+
     verbose: bool | None = None
 
     ##
@@ -33,6 +35,8 @@ class WebConfig(UiConfig):
 
         parser.add_argument('--host')
         parser.add_argument('-p', '--port', type=int)
+
+        parser.add_argument('--no-auth', action='store_true', help='Allow access without a secret URL token')
 
         parser.add_argument('-v', '--verbose', action='store_true')
 
@@ -45,6 +49,8 @@ class WebConfig(UiConfig):
 
             host=args.host,
             port=args.port,
+
+            no_auth=args.no_auth,
 
             verbose=args.verbose,
         )

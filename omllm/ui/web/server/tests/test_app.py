@@ -24,7 +24,7 @@ def _read_file(path: str) -> str:
 @pytest.mark.asyncs('asyncio')
 async def test_page_and_static():
     async with web_test_session(scripted_backend(text_message('hi'))) as ws:
-        resp = await ws.client.request('GET', '/')
+        resp = await ws.client.request('GET', f'/?token={ws.web.token.v}')
         assert resp.status == 200
         assert resp.headers['content-type'].startswith('text/html')
         assert ws.web.token.v.encode() in resp.body
@@ -63,6 +63,51 @@ async def test_guard():
         info = resp.json()
         assert info['busy'] is False
         assert {'echo', 'quit', 'steer'} <= {c['name'] for c in info['commands']}
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_url_authentication():
+    async with web_test_session(scripted_backend()) as ws:
+        client = ws.client.without_token()
+        assert ws.web.url == f'{ws.web.address.url}?token={ws.web.token.v}'
+        for path in [
+            '/',
+            '/?token=',
+            '/?token=wrong',
+            '/?token=%FF',
+            f'/?token=wrong&token={ws.web.token.v}',
+            f'/?token=&token={ws.web.token.v}',
+        ]:
+            resp = await client.request('GET', path)
+            assert resp.status == 403
+            assert ws.web.token.v.encode() not in resp.body
+
+        # Knowing the api header is not a substitute for opening the secret URL.
+        assert (await ws.client.request('GET', '/')).status == 403
+        resp = await client.request('GET', f'/?token={ws.web.token.v}')
+        assert resp.status == 200
+        assert ws.web.token.v.encode() in resp.body
+        assert resp.headers['referrer-policy'] == 'no-referrer'
+
+        # The URL token does not replace the api's cross-origin protection.
+        assert (await client.request('GET', f'/api/info?token={ws.web.token.v}')).status == 403
+        assert (await client.request('GET', '/static/app.mjs')).status == 200
+
+    async with web_test_session(scripted_backend()) as other:
+        assert other.web.token != ws.web.token
+        assert (await other.client.request('GET', f'/?token={ws.web.token.v}')).status == 403
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_no_auth():
+    async with web_test_session(scripted_backend(), no_auth=True) as ws:
+        assert ws.web.url == ws.web.address.url
+        resp = await ws.client.without_token().request('GET', '/')
+        assert resp.status == 200
+        assert ws.web.token.v.encode() in resp.body
+        assert (await ws.client.without_token().request('GET', '/api/info')).status == 403
+        assert (await ws.client.request('GET', '/api/info')).status == 200
+        assert (await ws.client.request('GET', '/', headers={'origin': 'http://evil.example'})).status == 403
 
 
 @pytest.mark.asyncs('asyncio')

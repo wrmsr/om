@@ -57,7 +57,7 @@ async def test_browser():
         ) as rw:
             def drive() -> tuple[dict, dict]:
                 with headless_firefox() as m:
-                    m.navigate(rw.address.url)
+                    m.navigate(rw.url)
                     m.wait_js("return document.querySelectorAll('#transcript .item').length > 0")
 
                     m.send_keys('.composer-input', 'Please tidy up the greeting.' + ENTER_KEY)
@@ -72,7 +72,7 @@ async def test_browser():
                     live = m.js(_SUMMARY_JS)
 
                     # A reload replays the feed into the same transcript.
-                    m.navigate(rw.address.url)
+                    m.navigate(rw.url)
                     m.wait_js('return document.querySelectorAll(".ai table").length === 1')
                     replayed = m.js(_SUMMARY_JS)
 
@@ -112,7 +112,7 @@ async def test_browser_interruptions():
                 out: dict = {}
 
                 with headless_firefox() as m:
-                    m.navigate(rw.address.url)
+                    m.navigate(rw.url)
                     m.wait_js("return document.querySelectorAll('#transcript .item').length > 0")
 
                     # A second prompt while the first runs is turned away, and the composer keeps it.
@@ -134,7 +134,7 @@ async def test_browser_interruptions():
                     m.js("document.querySelector('.composer-input').value = ''")
                     m.send_keys('.composer-input', 'Third.' + ENTER_KEY)
                     m.wait_js("return document.querySelectorAll('.run').length === 2")
-                    m.navigate(rw.address.url)
+                    m.navigate(rw.url)
                     m.wait_js("return document.querySelector('.ask.is-pending') !== null", timeout_s=20.)
                     out['reloaded'] = m.js("return document.getElementById('status').dataset.state")
                     m.click('.ask.is-pending .ask-deny')

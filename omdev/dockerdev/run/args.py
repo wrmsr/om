@@ -43,8 +43,10 @@ class RunArgs:
 
     #
 
+    # TODO: mark possibly-unsafe-output
     mount_docker_sock: bool | None = None
 
+    # TODO: mark possibly-unsafe-input
     mount_cache: bool | None = None
 
     mount_persist: bool | None = None
@@ -52,8 +54,10 @@ class RunArgs:
     mount_git: bool | None = None
     clone_mount_git: bool | ta.Literal['persist'] | None = None
 
+    # TODO: mark possibly-unsafe-output
     privileged: bool | None = None
 
+    # TODO: mark possibly-unsafe-output
     cuda: bool | None = None
 
     offline: bool | None = None
@@ -62,6 +66,7 @@ class RunArgs:
 
     autoexecs: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq_of(check.of_isinstance(str)))
 
+    # TODO: mark possibly-unsafe-output
     x11: bool | None = None
 
     id: uuid.UUID | None = None
