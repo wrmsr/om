@@ -17,11 +17,12 @@ from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
 from ...tests.tools import EchoTool
 from ...tests.tools import bare_tool
-from ...turns.runner import LoopTurnRunner
+from ...turns.loop import TurnLoop
 from ...types.contexts import Context
 from ...types.lifecycle import ContextProjection
 from ...types.messages import InfoAgentMessage
 from ...types.tools import ToolSet
+from ...types.turns import NullaryFactoryTurnRunner
 from ..entries import ContextProjectionSessionEntry
 from ..entries import MessageSessionEntry
 from ..session import Session
@@ -78,7 +79,8 @@ class _BlockingExecutor:
 def _agent(backend, context_lifecycle_manager=None):
     return Agent(
         backends=DictBackendManager.of(backend),
-        turn_runner=LoopTurnRunner(
+        turn_runner=NullaryFactoryTurnRunner(
+            TurnLoop,
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             context_lifecycle_manager=context_lifecycle_manager,

@@ -18,7 +18,7 @@ from ...permissions.types import PermissionDecider
 from ...permissions.types import PermissionState
 from ...tests.scripted import scripted_backend
 from ...tests.tools import bare_tool
-from ...turns.runner import LoopTurnRunner
+from ...turns.loop import TurnLoop
 from ...types.contexts import Context
 from ...types.events import Event
 from ...types.events import StateUpdateEvent
@@ -28,6 +28,8 @@ from ...types.tools import Tool
 from ...types.tools import ToolEnvironment
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet
+from ...types.turns import NullaryFactoryTurnRunner
+from ...types.turns import TurnRunner
 from ..profiles import GENERAL_SUBAGENT_PROFILE
 from ..profiles import SubagentProfiles
 from ..progress import SubagentEventToolProgressUpdate
@@ -38,8 +40,9 @@ from ..tools.subagent import SubagentTool
 ##
 
 
-def _turn_loop_runner() -> LoopTurnRunner:
-    return LoopTurnRunner(
+def _turn_loop_runner() -> TurnRunner:
+    return NullaryFactoryTurnRunner(
+        TurnLoop,
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
     )

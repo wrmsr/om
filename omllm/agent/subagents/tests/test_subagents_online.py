@@ -18,13 +18,14 @@ from ...tests.models import GOOGLE
 from ...tests.models import OPENAI
 from ...tests.models import ModelForTest
 from ...tests.tools import EchoTool
-from ...turns.runner import LoopTurnRunner
+from ...turns.loop import TurnLoop
 from ...types.contexts import Context
 from ...types.events import ToolExecutionEndEvent
 from ...types.events import ToolExecutionStartEvent
 from ...types.tools import ToolSet
 from ...types.turns import AgentEndReason
 from ...types.turns import LlmRetryConfig
+from ...types.turns import NullaryFactoryTurnRunner
 from ...types.turns import TurnConfig
 from ..profiles import GENERAL_SUBAGENT_PROFILE
 from ..profiles import SubagentProfiles
@@ -55,7 +56,8 @@ async def _test_subagent(harness: Harness, model: ModelForTest) -> None:
     )
 
     def turn_runner():
-        return LoopTurnRunner(
+        return NullaryFactoryTurnRunner(
+            TurnLoop,
             cancellation=asl.asyncio.Cancellation(),
             group_runner=AsyncioGroupRunner(),
             sleeps=asl.asyncio.Sleeps(),

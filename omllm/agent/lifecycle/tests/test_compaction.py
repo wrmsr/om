@@ -15,12 +15,12 @@ from ...lifecycle.compactors import ContextCompactor
 from ...tests.scripted import scripted_backend
 from ...tests.scripted import text_message
 from ...turns.loop import TurnLoop
-from ...types.turns import NullaryFactoryTurnRunner
 from ...types.contexts import Context
 from ...types.errors import AgentBusyError
 from ...types.errors import NoContextCompactorError
 from ...types.events import StateUpdateEvent
 from ...types.lifecycle import ContextProjection
+from ...types.turns import NullaryFactoryTurnRunner
 from ..compaction import ContextCompactionRunner
 from ..managers import StandardContextLifecycleManager
 from ..summarizing import SummarizingContextCompactor
