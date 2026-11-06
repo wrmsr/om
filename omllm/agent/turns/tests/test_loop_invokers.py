@@ -197,18 +197,18 @@ async def test_the_runner_hands_its_invoker_to_every_turn():
         group_runner=AsyncioGroupRunner(),
         tool_invoker=invoker,
     )
-
+    backend = scripted_backend(
+        tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'a'})),
+        text_message('one'),
+        tool_call_message(llm.ToolCall('t2', 'echo', {'text': 'b'})),
+        text_message('two'),
+    )
     state = State(context=Context(tools=ToolSet([echo.tool()])))
     for text in ['first', 'second']:
         result = await runner.run_turn(TurnParams(
             state=state,
             new_messages=[llm.UserMessage(text)],
-            llm_backend=scripted_backend(
-                tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'a'})),
-                text_message('one'),
-                tool_call_message(llm.ToolCall('t2', 'echo', {'text': 'b'})),
-                text_message('two'),
-            ),
+            llm_backend=backend,
         ))
         assert result.reason is AgentEndReason.COMPLETED
         state = State(context=result.context)
