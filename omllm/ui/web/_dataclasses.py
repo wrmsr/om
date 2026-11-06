@@ -29,7 +29,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='0a0cf3ff2bbc8de48bcf497832740e3db5fd8008',
+    installer_sha1='94f8bd19e1cbc2375778a81a151faf346aefdc08',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -46,24 +46,27 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
             " False, False, False), (('fs', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
             "e, False, False), (('web', True, True, None, True, True, False, None), 'instance', 'value', None, False, F"
             "alse, False), (('subagents', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
-            "e, False, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('resume', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
-            "False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
-            "lse, False), (('diet_yolo', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
-            "False, False), (('host', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
-            "se, False), (('port', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
-            " False), (('no_auth', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
-            " False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
-            " False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            " False, False), (('system_prompt', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('extra_system_prompt', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('in_memory', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('jsonl', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('resume', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('autoexec', True, True, None, True, True, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('diet_yolo', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('host', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False), (('port', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('no_auth', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ("
+            "), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.web.config', 'WebConfig'),
     ),
 )
-def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
+def _process_dataclass__94f8bd19e1cbc2375778a81a151faf346aefdc08():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -116,6 +119,10 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
         __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
         __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
         __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
+        __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
+        __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
+        __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -139,6 +146,8 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
                 fs=self.fs,
                 web=self.web,
                 subagents=self.subagents,
+                system_prompt=self.system_prompt,
+                extra_system_prompt=self.extra_system_prompt,
                 in_memory=self.in_memory,
                 jsonl=self.jsonl,
                 resume=self.resume,
@@ -172,6 +181,8 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
                 self.fs == other.fs and
                 self.web == other.web and
                 self.subagents == other.subagents and
+                self.system_prompt == other.system_prompt and
+                self.extra_system_prompt == other.extra_system_prompt and
                 self.in_memory == other.in_memory and
                 self.jsonl == other.jsonl and
                 self.resume == other.resume and
@@ -200,6 +211,8 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
             'fs',
             'web',
             'subagents',
+            'system_prompt',
+            'extra_system_prompt',
             'in_memory',
             'jsonl',
             'resume',
@@ -247,6 +260,8 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
                 self.fs,
                 self.web,
                 self.subagents,
+                self.system_prompt,
+                self.extra_system_prompt,
                 self.in_memory,
                 self.jsonl,
                 self.resume,
@@ -277,16 +292,18 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
             fs: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
             web: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
             subagents: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            in_memory: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            jsonl: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
-            resume: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
-            autoexec: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
-            yolo: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
-            diet_yolo: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
-            host: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
-            port: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
-            no_auth: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
-            verbose: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
+            system_prompt: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            extra_system_prompt: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            in_memory: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            jsonl: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            resume: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            autoexec: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            yolo: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            diet_yolo: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            host: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            port: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
+            no_auth: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            verbose: __dataclass__init__fields__24__annotation = __dataclass__init__fields__24__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'model', model)
             __dataclass__object_setattr(self, 'effort', effort)
@@ -301,6 +318,8 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
             __dataclass__object_setattr(self, 'fs', fs)
             __dataclass__object_setattr(self, 'web', web)
             __dataclass__object_setattr(self, 'subagents', subagents)
+            __dataclass__object_setattr(self, 'system_prompt', system_prompt)
+            __dataclass__object_setattr(self, 'extra_system_prompt', extra_system_prompt)
             __dataclass__object_setattr(self, 'in_memory', in_memory)
             __dataclass__object_setattr(self, 'jsonl', jsonl)
             __dataclass__object_setattr(self, 'resume', resume)
@@ -330,6 +349,8 @@ def _process_dataclass__0a0cf3ff2bbc8de48bcf497832740e3db5fd8008():
             parts.append(f"fs={self.fs!r}")
             parts.append(f"web={self.web!r}")
             parts.append(f"subagents={self.subagents!r}")
+            parts.append(f"system_prompt={self.system_prompt!r}")
+            parts.append(f"extra_system_prompt={self.extra_system_prompt!r}")
             parts.append(f"in_memory={self.in_memory!r}")
             parts.append(f"jsonl={self.jsonl!r}")
             parts.append(f"resume={self.resume!r}")

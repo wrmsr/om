@@ -21,9 +21,9 @@ from .... import agent as agn
 from ....core import processes as procs
 from ..config import AgentConfig
 from ..setup import AgentSetup
+from ..systemprompt import CwdSystemPromptContributor
 from .events import AgentEventSubscribers
 from .events import agent_event_subscribers
-from .systemprompt import CwdSystemPromptContributor
 from .systemprompt import system_prompt_contributors_binder
 from .toolinvocation import ScopedToolInvoker
 from .tools import AgentTools

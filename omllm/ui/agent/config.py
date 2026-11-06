@@ -27,6 +27,12 @@ class AgentConfig(ConfigBase):
 
     subagents: bool | None = None
 
+    # None uses the default; any string, an empty one included, is used in its place.
+    system_prompt: str | None = None
+
+    # Added after the mission part, ahead of anything about the environment.
+    extra_system_prompt: str | None = None
+
     in_memory: bool | None = None
     jsonl: bool | None = None
     resume: uuid.UUID | None = None
@@ -46,6 +52,9 @@ class AgentConfig(ConfigBase):
         parser.add_argument('--web', action='store_true')
 
         parser.add_argument('--subagents', action='store_true')
+
+        parser.add_argument('--system-prompt', metavar='TEXT')
+        parser.add_argument('--extra-system-prompt', metavar='TEXT')
 
         parser.add_argument('--in-memory', action='store_true')
         parser.add_argument('--jsonl', action='store_true')
@@ -67,6 +76,9 @@ class AgentConfig(ConfigBase):
             web=args.web,
 
             subagents=args.subagents,
+
+            system_prompt=args.system_prompt,
+            extra_system_prompt=args.extra_system_prompt,
 
             in_memory=args.in_memory,
             jsonl=args.jsonl,
