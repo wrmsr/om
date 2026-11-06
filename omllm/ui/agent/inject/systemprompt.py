@@ -21,17 +21,6 @@ def system_prompt_contributors_binder() -> inj.ItemsBinderHelper[agn.SystemPromp
 ##
 
 
-def _provide_standard_system_prompt_contributor(config: AgentConfig) -> StandardSystemPromptContributor:
-    return StandardSystemPromptContributor(text=config.system_prompt)
-
-
-def _provide_extra_system_prompt_contributor(config: AgentConfig) -> ExtraSystemPromptContributor:
-    return ExtraSystemPromptContributor(text=config.extra_system_prompt)
-
-
-##
-
-
 def _bind_system_prompt_contributor_singleton(cls: ta.Any, **kwargs: ta.Any) -> inj.Elemental:
     return inj.as_elements(
         inj.bind(cls, singleton=True, **kwargs),
@@ -45,12 +34,12 @@ def bind_system_prompt(config: AgentConfig) -> inj.Elements:
     lst.extend([
         _bind_system_prompt_contributor_singleton(
             StandardSystemPromptContributor,
-            to_fn=_provide_standard_system_prompt_contributor,
+            to_const=StandardSystemPromptContributor(text=config.system_prompt),
         ),
 
         _bind_system_prompt_contributor_singleton(
             ExtraSystemPromptContributor,
-            to_fn=_provide_extra_system_prompt_contributor,
+            to_const=ExtraSystemPromptContributor(text=config.extra_system_prompt),
         ),
 
         _bind_system_prompt_contributor_singleton(CwdSystemPromptContributor),

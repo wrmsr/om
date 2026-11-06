@@ -45,3 +45,6 @@ show_error_codes = true
 show_error_context = true
 show_traceback = true
 check_untyped_defs = true
+exclude = [
+    '^x/mini_agent_eval/tasks/',
+]

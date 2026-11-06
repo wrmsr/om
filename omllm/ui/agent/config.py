@@ -27,10 +27,7 @@ class AgentConfig(ConfigBase):
 
     subagents: bool | None = None
 
-    # None uses the default; any string, an empty one included, is used in its place.
     system_prompt: str | None = None
-
-    # Added after the mission part, ahead of anything about the environment.
     extra_system_prompt: str | None = None
 
     in_memory: bool | None = None

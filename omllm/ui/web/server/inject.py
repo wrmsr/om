@@ -34,6 +34,7 @@ log = logs.get_module_logger(globals())
 WebServerSocket = ta.NewType('WebServerSocket', socket.socket)
 
 
+# FIXME: yeeesh don't do io at injection lol
 def _provide_web_server_socket(config: WebConfig) -> WebServerSocket:
     return WebServerSocket(bind_web_server_socket(
         config.host if config.host is not None else DEFAULT_WEB_HOST,
