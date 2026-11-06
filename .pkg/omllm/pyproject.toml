@@ -107,3 +107,11 @@ exclude = [
     '_cache/*.json',
     '_cache/*.json.*',
 ]
+'omllm.ui.web' = [
+    'resources/*',
+    'resources/core/*',
+    'resources/ui/*',
+    'resources/ui/items/*',
+    'resources/vendor/*',
+    'resources/vendor/packages/marked/*',
+]

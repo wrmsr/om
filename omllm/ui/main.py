@@ -12,7 +12,9 @@ def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         add_help=False,
         allow_abbrev=False,
     )
-    parser.add_argument('--bare', action='store_true')
+    frontends = parser.add_mutually_exclusive_group()
+    frontends.add_argument('--bare', action='store_true')
+    frontends.add_argument('--web', action='store_true')
 
     ns, args = parser.parse_known_args(argv)
 
@@ -22,6 +24,8 @@ def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
     if ns.bare:
         from .tui.bare import main
+    elif ns.web:
+        from .web import main
     else:
         from .tui.minitui import main
 

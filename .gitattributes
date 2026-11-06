@@ -88,6 +88,7 @@ omllm/ui/commands/_dataclasses.py linguist-generated
 omllm/ui/tui/_dataclasses.py linguist-generated
 omllm/ui/tui/bare/_dataclasses.py linguist-generated
 omllm/ui/tui/minitui/_dataclasses.py linguist-generated
+omllm/ui/web/_dataclasses.py linguist-generated
 omxtra/blobs/_dataclasses.py linguist-generated
 omxtra/blobs/remote/_amalg.py linguist-generated
 omxtra/messagebus/_dataclasses.py linguist-generated
