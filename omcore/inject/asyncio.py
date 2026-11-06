@@ -3,6 +3,7 @@ import typing as ta
 
 from .. import lang
 from ..asyncs.asynclite import all as asl
+from .elements import Elemental
 from .impl.concurrency import Concurrency
 from .impl.concurrency import ConcurrencyIdentity
 from .injector import AsyncInjector
@@ -10,8 +11,10 @@ from .injector import _InjectorCreator
 
 
 if ta.TYPE_CHECKING:
+    from .helpers import managed as _managed
     from .impl import injector as _injector
 else:
+    _managed = lang.proxy_import('.helpers.managed', __package__)
     _injector = lang.proxy_import('.impl.injector', __package__)
 
 
@@ -37,3 +40,15 @@ create_asyncio_injector = _InjectorCreator[AsyncInjector, ta.Awaitable[AsyncInje
     lambda ce, p=None, *, concurrency=None: _injector.create_async_injector(ce, p, concurrency=concurrency),
     lambda: _AsyncioConcurrency(),
 )
+
+
+##
+
+
+def create_asyncio_managed_injector(
+        *args: Elemental,
+) -> ta.AsyncContextManager[_injector.AsyncInjector]:
+    return _managed.create_async_managed_injector(
+        *args,
+        factory=create_asyncio_injector,
+    )

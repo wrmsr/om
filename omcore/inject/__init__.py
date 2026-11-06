@@ -67,6 +67,8 @@ with _lang.auto_proxy_init(
 
     from .asyncio import (  # noqa
         create_asyncio_injector,
+
+        create_asyncio_managed_injector,
     )
 
     from .binder import (  # noqa
