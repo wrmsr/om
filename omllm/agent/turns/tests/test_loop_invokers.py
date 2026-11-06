@@ -16,12 +16,12 @@ from ...tests.scripted import text_message
 from ...tests.scripted import tool_call_message
 from ...tests.tools import EchoTool
 from ...tests.tools import bare_tool
-from ...tools.invokers import DirectToolInvoker
 from ...types.contexts import Context
 from ...types.errors import UnknownToolError
 from ...types.events import ToolExecutionEndEvent
 from ...types.events import ToolExecutionStartEvent
 from ...types.states import State
+from ...types.tools import DirectToolInvoker
 from ...types.tools import ToolInvoker
 from ...types.tools import ToolResult
 from ...types.tools import ToolSet

@@ -396,10 +396,6 @@ with _lang.auto_proxy_init(
         ToolClass,
     )
 
-    from .tools.invokers import (  # noqa
-        DirectToolInvoker,
-    )
-
     from .tools.progress import (  # noqa
         NopToolProgressSink,
     )
@@ -526,6 +522,7 @@ with _lang.auto_proxy_init(
         ToolSet,
 
         ToolInvoker,
+        DirectToolInvoker,
     )
 
     from .types.turns import (  # noqa

@@ -160,3 +160,10 @@ class ToolInvoker(lang.Abstract):
         """
 
         raise NotImplementedError
+
+
+class DirectToolInvoker(ToolInvoker):
+    """Invokes the tool's executor directly, with nothing around it: what the loop does unless told otherwise."""
+
+    async def invoke_tool(self, tool: Tool, ctx: ToolContext) -> ToolResult:
+        return await tool.executor(ctx)

@@ -16,7 +16,6 @@ from ..lifecycle.managers import ContextLifecycleResult
 from ..lifecycle.managers import StandardContextLifecycleManager
 from ..projection.builders import StandardLlmContextBuilder
 from ..projection.types import LlmContextBuilder
-from ..tools.invokers import DirectToolInvoker
 from ..types.errors import ErrorStopReasonError
 from ..types.errors import UnknownToolError
 from ..types.events import AgentEndEvent
@@ -39,6 +38,7 @@ from ..types.messages import InfoAgentMessage
 from ..types.messages import Message
 from ..types.progress import ToolProgressSink
 from ..types.progress import ToolProgressUpdate
+from ..types.tools import DirectToolInvoker
 from ..types.tools import Tool
 from ..types.tools import ToolContext
 from ..types.tools import ToolInvoker
