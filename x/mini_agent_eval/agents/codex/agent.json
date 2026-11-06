@@ -1,0 +1,25 @@
+{
+  "name": "codex",
+  "kind": "container",
+  "dockerfile": "Dockerfile",
+  "command": [
+    "codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "-"
+  ],
+  "stdin": "prompt",
+  "env": [
+    "CODEX_API_KEY"
+  ],
+  "user": "agent",
+  "version_command": [
+    "codex",
+    "--version"
+  ],
+  "required_env": [
+    "CODEX_API_KEY"
+  ]
+}

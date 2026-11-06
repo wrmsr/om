@@ -310,6 +310,9 @@ ignore = [
 'omcore/testing/*' = [
     'S101',  # assert
 ]
+'x/mini_agent_eval/tasks/*' = [
+    'INP001',
+]
 
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
@@ -380,6 +383,10 @@ show_traceback = true
 # verbosity = 1
 
 check_untyped_defs = true
+
+exclude = [
+    "^x/mini_agent_eval/tasks/",
+]
 
 [[tool.mypy.overrides]]
 module = [

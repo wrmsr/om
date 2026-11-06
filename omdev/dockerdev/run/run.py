@@ -154,6 +154,7 @@ def run_image(
     ]
 
     if not args.detach:
+        # FIXME: lol cannot be in headless codepath, at all
         os.execle(
             docker,
             *exec_args,

@@ -1,0 +1,29 @@
+{
+  "name": "claude",
+  "kind": "container",
+  "dockerfile": "Dockerfile",
+  "command": [
+    "claude",
+    "--print",
+    "--verbose",
+    "--output-format",
+    "stream-json",
+    "--dangerously-skip-permissions"
+  ],
+  "stdin": "prompt",
+  "env": [
+    "ANTHROPIC_API_KEY"
+  ],
+  "user": "agent",
+  "version_command": [
+    "claude",
+    "--version"
+  ],
+  "required_env": [
+    "ANTHROPIC_API_KEY"
+  ],
+  "environment": {
+    "DISABLE_AUTOUPDATER": "1",
+    "DISABLE_UPDATES": "1"
+  }
+}
