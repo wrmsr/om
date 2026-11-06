@@ -38,11 +38,10 @@ from ..tools.subagent import SubagentTool
 ##
 
 
-def turn_loop_runner(*turns: ta.Any) -> LoopTurnRunner:
+def _turn_loop_runner() -> LoopTurnRunner:
     return LoopTurnRunner(
         cancellation=asl.asyncio.Cancellation(),
         group_runner=AsyncioGroupRunner(),
-        backends=DictBackendManager.of(scripted_backend(*turns)),
     )
 
 
@@ -52,10 +51,33 @@ def child_runner(
         **kwargs: ta.Any,
 ) -> AgentSubagentRunner:
     return AgentSubagentRunner(
-        turn_runner=turn_loop_runner(*turns),
+        backends=DictBackendManager.of(scripted_backend(*turns)),
+        turn_runner=_turn_loop_runner(),
         tools=ToolSet(list(tools)),
         **kwargs,
     )
+
+
+async def parent_agent(
+        *turns: ta.Any,
+        tools: ta.Sequence[Tool],
+        env: ToolEnvironment | None = None,
+) -> Agent:
+    agent = Agent(
+        backends=DictBackendManager.of(scripted_backend(*turns)),
+        turn_runner=_turn_loop_runner(),
+    )
+
+    await agent.update_state(lambda s: dc.replace(
+        s,
+        context=Context(tools=ToolSet(list(tools))),
+        tool_env=env,
+    ))
+
+    return agent
+
+
+#
 
 
 def subagent_tool(
@@ -69,24 +91,6 @@ def subagent_tool(
         runner=runner,
         profiles=profiles if profiles is not None else SubagentProfiles([GENERAL_SUBAGENT_PROFILE]),
     )
-
-
-async def parent_agent(
-        *turns: ta.Any,
-        tools: ta.Sequence[Tool],
-        env: ToolEnvironment | None = None,
-) -> Agent:
-    agent = Agent(
-        turn_runner=turn_loop_runner(*turns),
-    )
-
-    await agent.update_state(lambda s: dc.replace(
-        s,
-        context=Context(tools=ToolSet(list(tools))),
-        tool_env=env,
-    ))
-
-    return agent
 
 
 ##
