@@ -127,8 +127,8 @@ snowflake-connector-python==5.2.0
 
 trino==0.340.0  # @om-venv !14t !14dt !15t  # orjson
 
-huggingface-hub==1.32.0
-hf-xet==1.6.0
+huggingface-hub==2.4.0
+hf-xet==1.8.0
 
 greenlet==3.5.6
 

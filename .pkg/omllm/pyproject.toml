@@ -32,7 +32,7 @@ omdev = [
     'omdev == 0.0.71',
 ]
 interop = [
-    'huggingface-hub ~= 1.32',
+    'huggingface-hub ~= 2.4',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.32; sys_platform == "darwin"',
@@ -48,7 +48,7 @@ search = [
 ]
 all = [
     'omdev == 0.0.71',
-    'huggingface-hub ~= 1.32',
+    'huggingface-hub ~= 2.4',
     'llama-cpp-python ~= 0.3',
     'mlx ~= 0.32; sys_platform == "darwin"',
     'mlx-lm ~= 0.32; sys_platform == "darwin"',

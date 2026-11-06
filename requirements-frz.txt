@@ -71,13 +71,15 @@ grpcio-status==1.85.1
 guppy3==3.1.7
 h11==0.16.0
 h2==4.4.1
-hf-xet==1.6.0
+hf-xet==1.8.0
 hpack==4.2.0
 httpcore==1.0.9
+httpcore2==2.16.0
 httplib2==0.32.1
 httptools==0.9.0
 httpx==0.28.1
-huggingface_hub==1.32.0
+httpx2==2.16.0
+huggingface_hub==2.4.0
 hyperframe==6.1.0
 id==1.6.1
 idna==3.20
@@ -257,6 +259,7 @@ tree-sitter-xml==0.7.0
 tree-sitter-yaml==0.7.2
 trino==0.340.0
 trio==0.35.0
+truststore==0.10.5
 twine==7.0.0
 typer==0.28.0
 types-awscrt==0.37.0
