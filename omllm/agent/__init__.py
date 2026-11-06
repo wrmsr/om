@@ -522,6 +522,7 @@ with _lang.auto_proxy_init(
         ToolSet,
 
         ToolInvoker,
+
         DirectToolInvoker,
     )
 
@@ -535,6 +536,10 @@ with _lang.auto_proxy_init(
         TurnResult,
 
         TurnRunner,
+
+        NullaryTurnRunner,
+        NullaryTurnRunnerFactory,
+        NullaryFactoryTurnRunner,
     )
 
     ##

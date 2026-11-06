@@ -18,6 +18,9 @@ if ta.TYPE_CHECKING:
     from .states import State
 
 
+P = ta.ParamSpec('P')
+
+
 ##
 
 
@@ -138,3 +141,31 @@ class TurnRunner(lang.Abstract):
         """
 
         raise NotImplementedError
+
+
+#
+
+
+class NullaryTurnRunner(ta.Protocol):
+    def run(self) -> ta.Awaitable[TurnResult]: ...
+
+
+class NullaryTurnRunnerFactory(ta.Protocol[P]):
+    def __call__(self, params: TurnParams, *args: P.args, **kwargs: P.kwargs) -> NullaryTurnRunner: ...
+
+
+class NullaryFactoryTurnRunner(TurnRunner, ta.Generic[P]):
+    def __init__(
+            self,
+            factory: NullaryTurnRunnerFactory[P],
+            *args: P.args,
+            **kwargs: P.kwargs,
+    ) -> None:
+        super().__init__()
+
+        self._factory = factory
+        self._args = args
+        self._kwargs = kwargs
+
+    def run_turn(self, params: TurnParams) -> ta.Awaitable[TurnResult]:
+        return self._factory(params, *self._args, **self._kwargs).run()  # noqa

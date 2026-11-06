@@ -162,6 +162,9 @@ class ToolInvoker(lang.Abstract):
         raise NotImplementedError
 
 
+#
+
+
 class DirectToolInvoker(ToolInvoker):
     """Invokes the tool's executor directly, with nothing around it: what the loop does unless told otherwise."""
 
