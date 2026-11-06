@@ -1,7 +1,7 @@
 {
   "url": "https://github.com/martinus/unordered_dense",
-  "rev": "ddd49116e63be7345b448351cad153653a712fdb",
-  "ref": "v5.3.2",
+  "rev": "7c58a8b7a48e790fe72f6508eb3b46317cbba9d5",
+  "ref": "v5.3.3",
   "files": [
     "LICENSE",
     "include/ankerl/stl.h",

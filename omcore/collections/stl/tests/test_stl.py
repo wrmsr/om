@@ -240,8 +240,8 @@ def test_set_update_batch_partial_application(cls):
 
 
 def test_set_update_source_mutation_during_batch_is_safe():
-    # The batch path holds the container lock across the whole run, and element __lt__ runs under it; element code
-    # that reaches back and mutates the source list must not affect the (snapshotted) batch.
+    # The batch path holds the container lock across the whole run, and element __lt__ runs under it; element code that
+    # reaches back and mutates the source list must not affect the (snapshotted) batch.
     lst: list = []
 
     class Evil:
@@ -557,9 +557,9 @@ def test_map_update_batch_and_fallback(cls):
 
 
 def test_map_update_list_pair_items_pinned_against_mutation():
-    # Regression: the generic pair walk borrowed a list pair's items without retaining them, then ran user code
-    # (and possibly blocked on the container lock) - so code that dropped the pair's items in that window left the
-    # update working with dangling pointers. The pair must be snapshotted so its items are pinned.
+    # Regression: the generic pair walk borrowed a list pair's items without retaining them, then ran user code (and
+    # possibly blocked on the container lock) - so code that dropped the pair's items in that window left the update
+    # working with dangling pointers. The pair must be snapshotted so its items are pinned.
     pair: list = []
 
     class EvilKey:
@@ -585,8 +585,8 @@ def test_map_update_list_pair_items_pinned_against_mutation():
 
 
 def test_map_update_source_mutation_during_batch_is_safe():
-    # Same guarantee as the set batch path: key __hash__ runs under the container lock and can reach back and mutate
-    # the source list mid-run; the snapshotted batch must be unaffected.
+    # Same guarantee as the set batch path: key __hash__ runs under the container lock and can reach back and mutate the
+    # source list mid-run; the snapshotted batch must be unaffected.
     lst: list = []
 
     class EvilK:
@@ -690,9 +690,9 @@ def test_vector_object_sort():
 
 
 def test_vector_object_sort_inconsistent_comparator_is_memory_safe():
-    # Regression: a __lt__ that is not a strict weak order fed into std::sort is undefined behavior (observed as a
-    # hard segfault via out-of-bounds accesses in libstdc++'s introsort). The sort must stay memory-safe and keep the
-    # same elements, however garbage the order.
+    # Regression: a __lt__ that is not a strict weak order fed into std::sort is undefined behavior (observed as a hard
+    # segfault via out-of-bounds accesses in libstdc++'s introsort). The sort must stay memory-safe and keep the same
+    # elements, however garbage the order.
     class AlwaysLess:
         def __lt__(self, o):
             return True
@@ -1343,8 +1343,8 @@ def _run_threads(n, fn):
     (fc.Vector, lambda i: ('int64', [i])),
 ])
 def test_threaded_first_init_race_single_winner(cls, init_args):
-    # Racing the first __init__ of a shared uninitialized object must let exactly one thread publish an impl (the
-    # losers raise the re-init TypeError) rather than leaking the losers' impls.
+    # Racing the first __init__ of a shared uninitialized object must let exactly one thread publish an impl (the losers
+    # raise the re-init TypeError) rather than leaking the losers' impls.
     for _ in range(20):
         o = cls.__new__(cls)
         wins, errs = [], []
@@ -1421,9 +1421,9 @@ def test_threaded_object_map_with_gc():
                 elif op == 3:
                     m.copy()
                 elif rnd.random() < 0.2:
-                    # Iteration racing structural mutation legitimately raises, dict-style; on free-threaded builds
-                    # it does so routinely. RuntimeError comes from the key iterator's version check; KeyError comes
-                    # from the abc ItemsView looking a yielded key back up after a concurrent pop.
+                    # Iteration racing structural mutation legitimately raises, dict-style; on free-threaded builds it
+                    # does so routinely. RuntimeError comes from the key iterator's version check; KeyError comes from
+                    # the abc ItemsView looking a yielded key back up after a concurrent pop.
                     try:
                         dict(m.items())
                     except RuntimeError as e:
