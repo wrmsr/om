@@ -14,7 +14,11 @@ from ..serving import get_web_server_socket_address
 
 async def _hello_app(scope: asgi.Scope, recv: asgi.Recv, send: asgi.Send) -> None:
     await asgi.read_body(recv)
-    await asgi.send_response(send, 200, body=b'hello', headers=[(b'connection', b'close')])
+
+    host, port = scope['server']
+    body = f'hello {host}:{port}'.encode()
+
+    await asgi.send_response(send, 200, body=body, headers=[(b'connection', b'close')])
 
 
 @pytest.mark.asyncs('asyncio')
@@ -27,7 +31,7 @@ async def test_serves_and_closes_idle_connections():
         writer.write(b'GET / HTTP/1.1\r\nHost: x\r\n\r\n')
         resp = await asyncio.wait_for(reader.read(), 5.)
         assert resp.startswith(b'HTTP/1.1 200')
-        assert resp.endswith(b'hello')
+        assert resp.endswith(f'hello 127.0.0.1:{port}'.encode())
         writer.close()
 
         # A connection which never gets around to its request is not kept forever.

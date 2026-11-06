@@ -21,6 +21,7 @@ from .....io.streambufs.utils import ByteStreamBuffers
 from .....lite.abstract import Abstract
 from .....lite.check import check
 from .....lite.namespaces import NamespaceClass
+from .....logs.modules import get_module_logger
 from ....headers import HttpHeaders
 from ...requests import FullIoPipelineHttpRequest
 from ...requests import IoPipelineHttpRequestBodyData
@@ -34,6 +35,9 @@ from ...responses import IoPipelineHttpResponseHead
 T = ta.TypeVar('T')
 
 _IoPipelineAsgiStepResult = ta.Literal['continue', 'stop', 'defer']  # ta.TypeAlias
+
+
+log = get_module_logger(globals())  # noqa
 
 
 ##
@@ -135,12 +139,16 @@ class _IoPipelineAsgiDriver:
             req: ta.Union[IoPipelineHttpRequestHead, FullIoPipelineHttpRequest],
             *,
             output_writable: bool = True,
+            server: ta.Optional[ta.Tuple[str, ta.Optional[int]]] = None,
+            client: ta.Optional[ta.Tuple[str, int]] = None,
     ) -> None:
         super().__init__()
 
         self._ctx = ctx
         self._app = app
         self._req = req
+        self._server = server
+        self._client = client
 
         self._read_q: collections.deque[BytesLike] = collections.deque()
         self._receiving_fut: ta.Optional[_IoPipelineAsgiFuture] = None
@@ -204,30 +212,38 @@ class _IoPipelineAsgiDriver:
     #
 
     def _build_request_scope(self) -> ta.Dict[str, ta.Any]:
-        # ASGI `path` is the percent-decoded path *without* the query string, which is carried separately as raw bytes.
+        # The head's target and header values are the latin-1 decodings of the bytes received - latin-1 gives those
+        # bytes back, as asgi wants them. ASGI `path` is the target's path *without* the query string, which is carried
+        # separately as raw bytes, with its percent-escapes and its UTF-8 decoded.
         raw_path, _, query_string = self._head.target.partition('?')
+        raw_path_bytes = raw_path.encode('latin-1')
 
-        return {
+        scope: ta.Dict[str, ta.Any] = {
             'asgi': {
                 'spec_version': '2.3',
                 'version': '3.0',
             },
-            # 'client': ('127.0.0.1', 57782),
             'headers': [
-                (k.encode(), v.encode())
+                (k.encode('latin-1'), v.encode('latin-1'))
                 for k, v in self._head.headers.all
             ],
-            'http_version': '1.1',
+            'http_version': self._head.version.short_str,
             'method': self._head.method,
-            'path': urllib.parse.unquote(raw_path),
-            'query_string': query_string.encode('utf-8'),
-            'raw_path': raw_path.encode('utf-8'),
+            'path': urllib.parse.unquote_to_bytes(raw_path_bytes).decode('utf-8', 'replace'),
+            'query_string': query_string.encode('latin-1'),
+            'raw_path': raw_path_bytes,
             # 'root_path': '',
             'scheme': 'http',
-            # 'server': ('127.0.0.1', 8087),
             'state': {},
             'type': 'http',
         }
+
+        if self._server is not None:
+            scope['server'] = self._server
+        if self._client is not None:
+            scope['client'] = self._client
+
+        return scope
 
     #
 
@@ -245,6 +261,30 @@ class _IoPipelineAsgiDriver:
     def _feed_out(self, out: ta.Iterable[ta.Any]) -> None:
         for msg in out:
             self._ctx.feed_out(msg)
+
+    _APP_ERROR_BODY: ta.ClassVar[bytes] = b'Internal Server Error'
+
+    def _respond_to_app_error(self) -> None:
+        out: ta.List[ta.Any] = [
+            IoPipelineHttpResponseHead(
+                status=500,
+                reason=IoPipelineHttpResponseHead.get_reason_phrase(500),
+                headers=HttpHeaders([
+                    ('Content-Type', 'text/plain; charset=utf-8'),
+                    ('Content-Length', str(len(self._APP_ERROR_BODY))),
+                    ('Connection', 'close'),
+                ]),
+            ),
+            IoPipelineHttpResponseBodyData(self._APP_ERROR_BODY),
+            IoPipelineHttpResponseEnd(),
+        ]
+        self._append_flush_output(out)
+        out.append(IoPipelineMessages.FinalOutput())
+
+        self._state = _IoPipelineAsgiDriver.State.RESPONSE_FINISHED
+        self._feed_out(out)
+
+        self.close()
 
     def step(self) -> None:
         if self._state == _IoPipelineAsgiDriver.State.CLOSED:
@@ -266,6 +306,17 @@ class _IoPipelineAsgiDriver:
                 r = si.value  # noqa
                 check.not_isinstance(r, _IoPipelineAsgiFuture)
                 gv = self._Gv('r', r)
+            except Exception:  # noqa
+                # Raised before it began its response, the app still owes the client one, which it can be given. Raised
+                # after, there is no telling the client anything but by dropping the connection, which the error does
+                # as it propagates.
+                if self._state != _IoPipelineAsgiDriver.State.RUNNING:
+                    raise
+
+                log.exception('ASGI app raised before starting a response')
+
+                self._respond_to_app_error()
+                return
             else:
                 gv = self._Gv('y', y)
 
@@ -516,12 +567,46 @@ class _IoPipelineAsgiDriver:
 
 
 class AsgiIoPipelineHandler(IoPipelineHandler):
-    def __init__(self, app: ta.Any) -> None:
+    def __init__(
+            self,
+            app: ta.Any,
+            *,
+            server_address: ta.Any = None,
+            client_address: ta.Any = None,
+    ) -> None:
+        """
+        The addresses are the connection's socket addresses - as `getsockname` and `getpeername` give them, or as a
+        pipeline host gives them to the spec factory building this handler's pipeline - and become its requests' asgi
+        `server` and `client`. Either may be omitted, as asgi allows, and is then left out of the scope.
+        """
+
         super().__init__()
 
         self._app = app
+        self._server = self._scope_server(server_address)
+        self._client = self._scope_client(client_address)
+
         self._drv: ta.Optional[_IoPipelineAsgiDriver] = None
         self._output_writable = True
+
+    @staticmethod
+    def _scope_server(address: ta.Any) -> ta.Optional[ta.Tuple[str, ta.Optional[int]]]:
+        # An inet address is `(host, port)`, an inet6 one `(host, port, flowinfo, scope_id)`. A unix socket's is its
+        # path, which asgi gives as `[path, None]`.
+        if isinstance(address, tuple) and len(address) >= 2:
+            return (address[0], address[1])
+        elif isinstance(address, str) and address:
+            return (address, None)
+        else:
+            return None
+
+    @staticmethod
+    def _scope_client(address: ta.Any) -> ta.Optional[ta.Tuple[str, int]]:
+        # A unix socket's peer has no address worth the name - asgi gives it no form, so it is left out.
+        if isinstance(address, tuple) and len(address) >= 2:
+            return (address[0], address[1])
+        else:
+            return None
 
     def _maybe_reset_driver(self) -> None:
         if (drv := self._drv) is None:
@@ -562,6 +647,8 @@ class AsgiIoPipelineHandler(IoPipelineHandler):
                 self._app,
                 msg,
                 output_writable=self._output_writable,
+                server=self._server,
+                client=self._client,
             )
             drv.step()
             self._maybe_reset_driver()

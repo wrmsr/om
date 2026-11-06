@@ -232,6 +232,8 @@ class RouteHandlerApp(asgi.App_):
             pat_dct.setdefault(r.method, []).append((r, a))
         self._pat_route_handlers_by_method = pat_dct
 
+        self._methods = sorted({r.method for r in route_handlers})
+
     def _get_route_app(self, *, method: str, path: str) -> asgi.App | None:
         try:
             return self._route_handlers[Route(method, path)]
@@ -248,6 +250,9 @@ class RouteHandlerApp(asgi.App_):
                 return check.single(pat_apps)
 
         return None
+
+    def _get_allowed_methods(self, path: str) -> list[str]:
+        return [m for m in self._methods if self._get_route_app(method=m, path=path) is not None]
 
     URL_SCHEME_PORT_PAIRS: ta.ClassVar[ta.Collection[tuple[str, int]]] = (
         ('http', 80),
@@ -276,13 +281,19 @@ class RouteHandlerApp(asgi.App_):
                         bsu = BaseServerUrl(f'{sch}://{h}{ps}/')
                     es.enter_context(lang.context_var_setting(BASE_SERVER_URL, bsu))  # noqa
 
+                    path = scope['raw_path'].decode()
+
                     app = self._get_route_app(
                         method=scope['method'],
-                        path=scope['raw_path'].decode(),
+                        path=path,
                     )
 
                     if app is not None:
                         await app(scope, recv, send)
+
+                    elif allowed := self._get_allowed_methods(path):
+                        # The path is routed, just not for this method.
+                        await asgi.send_response(send, 405, headers=[(b'allow', ', '.join(allowed).encode())])
 
                     else:
                         await asgi.send_response(send, 404)

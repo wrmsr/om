@@ -106,8 +106,4 @@ flushed as they are sent.
 
 # Not yet
 
-- Websockets: everything is plain requests and sse.
-- Tab completion of commands: the composer only lists the commands a line could be.
-- Bounding the feed: it lives as long as the session. Tool results and output are clipped going in, but a long session
-  is replayed whole by every page load.
-- The repl modes (`/py`, `/bash`, ...) of the minitui frontend.
+See [TODO.md](TODO.md): what the frontend works around in the code beneath it, and what it does not do yet.

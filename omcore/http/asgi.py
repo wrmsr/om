@@ -1,4 +1,5 @@
 import abc
+import io
 import typing as ta
 import urllib.parse
 
@@ -75,6 +76,10 @@ async def finish_response(
     })
 
 
+def _has_header(headers: ta.Sequence[tuple[bytes, bytes]] | None, name: bytes) -> bool:
+    return any(k.lower() == name for k, _ in (headers or ()))
+
+
 async def send_response(
         send: Send,
         status: int,
@@ -82,10 +87,19 @@ async def send_response(
         headers: ta.Sequence[tuple[bytes, bytes]] | None = None,
         body: bytes = b'',
 ) -> None:
+    """Sends a whole response at once - saying how long its body is, unless the given headers already do."""
+
+    if not _has_header(headers, b'content-length'):
+        headers = [
+            *(headers or ()),
+            (b'content-length', str(len(body)).encode('ascii')),
+        ]
+
     await start_response(
         send,
         status=status,
-        content_type=content_type, headers=headers,
+        content_type=content_type,
+        headers=headers,
     )
     await finish_response(
         send,
@@ -105,6 +119,7 @@ async def redirect_response(
         'headers': [
             (b'content-type', consts.CONTENT_TYPE_TEXT_UTF8),
             (b'location', url.encode()),
+            *([] if _has_header(headers, b'content-length') else [(b'content-length', b'0')]),
             *(headers or ()),
         ],
     })
@@ -118,13 +133,13 @@ async def redirect_response(
 
 
 async def read_body(recv: Recv) -> bytes:
-    body = b''
+    body = io.BytesIO()
     more_body = True
     while more_body:
         message = await recv()
-        body += message.get('body', b'')
+        body.write(message.get('body', b''))
         more_body = message.get('more_body', False)
-    return body
+    return body.getvalue()
 
 
 async def read_form_body(recv: Recv) -> dict[bytes, bytes]:

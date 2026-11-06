@@ -10,10 +10,12 @@ from .....io.pipelines.core import IoPipelineHandler
 from .....io.pipelines.core import IoPipelineHandlerContext
 from .....io.pipelines.core import IoPipelineMessages
 from .....io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipelineDriver
+from .....io.pipelines.errors import MessageReachedTerminalIoPipelineError
 from .....io.pipelines.flow.stub import StubIoPipelineFlowService
 from .....io.pipelines.flow.types import IoPipelineFlowMessages
 from .....testing.unittest.asyncs import AsyncioIsolatedAsyncTestCase
 from ....headers import HttpHeaders
+from ....versions import HttpVersions
 from ...requests import FullIoPipelineHttpRequest
 from ...requests import IoPipelineHttpRequestBodyData
 from ...requests import IoPipelineHttpRequestHead
@@ -481,8 +483,72 @@ class TestAsgiDisconnect(unittest.TestCase):
         self.assertEqual(closed, ['closed'])
 
 
+class TestAsgiAppErrors(unittest.TestCase):
+    @staticmethod
+    def _run(app: ta.Any) -> ta.List[ta.Any]:
+        out: ta.List[ta.Any] = []
+
+        channel = IoPipeline.new(
+            [AsgiIoPipelineHandler(app)],
+            services=[StubIoPipelineFlowService()],
+        )
+        try:
+            channel.feed_in(FullIoPipelineHttpRequest.simple('localhost', '/'))
+            while (msgs := channel.output.drain()):
+                for msg in msgs:
+                    if isinstance(msg, IoPipelineMessages.Defer):
+                        channel.run_deferred(msg)
+                    else:
+                        out.append(msg)
+        finally:
+            channel.destroy()
+
+        return out
+
+    def test_raised_before_response_is_answered_with_500(self) -> None:
+        async def app(scope, receive, send):  # noqa
+            await receive()
+            raise ValueError('boom')
+
+        with self.assertLogs(level='ERROR'):
+            out = self._run(app)
+
+        self.assertEqual(
+            [type(msg) for msg in out],
+            [
+                IoPipelineHttpResponseHead,
+                IoPipelineHttpResponseBodyData,
+                IoPipelineHttpResponseEnd,
+                IoPipelineFlowMessages.FlushOutput,
+                IoPipelineMessages.FinalOutput,
+            ],
+        )
+
+        head = out[0]
+        self.assertEqual(head.status, 500)
+        self.assertEqual(head.headers.single['content-length'], str(len(out[1].data)))
+
+    def test_raised_after_response_start_propagates(self) -> None:
+        async def app(scope, receive, send):  # noqa
+            await send({
+                'type': 'http.response.start',
+                'status': 200,
+                'headers': [],
+            })
+            raise ValueError('late')
+
+        with self.assertRaises(MessageReachedTerminalIoPipelineError):
+            self._run(app)
+
+
 class TestAsgiRequestScope(unittest.TestCase):
-    def _run(self, target: str) -> ta.Mapping[str, ta.Any]:
+    def _run(
+            self,
+            target: str,
+            *,
+            request_kwargs: ta.Optional[ta.Mapping[str, ta.Any]] = None,
+            **handler_kwargs: ta.Any,
+    ) -> ta.Mapping[str, ta.Any]:
         scopes: ta.List[ta.Mapping[str, ta.Any]] = []
 
         async def app(scope, receive, send):  # noqa
@@ -498,11 +564,11 @@ class TestAsgiRequestScope(unittest.TestCase):
             })
 
         channel = IoPipeline.new(
-            [AsgiIoPipelineHandler(app)],
+            [AsgiIoPipelineHandler(app, **handler_kwargs)],
             services=[StubIoPipelineFlowService()],
         )
         try:
-            channel.feed_in(FullIoPipelineHttpRequest.simple('localhost', target))
+            channel.feed_in(FullIoPipelineHttpRequest.simple('localhost', target, **(request_kwargs or {})))
             while (msgs := channel.output.drain()):
                 for msg in msgs:
                     if isinstance(msg, IoPipelineMessages.Defer):
@@ -532,6 +598,46 @@ class TestAsgiRequestScope(unittest.TestCase):
 
         self.assertEqual(scope['path'], '/ping')
         self.assertEqual(scope['query_string'], b'')
+
+    def test_raw_bytes_round_trip(self) -> None:
+        # As the parser decodes them: obs-text in a header value, and - unless rejected - in a target.
+        scope = self._run(
+            '/caf\xc3\xa9?q=\xe9',
+            request_kwargs=dict(headers=[('X-Thing', 'caf\xe9')]),
+        )
+
+        self.assertIn((b'x-thing', b'caf\xe9'), scope['headers'])
+        self.assertEqual(scope['raw_path'], b'/caf\xc3\xa9')
+        self.assertEqual(scope['path'], '/caf\xe9')
+        self.assertEqual(scope['query_string'], b'q=\xe9')
+
+    def test_http_version(self) -> None:
+        self.assertEqual(self._run('/ping')['http_version'], '1.1')
+        self.assertEqual(self._run('/ping', request_kwargs=dict(version=HttpVersions.HTTP_1_0))['http_version'], '1.0')
+
+    def test_no_addresses(self) -> None:
+        scope = self._run('/ping')
+
+        self.assertNotIn('server', scope)
+        self.assertNotIn('client', scope)
+
+    def test_inet_addresses(self) -> None:
+        scope = self._run('/ping', server_address=('127.0.0.1', 8087), client_address=('127.0.0.1', 57782))
+
+        self.assertEqual(scope['server'], ('127.0.0.1', 8087))
+        self.assertEqual(scope['client'], ('127.0.0.1', 57782))
+
+    def test_inet6_addresses(self) -> None:
+        scope = self._run('/ping', server_address=('::1', 8087, 0, 0), client_address=('::1', 57782, 0, 0))
+
+        self.assertEqual(scope['server'], ('::1', 8087))
+        self.assertEqual(scope['client'], ('::1', 57782))
+
+    def test_unix_addresses(self) -> None:
+        scope = self._run('/ping', server_address='/run/app/http.sock', client_address='')
+
+        self.assertEqual(scope['server'], ('/run/app/http.sock', None))
+        self.assertNotIn('client', scope)
 
 
 class TestAsgiIoPipelineDriverBackpressure(AsyncioIsolatedAsyncTestCase):

@@ -140,7 +140,12 @@ class AsgiPipelineServer:
         self._server: asyncio.Server | None = None
         self._handlers: set[asyncio.Task] = set()
 
-    def _build_pipeline_spec(self) -> IoPipeline.Spec:
+    def _build_pipeline_spec(
+            self,
+            *,
+            server_address: ta.Any = None,
+            client_address: ta.Any = None,
+    ) -> IoPipeline.Spec:
         return IoPipeline.Spec(
             [
                 IoPipelineHttpRequestDecoder(),
@@ -152,7 +157,11 @@ class AsgiPipelineServer:
                 # service, without which the chunker holds everything until the response ends.
                 IoPipelineHttpResponseChunker(),
 
-                AsgiIoPipelineHandler(self._app),
+                AsgiIoPipelineHandler(
+                    self._app,
+                    server_address=server_address,
+                    client_address=client_address,
+                ),
             ],
             services=[
                 StubIoPipelineFlowService(),
@@ -165,7 +174,10 @@ class AsgiPipelineServer:
 
         try:
             drv = PollAsyncioStreamIoPipelineDriver(
-                self._build_pipeline_spec(),
+                self._build_pipeline_spec(
+                    server_address=writer.get_extra_info('sockname'),
+                    client_address=writer.get_extra_info('peername'),
+                ),
                 reader,
                 writer,
             )
