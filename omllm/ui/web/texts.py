@@ -13,7 +13,6 @@ what everything looks like.
 import typing as ta
 
 from ...core import ui
-from ...core.ui.text.rendering import resolve_json_text_style
 
 
 ##
@@ -52,7 +51,7 @@ class WebTextRenderer(ui.TextRenderer[WebText]):
             else:
                 tokens.append([k, s])
 
-        ui.render_json_tokens(t.v, resolve_json_text_style(self._options, t.y), write=write)
+        ui.render_json_tokens(t.v, ui.resolve_json_text_style(self._options, t.y), write=write)
 
         return {'json': tokens}
 

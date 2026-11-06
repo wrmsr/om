@@ -42,6 +42,7 @@ with _lang.auto_proxy_init(
         TextRenderingOptions,
         resolve_display_path,
         resolve_display_diff_text,
+        resolve_json_text_style,
     )
 
     from .text.styled import (  # noqa
