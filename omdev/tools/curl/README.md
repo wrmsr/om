@@ -1,18 +1,18 @@
-# x.curl
+# curl
 
 A small HTTP/1.1 command line client built on `omcore.http.clients.pipelines` and `omcore.io.pipelines`.
 It uses the repository's synchronous or asyncio pipeline client, selected with `--asyncio`. It does not use an
 `httpx` or `urllib` HTTP client. `urllib.parse` is used only to construct URLs and form data.
 
-Run it from the repository root with `./python -m x.curl`:
+Run it from the repository root with `./python -m omdev.tools.curl`:
 
 ```sh
-./python -m x.curl https://example.com/
-./python -m x.curl --asyncio -i -q 'page=2' -H 'Accept: application/json' https://example.com/items
-./python -m x.curl --json '{"name":"Ada"}' --pretty https://example.com/items
-./python -m x.curl -F 'name=Ada' -F 'role=admin' https://example.com/form
-./python -m x.curl --data-file large.bin -o reply.bin https://example.com/upload
-cat large.bin | ./python -m x.curl --asyncio --data-file - --trailer 'X-Done: yes' https://example.com/upload
+./python -m omdev.tools.curl https://example.com/
+./python -m omdev.tools.curl --asyncio -i -q 'page=2' -H 'Accept: application/json' https://example.com/items
+./python -m omdev.tools.curl --json '{"name":"Ada"}' --pretty https://example.com/items
+./python -m omdev.tools.curl -F 'name=Ada' -F 'role=admin' https://example.com/form
+./python -m omdev.tools.curl --data-file large.bin -o reply.bin https://example.com/upload
+cat large.bin | ./python -m omdev.tools.curl --asyncio --data-file - --trailer 'X-Done: yes' https://example.com/upload
 ```
 
 The default output is the response body, copied in bounded chunks to stdout or `-o/--output`. `-i/--include`

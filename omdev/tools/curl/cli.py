@@ -1,5 +1,4 @@
 """A small pipeline-backed HTTP command line client."""
-
 import argparse
 import asyncio
 import base64
@@ -34,8 +33,8 @@ _HEADER_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+\Z")
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='Send an HTTP request with the omcore I/O pipeline clients.',
-        epilog='Examples: x.curl URL; x.curl -X POST --json \'{"a":1}\' URL; '
-        'x.curl --data-file - -o reply.bin URL',
+        epilog='Examples: curl URL; curl -X POST --json \'{"a":1}\' URL; '
+        'curl --data-file - -o reply.bin URL',
     )
     parser.add_argument('url')
     parser.add_argument('--asyncio', action='store_true', help='use the asyncio pipeline client')
@@ -304,5 +303,5 @@ def main(
                 return asyncio.run(_run_async(args, req, trailers, source, out, err))
             return _run_sync(args, req, trailers, source, out, err)
     except (HttpClientError, OSError, ValueError, UnicodeError, json.JSONDecodeError) as exc:
-        print(f'x.curl: {exc}', file=err)
+        print(f'curl: {exc}', file=err)
         return 2

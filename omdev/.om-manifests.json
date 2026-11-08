@@ -393,6 +393,20 @@
     }
   },
   {
+    "module": ".tools.curl.__main__",
+    "attr": "_CLI_MODULE",
+    "file": "omdev/tools/curl/__main__.py",
+    "line": 4,
+    "value": {
+      "!.cli.types.CliModule": {
+        "name": [
+          "curl"
+        ],
+        "module": "omdev.tools.curl.__main__"
+      }
+    }
+  },
+  {
     "module": ".tools.doc",
     "attr": "_CLI_MODULE",
     "file": "omdev/tools/doc.py",
