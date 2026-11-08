@@ -2,6 +2,7 @@ import typing as ta
 
 from omcore import inject as inj
 from omcore import lang
+from omcore.asyncs.asynclite import all as asl
 
 from .... import agent as agn
 from ....agent.remote.inject import bind_docker_remote_agent
@@ -45,6 +46,40 @@ def _provide_tool_set(tools: AgentTools, tool_sets: AgentToolSets) -> agn.ToolSe
 ##
 
 
+class _EnvironmentInfoGetter:
+    def __init__(
+            self,
+            *,
+            ops: agn.EnvironmentOps,
+            locks: asl.Locks,
+            requested_cwd: RequestedCwd | None = None,
+    ) -> None:
+        super().__init__()
+
+        self._ops = ops
+        self._requested_cwd = requested_cwd
+        self._lock = locks.make_lock()
+        self._info: agn.EnvironmentInfo | None = None
+
+    async def __call__(self) -> agn.EnvironmentInfo:
+        if (info := self._info) is not None:
+            return info
+
+        async with self._lock:
+            if (info := self._info) is not None:
+                return info
+
+            info = await self._ops.inspect_environment(
+                cwd=self._requested_cwd.v if self._requested_cwd is not None else None,
+            )
+
+            self._info = info
+            return info
+
+
+##
+
+
 def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
     """
     What tools stand on, bound once for the whole app: the environment they work in, what they run processes on,
@@ -54,8 +89,8 @@ def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
 
     lst: list[inj.Elemental] = []
 
-    # An environment and a process manager are bound either way, whatever tools the agent is given: the agent is
-    # told where it is regardless, and the user's own shell runs on the manager too.
+    # An environment and a process manager are bound either way, whatever tools the agent is given: the agent is told
+    # where it is regardless, and the user's own shell runs on the manager too.
     if config.container is not None:
         lst.extend([
             bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
@@ -67,6 +102,11 @@ def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
 
             processes.bind_process_manager(),
         ])
+
+    lst.extend([
+        inj.bind(_EnvironmentInfoGetter, singleton=True),
+        inj.bind(agn.EnvironmentInfoGetter, to_key=_EnvironmentInfoGetter),
+    ])
 
     # As asked for, unresolved: the environment resolves it at the agent's setup, not here.
     if config.cwd is not None:

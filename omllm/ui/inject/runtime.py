@@ -15,11 +15,10 @@ def bind_runtime(config: UiConfig) -> inj.Elements:
     #
 
     lst.extend([
-        inj.bind(asl.asyncio.Cancellation, singleton=True),
-        inj.bind(asl.Cancellation, to_key=asl.asyncio.Cancellation),
-
-        inj.bind(asl.asyncio.Sleeps, singleton=True),
-        inj.bind(asl.Sleeps, to_key=asl.asyncio.Sleeps),
+        inj.bind(asl.asyncio.All, singleton=True),
+        inj.bind(asl.Cancellation, to_key=asl.asyncio.All),
+        inj.bind(asl.Locks, to_key=asl.asyncio.All),
+        inj.bind(asl.Sleeps, to_key=asl.asyncio.All),
 
         inj.bind(AsyncioGroupRunner, singleton=True),
         inj.bind(AsyncGroupRunner, to_key=AsyncioGroupRunner),

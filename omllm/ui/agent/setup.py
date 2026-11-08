@@ -19,7 +19,7 @@ class AgentSetup:
             agent: agn.Agent,
             backends: agn.BackendManager,
             tools: agn.ToolSet,
-            environment: agn.EnvironmentOps,
+            environment_info: agn.EnvironmentInfoGetter,
             requested_cwd: RequestedCwd | None = None,
             system_prompts: agn.SystemPromptManager,
             process_scope: procs.ProcessScope | None = None,
@@ -32,7 +32,7 @@ class AgentSetup:
         self._agent = agent
         self._backends = backends
         self._tools = tools
-        self._environment = environment
+        self._environment_info = environment_info
         self._requested_cwd = requested_cwd
         self._system_prompts = system_prompts
         self._process_scope = process_scope
@@ -40,11 +40,7 @@ class AgentSetup:
 
     async def run(self) -> None:
         async def update(state: agn.State) -> agn.State:
-            # The environment is asked here for the working directory, and again by its system prompt contributor for
-            # the rest: both now, holding the agent, so the prompt and the tools agree on where they are.
-            info = await self._environment.inspect_environment(
-                cwd=self._requested_cwd.v if self._requested_cwd is not None else None,
-            )
+            info = await self._environment_info()
 
             system_prompt = await self._system_prompts.build_system_prompt()
 

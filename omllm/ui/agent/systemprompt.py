@@ -9,7 +9,6 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ... import agent as agn
-from ..types import RequestedCwd
 
 
 ##
@@ -129,13 +128,10 @@ class EnvironmentSystemPromptContributor(agn.SystemPromptContributor):
     - and the start date is that moment's. Baked into the context from then on, not kept up to date.
     """
 
-    environment: agn.EnvironmentOps
-    requested_cwd: RequestedCwd | None = None
+    environment_info: agn.EnvironmentInfoGetter
 
     async def get_system_prompt_parts(self) -> ta.Sequence[agn.SystemPromptPart] | None:
-        info = await self.environment.inspect_environment(
-            cwd=self.requested_cwd.v if self.requested_cwd is not None else None,
-        )
+        info = await self.environment_info()
 
         return [
             agn.SystemPromptPart(

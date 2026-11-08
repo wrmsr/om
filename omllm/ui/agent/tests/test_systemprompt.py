@@ -3,10 +3,8 @@ import datetime
 from omcore import lang
 
 from .... import agent as agn
-from ...types import RequestedCwd
 from ..systemprompt import DEFAULT_SYSTEM_PROMPT
 from ..systemprompt import REMOTE_ENVIRONMENT_SYSTEM_PROMPT
-from ..systemprompt import EnvironmentSystemPromptContributor
 from ..systemprompt import ExtraSystemPromptContributor
 from ..systemprompt import StandardSystemPromptContributor
 from ..systemprompt import render_environment_system_prompt
@@ -129,21 +127,3 @@ def test_render_environment_container_and_remote():
     # A runtime it has no nicer name for is named as detected.
     other = agn.EnvironmentInfo(**{**_INFO.__dict__, 'container': 'lxc'})
     assert '- Host: box (a lxc container)' in render_environment_system_prompt(other, start_date=_DATE)
-
-
-def test_environment_contributor_asks_the_environment_for_the_requested_cwd():
-    environment = agn.StaticEnvironmentOps(_INFO)
-
-    out = _build(
-        EnvironmentSystemPromptContributor(environment=environment),
-        StandardSystemPromptContributor(text='mission'),
-    )
-    assert out.startswith('mission\n\nEnvironment at startup:\n')
-    assert '- Working directory: /work/git\n' in out
-    assert '- Start date: ' + lang.localnow().date().isoformat() in out
-
-    out = _build(EnvironmentSystemPromptContributor(
-        environment=environment,
-        requested_cwd=RequestedCwd('/elsewhere'),
-    ))
-    assert '- Working directory: /elsewhere\n' in out
