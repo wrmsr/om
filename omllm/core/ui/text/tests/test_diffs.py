@@ -6,6 +6,7 @@ from omcore.text import styled as st
 
 from ..diffs import render_diff_text_doc
 from ..html import HtmlTextRenderer
+from ..rendering import CwdDisplayPathResolver
 from ..rendering import TextRenderingOptions
 from ..styled import StyledTextBlock
 from ..styled import StyledTextRenderer
@@ -109,7 +110,7 @@ def test_diff_docs_highlight_hunks_with_the_whole_file():
     assert changed_row_is_string(diff_context_limits=diffs.DiffContextLimits(max_lines=None, max_bytes=None))
 
 
-def test_diff_docs_show_paths_relative_to_the_cwd_unless_absolute():
+def test_diff_docs_show_paths_as_their_resolver_has_them():
     d = DiffText(old='x\n', new='y\n', path='/w/src/f.py')
 
     def header(**kwargs):
@@ -117,9 +118,8 @@ def test_diff_docs_show_paths_relative_to_the_cwd_unless_absolute():
         [line] = [line.text for line in document.lines if 'additions' in line.text]
         return line.strip('▁ ')
 
-    assert header(cwd='/w') == 'src/f.py (1 additions, 1 removals)'
-    assert header(cwd='/w', absolute_paths=True) == '/w/src/f.py (1 additions, 1 removals)'
-    assert header(cwd='/v') == '/w/src/f.py (1 additions, 1 removals)'
+    assert header(paths=CwdDisplayPathResolver('/w')) == 'src/f.py (1 additions, 1 removals)'
+    assert header(paths=CwdDisplayPathResolver('/v')) == '/w/src/f.py (1 additions, 1 removals)'
     assert header() == '/w/src/f.py (1 additions, 1 removals)'
 
 

@@ -119,13 +119,15 @@ class ProcessScopePtySpawner(repl.PtySpawner):
             self,
             scope: processes.ProcessScope,
             *,
-            cwd: str | None = None,
+            get_cwd: ta.Callable[[], str | None] | None = None,
             name: str | None = 'repl',
     ) -> None:
+        """The directory a shell starts in is asked for at each spawn: it is the agent's, known once it is set up."""
+
         super().__init__()
 
         self._scope = scope
-        self._cwd = cwd
+        self._get_cwd = get_cwd
         self._name = name
 
     async def spawn(
@@ -138,7 +140,7 @@ class ProcessScopePtySpawner(repl.PtySpawner):
         process = await self._scope.spawn(
             processes.ProcessSpec(
                 tuple(argv),
-                cwd=self._cwd,
+                cwd=self._get_cwd() if self._get_cwd is not None else None,
                 stdio=processes.PtyStdio(rows=rows, cols=cols),
                 name=self._name,
             ),

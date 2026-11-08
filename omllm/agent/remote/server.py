@@ -9,6 +9,7 @@ from omcore.rpc.dispatch import RpcMethodTableHandler
 from omcore.rpc.dispatch import rpc_merge_method_tables
 
 from ...core.processes.remote.server import RemoteProcessService
+from ..environment.remote.server import RemoteEnvironmentService
 from ..fs.remote.server import RemoteFsService
 
 
@@ -19,10 +20,12 @@ class RemoteAgentRpcHandler(RpcMethodTableHandler):
     def __init__(self) -> None:
         super().__init__()
 
+        self._environment = RemoteEnvironmentService()
         self._fs = RemoteFsService()
         self._processes = RemoteProcessService()
 
         self.add_methods(rpc_merge_method_tables(
+            self._environment.methods(),
             self._fs.methods(),
             self._processes.methods(),
         ))

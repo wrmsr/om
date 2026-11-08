@@ -22,6 +22,25 @@ with _lang.auto_proxy_init(
 ):
     ##
 
+    from .environment.local import (  # noqa
+        LocalEnvironmentOps,
+    )
+
+    from .environment.ops import (  # noqa
+        EnvironmentInfo,
+        EnvironmentOps,
+    )
+
+    from .environment.remote.client import (  # noqa
+        RemoteEnvironmentOps,
+    )
+
+    from .environment.static import (  # noqa
+        StaticEnvironmentOps,
+    )
+
+    ##
+
     from .eval.tools.quickjs import (  # noqa
         QuickjsToolParams,
         QuickjsTool,
@@ -385,6 +404,7 @@ with _lang.auto_proxy_init(
     from .systemprompt.types import (  # noqa
         SystemPromptPriority,
         SystemPromptPart,
+        SystemPromptParts,
 
         SystemPromptContributor,
         SystemPromptContributors,

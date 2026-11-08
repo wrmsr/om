@@ -2,12 +2,14 @@
 The ui's contributions to the agent's system prompt: what the agent is and how it is to behave, whatever the user adds
 to that, and what it is told of its surroundings. The injector wiring over these is in `inject/systemprompt.py`.
 """
+import datetime
 import typing as ta
 
 from omcore import dataclasses as dc
+from omcore import lang
 
 from ... import agent as agn
-from ..types import TargetCwd
+from ..types import RequestedCwd
 
 
 ##
@@ -68,17 +70,76 @@ class ExtraSystemPromptContributor(agn.SystemPromptContributor):
 ##
 
 
-@dc.dataclass(frozen=True)
-class CwdSystemPromptContributor(agn.SystemPromptContributor):
-    cwd: TargetCwd | None = None
+_CONTAINER_RUNTIME_NAMES: ta.Mapping[str, str] = {
+    'docker': 'Docker',
+    'podman': 'Podman',
+}
 
-    def get_system_prompt_parts(self) -> ta.Sequence[agn.SystemPromptPart] | None:
-        if self.cwd is None:
-            return None
+REMOTE_ENVIRONMENT_SYSTEM_PROMPT: str = (
+    "Your tools run in this environment rather than on the user's own machine: the files, commands, and processes you "
+    "work with are its own, not the user's."
+)
+
+
+def render_environment_system_prompt(
+        info: agn.EnvironmentInfo,
+        *,
+        start_date: datetime.date,
+) -> str:
+    """One block of the facts of the environment, as they stood when it was asked."""
+
+    lines = [
+        'Environment at startup:',
+        f'- Platform: {info.system} {info.release}, {info.machine}',
+    ]
+
+    host = f'- Host: {info.hostname}'
+    if (container := info.container) is not None:
+        host += f' (a {_CONTAINER_RUNTIME_NAMES.get(container, container)} container)'
+    lines.append(host)
+
+    if (user := info.user) is not None:
+        user_line = f'- User: {user}'
+        if (shell := info.shell) is not None:
+            user_line += f', shell {shell}'
+        if (home := info.home) is not None:
+            user_line += f', home {home}'
+        lines.append(user_line)
+
+    lines.extend([
+        f'- Working directory: {info.cwd}',
+        f"- Start date: {start_date.isoformat()}, the user's local date",
+    ])
+
+    text = '\n'.join(lines)
+
+    if info.remote:
+        text = '\n\n'.join([text, REMOTE_ENVIRONMENT_SYSTEM_PROMPT])
+
+    return text
+
+
+@dc.dataclass(frozen=True)
+class EnvironmentSystemPromptContributor(agn.SystemPromptContributor):
+    """
+    What the agent is told of its surroundings: the environment is asked when the prompt is built - at the agent's
+    setup - and the start date is that moment's. Baked into the context from then on, not kept up to date.
+    """
+
+    environment: agn.EnvironmentOps
+    requested_cwd: RequestedCwd | None = None
+
+    async def get_system_prompt_parts(self) -> ta.Sequence[agn.SystemPromptPart] | None:
+        info = await self.environment.get_info(
+            cwd=self.requested_cwd.v if self.requested_cwd is not None else None,
+        )
 
         return [
             agn.SystemPromptPart(
                 agn.SystemPromptPriority.ENVIRONMENT,
-                f'Current working directory: {self.cwd.v}',
+                render_environment_system_prompt(
+                    info,
+                    start_date=lang.localnow().date(),
+                ),
             ),
         ]

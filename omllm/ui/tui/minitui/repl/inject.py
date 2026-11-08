@@ -1,3 +1,4 @@
+import functools
 import typing as ta
 
 from omcore import inject as inj
@@ -15,7 +16,7 @@ from ....commands.repl import ChatCommand
 from ....commands.repl import JsCommand
 from ....commands.repl import PyCommand
 from ....commands.repl import ReplModeSwitcher
-from ....types import TargetCwd
+from ....paths import get_agent_cwd
 from ...config import TuiConfig
 from ..app import MinituiChatApp
 from .ptys import ProcessScopePtySpawner
@@ -54,7 +55,6 @@ def _provide_session(
         driver: mt.AsyncioDriver,
         job_runner: AsyncJobRunner,
         seeds: ReplNamespaceSeeds,
-        cwd: TargetCwd | None = None,
         root_process_scope: procs.RootProcessScope | None = None,
 ) -> repl.Session:
     # Not the commands manager: the switch commands need the repl, so that would be a cycle. It is a lookup away.
@@ -82,12 +82,12 @@ def _provide_session(
         ))
 
     if root_process_scope is not None:
-        # Wherever the bound process manager runs things - here, or in the container the tools are in. Nothing is
-        # started until the shell is first used.
+        # Wherever the bound process manager runs things - here, or in the container the tools are in - and in the
+        # agent's directory there. Nothing is started until the shell is first used, by when the agent is set up.
         session.add(repl.DEFAULT_BASH_NAME, repl.BashInterpreter(
             ProcessScopePtySpawner(
                 root_process_scope.child(REPL_PROCESS_SCOPE_NAME),
-                cwd=cwd.v if cwd is not None else None,
+                get_cwd=functools.partial(get_agent_cwd, agent),
             ),
             size=lambda: (REPL_PTY_ROWS, app.width),
         ))

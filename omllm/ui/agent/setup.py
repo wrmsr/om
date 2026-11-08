@@ -4,7 +4,7 @@ from ... import agent as agn
 from ... import llm
 from ...core import processes as procs
 from ..types import InitialLlmOptions
-from ..types import TargetCwd
+from ..types import RequestedCwd
 
 
 ##
@@ -19,7 +19,8 @@ class AgentSetup:
             agent: agn.Agent,
             backends: agn.BackendManager,
             tools: agn.ToolSet,
-            cwd: TargetCwd | None = None,
+            environment: agn.EnvironmentOps,
+            requested_cwd: RequestedCwd | None = None,
             system_prompts: agn.SystemPromptManager,
             process_scope: procs.ProcessScope | None = None,
             initial_llm_options: InitialLlmOptions | None = None,
@@ -31,21 +32,28 @@ class AgentSetup:
         self._agent = agent
         self._backends = backends
         self._tools = tools
-        self._cwd = cwd
+        self._environment = environment
+        self._requested_cwd = requested_cwd
         self._system_prompts = system_prompts
         self._process_scope = process_scope
         self._initial_llm_options = initial_llm_options
 
     async def run(self) -> None:
-        def update(state: agn.State) -> agn.State:
-            cwd = self._cwd.v if self._cwd is not None else None
+        async def update(state: agn.State) -> agn.State:
+            # The environment is asked here for the working directory, and again by its system prompt contributor for
+            # the rest: both now, holding the agent, so the prompt and the tools agree on where they are.
+            info = await self._environment.get_info(
+                cwd=self._requested_cwd.v if self._requested_cwd is not None else None,
+            )
+
+            system_prompt = await self._system_prompts.build_system_prompt()
 
             #
 
             context = dc.replace(
                 state.context,
 
-                system_prompt=self._system_prompts.build_system_prompt(),
+                system_prompt=system_prompt,
 
                 tools=self._tools,
             )
@@ -53,7 +61,7 @@ class AgentSetup:
             #
 
             tool_env = agn.ToolEnvironment(
-                cwd=cwd,
+                cwd=info.cwd,
 
                 processes=self._process_scope,
             )

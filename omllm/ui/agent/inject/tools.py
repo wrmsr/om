@@ -1,4 +1,3 @@
-import os
 import typing as ta
 
 from omcore import inject as inj
@@ -7,7 +6,7 @@ from omcore import lang
 from .... import agent as agn
 from ....agent.remote.inject import bind_docker_remote_agent
 from ....core import processes
-from ...types import TargetCwd
+from ...types import RequestedCwd
 from ..config import AgentConfig
 
 
@@ -46,33 +45,32 @@ def _provide_tool_set(tools: AgentTools, tool_sets: AgentToolSets) -> agn.ToolSe
 ##
 
 
-def _provide_local_target_cwd(config: AgentConfig) -> TargetCwd:
-    return TargetCwd(os.path.abspath(os.path.realpath(config.cwd or os.getcwd())))
-
-
-async def _provide_remote_target_cwd(config: AgentConfig, fs: agn.FsOps) -> TargetCwd:
-    return TargetCwd(await fs.resolve_path(config.cwd or '.'))
-
-
 def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
     """
-    What tools stand on, bound once for the whole app: where they work, what they run processes on, and the ops they
-    share. An agent scope - the root agent's today, a subagent's - binds its own tool classes over these.
+    What tools stand on, bound once for the whole app: the environment they work in, what they run processes on,
+    and the ops they share. An agent scope - the root agent's today, a subagent's - binds its own tool classes over
+    these.
     """
 
     lst: list[inj.Elemental] = []
 
-    # A process manager is bound either way, whatever tools the agent is given: the user's own shell runs on it too.
+    # An environment and a process manager are bound either way, whatever tools the agent is given: the agent is
+    # told where it is regardless, and the user's own shell runs on the manager too.
     if config.container is not None:
         lst.extend([
             bind_docker_remote_agent(agn.DockerContainerIdt(config.container)),
-            inj.bind(TargetCwd, singleton=True, to_async_fn=_provide_remote_target_cwd),
         ])
     else:
         lst.extend([
+            inj.bind(agn.LocalEnvironmentOps, singleton=True),
+            inj.bind(agn.EnvironmentOps, to_key=agn.LocalEnvironmentOps),
+
             processes.bind_process_manager(),
-            inj.bind(TargetCwd, singleton=True, to_fn=_provide_local_target_cwd),
         ])
+
+    # As asked for, unresolved: the environment resolves it at the agent's setup, not here.
+    if config.cwd is not None:
+        lst.append(inj.bind(RequestedCwd(config.cwd)))
 
     # Tools are given a process scope, not the root one in particular: the root agent's is the root scope, and an agent
     # scope beneath it binds a child of its parent's over this.

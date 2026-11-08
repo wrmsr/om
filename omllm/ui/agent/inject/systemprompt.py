@@ -5,7 +5,7 @@ from omcore import lang
 
 from .... import agent as agn
 from ..config import AgentConfig
-from ..systemprompt import CwdSystemPromptContributor
+from ..systemprompt import EnvironmentSystemPromptContributor
 from ..systemprompt import ExtraSystemPromptContributor
 from ..systemprompt import StandardSystemPromptContributor
 
@@ -42,7 +42,7 @@ def bind_system_prompt(config: AgentConfig) -> inj.Elements:
             to_const=ExtraSystemPromptContributor(text=config.extra_system_prompt),
         ),
 
-        _bind_system_prompt_contributor_singleton(CwdSystemPromptContributor),
+        _bind_system_prompt_contributor_singleton(EnvironmentSystemPromptContributor),
     ])
 
     lst.extend([

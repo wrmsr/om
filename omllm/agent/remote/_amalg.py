@@ -61,7 +61,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '80ee232cb168d1cc6185434d3101874636cf37f8'
+__om_amalg_sha1__ = '3c8cd6e571770434a09dc747010f98f054941fbb'
 
 
 def __om_amalg__():  # noqa
@@ -87,6 +87,7 @@ def __om_amalg__():  # noqa
             dict(sha1='03e6c5d0c4c25b51cdd225c029e652cdf741a51a', mod='omcore.logs.warnings', path='../../../omcore/logs/warnings.py'),  # noqa
             dict(sha1='e0ccddd9b2a4604e74eb9c67a1a85516b3796aec', mod='omcore.os.pyremote.core', path='../../../omcore/os/pyremote/core.py'),  # noqa
             dict(sha1='2ac241e59ff5a7aadd487f43ceb715f6c57cce95', mod='omcore.rpc.configs', path='../../../omcore/rpc/configs.py'),  # noqa
+            dict(sha1='1f0f3b08792b2c3c0de48a59a424522c7d2ff483', mod='omllm.agent.environment.remote.protocol', path='../environment/remote/protocol.py'),  # noqa
             dict(sha1='f6572b8c34185813301434c2b1243c2641f52eef', mod='omllm.agent.fs.common', path='../fs/common.py'),
             dict(sha1='6c881b9d48a55ce791b21dfdc7469c9507432ebd', mod='omcore.asyncs.asynclite.base', path='../../../omcore/asyncs/asynclite/base.py'),  # noqa
             dict(sha1='4b0061643d8b8818651695761faf4c19459a6421', mod='omcore.io.pipelines.core', path='../../../omcore/io/pipelines/core.py'),  # noqa
@@ -98,6 +99,7 @@ def __om_amalg__():  # noqa
             dict(sha1='38429b7e804533da9a1dd356cf563ac4cff82aa2', mod='omcore.logs.metrics.base', path='../../../omcore/logs/metrics/base.py'),  # noqa
             dict(sha1='2e13388c65699c4aa89f32b78be8496b94fc40bb', mod='omcore.logs.protocols', path='../../../omcore/logs/protocols.py'),  # noqa
             dict(sha1='ad20a59ef95f12688de0f2e13e105eab6f149b75', mod='omcore.rpc.ids', path='../../../omcore/rpc/ids.py'),  # noqa
+            dict(sha1='49e7369b84a520f68a15d43b91196ac78b5c7ed6', mod='omllm.agent.environment.ops', path='../environment/ops.py'),  # noqa
             dict(sha1='a1a612dc895e5944561dbfcd40e13209c0b9c302', mod='omllm.agent.fs.ops', path='../fs/ops.py'),
             dict(sha1='e9c931c9b1aafae94c5b5a6468cc218c74483692', mod='omllm.agent.fs.remote.protocol', path='../fs/remote/protocol.py'),  # noqa
             dict(sha1='995eba7586af040b569b0ff77fb5e3a2d132f18e', mod='omllm.core.processes.remote.protocol', path='../../core/processes/remote/protocol.py'),  # noqa
@@ -116,6 +118,7 @@ def __om_amalg__():  # noqa
             dict(sha1='529adb527492309bf8cde342271ac6ea2ebbf8a1', mod='omcore.logs.contexts', path='../../../omcore/logs/contexts.py'),  # noqa
             dict(sha1='7dd07873ddd48f99bda0cf3837e01c4c7c4cc96c', mod='omcore.logs.utils', path='../../../omcore/logs/utils.py'),  # noqa
             dict(sha1='3d6b40c040640a850360da97ae6400784af9b85b', mod='omcore.rpc.errors', path='../../../omcore/rpc/errors.py'),  # noqa
+            dict(sha1='9c5734a40f41b31b90a171a29b3cc4ef1ca29742', mod='omllm.agent.environment.local', path='../environment/local.py'),  # noqa
             dict(sha1='e388e9282a7a01d535c7691883351bb8d58d5d11', mod='omllm.agent.fs.local', path='../fs/local.py'),
             dict(sha1='ff50841e3d4ffa489e490d3403edd10b28485bff', mod='omcore.asyncs.asynclite.asyncio.events', path='../../../omcore/asyncs/asynclite/asyncio/events.py'),  # noqa
             dict(sha1='17452fd7825201c915b8df4114941d283de54d2d', mod='omcore.asyncs.asynclite.eventpromises', path='../../../omcore/asyncs/asynclite/eventpromises.py'),  # noqa
@@ -142,11 +145,12 @@ def __om_amalg__():  # noqa
             dict(sha1='e93a3ce2e3c836ca431ec638faa921a22b94aad8', mod='omcore.rpc.session', path='../../../omcore/rpc/session.py'),  # noqa
             dict(sha1='7b010944f06cf59d6c3ece8ed6472c7888fa6c4d', mod='omcore.rpc.codecs', path='../../../omcore/rpc/codecs.py'),  # noqa
             dict(sha1='7e78b3a83293eb745623f0cc7ea2acaba2ad6b8a', mod='omcore.rpc.connection', path='../../../omcore/rpc/connection.py'),  # noqa
+            dict(sha1='d908c8c8238741b0b1d469dc853822f3b2eacb8f', mod='omllm.agent.environment.remote.server', path='../environment/remote/server.py'),  # noqa
             dict(sha1='1c922f568c67fa82941c8833abb728f378e9ca4d', mod='omllm.agent.fs.remote.server', path='../fs/remote/server.py'),  # noqa
             dict(sha1='ca8a8fb82ebe6265b38e35e4e375a483377e7b74', mod='omcore.rpc.specs', path='../../../omcore/rpc/specs.py'),  # noqa
             dict(sha1='0da45b7302e2ee2edee527bdf20f272e2c53c479', mod='omllm.core.processes.remote.server', path='../../core/processes/remote/server.py'),  # noqa
             dict(sha1='3558e03f33fcb35f5afc06f23103bec306cef809', mod='omcore.rpc.asyncio', path='../../../omcore/rpc/asyncio.py'),  # noqa
-            dict(sha1='ccc3bb82c2470ca130bc10c14f29fd884d54c6a1', mod='omllm.agent.remote.server', path='server.py'),
+            dict(sha1='176775e8c00eaef01d437c80ac93e9f979da37aa', mod='omllm.agent.remote.server', path='server.py'),
             dict(sha1='8bad618c4bae0d2120cd99b80e8fd82967ff086b', mod='-', path='_main.py'),
         ],
     )
@@ -3356,6 +3360,45 @@ class RpcConfig:
 
 
 RpcConfig.DEFAULT = RpcConfig()
+
+
+########################################
+# ../../environment/remote/protocol.py
+"""
+The wire shape of the remote environment: the one request the host's `RemoteEnvironmentOps` makes of the agent's
+`RemoteEnvironmentService`, and its result. Lite: shared with the remote agent amalgam, so Python 3.8 compatible and
+marshaled with the lite marshaler.
+"""
+
+
+##
+
+
+REMOTE_ENVIRONMENT_INFO_METHOD = 'environment.info'
+
+
+@dc.dataclass(frozen=True)
+class RemoteEnvironmentInfoParams:
+    cwd: ta.Optional[str]
+
+
+@dc.dataclass(frozen=True)
+class RemoteEnvironmentInfo:
+    """The agent's `EnvironmentInfo`, less what only the host can say of it: that it is remote."""
+
+    cwd: str
+
+    system: str
+    release: str
+    machine: str
+
+    hostname: str
+
+    user: ta.Optional[str]
+    home: ta.Optional[str]
+    shell: ta.Optional[str]
+
+    container: ta.Optional[str]
 
 
 ########################################
@@ -7878,6 +7921,62 @@ def rpc_id_creator_of(obj: ta.Optional[RpcIdCreatorLike]) -> RpcIdCreator:
 
 
 ########################################
+# ../../environment/ops.py
+"""
+What an environment - the machine or container the tools work in - says of itself. `EnvironmentOps` is asked once, at
+an agent's setup, for the facts which go into its system prompt and for its working directory; a remote environment
+answers through the remote agent. Lite: shared with the remote agent amalgam, so Python 3.8 compatible and standard
+library only.
+"""
+
+
+##
+
+
+@ta.final
+@install_dataclass_kw_only_init()
+@dc.dataclass(frozen=True)
+class EnvironmentInfo:
+    # The working directory, absolute and symlink-resolved in the environment's own namespace.
+    cwd: str
+
+    # `platform.system()`, `platform.release()`, and `platform.machine()` there: 'Linux', '6.8.0-138-generic', 'x86_64'.
+    system: str
+    release: str
+    machine: str
+
+    hostname: str
+
+    # The user the tools run as, and that user's home and shell, where they can be told.
+    user: ta.Optional[str] = None
+    home: ta.Optional[str] = None
+    shell: ta.Optional[str] = None
+
+    # The container runtime the environment finds itself running under - 'docker', 'podman' - or None where none is
+    # detected. Detected from inside, so it says nothing of how the environment is reached.
+    container: ta.Optional[str] = None
+
+    # Whether the environment is somewhere other than where the harness runs, so that the tools' files and processes
+    # are not the user's own machine's. Set by whatever reaches a remote environment, never by the environment itself.
+    remote: bool = False
+
+
+##
+
+
+class EnvironmentOps(Abstract):
+    @abc.abstractmethod
+    def get_info(self, *, cwd: ta.Optional[str] = None) -> ta.Awaitable[EnvironmentInfo]:
+        """
+        Describes the environment, with its working directory resolved: the one given, in the environment's own
+        namespace and relative to its own directory if not absolute, or that directory itself. A directory which does
+        not exist there raises FileNotFoundError, and a path there which is not a directory NotADirectoryError.
+        """
+
+        raise NotImplementedError
+
+
+########################################
 # ../../fs/ops.py
 
 
@@ -9603,6 +9702,84 @@ def rpc_remote_error_for_data(data: RpcRemoteErrorData) -> RpcRemoteError:
     if data.code == RpcErrorCodes.SHUTTING_DOWN:
         return RpcRemoteShuttingDownError(data)
     return RpcRemoteError(data)
+
+
+########################################
+# ../../environment/local.py
+
+
+##
+
+
+def environment_resolve_cwd(path: ta.Optional[str]) -> str:
+    """The absolute, symlink-resolved form of a working directory, which must exist and be one."""
+
+    cwd = os.path.abspath(os.path.realpath(path if path is not None else os.getcwd()))
+
+    if not os.path.exists(cwd):
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), cwd)
+    if not os.path.isdir(cwd):
+        raise NotADirectoryError(errno.ENOTDIR, os.strerror(errno.ENOTDIR), cwd)
+
+    return cwd
+
+
+def environment_detect_container() -> ta.Optional[str]:
+    """The container runtime this process is running under, as far as the usual marker files say. Best effort."""
+
+    if os.path.exists('/.dockerenv'):
+        return 'docker'
+    if os.path.exists('/run/.containerenv'):
+        return 'podman'
+    return None
+
+
+class LocalEnvironmentOps(EnvironmentOps):
+    """The environment this process is in. On the host that is the user's own machine; in the remote agent, its own."""
+
+    @staticmethod
+    def _user() -> ta.Tuple[ta.Optional[str], ta.Optional[str], ta.Optional[str]]:
+        pw_name: ta.Optional[str] = None
+        pw_dir: ta.Optional[str] = None
+        pw_shell: ta.Optional[str] = None
+        try:
+            import pwd  # noqa: PLC0415
+        except ImportError:  # pragma: no cover
+            pass
+        else:
+            try:
+                pw = pwd.getpwuid(os.getuid())
+            except KeyError:
+                pass
+            else:
+                pw_name, pw_dir, pw_shell = pw.pw_name, pw.pw_dir, pw.pw_shell
+
+        # The account is authoritative for who; the session's own variables for where it lives and what it runs, as
+        # they are what a shell started here would see.
+        user = pw_name or os.environ.get('USER') or os.environ.get('LOGNAME') or None
+        home = os.environ.get('HOME') or pw_dir or None
+        shell = os.environ.get('SHELL') or pw_shell or None
+
+        return user, home, shell
+
+    async def get_info(self, *, cwd: ta.Optional[str] = None) -> EnvironmentInfo:
+        user, home, shell = self._user()
+
+        return EnvironmentInfo(
+            cwd=environment_resolve_cwd(cwd),
+
+            system=platform.system(),
+            release=platform.release(),
+            machine=platform.machine(),
+
+            hostname=socket.gethostname(),
+
+            user=user,
+            home=home,
+            shell=shell,
+
+            container=environment_detect_container(),
+        )
 
 
 ########################################
@@ -18138,6 +18315,55 @@ class SyncRpcConnection(BaseSyncRpcConnection):
 
 
 ########################################
+# ../../environment/remote/server.py
+"""
+The target side of the remote environment: `RemoteEnvironmentService` answers for the environment the remote agent runs
+in, through a `LocalEnvironmentOps` there. Lite: this runs inside the remote agent amalgam under Python 3.8+.
+"""
+
+
+##
+
+
+class RemoteEnvironmentService:
+    def __init__(
+            self,
+            *,
+            local_ops: ta.Optional[LocalEnvironmentOps] = None,
+    ) -> None:
+        super().__init__()
+
+        if local_ops is None:
+            local_ops = LocalEnvironmentOps()
+
+        self._local_ops = local_ops
+
+    async def info(self, params: ta.Any) -> ta.Any:
+        p: RemoteEnvironmentInfoParams = unmarshal_obj(params, RemoteEnvironmentInfoParams)
+        i = await self._local_ops.get_info(cwd=p.cwd)
+        return marshal_obj(RemoteEnvironmentInfo(
+            cwd=i.cwd,
+
+            system=i.system,
+            release=i.release,
+            machine=i.machine,
+
+            hostname=i.hostname,
+
+            user=i.user,
+            home=i.home,
+            shell=i.shell,
+
+            container=i.container,
+        ))
+
+    def methods(self) -> ta.Mapping[str, RpcMethodFn]:
+        return {
+            REMOTE_ENVIRONMENT_INFO_METHOD: self.info,
+        }
+
+
+########################################
 # ../../fs/remote/server.py
 """
 The target side of the remote filesystem: `RemoteFsService` serves the `FsOps` operations on behalf of a host's
@@ -19888,10 +20114,12 @@ class RemoteAgentRpcHandler(RpcMethodTableHandler):
     def __init__(self) -> None:
         super().__init__()
 
+        self._environment = RemoteEnvironmentService()
         self._fs = RemoteFsService()
         self._processes = RemoteProcessService()
 
         self.add_methods(rpc_merge_method_tables(
+            self._environment.methods(),
             self._fs.methods(),
             self._processes.methods(),
         ))

@@ -10,6 +10,9 @@ The concerns themselves live with their owners, each as a `remote` subpackage of
 lite-marshaled wire shapes, a lite `server` that runs inside the payload, and a standard `client` that runs on the host
 and implements the concern's ordinary interface:
 
+- `omllm/agent/environment/remote` - `RemoteEnvironmentOps` implements `EnvironmentOps` over a
+  `RemoteEnvironmentService`: one call, answering for the agent's own surroundings through a `LocalEnvironmentOps`
+  there, and marked as remote by the host, which alone knows that it is.
 - `omllm/agent/fs/remote` - `RemoteFsOps` implements `FsOps` over a `RemoteFsService`. The service serves the
   operations which are the same call on either side - paths, metadata, and a write that fits one chunk - through a
   `LocalFsOps` (the lite `omllm/agent/fs/local.py`), and handles file content itself: it crosses in chunks (4 MiB by

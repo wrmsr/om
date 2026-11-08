@@ -18,6 +18,34 @@ O = ta.TypeVar('O')
 ##
 
 
+class DisplayPathResolver(lang.Abstract):
+    """How a path is shown: as given, or relative to something the frontend knows about where it is."""
+
+    @abc.abstractmethod
+    def resolve_display_path(self, path: str) -> str:
+        raise NotImplementedError
+
+
+@dc.dataclass(frozen=True)
+class CwdDisplayPathResolver(DisplayPathResolver):
+    """Paths beneath the cwd are shown relative to it; any other path, or a relative one, as given."""
+
+    cwd: str
+
+    def resolve_display_path(self, path: str) -> str:
+        if not os.path.isabs(path) or not os.path.isabs(cwd := self.cwd):
+            return path
+
+        cwd = os.path.normpath(cwd)
+        if os.path.commonpath([os.path.normpath(path), cwd]) != cwd:
+            return path
+
+        return os.path.relpath(path, cwd)
+
+
+##
+
+
 @dc.dataclass(frozen=True, kw_only=True)
 class TextRenderingOptions:
     density: ta.Literal['pretty', 'compact', None] = None
@@ -32,11 +60,8 @@ class TextRenderingOptions:
     # the diff renderer's defaults.
     diff_context_limits: diffs.DiffContextLimits | None = None
 
-    # The working directory, paths beneath which are shown relative to it. None shows every path as given.
-    cwd: str | None = None
-
-    # Shows every path as given, even those beneath the cwd.
-    absolute_paths: bool = False
+    # How paths are shown. None shows every path as given.
+    paths: DisplayPathResolver | None = None
 
 
 class TextRenderer(lang.Abstract, ta.Generic[O]):
@@ -65,21 +90,12 @@ def resolve_json_text_style(
 
 
 def resolve_display_path(options: TextRenderingOptions, path: str) -> str:
-    """A path as shown: relative to the options' cwd if beneath it, unless they ask for absolute paths."""
+    """A path as shown: as the options' resolver has it, or as given without one."""
 
-    if (
-            options.absolute_paths or
-            (cwd := options.cwd) is None or
-            not os.path.isabs(path) or
-            not os.path.isabs(cwd)
-    ):
+    if (paths := options.paths) is None:
         return path
 
-    cwd = os.path.normpath(cwd)
-    if os.path.commonpath([os.path.normpath(path), cwd]) != cwd:
-        return path
-
-    return os.path.relpath(path, cwd)
+    return paths.resolve_display_path(path)
 
 
 def resolve_display_diff_text(options: TextRenderingOptions, t: DiffText) -> DiffText:

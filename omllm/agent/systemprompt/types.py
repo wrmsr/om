@@ -6,6 +6,9 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 
+SystemPromptParts: ta.TypeAlias = ta.Sequence['SystemPromptPart'] | None
+
+
 ##
 
 
@@ -34,7 +37,12 @@ class SystemPromptPart:
 
 class SystemPromptContributor(lang.Abstract):
     @abc.abstractmethod
-    def get_system_prompt_parts(self) -> ta.Sequence[SystemPromptPart] | None:
+    def get_system_prompt_parts(self) -> SystemPromptParts | ta.Awaitable[SystemPromptParts]:
+        """
+        The parts outright, or an awaitable of them: a contributor which has to look at something to say its part
+        does so when the prompt is built, which is at an agent's setup.
+        """
+
         raise NotImplementedError
 
 

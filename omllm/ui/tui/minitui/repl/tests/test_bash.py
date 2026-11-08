@@ -46,7 +46,7 @@ async def bash(manager: str, cwd, **config) -> ta.AsyncIterator[tuple[repl.BashI
     async with root_process_scope(manager) as root:
         scope = root.child('repl')
         interpreter = repl.BashInterpreter(
-            ProcessScopePtySpawner(scope, cwd=os.path.realpath(cwd)),
+            ProcessScopePtySpawner(scope, get_cwd=lambda: os.path.realpath(cwd)),
             # Not the startup files of whoever runs the tests.
             config=repl.BashInterpreter.Config(no_rc=True, **config),
         )
@@ -183,7 +183,7 @@ async def test_the_terminal_follows_the_host_size(manager, tmp_path):
     size = [(30, 100)]
     async with root_process_scope(manager) as root:
         interpreter = repl.BashInterpreter(
-            ProcessScopePtySpawner(root.child('repl'), cwd=os.path.realpath(tmp_path)),
+            ProcessScopePtySpawner(root.child('repl'), get_cwd=lambda: os.path.realpath(tmp_path)),
             config=repl.BashInterpreter.Config(no_rc=True),
             size=lambda: size[0],
         )

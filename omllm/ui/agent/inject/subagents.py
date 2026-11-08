@@ -21,7 +21,7 @@ from .... import agent as agn
 from ....core import processes as procs
 from ..config import AgentConfig
 from ..setup import AgentSetup
-from ..systemprompt import CwdSystemPromptContributor
+from ..systemprompt import EnvironmentSystemPromptContributor
 from .events import AgentEventSubscribers
 from .events import agent_event_subscribers
 from .systemprompt import system_prompt_contributors_binder
@@ -160,7 +160,7 @@ def bind_subagent_agent(
         system_prompt_contributors_binder().bind_items_provider(singleton=True),
         inj.bind(agn.SubagentProfileSystemPromptContributor, singleton=True),
         system_prompt_contributors_binder().bind_item(to_key=agn.SubagentProfileSystemPromptContributor),
-        system_prompt_contributors_binder().bind_item(to_key=CwdSystemPromptContributor),
+        system_prompt_contributors_binder().bind_item(to_key=EnvironmentSystemPromptContributor),
         inj.bind(agn.SystemPromptManager, singleton=True),
 
         # Its own event subscribers: the relay to the parent's progress sink, and none of the root's.

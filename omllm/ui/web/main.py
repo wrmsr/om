@@ -20,7 +20,7 @@ from omcore.logs import all as logs
 from ... import agent as agn
 from ..agent.inject.events import AgentEventSubscribers
 from ..agent.setup import AgentSetup
-from ..types import TargetCwd
+from ..paths import get_agent_cwd
 from ..yolo import yolo_autoexec
 from ..yolo import yolo_process_config
 from .config import WebConfig
@@ -76,14 +76,14 @@ async def running_web(
         submitter = await injector[Submitter]
         server = await injector[AsgiPipelineServer]
 
-        cwd = check.non_empty_str((await injector[TargetCwd]).v)
-
         #
 
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
 
         await (await injector[AgentSetup]).run()
+
+        cwd = check.non_empty_str(get_agent_cwd(agent))
 
         if config.resume is not None:
             feed_transcript(feed, await session.resume())

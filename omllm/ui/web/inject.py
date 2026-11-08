@@ -4,7 +4,7 @@ from ... import agent as agn
 from ...core import ui
 from ..agent.inject.events import bind_on_agent_event_subscriber
 from ..inject.inject import bind_ui
-from ..types import TargetCwd
+from ..paths import AgentCwdDisplayPathResolver
 from .config import WebConfig
 from .feed.feed import Feed
 from .info import WebInfoBuilder
@@ -21,8 +21,8 @@ from .texts import WebTextRenderer
 ##
 
 
-def _provide_text_rendering_options(cwd: TargetCwd) -> ui.TextRenderingOptions:
-    return ui.TextRenderingOptions(cwd=cwd.v)
+def _provide_text_rendering_options(paths: AgentCwdDisplayPathResolver) -> ui.TextRenderingOptions:
+    return ui.TextRenderingOptions(paths=paths)
 
 
 def _provide_web_text_renderer(options: ui.TextRenderingOptions) -> WebTextRenderer:
@@ -31,6 +31,7 @@ def _provide_web_text_renderer(options: ui.TextRenderingOptions) -> WebTextRende
 
 def bind_output(config: WebConfig) -> inj.Elements:
     lst: list[inj.Elemental] = [
+        inj.bind(AgentCwdDisplayPathResolver, singleton=True),
         inj.bind(ui.TextRenderingOptions, singleton=True, to_fn=_provide_text_rendering_options),
         inj.bind(_provide_web_text_renderer, singleton=True),
 

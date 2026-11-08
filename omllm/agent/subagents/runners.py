@@ -64,8 +64,8 @@ class AgentSubagentRunner(SubagentRunner):
         if profiles is not None:
             profiles.validate_tools(tools)
 
-    def _build_system_prompt(self, params: SubagentRunParams) -> str:
-        return SystemPromptManager(SystemPromptContributors([
+    async def _build_system_prompt(self, params: SubagentRunParams) -> str:
+        return await SystemPromptManager(SystemPromptContributors([
             SubagentProfileSystemPromptContributor(profile=params.profile),
             *(self._system_prompt_contributors or []),
         ])).build_system_prompt()
@@ -75,7 +75,7 @@ class AgentSubagentRunner(SubagentRunner):
         profile = params.profile
 
         tools = profile.select_tools(self._tools)
-        system_prompt = self._build_system_prompt(params)
+        system_prompt = await self._build_system_prompt(params)
 
         agent = Agent(
             backends=self._backends,

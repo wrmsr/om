@@ -9,7 +9,7 @@ from ....core import ui
 from ...agent.inject.events import AgentEventSubscribers
 from ...agent.setup import AgentSetup
 from ...logs import configure_tui_logging
-from ...types import TargetCwd
+from ...paths import get_agent_cwd
 from ...types import UiId
 from ...yolo import yolo_autoexec
 from ...yolo import yolo_process_config
@@ -42,14 +42,14 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         text_displayer = await injector[ui.TextDisplayer]
         prompter = await injector[Prompter]
 
-        cwd = check.non_empty_str((await injector[TargetCwd]).v)
-
         #
 
         for el in await injector[AgentEventSubscribers]:
             agent.subscribe(el)
 
         await (await injector[AgentSetup]).run()
+
+        cwd = check.non_empty_str(get_agent_cwd(agent))
 
         if config.resume is not None:
             await display_transcript(await session.resume(), text_displayer)

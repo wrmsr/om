@@ -17,7 +17,6 @@ from ...agent.tests.scripted import text_message
 from ...agent.tests.scripted import tool_call_message
 from ...core import processes
 from ..config import UiConfig
-from ..types import TargetCwd
 from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
 from .headless import headless_ui
@@ -111,7 +110,12 @@ async def test_docker_remote_tool_bindings(tmp_path):
 
         assert isinstance(fs, agn.RemoteFsOps)
         assert isinstance(manager, processes.RemoteProcessManager)
-        assert (await hui.injector[TargetCwd]).v == cwd
+        assert check.not_none(hui.agent.state.tool_env).cwd == cwd
+
+        # And the agent is told of the far side as the far side: the environment is the container's, marked remote.
+        info = await (await hui.injector[agn.EnvironmentOps]).get_info()
+        assert info.remote
+        assert info.cwd == cwd
         assert isinstance(await hui.injector[agn.SessionStorage], agn.InMemorySessionStorage)
 
         # The root scope is the remote manager's, and it is what the agent hands to tools.

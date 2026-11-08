@@ -20,7 +20,7 @@ from ...agent.inject.events import AgentEventSubscribers
 from ...agent.setup import AgentSetup
 from ...commands.manager import CommandsManager
 from ...logs import configure_tui_logging
-from ...types import TargetCwd
+from ...paths import get_agent_cwd
 from ...types import UiId
 from ...yolo import yolo_autoexec
 from ...yolo import yolo_process_config
@@ -58,8 +58,6 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         app = await injector[MinituiChatApp]
         event_renderer = await injector[AgentEventRenderer]
 
-        cwd = check.non_empty_str((await injector[TargetCwd]).v)
-
         #
 
         app.set_commands([
@@ -86,6 +84,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
                 agent.subscribe(el)
 
             await (await injector[AgentSetup]).run()
+
+            cwd = check.non_empty_str(get_agent_cwd(agent))
 
             if config.resume is not None:
                 event_renderer.display_transcript(await session.resume())

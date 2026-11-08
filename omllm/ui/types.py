@@ -1,4 +1,3 @@
-import os.path
 import uuid
 
 from omcore import check
@@ -20,10 +19,14 @@ class UiId(tv.UniqueScalarTypedValue[uuid.UUID], final=True):
         check.isinstance(self.v, uuid.UUID)
 
 
-class TargetCwd(tv.UniqueScalarTypedValue[str], final=True):
+class RequestedCwd(tv.UniqueScalarTypedValue[str], final=True):
+    """
+    The working directory as asked for - `--cwd` - spelled in the target's namespace and resolved there at the agent's
+    setup, which is where the resolved one lives: on the agent's tool environment.
+    """
+
     def __post_init__(self) -> None:
         check.non_empty_str(self.v)
-        check.arg(os.path.isabs(self.v))
 
 
 class InitialLlmOptions(tv.UniqueScalarTypedValue[llm.Options], final=True):

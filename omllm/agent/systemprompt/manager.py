@@ -1,6 +1,9 @@
+import typing as ta
+
 from omcore import collections as col
 
 from .types import SystemPromptContributors
+from .types import SystemPromptPart
 
 
 ##
@@ -15,13 +18,15 @@ class SystemPromptManager:
 
         self._contributors = contributors
 
-    def build_system_prompt(self) -> str:
-        tups = [
-            (p, ps)
-            for pc in self._contributors or []
-            for p in pc.get_system_prompt_parts() or []
-            if (ps := p.text.strip())
-        ]
+    async def build_system_prompt(self) -> str:
+        tups: list[tuple[SystemPromptPart, str]] = []
+        for pc in self._contributors or []:
+            out = pc.get_system_prompt_parts()
+            if isinstance(out, ta.Awaitable):
+                out = await out
+            for p in out or []:
+                if (ps := p.text.strip()):
+                    tups.append((p, ps))
 
         tups.sort(key=lambda tup: (tup[0].priority, tup[1]))
 

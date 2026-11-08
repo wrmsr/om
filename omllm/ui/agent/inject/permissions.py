@@ -1,14 +1,13 @@
 from omcore import inject as inj
 
 from .... import agent as agn
-from ...types import TargetCwd
 from ..config import AgentConfig
 
 
 ##
 
 
-def _provide_permissions_manager(config: AgentConfig, cwd: TargetCwd) -> agn.StandardPermissionsManager:
+def _provide_permissions_manager(config: AgentConfig) -> agn.StandardPermissionsManager:
     permission_rules: list[agn.PermissionRule] = []
 
     return agn.StandardPermissionsManager(permission_rules)

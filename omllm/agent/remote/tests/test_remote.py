@@ -34,6 +34,10 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
         root = os.path.realpath(tmp_path)
         path = os.path.join(root, 'file.txt')
 
+        info = await client.environment.get_info(cwd=os.path.join(root, '.'))
+        assert info.cwd == root
+        assert info.remote
+
         created = await client.fs.write_file(path, b'one')
         assert created.created
         first = await client.fs.read_file(path)

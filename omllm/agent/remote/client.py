@@ -1,7 +1,8 @@
 """
 The host's end of one remote agent connection: a single rpc connection over which each remotable concern's client
-speaks - today the filesystem (`RemoteFsOps`) and processes (`RemoteProcessManager`). A new remotable concern builds its
-client on the same connection here, and its service into the payload in `server.py`.
+speaks - today the environment (`RemoteEnvironmentOps`), the filesystem (`RemoteFsOps`), and processes
+(`RemoteProcessManager`). A new remotable concern builds its client on the same connection here, and its service into
+the payload in `server.py`.
 """
 import asyncio
 import typing as ta
@@ -12,6 +13,7 @@ from omcore.rpc.dispatch import RpcMethodTableHandler
 
 from ...core.processes.managers.types import ManagerConfig
 from ...core.processes.remote.client import RemoteProcessManager
+from ..environment.remote.client import RemoteEnvironmentOps
 from ..fs.remote.client import RemoteFsOps
 
 
@@ -43,12 +45,17 @@ class RemoteAgentClient:
             config=process_config,
         )
         self._fs = RemoteFsOps(self._connection)
+        self._environment = RemoteEnvironmentOps(self._connection)
 
         self._started = False
 
     @property
     def connection(self) -> RpcConnection:
         return self._connection
+
+    @property
+    def environment(self) -> RemoteEnvironmentOps:
+        return self._environment
 
     @property
     def fs(self) -> RemoteFsOps:

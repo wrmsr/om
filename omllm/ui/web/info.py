@@ -6,7 +6,7 @@ from omcore import marshal as msh
 
 from ... import agent as agn
 from ..commands.manager import CommandsManager
-from ..types import TargetCwd
+from ..paths import get_agent_cwd
 from .feed.feed import Feed
 from .submissions import Submitter
 
@@ -56,7 +56,6 @@ class WebInfoBuilder:
             *,
             agent: agn.Agent,
             session_id: agn.SessionId | None = None,
-            cwd: TargetCwd | None = None,
             commands: CommandsManager,
             submitter: Submitter,
             feed: Feed,
@@ -65,7 +64,6 @@ class WebInfoBuilder:
 
         self._agent = agent
         self._session_id = session_id
-        self._cwd = cwd
         self._commands = commands
         self._submitter = submitter
         self._feed = feed
@@ -86,7 +84,7 @@ class WebInfoBuilder:
         return WebInfo(
             session_id=str(self._session_id.v) if self._session_id is not None else None,
             model=model,
-            cwd=self._cwd.v if self._cwd is not None else None,
+            cwd=get_agent_cwd(self._agent),
 
             commands=[
                 WebCommandInfo(

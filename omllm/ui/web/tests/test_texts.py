@@ -33,7 +33,7 @@ def test_json():
 
 
 def test_blocks():
-    r = WebTextRenderer(ui.TextRenderingOptions(cwd='/proj'))
+    r = WebTextRenderer(ui.TextRenderingOptions(paths=ui.CwdDisplayPathResolver('/proj')))
 
     assert r.render(ui.MarkdownText('# hi')) == {'md': '# hi'}
 
