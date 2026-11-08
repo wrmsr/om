@@ -177,6 +177,9 @@ class BaseIoPipelineHttpClient(BaseHttpClient, Abstract, ta.Generic[BaseIoPipeli
     __ssl_ctx: ssl.SSLContext
 
     def _ssl_ctx(self, config: SslIoPipelineHandler.Config) -> ssl.SSLContext:
+        if self._provided_ssl_ctx is not None:
+            return self._provided_ssl_ctx
+
         try:
             return self.__ssl_ctx
         except AttributeError:

@@ -1,7 +1,9 @@
 # ruff: noqa: SLF001
 # @om-lite
+import ssl
 import unittest
 
+from .....io.pipelines.ssl.handlers import SslIoPipelineHandler
 from ...base import HttpClientRequest
 from ..sync import IoPipelineHttpClient
 
@@ -52,6 +54,14 @@ class TestIoPipelineHttpClientRequests(unittest.TestCase):
         ))
 
         self.assertEqual(prepared.full_request.head.headers.single.get('host'), 'virtual.example')
+
+    def test_provided_ssl_context_is_used(self) -> None:
+        ssl_ctx = ssl.create_default_context()
+        SslIoPipelineHandler.configure_ssl_context(ssl_ctx, SslIoPipelineHandler.Config.DEFAULT)
+        prepared = IoPipelineHttpClient(ssl_ctx=ssl_ctx)._prepare_request(HttpClientRequest('https://example.com/'))
+
+        ssl_handler = next(h for h in prepared.pipeline_spec.handlers if isinstance(h, SslIoPipelineHandler))
+        self.assertIs(ssl_handler._ssl_ctx, ssl_ctx)
 
     def test_rejects_unsupported_urls(self) -> None:
         for url in (
