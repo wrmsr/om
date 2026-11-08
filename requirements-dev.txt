@@ -25,14 +25,14 @@ asyncpg-stubs==0.32.0
 docutils-stubs==0.0.22
 lxml-stubs==0.5.1
 types-awscrt==0.37.0
-types-docutils==0.23.0.20261030
+types-docutils==0.23.0.20261107
 types-greenlet==3.5.0.20260518
 types-paramiko==5.1.0.20261030
 types-psutil==7.2.2.20260906
 types-pygments==2.21.0.20260819
 types-pymysql==1.2.0.20260923
 types-pyyaml==6.0.12.20261103
-types-regex==2026.9.29.20261030
+types-regex==2026.11.7.20261108
 types-setuptools==84.2.0.20261104
 types-ujson==5.10.0.20250822
 
@@ -150,10 +150,10 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.125
-botocore==1.43.125
-types-boto3==1.43.125
-botocore-stubs==1.43.125
+boto3==1.43.126
+botocore==1.43.126
+types-boto3==1.43.126
+botocore-stubs==1.43.126
 
 asn1crypto==1.5.1
 pynacl==1.6.2
