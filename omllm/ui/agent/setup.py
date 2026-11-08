@@ -42,7 +42,7 @@ class AgentSetup:
         async def update(state: agn.State) -> agn.State:
             # The environment is asked here for the working directory, and again by its system prompt contributor for
             # the rest: both now, holding the agent, so the prompt and the tools agree on where they are.
-            info = await self._environment.get_info(
+            info = await self._environment.inspect_environment(
                 cwd=self._requested_cwd.v if self._requested_cwd is not None else None,
             )
 

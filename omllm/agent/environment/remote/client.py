@@ -36,7 +36,7 @@ class RemoteEnvironmentOps(EnvironmentOps):
         except RpcRemoteError as e:
             raise translate_rpc_remote_builtin_error(e) from e
 
-    async def get_info(self, *, cwd: str | None = None) -> EnvironmentInfo:
+    async def inspect_environment(self, *, cwd: str | None = None) -> EnvironmentInfo:
         r: RemoteEnvironmentInfo = unmarshal_obj(
             await self._call(
                 REMOTE_ENVIRONMENT_INFO_METHOD,
@@ -56,9 +56,11 @@ class RemoteEnvironmentOps(EnvironmentOps):
 
             hostname=r.hostname,
 
-            user=r.user,
-            home=r.home,
-            shell=r.shell,
+            user=EnvironmentInfo.User(
+                name=r.user.name,
+                home=r.user.home,
+                shell=r.user.shell,
+            ) if r.user is not None else None,
 
             container=r.container,
 

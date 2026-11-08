@@ -34,7 +34,7 @@ async def test_remote_agent_amalg_files_processes_and_pty(tmp_path) -> None:
         root = os.path.realpath(tmp_path)
         path = os.path.join(root, 'file.txt')
 
-        info = await client.environment.get_info(cwd=os.path.join(root, '.'))
+        info = await client.environment.inspect_environment(cwd=os.path.join(root, '.'))
         assert info.cwd == root
         assert info.remote
 

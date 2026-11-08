@@ -28,6 +28,8 @@ with _lang.auto_proxy_init(
 
     from .environment.ops import (  # noqa
         EnvironmentInfo,
+        EnvironmentInfoGetter,
+
         EnvironmentOps,
     )
 

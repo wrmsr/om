@@ -18,7 +18,11 @@ class StaticEnvironmentOps(EnvironmentOps):
 
         self._info = info
 
-    async def get_info(self, *, cwd: ta.Optional[str] = None) -> EnvironmentInfo:
+    async def inspect_environment(
+            self,
+            *,
+            cwd: ta.Optional[str] = None,
+    ) -> EnvironmentInfo:
         # Nothing to resolve against: a directory asked for is the one reported, as given.
         if cwd is None:
             return self._info

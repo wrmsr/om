@@ -40,7 +40,7 @@ class LocalEnvironmentOps(EnvironmentOps):
     """The environment this process is in. On the host that is the user's own machine; in the remote agent, its own."""
 
     @staticmethod
-    def _user() -> ta.Tuple[ta.Optional[str], ta.Optional[str], ta.Optional[str]]:
+    def _user() -> EnvironmentInfo.User:
         pw_name: ta.Optional[str] = None
         pw_dir: ta.Optional[str] = None
         pw_shell: ta.Optional[str] = None
@@ -58,14 +58,22 @@ class LocalEnvironmentOps(EnvironmentOps):
 
         # The account is authoritative for who; the session's own variables for where it lives and what it runs, as
         # they are what a shell started here would see.
-        user = pw_name or os.environ.get('USER') or os.environ.get('LOGNAME') or None
+        name = pw_name or os.environ.get('USER') or os.environ.get('LOGNAME') or None
         home = os.environ.get('HOME') or pw_dir or None
         shell = os.environ.get('SHELL') or pw_shell or None
 
-        return user, home, shell
+        return EnvironmentInfo.User(
+            name=name,
+            home=home,
+            shell=shell,
+        )
 
-    async def get_info(self, *, cwd: ta.Optional[str] = None) -> EnvironmentInfo:
-        user, home, shell = self._user()
+    async def inspect_environment(
+            self,
+            *,
+            cwd: ta.Optional[str] = None,
+    ) -> EnvironmentInfo:
+        user = self._user()
 
         return EnvironmentInfo(
             cwd=environment_resolve_cwd(cwd),
@@ -77,8 +85,6 @@ class LocalEnvironmentOps(EnvironmentOps):
             hostname=socket.gethostname(),
 
             user=user,
-            home=home,
-            shell=shell,
 
             container=environment_detect_container(),
         )

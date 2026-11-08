@@ -56,9 +56,11 @@ _INFO = agn.EnvironmentInfo(
     release='6.8.0-138-generic',
     machine='x86_64',
     hostname='box',
-    user='om',
-    home='/home/om',
-    shell='/bin/bash',
+    user=agn.EnvironmentInfo.User(
+        name='om',
+        home='/home/om',
+        shell='/bin/bash',
+    ),
 )
 
 _DATE = datetime.date(2026, 11, 7)
@@ -82,7 +84,9 @@ def test_render_environment_says_less_when_it_knows_less():
         release='24.0.0',
         machine='arm64',
         hostname='mac',
-        user='me',
+        user=agn.EnvironmentInfo.User(
+            name='me',
+        ),
     )
 
     assert render_environment_system_prompt(info, start_date=_DATE) == '\n'.join([

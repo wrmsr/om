@@ -34,7 +34,7 @@ class RemoteEnvironmentService:
 
     async def info(self, params: ta.Any) -> ta.Any:
         p: RemoteEnvironmentInfoParams = unmarshal_obj(params, RemoteEnvironmentInfoParams)
-        i = await self._local_ops.get_info(cwd=p.cwd)
+        i = await self._local_ops.inspect_environment(cwd=p.cwd)
         return marshal_obj(RemoteEnvironmentInfo(
             cwd=i.cwd,
 
@@ -44,9 +44,11 @@ class RemoteEnvironmentService:
 
             hostname=i.hostname,
 
-            user=i.user,
-            home=i.home,
-            shell=i.shell,
+            user=RemoteEnvironmentInfo.User(
+                name=i.user.name,
+                home=i.user.home,
+                shell=i.user.shell,
+            ) if i.user is not None else None,
 
             container=i.container,
         ))

@@ -113,7 +113,7 @@ async def test_docker_remote_tool_bindings(tmp_path):
         assert check.not_none(hui.agent.state.tool_env).cwd == cwd
 
         # And the agent is told of the far side as the far side: the environment is the container's, marked remote.
-        info = await (await hui.injector[agn.EnvironmentOps]).get_info()
+        info = await (await hui.injector[agn.EnvironmentOps]).inspect_environment()
         assert info.remote
         assert info.cwd == cwd
         assert isinstance(await hui.injector[agn.SessionStorage], agn.InMemorySessionStorage)

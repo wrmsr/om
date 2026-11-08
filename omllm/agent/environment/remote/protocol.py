@@ -32,8 +32,12 @@ class RemoteEnvironmentInfo:
 
     hostname: str
 
-    user: ta.Optional[str]
-    home: ta.Optional[str]
-    shell: ta.Optional[str]
+    @dc.dataclass(frozen=True)
+    class User:
+        name: ta.Optional[str]
+        home: ta.Optional[str]
+        shell: ta.Optional[str]
+
+    user: ta.Optional[User]
 
     container: ta.Optional[str]

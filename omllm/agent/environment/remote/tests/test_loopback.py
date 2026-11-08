@@ -46,16 +46,16 @@ async def test_remote_environment_loopback(tmp_path):
     root = os.path.realpath(tmp_path)
 
     async with _loopback_environment() as environment:
-        local = await LocalEnvironmentOps().get_info()
+        local = await LocalEnvironmentOps().inspect_environment()
 
         # The same facts, told from the far side: the one thing added is that it is the far side.
-        info = await environment.get_info()
+        info = await environment.inspect_environment()
         assert info.remote
         assert not local.remote
         assert dc.replace(info, remote=False) == local
 
-        assert (await environment.get_info(cwd=os.path.join(root, '.'))).cwd == root
+        assert (await environment.inspect_environment(cwd=os.path.join(root, '.'))).cwd == root
 
         # Errors come back as what they were.
         with pytest.raises(FileNotFoundError):
-            await environment.get_info(cwd=os.path.join(root, 'missing'))
+            await environment.inspect_environment(cwd=os.path.join(root, 'missing'))

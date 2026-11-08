@@ -99,12 +99,15 @@ def render_environment_system_prompt(
     lines.append(host)
 
     if (user := info.user) is not None:
-        user_line = f'- User: {user}'
-        if (shell := info.shell) is not None:
+        user_line = ''
+        if (name := user.name) is not None:
+            user_line += f'- User: {name}'
+        if (shell := user.shell) is not None:
             user_line += f', shell {shell}'
-        if (home := info.home) is not None:
+        if (home := user.home) is not None:
             user_line += f', home {home}'
-        lines.append(user_line)
+        if user_line:
+            lines.append(user_line)
 
     lines.extend([
         f'- Working directory: {info.cwd}',
@@ -122,15 +125,15 @@ def render_environment_system_prompt(
 @dc.dataclass(frozen=True)
 class EnvironmentSystemPromptContributor(agn.SystemPromptContributor):
     """
-    What the agent is told of its surroundings: the environment is asked when the prompt is built - at the agent's
-    setup - and the start date is that moment's. Baked into the context from then on, not kept up to date.
+    What the agent is told of its surroundings: the environment is asked when the prompt is built - at the agent's setup
+    - and the start date is that moment's. Baked into the context from then on, not kept up to date.
     """
 
     environment: agn.EnvironmentOps
     requested_cwd: RequestedCwd | None = None
 
     async def get_system_prompt_parts(self) -> ta.Sequence[agn.SystemPromptPart] | None:
-        info = await self.environment.get_info(
+        info = await self.environment.inspect_environment(
             cwd=self.requested_cwd.v if self.requested_cwd is not None else None,
         )
 
