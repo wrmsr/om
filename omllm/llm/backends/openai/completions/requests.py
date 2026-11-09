@@ -18,6 +18,7 @@ from ....types.models import Model
 from ....types.models import validate_reasoning_effort
 from ....types.options import CacheRetention
 from ....types.options import Options
+from ..toolresults import render_tool_result_output
 
 
 ##
@@ -177,7 +178,7 @@ class RequestPreparer:
                 raw_messages.append({
                     'role': 'tool',
                     'tool_call_id': msg.tool_call_id,
-                    'content': '\n'.join([c.text for c in msg.content]),
+                    'content': render_tool_result_output(msg),
                 })
 
             else:

@@ -20,6 +20,8 @@ from ....scripted.http import ScriptedUsage
 from ..immediate import GoogleGenerativeImmediateBackend
 from ..responses import translate_token_usage
 from ..scripted import GoogleGenerativeScriptedHttpClient
+from ..signatures import ToolCallSignature
+from ..signatures import parse_tool_call_signature
 from ..stream import GoogleGenerativeStreamBackend
 
 
@@ -82,7 +84,11 @@ def test_scripted_backend_round_trip(backend_cls):
     tool_call = check.isinstance(message.content[2], ToolCall)
     assert tool_call.id == 'function-call-1'
     assert tool_call.args == {'key': 'value'}
-    assert tool_call.backend_signature == 'tool-signature'
+    # The scripted provider issues ids, which the signature then records alongside the thought signature.
+    assert parse_tool_call_signature(tool_call.backend_signature) == ToolCallSignature(
+        thought_signature='tool-signature',
+        function_call_id='function-call-1',
+    )
     assert message.stop_reason == 'tool_use'
 
     usage = check.not_none(message.token_usage)

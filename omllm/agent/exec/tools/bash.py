@@ -58,6 +58,11 @@ class _ProgressExecOutputSink(ExecOutputSink):
 ##
 
 
+# A command is bounded whatever the model asks, as everything which does io is. The bound is long enough never to be
+# met by work the model is actually waiting on; it ends only what was forgotten.
+DEFAULT_BASH_TIMEOUT_S: ta.Final[float] = 24. * 60. * 60.
+
+
 @dc.dataclass(frozen=True)
 class BashToolParams:
     command: str
@@ -76,7 +81,10 @@ class BashTool(ToolClass[BashToolParams]):
         'Executes a bash command in the current working directory. Returns stdout and stderr.',
         dict(
             command='The bash command to execute.',
-            timeout_s='An optional timeout in seconds.',
+            timeout_s=(
+                'An optional timeout in seconds, defaulting to 24 hours. A command still running at its timeout is '
+                'killed, and its output so far is returned.'
+            ),
         ),
     )
 
@@ -85,11 +93,15 @@ class BashTool(ToolClass[BashToolParams]):
             *,
             permissions: PermissionDecider,
             exec: ExecOps,  # noqa
+            default_timeout_s: float | None = DEFAULT_BASH_TIMEOUT_S,
     ) -> None:
+        """The default timeout bounds a command the model gave none for; None leaves such a command unbounded."""
+
         super().__init__()
 
         self._permissions = permissions
         self._exec = exec
+        self._default_timeout_s = default_timeout_s
 
     def summarize(self, ctx: ToolContext, params: BashToolParams) -> str:
         return params.command
@@ -109,19 +121,21 @@ class BashTool(ToolClass[BashToolParams]):
             ExecPermissionTarget(cmd),
         ))
 
+        timeout_s = params.timeout_s if params.timeout_s is not None else self._default_timeout_s
+
         result = await self._exec.exec(
             scope,
             ExecParams(
                 cmd,
                 cwd=cwd,
-                timeout_s=params.timeout_s,
+                timeout_s=timeout_s,
             ),
             # Output is followed as it arrives only when someone is there to see it.
             output=_ProgressExecOutputSink(progress) if (progress := ctx.progress) is not None else None,
         )
 
         return ToolResult(
-            content=llm.TextContent(format_exec_output(result, timeout_s=params.timeout_s)),
+            content=llm.TextContent(format_exec_output(result, timeout_s=timeout_s)),
             details=ExecToolResultDetails(
                 rc=result.rc,
                 stdout=(result.stdout or b'').decode('utf-8', 'replace'),

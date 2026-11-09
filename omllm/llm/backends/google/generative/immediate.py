@@ -21,6 +21,7 @@ from .base import BaseGoogleGenerativeBackend
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
 from .responses import translate_token_usage
+from .signatures import build_tool_call_signature
 
 
 ##
@@ -98,12 +99,17 @@ class GoogleGenerativeImmediateBackend(BaseGoogleGenerativeBackend, ImmediateBac
                 elif 'functionCall' in raw_part:
                     raw_fc = check.isinstance(raw_part['functionCall'], ta.Mapping)
 
+                    # Google does not reliably issue tool call ids - fabricate as needed; one it did issue is kept in
+                    # the signature, to go back with the call and its response.
+                    raw_id = check.isinstance(raw_fc.get('id'), (str, None))
                     content.append(ToolCall(
-                        # Google does not reliably issue tool call ids - fabricate as needed.
-                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid7())),
+                        id=raw_id or str(uuid.uuid7()),
                         name=check.non_empty_str(raw_fc['name']),
                         args=check.isinstance(raw_fc.get('args') or {}, ta.Mapping),
-                        backend_signature=check.isinstance(raw_part.get('thoughtSignature'), (str, None)),
+                        backend_signature=build_tool_call_signature(
+                            thought_signature=check.isinstance(raw_part.get('thoughtSignature'), (str, None)),
+                            function_call_id=raw_id,
+                        ),
                     ))
 
                 else:

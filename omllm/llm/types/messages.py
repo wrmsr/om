@@ -64,6 +64,10 @@ type StopReason = ta.Literal[
     'context_length',
     'tool_use',
     'error',
+
+    # A reason the backend did not recognize, noted in its log and carried through as this so that the run is decided
+    # by what the message holds - as it is for a plain stop - rather than failed over a provider's new word.
+    'other',
 ]
 
 

@@ -307,7 +307,7 @@
     "module": ".llm.backends.google.generative.immediate",
     "attr": null,
     "file": "omllm/llm/backends/google/generative/immediate.py",
-    "line": 29,
+    "line": 30,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.google.generative.immediate",
@@ -322,7 +322,7 @@
     "module": ".llm.backends.google.generative.stream",
     "attr": null,
     "file": "omllm/llm/backends/google/generative/stream.py",
-    "line": 151,
+    "line": 157,
     "value": {
       "!.core.registry.manifests.RegistryManifest": {
         "module": "omllm.llm.backends.google.generative.stream",

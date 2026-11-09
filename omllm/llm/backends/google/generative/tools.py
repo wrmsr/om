@@ -29,13 +29,27 @@ PT_TYPE_BY_PRIMITIVE_TYPE: ta.Mapping[str, str] = {
     'integer': 'INTEGER',
     'boolean': 'BOOLEAN',
     'array': 'ARRAY',
+    'object': 'OBJECT',
     'null': 'NULL',
+}
+
+# Gemini's schema has no untyped value: the closest it can be told is any of the types a json value may have, less an
+# array, whose items it would then have to be told as well.
+ANY_SCHEMA: ta.Mapping[str, ta.Any] = {
+    'anyOf': [
+        {'type': 'STRING'},
+        {'type': 'NUMBER'},
+        {'type': 'BOOLEAN'},
+        {'type': 'OBJECT'},
+    ],
 }
 
 
 class ToolSchemaBuilder:
     def build_tool_dtype(self, t: ToolDtype) -> dict:
         if isinstance(t, PrimitiveToolDtype):
+            if t.type == 'any':
+                return dict(ANY_SCHEMA)
             return {'type': PT_TYPE_BY_PRIMITIVE_TYPE[t.type]}
 
         if isinstance(t, UnionToolDtype):
@@ -56,19 +70,27 @@ class ToolSchemaBuilder:
             }
 
         if isinstance(t, MappingToolDtype):
-            # FIXME: t.key
-            # return {
-            #     'type': 'object',
-            #     'additionalProperties': self.build_tool_dtype(t.value),
-            # }
-            raise NotImplementedError
+            # Gemini's schema has no additionalProperties: a mapping is an object whose keys it is not told, and the
+            # parameter's description is where to say what they and their values are.
+            return {'type': 'OBJECT'}
 
         if isinstance(t, TupleToolDtype):
-            # return {
-            #     'type': 'array',
-            #     'prefixItems': [self.build_tool_dtype(e) for e in t.elements],
-            # }
-            raise NotImplementedError
+            # Nor prefixItems: a tuple is an array of exactly so many items, each of any of the element types.
+            item_schemas: list[dict] = []
+            for e in t.elements:
+                if (s := self.build_tool_dtype(e)) not in item_schemas:
+                    item_schemas.append(s)
+
+            return {
+                'type': 'ARRAY',
+                'items': (
+                    item_schemas[0] if len(item_schemas) == 1 else
+                    {'anyOf': item_schemas} if item_schemas else
+                    dict(ANY_SCHEMA)
+                ),
+                'minItems': len(t.elements),
+                'maxItems': len(t.elements),
+            }
 
         if isinstance(t, EnumToolDtype):
             return {

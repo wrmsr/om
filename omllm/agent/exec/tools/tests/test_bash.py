@@ -29,6 +29,7 @@ from ...ops import ExecOps
 from ...ops import ExecParams
 from ...ops import ExecResult
 from ...ops import ProcessesExecOps
+from ..bash import DEFAULT_BASH_TIMEOUT_S
 from ..bash import BashTool
 from ..bash import BashToolParams
 from ..details import ExecToolResultDetails
@@ -151,3 +152,35 @@ async def test_bash_times_out_while_streaming():
 
     [tr] = [m for m in result.new_messages if isinstance(m, llm.ToolResultMessage)]
     assert 'timed out' in tr.content[0].text
+
+
+async def _captured_timeout(tmp_path, params, **tool_kwargs):
+    cap = _CaptureExecOps()
+    tool = BashTool(
+        permissions=StaticPermissionDecider(PermissionState.ALLOW),
+        exec=cap,
+        **tool_kwargs,
+    )
+
+    async with processes.AsyncioProcessManager() as m:
+        await tool.execute(
+            ToolContext(
+                args={},
+                env=ToolEnvironment(cwd=str(tmp_path), processes=m.root),
+            ),
+            params,
+        )
+
+    return check.not_none(cap.params).timeout_s
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_bash_bounds_a_command_the_model_left_unbounded(tmp_path):
+    assert DEFAULT_BASH_TIMEOUT_S == 24 * 60 * 60
+
+    assert await _captured_timeout(tmp_path, BashToolParams('sleep 1')) == DEFAULT_BASH_TIMEOUT_S
+
+    # The model's own bound wins, and the default is the tool's to set - or to waive.
+    assert await _captured_timeout(tmp_path, BashToolParams('sleep 1', timeout_s=5.)) == 5.
+    assert await _captured_timeout(tmp_path, BashToolParams('sleep 1'), default_timeout_s=30.) == 30.
+    assert await _captured_timeout(tmp_path, BashToolParams('sleep 1'), default_timeout_s=None) is None

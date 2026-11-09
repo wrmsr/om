@@ -12,6 +12,7 @@ from ....types.messages import UserMessage
 from ....types.models import Model
 from ....types.models import validate_reasoning_effort
 from ....types.options import Options
+from .signatures import parse_tool_call_signature
 from .tools import build_tool_spec_schema
 
 
@@ -86,6 +87,9 @@ class RequestPreparer:
 
         raw_contents: list[dict] = []
 
+        # Gemini's own ids for the calls seen so far, by the ids the calls carry here, for their responses to echo.
+        function_call_ids: dict[str, str] = {}
+
         for msg in self._context.messages or []:
             if isinstance(msg, UserMessage):
                 if isinstance(msg.content, str):
@@ -124,16 +128,22 @@ class RequestPreparer:
                         pass
 
                     elif isinstance(c, ToolCall):
-                        # Tool call ids are not sent - google does not reliably issue them, so they may be locally
-                        # fabricated, and those must not be echoed back. Function responses are matched by name. Thought
-                        # signatures however must be echoed back with their function calls - gemini rejects tool-calling
-                        # requests whose replayed function calls lack them.
+                        # Only an id gemini issued goes back - the call's own id may be a local fabrication, which
+                        # must not be echoed - and its response then carries the same, to be matched by it; a call
+                        # without one is matched to its response by order. Thought signatures however must always be
+                        # echoed back with their function calls - gemini rejects tool-calling requests whose replayed
+                        # function calls lack them.
+                        sig = parse_tool_call_signature(c.backend_signature)
+                        if sig.function_call_id is not None:
+                            function_call_ids[c.id] = sig.function_call_id
+
                         raw_parts.append({
                             'functionCall': {
+                                **({'id': sig.function_call_id} if sig.function_call_id else {}),
                                 'name': c.name,
                                 'args': c.args,
                             },
-                            **({'thoughtSignature': c.backend_signature} if c.backend_signature else {}),
+                            **({'thoughtSignature': sig.thought_signature} if sig.thought_signature else {}),
                         })
 
                     else:
@@ -145,9 +155,12 @@ class RequestPreparer:
                 })
 
             elif isinstance(msg, ToolResultMessage):
+                function_call_id = function_call_ids.get(msg.tool_call_id)
+
                 raw_contents.append({
                     'parts': [{
                         'functionResponse': {
+                            **({'id': function_call_id} if function_call_id else {}),
                             'name': msg.tool_name,
                             # The response object is free-form; the provider's own convention is an 'error' key for a
                             # failed call.

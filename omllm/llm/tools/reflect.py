@@ -81,6 +81,13 @@ class ToolDtypeReflector:
         if isinstance(rty, rfl.UnionType):
             return self.reflect_union_type(*rty.items)
 
+        if isinstance(rty, rfl.TupleType):
+            # A tuple of so many, each of its own type: tuple[str, int], or the empty tuple[()].
+            return TupleToolDtype(tuple(
+                self.reflect_type(i_rty)
+                for i_rty in rty.items
+            ))
+
         if isinstance(rty, rfl.Instance):
             if not rty.args:
                 return PrimitiveToolDtype.of(rty)
@@ -99,10 +106,9 @@ class ToolDtypeReflector:
                 )
 
             if g_cls is tuple:
-                return TupleToolDtype(tuple(
-                    self.reflect_type(a_rty)
-                    for a_rty in rty.args
-                ))
+                # Not a tuple of so many: a variadic tuple[X, ...], or a bare tuple, which is one of Any. Any number
+                # of one type is a sequence.
+                return SequenceToolDtype(self.reflect_type(check.single(rty.args)))
 
         raise TypeError(rty)
 

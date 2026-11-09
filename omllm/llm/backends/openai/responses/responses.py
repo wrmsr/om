@@ -5,6 +5,7 @@ from omcore.formats.json import all as json
 
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
+from ...base.stops import unknown_stop_reason
 
 
 ##
@@ -62,4 +63,4 @@ def translate_stop_reason(
         return 'error'
 
     else:
-        raise ValueError(status)
+        return unknown_stop_reason('openai-responses', status)

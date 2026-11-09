@@ -4,6 +4,7 @@ from omcore import check
 
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
+from ...base.stops import unknown_stop_reason
 
 
 ##
@@ -59,5 +60,7 @@ def translate_stop_reason(s: str) -> StopReason:
     elif s == 'refusal':
         return 'error'
 
+    # Notably pause_turn, which asks for the turn to be continued as it stands: not a failure, and left to the
+    # message's content to decide, like any other unknown.
     else:
-        raise ValueError(s)
+        return unknown_stop_reason('anthropic', s)

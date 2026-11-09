@@ -23,6 +23,7 @@ from .base import BaseGoogleGenerativeBackend
 from .requests import RequestPreparer
 from .responses import translate_stop_reason
 from .responses import translate_token_usage
+from .signatures import build_tool_call_signature
 
 
 ##
@@ -113,15 +114,20 @@ class SseEventProcessor(BaseBackendSseEventProcessor):
 
                     # Function calls arrive whole - args are a complete mapping, never streamed as partial json - so
                     # each such part is a fully-formed new tool call, indexed only by arrival order. Google does not
-                    # reliably issue ids for them, so they are fabricated as needed.
+                    # reliably issue ids for them, so they are fabricated as needed; one it did issue is kept in
+                    # the signature, to go back with the call and its response.
+                    raw_id = check.isinstance(raw_fc.get('id'), (str, None))
                     tool_call = self._tool_call(
-                        id=check.non_empty_str(raw_fc.get('id') or str(uuid.uuid7())),
+                        id=raw_id or str(uuid.uuid7()),
                         index=self._next_tool_call_index_,
                     )
                     self._next_tool_call_index_ += 1
 
                     tool_call.name = check.non_empty_str(raw_fc['name'])
-                    tool_call.backend_signature = check.isinstance(raw_part.get('thoughtSignature'), (str, None))
+                    tool_call.backend_signature = build_tool_call_signature(
+                        thought_signature=check.isinstance(raw_part.get('thoughtSignature'), (str, None)),
+                        function_call_id=raw_id,
+                    )
 
                     args_delta = json.dumps(check.isinstance(raw_fc.get('args') or {}, ta.Mapping))
                     tool_call.partial_args.write(args_delta)

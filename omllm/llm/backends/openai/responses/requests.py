@@ -17,6 +17,7 @@ from ....types.models import Model
 from ....types.models import validate_reasoning_effort
 from ....types.options import CacheRetention
 from ....types.options import Options
+from ..toolresults import render_tool_result_output
 from .signatures import parse_text_signature
 from .signatures import parse_thinking_signature
 from .signatures import parse_tool_call_signature
@@ -194,7 +195,7 @@ class RequestPreparer:
                 raw_input.append({
                     'type': 'function_call_output',
                     'call_id': msg.tool_call_id,
-                    'output': '\n'.join([c.text for c in msg.content]),
+                    'output': render_tool_result_output(msg),
                 })
 
             else:

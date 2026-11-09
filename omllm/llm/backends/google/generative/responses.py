@@ -4,6 +4,7 @@ from omcore import check
 
 from ....types.messages import StopReason
 from ....types.messages import TokenUsage
+from ...base.stops import unknown_stop_reason
 
 
 ##
@@ -62,4 +63,4 @@ def translate_stop_reason(s: str) -> StopReason:
         return 'error'
 
     else:
-        raise ValueError(s)
+        return unknown_stop_reason('google-generative', s)
