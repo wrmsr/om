@@ -54,9 +54,11 @@ AutoVacuumMode: ta.TypeAlias = ta.Literal[
 ]
 
 
-@dc.dataclass(frozen=True, kw_only=True)
+@dc.dataclass(frozen=True)
 class SqliteDbConfig(DbLoc):
-    file_path: str
+    file_path: str | None = None
+
+    _: dc.KW_ONLY
 
     # Open
 
@@ -177,7 +179,10 @@ def _dbconfig(conn: sqlite3.Connection, name: str, value: bool) -> None:
 
 
 def _sqlite_file_uri(abs_path: str, params: ta.Mapping[str, str]) -> str:
-    uri = 'file://' + urllib.parse.quote(abs_path)  # Quotes the '?', '#' and '%' a plain path can't carry.
+    if abs_path == ':memory:':
+        uri = 'file::memory:'
+    else:
+        uri = 'file://' + urllib.parse.quote(abs_path)  # Quotes the '?', '#' and '%' a plain path can't carry.
     if params:
         uri += '?' + urllib.parse.urlencode(params)
     return uri
@@ -343,15 +348,20 @@ def connect_sqlite(config: SqliteDbConfig) -> sqlite3.Connection:
     if sqlite3.sqlite_version_info < tuple(config.min_sqlite_version):
         raise RuntimeError(f'sqlite {sqlite3.sqlite_version} is older than required {config.min_sqlite_version}')  # noqa
 
-    file_path = os.path.abspath(check.non_empty_str(config.file_path))
     writable = config.writable
 
-    if config.mode == 'rwc':
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        if not os.path.exists(file_path):
-            # Racing another creator is fine - exactly one wins, and the file exists afterwards either way.
-            if not _create_sqlite_file(config, file_path):
-                log.debug('Lost race creating %r', file_path)
+    if (file_path := config.file_path) is not None:
+        file_path = os.path.abspath(check.non_empty_str(file_path))
+
+        if config.mode == 'rwc':
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            if not os.path.exists(file_path):
+                # Racing another creator is fine - exactly one wins, and the file exists afterwards either way.
+                if not _create_sqlite_file(config, file_path):
+                    log.debug('Lost race creating %r', file_path)
+
+    else:
+        file_path = ':memory:'
 
     # Having created it ourselves if need be, sqlite is opened without permission to - so a file that vanishes between
     # here and the open is an error, not a fresh empty db.

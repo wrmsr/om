@@ -94,7 +94,7 @@ DbSetValue: ta.TypeAlias = DbSpec | DbSetKey
 class DbSet(ta.Mapping[DbSetKey, DbSpec]):
     def __init__(
             self,
-            entries: ta.Mapping[DbSetKey, DbSetValue] | None = None,
+            entries: ta.Mapping[DbSetKey, DbSetValue] | ta.Iterable[tuple[DbSetKey, DbSetValue]] | None = None,
             *,
             writer: DbSetValue | None = None,
             reader: DbSetValue | None = None,
@@ -103,7 +103,11 @@ class DbSet(ta.Mapping[DbSetKey, DbSpec]):
         super().__init__()
 
         resolved = _resolve_aliases([
-            *(entries.items() if entries else []),
+            *(
+                [] if not entries else
+                entries.items() if isinstance(entries, ta.Mapping) else
+                entries
+            ),
             *([
                 (k, v)
                 for k, v in [
@@ -153,10 +157,10 @@ class DbSet(ta.Mapping[DbSetKey, DbSpec]):
 
 
 class DbSets(ta.Mapping[str, DbSet]):
-    def __init__(self, sets: ta.Mapping[str, DbSet]) -> None:
+    def __init__(self, sets: ta.Mapping[str, DbSet] | ta.Iterable[tuple[str, DbSet]]) -> None:
         super().__init__()
 
-        resolved = _resolve_aliases(sets.items())
+        resolved = _resolve_aliases(sets.items() if isinstance(sets, ta.Mapping) else sets)
 
         self._sets = {k: check.isinstance(v, DbSet) for k, v in resolved.items()}
 

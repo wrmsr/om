@@ -53,14 +53,14 @@ async def test_sqlite_db_is_created_shareable_and_reopens():
     config = sql.be.sqlite.connecting.SqliteDbConfig(
         file_path=os.path.join(tempfile.mkdtemp(), 'state', 'sessions.db'),
     )
-    assert not os.path.exists(config.file_path)
+    assert not os.path.exists(config.file_path)  # type: ignore
 
     # Entering the orm is enough to have a db there, schema and all, before anything is stored in it.
     async with (
         sql.be.sqlite.connecting.asyncio_sqlite_db(config) as db,
         _sql_orm(db) as sql_orm,
     ):
-        with sqlite3.connect(config.file_path) as conn:
+        with sqlite3.connect(config.file_path) as conn:  # type: ignore
             assert conn.execute('pragma journal_mode').fetchone() == ('wal',)
             tables = {n for [n] in conn.execute("select name from sqlite_master where type = 'table'")}
             assert tables == {'sessions', 'session_entries'}
@@ -81,6 +81,6 @@ async def test_sqlite_db_is_created_shareable_and_reopens():
         await other_agent.prompt('hi')
         await check_stored_transcript(other_storage, other_agent)
 
-    with sqlite3.connect(config.file_path) as conn:
+    with sqlite3.connect(config.file_path) as conn:  # type: ignore
         assert conn.execute('select count(*) from sessions').fetchone() == (2,)
         assert conn.execute('select count(*) from session_entries').fetchone() == (4,)

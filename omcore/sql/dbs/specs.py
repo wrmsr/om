@@ -3,12 +3,14 @@ import urllib.parse
 
 from ... import dataclasses as dc
 from ... import lang
+from ... import marshal as msh
 from ...secrets import all as sec
 
 
 ##
 
 
+@msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbFamily(lang.Final):
@@ -54,6 +56,7 @@ class UrlDbLoc(DbLoc, lang.Final):
     url: sec.SecretRefOrStr = dc.xfield() | sec.secret_field
 
 
+@msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
 @dc.dataclass(frozen=True)
 class HostDbLoc(DbLoc, lang.Final):
     host: str
@@ -68,6 +71,7 @@ class HostDbLoc(DbLoc, lang.Final):
 ##
 
 
+@msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
 @dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbCaps:
@@ -75,11 +79,12 @@ class DbCaps:
     privileged: bool | None = None
 
 
+@msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
 @dc.dataclass(frozen=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbSpec(lang.Final):
     name: str
-    family: DbFamily
+    family: DbFamily  # FIXME: | str
     loc: DbLoc
 
     _: dc.KW_ONLY

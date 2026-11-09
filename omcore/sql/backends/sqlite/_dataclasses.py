@@ -29,11 +29,11 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='50e5a2aa0d295060b6726815a52220779fd27b6c',
+    installer_sha1='de0d4b9294add69467e0942fa84d6a0bdf98453f',
     spec_keys=(
         (
-            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
-            "e, False, False, False), ((('file_path', True, True, None, True, True, False, None), 'instance', 'missing'"
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('file_path', True, True, None, True, False, False, None), 'instance', 'value'"
             ", None, False, False, False), (('mode', True, True, None, True, True, False, None), 'instance', 'value', N"
             "one, False, False, False), (('immutable', True, True, None, True, True, False, None), 'instance', 'value',"
             " None, False, False, False), (('query_only', True, True, None, True, True, False, None), 'instance', 'valu"
@@ -68,7 +68,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
         ('omcore.sql.backends.sqlite.connecting', 'SqliteDbConfig'),
     ),
 )
-def _process_dataclass__50e5a2aa0d295060b6726815a52220779fd27b6c():
+def _process_dataclass__de0d4b9294add69467e0942fa84d6a0bdf98453f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -76,6 +76,7 @@ def _process_dataclass__50e5a2aa0d295060b6726815a52220779fd27b6c():
         __dataclass__globals,
     ):
         __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__00__default = __dataclass__spec.fields[0].default.must()
         __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
         __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
@@ -281,8 +282,8 @@ def _process_dataclass__50e5a2aa0d295060b6726815a52220779fd27b6c():
 
         def __init__(
             self,
+            file_path: __dataclass__init__fields__00__annotation = __dataclass__init__fields__00__default,
             *,
-            file_path: __dataclass__init__fields__00__annotation,
             mode: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
             immutable: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
             query_only: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
