@@ -210,7 +210,6 @@ def test_lite_source_mirror_cli(discover, lite_only):
     with temp_dir_context() as src_dir, temp_dir_context() as dst_dir:
         _build_src_tree(src_dir)
         _write(os.path.join(src_dir, 'root/pkg/explicit.py'), 'EXPLICIT = 1\n')
-        # repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
         repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
         env = dict(os.environ, PYTHONPATH=os.pathsep.join([repo_dir, os.environ.get('PYTHONPATH', '')]))
         args = [sys.executable, '-B', '-m', 'omdev.lite.mirror']

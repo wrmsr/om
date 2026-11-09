@@ -110,4 +110,3 @@ class SystevisorNamespaceChildModifier(SystevisorChildModifier):
         flags = systevisor_namespace_flags(config)
         if flags:
             self._backend.apply(flags, private_mounts=config.mount, hostname=config.hostname)
-

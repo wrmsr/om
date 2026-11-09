@@ -34,17 +34,17 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
     live_paths: ta.List[str] = []
 
     restart_candidates: ta.Sequence[ta.Tuple[str, ta.Any, ta.Any]] = (
-            ('exec', old.exec, new.exec),
-            ('identity', old.identity, new.identity),
-            ('kind', old.kind, new.kind),
-            ('stdio.stdin', old.stdio.stdin, new.stdio.stdin),
-            ('stdio.redirect_stderr', old.stdio.redirect_stderr, new.stdio.redirect_stderr),
-            ('stop.scope', old.stop.scope, new.stop.scope),
-            ('stop.kill_scope', old.stop.kill_scope, new.stop.kill_scope),
-            ('signals.scope', old.signals.scope, new.signals.scope),
-            ('resources.cgroup', old.resources.cgroup, new.resources.cgroup),
-            ('resources.namespaces', old.resources.namespaces, new.resources.namespaces),
-            ('resources.inherited_sockets', old.resources.inherited_sockets, new.resources.inherited_sockets),
+        ('exec', old.exec, new.exec),
+        ('identity', old.identity, new.identity),
+        ('kind', old.kind, new.kind),
+        ('stdio.stdin', old.stdio.stdin, new.stdio.stdin),
+        ('stdio.redirect_stderr', old.stdio.redirect_stderr, new.stdio.redirect_stderr),
+        ('stop.scope', old.stop.scope, new.stop.scope),
+        ('stop.kill_scope', old.stop.kill_scope, new.stop.kill_scope),
+        ('signals.scope', old.signals.scope, new.signals.scope),
+        ('resources.cgroup', old.resources.cgroup, new.resources.cgroup),
+        ('resources.namespaces', old.resources.namespaces, new.resources.namespaces),
+        ('resources.inherited_sockets', old.resources.inherited_sockets, new.resources.inherited_sockets),
     )
     for path, old_value, new_value in restart_candidates:
         if old_value != new_value:
@@ -63,19 +63,19 @@ def systevisor_classify_unit_change(old: SystevisorUnitConfig, new: SystevisorUn
             live_paths.append(path)
 
     live_candidates: ta.Sequence[ta.Tuple[str, ta.Any, ta.Any]] = (
-            ('replicas', old.replicas, new.replicas),
-            ('replica_start', old.replica_start, new.replica_start),
-            ('autostart', old.autostart, new.autostart),
-            ('priority', old.priority, new.priority),
-            ('restart', old.restart, new.restart),
-            ('stop.signal', old.stop.signal, new.stop.signal),
-            ('stop.timeout_secs', old.stop.timeout_secs, new.stop.timeout_secs),
-            ('stop.kill_signal', old.stop.kill_signal, new.stop.kill_signal),
-            ('signals.forward', old.signals.forward, new.signals.forward),
-            ('dependencies', old.dependencies, new.dependencies),
-            ('health', old.health, new.health),
-            ('resources.observe', old.resources.observe, new.resources.observe),
-            ('tags', old.tags, new.tags),
+        ('replicas', old.replicas, new.replicas),
+        ('replica_start', old.replica_start, new.replica_start),
+        ('autostart', old.autostart, new.autostart),
+        ('priority', old.priority, new.priority),
+        ('restart', old.restart, new.restart),
+        ('stop.signal', old.stop.signal, new.stop.signal),
+        ('stop.timeout_secs', old.stop.timeout_secs, new.stop.timeout_secs),
+        ('stop.kill_signal', old.stop.kill_signal, new.stop.kill_signal),
+        ('signals.forward', old.signals.forward, new.signals.forward),
+        ('dependencies', old.dependencies, new.dependencies),
+        ('health', old.health, new.health),
+        ('resources.observe', old.resources.observe, new.resources.observe),
+        ('tags', old.tags, new.tags),
     )
     for path, old_value, new_value in live_candidates:
         if old_value != new_value:

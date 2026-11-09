@@ -76,7 +76,7 @@ def _systevisor_test_engine_unit(
 
 
 def _systevisor_test_engine_effects(output: object, effect_type: object) -> list:
-    return [effect for effect in output.effects if isinstance(effect, effect_type)]  # type: ignore[attr-defined,arg-type]
+    return [effect for effect in output.effects if isinstance(effect, effect_type)]  # type: ignore
 
 
 class TestSystevisorEngine(unittest.TestCase):

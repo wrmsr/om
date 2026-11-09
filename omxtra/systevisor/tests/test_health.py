@@ -51,7 +51,7 @@ def _systevisor_test_health_apply(
 
 
 def _systevisor_test_health_effects(output: object, effect_type: object) -> list:
-    return [effect for effect in output.effects if isinstance(effect, effect_type)]  # type: ignore[attr-defined,arg-type]
+    return [effect for effect in output.effects if isinstance(effect, effect_type)]  # type: ignore
 
 
 class TestSystevisorHealthEngine(unittest.TestCase):

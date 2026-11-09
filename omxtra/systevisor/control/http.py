@@ -155,6 +155,7 @@ class SystevisorHttpConnectionIoPipelineHandler(IoPipelineHandler):
             self._enqueue(data)
 
         handler_ref = ctx.ref
+
         def on_data(data: bytes) -> None:
             if handler_ref.invalidated or not handler_ref.pipeline.is_ready:
                 return
@@ -304,7 +305,7 @@ class SystevisorHttpListenerFdioHandler(ServerSocketFdioHandler):
             _SYSTEVISOR_HTTP_LOG.exception('Systevisor control listener failed to set up a connection')
 
 
-SystevisorHttpListenerKey = ta.Tuple[ta.Union[str, int], ...]
+SystevisorHttpListenerKey = ta.Tuple[ta.Union[str, int], ...]  # ta.TypeAlias  # om-amalg-typing-no-move
 
 
 @dc.dataclass(frozen=True)

@@ -158,7 +158,6 @@ class TestSystevisorCron(unittest.TestCase):
         with self.assertRaises(SystevisorCronError):
             systevisor_parse_cron('61 * * * *')
 
-
     def test_impossible_date_is_rejected_quickly_rather_than_searched_for(self) -> None:
         cron = systevisor_parse_cron('0 0 31 2 *')
         with self.assertRaises(SystevisorCronError):

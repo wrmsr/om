@@ -92,6 +92,7 @@ omllm/ui/web/_dataclasses.py linguist-generated
 omxtra/blobs/_dataclasses.py linguist-generated
 omxtra/blobs/remote/_amalg.py linguist-generated
 omxtra/messagebus/_dataclasses.py linguist-generated
+omxtra/systevisor/_bin/systevisor.py linguist-generated
 omxtra/text/gotmpl/_dataclasses.py linguist-generated
 omxtra/text/shparse/_dataclasses.py linguist-generated
 omxtra/zmq/_dataclasses.py linguist-generated
@@ -110,6 +111,5 @@ x/ommlds/backends/ollama/_dataclasses.py linguist-generated
 x/ommlds/backends/openai/protocol/_dataclasses.py linguist-generated
 x/ommlds/backends/tavily/_dataclasses.py linguist-generated
 x/ommlds/cli/_dataclasses.py linguist-generated
-x/systevisor/_bin/systevisor.py linguist-generated
 
 #### end @om-generated ####
