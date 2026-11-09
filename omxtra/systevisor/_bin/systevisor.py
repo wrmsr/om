@@ -77,7 +77,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'a30273e521f7797d653e9274037636d84e8e46f6'
+__om_amalg_sha1__ = 'f6a45f723927a1f415a6d2cb0ca5ff2b5c8446f5'
 
 
 def __om_amalg__():  # noqa
@@ -180,7 +180,7 @@ def __om_amalg__():  # noqa
             dict(sha1='551e6377cf1152cb40536cc10c46a959dd940da7', mod='omcore.io.streambufs.segmented', path='../../omcore/io/streambufs/segmented.py'),  # noqa
             dict(sha1='6b444494a0512f7b7ea2c93be5c4a9868deb7251', mod='omcore.logs.asyncs', path='../../omcore/logs/asyncs.py'),  # noqa
             dict(sha1='144a96b3b190a5641f3b7cc2656d6ffa4e45b5a9', mod='omcore.logs.std.loggers', path='../../omcore/logs/std/loggers.py'),  # noqa
-            dict(sha1='f5d784ac7fc74494a759f872638111fbdf8adc14', mod='omxtra.systevisor.platforms.runtime', path='platforms/runtime.py'),  # noqa
+            dict(sha1='cfdec5d83d2b074b71b3d8119c11bd2a24443197', mod='omxtra.systevisor.platforms.runtime', path='platforms/runtime.py'),  # noqa
             dict(sha1='73e387af353d56ed6c3f817e490038aa1ba940c8', mod='omcore.formats.yaml.goyaml.decoding', path='../../omcore/formats/yaml/goyaml/decoding.py'),  # noqa
             dict(sha1='cfa48ef16b9356e86d74b98f51da81836c3d6ae1', mod='omcore.http.pipelines.aggregators', path='../../omcore/http/pipelines/aggregators.py'),  # noqa
             dict(sha1='60607306046abc3d5bb0c2e0b40e61251151ae13', mod='omcore.http.pipelines.clients.requests', path='../../omcore/http/pipelines/clients/requests.py'),  # noqa
@@ -208,8 +208,8 @@ def __om_amalg__():  # noqa
             dict(sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f', mod='omxtra.systevisor.runtime.logs', path='runtime/logs.py'),  # noqa
             dict(sha1='ee4e37b915f31f2b01c89ed1c988b5d9c2dc681c', mod='omxtra.systevisor.runtime.processes', path='runtime/processes.py'),  # noqa
             dict(sha1='17910ac700fe8e0db0777d3a87a0370e9f67fc96', mod='omxtra.systevisor.core.engine', path='core/engine.py'),  # noqa
-            dict(sha1='c2ec9703d68dcb767a918c56636ab351f6831148', mod='omxtra.systevisor.resources.cgroups', path='resources/cgroups.py'),  # noqa
-            dict(sha1='6c2e26deee7b4e4e160838dd318d2ed2f6ef14cf', mod='omxtra.systevisor.resources.namespaces', path='resources/namespaces.py'),  # noqa
+            dict(sha1='7aaa71a794d14adb6edf13e7967b1e81632dcf0c', mod='omxtra.systevisor.resources.cgroups', path='resources/cgroups.py'),  # noqa
+            dict(sha1='18f4c21b3be6ed747ed7faba4f3e159785e50037', mod='omxtra.systevisor.resources.namespaces', path='resources/namespaces.py'),  # noqa
             dict(sha1='6fa61546905963453297514ada59d9d09cb66dd1', mod='omxtra.systevisor.resources.sampling', path='resources/sampling.py'),  # noqa
             dict(sha1='82ed72673b58f8ea25d8718460b7cdf2bf39d911', mod='omxtra.systevisor.resources.sockets', path='resources/sockets.py'),  # noqa
             dict(sha1='fb903ba3cd32d441e35b90bb008e4c35ba5b73b1', mod='omxtra.systevisor.runtime.emergencies', path='runtime/emergencies.py'),  # noqa
@@ -32095,7 +32095,7 @@ def _systevisor_platform_raise_resource_limit(resource_id: int, minimum: int, na
 def _systevisor_platform_enable_subreaper() -> bool:
     if not sys.platform.startswith('linux'):
         return False
-    if os.getpid() == 1:  # type: ignore[unreachable]
+    if os.getpid() == 1:  # type: ignore[unreachable,unused-ignore]
         return True
     libc = ctypes.CDLL(None, use_errno=True)
     prctl = getattr(libc, 'prctl', None)
@@ -42195,7 +42195,7 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
     def validate_root(self, root: str, configs: ta.Iterable[SystevisorCgroupConfig]) -> None:
         if sys.platform != 'linux':
             raise SystevisorCgroupError('cgroup v2 isolation is supported only on Linux')
-        try:  # type: ignore[unreachable]
+        try:  # type: ignore[unreachable,unused-ignore]
             root_stat = os.stat(root, follow_symlinks=False)
         except OSError as exc:
             raise SystevisorCgroupError(f'cannot inspect delegated cgroup root {root!r}: {exc}') from exc
@@ -42607,7 +42607,7 @@ class SystevisorLinuxNamespaceBackend(SystevisorNamespaceBackend):
     def apply(self, flags: int, *, private_mounts: bool, hostname: ta.Optional[str]) -> None:
         if sys.platform != 'linux':
             raise SystevisorNamespaceError('namespace isolation is supported only on Linux')
-        libc = ctypes.CDLL(None, use_errno=True)  # type: ignore[unreachable]
+        libc = ctypes.CDLL(None, use_errno=True)  # type: ignore[unreachable,unused-ignore]
         libc_unshare = getattr(libc, 'unshare', None)
         if libc_unshare is None:
             raise SystevisorNamespaceError('libc does not expose unshare')

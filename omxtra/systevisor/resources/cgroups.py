@@ -163,7 +163,7 @@ class SystevisorSystemCgroupFs(SystevisorCgroupFs):
     def validate_root(self, root: str, configs: ta.Iterable[SystevisorCgroupConfig]) -> None:
         if sys.platform != 'linux':
             raise SystevisorCgroupError('cgroup v2 isolation is supported only on Linux')
-        try:  # type: ignore[unreachable]
+        try:  # type: ignore[unreachable,unused-ignore]
             root_stat = os.stat(root, follow_symlinks=False)
         except OSError as exc:
             raise SystevisorCgroupError(f'cannot inspect delegated cgroup root {root!r}: {exc}') from exc
