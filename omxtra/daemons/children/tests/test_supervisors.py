@@ -25,9 +25,13 @@ from ..configs import ChildProcessConfig
 from ..configs import ChildProcessOutput
 from ..configs import ChildProcessOutputMode
 from ..configs import ChildTerminationConfig
+from ..processes import DEFAULT_CHILD_PROCESS_FACTORY
+from ..processes import ChildProcess
+from ..processes import ChildProcessFactory
 from ..services import ChildProcessService
 from ..supervisors import ChildProcessExitedError
 from ..supervisors import ChildProcessResult
+from ..supervisors import ChildProcessStopTimeoutError
 from ..supervisors import ChildProcessSupervisor
 from ..supervisors import ChildProcessSupervisorConfig
 
@@ -76,6 +80,48 @@ def _run_supervisor(
 def _assert_process_gone(pid: int) -> None:
     with pytest.raises(ProcessLookupError):
         os.kill(pid, 0)
+
+
+def _wait_process_gone(pid: int) -> None:
+    # A zombie still answers a null signal, on Linux and darwin alike: gone means reaped.
+    deadline = time.monotonic() + TEST_TIMEOUT_S
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(.01)
+    raise TimeoutError(f'Process {pid} is still around')
+
+
+class _UnkillableChildProcess(ChildProcess):
+    """Withholds kills, as if they did not take: the child outlives its kill deadline, for the test to end itself."""
+
+    def __init__(self, process: ChildProcess) -> None:
+        super().__init__()
+
+        self._process = process
+
+    @property
+    def pid(self) -> int:
+        return self._process.pid
+
+    def wait_exited(self) -> int:
+        return self._process.wait_exited()
+
+    def reap(self) -> int:
+        return self._process.reap()
+
+    def send_signal(self, signum: int, *, process_group: bool = False) -> None:
+        self._process.send_signal(signum, process_group=process_group)
+
+    def kill(self, *, process_group: bool = False) -> None:
+        pass
+
+
+class _UnkillableChildProcessFactory(ChildProcessFactory):
+    def spawn(self, config: ChildProcessConfig) -> ChildProcess:
+        return _UnkillableChildProcess(DEFAULT_CHILD_PROCESS_FACTORY.spawn(config))
 
 
 def _wait_orphan_dead(pid: int) -> None:
@@ -278,6 +324,44 @@ def test_supervisor_sweeps_what_an_exited_child_left_in_its_group() -> None:
                     os.kill(grandchild_pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
+
+
+def test_supervisor_retires_a_child_that_outlives_its_kill_deadline() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        event_file = os.path.join(temp_dir, 'events.jsonl')
+        supervisor = ChildProcessSupervisor(
+            ChildProcessSupervisorConfig(
+                process=ChildProcessConfig(cmd=_python_cmd('--event-file', event_file, '--ignore-signal')),
+                termination=ChildTerminationConfig(
+                    grace_timeout_s=.1,
+                    kill_timeout_s=.1,
+                ),
+            ),
+            process_factory=_UnkillableChildProcessFactory(),
+        )
+
+        outcomes: queue.Queue = queue.Queue()
+        with ServiceRuntime(ServiceRuntime.Config(no_signals=True)) as runtime:
+            thread = threading.Thread(
+                target=_run_supervisor,
+                args=(supervisor, runtime, outcomes),
+            )
+            thread.start()
+            started = _wait_event(event_file, 'STARTED')
+
+            runtime.shutdown.request()
+            result = outcomes.get(timeout=TEST_TIMEOUT_S)
+            thread.join(TEST_TIMEOUT_S)
+
+        assert isinstance(result, ChildProcessStopTimeoutError)
+        assert result.pid == started['pid']
+        assert _wait_event(event_file, 'SIGNAL')['signal'] == signal.SIGTERM
+
+        # The run is over, and the child - its kills withheld - is still running. Ended now, it is retired all the
+        # same: reaped by the exit watcher the run left behind, rather than left a zombie.
+        os.kill(started['pid'], 0)
+        os.kill(started['pid'], signal.SIGKILL)
+        _wait_process_gone(started['pid'])
 
 
 def test_supervisor_propagates_unexpected_exit_and_requests_shutdown() -> None:

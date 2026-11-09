@@ -1,9 +1,13 @@
 import errno
 import os
+import queue
 import signal
 import sys
+import threading
 
 import pytest
+
+from omcore.testing.fakedarwin import FakeDarwinProcessGroups
 
 from ..configs import ChildProcessConfig
 from ..processes import PopenChildProcessFactory
@@ -28,6 +32,31 @@ def test_exit_is_observed_without_reaping() -> None:
         os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
 
 
+def test_exit_waits_racing_the_reap_all_report_it() -> None:
+    # A wait the reap pulls the child out from under - possible, as both wait on the same zombie - answers from the
+    # reap's result rather than failing to find the child.
+    process = PopenChildProcessFactory().spawn(ChildProcessConfig(cmd=('/bin/sh', '-c', 'exit 5')))
+    results: queue.Queue = queue.Queue()
+    ready = threading.Barrier(4)
+
+    def wait_exited() -> None:
+        ready.wait()
+        try:
+            results.put(process.wait_exited())
+        except BaseException as exc:  # noqa
+            results.put(exc)
+
+    threads = [threading.Thread(target=wait_exited) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    ready.wait()
+    assert process.reap() == 5
+    for thread in threads:
+        thread.join()
+
+    assert [results.get_nowait() for _ in threads] == [5, 5, 5]
+
+
 def test_signals_after_reaping_are_lookup_errors() -> None:
     process = PopenChildProcessFactory().spawn(ChildProcessConfig(
         cmd=('/bin/sh', '-c', 'exit 0'),
@@ -43,7 +72,7 @@ def test_signals_after_reaping_are_lookup_errors() -> None:
             process.kill(process_group=process_group)
 
 
-def test_group_signal_to_an_exited_group_is_a_lookup_error() -> None:
+def test_group_signal_to_an_exited_group_is_a_lookup_error_on_darwin() -> None:
     process = PopenChildProcessFactory().spawn(ChildProcessConfig(
         cmd=('/bin/sh', '-c', 'exit 0'),
         start_new_session=True,
@@ -52,7 +81,7 @@ def test_group_signal_to_an_exited_group_is_a_lookup_error() -> None:
         # Observed but not reaped, so the group is left holding nothing but its zombie leader.
         assert process.wait_exited() == 0
 
-        if sys.platform == 'darwin':
+        with FakeDarwinProcessGroups():
             # The kernel behavior being handled: a group of nothing but zombies cannot be signaled at all.
             with pytest.raises(PermissionError):
                 os.killpg(process.pid, 0)
@@ -62,33 +91,43 @@ def test_group_signal_to_an_exited_group_is_a_lookup_error() -> None:
             with pytest.raises(ProcessLookupError):
                 process.kill(process_group=True)
 
-        else:
-            # Elsewhere signaling a group of zombies simply succeeds.
-            process.send_signal(signal.SIGTERM, process_group=True)
-            process.kill(process_group=True)
-
-        # As does signaling the zombie itself, everywhere.
-        process.send_signal(signal.SIGTERM)
+            # Signaling the zombie itself succeeds, there as everywhere.
+            process.send_signal(signal.SIGTERM)
 
     finally:
         process.reap()
 
 
-def test_group_signal_eperm_for_a_live_leader_is_raised(monkeypatch) -> None:
+@pytest.mark.skipif(sys.platform == 'darwin', reason='darwin refuses to signal a group of nothing but zombies')
+def test_group_signal_to_an_exited_group_succeeds_elsewhere() -> None:
+    process = PopenChildProcessFactory().spawn(ChildProcessConfig(
+        cmd=('/bin/sh', '-c', 'exit 0'),
+        start_new_session=True,
+    ))
+    try:
+        assert process.wait_exited() == 0
+        process.send_signal(signal.SIGTERM, process_group=True)
+        process.kill(process_group=True)
+        process.send_signal(signal.SIGTERM)
+    finally:
+        process.reap()
+
+
+def test_group_signal_eperm_for_a_live_leader_is_raised() -> None:
     process = PopenChildProcessFactory().spawn(ChildProcessConfig(
         cmd=('/bin/sleep', '60'),
         start_new_session=True,
     ))
     try:
-        def eperm(pid, sig):
+        def eperm(pid: int, sig: int) -> None:
             raise PermissionError(errno.EPERM, 'Operation not permitted')
 
-        # A live leader we may not signal - one running setuid, say - cannot be arranged here, so EPERM is injected.
-        monkeypatch.setattr(os, 'killpg', eperm)
-        with pytest.raises(PermissionError):
-            process.send_signal(signal.SIGTERM, process_group=True)
+        # A live leader we may not signal - one running setuid, say - cannot be arranged here, so EPERM is injected. As
+        # on darwin, so that it is the liveness probe, not the platform, that decides to raise.
+        with FakeDarwinProcessGroups(killpg=eperm):
+            with pytest.raises(PermissionError):
+                process.send_signal(signal.SIGTERM, process_group=True)
 
     finally:
-        monkeypatch.undo()
         process.kill()
         process.reap()

@@ -88,11 +88,24 @@ class PopenChildProcess(ChildProcess):
         for file in self._owned_files:
             file.close()
 
+    def _returncode_if_reaped(self) -> int | None:
+        with self._lock:
+            if self._reaped:
+                return check.not_none(self._process.returncode)
+            return None
+
     def wait_exited(self) -> int:
-        if self._reaped:
-            return check.not_none(self._process.returncode)
-        # Not through the Popen, whose own waits reap.
-        result = check.not_none(os.waitid(os.P_PID, self.pid, os.WEXITED | os.WNOWAIT))
+        if (returncode := self._returncode_if_reaped()) is not None:
+            return returncode
+        # Not through the Popen, whose own waits reap - and not under the lock, which held through a wait for a live
+        # child would shut out the very signals that might end it.
+        try:
+            result = check.not_none(os.waitid(os.P_PID, self.pid, os.WEXITED | os.WNOWAIT))
+        except ChildProcessError:
+            # Reaped out from under the wait, by a `reap` that saw the exit first: its result stands.
+            if (returncode := self._returncode_if_reaped()) is not None:
+                return returncode
+            raise
         if result.si_code == os.CLD_EXITED:
             return result.si_status
         return -result.si_status

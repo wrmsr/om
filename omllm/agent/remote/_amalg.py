@@ -61,7 +61,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '3b35447236cdc5c52c7781f26241d97d673b077f'
+__om_amalg_sha1__ = 'f2779264723fe1e79bb6b3e450add15bb43d9ed1'
 
 
 def __om_amalg__():  # noqa
@@ -148,7 +148,7 @@ def __om_amalg__():  # noqa
             dict(sha1='69d86f30730851b5d21cd38daa442d32cb5f2c0a', mod='omllm.agent.environment.remote.server', path='../environment/remote/server.py'),  # noqa
             dict(sha1='1c922f568c67fa82941c8833abb728f378e9ca4d', mod='omllm.agent.fs.remote.server', path='../fs/remote/server.py'),  # noqa
             dict(sha1='ca8a8fb82ebe6265b38e35e4e375a483377e7b74', mod='omcore.rpc.specs', path='../../../omcore/rpc/specs.py'),  # noqa
-            dict(sha1='d8605e67e57b43dbd97dca8b4ac693bd9f74b144', mod='omllm.core.processes.remote.server', path='../../core/processes/remote/server.py'),  # noqa
+            dict(sha1='cf016bde329cc9d87ae5940551d04f8c9d885565', mod='omllm.core.processes.remote.server', path='../../core/processes/remote/server.py'),  # noqa
             dict(sha1='3558e03f33fcb35f5afc06f23103bec306cef809', mod='omcore.rpc.asyncio', path='../../../omcore/rpc/asyncio.py'),  # noqa
             dict(sha1='176775e8c00eaef01d437c80ac93e9f979da37aa', mod='omllm.agent.remote.server', path='server.py'),
             dict(sha1='8bad618c4bae0d2120cd99b80e8fd82967ff086b', mod='-', path='_main.py'),
@@ -19166,36 +19166,24 @@ class _RemoteServerProcess:
     def _signal(self, sig: int, process_group: bool) -> None:
         if self._reaped:
             raise ProcessLookupError(self.popen.pid)
-        pid = self.popen.pid
         if self.exited:
             # The unreaped leader keeps its pid, and therefore its process-group id, from being reused.
             if process_group:
                 try:
-                    os.killpg(pid, sig)
+                    os.killpg(self.popen.pid, sig)
                 except (PermissionError, ProcessLookupError):
                     pass
             return
 
-        if process_group:
-            try:
-                os.killpg(pid, sig)
-            except ProcessLookupError:
-                # No such group yet: the pty bootstrap creates its session right after exec, and a signal can race that
-                # setup. Hit the owned pid so it cannot escape, then sweep the group once more in case it came to exist
-                # in between - and already has members.
-                self._kill_leader(sig)
-                try:
-                    os.killpg(pid, sig)
-                except ProcessLookupError:
-                    pass
-            except PermissionError:
-                # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie -
-                # as it is once the unreaped leader has exited and nothing else in it lives. Only a leader still alive,
-                # and so one we may not signal, makes it a genuine permission error.
-                if not self._is_exited_nowait():
-                    raise
-        else:
+        if not process_group:
             self._kill_leader(sig)
+        elif not self._kill_group(sig):
+            # No such group yet: the pty bootstrap creates its session right after exec, and a signal can race that
+            # setup. Hit the owned pid so it cannot escape, then sweep the group once more in case it came to exist in
+            # between - and already has members. The leader may by then be dead of the first signal, leaving the group
+            # nothing but its zombie, which that sweep tolerates like any other.
+            self._kill_leader(sig)
+            self._kill_group(sig)
 
     def _kill_leader(self, sig: int) -> None:
         """
@@ -19211,6 +19199,23 @@ class _RemoteServerProcess:
         except PermissionError:
             if not self._is_exited_nowait():
                 raise
+
+    def _kill_group(self, sig: int) -> bool:
+        """
+        Delivers `sig` to the owned leader's process group, or returns False if no such group exists. EPERM means a
+        group we may not signal, a genuine error - unless a probe finds the leader has exited: Darwin fails a group
+        signal with EPERM rather than ESRCH when every member of the group is a zombie, as it is once the unreaped
+        leader has exited and nothing else in it lives.
+        """
+
+        try:
+            os.killpg(self.popen.pid, sig)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            if not self._is_exited_nowait():
+                raise
+        return True
 
     def _is_exited_nowait(self) -> bool:
         try:
@@ -19248,13 +19253,7 @@ class _RemoteServerProcess:
         fcntl.ioctl(self._pty_master_fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
         self._pty_winsize = (rows, cols)
         if not self.exited:
-            try:
-                os.killpg(self.popen.pid, signal.SIGWINCH)
-            except ProcessLookupError:
-                pass
-            except PermissionError:
-                if not self._is_exited_nowait():
-                    raise
+            self._kill_group(signal.SIGWINCH)
 
     #
 

@@ -1,4 +1,5 @@
 # ruff: noqa: PT009 UP006 UP007 UP045
+import errno
 import os
 import select
 import signal
@@ -6,6 +7,8 @@ import socket
 import time
 import typing as ta
 import unittest
+
+from omcore.testing.fakedarwin import FakeDarwinProcessGroups
 
 from ..configs.models import SystevisorConfig
 from ..configs.models import SystevisorExecConfig
@@ -331,6 +334,51 @@ class TestSystevisorProcesses(unittest.TestCase):
 
         self.assertTrue(delivery.delivered)
         self.assertEqual(observed.return_code, -signal.SIGTERM)
+
+    def test_session_signal_to_an_exited_session_is_undelivered_on_darwin(self) -> None:
+        # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie - as it is
+        # once the unreaped leader has exited. Faked where the kernel would not: an exited session is reported as not
+        # delivered to, not as a permission error.
+        manager = SystevisorProcessManager()
+        effect = _systevisor_test_process_effect(
+            ('/bin/sh', '-c', 'exit 0'),
+            scope=SystevisorSignalScope.SESSION,
+        )
+        manager.spawn(effect)
+        self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
+        _systevisor_test_wait_exec(manager, effect.run_id)
+
+        # Exited, but not yet observed by the manager, so still a run to be signaled - its group holding nothing but
+        # its zombie.
+        state = manager.get_state(effect.run_id)
+        assert state is not None
+        os.waitid(os.P_PID, state.pid, os.WEXITED | os.WNOWAIT)
+
+        with FakeDarwinProcessGroups():
+            delivery = manager.signal(effect.run_id, 'TERM', SystevisorSignalScope.SESSION)
+        self.assertFalse(delivery.delivered)
+
+        observed = _systevisor_test_wait_exit(manager, effect.run_id)
+        self.assertEqual(observed.return_code, 0)
+
+    def test_session_signal_eperm_for_a_live_leader_is_raised(self) -> None:
+        manager = SystevisorProcessManager()
+        effect = _systevisor_test_process_effect(
+            ('/bin/sleep', '60'),
+            scope=SystevisorSignalScope.SESSION,
+        )
+        manager.spawn(effect)
+        self.addCleanup(_systevisor_test_cleanup_process, manager, effect.run_id)
+        _systevisor_test_wait_exec(manager, effect.run_id)
+
+        def eperm(pgid: int, sig: int) -> None:
+            raise PermissionError(errno.EPERM, 'Operation not permitted')
+
+        # A live leader we may not signal - one running setuid, say - cannot be arranged here, so EPERM is injected. As
+        # on darwin, so that it is the liveness probe, not the platform, that decides to raise.
+        with FakeDarwinProcessGroups(killpg=eperm):
+            with self.assertRaises(PermissionError):
+                manager.signal(effect.run_id, 'TERM', SystevisorSignalScope.SESSION)
 
     def test_liveness_probe_sees_an_exit_without_reaping(self) -> None:
         # The probe that tells a darwin EPERM for an exited session apart from one for a live leader we may not signal.

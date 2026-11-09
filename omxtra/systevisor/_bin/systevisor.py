@@ -77,7 +77,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = 'a8f166625a9fb1e7f8905bbb05637756bde9844a'
+__om_amalg_sha1__ = 'a30273e521f7797d653e9274037636d84e8e46f6'
 
 
 def __om_amalg__():  # noqa
@@ -206,7 +206,7 @@ def __om_amalg__():  # noqa
             dict(sha1='4986afdaaab96ba06bb894dbe279276b874a32df', mod='omxtra.systevisor.core.events', path='core/events.py'),  # noqa
             dict(sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090', mod='omxtra.systevisor.runtime.fdio', path='runtime/fdio.py'),  # noqa
             dict(sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f', mod='omxtra.systevisor.runtime.logs', path='runtime/logs.py'),  # noqa
-            dict(sha1='840514e49e3ba793875bc282d1ee54abec423d4e', mod='omxtra.systevisor.runtime.processes', path='runtime/processes.py'),  # noqa
+            dict(sha1='ee4e37b915f31f2b01c89ed1c988b5d9c2dc681c', mod='omxtra.systevisor.runtime.processes', path='runtime/processes.py'),  # noqa
             dict(sha1='17910ac700fe8e0db0777d3a87a0370e9f67fc96', mod='omxtra.systevisor.core.engine', path='core/engine.py'),  # noqa
             dict(sha1='c2ec9703d68dcb767a918c56636ab351f6831148', mod='omxtra.systevisor.resources.cgroups', path='resources/cgroups.py'),  # noqa
             dict(sha1='6c2e26deee7b4e4e160838dd318d2ed2f6ef14cf', mod='omxtra.systevisor.resources.namespaces', path='resources/namespaces.py'),  # noqa
@@ -39423,7 +39423,8 @@ class SystevisorPosixProcessSignalBackend(SystevisorProcessSignalBackend):
             # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie - as
             # it is once the unreaped leader has exited and nothing else in it lives. Only a leader still alive, and so
             # one we may not signal, makes it a genuine permission error.
-            if sys.platform != 'darwin' or _systevisor_processes_child_alive(process.pid):
+            sys_platform: ta.Any = sys.platform  # untyped, or mypy prunes the other platform's branch as unreachable
+            if sys_platform != 'darwin' or _systevisor_processes_child_alive(process.pid):
                 raise
             return False
         return True

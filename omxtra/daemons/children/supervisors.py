@@ -141,22 +141,6 @@ class ChildProcessSupervisor(lang.Final):
             check.not_none(termination.kill_timeout_s),
         )))
 
-    @staticmethod
-    def _watch_exit(
-            runtime: ServiceRuntime,
-            process: ChildProcess,
-            child_exited: threading.Event,
-            outcomes: queue.Queue[tuple[str, ta.Any]],
-    ) -> None:
-        try:
-            returncode = process.wait_exited()
-            shutdown_request = runtime.shutdown.request_
-        except Exception as exc:  # noqa: BLE001 - factory implementations may expose arbitrary wait failures.
-            outcomes.put(('error', exc))
-        else:
-            child_exited.set()
-            outcomes.put(('exit', (returncode, shutdown_request)))
-
     def _retire(self, process: ChildProcess) -> None:
         # Its exit observed but its pid not yet released, the group id is still certainly the child's: whatever it left
         # behind in its group goes with it, and only then is it reaped.
@@ -168,6 +152,31 @@ class ChildProcessSupervisor(lang.Final):
                     pass
         finally:
             process.reap()
+
+    def _watch_exit(
+            self,
+            runtime: ServiceRuntime,
+            process: ChildProcess,
+            child_exited: threading.Event,
+            outcomes: queue.Queue[tuple[str, ta.Any]],
+    ) -> None:
+        try:
+            returncode = process.wait_exited()
+            shutdown_request = runtime.shutdown.request_
+        except Exception as exc:  # noqa: BLE001 - factory implementations may expose arbitrary wait failures.
+            outcomes.put(('error', exc))
+            return
+        child_exited.set()
+
+        # Retired here, by the one thread sure to see the exit, so that it is however `run` ends - a child outliving its
+        # kill deadline, to die later, included. A shutdown signal racing this is safe: once reaped, the process refuses
+        # it.
+        try:
+            self._retire(process)
+        except Exception as exc:  # noqa: BLE001 - factory implementations may expose arbitrary control failures.
+            outcomes.put(('error', exc))
+            return
+        outcomes.put(('exit', (returncode, shutdown_request)))
 
     def run(self, runtime: ServiceRuntime) -> ChildProcessResult:
         try:
@@ -202,10 +211,7 @@ class ChildProcessSupervisor(lang.Final):
             shutdown_thread.join()
             if child_exited.is_set():
                 exit_thread.join()
-                try:
-                    self._retire(process)
-                except Exception:  # noqa: BLE001 - the error in hand stays the one raised, with this as its context.
-                    raise error  # noqa: B904
+            # Otherwise the child is still running, beyond our control: its exit watcher retires it if it ever exits.
             raise error
 
         check.equal(outcome, 'exit')
@@ -216,9 +222,6 @@ class ChildProcessSupervisor(lang.Final):
 
         exit_thread.join()
         shutdown_thread.join()
-
-        # Only once nothing else can still be signaling it.
-        self._retire(process)
 
         result = ChildProcessResult(
             pid=process.pid,

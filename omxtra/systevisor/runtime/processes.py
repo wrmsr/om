@@ -376,7 +376,8 @@ class SystevisorPosixProcessSignalBackend(SystevisorProcessSignalBackend):
             # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie - as
             # it is once the unreaped leader has exited and nothing else in it lives. Only a leader still alive, and so
             # one we may not signal, makes it a genuine permission error.
-            if sys.platform != 'darwin' or _systevisor_processes_child_alive(process.pid):
+            sys_platform: ta.Any = sys.platform  # untyped, or mypy prunes the other platform's branch as unreachable
+            if sys_platform != 'darwin' or _systevisor_processes_child_alive(process.pid):
                 raise
             return False
         return True

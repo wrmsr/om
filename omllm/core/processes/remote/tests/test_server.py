@@ -1,14 +1,16 @@
 """The target-side process service, driven in process: exit observation, signaling, close, and shutdown."""
 import asyncio
 import ctypes
+import errno
 import os
 import signal
 import subprocess
-import sys
 import types
 import typing as ta
 
 import pytest
+
+from omcore.testing.fakedarwin import FakeDarwinProcessGroups
 
 from .. import server as remote_server
 from ..server import RemoteProcessService
@@ -114,17 +116,42 @@ def _bare_server_process(pid: int) -> ta.Any:
 
 def test_remote_signal_group_to_an_exited_leader_is_tolerated() -> None:
     # Observed but not reaped, the leader leaves its group holding nothing but a zombie, which darwin refuses to signal
-    # with EPERM rather than ESRCH. The real kernel is used, so that is what this exercises there.
+    # with EPERM rather than ESRCH - faked where the kernel would not, so that the toleration is exercised everywhere.
     popen = subprocess.Popen(['sh', '-c', 'exit 0'], start_new_session=True)
     try:
         os.waitid(os.P_PID, popen.pid, os.WEXITED | os.WNOWAIT)
-        if sys.platform == 'darwin':
+        with FakeDarwinProcessGroups():
             with pytest.raises(PermissionError):
                 os.killpg(popen.pid, 0)
 
-        proc = _bare_server_process(popen.pid)
-        proc._signal(signal.SIGTERM, True)  # noqa: SLF001
-        proc._signal(signal.SIGKILL, True)  # noqa: SLF001
+            proc = _bare_server_process(popen.pid)
+            proc._signal(signal.SIGTERM, True)  # noqa: SLF001
+            proc._signal(signal.SIGKILL, True)  # noqa: SLF001
+    finally:
+        popen.wait()
+
+
+def test_remote_signal_group_retry_tolerates_a_leader_dead_by_the_sweep() -> None:
+    # When the first group signal finds no group - setsid not yet done - the leader is signaled by pid and the group
+    # swept once more. The leader may by then be dead of the first, leaving a group of nothing but its zombie, which
+    # darwin fails that sweep on with EPERM like any other - and which must be tolerated like any other. Arranged by a
+    # leader already exited when the (injected) ESRCH is seen.
+    popen = subprocess.Popen(['sh', '-c', 'exit 0'], start_new_session=True)
+    try:
+        os.waitid(os.P_PID, popen.pid, os.WEXITED | os.WNOWAIT)
+        group_signals: list[tuple[int, int]] = []
+
+        def killpg(pid: int, sig: int) -> None:
+            group_signals.append((pid, sig))
+            if len(group_signals) == 1:
+                raise ProcessLookupError(errno.ESRCH, 'No such process')
+            fake.darwin_killpg(pid, sig)
+
+        fake = FakeDarwinProcessGroups(killpg=killpg)
+        with fake:
+            proc = _bare_server_process(popen.pid)
+            proc._signal(signal.SIGKILL, True)  # noqa: SLF001
+        assert group_signals == [(popen.pid, signal.SIGKILL)] * 2
     finally:
         popen.wait()
 

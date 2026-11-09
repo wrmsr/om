@@ -370,8 +370,11 @@ to the supervisor, but `Launcher` has already crossed its generic target-run bou
 needs usable startup confirmation configures `ConnectWait`, `HttpWait`, or another application probe. No health check
 is embedded in process ownership.
 
-The supervisor starts one waiter which exclusively calls `wait()` and therefore reaps the direct child. A second
-coordinator waits for runtime shutdown. On requested or idle shutdown it sends the configured graceful signal. On
+The supervisor starts one waiter which exclusively observes the direct child's exit, without yet reaping it, and
+then retires it: with process-group signaling enabled, whatever the child left running in its group is killed while
+the unreaped child still pins the group id, and only then is the child reaped. The waiter does this however the
+supervisor's own run ends, a child outliving its kill deadline to die later included. A second coordinator waits for
+runtime shutdown. On requested or idle shutdown it sends the configured graceful signal. On
 signal shutdown it forwards the original signal by default. If the child does not exit before `grace_timeout_s`, the
 coordinator sends `SIGKILL`; failure to observe exit by `kill_timeout_s` raises `ChildProcessStopTimeoutError`. A
 `None` deadline explicitly means an unbounded wait at that stage.
@@ -383,8 +386,9 @@ after shutdown returns the same result normally. This distinction propagates ext
 ordinary signal-driven stop as failure.
 
 Process-group signaling is allowed only when child session creation is also selected, making the child PID the known
-group ID and avoiding accidental signaling of the supervisor's own group. It delivers policy to descendants, but the
-supervisor can reap only its direct child; that child remains responsible for its children. The implementation is not
+group ID and avoiding accidental signaling of the supervisor's own group. It delivers policy to descendants, and
+whatever of them is still alive when the child exits is killed as the child is retired, but the supervisor can reap only
+its direct child; that child remains responsible for reaping its own. The implementation is not
 an init system: it has no restart loop, dependency ordering, privilege policy, resource containment, or orphan
 adoption. If a process remains unobservable after the kill deadline, the timeout reports that ownership could not be
 completed rather than claiming success.

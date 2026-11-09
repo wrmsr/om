@@ -63,6 +63,15 @@ def _make_worker_script(worker: ta.Callable[..., str]) -> str:
     ])
 
 
+def _worker_alive(pid: int) -> bool:
+    """Non-reaping: whether the worker has neither exited nor been reaped."""
+
+    try:
+        return os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
+    except ChildProcessError:
+        return False
+
+
 def _run_worker_process(cmd: ta.Sequence[str], data: bytes, *, timeout: float) -> None:
     # Keep model diagnostics off the caller's stdout. A separate process group lets timeout/interrupt kill the worker as
     # well as uv, rather than leaving model execution running after its temporary directory has been removed.
@@ -81,8 +90,10 @@ def _run_worker_process(cmd: ta.Sequence[str], data: bytes, *, timeout: float) -
             except ProcessLookupError:
                 pass
             except PermissionError:
-                # Darwin reports EPERM rather than ESRCH for a group of nothing but zombies: everything is already dead.
-                if sys.platform != 'darwin':
+                # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie -
+                # as it is once uv has exited and nothing else in it lives. Only a leader still alive, and so one we may
+                # not signal, makes it a genuine permission error.
+                if sys.platform != 'darwin' or _worker_alive(proc.pid):
                     raise
             proc.wait()
             raise

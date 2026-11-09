@@ -386,36 +386,24 @@ class _RemoteServerProcess:
     def _signal(self, sig: int, process_group: bool) -> None:
         if self._reaped:
             raise ProcessLookupError(self.popen.pid)
-        pid = self.popen.pid
         if self.exited:
             # The unreaped leader keeps its pid, and therefore its process-group id, from being reused.
             if process_group:
                 try:
-                    os.killpg(pid, sig)
+                    os.killpg(self.popen.pid, sig)
                 except (PermissionError, ProcessLookupError):
                     pass
             return
 
-        if process_group:
-            try:
-                os.killpg(pid, sig)
-            except ProcessLookupError:
-                # No such group yet: the pty bootstrap creates its session right after exec, and a signal can race that
-                # setup. Hit the owned pid so it cannot escape, then sweep the group once more in case it came to exist
-                # in between - and already has members.
-                self._kill_leader(sig)
-                try:
-                    os.killpg(pid, sig)
-                except ProcessLookupError:
-                    pass
-            except PermissionError:
-                # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie -
-                # as it is once the unreaped leader has exited and nothing else in it lives. Only a leader still alive,
-                # and so one we may not signal, makes it a genuine permission error.
-                if not self._is_exited_nowait():
-                    raise
-        else:
+        if not process_group:
             self._kill_leader(sig)
+        elif not self._kill_group(sig):
+            # No such group yet: the pty bootstrap creates its session right after exec, and a signal can race that
+            # setup. Hit the owned pid so it cannot escape, then sweep the group once more in case it came to exist in
+            # between - and already has members. The leader may by then be dead of the first signal, leaving the group
+            # nothing but its zombie, which that sweep tolerates like any other.
+            self._kill_leader(sig)
+            self._kill_group(sig)
 
     def _kill_leader(self, sig: int) -> None:
         """
@@ -431,6 +419,23 @@ class _RemoteServerProcess:
         except PermissionError:
             if not self._is_exited_nowait():
                 raise
+
+    def _kill_group(self, sig: int) -> bool:
+        """
+        Delivers `sig` to the owned leader's process group, or returns False if no such group exists. EPERM means a
+        group we may not signal, a genuine error - unless a probe finds the leader has exited: Darwin fails a group
+        signal with EPERM rather than ESRCH when every member of the group is a zombie, as it is once the unreaped
+        leader has exited and nothing else in it lives.
+        """
+
+        try:
+            os.killpg(self.popen.pid, sig)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            if not self._is_exited_nowait():
+                raise
+        return True
 
     def _is_exited_nowait(self) -> bool:
         try:
@@ -468,13 +473,7 @@ class _RemoteServerProcess:
         fcntl.ioctl(self._pty_master_fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
         self._pty_winsize = (rows, cols)
         if not self.exited:
-            try:
-                os.killpg(self.popen.pid, signal.SIGWINCH)
-            except ProcessLookupError:
-                pass
-            except PermissionError:
-                if not self._is_exited_nowait():
-                    raise
+            self._kill_group(signal.SIGWINCH)
 
     #
 
