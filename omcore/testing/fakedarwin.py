@@ -42,9 +42,10 @@ def fake_darwin_process_group_states(pgid: int) -> ta.Dict[int, str]:
 class FakeDarwinProcessGroups:
     """
     While entered, `sys.platform` reads 'darwin' and `os.killpg` behaves as darwin's does: ESRCH for a group with no
-    members, EPERM for one with no live members, and the real thing otherwise. On darwin itself nothing is changed. A
-    `killpg` given replaces it either way - for injecting what no arrangement of real processes can produce, such as
-    EPERM for a live leader - and may itself fall back on `darwin_killpg`.
+    members, EPERM for one with no live members, and the real thing otherwise. On darwin itself nothing is faked: the
+    real kernel is the reference, and `darwin_killpg` is the real `os.killpg`. A `killpg` given replaces `os.killpg`
+    either way - for injecting what no arrangement of real processes can produce, such as EPERM for a live leader - and
+    may itself fall back on `darwin_killpg`.
     """
 
     def __init__(self, *, killpg: ta.Optional[ta.Callable[[int, int], None]] = None) -> None:
@@ -52,40 +53,41 @@ class FakeDarwinProcessGroups:
 
         self._killpg = killpg
 
-        self._entered = False
+        self._faking = False
         self._real_platform: ta.Optional[str] = None
         self._real_killpg: ta.Optional[ta.Callable[[int, int], None]] = None
 
     def darwin_killpg(self, pgid: int, sig: int) -> None:
-        """Signals the group as darwin would, over the real `os.killpg` saved on entry."""
+        """Signals the group as darwin does: on darwin the real `os.killpg`, elsewhere its fake over the real one."""
 
         real_killpg = self._real_killpg
         if real_killpg is None:
             raise RuntimeError(f'{self.__class__.__name__} is not entered')
-        states = fake_darwin_process_group_states(pgid)
-        if not states:
-            raise ProcessLookupError(errno.ESRCH, os.strerror(errno.ESRCH))
-        if all(state == 'Z' for state in states.values()):
-            raise PermissionError(errno.EPERM, os.strerror(errno.EPERM))
+        if self._faking:
+            states = fake_darwin_process_group_states(pgid)
+            if not states:
+                raise ProcessLookupError(errno.ESRCH, os.strerror(errno.ESRCH))
+            if all(state == 'Z' for state in states.values()):
+                raise PermissionError(errno.EPERM, os.strerror(errno.EPERM))
         real_killpg(pgid, sig)
 
     def __enter__(self) -> 'FakeDarwinProcessGroups':
-        if self._entered:
+        if self._real_killpg is not None:
             raise RuntimeError(f'{self.__class__.__name__} is not reentrant')
-        self._entered = True
+        self._real_killpg = os.killpg
 
         sys_platform: ta.Any = sys.platform  # untyped, or mypy prunes the other platform's branch as unreachable
-        if sys_platform == 'darwin':
-            killpg = self._killpg
-        else:
+        if sys_platform != 'darwin':
             if not sys_platform.startswith('linux'):
                 raise RuntimeError(f'{self.__class__.__name__} needs procfs, which {sys_platform} lacks')
-            killpg = self._killpg if self._killpg is not None else self.darwin_killpg
+            self._faking = True
             self._real_platform = sys_platform
             sys.platform = 'darwin'
 
+        killpg = self._killpg
+        if killpg is None and self._faking:
+            killpg = self.darwin_killpg
         if killpg is not None:
-            self._real_killpg = os.killpg
             os.killpg = killpg
         return self
 
@@ -95,10 +97,10 @@ class FakeDarwinProcessGroups:
             exc_val: ta.Optional[BaseException],
             exc_tb: ta.Optional[types.TracebackType],
     ) -> None:
-        if self._real_killpg is not None:
-            os.killpg = self._real_killpg
+        if (real_killpg := self._real_killpg) is not None:
+            os.killpg = real_killpg
             self._real_killpg = None
         if self._real_platform is not None:
             sys.platform = self._real_platform
             self._real_platform = None
-        self._entered = False
+        self._faking = False

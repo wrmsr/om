@@ -50,6 +50,27 @@ class TestFakeDarwinProcessGroups(unittest.TestCase):
             with self.assertRaises(ProcessLookupError):
                 os.killpg(proc.pid, 0)
 
+    def test_on_darwin_itself_nothing_is_faked(self) -> None:
+        # Played here by any platform: entered on darwin, the real kernel is left to be the reference.
+        proc = subprocess.Popen(['/bin/sleep', '60'], start_new_session=True)
+        try:
+            real_killpg = os.killpg
+            real_platform = sys.platform
+            sys.platform = 'darwin'
+            try:
+                with FakeDarwinProcessGroups() as fake:
+                    self.assertIs(os.killpg, real_killpg)
+                    fake.darwin_killpg(proc.pid, signal.SIGTERM)
+            finally:
+                sys.platform = real_platform
+            self.assertIs(os.killpg, real_killpg)
+        except BaseException:
+            proc.kill()
+            raise
+        finally:
+            returncode = proc.wait()
+        self.assertEqual(returncode, -signal.SIGTERM)
+
     def test_a_given_killpg_stands_in_instead(self) -> None:
         def eperm(pgid: int, sig: int) -> None:
             raise PermissionError
