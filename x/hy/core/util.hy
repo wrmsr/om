@@ -1,6 +1,6 @@
 (import itertools)
 (import collections.abc [Iterable])
-(import hy.compiler [HyASTCompiler calling-module])
+(import ..compiler [HyASTCompiler calling-module])
 
 (import threading [Lock])
 (setv _gensym_counter 0)

@@ -38,23 +38,23 @@ I = I()
 # to be loaded if they're not needed.
 
 _jit_imports = dict(
-    pyops=["hy.pyops", None],
-    read="hy.reader",
-    read_many="hy.reader",
-    mangle="hy.reader",
-    unmangle="hy.reader",
-    eval=["hy.compiler", "hy_eval_user"],
-    repr=["hy.core.hy_repr", "hy_repr"],
-    repr_register=["hy.core.hy_repr", "hy_repr_register"],
-    gensym="hy.core.util",
-    macroexpand="hy.core.util",
-    macroexpand_1="hy.core.util",
-    disassemble="hy.core.util",
-    as_model="hy.models",
-    REPL="hy.repl",
-    Reader="hy.reader.reader",
-    HyReader="hy.reader.hy_reader",
-    PrematureEndOfInput="hy.reader.exceptions"
+    pyops=["x.hy.pyops", None],
+    read="x.hy.reader",
+    read_many="x.hy.reader",
+    mangle="x.hy.reader",
+    unmangle="x.hy.reader",
+    eval=["x.hy.compiler", "hy_eval_user"],
+    repr=["x.hy.core.hy_repr", "hy_repr"],
+    repr_register=["x.hy.core.hy_repr", "hy_repr_register"],
+    gensym="x.hy.core.util",
+    macroexpand="x.hy.core.util",
+    macroexpand_1="x.hy.core.util",
+    disassemble="x.hy.core.util",
+    as_model="x.hy.models",
+    REPL="x.hy.repl",
+    Reader="x.hy.reader.reader",
+    HyReader="x.hy.reader.hy_reader",
+    PrematureEndOfInput="x.hy.reader.exceptions"
 )
 
 

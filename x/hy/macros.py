@@ -9,7 +9,7 @@ from ast import AST
 
 from .funcparserlib.parser import NoParseError
 
-from . import compiler
+from .. import hy
 from .compat import PY3_11
 from .errors import (
     HyLanguageError,
@@ -136,12 +136,9 @@ def derive_target_module(target_module, parent_frame):
 def import_module_from_string(module_name, package_module):
     package = None
     if module_name.startswith("."):
-        source_dirs = module_name.split(".")
-        target_dirs = getattr(package_module, "__name__", package_module).split(".")
-        while len(source_dirs) > 1 and source_dirs[0] == "" and target_dirs:
-            source_dirs.pop(0)
-            target_dirs.pop()
-        package = ".".join(target_dirs + source_dirs[:-1])
+        package = getattr(package_module, "__package__", None)
+        if not package:
+            package = getattr(package_module, "__name__", package_module).rpartition(".")[0]
     try:
         return importlib.import_module(module_name, package)
     except ImportError as e:

@@ -28,7 +28,7 @@
 
 
 (defn test-module-docstring []
-  (import tests.resources.module-docstring-example :as m)
+  (import ..resources [module-docstring-example :as m])
   (assert (= m.__doc__ "This is the module docstring."))
   (assert (= m.foo 5)))
 

@@ -88,7 +88,7 @@
   (an (setv x (for [i (range 3)] i (+ i 1))))
   (an (setv x (assert True)))
 
-  (an (setv x (with [(open "tests/resources/text.txt" "r")] 3)))
+  (an (setv x (with [(open "x/hy/tests/resources/text.txt" "r")] 3)))
   (assert (= x 3))
   (an (setv x (try (/ 1 2) (except [ZeroDivisionError] "E1"))))
   (assert (= x .5))

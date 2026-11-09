@@ -9,12 +9,12 @@
                  getsource
                  getsourcelines])
 
-(import hy.compat [PY3_13])
+(import ...compat [PY3_13])
 
 
 ;; --- Modules translated from the python inspect's test suite ---
 
-(import tests.resources.hy-inspect [fodder-1 fodder-2])
+(import ..resources.hy-inspect [fodder-1 fodder-2])
 
 ;; --- Data ---
 

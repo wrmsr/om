@@ -8,6 +8,7 @@ import pytest
 
 from .. import importer
 from .. import mangle
+from .test_bin import REPO_PYTHON
 
 
 def test_direct_import():
@@ -20,17 +21,19 @@ def test_hy2py_import():
     import os
     import subprocess
 
-    path = "tests/resources/pydemo_as_py.py"
+    path = "x/hy/tests/resources/pydemo_as_py.py"
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "UTF-8"
     env["PYTHONPATH"] = "." + os.pathsep + env.get("PYTHONPATH", "")
     try:
         with open(path, "wb") as o:
             subprocess.check_call(
-                ["hy2py", "tests/resources/pydemo.hy"],
+                [REPO_PYTHON, "-c",
+                    "from x.hy.cmdline import hy2py_main; hy2py_main()",
+                    "x/hy/tests/resources/pydemo.hy"],
                 stdout=o,
                 env=env)
-        import tests.resources.pydemo_as_py as m
+        from .resources import pydemo_as_py as m
     finally:
         with contextlib.suppress(FileNotFoundError):
             os.remove(path)

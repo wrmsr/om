@@ -11,7 +11,7 @@
     (import string.templatelib [Template Interpolation]))
 
   (for [original-str (lfor
-        x (with [o (open "tests/resources/hy_repr_str_tests.txt")]
+        x (with [o (open "x/hy/tests/resources/hy_repr_str_tests.txt")]
           (list o))
         :setv x (.rstrip x)
         :if (and x (not (.startswith x ";")))

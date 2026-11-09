@@ -9,6 +9,7 @@ these, or to one of the model builders in hy.compiler."""
 # ------------------------------------------------
 
 import ast
+import importlib.util
 import textwrap
 from contextlib import nullcontext
 from itertools import dropwhile, zip_longest
@@ -1955,6 +1956,10 @@ def compile_require(compiler, expr, root, entries):
         if isinstance(module, Expression) and module[1][0] == Symbol("None"):
             # Prepend leading dots to `module_name`.
             module_name = str(module[0]) + module_name
+        if module_name.startswith("."):
+            module_name = importlib.util.resolve_name(
+                module_name,
+                compiler.module.__package__ or compiler.module.__name__.rpartition(".")[0])
 
         # we don't want to import all macros as prefixed if we're specifically
         # importing readers but not macros

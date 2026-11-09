@@ -2,16 +2,16 @@
   asyncio
   unittest.mock [Mock]
   pytest
-  tests.resources.pydemo [AsyncWithTest async-exits])
+  ..resources.pydemo [AsyncWithTest async-exits])
 
 (defn test-context []
-  (with [fd (open "tests/resources/text.txt" "r")] (assert fd))
-  (with [(open "tests/resources/text.txt" "r")] (do)))
+  (with [fd (open "x/hy/tests/resources/text.txt" "r")] (assert fd))
+  (with [(open "x/hy/tests/resources/text.txt" "r")] (do)))
 
 (defn test-with-return []
   (defn read-file [filename]
     (with [fd (open filename "r" :encoding "UTF-8")] (.read fd)))
-  (assert (= (read-file "tests/resources/text.txt") "TAARGÜS TAARGÜS\n")))
+  (assert (= (read-file "x/hy/tests/resources/text.txt") "TAARGÜS TAARGÜS\n")))
 
 (setv exits [])
 (defclass WithTest [object]

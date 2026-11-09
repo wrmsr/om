@@ -119,7 +119,7 @@
   ; throwing an error.
   (assert (has
     (rt :to-return 'err #[[
-      (import hy.errors)
+      (import x [hy])
       (raise (hy.errors.HyTypeError (+ "A" "Z") None '[] None))]])
     "AZ")))
 

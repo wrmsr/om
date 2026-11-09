@@ -3,7 +3,7 @@
   sys
   types
   contextlib [contextmanager]
-  hy.errors [HyMacroExpansionError]
+  ...errors [HyMacroExpansionError]
 
   pytest)
 
@@ -85,7 +85,7 @@
 
 (defn test-require-readers []
   (with [module (temp-module "<test>")]
-    (setv it (hy.read-many #[[(require tests.resources.tlib :readers [upper!])
+    (setv it (hy.read-many #[[(require x.hy.tests.resources.tlib :readers [upper!])
                              #upper! hello]]))
     (eval-isolated (next it) module)
     (assert (= (next it) 'HELLO)))
@@ -97,24 +97,24 @@
            ":readers [upper!] :macros [qplah]"]]
     (assert (=
       (eval-module #[f[
-        (require tests.resources.tlib {s})
+        (require x.hy.tests.resources.tlib {s})
         [(qplah 1) #upper! "hello"]]f])
       [[8 1] "HELLO"])))
 
   ;; test require :readers *
   (assert (=
       (eval-module #[=[
-        (require tests.resources.tlib :readers *)
+        (require x.hy.tests.resources.tlib :readers *)
         [#upper! "eVeRy" #lower "ReAdEr"]]=])
       ["EVERY" "reader"]))
 
   ;; test can't redefine :macros or :readers assignment brackets
   (with [(pytest.raises hy.errors.HySyntaxError)]
-    (eval-module #[[(require tests.resources.tlib [taggart] [upper!])]]))
+    (eval-module #[[(require x.hy.tests.resources.tlib [taggart] [upper!])]]))
   (with [(pytest.raises hy.errors.HySyntaxError)]
-    (eval-module #[[(require tests.resources.tlib :readers [taggart] :readers [upper!])]]))
+    (eval-module #[[(require x.hy.tests.resources.tlib :readers [taggart] :readers [upper!])]]))
   (with [(pytest.raises hy.errors.HyRequireError)]
-    (eval-module #[[(require tests.resources.tlib :readers [not-a-real-reader])]])))
+    (eval-module #[[(require x.hy.tests.resources.tlib :readers [not-a-real-reader])]])))
 
 (defn test-eval-read []
   ;; https://github.com/hylang/hy/issues/2291
@@ -123,7 +123,7 @@
   (with [module (temp-module "<test>")]
     (hy.eval (hy.read "(defreader r 5)") :module module)
     (hy.eval '(defreader test-read 4) :module module)
-    (hy.eval '(require tests.resources.tlib :readers [upper!]) :module module)
+    (hy.eval '(require x.hy.tests.resources.tlib :readers [upper!]) :module module)
     ;; these reader macros should not exist in any current reader
     (for [tag #("#r" "#test-read" "#upper!")]
       (with [(pytest.raises hy.errors.HySyntaxError)]
@@ -142,7 +142,7 @@
     (defn eval1 [s]
       (hy.eval (hy.read s :reader reader) :module module))
     (eval1 "(defreader fbaz 32)")
-    (eval1 "(require tests.resources.tlib :readers [upper!])")
+    (eval1 "(require x.hy.tests.resources.tlib :readers [upper!])")
     (assert (= (eval1 "#fbaz") 32))
     (assert (= (eval1 "#upper! \"hello\"") "HELLO"))))
 

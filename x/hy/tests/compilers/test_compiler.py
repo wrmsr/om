@@ -1,6 +1,7 @@
 import ast
 import types
 
+from .... import hy
 from ... import compiler
 from ...models import Expression, Integer, List, Symbol
 from ...reader import read_many
@@ -88,3 +89,18 @@ def test_correct_logic():
     assert py.count("x = 4") == 1
     assert py.count("x or 3") == 1
     assert py.count("and") == 2
+
+
+
+def test_relocated_runtime_binding():
+    module = types.ModuleType("hy_runtime_binding_test")
+    tree = hy_compile(read_many("(setv model 'hello)"), module)
+    source = ast.unparse(tree)
+    assert "from x import hy" in source
+    assert "hy.models.Symbol" in source
+    assert "x.hy.models" not in source
+
+    namespace = {}
+    exec(compile(tree, "<test>", "exec"), namespace)
+    assert namespace["hy"] is hy
+    assert namespace["model"] == Symbol("hello")

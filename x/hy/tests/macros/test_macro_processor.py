@@ -58,6 +58,6 @@ def test_macroexpand_source_data():
     ast = Expression([Symbol("when"), String("a")])
     ast.start_line = 3
     ast.start_column = 5
-    bad = macroexpand(ast, "hy.core.macros", once = True)
+    bad = macroexpand(ast, "x.hy.core.macros", once = True)
     assert bad.start_line == 3
     assert bad.start_column == 5

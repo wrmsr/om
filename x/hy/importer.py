@@ -195,14 +195,14 @@ runpy._get_code_from_file = _get_code_from_file
 # Adjust `multiprocessing` so `hy` is imported early enough to
 # interpret `.hy` files.
 import multiprocessing
-multiprocessing.set_forkserver_preload(["hy"])
+multiprocessing.set_forkserver_preload([hy.__name__])
 import multiprocessing.spawn
 spawn_get_command_line = multiprocessing.spawn.get_command_line
 def spawn_gcl_for_hy(**kwds):
     l = spawn_get_command_line(**kwds)
     for i in range(len(l) - 1):
         if l[i] == '-c' and l[i + 1].startswith('from multiprocessing.spawn import '):
-            l[i + 1] = 'import hy; ' + l[i + 1]
+            l[i + 1] = 'import x.hy; ' + l[i + 1]
             break
     return l
 multiprocessing.spawn.get_command_line = spawn_gcl_for_hy

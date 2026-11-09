@@ -80,27 +80,27 @@
 
 
 (defn test-import-init-hy []
-  (import tests.resources.bin)
-  (assert (in "_null_fn_for_import_test" (dir tests.resources.bin))))
+  (import ..resources [bin])
+  (assert (in "_null_fn_for_import_test" (dir bin))))
 
 
 (require
-  tests.resources.tlib
-  tests.resources.tlib :as TL
-  tests.resources.tlib [qplah]
-  tests.resources.tlib [parald :as parald-alias]
-  tests.resources [tlib  macros :as TM  exports-none]
+  ..resources.tlib
+  ..resources.tlib :as TL
+  ..resources.tlib [qplah]
+  ..resources.tlib [parald :as parald-alias]
+  ..resources [tlib  macros :as TM  exports-none]
   os [path])
     ; The last one is a no-op, since the module `os.path` exists but
     ; contains no macros.
 
 (defn test-require-global []
-  (assert (= (tests.resources.tlib.parald 1 2 3) [9 1 2 3]))
-  (assert (= (tests.resources.tlib.✈ "silly") "plane silly"))
-  (assert (= (tests.resources.tlib.hyx_XairplaneX "foolish") "plane foolish"))
+  (assert (= (resources.tlib.parald 1 2 3) [9 1 2 3]))
+  (assert (= (resources.tlib.✈ "silly") "plane silly"))
+  (assert (= (resources.tlib.hyx_XairplaneX "foolish") "plane foolish"))
   (assert (is
-    (get-macro tests.resources.tlib.✈)
-    (get _hy_macros (hy.mangle "tests.resources.tlib.✈"))))
+    (get-macro resources.tlib.✈)
+    (get _hy_macros (hy.mangle "resources.tlib.✈"))))
 
   (assert (= (TL.parald 1 2 3) [9 1 2 3]))
   (assert (= (TL.✈ "silly") "plane silly"))
@@ -110,7 +110,7 @@
 
   (assert (= (parald-alias 1 2 3) [9 1 2 3]))
 
-  (assert (in "tlib.qplah" _hy_macros))
+  (assert (in "resources.tlib.qplah" _hy_macros))
   (assert (in (hy.mangle "TM.test-macro") _hy_macros))
   (assert (in (hy.mangle "exports-none.cinco") _hy_macros))
 
@@ -118,10 +118,10 @@
     (parald 1 2 3 4))
 
   (with [(pytest.raises hy.errors.HyRequireError)]
-    (hy.eval '(require tests.resources [does-not-exist]))))
+    (hy.eval '(require x.hy.tests.resources [does-not-exist]))))
 
 
-(require tests.resources.more-test-macros *)
+(require ..resources.more-test-macros *)
 
 (defn test-require-global-star-without-exports []
   (assert (= (bairn 1 2 3) [14 1 2 3]))
@@ -130,7 +130,7 @@
     (_dairn 1 2 3 4)))
 
 
-(require tests.resources.exports *)
+(require ..resources.exports *)
 
 (defn test-require-global-star-with-exports []
   (assert (= (casey 1 2 3) [11 1 2 3]))
@@ -151,13 +151,13 @@
 
 
 ;; `remote-test-macro` is a macro used within
-;; `tests.resources.macro-with-require.test-module-macro`.
+;; `x.hy.tests.resources.macro-with-require.test-module-macro`.
 ;; Here, we introduce an equivalently named version that, when
 ;; used, will expand to a different output string.
 (defmacro remote-test-macro [x]
   "this is the home version of `remote-test-macro`!")
 
-(require tests.resources.macro-with-require *)
+(require ..resources.macro-with-require *)
 (defmacro home-test-macro [x]
   (.format "This is the home version of `remote-test-macro` returning {}!" (int x)))
 
@@ -171,9 +171,9 @@ in expansions."
 
   (setv remote-test-macro (get _hy_macros "remote_test_macro"))
 
-  (setv module-name-var "tests.native_tests.native_macros.test-macro-namespace-resolution")
-  (assert (= (+ "This macro was created in tests.resources.macros, "
-                "expanded in tests.native_tests.native_macros.test-macro-namespace-resolution "
+  (setv module-name-var "x.hy.tests.native_tests.native_macros.test-macro-namespace-resolution")
+  (assert (= (+ "This macro was created in x.hy.tests.resources.macros, "
+                "expanded in x.hy.tests.native_tests.native_macros.test-macro-namespace-resolution "
                 "and passed the value 2.")
              (test-module-macro 2)))
 
@@ -207,7 +207,7 @@ in expansions."
 
 (defn test-recursive-require-star []
   "(require foo *) should pull in macros required by `foo`."
-  (require tests.resources.macro-with-require *)
+  (require ..resources.macro-with-require *)
 
   (test-macro)
   (assert (= blah 1)))
@@ -217,10 +217,10 @@ in expansions."
   ; We use `hy.eval` here because of a Python limitation that
   ; importing `*` is only allowed at the module level.
   (hy.eval '(do
-    (import tests.resources.exports *)
+    (import x.hy.tests.resources.exports *)
     (assert (= (jan) 21))
     (assert (= (♥) 23))
     (with [(pytest.raises NameError)]
       (wayne))
-    (import tests.resources.exports [wayne])
+    (import x.hy.tests.resources.exports [wayne])
     (assert (= (wayne) 22)))))

@@ -1,7 +1,7 @@
 "Tests of local `defmacro` and `require`."
 
 (import
-  tests.native-tests.macros [macro-redefinition-warning-tester]
+  .macros [macro-redefinition-warning-tester]
   pytest)
 
 
@@ -77,7 +77,7 @@
     "local wiz")
 
   (defn fun []
-    (require tests.resources.local-req-example ~arg)
+    (require x.hy.tests.resources.local-req-example ~arg)
     [(get-wiz) (helper)])
   (defn helper []
     "local helper function")
@@ -112,12 +112,12 @@
 
   (defmacro m1 [] "m1 doc" 1)
   (defmacro m2 [] "m2, outer" 2)
-  (require tests.resources.local-req-example [wiz :as rwiz])
+  (require ..resources.local-req-example [wiz :as rwiz])
   (check (local-macros) False)
   (defn inner-f []
     (defmacro m2 [] "m2, inner" 2)
     (defmacro m3 [] "m3 doc" 3)
-    (require tests.resources.local-req-example [helper :as rhelp])
+    (require ..resources.local-req-example [helper :as rhelp])
     (check (local-macros) True))
   (inner-f)
   (check (local-macros) False))

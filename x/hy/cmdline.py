@@ -31,7 +31,7 @@ def set_path(filename):
 
 def run_command(source, filename=None):
     __main__ = importlib.import_module("__main__")
-    require("hy.cmdline", __main__, assignments="ALL")
+    require(__name__, __main__, assignments="ALL")
 
     with filtered_hy_exceptions():
         try:

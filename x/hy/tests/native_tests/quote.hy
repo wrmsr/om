@@ -33,7 +33,7 @@
 
 (defn test-quoted-macroexpand []
   "Don't expand macros in quoted expressions."
-  (require tests.resources.macros [test-macro])
+  (require ..resources.macros [test-macro])
   (setv q1 '(test-macro))
   (setv q2 `(test-macro))
   (assert (= q1 q2))

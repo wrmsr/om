@@ -6,8 +6,8 @@
   importlib
   pydoc
   pytest
-  hy.errors [HyLanguageError HySyntaxError]
-  hy.compat [PY3_13])
+  ...errors [HyLanguageError HySyntaxError]
+  ...compat [PY3_13])
 
 
 (defn test-pragma-hy []

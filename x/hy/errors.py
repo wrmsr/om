@@ -217,16 +217,17 @@ _tb_hidden_modules = {
     for m in map(
         _module_filter_name,
         [
-            "hy.compiler",
-            "hy.reader",
-            "hy.cmdline",
-            "hy.repl",
-            "hy.reader.parser",
-            "hy.importer",
-            "hy.compat",
-            "hy.macros",
-            "hy.models",
-            "hy.core.result_macros",
+            "x.hy.compiler",
+            "x.hy.reader",
+            "x.hy.cmdline",
+            "x.hy.__main__",
+            "x.hy.repl",
+            "x.hy.reader.parser",
+            "x.hy.importer",
+            "x.hy.compat",
+            "x.hy.macros",
+            "x.hy.models",
+            "x.hy.core.result_macros",
         ],
     )
     if m is not None

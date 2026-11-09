@@ -1,6 +1,6 @@
 (import os sys warnings
         pytest
-        hy.errors [HySyntaxError HyTypeError HyMacroExpansionError])
+        ...errors [HySyntaxError HyTypeError HyMacroExpansionError])
 
 (defmacro rev [#* body]
   "Execute the `body` statements in reverse"
@@ -136,7 +136,7 @@
 
 (defn test-macro-errors []
   (import traceback
-          hy.importer [read-many])
+          ...importer [read-many])
 
   (setv test-expr (read-many "(defmacro blah [x] `(print ~@z)) (blah y)"))
 
@@ -181,7 +181,7 @@
         ~(if should-warn? None '(pragma :warn-on-core-shadow False))
         ~(if (= head "defmacro")
           '(defmacro when [] 1)
-          '(require tests.resources.tlib [qplah :as when])))))))
+          '(require x.hy.tests.resources.tlib [qplah :as when])))))))
 
 (defn test-macro-redefinition-warning []
   (macro-redefinition-warning-tester :local False))

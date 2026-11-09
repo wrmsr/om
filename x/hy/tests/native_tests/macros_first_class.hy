@@ -31,7 +31,7 @@ deleting them, and retrieving their docstrings. We also test `get-macro`
   "global1 docstring"
   "from global1")
 ; 2. `require` in global scope
-(require tests.resources.tlib [qplah :as global2])
+(require ..resources.tlib [qplah :as global2])
 ; 3. Manually updating `_hy_macros`
 (eval-and-compile (setv (get _hy_macros "global3") (fn []
   "from global3")))
@@ -87,7 +87,7 @@ deleting them, and retrieving their docstrings. We also test `get-macro`
 (defn test-local-get []
   (defmacro local1 [] "local1 doc" 1)
   (defmacro local2 [] "local2 outer" 2)
-  (require tests.resources.local-req-example :as LRE)
+  (require ..resources.local-req-example :as LRE)
 
   (assert (= (. (get-macro local1) __doc__) "local1 doc"))
   (assert (= (. (get-macro local2) __doc__) "local2 outer"))

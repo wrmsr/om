@@ -3,7 +3,7 @@
 
 (import pytest
         dataclasses [dataclass]
-        hy.errors [HySyntaxError])
+        ...errors [HySyntaxError])
 
 (defclass [dataclass] Point []
     (#^ int x)

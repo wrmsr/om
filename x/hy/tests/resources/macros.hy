@@ -1,4 +1,4 @@
-(setv module-name-var "tests.resources.macros")
+(setv module-name-var "x.hy.tests.resources.macros")
 
 (defmacro test-macro []
   '(setv blah 1))

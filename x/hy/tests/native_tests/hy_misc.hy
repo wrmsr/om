@@ -29,7 +29,7 @@
     (hy.macroexpand '(mac (a b) (mac 5)))
     '(a b 5)))
   (assert (=
-    (hy.macroexpand '(qplah "phooey") :module hy.I.tests.resources.tlib)
+    (hy.macroexpand '(qplah "phooey") :module hy.I.x.hy.tests.resources.tlib)
     '[8 "phooey"]))
   (assert (=
     (hy.macroexpand '(chippy 1) :macros
@@ -156,13 +156,13 @@
 
 
 (defn test-hyR []
-  (assert (= (hy.R.tests/resources/tlib.qplah "x") [8 "x"]))
-  (assert (= (hy.R.tests/resources/tlib.✈ "x") "plane x"))
+  (assert (= (hy.R.x/hy/tests/resources/tlib.qplah "x") [8 "x"]))
+  (assert (= (hy.R.x/hy/tests/resources/tlib.✈ "x") "plane x"))
   (with [(pytest.raises NameError)]
-    (hy.eval '(tests.resources.tlib.qplah "x")))
+    (hy.eval '(x.hy.tests.resources.tlib.qplah "x")))
   (with [(pytest.raises NameError)]
     (hy.eval '(qplah "x")))
   (with [(pytest.raises hy.errors.HyRequireError)]
-    (hy.eval '(hy.R.tests/resources/tlib.nonexistent-macro "x")))
+    (hy.eval '(hy.R.x/hy/tests/resources/tlib.nonexistent-macro "x")))
   (with [(pytest.raises hy.errors.HyRequireError)]
     (hy.eval '(hy.R.nonexistent-module.qplah "x"))))

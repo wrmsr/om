@@ -4,6 +4,7 @@ from math import isnan
 
 import pytest
 
+from ... import hy
 from .. import PrematureEndOfInput
 from ..errors import hy_exc_handler
 from ..models import (
@@ -153,7 +154,7 @@ def test_lex_strings_exception():
             '  File "<string>", line 1',
             '    "\\x8"',
             "        ^",
-            "hy.reader.exceptions.LexException:"
+            "x.hy.reader.exceptions.LexException:"
             " 'unicodeescape' codec can't decode bytes in position 0-2:"
             " truncated \\xXX escape",
         ],
@@ -301,7 +302,7 @@ def test_lex_bad_attrs():
             '  File "<string>", line 1',
             "    1.foo",
             "        ^",
-            "hy.reader.exceptions.LexException: The parts of a dotted identifier must be symbols",
+            "x.hy.reader.exceptions.LexException: The parts of a dotted identifier must be symbols",
         ],
     )
 
@@ -667,7 +668,7 @@ def test_lex_exception_filtering(capsys):
         [
             '  File "<string>", line 3',
             "    1.foo",
-            "hy.reader.exceptions.LexException: The parts of a dotted identifier must be symbols",
+            "x.hy.reader.exceptions.LexException: The parts of a dotted identifier must be symbols",
         ],
     )
 
@@ -677,7 +678,6 @@ def test_read_error():
     pointing to the source position where the error arose."""
 
     import traceback
-    from ... import hy
     from ..errors import HySyntaxError, hy_exc_handler
 
     with pytest.raises(HySyntaxError) as e:
@@ -689,7 +689,7 @@ def test_read_error():
 
 
 def test_shebang():
-    from hy.errors import HySyntaxError
+    from ..errors import HySyntaxError
 
     with pytest.raises(HySyntaxError):
         # By default, `read_many` doesn't allow a shebang.

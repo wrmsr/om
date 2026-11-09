@@ -1,7 +1,7 @@
 (defmacro do-until [#* args]
   (import
-    hy.model-patterns [whole FORM notpexpr dolike]
-    funcparserlib.parser [many])
+    ...model-patterns [whole FORM notpexpr dolike]
+    ...funcparserlib.parser [many])
   (setv [body condition] (.parse
     (whole [(many (notpexpr "until")) (dolike "until")])
     args))
@@ -25,8 +25,8 @@
 
 (defmacro loop [#* args]
   (import
-    hy.model-patterns [whole FORM sym SYM]
-    funcparserlib.parser [many])
+    ...model-patterns [whole FORM sym SYM]
+    ...funcparserlib.parser [many])
   (setv [loopers body] (.parse
     (whole [
       (many (|
@@ -71,8 +71,8 @@
   ; https://github.com/hylang/hy/issues/2691
 
   (import
-    hy.model-patterns [whole  FORM :as X]
-    funcparserlib.parser [skip])
+    ...model-patterns [whole  FORM :as X]
+    ...funcparserlib.parser [skip])
 
   (assert (= (.parse (whole []) []) #()))
 

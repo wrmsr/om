@@ -3,12 +3,12 @@ from textwrap import dedent
 
 import pytest
 
-from ... import hy
-from .compat import PY3_11, PY3_14
-from .compiler import hy_compile
-from .errors import HyError, HyLanguageError
-from .reader import read_many
-from .reader.exceptions import LexException
+from .... import hy
+from ...compat import PY3_11, PY3_14
+from ...compiler import hy_compile
+from ...errors import HyError, HyLanguageError
+from ...reader import read_many
+from ...reader.exceptions import LexException
 
 
 def _ast_spotcheck(arg, root, secondary):
@@ -232,14 +232,14 @@ def test_ast_good_import_from():
 
 
 def test_ast_require():
-    can_compile("(require tests.resources.tlib)")
-    can_compile("(require tests.resources.tlib [qplah parald])")
-    can_compile("(require tests.resources.tlib *)")
-    can_compile("(require tests.resources.tlib :as foobar)")
-    can_compile("(require tests.resources.tlib [qplah :as quiz])")
-    can_compile("(require tests.resources.tlib [qplah :as quiz parald])")
-    cant_compile("(require [tests.resources.tlib])")
-    cant_compile("(require tests.resources.tlib [#taggart]")
+    can_compile("(require x.hy.tests.resources.tlib)")
+    can_compile("(require x.hy.tests.resources.tlib [qplah parald])")
+    can_compile("(require x.hy.tests.resources.tlib *)")
+    can_compile("(require x.hy.tests.resources.tlib :as foobar)")
+    can_compile("(require x.hy.tests.resources.tlib [qplah :as quiz])")
+    can_compile("(require x.hy.tests.resources.tlib [qplah :as quiz parald])")
+    cant_compile("(require [x.hy.tests.resources.tlib])")
+    cant_compile("(require x.hy.tests.resources.tlib [#taggart]")
 
 
 def test_ast_import_require_dotted():
@@ -253,8 +253,8 @@ def test_ast_multi_require():
     # https://github.com/hylang/hy/issues/1903
     x = can_compile(
         """(require
-      tests.resources.tlib [qplah]
-      tests.resources.macros [test-macro])"""
+      x.hy.tests.resources.tlib [qplah]
+      x.hy.tests.resources.macros [test-macro])"""
     )
     assert sum(1 for stmt in x.body if isinstance(stmt, ast.Expr)) == 2
     dump = ast.dump(x)
@@ -641,7 +641,9 @@ def test_module_prelude():
     for code, n in ("", 1), ("(setv flag (- hy.models.Symbol 1))", 2):
         x = can_compile(code, import_stdlib=True).body
         assert len(x) == n
-        assert isinstance(x[0], ast.Import)
+        assert isinstance(x[0], ast.ImportFrom)
+        assert x[0].module == "x"
+        assert x[0].level == 0
         x = x[0].names[0]
         assert x.name == "hy"
         assert x.asname is None

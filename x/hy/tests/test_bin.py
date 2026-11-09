@@ -15,6 +15,10 @@ from ..compat import PY3_10, PY3_13
 import pytest
 
 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+REPO_PYTHON = os.path.join(REPO_ROOT, "python")
+
+
 def pyr(s=""):
     return "hy --repl-output-fn=repr " + s
 
@@ -28,12 +32,21 @@ def run_cmd(
     else:
         env.pop("PYTHONDONTWRITEBYTECODE", None)
 
-    # ensure hy root dir is in Python's path,
-    # so that we can import/require modules within tests/
-    env["PYTHONPATH"] = str(Path().resolve()) + os.pathsep + env.get("PYTHONPATH", "")
+    # Keep the repository and current directory importable, even with a different cwd.
+    env["PYTHONPATH"] = os.pathsep.join((
+        REPO_ROOT, os.getcwd(), env.get("PYTHONPATH", "")))
+
+    cmd = shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
+    if cmd[0] == "hy":
+        cmd = [REPO_PYTHON, "-m", "x.hy", *cmd[1:]]
+    elif cmd[0] in ("hyc", "hy2py"):
+        cmd = [REPO_PYTHON, "-c",
+            f"from x.hy.cmdline import {cmd[0]}_main; {cmd[0]}_main()", *cmd[1:]]
+    elif cmd[0] in ("python", "python3"):
+        cmd[0] = REPO_PYTHON
 
     result = subprocess.run(
-        shlex.split(cmd) if isinstance(cmd, str) else cmd,
+        cmd,
         input=stdin_data,
         stdout=stdout,
         stderr=subprocess.PIPE,
@@ -91,10 +104,10 @@ def test_i_flag_repl_env():
 def test_mangle_m():
     # https://github.com/hylang/hy/issues/1445
 
-    output, _ = run_cmd("hy -m tests.resources.hello_world")
+    output, _ = run_cmd("hy -m x.hy.tests.resources.hello_world")
     assert "hello world" in output
 
-    output, _ = run_cmd("hy -m tests.resources.hello-world")
+    output, _ = run_cmd("hy -m x.hy.tests.resources.hello-world")
     assert "hello world" in output
 
 
@@ -103,16 +116,16 @@ def test_ignore_python_env():
 
     output, _ = run_cmd("hy -c '(print (do (import os) (. os environ)))'", env = e)
     assert "PYTHONTEST" in output
-    output, _ = run_cmd("hy -m tests.resources.bin.printenv", env = e)
+    output, _ = run_cmd("hy -m x.hy.tests.resources.bin.printenv", env = e)
     assert "PYTHONTEST" in output
-    output, _ = run_cmd("hy tests/resources/bin/printenv.hy", env = e)
+    output, _ = run_cmd("hy x/hy/tests/resources/bin/printenv.hy", env = e)
     assert "PYTHONTEST" in output
 
     output, _ = run_cmd("hy -E -c '(print (do (import os) (. os environ)))'", env = e)
     assert "PYTHONTEST" not in output
-    output, _ = run_cmd("hy -E -m tests.resources.bin.printenv", env = e)
+    output, _ = run_cmd("hy -E -m x.hy.tests.resources.bin.printenv", env = e)
     assert "PYTHONTEST" not in output
-    output, _ = run_cmd("hy -E tests/resources/bin/printenv.hy", env = e)
+    output, _ = run_cmd("hy -E x/hy/tests/resources/bin/printenv.hy", env = e)
     assert "PYTHONTEST" not in output
 
 
@@ -147,7 +160,7 @@ def test_icmd_string():
 
 
 def test_icmd_file():
-    output, _ = run_cmd("hy -i tests/resources/icmd_test_file.hy", '(.upper species)')
+    output, _ = run_cmd("hy -i x/hy/tests/resources/icmd_test_file.hy", '(.upper species)')
     assert "CUTTLEFISH" in output
 
 
@@ -176,7 +189,7 @@ def test_missing_file():
 
 
 def test_file_with_args():
-    cmd = "hy tests/resources/argparse_ex.hy"
+    cmd = "hy x/hy/tests/resources/argparse_ex.hy"
     assert "usage" in run_cmd(f"{cmd} -h")[0]
     assert "got c" in run_cmd(f"{cmd} -c bar")[0]
     assert "foo" in run_cmd(f"{cmd} -i foo")[0]
@@ -184,7 +197,7 @@ def test_file_with_args():
 
 
 def test_ifile_with_args():
-    cmd = "hy -i tests/resources/argparse_ex.hy"
+    cmd = "hy -i x/hy/tests/resources/argparse_ex.hy"
     assert "usage" in run_cmd(f"{cmd} -h")[0]
     assert "got c" in run_cmd(f"{cmd} -c bar")[0]
     assert "foo" in run_cmd(f"{cmd} -i foo")[0]
@@ -195,7 +208,7 @@ def test_hyc():
     output, _ = run_cmd("hyc -h")
     assert "usage" in output
 
-    path = "tests/resources/argparse_ex.hy"
+    path = "x/hy/tests/resources/argparse_ex.hy"
     _, err = run_cmd(["hyc", path])
     assert "Compiling" in err
     assert os.path.exists(cache_from_source(path))
@@ -208,12 +221,12 @@ def test_hyc_missing_file():
 
 
 def test_hyc_quiet():
-    _, err = run_cmd("hyc -q tests/resources/hello_world.hy")
+    _, err = run_cmd("hyc -q x/hy/tests/resources/hello_world.hy")
     assert err == ""
 
 
 def test_no_main():
-    output, _ = run_cmd("hy tests/resources/bin/nomain.hy")
+    output, _ = run_cmd("hy x/hy/tests/resources/bin/nomain.hy")
     assert "This Should Still Work" in output
 
 
@@ -230,7 +243,7 @@ def test_no_main():
 )
 def test_byte_compile(scenario, cmd_fmt):
 
-    modname = "tests.resources.bin.bytecompile"
+    modname = "x.hy.tests.resources.bin.bytecompile"
     fpath = modname.replace(".", "/") + ".hy"
 
     if scenario == "prevent_by_option":
@@ -267,14 +280,14 @@ def test_byte_compile(scenario, cmd_fmt):
 
 
 def test_module_main_file():
-    output, _ = run_cmd("hy -m tests.resources.bin")
+    output, _ = run_cmd("hy -m x.hy.tests.resources.bin")
     assert "This is a __main__.hy" in output
 
     output, _ = run_cmd("hy -m .tests.resources.bin", expect=1)
 
 
 def test_file_main_file():
-    output, _ = run_cmd("hy tests/resources/bin")
+    output, _ = run_cmd("hy x/hy/tests/resources/bin")
     assert "This is a __main__.hy" in output
 
 
@@ -285,10 +298,10 @@ def test_file_sys_path():
     adopts the file's location in `sys.path`, instead of the runner's current
     dir (e.g. '' in `sys.path`).
     """
-    file_path, _ = os.path.split("tests/resources/relative_import.hy")
+    file_path, _ = os.path.split("x/hy/tests/resources/relative_import.hy")
     file_relative_path = os.path.realpath(file_path)
 
-    output, _ = run_cmd("hy tests/resources/relative_import.hy")
+    output, _ = run_cmd("hy x/hy/tests/resources/relative_import.hy")
     assert repr(file_relative_path) in output
 
 
@@ -297,7 +310,7 @@ def testc_file_sys_path():
     # they can find the relative import at compile time
     # https://github.com/hylang/hy/issues/2021
 
-    test_file = "tests/resources/relative_import_compile_time.hy"
+    test_file = "x/hy/tests/resources/relative_import_compile_time.hy"
     file_relative_path = os.path.realpath(os.path.dirname(test_file))
 
     for binary in ("hy", "hyc", "hy2py"):
@@ -310,18 +323,18 @@ def testc_file_sys_path():
 
 
 def test_module_no_main():
-    output, _ = run_cmd("hy -m tests.resources.bin.nomain")
+    output, _ = run_cmd("hy -m x.hy.tests.resources.bin.nomain")
     assert "This Should Still Work" in output
 
 
 def test_sys_executable():
     output, _ = run_cmd("hy -c '(do (import sys) (print sys.executable))'")
-    assert os.path.basename(output.strip()) == "hy"
+    assert os.path.realpath(output.strip()) == os.path.join(REPO_ROOT, "x/hy/__main__.py")
 
 
 def test_file_no_extension():
     """Confirm that a file with no extension is processed as Hy source"""
-    output, _ = run_cmd("hy tests/resources/no_extension")
+    output, _ = run_cmd("hy x/hy/tests/resources/no_extension")
     assert "This Should Still Work" in output
 
 
@@ -330,7 +343,7 @@ def test_circular_macro_require():
     run from the command line."""
 
     # First, with no bytecode
-    test_file = "tests/resources/bin/circular_macro_require.hy"
+    test_file = "x/hy/tests/resources/bin/circular_macro_require.hy"
     rm(cache_from_source(test_file))
     assert not os.path.exists(cache_from_source(test_file))
     output, _ = run_cmd(["hy", test_file])
@@ -349,7 +362,7 @@ def test_macro_require():
     load macros into the unnamed namespace its run in."""
 
     # First, with no bytecode
-    test_file = "tests/resources/bin/require_and_eval.hy"
+    test_file = "x/hy/tests/resources/bin/require_and_eval.hy"
     rm(cache_from_source(test_file))
     assert not os.path.exists(cache_from_source(test_file))
     output, _ = run_cmd(["hy", test_file])
@@ -365,7 +378,7 @@ def test_tracebacks():
     """Make sure the printed tracebacks are correct."""
 
     def req_err(x):
-        assert x == "hy.errors.HyRequireError: No module named 'not_a_real_module'"
+        assert x == "x.hy.errors.HyRequireError: No module named 'not_a_real_module'"
 
     # Modeled after
     #   > python -c 'import not_a_real_module'
@@ -489,7 +502,7 @@ def test_pdb_ll(tmp_path):
 
 def test_hystartup():
     # spy == True and custom repl-output-fn
-    env = dict(HYSTARTUP = "tests/resources/hystartup.hy")
+    env = dict(HYSTARTUP = "x/hy/tests/resources/hystartup.hy")
     output, _ = run_cmd("hy -i", "[1 2]", env = env)
     assert "p1? " in output
     assert "[1, 2]" in output
@@ -513,7 +526,7 @@ def test_hystartup():
     # spy == False and custom repl-output-fn
     # Then overwrite spy with cmdline arg
     output, _ = run_cmd("hy -i --spy", "[1 2]",
-         env = dict(HYSTARTUP = "tests/resources/spy_off_startup.hy"))
+         env = dict(HYSTARTUP = "x/hy/tests/resources/spy_off_startup.hy"))
     assert "[1, 2]" in output
     assert "[1,~2]" in output
 
@@ -585,7 +598,7 @@ def test_assert(tmp_path, monkeypatch):
             out, err = run_cmd(
                 cmd = "python3 {} {}".format(
                     ("-O" if optim else ""),
-                    f"-c 'import hy, ex; ex.f({test})'"),
+                    f"-c 'from x import hy; import ex; ex.f({test})'"),
                 expect = (1 if not optim and not test else 0))
             assert ("testing" in out) == (not optim)
             show_msg = has_msg and not optim and not test
@@ -604,7 +617,7 @@ def test_hy2py_compile_only(monkeypatch):
         output, _ = run_cmd(f"hy2py {args}")
         assert not re.search(r"^hello world$", output, re.M)
 
-    monkeypatch.chdir('tests/resources')
+    monkeypatch.chdir('x/hy/tests/resources')
     check("hello_world.hy")
     check("-m hello_world")
 
@@ -707,7 +720,7 @@ def test_hyc_dfile_nonexistent_path(tmp_path):
     import py_compile
     out = tmp_path / "hello.pyc"
     py_compile.compile(
-        "tests/resources/hello_world.hy",
+        "x/hy/tests/resources/hello_world.hy",
         cfile=str(out),
         dfile="/nonexistent/override/path.hy",
         doraise=True,

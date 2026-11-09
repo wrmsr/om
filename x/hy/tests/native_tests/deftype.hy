@@ -1,6 +1,6 @@
 (do-mac (when hy.compat.PY3_12 '(do
 
-(import tests.resources.tp :as ttp)
+(import ..resources [tp :as ttp])
 
 
 (defn test-deftype []

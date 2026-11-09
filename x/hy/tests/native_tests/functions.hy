@@ -96,7 +96,7 @@
 
 
 (do-mac (when hy.compat.PY3_12 '(defn test-type-params []
-  (import tests.resources.tp :as ttp)
+  (import ..resources [tp :as ttp])
 
   (defn foo [])
   (assert (= (ttp.show foo) []))

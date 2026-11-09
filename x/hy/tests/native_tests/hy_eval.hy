@@ -172,7 +172,7 @@
   "`hy.eval` shouldn't remove `hy` from a provided namespace if it
   was already there."
   (setv g {})
-  (exec "import hy" g)
+  (exec "from x import hy" g)
   (assert (= (hy.eval '(hy.repr [1 2]) g) "[1 2]"))
   (assert (in "hy" g)))
 
@@ -183,7 +183,7 @@
   "gorgonzola")
 
 (defn test-macros []
-  (setv M "tests.resources.macros")
+  (setv M "x.hy.tests.resources.macros")
 
   ; Macros defined in `module` can be called.
   (assert (= (hy.eval '(do (test-macro) blah)) "test from here"))
@@ -202,7 +202,7 @@
     (hy.eval '(cheese) :module M))
 
   ; You can still use `require` inside `hy.eval`.
-  (hy.eval '(require tests.resources.tlib [qplah]))
+  (hy.eval '(require x.hy.tests.resources.tlib [qplah]))
   (assert (= (hy.eval '(qplah 1)) [8 1])))
 
 
