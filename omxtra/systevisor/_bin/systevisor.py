@@ -77,7 +77,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '60dc3366fdf687902e36c2e0c007941d6543a002'
+__om_amalg_sha1__ = 'a8f166625a9fb1e7f8905bbb05637756bde9844a'
 
 
 def __om_amalg__():  # noqa
@@ -206,7 +206,7 @@ def __om_amalg__():  # noqa
             dict(sha1='4986afdaaab96ba06bb894dbe279276b874a32df', mod='omxtra.systevisor.core.events', path='core/events.py'),  # noqa
             dict(sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090', mod='omxtra.systevisor.runtime.fdio', path='runtime/fdio.py'),  # noqa
             dict(sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f', mod='omxtra.systevisor.runtime.logs', path='runtime/logs.py'),  # noqa
-            dict(sha1='5db8dc1e9b5e5c9ee6491a205324b5bcdedf128b', mod='omxtra.systevisor.runtime.processes', path='runtime/processes.py'),  # noqa
+            dict(sha1='840514e49e3ba793875bc282d1ee54abec423d4e', mod='omxtra.systevisor.runtime.processes', path='runtime/processes.py'),  # noqa
             dict(sha1='17910ac700fe8e0db0777d3a87a0370e9f67fc96', mod='omxtra.systevisor.core.engine', path='core/engine.py'),  # noqa
             dict(sha1='c2ec9703d68dcb767a918c56636ab351f6831148', mod='omxtra.systevisor.resources.cgroups', path='resources/cgroups.py'),  # noqa
             dict(sha1='6c2e26deee7b4e4e160838dd318d2ed2f6ef14cf', mod='omxtra.systevisor.resources.namespaces', path='resources/namespaces.py'),  # noqa
@@ -39390,6 +39390,16 @@ class SystevisorProcessSignalBackend(Abstract):
         raise NotImplementedError
 
 
+def _systevisor_processes_child_alive(pid: int) -> bool:
+    """Non-reaping: whether a child has neither exited nor been reaped."""
+
+    try:
+        result = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+    except ChildProcessError:
+        return False
+    return result is None or result.si_pid == 0
+
+
 class SystevisorPosixProcessSignalBackend(SystevisorProcessSignalBackend):
     def send_process(self, lease: SystevisorSignalLease, signal_number: int) -> bool:
         process = lease._process
@@ -39410,9 +39420,10 @@ class SystevisorPosixProcessSignalBackend(SystevisorProcessSignalBackend):
         except ProcessLookupError:
             return False
         except PermissionError:
-            # Darwin's killpg skips zombie members, and when that leaves nothing to signal it fails with EPERM rather
-            # than ESRCH. An unreaped leader keeps its group alive, so this is how an exited session looks there.
-            if sys.platform != 'darwin':
+            # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie - as
+            # it is once the unreaped leader has exited and nothing else in it lives. Only a leader still alive, and so
+            # one we may not signal, makes it a genuine permission error.
+            if sys.platform != 'darwin' or _systevisor_processes_child_alive(process.pid):
                 raise
             return False
         return True

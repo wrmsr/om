@@ -388,25 +388,25 @@ def _process_dataclass__3826312582c595a18efc0ca4bdeb8079deee7eae():
 
 
 @_register(
-    installer_sha1='7e515dd0db389a260b36863ff6cfd30f8b91d1f5',
+    installer_sha1='9109436c854dfd7fe2f96d6291551e626d92c471',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, False, False), ((('name', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False), (('type', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False), (('loc', True, True, None, True, False, False, None), 'instance', 'missing', No"
-            "ne, False, False, False), (('caps', True, True, None, True, True, False, None), 'instance', 'value', None,"
-            " False, False, False), (('database', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('driver', True, True, None, True, True, False, None), 'instance', 'value', None,"
-            " False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (F"
-            "alse,)))"
+            "one, False, False, False), (('family', True, True, None, True, False, False, None), 'instance', 'missing',"
+            " None, False, False, False), (('loc', True, True, None, True, False, False, None), 'instance', 'missing', "
+            "None, False, False, False), (('caps', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('database', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('driver', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), "
+            "(False,)))"
         ),
     ),
     cls_names=(
         ('omcore.sql.dbs.specs', 'DbSpec'),
     ),
 )
-def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
+def _process_dataclass__9109436c854dfd7fe2f96d6291551e626d92c471():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -434,7 +434,7 @@ def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
                 raise TypeError(self)
             return __class__(  # noqa
                 name=self.name,
-                type=self.type,
+                family=self.family,
                 loc=self.loc,
                 caps=self.caps,
                 database=self.database,
@@ -450,7 +450,7 @@ def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
                 return NotImplemented
             return (
                 self.name == other.name and
-                self.type == other.type and
+                self.family == other.family and
                 self.loc == other.loc and
                 self.caps == other.caps and
                 self.database == other.database and
@@ -461,7 +461,7 @@ def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
 
         __dataclass___frozen_fields = {
             'name',
-            'type',
+            'family',
             'loc',
             'caps',
             'database',
@@ -491,7 +491,7 @@ def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
         def __hash__(self):
             return hash((
                 self.name,
-                self.type,
+                self.family,
                 self.loc,
                 self.caps,
                 self.database,
@@ -503,7 +503,7 @@ def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
         def __init__(
             self,
             name: __dataclass__init__fields__0__annotation,
-            type: __dataclass__init__fields__1__annotation,
+            family: __dataclass__init__fields__1__annotation,
             loc: __dataclass__init__fields__2__annotation,
             *,
             caps: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
@@ -511,7 +511,7 @@ def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
             driver: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'name', name)
-            __dataclass__object_setattr(self, 'type', type)
+            __dataclass__object_setattr(self, 'family', family)
             __dataclass__object_setattr(self, 'loc', loc)
             __dataclass__object_setattr(self, 'caps', caps)
             __dataclass__object_setattr(self, 'database', database)
@@ -524,8 +524,8 @@ def _process_dataclass__7e515dd0db389a260b36863ff6cfd30f8b91d1f5():
             parts = []
             if (s := __dataclass__repr__default_fn(self.name)) is not None:
                 parts.append(f"name={s}")
-            if (s := __dataclass__repr__default_fn(self.type)) is not None:
-                parts.append(f"type={s}")
+            if (s := __dataclass__repr__default_fn(self.family)) is not None:
+                parts.append(f"family={s}")
             if (s := __dataclass__repr__default_fn(self.loc)) is not None:
                 parts.append(f"loc={s}")
             if (s := __dataclass__repr__default_fn(self.caps)) is not None:
