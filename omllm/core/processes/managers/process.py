@@ -334,9 +334,10 @@ class BaseProcess(Process, lang.Abstract):
                 # unreaped until teardown.
                 pass
             except PermissionError:
-                # macOS/BSD return EPERM (where Linux returns ESRCH / success) when signaling a zombie, or a process
-                # group whose only remaining members are zombies. Because we only ever signal processes we still own, a
-                # confirmed-dead target makes this benign; a still-live one is a genuine permission error to raise.
+                # Darwin fails a group signal with EPERM (where Linux succeeds) when every member of the group is a
+                # zombie - as ours is once its leader has exited, since we hold the leader unreaped. A signal to the
+                # zombie itself succeeds. So a confirmed-dead leader makes this benign; a live one - which we may not
+                # signal, being setuid say - is a genuine permission error to raise.
                 if not self._is_exited_nowait(pid):
                     raise
 

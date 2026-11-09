@@ -672,32 +672,40 @@ async def test_manager_lifecycle():
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_zombie_signal_eperm_tolerated(monkeypatch):
-    # macOS/BSD return EPERM (not ESRCH) when signaling a zombie or an all-zombie group. Inject that here so the
-    # behavior is exercised on any platform: it must be swallowed for a process we hold that has already exited, but
-    # surfaced for one that is genuinely still alive.
+async def test_zombie_group_signal_tolerated():
+    # A held, exited leader is a zombie, and darwin fails a group signal to a group of nothing but zombies with EPERM
+    # rather than ESRCH. The real kernel is used, so that is what this exercises there - elsewhere the signal succeeds.
     async with AsyncioProcessManager() as m:
         exited = await m.root.spawn(_sh('exit 0'))
         assert await exited.wait(5.) == 0
         assert exited.state.name == 'EXITED'  # a real, still-held zombie
+        if sys.platform == 'darwin':
+            with pytest.raises(PermissionError):
+                os.killpg(exited.pid, 0)
+
+        await exited.signal(signal.SIGTERM)
+        await exited.signal(signal.SIGTERM, process_group=False)
+        await exited.aclose()  # the group sweep must not raise either
+        assert exited.state.name == 'REAPED'
+
+
+@pytest.mark.asyncs('asyncio')
+async def test_live_signal_eperm_surfaced(monkeypatch):
+    # EPERM for a target still alive - one we may not signal, being setuid say - is genuine and is raised. That cannot
+    # be arranged here, so it is injected.
+    async with AsyncioProcessManager() as m:
+        alive = await m.root.spawn(_sh('sleep 100'))
+        await _poll(lambda: alive.state.name == 'RUNNING')
 
         def _eperm(*_a, **_k):
             raise PermissionError(1, 'Operation not permitted')
 
         monkeypatch.setattr(os, 'killpg', _eperm)
         monkeypatch.setattr(os, 'kill', _eperm)
-
-        # Confirmed-dead target: EPERM is the benign zombie quirk -> swallowed.
-        await exited.signal(signal.SIGTERM)
-        await exited.signal(signal.SIGTERM, process_group=False)
-        await exited.aclose()  # the group sweep also EPERMs and must not raise
-        assert exited.state.name == 'REAPED'
-
-        # Live target: EPERM is genuine -> surfaced.
-        alive = await m.root.spawn(_sh('sleep 100'))
-        await _poll(lambda: alive.state.name == 'RUNNING')
         with pytest.raises(PermissionError):
             await alive.signal(signal.SIGTERM)
+        with pytest.raises(PermissionError):
+            await alive.signal(signal.SIGTERM, process_group=False)
 
         monkeypatch.undo()
         await alive.aclose()

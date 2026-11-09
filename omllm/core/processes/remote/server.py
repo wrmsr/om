@@ -409,18 +409,19 @@ class _RemoteServerProcess:
                 except ProcessLookupError:
                     pass
             except PermissionError:
-                # macOS/BSD can return EPERM for a group whose members are all zombies - benign for a process we still
-                # own. The confirming probe is unreliable on Darwin, so deliver to the owned leader pid directly rather
-                # than risk swallowing a signal that never reached a live leader (whose handlers would then never run).
-                self._kill_leader(sig)
+                # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie -
+                # as it is once the unreaped leader has exited and nothing else in it lives. Only a leader still alive,
+                # and so one we may not signal, makes it a genuine permission error.
+                if not self._is_exited_nowait():
+                    raise
         else:
             self._kill_leader(sig)
 
     def _kill_leader(self, sig: int) -> None:
         """
-        Delivers `sig` to the owned leader pid directly - used when the group signal cannot be, or may not have been,
-        delivered. ESRCH is benign (already gone); EPERM on our own child is a zombie on macOS/BSD, benign once its exit
-        is confirmed and a genuine error otherwise.
+        Delivers `sig` to the owned leader pid directly: for a signal to the leader alone, or when its group does not
+        exist yet. ESRCH is benign (already gone). EPERM means a leader we may not signal, a genuine error - unless a
+        probe finds it has in fact exited.
         """
 
         try:
@@ -540,13 +541,6 @@ class _RemoteServerProcess:
         kill_s = policy.kill_s
         process_group = policy.process_group
         drain_s = policy.drain_s
-
-        if self.exited and not self._reaped and not self._is_exited_nowait():
-            # We were told it exited, but a fresh probe of the (long-established, not just-forked) leader finds it still
-            # alive - a stale belief. Correct it, so the graceful signal-and-wait below runs: a live process must get
-            # its TERM (and the chance to run its handlers) before any KILL.
-            self._exited.clear()
-            self._returncode = None
 
         if not self.exited:
             if close_stdin:
@@ -823,8 +817,7 @@ class RemoteProcessService:
         )
         # Registered before start()'s first suspension point. The SIGCHLD handler is already installed and there is no
         # await between the fork above and here, so a fast exit's signal cannot arrive before the process is findable -
-        # no speculative waitid probe of a just-forked child (which some platforms mis-report as already exited) is
-        # needed to catch it.
+        # no speculative waitid probe is needed to catch it.
         self._processes[process_id] = process
         try:
             await process.start()

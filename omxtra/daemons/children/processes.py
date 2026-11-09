@@ -1,7 +1,9 @@
 import abc
+import errno
 import os
 import signal
 import subprocess
+import sys
 import typing as ta
 
 from omcore import check
@@ -69,15 +71,34 @@ class PopenChildProcess(ChildProcess):
         finally:
             self._close_owned_files()
 
+    def _leader_alive(self) -> bool:
+        """Non-reaping: whether the leader has neither exited nor been reaped."""
+
+        try:
+            return os.waitid(os.P_PID, self.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
+        except ChildProcessError:
+            return False
+
+    def _signal_group(self, signum: int) -> None:
+        try:
+            os.killpg(self.pid, signum)
+        except PermissionError as e:
+            # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie - the
+            # leader between its exit and its reaping, or orphans not yet reaped by launchd. Only a leader still alive,
+            # and so one we may not signal, makes it a genuine permission error.
+            if sys.platform != 'darwin' or self._leader_alive():
+                raise
+            raise ProcessLookupError(errno.ESRCH, f'process group {self.pid} has no live members') from e
+
     def send_signal(self, signum: int, *, process_group: bool = False) -> None:
         if process_group:
-            os.killpg(self.pid, signum)
+            self._signal_group(signum)
         else:
             self._process.send_signal(signum)
 
     def kill(self, *, process_group: bool = False) -> None:
         if process_group:
-            os.killpg(self.pid, signal.SIGKILL)
+            self._signal_group(signal.SIGKILL)
         else:
             self._process.kill()
 

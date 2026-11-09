@@ -80,6 +80,10 @@ def _run_worker_process(cmd: ta.Sequence[str], data: bytes, *, timeout: float) -
                 os.killpg(proc.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+            except PermissionError:
+                # Darwin reports EPERM rather than ESRCH for a group of nothing but zombies: everything is already dead.
+                if sys.platform != 'darwin':
+                    raise
             proc.wait()
             raise
 

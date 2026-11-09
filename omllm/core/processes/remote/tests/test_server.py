@@ -2,21 +2,16 @@
 import asyncio
 import ctypes
 import os
-import pathlib
 import signal
+import subprocess
 import sys
 import types
 import typing as ta
 
 import pytest
 
-from omcore.lite.marshal import unmarshal_obj
-
 from .. import server as remote_server
-from ..protocol import REMOTE_PROCESS_OUTPUT_METHOD
-from ..protocol import RemoteProcessOutputEvent
 from ..server import RemoteProcessService
-from .support import TERMINATION_PROCESS_SRC
 
 
 ##
@@ -78,59 +73,6 @@ def test_remote_darwin_process_wait_libc(monkeypatch) -> None:
 
 
 @pytest.mark.asyncs('asyncio')
-async def test_remote_close_reprobes_a_stale_exit_belief_before_killing(tmp_path) -> None:
-    # A stale "already exited" belief must not make close skip the graceful signal: a live process still gets its TERM,
-    # and the chance to write its marker, before any KILL. Driven in process, with the belief injected directly.
-    stdout = asyncio.StreamReader()
-
-    class ProcessService(RemoteProcessService):  # noqa: SLF001
-        async def notify(self, method: str, params: ta.Any) -> None:
-            if method == REMOTE_PROCESS_OUTPUT_METHOD:
-                event: RemoteProcessOutputEvent = unmarshal_obj(params, RemoteProcessOutputEvent)
-                if event.fd == 1:
-                    stdout.feed_data(event.data)
-            await super().notify(method, params)
-
-    service = ProcessService()
-    service._ensure_sigchld()  # noqa: SLF001
-    terminated_path = os.path.join(os.path.realpath(tmp_path), 'terminated')
-    try:
-        spawned = await service.spawn({
-            'argv': [sys.executable, '-c', TERMINATION_PROCESS_SRC, terminated_path],
-            'cwd': os.path.realpath(tmp_path),
-            'env': None,
-            'name': None,
-            'stdio': {'kind': 'pipes', 'stdin': 'devnull', 'stdout': 'pipe', 'stderr': 'pipe'},
-        })
-        process = service._processes[spawned['id']]  # noqa: SLF001
-        # Synchronize with signal setup instead of assuming the child has started after a fixed delay.
-        assert await asyncio.wait_for(stdout.readexactly(len(b'ready')), 5.) == b'ready'
-        assert not process._exited.is_set()  # noqa: SLF001  # it is actually running
-
-        # Inject the stale belief while the process is known to be alive.
-        process._returncode = 0  # noqa: SLF001
-        process._exited.set()  # noqa: SLF001
-
-        result = await service.close({
-            'id': spawned['id'],
-            'policy': {
-                'signal': int(signal.SIGTERM),
-                'grace_s': 1.5,
-                'kill_s': 1.5,
-                'close_stdin': True,
-                'process_group': True,
-                # No drain window, so only the graceful signal-and-wait (reached by re-probing the stale belief) can
-                # let it write its marker - the sweep would otherwise SIGKILL the group right after its SIGTERM.
-                'drain_s': 0.,
-            },
-        })
-        assert result['state'] == 'reaped'
-        assert pathlib.Path(terminated_path).read_bytes() == b'terminated'
-    finally:
-        await service.aclose()
-
-
-@pytest.mark.asyncs('asyncio')
 async def test_remote_shutdown_kills_a_process_whose_close_fails(capsys) -> None:
     service = RemoteProcessService()  # noqa: SLF001
     spawned = await service.spawn({
@@ -170,20 +112,40 @@ def _bare_server_process(pid: int) -> ta.Any:
     return proc
 
 
-def test_remote_signal_group_eperm_falls_back_to_leader_pid(monkeypatch) -> None:
-    # A killpg that reports EPERM (which macOS/BSD can do) must not swallow the signal: it is delivered to the owned
-    # leader pid directly, so a live leader still gets its TERM (and runs its handlers).
-    proc = _bare_server_process(4321)
-    killed: list[tuple[int, int]] = []
+def test_remote_signal_group_to_an_exited_leader_is_tolerated() -> None:
+    # Observed but not reaped, the leader leaves its group holding nothing but a zombie, which darwin refuses to signal
+    # with EPERM rather than ESRCH. The real kernel is used, so that is what this exercises there.
+    popen = subprocess.Popen(['sh', '-c', 'exit 0'], start_new_session=True)
+    try:
+        os.waitid(os.P_PID, popen.pid, os.WEXITED | os.WNOWAIT)
+        if sys.platform == 'darwin':
+            with pytest.raises(PermissionError):
+                os.killpg(popen.pid, 0)
 
-    def fake_killpg(pid: int, sig: int) -> None:
-        raise PermissionError
+        proc = _bare_server_process(popen.pid)
+        proc._signal(signal.SIGTERM, True)  # noqa: SLF001
+        proc._signal(signal.SIGKILL, True)  # noqa: SLF001
+    finally:
+        popen.wait()
 
-    monkeypatch.setattr(remote_server.os, 'killpg', fake_killpg)
-    monkeypatch.setattr(remote_server.os, 'kill', lambda pid, sig: killed.append((pid, sig)))
 
-    proc._signal(signal.SIGTERM, True)  # noqa: SLF001
-    assert killed == [(4321, signal.SIGTERM)]
+def test_remote_signal_group_eperm_for_a_live_leader_is_raised(monkeypatch) -> None:
+    # EPERM for a leader still alive - one we may not signal, being setuid say - is genuine and is raised. That cannot
+    # be arranged here, so it is injected.
+    popen = subprocess.Popen(['sleep', '60'], start_new_session=True)
+    try:
+        proc = _bare_server_process(popen.pid)
+
+        def fake_killpg(pid: int, sig: int) -> None:
+            raise PermissionError
+
+        monkeypatch.setattr(remote_server.os, 'killpg', fake_killpg)
+        with pytest.raises(PermissionError):
+            proc._signal(signal.SIGTERM, True)  # noqa: SLF001
+    finally:
+        monkeypatch.undo()
+        popen.kill()
+        popen.wait()
 
 
 def test_remote_signal_group_success_does_not_also_hit_the_pid(monkeypatch) -> None:
