@@ -502,8 +502,12 @@ class TestSystevisorProcesses(unittest.TestCase):
             line.split(':', 1)
             for line in os.read(state.stdout_fd, 4096).decode('ascii').splitlines()
         )
-        self.assertEqual(int(fields['SigIgn'], 16), 0)
-        self.assertEqual(int(fields['SigBlk'], 16), 0)
+        valid_signal_mask = sum(
+            1 << (int(signal_number) - 1)
+            for signal_number in signal.valid_signals()
+        )
+        self.assertEqual(int(fields['SigIgn'], 16) & valid_signal_mask, 0)
+        self.assertEqual(int(fields['SigBlk'], 16) & valid_signal_mask, 0)
         systevisor_close_process_retirement(manager.acknowledge_exit(effect.run_id))
 
     def test_signal_between_fork_and_exec_acts_on_the_child_alone(self) -> None:

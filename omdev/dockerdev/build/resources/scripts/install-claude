@@ -12,7 +12,7 @@ if [ -d /persist ] ; then
 fi
 
 if ! [[ -f ~/.claude/settings.json ]] ; then
-  echo '{"idleCompaction": false}' > ~/.claude/settings.json
+  echo '{"idleCompaction": false, "theme": "dark"}' > ~/.claude/settings.json
 fi
 
 curl -fsSL 'https://claude.ai/install.sh' | bash
