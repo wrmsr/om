@@ -142,20 +142,32 @@ class ChildProcessSupervisor(lang.Final):
         )))
 
     @staticmethod
-    def _reap(
+    def _watch_exit(
             runtime: ServiceRuntime,
             process: ChildProcess,
             child_exited: threading.Event,
             outcomes: queue.Queue[tuple[str, ta.Any]],
     ) -> None:
         try:
-            returncode = process.wait()
+            returncode = process.wait_exited()
             shutdown_request = runtime.shutdown.request_
         except Exception as exc:  # noqa: BLE001 - factory implementations may expose arbitrary wait failures.
             outcomes.put(('error', exc))
         else:
             child_exited.set()
             outcomes.put(('exit', (returncode, shutdown_request)))
+
+    def _retire(self, process: ChildProcess) -> None:
+        # Its exit observed but its pid not yet released, the group id is still certainly the child's: whatever it left
+        # behind in its group goes with it, and only then is it reaped.
+        try:
+            if self._config.termination.signal_process_group:
+                try:
+                    process.kill(process_group=True)
+                except ProcessLookupError:
+                    pass
+        finally:
+            process.reap()
 
     def run(self, runtime: ServiceRuntime) -> ChildProcessResult:
         try:
@@ -174,22 +186,27 @@ class ChildProcessSupervisor(lang.Final):
             name=f'ChildProcessShutdown-{process.pid}',
             daemon=True,
         )
-        reap_thread = threading.Thread(
-            target=self._reap,
+        exit_thread = threading.Thread(
+            target=self._watch_exit,
             args=(runtime, process, child_exited, outcomes),
-            name=f'ChildProcessReaper-{process.pid}',
+            name=f'ChildProcessExitWatcher-{process.pid}',
             daemon=True,
         )
         shutdown_thread.start()
-        reap_thread.start()
+        exit_thread.start()
 
         outcome, value = outcomes.get()
         if outcome == 'error':
+            error = check.isinstance(value, BaseException)
             runtime.shutdown.request(message=f'child-process-error:{process.pid}')
             shutdown_thread.join()
             if child_exited.is_set():
-                reap_thread.join()
-            raise check.isinstance(value, BaseException)
+                exit_thread.join()
+                try:
+                    self._retire(process)
+                except Exception:  # noqa: BLE001 - the error in hand stays the one raised, with this as its context.
+                    raise error  # noqa: B904
+            raise error
 
         check.equal(outcome, 'exit')
         returncode, shutdown_request = ta.cast(tuple[int, ShutdownRequest | None], value)
@@ -197,8 +214,11 @@ class ChildProcessSupervisor(lang.Final):
         if shutdown_request is None:
             runtime.shutdown.request(message=f'child-process-exited:{process.pid}:{returncode}')
 
-        reap_thread.join()
+        exit_thread.join()
         shutdown_thread.join()
+
+        # Only once nothing else can still be signaling it.
+        self._retire(process)
 
         result = ChildProcessResult(
             pid=process.pid,

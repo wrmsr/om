@@ -70,7 +70,7 @@ class _BaseDefaultDbFactory:
             return spec.loc, spec.database
 
         elif isinstance(spec.loc, UrlDbLoc):
-            loc, database = bc.parse_url_db_loc(self._url(ctx, spec.loc), spec.type)
+            loc, database = bc.parse_url_db_loc(self._url(ctx, spec.loc), spec.family)
             return loc, spec.database if spec.database is not None else database
 
         else:
@@ -87,7 +87,7 @@ class _BaseDefaultDbFactory:
             DbFamilies.POSTGRES: 'og8000',
             DbFamilies.MYSQL: 'omysql',
             DbFamilies.SNOWFLAKE: 'snowflake',
-        }[spec.type]
+        }[spec.family]
 
 
 #
@@ -98,13 +98,13 @@ class _DefaultDbFactory(_BaseDefaultDbFactory):
         spec = ctx.spec
         driver = self._driver(spec)
 
-        if driver == 'sqlite3' and spec.type == DbFamilies.SQLITE:
+        if driver == 'sqlite3' and spec.family == DbFamilies.SQLITE:
             return lang.ValueContextManager(sc.sqlite_db(check.isinstance(
                 spec.loc,
                 sc.SqliteDbConfig,
             )))
 
-        elif driver == 'og8000' and spec.type == DbFamilies.POSTGRES:
+        elif driver == 'og8000' and spec.family == DbFamilies.POSTGRES:
             loc, database = self._network_loc(ctx, spec)
             return lang.ValueContextManager(pc.og8000_db(
                 loc,
@@ -112,7 +112,7 @@ class _DefaultDbFactory(_BaseDefaultDbFactory):
                 secrets=ctx.secrets,
             ))
 
-        elif driver == 'omysql' and spec.type == DbFamilies.MYSQL:
+        elif driver == 'omysql' and spec.family == DbFamilies.MYSQL:
             loc, database = self._network_loc(ctx, spec)
             return lang.ValueContextManager(mc.omysql_db(
                 loc,
@@ -121,7 +121,7 @@ class _DefaultDbFactory(_BaseDefaultDbFactory):
             ))
 
         else:
-            raise ValueError(f'No sync database factory for {spec.type.name}/{driver}')
+            raise ValueError(f'No sync database factory for {spec.family.name}/{driver}')
 
 
 #
@@ -132,10 +132,10 @@ class _DefaultAsyncDbFactory(_BaseDefaultDbFactory):
         spec = ctx.spec
         driver = self._driver(ctx.spec)
 
-        if driver == 'sqlite3' and spec.type == DbFamilies.SQLITE:
+        if driver == 'sqlite3' and spec.family == DbFamilies.SQLITE:
             return sc.asyncio_sqlite_db(check.isinstance(spec.loc, sc.SqliteDbConfig))
 
-        elif driver == 'og8000' and spec.type == DbFamilies.POSTGRES:
+        elif driver == 'og8000' and spec.family == DbFamilies.POSTGRES:
             loc, database = self._network_loc(ctx, spec)
             return lang.ValueAsyncContextManager(pc.asyncio_og8000_db(
                 loc,
@@ -143,7 +143,7 @@ class _DefaultAsyncDbFactory(_BaseDefaultDbFactory):
                 secrets=ctx.secrets,
             ))
 
-        elif driver == 'omysql' and spec.type == DbFamilies.MYSQL:
+        elif driver == 'omysql' and spec.family == DbFamilies.MYSQL:
             loc, database = self._network_loc(ctx, spec)
             return lang.ValueAsyncContextManager(mc.asyncio_omysql_db(
                 loc,
@@ -152,4 +152,4 @@ class _DefaultAsyncDbFactory(_BaseDefaultDbFactory):
             ))
 
         else:
-            raise ValueError(f'No async database factory for {spec.type.name}/{driver}')
+            raise ValueError(f'No async database factory for {spec.family.name}/{driver}')

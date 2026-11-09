@@ -38,6 +38,7 @@ from ..runtime.processes import SystevisorProcessExecResult
 from ..runtime.processes import SystevisorProcessManager
 from ..runtime.processes import SystevisorProcessOwnershipError
 from ..runtime.processes import SystevisorProcessSpawnError
+from ..runtime.processes import _systevisor_processes_child_alive
 from ..runtime.processes import systevisor_close_process_retirement
 from ..runtime.signals import SystevisorSignalFdioHandler
 from .utils import true_bin
@@ -330,6 +331,25 @@ class TestSystevisorProcesses(unittest.TestCase):
 
         self.assertTrue(delivery.delivered)
         self.assertEqual(observed.return_code, -signal.SIGTERM)
+
+    def test_liveness_probe_sees_an_exit_without_reaping(self) -> None:
+        # The probe that tells a darwin EPERM for an exited session apart from one for a live leader we may not signal.
+        pid = os.fork()
+        if pid == 0:
+            try:
+                os.execv('/bin/sleep', ['sleep', '60'])
+            finally:
+                os._exit(127)
+        try:
+            self.assertTrue(_systevisor_processes_child_alive(pid))
+        finally:
+            os.kill(pid, signal.SIGKILL)
+
+        os.waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT)
+        self.assertFalse(_systevisor_processes_child_alive(pid))
+        # Probing did not reap it: that is still left to do, here.
+        self.assertEqual(os.waitpid(pid, 0)[0], pid)
+        self.assertFalse(_systevisor_processes_child_alive(pid))
 
     def test_exec_failure_is_reported_without_losing_wait_ownership(self) -> None:
         manager = SystevisorProcessManager()

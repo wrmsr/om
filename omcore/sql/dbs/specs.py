@@ -79,7 +79,7 @@ class DbCaps:
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbSpec(lang.Final):
     name: str
-    type: DbFamily  # FIXME: -> family
+    family: DbFamily
     loc: DbLoc
 
     _: dc.KW_ONLY

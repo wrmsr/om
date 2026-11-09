@@ -74,17 +74,17 @@ def _provide_sqlite_db_sets(config: SqliteDbConfig) -> sql.DbSets:
 
 # FIXME: should be in core lol
 def _backend_for(spec: sql.DbSpec) -> sql.be.Backend:
-    if spec.type == sql.DbFamilies.SQLITE:
+    if spec.family == sql.DbFamilies.SQLITE:
         return sql.be.sqlite.backend.SqliteBackend()
 
-    elif spec.type == sql.DbFamilies.POSTGRES:
+    elif spec.family == sql.DbFamilies.POSTGRES:
         return sql.be.postgres.backend.PostgresBackend()
 
-    elif spec.type == sql.DbFamilies.MYSQL:
+    elif spec.family == sql.DbFamilies.MYSQL:
         return sql.be.mysql.backend.MysqlBackend()
 
     else:
-        raise ValueError(f'No ORM backend for {spec.type.name}')
+        raise ValueError(f'No ORM backend for {spec.family.name}')
 
 
 async def _provide_db_sets_orm(

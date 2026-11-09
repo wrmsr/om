@@ -78,6 +78,25 @@ def _assert_process_gone(pid: int) -> None:
         os.kill(pid, 0)
 
 
+def _wait_orphan_dead(pid: int) -> None:
+    # An orphan is reaped by whatever adopted it, in its own time - or, under a pid 1 that does not reap, never - so a
+    # zombie counts as dead too. Only Linux is asked: there is no procfs on darwin, whose launchd reaps promptly.
+    deadline = time.monotonic() + TEST_TIMEOUT_S
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        try:
+            with open(f'/proc/{pid}/stat') as file:
+                if file.read().rpartition(')')[2].split()[0] == 'Z':
+                    return
+        except OSError:
+            pass
+        time.sleep(.01)
+    raise TimeoutError(f'Process {pid} is still alive')
+
+
 def _reserve_port() -> int:
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
@@ -222,6 +241,43 @@ def test_supervisor_signals_an_explicit_child_process_group() -> None:
         assert _wait_event(event_file, 'SIGNAL', role='grandchild')['signal'] == signal.SIGINT
         _assert_process_gone(started['pid'])
         _assert_process_gone(grandchild['pid'])
+
+
+def test_supervisor_sweeps_what_an_exited_child_left_in_its_group() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        event_file = os.path.join(temp_dir, 'events.jsonl')
+        supervisor = ChildProcessSupervisor(ChildProcessSupervisorConfig(
+            process=ChildProcessConfig(
+                cmd=_python_cmd(
+                    '--event-file', event_file,
+                    '--spawn-grandchild',
+                    '--exit-code', '7',
+                ),
+                start_new_session=True,
+            ),
+            termination=ChildTerminationConfig(signal_process_group=True),
+        ))
+
+        grandchild_pid: int | None = None
+        try:
+            with ServiceRuntime(ServiceRuntime.Config(no_signals=True)) as runtime:
+                with pytest.raises(ChildProcessExitedError) as exc_info:
+                    supervisor.run(runtime)
+
+            # The child exits without waiting for the grandchild it started, leaving it running in the child's group.
+            grandchild_pid = _wait_event(event_file, 'STARTED')['grandchild_pid']
+            assert grandchild_pid is not None
+            assert exc_info.value.result.returncode == 7
+            _assert_process_gone(exc_info.value.result.pid)
+            _wait_orphan_dead(grandchild_pid)
+            grandchild_pid = None
+
+        finally:
+            if grandchild_pid is not None:
+                try:
+                    os.kill(grandchild_pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
 
 
 def test_supervisor_propagates_unexpected_exit_and_requests_shutdown() -> None:

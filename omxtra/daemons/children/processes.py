@@ -4,6 +4,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import typing as ta
 
 from omcore import check
@@ -25,15 +26,33 @@ class ChildProcess(lang.Abstract):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def wait(self) -> int:
+    def wait_exited(self) -> int:
+        """
+        Blocks until the child has exited and returns its returncode, without reaping it: until `reap`, its pid - and so
+        its process group id - cannot be reused, and remains safe to signal.
+        """
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def reap(self) -> int:
+        """
+        Waits for the child to exit, then releases it - after which its pid may name something else - and returns its
+        returncode.
+        """
+
         raise NotImplementedError
 
     @abc.abstractmethod
     def send_signal(self, signum: int, *, process_group: bool = False) -> None:
+        """Raises ProcessLookupError once the child has been reaped."""
+
         raise NotImplementedError
 
     @abc.abstractmethod
     def kill(self, *, process_group: bool = False) -> None:
+        """Raises ProcessLookupError once the child has been reaped."""
+
         raise NotImplementedError
 
 
@@ -57,6 +76,10 @@ class PopenChildProcess(ChildProcess):
         self._process = process
         self._owned_files = tuple(owned_files)
 
+        # Held across each signal and the reap, so that a signal can never race the release of the pid.
+        self._lock = threading.Lock()
+        self._reaped = False
+
     @property
     def pid(self) -> int:
         return self._process.pid
@@ -65,11 +88,25 @@ class PopenChildProcess(ChildProcess):
         for file in self._owned_files:
             file.close()
 
-    def wait(self) -> int:
-        try:
-            return self._process.wait()
-        finally:
-            self._close_owned_files()
+    def wait_exited(self) -> int:
+        if self._reaped:
+            return check.not_none(self._process.returncode)
+        # Not through the Popen, whose own waits reap.
+        result = check.not_none(os.waitid(os.P_PID, self.pid, os.WEXITED | os.WNOWAIT))
+        if result.si_code == os.CLD_EXITED:
+            return result.si_status
+        return -result.si_status
+
+    def reap(self) -> int:
+        # Exited first, outside the lock: holding it through a wait for a live child would shut out the very signals
+        # that might end it.
+        self.wait_exited()
+        with self._lock:
+            try:
+                return self._process.wait()
+            finally:
+                self._reaped = True
+                self._close_owned_files()
 
     def _leader_alive(self) -> bool:
         """Non-reaping: whether the leader has neither exited nor been reaped."""
@@ -83,24 +120,30 @@ class PopenChildProcess(ChildProcess):
         try:
             os.killpg(self.pid, signum)
         except PermissionError as e:
-            # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie - the
-            # leader between its exit and its reaping, or orphans not yet reaped by launchd. Only a leader still alive,
+            # Darwin fails a group signal with EPERM rather than ESRCH when every member of the group is a zombie - as
+            # it is once the leader, held unreaped, has exited and nothing else in it lives. Only a leader still alive,
             # and so one we may not signal, makes it a genuine permission error.
             if sys.platform != 'darwin' or self._leader_alive():
                 raise
             raise ProcessLookupError(errno.ESRCH, f'process group {self.pid} has no live members') from e
 
+    def _signal(self, signum: int, *, process_group: bool) -> None:
+        with self._lock:
+            if self._reaped:
+                # Its pid is released, and may already name something else.
+                raise ProcessLookupError(errno.ESRCH, f'child process {self.pid} has been reaped')
+            # Unreaped, neither the pid nor the group id can have been reused. Both are signaled directly rather than
+            # through the Popen, whose signaling first polls - and so may reap.
+            if process_group:
+                self._signal_group(signum)
+            else:
+                os.kill(self.pid, signum)
+
     def send_signal(self, signum: int, *, process_group: bool = False) -> None:
-        if process_group:
-            self._signal_group(signum)
-        else:
-            self._process.send_signal(signum)
+        self._signal(signum, process_group=process_group)
 
     def kill(self, *, process_group: bool = False) -> None:
-        if process_group:
-            self._signal_group(signal.SIGKILL)
-        else:
-            self._process.kill()
+        self._signal(signal.SIGKILL, process_group=process_group)
 
 
 class PopenChildProcessFactory(ChildProcessFactory):

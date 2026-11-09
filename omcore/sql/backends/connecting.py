@@ -15,14 +15,14 @@ from ..dbs.specs import HostDbLoc
 ##
 
 
-def parse_url_db_loc(url: str, db_type: DbFamily) -> tuple[HostDbLoc, str | None]:
+def parse_url_db_loc(url: str, family: DbFamily) -> tuple[HostDbLoc, str | None]:
     """Splits a `scheme://user:password@host:port/database` url into a host location and the database name."""
 
     p_u = urllib.parse.urlparse(url)
 
     loc = HostDbLoc(
         check.non_empty_str(p_u.hostname),
-        p_u.port if p_u.port is not None else db_type.default_port,
+        p_u.port if p_u.port is not None else family.default_port,
         username=p_u.username,
         password=p_u.password,
     )
