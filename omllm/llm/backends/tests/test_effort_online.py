@@ -43,49 +43,55 @@ from ..openai.responses.immediate import OpenaiResponsesImmediateBackend
 ##
 
 
+@dc.dataclass(frozen=True)
+class _Case:
+    id: str
+    key: ModelKey
+    backend_cls: type
+    api_key_name: str
+
+    _: dc.KW_ONLY
+
+    strict: bool = True
+    marks: ta.Sequence[ta.Any] | None = None
+
+
 # (id, model key, backend class, api key name, whether undeclared levels must be rejected, extra marks)
-_CASES: ta.Sequence[tuple[str, ModelKey, type, str, bool, ta.Sequence[ta.Any]]] = [
-    (
+_CASES: ta.Sequence[_Case] = [
+    _Case(
         'openai-responses',
         OPENAI_RESPONSES_TEST_MODEL_KEY,
         OpenaiResponsesImmediateBackend,
         'openai_api_key',
-        True,
-        [],
     ),
-    (
+    _Case(
         'openai-completions',
         OPENAI_COMPLETIONS_TEST_MODEL_KEY,
         OpenaiCompletionsImmediateBackend,
         'openai_api_key',
-        True,
-        [],
     ),
-    (
+    _Case(
         'anthropic',
         ANTHROPIC_TEST_MODEL_KEY,
         AnthropicMessagesImmediateBackend,
         'anthropic_api_key',
-        True,
-        [],
     ),
-    (
+    _Case(
         'google',
         GOOGLE_TEST_MODEL_KEY,
         GoogleGenerativeImmediateBackend,
         'gemini_api_key',
-        True,
+        strict=False,  # FIXME: ?? it changed on their end ??
         # Gemini's implicit prompt cache reliably misses under concurrent same-project traffic, so all google-online
         # tests serialize onto one worker.
-        [pytest.mark.xdist_group('google-online')],
+        marks=[pytest.mark.xdist_group('google-online')],
     ),
-    (
+    _Case(
         'openrouter',
         OPENROUTER_TEST_MODEL_KEY,
         OpenaiCompletionsImmediateBackend,
         'openrouter_api_key',
-        False,
-        [],
+        strict=False,
     ),
 ]
 
@@ -93,8 +99,8 @@ _CASES: ta.Sequence[tuple[str, ModelKey, type, str, bool, ta.Sequence[ta.Any]]] 
 def _params() -> list:
     params: list = []
 
-    for case_id, key, backend_cls, api_key_name, strict, marks in _CASES:
-        model = provider_model_catalog()[key]  # noqa
+    for case in _CASES:
+        model = provider_model_catalog()[case.key]  # noqa
         base_levels = supported_reasoning_efforts(model)
         tool_levels = supported_reasoning_efforts(model, with_tools=True)
 
@@ -108,18 +114,18 @@ def _params() -> list:
                     continue
 
                 accepted = effort in levels
-                if not accepted and not strict:
+                if not accepted and not case.strict:
                     continue
 
                 params.append(pytest.param(
-                    key,
-                    backend_cls,
-                    api_key_name,
+                    case.key,
+                    case.backend_cls,
+                    case.api_key_name,
                     effort,
                     tools,
                     accepted,
-                    id=f'{case_id}-{effort.value}{"-tools" if tools else ""}',
-                    marks=marks,
+                    id=f'{case.id}-{effort.value}{"-tools" if tools else ""}',
+                    marks=case.marks or [],
                 ))
 
     return params
