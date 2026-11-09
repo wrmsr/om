@@ -77,7 +77,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '9b25d5d705b344448f57d211cf43a4591a9aafa3'
+__om_amalg_sha1__ = '60dc3366fdf687902e36c2e0c007941d6543a002'
 
 
 def __om_amalg__():  # noqa
@@ -125,7 +125,7 @@ def __om_amalg__():  # noqa
             dict(sha1='ffafd3e3130e86716c856c6ce62ce3e6d509504f', mod='omcore.http.headers', path='../../omcore/http/headers.py'),  # noqa
             dict(sha1='174c753698e07d7283989e56804a820e4f76e91e', mod='omcore.http.parsing', path='../../omcore/http/parsing.py'),  # noqa
             dict(sha1='fe59940e20c6ea1c68e74e0079ab66fd01ca44e3', mod='omcore.http.pipelines.compression.codings', path='../../omcore/http/pipelines/compression/codings.py'),  # noqa
-            dict(sha1='58f59c24f21ed88a67a31021735c5fad24103fb5', mod='omcore.io.fdio.handlers', path='../../omcore/io/fdio/handlers.py'),  # noqa
+            dict(sha1='76d3ba50d9e5db24831e460ba6172a7de3b9eb9a', mod='omcore.io.fdio.handlers', path='../../omcore/io/fdio/handlers.py'),  # noqa
             dict(sha1='85c73f794f2ccb5d002bf0f63bd9acd35c3539cb', mod='omcore.io.fdio.pollers', path='../../omcore/io/fdio/pollers.py'),  # noqa
             dict(sha1='4b0061643d8b8818651695761faf4c19459a6421', mod='omcore.io.pipelines.core', path='../../omcore/io/pipelines/core.py'),  # noqa
             dict(sha1='b076ec9bfd9618c4a9fc9b55a8282066e8ade799', mod='omcore.io.pipelines.yielding', path='../../omcore/io/pipelines/yielding.py'),  # noqa
@@ -198,7 +198,7 @@ def __om_amalg__():  # noqa
             dict(sha1='1f23513095e091895162e4c9668cd1194fc2c80e', mod='omcore.io.pipelines.drivers.sync.sockets', path='../../omcore/io/pipelines/drivers/sync/sockets.py'),  # noqa
             dict(sha1='e97b968cb81f2f9deb973d162f8a69b772209ded', mod='omxtra.systevisor.configs.sources', path='configs/sources.py'),  # noqa
             dict(sha1='4dc9bbfab25739ea07b2a44ac7737b8218615ab0', mod='omxtra.systevisor.configs.snapshots', path='configs/snapshots.py'),  # noqa
-            dict(sha1='df55df1742567d9b67666960e395a95df8ed2355', mod='omxtra.systevisor.control.client', path='control/client.py'),  # noqa
+            dict(sha1='0ff2e96fb3b26de89480f6e45471ddf8b08da604', mod='omxtra.systevisor.control.client', path='control/client.py'),  # noqa
             dict(sha1='a748251b2dc5d8b464b9ca4b4e4dbd8743b5f3d7', mod='omxtra.systevisor.configs.compiling', path='configs/compiling.py'),  # noqa
             dict(sha1='a761ee40562f18064f5357f2dd0533ee4e628f05', mod='omxtra.systevisor.core.effects', path='core/effects.py'),  # noqa
             dict(sha1='f5624cdfd9f664c5bf44d87e629e366b7cfc949a', mod='omxtra.systevisor.core.inputs', path='core/inputs.py'),  # noqa
@@ -206,7 +206,7 @@ def __om_amalg__():  # noqa
             dict(sha1='4986afdaaab96ba06bb894dbe279276b874a32df', mod='omxtra.systevisor.core.events', path='core/events.py'),  # noqa
             dict(sha1='aaf75b5c75142278b70c53fee9ce28b65f94e090', mod='omxtra.systevisor.runtime.fdio', path='runtime/fdio.py'),  # noqa
             dict(sha1='1a051dd7a8cf3b6db2b976ad1fa1ca61c804652f', mod='omxtra.systevisor.runtime.logs', path='runtime/logs.py'),  # noqa
-            dict(sha1='4650bea43d3fc006bcbac4da147829c26800cff4', mod='omxtra.systevisor.runtime.processes', path='runtime/processes.py'),  # noqa
+            dict(sha1='5db8dc1e9b5e5c9ee6491a205324b5bcdedf128b', mod='omxtra.systevisor.runtime.processes', path='runtime/processes.py'),  # noqa
             dict(sha1='17910ac700fe8e0db0777d3a87a0370e9f67fc96', mod='omxtra.systevisor.core.engine', path='core/engine.py'),  # noqa
             dict(sha1='c2ec9703d68dcb767a918c56636ab351f6831148', mod='omxtra.systevisor.resources.cgroups', path='resources/cgroups.py'),  # noqa
             dict(sha1='6c2e26deee7b4e4e160838dd318d2ed2f6ef14cf', mod='omxtra.systevisor.resources.namespaces', path='resources/namespaces.py'),  # noqa
@@ -10764,6 +10764,8 @@ class ServerSocketFdioHandler(SocketFdioHandler):
             self,
             sock_or_addr: ta.Union[socket.socket, SocketAddress],
             on_connect: ta.Callable[[socket.socket, SocketAddress], None],
+            *,
+            backlog: ta.Optional[int] = None,
     ) -> None:
         # FIXME: io in ctor
         if isinstance(sock_or_addr, socket.socket):
@@ -10782,7 +10784,10 @@ class ServerSocketFdioHandler(SocketFdioHandler):
 
         self._on_connect = on_connect
 
-        sock.listen(1)
+        if backlog is not None:
+            sock.listen(backlog)
+        else:
+            sock.listen()
 
     @staticmethod
     def _create_unix_socket_server(path: str) -> socket.socket:
@@ -37655,6 +37660,15 @@ class SystevisorApiClientIoPipelineHandler(IoPipelineHandler):
         self.headers: ta.Dict[str, str] = {}
         self.body_parts: ta.List[bytes] = []
         self.complete = False
+        self.error: ta.Optional[str] = None
+
+    def _fail(self, ctx: IoPipelineHandlerContext, message: str) -> None:
+        # Recorded rather than raised: raised here it would surface as a pipeline propagation error, not as the
+        # ConnectionError callers - such as those riding out a handoff - expect of a dropped connection.
+        if self.error is not None:
+            return
+        self.error = message
+        ctx.feed_final_output()
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineMessages.InitialInput):
@@ -37677,11 +37691,12 @@ class SystevisorApiClientIoPipelineHandler(IoPipelineHandler):
             ctx.feed_final_output()
             return
         if isinstance(msg, IoPipelineHttpResponseAborted):
-            raise ConnectionError(f'HTTP response aborted: {msg!r}')
+            self._fail(ctx, f'HTTP response aborted: {msg!r}')
+            return
         if isinstance(msg, IoPipelineMessages.FinalInput):
-            if not self.complete:
-                raise ConnectionError('connection closed before HTTP response completed')
             ctx.feed_in(msg)
+            if not self.complete:
+                self._fail(ctx, 'connection closed before HTTP response completed')
             return
         ctx.feed_in(msg)
 
@@ -37760,6 +37775,8 @@ class SystevisorApiClient:
                 driver.loop_until_done()
             finally:
                 driver.close()
+        if handler.error is not None:
+            raise ConnectionError(handler.error)
         if handler.status is None or not handler.complete:
             raise ConnectionError('HTTP response was incomplete')
         return SystevisorApiClientResponse(
@@ -37790,6 +37807,8 @@ class SystevisorApiClient:
                 driver.loop_until_done()
             finally:
                 driver.close()
+        if handler.error is not None:
+            raise ConnectionError(handler.error)
         if handler.status is None:
             raise ConnectionError('HTTP response had no status')
         return handler.status
@@ -39389,6 +39408,12 @@ class SystevisorPosixProcessSignalBackend(SystevisorProcessSignalBackend):
         try:
             os.killpg(process.session_id, signal_number)
         except ProcessLookupError:
+            return False
+        except PermissionError:
+            # Darwin's killpg skips zombie members, and when that leaves nothing to signal it fails with EPERM rather
+            # than ESRCH. An unreaped leader keeps its group alive, so this is how an exited session looks there.
+            if sys.platform != 'darwin':
+                raise
             return False
         return True
 

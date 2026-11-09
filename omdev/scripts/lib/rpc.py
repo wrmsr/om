@@ -53,7 +53,7 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '254f1f536e674433eb080b07250f6b53657173ae'
+__om_amalg_sha1__ = 'ec5d99a696e905a367743c9080ad9ed2fe814447'
 
 
 def __om_amalg__():  # noqa
@@ -77,7 +77,7 @@ def __om_amalg__():  # noqa
             dict(sha1='2ac241e59ff5a7aadd487f43ceb715f6c57cce95', mod='omcore.rpc.configs', path='configs.py'),
             dict(sha1='91e74bab525937f7633193c9aecc54530e54b6d2', mod='omcore.sockets.addresses', path='../sockets/addresses.py'),  # noqa
             dict(sha1='6c881b9d48a55ce791b21dfdc7469c9507432ebd', mod='omcore.asyncs.asynclite.base', path='../asyncs/asynclite/base.py'),  # noqa
-            dict(sha1='58f59c24f21ed88a67a31021735c5fad24103fb5', mod='omcore.io.fdio.handlers', path='../io/fdio/handlers.py'),  # noqa
+            dict(sha1='76d3ba50d9e5db24831e460ba6172a7de3b9eb9a', mod='omcore.io.fdio.handlers', path='../io/fdio/handlers.py'),  # noqa
             dict(sha1='4b0061643d8b8818651695761faf4c19459a6421', mod='omcore.io.pipelines.core', path='../io/pipelines/core.py'),  # noqa
             dict(sha1='b4bb4d4128321c01c58f01bf20397731509e5927', mod='omcore.io.streambufs.types', path='../io/streambufs/types.py'),  # noqa
             dict(sha1='9b3f4ff802344313147f412f8f028922afc52b2f', mod='omcore.lite.marshal', path='../lite/marshal.py'),  # noqa
@@ -2369,6 +2369,8 @@ class ServerSocketFdioHandler(SocketFdioHandler):
             self,
             sock_or_addr: ta.Union[socket.socket, SocketAddress],
             on_connect: ta.Callable[[socket.socket, SocketAddress], None],
+            *,
+            backlog: ta.Optional[int] = None,
     ) -> None:
         # FIXME: io in ctor
         if isinstance(sock_or_addr, socket.socket):
@@ -2387,7 +2389,10 @@ class ServerSocketFdioHandler(SocketFdioHandler):
 
         self._on_connect = on_connect
 
-        sock.listen(1)
+        if backlog is not None:
+            sock.listen(backlog)
+        else:
+            sock.listen()
 
     @staticmethod
     def _create_unix_socket_server(path: str) -> socket.socket:

@@ -258,7 +258,9 @@ class TestSystevisorSelfUpdateCodec(unittest.TestCase):
             ready=True,
         )
         with tempfile.TemporaryDirectory() as temp_dir:
-            source_path = os.path.join(temp_dir, 'candidate.py')
+            # Manifests carry resolved source paths, as the manager records them - temp dirs can be behind symlinks
+            # (/var -> /private/var on darwin).
+            source_path = os.path.join(os.path.realpath(temp_dir), 'candidate.py')
             with open(source_path, 'w') as source_file:
                 source_file.write('print("candidate")\n')
             manifest = SystevisorHandoffManifest(

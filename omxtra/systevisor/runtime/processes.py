@@ -11,6 +11,7 @@ import os.path
 import pwd
 import resource
 import signal
+import sys
 import types
 import typing as ta
 
@@ -360,6 +361,12 @@ class SystevisorPosixProcessSignalBackend(SystevisorProcessSignalBackend):
         try:
             os.killpg(process.session_id, signal_number)
         except ProcessLookupError:
+            return False
+        except PermissionError:
+            # Darwin's killpg skips zombie members, and when that leaves nothing to signal it fails with EPERM rather
+            # than ESRCH. An unreaped leader keeps its group alive, so this is how an exited session looks there.
+            if sys.platform != 'darwin':
+                raise
             return False
         return True
 

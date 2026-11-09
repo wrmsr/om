@@ -418,7 +418,7 @@ class TestSystevisorProcesses(unittest.TestCase):
                 '-c',
                 (
                     'test "$LISTEN_PID" = "$$" && test "$LISTEN_FDS" = 1 && '
-                    'test "$LISTEN_FDNAMES" = api && test -S /proc/self/fd/3'
+                    'test "$LISTEN_FDNAMES" = api && test -S /dev/fd/3'
                 ),
             ),
             resources=SystevisorUnitResourcesConfig(inherited_sockets=('api',)),

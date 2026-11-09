@@ -69,6 +69,15 @@ class SystevisorApiClientIoPipelineHandler(IoPipelineHandler):
         self.headers: ta.Dict[str, str] = {}
         self.body_parts: ta.List[bytes] = []
         self.complete = False
+        self.error: ta.Optional[str] = None
+
+    def _fail(self, ctx: IoPipelineHandlerContext, message: str) -> None:
+        # Recorded rather than raised: raised here it would surface as a pipeline propagation error, not as the
+        # ConnectionError callers - such as those riding out a handoff - expect of a dropped connection.
+        if self.error is not None:
+            return
+        self.error = message
+        ctx.feed_final_output()
 
     def inbound(self, ctx: IoPipelineHandlerContext, msg: ta.Any) -> None:
         if isinstance(msg, IoPipelineMessages.InitialInput):
@@ -91,11 +100,12 @@ class SystevisorApiClientIoPipelineHandler(IoPipelineHandler):
             ctx.feed_final_output()
             return
         if isinstance(msg, IoPipelineHttpResponseAborted):
-            raise ConnectionError(f'HTTP response aborted: {msg!r}')
+            self._fail(ctx, f'HTTP response aborted: {msg!r}')
+            return
         if isinstance(msg, IoPipelineMessages.FinalInput):
-            if not self.complete:
-                raise ConnectionError('connection closed before HTTP response completed')
             ctx.feed_in(msg)
+            if not self.complete:
+                self._fail(ctx, 'connection closed before HTTP response completed')
             return
         ctx.feed_in(msg)
 
@@ -174,6 +184,8 @@ class SystevisorApiClient:
                 driver.loop_until_done()
             finally:
                 driver.close()
+        if handler.error is not None:
+            raise ConnectionError(handler.error)
         if handler.status is None or not handler.complete:
             raise ConnectionError('HTTP response was incomplete')
         return SystevisorApiClientResponse(
@@ -204,6 +216,8 @@ class SystevisorApiClient:
                 driver.loop_until_done()
             finally:
                 driver.close()
+        if handler.error is not None:
+            raise ConnectionError(handler.error)
         if handler.status is None:
             raise ConnectionError('HTTP response had no status')
         return handler.status

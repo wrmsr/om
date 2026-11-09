@@ -104,6 +104,8 @@ class ServerSocketFdioHandler(SocketFdioHandler):
             self,
             sock_or_addr: ta.Union[socket.socket, SocketAddress],
             on_connect: ta.Callable[[socket.socket, SocketAddress], None],
+            *,
+            backlog: ta.Optional[int] = None,
     ) -> None:
         # FIXME: io in ctor
         if isinstance(sock_or_addr, socket.socket):
@@ -122,7 +124,10 @@ class ServerSocketFdioHandler(SocketFdioHandler):
 
         self._on_connect = on_connect
 
-        sock.listen(1)
+        if backlog is not None:
+            sock.listen(backlog)
+        else:
+            sock.listen()
 
     @staticmethod
     def _create_unix_socket_server(path: str) -> socket.socket:
