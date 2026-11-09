@@ -101,7 +101,7 @@ class Cursor:
         if (m := RE_INSERT_VALUES.match(query)) is not None:
             q_prefix = m.group(1) % ()
             q_values = m.group(2).rstrip()
-            q_postfix = m.group(3) or ''
+            q_postfix = (m.group(3) or '') % ()
             return self._do_execute_many(q_prefix, q_values, q_postfix, args)
 
         self.rowcount = sum(self.execute(query, arg) for arg in args)

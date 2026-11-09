@@ -3,9 +3,11 @@
 import datetime
 import json
 import time
+import typing as ta
 
 import pytest
 
+from ..cursors.sync import Cursor
 from .utils import get_mysql_vendor
 from .utils import mysql_server_is
 
@@ -333,6 +335,25 @@ def test_bulk_insert(connect, bulkinsert_conn):
     )
     cursor.execute('commit')
     _verify_records(connect, data)
+
+
+def test_bulk_insert_percent_postfix(connect, bulkinsert_conn):
+    cursor = bulkinsert_conn.cursor()
+    data = [(0, 'bob', 21, 123), (1, 'jim', 56, 45)]
+    query = 'insert into bulkinsert (id, name, age, height) values {}'
+    postfix = " on duplicate key update name = '100%%'"
+
+    for placeholders in ('(%s,%s,%s,%s)', '(%(id)s,%(name)s,%(age)s,%(height)s)'):
+        args: ta.Any = data
+        if '%(id)s' in placeholders:
+            args = [dict(zip(('id', 'name', 'age', 'height'), row)) for row in data]
+        for max_stmt_length in (Cursor.max_stmt_length, 1):
+            cursor.max_stmt_length = max_stmt_length
+            cursor.execute('delete from bulkinsert')
+            cursor.executemany(query.format(placeholders), args)
+            cursor.executemany(query.format(placeholders) + postfix, args)
+            cursor.execute('select id, name from bulkinsert order by id')
+            assert cursor.fetchall() == ((0, '100%'), (1, '100%'))
 
 
 def test_bulk_insert_multiline_statement(connect, bulkinsert_conn):

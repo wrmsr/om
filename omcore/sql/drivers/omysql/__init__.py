@@ -16,6 +16,7 @@
 TODO:
  - https://github.com/PyMySQL/PyMySQL/commit/0305ab344f2026aaa17b405684a521b092a650bd
  - https://github.com/PyMySQL/PyMySQL/commit/10739bc7781fb85bb9df3d21c2465ba9c3988a2c
+ - https://github.com/PyMySQL/PyMySQL/commit/60eae5c97f5bafde359b58b748b30eb2810a74ae
 """
 from .... import dataclasses as _dc
 
