@@ -14,17 +14,20 @@ from contextlib import contextmanager
 
 from .. import hy
 from .compat import PY3_12
-from .compiler import HyASTCompiler, hy_compile
-from .completer import Completer, completion
-from .errors import (
-    HyLanguageError,
-    HyMacroExpansionError,
-    HyRequireError,
-    filtered_hy_exceptions,
-)
+from .compiler import HyASTCompiler
+from .compiler import hy_compile
+from .completer import Completer
+from .completer import completion
+from .errors import HyLanguageError
+from .errors import HyMacroExpansionError
+from .errors import HyRequireError
+from .errors import filtered_hy_exceptions
 from .importer import HyLoader
-from .macros import enable_readers, require, require_reader
-from .reader import mangle, read_many
+from .macros import enable_readers
+from .macros import require
+from .macros import require_reader
+from .reader import mangle
+from .reader import read_many
 from .reader.exceptions import PrematureEndOfInput
 from .reader.hy_reader import HyReader
 
@@ -34,7 +37,7 @@ class HyQuitter:
         self.name = name
 
     def __repr__(self):
-        return "Use (%s) or Ctrl-D (i.e. EOF) to exit" % (self.name)
+        return 'Use (%s) or Ctrl-D (i.e. EOF) to exit' % (self.name)
 
     __str__ = __repr__
 
@@ -49,8 +52,8 @@ class HyQuitter:
 class HyHelper:
     def __repr__(self):
         return (
-            "Use (help) for interactive help, or (help object) for help "
-            "about object."
+            'Use (help) for interactive help, or (help object) for help '
+            'about object.'
         )
 
     def __call__(self, *args, **kwds):
@@ -82,12 +85,13 @@ codeop._maybe_compile = (lambda compiler, source, filename, symbol, *args, **kwa
 
 
 class HyCompile(codeop.Compile):
-    """This compiler uses `linecache` like
+    """
+    This compiler uses `linecache` like
     `IPython.core.compilerop.CachingCompiler`.
     """
 
     def __init__(
-        self, module, locals, ast_callback=None, hy_compiler=None, cmdline_cache={}
+        self, module, locals, ast_callback=None, hy_compiler=None, cmdline_cache={},
     ):
         self.module = module
         self.locals = locals
@@ -98,9 +102,9 @@ class HyCompile(codeop.Compile):
 
         super().__init__()
 
-        if hasattr(self.module, "_hy_reader_macros"):
+        if hasattr(self.module, '_hy_reader_macros'):
             enable_readers(
-                self.module, self.reader, self.module._hy_reader_macros.keys()
+                self.module, self.reader, self.module._hy_reader_macros.keys(),
             )
 
         self.cmdline_cache = cmdline_cache
@@ -109,7 +113,7 @@ class HyCompile(codeop.Compile):
         entry = (
             len(source),
             time.time(),
-            [line + "\n" for line in source.splitlines()],
+            [line + '\n' for line in source.splitlines()],
             name,
         )
 
@@ -119,10 +123,10 @@ class HyCompile(codeop.Compile):
     def _update_exc_info(self):
         t, v, tb = set_last_exc()
         # Skip our frame.
-        self.locals["_hy_exc_info"] = (t, v, getattr(tb, "tb_next", tb))
+        self.locals['_hy_exc_info'] = (t, v, getattr(tb, 'tb_next', tb))
 
-    def __call__(self, source, filename="<input>", symbol=None):
-        symbol = "exec"
+    def __call__(self, source, filename='<input>', symbol=None):
+        symbol = 'exec'
           # This parameter is required by `codeop.Compile`, but we
           # ignore it in favor of always using "exec".
 
@@ -155,7 +159,7 @@ class HyCompile(codeop.Compile):
                 self.ast_callback(exec_ast, eval_ast)
 
             exec_code = super().__call__(exec_ast, name, symbol)
-            eval_code = super().__call__(eval_ast, name, "eval")
+            eval_code = super().__call__(eval_ast, name, 'eval')
 
         except Exception as e:
             self._update_exc_info()
@@ -169,11 +173,11 @@ class HyCompile(codeop.Compile):
                 # the places where Python code expects them.
                 # Capture a traceback without the compiler/REPL frames.
                 exec_code = super(HyCompile, self).__call__(
-                    "raise _hy_exc_info[1].with_traceback(_hy_exc_info[2])",
+                    'raise _hy_exc_info[1].with_traceback(_hy_exc_info[2])',
                     name,
                     symbol,
                 )
-                eval_code = super(HyCompile, self).__call__("None", name, "eval")
+                eval_code = super(HyCompile, self).__call__('None', name, 'eval')
 
         return exec_code, eval_code
 
@@ -197,7 +201,8 @@ class HyCommandCompiler(codeop.CommandCompiler):
 
 
 class REPL(code.InteractiveConsole):
-    """A subclass of :class:`code.InteractiveConsole` for Hy.
+    """
+    A subclass of :class:`code.InteractiveConsole` for Hy.
 
     A convenient way to use this class to interactively debug code is to insert the
     following in the code you want to debug::
@@ -211,11 +216,12 @@ class REPL(code.InteractiveConsole):
        import hy; hy.REPL(locals = {**globals(), **locals()}).run()
 
     Note that as with :func:`code.interact`, changes to local variables inside the
-    REPL are not propagated back to the original scope."""
+    REPL are not propagated back to the original scope.
+    """
 
-    __module__ = 'hy'
+    __module__ = __package__
 
-    def __init__(self, spy=False, spy_delimiter=('-' * 30), output_fn=None, locals=None, filename="<stdin>", allow_incomplete=True):
+    def __init__(self, spy=False, spy_delimiter=('-' * 30), output_fn=None, locals=None, filename='<stdin>', allow_incomplete=True):
 
         # Create a proper module for this REPL so that we can obtain it easily
         # (e.g. using `importlib.import_module`).
@@ -223,7 +229,7 @@ class REPL(code.InteractiveConsole):
         # `None`.
         super().__init__(locals=locals, filename=filename)
 
-        module_name = self.locals.get("__name__", "__console__")
+        module_name = self.locals.get('__name__', '__console__')
         # Make sure our newly created module is properly introduced to
         # `sys.modules`, and consistently use its namespace as `self.locals`
         # from here on.
@@ -231,32 +237,32 @@ class REPL(code.InteractiveConsole):
         self.module.__dict__.update(self.locals)
         self.locals = self.module.__dict__
 
-        self.ps1 = "=> "
-        self.ps2 = "... "
+        self.ps1 = '=> '
+        self.ps2 = '... '
 
-        if os.environ.get("HYSTARTUP"):
+        if os.environ.get('HYSTARTUP'):
             try:
-                loader = HyLoader("__hystartup__", os.environ.get("HYSTARTUP"))
+                loader = HyLoader('__hystartup__', os.environ.get('HYSTARTUP'))
                 spec = importlib.util.spec_from_loader(loader.name, loader)
                 mod = importlib.util.module_from_spec(spec)
                 sys.modules.setdefault(mod.__name__, mod)
                 loader.exec_module(mod)
                 imports = mod.__dict__.get(
-                    "__all__",
-                    [name for name in mod.__dict__ if not name.startswith("_")],
+                    '__all__',
+                    [name for name in mod.__dict__ if not name.startswith('_')],
                 )
                 imports = {name: mod.__dict__[name] for name in imports}
-                spy = spy or imports.get("repl_spy")
-                output_fn = output_fn or imports.get("repl_output_fn")
-                self.ps1 = imports.get("repl_ps1", self.ps1)
-                self.ps2 = imports.get("repl_ps2", self.ps2)
+                spy = spy or imports.get('repl_spy')
+                output_fn = output_fn or imports.get('repl_output_fn')
+                self.ps1 = imports.get('repl_ps1', self.ps1)
+                self.ps2 = imports.get('repl_ps2', self.ps2)
 
                 # Load imports and defs
                 self.locals.update(imports)
 
                 # load module macros
-                require(mod, self.module, assignments="ALL")
-                require_reader(mod, self.module, assignments="ALL")
+                require(mod, self.module, assignments='ALL')
+                require_reader(mod, self.module, assignments='ALL')
             except Exception as e:
                 print(e)
 
@@ -281,23 +287,23 @@ class REPL(code.InteractiveConsole):
             self.output_fn = hy.repr
         elif callable(output_fn):
             self.output_fn = output_fn
-        elif "." in output_fn:
-            parts = [mangle(x) for x in output_fn.split(".")]
-            module, f = ".".join(parts[:-1]), parts[-1]
+        elif '.' in output_fn:
+            parts = [mangle(x) for x in output_fn.split('.')]
+            module, f = '.'.join(parts[:-1]), parts[-1]
             self.output_fn = getattr(importlib.import_module(module), f)
         else:
             self.output_fn = getattr(builtins, mangle(output_fn))
 
         # Pre-mangle symbols for repl recent results: *1, *2, *3
-        self._repl_results_symbols = [mangle("*{}".format(i + 1)) for i in range(3)]
+        self._repl_results_symbols = [mangle('*{}'.format(i + 1)) for i in range(3)]
         self.locals.update({sym: None for sym in self._repl_results_symbols})
 
         # Allow access to the running REPL instance
-        self.locals["_hy_repl"] = self
+        self.locals['_hy_repl'] = self
 
         # Compile an empty statement to load the standard prelude
         exec_ast = hy_compile(
-            read_many(""), self.module, compiler=self.hy_compiler, import_stdlib=True
+            read_many(''), self.module, compiler=self.hy_compiler, import_stdlib=True,
         )
         if self.ast_callback:
             self.ast_callback(exec_ast, None)
@@ -315,16 +321,16 @@ class REPL(code.InteractiveConsole):
                 print(ast.unparse(new_ast))
                 print(self.spy_delimiter)
             except Exception:
-                msg = "Exception in AST callback:\n{}\n".format(traceback.format_exc())
+                msg = 'Exception in AST callback:\n{}\n'.format(traceback.format_exc())
                 self.write(msg)
 
     def _error_wrap(self, exc_info_override=False, *args, **kwargs):
         # When `exc_info_override` is true, use a traceback that
         # doesn't have the REPL frames.
         t, v, tb = set_last_exc(
-            exc_info_override and self.locals.get("_hy_exc_info"))
+            exc_info_override and self.locals.get('_hy_exc_info'))
         sys.excepthook(t, v, tb)
-        self.locals[mangle("*e")] = v
+        self.locals[mangle('*e')] = v
 
     def showsyntaxerror(self, filename=None, source=None):
         if filename is None:
@@ -349,7 +355,7 @@ class REPL(code.InteractiveConsole):
             self.print_last_value = False
             self.showtraceback()
 
-    def runsource(self, source, filename="<stdin>", symbol="exec"):
+    def runsource(self, source, filename='<stdin>', symbol='exec'):
         try:
             res = super().runsource(source, filename, symbol)
         except (HyMacroExpansionError, HyRequireError):
@@ -386,8 +392,8 @@ class REPL(code.InteractiveConsole):
 
         sentinel = []
         saved_values = (
-            getattr(sys, "ps1", sentinel),
-            getattr(sys, "ps2", sentinel),
+            getattr(sys, 'ps1', sentinel),
+            getattr(sys, 'ps2', sentinel),
             builtins.quit,
             builtins.exit,
             builtins.help,
@@ -395,28 +401,28 @@ class REPL(code.InteractiveConsole):
         try:
             sys.ps1 = self.ps1
             sys.ps2 = self.ps2
-            builtins.quit = HyQuitter("quit")
-            builtins.exit = HyQuitter("exit")
+            builtins.quit = HyQuitter('quit')
+            builtins.exit = HyQuitter('exit')
             builtins.help = HyHelper()
 
             namespace = self.locals
             with filtered_hy_exceptions(), extend_linecache(
-                self.cmdline_cache
+                self.cmdline_cache,
             ), completion(Completer(namespace)):
                 self.interact(self.banner())
 
         finally:
             sys.ps1, sys.ps2, builtins.quit, builtins.exit, builtins.help = saved_values
-            for a in "ps1", "ps2":
+            for a in 'ps1', 'ps2':
                 if getattr(sys, a) is sentinel:
                     delattr(sys, a)
 
         return 0
 
     def banner(self):
-        return "Hy {version}{nickname} using {py}({build}) {pyversion} on {os}".format(
+        return 'Hy {version}{nickname} using {py}({build}) {pyversion} on {os}'.format(
             version=hy.__version__,
-            nickname="" if hy.nickname is None else f' ({hy.nickname})',
+            nickname='' if hy.nickname is None else f' ({hy.nickname})',
             py=platform.python_implementation(),
             build=platform.python_build()[0],
             pyversion=platform.python_version(),
@@ -425,8 +431,11 @@ class REPL(code.InteractiveConsole):
 
 
 def set_last_exc(exc_info = None):
-    """Setting `sys.last_exc`, or `sys.last_type` on earlier Pythons,
-    makes it easier for the user to call the debugger."""
+    """
+    Setting `sys.last_exc`, or `sys.last_type` on earlier Pythons,
+    makes it easier for the user to call the debugger.
+    """
+
     t, v, tb = exc_info or sys.exc_info()
     if PY3_12:
           sys.last_exc = v

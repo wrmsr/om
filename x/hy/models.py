@@ -1,24 +1,27 @@
 import operator
-from contextlib import contextmanager
-from functools import reduce, total_ordering
-from itertools import groupby
-from math import isinf, isnan
+import contextlib
+import functools
+import math
 
 from .compat import PY3_14
 from .errors import HyWrapperError
 
+
 if PY3_14:
-    from string.templatelib import Interpolation, Template
+    from string.templatelib import Interpolation
+    from string.templatelib import Template
+
+
+##
+
 
 PRETTY = True
 
 
-@contextmanager
+@contextlib.contextmanager
 def pretty(pretty=True):
-    """
-    Context manager to temporarily enable
-    or disable pretty-printing of Hy model reprs.
-    """
+    """Context manager to temporarily enable or disable pretty-printing of Hy model reprs."""
+
     global PRETTY
     old, PRETTY = PRETTY, pretty
     try:
@@ -28,16 +31,19 @@ def pretty(pretty=True):
 
 
 class Object:
-    "An abstract base class for Hy models, which represent forms."
-
     """
-    The position properties (`start_line`, `end_line`, `start_column`,
-    `end_column`) are each 1-based and inclusive. For example, a symbol
-    `abc` starting at the first column would have `start_column` 1 and
-    `end_column` 3.
+    An abstract base class for Hy models, which represent forms.
+
+    The position properties (`start_line`, `end_line`, `start_column`, `end_column`) are each 1-based and inclusive. For
+    example, a symbol `abc` starting at the first column would have `start_column` 1 and `end_column` 3.
     """
 
-    properties = ["_start_line", "_end_line", "_start_column", "_end_column"]
+    properties = [
+        '_start_line',
+        '_end_line',
+        '_start_column',
+        '_end_column',
+    ]
 
     def replace(self, other, recursive=False):
         if isinstance(other, Object):
@@ -47,15 +53,15 @@ class Object:
         else:
             raise TypeError(
                 "Can't replace a non Hy object '{}' with a Hy object '{}'".format(
-                    repr(other), repr(self)
-                )
+                    repr(other), repr(self),
+                ),
             )
 
         return self
 
     @property
     def start_line(self):
-        return getattr(self, "_start_line", 1)
+        return getattr(self, '_start_line', 1)
 
     @start_line.setter
     def start_line(self, value):
@@ -63,7 +69,7 @@ class Object:
 
     @property
     def start_column(self):
-        return getattr(self, "_start_column", 1)
+        return getattr(self, '_start_column', 1)
 
     @start_column.setter
     def start_column(self, value):
@@ -71,7 +77,7 @@ class Object:
 
     @property
     def end_line(self):
-        return getattr(self, "_end_line", 1)
+        return getattr(self, '_end_line', 1)
 
     @end_line.setter
     def end_line(self, value):
@@ -79,7 +85,7 @@ class Object:
 
     @property
     def end_column(self):
-        return getattr(self, "_end_column", 1)
+        return getattr(self, '_end_column', 1)
 
     @end_column.setter
     def end_column(self, value):
@@ -87,7 +93,7 @@ class Object:
 
     def __repr__(self):
         return (
-            f"hy.models.{self.__class__.__name__}" f"({super(Object, self).__repr__()})"
+            f'hy.models.{self.__class__.__name__}' f'({super(Object, self).__repr__()})'
         )
 
     def __eq__(self, other):
@@ -107,20 +113,20 @@ _seen = set()
 
 
 def as_model(x):
-    """Convert ``x`` and any elements thereof into :ref:`models <models>`
-    recursively. This function is called implicitly by Hy in many situations,
-    such as when inserting the expansion of a macro into the surrounding code,
-    so you don't often need to call it. One use is to ensure that models are
-    used on both sides of a comparison::
+    """
+    Convert ``x`` and any elements thereof into :ref:`models <models>` recursively. This function is called implicitly
+    by Hy in many situations, such as when inserting the expansion of a macro into the surrounding code, so you don't
+    often need to call it. One use is to ensure that models are used on both sides of a comparison::
 
       (= 7 '7)                ; => False
       (= (hy.as-model 7) '7)  ; => True
 
-    It's an error to call ``hy.as-model`` on an object that contains itself, or
-    an object that isn't representable as a Hy literal, such as a function."""
+    It's an error to call ``hy.as-model`` on an object that contains itself, or an object that isn't representable as a
+    Hy literal, such as a function.
+    """
 
     if id(x) in _seen:
-        raise HyWrapperError("Self-referential structure detected in {!r}".format(x))
+        raise HyWrapperError('Self-referential structure detected in {!r}'.format(x))
 
     new = _wrappers.get(type(x), lambda y: y)(x)
     if not isinstance(new, Object):
@@ -135,11 +141,11 @@ def replace_hy_obj(obj, other):
 
 
 def repr_indent(obj):
-    return repr(obj).replace("\n", "\n  ")
+    return repr(obj).replace('\n', '\n  ')
 
 
 def is_unpack(kind, x):
-    return isinstance(x, Expression) and len(x) > 0 and x[0] == Symbol("unpack-" + kind)
+    return isinstance(x, Expression) and len(x) > 0 and x[0] == Symbol('unpack-' + kind)
 
 
 class String(Object, str):
@@ -147,24 +153,23 @@ class String(Object, str):
     Represents a literal string (:class:`str`).
 
     :ivar brackets: The custom delimiter used by the bracket string that parsed to this
-      object, or :data:`None` if it wasn't a bracket string. The outer square brackets
-      and ``#`` aren't included, so the ``brackets`` attribute of the literal
-      ``#[[hello]]`` is the empty string.
+      object, or :data:`None` if it wasn't a bracket string. The outer square brackets and ``#`` aren't included, so the
+      ``brackets`` attribute of the literal ``#[[hello]]`` is the empty string.
     """
 
-    __match_args__ = ("_as_str",)
+    __match_args__ = ('_as_str',)
 
     def __new__(cls, s=None, brackets=None):
         value = super().__new__(cls, s)
-        if brackets is not None and f"]{brackets}]" in value:
-            raise ValueError(f"Syntactically illegal bracket string: {s!r}")
+        if brackets is not None and f']{brackets}]' in value:
+            raise ValueError(f'Syntactically illegal bracket string: {s!r}')
         value.brackets = brackets
         return value
 
     def __repr__(self):
-        return "hy.models.String({}{})".format(
+        return 'hy.models.String({}{})'.format(
             super(Object, self).__repr__(),
-            "" if self.brackets is None else f", brackets={self.brackets!r}",
+            '' if self.brackets is None else f', brackets={self.brackets!r}',
         )
 
     def __add__(self, other):
@@ -179,11 +184,9 @@ _wrappers[str] = String
 
 
 class Bytes(Object, bytes):
-    """
-    Represents a literal bytestring (:class:`bytes`).
-    """
+    """Represents a literal bytestring (:class:`bytes`)."""
 
-    __match_args__ = ("_as_bytes",)
+    __match_args__ = ('_as_bytes',)
 
     @property
     def _as_bytes(self):
@@ -197,22 +200,22 @@ class Symbol(Object, str):
     """
     Represents a symbol.
 
-    Symbol objects behave like strings under operations like :hy:func:`get <hy.pyops.get>`,
-    :func:`len`, and :class:`bool`; in particular, ``(bool (hy.models.Symbol "False"))`` is true. Use :hy:func:`hy.eval` to evaluate a symbol.
+    Symbol objects behave like strings under operations like :hy:func:`get <hy.pyops.get>`, :func:`len`, and
+    :class:`bool`; in particular, ``(bool (hy.models.Symbol "False"))`` is true. Use :hy:func:`hy.eval` to evaluate a
+    symbol.
     """
 
-    __match_args__ = ("_as_str",)
+    __match_args__ = ('_as_str',)
 
     def __new__(cls, s, from_parser=False):
         s = str(s)
         if not from_parser:
-            # Check that the symbol is syntactically legal.
-            # import here to prevent circular imports.
+            # Check that the symbol is syntactically legal. import here to prevent circular imports.
             from .reader.hy_reader import as_identifier
 
             sym = as_identifier(s)
             if not isinstance(sym, Symbol):
-                raise ValueError(f"Syntactically illegal symbol: {s!r}")
+                raise ValueError(f'Syntactically illegal symbol: {s!r}')
             return sym
         return super().__new__(cls, s)
 
@@ -221,11 +224,11 @@ class Symbol(Object, str):
         return str(self)
 
 
-_wrappers[bool] = lambda x: Symbol("True") if x else Symbol("False")
-_wrappers[type(None)] = lambda _: Symbol("None")
+_wrappers[bool] = lambda x: Symbol('True') if x else Symbol('False')
+_wrappers[type(None)] = lambda _: Symbol('None')
 
 
-@total_ordering
+@functools.total_ordering
 class Keyword(Object):
     """
     Represents a keyword, such as ``:foo``.
@@ -234,18 +237,17 @@ class Keyword(Object):
       mangling is performed.
     """
 
-    __match_args__ = ("name",)
+    __match_args__ = ('name',)
 
     def __init__(self, value, from_parser=False):
         value = str(value)
         if not from_parser:
-            # Check that the keyword is syntactically legal.
-            # import here to prevent circular imports.
+            # Check that the keyword is syntactically legal. import here to prevent circular imports.
             from .reader.hy_reader import HyReader
             from .reader.reader import isnormalizedspace
 
             if value and (
-                "." in value
+                '.' in value
                 or any(isnormalizedspace(c) for c in value)
                 or HyReader.NON_IDENT.intersection(value)
             ):
@@ -253,10 +255,10 @@ class Keyword(Object):
         self.name = value
 
     def __repr__(self):
-        return f"hy.models.{self.__class__.__name__}({self.name!r})"
+        return f'hy.models.{self.__class__.__name__}({self.name!r})'
 
     def __str__(self):
-        return ":%s" % self.name
+        return ':%s' % self.name
 
     def __hash__(self):
         return hash(self.name)
@@ -272,27 +274,28 @@ class Keyword(Object):
         return self.name != other.name
 
     def __lt__(self, other):
-        """Keywords behave like strings under comparison operators, but are incomparable
-        to actual ``str`` objects."""
+        """Keywords behave like strings under comparison operators, but are incomparable to actual ``str`` objects."""
+
         if not isinstance(other, Keyword):
             return NotImplemented
         return self.name < other.name
 
     def __bool__(self):
         """The empty keyword ``:`` is false. All others are true."""
+
         return bool(self.name)
 
     _sentinel = object()
 
     def __call__(self, data, default=_sentinel):
-        """Get the element of ``data`` named ``(hy.mangle self.name)``. Thus, ``(:foo
-        bar)`` is equivalent to ``(get bar "foo")`` (which is different from
-        ``(get bar :foo)``; dictionary keys are typically strings, not
+        """
+        Get the element of ``data`` named ``(hy.mangle self.name)``. Thus, ``(:foo bar)`` is equivalent to ``(get bar
+        "foo")`` (which is different from ``(get bar :foo)``; dictionary keys are typically strings, not
         :class:`hy.models.Keyword` objects).
 
-        The optional second parameter is a default value; if provided, any
-        :class:`KeyError` from :hy:func:`get <hy.pyops.get>` will be caught,
-        and the default returned instead."""
+        The optional second parameter is a default value; if provided, any :class:`KeyError` from :hy:func:`get
+        <hy.pyops.get>` will be caught, and the default returned instead.
+        """
 
         from .reader import mangle
 
@@ -305,21 +308,18 @@ class Keyword(Object):
 
 
 def strip_digit_separators(number):
-    # Don't strip a _ or , if it's the first character, as _42 and
-    # ,42 aren't valid numbers
+    # Don't strip a _ or , if it's the first character, as _42 and ,42 aren't valid numbers
     return (
-        number[0] + number[1:].replace("_", "").replace(",", "")
+        number[0] + number[1:].replace('_', '').replace(',', '')
         if isinstance(number, str) and len(number) > 1
         else number
     )
 
 
 class Integer(Object, int):
-    """
-    Represents a literal integer (:class:`int`).
-    """
+    """Represents a literal integer (:class:`int`)."""
 
-    __match_args__ = ("_as_int",)
+    __match_args__ = ('_as_int',)
 
     def __new__(cls, number, *args, **kwargs):
         return super().__new__(
@@ -327,10 +327,10 @@ class Integer(Object, int):
             int(
                 strip_digit_separators(number),
                 **(
-                    {"base": 0}
+                    {'base': 0}
                     if isinstance(number, str) and not number.isdigit()
-                    # `not number.isdigit()` is necessary because `base = 0`
-                    # fails on decimal integers starting with a leading 0.
+                    # `not number.isdigit()` is necessary because `base = 0` fails on decimal integers starting with a
+                    # leading 0.
                     else {}
                 ),
             ),
@@ -346,17 +346,16 @@ _wrappers[int] = Integer
 
 def check_inf_nan_cap(arg, value):
     if isinstance(arg, str):
-        if isinf(value) and "i" in arg.lower() and "Inf" not in arg:
+        if math.isinf(value) and 'i' in arg.lower() and 'Inf' not in arg:
             raise ValueError('Inf must be capitalized as "Inf"')
-        if isnan(value) and "NaN" not in arg:
+        if math.isnan(value) and 'NaN' not in arg:
             raise ValueError('NaN must be capitalized as "NaN"')
 
 
 class Float(Object, float):
-    """
-    Represents a literal floating-point real number (:class:`float`).
-    """
-    __match_args__ = ("_as_float",)
+    """Represents a literal floating-point real number (:class:`float`)."""
+
+    __match_args__ = ('_as_float',)
 
     def __new__(cls, num, *args, **kwargs):
         value = super().__new__(cls, strip_digit_separators(num))
@@ -373,26 +372,25 @@ _wrappers[float] = Float
 
 class Complex(Object, complex):
     """
-    Represents a literal floating-point complex number (:class:`complex`). If
-    ``real`` is itself a :class:`complex` object, its imaginary part is extracted and
-    added to the imaginary part of the new model, but ``imag``, if provided, must be
-    real.
+    Represents a literal floating-point complex number (:class:`complex`). If ``real`` is itself a :class:`complex`
+    object, its imaginary part is extracted and added to the imaginary part of the new model, but ``imag``, if provided,
+    must be real.
     """
-    __match_args__ = ("real", "imag")
+
+    __match_args__ = ('real', 'imag')
 
     def __new__(cls, real, imag=0, *args, **kwargs):
         if isinstance(real, str):
             value = super().__new__(cls, strip_digit_separators(real))
-            p1, _, p2 = real.lstrip("+-").replace("-", "+").partition("+")
-            check_inf_nan_cap(p1, value.imag if "j" in p1.lower() else value.real)
+            p1, _, p2 = real.lstrip('+-').replace('-', '+').partition('+')
+            check_inf_nan_cap(p1, value.imag if 'j' in p1.lower() else value.real)
             if p2:
                 check_inf_nan_cap(p2, value.imag)
             return value
         if isinstance(imag, complex):
-            raise TypeError("`imag` must be real")
+            raise TypeError('`imag` must be real')
         if isinstance(real, complex):
-            # This is deprecated by Python 3.14's `complex`, so
-            # extract the imaginary part before passing through.
+            # This is deprecated by Python 3.14's `complex`, so extract the imaginary part before passing through.
             real, imag = real.real, imag + real.imag
         return super().__new__(cls, real, imag)
 
@@ -402,16 +400,14 @@ _wrappers[complex] = Complex
 
 class Sequence(Object, tuple):
     """
-    An abstract base class for sequence-like forms. Sequence models can be operated on
-    like tuples: you can iterate over them, index into them, and append them with ``+``,
-    but you can't add, remove, or replace elements. Appending a sequence to another
-    iterable object reuses the class of the left-hand-side object, which is useful when
-    e.g. you want to concatenate models in a macro.
+    An abstract base class for sequence-like forms. Sequence models can be operated on like tuples: you can iterate over
+    them, index into them, and append them with ``+``, but you can't add, remove, or replace elements. Appending a
+    sequence to another iterable object reuses the class of the left-hand-side object, which is useful when e.g. you
+    want to concatenate models in a macro.
 
-    When you're recursively descending through a tree of models, testing a model with
-    ``(isinstance x hy.models.Sequence)`` is useful for deciding whether to iterate over
-    ``x``. You can also use the Hyrule function :hy:func:`coll? <hyrule.coll?>` for this
-    purpose.
+    When you're recursively descending through a tree of models, testing a model with ``(isinstance x
+    hy.models.Sequence)`` is useful for deciding whether to iterate over ``x``. You can also use the Hyrule function
+    :hy:func:`coll? <hyrule.coll?>` for this purpose.
     """
 
     _extra_kwargs = ()
@@ -430,7 +426,7 @@ class Sequence(Object, tuple):
 
     def __add__(self, other):
         return self.__class__(
-            super().__add__(tuple(other) if isinstance(other, list) else other)
+            super().__add__(tuple(other) if isinstance(other, list) else other),
         )
 
     def __getslice__(self, start, end):
@@ -452,22 +448,21 @@ class Sequence(Object, tuple):
 
     def _pretty_str(self):
         with pretty():
-            return "hy.models.{}({})".format(
+            return 'hy.models.{}({})'.format(
                 self.__class__.__name__,
-                "[\n  {}]".format(",\n  ".join(map(repr_indent, self)))
+                '[\n  {}]'.format(',\n  '.join(map(repr_indent, self)))
                     if self
-                    else ""
+                    else '',
             )
 
 
 class FComponent(Sequence):
     """
-    An analog of :class:`ast.FormattedValue`. The first node in the contained sequence
-    is the value being formatted. The rest of the sequence contains the nodes in the
-    format spec (if any).
+    An analog of :class:`ast.FormattedValue`. The first node in the contained sequence is the value being formatted. The
+    rest of the sequence contains the nodes in the format spec (if any).
     """
 
-    _extra_kwargs = ("conversion", "expression", "is_tstring")
+    _extra_kwargs = ('conversion', 'expression', 'is_tstring')
 
     def __new__(cls, s=None, conversion=None, expression=None, is_tstring=False):
         value = super().__new__(cls, s)
@@ -484,11 +479,11 @@ class FComponent(Sequence):
         return self
 
     def __repr__(self):
-        return "hy.models.FComponent({})".format(
+        return 'hy.models.FComponent({})'.format(
             (super(Object, self).__repr__()
-             + ", conversion=" + repr(self.conversion)
-             + ", expression=" + repr(self.expression)
-             + ", is_tstring=" + repr(self.is_tstring))
+             + ', conversion=' + repr(self.conversion)
+             + ', expression=' + repr(self.expression)
+             + ', is_tstring=' + repr(self.is_tstring)),
         )
 
 
@@ -503,32 +498,30 @@ def _string_in_node(string, node):
 
 class FString(Sequence):
     """
-    Represents a format string or template string as an iterable collection of
-    :class:`hy.models.String` and :class:`hy.models.FComponent`. The design
-    mimics :class:`ast.JoinedStr`.
+    Represents a format string or template string as an iterable collection of :class:`hy.models.String` and
+    :class:`hy.models.FComponent`. The design mimics :class:`ast.JoinedStr`.
 
     :ivar brackets: As in :class:`hy.models.String`.
     :ivar is_tstring: Whether this represents a template string, rather than a format string.
     """
 
-    _extra_kwargs = ("brackets", "is_tstring")
+    _extra_kwargs = ('brackets', 'is_tstring')
 
     def __new__(cls, s=None, brackets=None, is_tstring=False):
         value = super().__new__(
             cls,
-            # Join adjacent string nodes for the sake of equality
-            # testing.
+            # Join adjacent string nodes for the sake of equality testing.
             (
                 node
-                for is_string, components in groupby(s, lambda x: isinstance(x, String))
+                for is_string, components in functools.groupby(s, lambda x: isinstance(x, String))
                 for node in (
-                    [reduce(operator.add, components)] if is_string else components
+                    [functools.reduce(operator.add, components)] if is_string else components
                 )
             ),
         )
 
-        if brackets is not None and _string_in_node(f"]{brackets}]", value):
-            raise ValueError(f"Syntactically illegal bracket string: {s!r}")
+        if brackets is not None and _string_in_node(f']{brackets}]', value):
+            raise ValueError(f'Syntactically illegal bracket string: {s!r}')
         value.brackets = brackets
         value.is_tstring = is_tstring
         return value
@@ -544,21 +537,20 @@ class FString(Sequence):
             return x
         args = []
         if self.brackets is not None:
-            args.append(f"brackets={self.brackets!r}")
+            args.append(f'brackets={self.brackets!r}')
         if self.is_tstring:
-            args.append(f"is_tstring={self.is_tstring!r}")
+            args.append(f'is_tstring={self.is_tstring!r}')
         x = x[:-1]  # Clip off the final close paren
-        return x + ("" if x[-1] == "(" else ", ") + ", ".join(args) + ")"
+        return x + ('' if x[-1] == '(' else ', ') + ', '.join(args) + ')'
 
 
 class List(Sequence):
     """
     Represents a literal :class:`list`.
 
-    Many macros use this model type specially, for something other than defining a
-    :class:`list`. For example, :hy:func:`defn` expects its function parameters as a
-    square-bracket-delimited list, and :hy:func:`for` expects a list of iteration
-    clauses.
+    Many macros use this model type specially, for something other than defining a :class:`list`. For example,
+    :hy:func:`defn` expects its function parameters as a square-bracket-delimited list, and :hy:func:`for` expects a
+    list of iteration clauses.
     """
 
     pass
@@ -595,10 +587,9 @@ _wrappers[list] = recwrap(List)
 
 class Dict(Sequence):
     """
-    Represents a literal :class:`dict`. ``keys``, ``values``, and ``items`` methods are
-    provided, each returning a list, although this model type does none of the
-    normalization of a real :class:`dict`. In the case of an odd number of child models,
-    ``keys`` returns the last child whereas ``values`` and ``items`` ignore it.
+    Represents a literal :class:`dict`. ``keys``, ``values``, and ``items`` methods are provided, each returning a list,
+    although this model type does none of the normalization of a real :class:`dict`. In the case of an odd number of
+    child models, ``keys`` returns the last child whereas ``values`` and ``items`` ignore it.
     """
 
     def _pretty_str(self):
@@ -608,19 +599,19 @@ class Dict(Sequence):
                 for k, v in zip(self[::2], self[1::2]):
                     k, v = repr_indent(k), repr_indent(v)
                     pairs.append(
-                        ("{0},\n  {1}\n  " if "\n" in k + v else "{0}, {1}").format(
-                            k, v
-                        )
+                        ('{0},\n  {1}\n  ' if '\n' in k + v else '{0}, {1}').format(
+                            k, v,
+                        ),
                     )
                 if len(self) % 2 == 1:
                     pairs.append(
-                        "{}  # odd\n".format(repr_indent(self[-1]))
+                        '{}  # odd\n'.format(repr_indent(self[-1])),
                     )
-                return "hy.models.Dict([\n  {}])".format(
-                    ",\n  ".join(pairs),
+                return 'hy.models.Dict([\n  {}])'.format(
+                    ',\n  '.join(pairs),
                 )
             else:
-                return "hy.models.Dict()"
+                return 'hy.models.Dict()'
 
     def keys(self):
         return list(self[0::2])
@@ -645,23 +636,14 @@ _wrappers[dict] = _dict_wrapper
 
 
 class Expression(Sequence):
-    """
-    Represents a parenthesized Hy expression.
-    """
-
-    pass
+    """Represents a parenthesized Hy expression."""
 
 
 _wrappers[Expression] = recwrap(Expression)
 
 
 class Set(Sequence):
-    """
-    Represents a literal :class:`set`. Unlike actual sets, the model retains duplicates
-    and the order of elements.
-    """
-
-    pass
+    """Represents a literal :class:`set`. Unlike actual sets, the model retains duplicates and the order of elements."""
 
 
 _wrappers[Set] = recwrap(Set)
@@ -669,11 +651,7 @@ _wrappers[set] = recwrap(Set)
 
 
 class Tuple(Sequence):
-    """
-    Represents a literal :class:`tuple`.
-    """
-
-    pass
+    """Represents a literal :class:`tuple`."""
 
 
 _wrappers[Tuple] = recwrap(Tuple)
@@ -682,9 +660,9 @@ _wrappers[tuple] = recwrap(Tuple)
 
 class Lazy(Object):
     """
-    The output of :hy:func:`hy.read-many`. It represents a sequence of forms, and can be
-    treated as an iterator. Reading each form lazily, only after evaluating the previous
-    form, is necessary to handle reader macros correctly; see :hy:func:`hy.read-many`.
+    The output of :hy:func:`hy.read-many`. It represents a sequence of forms, and can be treated as an iterator. Reading
+    each form lazily, only after evaluating the previous form, is necessary to handle reader macros correctly; see
+    :hy:func:`hy.read-many`.
     """
 
     def __init__(self, gen):

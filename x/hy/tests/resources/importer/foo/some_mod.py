@@ -1,1 +1,1 @@
-ext = "py"
+ext = 'py'

@@ -1,14 +1,19 @@
+import importlib.util
 import os
 import re
 import sys
 import traceback
-import importlib.util
-from contextlib import contextmanager
+import contextlib
 
 from . import _initialize_env_var
-from .compat import PYPY, PY3_13
+from .compat import PY3_13
+from .compat import PYPY
 
-_hy_show_internal_errors = _initialize_env_var("HY_SHOW_INTERNAL_ERRORS", False)
+
+##
+
+
+_hy_show_internal_errors = _initialize_env_var('HY_SHOW_INTERNAL_ERRORS', False)
 
 
 class HyError(Exception):
@@ -16,15 +21,16 @@ class HyError(Exception):
 
 
 class HyInternalError(HyError):
-    """Unexpected errors occurring during compilation or parsing of Hy code.
+    """
+    Unexpected errors occurring during compilation or parsing of Hy code.
 
-    Errors sub-classing this are not intended to be user-facing, and will,
-    hopefully, never be seen by users!
+    Errors sub-classing this are not intended to be user-facing, and will, hopefully, never be seen by users!
     """
 
 
 class HyLanguageError(HyError):
-    """Errors caused by invalid use of the Hy language.
+    """
+    Errors caused by invalid use of the Hy language.
 
     This, and any errors inheriting from this, are user-facing.
     """
@@ -51,6 +57,7 @@ class HyLanguageError(HyError):
             colno (int): The column number of the error.  Expression-provided information
                 will take precedence of this value. Defaults to `1`.
         """
+
         self.msg = message
         self.compute_lineinfo(expression, filename, source, lineno, colno)
 
@@ -61,22 +68,20 @@ class HyLanguageError(HyError):
             super().__init__(message)
 
     def compute_lineinfo(self, expression, filename, source, lineno, colno):
-
-        # NOTE: We use `SyntaxError`'s field names (i.e. `text`, `offset`,
-        # `msg`) for compatibility and print-outs.
-        self.text = getattr(expression, "source", source)
-        self.filename = getattr(expression, "filename", filename)
+        # NOTE: We use `SyntaxError`'s field names (i.e. `text`, `offset`, `msg`) for compatibility and print-outs.
+        self.text = getattr(expression, 'source', source)
+        self.filename = getattr(expression, 'filename', filename)
 
         if self.text:
             lines = self.text.splitlines()
 
-            self.lineno = getattr(expression, "start_line", lineno)
-            self.offset = getattr(expression, "start_column", colno)
-            end_column = getattr(expression, "end_column", len(lines[self.lineno - 1]))
-            end_line = getattr(expression, "end_line", self.lineno)
+            self.lineno = getattr(expression, 'start_line', lineno)
+            self.offset = getattr(expression, 'start_column', colno)
+            end_column = getattr(expression, 'end_column', len(lines[self.lineno - 1]))
+            end_line = getattr(expression, 'end_line', self.lineno)
 
             # Trim the source down to the essentials.
-            self.text = "\n".join(lines[self.lineno - 1 : end_line])
+            self.text = '\n'.join(lines[self.lineno - 1 : end_line])
 
             if end_column:
                 if self.lineno == end_line:
@@ -88,18 +93,16 @@ class HyLanguageError(HyError):
             else:
                 self.arrow_offset = None
         else:
-            # We could attempt to extract the source given a filename, but we
-            # don't.
+            # We could attempt to extract the source given a filename, but we don't.
             self.lineno = lineno
             self.offset = colno
             self.arrow_offset = None
 
     def __str__(self):
-        """Provide an exception message that includes SyntaxError-like source
-        line information when available.
-        """
-        # Syntax errors are special and annotate the traceback (instead of what
-        # we would do in the message that follows the traceback).
+        """Provide an exception message that includes SyntaxError-like source line information when available."""
+
+        # Syntax errors are special and annotate the traceback (instead of what we would do in the message that follows
+        # the traceback).
         if isinstance(self, SyntaxError):
             return super().__str__()
         # When there isn't extra source information, use the normal message.
@@ -113,31 +116,29 @@ class HyLanguageError(HyError):
         )
 
         arrow_idx, _ = next(
-            ((i, x) for i, x in enumerate(output) if set(x.strip()) == {"^"}), (None, None)
+            ((i, x) for i, x in enumerate(output) if set(x.strip()) == {'^'}), (None, None),
         )
         if arrow_idx:
             msg_idx = arrow_idx + 1
         else:
             msg_idx, _ = next(
-                (i, x) for i, x in enumerate(output) if x.startswith("SyntaxError: ")
+                (i, x) for i, x in enumerate(output) if x.startswith('SyntaxError: ')
             )
 
         # Get rid of erroneous error-type label.
-        output[msg_idx] = re.sub("^SyntaxError: ", "", output[msg_idx])
+        output[msg_idx] = re.sub('^SyntaxError: ', '', output[msg_idx])
 
-        # Extend the text arrow, when given enough source info. We
-        # don't do this on newer Pythons because they make their own
-        # underlines.
+        # Extend the text arrow, when given enough source info. We don't do this on newer Pythons because they make
+        # their own underlines.
         if arrow_idx and self.arrow_offset and not PY3_13:
-            output[arrow_idx] = "{}{}^\n".format(
-                output[arrow_idx].rstrip("\n"), "-" * (self.arrow_offset - 1)
+            output[arrow_idx] = '{}{}^\n'.format(
+                output[arrow_idx].rstrip('\n'), '-' * (self.arrow_offset - 1),
             )
 
-        # This resulting string will come after a "<class-name>:" prompt, so
-        # put it down a line.
-        output.insert(0, "\n")
+        # This resulting string will come after a "<class-name>:" prompt, so put it down a line.
+        output.insert(0, '\n')
 
-        return "".join(output)
+        return ''.join(output)
 
 
 class HyCompileError(HyInternalError):
@@ -149,25 +150,27 @@ class HyTypeError(HyLanguageError, TypeError):
 
 
 class HyRequireError(HyLanguageError):
-    """Errors arising during the use of `require`
+    """
+    Errors arising during the use of `require`
 
     This, and any errors inheriting from this, are user-facing.
     """
 
 
 class HyMacroExpansionError(HyLanguageError):
-    """Errors caused by invalid use of Hy macros.
+    """
+    Errors caused by invalid use of Hy macros.
 
     This, and any errors inheriting from this, are user-facing.
     """
 
 
 class HyEvalError(HyLanguageError):
-    """Errors occurring during code evaluation at compile-time.
+    """
+    Errors occurring during code evaluation at compile-time.
 
-    These errors distinguish unexpected errors within the compilation process
-    (i.e. `HyInternalError`s) from unrelated errors in user code evaluated by
-    the compiler (e.g. in `eval-and-compile`).
+    These errors distinguish unexpected errors within the compilation process (i.e. `HyInternalError`s) from unrelated
+    errors in user code evaluated by the compiler (e.g. in `eval-and-compile`).
 
     This, and any errors inheriting from this, are user-facing.
     """
@@ -178,11 +181,11 @@ class HySyntaxError(HyLanguageError, SyntaxError):
 
 
 class HyWrapperError(HyError, TypeError):
-    """Errors caused by language model object wrapping.
+    """
+    Errors caused by language model object wrapping.
 
-    These can be caused by improper user-level use of a macro, so they're
-    not really "internal".  If they arise due to anything else, they're an
-    internal/compiler problem, though.
+    These can be caused by improper user-level use of a macro, so they're not really "internal".  If they arise due to
+    anything else, they're an internal/compiler problem, though.
     """
 
 
@@ -201,13 +204,12 @@ def _module_filter_name(module_name):
             return None
 
         if compiler_loader.is_package(module_name):
-            # Use the package directory (e.g. instead of `.../__init__.py`) so
-            # that we can filter all modules in a package.
+            # Use the package directory (e.g. instead of `.../__init__.py`) so that we can filter all modules in a
+            # package.
             return os.path.dirname(filename)
         else:
-            # Normalize filename endings, because tracebacks will use `pyc` when
-            # the loader says `py`.
-            return filename.replace(".pyc", ".py")
+            # Normalize filename endings, because tracebacks will use `pyc` when the loader says `py`.
+            return filename.replace('.pyc', '.py')
     except Exception:
         return None
 
@@ -217,65 +219,65 @@ _tb_hidden_modules = {
     for m in map(
         _module_filter_name,
         [
-            "x.hy.compiler",
-            "x.hy.reader",
-            "x.hy.cmdline",
-            "x.hy.__main__",
-            "x.hy.repl",
-            "x.hy.reader.parser",
-            "x.hy.importer",
-            "x.hy.compat",
-            "x.hy.macros",
-            "x.hy.models",
-            "x.hy.core.result_macros",
+            'x.hy.compiler',
+            'x.hy.reader',
+            'x.hy.cmdline',
+            'x.hy.__main__',
+            'x.hy.repl',
+            'x.hy.reader.parser',
+            'x.hy.importer',
+            'x.hy.compat',
+            'x.hy.macros',
+            'x.hy.models',
+            'x.hy.core.result_macros',
         ],
     )
     if m is not None
 }
 
-# We can't derive these easily from just their module names due
-# to missing magic attributes in internal importlib modules
+# We can't derive these easily from just their module names due to missing magic attributes in internal importlib
+# modules
 _tb_hidden_modules.update(
-    f"<builtin>/frozen {x}" if PYPY else f"<frozen {x}>"
-    for x in ("importlib._bootstrap", "importlib._bootstrap_external")
+    f'<builtin>/frozen {x}' if PYPY else f'<frozen {x}>'
+    for x in ('importlib._bootstrap', 'importlib._bootstrap_external')
 )
 
 
 def hy_exc_filter(exc_type, exc_value, exc_traceback):
-    """Produce exceptions print-outs with all frames originating from the
-    modules in `_tb_hidden_modules` filtered out.
-
-    The frames are actually filtered by each module's filename and only when a
-    subclass of `HyLanguageError` is emitted.
-
-    This does not remove the frames from the actual tracebacks, so debugging
-    will show everything.
     """
+    Produce exceptions print-outs with all frames originating from the modules in `_tb_hidden_modules` filtered out.
+
+    The frames are actually filtered by each module's filename and only when a subclass of `HyLanguageError` is emitted.
+
+    This does not remove the frames from the actual tracebacks, so debugging will show everything.
+    """
+
     # frame = (filename, line number, function name*, text)
     new_tb = []
     for frame in traceback.extract_tb(exc_traceback):
         if not (
-            frame[0].replace(".pyc", ".py") in _tb_hidden_modules
+            frame[0].replace('.pyc', '.py') in _tb_hidden_modules
             or os.path.dirname(frame[0]) in _tb_hidden_modules
-            or os.path.basename(os.path.dirname(frame[0])) == "hy.exe"
+            or os.path.basename(os.path.dirname(frame[0])) == 'hy.exe'
         ):
             new_tb += [frame]
 
     lines = traceback.format_list(new_tb)
 
-    lines.insert(0, "Traceback (most recent call last):\n")
+    lines.insert(0, 'Traceback (most recent call last):\n')
 
     lines.extend(traceback.format_exception_only(exc_type, exc_value))
-    output = "".join(lines)
+    output = ''.join(lines)
 
     return output
 
 
 def hy_exc_handler(exc_type, exc_value, exc_traceback):
-    """A `sys.excepthook` handler that uses `hy_exc_filter` to
-    remove internal Hy frames from a traceback print-out, so long
-    as `_hy_show_internal_errors` is false.
     """
+    A `sys.excepthook` handler that uses `hy_exc_filter` to remove internal Hy frames from a traceback print-out, so
+    long as `_hy_show_internal_errors` is false.
+    """
+
     if _hy_show_internal_errors:
         return sys.__excepthook__(exc_type, exc_value, exc_traceback)
     try:
@@ -286,15 +288,15 @@ def hy_exc_handler(exc_type, exc_value, exc_traceback):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
 
-@contextmanager
+@contextlib.contextmanager
 def filtered_hy_exceptions():
-    """Temporarily apply a `sys.excepthook` that filters Hy internal frames
-    from tracebacks.
+    """
+    Temporarily apply a `sys.excepthook` that filters Hy internal frames from tracebacks.
 
-    Filtering can be controlled by the variable
-    `hy.errors._hy_show_internal_errors` and environment variable
+    Filtering can be controlled by the variable `hy.errors._hy_show_internal_errors` and environment variable
     `HY_SHOW_INTERNAL_ERRORS`.
     """
+
     current_hook = sys.excepthook
     sys.excepthook = hy_exc_handler
     yield

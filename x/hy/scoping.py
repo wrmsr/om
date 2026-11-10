@@ -1,10 +1,14 @@
 "Scope and variable tracking for Hy/Python scopes."
 import ast
 import itertools
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 from . import compat
-from .models import Expression, List, Symbol, Tuple
+from .models import Expression
+from .models import List
+from .models import Symbol
+from .models import Tuple
 from .reader import mangle
 
 
@@ -14,6 +18,7 @@ def is_function_scope(scope):
 
 def is_inside_function_scope(scope):
     "True if any enclosing scope (including this one) is a function scope."
+
     cur = scope
     while not isinstance(cur, ScopeGlobal):
         if is_function_scope(cur):
@@ -24,6 +29,7 @@ def is_inside_function_scope(scope):
 
 def nearest_python_scope(scope):
     "Return the closest enclosing scope that corresponds to a Python scope."
+
     cur = scope
     while isinstance(cur, (ScopeLet, ScopeGen)):
         cur = cur.parent
@@ -32,6 +38,7 @@ def nearest_python_scope(scope):
 
 class OuterVar(ast.stmt):
     "Custom AST node that can compile to either Nonlocal or Global."
+
     def __init__(self, expr, scope, names):
         from .compiler import asty
         super().__init__()
@@ -42,6 +49,7 @@ class OuterVar(ast.stmt):
 
 class ResolveOuterVars(ast.NodeTransformer):
     "Find all OuterVar nodes and replace with Nonlocal or Global as necessary."
+
     def visit_OuterVar(self, node):
         from .compiler import asty
         scope = node._scope
@@ -79,18 +87,18 @@ class NodeRef:
     """
 
     ACCESSOR = {
-        ast.Name: "id",
-        ast.Global: "names",
-        ast.Nonlocal: "names",
-        OuterVar: "names",
+        ast.Name: 'id',
+        ast.Global: 'names',
+        ast.Nonlocal: 'names',
+        OuterVar: 'names',
     }
     if compat.PY3_10:
         ACCESSOR.update(
             {
-                ast.MatchAs: "name",
-                ast.MatchStar: "name",
-                ast.MatchMapping: "rest",
-            }
+                ast.MatchAs: 'name',
+                ast.MatchStar: 'name',
+                ast.MatchMapping: 'rest',
+            },
         )
 
     def __init__(self, node, index=None):
@@ -108,6 +116,7 @@ class NodeRef:
     @name.setter
     def name(self, new_name):
         "Used to rename `ast` identifiers"
+
         if self.index is not None:
             getattr(self.node, self._accessor)[self.index] = new_name
         else:
@@ -126,8 +135,8 @@ class NodeRef:
 
     def __repr__(self):
         return (
-            f"NodeRef(name={self.name}, node={type(self.node).__name__},"
-            f" index={self.index})"
+            f'NodeRef(name={self.name}, node={type(self.node).__name__},'
+            f' index={self.index})'
         )
 
 
@@ -139,6 +148,7 @@ class ScopeBase(ABC):
 
     def create(self, scope_type, *args):
         "Create new scope from this one."
+
         return scope_type(self.compiler, *args)
 
     def __enter__(self):
@@ -158,11 +168,13 @@ class ScopeBase(ABC):
     @abstractmethod
     def access(self, node, index=None):
         "Called when a symbol is accessed."
+
         ...
 
     @abstractmethod
     def assign(self, node, index=None):
         "Called when a symbol is assigned to."
+
         ...
 
     @abstractmethod
@@ -171,11 +183,13 @@ class ScopeBase(ABC):
         Called when a symbol is defined.
         (e.g., function names, class names, imports)
         """
+
         ...
 
     @abstractmethod
     def define_nonlocal(self, node, root):
         "Called when a symbol is declared nonlocal or global."
+
         ...
 
 
@@ -185,7 +199,7 @@ class ScopeGlobal(ScopeBase):
     def __init__(self, compiler):
         super().__init__(compiler)
         self.defined = set()
-        "set: of all symbols created or assigned to in this scope"
+        'set: of all symbols created or assigned to in this scope'
 
         self.nonlocal_vars = []
         """
@@ -214,7 +228,7 @@ class ScopeGlobal(ScopeBase):
         self.defined.add(name)
 
     def define_nonlocal(self, node, root):
-        if root == "nonlocal":
+        if root == 'nonlocal':
             self.nonlocal_vars.extend(node.names)
         else:
             self.defined.update(node.names)
@@ -255,7 +269,7 @@ class ScopeLet(ScopeBase):
         cur = self
         while isinstance(cur, ScopeLet):
             for name in node.names:
-                if root == "nonlocal":
+                if root == 'nonlocal':
                     if name in cur.bindings and cur is not self:
                         node.names.remove(name)
                 else:
@@ -265,27 +279,28 @@ class ScopeLet(ScopeBase):
 
     def add(self, target, new_name=None):
         """Add a new let-binding target, mapped to a new, unique name."""
+
         if isinstance(target, (str, Symbol)):
-            if "." in target:
-                raise ValueError("binding target may not contain a dot")
+            if '.' in target:
+                raise ValueError('binding target may not contain a dot')
             name = mangle(target)
             if new_name is None:
-                new_name = self.compiler.get_anon_var("let", name)
+                new_name = self.compiler.get_anon_var('let', name)
             self.bindings[name] = new_name
             if isinstance(target, Symbol):
                 return Symbol(new_name).replace(target)
             return new_name
         if new_name is not None:
-            raise ValueError("cannot specify name for compound targets")
+            raise ValueError('cannot specify name for compound targets')
         if isinstance(target, (List, Tuple)):
             return target.__class__(map(self.add, target)).replace(target)
         if (
             isinstance(target, Expression)
             and target
-            and target[0] == Symbol("unpack-iterable")
+            and target[0] == Symbol('unpack-iterable')
         ):
             return Expression([target[0], *map(self.add, target[1:])]).replace(target)
-        raise ValueError(f"invalid binding target: {type(target)}")
+        raise ValueError(f'invalid binding target: {type(target)}')
 
 
 class ScopeFn(ScopeBase):
@@ -294,9 +309,9 @@ class ScopeFn(ScopeBase):
     def __init__(self, compiler, args=None, is_async=False):
         super().__init__(compiler)
         self.defined = set()
-        "set: of all vars defined in this scope"
+        'set: of all vars defined in this scope'
         self.seen = []
-        "list: of all vars accessedto in this scope"
+        'list: of all vars accessedto in this scope'
         self.nonlocal_vars = {}
         "set: of all `nonlocal`'s defined in this scope"
         self.is_fn = args is not None
@@ -313,7 +328,7 @@ class ScopeFn(ScopeBase):
 
         if args:
             for arg in itertools.chain(
-                args.args, args.posonlyargs, args.kwonlyargs, [args.vararg, args.kwarg]
+                args.args, args.posonlyargs, args.kwonlyargs, [args.vararg, args.kwarg],
             ):
                 if arg:
                     self.define(arg.arg)
@@ -341,7 +356,7 @@ class ScopeFn(ScopeBase):
         self.defined.add(name)
 
     def define_nonlocal(self, node, root):
-        if root == "nonlocal":
+        if root == 'nonlocal':
             self.nonlocal_vars.update({name: node for name in node.names})
         else:
             self.defined.update(node.names)
@@ -349,9 +364,9 @@ class ScopeFn(ScopeBase):
         for n in self.seen:
             if n.name in node.names:
                 raise SyntaxError(
-                    f"name '{n.name}' is declared {root} after being used"
+                    f"name '{n.name}' is declared {root} after being used",
                 )
-        if root == "nonlocal":
+        if root == 'nonlocal':
             # toss all nonlocal names up to parent scope
             for i in range(len(node.names)):
                 self.parent.access(node, i)
@@ -391,6 +406,7 @@ class ScopeGen(ScopeFn):
         processed all of the iterators in this generators so as not to leak out
         any unwanted identifiers
         """
+
         res = set()
         for node in self.assignments:
             if node.name not in self.nonlocal_vars:
@@ -416,6 +432,7 @@ class ScopeGen(ScopeFn):
         Declare an iteration variable name for this scope; as in Python, the
         iteration variable(s) cannot be reassigned.
         """
+
         self.iterators.update(
             name.id for name in ast.walk(target) if isinstance(name, ast.Name)
         )

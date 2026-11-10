@@ -4,7 +4,12 @@ import os
 import re
 import sys
 
-from .reader import mangle, unmangle
+from .reader import mangle
+from .reader import unmangle
+
+
+##
+
 
 # Lazily import `readline` to work around
 # https://github.com/python/cpython/issues/46927#issuecomment-1093418916
@@ -33,7 +38,7 @@ def maybe_unmangle(text):
 
 def canonicalize(text):
     try:
-        return unmangle(mangle(text)) if text else ""
+        return unmangle(mangle(text)) if text else ''
     except KeyError:
         return text
 
@@ -41,18 +46,18 @@ def canonicalize(text):
 class Completer:
     def __init__(self, namespace={}):
         if not isinstance(namespace, dict):
-            raise TypeError("namespace must be a dictionary")
+            raise TypeError('namespace must be a dictionary')
         self.namespace = namespace
         self.path = [builtins.__dict__, namespace]
 
-        namespace.setdefault("_hy_macros", {})
-        namespace.setdefault("_hy_reader_macros", {})
+        namespace.setdefault('_hy_macros', {})
+        namespace.setdefault('_hy_reader_macros', {})
 
-        self.path.append(namespace["_hy_macros"])
+        self.path.append(namespace['_hy_macros'])
 
     def attr_matches(self, text):
         # Borrowed from IPython's completer
-        m = re.match(r"(\S+(\.[\S]+)*)\.([\S]*)$", text)
+        m = re.match(r'(\S+(\.[\S]+)*)\.([\S]*)$', text)
 
         if m:
             expr, orig_attr = m.group(1, 3)
@@ -61,7 +66,7 @@ class Completer:
             return []
 
         try:
-            sym, *syms = expr.split(".")
+            sym, *syms = expr.split('.')
             obj = self.namespace[mangle(sym)]
             for sym in syms:
                 obj = getattr(obj, mangle(sym))
@@ -70,7 +75,7 @@ class Completer:
             return []
 
         matches = [
-            f"{expr}.{unmangled}"
+            f'{expr}.{unmangled}'
             for unmangled, w in words
             if unmangled.startswith(attr) or w.startswith(orig_attr)
         ]
@@ -88,7 +93,7 @@ class Completer:
         return matches
 
     def complete(self, text, state):
-        if "." in text:
+        if '.' in text:
             matches = self.attr_matches(text)
         else:
             matches = self.global_matches(text)
@@ -100,7 +105,7 @@ class Completer:
 
 @contextlib.contextmanager
 def completion(completer=None):
-    delims = "()[]{} "
+    delims = '()[]{} '
 
     init_readline()
     if not readline:
@@ -111,16 +116,16 @@ def completion(completer=None):
     if not completer:
         completer = Completer()
 
-    if sys.platform == "darwin" and "libedit" in readline.__doc__:
-        readline_bind = "bind ^I rl_complete"
+    if sys.platform == 'darwin' and 'libedit' in readline.__doc__:
+        readline_bind = 'bind ^I rl_complete'
     else:
-        readline_bind = "tab: complete"
+        readline_bind = 'tab: complete'
 
     readline.set_completer(completer.complete)
     readline.set_completer_delims(delims)
 
-    history = os.environ.get("HY_HISTORY", os.path.expanduser("~/.hy-history"))
-    readline.parse_and_bind("set blink-matching-paren on")
+    history = os.environ.get('HY_HISTORY', os.path.expanduser('~/.hy-history'))
+    readline.parse_and_bind('set blink-matching-paren on')
 
     # Save and clear any existing history.
     history_was = []

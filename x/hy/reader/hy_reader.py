@@ -1,44 +1,46 @@
-"Character reader for parsing Hy source."
+"""Character reader for parsing Hy source."""
 import codecs
+import contextlib
 import inspect
-from contextlib import contextmanager, nullcontext
-from itertools import islice
+import itertools
+import typing as ta
 
-from ... import hy
-from ..models import (
-    Bytes,
-    Complex,
-    Dict,
-    Expression,
-    FComponent,
-    Float,
-    FString,
-    Integer,
-    Keyword,
-    List,
-    Set,
-    String,
-    Symbol,
-    Tuple,
-    as_model,
-)
+from ..models import Bytes
+from ..models import Complex
+from ..models import Dict
+from ..models import Expression
+from ..models import FComponent
+from ..models import Float
+from ..models import FString
+from ..models import Integer
+from ..models import Keyword
+from ..models import List
+from ..models import Set
+from ..models import String
+from ..models import Symbol
+from ..models import Tuple
+from ..models import as_model
+from .exceptions import LexException
+from .exceptions import PrematureEndOfInput
+from .reader import Reader
+from .reader import isnormalizedspace
 
-from .exceptions import LexException, PrematureEndOfInput
-from .reader import Reader, isnormalizedspace
+
+##
 
 
 def sym(name):
     return Symbol(name, from_parser=True)
 
 
-# Note: This is subtly different from
-# the `mkexpr` in hy/compiler.py !
+# Note: This is subtly different from the `mkexpr` in hy/compiler.py !
 def mkexpr(root, *args):
     return Expression((sym(root) if isinstance(root, str) else root, *args))
 
 
 def as_identifier(ident, reader=None):
-    """Generate a Hy model from an identifier.
+    """
+    Generate a Hy model from an identifier.
 
     Also verifies the syntax of dot notation and validity of symbol names.
 
@@ -54,6 +56,7 @@ def as_identifier(ident, reader=None):
     -------
     out : a hy.models.Object subtype corresponding to the parsed text.
     """
+
     try:
         return Integer(ident)
     except ValueError:
@@ -62,14 +65,14 @@ def as_identifier(ident, reader=None):
         return Float(ident)
     except ValueError:
         pass
-    if ident not in ("j", "J"):
+    if ident not in ('j', 'J'):
         try:
             return Complex(ident)
         except ValueError:
             pass
 
-    if "." in ident:
-        if not ident.strip("."):
+    if '.' in ident:
+        if not ident.strip('.'):
             # It's all dots. Return it as a symbol.
             return sym(ident)
 
@@ -80,42 +83,43 @@ def as_identifier(ident, reader=None):
                 else LexException.from_reader(msg, reader)
             )
 
-        if ident.lstrip(".").find("..") > 0:
-            err(
-                "In a dotted identifier, multiple dots in a row are only allowed at the start"
-            )
-        if ident.endswith("."):
+        if ident.lstrip('.').find('..') > 0:
+            err('In a dotted identifier, multiple dots in a row are only allowed at the start')
+        if ident.endswith('.'):
             err("A dotted identifier can't end with a dot")
-        head = "." * (len(ident) - len(ident.lstrip(".")))
-        args = [as_identifier(a, reader=reader) for a in ident.lstrip(".").split(".")]
+        head = '.' * (len(ident) - len(ident.lstrip('.')))
+        args = [as_identifier(a, reader=reader) for a in ident.lstrip('.').split('.')]
         if any(not isinstance(a, Symbol) for a in args):
-            err("The parts of a dotted identifier must be symbols")
+            err('The parts of a dotted identifier must be symbols')
         return (
-            mkexpr(sym("."), *args)
-            if head == ""
-            else mkexpr(head, Symbol("None"), *args)
+            mkexpr(sym('.'), *args)
+            if head == ''
+            else mkexpr(head, Symbol('None'), *args)
         )
 
     if reader is None:
         if (
             not ident
-            or ident[0] in ":#"
+            or ident[0] in ':#'
             or any(isnormalizedspace(c) for c in ident)
             or HyReader.NON_IDENT.intersection(ident)
         ):
-            raise ValueError(f"Syntactically illegal symbol: {ident!r}")
+            raise ValueError(f'Syntactically illegal symbol: {ident!r}')
 
     return sym(ident)
 
 
+reader_for: ta.Any
+
+
 class HyReader(Reader):
-    """A modular reader for Hy source. It inherits from
-    :py:class:`hy.Reader`.
+    """
+    A modular reader for Hy source. It inherits from :py:class:`hy.Reader`.
 
-    When ``use_current_readers`` is true, initialize this reader
-    with all reader macros from the calling module."""
+    When ``use_current_readers`` is true, initialize this reader with all reader macros from the calling module.
+    """
 
-    __module__ = 'hy'
+    __module__ = __package__.rpartition('.')[0]
 
     ###
     # Components necessary for Reader implementation
@@ -129,8 +133,7 @@ class HyReader(Reader):
 
         self.bracketed_templates = bracketed_templates
 
-        # move any reader macros declared using
-        # `reader_for("#...")` to the macro table
+        # move any reader macros declared using `reader_for("#...")` to the macro table
         self.reader_macros = {}
         for tag in list(self.reader_table.keys()):
             if tag[0] == '#' and tag[1:]:
@@ -138,14 +141,14 @@ class HyReader(Reader):
 
         if use_current_readers:
             self.reader_macros.update(
-                inspect.stack()[1].frame.f_globals.get("_hy_reader_macros", {})
+                inspect.stack()[1].frame.f_globals.get('_hy_reader_macros', {}),
             )
 
     @classmethod
     def current_reader(cls, override=None, create=True):
         return override or HyReader._current_reader or (cls() if create else None)
 
-    @contextmanager
+    @contextlib.contextmanager
     def as_current_reader(self):
         old_reader = HyReader._current_reader
         HyReader._current_reader = self
@@ -155,31 +158,31 @@ class HyReader(Reader):
             HyReader._current_reader = old_reader
 
     @classmethod
-    @contextmanager
+    @contextlib.contextmanager
     def using_reader(cls, override=None, create=True):
         reader = cls.current_reader(override, create)
-        with reader.as_current_reader() if reader else nullcontext():
+        with reader.as_current_reader() if reader else contextlib.nullcontext():
             yield
 
 
     def fill_pos(self, model, start):
-        """Set position information for ``model``. ``start`` should be a (line
-        number, column number) tuple for the start position, whereas the end
-        position is set to the current cursor position."""
+        """
+        Set position information for ``model``. ``start`` should be a (line number, column number) tuple for the start
+        position, whereas the end position is set to the current cursor position.
+        """
 
         model.start_line, model.start_column = start
         model.end_line, model.end_column = self.pos
+        # `replace` will recurse into submodels and set any model positions that are still unset the same way.
         return model.replace(model)
-          # `replace` will recurse into submodels and set any model
-          # positions that are still unset the same way.
 
     def read_default(self, key):
-        """Try to read an identifier. If the next character after that is
-        ``"``, then instead parse it as a string with the given prefix (e.g.,
-        ``r"..."``).
+        """
+        Try to read an identifier. If the next character after that is ``"``, then instead parse it as a string with the
+        given prefix (e.g., ``r"..."``).
 
-        (This method is the default reader handler, for when nothing in the
-        read table matches.)"""
+        (This method is the default reader handler, for when nothing in the read table matches.)
+        """
 
         ident = key + self.read_ident()
         if self.peek_and_getc('"'):
@@ -187,39 +190,37 @@ class HyReader(Reader):
         return as_identifier(ident, reader=self)
 
     def parse(self, stream, filename=None, skip_shebang=False):
-        """Yield all models in ``stream``. The parameters are understood as in
-        :hy:func:`hy.read-many`."""
+        """Yield all models in ``stream``. The parameters are understood as in :hy:func:`hy.read-many`."""
 
         self._set_source(stream, filename)
 
-        if skip_shebang and "".join(
-                islice(self.peeking(eof_ok = True), len("#!"))) == "#!":
+        if skip_shebang and ''.join(
+                itertools.islice(self.peeking(eof_ok = True), len('#!'))) == '#!':
             for c in self.chars():
-                if c == "\n":
+                if c == '\n':
                     break
 
-        yield from self.parse_forms_until("")
+        yield from self.parse_forms_until('')
 
-    ###
+    ##
     # Reading forms
-    ###
 
     def try_parse_one_form(self):
-        """Attempt to parse a single Hy form.
+        """
+        Attempt to parse a single Hy form.
 
-        Read one (non-space) character from the stream, then call the
-        corresponding handler.
+        Read one (non-space) character from the stream, then call the corresponding handler.
 
         Returns:
             hy.models.Object | None:
-                Model optionally returned by the called handler. Handlers may
-                return `None` to signify no parsed form (e.g., for comments).
+                Model optionally returned by the called handler. Handlers may return `None` to signify no parsed form
+                (e.g., for comments).
 
         Raises:
-            PrematureEndOfInput: If the reader hits the end of the file before
-                fully parsing a form.
+            PrematureEndOfInput: If the reader hits the end of the file before fully parsing a form.
             LexException: If there is an error during form parsing.
         """
+
         with self.as_current_reader():
             try:
                 self.slurp_space()
@@ -227,7 +228,7 @@ class HyReader(Reader):
                 start = self._pos
                 if not c:
                     raise PrematureEndOfInput.from_reader(
-                        "Premature end of input while attempting to parse one form", self
+                        'Premature end of input while attempting to parse one form', self,
                     )
                 handler = self.reader_table.get(c)
                 model = handler(self, c) if handler else self.read_default(c)
@@ -240,20 +241,25 @@ class HyReader(Reader):
                 raise
             except Exception as e:
                 raise LexException.from_reader(
-                    str(e) or "Exception thrown attempting to parse one form", self
+                    str(e) or 'Exception thrown attempting to parse one form', self,
                 )
 
     def parse_one_form(self):
-        """Parse the next form in the stream and return its model. Any
-        preceding whitespace and comments are skipped over."""
+        """
+        Parse the next form in the stream and return its model. Any preceding whitespace and comments are skipped over.
+        """
+
         model = None
         while model is None:
             model = self.try_parse_one_form()
         return model
 
     def parse_forms_until(self, closer):
-        """Yield models until the character ``closer`` is seen. This method is
-        useful for reading sequential constructs such as lists."""
+        """
+        Yield models until the character ``closer`` is seen. This method is useful for reading sequential constructs
+        such as lists.
+        """
+
         while True:
             self.slurp_space()
             if self.peek_and_getc(closer):
@@ -262,115 +268,112 @@ class HyReader(Reader):
             if model is not None:
                 yield model
 
-    ###
+    ##
     # Basic atoms
-    ###
 
-    @reader_for(")")
-    @reader_for("]")
-    @reader_for("}")
+    @reader_for(')')
+    @reader_for(']')
+    @reader_for('}')
     def INVALID(self, key):
         raise LexException.from_reader(
-            f"Ran into a '{key}' where it wasn't expected.", self
+            f"Ran into a '{key}' where it wasn't expected.", self,
         )
 
-    @reader_for(";")
+    @reader_for(';')
     def line_comment(self, _):
-        any(c == "\n" for c in self.chars(eof_ok=True))
+        any(c == '\n' for c in self.chars(eof_ok=True))
         return None
 
-    @reader_for(":")
+    @reader_for(':')
     def keyword(self, _):
         ident = self.read_ident()
-        if "." in ident:
+        if '.' in ident:
             raise LexException.from_reader(
-                "Cannot access attribute on anything other"
-                " than a name (in order to get attributes of expressions,"
-                " use `(. <expression> <attr>)` or `(.<attr> <expression>)`)",
+                'Cannot access attribute on anything other'
+                ' than a name (in order to get attributes of expressions,'
+                ' use `(. <expression> <attr>)` or `(.<attr> <expression>)`)',
                 self,
             )
         return Keyword(ident, from_parser=True)
 
     @reader_for('"')
-    def prefixed_string(self, _, prefix=""):
+    def prefixed_string(self, _, prefix=''):
         prefix_chars = set(prefix)
         if (
             len(prefix_chars) != len(prefix)
-            or not prefix_chars < set("bfrt")
-            or len(prefix_chars - set("r")) > 1
+            or not prefix_chars < set('bfrt')
+            or len(prefix_chars - set('r')) > 1
         ):
-            raise LexException.from_reader(f"invalid string prefix {prefix!r}", self)
+            raise LexException.from_reader(f'invalid string prefix {prefix!r}', self)
 
         escaping = False
 
         def quote_closing(c):
             nonlocal escaping
-            if c == "\\":
+            if c == '\\':
                 escaping = not escaping
                 return 0
             if c == '"' and not escaping:
                 return 1
             if (
                 escaping
-                and "r" not in prefix
+                and 'r' not in prefix
                 and
                 # https://docs.python.org/3/reference/lexical_analysis.html#string-and-bytes-literals
                 c
-                not in ("\n\r\\'\"abfnrtv01234567x" + ("" if "b" in prefix else "NuU"))
+                not in ("\n\r\\'\"abfnrtv01234567x" + ('' if 'b' in prefix else 'NuU'))
             ):
-                raise LexException.from_reader("invalid escape sequence \\" + c, self)
+                raise LexException.from_reader('invalid escape sequence \\' + c, self)
             escaping = False
             return 0
 
         return self.read_string_until(quote_closing, prefix, fstring_mode = (
-            "f" if "f" in prefix_chars
-            else "t" if "t" in prefix_chars
-            else ""
+            'f' if 'f' in prefix_chars
+            else 't' if 't' in prefix_chars
+            else ''
         ))
 
-    ###
+    ##
     # Special annotations
-    ###
 
-    @reader_for("'", ("quote",))
-    @reader_for("`", ("quasiquote",))
+    @reader_for("'", ('quote',))
+    @reader_for('`', ('quasiquote',))
     def tag_as(root):
         return lambda self, _: mkexpr(root, self.parse_one_form())
 
-    @reader_for("~")
+    @reader_for('~')
     def unquote(self, key):
         return mkexpr(
-            "unquote" + ("-splice" if self.peek_and_getc("@") else ""),
+            'unquote' + ('-splice' if self.peek_and_getc('@') else ''),
             self.parse_one_form(),
         )
 
-    ###
+    ##
     # Sequences
-    ###
 
-    @reader_for("(", (Expression, ")"))
-    @reader_for("[", (List, "]"))
-    @reader_for("{", (Dict, "}"))
-    @reader_for("#{", (Set, "}"))
-    @reader_for("#(", (Tuple, ")"))
+    @reader_for('(', (Expression, ')'))
+    @reader_for('[', (List, ']'))
+    @reader_for('{', (Dict, '}'))
+    @reader_for('#{', (Set, '}'))
+    @reader_for('#(', (Tuple, ')'))
     def sequence(seq_type, closer):
         return lambda self, _: seq_type(self.parse_forms_until(closer))
 
-    ###
+    ##
     # Reader tag-macros
-    ###
 
-    @reader_for("#")
+    @reader_for('#')
     def tag_dispatch(self, key):
-        """General handler for reader macros (and tag macros).
+        """
+        General handler for reader macros (and tag macros).
 
-        Reads a full identifier after the `#` and calls the corresponding handler
-        (this allows, e.g., `#reads-multiple-forms foo bar baz`).
+        Reads a full identifier after the `#` and calls the corresponding handler (this allows, e.g.,
+        `#reads-multiple-forms foo bar baz`).
         """
 
         if not self.peekc().strip():
             raise PrematureEndOfInput.from_reader(
-                "Premature end of input while attempting dispatch", self
+                'Premature end of input while attempting dispatch', self,
             )
 
         # try dispatching tagged ident
@@ -379,67 +382,65 @@ class HyReader(Reader):
             tree = self.reader_macros[ident](self, ident)
             return as_model(tree) if tree is not None else None
 
-        raise LexException.from_reader(
-            f"reader macro '{key + ident}' is not defined", self
-        )
+        raise LexException.from_reader(f"reader macro '{key + ident}' is not defined", self)
 
-    @reader_for("#_")
+    @reader_for('#_')
     def discard(self, _):
         """Discards the next parsed form."""
+
         self.parse_one_form()
         return None
 
-    @reader_for("#*")
-    @reader_for("#**")
+    @reader_for('#*')
+    @reader_for('#**')
     def hash_star(self, stars):
         """Unpacking forms `#*` and `#**`, corresponding to `*` and `**` in Python."""
+
         return mkexpr(
-            "unpack-" + {"*": "iterable", "**": "mapping"}[stars],
+            'unpack-' + {'*': 'iterable', '**': 'mapping'}[stars],
             self.parse_one_form(),
         )
 
-    @reader_for("#^")
+    @reader_for('#^')
     def annotate(self, _):
         """Annotate a symbol, usually with a type."""
+
         typ = self.parse_one_form()
         target = self.parse_one_form()
-        return mkexpr("annotate", target, typ)
+        return mkexpr('annotate', target, typ)
 
-    ###
-    # Strings
-    # (these are more complicated because f-strings
-    #  form their own sublanguage)
-    ###
+    ##
+    # Strings (these are more complicated because f-strings form their own sublanguage)
 
-    @reader_for("#[")
+    @reader_for('#[')
     def bracketed_string(self, _):
         """Bracketed strings. See the Hy docs for full details."""
+
         delim = []
         for c in self.chars():
-            if c == "[":
+            if c == '[':
                 break
-            elif c == "]":
+            elif c == ']':
                 raise LexException.from_reader(
-                    "Ran into a ']' where it wasn't expected.", self
+                    "Ran into a ']' where it wasn't expected.", self,
                 )
             delim.append(c)
-        delim = "".join(delim)
+        delim = ''.join(delim)
         fstring_mode = (
-            "f" if delim == "f" or delim.startswith("f-")
-            else "t" if self.bracketed_templates and (delim == "t" or delim.startswith("t-"))
-            else ""
+            'f' if delim == 'f' or delim.startswith('f-')
+            else 't' if self.bracketed_templates and (delim == 't' or delim.startswith('t-'))
+            else ''
         )
 
-        # discard single initial newline, if any, accounting for all
-        # three styles of newline
-        self.peek_and_getc("\x0d")
-        self.peek_and_getc("\x0a")
+        # discard single initial newline, if any, accounting for all three styles of newline
+        self.peek_and_getc('\x0d')
+        self.peek_and_getc('\x0a')
 
         index = -1
 
         def delim_closing(c):
             nonlocal index
-            if c == "]":
+            if c == ']':
                 if index == len(delim):
                     # this is the second bracket at the end of the delim
                     return len(delim) + 2
@@ -455,13 +456,13 @@ class HyReader(Reader):
                     index = -1
             return 0
 
-        return self.read_string_until(delim_closing, "r", fstring_mode, brackets=delim)
+        return self.read_string_until(delim_closing, 'r', fstring_mode, brackets=delim)
 
     def read_string_until(self, closing, prefix, fstring_mode, **kwargs):
         if fstring_mode:
             components = self.read_fcomponents_until(closing, prefix, fstring_mode)
             return FString(components, is_tstring=fstring_mode == 't', **kwargs)
-        s = self.read_chars_until(closing, prefix, fstring_mode="")
+        s = self.read_chars_until(closing, prefix, fstring_mode='')
         return (Bytes if isinstance(s, bytes) else String)(s, **kwargs)
 
     def read_chars_until(self, closing, prefix, fstring_mode):
@@ -477,35 +478,34 @@ class HyReader(Reader):
                 break
             if fstring_mode:
                 # handle braces in f-strings
-                if c == "{":
-                    if "r" not in prefix and s[-3:] == ["\\", "N", "{"]:
+                if c == '{':
+                    if 'r' not in prefix and s[-3:] == ['\\', 'N', '{']:
                         # ignore "\N{...}"
                         in_named_escape = True
-                    elif not self.peek_and_getc("{"):
+                    elif not self.peek_and_getc('{'):
                         # start f-component if not "{{"
                         s.pop()
                         break
-                elif c == "}":
+                elif c == '}':
                     if in_named_escape:
                         in_named_escape = False
-                    elif not self.peek_and_getc("}"):
+                    elif not self.peek_and_getc('}'):
                         raise SyntaxError(f"{fstring_mode}-string: single '}}' is not allowed")
-        res = "".join(s).replace("\x0d\x0a", "\x0a").replace("\x0d", "\x0a")
+        res = ''.join(s).replace('\x0d\x0a', '\x0a').replace('\x0d', '\x0a')
 
-        if "b" in prefix:
+        if 'b' in prefix:
             try:
                 res = res.encode('ascii')
             except UnicodeEncodeError:
-                raise SyntaxError("bytes can only contain ASCII literal characters")
+                raise SyntaxError('bytes can only contain ASCII literal characters')
 
-        if "r" not in prefix:
+        if 'r' not in prefix:
             # perform string escapes
-            if "b" in prefix:
+            if 'b' in prefix:
                 res = codecs.escape_decode(res)[0]
             else:
-                # formula taken from https://stackoverflow.com/a/57192592
-                # encode first to ISO-8859-1 ("Latin 1") due to a Python bug,
-                # see https://github.com/python/cpython/issues/65530
+                # formula taken from https://stackoverflow.com/a/57192592 encode first to ISO-8859-1 ("Latin 1") due to
+                # a Python bug, see https://github.com/python/cpython/issues/65530
                 res = res.encode('ISO-8859-1', errors='backslashreplace').decode('unicode_escape')
 
         if fstring_mode:
@@ -525,50 +525,55 @@ class HyReader(Reader):
         return components
 
     def read_fcomponent(self, prefix, fstring_mode):
-        """May return one or two components, since the `=` debugging syntax
-        will create a String component."""
+        """May return one or two components, since the `=` debugging syntax will create a String component."""
+
         start = self.pos
         values = []
         conversion = None
         has_debug = False
 
-        # read the expression, saving the text verbatim
-        # in case we encounter debug `=`
+        # read the expression, saving the text verbatim in case we encounter debug `=`
         space_before = self.slurp_space()
         with self.saving_chars() as form_text:
             model = self.parse_one_form()
         space_between = self.slurp_space()
-        form_text = "".join(form_text)
+        form_text = ''.join(form_text)
 
-        # check for and handle debug syntax:
-        # we emt the verbatim text before we emit the value
-        if self.peek_and_getc("="):
+        # check for and handle debug syntax: we emt the verbatim text before we emit the value
+        if self.peek_and_getc('='):
             has_debug = True
             space_after = self.slurp_space()
             dbg_prefix = (
-                space_before + form_text + space_between + "=" + space_after
+                space_before + form_text + space_between + '=' + space_after
             )
             values.append(self.fill_pos(String(dbg_prefix), start))
 
         # handle conversion code
-        if self.peek_and_getc("!"):
+        if self.peek_and_getc('!'):
             conversion = self.getc()
         self.slurp_space()
 
         def component_closing(c):
-            if c == "}":
+            if c == '}':
                 return 1
             return 0
 
         # handle formatting options
         format_components = []
-        if self.peek_and_getc(":"):
-            format_components = self.read_fcomponents_until(component_closing, prefix, "f")
+        if self.peek_and_getc(':'):
+            format_components = self.read_fcomponents_until(component_closing, prefix, 'f')
         else:
             if has_debug and conversion is None:
-                conversion = "r"
-            if not self.getc() == "}":
-                raise LexException.from_reader(f"{fstring_mode}-string: trailing junk in field", self)
+                conversion = 'r'
+            if not self.getc() == '}':
+                raise LexException.from_reader(f'{fstring_mode}-string: trailing junk in field', self)
         return values + [
-            self.fill_pos(FComponent((model, *format_components), conversion=conversion, expression=form_text, is_tstring=fstring_mode == "t"), start)
+            self.fill_pos(
+                FComponent(
+                    (model, *format_components),
+                    conversion=conversion,
+                    expression=form_text,
+                    is_tstring=fstring_mode == 't'),
+                start,
+            ),
         ]

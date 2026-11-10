@@ -9,7 +9,8 @@ import pytest
 
 from .... import hy
 from ...compiler import hy_compile
-from ...errors import HyLanguageError, hy_exc_handler
+from ...errors import HyLanguageError
+from ...errors import hy_exc_handler
 from ...importer import HyLoader
 from ...reader import read_many
 
@@ -17,48 +18,48 @@ from ...reader import read_many
 def test_basics():
     "Make sure the basics of the importer work"
 
-    resources_mod = importlib.import_module("x.hy.tests.resources")
-    assert resources_mod.in_init == "chippy"
+    resources_mod = importlib.import_module('x.hy.tests.resources')
+    assert resources_mod.in_init == 'chippy'
 
-    bin_mod = importlib.import_module("x.hy.tests.resources.bin")
-    assert hasattr(bin_mod, "_null_fn_for_import_test")
+    bin_mod = importlib.import_module('x.hy.tests.resources.bin')
+    assert hasattr(bin_mod, '_null_fn_for_import_test')
 
 
 def test_runpy():
     # `runpy` won't update cached bytecode. It's not clear if that's
     # intentional.
 
-    basic_ns = runpy.run_path("x/hy/tests/resources/importer/basic.hy")
-    assert "square" in basic_ns
+    basic_ns = runpy.run_path('x/hy/tests/resources/importer/basic.hy')
+    assert 'square' in basic_ns
 
-    main_ns = runpy.run_path("x/hy/tests/resources/bin")
-    assert main_ns["visited_main"] == 1
+    main_ns = runpy.run_path('x/hy/tests/resources/bin')
+    assert main_ns['visited_main'] == 1
     del main_ns
 
-    main_ns = runpy.run_module("x.hy.tests.resources.bin")
-    assert main_ns["visited_main"] == 1
+    main_ns = runpy.run_module('x.hy.tests.resources.bin')
+    assert main_ns['visited_main'] == 1
 
     with pytest.raises(IOError):
-        runpy.run_path("x/hy/tests/resources/foobarbaz.py")
+        runpy.run_path('x/hy/tests/resources/foobarbaz.py')
 
 
 def test_stringer():
     _ast = hy_compile(
-        read_many("(defn square [x] (* x x))"), __name__, import_stdlib=False
+        read_many('(defn square [x] (* x x))'), __name__, import_stdlib=False,
     )
 
     assert type(_ast.body[0]) == ast.FunctionDef
 
 
 def test_imports():
-    testLoader = HyLoader("x.hy.tests.resources.importer.a", "x/hy/tests/resources/importer/a.hy")
+    testLoader = HyLoader('x.hy.tests.resources.importer.a', 'x/hy/tests/resources/importer/a.hy')
     spec = importlib.util.spec_from_loader(testLoader.name, testLoader)
     mod = importlib.util.module_from_spec(spec)
 
     with pytest.raises(NameError) as excinfo:
         testLoader.exec_module(mod)
 
-    assert "thisshouldnotwork" in excinfo.value.args[0]
+    assert 'thisshouldnotwork' in excinfo.value.args[0]
 
 
 def test_import_error_reporting():
@@ -72,31 +73,31 @@ def test_import_error_cleanup():
     "Failed initial imports should not leave dead modules in `sys.modules`."
 
     with pytest.raises(hy.errors.HyMacroExpansionError):
-        importlib.import_module("x.hy.tests.resources.fails")
+        importlib.import_module('x.hy.tests.resources.fails')
 
-    assert "x.hy.tests.resources.fails" not in sys.modules
+    assert 'x.hy.tests.resources.fails' not in sys.modules
 
 
-@pytest.mark.skipif(sys.dont_write_bytecode, reason="Bytecode generation is suppressed")
+@pytest.mark.skipif(sys.dont_write_bytecode, reason='Bytecode generation is suppressed')
 def test_import_autocompiles(tmp_path):
     "Test that (import) byte-compiles the module."
 
-    p = tmp_path / "mymodule.hy"
+    p = tmp_path / 'mymodule.hy'
     p.write_text('(defn pyctest [s] (+ "X" s "Y"))')
 
     def import_from_path(path):
-        spec = importlib.util.spec_from_file_location("mymodule", path)
+        spec = importlib.util.spec_from_file_location('mymodule', path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
 
-    assert import_from_path(p).pyctest("flim") == "XflimY"
+    assert import_from_path(p).pyctest('flim') == 'XflimY'
     assert Path(importlib.util.cache_from_source(p)).exists()
 
     # Try running the bytecode.
     assert (
-        import_from_path(importlib.util.cache_from_source(p)).pyctest("flam")
-        == "XflamY"
+        import_from_path(importlib.util.cache_from_source(p)).pyctest('flam')
+        == 'XflamY'
     )
 
 
@@ -104,21 +105,22 @@ def test_eval():
     def eval_str(s):
         return hy.eval(hy.read(s))
 
-    assert eval_str("[1 2 3]") == [1, 2, 3]
-    assert eval_str('{"dog" "bark" "cat" "meow"}') == {"dog": "bark", "cat": "meow"}
-    assert eval_str("#(1 2 3)") == (1, 2, 3)
-    assert eval_str("#{3 1 2}") == {1, 2, 3}
-    assert eval_str('(.strip " fooooo   ")') == "fooooo"
+    assert eval_str('[1 2 3]') == [1, 2, 3]
+    assert eval_str('{"dog" "bark" "cat" "meow"}') == {'dog': 'bark', 'cat': 'meow'}
+    assert eval_str('#(1 2 3)') == (1, 2, 3)
+    assert eval_str('#{3 1 2}') == {1, 2, 3}
+    assert eval_str('(.strip " fooooo   ")') == 'fooooo'
     assert (
-        eval_str('(if True "this is if true" "this is if false")') == "this is if true"
+        eval_str('(if True "this is if true" "this is if false")') == 'this is if true'
     )
-    assert eval_str("(lfor num (range 100) :if (= (% num 2) 1) (pow num 2))") == [
+    assert eval_str('(lfor num (range 100) :if (= (% num 2) 1) (pow num 2))') == [
         pow(num, 2) for num in range(100) if num % 2 == 1
     ]
 
 
 def test_reload(tmp_path, monkeypatch):
-    """Generate a test module, confirm that it imports properly (and puts the
+    """
+    Generate a test module, confirm that it imports properly (and puts the
     module in `sys.modules`), then modify the module so that it produces an
     error when reloaded.  Next, fix the error, reload, and check that the
     module is updated and working fine.  Rinse, repeat.
@@ -132,9 +134,9 @@ def test_reload(tmp_path, monkeypatch):
         if Path(bytecode).is_file():
             Path(bytecode).unlink()
 
-    TESTFN = "testfn"
-    source = tmp_path / (TESTFN + ".hy")
-    source.write_text("(setv a 1)  (setv b 2)")
+    TESTFN = 'testfn'
+    source = tmp_path / (TESTFN + '.hy')
+    source.write_text('(setv a 1)  (setv b 2)')
 
     monkeypatch.syspath_prepend(tmp_path)
     try:
@@ -150,7 +152,7 @@ def test_reload(tmp_path, monkeypatch):
         unlink(source)
 
         # Now damage the module.
-        source.write_text("(setv a 10)  (setv b (// 20 0))")
+        source.write_text('(setv a 10)  (setv b (// 20 0))')
 
         with pytest.raises(ZeroDivisionError):
             reload(mod)
@@ -167,7 +169,7 @@ def test_reload(tmp_path, monkeypatch):
         # Now fix the issue and reload the module.
         unlink(source)
 
-        source.write_text("(setv a 11)  (setv b (// 20 1))")
+        source.write_text('(setv a 11)  (setv b (// 20 1))')
 
         reload(mod)
 
@@ -180,7 +182,7 @@ def test_reload(tmp_path, monkeypatch):
         # Now cause a syntax error (a missing parenthesis)
         unlink(source)
 
-        source.write_text("(setv a 11  (setv b (// 20 1))")
+        source.write_text('(setv a 11  (setv b (// 20 1))')
 
         with pytest.raises(hy.PrematureEndOfInput):
             reload(mod)
@@ -194,7 +196,7 @@ def test_reload(tmp_path, monkeypatch):
         # Fix it and retry
         unlink(source)
 
-        source.write_text("(setv a 12)  (setv b (// 10 1))")
+        source.write_text('(setv a 12)  (setv b (// 10 1))')
 
         reload(mod)
 
@@ -210,57 +212,66 @@ def test_reload(tmp_path, monkeypatch):
 
 
 def test_reload_reexecute(capsys):
-    """A module is re-executed when it's reloaded, even if it's
+    """
+    A module is re-executed when it's reloaded, even if it's
     unchanged.
 
-    https://github.com/hylang/hy/issues/712"""
+    https://github.com/hylang/hy/issues/712
+    """
+
     from ..resources import hello_world
 
-    assert capsys.readouterr().out == "hello world\n"
-    assert capsys.readouterr().out == ""
+    assert capsys.readouterr().out == 'hello world\n'
+    assert capsys.readouterr().out == ''
     reload(hello_world)
-    assert capsys.readouterr().out == "hello world\n"
+    assert capsys.readouterr().out == 'hello world\n'
 
 
 def test_circular(monkeypatch):
-    """Test circular imports by creating a temporary file/module that calls a
-    function that imports itself."""
-    monkeypatch.syspath_prepend("x/hy/tests/resources/importer")
-    assert runpy.run_module("circular")["f"]() == 1
+    """
+    Test circular imports by creating a temporary file/module that calls a
+    function that imports itself.
+    """
+
+    monkeypatch.syspath_prepend('x/hy/tests/resources/importer')
+    assert runpy.run_module('circular')['f']() == 1
 
 
 def test_shadowed_basename(monkeypatch):
-    """Make sure Hy loads `.hy` files instead of their `.py` counterparts (.e.g
+    """
+    Make sure Hy loads `.hy` files instead of their `.py` counterparts (.e.g
     `__init__.py` and `__init__.hy`).
     """
-    monkeypatch.syspath_prepend("x/hy/tests/resources/importer")
-    foo = importlib.import_module("foo")
-    assert Path(foo.__file__).name == "__init__.hy"
-    assert foo.ext == "hy"
-    some_mod = importlib.import_module("foo.some_mod")
-    assert Path(some_mod.__file__).name == "some_mod.hy"
-    assert some_mod.ext == "hy"
+
+    monkeypatch.syspath_prepend('x/hy/tests/resources/importer')
+    foo = importlib.import_module('foo')
+    assert Path(foo.__file__).name == '__init__.hy'
+    assert foo.ext == 'hy'
+    some_mod = importlib.import_module('foo.some_mod')
+    assert Path(some_mod.__file__).name == 'some_mod.hy'
+    assert some_mod.ext == 'hy'
 
 
 def test_docstring(monkeypatch):
     """Make sure a module's docstring is loaded."""
-    monkeypatch.syspath_prepend("x/hy/tests/resources/importer")
-    mod = importlib.import_module("docstring")
-    expected_doc = "This module has a docstring.\n\n" "It covers multiple lines, too!\n"
+
+    monkeypatch.syspath_prepend('x/hy/tests/resources/importer')
+    mod = importlib.import_module('docstring')
+    expected_doc = 'This module has a docstring.\n\n' 'It covers multiple lines, too!\n'
     assert mod.__doc__ == expected_doc
     assert mod.a == 1
 
 
 def test_hy_python_require():
     # https://github.com/hylang/hy/issues/1911
-    test = "(do (require x.hy.tests.resources.macros [test-macro]) (test-macro) blah)"
+    test = '(do (require x.hy.tests.resources.macros [test-macro]) (test-macro) blah)'
     assert hy.eval(hy.read(test)) == 1
 
 
 def test_filtered_importlib_frames(capsys):
     testLoader = HyLoader(
-        "x.hy.tests.resources.importer.compiler_error",
-        "x/hy/tests/resources/importer/compiler_error.hy",
+        'x.hy.tests.resources.importer.compiler_error',
+        'x/hy/tests/resources/importer/compiler_error.hy',
     )
     spec = importlib.util.spec_from_loader(testLoader.name, testLoader)
     mod = importlib.util.module_from_spec(spec)
@@ -271,27 +282,28 @@ def test_filtered_importlib_frames(capsys):
     hy_exc_handler(execinfo.type, execinfo.value, execinfo.tb)
     captured_w_filtering = capsys.readouterr()[-1].strip()
 
-    assert "importlib._" not in captured_w_filtering
+    assert 'importlib._' not in captured_w_filtering
 
 
 def test_zipimport(tmp_path, monkeypatch):
     from zipfile import ZipFile
 
-    zpath = tmp_path / "archive.zip"
-    with ZipFile(zpath, "w") as o:
+    zpath = tmp_path / 'archive.zip'
+    with ZipFile(zpath, 'w') as o:
         # Test a Python module as well as a Hy module to ensure that
         # Hy's edits to ZIP imports can still get Python files.
-        o.writestr("zip_py.py", 'x = "Py from ZIP"')
-        o.writestr("zip_hy.hy", '(setv x "Hy from ZIP")')
+        o.writestr('zip_py.py', 'x = "Py from ZIP"')
+        o.writestr('zip_hy.hy', '(setv x "Hy from ZIP")')
 
     monkeypatch.syspath_prepend(zpath)
-    import zip_py, zip_hy
-    assert zip_py.x == "Py from ZIP"
-    assert zip_py.__file__ == str(zpath / "zip_py.py")
-    assert zip_hy.x == "Hy from ZIP"
-    assert zip_hy.__file__ == str(zpath / "zip_hy.hy")
+    import zip_hy
+    import zip_py
+    assert zip_py.x == 'Py from ZIP'
+    assert zip_py.__file__ == str(zpath / 'zip_py.py')
+    assert zip_hy.x == 'Hy from ZIP'
+    assert zip_hy.__file__ == str(zpath / 'zip_hy.hy')
 
 
 def test_eval_requiring_macro():
     # https://github.com/hylang/hy/issues/2695
-    hy.eval(hy.read("(require x.hy.tests.resources.macros)"), globals={})
+    hy.eval(hy.read('(require x.hy.tests.resources.macros)'), globals={})

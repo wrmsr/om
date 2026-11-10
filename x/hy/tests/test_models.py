@@ -4,36 +4,34 @@ import pytest
 
 from ... import hy
 from ..errors import HyWrapperError
-from ..models import (
-    Complex,
-    Dict,
-    Expression,
-    FComponent,
-    Float,
-    FString,
-    Integer,
-    Keyword,
-    List,
-    Set,
-    String,
-    Symbol,
-    Tuple,
-    as_model,
-    pretty,
-    replace_hy_obj,
-)
+from ..models import Complex
+from ..models import Dict
+from ..models import Expression
+from ..models import FComponent
+from ..models import Float
+from ..models import FString
+from ..models import Integer
+from ..models import Keyword
+from ..models import List
+from ..models import Set
+from ..models import String
+from ..models import Symbol
+from ..models import Tuple
+from ..models import as_model
+from ..models import pretty
+from ..models import replace_hy_obj
 
 
 def test_symbol_or_keyword():
-    for x in ("foo", "foo-bar", "foo_bar", "✈é😂⁂"):
+    for x in ('foo', 'foo-bar', 'foo_bar', '✈é😂⁂'):
         assert str(Symbol(x)) == x
         assert Keyword(x).name == x
-    for x in ("", ":foo", "5", "#foo"):
+    for x in ('', ':foo', '5', '#foo'):
         # https://github.com/hylang/hy/issues/2383
         with pytest.raises(ValueError):
             Symbol(x)
         assert Keyword(x).name == x
-    for x in ("foo bar", "fib()"):
+    for x in ('foo bar', 'fib()'):
         with pytest.raises(ValueError):
             Symbol(x)
         with pytest.raises(ValueError):
@@ -54,6 +52,7 @@ def test_wrap_tuple():
 
 def test_wrap_nested_expr():
     """Test conversion of Expressions with embedded non-HyObjects."""
+
     wrapped = as_model(Expression([0]))
     assert type(wrapped) == Expression
     assert type(wrapped[0]) == Integer
@@ -66,21 +65,21 @@ def test_replace_int():
 
 
 def test_invalid_bracket_strings():
-    for string, brackets in [("]foo]", "foo"), ("something ]f] else", "f")]:
+    for string, brackets in [(']foo]', 'foo'), ('something ]f] else', 'f')]:
         with pytest.raises(ValueError):
             String(string, brackets)
     for nodes, brackets in [
-        ([String("hello"), String("world ]foo]")], "foo"),
-        ([String("something"), FComponent([String("world")]), String("]f]")], "f"),
-        ([String("something"), FComponent([Integer(1), String("]f]")])], "f"),
+        ([String('hello'), String('world ]foo]')], 'foo'),
+        ([String('something'), FComponent([String('world')]), String(']f]')], 'f'),
+        ([String('something'), FComponent([Integer(1), String(']f]')])], 'f'),
     ]:
         with pytest.raises(ValueError):
             FString(nodes, brackets=brackets)
 
 
 def test_replace_str():
-    replaced = replace_hy_obj("foo", String("bar"))
-    assert replaced == String("foo")
+    replaced = replace_hy_obj('foo', String('bar'))
+    assert replaced == String('foo')
 
 
 def test_replace_tuple():
@@ -92,6 +91,7 @@ def test_replace_tuple():
 
 def test_list_add():
     """Check that adding two Lists generates a List"""
+
     a = List([1, 2, 3])
     b = List([3, 4, 5])
     c = a + b
@@ -101,6 +101,7 @@ def test_list_add():
 
 def test_list_slice():
     """Check that slicing a List produces a List"""
+
     a = List([1, 2, 3, 4])
     sl1 = a[1:]
     sl5 = a[5:]
@@ -112,9 +113,9 @@ def test_list_slice():
 
 
 def test_hydict_methods():
-    hydict = Dict(["a", 1, "z", 9, "b", 2, "a", 3, "c", 4])
-    assert hydict.items() == [("a", 1), ("z", 9), ("b", 2), ("a", 3), ("c", 4)]
-    assert hydict.keys() == ["a", "z", "b", "a", "c"]
+    hydict = Dict(['a', 1, 'z', 9, 'b', 2, 'a', 3, 'c', 4])
+    assert hydict.items() == [('a', 1), ('z', 9), ('b', 2), ('a', 3), ('c', 4)]
+    assert hydict.keys() == ['a', 'z', 'b', 'a', 'c']
     assert hydict.values() == [1, 9, 2, 3, 4]
 
 
@@ -125,16 +126,16 @@ def test_set():
 def test_equality():
     # https://github.com/hylang/hy/issues/1363
 
-    assert String("foo") == String("foo")
-    assert String("foo") == hy.as_model("foo")
-    assert String("foo") != String("fo")
-    assert String("foo") != "foo"
-    assert "foo" != String("foo")
+    assert String('foo') == String('foo')
+    assert String('foo') == hy.as_model('foo')
+    assert String('foo') != String('fo')
+    assert String('foo') != 'foo'
+    assert 'foo' != String('foo')
 
-    assert Symbol("foo") == Symbol("foo")
-    assert Symbol("foo") != Symbol("fo")
-    assert Symbol("foo") != String("foo")
-    assert Symbol("foo") != "foo"
+    assert Symbol('foo') == Symbol('foo')
+    assert Symbol('foo') != Symbol('fo')
+    assert Symbol('foo') != String('foo')
+    assert Symbol('foo') != 'foo'
 
     assert Integer(5) == Integer(5)
     assert Integer(5) == hy.as_model(5)
@@ -167,7 +168,7 @@ def test_number_model_copy():
 
 PRETTY_STRINGS = {
     k
-    % ("[1.0] {1.0} (1.0) #{1.0}",): v.format(
+    % ('[1.0] {1.0} (1.0) #{1.0}',): v.format(
         """
   hy.models.List([
     hy.models.Float(1.0)]),
@@ -177,14 +178,14 @@ PRETTY_STRINGS = {
   hy.models.Expression([
     hy.models.Float(1.0)]),
   hy.models.Set([
-    hy.models.Float(1.0)])"""
+    hy.models.Float(1.0)])""",
     )
-    for k, v in {"[%s]": "hy.models.List([{}])", "#{%s}": "hy.models.Set([{}])"}.items()
+    for k, v in {'[%s]': 'hy.models.List([{}])', '#{%s}': 'hy.models.Set([{}])'}.items()
 }
 
 PRETTY_STRINGS.update(
     {
-        "{[1.0] {1.0} (1.0) #{1.0}}": """hy.models.Dict([
+        '{[1.0] {1.0} (1.0) #{1.0}}': """hy.models.Dict([
   hy.models.List([
     hy.models.Float(1.0)]),
   hy.models.Dict([
@@ -196,14 +197,14 @@ PRETTY_STRINGS.update(
   hy.models.Set([
     hy.models.Float(1.0)])
   ])""",
-        "[1.0 1j [] {} () #{}]": """hy.models.List([
+        '[1.0 1j [] {} () #{}]': """hy.models.List([
   hy.models.Float(1.0),
   hy.models.Complex(1j),
   hy.models.List(),
   hy.models.Dict(),
   hy.models.Expression(),
   hy.models.Set()])""",
-        "{{1j 2j} {1j 2j [][1j]} {[1j][] 1j 2j} {[1j][1j]}}": """hy.models.Dict([
+        '{{1j 2j} {1j 2j [][1j]} {[1j][] 1j 2j} {[1j][1j]}}': """hy.models.Dict([
   hy.models.Dict([
     hy.models.Complex(1j), hy.models.Complex(2j)]),
   hy.models.Dict([
@@ -226,7 +227,7 @@ PRETTY_STRINGS.update(
       hy.models.Complex(1j)])
     ])
   ])""",
-    }
+    },
 )
 
 
@@ -252,9 +253,11 @@ def test_compound_model_repr():
 
 
 def test_recursive_model_detection():
-    """Check for self-references:
+    """
+    Check for self-references:
     https://github.com/hylang/hy/issues/2153
     """
+
     self_ref_list = [1, 2, 3]
     self_ref_dict = {1: 1, 2: 2}
     self_ref_list[1] = self_ref_list
@@ -273,4 +276,4 @@ def test_recursive_model_detection():
     ]:
         with pytest.raises(HyWrapperError) as exc:
             as_model(structure)
-        assert "Self-referential" in str(exc)
+        assert 'Self-referential' in str(exc)
