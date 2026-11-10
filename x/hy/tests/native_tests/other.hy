@@ -6,8 +6,7 @@
   importlib
   pydoc
   pytest
-  ...errors [HyLanguageError HySyntaxError]
-  ...compat [PY3_13])
+  ...errors [HyLanguageError HySyntaxError])
 
 
 (defn test-pragma-hy []
@@ -100,10 +99,7 @@
   (importlib.invalidate-caches)
   (import pydoc-hy)
   (assert (= (pydoc.getdoc pydoc-hy.C1) "C1 docstring"))
-  (assert (= (pydoc.getdoc pydoc-hy.C2) (if PY3_13
-    ; Class location via Hy isn't implemented on earlier Pythons.
-    "; a comment"
-    ""))))
+  (assert (= (pydoc.getdoc pydoc-hy.C2) "; a comment")))
 
 
 (defn test-help-class-attr []

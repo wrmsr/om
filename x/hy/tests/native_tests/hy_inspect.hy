@@ -9,8 +9,6 @@
                  getsource
                  getsourcelines])
 
-(import ...compat [PY3_13])
-
 
 ;; --- Modules translated from the python inspect's test suite ---
 
@@ -84,8 +82,7 @@
 
 (defn test_getcomments []
   (assert (= (inspect.getcomments fodder-1) "; first line of the file\n"))
-  (when PY3_13
-    (assert (= (inspect.getcomments fodder-1.StupidGit) "; comment before StupidGit\n"))))
+  (assert (= (inspect.getcomments fodder-1.StupidGit) "; comment before StupidGit\n")))
 
 
 (defn test_getsource []
@@ -100,8 +97,7 @@
   (assert (= (inspect.getsource git.abuse) (sourcerange 24 35)))
   (assert (= (inspect.getsource fodder-1.lobbest) (sourcerange 52 52)))
   (assert (= (inspect.getsource fodder-1.after_closing) (sourcerange 58 58)))
-  (when PY3_13
-    (assert (= (inspect.getsource fodder-1.StupidGit) (sourcerange 18 35))))
+  (assert (= (inspect.getsource fodder-1.StupidGit) (sourcerange 18 35)))
   (assert (= (inspect.getsource fodder-1.eggs.__code__) (sourcerange 9 15))))
 
 
@@ -112,8 +108,7 @@
   (assert (= (normcase (inspect.getsourcefile fodder-1.spam)) modfile)))
 
 
-(defn [(pytest.mark.skipif (not PY3_13) :reason "Locating class method.")]
-  test_getsourcefile_classmethod []
+(defn test_getsourcefile_classmethod []
   (assert (= (normcase (inspect.getsourcefile git.abuse)) modfile)))
 
 
@@ -121,6 +116,5 @@
   (.write-text (/ tmp_path "empty_file.hy") "")
   (monkeypatch.syspath_prepend (str tmp_path))
   (import empty_file)
-  ;; behaviour changed in 3.13
-  (assert (= (inspect.getsource empty_file) (if PY3_13 "\n" "")))
-  (assert (= (inspect.getsourcelines empty_file) #((if PY3_13 ["\n"] []) 0))))
+  (assert (= (inspect.getsource empty_file) "\n"))
+  (assert (= (inspect.getsourcelines empty_file) #(["\n"] 0))))

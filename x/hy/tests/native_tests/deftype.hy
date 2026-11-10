@@ -1,5 +1,3 @@
-(do-mac (when hy.compat.PY3_12 '(do
-
 (import ..resources [tp :as ttp])
 
 
@@ -15,7 +13,4 @@
   (deftype :tp [#^ int A  #** B] Foo int)
   (assert (= (ttp.show Foo) [
     [ttp.TypeVar "A" int #()]
-    [ttp.ParamSpec "B" None #()]])))))
-
-
-)
+    [ttp.ParamSpec "B" None #()]])))

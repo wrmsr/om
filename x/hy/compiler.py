@@ -13,7 +13,6 @@ import warnings
 from omcore import check
 
 from .. import hy
-from .compat import PY3_14
 from .errors import HyCompileError
 from .errors import HyLanguageError
 from .errors import HySyntaxError
@@ -697,8 +696,6 @@ class HyASTCompiler:
 
     @builds_model(FComponent)
     def compile_fcomponent(self, fcomponent: FComponent) -> Result:
-        if not PY3_14 and fcomponent.is_tstring:
-            self._syntax_error(fcomponent, 'Template string literals require Python 3.14 or later')
         if fcomponent.conversion not in (None, 's', 'r', 'a'):
             self._syntax_error(
                 fcomponent, f'Invalid conversion character {fcomponent.conversion!r}',
@@ -722,8 +719,6 @@ class HyASTCompiler:
 
     @builds_model(FString)
     def compile_fstring(self, fstring: FString) -> Result:
-        if not PY3_14 and fstring.is_tstring:
-            self._syntax_error(fstring, 'Template string literals require Python 3.14 or later')
         elts, ret, _ = self._compile_collect(fstring)
         return ret + (asty.TemplateStr if fstring.is_tstring else asty.JoinedStr)(fstring, values=elts)
 

@@ -18,7 +18,6 @@ import typing as ta
 from omcore import check
 
 from .. import hy
-from .compat import PY3_12
 from .compiler import HyASTCompiler
 from .compiler import hy_compile
 from .completer import Completer
@@ -225,9 +224,8 @@ class HyCommandCompiler(codeop.CommandCompiler):
         try:
             return ta.cast('CodePair | None', super().__call__(*args, **kwargs))
         except PrematureEndOfInput:
-            # We have to do this here, because `codeop._maybe_compile` won't take `None` for a return value (at least
-            # not in Python 2.7) and this exception type is also a `SyntaxError`, so it will be caught by
-            # `code.InteractiveConsole` base methods before it reaches our `runsource`.
+            # Catch this here because it is also a `SyntaxError`, which `code.InteractiveConsole` would otherwise
+            # handle before it reaches our `runsource`.
             if not self.allow_incomplete:
                 raise
             return None
@@ -464,13 +462,8 @@ class REPL(code.InteractiveConsole):
 
 
 def set_last_exc(exc_info: ExcInfo | None = None) -> ExcInfo:
-    """
-    Setting `sys.last_exc`, or `sys.last_type` on earlier Pythons, makes it easier for the user to call the debugger.
-    """
+    """Setting `sys.last_exc` makes it easier for the user to call the debugger."""
 
     t, v, tb = exc_info or sys.exc_info()
-    if PY3_12:
-        setattr(sys, 'last_exc', v)
-    else:
-        sys.last_type, sys.last_value, sys.last_traceback = t, v, tb
+    setattr(sys, 'last_exc', v)
     return t, v, tb

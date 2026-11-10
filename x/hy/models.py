@@ -4,18 +4,14 @@ import itertools
 import math
 import operator
 import typing as ta
+from string.templatelib import Interpolation
+from string.templatelib import Template
 
-from .compat import PY3_14
 from .errors import HyWrapperError
 
 
 if ta.TYPE_CHECKING:
     from .reader.hy_reader import HyReader
-
-
-if PY3_14:
-    from string.templatelib import Interpolation
-    from string.templatelib import Template
 
 
 ##
@@ -612,19 +608,17 @@ def recwrap(f: ta.Callable[[ta.Iterable[Object]], Object]) -> ta.Callable[[ta.It
 
 
 _wrappers[FComponent] = recwrap(FComponent)
-if PY3_14:
-    _wrappers[Interpolation] = lambda interp: FComponent(
-        [as_model(interp.value), as_model(interp.format_spec)],
-        conversion=interp.conversion,
-        expression=interp.expression,
-        is_tstring=True)
+_wrappers[Interpolation] = lambda interp: FComponent(
+    [as_model(interp.value), as_model(interp.format_spec)],
+    conversion=interp.conversion,
+    expression=interp.expression,
+    is_tstring=True)
 _wrappers[FString] = lambda fstr: FString(
     (as_model(x) for x in fstr),
     brackets=fstr.brackets,
     is_tstring=fstr.is_tstring,
 )
-if PY3_14:
-    _wrappers[Template] = recwrap(lambda els: FString(els, is_tstring=True))
+_wrappers[Template] = recwrap(lambda els: FString(els, is_tstring=True))
 _wrappers[List] = recwrap(List)
 _wrappers[list] = recwrap(List)
 

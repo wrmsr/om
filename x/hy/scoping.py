@@ -8,7 +8,6 @@ import typing as ta
 from omcore import check
 from omcore import lang
 
-from . import compat
 from .models import Expression
 from .models import List
 from .models import Object
@@ -106,15 +105,10 @@ class NodeRef:
         ast.Global: 'names',
         ast.Nonlocal: 'names',
         OuterVar: 'names',
+        ast.MatchAs: 'name',
+        ast.MatchStar: 'name',
+        ast.MatchMapping: 'rest',
     }
-    if compat.PY3_10:
-        ACCESSOR.update(
-            {
-                ast.MatchAs: 'name',
-                ast.MatchStar: 'name',
-                ast.MatchMapping: 'rest',
-            },
-        )
 
     def __init__(self, node: ast.AST, index: int | None = None) -> None:
         super().__init__()

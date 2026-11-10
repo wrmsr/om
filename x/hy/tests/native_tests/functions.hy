@@ -95,7 +95,7 @@
     (assert (= (. f __annotations__ [k]) v))))
 
 
-(do-mac (when hy.compat.PY3_12 '(defn test-type-params []
+(defn test-type-params []
   (import ..resources [tp :as ttp])
 
   (defn foo [])
@@ -141,7 +141,7 @@
   (with [(pytest.raises hy.errors.HySyntaxError)]
     (hy.eval '(defn :tp [#^ int #* T] foo [])))
   (with [(pytest.raises hy.errors.HySyntaxError)]
-    (hy.eval '(defn :tp [#^ #(int str) #** T] foo []))))))
+    (hy.eval '(defn :tp [#^ #(int str) #** T] foo []))))
 
 
 (defn test-lambda-keyword-lists []

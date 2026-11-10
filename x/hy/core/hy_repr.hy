@@ -211,23 +211,22 @@
                       s))
          "\""))))
 
-(when hy.compat.PY3_14
-  ; These look pretty different from the Python `repr`s, since the
-  ; Python `repr`s don't actually evaluate.
-  (import string.templatelib [Template Interpolation])
-  (hy-repr-register Template (fn [x]
-    (.format "(Template{})" (.join "" (gfor
-      y (+
-        (lfor  y (zip x.strings x.interpolations)  #* y)
-        [(get x.strings -1)])
-      :if y
-      (+ " " (hy-repr y)))))))
-  (hy-repr-register Interpolation (fn [x]
-    (.format "(Interpolation {} {}{}{})"
-      (hy-repr x.value)
-      (hy-repr x.expression)
-      (if (is x.conversion None) "" (+ " " (hy-repr x.conversion)))
-      (if (= x.format-spec "") "" (+ " " (hy-repr x.format-spec)))))))
+; These look pretty different from the Python `repr`s, since the
+; Python `repr`s don't actually evaluate.
+(import string.templatelib [Template Interpolation])
+(hy-repr-register Template (fn [x]
+  (.format "(Template{})" (.join "" (gfor
+    y (+
+      (lfor  y (zip x.strings x.interpolations)  #* y)
+      [(get x.strings -1)])
+    :if y
+    (+ " " (hy-repr y)))))))
+(hy-repr-register Interpolation (fn [x]
+  (.format "(Interpolation {} {}{}{})"
+    (hy-repr x.value)
+    (hy-repr x.expression)
+    (if (is x.conversion None) "" (+ " " (hy-repr x.conversion)))
+    (if (= x.format-spec "") "" (+ " " (hy-repr x.format-spec))))))
 
 (setv _matchobject-type (type (re.match "" "")))
 (hy-repr-register _matchobject-type (fn [x]

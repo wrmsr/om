@@ -7,7 +7,6 @@ import traceback
 import types
 import typing as ta
 
-from .compat import PY3_13
 from .compat import PYPY
 
 
@@ -89,26 +88,14 @@ class HyLanguageError(HyError):
 
             self.lineno = getattr(expression, 'start_line', lineno)
             self.offset = getattr(expression, 'start_column', colno)
-            end_column = getattr(expression, 'end_column', len(lines[self.lineno - 1]))
             end_line = getattr(expression, 'end_line', self.lineno)
 
             # Trim the source down to the essentials.
             self.text = '\n'.join(lines[self.lineno - 1: end_line])
-
-            if end_column:
-                if self.lineno == end_line:
-                    self.arrow_offset = end_column
-                else:
-                    self.arrow_offset = len(self.text[0])
-
-                self.arrow_offset -= self.offset
-            else:
-                self.arrow_offset = None
         else:
             # We could attempt to extract the source given a filename, but we don't.
             self.lineno = lineno
             self.offset = colno
-            self.arrow_offset = None
 
     def __str__(self) -> str:
         """Provide an exception message that includes SyntaxError-like source line information when available."""
@@ -139,13 +126,6 @@ class HyLanguageError(HyError):
 
         # Get rid of erroneous error-type label.
         output[msg_idx] = re.sub('^SyntaxError: ', '', output[msg_idx])
-
-        # Extend the text arrow, when given enough source info. We don't do this on newer Pythons because they make
-        # their own underlines.
-        if arrow_idx and self.arrow_offset and not PY3_13:
-            output[arrow_idx] = '{}{}^\n'.format(
-                output[arrow_idx].rstrip('\n'), '-' * (self.arrow_offset - 1),
-            )
 
         # This resulting string will come after a "<class-name>:" prompt, so put it down a line.
         output.insert(0, '\n')

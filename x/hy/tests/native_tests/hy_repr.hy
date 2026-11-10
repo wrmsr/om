@@ -7,15 +7,13 @@
     collections [deque ChainMap OrderedDict]
     fractions [Fraction]
     re)
-  (when hy.compat.PY3_14
-    (import string.templatelib [Template Interpolation]))
+  (import string.templatelib [Template Interpolation])
 
   (for [original-str (lfor
         x (with [o (open f"{(hy.__package__.replace "." "/")}/tests/resources/hy_repr_str_tests.txt")]
           (list o))
         :setv x (.rstrip x)
         :if (and x (not (.startswith x ";")))
-        :if (or hy.compat.PY3_14 (not (.startswith x "(Template")))
         :if (or hy.compat.PY3_15 (not (.startswith x "(frozendict")))
         #* (if (in (get x 0) "':")
           [x]

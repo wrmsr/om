@@ -1,5 +1,3 @@
-(do-mac (when hy.compat.PY3_14 '(do
-
 (import pytest)
 (import string.templatelib [Template Interpolation])
 
@@ -48,5 +46,3 @@
   (assert tstr.is-tstring)
   (assert (. tstr [1] is-tstring))
   (assert (. tstr [1] expression) "3"))
-
-)))

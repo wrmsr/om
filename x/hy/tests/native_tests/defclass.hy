@@ -138,9 +138,9 @@
   (assert (= (. (Quest) swallow) "african")))
 
 
-(do-mac (when hy.compat.PY3_12 '(defn test-type-params []
+(defn test-type-params []
   (import ..resources [tp :as ttp])
   (defclass :tp [#^ int A  #** B] C)
   (assert (= (ttp.show C) [
     [ttp.TypeVar "A" int #()]
-    [ttp.ParamSpec "B" None #()]])))))
+    [ttp.ParamSpec "B" None #()]])))

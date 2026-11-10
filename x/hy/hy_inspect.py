@@ -5,14 +5,11 @@ Get useful information from live Hy or Python objects.
 This module provides Hy compatibility with CPython's inspect module. Within Hy, Hy macros are supported via Hy's
 `get_macro` macro, for example `(inspect.getsource (get-macro get-macro))`. The Hy-specific functionality is
 monkey-patched into `inspect` at run-time.
-
-The class finder in `findsource` relies on python 3.13 or later.
 """
 import inspect
 import linecache
 import typing as ta
 
-from .compat import PY3_13
 from .errors import HySyntaxError
 from .models import Expression
 from .models import Lazy
@@ -130,12 +127,7 @@ def findsource(object: ta.Any) -> tuple[list[str], int]:
         elif inspect.iscode(obj):
             return (lines, obj.co_firstlineno - 1)
         elif inspect.isclass(obj):
-            # _ClassFinder exists and can be used prior to python 3.13, but would require compiling the ast which may be
-            # unsafe, so just decline to do it.
-            if PY3_13:
-                return py_findsource(obj)
-            else:
-                raise OSError('finding Hy class source code requires Python 3.13')
+            return py_findsource(obj)
         else:
             raise OSError('source code not available')
     else:

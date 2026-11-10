@@ -14,8 +14,6 @@ from itertools import zip_longest
 
 from omcore import check
 
-from ..compat import PY3_11
-from ..compat import PY3_12
 from ..compat import PY3_15
 from ..compiler import HyASTCompiler
 from ..compiler import Result
@@ -114,8 +112,6 @@ def digest_type_params(compiler: HyASTCompiler, tp: ta.Any) -> dict[str, ta.Any]
 
     if not tp:
         return {}
-    if not PY3_12:
-        compiler._syntax_error(tp, '`:tp` requires Python 3.12 or later')
 
     return dict(type_params=[
         asty.TypeVarTuple(x[1], name=mangle(x[1]))
@@ -691,7 +687,7 @@ def compile_assign(
     return result
 
 
-@pattern_macro(((3, 12), 'deftype'), [maybe(type_params), SYM, FORM])
+@pattern_macro('deftype', [maybe(type_params), SYM, FORM])
 def compile_deftype(
         compiler: HyASTCompiler,
         expr: Expression,
@@ -1200,7 +1196,7 @@ def compile_comprehension(
                 ),
                 body=stmts + body,
                 decorator_list=[],
-                **({'type_params': []} if PY3_12 else {}),
+                type_params=[],
             )
             # Immediately call the new function. Unless the user asked for a generator, wrap the call in another
             # comprehension to get the right type. We don't want to just use e.g. `list(...)` because the name `list`
@@ -1433,7 +1429,7 @@ _pattern.define(
 match_clause = _pattern + maybe(sym(':if') + FORM)
 
 
-@pattern_macro(((3, 10), 'match'), [FORM, many(match_clause + FORM)])
+@pattern_macro('match', [FORM, many(match_clause + FORM)])
 def compile_match_expression(
         compiler: HyASTCompiler,
         expr: Expression,
@@ -1474,7 +1470,7 @@ def compile_match_expression(
                     ),
                     body=[*guard.stmts, asty.Return(guard.expr, value=guard.expr)],
                     decorator_list=[],
-                    **({'type_params': []} if PY3_12 else {}),
+                    type_params=[],
                 )
                 lifted_if_defs.append(guardret)
                 guard = Result(expr=asty.parse(guard, f'{fname}()').body[0].value)
@@ -1679,8 +1675,6 @@ def compile_try_expression(
         # or
         # []
         except_sym, exceptions, ebody = catcher
-        if not PY3_11 and except_sym == Symbol('except*'):
-            compiler._syntax_error(except_sym, '`{}` requires Python 3.11 or later')
         except_syms_seen.add(str(except_sym))
         if len(except_syms_seen) > 1:
             compiler._syntax_error(

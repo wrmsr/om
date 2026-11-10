@@ -88,17 +88,13 @@ def _hy_code_from_file(
 def _get_code_from_file(
         *args: ta.Any,
         hy_src_check: ta.Callable[[str], bool] = lambda x: x.endswith('.hy'),
-) -> types.CodeType | tuple[types.CodeType, str]:
+) -> types.CodeType:
     """A patch of `runpy._get_code_from_file` that will also run and cache Hy code."""
 
     if hy.compat.PY3_15:
         fname, module = args
-    elif hy.compat.PY3_12:
-        fname, = args
     else:
-        run_name, fname = args
-        if fname is None and run_name is not None:
-            fname = run_name
+        fname, = args
 
     # Check for bytecode first.  (This is what the `runpy` version does!)
     with open(fname, 'rb') as f:
@@ -116,7 +112,7 @@ def _get_code_from_file(
                 source, fname, 'exec',
                 **(dict(module=module) if hy.compat.PY3_15 else {}))
 
-    return code if hy.compat.PY3_12_6 else (code, fname)
+    return code
 
 
 importlib.machinery.SOURCE_SUFFIXES.insert(0, '.hy')

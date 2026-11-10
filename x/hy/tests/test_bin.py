@@ -10,8 +10,6 @@ from textwrap import dedent
 import pytest
 
 from ... import hy
-from ..compat import PY3_10
-from ..compat import PY3_13
 
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
@@ -477,10 +475,6 @@ def test_traceback_shebang(tmp_path):
     assert '(/ 1 0)' in error
 
 
-@pytest.mark.xfail(
-    not PY3_10,
-    reason='not worth debugging, since CPython 3.9 is unmaintained and this is a minor, undocumented feature',
-)
 def test_pdb_ll(tmp_path):
     # Test the Python debugger's `ll` command.
 
@@ -496,13 +490,8 @@ def test_pdb_ll(tmp_path):
     assert 'AAA' in o
     assert 'BBB' not in o
 
-    arrow_line = 3 if PY3_13 else 4
-    # Bizarrely, Python 3.12 and earlier will point the arrow to the
-    # line after the breakpoint rather than the line with the
-    # breakpoint, even in pure Python.
-
     def arrow(i):
-        return '->' if i == arrow_line else ''
+        return '->' if i == 3 else ''
 
     def clean(x):
         return re.sub(r'\s+', ' ', x).strip()

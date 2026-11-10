@@ -174,7 +174,7 @@
   (assert (= y 1)))
 
 
-(do-mac (when hy.compat.PY3_11 '(defn test-except* []
+(defn test-except* []
   (setv got "")
 
   (setv return-value (try
@@ -196,7 +196,7 @@
       "r5")))
 
   (assert (= got "kvf"))
-  (assert (= return-value "r3")))))
+  (assert (= return-value "r3")))
 
 
 (defn test-raise-from []

@@ -4,8 +4,6 @@ from textwrap import dedent
 import pytest
 
 from .... import hy
-from ...compat import PY3_11
-from ...compat import PY3_14
 from ...compiler import hy_compile
 from ...errors import HyError
 from ...errors import HyLanguageError
@@ -21,10 +19,8 @@ def _ast_spotcheck(arg, root, secondary):
     return None
 
 
-def can_compile(expr, import_stdlib=False, iff=True):
-    return (hy_compile(read_many(expr), __name__, import_stdlib=import_stdlib)
-            if iff
-            else cant_compile(expr))
+def can_compile(expr, import_stdlib=False):
+    return hy_compile(read_many(expr), __name__, import_stdlib=import_stdlib)
 
 
 def can_eval(expr):
@@ -113,8 +109,8 @@ def test_ast_good_try():
     can_compile('(try 1 (except [x]) (except [y]) (finally 1))')
     can_compile('(try 1 (except []) (else 1) (finally 1))')
     can_compile('(try 1 (except [x]) (except [y]) (else 1) (finally 1))')
-    can_compile(iff=PY3_11, expr='(try 1 (except* [x]))')
-    can_compile(iff=PY3_11, expr='(try 1 (except* [x]) (else 1) (finally 1))')
+    can_compile('(try 1 (except* [x]))')
+    can_compile('(try 1 (except* [x]) (else 1) (finally 1))')
 
 
 def test_ast_bad_try():
@@ -440,8 +436,8 @@ def test_fstring_conversions():
 
 
 def test_template_string():
-    assert can_compile('t"hello world"', iff=PY3_14)
-    assert can_compile('t"hello {(+ 1 1)} world"', iff=PY3_14)
+    assert can_compile('t"hello world"')
+    assert can_compile('t"hello {(+ 1 1)} world"')
     assert cant_compile('t"hello {(+ 1 1) world"')
 
 
