@@ -61,9 +61,7 @@ class Object:
                 if not hasattr(self, attr) and hasattr(other, attr):
                     setattr(self, attr, getattr(other, attr))
         else:
-            raise TypeError(
-                f"Can't replace a non Hy object '{other!r}' with a Hy object '{self!r}'",
-            )
+            raise TypeError(f"Can't replace a non Hy object '{other!r}' with a Hy object '{self!r}'")
 
         return self
 
@@ -108,8 +106,7 @@ class Object:
         return type(self) is type(other) and super().__eq__(other)
 
     def __ne__(self, other: object) -> bool:
-        # We need this in case another superclass of our subclass
-        # overrides `__ne__`.
+        # We need this in case another superclass of our subclass overrides `__ne__`.
         return object.__ne__(self, other)
 
     def __hash__(self) -> int:
@@ -338,7 +335,7 @@ class Integer(Object, int):
     __match_args__ = ('_as_int',)
 
     def __new__(cls, number: object, *_args: ta.Any, **_kwargs: ta.Any) -> ta.Self:
-        return super().__new__(
+        return super().__new__(  # noqa
             cls,
             int(
                 strip_digit_separators(number),
@@ -437,16 +434,20 @@ class Sequence(Object, tuple[ta.Any, ...]):
     _extra_kwargs: ta.ClassVar[tuple[str, ...]] = ()
 
     def replace(self, other: Object, recursive: bool = True) -> ta.Self:
-        return (
+        return (  # noqa
             Object.replace(
                 Object.replace(
                     type(self)(
                         (replace_hy_obj(x, other) for x in self),
-                        **{k: getattr(self, k) for k in self._extra_kwargs}),
-                    self),
-                other)
-            if recursive
-            else Object.replace(self, other))
+                        **{k: getattr(self, k) for k in self._extra_kwargs},
+                    ),
+                    self,
+                ),
+                other,
+            )
+            if recursive else
+            Object.replace(self, other)
+        )
 
     def __add__(self, other: tuple[ta.Any, ...] | list[ta.Any]) -> ta.Self:
         return self.__class__(
@@ -471,9 +472,7 @@ class Sequence(Object, tuple[ta.Any, ...]):
         with pretty():
             return 'hy.models.{}({})'.format(
                 self.__class__.__name__,
-                '[\n  {}]'.format(',\n  '.join(map(repr_indent, self)))
-                if self
-                else '',
+                '[\n  {}]'.format(',\n  '.join(map(repr_indent, self))) if self else '',
             )
 
 
@@ -636,18 +635,10 @@ class Dict(Sequence):
                 pairs = []
                 for k, v in zip(self[::2], self[1::2]):
                     k, v = repr_indent(k), repr_indent(v)
-                    pairs.append(
-                        ('{0},\n  {1}\n  ' if '\n' in k + v else '{0}, {1}').format(
-                            k, v,
-                        ),
-                    )
+                    pairs.append(('{0},\n  {1}\n  ' if '\n' in k + v else '{0}, {1}').format(k, v))
                 if len(self) % 2 == 1:
-                    pairs.append(
-                        f'{repr_indent(self[-1])}  # odd\n',
-                    )
-                return 'hy.models.Dict([\n  {}])'.format(
-                    ',\n  '.join(pairs),
-                )
+                    pairs.append(f'{repr_indent(self[-1])}  # odd\n')
+                return 'hy.models.Dict([\n  {}])'.format(',\n  '.join(pairs))
             else:
                 return 'hy.models.Dict()'
 

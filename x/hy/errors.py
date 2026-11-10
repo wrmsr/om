@@ -92,6 +92,7 @@ class HyLanguageError(HyError):
 
             # Trim the source down to the essentials.
             self.text = '\n'.join(lines[self.lineno - 1: end_line])
+
         else:
             # We could attempt to extract the source given a filename, but we don't.
             self.lineno = lineno
@@ -115,14 +116,13 @@ class HyLanguageError(HyError):
         )
 
         arrow_idx, _ = next(
-            ((i, x) for i, x in enumerate(output) if set(x.strip()) == {'^'}), (None, None),
+            ((i, x) for i, x in enumerate(output) if set(x.strip()) == {'^'}),
+            (None, None),
         )
         if arrow_idx:
             msg_idx = arrow_idx + 1
         else:
-            msg_idx = next(
-                i for i, x in enumerate(output) if x.startswith('SyntaxError: ')
-            )
+            msg_idx = next(i for i, x in enumerate(output) if x.startswith('SyntaxError: '))
 
         # Get rid of erroneous error-type label.
         output[msg_idx] = re.sub('^SyntaxError: ', '', output[msg_idx])

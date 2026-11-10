@@ -27,6 +27,9 @@ from .reader import read_many
 from .repl import REPL
 
 
+##
+
+
 class _OptionDef(ta.TypedDict):
     name: list[str]
     help: str
@@ -43,9 +46,6 @@ class _Hy2pyOptions(argparse.Namespace):
     with_ast: bool
     without_python: bool
     output: str | None
-
-
-##
 
 
 def set_path(filename: str | os.PathLike[str]) -> None:
@@ -93,7 +93,7 @@ class HyArgError(Exception):
 def cmdline_handler(argv: ta.Sequence[str]) -> int:
     # We need to terminate interpretation of options after certain options, such as `-c`. So, we can't use `argparse`.
 
-    defs: list[_OptionDef] = [
+    defs: list[_OptionDef] = [  # noqa
         dict(
             name=['-B'],
             action='store_true',

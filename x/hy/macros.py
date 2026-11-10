@@ -71,7 +71,6 @@ def pattern_macro(
     def dec(fn: FunctionT) -> FunctionT:
         def wrapper_maker(name: str) -> ta.Callable[..., ta.Any]:
             def wrapper(_hy_compiler: HyASTCompiler, *args: Object) -> ta.Any:
-
                 if shadow and any(is_unpack('iterable', x) for x in args):
                     # Try a shadow function call with this name instead.
                     return Expression(
@@ -182,9 +181,7 @@ def require_reader(
         target_module: types.ModuleType | str | None,
         assignments: ta.Literal['ALL'] | ta.Iterable[str],
 ) -> bool:
-    target_module, target_namespace = derive_target_module(
-        target_module, inspect.stack()[1][0],
-    )
+    target_module, target_namespace = derive_target_module(target_module, inspect.stack()[1][0])
 
     if _same_modules(source_module, target_module):
         return False
@@ -195,9 +192,7 @@ def require_reader(
     source_macros = source_module.__dict__.setdefault('_hy_reader_macros', {})
     target_macros = target_namespace.setdefault('_hy_reader_macros', {})
 
-    assignments = (
-        source_macros.keys() if assignments == 'ALL' else assignments
-    )
+    assignments = source_macros.keys() if assignments == 'ALL' else assignments
 
     for name in assignments:
         if name in source_macros:
@@ -214,9 +209,7 @@ def enable_readers(
         names: ta.Literal['ALL'] | ta.Iterable[str],
 ) -> None:
     _, namespace = derive_target_module(module, inspect.stack()[1][0])
-    names = (
-        namespace['_hy_reader_macros'].keys() if names == 'ALL' else names
-    )
+    names = namespace['_hy_reader_macros'].keys() if names == 'ALL' else names
     for name in names:
         if name not in namespace['_hy_reader_macros']:
             raise NameError(f'reader {name} is not defined')
@@ -243,9 +236,7 @@ def require(
     if isinstance(target, dict):
         target_module = None
     else:
-        target_module, target_namespace = derive_target_module(
-            target, inspect.stack()[1][0],
-        )
+        target_module, target_namespace = derive_target_module(target, inspect.stack()[1][0],)
         # Let's do a quick check to make sure the source module isn't actually the module being compiled (e.g. when
         # `runpy` executes a module's code in `__main__`). We use the module's underlying filename for this (when they
         # exist), since it's the most "fixed" attribute.
@@ -253,8 +244,7 @@ def require(
             return []
 
     if not inspect.ismodule(source_module):
-        source_module = import_module_from_string(source_module,
-                                                  target_module_name or target_module or '')
+        source_module = import_module_from_string(source_module, target_module_name or target_module or '')
 
     source_macros = source_module.__dict__.setdefault('_hy_macros', {})
     source_exports = getattr(
@@ -291,8 +281,8 @@ def require(
 
     for name, alias in (
         assignments
-        if not isinstance(assignments, str)
-        else (
+        if not isinstance(assignments, str) else
+        (
             (k, k)
             for k in source_macros
             if assignments == 'ALL' or k in source_exports
@@ -373,6 +363,7 @@ class MacroExceptions:
     ) -> bool:
         if exc_type is None:
             return True
+
         elif not issubclass(exc_type, HyLanguageError):
             if self.compiler:
                 filename = self.compiler.filename
@@ -389,6 +380,7 @@ class MacroExceptions:
             msg += exc_msg
 
             raise HyMacroExpansionError(msg, self.macro_tree, filename, source)
+
         else:
             return False
 
@@ -415,10 +407,11 @@ def macroexpand(
 
         fn = tree[0]
         if (
-                isinstance(fn, Expression) and
-                fn and
-                fn[0] == Symbol('.') and
-                all(isinstance(x, Symbol) for x in fn)):
+            isinstance(fn, Expression) and
+            fn and
+            fn[0] == Symbol('.') and
+            all(isinstance(x, Symbol) for x in fn)
+        ):
             fn = '.'.join(map(mangle, fn[1:]))
         elif isinstance(fn, Symbol):
             fn = mangle(fn)
@@ -435,33 +428,39 @@ def macroexpand(
                 raise HyRequireError(e.args[0]).with_traceback(None) from None
             except (AttributeError, KeyError):
                 raise HyRequireError(f'Could not require name {fn} from {req_from}') from None
+
         else:
             # Choose the first namespace with the macro.
-            m = ((compiler and next(
-                (d[fn]
-                 for d in [
-                    compiler.extra_macros,
-                    *(s['macros'] for s in reversed(compiler.local_state_stack))]
-                 if fn in d),
-                None)) or
-                next(
-                (mod.__dict__['_hy_macros'][fn]
-                 for mod in (module, builtins)
-                 if fn in getattr(mod, '_hy_macros', ())),
-                None))
+            m = (
+                (
+                    compiler and
+                    next((
+                        d[fn]
+                        for d in [
+                            compiler.extra_macros,
+                            *(s['macros'] for s in reversed(compiler.local_state_stack))
+                        ]
+                        if fn in d
+                    ), None)
+                ) or
+                next((
+                    mod.__dict__['_hy_macros'][fn]
+                    for mod in (module, builtins)
+                    if fn in getattr(mod, '_hy_macros', ())
+                ), None)
+            )
             if not m:
                 break
 
         with MacroExceptions(module, tree, compiler):
             if compiler:
                 compiler.this = tree
-            obj = m(
+            obj = m(  # noqa
                 # If the macro's first parameter is named `_hy_compiler`, pass in the current compiler object in its
                 # place.
-                *([compiler]
-                    if m.__code__.co_varnames[:1] == ('_hy_compiler',)
-                    else []),
-                *map(as_model, tree[1:]))
+                *([compiler] if m.__code__.co_varnames[:1] == ('_hy_compiler',) else []),
+                *map(as_model, tree[1:]),
+            )
             if isinstance(obj, (hy.compiler.Result, ast.AST)):
                 return obj if result_ok else tree
 

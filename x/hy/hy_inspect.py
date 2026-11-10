@@ -109,6 +109,7 @@ def findsource(object: ta.Any) -> tuple[list[str], int]:
         if getattr(obj, 'start_line', None) is None:
             raise OSError('source code not available')
         return (linecache.getlines(fname), obj.start_line)
+
     elif getfile(obj).endswith('.hy') and not inspect.isframe(obj):
         # We identify other Hy objects from the file extension.
         module = inspect.getmodule(obj, fname)
@@ -130,6 +131,7 @@ def findsource(object: ta.Any) -> tuple[list[str], int]:
             return py_findsource(obj)
         else:
             raise OSError('source code not available')
+
     else:
         # Non-Hy object
         return py_findsource(obj)
@@ -171,6 +173,7 @@ def getcomments(object: ta.Any) -> str | None:
                 return ''.join(comments)
             else:
                 return None
+
         # Look for a comment block preceding the object
         elif lnum > 0 and lnum < len(lines):
             # Look for comments above the object and work up.
@@ -259,6 +262,7 @@ if hasattr(inspect, '_hy_originals'):
         py_getsource,
         py_getsourcelines,
     ) = getattr(inspect, '_hy_originals')
+
 else:
     # Save the originals and then monkey-patch.
     (

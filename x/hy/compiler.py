@@ -314,8 +314,8 @@ class Result:
 
 def make_hy_model(outer: type[SequenceT], x: ta.Iterable[ta.Any], rest: list[ta.Any] | None) -> SequenceT:
     return outer(
-        [Symbol(a) if type(a) is str else a[0] if type(a) is list else a for a in x]
-        + (rest or []),
+        [Symbol(a) if type(a) is str else a[0] if type(a) is list else a for a in x] +
+        (rest or []),
     )
 
 
@@ -470,22 +470,16 @@ class HyASTCompiler:
                 try:
                     value = next(exprs_iter)
                 except StopIteration:
-                    self._syntax_error(
-                        expr, f'Keyword argument {expr} needs a value.',
-                    )
+                    self._syntax_error(expr, f'Keyword argument {expr} needs a value.')
 
                 if not expr:
-                    self._syntax_error(
-                        expr, "Can't call a function with the empty keyword",
-                    )
+                    self._syntax_error(expr, "Can't call a function with the empty keyword")
 
                 compiled_value = self.compile(value)
                 ret += compiled_value
 
                 arg = str(expr)[1:]
-                keywords.append(
-                    asty.keyword(expr, arg=mangle(arg), value=compiled_value.force_expr),
-                )
+                keywords.append(asty.keyword(expr, arg=mangle(arg), value=compiled_value.force_expr))
 
             else:
                 ret += self.compile(expr)
@@ -513,7 +507,12 @@ class HyASTCompiler:
             result += last
         return result
 
-    def _storeize(self, expr: Object, name: Result | ast.expr, func: type[ast.expr_context] | None = None) -> ast.expr:
+    def _storeize(
+            self,
+            expr: Object,
+            name: Result | ast.expr,
+            func: type[ast.expr_context] | None = None,
+    ) -> ast.expr:
         """Return a new `name` object with an ast.Store() context"""
 
         if not func:
@@ -568,7 +567,8 @@ class HyASTCompiler:
             module=self.module,
             filename=self.filename,
             source=self.source,
-            import_stdlib=False)
+            import_stdlib=False,
+        )
 
     @contextlib.contextmanager
     def local_state(self) -> ta.Iterator[None]:
@@ -600,11 +600,11 @@ class HyASTCompiler:
         func = None
 
         if (
-            isinstance(root, Expression)
-            and len(root) >= 2
-            and isinstance(root[0], Symbol)
-            and not str(root[0]).strip('.')
-            and root[1] == Symbol('None')
+            isinstance(root, Expression) and
+            len(root) >= 2 and
+            isinstance(root[0], Symbol) and
+            not str(root[0]).strip('.') and
+            root[1] == Symbol('None')
         ):
             # ((. None a1 a2) obj v1 v2) -> ((. obj a1 a2) v1 v2)
             # (The reader already parsed `.a1.a2` as `(. None a1 a2)`.)
@@ -617,9 +617,7 @@ class HyASTCompiler:
                         break
                     i += 2
                 elif is_unpack('iterable', args[i]):
-                    self._syntax_error(
-                        args[i], "can't call a method on an `unpack-iterable` form",
-                    )
+                    self._syntax_error(args[i], "can't call a method on an `unpack-iterable` form")
                 elif is_unpack('mapping', args[i]):
                     i += 1
                 else:
@@ -709,10 +707,13 @@ class HyASTCompiler:
         else:
             spec = None
         return (
-            value
-            + ret
-            + (asty.Interpolation if fcomponent.is_tstring else asty.FormattedValue)(
-                fcomponent, value=value.expr, conversion=conversion, format_spec=spec,
+            value +
+            ret +
+            (asty.Interpolation if fcomponent.is_tstring else asty.FormattedValue)(
+                fcomponent,
+                value=value.expr,
+                conversion=conversion,
+                format_spec=spec,
                 **(dict(str=fcomponent.expression) if fcomponent.is_tstring else {}),
             )
         )
@@ -729,7 +730,8 @@ class HyASTCompiler:
         return ret + node(
             expression,
             elts=elts,
-            **({} if node is asty.Set else dict(ctx=ast.Load())))
+            **({} if node is asty.Set else dict(ctx=ast.Load())),
+        )
 
     @builds_model(Dict)
     def compile_dict(self, m: Dict) -> Result:
@@ -777,7 +779,6 @@ def hy_eval(
         globals: dict[str, ta.Any] | None = None,
         extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
 ) -> ta.Any:
-
     module = get_compiler_module(module, compiler, True)
 
     # Does the Hy AST object come with its own information?
@@ -971,19 +972,19 @@ def hy_compile(
     if issubclass(root, ast.Module):
         # Pull out a single docstring and prepend to the resulting body.
         if (
-            result.stmts
-            and isinstance(result.stmts[0], ast.Expr)
-            and isinstance(result.stmts[0].value, ast.Constant)
-            and isinstance(result.stmts[0].value.value, str)
+            result.stmts and
+            isinstance(result.stmts[0], ast.Expr) and
+            isinstance(result.stmts[0].value, ast.Constant) and
+            isinstance(result.stmts[0].value.value, str)
         ):
 
             body += [result.stmts.pop(0)]
 
         # Pull out any __future__ imports, since they are required to be at the beginning.
         while (
-            result.stmts
-            and isinstance(result.stmts[0], ast.ImportFrom)
-            and result.stmts[0].module == '__future__'
+            result.stmts and
+            isinstance(result.stmts[0], ast.ImportFrom) and
+            result.stmts[0].module == '__future__'
         ):
 
             body += [result.stmts.pop(0)]
@@ -995,7 +996,9 @@ def hy_compile(
                 ast.ImportFrom(
                     module=package,
                     names=[ast.alias(name=name, asname='hy' if name != 'hy' else None)],
-                    level=0)))
+                    level=0,
+                ),
+            ))
 
     body += result.stmts
     ret = root(

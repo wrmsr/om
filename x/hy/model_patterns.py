@@ -148,13 +148,18 @@ def unpack(kind: str, content_type: type | tuple[type, ...] | None = None) -> Mo
     argument inherits from ``content_type``.
     """
 
-    return some(lambda x:
-                isinstance(x, Expression) and
-                len(x) > 0 and
-                x[0] in [Symbol('unpack-' + tail) for tail in
-                         (['iterable', 'mapping'] if kind == 'either' else [kind])] and
-                (content_type is None or
-                 (len(x) == 2 and isinstance(x[1], content_type))))
+    return some(lambda x: (
+        isinstance(x, Expression) and
+        len(x) > 0 and
+        x[0] in [
+            Symbol('unpack-' + tail)
+            for tail in (['iterable', 'mapping'] if kind == 'either' else [kind])
+        ] and
+        (
+            content_type is None or
+            (len(x) == 2 and isinstance(x[1], content_type))
+        )
+    ))
 
 
 def times(lo: int, hi: float, parser: Parser[TokenT, ValueT]) -> Parser[TokenT, list[ValueT]]:
