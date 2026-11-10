@@ -54,6 +54,7 @@ AutoVacuumMode: ta.TypeAlias = ta.Literal[
 ]
 
 
+# @om-manifest $.marshal.SubtypeManifest(base='$.sql.dbs.specs.DbLoc')
 @dc.dataclass(frozen=True)
 class SqliteDbConfig(DbLoc):
     file_path: str | None = None

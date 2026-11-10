@@ -47,15 +47,18 @@ class DbFamilies(lang.Namespace, lang.Final):
 ##
 
 
+@msh.set_polymorphic(source='manifests', naming='snake', suffix_stripping='if_present')
 class DbLoc(lang.Abstract, lang.PackageSealed, sealed_package=__package__.rpartition('.')[0]):
     pass
 
 
+# @om-manifest $.marshal.SubtypeManifest(base='$.sql.dbs.specs.DbLoc')
 @dc.dataclass(frozen=True)
 class UrlDbLoc(DbLoc, lang.Final):
     url: sec.SecretRefOrStr = dc.xfield() | sec.secret_field
 
 
+# @om-manifest $.marshal.SubtypeManifest(base='$.sql.dbs.specs.DbLoc')
 @msh.update_object_options(field_defaults=msh.FieldOptions(omit_if=lang.is_none))
 @dc.dataclass(frozen=True)
 class HostDbLoc(DbLoc, lang.Final):

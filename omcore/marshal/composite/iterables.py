@@ -5,6 +5,7 @@ import typing as ta
 from ... import check
 from ... import dataclasses as dc
 from ... import reflect as rfl
+from ..api.contexts import BaseContext
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
@@ -45,20 +46,43 @@ def get_default_iterable_constructor(
 #
 
 
-@dc.dataclass(frozen=True)
-class IterableMarshaler(Marshaler):
-    e: Marshaler
-
-    def marshal(self, ctx: MarshalContext, o: ta.Iterable) -> Value:
-        return list(map(functools.partial(self.e.marshal, ctx), o))
-
-
 def _get_iterable_cls(rty: rfl.Type) -> type | None:
     if not isinstance(rty, rfl.Instance):
         return None
     if (cls := rty.runtime_type) is None or not issubclass(cls, collections.abc.Iterable):
         return None
     return cls
+
+
+class _GenericIterableCls(ta.NamedTuple):
+    cls: ta.Any
+    et: rfl.Type
+
+
+def _get_iterable_args(ctx: BaseContext, rty: rfl.Type) -> _GenericIterableCls | None:
+    if not isinstance(rty, rfl.Instance):
+        return None
+    if (cls := rty.runtime_type) is None or not issubclass(cls, collections.abc.Iterable):
+        return None
+    mro = rty.mro()
+    tt = ctx.get_mirror().get_type_info(collections.abc.Iterable)
+    try:
+        me = mro.by_info[tt]
+    except KeyError:
+        return None
+    et = check.single(me.args)
+    return _GenericIterableCls(cls, et)
+
+
+#
+
+
+@dc.dataclass(frozen=True)
+class IterableMarshaler(Marshaler):
+    e: Marshaler
+
+    def marshal(self, ctx: MarshalContext, o: ta.Iterable) -> Value:
+        return list(map(functools.partial(self.e.marshal, ctx), o))
 
 
 class IterableMarshalerFactory(MarshalerFactoryMethodClass):
@@ -68,9 +92,9 @@ class IterableMarshalerFactory(MarshalerFactoryMethodClass):
             return None
         rty = spec
 
-        if _get_iterable_cls(rty) is None or len(check.isinstance(rty, rfl.Instance).args) != 1:
+        if (gic := _get_iterable_args(ctx, rty)) is None:
             return None
-        return lambda: IterableMarshaler(ctx.make_marshaler(check.single(check.isinstance(rty, rfl.Instance).args)))
+        return lambda: IterableMarshaler(ctx.make_marshaler(gic.et))
 
     @MarshalerFactoryMethodClass.make_marshaler.register
     def _make_concrete(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
@@ -108,9 +132,9 @@ class IterableUnmarshalerFactory(UnmarshalerFactoryMethodClass):
             return None
         rty = spec
 
-        if (cls := _get_iterable_cls(rty)) is None or len(check.isinstance(rty, rfl.Instance).args) != 1:
+        if (gic := _get_iterable_args(ctx, rty)) is None:
             return None
-        return lambda: IterableUnmarshaler(cls, ctx.make_unmarshaler(check.single(check.isinstance(rty, rfl.Instance).args)))  # noqa
+        return lambda: IterableUnmarshaler(gic.cls, ctx.make_unmarshaler(gic.et))
 
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
     def _make_concrete(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:

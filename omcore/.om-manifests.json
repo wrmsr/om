@@ -387,6 +387,51 @@
     }
   },
   {
+    "module": ".sql.backends.sqlite.connecting",
+    "attr": null,
+    "file": "omcore/sql/backends/sqlite/connecting.py",
+    "line": 57,
+    "value": {
+      "!.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omcore.sql.backends.sqlite.connecting",
+        "attr": "SqliteDbConfig",
+        "base": "$.sql.dbs.specs.DbLoc",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".sql.dbs.specs",
+    "attr": null,
+    "file": "omcore/sql/dbs/specs.py",
+    "line": 55,
+    "value": {
+      "!.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omcore.sql.dbs.specs",
+        "attr": "UrlDbLoc",
+        "base": "$.sql.dbs.specs.DbLoc",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
+    "module": ".sql.dbs.specs",
+    "attr": null,
+    "file": "omcore/sql/dbs/specs.py",
+    "line": 61,
+    "value": {
+      "!.marshal.polymorphism.manifests.SubtypeManifest": {
+        "module": "omcore.sql.dbs.specs",
+        "attr": "HostDbLoc",
+        "base": "$.sql.dbs.specs.DbLoc",
+        "tag": null,
+        "alts": null
+      }
+    }
+  },
+  {
     "module": ".text.diffs.cli",
     "attr": "_CLI_MODULE",
     "file": "omcore/text/diffs/cli.py",

@@ -4,6 +4,7 @@ import typing as ta
 from ... import check
 from ... import dataclasses as dc
 from ... import reflect as rfl
+from ..api.contexts import BaseContext
 from ..api.contexts import MarshalContext
 from ..api.contexts import MarshalFactoryContext
 from ..api.contexts import UnmarshalContext
@@ -42,6 +43,38 @@ def get_default_mapping_constructor(
 #
 
 
+def _get_mapping_cls(rty: rfl.Type) -> type | None:
+    if not isinstance(rty, rfl.Instance):
+        return None
+    if (cls := rty.runtime_type) is None or not issubclass(cls, collections.abc.Mapping):
+        return None
+    return cls
+
+
+class _GenericMappingCls(ta.NamedTuple):
+    cls: ta.Any
+    kt: rfl.Type
+    vt: rfl.Type
+
+
+def _get_mapping_args(ctx: BaseContext, rty: rfl.Type) -> _GenericMappingCls | None:
+    if not isinstance(rty, rfl.Instance):
+        return None
+    if (cls := rty.runtime_type) is None or not issubclass(cls, collections.abc.Mapping):
+        return None
+    mro = rty.mro()
+    tt = ctx.get_mirror().get_type_info(collections.abc.Mapping)
+    try:
+        me = mro.by_info[tt]
+    except KeyError:
+        return None
+    kt, vt = me.args
+    return _GenericMappingCls(cls, kt, vt)
+
+
+#
+
+
 @dc.dataclass(frozen=True)
 class MappingMarshaler(Marshaler):
     ke: Marshaler
@@ -54,14 +87,6 @@ class MappingMarshaler(Marshaler):
         }
 
 
-def _get_mapping_cls(rty: rfl.Type) -> type | None:
-    if not isinstance(rty, rfl.Instance):
-        return None
-    if (cls := rty.runtime_type) is None or not issubclass(cls, collections.abc.Mapping):
-        return None
-    return cls
-
-
 class MappingMarshalerFactory(MarshalerFactoryMethodClass):
     @MarshalerFactoryMethodClass.make_marshaler.register
     def _make_generic(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
@@ -69,10 +94,9 @@ class MappingMarshalerFactory(MarshalerFactoryMethodClass):
             return None
         rty = spec
 
-        if _get_mapping_cls(rty) is None or len(check.isinstance(rty, rfl.Instance).args) != 2:
+        if (gmc := _get_mapping_args(ctx, rty)) is None:
             return None
-        kt, vt = check.isinstance(rty, rfl.Instance).args
-        return lambda: MappingMarshaler(ctx.make_marshaler(kt), ctx.make_marshaler(vt))
+        return lambda: MappingMarshaler(ctx.make_marshaler(gmc.kt), ctx.make_marshaler(gmc.vt))
 
     @MarshalerFactoryMethodClass.make_marshaler.register
     def _make_concrete(self, ctx: MarshalFactoryContext, spec: Spec) -> ta.Callable[[], Marshaler] | None:
@@ -114,10 +138,9 @@ class MappingUnmarshalerFactory(UnmarshalerFactoryMethodClass):
             return None
         rty = spec
 
-        if (cls := _get_mapping_cls(rty)) is None or len(check.isinstance(rty, rfl.Instance).args) != 2:
+        if (gmc := _get_mapping_args(ctx, rty)) is None:
             return None
-        kt, vt = check.isinstance(rty, rfl.Instance).args
-        return lambda: MappingUnmarshaler(cls, ctx.make_unmarshaler(kt), ctx.make_unmarshaler(vt))
+        return lambda: MappingUnmarshaler(gmc.cls, ctx.make_unmarshaler(gmc.kt), ctx.make_unmarshaler(gmc.vt))
 
     @UnmarshalerFactoryMethodClass.make_unmarshaler.register
     def _make_concrete(self, ctx: UnmarshalFactoryContext, spec: Spec) -> ta.Callable[[], Unmarshaler] | None:
