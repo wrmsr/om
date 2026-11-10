@@ -22,14 +22,18 @@ or ~26 KB (f32) per stage; consumer Blackwell (sm_120) allows ~99 KB per block, 
 f32 does not fit -- keep BLOCK_K at 128 and let f32 use 2 stages.
 
 With `TRITON_INTERPRET=1` the kernel runs on CPU through Triton's numpy interpreter (slow, f32 only), which is
-how `tests/test_triton.py` checks it without a GPU.
+how `tests/test_torch_triton.py` checks it without a GPU.
+
+!!! This module uses STDLIB `dataclasses`, not omcore's, on purpose: torch.compile cannot trace the construction of an
+omcore frozen dataclass, and when it meets one inside a compiled step it silently runs the whole step eagerly. Read the
+block above `GemvConfig` before adding or changing a dataclass here or anywhere else a compiled step reaches. !!!
 """
+import dataclasses as dc  # STDLIB, deliberately: see the block above GemvConfig
 import json
 import pathlib
 import typing as ta
 
 from omcore import check
-from omcore import dataclasses as dc
 from omcore import lang
 
 
@@ -795,6 +799,42 @@ def _block_k(k: int, cap: int = 128) -> int:
     raise ValueError(f'K={k} is not a multiple of 64')
 
 
+##
+# !!! STDLIB DATACLASSES ONLY FOR ANYTHING BUILT INSIDE A torch.compile'D STEP !!!
+#
+# `GemvConfig` is a *stdlib* frozen dataclass, and `dc` in this module is the stdlib module, on purpose. `qlinear`
+# builds a config (`default_config`) and `replace`s one (the block_n override) inside the decode / verify steps, which
+# `TorchOps.compile_fn` hands to torch.compile, and torch's tracer (dynamo) cannot construct an omcore *frozen*
+# dataclass:
+#
+#   - omcore's generated frozen `__init__` assigns fields through `object.__setattr__`, bound ahead of time into the
+#     generated function's globals. Plain Python runs that exactly like stdlib's `object.__setattr__(self, ...)`: the C
+#     slot, bypassing the class's own (raising) `__setattr__`. omcore is correct here.
+#   - dynamo special-cases `object.__setattr__` only when it sees that attribute lookup happen inside the traced code
+#     (`BuiltinVariable.call_method` in torch/_dynamo/variables/builtin.py). A slot wrapper that arrives already bound,
+#     from a function's globals, is traced as an ordinary setattr, which resolves to the class's frozen `__setattr__`,
+#     so the trace raises FrozenInstanceError.
+#   - Nothing in the traced function catches that, so dynamo gives up on the WHOLE frame and runs it eagerly. There is
+#     no error: `--compile` just stops fusing anything in the step, and the only symptom is "hit
+#     config.recompile_limit" warnings about unrelated small functions (`TorchOps.reshape`, Triton's launcher lambda)
+#     that dynamo then compiles one at a time. On the 27B with no tuned GEMV table this went unnoticed and cost ~4% of
+#     every decode round.
+#
+# Non-frozen omcore dataclasses (TorchQWeight, Qwen35Config) trace fine and stay as they are. omcore is not bent around
+# this dynamo quirk; code that runs inside a compiled step uses stdlib dataclasses instead. (A second, smaller trap:
+# `omcore.dataclasses.replace` is a self-patching proxy until its first call, and that first call assigns into
+# `globals()`, which dynamo cannot trace for any dataclass, frozen or not. Hence stdlib `dc` for the whole module, not
+# just the class.)
+#
+# Both directions are pinned by real torch.compile runs in tests/test_tracing.py:
+#
+#   - test_compiled_steps_trace_whole compiles the model's real steps (Triton kernels, this module's default-config and
+#     block_n paths) under `torch._dynamo.error_on_graph_break(True)`, so an omcore frozen dataclass dragged into a
+#     compiled path fails there loudly instead of quietly costing speed.
+#   - test_dynamo_still_cannot_trace_omcore_frozen_dataclasses is a canary that FAILS once torch learns to trace them.
+#     When it does, this rule (and the stdlib dataclasses it forced) can go.
+
+
 @dc.dataclass(frozen=True)
 class GemvConfig:
     block_n: int = 32
@@ -807,11 +847,6 @@ class GemvConfig:
 
 # (N, K, bits) -> config, filled by `tune` / `load_tuned`; consulted before the heuristics
 TUNED: dict[tuple[int, int, int], GemvConfig] = {}
-
-# (N, K, bits, dtype, block_n override) -> the config `qlinear` derived when nothing was given or tuned. Filled on the
-# first (eager) call so that the path torch.compile traces is a dict lookup: constructing an omcore dataclass inside a
-# traced function is an unsupported graph break, and dynamo then drops the *whole* step function back to eager.
-_DERIVED: dict[tuple[ta.Any, ...], GemvConfig] = {}
 
 
 def default_config(n: int, k: int, bits: int, dtype: torch.dtype) -> GemvConfig:
@@ -878,16 +913,10 @@ def qlinear(
         raise RuntimeError('triton is not installed')
     ensure_kernels()
     n, k = shape
-    cfg = config or TUNED.get((n, k, bits))
-    if cfg is None or block_n is not None:
-        dkey = (n, k, bits, x.dtype, block_n, cfg)
-        derived = _DERIVED.get(dkey)
-        if derived is None:
-            derived = cfg or default_config(n, k, bits, x.dtype)
-            if block_n is not None:
-                derived = dc.replace(derived, block_n=block_n)
-            _DERIVED[dkey] = derived
-        cfg = derived
+    # both of these run inside compiled steps: GemvConfig must stay a stdlib dataclass (see the block above it)
+    cfg = config or TUNED.get((n, k, bits)) or default_config(n, k, bits, x.dtype)
+    if block_n is not None:
+        cfg = dc.replace(cfg, block_n=block_n)
     x2 = x.reshape(-1, k)
     if x2.stride(1) != 1:
         x2 = x2.contiguous()
