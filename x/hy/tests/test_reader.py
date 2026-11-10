@@ -5,14 +5,13 @@ from math import isnan
 import pytest
 
 from ... import hy
-from .. import PrematureEndOfInput
 from ..errors import hy_exc_handler
 from ..models import Bytes
 from ..models import Complex
 from ..models import Dict
 from ..models import Expression
-from ..models import Float
 from ..models import FString
+from ..models import Float
 from ..models import Integer
 from ..models import Keyword
 from ..models import List
@@ -21,6 +20,7 @@ from ..models import String
 from ..models import Symbol
 from ..reader import read_many
 from ..reader.exceptions import LexException
+from ..reader.exceptions import PrematureEndOfInput
 
 
 def tokenize(*args, **kwargs):

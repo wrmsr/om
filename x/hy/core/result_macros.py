@@ -10,7 +10,6 @@ from contextlib import nullcontext
 from itertools import dropwhile
 from itertools import zip_longest
 
-from .. import last_version
 from ..compat import PY3_11
 from ..compat import PY3_12
 from ..compat import PY3_15
@@ -170,6 +169,9 @@ def compile_inline_python(compiler, expr, root, code):
     return Result(stmts=o) if exec_mode else o
 
 
+LAST_VERSION = '1.3.1'
+
+
 @pattern_macro('pragma', [many(KEYWORD + FORM)])
 def compile_pragma(compiler, expr, root, kwargs):
     for kw, value in kwargs:
@@ -182,7 +184,7 @@ def compile_pragma(compiler, expr, root, kwargs):
             if not all(p.isdigit() for p in parts):
                 compiler._syntax_error(value, 'The string given to the pragma `:hy` must be a dot-separated sequence of integers')
             for have, need in zip_longest(
-                    map(int, last_version.split('.')),
+                    map(int, LAST_VERSION.split('.')),
                     map(int, parts)):
                 if need is None:
                     break
@@ -214,6 +216,7 @@ def compile_pragma(compiler, expr, root, kwargs):
 def compile_quote(compiler, expr, root, arg):
     # Only quasiquotes can unquote
     return compiler.compile(render_quoted_form(compiler, arg, level = Inf if root == 'quote' else 0)[0])
+
 
 def render_quoted_form(compiler, form, level):
     """
@@ -822,8 +825,7 @@ loopers = many(
     many(notpexpr('else')) + maybe(dolike('else'))])
 @pattern_macro(['lfor', 'sfor', 'gfor'], [loopers, FORM])
 @pattern_macro(['dfor'], [loopers, finished | unpack('mapping')])
-# Here `finished` is a hack replacement for FORM + FORM:
-# https://github.com/vlasovskikh/funcparserlib/issues/75
+# Here `finished` is a hack replacement for FORM + FORM: https://github.com/vlasovskikh/funcparserlib/issues/75
 def compile_comprehension(compiler, expr, root, parts, final):
     node_class = {
         'for': asty.For,
@@ -837,7 +839,6 @@ def compile_comprehension(compiler, expr, root, parts, final):
     ctx = nullcontext() if is_for else compiler.scope.create(ScopeGen)
     mac_con = nullcontext() if is_for else compiler.local_state()
     with mac_con, ctx as scope:
-
         # Compile the parts.
         dict_unpack = False
         if is_for:
@@ -1339,20 +1340,25 @@ def compile_pattern(compiler, pattern):
             value,
             value=compiler.compile(value).force_expr.value,
         )
+
     elif isinstance(value, (String, Integer, Float, Complex, Bytes)):
         return asty.MatchValue(
             value,
             value=compiler.compile(value).expr,
         )
+
     elif value == Symbol('_'):
         return asty.MatchAs(value)
+
     elif isinstance(value, Symbol):
         return compiler.scope.assign(asty.MatchAs(value, name=mangle(value)))
+
     elif isinstance(value, Expression) and value[0] == Symbol('|'):
         return asty.MatchOr(
             value,
             patterns=[compile_pattern(compiler, v) for v in value[1]],
         )
+
     elif isinstance(value, Expression) and value[0] == Symbol('.'):
         root, syms = value
         dotform = mkexpr(root, *syms).replace(value)
@@ -1360,6 +1366,7 @@ def compile_pattern(compiler, pattern):
             value,
             value=compiler.compile(dotform).expr,
         )
+
     elif isinstance(value, (Tuple, List)):
         patterns = value[0]
         patterns = [
@@ -1367,6 +1374,7 @@ def compile_pattern(compiler, pattern):
             for v in patterns
         ]
         return asty.MatchSequence(value, patterns=patterns)
+
     elif is_unpack('iterable', value):
         return compiler.scope.assign(asty.MatchStar(value, name=mangle(value[1])))
 
@@ -1382,6 +1390,7 @@ def compile_pattern(compiler, pattern):
                 rest=mangle(rest) if rest else None,
             ),
         )
+
     elif isinstance(value, Expression):
         head, args, kwargs = value
         keywords, values = zip(*kwargs) if kwargs else ([], [])
@@ -1396,6 +1405,7 @@ def compile_pattern(compiler, pattern):
             kwd_attrs=[kwd.name for kwd in keywords],
             kwd_patterns=[compile_pattern(compiler, value) for value in values],
         )
+
     elif isinstance(value, Keyword):
         return asty.MatchClass(
             value,
@@ -1406,6 +1416,7 @@ def compile_pattern(compiler, pattern):
             kwd_attrs=[],
             kwd_patterns=[],
         )
+
     else:
         compiler._syntax_error(value, 'unsupported')
 
@@ -1739,9 +1750,7 @@ def compile_lambda_list(compiler, params):
         None,
     )
     if invalid_non_default:
-        compiler._syntax_error(
-            invalid_non_default[0], 'non-default argument follows default argument',
-        )
+        compiler._syntax_error(invalid_non_default[0], 'non-default argument follows default argument')
 
     posonly_ast, posonly_defaults, ret = compile_arguments_set(
         compiler, posonly_parms, ret,

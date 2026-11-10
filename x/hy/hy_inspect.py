@@ -10,8 +10,7 @@ The class finder in `findsource` relies on python 3.13 or later.
 import contextlib
 import inspect
 import linecache
-
-import typping as ta
+import typing as ta
 
 from .compat import PY3_13
 from .errors import HySyntaxError
