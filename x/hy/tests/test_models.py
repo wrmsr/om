@@ -1,4 +1,6 @@
+# ruff: noqa: S307
 import copy
+import typing as ta
 
 import pytest
 
@@ -28,25 +30,25 @@ def test_symbol_or_keyword():
         assert Keyword(x).name == x
     for x in ('', ':foo', '5', '#foo'):
         # https://github.com/hylang/hy/issues/2383
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='Syntactically illegal symbol'):
             Symbol(x)
         assert Keyword(x).name == x
     for x in ('foo bar', 'fib()'):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='Syntactically illegal symbol'):
             Symbol(x)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='Syntactically illegal keyword'):
             Keyword(x)
 
 
 def test_wrap_int():
     wrapped = as_model(0)
-    assert type(wrapped) == Integer
+    assert type(wrapped) is Integer
 
 
 def test_wrap_tuple():
     wrapped = as_model((Integer(0),))
-    assert type(wrapped) == Tuple
-    assert type(wrapped[0]) == Integer
+    assert type(wrapped) is Tuple
+    assert type(wrapped[0]) is Integer
     assert wrapped == Tuple([Integer(0)])
 
 
@@ -54,8 +56,8 @@ def test_wrap_nested_expr():
     """Test conversion of Expressions with embedded non-HyObjects."""
 
     wrapped = as_model(Expression([0]))
-    assert type(wrapped) == Expression
-    assert type(wrapped[0]) == Integer
+    assert type(wrapped) is Expression
+    assert type(wrapped[0]) is Integer
     assert wrapped == Expression([Integer(0)])
 
 
@@ -66,14 +68,15 @@ def test_replace_int():
 
 def test_invalid_bracket_strings():
     for string, brackets in [(']foo]', 'foo'), ('something ]f] else', 'f')]:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='Syntactically illegal bracket string'):
             String(string, brackets)
     for nodes, brackets in [
         ([String('hello'), String('world ]foo]')], 'foo'),
         ([String('something'), FComponent([String('world')]), String(']f]')], 'f'),
         ([String('something'), FComponent([Integer(1), String(']f]')])], 'f'),
     ]:
-        with pytest.raises(ValueError):
+        assert isinstance(nodes, list)
+        with pytest.raises(ValueError, match='Syntactically illegal bracket string'):
             FString(nodes, brackets=brackets)
 
 
@@ -84,8 +87,8 @@ def test_replace_str():
 
 def test_replace_tuple():
     replaced = replace_hy_obj((0,), Integer(13))
-    assert type(replaced) == Tuple
-    assert type(replaced[0]) == Integer
+    assert type(replaced) is Tuple
+    assert type(replaced[0]) is Integer
     assert replaced == Tuple([Integer(0)])
 
 
@@ -106,9 +109,9 @@ def test_list_slice():
     sl1 = a[1:]
     sl5 = a[5:]
 
-    assert type(sl1) == List
+    assert type(sl1) is List
     assert sl1 == List([2, 3, 4])
-    assert type(sl5) == List
+    assert type(sl5) is List
     assert sl5 == List([])
 
 
@@ -232,19 +235,19 @@ PRETTY_STRINGS.update(
 
 
 def test_compound_model_repr():
-    HY_LIST_MODELS = (Expression, Dict, Set, List)
+    hy_list_models = (Expression, Dict, Set, List)
     with pretty(False):
-        for model in HY_LIST_MODELS:
+        for model in hy_list_models:
             assert eval(repr(model())).__class__ is model
             assert eval(repr(model([1, 2]))) == model([1, 2])
             assert eval(repr(model([1, 2, 3]))) == model([1, 2, 3])
         for k, v in PRETTY_STRINGS.items():
             # `str` should be pretty, even under `pretty(False)`.
             assert str(hy.read(k)) == v
-        for k in PRETTY_STRINGS.keys():
+        for k in PRETTY_STRINGS:
             assert eval(repr(hy.read(k))) == hy.read(k)
     with pretty(True):
-        for model in HY_LIST_MODELS:
+        for model in hy_list_models:
             assert eval(repr(model())).__class__ is model
             assert eval(repr(model([1, 2]))) == model([1, 2])
             assert eval(repr(model([1, 2, 3]))) == model([1, 2, 3])
@@ -258,13 +261,13 @@ def test_recursive_model_detection():
     https://github.com/hylang/hy/issues/2153
     """
 
-    self_ref_list = [1, 2, 3]
-    self_ref_dict = {1: 1, 2: 2}
+    self_ref_list: list[ta.Any] = [1, 2, 3]
+    self_ref_dict: dict[int, ta.Any] = {1: 1, 2: 2}
     self_ref_list[1] = self_ref_list
     self_ref_dict[2] = self_ref_dict
 
-    mutually_ref_list = [1, 2, 3]
-    mutually_ref_dict = {1: 1, 2: 2}
+    mutually_ref_list: list[ta.Any] = [1, 2, 3]
+    mutually_ref_dict: dict[int, ta.Any] = {1: 1, 2: 2}
     mutually_ref_list[1] = mutually_ref_dict
     mutually_ref_dict[2] = mutually_ref_list
 

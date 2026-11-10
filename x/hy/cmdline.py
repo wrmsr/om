@@ -4,12 +4,14 @@ import contextlib
 import importlib
 import io
 import os
-import pathlib
 import platform
 import py_compile
 import runpy
 import sys
 import types
+import typing as ta
+
+from omcore import check
 
 from .. import hy
 from .compiler import hy_compile
@@ -19,22 +21,42 @@ from .errors import filtered_hy_exceptions
 from .errors import hy_exc_handler
 from .importer import runhy
 from .macros import require
+from .models import Lazy
+from .models import Object
 from .reader import read_many
 from .repl import REPL
+
+
+class _OptionDef(ta.TypedDict):
+    name: list[str]
+    help: str
+    dest: ta.NotRequired[str]
+    action: ta.NotRequired[str]
+    terminate: ta.NotRequired[bool]
+
+
+class _Hy2pyOptions(argparse.Namespace):
+    module: str | None
+    FILE: str | None
+    use_stdin: bool
+    with_source: bool
+    with_ast: bool
+    without_python: bool
+    output: str | None
 
 
 ##
 
 
-def set_path(filename):
+def set_path(filename: str | os.PathLike[str]) -> None:
     """Emulate Python cmdline behavior by setting `sys.path` relative to the executed file's location."""
 
     if sys.path[0] == '':
         sys.path.pop(0)
-    sys.path.insert(0, str(pathlib.Path(filename).parent.resolve()))
+    sys.path.insert(0, os.path.realpath(os.path.dirname(os.path.normpath(filename))))
 
 
-def run_command(source, filename=None):
+def run_command(source: str, filename: str | None = None) -> int:
     __main__ = importlib.import_module('__main__')
     require(__name__, __main__, assignments='ALL')
 
@@ -68,10 +90,10 @@ class HyArgError(Exception):
     pass
 
 
-def cmdline_handler(argv):
+def cmdline_handler(argv: ta.Sequence[str]) -> int:
     # We need to terminate interpretation of options after certain options, such as `-c`. So, we can't use `argparse`.
 
-    defs = [
+    defs: list[_OptionDef] = [
         dict(
             name=['-B'],
             action='store_true',
@@ -117,7 +139,10 @@ def cmdline_handler(argv):
         dict(
             name=['-u', '--unbuffered'],
             action='store_true',
-            help='force the stdout and stderr streams to be unbuffered; this option has no effect on stdin; also PYTHONUNBUFFERED=x',
+            help=(
+                'force the stdout and stderr streams to be unbuffered; '
+                'this option has no effect on stdin; also PYTHONUNBUFFERED=x'
+            ),
         ),
         dict(
             name=['-v', '--version'],
@@ -135,12 +160,17 @@ def cmdline_handler(argv):
 
     program = argv[0]
     argv = list(argv[1:])
-    options = {}
+    options: dict[str, str | bool] = {}
 
-    def err(fmt, *args):
+    def err(fmt: str, *args: object) -> ta.NoReturn:
         raise HyArgError('hy: ' + fmt.format(*args))
 
-    def proc_opt(opt, arg=None, item=None, i=None):
+    def proc_opt(
+            opt: str,
+            arg: str | None = None,
+            item: str | None = None,
+            i: int | None = None,
+    ) -> bool | ta.Literal['terminate']:
         matches = [o for o in defs if opt in o['name']]
         if not matches:
             err('unrecognized option: {}', opt)
@@ -148,13 +178,13 @@ def cmdline_handler(argv):
         if 'dest' in match:
             if arg:
                 pass
-            elif i is not None and i + 1 < len(item):
-                arg = item[i + 1 + (item[i + 1] == '=') :]
+            elif i is not None and item is not None and i + 1 < len(item):
+                arg = item[i + 1 + (item[i + 1] == '='):]
             elif argv:
                 arg = argv.pop(0)
             else:
                 err('option {}: expected one argument', opt)
-            options[match['dest']] = arg
+            options[match['dest']] = check.not_none(arg)
         else:
             options[match['name'][-1].lstrip('-')] = True
         if 'terminate' in match:
@@ -196,13 +226,13 @@ def cmdline_handler(argv):
                 sys,
                 k,
                 io.TextIOWrapper(
-                    open(getattr(sys, k).fileno(), 'wb', 0), write_through=True,
+                    io.FileIO(getattr(sys, k).fileno(), 'w', closefd=False), write_through=True,
                 ),
             )
 
     if 'help' in options:
         print('usage:', USAGE)
-        print('')
+        print()
         print('optional arguments:')
         for o in defs:
             print(
@@ -218,36 +248,38 @@ def cmdline_handler(argv):
 
     action, action_arg = (
         # If the `command` or `mod` options were provided, we'll run the corresponding code.
-        ['eval_string', options['command']] if 'command' in options else
-        ['run_module', options['mod']] if 'mod' in options else
+        ('eval_string', check.isinstance(options['command'], str)) if 'command' in options else
+        ('run_module', check.isinstance(options['mod'], str)) if 'mod' in options else
         # Otherwise, we'll run any provided filename as a script (or standard input, if the filename is "-").
-        ['run_script_stdin', None] if argv and argv[0] == '-' else
-        ['run_script_file', argv[0]] if argv else
+        ('run_script_stdin', None) if argv and argv[0] == '-' else
+        ('run_script_file', argv[0]) if argv else
         # With none of those arguments, we'll launch the REPL (if standard input is a TTY) or run a script from standard
         # input (otherwise).
-        ['just_repl', None] if sys.stdin.isatty() else
-        ['run_script_stdin', None])
+        ('just_repl', None) if sys.stdin.isatty() else
+        ('run_script_stdin', None))
     repl = (
         REPL(
-            spy=options.get('spy'),
-            output_fn=options.get('repl_output_fn'),
+            spy=bool(options.get('spy')),
+            output_fn=check.isinstance(options['repl_output_fn'], str) if 'repl_output_fn' in options else None,
         )
         if 'i' in options or action == 'just_repl'
         else None
     )
     source = ''
+    filename = '<stdin>'
 
     if action == 'eval_string':
-        sys.argv = ['-c'] + argv
+        sys.argv = ['-c', *argv]
         if repl:
-            source = action_arg
+            source = check.not_none(action_arg)
             filename = '<string>'
         else:
-            return run_command(action_arg, filename='<string>')
+            return run_command(check.not_none(action_arg), filename='<string>')
     elif action == 'run_module':
-        if repl: raise ValueError()
+        if repl:
+            raise ValueError
         set_path('')
-        sys.argv = [program] + argv
+        sys.argv = [program, *argv]
         runpy.run_module(hy.mangle(action_arg), run_name='__main__', alter_sys=True)
         return 0
     elif action == 'run_script_stdin':
@@ -256,15 +288,16 @@ def cmdline_handler(argv):
             return run_command(sys.stdin.read(), filename='<stdin>')
     elif action == 'run_script_file':
         sys.argv = argv
-        filename = pathlib.Path(action_arg)
+        filename = check.not_none(action_arg)
+        if not os.path.isabs(filename):
+            filename = os.path.join(os.getcwd(), filename)
         set_path(filename)
         # Ensure __file__ is set correctly in the code we're about to run.
-        if not filename.is_absolute():
-            filename = pathlib.Path.cwd() / filename
         if platform.system() == 'Windows':
             filename = os.path.normpath(filename)
         if repl:
-            source = pathlib.Path(filename).read_text()
+            with open(filename, encoding='utf-8') as source_file:
+                source = source_file.read()
             repl.compile.compiler.skip_next_shebang = True
         else:
             try:
@@ -273,9 +306,7 @@ def cmdline_handler(argv):
                 return 0
             except FileNotFoundError as e:
                 print(
-                    "hy: Can't open file '{}': [Errno {}] {}".format(
-                        e.filename, e.errno, e.strerror,
-                    ),
+                    f"hy: Can't open file '{e.filename}': [Errno {e.errno}] {e.strerror}",
                     file=sys.stderr,
                 )
                 sys.exit(e.errno)
@@ -283,9 +314,10 @@ def cmdline_handler(argv):
                 hy_exc_handler(*sys.exc_info())
                 sys.exit(1)
     else:
-        assert action == 'just_repl'
+        check.state(action == 'just_repl')
 
     # If we didn't return earlier, we'll be using the REPL.
+    repl = check.not_none(repl)
     if source:
         # Execute `source` in the REPL before entering interactive mode.
         res = None
@@ -304,16 +336,19 @@ def cmdline_handler(argv):
 
 
 # entry point for cmd line script "hy"
-def hy_main():
+def hy_main() -> ta.NoReturn:
     sys.path.insert(0, '')
     try:
         sys.exit(cmdline_handler(sys.argv))
     except HyArgError as e:
         print(e)
-        exit(1)
+        sys.exit(1)
+    except Exception as e:  # noqa: BLE001  # Report exceptions raised by the user's program.
+        hy_exc_handler(type(e), e, e.__traceback__)
+        sys.exit(1)
 
 
-def hyc_main():
+def hyc_main() -> int:
     parser = argparse.ArgumentParser(
         prog='hyc',
         description='Compile Hy source files to Python bytecode (.pyc).',
@@ -335,9 +370,7 @@ def hyc_main():
         try:
             if not options.quiet:
                 print(
-                    'Compiling {!r} --> {!r}'.format(
-                        filename, importlib.util.cache_from_source(filename),
-                    ),
+                    f'Compiling {filename!r} --> {importlib.util.cache_from_source(filename)!r}',
                     file=sys.stderr,
                 )
             py_compile.compile(filename, doraise=True)
@@ -349,16 +382,19 @@ def hyc_main():
 
 
 def hy2py_worker(
-        source,
-        options,
-        filename=None,
-        parent_module=None,
-        output_filepath=None,
-):
+        source: str | os.PathLike[str],
+        options: _Hy2pyOptions,
+        filename: str | None = None,
+        parent_module: str | None = None,
+        output_filepath: str | None = None,
+        *,
+        source_is_file: bool = False,
+) -> None:
     source_path = None
-    if isinstance(source, pathlib.Path):
-        source_path = source
-        source = source.read_text(encoding='UTF-8')
+    if source_is_file or isinstance(source, os.PathLike):
+        source_path = os.fspath(source)
+        with open(source_path, encoding='utf-8') as source_file:
+            source = source_file.read()
         if parent_module is None:
             set_path(source_path)
 
@@ -371,8 +407,8 @@ def hy2py_worker(
         else contextlib.nullcontext()
     ) as output_file:
 
-        def printing_source(hst):
-            def _printing_gen(hst):
+        def printing_source(hst: Lazy) -> Lazy:
+            def _printing_gen(hst: Lazy) -> ta.Iterator[Object]:
                 for node in hst:
                     if options.with_source:
                         print(node, file=output_file)
@@ -386,17 +422,20 @@ def hy2py_worker(
         hst = printing_source(read_many(source, filename, skip_shebang=True))
 
         with filtered_hy_exceptions():
-            module_name = source_path.stem if source_path else pathlib.Path(filename).name
+            module_name = (
+                os.path.splitext(os.path.basename(source_path))[0]
+                if source_path else
+                os.path.basename(check.not_none(filename)))
             if parent_module:
                 module_name = f'{parent_module}.{module_name}'
             module = types.ModuleType(module_name)
             sys.modules[module_name] = module
             try:
                 _ast = hy_compile(
-                     hst,
-                     module,
-                     filename=filename,
-                     source=source)
+                    hst,
+                    module,
+                    filename=filename,
+                    source=source)
             finally:
                 del sys.modules[module_name]
 
@@ -405,7 +444,7 @@ def hy2py_worker(
             print()
 
         if options.with_ast:
-            print(ast.dump(_ast, indent = 2), file=output_file)
+            print(ast.dump(_ast, indent=2), file=output_file)
             print()
             print()
 
@@ -414,13 +453,12 @@ def hy2py_worker(
 
 
 # entry point for cmd line script "hy2py"
-def hy2py_main():
-    options = dict(
+def hy2py_main() -> ta.NoReturn:
+    parser = argparse.ArgumentParser(
         prog='hy2py',
         usage='%(prog)s [options] [-m MODULE | FILE | -]',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser = argparse.ArgumentParser(**options)
     gp = parser.add_argument_group().add_mutually_exclusive_group()
     gp.add_argument('-m', dest='module', help='convert Hy module (or all files in module)')
     gp.add_argument(
@@ -443,7 +481,7 @@ def hy2py_main():
         '--without-python',
         '-np',
         action='store_true',
-        help=('Do not show the Python code generated ' 'from the AST'),
+        help=('Do not show the Python code generated from the AST'),
     )
     parser.add_argument(
         '--output',
@@ -453,7 +491,7 @@ def hy2py_main():
         help='output file / directory',
     )
 
-    options = parser.parse_args(sys.argv[1:])
+    options = parser.parse_args(sys.argv[1:], namespace=_Hy2pyOptions())
 
     if options.use_stdin or (options.FILE is None and options.module is None):
         sys.path.insert(0, '')
@@ -484,24 +522,25 @@ def hy2py_main():
                         )
                         os.makedirs(output_directory_path, exist_ok=True)
                         hy2py_worker(
-                            pathlib.Path(filepath),
+                            filepath,
                             options,
                             parent_module=path.replace(os.sep, '.'),
                             output_filepath=os.path.join(
                                 output_directory_path, filename_raw + '.py',
                             ),
+                            source_is_file=True,
                         )
         else:
             filename += '.hy'
             parent_module = '.'.join(options.module.split('.')[:-1])
-            hy2py_worker(pathlib.Path(filename), options, parent_module=parent_module)
+            hy2py_worker(filename, options, parent_module=parent_module, source_is_file=True)
     else:
-        hy2py_worker(pathlib.Path(options.FILE), options, options.FILE)
+        hy2py_worker(check.not_none(options.FILE), options, options.FILE, source_is_file=True)
     parser.exit(0)
 
 
 # remove PYTHON* environment variables, such as "PYTHONPATH"
-def _remove_python_envs():
+def _remove_python_envs() -> None:
     for key in list(os.environ.keys()):
         if key.startswith('PYTHON'):
             os.environ.pop(key)

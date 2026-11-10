@@ -4,16 +4,21 @@ import os
 import re
 import sys
 import traceback
+import types
+import typing as ta
 
-from . import _initialize_env_var
 from .compat import PY3_13
 from .compat import PYPY
+
+
+if ta.TYPE_CHECKING:
+    from .models import Object
 
 
 ##
 
 
-_hy_show_internal_errors = _initialize_env_var('HY_SHOW_INTERNAL_ERRORS', False)
+_hy_show_internal_errors = bool(os.environ.get('HY_SHOW_INTERNAL_ERRORS', ''))
 
 
 class HyError(Exception):
@@ -36,14 +41,14 @@ class HyLanguageError(HyError):
     """
 
     def __init__(
-        self,
-        message,
-        expression=None,
-        filename=None,
-        source=None,
-        lineno=1,
-        colno=1,
-    ):
+            self,
+            message: str,
+            expression: Object | None = None,
+            filename: str | None = None,
+            source: str | None = None,
+            lineno: int = 1,
+            colno: int = 1,
+    ) -> None:
         """
         Args:
             message (str): The message to display for this error.
@@ -61,13 +66,20 @@ class HyLanguageError(HyError):
         self.msg = message
         self.compute_lineinfo(expression, filename, source, lineno, colno)
 
-        if isinstance(self, SyntaxError):
+        if issubclass(type(self), SyntaxError):
             syntax_error_args = (self.filename, self.lineno, self.offset, self.text)
             super().__init__(message, syntax_error_args)
         else:
             super().__init__(message)
 
-    def compute_lineinfo(self, expression, filename, source, lineno, colno):
+    def compute_lineinfo(
+            self,
+            expression: Object | None,
+            filename: str | None,
+            source: str | None,
+            lineno: int,
+            colno: int,
+    ) -> None:
         # NOTE: We use `SyntaxError`'s field names (i.e. `text`, `offset`, `msg`) for compatibility and print-outs.
         self.text = getattr(expression, 'source', source)
         self.filename = getattr(expression, 'filename', filename)
@@ -81,7 +93,7 @@ class HyLanguageError(HyError):
             end_line = getattr(expression, 'end_line', self.lineno)
 
             # Trim the source down to the essentials.
-            self.text = '\n'.join(lines[self.lineno - 1 : end_line])
+            self.text = '\n'.join(lines[self.lineno - 1: end_line])
 
             if end_column:
                 if self.lineno == end_line:
@@ -98,7 +110,7 @@ class HyLanguageError(HyError):
             self.offset = colno
             self.arrow_offset = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Provide an exception message that includes SyntaxError-like source line information when available."""
 
         # Syntax errors are special and annotate the traceback (instead of what we would do in the message that follows
@@ -121,8 +133,8 @@ class HyLanguageError(HyError):
         if arrow_idx:
             msg_idx = arrow_idx + 1
         else:
-            msg_idx, _ = next(
-                (i, x) for i, x in enumerate(output) if x.startswith('SyntaxError: ')
+            msg_idx = next(
+                i for i, x in enumerate(output) if x.startswith('SyntaxError: ')
             )
 
         # Get rid of erroneous error-type label.
@@ -189,7 +201,7 @@ class HyWrapperError(HyError, TypeError):
     """
 
 
-def _module_filter_name(module_name):
+def _module_filter_name(module_name: str) -> str | None:
     try:
         module_name = importlib.util.resolve_name(module_name, __package__)
         spec = importlib.util.find_spec(module_name)
@@ -200,18 +212,21 @@ def _module_filter_name(module_name):
         if not compiler_loader:
             return None
 
-        filename = compiler_loader.get_filename(module_name)
+        get_filename = getattr(compiler_loader, 'get_filename', None)
+        if get_filename is None:
+            return None
+        filename = get_filename(module_name)
         if not filename:
             return None
 
-        if compiler_loader.is_package(module_name):
+        if getattr(compiler_loader, 'is_package', lambda _: False)(module_name):
             # Use the package directory (e.g. instead of `.../__init__.py`) so that we can filter all modules in a
             # package.
             return os.path.dirname(filename)
         else:
             # Normalize filename endings, because tracebacks will use `pyc` when the loader says `py`.
             return filename.replace('.pyc', '.py')
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -244,7 +259,11 @@ _tb_hidden_modules.update(
 )
 
 
-def hy_exc_filter(exc_type, exc_value, exc_traceback):
+def hy_exc_filter(
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        exc_traceback: types.TracebackType | None,
+) -> str:
     """
     Produce exceptions print-outs with all frames originating from the modules in `_tb_hidden_modules` filtered out.
 
@@ -273,7 +292,11 @@ def hy_exc_filter(exc_type, exc_value, exc_traceback):
     return output
 
 
-def hy_exc_handler(exc_type, exc_value, exc_traceback):
+def hy_exc_handler(
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        exc_traceback: types.TracebackType | None,
+) -> None:
     """
     A `sys.excepthook` handler that uses `hy_exc_filter` to remove internal Hy frames from a traceback print-out, so
     long as `_hy_show_internal_errors` is false.
@@ -285,12 +308,12 @@ def hy_exc_handler(exc_type, exc_value, exc_traceback):
         output = hy_exc_filter(exc_type, exc_value, exc_traceback)
         sys.stderr.write(output)
         sys.stderr.flush()
-    except Exception:
+    except Exception:  # noqa: BLE001
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
 
 @contextlib.contextmanager
-def filtered_hy_exceptions():
+def filtered_hy_exceptions() -> ta.Iterator[None]:
     """
     Temporarily apply a `sys.excepthook` that filters Hy internal frames from tracebacks.
 
@@ -300,5 +323,7 @@ def filtered_hy_exceptions():
 
     current_hook = sys.excepthook
     sys.excepthook = hy_exc_handler
-    yield
-    sys.excepthook = current_hook
+    try:
+        yield
+    finally:
+        sys.excepthook = current_hook

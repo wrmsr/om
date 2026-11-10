@@ -1,23 +1,17 @@
 """97dd2327b0a2ceb3c1e0bf8d9c6b5d04ace974c2"""
+import importlib
+import types
+import typing as ta
+
+from . import hy_inspect  # noqa: F401  # Register Hy inspection hooks.
+from . import importer
+from .reader.mangling import slashes2dots
+
+
 ##
 
 
-def _initialize_env_var(env_var, default_val):
-    import os
-
-    return bool(os.environ.get(env_var, default_val))
-
-
-# Import for side-effects.
-from . import hy_inspect
-from . import importer
-
-
-importer._inject_builtins()
-
-
-
-class I:
+class _Importer:
     """
     ``hy.I`` is an object that provides syntactic sugar for imports. It allows syntax like ``(hy.I.math.sqrt 2)``  to
     mean ``(import math) (math.sqrt 2)``, except without bringing ``math`` or ``math.sqrt`` into scope. (See :ref:`hy.R
@@ -31,27 +25,28 @@ class I:
     over ``importlib.import_module(modname)`` is merely that it avoids bringing ``importlib`` itself into scope.
     """
 
-    def __call__(self, module_name):
-        import importlib
+    def __call__(self, module_name: str) -> types.ModuleType:
         return importlib.import_module(module_name)
-    def __getattr__(self, s):
-        from .reader.mangling import slashes2dots
+
+    def __getattr__(self, s: str) -> types.ModuleType:
         return self(slashes2dots(s))
-I = I()
+
+
+I = _Importer()
 
 
 # Import some names on demand so that the dependent modules don't have to be loaded if they're not needed.
 
 
-_jit_imports = dict(
-    pyops=['.pyops', None],
+_jit_imports: dict[str, str | tuple[str, str | None]] = dict(
+    pyops=('.pyops', None),
     read='.reader',
     read_many='.reader',
     mangle='.reader',
     unmangle='.reader',
-    eval=['.compiler', 'hy_eval_user'],
-    repr=['.core.hy_repr', 'hy_repr'],
-    repr_register=['.core.hy_repr', 'hy_repr_register'],
+    eval=('.compiler', 'hy_eval_user'),
+    repr=('.core.hy_repr', 'hy_repr'),
+    repr_register=('.core.hy_repr', 'hy_repr_register'),
     gensym='.core.util',
     macroexpand='.core.util',
     macroexpand_1='.core.util',
@@ -64,14 +59,16 @@ _jit_imports = dict(
 )
 
 
-def __getattr__(k):
+def __getattr__(k: str) -> ta.Any:
     if k not in _jit_imports:
         raise AttributeError(f'module {__name__!r} has no attribute {k!r}')
 
     v = _jit_imports[k]
-    module, original_name = v if isinstance(v, list) else (v, k)
-    import importlib
-    module = importlib.import_module(module, __package__)
+    module_name, original_name = v if isinstance(v, tuple) else (v, k)
+    module = importlib.import_module(module_name, __package__)
 
     globals()[k] = getattr(module, original_name) if original_name else module
     return globals()[k]
+
+
+importer._inject_builtins()  # noqa: SLF001

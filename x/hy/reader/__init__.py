@@ -1,15 +1,21 @@
+import typing as ta
 from io import StringIO
 
 from .. import models
 from .hy_reader import HyReader
-from .mangling import mangle
-from .mangling import unmangle
+from .mangling import mangle  # noqa: F401
+from .mangling import unmangle  # noqa: F401
 
 
 ##
 
 
-def read_many(stream, filename='<string>', reader=None, skip_shebang=False):
+def read_many(
+        stream: str | ta.TextIO,
+        filename: str | None = '<string>',
+        reader: HyReader | None = None,
+        skip_shebang: bool = False,
+) -> models.Lazy:
     """
     Parse all the Hy source code in ``stream``, which should be a textual file-like object or a string. ``filename``, if
     provided, is used in error messages. If no ``reader`` is provided, a new :class:`hy.HyReader` object is created. If
@@ -39,7 +45,7 @@ def read_many(stream, filename='<string>', reader=None, skip_shebang=False):
     return m
 
 
-def read(stream, filename=None, reader=None):
+def read(stream: str | ta.TextIO, filename: str | None = None, reader: HyReader | None = None) -> models.Object:
     """
     Like :hy:func:`hy.read-many`, but only one form is read, and shebangs are forbidden. The model corresponding to this
     specific form is returned, or, if there are no forms left in the stream, :class:`EOFError` is raised. ``stream.pos``
@@ -50,7 +56,7 @@ def read(stream, filename=None, reader=None):
     try:
         m = next(it)
     except StopIteration:
-        raise EOFError()
+        raise EOFError from None
     else:
         m.source, m.filename, m.reader = it.source, it.filename, it.reader
         return m

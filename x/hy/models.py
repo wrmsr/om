@@ -3,9 +3,14 @@ import functools
 import itertools
 import math
 import operator
+import typing as ta
 
 from .compat import PY3_14
 from .errors import HyWrapperError
+
+
+if ta.TYPE_CHECKING:
+    from .reader.hy_reader import HyReader
 
 
 if PY3_14:
@@ -20,7 +25,7 @@ PRETTY = True
 
 
 @contextlib.contextmanager
-def pretty(pretty=True):
+def pretty(pretty: bool = True) -> ta.Iterator[None]:
     """Context manager to temporarily enable or disable pretty-printing of Hy model reprs."""
 
     global PRETTY
@@ -39,81 +44,87 @@ class Object:
     example, a symbol `abc` starting at the first column would have `start_column` 1 and `end_column` 3.
     """
 
-    properties = [
+    _start_line: int
+    _end_line: int
+    _start_column: int
+    _end_column: int
+    source: str | None
+    filename: str | None
+    reader: HyReader
+
+    properties: ta.ClassVar[ta.Sequence[str]] = [
         '_start_line',
         '_end_line',
         '_start_column',
         '_end_column',
     ]
 
-    def replace(self, other, recursive=False):
+    def replace(self, other: Object, recursive: bool = False) -> ta.Self:
         if isinstance(other, Object):
             for attr in self.properties:
                 if not hasattr(self, attr) and hasattr(other, attr):
                     setattr(self, attr, getattr(other, attr))
         else:
             raise TypeError(
-                "Can't replace a non Hy object '{}' with a Hy object '{}'".format(
-                    repr(other), repr(self),
-                ),
+                f"Can't replace a non Hy object '{other!r}' with a Hy object '{self!r}'",
             )
 
         return self
 
     @property
-    def start_line(self):
+    def start_line(self) -> int:
         return getattr(self, '_start_line', 1)
 
     @start_line.setter
-    def start_line(self, value):
+    def start_line(self, value: int) -> None:
         self._start_line = value
 
     @property
-    def start_column(self):
+    def start_column(self) -> int:
         return getattr(self, '_start_column', 1)
 
     @start_column.setter
-    def start_column(self, value):
+    def start_column(self, value: int) -> None:
         self._start_column = value
 
     @property
-    def end_line(self):
+    def end_line(self) -> int:
         return getattr(self, '_end_line', 1)
 
     @end_line.setter
-    def end_line(self, value):
+    def end_line(self, value: int) -> None:
         self._end_line = value
 
     @property
-    def end_column(self):
+    def end_column(self) -> int:
         return getattr(self, '_end_column', 1)
 
     @end_column.setter
-    def end_column(self, value):
+    def end_column(self, value: int) -> None:
         self._end_column = value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
-            f'hy.models.{self.__class__.__name__}' f'({super(Object, self).__repr__()})'
+            f'hy.models.{self.__class__.__name__}({super().__repr__()})'
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and super().__eq__(other)
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         # We need this in case another superclass of our subclass
         # overrides `__ne__`.
         return object.__ne__(self, other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return super().__hash__()
 
 
-_wrappers = {}
-_seen = set()
+_wrappers: dict[type, ta.Callable[[ta.Any], Object]] = {}
+_seen: set[int] = set()
 
 
-def as_model(x):
+def as_model(x: object) -> Object:
     """
     Convert ``x`` and any elements thereof into :ref:`models <models>` recursively. This function is called implicitly
     by Hy in many situations, such as when inserting the expansion of a macro into the surrounding code, so you don't
@@ -127,29 +138,29 @@ def as_model(x):
     """
 
     if id(x) in _seen:
-        raise HyWrapperError('Self-referential structure detected in {!r}'.format(x))
+        raise HyWrapperError(f'Self-referential structure detected in {x!r}')
 
     new = _wrappers.get(type(x), lambda y: y)(x)
     if not isinstance(new, Object):
-        raise HyWrapperError("Don't know how to wrap {!r}: {!r}".format(type(x), x))
+        raise HyWrapperError(f"Don't know how to wrap {type(x)!r}: {x!r}")
     if isinstance(x, Object):
         new = new.replace(x, recursive=False)
     return new
 
 
-def replace_hy_obj(obj, other):
+def replace_hy_obj(obj: object, other: Object) -> Object:
     return as_model(obj).replace(other)
 
 
-def repr_indent(obj):
+def repr_indent(obj: object) -> str:
     return repr(obj).replace('\n', '\n  ')
 
 
-def is_unpack(kind, x):
+def is_unpack(kind: str, x: object) -> bool:
     return isinstance(x, Expression) and len(x) > 0 and x[0] == Symbol('unpack-' + kind)
 
 
-class String(Object, str):
+class String(Object, str):  # type: ignore[misc]  # Models use Object.replace rather than str.replace.
     """
     Represents a literal string (:class:`str`).
 
@@ -159,45 +170,48 @@ class String(Object, str):
     """
 
     __match_args__ = ('_as_str',)
+    __slots__ = ()
 
-    def __new__(cls, s=None, brackets=None):
+    brackets: str | None
+
+    def __new__(cls, s: object = None, brackets: str | None = None) -> ta.Self:
         value = super().__new__(cls, s)
         if brackets is not None and f']{brackets}]' in value:
             raise ValueError(f'Syntactically illegal bracket string: {s!r}')
         value.brackets = brackets
         return value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return 'hy.models.String({}{})'.format(
             super(Object, self).__repr__(),
             '' if self.brackets is None else f', brackets={self.brackets!r}',
         )
 
-    def __add__(self, other):
+    def __add__(self, other: str) -> ta.Self:
         return self.__class__(super().__add__(other))
 
     @property
-    def _as_str(self):
+    def _as_str(self) -> str:
         return str(self)
 
 
 _wrappers[str] = String
 
 
-class Bytes(Object, bytes):
+class Bytes(Object, bytes):  # type: ignore[misc]  # Models use Object.replace rather than bytes.replace.
     """Represents a literal bytestring (:class:`bytes`)."""
 
     __match_args__ = ('_as_bytes',)
 
     @property
-    def _as_bytes(self):
+    def _as_bytes(self) -> bytes:
         return bytes(self)
 
 
 _wrappers[bytes] = Bytes
 
 
-class Symbol(Object, str):
+class Symbol(Object, str):  # type: ignore[misc]  # Models use Object.replace rather than str.replace.
     """
     Represents a symbol.
 
@@ -207,8 +221,9 @@ class Symbol(Object, str):
     """
 
     __match_args__ = ('_as_str',)
+    __slots__ = ()
 
-    def __new__(cls, s, from_parser=False):
+    def __new__(cls, s: object, from_parser: bool = False) -> Symbol:  # noqa: PYI034
         s = str(s)
         if not from_parser:
             # Check that the symbol is syntactically legal. import here to prevent circular imports.
@@ -221,7 +236,7 @@ class Symbol(Object, str):
         return super().__new__(cls, s)
 
     @property
-    def _as_str(self):
+    def _as_str(self) -> str:
         return str(self)
 
 
@@ -240,7 +255,11 @@ class Keyword(Object):
 
     __match_args__ = ('name',)
 
-    def __init__(self, value, from_parser=False):
+    name: str
+
+    def __init__(self, value: object, from_parser: bool = False) -> None:
+        super().__init__()
+
         value = str(value)
         if not from_parser:
             # Check that the keyword is syntactically legal. import here to prevent circular imports.
@@ -250,45 +269,45 @@ class Keyword(Object):
             if value and (
                 '.' in value
                 or any(isnormalizedspace(c) for c in value)
-                or HyReader.NON_IDENT.intersection(value)
+                or not HyReader.NON_IDENT.isdisjoint(value)
             ):
                 raise ValueError(f'Syntactically illegal keyword: {":" + value!r}')
         self.name = value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'hy.models.{self.__class__.__name__}({self.name!r})'
 
-    def __str__(self):
-        return ':%s' % self.name
+    def __str__(self) -> str:
+        return f':{self.name}'
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.name)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Keyword):
             return NotImplemented
         return self.name == other.name
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         if not isinstance(other, Keyword):
             return NotImplemented
         return self.name != other.name
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         """Keywords behave like strings under comparison operators, but are incomparable to actual ``str`` objects."""
 
         if not isinstance(other, Keyword):
             return NotImplemented
         return self.name < other.name
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """The empty keyword ``:`` is false. All others are true."""
 
         return bool(self.name)
 
     _sentinel = object()
 
-    def __call__(self, data, default=_sentinel):
+    def __call__(self, data: ta.Any, default: ta.Any = _sentinel) -> ta.Any:
         """
         Get the element of ``data`` named ``(hy.mangle self.name)``. Thus, ``(:foo bar)`` is equivalent to ``(get bar
         "foo")`` (which is different from ``(get bar :foo)``; dictionary keys are typically strings, not
@@ -308,7 +327,7 @@ class Keyword(Object):
             return default
 
 
-def strip_digit_separators(number):
+def strip_digit_separators(number: ta.Any) -> ta.Any:
     # Don't strip a _ or , if it's the first character, as _42 and ,42 aren't valid numbers
     return (
         number[0] + number[1:].replace('_', '').replace(',', '')
@@ -322,7 +341,7 @@ class Integer(Object, int):
 
     __match_args__ = ('_as_int',)
 
-    def __new__(cls, number, *args, **kwargs):
+    def __new__(cls, number: object, *_args: ta.Any, **_kwargs: ta.Any) -> ta.Self:
         return super().__new__(
             cls,
             int(
@@ -338,14 +357,14 @@ class Integer(Object, int):
         )
 
     @property
-    def _as_int(self):
+    def _as_int(self) -> int:
         return int(self)
 
 
 _wrappers[int] = Integer
 
 
-def check_inf_nan_cap(arg, value):
+def check_inf_nan_cap(arg: object, value: float) -> None:
     if isinstance(arg, str):
         if math.isinf(value) and 'i' in arg.lower() and 'Inf' not in arg:
             raise ValueError('Inf must be capitalized as "Inf"')
@@ -358,13 +377,13 @@ class Float(Object, float):
 
     __match_args__ = ('_as_float',)
 
-    def __new__(cls, num, *args, **kwargs):
+    def __new__(cls, num: object, *_args: ta.Any, **_kwargs: ta.Any) -> ta.Self:
         value = super().__new__(cls, strip_digit_separators(num))
         check_inf_nan_cap(num, value)
         return value
 
     @property
-    def _as_float(self):
+    def _as_float(self) -> float:
         return float(self)
 
 
@@ -380,7 +399,13 @@ class Complex(Object, complex):
 
     __match_args__ = ('real', 'imag')
 
-    def __new__(cls, real, imag=0, *args, **kwargs):
+    def __new__(
+            cls,
+            real: ta.Any,
+            imag: ta.Any = 0,
+            *_args: ta.Any,
+            **_kwargs: ta.Any,
+    ) -> ta.Self:
         if isinstance(real, str):
             value = super().__new__(cls, strip_digit_separators(real))
             p1, _, p2 = real.lstrip('+-').replace('-', '+').partition('+')
@@ -399,7 +424,7 @@ class Complex(Object, complex):
 _wrappers[complex] = Complex
 
 
-class Sequence(Object, tuple):
+class Sequence(Object, tuple[ta.Any, ...]):
     """
     An abstract base class for sequence-like forms. Sequence models can be operated on like tuples: you can iterate over
     them, index into them, and append them with ``+``, but you can't add, remove, or replace elements. Appending a
@@ -411,9 +436,11 @@ class Sequence(Object, tuple):
     :hy:func:`coll? <hyrule.coll?>` for this purpose.
     """
 
-    _extra_kwargs = ()
+    __slots__ = ()
 
-    def replace(self, other, recursive=True):
+    _extra_kwargs: ta.ClassVar[tuple[str, ...]] = ()
+
+    def replace(self, other: Object, recursive: bool = True) -> ta.Self:
         return (
             Object.replace(
                 Object.replace(
@@ -425,15 +452,12 @@ class Sequence(Object, tuple):
             if recursive
             else Object.replace(self, other))
 
-    def __add__(self, other):
+    def __add__(self, other: tuple[ta.Any, ...] | list[ta.Any]) -> ta.Self:
         return self.__class__(
             super().__add__(tuple(other) if isinstance(other, list) else other),
         )
 
-    def __getslice__(self, start, end):
-        return self.__class__(super().__getslice__(start, end))
-
-    def __getitem__(self, item):
+    def __getitem__(self, item: ta.SupportsIndex | slice) -> ta.Any:
         ret = super().__getitem__(item)
 
         if isinstance(item, slice):
@@ -441,19 +465,19 @@ class Sequence(Object, tuple):
 
         return ret
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._pretty_str() if PRETTY else super().__repr__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._pretty_str()
 
-    def _pretty_str(self):
+    def _pretty_str(self) -> str:
         with pretty():
             return 'hy.models.{}({})'.format(
                 self.__class__.__name__,
                 '[\n  {}]'.format(',\n  '.join(map(repr_indent, self)))
-                    if self
-                    else '',
+                if self
+                else '',
             )
 
 
@@ -465,21 +489,31 @@ class FComponent(Sequence):
 
     _extra_kwargs = ('conversion', 'expression', 'is_tstring')
 
-    def __new__(cls, s=None, conversion=None, expression=None, is_tstring=False):
-        value = super().__new__(cls, s)
+    conversion: str | None
+    expression: str | None
+    is_tstring: bool
+
+    def __new__(
+            cls,
+            s: ta.Iterable[ta.Any] | None = None,
+            conversion: str | None = None,
+            expression: str | None = None,
+            is_tstring: bool = False,
+    ) -> ta.Self:
+        value = super().__new__(cls, ta.cast('ta.Iterable[ta.Any]', s))
         value.conversion = conversion
         value.expression = expression
         value.is_tstring = is_tstring
         return value
 
-    def replace(self, other, recursive=True):
+    def replace(self, other: Object, recursive: bool = True) -> ta.Self:
         super().replace(other, recursive)
         for attr in self._extra_kwargs:
             if hasattr(other, attr):
                 setattr(self, attr, getattr(other, attr))
         return self
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return 'hy.models.FComponent({})'.format(
             (super(Object, self).__repr__()
              + ', conversion=' + repr(self.conversion)
@@ -488,7 +522,7 @@ class FComponent(Sequence):
         )
 
 
-def _string_in_node(string, node):
+def _string_in_node(string: str, node: Object) -> bool:
     if isinstance(node, String) and string in node:
         return True
     elif isinstance(node, (FComponent, FString)):
@@ -508,13 +542,24 @@ class FString(Sequence):
 
     _extra_kwargs = ('brackets', 'is_tstring')
 
-    def __new__(cls, s=None, brackets=None, is_tstring=False):
+    brackets: str | None
+    is_tstring: bool
+
+    def __new__(
+            cls,
+            s: ta.Iterable[ta.Any] | None = None,
+            brackets: str | None = None,
+            is_tstring: bool = False,
+    ) -> ta.Self:
         value = super().__new__(
             cls,
             # Join adjacent string nodes for the sake of equality testing.
             (
                 node
-                for is_string, components in itertools.groupby(s, lambda x: isinstance(x, String))
+                for is_string, components in itertools.groupby(
+                    ta.cast('ta.Iterable[ta.Any]', s),
+                    lambda x: isinstance(x, String),
+                )
                 for node in (
                     [functools.reduce(operator.add, components)] if is_string else components
                 )
@@ -527,13 +572,13 @@ class FString(Sequence):
         value.is_tstring = is_tstring
         return value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._suffixize(super().__repr__())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._suffixize(super().__str__())
 
-    def _suffixize(self, x):
+    def _suffixize(self, x: str) -> str:
         if self.brackets is None and not self.is_tstring:
             return x
         args = []
@@ -554,11 +599,9 @@ class List(Sequence):
     list of iteration clauses.
     """
 
-    pass
 
-
-def recwrap(f):
-    def lambda_to_return(l):
+def recwrap(f: ta.Callable[[ta.Iterable[Object]], Object]) -> ta.Callable[[ta.Iterable[ta.Any]], Object]:
+    def lambda_to_return(l: ta.Iterable[ta.Any]) -> Object:
         _seen.add(id(l))
         try:
             return f(as_model(x) for x in l)
@@ -571,10 +614,10 @@ def recwrap(f):
 _wrappers[FComponent] = recwrap(FComponent)
 if PY3_14:
     _wrappers[Interpolation] = lambda interp: FComponent(
-            [as_model(interp.value), as_model(interp.format_spec)],
-            conversion=interp.conversion,
-            expression=interp.expression,
-            is_tstring=True)
+        [as_model(interp.value), as_model(interp.format_spec)],
+        conversion=interp.conversion,
+        expression=interp.expression,
+        is_tstring=True)
 _wrappers[FString] = lambda fstr: FString(
     (as_model(x) for x in fstr),
     brackets=fstr.brackets,
@@ -593,7 +636,7 @@ class Dict(Sequence):
     child models, ``keys`` returns the last child whereas ``values`` and ``items`` ignore it.
     """
 
-    def _pretty_str(self):
+    def _pretty_str(self) -> str:
         with pretty():
             if self:
                 pairs = []
@@ -606,7 +649,7 @@ class Dict(Sequence):
                     )
                 if len(self) % 2 == 1:
                     pairs.append(
-                        '{}  # odd\n'.format(repr_indent(self[-1])),
+                        f'{repr_indent(self[-1])}  # odd\n',
                     )
                 return 'hy.models.Dict([\n  {}])'.format(
                     ',\n  '.join(pairs),
@@ -614,17 +657,17 @@ class Dict(Sequence):
             else:
                 return 'hy.models.Dict()'
 
-    def keys(self):
+    def keys(self) -> list[ta.Any]:
         return list(self[0::2])
 
-    def values(self):
+    def values(self) -> list[ta.Any]:
         return list(self[1::2])
 
-    def items(self):
+    def items(self) -> list[tuple[ta.Any, ta.Any]]:
         return list(zip(self.keys(), self.values()))
 
 
-def _dict_wrapper(d):
+def _dict_wrapper(d: ta.Mapping[ta.Any, ta.Any]) -> Dict:
     _seen.add(id(d))
     try:
         return Dict(as_model(x) for x in sum(d.items(), ()))
@@ -666,12 +709,13 @@ class Lazy(Object):
     :hy:func:`hy.read-many`.
     """
 
-    def __init__(self, gen):
+    def __init__(self, gen: ta.Iterator[Object]) -> None:
         super().__init__()
+
         self._gen = gen
 
-    def __iter__(self):
+    def __iter__(self) -> ta.Iterator[Object]:
         yield from self._gen
 
-    def __next__(self):
+    def __next__(self) -> Object:
         return self._gen.__next__()

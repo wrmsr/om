@@ -1,9 +1,14 @@
 import ast
 import types
+import typing as ta
+
+import pytest
 
 from .... import hy
 from ... import compiler
 from ...compiler import hy_compile
+from ...errors import HyEvalError
+from ...errors import HyTypeError
 from ...models import Expression
 from ...models import Integer
 from ...models import List
@@ -82,6 +87,7 @@ def test_compact_logic():
     py = hy2py('(or 1 2 3 (do (setv x 4) x) 5 6 (do (setv y 7)))')
     assert py.count('if') == 2
 
+
 def test_correct_logic():
     """Check that we're not overzealous when compacting boolean operators."""
 
@@ -94,7 +100,6 @@ def test_correct_logic():
     assert py.count('and') == 2
 
 
-
 def test_relocated_runtime_binding():
     module = types.ModuleType('hy_runtime_binding_test')
     tree = hy_compile(read_many("(setv model 'hello)"), module)
@@ -103,7 +108,26 @@ def test_relocated_runtime_binding():
     assert 'hy.models.Symbol' in source
     assert f'{hy.__package__}.models' not in source
 
-    namespace = {}
+    namespace: dict[str, ta.Any] = {}
     exec(compile(tree, '<test>', 'exec'), namespace)
     assert namespace['hy'] is hy
     assert namespace['model'] == Symbol('hello')
+
+
+@pytest.mark.parametrize('operator', ['unquote', 'unquote-splice'])
+@pytest.mark.parametrize(('arguments', 'count'), [('', 0), (' 1 2', 2)])
+def test_unquote_arity_error(operator, arguments, count):
+    source = f'`({operator}{arguments})'
+    with pytest.raises(HyTypeError, match=f'needs 1 argument, got {count}') as excinfo:
+        hy_compile(read_many(source, filename='bad-unquote.hy'), __name__)
+    assert excinfo.value.filename == 'bad-unquote.hy'
+    assert excinfo.value.text == source
+
+
+def test_compile_time_error_source():
+    source = '(eval-when-compile (/ 1 0))'
+    with pytest.raises(HyEvalError, match='division by zero') as excinfo:
+        hy_compile(read_many(source, filename='compile-time.hy'), __name__)
+    assert excinfo.value.filename == 'compile-time.hy'
+    assert excinfo.value.text == source
+    assert isinstance(excinfo.value.__cause__, ZeroDivisionError)

@@ -1,3 +1,4 @@
+# ruff: noqa: A002
 # Copyright © 2009/2023 Andrey Vlasovskikh
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -25,13 +26,15 @@ _Spec: ta.TypeAlias = tuple[str, tuple]
 
 class LexerError(Exception):
     def __init__(self, place: _Place, msg: str) -> None:
+        super().__init__(place, msg)
+
         self.place = place
         self.msg = msg
 
     def __str__(self) -> str:
         s = 'cannot tokenize data'
         line, pos = self.place
-        return '%s: %d,%d: "%s"' % (s, line, pos, self.msg)
+        return f'{s}: {line},{pos}: "{self.msg}"'
 
 
 class TokenSpec:
@@ -47,15 +50,17 @@ class TokenSpec:
             flags (int, optional): Regexp flags, the second argument of `re.compile()`
         """
 
+        super().__init__()
+
         self.type = type
         self.pattern = pattern
         self.flags = flags
 
     def __repr__(self) -> str:
-        return 'TokenSpec(%r, %r, %r)' % (self.type, self.pattern, self.flags)
+        return f'TokenSpec({self.type!r}, {self.pattern!r}, {self.flags!r})'
 
 
-class Token:
+class Token:  # noqa: PLW1641
     """
     A token object that represents a substring of certain type in your text.
 
@@ -69,13 +74,15 @@ class Token:
     """
 
     def __init__(
-        self,
-        type: str,
-        value: str,
-        start: _Place | None = None,
-        end: _Place | None = None,
+            self,
+            type: str,
+            value: str,
+            start: _Place | None = None,
+            end: _Place | None = None,
     ) -> None:
         """Initialize a `Token` object."""
+
+        super().__init__()
 
         self.type = type
         self.value = value
@@ -83,7 +90,7 @@ class Token:
         self.end = end
 
     def __repr__(self) -> str:
-        return 'Token(%r, %r)' % (self.type, self.value)
+        return f'Token({self.type!r}, {self.value!r})'
 
     def __eq__(self, other: object) -> bool:
         # FIXME: Case sensitivity is assumed here
@@ -98,10 +105,10 @@ class Token:
         else:
             sl, sp = self.start
             el, ep = self.end
-            return '%d,%d-%d,%d:' % (sl, sp, el, ep)
+            return f'{sl},{sp}-{el},{ep}:'
 
     def __str__(self) -> str:
-        s = "%s %s '%s'" % (self._pos_str(), self.type, self.value)
+        s = f"{self._pos_str()} {self.type} '{self.value}'"
         return s.strip()
 
     @property
@@ -109,15 +116,11 @@ class Token:
         return self.value
 
     def pformat(self) -> str:
-        return "%s %s '%s'" % (
-            self._pos_str().ljust(20),  # noqa
-            self.type.ljust(14),
-            self.value,
-        )
+        return f"{self._pos_str().ljust(20)} {self.type.ljust(14)} '{self.value}'"
 
 
 def make_tokenizer(
-    specs: ta.Sequence[ta.Union[TokenSpec, _Spec]],
+        specs: ta.Sequence[TokenSpec | _Spec],
 ) -> ta.Callable[[str], ta.Iterable[Token]]:
     # noinspection GrazieInspection
     """
@@ -167,7 +170,7 @@ def make_tokenizer(
 
     def match_specs(s: str, i: int, position: tuple[int, int]) -> Token:
         line, pos = position
-        for type, regexp in compiled:
+        for type_name, regexp in compiled:
             m = regexp.match(s, i)
             if m is not None:
                 value = m.group()
@@ -177,10 +180,9 @@ def make_tokenizer(
                     n_pos = pos + len(value)
                 else:
                     n_pos = len(value) - value.rfind('\n') - 1
-                return Token(type, value, (line, pos + 1), (n_line, n_pos))
-        else:
-            err_line = s.splitlines()[line - 1]
-            raise LexerError((line, pos + 1), err_line)
+                return Token(type_name, value, (line, pos + 1), (n_line, n_pos))
+        err_line = s.splitlines()[line - 1]
+        raise LexerError((line, pos + 1), err_line)
 
     def f(s: str) -> ta.Iterable[Token]:
         length = len(s)

@@ -1,3 +1,4 @@
+# ruff: noqa: A002
 # Copyright © 2009/2023 Andrey Vlasovskikh
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -85,13 +86,12 @@ class Parser(ta.Generic[_A, _B]):
     """
 
     def __init__(
-        self,
-        p: ta.Union[
-            Parser[_A, _B],
-            ta.Callable[[ta.Sequence[_A], State], tuple[_B, State]],
-        ],
+            self,
+            p: Parser[_A, _B] | ta.Callable[[ta.Sequence[_A], State], tuple[_B, State]],
     ) -> None:
         """Wrap the parser function `p` into a `Parser` object."""
+
+        super().__init__()
 
         self.name = ''
         self.define(p)
@@ -138,11 +138,8 @@ class Parser(ta.Generic[_A, _B]):
         return self
 
     def define(
-        self,
-        p: ta.Union[
-            Parser[_A, _B],
-            ta.Callable[[ta.Sequence[_A], State], tuple[_B, State]],
-        ],
+            self,
+            p: Parser[_A, _B] | ta.Callable[[ta.Sequence[_A], State], tuple[_B, State]],
     ) -> None:
         """
         Define the parser created earlier as a forward declaration.
@@ -181,7 +178,7 @@ class Parser(ta.Generic[_A, _B]):
         """
 
         if debug:
-            log.debug('trying %s' % self.name)
+            log.debug('trying %s', self.name)
         return self._run(tokens, s)
 
     def _run(self, tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
@@ -212,31 +209,31 @@ class Parser(ta.Generic[_A, _B]):
             (tree, _) = self.run(tokens, State(0, 0, None))
             return tree
         except NoParseError as e:
-            max = e.state.max
-            if len(tokens) > max:
-                t = tokens[max]
+            max_pos = e.state.max
+            if len(tokens) > max_pos:
+                t = tokens[max_pos]
                 if isinstance(t, Token):
                     if t.start is None or t.end is None:
                         loc = ''
                     else:
                         s_line, s_pos = t.start
                         e_line, e_pos = t.end
-                        loc = '%d,%d-%d,%d: ' % (s_line, s_pos, e_line, e_pos)
-                    msg = '%s%s: %r' % (loc, e.msg, t.value)
+                        loc = f'{s_line},{s_pos}-{e_line},{e_pos}: '
+                    msg = f'{loc}{e.msg}: {t.value!r}'
                 elif isinstance(t, str):
-                    msg = '%s: %r' % (e.msg, t)
+                    msg = f'{e.msg}: {t!r}'
                 else:
-                    msg = '%s: %s' % (e.msg, t)
+                    msg = f'{e.msg}: {t}'
             else:
                 msg = 'got unexpected end of input'
             e_parser = e.state.parser
             if isinstance(e_parser, Parser):
-                msg = '%s, expected: %s' % (msg, e_parser.name)
+                msg = f'{msg}, expected: {e_parser.name}'
             e.msg = msg
             raise
 
     @ta.overload
-    def __add__(  # type: ignore[misc]
+    def __add__(  # type: ignore[overload-overlap]
             self,
             other: _IgnoredParser[_A],
     ) -> Parser[_A, _B]:
@@ -248,8 +245,8 @@ class Parser(ta.Generic[_A, _B]):
 
     def __add__(
             self,
-            other: ta.Union[_IgnoredParser[_A], Parser[_A, _C]],
-    ) -> ta.Union[Parser[_A, _B], _TupleParser[_A, tuple[_B, _C]]]:
+            other: _IgnoredParser[_A] | Parser[_A, _C],
+    ) -> Parser[_A, _B] | _TupleParser[_A, tuple[_B, _C]]:
         """
         Sequential combination of parsers. It runs this parser, then the other parser.
 
@@ -299,7 +296,7 @@ class Parser(ta.Generic[_A, _B]):
 
         def magic(v1: ta.Any, v2: ta.Any) -> _Tuple:
             if isinstance(v1, _Tuple):
-                return _Tuple(v1 + (v2,))
+                return _Tuple((*v1, v2))
             else:
                 return _Tuple((v1, v2))
 
@@ -315,14 +312,14 @@ class Parser(ta.Generic[_A, _B]):
             _, s3 = other.run(tokens, s2)
             return v, s3
 
-        name = '(%s, %s)' % (self.name, other.name)
+        name = f'({self.name}, {other.name})'
         if isinstance(other, _IgnoredParser):
             return ignored_right.named(name)
         else:
             _add.name = name
             return _add
 
-    def __or__(self, other: Parser[_A, _C]) -> Parser[_A, ta.Union[_B, _C]]:
+    def __or__(self, other: Parser[_A, _C]) -> Parser[_A, _B | _C]:
         """
         Choice combination of parsers.
 
@@ -345,7 +342,7 @@ class Parser(ta.Generic[_A, _B]):
         """
 
         @Parser
-        def _or(tokens: ta.Sequence[_A], s: State) -> tuple[ta.Union[_B, _C], State]:
+        def _or(tokens: ta.Sequence[_A], s: State) -> tuple[_B | _C, State]:
             try:
                 return self.run(tokens, s)
             except NoParseError as e:
@@ -357,7 +354,7 @@ class Parser(ta.Generic[_A, _B]):
                     e.state = State(e.state.pos, e.state.max, _or)
                 raise
 
-        _or.name = '%s or %s' % (self.name, other.name)
+        _or.name = f'{self.name} or {other.name}'
         return _or
 
     def __rshift__(self, f: ta.Callable[[_B], _C]) -> Parser[_A, _C]:
@@ -409,7 +406,7 @@ class Parser(ta.Generic[_A, _B]):
             (v, s2) = self.run(tokens, s)
             return f(v).run(tokens, s2)
 
-        _bind.name = '(%s >>=)' % (self.name,)
+        _bind.name = f'({self.name} >>=)'
         return _bind
 
     def __neg__(self) -> _IgnoredParser[_A]:
@@ -487,15 +484,13 @@ class State:
     """
 
     def __init__(
-        self,
-        pos: int,
-        max: int,
-        parser: ta.Union[
-            Parser,
-            ta.Callable[[ta.Any, State], tuple[ta.Any, State]],
-            None,
-        ] = None,
+            self,
+            pos: int,
+            max: int,
+            parser: Parser | ta.Callable[[ta.Any, State], tuple[ta.Any, State]] | None = None,
     ) -> None:
+        super().__init__()
+
         self.pos = pos
         self.max = max
         self.parser = parser
@@ -504,11 +499,13 @@ class State:
         return str((self.pos, self.max))
 
     def __repr__(self) -> str:
-        return 'State(%r, %r)' % (self.pos, self.max)
+        return f'State({self.pos!r}, {self.max!r})'
 
 
 class NoParseError(Exception):
     def __init__(self, msg: str, state: State) -> None:
+        super().__init__(msg, state)
+
         self.msg = msg
         self.state = state
 
@@ -517,7 +514,7 @@ class NoParseError(Exception):
 
 
 class _Tuple(tuple):
-    pass
+    __slots__ = ()
 
 
 class _TupleParser(Parser[_A, _B], ta.Generic[_A, _B]):
@@ -530,17 +527,20 @@ class _TupleParser(Parser[_A, _B], ta.Generic[_A, _B]):
         pass
 
     def __add__(
-        self, other: ta.Union[_IgnoredParser[_A], Parser[_A, ta.Any]],
-    ) -> ta.Union[_TupleParser[_A, _B], Parser[_A, ta.Any]]:
+            self,
+            other: _IgnoredParser[_A] | Parser[_A, ta.Any],
+    ) -> _TupleParser[_A, _B] | Parser[_A, ta.Any]:
         return super().__add__(other)
 
 
-class _Ignored:
+class _Ignored:  # noqa: PLW1641
     def __init__(self, value: ta.Any) -> None:
+        super().__init__()
+
         self.value = value
 
     def __repr__(self) -> str:
-        return '_Ignored(%s)' % repr(self.value)
+        return f'_Ignored({self.value!r})'
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, _Ignored) and self.value == other.value
@@ -593,10 +593,10 @@ def many(p: Parser[_A, _B]) -> Parser[_A, list[_B]]:
         except NoParseError as e:
             s2 = State(s.pos, e.state.max, e.state.parser)
             if debug:
-                log.debug('*matched* %d instances of %s, new state = %s' % (len(res), _many.name, s2))
+                log.debug('*matched* %d instances of %s, new state = %s', len(res), _many.name, s2)
             return res, s2
 
-    _many.name = '{ %s }' % p.name
+    _many.name = f'{{ {p.name} }}'
     return _many
 
 
@@ -639,12 +639,12 @@ def some(pred: ta.Callable[[_A], bool]) -> Parser[_A, _A]:
                 pos = s.pos + 1
                 s2 = State(pos, max(pos, s.max), s.parser)
                 if debug:
-                    log.debug('*matched* %r, new state = %s' % (t, s2))
+                    log.debug('*matched* %r, new state = %s', t, s2)
                 return t, s2
             else:
                 s2 = State(s.pos, s.max, _some if s.pos == s.max else s.parser)
                 if debug and isinstance(s2.parser, Parser):
-                    log.debug('failed %r, state = %s, expected = %s' % (t, s2, s2.parser.name))
+                    log.debug('failed %r, state = %s, expected = %s', t, s2, s2.parser.name)
                 raise NoParseError('got unexpected token', s2)
 
     _some.name = 'some(...)'
@@ -756,7 +756,7 @@ def pure(x: _A) -> Parser[ta.Any, _A]:
     def _pure(_: ta.Sequence[ta.Any], s: State) -> tuple[_A, State]:
         return x, s
 
-    _pure.name = '(pure %r)' % (x,)
+    _pure.name = f'(pure {x!r})'
     return _pure
 
 
@@ -776,10 +776,10 @@ def maybe(p: Parser[_A, _B]) -> Parser[_A, _B | None]:
     ```
     """
 
-    return (p | pure(None)).named('[ %s ]' % (p.name,))
+    return (p | pure(None)).named(f'[ {p.name} ]')
 
 
-def skip(p: Parser[_A, ta.Any]) -> "_IgnoredParser[_A]":
+def skip(p: Parser[_A, ta.Any]) -> _IgnoredParser[_A]:
     """
     An alias for `-p`.
 
@@ -791,13 +791,11 @@ def skip(p: Parser[_A, ta.Any]) -> "_IgnoredParser[_A]":
 
 class _IgnoredParser(Parser[_A, ta.Any]):
     def __init__(
-        self,
-        p: ta.Union[
-            Parser[_A, ta.Any],
-            ta.Callable[[ta.Sequence[_A], State], tuple[ta.Any, State]],
-        ],
+            self,
+            p: Parser[_A, ta.Any] | ta.Callable[[ta.Sequence[_A], State], tuple[ta.Any, State]],
     ) -> None:
-        super(_IgnoredParser, self).__init__(p)
+        super().__init__(p)
+
         run = self._run if debug else self.run
 
         def ignored(tokens: ta.Sequence[_A], s: State) -> tuple[ta.Any, State]:
@@ -819,8 +817,8 @@ class _IgnoredParser(Parser[_A, ta.Any]):
 
     def __add__(
             self,
-            other: ta.Union[_IgnoredParser[_A], Parser[_A, _C]],
-    ) -> ta.Union[_IgnoredParser[_A], Parser[_A, _C]]:
+            other: _IgnoredParser[_A] | Parser[_A, _C],
+    ) -> _IgnoredParser[_A] | Parser[_A, _C]:
         if isinstance(other, _IgnoredParser):
 
             @_IgnoredParser
@@ -829,7 +827,7 @@ class _IgnoredParser(Parser[_A, ta.Any]):
                 v, s3 = other.run(tokens, s2)
                 return v, s3
 
-            ip.name = '(%s, %s)' % (self.name, other.name)
+            ip.name = f'({self.name}, {other.name})'
             return ip
         else:
 
@@ -839,7 +837,7 @@ class _IgnoredParser(Parser[_A, ta.Any]):
                 v, s3 = other.run(tokens, s2)
                 return v, s3
 
-            p.name = '(%s, %s)' % (self.name, other.name)
+            p.name = f'({self.name}, {other.name})'
             return p
 
 
@@ -870,9 +868,9 @@ def oneplus(p: Parser[_A, _B]) -> Parser[_A, list[_B]]:
     def _oneplus(tokens: ta.Sequence[_A], s: State) -> tuple[list[_B], State]:
         (v1, s2) = p.run(tokens, s)
         (v2, s3) = many(p).run(tokens, s2)
-        return [v1] + v2, s3
+        return [v1, *v2], s3
 
-    _oneplus.name = '(%s, { %s })' % (p.name, p.name)
+    _oneplus.name = f'({p.name}, {{ {p.name} }})'
     return _oneplus
 
 

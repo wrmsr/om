@@ -39,7 +39,7 @@ def test_runpy():
     main_ns = runpy.run_module(f'{hy.__package__}.tests.resources.bin')
     assert main_ns['visited_main'] == 1
 
-    with pytest.raises(IOError):
+    with pytest.raises(FileNotFoundError):
         runpy.run_path(f'{hy.__package__.replace(".", "/")}/tests/resources/foobarbaz.py')
 
 
@@ -48,19 +48,20 @@ def test_stringer():
         read_many('(defn square [x] (* x x))'), __name__, import_stdlib=False,
     )
 
-    assert type(_ast.body[0]) == ast.FunctionDef
+    assert type(_ast.body[0]) is ast.FunctionDef
 
 
 def test_imports():
-    testLoader = HyLoader(
+    test_loader = HyLoader(
         f'{hy.__package__}.tests.resources.importer.a',
         f'{hy.__package__.replace(".", "/")}/tests/resources/importer/a.hy',
     )
-    spec = importlib.util.spec_from_loader(testLoader.name, testLoader)
+    spec = importlib.util.spec_from_loader(test_loader.name, test_loader)
+    assert spec is not None
     mod = importlib.util.module_from_spec(spec)
 
     with pytest.raises(NameError) as excinfo:
-        testLoader.exec_module(mod)
+        test_loader.exec_module(mod)
 
     assert 'thisshouldnotwork' in excinfo.value.args[0]
 
@@ -90,7 +91,9 @@ def test_import_autocompiles(tmp_path):
 
     def import_from_path(path):
         spec = importlib.util.spec_from_file_location('mymodule', path)
+        assert spec is not None
         module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
         spec.loader.exec_module(module)
         return module
 
@@ -137,14 +140,14 @@ def test_reload(tmp_path, monkeypatch):
         if Path(bytecode).is_file():
             Path(bytecode).unlink()
 
-    TESTFN = 'testfn'
-    source = tmp_path / (TESTFN + '.hy')
+    test_module_name = 'testfn'
+    source = tmp_path / (test_module_name + '.hy')
     source.write_text('(setv a 1)  (setv b 2)')
 
     monkeypatch.syspath_prepend(tmp_path)
     try:
-        mod = importlib.import_module(TESTFN)
-        assert TESTFN in sys.modules
+        mod = importlib.import_module(test_module_name)
+        assert test_module_name in sys.modules
         assert mod.a == 1
         assert mod.b == 2
 
@@ -161,7 +164,8 @@ def test_reload(tmp_path, monkeypatch):
             reload(mod)
 
         # But we still expect the module to be in sys.modules.
-        mod = sys.modules.get(TESTFN)
+        assert test_module_name in sys.modules
+        mod = sys.modules[test_module_name]
         assert mod is not None
 
         # We should have replaced a w/ 10, but the old b value should
@@ -176,7 +180,8 @@ def test_reload(tmp_path, monkeypatch):
 
         reload(mod)
 
-        mod = sys.modules.get(TESTFN)
+        assert test_module_name in sys.modules
+        mod = sys.modules[test_module_name]
         assert mod is not None
 
         assert mod.a == 11
@@ -190,7 +195,8 @@ def test_reload(tmp_path, monkeypatch):
         with pytest.raises(hy.PrematureEndOfInput):
             reload(mod)
 
-        mod = sys.modules.get(TESTFN)
+        assert test_module_name in sys.modules
+        mod = sys.modules[test_module_name]
         assert mod is not None
 
         assert mod.a == 11
@@ -203,15 +209,16 @@ def test_reload(tmp_path, monkeypatch):
 
         reload(mod)
 
-        mod = sys.modules.get(TESTFN)
+        assert test_module_name in sys.modules
+        mod = sys.modules[test_module_name]
         assert mod is not None
 
         assert mod.a == 12
         assert mod.b == 10
 
     finally:
-        if TESTFN in sys.modules:
-            del sys.modules[TESTFN]
+        if test_module_name in sys.modules:
+            del sys.modules[test_module_name]
 
 
 def test_reload_reexecute(capsys):
@@ -222,7 +229,7 @@ def test_reload_reexecute(capsys):
     https://github.com/hylang/hy/issues/712
     """
 
-    from ..resources import hello_world
+    hello_world = importlib.import_module('..resources.hello_world', __package__)
 
     assert capsys.readouterr().out == 'hello world\n'
     assert capsys.readouterr().out == ''
@@ -248,9 +255,11 @@ def test_shadowed_basename(monkeypatch):
 
     monkeypatch.syspath_prepend(f'{hy.__package__.replace(".", "/")}/tests/resources/importer')
     foo = importlib.import_module('foo')
+    assert foo.__file__ is not None
     assert Path(foo.__file__).name == '__init__.hy'
     assert foo.ext == 'hy'
     some_mod = importlib.import_module('foo.some_mod')
+    assert some_mod.__file__ is not None
     assert Path(some_mod.__file__).name == 'some_mod.hy'
     assert some_mod.ext == 'hy'
 
@@ -260,7 +269,7 @@ def test_docstring(monkeypatch):
 
     monkeypatch.syspath_prepend(f'{hy.__package__.replace(".", "/")}/tests/resources/importer')
     mod = importlib.import_module('docstring')
-    expected_doc = 'This module has a docstring.\n\n' 'It covers multiple lines, too!\n'
+    expected_doc = 'This module has a docstring.\n\nIt covers multiple lines, too!\n'
     assert mod.__doc__ == expected_doc
     assert mod.a == 1
 
@@ -272,15 +281,16 @@ def test_hy_python_require():
 
 
 def test_filtered_importlib_frames(capsys):
-    testLoader = HyLoader(
+    test_loader = HyLoader(
         f'{hy.__package__}.tests.resources.importer.compiler_error',
         f'{hy.__package__.replace(".", "/")}/tests/resources/importer/compiler_error.hy',
     )
-    spec = importlib.util.spec_from_loader(testLoader.name, testLoader)
+    spec = importlib.util.spec_from_loader(test_loader.name, test_loader)
+    assert spec is not None
     mod = importlib.util.module_from_spec(spec)
 
     with pytest.raises(hy.PrematureEndOfInput) as execinfo:
-        testLoader.exec_module(mod)
+        test_loader.exec_module(mod)
 
     hy_exc_handler(execinfo.type, execinfo.value, execinfo.tb)
     captured_w_filtering = capsys.readouterr()[-1].strip()
@@ -299,8 +309,8 @@ def test_zipimport(tmp_path, monkeypatch):
         o.writestr('zip_hy.hy', '(setv x "Hy from ZIP")')
 
     monkeypatch.syspath_prepend(zpath)
-    import zip_hy
-    import zip_py
+    zip_hy = importlib.import_module('zip_hy')
+    zip_py = importlib.import_module('zip_py')
     assert zip_py.x == 'Py from ZIP'
     assert zip_py.__file__ == str(zpath / 'zip_py.py')
     assert zip_hy.x == 'Hy from ZIP'

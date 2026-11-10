@@ -22,9 +22,9 @@ _A = ta.TypeVar('_A')
 
 
 def pretty_tree(
-    x: _A,
-    kids: ta.Callable[[_A], ta.Sequence[_A]],
-    show: ta.Callable[[_A], str],
+        x: _A,
+        kids: ta.Callable[[_A], ta.Sequence[_A]],
+        show: ta.Callable[[_A], str],
 ) -> str:
     """
     Return a pseudo-graphic tree representation of the object `x` similar to the `tree` command in Unix.
@@ -55,7 +55,7 @@ def pretty_tree(
     ```
     """
 
-    (MID, END, CONT, LAST, ROOT) = ('|-- ', '`-- ', '|   ', '    ', '')
+    (mid, end, continuation, last, root) = ('|-- ', '`-- ', '|   ', '    ', '')
 
     def rec(obj: _A, indent: str, sym: str) -> str:
         line = indent + sym + show(obj)
@@ -63,14 +63,14 @@ def pretty_tree(
         if len(obj_kids) == 0:
             return line
         else:
-            if sym == MID:
-                next_indent = indent + CONT
-            elif sym == ROOT:
-                next_indent = indent + ROOT
+            if sym == mid:
+                next_indent = indent + continuation
+            elif sym == root:
+                next_indent = indent + root
             else:
-                next_indent = indent + LAST
-            chars = [MID] * (len(obj_kids) - 1) + [END]
+                next_indent = indent + last
+            chars = [mid] * (len(obj_kids) - 1) + [end]
             lines = [rec(kid, next_indent, sym) for kid, sym in zip(obj_kids, chars)]
-            return '\n'.join([line] + lines)
+            return '\n'.join([line, *lines])
 
-    return rec(x, '', ROOT)
+    return rec(x, '', root)

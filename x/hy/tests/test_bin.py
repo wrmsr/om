@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import os
 import platform
 import re
@@ -42,7 +40,7 @@ def run_cmd(
         cmd = [REPO_PYTHON, '-m', hy.__package__, *cmd[1:]]
     elif cmd[0] in ('hyc', 'hy2py'):
         cmd = [REPO_PYTHON, '-c',
-            f'from {hy.__package__}.cmdline import {cmd[0]}_main; {cmd[0]}_main()', *cmd[1:]]
+               f'from {hy.__package__}.cmdline import {cmd[0]}_main; {cmd[0]}_main()', *cmd[1:]]
     elif cmd[0] in ('python', 'python3'):
         cmd[0] = REPO_PYTHON
 
@@ -51,13 +49,15 @@ def run_cmd(
         input=stdin_data,
         stdout=stdout,
         stderr=subprocess.PIPE,
-        universal_newlines=True,
+        text=True,
         shell=False,
+        check=False,
         env=env,
         cwd=cwd,
     )
     assert result.returncode == expect
     return (result.stdout, result.stderr)
+
 
 def rm(fpath):
     try:
@@ -113,20 +113,20 @@ def test_mangle_m():
 
 
 def test_ignore_python_env():
-    e = dict(PYTHONTEST = '0')
+    e = dict(PYTHONTEST='0')
 
-    output, _ = run_cmd("hy -c '(print (do (import os) (. os environ)))'", env = e)
+    output, _ = run_cmd("hy -c '(print (do (import os) (. os environ)))'", env=e)
     assert 'PYTHONTEST' in output
-    output, _ = run_cmd(f'hy -m {hy.__package__}.tests.resources.bin.printenv', env = e)
+    output, _ = run_cmd(f'hy -m {hy.__package__}.tests.resources.bin.printenv', env=e)
     assert 'PYTHONTEST' in output
-    output, _ = run_cmd(f'hy {hy.__package__.replace(".", "/")}/tests/resources/bin/printenv.hy', env = e)
+    output, _ = run_cmd(f'hy {hy.__package__.replace(".", "/")}/tests/resources/bin/printenv.hy', env=e)
     assert 'PYTHONTEST' in output
 
-    output, _ = run_cmd("hy -E -c '(print (do (import os) (. os environ)))'", env = e)
+    output, _ = run_cmd("hy -E -c '(print (do (import os) (. os environ)))'", env=e)
     assert 'PYTHONTEST' not in output
-    output, _ = run_cmd(f'hy -E -m {hy.__package__}.tests.resources.bin.printenv', env = e)
+    output, _ = run_cmd(f'hy -E -m {hy.__package__}.tests.resources.bin.printenv', env=e)
     assert 'PYTHONTEST' not in output
-    output, _ = run_cmd(f'hy -E {hy.__package__.replace(".", "/")}/tests/resources/bin/printenv.hy', env = e)
+    output, _ = run_cmd(f'hy -E {hy.__package__.replace(".", "/")}/tests/resources/bin/printenv.hy', env=e)
     assert 'PYTHONTEST' not in output
 
 
@@ -138,7 +138,7 @@ def test_cmd():
     assert 'Premature end of input' in err
 
     # No shebang is allowed.
-    _, err = run_cmd("""hy -c '#!/usr/bin/env hy'""", expect = 1)
+    _, err = run_cmd("""hy -c '#!/usr/bin/env hy'""", expect=1)
     assert 'LexException' in err
 
     # https://github.com/hylang/hy/issues/1879
@@ -149,8 +149,8 @@ def test_cmd():
 
     # https://github.com/hylang/hy/issues/1894
     output, _ = run_cmd(' '.join(('hy -c ',
-        repr('(import sys) (print (+ "<" (.join "|" sys.argv) ">"))'),
-        'AA', 'ZZ', '-m')))
+                                  repr('(import sys) (print (+ "<" (.join "|" sys.argv) ">"))'),
+                                  'AA', 'ZZ', '-m')))
     assert '<-c|AA|ZZ|-m>' in output
 
 
@@ -184,7 +184,7 @@ def test_empty_file(tmp_path):
     # https://github.com/hylang/hy/issues/2427
     (tmp_path / 'foo.hy').write_text('')
     run_cmd(['hy', (tmp_path / 'foo.hy')])
-      # This asserts that the return code is 0.
+    # This asserts that the return code is 0.
 
 
 def test_missing_file():
@@ -449,9 +449,9 @@ def test_tracebacks():
     output, error = run_cmd('hy -c "(print a)"', expect=1)
     # Filter out the underline added by Python 3.11.
     error_lines = [x
-        for x in error.splitlines()
-        if not (set(x) <= {' ', '^', '~'})]
-    assert error_lines[3] == '  File "<string>", line 1, in <module>'
+                   for x in error.splitlines()
+                   if not (set(x) <= {' ', '^', '~'})]
+    assert error_lines[-2] == '  File "<string>", line 1, in <module>'
     # PyPy will add "global" to this error message, so we work around that.
     assert error_lines[-1].strip().replace(' global', '') == (
         "NameError: name 'a' is not defined"
@@ -471,66 +471,71 @@ def test_tracebacks():
 def test_traceback_shebang(tmp_path):
     # https://github.com/hylang/hy/issues/2405
     (tmp_path / 'ex.hy').write_text('#!my cool shebang\n(/ 1 0)')
-    _, error = run_cmd(['hy', tmp_path / 'ex.hy'], expect = 1)
-    assert 'ZeroDivisionError'
+    _, error = run_cmd(['hy', tmp_path / 'ex.hy'], expect=1)
+    assert 'ZeroDivisionError' in error
     assert 'my cool shebang' not in error
     assert '(/ 1 0)' in error
 
 
-@pytest.mark.xfail(not PY3_10, reason = 'not worth debugging, since CPython 3.9 is unmaintained and this is a minor, undocumented feature')
+@pytest.mark.xfail(
+    not PY3_10,
+    reason='not worth debugging, since CPython 3.9 is unmaintained and this is a minor, undocumented feature',
+)
 def test_pdb_ll(tmp_path):
     # Test the Python debugger's `ll` command.
 
     p = tmp_path / 'ex.hy'
-    p.write_text(str.strip(dedent('''
+    p.write_text(str.strip(dedent("""
         (defn f []
           (print (.upper "aaa"))
           (breakpoint)
           (print (.upper "bbb")))
-        (f)''')))
-    o, _ = run_cmd(['hy', p], 'll\nquit\n', expect = 1)
+        (f)""")))
+    o, _ = run_cmd(['hy', p], 'll\nquit\n', expect=1)
 
     assert 'AAA' in o
     assert 'BBB' not in o
 
     arrow_line = 3 if PY3_13 else 4
-      # Bizarrely, Python 3.12 and earlier will point the arrow to the
-      # line after the breakpoint rather than the line with the
-      # breakpoint, even in pure Python.
+    # Bizarrely, Python 3.12 and earlier will point the arrow to the
+    # line after the breakpoint rather than the line with the
+    # breakpoint, even in pure Python.
+
     def arrow(i):
         return '->' if i == arrow_line else ''
+
     def clean(x):
         return re.sub(r'\s+', ' ', x).strip()
 
     assert (
-        clean(f'''
+        clean(f"""
             (Pdb) 1         (defn f []
               2               (print (.upper "aaa"))
               3  {arrow(3)}   (breakpoint)
               4  {arrow(4)}   (print (.upper "bbb")))
-            (Pdb)''')
+            (Pdb)""")
         in clean(o))
 
 
 def test_hystartup():
     # spy == True and custom repl-output-fn
-    env = dict(HYSTARTUP = f'{hy.__package__.replace(".", "/")}/tests/resources/hystartup.hy')
-    output, _ = run_cmd('hy -i', '[1 2]', env = env)
+    env = dict(HYSTARTUP=f'{hy.__package__.replace(".", "/")}/tests/resources/hystartup.hy')
+    output, _ = run_cmd('hy -i', '[1 2]', env=env)
     assert 'p1? ' in output
     assert '[1, 2]' in output
     assert '[1,_2]' in output
 
-    output, _ = run_cmd('hy -i', '(hello-world)', env = env)
+    output, _ = run_cmd('hy -i', '(hello-world)', env=env)
     assert '(hello-world)' not in output
     assert '1 + 1' in output
     assert '2' in output
 
-    output, _ = run_cmd('hy -i', '#rad', env = env)
+    output, _ = run_cmd('hy -i', '#rad', env=env)
     assert '#rad' not in output
     assert "'totally' + 'rad'" in output
     assert "'totallyrad'" in output
 
-    output, _ = run_cmd('hy -i --repl-output-fn repr', '[1 2 3 4]', env = env)
+    output, _ = run_cmd('hy -i --repl-output-fn repr', '[1 2 3 4]', env=env)
     assert '[1, 2, 3, 4]' in output
     assert '[1 2 3 4]' not in output
     assert '[1,_2,_3,_4]' not in output
@@ -538,7 +543,7 @@ def test_hystartup():
     # spy == False and custom repl-output-fn
     # Then overwrite spy with cmdline arg
     output, _ = run_cmd('hy -i --spy', '[1 2]',
-         env = dict(HYSTARTUP = f'{hy.__package__.replace(".", "/")}/tests/resources/spy_off_startup.hy'))
+                        env=dict(HYSTARTUP=f'{hy.__package__.replace(".", "/")}/tests/resources/spy_off_startup.hy'))
     assert '[1, 2]' in output
     assert '[1,~2]' in output
 
@@ -547,11 +552,11 @@ def test_output_buffering(tmp_path):
     tf = tmp_path / 'file.txt'
 
     pf = tmp_path / 'program.hy'
-    pf.write_text(f'''
+    pf.write_text(f"""
         (print "line 1")
         (import  sys  pathlib [Path])
         (print :file sys.stderr (.strip (.read-text (Path #[=[{tf}]=]))))
-        (print "line 2")''')
+        (print "line 2")""")
 
     for flags, expected in ([], ''), (['--unbuffered'], 'line 1'):
         with open(tf, 'wb') as o:
@@ -580,16 +585,16 @@ def test_uufileuu(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path / 'realdir')
     file_is('', tmp_path / 'realdir')
 
-    (tmp_path / 'symdir').symlink_to('realdir', target_is_directory = True)
+    (tmp_path / 'symdir').symlink_to('realdir', target_is_directory=True)
     monkeypatch.chdir(tmp_path)
     file_is('symdir/', tmp_path / 'symdir')
 
     (tmp_path / 'realdir' / 'child').mkdir()
     monkeypatch.chdir(tmp_path / 'realdir' / 'child')
     file_is('../',
-        tmp_path / 'realdir'
-        if platform.system() == 'Windows' else
-        tmp_path / 'realdir' / 'child' / '..')
+            tmp_path / 'realdir'
+            if platform.system() == 'Windows' else
+            tmp_path / 'realdir' / 'child' / '..')
 
 
 def test_assert(tmp_path, monkeypatch):
@@ -603,15 +608,15 @@ def test_assert(tmp_path, monkeypatch):
 
         Path('ex.hy').write_text(
             '(defn f [test] (assert {} {}))'.format(
-               '(do (print "testing") test)',
-               '(do (print "msging") "bye")' if has_msg else ''))
+                '(do (print "testing") test)',
+                '(do (print "msging") "bye")' if has_msg else ''))
 
         for optim, test in [(0, 0), (0, 1), (1, 0), (1, 1)]:
             out, err = run_cmd(
-                cmd = 'python3 {} {}'.format(
+                cmd='python3 {} {}'.format(
                     ('-O' if optim else ''),
                     f"-c 'from {hy.__package__.rpartition(".")[0]} import hy; import ex; ex.f({test})'"),
-                expect = (1 if not optim and not test else 0))
+                expect=(1 if not optim and not test else 0))
             assert ('testing' in out) == (not optim)
             show_msg = has_msg and not optim and not test
             assert ('msging' in out) == show_msg
@@ -627,7 +632,7 @@ def test_hy2py_stdin():
 def test_hy2py_compile_only(monkeypatch):
     def check(args):
         output, _ = run_cmd(f'hy2py {args}')
-        assert not re.search(r'^hello world$', output, re.M)
+        assert not re.search(r'^hello world$', output, re.MULTILINE)
 
     monkeypatch.chdir(f'{hy.__package__.replace(".", "/")}/tests/resources')
     check('hello_world.hy')
@@ -661,7 +666,7 @@ def test_hy2py_recursive(monkeypatch, tmp_path):
         tmp_path / 'bar' / p
         for p in ('first.py', 'folder', 'folder/second.py')}
 
-    output, _ = run_cmd('python3 first.py', cwd = tmp_path / 'bar')
+    output, _ = run_cmd('python3 first.py', cwd=tmp_path / 'bar')
     assert output == '1\nhello world\n'
 
 
@@ -671,13 +676,13 @@ def test_relative_require(case, monkeypatch, tmp_path):
 
     (tmp_path / 'pkg').mkdir()
     (tmp_path / 'pkg' / '__init__.py').touch()
-    (tmp_path / 'pkg' / 'a.hy').write_text('''
+    (tmp_path / 'pkg' / 'a.hy').write_text("""
         (defmacro m []
-          '(setv x (.upper "hello")))''')
-    (tmp_path / 'pkg' / 'b.hy').write_text('''
+          '(setv x (.upper "hello")))""")
+    (tmp_path / 'pkg' / 'b.hy').write_text("""
         (require .a [m])
         (m)
-        (print x)''')
+        (print x)""")
     monkeypatch.chdir(tmp_path)
 
     if case == 'hy -m':
@@ -697,17 +702,17 @@ def test_require_doesnt_pollute_core(monkeypatch, tmp_path):
     `_hy_macros` with macros from core.
     """
 
-    (tmp_path / 'aaa.hy').write_text('''
+    (tmp_path / 'aaa.hy').write_text("""
         (defmacro foo []
-          '(setv x (.upper "argelfraster")))''')
-    (tmp_path / 'bbb.hy').write_text('''
+          '(setv x (.upper "argelfraster")))""")
+    (tmp_path / 'bbb.hy').write_text("""
         (require aaa :as A)
         (A.foo)
         (print
           x
           (not-in "if" _hy_macros)
-          (not-in "cond" _hy_macros))''')
-            # `if` is a result macro; `cond` is a regular macro.
+          (not-in "cond" _hy_macros))""")
+    # `if` is a result macro; `cond` is a regular macro.
     monkeypatch.chdir(tmp_path)
 
     # Try it without and then with bytecode.
@@ -743,14 +748,13 @@ def test_hyc_dfile_nonexistent_path(tmp_path):
 
 
 @pytest.mark.parametrize('start_method', ['fork', 'forkserver', 'spawn'])
-
 def test_multiprocessing(tmp_path, start_method):
     # https://github.com/hylang/hy/issues/2727
 
     if platform.system() == 'Windows' and start_method != 'spawn':
         pytest.skip(f"Python doesn't support {start_method !r} on Windows")
 
-    (tmp_path / 'mp.hy').write_text(f'''
+    (tmp_path / 'mp.hy').write_text(f"""
         (import multiprocessing)
 
         (defn f [x]
@@ -761,7 +765,7 @@ def test_multiprocessing(tmp_path, start_method):
             (print (p.map f [1 2 3]))))
 
         (when (= __name__ "__main__")
-          (main))''')
+          (main))""")
 
     out, _ = run_cmd(['hy', tmp_path / 'mp.hy'])
     assert '[10, 20, 30]' in out

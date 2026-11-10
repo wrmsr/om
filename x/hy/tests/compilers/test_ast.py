@@ -18,12 +18,13 @@ def _ast_spotcheck(arg, root, secondary):
         local, full = arg.split('.', 1)
         return _ast_spotcheck(full, getattr(root, local), getattr(secondary, local))
     assert getattr(root, arg) == getattr(secondary, arg)
+    return None
 
 
 def can_compile(expr, import_stdlib=False, iff=True):
     return (hy_compile(read_many(expr), __name__, import_stdlib=import_stdlib)
-        if iff
-        else cant_compile(expr))
+            if iff
+            else cant_compile(expr))
 
 
 def can_eval(expr):
@@ -35,7 +36,7 @@ def cant_compile(expr):
         hy_compile(read_many(expr), __name__)
     # Anything that can't be compiled should raise a user friendly
     # error, otherwise it's a compiler bug.
-    assert issubclass(excinfo.type, HyLanguageError)
+    assert isinstance(excinfo.value, HyLanguageError)
     assert excinfo.value.msg
     return excinfo.value
 
@@ -112,8 +113,8 @@ def test_ast_good_try():
     can_compile('(try 1 (except [x]) (except [y]) (finally 1))')
     can_compile('(try 1 (except []) (else 1) (finally 1))')
     can_compile('(try 1 (except [x]) (except [y]) (else 1) (finally 1))')
-    can_compile(iff = PY3_11, expr = '(try 1 (except* [x]))')
-    can_compile(iff = PY3_11, expr = '(try 1 (except* [x]) (else 1) (finally 1))')
+    can_compile(iff=PY3_11, expr='(try 1 (except* [x]))')
+    can_compile(iff=PY3_11, expr='(try 1 (except* [x]) (else 1) (finally 1))')
 
 
 def test_ast_bad_try():
@@ -334,9 +335,9 @@ def test_ast_expression_basics():
 
 def test_ast_anon_fns_basics():
     code = can_compile('(fn [x] (* x x))').body[0].value
-    assert type(code) == ast.Lambda
+    assert type(code) is ast.Lambda
     code = can_compile('(fn [x] (print "multiform") (* x x))').body[0]
-    assert type(code) == ast.FunctionDef
+    assert type(code) is ast.FunctionDef
     can_compile('(fn [x])')
     cant_compile('(fn)')
 
@@ -349,12 +350,12 @@ def test_ast_lambda_lists():
 def test_ast_print():
     code = can_compile('(print "foo")').body[0]
 
-    assert type(code.value) == ast.Call
+    assert type(code.value) is ast.Call
 
 
 def test_ast_tuple():
     code = can_compile('#(1 2 3)').body[0].value
-    assert type(code) == ast.Tuple
+    assert type(code) is ast.Tuple
 
 
 def test_lambda_list_keywords_rest():
@@ -381,7 +382,7 @@ def test_lambda_list_keywords_kwonly():
 def test_lambda_list_keywords_mixed():
     can_compile('(fn [x #* xs #** kw] (list x xs kw))')
     cant_compile('(fn [x #* xs &fasfkey {bar "baz"}])')
-    can_compile('(fn [x #* xs kwoxs #** kwxs]' '  (list x xs kwxs kwoxs))')
+    can_compile('(fn [x #* xs kwoxs #** kwxs]  (list x xs kwxs kwoxs))')
 
 
 def test_missing_keyword_argument_value():
@@ -401,7 +402,11 @@ def test_ast_unicode_strings():
         # We put hy_s in a list so it isn't interpreted as a docstring.
 
         # code == ast.Module(body=[ast.Expr(value=ast.List(elts=[ast.Constant(value=xxx)]))])
-        return code.body[0].value.elts[0].value
+        stmt = code.body[0]
+        assert isinstance(stmt, ast.Expr)
+        assert isinstance(stmt.value, ast.List)
+        assert isinstance(stmt.value.elts[0], ast.Constant)
+        return stmt.value.elts[0].value
 
     assert _compile_string('test') == 'test'
     assert _compile_string('\u03b1\u03b2') == '\u03b1\u03b2'
@@ -450,14 +455,14 @@ def test_ast_bracket_string():
     assert s(r'#[foozle[aa foozli bb ]foozle]') == 'aa foozli bb '
     assert s(r'#[([unbalanced](]') == 'unbalanced'
     assert s(r'#[(1💯@)} {a![hello world](1💯@)} {a!]') == 'hello world'
-    assert (s(r'''#[X[
+    assert (s(r"""#[X[
 Remove the leading newline, please.
-]X]''') == 'Remove the leading newline, please.\n')
-    assert (s(r'''#[X[
+]X]""") == 'Remove the leading newline, please.\n')
+    assert (s(r"""#[X[
 
 
 Only one leading newline should be removed.
-]X]''') == '\n\nOnly one leading newline should be removed.\n')
+]X]""") == '\n\nOnly one leading newline should be removed.\n')
 
 
 def test_literal_newlines():
@@ -471,21 +476,21 @@ def test_literal_newlines():
 
 
 def test_linear_boolop():
-   """
-   Operations like `(and 1 2 3)` should use only one `BoolOp`,
-   instead of an equivalent nested sequence of `BoolOp`s.
-   """
+    """
+    Operations like `(and 1 2 3)` should use only one `BoolOp`,
+    instead of an equivalent nested sequence of `BoolOp`s.
+    """
 
-   for op in ('and', 'or'):
-       node = can_compile(f'({op} 1 2.0 True "hi" 5)').body[0].value
-       assert len(node.values) == 5
-       assert all(isinstance(v, ast.Constant) for v in node.values)
+    for op in ('and', 'or'):
+        node = can_compile(f'({op} 1 2.0 True "hi" 5)').body[0].value
+        assert len(node.values) == 5
+        assert all(isinstance(v, ast.Constant) for v in node.values)
 
 
 def test_compile_error():
     """Ensure we get compile error in tricky cases"""
 
-    with pytest.raises(HyLanguageError) as excinfo:
+    with pytest.raises(HyLanguageError):
         can_compile('(fn [] (in [1 2 3]))')
 
 
@@ -632,18 +637,18 @@ def test_pys():
     pys('if 1:\n  2')
     pys('if 1:  2')
     pys('   if 1:  2   ')
-    pys('''
+    pys("""
         if 1:
             2
         elif 3:
-            4''')
+            4""")
 
     cant_compile('(pys "if 1\n  2")')
-    cant_compile('''(pys "
+    cant_compile("""(pys "
         if 1:
             2
       elif 3:
-          4")''')
+          4")""")
 
 
 def test_models_accessible():
@@ -677,9 +682,9 @@ def test_error_with_expectation():
     def check(code, expected):
         assert cant_compile(code).msg.endswith('expected: ' + expected)
 
-    check('(defmacro)',    'Symbol')
-    check('(quote)',       'form')
-    check('(py)',          'String')
-    check('(py a)',        'String')
-    check('(py "foo" a)',  'end of macro call')
-    check('(for a)',       'square-bracketed loop clauses')
+    check('(defmacro)', 'Symbol')
+    check('(quote)', 'form')
+    check('(py)', 'String')
+    check('(py a)', 'String')
+    check('(py "foo" a)', 'end of macro call')
+    check('(for a)', 'square-bracketed loop clauses')

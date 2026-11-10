@@ -5,13 +5,14 @@ from math import isnan
 import pytest
 
 from ... import hy
+from ..errors import filtered_hy_exceptions
 from ..errors import hy_exc_handler
 from ..models import Bytes
 from ..models import Complex
 from ..models import Dict
 from ..models import Expression
-from ..models import FString
 from ..models import Float
+from ..models import FString
 from ..models import Integer
 from ..models import Keyword
 from ..models import List
@@ -160,9 +161,9 @@ def test_lex_strings_exception():
             '  File "<string>", line 1',
             '    "\\x8"',
             '        ^',
-            f"{hy.__package__}.reader.exceptions.LexException:"
-            " 'unicodeescape' codec can't decode bytes in position 0-2:"
-            " truncated \\xXX escape",
+            (f"{hy.__package__}.reader.exceptions.LexException:"
+             " 'unicodeescape' codec can't decode bytes in position 0-2:"
+             " truncated \\xXX escape"),
         ],
     )
 
@@ -222,7 +223,7 @@ def test_lex_expression_complex():
     """Make sure expressions can produce complex"""
 
     def t(x):
-        return tokenize('(foo {})'.format(x))
+        return tokenize(f'(foo {x})')
 
     def f(x):
         return [Expression([Symbol('foo'), x])]
@@ -334,7 +335,7 @@ def test_lists():
     assert tokenize('[1 2 3 4]') == [List(map(Integer, (1, 2, 3, 4)))]
 
 
-def test_dicts():
+def test_dict_literals():
     assert tokenize('{1 2  3 4}') == [Dict(map(Integer, (1, 2, 3, 4)))]
     assert tokenize('{1 (+ 1 1) 3 (+ 2 2)}') == [
         Dict(
@@ -518,7 +519,7 @@ def test_string_prefixes():
     assert s(r'fr"hello"') == FString([String('hello')])
     assert s(r'tr"hello"') == FString([String('hello')], is_tstring=True)
 
-    for bad in list('zRBFu') + ['bf', 'rr', 'rbr']:
+    for bad in [*list('zRBFu'), 'bf', 'rr', 'rbr']:
         with lexe():
             s(bad + '"hello"')
 
@@ -713,8 +714,8 @@ def test_shebang():
     with pytest.raises(HySyntaxError):
         # By default, `read_many` doesn't allow a shebang.
         assert tokenize('#!/usr/bin/env hy\n5')
-    assert (tokenize('#!/usr/bin/env hy\n5', skip_shebang = True) ==
-        [Integer(5)])
+    assert (tokenize('#!/usr/bin/env hy\n5', skip_shebang=True) ==
+            [Integer(5)])
 
 
 def test_reader_class_reprs():
@@ -722,3 +723,13 @@ def test_reader_class_reprs():
 
     assert repr(hy.Reader) == f"<class '{hy.__package__}.Reader'>"
     assert repr(hy.HyReader) == f"<class '{hy.__package__}.HyReader'>"
+
+
+def test_exception_hook_restored():
+    original_hook = sys.excepthook
+    with filtered_hy_exceptions():
+        assert sys.excepthook is hy_exc_handler
+    assert sys.excepthook is original_hook
+    with pytest.raises(RuntimeError, match='user code failed'), filtered_hy_exceptions():
+        raise RuntimeError('user code failed')
+    assert sys.excepthook is original_hook

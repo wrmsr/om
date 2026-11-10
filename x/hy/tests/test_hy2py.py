@@ -1,6 +1,7 @@
 # This file is also used by py2hy.
 
 import asyncio
+import importlib
 import itertools
 import math
 
@@ -10,7 +11,7 @@ from .test_bin import REPO_PYTHON
 
 
 def test_direct_import():
-    from .resources import pydemo
+    pydemo = importlib.import_module('.resources.pydemo', __package__)
     assert_stuff(pydemo)
 
 
@@ -31,7 +32,7 @@ def test_hy2py_import():
                     f'{hy.__package__.replace(".", "/")}/tests/resources/pydemo.hy'],
                 stdout=o,
                 env=env)
-        from .resources import pydemo_as_py as m
+        m = importlib.import_module('.resources.pydemo_as_py', __package__)
     finally:
         with contextlib.suppress(FileNotFoundError):
             os.remove(path)
@@ -47,7 +48,28 @@ def assert_stuff(m):
 
     assert (
         m.long_string
-        == "This is a very long string literal, which would surely exceed any limitations on how long a line or a string literal can be. The string literal alone exceeds 256 characters. It also has a character outside the Basic Multilingual Plane: 😂. Here's a double quote: \". Here are some escaped newlines:\n\n\nHere is a literal newline:\nCall me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen and regulating the circulation. Whenever I find myself growing grim about the mouth; whenever it is a damp, drizzly November in my soul; whenever I find myself involuntarily pausing before coffin warehouses, and bringing up the rear of every funeral I meet; and especially whenever my hypos get such an upper hand of me, that it requires a strong moral principle to prevent me from deliberately stepping into the street, and methodically knocking people’s hats off—then, I account it high time to get to sea as soon as I can. This is my substitute for pistol and ball. With a philosophical flourish Cato throws himself upon his sword; I quietly take to the ship. There is nothing surprising in this. If they but knew it, almost all men in their degree, some time or other, cherish very nearly the same feelings towards the ocean with me."
+        == (
+            'This is a very long string literal, which would surely exceed any limitations on '
+            'how long a line or a string literal can be. The string literal alone exceeds 256 '
+            'characters. It also has a character outside the Basic Multilingual Plane: 😂. '
+            'Here\'s a double quote: ". Here are some escaped newlines:\n\n\nHere is a literal '
+            'newline:\nCall me Ishmael. Some years ago—never mind how long precisely—having '
+            'little or no money in my purse, and nothing particular to interest me on shore, '
+            'I thought I would sail about a little and see the watery part of the world. It '
+            'is a way I have of driving off the spleen and regulating the circulation. '
+            'Whenever I find myself growing grim about the mouth; whenever it is a damp, '
+            'drizzly November in my soul; whenever I find myself involuntarily pausing before '
+            'coffin warehouses, and bringing up the rear of every funeral I meet; and '
+            'especially whenever my hypos get such an upper hand of me, that it requires a '
+            'strong moral principle to prevent me from deliberately stepping into the street, '
+            'and methodically knocking people’s hats off—then, I account it high time to get '
+            'to sea as soon as I can. This is my substitute for pistol and ball. With a '
+            'philosophical flourish Cato throws himself upon his sword; I quietly take to the '
+            'ship. There is nothing surprising in this. If they but knew it, almost all men '
+            'in their degree, some time or other, cherish very nearly the same feelings '
+            'towards the ocean with '
+            'me.'
+        )
     )
 
     assert getattr(m, mangle('identifier-that-has☝️💯☝️-to-be-mangled')) == 'ponies'
@@ -90,7 +112,7 @@ def assert_stuff(m):
     assert type(m.mygenexpr) is type(x for x in [1, 2, 3])
     assert list(itertools.islice(m.mygenexpr, 5)) == [1, 3, 1, 3, 1]
     assert m.unpacking_listcomp == [7, 8, 9, 1, 2, 3]
-    assert m.unpacking_dictcomp == dict(a = 1, b = 2, c = 3)
+    assert m.unpacking_dictcomp == dict(a=1, b=2, c=3)
 
     assert (m.unpacked1, m.repacked, m.unpacked2) == ('W', ['X', 'Y'], 'Z')
     assert m.chained1 == m.chained2 == m.chained3 == 77
@@ -110,8 +132,8 @@ def assert_stuff(m):
     assert m.annotated_lambda_params.__annotations__ == {'a': int, 'b': str}
     assert m.annotated_assignment == [3]
     assert m.__annotations__ == {
-       'annotated_assignment': list,
-       'bare_annotation': tuple}
+        'annotated_assignment': list,
+        'bare_annotation': tuple}
 
     assert m.fstring1 == 'hello 2 world'
     assert m.fstring2 == "a'xyzzy'  "

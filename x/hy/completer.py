@@ -3,6 +3,8 @@ import contextlib
 import os
 import re
 import sys
+import types
+import typing as ta
 
 from .reader import mangle
 from .reader import unmangle
@@ -12,10 +14,10 @@ from .reader import unmangle
 
 
 # Lazily import `readline` to work around https://github.com/python/cpython/issues/46927#issuecomment-1093418916
-readline = None
+readline: types.ModuleType | None = None
 
 
-def init_readline():
+def init_readline() -> None:
     global readline
     try:
         import readline
@@ -27,7 +29,7 @@ def init_readline():
         pass
 
 
-def maybe_unmangle(text):
+def maybe_unmangle(text: str) -> tuple[str, str]:
     try:
         unmangled = unmangle(text)
     except KeyError:
@@ -35,7 +37,7 @@ def maybe_unmangle(text):
     return (unmangled, text)
 
 
-def canonicalize(text):
+def canonicalize(text: str) -> str:
     try:
         return unmangle(mangle(text)) if text else ''
     except KeyError:
@@ -43,7 +45,11 @@ def canonicalize(text):
 
 
 class Completer:
-    def __init__(self, namespace={}):
+    def __init__(self, namespace: dict[str, ta.Any] | None = None) -> None:
+        super().__init__()
+
+        if namespace is None:
+            namespace = {}
         if not isinstance(namespace, dict):
             raise TypeError('namespace must be a dictionary')
         self.namespace = namespace
@@ -54,7 +60,7 @@ class Completer:
 
         self.path.append(namespace['_hy_macros'])
 
-    def attr_matches(self, text):
+    def attr_matches(self, text: str) -> list[str]:
         # Borrowed from IPython's completer
         m = re.match(r'(\S+(\.[\S]+)*)\.([\S]*)$', text)
 
@@ -70,7 +76,7 @@ class Completer:
             for sym in syms:
                 obj = getattr(obj, mangle(sym))
             words = map(maybe_unmangle, dir(obj))
-        except Exception:
+        except Exception:  # noqa: BLE001
             return []
 
         matches = [
@@ -80,18 +86,18 @@ class Completer:
         ]
         return matches
 
-    def global_matches(self, text):
+    def global_matches(self, text: str) -> list[str]:
         canonicalized = canonicalize(text)
         matches = []
         for p in self.path:
-            for k in p.keys():
+            for k in p:
                 if isinstance(k, str):
                     unmangled, k = maybe_unmangle(k)
                     if unmangled.startswith(canonicalized) or k.startswith(text):
                         matches.append(unmangled)
         return matches
 
-    def complete(self, text, state):
+    def complete(self, text: str, state: int) -> str | None:
         if '.' in text:
             matches = self.attr_matches(text)
         else:
@@ -103,7 +109,7 @@ class Completer:
 
 
 @contextlib.contextmanager
-def completion(completer=None):
+def completion(completer: Completer | None = None) -> ta.Iterator[None]:
     delims = '()[]{} '
 
     init_readline()
@@ -115,7 +121,7 @@ def completion(completer=None):
     if not completer:
         completer = Completer()
 
-    if sys.platform == 'darwin' and 'libedit' in readline.__doc__:
+    if sys.platform == 'darwin' and 'libedit' in (readline.__doc__ or ''):
         readline_bind = 'bind ^I rl_complete'
     else:
         readline_bind = 'tab: complete'
@@ -151,4 +157,5 @@ def completion(completer=None):
         # Restore the previously saved history.
         readline.clear_history()
         for item in history_was:
-            readline.add_history(item)
+            if item is not None:
+                readline.add_history(item)

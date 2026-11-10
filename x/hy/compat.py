@@ -23,7 +23,7 @@ if 'def' in ast.unparse(ast.parse('𝕕𝕖𝕗 = 1')):
 
     true_unparse = ast.unparse
 
-    def rewriting_unparse(ast_obj):
+    def rewriting_unparse(ast_obj: ast.AST) -> str:
         ast_obj = copy.deepcopy(ast_obj)
         for node in ast.walk(ast_obj):
             if type(node) is ast.Constant:
@@ -43,7 +43,7 @@ if 'def' in ast.unparse(ast.parse('𝕕𝕖𝕗 = 1')):
     ast.unparse = rewriting_unparse
 
 
-def reu(x):
+def reu(x: str) -> str:
     """"(R)eplace an (e)rror (u)nderline. This is only used for testing Hy."""
 
     return x.replace('-', '^') if PY3_13 else x

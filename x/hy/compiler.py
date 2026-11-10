@@ -1,3 +1,4 @@
+# ruff: noqa: A001, A002, S307
 import ast
 import builtins
 import contextlib
@@ -5,7 +6,11 @@ import copy
 import importlib
 import inspect
 import traceback
+import types
+import typing as ta
 import warnings
+
+from omcore import check
 
 from .. import hy
 from .compat import PY3_14
@@ -25,6 +30,7 @@ from .models import Keyword
 from .models import Lazy
 from .models import List
 from .models import Object
+from .models import Sequence
 from .models import Set
 from .models import String
 from .models import Symbol
@@ -34,13 +40,20 @@ from .models import is_unpack
 from .reader import HyReader
 from .reader import mangle
 from .scoping import ResolveOuterVars
+from .scoping import ScopeBase
 from .scoping import ScopeGlobal
+
+
+CompilerOutput: ta.TypeAlias = ta.Union['Result', ast.AST]  # noqa: UP007
+ModelCompilerT = ta.TypeVar('ModelCompilerT', bound=ta.Callable[..., CompilerOutput])
+SequenceT = ta.TypeVar('SequenceT', bound=Sequence)
+ResultStatement: ta.TypeAlias = ast.stmt | ast.excepthandler
 
 
 ##
 
 
-def calling_module(n=1):
+def calling_module(n: int = 1) -> types.ModuleType | None:
     """
     Get the module calling, if available.
 
@@ -67,13 +80,13 @@ def calling_module(n=1):
     return module
 
 
-_model_compilers = {}
+_model_compilers: dict[type[Object], ta.Callable[..., Result | ast.AST]] = {}
 
 
-def builds_model(*model_types):
+def builds_model(*model_types: type[Object]) -> ta.Callable[[ModelCompilerT], ModelCompilerT]:
     "Assign the decorated method to _model_compilers for the given types."
 
-    def _dec(fn):
+    def _dec(fn: ModelCompilerT) -> ModelCompilerT:
         for t in model_types:
             _model_compilers[t] = fn
         return fn
@@ -86,7 +99,7 @@ def builds_model(*model_types):
 # ast.Foo(..., lineno=x.lineno, col_offset=x.col_offset)
 # Also provides asty.parse(x, ...) which recursively copies x's position data onto the parse result.
 class Asty:
-    POS_ATTRS = {
+    POS_ATTRS: ta.ClassVar[ta.Mapping[str, str]] = {
         'lineno': 'start_line',
         'col_offset': 'start_column',
         'end_lineno': 'end_line',
@@ -94,26 +107,26 @@ class Asty:
     }
 
     @staticmethod
-    def _get_pos(node):
+    def _get_pos(node: Object | ast.AST | Result) -> dict[str, int | None]:
         return {
             attr: getattr(node, hy_attr, getattr(node, attr, None))
             for attr, hy_attr in Asty.POS_ATTRS.items()
         }
 
     @staticmethod
-    def _replace_pos(node, pos):
+    def _replace_pos(node: ast.AST, pos: ta.Mapping[str, int | None]) -> None:
         for attr, value in pos.items():
             if hasattr(node, attr):
                 setattr(node, attr, value)
         for child in ast.iter_child_nodes(node):
             Asty._replace_pos(child, pos)
 
-    def parse(self, x, *args, **kwargs):
+    def parse(self, x: Object | ast.AST | Result, *args: ta.Any, **kwargs: ta.Any) -> ta.Any:
         res = ast.parse(*args, **kwargs)
         Asty._replace_pos(res, Asty._get_pos(x))
         return res
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> ta.Any:
         setattr(
             Asty,
             name,
@@ -150,7 +163,15 @@ class Result:
 
     __slots__ = ('stmts', 'temp_variables', '_expr', '__used_expr')
 
-    def __init__(self, *, stmts=(), expr=None, temp_variables=()):
+    def __init__(
+            self,
+            *,
+            stmts: ta.Iterable[ResultStatement] = (),
+            expr: ast.expr | None = None,
+            temp_variables: ta.Iterable[ast.Name | ast.FunctionDef | ast.AsyncFunctionDef] = (),
+    ) -> None:
+        super().__init__()
+
         self.stmts = list(stmts)
         self.temp_variables = list(temp_variables)
         self._expr = expr
@@ -158,17 +179,17 @@ class Result:
         self.__used_expr = False
 
     @property
-    def expr(self):
+    def expr(self) -> ast.expr | None:
         self.__used_expr = True
         return self._expr
 
     @expr.setter
-    def expr(self, value):
+    def expr(self, value: ast.expr | None) -> None:
         self.__used_expr = False
         self._expr = value
 
     @property
-    def lineno(self):
+    def lineno(self) -> int | None:
         if self._expr is not None:
             return self._expr.lineno
         if self.stmts:
@@ -176,7 +197,7 @@ class Result:
         return None
 
     @property
-    def col_offset(self):
+    def col_offset(self) -> int | None:
         if self._expr is not None:
             return self._expr.col_offset
         if self.stmts:
@@ -184,7 +205,7 @@ class Result:
         return None
 
     @property
-    def end_col_offset(self):
+    def end_col_offset(self) -> int | None:
         if self._expr is not None:
             return self._expr.end_col_offset
         if self.stmts:
@@ -192,20 +213,20 @@ class Result:
         return None
 
     @property
-    def end_lineno(self):
+    def end_lineno(self) -> int | None:
         if self._expr is not None:
             return self._expr.end_lineno
         if self.stmts:
             return self.stmts[-1].end_lineno
         return None
 
-    def is_expr(self):
+    def is_expr(self) -> bool:
         """Check whether I am a pure expression"""
 
-        return self._expr and not self.stmts
+        return self._expr is not None and not self.stmts
 
     @property
-    def force_expr(self):
+    def force_expr(self) -> ast.expr:
         """
         Force the expression context of the Result.
 
@@ -220,7 +241,7 @@ class Result:
             col_offset=self.stmts[-1].col_offset if self.stmts else 0,
         )
 
-    def expr_as_stmt(self):
+    def expr_as_stmt(self) -> Result:
         """
         Convert the Result's expression context to a statement
 
@@ -236,7 +257,7 @@ class Result:
             return Result() + asty.Expr(self.expr, value=self.expr)
         return Result()
 
-    def rename(self, compiler, new_name):
+    def rename(self, compiler: HyASTCompiler, new_name: str) -> None:
         """
         Rename the Result's temporary variables to a `new_name`.
 
@@ -251,10 +272,10 @@ class Result:
             elif isinstance(var, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 var.name = new_name
             else:
-                raise TypeError("Don't know how to rename a %s!" % (var.__class__.__name__))
+                raise TypeError(f"Don't know how to rename a {var.__class__.__name__}!")
         self.temp_variables = []
 
-    def __add__(self, other):
+    def __add__(self, other: Result | ast.AST) -> Result:
         # If we add an ast statement, convert it first
         if isinstance(other, ast.stmt):
             return self + Result(stmts=[other])
@@ -273,9 +294,8 @@ class Result:
         if self.expr and not self.__used_expr:
             traceback.print_stack()
             print(
-                'Bad boy clobbered expr {} with {}'.format(
-                    ast.dump(self.expr), ast.dump(other.expr),
-                ),
+                f'Bad boy clobbered expr {ast.dump(self.expr)} with '
+                f'{ast.dump(other.expr) if other.expr is not None else None}',
             )
 
         # Fairly obvious addition
@@ -286,32 +306,38 @@ class Result:
 
         return result
 
-    def __str__(self):
-        return 'Result(stmts=[%s], expr=%s)' % (
+    def __str__(self) -> str:
+        return 'Result(stmts=[{}], expr={})'.format(
             ', '.join(ast.dump(x) for x in self.stmts),
             ast.dump(self.expr) if self.expr else None,
         )
 
 
-def make_hy_model(outer, x, rest):
+def make_hy_model(outer: type[SequenceT], x: ta.Iterable[ta.Any], rest: list[ta.Any] | None) -> SequenceT:
     return outer(
         [Symbol(a) if type(a) is str else a[0] if type(a) is list else a for a in x]
         + (rest or []),
     )
 
 
-def mkexpr(*items, **kwargs):
+def mkexpr(*items: ta.Any, **kwargs: ta.Any) -> Expression:
     return make_hy_model(Expression, items, kwargs.get('rest'))
 
 
-def is_annotate_expression(model):
-    return isinstance(model, Expression) and model and model[0] == Symbol('annotate')
+def is_annotate_expression(model: Object) -> bool:
+    return isinstance(model, Expression) and bool(model) and model[0] == Symbol('annotate')
 
 
 class HyASTCompiler:
     """A Hy-to-Python AST compiler"""
 
-    def __init__(self, module, filename=None, source=None, extra_macros=None):
+    def __init__(
+            self,
+            module: types.ModuleType | str,
+            filename: str | None = None,
+            source: str | None = None,
+            extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+    ) -> None:
         """
         Args:
             module (Union[str, types.ModuleType]): Module name or object in which the Hy tree is evaluated.
@@ -323,20 +349,22 @@ class HyASTCompiler:
                 over macros in `module`.
         """
 
+        super().__init__()
+
         self.anon_var_count = 0
-        self.temp_if = None
+        self.temp_if: str | None = None
         self.extra_macros = extra_macros or {}
 
         # Make a list of dictionaries with local compiler settings, such as the definitions of local macros. The last
         # element is considered the top of the stack.
-        self.local_state_stack = []
+        self.local_state_stack: list[dict[str, ta.Any]] = []
         self.new_local_state()
 
         if not inspect.ismodule(module):
             self.module = importlib.import_module(module)
         else:
             self.module = module
-        self.module.hy = hy
+        self.module.__dict__['hy'] = hy
         # The `hy` module itself should always be in scope.
 
         self.module_name = self.module.__name__
@@ -344,7 +372,7 @@ class HyASTCompiler:
         self.filename = filename
         self.source = source
 
-        self.this = None
+        self.this: Expression | None = None
         # Set in `macroexpand` to the current expression being macro-expanded, so it can be accessed as
         # `&compiler.this`.
 
@@ -352,17 +380,17 @@ class HyASTCompiler:
         self.module.__dict__.setdefault('_hy_macros', {})
         self.module.__dict__.setdefault('_hy_reader_macros', {})
 
-        self.scope = ScopeGlobal(self)
+        self.scope: ScopeBase = ScopeGlobal(self)
 
-    def new_local_state(self):
+    def new_local_state(self) -> None:
         """Add a new local state to the top of the stack."""
 
-        self.local_state_stack.append(dict(macros = {}))
+        self.local_state_stack.append(dict(macros={}))
 
-    def is_in_local_state(self):
+    def is_in_local_state(self) -> bool:
         return len(self.local_state_stack) > 1
 
-    def get_local_option(self, key, default):
+    def get_local_option(self, key: str, default: ta.Any) -> ta.Any:
         """Get the topmost available value of a local-state setting."""
 
         return next(
@@ -371,7 +399,7 @@ class HyASTCompiler:
                 if key in s),
             default)
 
-    def warn_on_core_shadow(self, name):
+    def warn_on_core_shadow(self, name: str) -> None:
         if (
                 mangle(name) in getattr(builtins, '_hy_macros', {}) and
                 self.get_local_option('warn_on_core_shadow', True)
@@ -381,17 +409,17 @@ class HyASTCompiler:
                 RuntimeWarning,
             )
 
-    def get_anon_var(self, base='anon', name=''):
+    def get_anon_var(self, base: str = 'anon', name: str = '') -> str:
         self.anon_var_count += 1
         name = name and '_' + name
         return f'_hy_{base}{name}_{self.anon_var_count}'
 
-    def compile_atom(self, atom):
+    def compile_atom(self, atom: Object) -> Result:
         # Compilation methods may mutate the atom, so copy it first.
         atom = copy.copy(atom)
         return Result() + _model_compilers[type(atom)](self, atom)
 
-    def compile(self, tree):
+    def compile(self, tree: Object | None) -> Result:
         if tree is None:
             return Result()
         try:
@@ -401,33 +429,38 @@ class HyASTCompiler:
             # compile calls compile, so we're going to have multiple raise nested; so let's re-raise this exception,
             # let's not wrap it in another HyCompileError!
             raise
-        except HyLanguageError as e:
+        except HyLanguageError:
             # These are expected errors that should be passed to the user.
-            raise e
-        except Exception as e:
+            raise
+        except Exception as e:  # noqa: BLE001
             # These are unexpected errors that will--hopefully--never be seen by the user.
             f_exc = traceback.format_exc()
-            exc_msg = 'Internal Compiler Bug\n {}'.format(f_exc)
-            raise HyCompileError(exc_msg)
+            exc_msg = f'Internal Compiler Bug\n {f_exc}'
+            raise HyCompileError(exc_msg) from e
 
-    def _syntax_error(self, expr, message):
+    def _syntax_error(self, expr: Object, message: str) -> ta.NoReturn:
         raise HySyntaxError(message, expr, self.filename, self.source)
 
-    def _compile_collect(self, exprs, with_kwargs=False, dict_display=False):
+    def _compile_collect(
+            self,
+            exprs: ta.Iterable[Object],
+            with_kwargs: bool = False,
+            dict_display: bool = False,
+    ) -> tuple[list[ast.expr | None], Result, list[ast.keyword]]:
         """
         Collect the expression contexts from a list of compiled expression.
 
         This returns a list of the expression contexts, and the sum of the Result objects passed as arguments.
         """
 
-        compiled_exprs = []
+        compiled_exprs: list[ast.expr | None] = []
         ret = Result()
         keywords = []
 
         exprs_iter = iter(exprs)
         for expr in exprs_iter:
             if is_unpack('mapping', expr):
-                ret += self.compile(expr[1])
+                ret += self.compile(ta.cast(Expression, expr)[1])
                 if dict_display:
                     compiled_exprs.append(None)
                     compiled_exprs.append(ret.force_expr)
@@ -438,12 +471,12 @@ class HyASTCompiler:
                 try:
                     value = next(exprs_iter)
                 except StopIteration:
-                    raise self._syntax_error(
-                        expr, 'Keyword argument {kw} needs a value.'.format(kw=expr),
+                    self._syntax_error(
+                        expr, f'Keyword argument {expr} needs a value.',
                     )
 
                 if not expr:
-                    raise self._syntax_error(
+                    self._syntax_error(
                         expr, "Can't call a function with the empty keyword",
                     )
 
@@ -462,7 +495,7 @@ class HyASTCompiler:
         return compiled_exprs, ret, keywords
 
     @builds_model(Lazy)
-    def _compile_branch(self, exprs):
+    def _compile_branch(self, exprs: ta.Iterable[Object]) -> Result:
         """
         Make a branch out of an iterable of Result objects
 
@@ -481,7 +514,7 @@ class HyASTCompiler:
             result += last
         return result
 
-    def _storeize(self, expr, name, func=None):
+    def _storeize(self, expr: Object, name: Result | ast.expr, func: type[ast.expr_context] | None = None) -> ast.expr:
         """Return a new `name` object with an ast.Store() context"""
 
         if not func:
@@ -489,9 +522,10 @@ class HyASTCompiler:
 
         if isinstance(name, Result):
             if not name.is_expr():
-                raise self._syntax_error(expr, "Can't assign or delete a non-expression")
-            name = name.expr
+                self._syntax_error(expr, "Can't assign or delete a non-expression")
+            name = name.force_expr
 
+        new_name: ast.expr
         if isinstance(name, (ast.Tuple, ast.List)):
             typ = type(name)
             new_elts = []
@@ -509,7 +543,7 @@ class HyASTCompiler:
         elif isinstance(name, ast.Starred):
             new_name = ast.Starred(value=self._storeize(expr, name.value, func))
         else:
-            raise self._syntax_error(
+            self._syntax_error(
                 expr,
                 "Can't assign or delete a "
                 + (
@@ -523,22 +557,22 @@ class HyASTCompiler:
         ast.copy_location(new_name, name)
         return new_name
 
-    def _nonconst(self, name):
+    def _nonconst(self, name: Symbol) -> Symbol:
         if str(name) in ('None', 'True', 'False'):
-            raise self._syntax_error(name, "Can't assign to constant")
+            self._syntax_error(name, "Can't assign to constant")
         return name
 
-    def eval(self, model):
+    def eval(self, model: Object) -> ta.Any:
         return hy_eval(
             model,
-            locals = self.module.__dict__,
-            module = self.module,
-            filename = self.filename,
-            source = self.source,
-            import_stdlib = False)
+            locals=self.module.__dict__,
+            module=self.module,
+            filename=self.filename,
+            source=self.source,
+            import_stdlib=False)
 
     @contextlib.contextmanager
-    def local_state(self):
+    def local_state(self) -> ta.Iterator[None]:
         self.new_local_state()
         try:
             yield
@@ -546,18 +580,19 @@ class HyASTCompiler:
             self.local_state_stack.pop()
 
     @builds_model(Expression)
-    def compile_expression(self, expr):
+    def compile_expression(self, expr: Expression) -> Result | ast.AST:
         # Perform macro expansions
-        expr = macroexpand(expr, self.module, self)
-        if isinstance(expr, (Result, ast.AST)):
+        expanded = macroexpand(expr, self.module, self)
+        if isinstance(expanded, (Result, ast.AST)):
             # Use this as-is.
-            return expr
-        elif not isinstance(expr, Expression):
+            return expanded
+        elif not isinstance(expanded, Expression):
             # Go through compile again if we have a different type of model.
-            return self.compile(expr)
+            return self.compile(expanded)
+        expr = expanded
 
         if not expr:
-            raise self._syntax_error(
+            self._syntax_error(
                 expr, 'empty expressions are not allowed at top level',
             )
 
@@ -583,7 +618,7 @@ class HyASTCompiler:
                         break
                     i += 2
                 elif is_unpack('iterable', args[i]):
-                    raise self._syntax_error(
+                    self._syntax_error(
                         args[i], "can't call a method on an `unpack-iterable` form",
                     )
                 elif is_unpack('mapping', args[i]):
@@ -591,7 +626,7 @@ class HyASTCompiler:
                 else:
                     break
             else:
-                raise self._syntax_error(expr, 'attribute access requires object')
+                self._syntax_error(expr, 'attribute access requires object')
 
             func = self.compile(
                 Expression([Symbol('.'), args.pop(i), *root[2:]]).replace(root),
@@ -619,17 +654,16 @@ class HyASTCompiler:
         )
 
     @builds_model(Integer, Float, Complex)
-    def compile_numeric_literal(self, x):
-        return asty.Constant(x, value =
-            {Integer: int, Float: float, Complex: complex}[type(x)](x))
+    def compile_numeric_literal(self, x: Integer | Float | Complex) -> ast.Constant:
+        return asty.Constant(x, value={Integer: int, Float: float, Complex: complex}[type(x)](x))
 
     @builds_model(Symbol)
-    def compile_symbol(self, symbol):
+    def compile_symbol(self, symbol: Symbol) -> ast.AST:
         if symbol == Symbol('...'):
             return asty.Constant(symbol, value=Ellipsis)
 
         # By this point, `symbol` should be either all dots or dot-free.
-        assert not symbol.strip('.') or '.' not in symbol
+        check.state(not symbol.strip('.') or '.' not in symbol)
 
         if mangle(symbol) in ('None', 'False', 'True'):
             return asty.Constant(symbol, value=ast.literal_eval(mangle(symbol)))
@@ -637,7 +671,7 @@ class HyASTCompiler:
         return self.scope.access(asty.Name(symbol, id=mangle(symbol), ctx=ast.Load()))
 
     @builds_model(Keyword)
-    def compile_keyword(self, obj):
+    def compile_keyword(self, obj: Keyword) -> Result:
         ret = Result()
         ret += asty.Call(
             obj,
@@ -658,16 +692,15 @@ class HyASTCompiler:
         return ret
 
     @builds_model(String, Bytes)
-    def compile_string(self, string):
-        return asty.Constant(string, value =
-            (bytes if type(string) is Bytes else str)(string))
+    def compile_string(self, string: String | Bytes) -> ast.Constant:
+        return asty.Constant(string, value=bytes(string) if isinstance(string, Bytes) else str(string))
 
     @builds_model(FComponent)
-    def compile_fcomponent(self, fcomponent):
+    def compile_fcomponent(self, fcomponent: FComponent) -> Result:
         if not PY3_14 and fcomponent.is_tstring:
-            raise self._syntax_error(fcomponent, 'Template string literals require Python 3.14 or later')
+            self._syntax_error(fcomponent, 'Template string literals require Python 3.14 or later')
         if fcomponent.conversion not in (None, 's', 'r', 'a'):
-            raise self._syntax_error(
+            self._syntax_error(
                 fcomponent, f'Invalid conversion character {fcomponent.conversion!r}',
             )
         conversion = ord(fcomponent.conversion) if fcomponent.conversion else -1
@@ -688,33 +721,37 @@ class HyASTCompiler:
         )
 
     @builds_model(FString)
-    def compile_fstring(self, fstring):
+    def compile_fstring(self, fstring: FString) -> Result:
         if not PY3_14 and fstring.is_tstring:
-            raise self._syntax_error(fstring, 'Template string literals require Python 3.14 or later')
+            self._syntax_error(fstring, 'Template string literals require Python 3.14 or later')
         elts, ret, _ = self._compile_collect(fstring)
         return ret + (asty.TemplateStr if fstring.is_tstring else asty.JoinedStr)(fstring, values=elts)
 
     @builds_model(List, Set)
-    def compile_list(self, expression):
+    def compile_list(self, expression: List | Set) -> Result:
         elts, ret, _ = self._compile_collect(expression)
         node = {List: asty.List, Set: asty.Set}[type(expression)]
         return ret + node(
             expression,
-            elts = elts,
-            **({} if node is asty.Set else dict(ctx = ast.Load())))
+            elts=elts,
+            **({} if node is asty.Set else dict(ctx=ast.Load())))
 
     @builds_model(Dict)
-    def compile_dict(self, m):
+    def compile_dict(self, m: Dict) -> Result:
         keyvalues, ret, _ = self._compile_collect(m, dict_display=True)
         return ret + asty.Dict(m, keys=keyvalues[::2], values=keyvalues[1::2])
 
     @builds_model(Tuple)
-    def compile_tuple(self, expression):
+    def compile_tuple(self, expression: Tuple) -> Result:
         elts, ret, _ = self._compile_collect(expression)
         return ret + asty.Tuple(expression, elts=elts, ctx=ast.Load())
 
 
-def get_compiler_module(module=None, compiler=None, calling_frame=False):
+def get_compiler_module(
+        module: types.ModuleType | str | None = None,
+        compiler: HyASTCompiler | None = None,
+        calling_frame: bool = False,
+) -> types.ModuleType:
     """
     Get a module object from a compiler, given module object, string name of a module, and (optionally) the calling
     frame; otherwise, raise an error.
@@ -729,22 +766,22 @@ def get_compiler_module(module=None, compiler=None, calling_frame=False):
         module = calling_module(n=2)
 
     if not inspect.ismodule(module):
-        raise TypeError('Invalid module type: {}'.format(type(module)))
+        raise TypeError(f'Invalid module type: {type(module)}')
 
     return module
 
 
 def hy_eval(
-    hytree,
-    locals,
-    module=None,
-    compiler=None,
-    filename=None,
-    source=None,
-    import_stdlib=True,
-    globals=None,
-    extra_macros=None,
-):
+        hytree: ta.Any,
+        locals: ta.MutableMapping[str, ta.Any] | None,
+        module: types.ModuleType | str | None = None,
+        compiler: HyASTCompiler | None = None,
+        filename: str | None = None,
+        source: str | None = None,
+        import_stdlib: bool = True,
+        globals: dict[str, ta.Any] | None = None,
+        extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+) -> ta.Any:
 
     module = get_compiler_module(module, compiler, True)
 
@@ -773,7 +810,13 @@ def hy_eval(
     return eval(compile(expr, filename, 'eval'), globals, locals)
 
 
-def hy_eval_user(model, globals = None, locals = None, module = None, macros = None):
+def hy_eval_user(
+        model: ta.Any,
+        globals: dict[str, ta.Any] | None = None,
+        locals: ta.MutableMapping[str, ta.Any] | None = None,
+        module: types.ModuleType | str | None = None,
+        macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+) -> ta.Any:
     # This function is advertised as `hy.eval`.
     """
     An equivalent of Python's :func:`eval` for evaluating Hy code. The chief difference is that the first argument
@@ -820,13 +863,13 @@ def hy_eval_user(model, globals = None, locals = None, module = None, macros = N
         hy_was = (locals['hy'],)
     try:
         value = hy_eval(
-            hytree = model,
-            globals = globals,
-            locals = (inspect.getargvalues(inspect.stack()[1][0]).locals
-                if locals is None and module is None
-                else locals),
-            module = get_compiler_module(module, None, True),
-            extra_macros = macros)
+            hytree=model,
+            globals=globals,
+            locals=(inspect.getargvalues(inspect.stack()[1][0]).locals
+                    if locals is None and module is None
+                    else locals),
+            module=get_compiler_module(module, None, True),
+            extra_macros=macros)
     finally:
         if locals is not None:
             if hy_was:
@@ -838,17 +881,48 @@ def hy_eval_user(model, globals = None, locals = None, module = None, macros = N
     return value
 
 
+@ta.overload
 def hy_compile(
-    tree,
-    module,
-    root=ast.Module,
-    get_expr=False,
-    compiler=None,
-    filename=None,
-    source=None,
-    import_stdlib=True,
-    extra_macros=None,
-):
+        tree: ta.Any,
+        module: types.ModuleType | str,
+        root: type[ast.Module | ast.Interactive] = ast.Module,
+        get_expr: ta.Literal[False] = False,
+        compiler: HyASTCompiler | None = None,
+        filename: str | None = None,
+        source: str | None = None,
+        import_stdlib: bool = True,
+        extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+) -> ast.Module | ast.Interactive:
+    ...
+
+
+@ta.overload
+def hy_compile(
+        tree: ta.Any,
+        module: types.ModuleType | str,
+        root: type[ast.Module | ast.Interactive] = ast.Module,
+        *,
+        get_expr: ta.Literal[True],
+        compiler: HyASTCompiler | None = None,
+        filename: str | None = None,
+        source: str | None = None,
+        import_stdlib: bool = True,
+        extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+) -> tuple[ast.Module | ast.Interactive, ast.Expression]:
+    ...
+
+
+def hy_compile(
+        tree: ta.Any,
+        module: types.ModuleType | str,
+        root: type[ast.Module | ast.Interactive] = ast.Module,
+        get_expr: bool = False,
+        compiler: HyASTCompiler | None = None,
+        filename: str | None = None,
+        source: str | None = None,
+        import_stdlib: bool = True,
+        extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+) -> ast.Module | ast.Interactive | tuple[ast.Module | ast.Interactive, ast.Expression]:
     """
     Compile a hy.models.Object tree into a Python AST Module.
 
@@ -880,13 +954,13 @@ def hy_compile(
 
     tree = as_model(tree)
     if not isinstance(tree, Object):
-        raise TypeError('`tree` must be a hy.models.Object or capable of ' 'being promoted to one')
+        raise TypeError('`tree` must be a hy.models.Object or capable of being promoted to one')
 
     compiler = compiler or HyASTCompiler(
         module,
-        filename = filename,
-        source = source,
-        extra_macros = extra_macros)
+        filename=filename,
+        source=source,
+        extra_macros=extra_macros)
 
     with HyReader.using_reader(reader, create=False), compiler.scope:
         result = compiler.compile(tree)
@@ -930,11 +1004,11 @@ def hy_compile(
 
     body += result.stmts
     ret = root(
-        body = body,
-        **({} if root is ast.Interactive else dict(type_ignores = [])))
+        # Try macros consume exception handlers before producing module bodies.
+        body=ta.cast('list[ast.stmt]', body),
+        **({} if root is ast.Interactive else dict(type_ignores=[])))
 
     if get_expr:
-        expr = ast.Expression(body=expr)
-        ret = (ret, expr)
+        return ret, ast.Expression(body=expr)
 
     return ret

@@ -1,3 +1,4 @@
+# ruff: noqa: A002
 """
 Get useful information from live Hy or Python objects.
 
@@ -7,7 +8,6 @@ monkey-patched into `inspect` at run-time.
 
 The class finder in `findsource` relies on python 3.13 or later.
 """
-import contextlib
 import inspect
 import linecache
 import typing as ta
@@ -16,15 +16,14 @@ from .compat import PY3_13
 from .errors import HySyntaxError
 from .models import Expression
 from .models import Lazy
+from .models import Object
 from .reader import HyReader
 from .reader import read
 from .reader.exceptions import LexException
+from .reader.reader import ReaderMeta
 
 
 ##
-
-
-reader_for: ta.Any
 
 
 class HySafeReader(HyReader):
@@ -35,54 +34,62 @@ class HySafeReader(HyReader):
     method to return None, as comments do.
     """
 
+    if ta.TYPE_CHECKING:
+        reader_for = ReaderMeta._attach_reader  # noqa: SLF001
+
     @reader_for(')')
     @reader_for(']')
     @reader_for('}')
-    def _skip(self, key):
+    def _skip(self, key: str) -> None:
         return None
 
     @reader_for('#')
-    def _safe_tag_dispatch(self, key):
+    def _safe_tag_dispatch(self, key: str) -> Object | None:
         """Skip over undefined reader macros so that no code is executed at read time."""
 
-        with contextlib.suppress(LexException):
+        try:
             return super().tag_dispatch(key)
+        except LexException:
+            return None
 
 
-def isExpression(object):
+def is_expression(obj: object) -> ta.TypeIs[Expression]:
     """Check if object is a Hy Expression instance."""
 
-    return isinstance(object, Expression)
+    return isinstance(obj, Expression)
 
 
-def isLazy(object):
+def is_lazy(obj: object) -> ta.TypeIs[Lazy]:
     """Check if object is a Hy Lazy instance."""
 
-    return isinstance(object, Lazy)
+    return isinstance(obj, Lazy)
 
 
-def getfile(object):
+def getfile(object: ta.Any) -> str:
     """Work out which source or compiled file an object was defined in."""
 
-    if isLazy(object) or isExpression(object):
-        if getattr(object, 'filename', None) and object.filename != '<string>':
-            return object.filename
+    obj = object
+
+    if is_lazy(obj) or is_expression(obj):
+        filename = getattr(obj, 'filename', None)
+        if filename and filename != '<string>':
+            return filename
         else:
             # python's inspect.getfile raises OSError where there's no __file__
             raise OSError('source code not available')
 
     try:
-        return py_getfile(object)
+        return py_getfile(obj)
     except TypeError:
         # python's inspect.getfile raises TypeError for unhandled types
         raise TypeError(
             'module, class, method, function, traceback, frame, '
             'code, Expression or Lazy object was expected, got '
-            '{}'.format(type(object).__name__),
-        )
+            f'{type(obj).__name__}',
+        ) from None
 
 
-def findsource(object):
+def findsource(object: ta.Any) -> tuple[list[str], int]:
     """
     Return the entire source file and starting line number for an object.
 
@@ -92,47 +99,51 @@ def findsource(object):
     cannot be retrieved.
     """
 
-    if getfile(object) is None:
+    obj = object
+
+    if getfile(obj) is None:
         raise OSError('source code not available')
 
-    fname = inspect.getsourcefile(object)
+    fname = inspect.getsourcefile(obj)
+    if fname is None:
+        raise OSError('source code not available')
 
-    if isExpression(object) or isLazy(object):
-        if getattr(object, 'start_line', None) is None:
+    if is_expression(obj) or is_lazy(obj):
+        if getattr(obj, 'start_line', None) is None:
             raise OSError('source code not available')
-        return (linecache.getlines(fname), object.start_line)
-    elif getfile(object).endswith('.hy') and not inspect.isframe(object):
+        return (linecache.getlines(fname), obj.start_line)
+    elif getfile(obj).endswith('.hy') and not inspect.isframe(obj):
         # We identify other Hy objects from the file extension.
-        module = inspect.getmodule(object, fname)
+        module = inspect.getmodule(obj, fname)
         # List of source code lines.
         lines = (
             linecache.getlines(fname, module.__dict__)
             if module
             else linecache.getlines(fname)
         )
-        if inspect.ismodule(object):
+        if inspect.ismodule(obj):
             return (lines, 0)
         # Some objects already have the information we need.
-        elif hasattr(object, '__code__') and hasattr(object.__code__, 'co_firstlineno'):
+        elif hasattr(obj, '__code__') and hasattr(obj.__code__, 'co_firstlineno'):
             # This indexing offset is actually correct.
-            return (lines, object.__code__.co_firstlineno - 1)
-        elif inspect.iscode(object):
-            return (lines, object.co_firstlineno - 1)
-        elif inspect.isclass(object):
+            return (lines, obj.__code__.co_firstlineno - 1)
+        elif inspect.iscode(obj):
+            return (lines, obj.co_firstlineno - 1)
+        elif inspect.isclass(obj):
             # _ClassFinder exists and can be used prior to python 3.13, but would require compiling the ast which may be
             # unsafe, so just decline to do it.
             if PY3_13:
-                return py_findsource(object)
+                return py_findsource(obj)
             else:
                 raise OSError('finding Hy class source code requires Python 3.13')
         else:
             raise OSError('source code not available')
     else:
         # Non-Hy object
-        return py_findsource(object)
+        return py_findsource(obj)
 
 
-def getcomments(object):
+def getcomments(object: ta.Any) -> str | None:
     """
     Get comments immediately preceding an object's source code.
 
@@ -140,19 +151,21 @@ def getcomments(object):
     can't be found.
     """
 
+    obj = object
+
     try:
-        lines, lnum = findsource(object)
+        lines, lnum = findsource(obj)
     except (OSError, TypeError):
         # Return None when the source can't be found.
         return None
 
-    if getfile(object).endswith('.hy'):
+    if getfile(obj).endswith('.hy'):
         # Roughly follows the logic of inspect.getcomments, but for Hy comments
         if not lines:
             return None
 
         comments = []
-        if inspect.ismodule(object) or isExpression(object) or isLazy(object):
+        if inspect.ismodule(obj) or is_expression(obj) or is_lazy(obj):
             # Remove shebang.
             start = 1 if lines and lines[0][:2] == '#!' else 0
             # Remove preceding empty lines and textless comments.
@@ -171,7 +184,7 @@ def getcomments(object):
             # Look for comments above the object and work up.
             end = lnum - 1
             while end >= 0 and lines[end].lstrip().startswith(';'):
-                comments = [lines[end].expandtabs().lstrip()] + comments
+                comments = [lines[end].expandtabs().lstrip(), *comments]
                 end -= 1
             return ''.join(comments) if comments else None
         else:
@@ -179,10 +192,10 @@ def getcomments(object):
 
     else:
         # Non-Hy object
-        return py_getcomments(object)
+        return py_getcomments(obj)
 
 
-def getsource(object):
+def getsource(object: ta.Any) -> str:
     """
     Return the text of the source code for an object.
 
@@ -190,10 +203,12 @@ def getsource(object):
     returned as a single string.  An OSError is raised if the source code cannot be retrieved.
     """
 
-    return ''.join(getsourcelines(object)[0])
+    obj = object
+
+    return ''.join(getsourcelines(obj)[0])
 
 
-def hy_getblock(lines):
+def hy_getblock(lines: list[str]) -> list[str]:
     """
     Extract the lines of code corresponding to the first Hy form from the given list of lines.
 
@@ -209,7 +224,7 @@ def hy_getblock(lines):
     return lines[: form.end_line]
 
 
-def getsourcelines(object):
+def getsourcelines(object: ta.Any) -> tuple[list[str], int]:
     """
     Return a list of source lines and starting line number for a Hy or python object.
 
@@ -220,25 +235,27 @@ def getsourcelines(object):
     original source file the first line of code was found. An OSError is raised if the source code cannot be retrieved.
     """
 
-    object = inspect.unwrap(object)
-    lines, lnum = findsource(object)
+    obj = object
 
-    if inspect.istraceback(object):
-        object = object.tb_frame
+    obj = inspect.unwrap(obj)
+    lines, lnum = findsource(obj)
+
+    if inspect.istraceback(obj):
+        obj = obj.tb_frame
 
     # For module or frame that corresponds to module, return all source lines.
-    if inspect.ismodule(object) or (
-        inspect.isframe(object) and object.f_code.co_name == '<module>'
+    if inspect.ismodule(obj) or (
+        inspect.isframe(obj) and obj.f_code.co_name == '<module>'
     ):
         return lines, 0
 
     # Almost everything already works with python's inspect. The inspect.getblock function relies on inspect.BlockFinder
     # which assumes python tokenization. So deal with this as a special case using hy_getblock.
-    elif getfile(object).endswith('.hy'):
+    elif getfile(obj).endswith('.hy'):
         return hy_getblock(lines[lnum:]), lnum + 1
     else:
         # Non-Hy object
-        return py_getsourcelines(object)
+        return py_getsourcelines(obj)
 
 
 if hasattr(inspect, '_hy_originals'):
@@ -249,10 +266,10 @@ if hasattr(inspect, '_hy_originals'):
         py_getfile,
         py_getsource,
         py_getsourcelines,
-    ) = inspect._hy_originals
+    ) = getattr(inspect, '_hy_originals')
 else:
     # Save the originals and then monkey-patch.
-    inspect._hy_originals = (
+    (
         py_findsource,
         py_getcomments,
         py_getfile,
@@ -265,6 +282,13 @@ else:
         inspect.getsource,
         inspect.getsourcelines,
     )
+    setattr(inspect, '_hy_originals', (
+        py_findsource,
+        py_getcomments,
+        py_getfile,
+        py_getsource,
+        py_getsourcelines,
+    ))
     (
         inspect.findsource,
         inspect.getcomments,

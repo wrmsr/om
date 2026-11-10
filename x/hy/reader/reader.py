@@ -1,10 +1,17 @@
+# ruff: noqa: SLF001
 "Tooling for reading/parsing source character-by-character."
 import collections
 import contextlib
 import itertools
 import re
+import typing as ta
 
+from ..models import Object
 from .exceptions import PrematureEndOfInput
+
+
+ReaderFunctionT = ta.TypeVar('ReaderFunctionT', bound=ta.Callable[..., ta.Any])
+ReaderHandler: ta.TypeAlias = ta.Callable[[ta.Any, str], Object | None]
 
 
 ##
@@ -13,7 +20,7 @@ from .exceptions import PrematureEndOfInput
 _whitespace = re.compile(r'[ \t\n\r\f\v]+')
 
 
-def isnormalizedspace(s):
+def isnormalizedspace(s: str) -> bool:
     return bool(_whitespace.match(s))
 
 
@@ -21,23 +28,32 @@ class ReaderMeta(type):
     """Provides a class with a dispatch map `DEFAULT_TABLE` and a decorator `@reader_for`."""
 
     @classmethod
-    def __prepare__(cls, name, bases):
-        namespace = super().__prepare__(cls, name, bases)
+    def __prepare__(
+            cls,
+            name: str,
+            bases: tuple[type, ...],
+            /,
+            **kwargs: ta.Any,
+    ) -> ta.MutableMapping[str, ta.Any]:
+        namespace = super().__prepare__(name, bases, **kwargs)
         namespace['reader_for'] = cls._attach_reader
         return namespace
 
     @staticmethod
-    def _attach_reader(char, args=None):
-        def wrapper(f):
+    def _attach_reader(
+            char: str,
+            args: tuple[ta.Any, ...] | None = None,
+    ) -> ta.Callable[[ReaderFunctionT], ReaderFunctionT]:
+        def wrapper(f: ReaderFunctionT) -> ReaderFunctionT:
             handler = f if args is None else f(*args)
-            f._readers = {**getattr(f, '_readers', {}), char: handler}
+            setattr(f, '_readers', {**getattr(f, '_readers', {}), char: handler})
             return f
 
         return wrapper
 
-    def __new__(cls, name, bases, namespace):
+    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, ta.Any]) -> ReaderMeta:
         del namespace['reader_for']
-        default_table = {}
+        default_table: dict[str, ReaderHandler] = {}
         for base in bases:
             if hasattr(base, 'DEFAULT_TABLE'):
                 default_table |= base.DEFAULT_TABLE
@@ -65,14 +81,27 @@ class Reader(metaclass=ReaderMeta):
 
     __module__ = __package__.rpartition('.')[0]
 
-    def __init__(self):
+    NON_IDENT: ta.ClassVar[ta.AbstractSet[str]]
+    DEFAULT_TABLE: ta.ClassVar[dict[str, ReaderHandler]]
+
+    _source: str | None
+    _filename: str | None
+    _stream: ta.TextIO
+    _peek_chars: collections.deque[str]
+    _saved_chars: list[list[str]]
+    _pos: tuple[int, int]
+    _eof_tracker: tuple[int, int]
+
+    def __init__(self) -> None:
+        super().__init__()
+
         self._source = None
         self._filename = None
 
         self.ends_ident = set(self.NON_IDENT)
         self.reader_table = self.DEFAULT_TABLE.copy()
 
-    def _set_source(self, stream=None, filename=None):
+    def _set_source(self, stream: ta.TextIO | None = None, filename: str | None = None) -> None:
         if filename is not None:
             self._filename = filename
         if stream is not None:
@@ -87,11 +116,11 @@ class Reader(metaclass=ReaderMeta):
             self._eof_tracker = self._pos
 
     @property
-    def pos(self):
+    def pos(self) -> tuple[int, int]:
         return self._pos
 
     @contextlib.contextmanager
-    def end_identifier(self, character):
+    def end_identifier(self, character: str) -> ta.Iterator[None]:
         """A context manager to temporarily add a new character to the :py:attr:`ends_ident` set."""
 
         prev_ends_ident = self.ends_ident.copy()
@@ -105,7 +134,7 @@ class Reader(metaclass=ReaderMeta):
     # Character streaming
 
     @contextlib.contextmanager
-    def saving_chars(self):
+    def saving_chars(self) -> ta.Iterator[list[str]]:
         """
         A context manager to save all read characters. The value is a list of characters, rather than a single string.
         """
@@ -118,7 +147,7 @@ class Reader(metaclass=ReaderMeta):
             # saved for the outer case.
             self._saved_chars[-1].extend(saved)
 
-    def peekc(self):
+    def peekc(self) -> str:
         """Peek at the next character, returning it but not consuming it."""
 
         if self._peek_chars:
@@ -127,15 +156,14 @@ class Reader(metaclass=ReaderMeta):
         self._peek_chars.append(nc)
         return nc
 
-    def peeking(self, eof_ok=False):
+    def peeking(self, eof_ok: bool = False) -> ta.Iterator[str]:
         """
         As :func:`chars`, but without consuming any of the returned
         characters. This method is useful for looking several characters
         ahead.
         """
 
-        for nc in reversed(self._peek_chars):
-            yield nc
+        yield from reversed(self._peek_chars)
         while True:
             c = self._stream.read(1)
             if not c:
@@ -145,7 +173,7 @@ class Reader(metaclass=ReaderMeta):
         if not c and not eof_ok:
             raise PrematureEndOfInput.from_reader('Premature end of input while peeking', self)
 
-    def getc(self):
+    def getc(self) -> str:
         """
         Consume one character from the stream and return it. This method does the bookkeeping for position data, so all
         character consumption should go through it.
@@ -170,7 +198,7 @@ class Reader(metaclass=ReaderMeta):
 
         return c
 
-    def peek_and_getc(self, target):
+    def peek_and_getc(self, target: str) -> bool:
         """
         Peek at the next character and check if it's equal to ``target``, only consuming it if it's equal. A
         :py:class:`bool` is returned.
@@ -182,7 +210,7 @@ class Reader(metaclass=ReaderMeta):
             return True
         return False
 
-    def chars(self, eof_ok=False):
+    def chars(self, eof_ok: bool = False) -> ta.Iterator[str]:
         """
         Consume and yield characters of the stream. If ``eof_ok`` is false (the default) and the end of the stream is
         reached, raise :exc:`hy.PrematureEndOfInput`.
@@ -201,12 +229,12 @@ class Reader(metaclass=ReaderMeta):
     ##
     # Reading multiple characters
 
-    def getn(self, n):
+    def getn(self, n: int) -> str:
         """Consume and return ``n`` characters."""
 
         return ''.join(itertools.islice(self.chars(), n))
 
-    def slurp_space(self):
+    def slurp_space(self) -> str:
         """Consume and return zero or more whitespace characters."""
 
         n = 0
@@ -216,7 +244,7 @@ class Reader(metaclass=ReaderMeta):
             n += 1
         return self.getn(n)
 
-    def read_ident(self, just_peeking=False):
+    def read_ident(self, just_peeking: bool = False) -> str:
         """
         Read characters until we hit something in :py:attr:`ends_ident`. The characters are consumed unless
         ``just_peeking`` is true.
@@ -235,7 +263,7 @@ class Reader(metaclass=ReaderMeta):
     ##
     # Reader dispatch logic
 
-    def dispatch(self, tag):
+    def dispatch(self, tag: str) -> Object | None:
         """Call the handler for the reader macro with key ``tag`` (a string). Return the model it produces, if any."""
 
         return self.reader_table[tag](self, tag)

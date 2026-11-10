@@ -1,5 +1,8 @@
+# ruff: noqa: RUF002
 import re
 import unicodedata
+
+from omcore import check
 
 
 ##
@@ -10,7 +13,7 @@ MANGLE_DELIM = 'X'
 normalizes_to_underscore = '_︳︴﹍﹎﹏＿'
 
 
-def mangle(s):
+def mangle(s: object) -> str:
     """
     Stringify the argument (with :class:`str`, not :func:`repr` or :hy:func:`hy.repr`) and convert it to a valid Python
     identifier according to :ref:`Hy's mangling rules <mangling>`. ::
@@ -31,7 +34,7 @@ def mangle(s):
         (hy.mangle "a.c!.d")  ; => "a.hyx_cXexclamation_markX.d"
     """
 
-    assert s
+    check.state(bool(s))
     s = str(s)
 
     if '.' in s and s.strip('.'):
@@ -54,7 +57,7 @@ def mangle(s):
             else '{0}{1}{0}'.format(
                 MANGLE_DELIM,
                 unicodedata.name(c, '').lower().replace('-', 'H').replace(' ', '_')
-                or 'U{:x}'.format(ord(c)),
+                or f'U{ord(c):x}',
             )
             for c in s
         )
@@ -65,11 +68,11 @@ def mangle(s):
     # Normalize Unicode per PEP 3131.
     s = unicodedata.normalize('NFKC', s)
 
-    assert s.isidentifier()
+    check.state(s.isidentifier())
     return s
 
 
-def unmangle(s):
+def unmangle(s: object) -> str:
     """
     Stringify the argument and try to convert it to a pretty unmangled form. See :ref:`Hy's mangling rules <mangling>`.
     ::
@@ -94,20 +97,20 @@ def unmangle(s):
 
     if s.startswith('hyx_'):
         s = re.sub(
-            '{0}(U)?([_a-z0-9H]+?){0}'.format(MANGLE_DELIM),
+            f'{MANGLE_DELIM}(U)?([_a-z0-9H]+?){MANGLE_DELIM}',
             lambda mo: chr(int(mo.group(2), base=16))
             if mo.group(1)
             else unicodedata.lookup(
                 mo.group(2).replace('_', ' ').replace('H', '-').upper(),
             ),
-            s[len('hyx_') :],
+            s[len('hyx_'):],
         )
     s = s.replace('_', '-')
 
     return prefix + s + suffix
 
 
-def slashes2dots(s):
+def slashes2dots(s: object) -> str:
     """"Interpret forward slashes as a substitute for periods."""
 
     return mangle(re.sub(

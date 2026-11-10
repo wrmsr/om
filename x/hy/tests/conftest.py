@@ -15,3 +15,4 @@ def pytest_collect_file(file_path, parent):
         file_path.name != '__init__.hy'
     ):
         return pytest.Module.from_parent(parent, path=file_path)
+    return None

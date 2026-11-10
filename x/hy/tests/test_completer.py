@@ -44,7 +44,7 @@ def test_completion():
             mangle('complicated->@#%!name'): types.SimpleNamespace(
                 **{mangle('another$^@#$name'): None},
             ),
-            'hyx_XaXaXaX': types.SimpleNamespace(**{'hyx_XbXbX': None}),
+            'hyx_XaXaXaX': types.SimpleNamespace(hyx_XbXbX=None),
         },
     )
     assert completer_.complete('hy.', 0) is not None

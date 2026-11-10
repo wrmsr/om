@@ -1,12 +1,19 @@
+# ruff: noqa: SLF001
+import typing as ta
+
 from ..errors import HySyntaxError
+
+
+if ta.TYPE_CHECKING:
+    from .reader import Reader
 
 
 ##
 
 
-class LexException(HySyntaxError):
+class LexException(HySyntaxError):  # noqa: N818
     @classmethod
-    def from_reader(cls, message, reader):
+    def from_reader(cls, message: str, reader: Reader) -> ta.Self:
         return cls(
             message,
             None,
