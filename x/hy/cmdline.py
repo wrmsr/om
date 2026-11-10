@@ -54,7 +54,6 @@ def run_command(source, filename=None):
 
 
 USAGE = 'hy [-h | -v | -i | -c CMD | -m MODULE | FILE | -] [ARG]...'
-VERSION = 'hy ' + hy.__version__
 EPILOG = """
 FILE
   program read from script
@@ -217,10 +216,6 @@ def cmdline_handler(argv):
         print(EPILOG)
         return 0
 
-    if 'version' in options:
-        print(VERSION)
-        return 0
-
     action, action_arg = (
         # If the `command` or `mod` options were provided, we'll run the corresponding code.
         ['eval_string', options['command']] if 'command' in options else
@@ -324,7 +319,6 @@ def hyc_main():
         description='Compile Hy source files to Python bytecode (.pyc).',
     )
     parser.add_argument('files', metavar='FILE', nargs='+', help='File(s) to compile')
-    parser.add_argument('-v', action='version', version=VERSION)
     parser.add_argument(
         '-q',
         '--quiet',

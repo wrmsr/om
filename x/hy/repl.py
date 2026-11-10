@@ -412,7 +412,6 @@ class REPL(code.InteractiveConsole):
 
     def banner(self):
         return 'Hy {version}{nickname} using {py}({build}) {pyversion} on {os}'.format(
-            version=hy.__version__,
             nickname='' if hy.nickname is None else f' ({hy.nickname})',
             py=platform.python_implementation(),
             build=platform.python_build()[0],
