@@ -1,5 +1,6 @@
 import contextlib
 import functools
+import itertools
 import math
 import operator
 
@@ -513,7 +514,7 @@ class FString(Sequence):
             # Join adjacent string nodes for the sake of equality testing.
             (
                 node
-                for is_string, components in functools.groupby(s, lambda x: isinstance(x, String))
+                for is_string, components in itertools.groupby(s, lambda x: isinstance(x, String))
                 for node in (
                     [functools.reduce(operator.add, components)] if is_string else components
                 )

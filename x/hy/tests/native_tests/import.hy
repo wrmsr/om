@@ -118,7 +118,7 @@
     (parald 1 2 3 4))
 
   (with [(pytest.raises hy.errors.HyRequireError)]
-    (hy.eval '(require x.hy.tests.resources [does-not-exist]))))
+    (hy.eval '(require ..resources [does-not-exist]))))
 
 
 (require ..resources.more-test-macros *)
@@ -151,7 +151,7 @@
 
 
 ;; `remote-test-macro` is a macro used within
-;; `x.hy.tests.resources.macro-with-require.test-module-macro`.
+;; `resources.macro-with-require.test-module-macro`.
 ;; Here, we introduce an equivalently named version that, when
 ;; used, will expand to a different output string.
 (defmacro remote-test-macro [x]
@@ -171,9 +171,9 @@ in expansions."
 
   (setv remote-test-macro (get _hy_macros "remote_test_macro"))
 
-  (setv module-name-var "x.hy.tests.native_tests.native_macros.test-macro-namespace-resolution")
-  (assert (= (+ "This macro was created in x.hy.tests.resources.macros, "
-                "expanded in x.hy.tests.native_tests.native_macros.test-macro-namespace-resolution "
+  (setv module-name-var f"{__package__}.native_macros.test-macro-namespace-resolution")
+  (assert (= (+ f"This macro was created in {hy.__package__}.tests.resources.macros, "
+                f"expanded in {module-name-var} "
                 "and passed the value 2.")
              (test-module-macro 2)))
 
@@ -217,10 +217,10 @@ in expansions."
   ; We use `hy.eval` here because of a Python limitation that
   ; importing `*` is only allowed at the module level.
   (hy.eval '(do
-    (import x.hy.tests.resources.exports *)
+    (import ..resources.exports *)
     (assert (= (jan) 21))
     (assert (= (♥) 23))
     (with [(pytest.raises NameError)]
       (wayne))
-    (import x.hy.tests.resources.exports [wayne])
+    (import ..resources.exports [wayne])
     (assert (= (wayne) 22)))))

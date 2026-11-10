@@ -27,7 +27,7 @@ from .reader.mangling import slashes2dots
 ##
 
 
-EXTRA_MACROS = ['x.hy.core.result_macros', 'x.hy.core.macros']
+EXTRA_MACROS = ['.core.result_macros', '.core.macros']
 
 
 def macro(name):
@@ -293,7 +293,7 @@ def load_macros(module):
     module._hy_reader_macros = {}
 
     for builtin_mod_name in builtin_macros:
-        builtin_mod = importlib.import_module(builtin_mod_name)
+        builtin_mod = importlib.import_module(builtin_mod_name, __package__)
 
         # This may overwrite macros in the module.
         if hasattr(builtin_mod, '_hy_macros'):

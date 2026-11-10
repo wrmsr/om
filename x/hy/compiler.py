@@ -615,7 +615,7 @@ class HyASTCompiler:
                 func=func.expr or asty.Constant(root, value=None),
                 args=args,
                 keywords=keywords,
-            ),
+            )
         )
 
     @builds_model(Integer, Float, Complex)
@@ -921,8 +921,12 @@ def hy_compile(
 
         # Import hy for runtime.
         if import_stdlib:
+            package, _, name = __package__.rpartition('.')
             body.append(ast.fix_missing_locations(
-                ast.ImportFrom(module='x', names=[ast.alias(name='hy')], level=0)))
+                ast.ImportFrom(
+                    module=package,
+                    names=[ast.alias(name=name, asname='hy' if name != 'hy' else None)],
+                    level=0)))
 
     body += result.stmts
     ret = root(

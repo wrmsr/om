@@ -5,13 +5,13 @@
   ..resources.pydemo [AsyncWithTest async-exits])
 
 (defn test-context []
-  (with [fd (open "x/hy/tests/resources/text.txt" "r")] (assert fd))
-  (with [(open "x/hy/tests/resources/text.txt" "r")] (do)))
+  (with [fd (open f"{(hy.__package__.replace "." "/")}/tests/resources/text.txt" "r")] (assert fd))
+  (with [(open f"{(hy.__package__.replace "." "/")}/tests/resources/text.txt" "r")] (do)))
 
 (defn test-with-return []
   (defn read-file [filename]
     (with [fd (open filename "r" :encoding "UTF-8")] (.read fd)))
-  (assert (= (read-file "x/hy/tests/resources/text.txt") "TAARGÜS TAARGÜS\n")))
+  (assert (= (read-file f"{(hy.__package__.replace "." "/")}/tests/resources/text.txt") "TAARGÜS TAARGÜS\n")))
 
 (setv exits [])
 (defclass WithTest [object]

@@ -1,5 +1,6 @@
 import pytest
 
+from .... import hy
 from ...compiler import HyASTCompiler
 from ...errors import HyMacroExpansionError
 from ...macros import macro
@@ -67,6 +68,6 @@ def test_macroexpand_source_data():
     ast = Expression([Symbol('when'), String('a')])
     ast.start_line = 3
     ast.start_column = 5
-    bad = macroexpand(ast, 'x.hy.core.macros', once = True)
+    bad = macroexpand(ast, f'{hy.__package__}.core.macros', once = True)
     assert bad.start_line == 3
     assert bad.start_column == 5

@@ -5,7 +5,7 @@
 (defmacro test-module-macro [a]
   "The variable `macro-level-var' here should not bind to the same-named symbol
 in the expansion of `remote-test-macro'."
-  (setv macro-level-var "x.hy.tests.resources.macros.macro-with-require")
+  (setv macro-level-var f"{__package__}.macros.macro-with-require")
   `(remote-test-macro ~a))
 
 (defmacro test-module-macro-2 [a]

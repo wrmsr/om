@@ -2,7 +2,7 @@
   `(print (.upper ~expr)))
 
 (defmacro foo [expr]
-  `(do (require x.hy.tests.resources.bin.circular-macro-require [bar])
+  `(do ~(hy.read f"(require {hy.__package__}.tests.resources.bin.circular-macro-require [bar])")
        (bar ~expr)))
 
 (foo "wowie")

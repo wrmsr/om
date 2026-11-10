@@ -199,11 +199,11 @@ class REPL(code.InteractiveConsole):
 
         (.run (hy.REPL :locals {#** (globals) #** (locals)}))
 
-    Or in Python:
+    Or in Python, with Hy bound to ``hy``:
 
     .. code-block:: python
 
-       import hy; hy.REPL(locals = {**globals(), **locals()}).run()
+       hy.REPL(locals = {**globals(), **locals()}).run()
 
     Note that as with :func:`code.interact`, changes to local variables inside the REPL are not propagated back to the
     original scope.
@@ -411,12 +411,9 @@ class REPL(code.InteractiveConsole):
         return 0
 
     def banner(self):
-        return 'Hy {version}{nickname} using {py}({build}) {pyversion} on {os}'.format(
-            nickname='' if hy.nickname is None else f' ({hy.nickname})',
-            py=platform.python_implementation(),
-            build=platform.python_build()[0],
-            pyversion=platform.python_version(),
-            os=platform.system(),
+        return (
+            f'Hy using {platform.python_implementation()}({platform.python_build()[0]}) '
+            f'{platform.python_version()} on {platform.system()}'
         )
 
 

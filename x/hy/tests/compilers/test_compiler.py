@@ -99,9 +99,9 @@ def test_relocated_runtime_binding():
     module = types.ModuleType('hy_runtime_binding_test')
     tree = hy_compile(read_many("(setv model 'hello)"), module)
     source = ast.unparse(tree)
-    assert 'from x import hy' in source
+    assert f'from {hy.__package__.rpartition(".")[0]} import hy' in source
     assert 'hy.models.Symbol' in source
-    assert 'x.hy.models' not in source
+    assert f'{hy.__package__}.models' not in source
 
     namespace = {}
     exec(compile(tree, '<test>', 'exec'), namespace)

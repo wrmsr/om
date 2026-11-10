@@ -191,6 +191,7 @@ class HyWrapperError(HyError, TypeError):
 
 def _module_filter_name(module_name):
     try:
+        module_name = importlib.util.resolve_name(module_name, __package__)
         spec = importlib.util.find_spec(module_name)
         if not spec:
             return None
@@ -219,17 +220,17 @@ _tb_hidden_modules = {
     for m in map(
         _module_filter_name,
         [
-            'x.hy.compiler',
-            'x.hy.reader',
-            'x.hy.cmdline',
-            'x.hy.__main__',
-            'x.hy.repl',
-            'x.hy.reader.parser',
-            'x.hy.importer',
-            'x.hy.compat',
-            'x.hy.macros',
-            'x.hy.models',
-            'x.hy.core.result_macros',
+            '.compiler',
+            '.reader',
+            '.cmdline',
+            '.__main__',
+            '.repl',
+            '.reader.parser',
+            '.importer',
+            '.compat',
+            '.macros',
+            '.models',
+            '.core.result_macros',
         ],
     )
     if m is not None

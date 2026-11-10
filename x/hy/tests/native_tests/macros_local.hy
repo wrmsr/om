@@ -77,7 +77,7 @@
     "local wiz")
 
   (defn fun []
-    (require x.hy.tests.resources.local-req-example ~arg)
+    (require ..resources.local-req-example ~arg)
     [(get-wiz) (helper)])
   (defn helper []
     "local helper function")

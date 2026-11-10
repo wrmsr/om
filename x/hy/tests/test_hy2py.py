@@ -4,6 +4,7 @@ import asyncio
 import itertools
 import math
 
+from ... import hy
 from .. import mangle
 from .test_bin import REPO_PYTHON
 
@@ -18,7 +19,7 @@ def test_hy2py_import():
     import os
     import subprocess
 
-    path = 'x/hy/tests/resources/pydemo_as_py.py'
+    path = f'{hy.__package__.replace(".", "/")}/tests/resources/pydemo_as_py.py'
     env = dict(os.environ)
     env['PYTHONIOENCODING'] = 'UTF-8'
     env['PYTHONPATH'] = '.' + os.pathsep + env.get('PYTHONPATH', '')
@@ -26,8 +27,8 @@ def test_hy2py_import():
         with open(path, 'wb') as o:
             subprocess.check_call(
                 [REPO_PYTHON, '-c',
-                    'from x.hy.cmdline import hy2py_main; hy2py_main()',
-                    'x/hy/tests/resources/pydemo.hy'],
+                    f'from {hy.__package__}.cmdline import hy2py_main; hy2py_main()',
+                    f'{hy.__package__.replace(".", "/")}/tests/resources/pydemo.hy'],
                 stdout=o,
                 env=env)
         from .resources import pydemo_as_py as m

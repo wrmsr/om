@@ -238,14 +238,14 @@ def test_ast_good_import_from():
 
 
 def test_ast_require():
-    can_compile('(require x.hy.tests.resources.tlib)')
-    can_compile('(require x.hy.tests.resources.tlib [qplah parald])')
-    can_compile('(require x.hy.tests.resources.tlib *)')
-    can_compile('(require x.hy.tests.resources.tlib :as foobar)')
-    can_compile('(require x.hy.tests.resources.tlib [qplah :as quiz])')
-    can_compile('(require x.hy.tests.resources.tlib [qplah :as quiz parald])')
-    cant_compile('(require [x.hy.tests.resources.tlib])')
-    cant_compile('(require x.hy.tests.resources.tlib [#taggart]')
+    can_compile(f'(require {hy.__package__}.tests.resources.tlib)')
+    can_compile(f'(require {hy.__package__}.tests.resources.tlib [qplah parald])')
+    can_compile(f'(require {hy.__package__}.tests.resources.tlib *)')
+    can_compile(f'(require {hy.__package__}.tests.resources.tlib :as foobar)')
+    can_compile(f'(require {hy.__package__}.tests.resources.tlib [qplah :as quiz])')
+    can_compile(f'(require {hy.__package__}.tests.resources.tlib [qplah :as quiz parald])')
+    cant_compile(f'(require [{hy.__package__}.tests.resources.tlib])')
+    cant_compile(f'(require {hy.__package__}.tests.resources.tlib [#taggart]')
 
 
 def test_ast_import_require_dotted():
@@ -261,9 +261,9 @@ def test_ast_import_require_dotted():
 def test_ast_multi_require():
     # https://github.com/hylang/hy/issues/1903
     x = can_compile(
-        """(require
-      x.hy.tests.resources.tlib [qplah]
-      x.hy.tests.resources.macros [test-macro])""",
+        f"""(require
+      {hy.__package__}.tests.resources.tlib [qplah]
+      {hy.__package__}.tests.resources.macros [test-macro])""",
     )
     assert sum(1 for stmt in x.body if isinstance(stmt, ast.Expr)) == 2
     dump = ast.dump(x)
@@ -660,7 +660,7 @@ def test_module_prelude():
         x = can_compile(code, import_stdlib=True).body
         assert len(x) == n
         assert isinstance(x[0], ast.ImportFrom)
-        assert x[0].module == 'x'
+        assert x[0].module == hy.__package__.rpartition('.')[0]
         assert x[0].level == 0
         x = x[0].names[0]
         assert x.name == 'hy'

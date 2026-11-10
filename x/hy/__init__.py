@@ -44,23 +44,23 @@ I = I()
 
 
 _jit_imports = dict(
-    pyops=['x.hy.pyops', None],
-    read='x.hy.reader',
-    read_many='x.hy.reader',
-    mangle='x.hy.reader',
-    unmangle='x.hy.reader',
-    eval=['x.hy.compiler', 'hy_eval_user'],
-    repr=['x.hy.core.hy_repr', 'hy_repr'],
-    repr_register=['x.hy.core.hy_repr', 'hy_repr_register'],
-    gensym='x.hy.core.util',
-    macroexpand='x.hy.core.util',
-    macroexpand_1='x.hy.core.util',
-    disassemble='x.hy.core.util',
-    as_model='x.hy.models',
-    REPL='x.hy.repl',
-    Reader='x.hy.reader.reader',
-    HyReader='x.hy.reader.hy_reader',
-    PrematureEndOfInput='x.hy.reader.exceptions',
+    pyops=['.pyops', None],
+    read='.reader',
+    read_many='.reader',
+    mangle='.reader',
+    unmangle='.reader',
+    eval=['.compiler', 'hy_eval_user'],
+    repr=['.core.hy_repr', 'hy_repr'],
+    repr_register=['.core.hy_repr', 'hy_repr_register'],
+    gensym='.core.util',
+    macroexpand='.core.util',
+    macroexpand_1='.core.util',
+    disassemble='.core.util',
+    as_model='.models',
+    REPL='.repl',
+    Reader='.reader.reader',
+    HyReader='.reader.hy_reader',
+    PrematureEndOfInput='.reader.exceptions',
 )
 
 
@@ -71,7 +71,7 @@ def __getattr__(k):
     v = _jit_imports[k]
     module, original_name = v if isinstance(v, list) else (v, k)
     import importlib
-    module = importlib.import_module(module)
+    module = importlib.import_module(module, __package__)
 
     globals()[k] = getattr(module, original_name) if original_name else module
     return globals()[k]

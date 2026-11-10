@@ -160,7 +160,7 @@ def test_lex_strings_exception():
             '  File "<string>", line 1',
             '    "\\x8"',
             '        ^',
-            "x.hy.reader.exceptions.LexException:"
+            f"{hy.__package__}.reader.exceptions.LexException:"
             " 'unicodeescape' codec can't decode bytes in position 0-2:"
             " truncated \\xXX escape",
         ],
@@ -309,7 +309,7 @@ def test_lex_bad_attrs():
             '  File "<string>", line 1',
             '    1.foo',
             '        ^',
-            'x.hy.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
+            f'{hy.__package__}.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
         ],
     )
 
@@ -671,7 +671,7 @@ def test_lex_exception_filtering(capsys):
         [
             '  File "<string>", line 2',
             '    (foo',
-            'hy.PrematureEndOfInput: Premature end of input while attempting to parse one form',
+            f'{hy.__package__}.PrematureEndOfInput: Premature end of input while attempting to parse one form',
         ],
     )
 
@@ -684,7 +684,7 @@ def test_lex_exception_filtering(capsys):
         [
             '  File "<string>", line 3',
             '    1.foo',
-            'x.hy.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
+            f'{hy.__package__}.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
         ],
     )
 
@@ -720,5 +720,5 @@ def test_shebang():
 def test_reader_class_reprs():
     "Don't show internal modules in which these classes are defined."
 
-    assert repr(hy.Reader) == "<class 'hy.Reader'>"
-    assert repr(hy.HyReader) == "<class 'hy.HyReader'>"
+    assert repr(hy.Reader) == f"<class '{hy.__package__}.Reader'>"
+    assert repr(hy.HyReader) == f"<class '{hy.__package__}.HyReader'>"

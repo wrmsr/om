@@ -181,7 +181,7 @@
         ~(if should-warn? None '(pragma :warn-on-core-shadow False))
         ~(if (= head "defmacro")
           '(defmacro when [] 1)
-          '(require x.hy.tests.resources.tlib [qplah :as when])))))))
+          '(require ..resources.tlib [qplah :as when])))))))
 
 (defn test-macro-redefinition-warning []
   (macro-redefinition-warning-tester :local False))
