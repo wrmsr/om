@@ -833,8 +833,7 @@ def hy_eval_user(model, globals = None, locals = None, module = None, macros = N
                 # Restore the old value of `hy`.
                 locals['hy'], = hy_was
             else:
-                # Remove the implicitly added `hy` (if execution
-                # reached far enough to add it).
+                # Remove the implicitly added `hy` (if execution reached far enough to add it).
                 locals.pop('hy', None)
     return value
 
