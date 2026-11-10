@@ -766,11 +766,18 @@ def _qgemv_fma_kernel(
             lo = tl.reshape(tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
             hi = tl.reshape(tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
             for mi in tl.static_range(BLOCK_M):
-                xm = (ke < K) & (mi < M)
-                xe = tl.load(x_ptr + mi * stride_xm + ke, mask=xm, other=0.0).to(tl.float32)
-                xo = tl.load(x_ptr + mi * stride_xm + ke + 1, mask=xm, other=0.0).to(tl.float32)
-                row = tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)  # [BLOCK_N]
-                acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
+                # Rows past M are skipped by a branch, not masked into the loads. With M == 1 (Triton specializes it to
+                # a constant) the branch folds away at compile time, as the old `(ke < K) & (mi < M)` mask did; a
+                # mask that cannot fold, like `ke < tl.where(mi < M, K, 0)`, keeps all BLOCK_M rows' loads and FMAs and
+                # made M == 1 3x slower. And the old mask itself fails under Triton's interpreter since 3.9: comparison
+                # results are tagged with the operands' dtype (int32, not int1), so splatting the scalar `mi < M` into
+                # the `&` produced an int32 mask, which its load now rejects ("mask has unsupported dtype").
+                if mi < M:
+                    xm = ke < K
+                    xe = tl.load(x_ptr + mi * stride_xm + ke, mask=xm, other=0.0).to(tl.float32)
+                    xo = tl.load(x_ptr + mi * stride_xm + ke + 1, mask=xm, other=0.0).to(tl.float32)
+                    row = tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)  # [BLOCK_N]
+                    acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
     else:
         rk0 = tl.arange(0, BLOCK_K)
         for k0 in range(k_lo, k_hi, BLOCK_K):
@@ -783,10 +790,10 @@ def _qgemv_fma_kernel(
             b = b.to(tl.float32)[:, :, None]
             w = tl.reshape(tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b, (BLOCK_N, BLOCK_K))
             for mi in tl.static_range(BLOCK_M):
-                xm = (rk < K) & (mi < M)
-                xt = tl.load(x_ptr + mi * stride_xm + rk, mask=xm, other=0.0).to(tl.float32)
-                row = tl.sum(w * xt[None, :], 1)
-                acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
+                if mi < M:  # a branch, not a mask term: see the int4 loop above
+                    xt = tl.load(x_ptr + mi * stride_xm + rk, mask=rk < K, other=0.0).to(tl.float32)
+                    row = tl.sum(w * xt[None, :], 1)
+                    acc += tl.where(rm[:, None] == mi, row[None, :], 0.0)
     y_base = y_ptr + pid_s * M * stride_ym
     y = acc.to(y_ptr.dtype.element_ty)
     tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=(rm[:, None] < M) & n_mask[None, :])
