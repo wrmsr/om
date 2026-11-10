@@ -170,36 +170,76 @@ and if they prove insufficient somewhere, that is the moment to reconsider, not 
 
 ### 3.2 The generation loop's extension points
 
-The loop, written once: resume or prefill; then repeat (ask the token source for the next committed tokens;
-hand them to the terminator and the observers; stop when told) until done; then hand the state to the store.
-Everything else is one of these:
+(Revised after the first review session, 2026-11-10: the interfaces below were sharpened by bugs found in the tangled
+code -- each revision names the bug that motivated it.)
 
-- **TokenSource** -- `next(state) -> committed tokens`. Plain decode (one static step, one sample) and
-  speculative decode (draft, verify, accept, commit, refresh) are the two implementations. The speculative one
-  is parameterised by draft sources and owns the rejection step; it does not know what a grammar is.
-- **DraftSource** -- `propose(context, k) -> drafts, q`. The MTP head today (it owns its KV, its step
-  functions, its refresh); prompt-lookup next; a tree later. A composite picks between them per round.
-- **LogitProcessor** -- adjusts or masks the distribution at defined points: `for_next()` (the next free
-  token), `for_rows(drafts)` (one mask per verify row, given the drafts before it), `after(token)` (advance
-  on a commit). The grammar controller is one; presence/frequency penalties are another; a logit bias would be a
-  third; a composite chains them. This is the protocol that was inline in `SpecDecoder.round`: the per-row
-  lookahead by cloning the controller and feeding drafts is *its* implementation detail, behind `for_rows`.
-- **Sampler** -- `sample(logits)`, `probs(logits)`, `draw(probs)`: logits to a token, and the full warped
-  distribution the rejection step needs. Already nearly this; loses its mask argument to the processor.
-- **Terminator** -- `check(token) -> stop?` and `poll() -> cancel?`: EOS ids, stop strings (which need the
-  decoded text, so the terminator owns a streaming decoder or receives text from an observer), the token
-  budget, external cancellation. The Engine's stop-string scan and the end-of-turn stripping move here.
+The loop, written once: resume or prefill; then repeat (ask the token source for a round of *accepted* tokens; let
+the terminator choose how many of them to keep; tell the source to commit exactly that many; hand them to the
+processors and observers) until the terminator says stop; then hand the state to the store. Everything else is one
+of these:
+
+- **TokenSource** -- one implementation, `VerifyTokenSource`: draft (0..k tokens from a draft source), verify
+  `[next, d_1..d_n]` in one captured step, rejection-sample, return a `Round` of 1..n+1 accepted tokens *without
+  committing it*; `commit(n)` then keeps the state after exactly n of them (the verify step returns the state after
+  every token, so any cut is a slice). Plain decode is the same source with the null draft source: a round of one
+  token, which takes the cheap path (one T=1 step, `Sampler.sample`, no per-token state stacking). There is no
+  second "plain" token source: a speculative source whose drafts miss *is* plain decode, so a separate one would be
+  a duplicate, and every draft-based feature (prompt lookup, jump-forward) would need implementing twice or be
+  speculative-only -- useless on the models without an MTP head (the Qwen3.5 sizes). Verify steps are captured per
+  draft-length bucket (padded; the pad positions are rewritten before anything attends to them, as the static
+  prefill already does), so a lookup draft of 8 does not mean a compile per length. Mind the kernel limits: the decode
+  attention kernel holds `G * T <= 32` query rows (T <= 5 on the 27B) and the fused DeltaNet step `T <= 8`; longer
+  drafts need the row-block loop in the attention kernel or the prefill kernel past that.
+  *Why commit is separate (bug):* with `next() -> committed tokens`, a round that commits four tokens past an EOS or
+  the budget leaves the recurrent state four tokens ahead of the answer, and since the DeltaNet state cannot be
+  rewound, the end-of-generation prefix snapshot never matched a follow-up.
+- **DraftSource** -- `propose(gen, k) -> Drafts` (device token ids, and their draft distributions q, or point masses
+  for drafts that are certain), `on_commit(gen, verified, n)` (the verify step's outputs -- the target's final-normed
+  hidden states today, the QSA indices with Flash-Next -- and how many tokens were kept), `resume(gen, state)` /
+  `export(gen)` for the store, `prefill(gen, ...)` to bring it up over a prompt. The MTP head is one (it owns its KV,
+  its captured steps, the draft-vocabulary restriction, its refresh from the verify hiddens); `NullDraftSource`,
+  `LookupDraftSource`, a grammar-forced source (jump-forward) and test oracles are others. Combination is by
+  *wrapping*, not by a list: `LookupDraftSource(wrapped=mtp)` proposes from the lookup and falls back to what it
+  wraps -- a fallback chain whose order is its meaning, bound with `inj.wrapper_binder_helper`.
+- **LogitProcessor** -- contributes to the *target's* distribution at defined points: `for_rows(gen, drafts)` (one
+  contribution per verify row, given the drafts before it, drafts as a device array -- a processor that needs them on
+  the host pulls them itself, so the second host sync of a round exists only when such a processor is present) and
+  `after(tokens)` (advance on a commit). A contribution is a mask (allowed ids) and/or an additive bias, and the
+  composite combines them by AND and +: commutative, so the processors are an *unordered* set (a Guice multibinding)
+  and no ordering is needed or expressible. The order-dependent warping -- temperature, top-k, top-p, min-p -- is
+  the Sampler's own fixed pipeline, not a processor. The grammar controller is one processor (mask);
+  presence/frequency penalties are another (bias), and through `for_rows` they become *exact* under speculation:
+  row i's histogram includes the drafts before it (the tangled version gave every verify row the histogram as of
+  the round's start, so penalised speculative sampling was not quite the target's distribution). Processors apply
+  to the target only -- the rejection step makes the output exact whatever the drafts are -- and a draft source may
+  ask them for its first draft as an acceptance heuristic, cut to its vocabulary prefix.
+  *Why (bug):* the penalties lived in the shared Sampler and were applied to the draft head's 64k-wide logits with the
+  full 248k-wide histogram -- a crash whenever `--draft-vocab` met a presence penalty.
+- **Sampler** -- `probs(logits)` (the full warped distribution) and `draw(probs)` are the reference; `sample(logits)`
+  is the optimised override (top-k candidates only) and a test pins `sample` to `draw(probs(.))` in distribution,
+  degenerate cases included -- principle 1 applied to sampling. *Why (bug):* the two were maintained by hand and
+  disagreed on exact ties of the bf16 logits under greedy, so greedy speculative output depended on the seed.
+- **Terminator** -- `cut(tokens) -> n | None` (how many of a round's accepted tokens to keep, and whether to stop:
+  EOS ids, stop strings over the decoded text, the token budget) and `poll() -> cancel?`. The Engine's stop-string scan
+  and end-of-turn stripping move here.
 - **StateStore** -- `lookup(ids) -> resumable state | None`, `store(ids, state)`: the prefix cache; checkpointed
-  prefill is the same interface with more entries. The draft head's KV is part of the state it stores, which is
-  a protocol between the store and the speculative token source: the state is a bundle the source knows how to
-  resume from, and the store treats it as opaque.
-- **Observer** -- `on_token`, `on_round(stats)`: streaming delivery, statistics (the `last_prefix` /
-  `last_spec` side channels become events), logging.
+  prefill is the same interface with more entries. The state is a bundle the token source and its draft source
+  know how to resume from; the store treats it as opaque. **Invariant:** the state stored after a generation covers
+  exactly prompt + emitted tokens, EOS included -- the tangled version left EOS out on the plain path and kept junk
+  past it on the speculative one.
+- **Observer** -- `on_tokens`, `on_round(stats)`, `on_prefill(stats)`: streaming delivery, statistics (the
+  `last_prefix` / `last_spec` side channels become events), logging.
 
-A `Generation` object holds the state the loop needs (the Decoder, the committed ids, the position) so that
-sources, processors and terminators share it by reference rather than by argument lists. Batched decode later
-(NEXT.md 3.1) makes that state per sequence; design the object so that is an extension rather than a rewrite,
-without building B > 1 now.
+A `Generation` object holds the state the loop needs (the Decoder, the committed ids, the position, the pending next
+token) so that sources, processors and terminators share it by reference rather than by argument lists -- narrowly:
+it is the per-request state, not a context object for everything. Batched decode later (NEXT.md 3.1) makes that
+state per sequence; design the object so that is an extension rather than a rewrite, without building B > 1 now.
+
+Testing consequence: the synthetic model's random draft head almost never has a draft accepted, which is how the
+snapshot bug above passed `test_prefix.py` -- every round committed one token. An `OracleDraftSource` (drafts from
+a reference transcript, optionally corrupted at chosen positions) is a first-class implementation, not a test hook
+attribute, and the loop's tests use it to force full rounds, EOS and the budget falling mid-round, and grammar
+violations at every draft position.
 
 ### 3.3 Below the loop
 
@@ -217,6 +257,19 @@ without building B > 1 now.
   `compile`. `TorchOps` keeps the kernels and loses the bag of flags; the flags become the choice of strategy
   objects at boot. Whether `Ops` itself stays one wide interface or splits into the array primitives and the
   compound operations is a session decision; the parity tests do not care.
+- **The block as a composition (Flash-Next drives this).** A block is a residual stream strategy (plain; later
+  Flash-Next's four-branch Gated Residual), a mixer (gated attention, Gated DeltaNet; later QSA) and a feed-forward
+  (dense SwiGLU; later MoE), built from the config by an architecture object rather than chosen by `kind == 'full'`
+  branches inside `Block`. The architecture also owns the canonical parameter names and the fusion table for its
+  layers, so a second architecture (`qwen4_exp`) is a second implementation, not edits to the first. The older and
+  smaller Qwen3.5 checkpoints (no MTP head, tied embeddings) are the same architecture with fewer parts loaded.
+- **Mixers own their state.** Each mixer says how many arrays its decode state has, builds the empty state, pads it
+  to a capacity, exports and adapts it; the Decoder walks the mixers instead of computing `state_offsets` from layer
+  kinds and the backend's KV arity. QSA's block-key cache is then one more array in its mixer's state, with nothing
+  else learning about it.
+- **Step inputs beyond tokens.** The captured step's argument list gets room for per-step side inputs supplied by the
+  host before each replay (Flash-Next's n-gram rows are the first), through the static-input protocol that already
+  carries the token ids.
 - **Parameters explicit.** Each layer exposes its parameters by name (a method, not `__dict__` scanning) and
   keeps its fields private; the differentiable mode (NEXT.md 2.1), adapters and exporters build on that.
 - **Statistics are events.** Nothing writes `last_*` onto the model.
@@ -230,9 +283,9 @@ Roughly one subpackage per role, so that each item in NEXT.md lands in one of th
 - `ops/` -- the seam, composed references, `NumpyOps`; `backends/` beneath it.
 - `load/` -- sources, transforms, the parameter cache, the pipeline.
 - `decode/` -- the Decoder and its capture strategies, the Sampler, the generation loop and the extension-point
-  interfaces, the plain token source, the terminators, the observers.
-- `spec/` -- the MTP head as a draft source, the speculative token source, rejection sampling; later lookup
-  and tree drafts beside it.
+  interfaces, the token source (`VerifyTokenSource`, with rejection sampling) and the null draft source, the
+  terminators, the observers.
+- `spec/` -- draft sources: the MTP head's (its KV, steps and refresh), prompt lookup over it; later trees.
 - `constrain/` -- the grammar: acceptor, masks, controllers, as logit processors.
 - `prefix/` -- snapshots and the store; later checkpoints.
 - `serve/` -- chat format, Engine, HTTP, client; `agent` with the entrypoints.
@@ -243,11 +296,65 @@ of spec / constrain / prefix, those know nothing of each other, serve knows all 
 assembly is the only place that names every piece. (An import-graph test to enforce this was considered and
 rejected for now -- the repo will get a mechanism for that later; until then it is a rule, not a check.)
 
+### 3.5 Assembly: the injector
+
+Decided 2026-11-10: real `omcore.inject` usage, in the shape `omllm/ui/agent/inject` grew into, and the engine stays
+fully usable without it.
+
+- **The core never mentions the injector.** Every piece is a plain class taking its collaborators as keyword
+  arguments, with no IO and no work in its constructor (loading weights, capturing steps, reading files happen in
+  explicit methods or providers). Tests build what they need by hand from the synthetic model and a few
+  `Null*` / `Oracle*` implementations. No hand-written recipe for the full real model is kept beside the bindings.
+- **Wiring lives only in `inject.py` modules and an `inject/` package.** Each role package that has something to
+  bind gets an `inject.py` exposing `bind_<role>(config) -> inj.Elements`; the top-level `inject/` package composes
+  them. Configuration is one small dataclass per role, not one large config object.
+- **Two lifetimes.** Singletons: the backend `Ops`, the loaded model, its compiled and captured steps, the prefix
+  store, the tokenizer. A *generation scope*, seeded with the request (`GenerationParams`: prompt ids, sampling,
+  constraint spec, budget, stop strings), holds the token source and draft sources, the processors, the terminator,
+  the observers and the `Generation` state. The bridge is the agent's `ScopedTurnRunner` pattern: a plain
+  `GenerationRunner` interface the Engine depends on, and an injector-backed implementation in `inject.py` that opens
+  the scope and asks for the loop. The engine is synchronous with one worker thread, so it uses the sync injector.
+- **Flags become bindings.** `--kv-dtype fp8` binds the fp8 KV format; `--spec k` binds the MTP draft source (and
+  `--lookup` would wrap it); `--compile` wraps the capture strategy; a request with tools adds the grammar processor
+  to its scope's processor set. The bag of booleans on `TorchOps` disappears into those choices.
+- **Ordering.** Multibindings are unordered on purpose. Where order is meaning -- a draft-source fallback chain, the
+  compile-around-capture stack -- it is a wrapper chain built with `inj.wrapper_binder_helper`; where it is not, the
+  contract is made order-free (the processors' commutative contributions, 3.2).
+
 
 ## 4. Plan of attack
 
 In order. Every step ends with the full test suite green and the bench within noise of the previous step; a step
 that cannot meet both is not finished. Steps are sized so that each is one or two sittings with the code open.
+
+**Status (2026-11-10).** Steps 0-8 and 10 have landed, each its own commit with the suite green. The 27B bench at the
+end against step 0's: greedy transcripts identical; speculative decode the same (148.3 vs 148.7 tok/s, 18.1 vs 18.0
+ms and 2.68 tokens a round); everything host-side better -- a short prompt's first token 24.9 vs 31.6 ms per prompt
+token, a follow-up's 872 vs 986 ms on a prefix miss and 492 vs 3102 ms on a hit (step 6's state invariant made the
+hits real), a 32k prefill 1253 vs 1145 tok/s at a peak of 21.2 vs 21.6 GiB. (Plain decode reads 65.1 vs 17.1 tok/s;
+step 0's number was a mismeasurement.) What is left:
+
+- Step 6: done. Stop strings are a terminator; the answer -- ids, text, end-of-turn stripping, streamed deltas, stop
+  trimming -- is an observer (`serve/serving.py`'s `_ChatStream`), so `Engine._run` is assembly plus translation.
+- Step 7: half done. The block as a composition and mixers owning their state layouts (the part Flash-Next needs
+  first) landed; the KV format, the attention strategy and the capture / compile strategy are still `TorchOps` flags.
+- Step 9: done for the code each step touched; the loaders, `arch/` and the backends still print.
+- Older and smaller models: qwen3.5:4b (no MTP head, tied embeddings, 32 layers) runs through the same code, by hand
+  and through the injector, plain and with prompt lookup (the numbers are in NEXT.md 1.1).
+- Step 10: prompt lookup (`spec/lookup.py`, NEXT.md 1.1) is one draft source, which wraps the next one down the chain,
+  and one binder. Nothing else changed except a hole it found in the MTP source, which assumed it drafted every round
+  (it grew its KV only when proposing, so a refresh after a lookup round could write past it), and a recompile it
+  exposed (below). What lookup is worth on the 27B is in NEXT.md 1.1.
+
+Found on the way and fixed, each with a test that fails without the fix: the ways a compiled step silently
+recompiled or never compiled at all -- an omcore dataclass inside the step, a guard on the size of the GEMV launch
+table, and guards on the strides of the DeltaNet conv state, which was a slice of the step's input: a prefill's
+depended on the prompt's length (every request of a new length recompiled every step, ~22 s on the 27B), and a plain
+round's differed from a verify commit's (plain and verify rounds mixing in one generation recompiled: minutes); and
+the draft head's next input, a slice of its refresh output, whose strides followed the last round's draft count (a
+follow-up turn under prompt lookup recompiled the head's step mid-request). The general rule: state that a compiled
+step takes is copied with `Ops.copy`, which lays it out canonically (TorchOps' `clone()` had kept a size-1 slice's
+strides). `tests/test_tracing.py` pins them all.
 
 ### Step 0 -- The safety net gets a performance arm
 
@@ -260,6 +367,13 @@ with Python overhead -- a few percent is fine; doubling is not. Also capture a r
 token ids the 27B produces greedy for a handful of prompts at a fixed capacity, so that "identical output" is a
 diff, not an impression.
 
+Done as `tests/bench.py` (a test-support utility with an entrypoint). Beyond the above it reports the configuration
+that actually took effect -- compiled graphs, graph breaks, how many quantized shapes the tuned GEMV table covers --
+peak memory over a long prompt, and whether greedy speculative output equals plain greedy, because the regressions
+found while writing it were exactly of that kind: a `--triton-tuned` file that did not exist (silently 0 configs,
+127 instead of 173 tok/s), a `--compile` that compiled nothing (an omcore frozen dataclass inside the step; see
+`backends/torch_triton.py` and `tests/test_tracing.py`), prefills that ran out of memory at 8k tokens.
+
 ### Step 1 -- Split `model.py` mechanically
 
 No semantic change. Move the classes to the subpackages of 3.4 (or whatever names the session settles on),
@@ -267,7 +381,9 @@ leaving `model.py` as a re-export shim for one step so entrypoints and tests kee
 and delete the shim. Keep `generate`, `SpecDecoder.round` and `from_source` exactly as they are in this step --
 the point is that the next steps diff cleanly against something already in its final place. Expect this to be
 the step where the code-switching warning first applies: the temptation to "fix a small thing on the way" is
-exactly how a mechanical move becomes an unreviewable change. Don't.
+exactly how a mechanical move becomes an unreviewable change. Don't. One allowed exception to 3.4's direction of
+dependency while the shim and `generate` remain: whichever module holds `generate` imports the speculative and
+prefix code until steps 3-6 have moved it out.
 
 ### Step 2 -- The loader pipeline
 
@@ -281,7 +397,8 @@ stay as they are. This step also establishes the explicit-parameters convention 
 
 ### Step 3 -- The generation loop, plain decode first
 
-Write the loop of 3.2 and the interfaces, with the plain token source, the sampler without its mask argument,
+Write the loop of 3.2 and the interfaces, with `VerifyTokenSource` over the null draft source (plain decode is
+that), the sampler without its mask argument,
 a terminator covering EOS / budget / cancellation, an observer that delivers tokens, and a null processor and
 null store. Make `generate` call it for the non-speculative, non-prefix, non-constrained case and keep the old
 paths for the rest, temporarily. The parity test for static decode and the serve tests for plain requests cover
@@ -290,11 +407,14 @@ actually need.
 
 ### Step 4 -- Speculative decoding as a token source; the head as a draft source
 
-Move `SpecDecoder` into the speculative token source: drafting, verify, rejection sampling, commit, refresh.
+Move `SpecDecoder`'s round into `VerifyTokenSource` (verify, rejection sampling, the cut-before-commit protocol)
+and its drafting and refresh into the MTP draft source.
 Move `MtpHead` behind the draft-source interface (its prefill, its KV, its captured steps, the draft-vocabulary
 restriction stay inside it). The round's constraint handling is *removed* in this step and comes back through
 the processor in step 5 -- do them in that order, so that the token source is seen to work with no knowledge of
-grammars before the protocol is reintroduced through an interface. `test_parity.py`'s speculative tests (real
+grammars before the protocol is reintroduced through an interface. To keep every step green, constrained requests
+stay on the old path during step 4 (as step 3 keeps the old path for what it has not moved), or steps 4 and 5 land
+together. `test_parity.py`'s speculative tests (real
 head and oracle drafts, both equal to greedy) and `test_sampler.py`'s theorem test are the pin. Watch the host
 sync count in the bench: the round has one, and the rejection step's device-side design is what keeps it at one.
 
@@ -302,14 +422,17 @@ sync count in the bench: the round has one, and the rejection step's device-side
 
 Implement `LogitProcessor` for the tool and JSON controllers: `for_next` is `allowed()`, `for_rows` is the
 clone-and-feed lookahead that was inline in the round, `after` is `feed`. The `MaskCache` goes with it. The
-presence/frequency penalty that lives in the Sampler becomes a second processor, and the composite chains them.
+presence/frequency penalty that lives in the Sampler becomes a second processor -- exact under speculation through
+`for_rows` -- and the composite combines their commutative contributions. The Sampler's `sample` gets pinned to
+`draw(probs(.))` by a test (`test_sampler.py`), and the theorem test extends to penalties.
 `test_grammar.py`'s engine tests (random weights, `tool_choice: required`, valid calls with and without
 speculation) are the pin; they are the tests most likely to fail on a protocol mistake, which is why they exist.
 
 ### Step 6 -- The prefix cache as a state store; the terminator takes the Engine's scanning
 
-Move the resume/snapshot logic out of `generate` into the store interface and the speculative source's
-resume method (the draft-head KV and the `start` arithmetic belong to the source). `test_prefix.py` (resumed
+Move the resume/snapshot logic out of `generate` into the store interface and the token source's resume method
+(the draft-head KV and the `start` arithmetic belong to the MTP draft source). The stored state covers exactly
+prompt + emitted tokens (3.2). `test_prefix.py` (resumed
 follow-up equals cold run, plain and speculative, across tiers) is the pin. Then move the Engine's stop-string
 scan and end-of-turn stripping into a terminator, and its streaming delivery into an observer, so `Engine._run`
 becomes assembly plus request/response translation. The serve tests cover both.
@@ -317,15 +440,17 @@ becomes assembly plus request/response translation. The serve tests cover both.
 ### Step 7 -- Strategies into the layers and the Decoder
 
 The KV format as an object held by `Attention`; the attention strategy (bucketed or length-aware) owning the
-window decision and the step key; the capture strategy held by the Decoder; `TorchOps` losing its flags. This is
+window decision and the step key; the capture strategy held by the Decoder; `TorchOps` losing its flags; the block
+as a composition of residual stream, mixer and feed-forward, built by an architecture object; mixers owning their
+state layout (3.3) -- what Flash-Next needs before any of its components can land as single implementations. This is
 the step with the most risk of a performance regression, because the CUDA-graph static-input protocol and the
 in-place KV write aliasing live here (see 5.1). `test_parity.py`'s bucket test and `test_fp8kv.py` are the pins;
 the GPU bench is the judge.
 
 ### Step 8 -- Assembly at boot
 
-Replace the entrypoints' flag plumbing with a recipe (or injector bindings): backend, KV format, capture, token
-source and draft sources, processors, store, observers, from a config object. `generate` becomes a thin
+Replace the entrypoints' flag plumbing with injector bindings (3.5): backend, KV format, capture, draft sources,
+processors, store, observers, from per-role config objects. `generate` becomes a thin
 convenience over the loop for scripts. The serve entrypoint and the agent are the first consumers; the
 warm-up becomes a method of the assembled engine rather than a fake generate call.
 

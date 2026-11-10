@@ -14,7 +14,8 @@ try:
 except ImportError:
     torch = None  # type: ignore[assignment]
 
-from ..quant import quantize as quantize_np
+from ..arch.qwen35 import load_qwen35
+from ..ops.quant import quantize as quantize_np
 from .tritonmodes import triton_modes
 
 
@@ -340,9 +341,8 @@ def test_model_decode_with_kernel():
         return
 
     from ..backends.torch import TorchOps
-    from ..model import Cache
-    from ..model import Decoder
-    from ..model import Qwen35
+    from ..core.cache import Cache
+    from ..decode.decoder import Decoder
     from .test_parity import rel_err
     from .test_parity import synthetic_source
 
@@ -352,7 +352,7 @@ def test_model_decode_with_kernel():
     outs = []
     for use in (False, True):
         ops = TorchOps(device, triton=use)
-        m = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False)
+        m = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False)
         cache = Cache(cfg)
         m.forward(ids[:, :5], cache)
         dec = Decoder(m, cache, capacity=16)

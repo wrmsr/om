@@ -11,17 +11,22 @@ Serve a model as an OpenAI chat-completions endpoint (serving.py).
 """
 import argparse
 import json
+import os
 import sys
 import time
 
-from ..model import Sampler
-from ..prefixcache import PrefixCache
-from ..serving import Engine
-from ..serving import SamplingDefaults
-from ..serving import client
-from ..serving import serve
+from ..backends.inject import BackendConfig
+from ..decode.inject import DecodeConfig
+from ..inject.inject import create_engine
+from ..load.inject import LoadConfig
+from ..prefix.inject import PrefixConfig
+from ..serve.inject import ServeConfig
+from ..serve.serving import SamplingDefaults
+from ..serve.serving import client
+from ..serve.serving import serve
+from ..spec.inject import LookupConfig
+from ..spec.inject import SpecConfig
 from .common import add_model_args
-from .common import load_model
 
 
 ##
@@ -116,47 +121,66 @@ def main() -> None:
         print(json.dumps({k: v for k, v in res.items() if k != 'message'}, indent=1))
         return
 
-    ops, src, tok, model = load_model(args, policy=args.policy, quant_search=not args.no_quant_search)
     defaults = SamplingDefaults(max_tokens=args.max_tokens)
     if args.preset == 'non-thinking':
         defaults = SamplingDefaults(0.7, 20, 0.8, 0.0, 1.5, 0.0, args.max_tokens)
     elif args.preset == 'greedy':
         defaults = SamplingDefaults(0.0, 0, 1.0, 0.0, 0.0, 0.0, args.max_tokens)
-    prefix_cache = None
-    if not args.no_prefix_cache:
-        prefix_cache = PrefixCache(ops, args.cache_device_mib << 20, args.cache_host_mib << 20)
+
+    # assembled by the injector (inject/): each role's configuration, nothing else
+    engine = create_engine(
+        backend=BackendConfig(
+            backend=args.backend,
+            device=args.device,
+            kv_dtype=args.kv_dtype,
+            compile=args.compile,
+            compile_cache_dir=args.cache_dir,
+            triton_tuned=args.triton_tuned,
+        ),
+        load=LoadConfig(
+            model=args.model,
+            dtype=args.dtype,
+            quant=args.quant,
+            policy=args.policy,
+            quant_search=not args.no_quant_search,
+            cache_dir=args.cache_dir,
+            mtp=args.spec > 0,
+        ),
+        decode=DecodeConfig(
+            capacity=args.capacity,
+            prefill_chunk=args.prefill_chunk,
+        ),
+        spec=SpecConfig(
+            k=args.spec,
+            draft_vocab=args.draft_vocab,
+        ),
+        lookup=LookupConfig(ngram=args.lookup, k=args.lookup_k) if args.lookup else None,
+        prefix=PrefixConfig(
+            enabled=not args.no_prefix_cache,
+            device_mib=args.cache_device_mib,
+            host_mib=args.cache_host_mib,
+        ),
+        serve=ServeConfig(
+            defaults=defaults,
+            enable_thinking=not args.no_think,
+            preserve_thinking=not args.strip_thinking,
+            max_queue=args.max_queue,
+            model_name=args.model,
+        ),
+    )
 
     if args.warmup:
         t0 = time.time()
-        model.generate(
-            tok.encode('hello'),
-            max_new_tokens=max(8, 2 * args.spec + 2),
-            sampler=Sampler(),
-            spec=args.spec,
-            capacity=args.capacity,
-            draft_vocab=args.draft_vocab,
-        )
+        engine.warmup(max_new_tokens=max(8, 2 * args.spec + 2))
         print(f'[serve] warm-up (capture + compile) {time.time() - t0:.1f}s')
-        if args.compile and getattr(ops, 'compile_cache', None):
+        if args.compile and args.cache_dir:
             from ..backends.torch import save_compile_cache
 
-            if save_compile_cache(ops.compile_cache):
-                print(f'[serve] saved compile cache to {ops.compile_cache}')
+            path = os.path.join(args.cache_dir, 'torch-compile.bin')
+            if save_compile_cache(path):
+                print(f'[serve] saved compile cache to {path}')
 
-    engine = Engine(
-        model,
-        tok,
-        spec=args.spec,
-        draft_vocab=args.draft_vocab,
-        capacity=args.capacity,
-        prefix_cache=prefix_cache,
-        defaults=defaults,
-        enable_thinking=not args.no_think,
-        preserve_thinking=not args.strip_thinking,
-        max_queue=args.max_queue,
-        prefill_chunk=args.prefill_chunk,
-        model_name=args.model,
-    )
+    engine.start()
     srv = serve(engine, args.host, args.port)
     try:
         while True:

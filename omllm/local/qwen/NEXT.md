@@ -68,6 +68,36 @@ the draft and run the verify at that length; otherwise draft with the head at k 
 untangling this is the second implementation of the DraftSource interface and a small composite that chooses
 between them. Measure acceptance and tokens per round on a file-rewrite transcript before and after.
 
+**Status (2026-11-10): landed, and measured -- it pays once it drafts longer than the head.** `spec/lookup.py`: a
+draft source that wraps the next one down the chain (`--lookup N --lookup-k K`, `LookupConfig`,
+`generate(lookup_ngram=, lookup_k=)`), always drafting K tokens (padding a short continuation), K at least the head's.
+Measured rewriting a 150-line file with one rename (greedy; output identical to plain in every case below).
+
+The 27B (MTP head, k = 3; first five rows a 1285-token answer, last four a 1331-token one, after the file changed):
+
+| drafts                      | tok/s | tokens/round | accepted |
+|-----------------------------|-------|--------------|----------|
+| none (plain)                | 64.4  | 1.00         |          |
+| MTP head, k=3               | 208.7 | 3.84         | 95%      |
+| lookup n=3, k=3, no head    | 192.6 | 3.29         | 77%      |
+| lookup n=3, k=3, over head  | 187.9 | 3.30         | 77%      |
+| lookup n=4, k=3, over head  | 200.9 | 3.55         | 85%      |
+| MTP head, k=3               | 210.4 | 3.82         | 94%      |
+| lookup n=4, k=4, no head    | 247.9 | 4.28         | 84%      |
+| lookup n=4, k=4, over head  | 241.0 | 4.34         | 84%      |
+| lookup n=6, k=4, over head  | 256.2 | 4.64         | 91%      |
+
+qwen3.5:4b (no MTP head; 1331 tokens out): plain 166 tok/s; lookup k=4 n=4 570 tok/s (4.28 tokens a round); k=7
+n=3 744, n=4 825, n=6 849 tok/s (6.72 tokens a round) -- 5x plain, for nothing.
+
+At the head's own draft length lookup loses to it (the head accepts 95% on a copy; a copied continuation is padded
+where it runs out and n-grams match in the wrong places). One draft longer, it wins: +22% over the head on the 27B
+with n = 6. Longer still is what the decode attention kernel stands in the way of (5.1 of UNTANGLING.md: `G * T <= 32`
+rows, so k <= 4 on the 27B, k <= 7 on the 4b): a row-block loop there, then k = 8-16 for long matches, is the next
+step. Also: longer n-grams did better on both models (fewer wrong matches); one task is not a policy, so the defaults
+stay n = 3 (the CLI makes you choose) and k = 3, which fits every model's kernel limit. The prompt is indexed in Python
+per generation (~50 ms per 100k tokens), which a prefix hit could carry over.
+
 ### 1.2 Checkpointed prefill: resume at chunk boundaries
 
 **Why.** The prefix cache hits only when a cached state's tokens are an exact prefix taken at a request boundary

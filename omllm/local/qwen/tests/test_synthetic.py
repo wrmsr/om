@@ -18,15 +18,17 @@ import tempfile
 import gguf
 import numpy as np
 
+from ..api import generate
+from ..arch.qwen35 import load_qwen35
+from ..core.config import Qwen35Config
+from ..load.weights import MT_JSON
+from ..load.weights import MT_TENSOR
+from ..load.weights import GGUFSource
+from ..load.weights import OllamaModel
+from ..load.weights import OllamaTensorSource
 from ..tokenizer import PRE_REGEX
 from ..tokenizer import Tokenizer
 from ..tokenizer import bytes_to_unicode
-from ..weights import MT_JSON
-from ..weights import MT_TENSOR
-from ..weights import GGUFSource
-from ..weights import OllamaModel
-from ..weights import OllamaTensorSource
-from ..weights import Qwen35Config
 
 
 ##
@@ -636,8 +638,8 @@ def test_hf_checkpoint(tmp_path):
 def _test_hf_checkpoint(tmp_path=None):
     """A bf16 HF directory through open_source: same names, config and (to bf16 precision) values as the GGUF."""
 
-    from ..weights import HFSource
-    from ..weights import open_source
+    from ..load.weights import HFSource
+    from ..load.weights import open_source
 
     tmp_path = pathlib.Path(tmp_path or tempfile.mkdtemp())
     cfg = Qwen35Config(**CFG)  # type: ignore
@@ -667,8 +669,7 @@ def test_model():
         return
 
     from ..backends.torch import TorchOps
-    from ..model import Cache
-    from ..model import Qwen35
+    from ..core.cache import Cache
 
     cfg, hf, eff, src = _test_gguf_roundtrip()
     ops = TorchOps('cpu')
@@ -689,7 +690,7 @@ def test_model():
     assert err < 1e-4, err
     print(f'recurrent vs chunked GDN OK (max err {err:.2e})')
 
-    model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+    model = load_qwen35(src, ops, dtype='f32', verbose=False)
     ids = np.random.default_rng(0).integers(0, 256, (1, 9))
     full = ops.numpy(model.forward(ids))
     assert full.shape == (1, 9, cfg.vocab_size) and np.isfinite(full).all()
@@ -708,6 +709,6 @@ def test_model():
     a = ops.numpy(model.forward(ids[:, 5:], cache2))
     b = ops.numpy(model.forward(ids[:, 5:], snap))
     assert np.abs(a - b).max() < 1e-6
-    gen = model.generate(ids[0].tolist(), max_new_tokens=5)
+    gen = generate(model, ids[0].tolist(), max_new_tokens=5).tokens
     assert len(gen) == 5
     print(f'model forward / cache / generate OK (incremental vs full max err {err:.2e})')

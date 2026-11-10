@@ -31,14 +31,15 @@ import urllib.request
 
 from omcore import lang
 
+from ..api import generate
+from ..arch.qwen35 import load_qwen35
 from ..backends import BACKENDS
 from ..backends import make_ops
-from ..model import Cache
-from ..model import Qwen35
+from ..core.cache import Cache
+from ..load.weights import MT_GGUF
+from ..load.weights import open_source
+from ..load.weights import resolve_ollama
 from ..tokenizer import Tokenizer
-from ..weights import MT_GGUF
-from ..weights import open_source
-from ..weights import resolve_ollama
 
 
 if ta.TYPE_CHECKING:
@@ -194,7 +195,7 @@ def main() -> None:
 
     # 3. our model, teacher-forced on the oracle's tokens
 
-    model = Qwen35.from_source(src, ops, dtype=args.dtype, quant=args.quant, cache_dir=args.cache_dir)
+    model = load_qwen35(src, ops, dtype=args.dtype, quant=args.quant, cache_dir=args.cache_dir)
     seq = prompt_ids + ref_tokens[:-1]
     cache = Cache(src.config)
     t0 = time.time()
@@ -247,7 +248,7 @@ def main() -> None:
         )
 
     # also run our own greedy decode from the same prompt for a sanity string
-    ours_gen = model.generate(prompt_ids, max_new_tokens=n)
+    ours_gen = list(generate(model, prompt_ids, max_new_tokens=n).tokens)
     print(f'\n[ours greedy] {tok.decode(ours_gen)!r}')
     match = sum(a == b for a, b in zip(ours_gen, ref_tokens))
     print(f'[ours greedy] {match}/{n} tokens identical to oracle')

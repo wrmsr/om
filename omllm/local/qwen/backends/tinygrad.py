@@ -58,9 +58,9 @@ import weakref
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..ops import Array
-from ..ops import Ops
-from ..quant import QWeight
+from ..ops.base import Array
+from ..ops.base import Ops
+from ..ops.quant import QWeight
 
 
 if ta.TYPE_CHECKING:

@@ -13,17 +13,18 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..ops import Ops
-from ..quant import SEARCH_SHRINKS
-from ..quant import QWeight
-from ..quant import quantize as quantize_np
+from ..ops.base import Ops
+from ..ops.quant import SEARCH_SHRINKS
+from ..ops.quant import QWeight
+from ..ops.quant import quantize as quantize_np
 from .torch_triton import HAVE_TRITON
+from .torch_triton import GemvTable
 from .torch_triton import attn_decode
 from .torch_triton import attn_prefill
 from .torch_triton import ensure_kernels
 from .torch_triton import gdn_step
-from .torch_triton import load_tuned
 from .torch_triton import qlinear
+from .torch_triton import resolve_launch
 
 
 if ta.TYPE_CHECKING:
@@ -58,6 +59,9 @@ class TorchQWeight:
     bits: int
     group: int
     shape: tuple[int, int]
+
+    # the GEMV launch resolved for this weight on its first (eager) call: see torch_triton.resolve_launch
+    launch: ta.Any = None
 
     def nbytes(self) -> int:
         return self.q.numel() + self.scale.numel() * self.scale.element_size() * 2
@@ -211,7 +215,7 @@ class TorchOps(Ops):
             triton: bool | None = None,
             triton_max_m: int = 32,
             triton_block_n: int | None = None,
-            triton_tuned: str | None = None,
+            gemv_tuned: GemvTable | None = None,
             compile: bool = False,  # noqa
             compile_cache: str | None = None,
             kv_dtype: str = 'bf16',
@@ -244,8 +248,7 @@ class TorchOps(Ops):
             ensure_kernels()  # jit now (imports triton): the wrappers must find real JITFunctions when traced
         self.triton_max_m = triton_max_m
         self.triton_block_n = triton_block_n
-        if triton_tuned and HAVE_TRITON:
-            load_tuned(triton_tuned)  # per-shape GEMV configs written by entrypoints/tune
+        self.gemv_tuned: GemvTable = dict(gemv_tuned or {})  # per-shape GEMV configs (entrypoints/tune, load_tuned)
         self.gdn_block_dv = 32  # fused DeltaNet step: value-dim slice per program (state tile [dk, block_dv] f32)
         self.quant_native = False  # on-device quantizer search (faster, not byte-identical across machines)
         self.gdn_num_warps = 8
@@ -269,7 +272,9 @@ class TorchOps(Ops):
         return x.to(dtype)
 
     def copy(self, x):
-        return x.clone()
+        # canonical strides, not clone()'s preserved ones: a [1, 1, H] slice of a [1, T, H] tensor counts as contiguous
+        # (size-1 dims) and keeps its stride T * H, and a compiled step is guarded on its inputs' strides
+        return x.clone(memory_format=torch.contiguous_format)
 
     def to_host(self, x):
         h = torch.empty(x.shape, dtype=x.dtype, device='cpu', pin_memory=(self.device.type == 'cuda'))
@@ -551,6 +556,19 @@ class TorchOps(Ops):
     def linear(self, x, w):
         if isinstance(w, TorchQWeight):
             if self.triton and x.numel() // x.shape[-1] <= self.triton_max_m:
+                launch = w.launch
+                if launch is None:  # the first, eager call (compiled steps run once eagerly first: _DeferredCompile)
+                    launch = w.launch = resolve_launch(
+                        x,
+                        w.q,
+                        w.scale,
+                        w.bias,
+                        w.bits,
+                        w.group,
+                        w.shape,
+                        block_n=self.triton_block_n,
+                        tuned=self.gemv_tuned,
+                    )
                 return qlinear(
                     x,
                     w.q,
@@ -559,7 +577,7 @@ class TorchOps(Ops):
                     w.bits,
                     w.group,
                     w.shape,
-                    block_n=self.triton_block_n,
+                    launch=launch,
                 )
             return w.linear(x)
         return F.linear(x, w)

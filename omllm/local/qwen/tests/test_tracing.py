@@ -21,10 +21,16 @@ import pytest
 from omcore import dataclasses as om_dc
 from omcore import lang
 
+from ..api import generate
+from ..arch.qwen35 import load_qwen35
 from ..backends.torch import TorchOps
 from ..backends.torch_triton import HAVE_TRITON
-from ..backends.torch_triton import TUNED
-from ..model import Qwen35
+from ..decode.drafts import DraftSource
+from ..decode.drafts import point_drafts
+from ..decode.processors import CompositeLogitProcessor
+from ..decode.sampling import Sampler
+from ..spec.mtp import MtpDraftSource
+from ..spec.oracle import OracleDraftSource
 from .test_parity import synthetic_source
 from .tritonmodes import triton_modes
 
@@ -44,10 +50,10 @@ else:
 def test_compiled_steps_trace_whole():
     """
     Every step `TorchOps(compile=True)` compiles traces as one graph: plain decode, speculative verify, and the draft
-    head's draft and refresh steps, with the real Triton kernels inside, int4 weights, both KV formats, and the GEMV
-    launch configuration derived inside the step both from `default_config` and through the `block_n` override (the two
-    places a GemvConfig is built while tracing). It runs under `torch._dynamo.error_on_graph_break(True)`, so a graph
-    break raises instead of dropping the step to eager.
+    head's draft and refresh steps, with the real Triton kernels inside, int4 weights, both KV formats, and GEMV
+    launches from `default_config` and through the `block_n` override (resolved on the first, eager run and carried
+    into the traced step on each weight, so the step reads a GemvConfig and a Launch). It runs under
+    `torch._dynamo.error_on_graph_break(True)`, so a graph break raises instead of dropping the step to eager.
 
     If this fails with dynamo's "Observed exception" and a FrozenInstanceError in the debug context, an omcore frozen
     dataclass is being constructed or replaced inside a compiled step: make it a stdlib dataclass (see the block above
@@ -60,10 +66,6 @@ def test_compiled_steps_trace_whole():
 
     counters = dynamo.utils.counters
 
-    # a fresh child process, nothing loaded: every GEMV takes the default-config path, which builds a GemvConfig inside
-    # the trace. A tuned entry for these shapes would hide exactly the construction this test is about.
-    assert not TUNED, f'expected no tuned GEMV configs in a fresh process, found {len(TUNED)}'
-
     cfg, hf, src = synthetic_source()
     prompt = np.random.default_rng(11).integers(0, cfg.vocab_size, 9).tolist()
 
@@ -71,13 +73,13 @@ def test_compiled_steps_trace_whole():
         dynamo.reset()
         counters.clear()
 
-        ops = TorchOps(
+        ops = TorchOps(  # (no tuned table: every GEMV launch comes from default_config, or the block_n override)
             'cuda',
             compile=True,
             kv_dtype=kv_dtype,
             triton_block_n=block_n,
         )
-        model = Qwen35.from_source(
+        model = load_qwen35(
             src,
             ops,
             dtype='bf16',
@@ -86,25 +88,110 @@ def test_compiled_steps_trace_whole():
             verbose=False,
         )
 
-        with dynamo.error_on_graph_break(True):
-            model.generate(
-                prompt,
+        def plain(p=prompt):
+            generate(
+                model,
+                p,
+                max_new_tokens=6,
+                capacity=64,
+            )
+
+        def spec(p=prompt):
+            generate(
+                model,
+                p,
                 max_new_tokens=6,
                 spec=3,
                 capacity=64,
                 draft_vocab=cfg.vocab_size // 2,
             )
-            model.generate(
-                prompt,
-                max_new_tokens=6,
-                capacity=64,
-            )
+
+        with dynamo.error_on_graph_break(True):
+            # a one-token warm-up first (a server's): its prefill never runs the flash-prefill kernel
+            plain(prompt[:1])
+            spec(prompt[:1])  # resolves the draft head's restricted output head: a GEMV shape the plain step never saw
+            # 5-token verify and head refresh steps, with drafts that are never the head's (lookup over it, k = 4)
+            generate(model, prompt[:1], max_new_tokens=6, capacity=64, draft=_ForeignFirst(ops, cfg, model, rounds=99))
 
         # decode (T=1), verify (T=4), the draft head's draft (T=1) and refresh (T=4): at least one graph each. Guards
         # against this passing vacuously because nothing was compiled at all.
         graphs = counters['stats']['unique_graphs']
         assert graphs >= 4, f'kv={kv_dtype} block_n={block_n}: only {graphs} graphs compiled'
-        print(f'kv={kv_dtype} block_n={block_n}: {graphs} compiled graphs, no graph breaks')
+
+        # and nothing compiles again -- not the plain step after the spec one, not anything after a prompt of another
+        # length: a compiled step must not guard on state that later work changes (it once guarded on the GEMV launch
+        # table, which the draft head's new shape grew, and on the strides of a prefill's DeltaNet conv state, which
+        # depend on the prompt's length: ~20 s on the 27B each time, mid-request) -- nor when plain and verify rounds
+        # mix in one generation (as under prompt lookup with no draft head). A captured step is guarded when captured,
+        # on its first use in a generation, so the case is a plain round first: the verify step is then captured with
+        # the state the plain step left (once a slice of its input, with other strides than a commit's)
+        plain()
+        spec()
+        plain()
+        rounds: list[int] = []
+
+        def every_other(ids, k):
+            rounds.append(len(ids))
+            return [ids[-1]] * k if len(rounds) % 2 == 0 else []  # (no drafts: a plain round)
+
+        res = generate(
+            model,
+            prompt,
+            max_new_tokens=12,
+            capacity=64,
+            draft=OracleDraftSource(ops, vocab_size=cfg.vocab_size, k=3, fn=every_other),
+        )
+        assert res.drafted and res.rounds > res.drafted // 3, res
+
+        # nor when the head first drafts after a longer round it did not draft (prompt lookup over it, k = 4: a
+        # follow-up turn): its draft step then takes a state refreshed over 5 positions, not 4 or its prefill's
+        res = generate(model, prompt, max_new_tokens=12, capacity=64, draft=_ForeignFirst(ops, cfg, model, rounds=1))
+        assert res.drafted, res
+        again = counters['stats']['unique_graphs']
+        assert again == graphs, f'kv={kv_dtype} block_n={block_n}: {again - graphs} steps recompiled'
+        print(f'kv={kv_dtype} block_n={block_n}: {graphs} compiled graphs, no graph breaks, no recompiles')
+
+
+class _ForeignFirst(DraftSource):
+    """The draft head under k = 4 drafts that are not its own for the first `rounds` rounds (as prompt lookup gives)."""
+
+    def __init__(self, ops, cfg, model, *, rounds: int) -> None:
+        super().__init__()
+
+        sampler = Sampler()
+        sampler.bind(ops)
+        self._ops = ops
+        self._vocab_size = cfg.vocab_size
+        self._head = MtpDraftSource(
+            model=model,
+            sampler=sampler,
+            processor=CompositeLogitProcessor(ops, []),
+            k=3,
+            draft_vocab=cfg.vocab_size // 2,
+        )
+        self._rounds = rounds
+
+    @property
+    def max_drafts(self) -> int:
+        return 4
+
+    def accepts(self, resume):
+        return self._head.accepts(resume)
+
+    def start(self, gen, *, hidden, start, tokens, state):
+        self._head.start(gen, hidden=hidden, start=start, tokens=tokens, state=state)
+
+    def propose(self, gen):
+        if self._rounds <= 0:
+            return self._head.propose(gen)
+        self._rounds -= 1
+        return point_drafts(self._ops, self._vocab_size, [gen.pending] * 4)
+
+    def on_commit(self, gen, rnd, n):
+        self._head.on_commit(gen, rnd, n)
+
+    def export(self, gen):
+        return self._head.export(gen)
 
 
 ##

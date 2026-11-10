@@ -4,10 +4,10 @@ streaming) of Qwen's chat format.
 """
 import json
 
-from ..chat import StreamParser
-from ..chat import parse_output
-from ..chat import render_assistant_turn
-from ..chat import render_chat
+from ..serve.chat import StreamParser
+from ..serve.chat import parse_output
+from ..serve.chat import render_assistant_turn
+from ..serve.chat import render_chat
 
 
 ##

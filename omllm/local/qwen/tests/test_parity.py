@@ -14,13 +14,14 @@ import typing as ta
 
 import numpy as np
 
-from ..model import Cache
-from ..model import Qwen35
-from ..ops import NumpyOps
-from ..ops import Ops
-from ..quant import quantize as quantize_np
-from ..weights import GGUFSource
-from ..weights import Qwen35Config
+from ..api import generate
+from ..arch.qwen35 import load_qwen35
+from ..core.cache import Cache
+from ..core.config import Qwen35Config
+from ..load.weights import GGUFSource
+from ..ops.base import Ops
+from ..ops.quant import quantize as quantize_np
+from ..ops.reference import NumpyOps
 from .test_synthetic import CFG
 from .test_synthetic import make_hf_params
 from .test_synthetic import write_gguf
@@ -87,13 +88,13 @@ def test_forward_parity():
 
     gold_ops = NumpyOps()
     gold_ops.taps = {}
-    gold = Qwen35.from_source(src, gold_ops, dtype='f32', verbose=False)
+    gold = load_qwen35(src, gold_ops, dtype='f32', verbose=False)
     gold.forward(ids)
     gold_taps = gold_ops.taps
 
     for ops in backends():
         ops.taps = {}
-        model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+        model = load_qwen35(src, ops, dtype='f32', verbose=False)
         model.forward(ids)
         assert set(ops.taps) == set(gold_taps), (ops.name, set(ops.taps) ^ set(gold_taps))
         worst = ('', 0.0)
@@ -197,18 +198,18 @@ def test_static_decode_parity():
     backend, including a capacity doubling mid-sequence and snapshot/restore.
     """
 
-    from ..model import Decoder
+    from ..decode.decoder import Decoder
 
     cfg, hf, src = synthetic_source()
     ids = np.random.default_rng(4).integers(0, 256, (1, 14))
     n_prompt = 5
-    gold = Qwen35.from_source(src, NumpyOps(), dtype='f32', verbose=False)
+    gold = load_qwen35(src, NumpyOps(), dtype='f32', verbose=False)
     gold_logits = gold.forward(ids)[0]  # [T, V]
 
     for ops in backends():
         if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
             ops.capture_mode = 'static'  # type: ignore  # exercise the CUDA-graph static-input protocol without a GPU
-        model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+        model = load_qwen35(src, ops, dtype='f32', verbose=False)
         cache = Cache(cfg)
         model.forward(ids[:, :n_prompt], cache)
         dec = Decoder(model, cache, capacity=8)  # 5 prompt tokens; grows past 8 partway through
@@ -227,8 +228,8 @@ def test_static_decode_parity():
         print(f'{ops.name}: static decode step vs golden rel err {e:.1e} (capacity grew to {dec.capacity})')
 
         # generate() static path == generate() functional path
-        a = model.generate(ids[0, :n_prompt].tolist(), max_new_tokens=6, static=True)
-        b = model.generate(ids[0, :n_prompt].tolist(), max_new_tokens=6, static=False)
+        a = generate(model, ids[0, :n_prompt].tolist(), max_new_tokens=6, static=True).tokens
+        b = generate(model, ids[0, :n_prompt].tolist(), max_new_tokens=6, static=False).tokens
         assert a == b, (ops.name, a, b)
         if hasattr(ops, 'capture_mode'):
             ops.capture_mode = 'auto'
@@ -241,10 +242,10 @@ def test_attention_buckets():
     (MIN_BUCKET is lowered so the synthetic model crosses buckets in a few tokens.)
     """
 
-    from ..model import Decoder
+    from ..decode.decoder import Decoder
 
     cfg, hf, src = synthetic_source()
-    gold = Qwen35.from_source(src, NumpyOps(), dtype='f32', verbose=False)
+    gold = load_qwen35(src, NumpyOps(), dtype='f32', verbose=False)
     ids = np.random.default_rng(9).integers(0, 256, (1, 40))
     gl = gold.forward(ids)
     saved = Decoder.MIN_BUCKET
@@ -255,7 +256,7 @@ def test_attention_buckets():
                 continue
             if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
                 ops.capture_mode = 'static'  # type: ignore
-            model = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+            model = load_qwen35(src, ops, dtype='f32', verbose=False)
             cache = Cache(cfg)
             model.forward(ids[:, :5], cache)
             dec = Decoder(model, cache, capacity=64)
@@ -281,8 +282,20 @@ def test_spec_decode_parity():
     functional pass.
     """
 
-    from ..model import Sampler
-    from ..model import SpecDecoder
+    from ..decode.decoder import Decoder
+    from ..decode.observers import Observer
+    from ..spec.oracle import OracleDraftSource
+
+    class Rounds(Observer):
+        def __init__(self):
+            super().__init__()
+            self.accepted = []
+
+        def on_prefill(self, gen):
+            pass
+
+        def on_round(self, gen, rnd, kept):
+            self.accepted.append(rnd.accepted)
 
     cfg, hf, src = synthetic_source()
     prompt = np.random.default_rng(6).integers(0, 256, 6).tolist()
@@ -291,25 +304,23 @@ def test_spec_decode_parity():
     for ops in backends():
         if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
             ops.capture_mode = 'static'  # type: ignore
-        model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
-        ref = model.generate(prompt, max_new_tokens=n_new, static=True)
+        model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
+        ref = generate(model, prompt, max_new_tokens=n_new, static=True).tokens
         full = prompt + ref
 
         # (a) the real draft head, full and restricted-vocabulary drafting
-        out = model.generate(prompt, max_new_tokens=n_new, spec=k)
+        out = generate(model, prompt, max_new_tokens=n_new, spec=k).tokens
         assert out == ref, (ops.name, out, ref)
-        out = model.generate(prompt, max_new_tokens=n_new, spec=k, draft_vocab=64)
+        out = generate(model, prompt, max_new_tokens=n_new, spec=k, draft_vocab=64).tokens
         assert out == ref, (ops.name, 'draft_vocab', out, ref)
 
         # (b) oracle drafts, corrupted at index m in turn: exactly m drafts must be accepted each round
-        cache = Cache(cfg)
-        logits, hidden = model.forward(np.array([prompt]), cache, return_hidden=True)
-        sd = SpecDecoder(model, cache, prompt, logits, hidden, k, Sampler(), capacity=len(full) + k + 2)
         pattern = [3, 0, 1, 2, 3, 3]
         expected: list[int] = []
 
-        def oracle(n, next_tok, kk):
-            assert next_tok == full[n], (n, next_tok, full[n])
+        def oracle(ids, kk):
+            n = len(ids) - 1  # the pending token's position
+            assert ids[-1] == full[n], (n, ids[-1], full[n])
             d = list(full[n + 1:n + 1 + kk])
             d += [0] * (kk - len(d))
             m = pattern[len(expected) % len(pattern)]
@@ -318,15 +329,19 @@ def test_spec_decode_parity():
             expected.append(min(m, len(full) - n - 1))
             return d
 
-        sd.draft_fn = oracle
-        got: list[int] = []
-        while len(got) < n_new:
-            before = sd.accepted
-            got.extend(sd.round())
-            assert sd.accepted - before == expected[-1], (ops.name, sd.rounds, sd.accepted - before, expected[-1])
-        assert got[:n_new] == ref, (ops.name, got[:n_new], ref)
-        print(f'{ops.name}: spec decode == greedy (real head + oracle drafts; {sd.rounds} oracle rounds, '
-              f'{sd.accepted} accepted)')
+        rounds = Rounds()
+        res = generate(
+            model,
+            prompt,
+            max_new_tokens=n_new,
+            spec=k,
+            draft=OracleDraftSource(ops, vocab_size=cfg.vocab_size, k=k, fn=oracle),
+            observers=[rounds],
+        )
+        assert rounds.accepted == expected, (ops.name, rounds.accepted, expected)
+        assert res.tokens == ref, (ops.name, res.tokens, ref)
+        print(f'{ops.name}: spec decode == greedy (real head + oracle drafts; {res.rounds} oracle rounds, '
+              f'{res.accepted} accepted)')
 
         # (c) draft-head static step vs functional pass over the same 4 entries from an empty cache
         mtp = model.mtp
@@ -336,7 +351,7 @@ def test_spec_decode_parity():
         cache = Cache(cfg)
         _, hid = model.forward(np.array([full[:T]]), cache, return_hidden=True)
         f_logits, f_d, (fk, fv) = mtp.prefill(toks, hid, 0)
-        dec = sd.dec
+        dec = Decoder(model, cache, capacity=len(full) + k + 2)
         B, KV, _, D = fk.shape
         zeros = ops.zeros((B, KV, dec.capacity, D), fk.dtype)
         fn = mtp.step_fn(T)
@@ -376,10 +391,10 @@ def test_qweight_parity():
 def test_model_quant_parity():
     cfg, hf, src = synthetic_source()
     ids = np.random.default_rng(2).integers(0, 256, (1, 7))
-    gold = Qwen35.from_source(src, NumpyOps(), dtype='f32', quant='int8', verbose=False)
+    gold = load_qwen35(src, NumpyOps(), dtype='f32', quant='int8', verbose=False)
     gl = gold.forward(ids)
     for ops in backends():
-        m = Qwen35.from_source(src, ops, dtype='f32', quant='int8', verbose=False)
+        m = load_qwen35(src, ops, dtype='f32', quant='int8', verbose=False)
         lg = ops.numpy(m.forward(ids))
         e = rel_err(lg, gl)
         assert e < 0.05, (ops.name, e)  # backends use their own quantizer; only rounding ties differ

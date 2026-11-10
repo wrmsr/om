@@ -11,14 +11,16 @@ import pathlib
 import random
 import tempfile
 
-from ..grammar import WS
-from ..grammar import Acceptor
-from ..grammar import TokenMasks
-from ..grammar import ToolConstraint
-from ..grammar import Vocab
+from ..api import ManualGenerationRunner
+from ..arch.qwen35 import load_qwen35
+from ..constrain.grammar import WS
+from ..constrain.grammar import Acceptor
+from ..constrain.grammar import TokenMasks
+from ..constrain.grammar import ToolConstraint
+from ..constrain.grammar import Vocab
+from ..core.config import Qwen35Config
+from ..load.weights import GGUFSource
 from ..tokenizer import Tokenizer
-from ..weights import GGUFSource
-from ..weights import Qwen35Config
 from .test_synthetic import CFG
 from .test_synthetic import make_hf_params
 from .test_synthetic import write_gguf
@@ -228,17 +230,16 @@ def test_engine_constrained_calls():
         print('torch not installed; skipping')
         return
 
-    from ..serving import Engine
-    from ..serving import Request
-    from ..serving import SamplingDefaults
+    from ..serve.serving import Engine
+    from ..serve.serving import Request
+    from ..serve.serving import SamplingDefaults
     from .test_parity import synthetic_source
 
     cfg, hf, src = synthetic_source()
     ops = TorchOps('cpu', capture_mode='static')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
-    from ..model import Qwen35
 
-    model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
+    model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
     defaults = SamplingDefaults(temperature=1.0, top_k=0, top_p=1.0, max_tokens=200)
     # no free-form strings: a random model inside one would need ~vocab tokens to find the closing quote
     tools = [
@@ -261,14 +262,12 @@ def test_engine_constrained_calls():
     ]
     for spec in (0, 3):
         engine = Engine(
-            model,
+            ManualGenerationRunner(model, spec=spec, capacity=512),
             tok,
-            spec=spec,
-            capacity=512,
             defaults=defaults,
             model_name='tiny',
             log=lambda s: None,
-        )
+        ).start()
         for stream in (False, True):
             req = Request.from_json({
                 'messages': [{'role': 'user', 'content': 'weather?'}],
@@ -313,11 +312,10 @@ def test_json_mode():
         print('torch not installed; skipping')
         return
 
-    from ..grammar import JsonConstraint
-    from ..model import Qwen35
-    from ..serving import Engine
-    from ..serving import Request
-    from ..serving import SamplingDefaults
+    from ..constrain.grammar import JsonConstraint
+    from ..serve.serving import Engine
+    from ..serve.serving import Request
+    from ..serve.serving import SamplingDefaults
     from .test_parity import synthetic_source
 
     schema = {
@@ -352,21 +350,19 @@ def test_json_mode():
     cfg, hf, src = synthetic_source()
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     ops = TorchOps('cpu', capture_mode='static')
-    model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
+    model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
     defaults = SamplingDefaults(temperature=1.0, top_k=0, top_p=1.0, max_tokens=120)
     cons = JsonConstraint(tok, schema, thinking=False)
     end = next(iter(cons.end_ids))
     assert end not in cons.allowed()  # type: ignore  # nothing to end yet
     for spec in (0, 3):
         engine = Engine(
-            model,
+            ManualGenerationRunner(model, spec=spec, capacity=512),
             tok,
-            spec=spec,
-            capacity=512,
             defaults=defaults,
             model_name='tiny',
             log=lambda s: None,
-        )
+        ).start()
         for thinking in (False, True):
             req = Request.from_json({
                 'messages': [{'role': 'user', 'content': 'yes or no?'}],
@@ -403,21 +399,18 @@ def test_agent_loop():
         return
 
     from ..entrypoints import agent
-    from ..model import Qwen35
-    from ..serving import Engine
-    from ..serving import SamplingDefaults
-    from ..serving import serve
+    from ..serve.serving import Engine
+    from ..serve.serving import SamplingDefaults
+    from ..serve.serving import serve
     from .test_parity import synthetic_source
 
     cfg, hf, src = synthetic_source()
     ops = TorchOps('cpu', capture_mode='static')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
-    model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
+    model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
     engine = Engine(
-        model,
+        ManualGenerationRunner(model, spec=2, capacity=512),
         tok,
-        spec=2,
-        capacity=512,
         model_name='tiny',
         log=lambda s: None,
         defaults=SamplingDefaults(
@@ -426,7 +419,7 @@ def test_agent_loop():
             top_p=1.0,
             max_tokens=250,
         ),
-    )
+    ).start()
     srv = serve(engine, '127.0.0.1', 0)
     base = f'http://127.0.0.1:{srv.server_address[1]}'
     tmp = pathlib.Path(tempfile.mkdtemp())

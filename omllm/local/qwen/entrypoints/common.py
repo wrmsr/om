@@ -4,22 +4,23 @@ import pathlib
 import time
 import typing as ta
 
+from ..arch.qwen35 import load_qwen35
 from ..backends.backends import BACKENDS
 from ..backends.backends import default_dtype
 from ..backends.backends import make_ops
-from ..model import Qwen35
-from ..ops import DTYPE_NAMES as DTYPES
+from ..core.model import Qwen35
+from ..load.weights import open_source
+from ..ops.base import DTYPE_NAMES as DTYPES
 from ..tokenizer import Tokenizer
-from ..weights import open_source
 
 
 ##
 
 
-def add_model_args(ap: argparse.ArgumentParser) -> None:
+def add_model_args(ap: argparse.ArgumentParser, *, model_optional: bool = False) -> None:
     ap.add_argument(
         '--model',
-        required=True,
+        required=not model_optional,
         help='Ollama model name (qwen3.8:27b), a path to a .gguf / blob, or a Hugging Face checkpoint directory',
     )
     ap.add_argument(
@@ -58,6 +59,22 @@ def add_model_args(ap: argparse.ArgumentParser) -> None:
         default=0,
         metavar='N',
         help='draft with an output head restricted to the first N token ids (0 = full vocabulary)',
+    )
+    ap.add_argument(
+        '--lookup',
+        type=int,
+        default=0,
+        metavar='N',
+        help='prompt-lookup drafting first: when the last N tokens occurred earlier in the context, draft what '
+             'followed them there (else the MTP head, with --spec); 0 = off',
+    )
+    ap.add_argument(
+        '--lookup-k',
+        type=int,
+        default=3,
+        metavar='K',
+        help='prompt-lookup draft length (at least --spec\'s); more than the head\'s pays on copies, within the decode '
+             'attention kernel\'s limit: query heads per kv head x (K + 1) <= 32',
     )
     ap.add_argument(
         '--cache-dir',
@@ -112,15 +129,16 @@ def load_model(
             print(f'[model] --kv-dtype {args.kv_dtype} is a torch backend option; the KV cache stays in the compute dtype')  # noqa
         else:
             ops.kv_dtype = args.kv_dtype
-    if args.triton_tuned and hasattr(ops, 'triton'):
+    if args.triton_tuned and hasattr(ops, 'gemv_tuned'):
         from ..backends.torch_triton import load_tuned
 
-        print(f'[model] {load_tuned(args.triton_tuned)} tuned GEMV configs from {args.triton_tuned}')
+        ops.gemv_tuned = load_tuned(args.triton_tuned)
+        print(f'[model] {len(ops.gemv_tuned)} tuned GEMV configs from {args.triton_tuned}')
     src = open_source(args.model)
     print(f'[model] {src.config.summary()}')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
-    model = Qwen35.from_source(
+    model = load_qwen35(
         src,
         ops,
         dtype=dtype,

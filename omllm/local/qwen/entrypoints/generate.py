@@ -10,17 +10,19 @@ import pathlib
 import sys
 import time
 
+from ..api import generate
+from ..api import generation_capacity
+from ..arch.qwen35 import load_qwen35
 from ..backends import BACKENDS
 from ..backends import default_dtype
 from ..backends import make_ops
-from ..model import Qwen35
-from ..model import Sampler
-from ..prefixcache import PrefixCache
+from ..decode.sampling import Sampler
+from ..load.weights import OllamaModel
+from ..load.weights import describe_gguf
+from ..load.weights import open_source
+from ..load.weights import resolve_weights
+from ..prefix.cache import PrefixCache
 from ..tokenizer import Tokenizer
-from ..weights import OllamaModel
-from ..weights import describe_gguf
-from ..weights import open_source
-from ..weights import resolve_weights
 
 
 ##
@@ -111,6 +113,22 @@ def main() -> None:
         metavar='N',
         help='draft with an output head restricted to the first N token ids (0 = full vocabulary); 32768-65536 '
              'makes the draft steps several times cheaper and costs little acceptance',
+    )
+    ap.add_argument(
+        '--lookup',
+        type=int,
+        default=0,
+        metavar='N',
+        help='prompt-lookup drafting first: when the last N tokens occurred earlier in the context, draft what '
+             'followed them there (else the MTP head, with --spec); 0 = off',
+    )
+    ap.add_argument(
+        '--lookup-k',
+        type=int,
+        default=3,
+        metavar='K',
+        help='prompt-lookup draft length (at least --spec\'s); more than the head\'s pays on copies, within the decode '
+             'attention kernel\'s limit: query heads per kv head x (K + 1) <= 32',
     )
     ap.add_argument(
         '--temperature',
@@ -224,10 +242,11 @@ def main() -> None:
             print(f'[model] --kv-dtype {args.kv_dtype} is a torch backend option; the KV cache stays in the compute dtype')  # noqa
         else:
             ops.kv_dtype = args.kv_dtype
-    if args.triton_tuned and hasattr(ops, 'triton'):
+    if args.triton_tuned and hasattr(ops, 'gemv_tuned'):
         from ..backends.torch_triton import load_tuned
 
-        print(f'[model] {load_tuned(args.triton_tuned)} tuned GEMV configs from {args.triton_tuned}')
+        ops.gemv_tuned = load_tuned(args.triton_tuned)
+        print(f'[model] {len(ops.gemv_tuned)} tuned GEMV configs from {args.triton_tuned}')
 
     if args.info:
         r = resolve_weights(args.model)
@@ -242,7 +261,7 @@ def main() -> None:
     print(f'[model] {src.config.summary()}')
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     t0 = time.time()
-    model = Qwen35.from_source(
+    model = load_qwen35(
         src,
         ops,
         dtype=dtype,
@@ -258,7 +277,6 @@ def main() -> None:
         top_k=args.top_k,
         top_p=args.top_p,
         min_p=args.min_p,
-        presence_penalty=args.presence_penalty,
         seed=args.seed,
     )
 
@@ -282,11 +300,12 @@ def main() -> None:
         if i is not None
     }
 
-    capacity = max(args.capacity or 0, len(ids) + args.max_new_tokens + args.spec + 2)
+    capacity = generation_capacity(len(ids), args.max_new_tokens, args.spec, args.capacity)
     if args.warmup:
         t0 = time.time()
         # same capacity as the real run, or the warm-up compiles/captures steps for the wrong shapes
-        model.generate(
+        generate(
+            model,
             ids,
             max_new_tokens=max(8, 2 * args.spec + 2),
             sampler=Sampler(),
@@ -318,16 +337,20 @@ def main() -> None:
             sys.stdout.write(streamer.push(i))
             sys.stdout.flush()
 
-        out = model.generate(
+        res = generate(
+            model,
             ids,
             max_new_tokens=args.max_new_tokens,
             eos_ids=eos,
             on_token=on_token,
             static=not args.functional,
             sampler=sampler,
+            presence_penalty=args.presence_penalty,
             spec=args.spec,
             capacity=capacity,
             draft_vocab=args.draft_vocab,
+            lookup_ngram=args.lookup,
+            lookup_k=args.lookup_k,
             prefix_cache=prefix_cache,
         )
         sys.stdout.write(streamer.flush())
@@ -337,16 +360,13 @@ def main() -> None:
             f'first token {first[0] * 1000:.0f} ms)',
         )
         if prefix_cache is not None:
-            matched, total = model.last_prefix
-            print(f'[prefix] reused {matched} of {total} prompt tokens; {prefix_cache.stats()}')
-        if args.spec and model.last_spec is not None:
-            sd = model.last_spec
+            print(f'[prefix] reused {res.reused} of {res.prompt_tokens} prompt tokens; {prefix_cache.stats()}')
+        if args.spec or args.lookup:
             print(
-                f'[spec] {sd.rounds} rounds, {sd.accepted} drafts accepted '
-                f'({sd.accepted / max(1, sd.rounds * args.spec):.0%} of {args.spec}/round; '
-                f'{(sd.accepted + sd.rounds) / max(1, sd.rounds):.2f} tokens/round)',
+                f'[spec] {res.rounds} rounds, {res.accepted} of {res.drafted} drafts accepted '
+                f'({res.accepted / max(1, res.drafted):.0%}; {res.tokens_per_round:.2f} tokens/round)',
             )
-        return out
+        return list(res.tokens)
 
     out = run(ids)
     if args.follow_up:

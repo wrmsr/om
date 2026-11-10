@@ -2,7 +2,11 @@
 """The device-side sampler (model.Sampler) against exact probabilities, on every backend."""
 import numpy as np
 
-from ..model import Sampler
+from ..api import generate
+from ..arch.qwen35 import load_qwen35
+from ..decode.generation import Generation
+from ..decode.processors import PenaltyProcessor
+from ..decode.sampling import Sampler
 from .test_parity import backends
 
 
@@ -51,7 +55,7 @@ def test_sampler_distribution():
                 dict(temperature=1.0, top_p=0.5),  # top_k=0: sorts the vocabulary
         ):
             s = Sampler(seed=1, **kw)  # type: ignore
-            s.bind(ops, V)
+            s.bind(ops)
             got = ops.numpy(s.sample(rows)).astype(np.int64)
             exp = expected_dist(
                 l,
@@ -66,14 +70,24 @@ def test_sampler_distribution():
             assert err < 0.04, (ops.name, kw, err)
         # greedy is an argmax
         s = Sampler()
-        s.bind(ops, V)
+        s.bind(ops)
         assert ops.numpy(s.sample(rows[:3])).tolist() == [int(np.argmax(l))] * 3
-        # presence penalty: after observing the argmax token, a heavy penalty removes it from the draws
-        s = Sampler(temperature=1.0, top_k=5, presence_penalty=100.0, seed=2)
-        s.bind(ops, V)
+        # greedy with an exact tie at the maximum: sample and draw(probs) both take the first maximum
+        lt = l.copy()
+        j = int(np.argmax(l))
+        lt[j - 1 if j else j + 1] = lt[j]
+        first = int(np.argmax(lt))
+        rt = ops.array(np.repeat(lt[None], 8, 0), f32)
+        assert ops.numpy(s.sample(rt)).tolist() == [first] * 8, ops.name
+        assert ops.numpy(s.draw(s.probs(rt))).tolist() == [first] * 8, ops.name
+        # presence penalty (a logit processor): after the argmax token, a heavy penalty removes it from the draws
+        s = Sampler(temperature=1.0, top_k=5, seed=2)
+        s.bind(ops)
+        pen = PenaltyProcessor(ops, vocab_size=V, presence=100.0)
         top = int(np.argmax(l))
-        s.observe(ops.array(np.asarray([top], dtype=np.int32)))
-        got = ops.numpy(s.sample(rows[:500])).tolist()
+        gen = Generation(prompt=[], capacity=0)
+        pen.after(gen, [top], ops.array(np.asarray([top], dtype=np.int32)))
+        got = ops.numpy(s.sample(pen.rows(gen, None, 1).apply(rows[:500]))).tolist()
         assert top not in got, ops.name
         print(f'{ops.name}: sampler distributions OK')
 
@@ -85,7 +99,7 @@ def test_probs_and_rejection_sampling():
     sum(min(p, q)).
     """
 
-    from ..model import speculative_accept
+    from ..decode.sampling import speculative_accept
 
     rng = np.random.default_rng(1)
     V = 200
@@ -100,7 +114,7 @@ def test_probs_and_rejection_sampling():
                 dict(),  # greedy: one-hot
         ):
             s = Sampler(seed=1, **kw)  # type: ignore
-            s.bind(ops, V)
+            s.bind(ops)
             got = ops.numpy(s.probs(ops.array(np.stack([l, l]), f32)))
             if kw:
                 exp = expected_dist(
@@ -118,7 +132,7 @@ def test_probs_and_rejection_sampling():
         # rejection sampling: N independent trials batched along the draft axis
         n = 4000
         s = Sampler(temperature=1.0, top_k=12, top_p=0.9, seed=2)
-        s.bind(ops, V)
+        s.bind(ops)
         lp = (rng.standard_normal(V) * 2.5).astype(np.float32)
         lq = (lp + rng.standard_normal(V) * 1.5).astype(np.float32)  # a draft head that is related but wrong
         p1 = s.probs(ops.array(lp[None], f32))  # [1, V]
@@ -148,7 +162,6 @@ def test_probs_and_rejection_sampling():
 def test_sampled_spec_runs():
     """Speculative decoding with a sampling sampler runs end to end and honours the token budget."""
 
-    from ..model import Qwen35
     from .test_parity import synthetic_source
 
     cfg, hf, src = synthetic_source()
@@ -156,12 +169,13 @@ def test_sampled_spec_runs():
     for ops in backends():
         if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
             ops.capture_mode = 'static'  # type: ignore
-        model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
-        s = Sampler(temperature=1.0, top_k=20, top_p=0.95, presence_penalty=1.5, seed=3)
-        out = model.generate(prompt, max_new_tokens=17, spec=3, sampler=s)
+        model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
+        s = Sampler(temperature=1.0, top_k=20, top_p=0.95, seed=3)
+        res = generate(model, prompt, max_new_tokens=17, spec=3, sampler=s, presence_penalty=1.5)
+        out = res.tokens
         assert len(out) == 17 and all(0 <= t < cfg.vocab_size for t in out), (ops.name, out)
-        out2 = model.generate(prompt, max_new_tokens=17, sampler=Sampler(temperature=1.0, top_k=20, seed=3))
+        out2 = generate(model, prompt, max_new_tokens=17, sampler=Sampler(temperature=1.0, top_k=20, seed=3)).tokens
         assert len(out2) == 17
         if hasattr(ops, 'capture_mode'):
             ops.capture_mode = 'auto'
-        print(f'{ops.name}: sampled spec decode OK ({model.last_spec.rounds} rounds)')  # type: ignore
+        print(f'{ops.name}: sampled spec decode OK ({res.rounds} rounds)')

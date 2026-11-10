@@ -14,9 +14,9 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from ..ops import Ops
-from ..quant import QWeight
-from ..quant import quantize as quantize_np
+from ..ops.base import Ops
+from ..ops.quant import QWeight
+from ..ops.quant import quantize as quantize_np
 
 
 if ta.TYPE_CHECKING:

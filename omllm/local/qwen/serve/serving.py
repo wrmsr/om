@@ -33,17 +33,21 @@ import uuid
 
 from omcore import dataclasses as dc
 
+from ..constrain.grammar import JsonConstraint
+from ..constrain.grammar import ToolConstraint
+from ..core.errors import Cancelled
+from ..decode.generation import Generation
+from ..decode.observers import Observer
+from ..decode.rounds import Round
+from ..decode.runners import GenerationParams
+from ..decode.runners import GenerationRunner
+from ..decode.terminators import StopStringTerminator
+from ..prefix.cache import PrefixCache
+from ..tokenizer import Tokenizer
 from .chat import StreamParser
 from .chat import parse_output
 from .chat import render_assistant_turn
 from .chat import render_chat
-from .grammar import JsonConstraint
-from .grammar import ToolConstraint
-from .model import Cancelled
-from .model import Qwen35
-from .model import Sampler
-from .prefixcache import PrefixCache
-from .tokenizer import Tokenizer
 
 
 ##
@@ -149,36 +153,142 @@ class Busy(Exception):  # noqa
     pass
 
 
-class Engine:
+class _PrefillStats(Observer):
+    """How much of the prompt was resumed from a stored state, known even if the generation is then cancelled."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.reused = 0
+
+    def on_prefill(self, gen: Generation) -> None:
+        self.reused = gen.reused
+
+    def on_round(self, gen: Generation, rnd: Round, kept: ta.Sequence[int]) -> None:
+        pass
+
+
+class _ChatStream(Observer):
+    """
+    One chat request's answer as it is generated: its token ids, its text (the end of turn is not content; a stop
+    string ends it), the reasoning / content / tool-call deltas handed to `deliver` when streaming, and when the first
+    token came. Where a stop string starts is known before the round's tokens arrive here (the terminator cut the round
+    at it), so nothing past it is delivered.
+    """
+
     def __init__(
             self,
-            model: Qwen35,
             tok: Tokenizer,
             *,
-            spec: int = 0,
-            draft_vocab: int = 0,
-            capacity: int | None = None,
-            prefix_cache: PrefixCache | None = None,
+            eos: ta.Container[int],
+            stop: StopStringTerminator,
+            deliver: ta.Callable[[list[tuple[str, ta.Any]]], None] | None,
+            t0: float,
+    ) -> None:
+        super().__init__()
+
+        self._streamer = Tokenizer.Streamer(tok)
+        self._parser = StreamParser()
+        self._eos = eos
+        self._stop = stop
+        self._deliver = deliver
+        self._t0 = t0
+
+        self._pieces: list[str] = []
+        self._len = 0
+
+        self.ids: list[int] = []
+        self.first_token_s: float | None = None
+
+    def on_prefill(self, gen: Generation) -> None:
+        pass
+
+    def on_round(self, gen: Generation, rnd: Round, kept: ta.Sequence[int]) -> None:
+        if kept and self.first_token_s is None:
+            self.first_token_s = time.time() - self._t0
+        for t in kept:
+            self.ids.append(t)
+            if t not in self._eos:  # (it would otherwise decode to '<|im_end|>')
+                self._push(self._streamer.push(t))
+
+    def _push(self, piece: str) -> None:
+        if not piece:
+            return
+        self._pieces.append(piece)
+        start = self._len
+        self._len += len(piece)
+        if self._deliver is None:
+            return
+        if (at := self._stop.stopped_at) is not None:
+            piece = piece[:max(0, at - start)]
+        if piece:
+            self._deliver(self._parser.feed(piece))
+
+    def finish(self) -> tuple[str, bool]:
+        """The answer's text, and whether a stop string ended it. The parser's last deltas go out."""
+
+        self._push(self._streamer.flush())
+        text = ''.join(self._pieces)
+        at = self._stop.stopped_at
+        stopped = at is not None and at < len(text)
+        if stopped:
+            text = text[:at]
+        if self._deliver is not None:
+            self._deliver(self._parser.finish())
+        return text, stopped
+
+
+def _constraint(req: Request, tok: Tokenizer) -> ToolConstraint | JsonConstraint | None:
+    """
+    Tools present: every tool call the model opens is grammar-constrained to the declared schemas, and tool_choice
+    'none' / 'required' / a named function forbids or forces one (constrain/grammar.py). Without tools, response_format
+    json_object / json_schema constrains the content to one JSON value instead.
+    """
+
+    if req.tools:
+        return ToolConstraint(tok, req.tools, req.tool_choice or 'auto', thinking=req.enable_thinking)
+
+    rf = req.response_format
+    if isinstance(rf, dict) and rf.get('type') in ('json_object', 'json_schema'):
+        schema: ta.Any = {}
+        if rf.get('type') == 'json_schema':
+            js = rf.get('json_schema') or {}
+            schema = js.get('schema', js) if isinstance(js, dict) else {}
+        return JsonConstraint(tok, schema, thinking=req.enable_thinking)
+
+    return None
+
+
+class Engine:
+    """
+    Serves chat requests one at a time on a worker thread: renders and tokenises a request (substituting the ids of
+    answers it produced, so a follow-up extends the earlier ids exactly), runs the generation through a
+    GenerationRunner, and parses the output back into content, reasoning and tool calls, streamed or whole. What a
+    generation is made of -- the model, speculation, the store, the decode capacity -- is the runner's business.
+    `start()` starts the worker; nothing runs at construction.
+    """
+
+    def __init__(
+            self,
+            runner: GenerationRunner,
+            tok: Tokenizer,
+            *,
+            prefix_cache: PrefixCache | None = None,  # for its statistics only (/health, the log)
             defaults: SamplingDefaults | None = None,
             enable_thinking: bool = True,
             preserve_thinking: bool = True,
             max_queue: int = 4,
-            prefill_chunk: int = 4096,
             model_name: str = 'qwen',
             log: ta.Callable[[str], None] | None = print,
     ) -> None:
         super().__init__()
 
-        self.model = model
+        self.runner = runner
         self.tok = tok
-        self.spec = spec
-        self.draft_vocab = draft_vocab
-        self.capacity = capacity
         self.prefix_cache = prefix_cache
         self.defaults = defaults or SamplingDefaults()
         self.enable_thinking = enable_thinking
         self.preserve_thinking = preserve_thinking
-        self.prefill_chunk = prefill_chunk
         self.model_name = model_name
         self.log = log
         self.eos = {
@@ -198,8 +308,24 @@ class Engine:
         self.n_cancelled = 0
         self.n_errors = 0
         self.running: Job | None = None
-        self.thread = threading.Thread(target=self._worker, name='qwen-engine', daemon=True)
-        self.thread.start()
+        self.thread: threading.Thread | None = None
+
+    def start(self) -> Engine:
+        if self.thread is None:
+            self.thread = threading.Thread(target=self._worker, name='qwen-engine', daemon=True)
+            self.thread.start()
+        return self
+
+    def warmup(self, max_new_tokens: int = 8) -> None:
+        """
+        Throwaway generations, so step capture and compilation happen before the first request: one from a single token
+        (plain rounds, as nothing has occurred for a prompt lookup to match, or the draft head's), and one from a prompt
+        counting in a cycle, which a model goes on with, so a prompt-lookup draft source drafts and its verify step is
+        compiled too.
+        """
+
+        for text in ('hello', ' '.join(['1 2 3 4 5 6 7 8'] * 6)):
+            self.runner.run(GenerationParams(prompt=self.tok.encode(text), max_new_tokens=max_new_tokens))
 
     # prompts
 
@@ -300,7 +426,6 @@ class Engine:
 
     def _run(self, job: Job) -> None:
         req = job.req
-        model = self.model
         tok = self.tok
         self.n_requests += 1
         t0 = time.time()
@@ -310,99 +435,43 @@ class Engine:
         tail_text = text[text.rfind('<|im_start|>assistant'):]
         gen_prompt_ids = tok.encode(tail_text)
 
-        sampler = Sampler(
-            temperature=req.temperature,
-            top_k=req.top_k,
-            top_p=req.top_p,
-            min_p=req.min_p,
-            presence_penalty=req.presence_penalty,
-            frequency_penalty=req.frequency_penalty,
-            seed=req.seed if req.seed is not None else int(time.time_ns() % (1 << 31)),
-        )
-        streamer = Tokenizer.Streamer(tok)
-        parser = StreamParser()
-        out_ids: list[int] = []
-        pieces: list[str] = []
-        first_token: list[float] = []
-        stopped_at: list[int] = []  # text length at which a stop sequence completed
-
         def deliver(events: list[tuple[str, ta.Any]]) -> None:
             for kind, payload in events:
                 job.events.put(('delta', kind, payload))
 
-        def on_token(i: int) -> None:
-            if job.cancelled:
-                raise Cancelled
-            if not first_token:
-                first_token.append(time.time() - t0)
-            out_ids.append(i)
-            if i in self.eos:  # the end of turn is not content (it would otherwise decode to '<|im_end|>')
-                return
-            piece = streamer.push(i)
-            if piece:
-                pieces.append(piece)
-                if req.stop:
-                    whole = ''.join(pieces)
-                    for s in req.stop:
-                        at = whole.find(s, max(0, len(whole) - len(piece) - len(s)))
-                        if at >= 0:
-                            stopped_at.append(at)
-                            deliver(parser.feed(piece[:max(0, len(piece) - (len(whole) - at))]))
-                            raise Cancelled
-                if req.stream:
-                    deliver(parser.feed(piece))
+        # stop strings end the generation through a terminator, which cuts the round at the token completing one, so the
+        # stored state ends there too; the answer (and what streams) ends where the stop string starts
+        stop = StopStringTerminator(tok, req.stop or (), end_ids=self.eos)
+        answer = _ChatStream(tok, eos=self.eos, stop=stop, deliver=deliver if req.stream else None, t0=t0)
+        prefill = _PrefillStats()
 
-        # tools present: every tool call the model opens is grammar-constrained to the declared schemas, and tool_choice
-        # 'none' / 'required' / a named function forbids or forces one (grammar.py). Without tools, response_format
-        # json_object / json_schema constrains the content to one JSON value instead.
-        constraint: ta.Any = None
-        if req.tools:
-            constraint = ToolConstraint(tok, req.tools, req.tool_choice or 'auto', thinking=req.enable_thinking)
-        elif isinstance(req.response_format, dict):
-            rf = req.response_format
-            if rf.get('type') in ('json_object', 'json_schema'):
-                schema: ta.Any = {}
-                if rf.get('type') == 'json_schema':
-                    js = rf.get('json_schema') or {}
-                    schema = js.get('schema', js) if isinstance(js, dict) else {}
-                constraint = JsonConstraint(tok, schema, thinking=req.enable_thinking)
-        try:
-            model.generate(
-                ids,
-                max_new_tokens=req.max_tokens,
-                eos_ids=self.eos,
-                on_token=on_token,
-                sampler=sampler,
-                spec=self.spec,
-                capacity=self.capacity,
-                draft_vocab=self.draft_vocab,
-                prefix_cache=self.prefix_cache,
-                prefill_chunk=self.prefill_chunk,
-                should_stop=lambda: job.cancelled,
-                constraint=constraint,
-            )
-        except Cancelled:
-            if not stopped_at:
-                raise
-        piece = streamer.flush()
-        if piece:
-            pieces.append(piece)
-            if req.stream:
-                deliver(parser.feed(piece))
-        full = ''.join(pieces)
-        if stopped_at:
-            full = full[:stopped_at[0]]
+        gen_res = self.runner.run(GenerationParams(
+            prompt=ids,
+            max_new_tokens=req.max_tokens,
+            temperature=req.temperature,
+            top_k=req.top_k,
+            top_p=req.top_p,
+            min_p=req.min_p,
+            seed=req.seed if req.seed is not None else int(time.time_ns() % (1 << 31)),
+            presence_penalty=req.presence_penalty,
+            frequency_penalty=req.frequency_penalty,
+            eos_ids=frozenset(self.eos),
+            constraint=_constraint(req, tok),
+            should_stop=lambda: job.cancelled,  # (polled between prefill chunks and rounds)
+            terminators=[stop],
+            observers=[answer, prefill],
+        ))
+
+        full, stopped = answer.finish()
         parsed = parse_output(full)
-        if req.stream:
-            deliver(parser.finish())
+        out_ids = answer.ids
         if parsed.tool_calls:
             finish = 'tool_calls'
-        elif stopped_at or (out_ids and out_ids[-1] in self.eos):
+        elif stopped or (out_ids and out_ids[-1] in self.eos):
             finish = 'stop'
         else:
             finish = 'length'
-        matched, total = model.last_prefix
-        sd = model.last_spec if self.spec else None
+        sd = gen_res if gen_res.drafted else None
         res = Result(
             text=full,
             ids=out_ids,
@@ -411,14 +480,14 @@ class Engine:
             tool_calls=parsed.tool_calls,
             finish_reason=finish,
             prompt_tokens=len(ids),
-            prompt_reused=matched,
+            prompt_reused=prefill.reused,
             completion_tokens=len(out_ids),
-            prefill_s=first_token[0] if first_token else time.time() - t0,
+            prefill_s=answer.first_token_s if answer.first_token_s is not None else time.time() - t0,
             total_s=time.time() - t0,
             spec_rounds=sd.rounds if sd is not None else 0,
             spec_accepted=sd.accepted if sd is not None else 0,
         )
-        if not stopped_at:  # (a stop-truncated answer's ids would carry text the rendered turn does not)
+        if not stopped:  # (a stop-truncated answer's ids would carry text the rendered turn does not)
             msg = {
                 'role': 'assistant',
                 'content': parsed.content,
@@ -432,8 +501,8 @@ class Engine:
         if self.log:
             rate = res.completion_tokens / max(1e-9, res.total_s - res.prefill_s)
             spec = ''
-            if sd is not None and sd.rounds:
-                spec = f', spec {sd.accepted / (sd.rounds * self.spec):.0%}'
+            if sd is not None:
+                spec = f', spec {sd.accepted / sd.drafted:.0%}'
             pc = f'; cache {self.prefix_cache.stats()}' if self.prefix_cache is not None else ''
             self.log(
                 f'[serve] {job.id}: {res.prompt_tokens} prompt ({res.prompt_reused} reused), '

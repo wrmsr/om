@@ -5,12 +5,14 @@ import tempfile
 
 import numpy as np
 
-from ..quant import from_native
-from ..quant import quantize
-from ..weights import GGUFSource
-from ..weights import OllamaTensorSource
-from ..weights import Qwen35Config
-from ..weights import mlx_affine_dequant
+from ..api import generate
+from ..arch.qwen35 import load_qwen35
+from ..core.config import Qwen35Config
+from ..load.weights import GGUFSource
+from ..load.weights import OllamaTensorSource
+from ..load.weights import mlx_affine_dequant
+from ..ops.quant import from_native
+from ..ops.quant import quantize
 from .test_synthetic import CFG
 from .test_synthetic import make_hf_params
 from .test_synthetic import mlx_affine_quant
@@ -63,8 +65,7 @@ def test_model_quant():
 
     from ..backends.torch import TorchOps
     from ..backends.torch import TorchQWeight
-    from ..model import Cache
-    from ..model import Qwen35
+    from ..core.cache import Cache
 
     ops = TorchOps('cpu')
     tmp = pathlib.Path(tempfile.mkdtemp())
@@ -73,7 +74,7 @@ def test_model_quant():
     write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
     src = GGUFSource(tmp / 'tiny.gguf')
 
-    ref = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+    ref = load_qwen35(src, ops, dtype='f32', verbose=False)
     ids = np.random.default_rng(0).integers(0, 256, (1, 12))
     ref_lg = ops.numpy(ref.forward(ids))
     ref_lp = ref_lg - np.log(np.exp(ref_lg).sum(-1, keepdims=True))
@@ -81,7 +82,7 @@ def test_model_quant():
     # loose bounds: this random model has no structure to hide quantization noise in (int8 lands ~2x bf16's own rounding
     # error, int4 ~30x); exactness of the QWeight plumbing itself is covered by test_parity
     for quant, tol in (('int8', 0.3), ('int4', 2.5)):
-        m = Qwen35.from_source(src, ops, dtype='f32', verbose=False, quant=quant)
+        m = load_qwen35(src, ops, dtype='f32', verbose=False, quant=quant)
         # the big 2-D weights are QWeights; norms / A / dt_bias / conv / in_proj_{a,b} are not
         assert isinstance(m.embed, TorchQWeight) and isinstance(m.lm_head, TorchQWeight)
         blk = m.blocks[0].mixer
@@ -99,7 +100,7 @@ def test_model_quant():
         cache = Cache(cfg)
         a = np.concatenate([ops.numpy(m.forward(ids[:, :5], cache)), ops.numpy(m.forward(ids[:, 5:], cache))], 1)
         assert np.abs(a - lg).max() < 1e-4
-        gen = m.generate(ids[0].tolist(), max_new_tokens=4)
+        gen = generate(m, ids[0].tolist(), max_new_tokens=4).tokens
         assert len(gen) == 4
         print(f'model {quant}: {m.nbytes / 1e6:.2f} MB vs {ref.nbytes / 1e6:.2f} MB f32, max |delta logprob| {err:.3f}')
 
@@ -107,18 +108,18 @@ def test_model_quant():
     # every natively quantized tensor (the f32-stored ones, e.g. the embedding, get quantized fresh)
     om = write_ollama_tensor_model(tmp / 'ollama', cfg, hf)
     tsrc = OllamaTensorSource(om)
-    m_f32 = Qwen35.from_source(tsrc, ops, dtype='f32', verbose=False)
-    m_q8 = Qwen35.from_source(tsrc, ops, dtype='f32', verbose=False, quant='int8')
+    m_f32 = load_qwen35(tsrc, ops, dtype='f32', verbose=False)
+    m_q8 = load_qwen35(tsrc, ops, dtype='f32', verbose=False, quant='int8')
     assert tsrc.get_quant('layers.0.mlp.gate_proj.weight') is not None
     assert tsrc.get_quant('layers.0.input_layernorm.weight') is None
     n_native = 0
     for i, blk in enumerate(m_q8.blocks):  # type: ignore
         for attr in ('wgu', 'wd'):
-            qw = getattr(blk.mlp, attr)  # type: ignore
+            qw = getattr(blk.ffn, attr)  # type: ignore
             assert isinstance(qw, TorchQWeight)
-            assert torch.equal(qw.dequant(torch.float32), getattr(m_f32.blocks[i].mlp, attr))
+            assert torch.equal(qw.dequant(torch.float32), getattr(m_f32.blocks[i].ffn, attr))
             n_native += 1
-    assert torch.equal(m_q8.lm_head.dequant(torch.float32), m_f32.lm_head)  # type: ignore
+    assert torch.equal(m_q8.lm_head.dequant(torch.float32), m_f32.lm_head)
     err = np.abs(ops.numpy(m_q8.forward(ids)) - ops.numpy(m_f32.forward(ids))).max()
     assert err < 0.3, err
     print(f'tensor-blob: {n_native + 1} native int8 tensors re-packed bit-exactly (model max err {err:.3f})')
@@ -138,9 +139,8 @@ def test_param_cache():
 
     from ..backends.torch import TorchOps
     from ..backends.torch import TorchQWeight
-    from ..model import Qwen35
-    from ..paramcache import ParamCache
-    from ..paramcache import source_identity
+    from ..load.paramcache import ParamCache
+    from ..load.paramcache import source_identity
 
     ops = TorchOps('cpu')
     tmp = pathlib.Path(tempfile.mkdtemp())
@@ -151,12 +151,12 @@ def test_param_cache():
     cdir = tmp / 'cache'
     ids = np.random.default_rng(0).integers(0, 256, (1, 6))
 
-    a = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False)
-    b = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # fills
-    c = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # hits
+    a = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False)
+    b = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # fills
+    c = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)  # hits
     root = ParamCache.open(cdir, src, 'int4', 64, 's').root  # (default: search on, uniform policy)
     n_meta = len(list(root.glob('*.json')))
-    from ..model import fusion_of
+    from ..load.policies import fusion_of
 
     def n_entries(names):  # fused projections are cached under their fused name
         return len({(f[0] if (f := fusion_of(n)) else n) for n in names})
@@ -164,21 +164,21 @@ def test_param_cache():
     n_expect = n_entries([n for n in src.names() if not n.startswith('mtp.')])
     assert n_meta == n_expect, (n_meta, n_expect)
     for m in (b, c):
-        assert torch.equal(m.blocks[0].mlp.wgu.q, a.blocks[0].mlp.wgu.q)  # type: ignore
-        assert torch.equal(m.blocks[0].mlp.wgu.scale, a.blocks[0].mlp.wgu.scale)  # type: ignore
+        assert torch.equal(m.blocks[0].ffn.wgu.q, a.blocks[0].ffn.wgu.q)  # type: ignore
+        assert torch.equal(m.blocks[0].ffn.wgu.scale, a.blocks[0].ffn.wgu.scale)  # type: ignore
         assert torch.equal(m.blocks[0].ln1, a.blocks[0].ln1)
         assert torch.equal(m.forward(ids), a.forward(ids))
     # a later load with the draft head adds only its entries
-    d = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
+    d = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
     assert d.mtp is not None and isinstance(d.mtp.fc, TorchQWeight)
     assert len(list(root.glob('*.json'))) == n_entries(src.names())
-    e = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
+    e = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
     assert torch.equal(e.mtp.fc.q, d.mtp.fc.q)  # type: ignore
     # a torn entry (sidecar present, array missing) is a miss and gets rewritten
     victim = 'layers.1.mlp.gate_up_proj.weight'  # (the fused entry)
     (root / (victim + '.q.npy')).unlink()
-    f = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)
-    assert torch.equal(f.blocks[1].mlp.wgu.q, a.blocks[1].mlp.wgu.q)  # type: ignore
+    f = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir)
+    assert torch.equal(f.blocks[1].ffn.wgu.q, a.blocks[1].ffn.wgu.q)  # type: ignore
     assert (root / (victim + '.q.npy')).exists()
     assert source_identity(src) == source_identity(GGUFSource(tmp / 'tiny.gguf'))
     print(f'param cache OK ({n_meta} entries, {ParamCache(root).nbytes() / 1e6:.2f} MB)')
@@ -227,7 +227,6 @@ def test_precision_policy():
         return
 
     from ..backends.torch import TorchOps
-    from ..model import Qwen35
 
     ops = TorchOps('cpu')
     tmp = pathlib.Path(tempfile.mkdtemp())
@@ -236,19 +235,19 @@ def test_precision_policy():
     write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
     src = GGUFSource(tmp / 'tiny.gguf')
     ids = np.random.default_rng(0).integers(0, 256, (1, 6))
-    ref = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+    ref = load_qwen35(src, ops, dtype='f32', verbose=False)
     for cache_dir in (None, tmp / 'cache'):
-        m = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, policy='km', cache_dir=cache_dir)
+        m = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, policy='km', cache_dir=cache_dir)
         attn = m.blocks[3].mixer
         assert attn.wqkv is None and attn.wv.bits == 8 and attn.wq.bits == 4  # type: ignore
-        down_bits = [m.blocks[i].mlp.wd.bits for i in (0, 1, 3)]
+        down_bits = [m.blocks[i].ffn.wd.bits for i in (0, 1, 3)]  # type: ignore
         assert down_bits == [8, 4, 8], down_bits
-        assert m.lm_head.bits == 8  # type: ignore
+        assert m.lm_head.bits == 8
         assert m.blocks[0].mixer.w_ab.bits == 8 and m.blocks[0].mixer.w_qkvz.bits == 4  # type: ignore
         err = np.abs(ops.numpy(m.forward(ids)) - ops.numpy(ref.forward(ids))).max()
         assert np.isfinite(err)
-    m2 = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, policy='km', cache_dir=tmp / 'cache')
-    assert torch.equal(m2.lm_head.q, m.lm_head.q)  # type: ignore
+    m2 = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, policy='km', cache_dir=tmp / 'cache')
+    assert torch.equal(m2.lm_head.q, m.lm_head.q)
     print('precision policy km OK (cached and uncached)')
 
 
@@ -264,7 +263,6 @@ def test_kl_harness():
     from ..backends.torch import TorchOps
     from ..entrypoints.kl import compare
     from ..entrypoints.kl import logprobs
-    from ..model import Qwen35
 
     ops = TorchOps('cpu')
     tmp = pathlib.Path(tempfile.mkdtemp())
@@ -273,8 +271,8 @@ def test_kl_harness():
     write_gguf(tmp / 'tiny.gguf', cfg, hf, quantize=False)
     src = GGUFSource(tmp / 'tiny.gguf')
     ids = np.random.default_rng(1).integers(0, 256, 40).tolist()
-    m8 = Qwen35.from_source(src, ops, dtype='f32', quant='int8', verbose=False)
-    m4 = Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False)
+    m8 = load_qwen35(src, ops, dtype='f32', quant='int8', verbose=False)
+    m4 = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False)
     lp8 = logprobs(m8, ids, chunk=16)
     lp8b = logprobs(m8, ids, chunk=40)  # chunking must not change the numbers
     assert np.abs(lp8.astype(np.float32) - lp8b.astype(np.float32)).max() < 1e-2
@@ -298,8 +296,7 @@ def test_cache_identity_across_backends():
 
     from ..backends.mlx import MlxOps
     from ..backends.torch import TorchOps
-    from ..model import Qwen35
-    from ..paramcache import ParamCache
+    from ..load.paramcache import ParamCache
 
     tmp = pathlib.Path(tempfile.mkdtemp())
     cfg = Qwen35Config(**CFG)  # type: ignore
@@ -309,7 +306,7 @@ def test_cache_identity_across_backends():
     sums = []
     for i, ops in enumerate((TorchOps('cpu'), MlxOps())):
         cdir = tmp / f'cache{i}'
-        Qwen35.from_source(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
+        load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
         sums.append(ParamCache.open(cdir, src, 'int4', 64, 's').checksum())
     assert sums[0] == sums[1], sums
     print(f'torch-built and mlx-built caches are byte-identical ({sums[0][:16]}...)')

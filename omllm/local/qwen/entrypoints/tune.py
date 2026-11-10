@@ -1,7 +1,7 @@
 # ruff: noqa: N803 N806 N812
 """
 Tune the Triton int4/int8 GEMV launch configurations for a model's projection shapes on this GPU and save them for
-`TorchOps(triton_tuned=...)` / `generate --triton-tuned`.
+`--triton-tuned` (`TorchOps.gemv_tuned`, `load_tuned`) / `generate --triton-tuned`.
 """
 import argparse
 import typing as ta
@@ -10,11 +10,11 @@ from omcore import lang
 
 from ..backends.torch_triton import save_tuned
 from ..backends.torch_triton import tune
-from ..model import fusion_of
-from ..model import mtp_param_names
-from ..model import required_param_names
-from ..quant import QUANT_BITS
-from ..weights import open_source
+from ..core.params import mtp_param_names
+from ..core.params import required_param_names
+from ..load.policies import fusion_of
+from ..load.weights import open_source
+from ..ops.quant import QUANT_BITS
 
 
 if ta.TYPE_CHECKING:
@@ -111,11 +111,12 @@ def main() -> None:
         'f32': torch.float32,
     }[args.dtype]
     by_bits = model_shapes(args.model, QUANT_BITS[args.quant])
+    tuned = {}
     for b, shape_set in sorted(by_bits.items()):
         shapes = sorted(shape_set)
         print(f'[tune] int{b}: {len(shapes)} shapes: {shapes}')
-        tune(shapes, b, dtype=dtype, m=args.m)
-    save_tuned(args.out)
+        tuned.update(tune(shapes, b, dtype=dtype, m=args.m))
+    save_tuned(args.out, tuned)
     print(f'[tune] wrote {args.out}')
 
 

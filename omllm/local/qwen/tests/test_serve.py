@@ -12,13 +12,14 @@ import urllib.request
 
 import pytest
 
-from ..model import Qwen35
-from ..prefixcache import PrefixCache
-from ..serving import Engine
-from ..serving import Request
-from ..serving import SamplingDefaults
-from ..serving import client
-from ..serving import serve
+from ..api import ManualGenerationRunner
+from ..arch.qwen35 import load_qwen35
+from ..prefix.cache import PrefixCache
+from ..serve.serving import Engine
+from ..serve.serving import Request
+from ..serve.serving import SamplingDefaults
+from ..serve.serving import client
+from ..serve.serving import serve
 from ..tokenizer import Tokenizer
 from .test_parity import synthetic_source
 
@@ -50,15 +51,14 @@ def test_serve():
 
     cfg, hf, src = synthetic_source()
     ops = TorchOps('cpu', capture_mode='static')
-    model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
+    model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
     tok = Tokenizer.from_spec(src.tokenizer_spec)
     logs: list[str] = []
+    pc = PrefixCache(ops, 1 << 30, 1 << 30)
     engine = Engine(
-        model,
+        ManualGenerationRunner(model, spec=2, capacity=256, prefix_cache=pc),
         tok,
-        spec=2,
-        capacity=256,
-        prefix_cache=PrefixCache(ops, 1 << 30, 1 << 30),
+        prefix_cache=pc,
         defaults=SamplingDefaults(
             temperature=0.0,
             top_k=0,
@@ -68,7 +68,7 @@ def test_serve():
         max_queue=1,
         model_name='tiny',
         log=logs.append,
-    )
+    ).start()
     srv = serve(engine, '127.0.0.1', 0)
     port = srv.server_address[1]
     base = f'http://127.0.0.1:{port}'

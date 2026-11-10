@@ -22,7 +22,7 @@ import sys
 import time
 import typing as ta
 
-from ..serving import client
+from ..serve.serving import client
 
 
 ##

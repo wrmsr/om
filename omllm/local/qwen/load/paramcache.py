@@ -27,7 +27,7 @@ import typing as ta
 from omcore import dataclasses as dc
 from omcore import lang
 
-from .quant import QWeight
+from ..ops.quant import QWeight
 
 
 if ta.TYPE_CHECKING:
@@ -165,7 +165,7 @@ class ParamCache:
         return h.hexdigest()
 
 
-if __name__ == '__main__':  # python -m omllm.local.qwen.paramcache CACHE_DIR/<entry>  -> its checksum
+if __name__ == '__main__':  # python -m omllm.local.qwen.load.paramcache CACHE_DIR/<entry>  -> its checksum
     import sys
 
     for d in sys.argv[1:]:

@@ -5,34 +5,42 @@ arch `qwen35`), written once against a small backend seam (`Ops`) and run on tor
 loads weights straight out of Ollama's blob store, plus a validation harness that uses `llama-server` as the oracle.
 
 Dependencies: `numpy`, `regex`, and whichever backend you run on (`torch`, `mlx`, `tinygrad`). No `transformers`, no
-mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line reader in `weights.py`), no `gguf` package (the relevant
-parts are vendored).
+mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line reader in `load/weights.py`), no `gguf` package (the
+relevant parts are vendored).
 
 ```
-model.py         the model, backend-free: RMSNorm, gated GQA attention w/ partial RoPE, Gated DeltaNet,
-                 SwiGLU, functional cache state, activation taps
-ops.py           the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of
-                 the fused-able ones) and `NumpyOps`, the float64 golden backend
-torch_ops.py     torch backend (F.rms_norm / SDPA / conv1d, on-device quantize, TorchQWeight)
-backends/torch_triton.py  Triton int4/int8 GEMV for TorchQWeight (decode / verify; prefill stays on dequant + cuBLAS)
-mlx_ops.py       MLX core backend (mx.fast.rms_norm / rope / sdpa, mx.quantized_matmul, MlxQWeight)
-backends/mlx_metal.py  the fused DeltaNet step as an mx.fast.metal_kernel (Metal only)
-backends/tinygrad.py  tinygrad backend: held-state TinyJit steps, symbolic position and attention window, slab weights
-backends.py      backend selection for the CLIs
-quant.py         backend-agnostic weight-only int8/int4 affine quantization (numpy QWeight, MLX layout)
-paramcache.py    on-disk cache of finished parameters (memory-mapped .npy per array), so a 27B loads in seconds
-prefixcache.py   prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
-chat.py          Qwen chat format: rendering (system, tools, tool calls/results, thinking) and output parsing
-serving.py       Engine (one worker over generate + PrefixCache) and the OpenAI chat-completions HTTP server
-grammar.py       constrained decoding: tool-call / JSON-mode grammar -> per-step token masks, tool_choice
-weights.py       Ollama manifest -> GGUF blob (gguf-py dequant) or Ollama tensor blobs (packed safetensors,
-                 MLX int4/int8) -> canonical HF-layout params
+core/            the model, backend-free: the decoder (model.py) assembled from blocks (block.py), each a residual
+                 stream + mixer + feed-forward (mixing.py's interfaces); gated GQA attention w/ partial RoPE
+                 (attention.py) and Gated DeltaNet (deltanet.py) as mixers owning their decode-state layouts;
+                 SwiGLU (mlp.py); the MTP draft head (mtp.py); config, functional cache, parameter names
+arch/            architectures: what blocks a checkpoint's layers are and how its parameters become them
+                 (qwen35.py: Qwen35Architecture, load_qwen35)
+ops/             the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of the
+                 fusable ones, base.py), `NumpyOps` the float64 golden (reference.py), weight-only int8/int4 affine
+                 quantization (quant.py)
+backends/        torch (torch.py; Triton GEMV, DeltaNet step and attention kernels in torch_triton.py), MLX core
+                 (mlx.py; the fused DeltaNet step as a Metal kernel in mlx_metal.py), tinygrad (tinygrad.py), and
+                 backend selection (backends.py)
+load/            the loader pipeline: sources (weights.py: Ollama manifests, GGUF blobs, Ollama tensor blobs, HF
+                 checkpoints -> canonical params), recipes and precision policies, the plan, materialization, the
+                 on-disk parameter cache (paramcache.py); the vendored gguf reader (gguf/)
+decode/          the generation loop (loop.py) and its extension points: the one token source (tokens.py: verify
+                 [pending, drafts] in one step), draft sources (drafts.py), logit processors (processors.py:
+                 penalties), the sampler and rejection step (sampling.py), terminators, observers, state stores;
+                 the static and functional decoders (decoder.py); GenerationRunner (runners.py)
+spec/            draft sources: the MTP head (mtp.py), prompt lookup (lookup.py), test oracles (oracle.py)
+constrain/       tool-call / JSON-mode grammars -> per-step token masks (grammar.py), as a logit processor
+prefix/          prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
+                 (cache.py), as a state store (store.py)
+serve/           Qwen chat format: rendering and output parsing (chat.py); the Engine and the OpenAI
+                 chat-completions HTTP server (serving.py)
+inject/          assembly by omcore.inject: the composition root over each package's inject.py (role binders, one
+                 config dataclass each); everything also assembles by hand
+api.py           `generate` (the loop assembled by hand) and ManualGenerationRunner
 tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
-generate.py      CLI greedy generation
-validate.py      compare tokenizer / greedy tokens / per-step logprobs against llama-server
-tests/test_synthetic.py  builds a tiny GGUF (and a tiny Ollama tensor-blob model) and checks the loader + model
-tests/test_quant.py      quant round-trips, bit-exact MLX re-pack, quantized model vs f32
-tests/test_parity.py     numpy-f64 golden vs torch vs mlx: per-layer taps, cache, quantized paths
+entrypoints/     generate, serve, agent, tune (GEMV launch tables), kl (quality), validate (vs llama-server)
+tests/           golden parity across backends, synthetic models, quantization, kernels, tracing, sampling,
+                 prefix reuse, grammars, the server; bench.py, the performance arm
 ```
 
 On the radar, not started: a `ggml` backend (ctypes to libggml; a lazy `Ops` whose calls emit graph nodes). It
@@ -63,7 +71,7 @@ second 4-bit grid carries both roundings. Two knobs make the recipe ours:
   llama.cpp's k-quants do. ~13-15% less squared error than min/max at int4, same bytes, nothing at inference
   time. The numpy implementation is canonical on every backend: IEEE arithmetic and numpy's fixed-order
   reductions only, split across the machine's cores, so the same source quantizes to the same bytes on a CUDA
-  box and on a Mac -- a parameter cache built on either is byte-identical (`python -m omllm.local.qwen.paramcache
+  box and on a Mac -- a parameter cache built on either is byte-identical (`python -m omllm.local.qwen.load.paramcache
   CACHE_DIR/<entry>` prints a checksum; `test_quant.py` checks torch- and MLX-built caches agree). About two
   minutes for the 27B on 16 cores. `TorchOps.quant_native = True` opts into an on-device version of the same
   search (a little faster, reductions in GPU order, so not byte-identical).
@@ -198,13 +206,13 @@ interpreter (`tests/test_triton.py`) and drops into CUDA graphs like any other k
 turns it off. Narrow projections (o_proj, down_proj, out_proj at N=5120, k/v_proj at N=1024) are split over K
 across several programs with a float32 partial-sum reduction, so they fill the GPU; the launch configuration
 per (N, K) comes from a tuned table when one is loaded (`entrypoints/tune` sweeps block sizes, warps, stages and
-split factor on the actual GPU and writes JSON; `--triton-tuned FILE` / `TorchOps(triton_tuned=)` loads it) and
-from a fill-the-GPU heuristic otherwise. The tuner times by CUDA-graph replay and rotates through enough copies of
-each weight to overflow L2, so it measures DRAM streaming -- what the decode step does -- rather than the
-cache-resident bandwidth a single weight timed in a loop reports. Two formulations are swept per shape: the
+split factor on the actual GPU and writes JSON; `--triton-tuned FILE`, or `TorchOps(gemv_tuned=load_tuned(FILE))`,
+loads it) and from a fill-the-GPU heuristic otherwise. The tuner times by CUDA-graph replay and rotates through
+enough copies of each weight to overflow L2, so it measures DRAM streaming -- what the decode step does -- rather
+than the cache-resident bandwidth a single weight timed in a loop reports. Two formulations are swept per shape: the
 tensor-core `_qlinear_kernel` (`tl.dot`, weight tile staged through shared memory) and `_qgemv_fma_kernel`
-(`GemvConfig.fma`: plain FMAs reduced in registers, M <= 8, the way llama.cpp / exllama GEMVs work); the tuner
-keeps whichever streams faster on the GPU at hand. Default tuning M is 4 (spec-3 verify).
+(`GemvConfig.fma`: plain FMAs reduced in registers, M <= 8, the way llama.cpp / exllama GEMVs work); the tuner keeps
+whichever streams faster on the GPU at hand. Default tuning M is 4 (spec-3 verify).
 
 The DeltaNet token step is one op on the seam, `Ops.gdn_step` (l2-norm, head broadcast, gate, recurrence, from
 the raw projections in their natural layout), which the model calls for T <= 8 -- decode and speculative
@@ -388,18 +396,19 @@ target's final-normed hidden at p) concatenated -- embedding first -- through `f
 the text geometry and its own KV, a final norm, the target's `lm_head`. It predicts the token at p+2 and
 recurses on its own normed output.
 
-`SpecDecoder` (`model.py`) runs one round as: draft k tokens (the first from the head's last refreshed entry,
-the rest by recursion), each *sampled* from the draft head's warped distribution q; verify `[next_tok, d_1..d_k]`
-in a single captured T = k + 1 target step; rejection-sample (`speculative_accept`): draft i is accepted with
-probability min(1, p_i(d_i) / q_i(d_i)) where p is the target's equally-warped distribution, the first rejected
-position emits a draw from the residual max(0, p - q), and if every draft survives the last row is drawn plainly.
-Then commit and refresh the draft head over the committed positions with the target's true hidden states (one
-captured T = k + 1 draft step). The output distribution is exactly the target's (the speculative-sampling
-theorem; `test_sampler.py` checks it empirically) and the per-draft acceptance is sum(min(p, q)) = 1 - TV(p, q)
-rather than p(argmax q) -- the same thing for greedy, where every distribution is one-hot, and typically 10-20
-points more when sampling. All of it runs on the device; the round still has one host sync (accept flags,
-corrections, drafts). Rollback costs nothing: the KV buffers are masked by position and the verify step returns
-the DeltaNet state after every token, so the state after the accepted prefix is a slice.
+A round (`decode/tokens.py`, with the head as `spec/mtp.py`'s draft source) is: draft k tokens (the first from the
+head's last refreshed entry, the rest by recursion), each *sampled* from the draft head's warped distribution q;
+verify `[pending, d_1..d_k]` in a single captured T = k + 1 target step; rejection-sample (`speculative_accept`):
+draft i is accepted with probability min(1, p_i(d_i) / q_i(d_i)) where p is the target's equally-warped
+distribution, the first rejected position emits a draw from the residual max(0, p - q), and if every draft survives
+the last row is drawn plainly. Then the terminators decide where the round ends, and the commit keeps exactly that
+and refreshes the draft head over the committed positions with the target's true hidden states (one captured
+T = k + 1 draft step). The output distribution is exactly the target's (the speculative-sampling theorem;
+`test_sampler.py` checks it empirically) and the per-draft acceptance is sum(min(p, q)) = 1 - TV(p, q) rather than
+p(argmax q) -- the same thing for greedy, where every distribution is one-hot, and typically 10-20 points more when
+sampling. All of it runs on the device; the round still has one host sync (accept flags, corrections, drafts).
+Rollback costs nothing: the KV buffers are masked by position and the verify step returns the DeltaNet state after
+every token, so the state after the accepted prefix is a slice.
 
 ```bash
 python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 -p "..."
@@ -411,13 +420,19 @@ Qwen's BPE ids are roughly in merge-frequency order, so 32-64k of the 248k cover
 picks, and the three draft-head launches per round each drop a 636 MB matmul to a fraction of that. Verify
 always uses the full head, so drafting from a subset can only lower acceptance, never correctness.
 
-`Sampler` does temperature / top-k / top-p / min-p / presence and frequency penalties on the device, as `Ops`
-calls over the logits (top-k, then top-p/min-p among the candidates, then a Gumbel-max draw; the penalties read
-a device histogram of observed tokens), so a decode step moves one token id off the device and a speculative
-round moves 2k+1 of them instead of a 4 MB logits block. `--preset thinking` and `non-thinking` are Qwen's
-published settings; `test_sampler.py` checks the draws against the exact distribution on every backend. `test_parity.py::test_spec_decode_parity` checks that speculative
-decoding reproduces greedy decoding exactly on every backend, with the real head and with oracle drafts
-corrupted at each index so every acceptance length is exercised.
+`--lookup N --lookup-k K` drafts by prompt lookup first (`spec/lookup.py`): when the last N tokens occurred earlier
+in the context, the K tokens that followed them there are the draft (point masses, so the same rejection step
+applies), else the head drafts. On a file rewrite it is 5x plain decode on qwen3.5:4b (no MTP head, K = 7) and +22%
+over the head on the 27B with K = 4, one more than the head's; at the head's own K it loses (NEXT.md 1.1).
+
+`Sampler` does temperature / top-k / top-p / min-p on the device, as `Ops` calls over the logits (top-k, then
+top-p/min-p among the candidates, then a Gumbel-max draw); presence and frequency penalties are a logit processor
+(`decode/processors.py`) that counts the observed tokens on the device, exactly per verify row under speculation. A
+decode step moves one token id off the device and a speculative round moves 2k+1 of them instead of a 4 MB logits
+block. `--preset thinking` and `non-thinking` are Qwen's published settings; `test_sampler.py` checks the draws
+against the exact distribution on every backend. `test_parity.py::test_spec_decode_parity` checks that speculative
+decoding reproduces greedy decoding exactly on every backend, with the real head and with oracle drafts corrupted
+at each index so every acceptance length is exercised.
 
 ## Prefix snapshots
 

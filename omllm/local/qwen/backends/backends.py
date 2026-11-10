@@ -4,8 +4,8 @@ import platform
 
 from omcore import lang
 
-from ..ops import NumpyOps
-from ..ops import Ops
+from ..ops.base import Ops
+from ..ops.reference import NumpyOps
 
 
 ##

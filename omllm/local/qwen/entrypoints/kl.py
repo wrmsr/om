@@ -26,8 +26,8 @@ import typing as ta
 
 from omcore import lang
 
-from ..model import Cache
-from ..model import Qwen35
+from ..core.cache import Cache
+from ..core.model import Qwen35
 from .common import add_model_args
 from .common import load_model
 

@@ -30,7 +30,7 @@ block above `GemvConfig` before adding or changing a dataclass here or anywhere 
 """
 import dataclasses as dc  # STDLIB, deliberately: see the block above GemvConfig
 import json
-import pathlib
+import os
 import typing as ta
 
 from omcore import check
@@ -852,8 +852,10 @@ class GemvConfig:
     fma: bool = False  # _qgemv_fma_kernel (registers, M <= 8) instead of the tensor-core _qlinear_kernel
 
 
-# (N, K, bits) -> config, filled by `tune` / `load_tuned`; consulted before the heuristics
-TUNED: dict[tuple[int, int, int], GemvConfig] = {}
+# (N, K, bits) -> config: what `tune` measured and `load_tuned` reads back; a TorchOps holds one (`gemv_tuned`), and
+# `resolve_launch` consults it before the heuristics. Configuration, so never a module global: two TorchOps in one
+# process may run with different tables (or none).
+GemvTable: ta.TypeAlias = ta.Mapping[tuple[int, int, int], GemvConfig]
 
 
 def default_config(n: int, k: int, bits: int, dtype: torch.dtype) -> GemvConfig:
@@ -876,24 +878,84 @@ def default_config(n: int, k: int, bits: int, dtype: torch.dtype) -> GemvConfig:
     )
 
 
-def load_tuned(path: str | pathlib.Path) -> int:
-    """Read a JSON written by `tune` into TUNED; returns the number of entries."""
+def load_tuned(path: str) -> dict[tuple[int, int, int], GemvConfig]:
+    """Read a table written by `save_tuned` (empty when the file does not exist)."""
 
-    p = pathlib.Path(path).expanduser()
-    if not p.exists():
-        return 0
-    for e in json.loads(p.read_text()):
-        TUNED[(e['n'], e['k'], e['bits'])] = GemvConfig(**e['config'])
-    return len(TUNED)
+    path = os.path.expanduser(path)
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return {(e['n'], e['k'], e['bits']): GemvConfig(**e['config']) for e in json.load(f)}
 
 
-def save_tuned(path: str | pathlib.Path) -> None:
-    p = pathlib.Path(path).expanduser()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(
-        [{'n': n, 'k': k, 'bits': b, 'config': dc.asdict(c)} for (n, k, b), c in sorted(TUNED.items())],
-        indent=1,
-    ))
+def save_tuned(path: str, tuned: GemvTable) -> None:
+    path = os.path.expanduser(path)
+    if d := os.path.dirname(path):
+        os.makedirs(d, exist_ok=True)
+    with open(path, 'w') as f:
+        json.dump(
+            [{'n': n, 'k': k, 'bits': b, 'config': dc.asdict(c)} for (n, k, b), c in sorted(tuned.items())],
+            f,
+            indent=1,
+        )
+
+
+@dc.dataclass(frozen=True)
+class Launch:
+    """A weight's resolved GEMV launch: the configuration and what of it fit the GPU (see `_resolve`)."""
+
+    cfg: GemvConfig
+    block_k: int
+    num_stages: int
+    split_k: int
+
+
+def resolve_launch(
+        x: torch.Tensor,
+        q: torch.Tensor,
+        scale: torch.Tensor,
+        bias: torch.Tensor,
+        bits: int,
+        group: int,
+        shape: tuple[int, int],
+        config: GemvConfig | None = None,
+        block_n: int | None = None,
+        tuned: GemvTable | None = None,
+) -> Launch:
+    """
+    The launch for a weight of `shape` and activations of x's dtype: `config`, else `tuned[(N, K, bits)]` (see `tune`),
+    else `default_config`, with `block_n` overriding that one field; then shrunk until it fits this GPU (`_resolve`,
+    remembered per device).
+
+    Call it eagerly, not from a compiled step: it reads and fills a module-level memo, and torch.compile guards on what
+    a traced function reads -- a compiled step that looked up `_RESOLVED` is invalidated (and recompiled, ~20 s on the
+    27B) by every later resolution of any other shape. TorchOps.linear resolves each weight once, on its first (eager)
+    call, keeps the result on the weight and hands it to `qlinear`, so the traced path reads no shared table.
+    """
+
+    n, k = shape
+    cfg = config or (tuned or {}).get((n, k, bits)) or default_config(n, k, bits, x.dtype)
+    if block_n is not None:
+        cfg = dc.replace(cfg, block_n=block_n)
+    key = (n, k, bits, x.dtype, x.device, cfg)
+    resolved = _RESOLVED.get(key)
+    if resolved is None:
+        x2 = x.reshape(-1, k)
+        if x2.stride(1) != 1:
+            x2 = x2.contiguous()
+        resolved = _RESOLVED[key] = _resolve(
+            x2,
+            q,
+            scale,
+            bias,
+            bits,
+            group,
+            n,
+            k,
+            cfg,
+        )
+    bk, num_stages, split = resolved
+    return Launch(cfg, bk, num_stages, split)
 
 
 def qlinear(
@@ -906,44 +968,40 @@ def qlinear(
         shape: tuple[int, int],
         config: GemvConfig | None = None,
         block_n: int | None = None,
+        launch: Launch | None = None,
 ) -> torch.Tensor:
     """
     x [..., K] @ w.T -> [..., N] in x's dtype, w given as packed codes + per-group scale/bias.
 
-    The launch configuration comes from `config`, else `TUNED[(N, K, bits)]` (see `tune`), else `default_config`.
-    split_k > 1 runs the K loop on several programs and sums float32 partials (one extra tiny kernel); it is what makes
-    the narrow projections (o_proj, down_proj, out_proj: N=5120) fill the GPU. `block_n` overrides that one field of the
-    config (kept for TorchOps.triton_block_n).
+    The launch is `launch` when given (the only form to use inside a compiled step -- see `resolve_launch`), else
+    resolved here from `config` / `block_n`. split_k > 1 runs the K loop on several programs and sums float32 partials
+    (one extra tiny kernel); it is what makes the narrow projections (o_proj, down_proj, out_proj: N=5120) fill the GPU.
     """
 
     if not HAVE_TRITON:
         raise RuntimeError('triton is not installed')
     ensure_kernels()
     n, k = shape
-    # both of these run inside compiled steps: GemvConfig must stay a stdlib dataclass (see the block above it)
-    cfg = config or TUNED.get((n, k, bits)) or default_config(n, k, bits, x.dtype)
-    if block_n is not None:
-        cfg = dc.replace(cfg, block_n=block_n)
-    x2 = x.reshape(-1, k)
-    if x2.stride(1) != 1:
-        x2 = x2.contiguous()
-    m = x2.shape[0]
-    key = (n, k, bits, x.dtype, cfg)
-    resolved = _RESOLVED.get(key)
-    if resolved is None:
-        resolved = _resolve(
-            x2,
+    if launch is None:
+        launch = resolve_launch(
+            x,
             q,
             scale,
             bias,
             bits,
             group,
-            n,
-            k,
-            cfg,
+            shape,
+            config=config,
+            block_n=block_n,
         )
-        _RESOLVED[key] = resolved
-    bk, num_stages, split = resolved
+    cfg = launch.cfg
+    x2 = x.reshape(-1, k)
+    if x2.stride(1) != 1:
+        x2 = x2.contiguous()
+    m = x2.shape[0]
+    bk = launch.block_k
+    num_stages = launch.num_stages
+    split = launch.split_k
     y = torch.empty((split, m, n), dtype=torch.float32 if split > 1 else x.dtype, device=x.device)
     if cfg.fma and m <= 8:
         grid = (triton.cdiv(n, cfg.block_n), split)
@@ -1123,7 +1181,7 @@ def tune(
         log: ta.Callable[[str], None] | None = print,
 ) -> dict[tuple[int, int, int], GemvConfig]:
     """
-    Sweep launch configurations per (N, K) on the current GPU, keep the fastest in TUNED and return them. Prints
+    Sweep launch configurations per (N, K) on the current GPU and return the fastest of each (`save_tuned`). Prints
     achieved GB/s of packed-weight traffic per shape (the number to compare against the card's bandwidth). Timing is by
     CUDA-graph replay (see `time_graphed`), so it reflects what the decode graph sees. Each configuration is a Triton
     compile (~1 s), so the sweep is kept to ~16-64 per shape: a few minutes for the ~9 distinct shapes of a model.
@@ -1225,7 +1283,6 @@ def tune(
             raise RuntimeError(f'no working configuration for N={n} K={k}')
         dt, cfg = best
         out[(n, k, bits)] = cfg
-        TUNED[(n, k, bits)] = cfg
         if log:
             log(f'N={n:7d} K={k:6d} int{bits}: {dt * 1e6:7.1f} us  {nbytes / dt / 1e9:7.0f} GB/s  {cfg}')
     return out

@@ -5,10 +5,11 @@ between formats, and the quantization error is small.
 """
 import numpy as np
 
-from ..model import Cache
-from ..model import Decoder
-from ..model import Qwen35
-from ..prefixcache import PrefixCache
+from ..api import generate
+from ..arch.qwen35 import load_qwen35
+from ..core.cache import Cache
+from ..decode.decoder import Decoder
+from ..prefix.cache import PrefixCache
 from .test_parity import rel_err
 from .test_parity import synthetic_source
 from .tritonmodes import triton_modes
@@ -43,7 +44,7 @@ def test_fp8_decode():
     ids = np.random.default_rng(3).integers(0, 256, (1, 24))
 
     def decode(ops):
-        m = Qwen35.from_source(src, ops, dtype='f32', verbose=False)
+        m = load_qwen35(src, ops, dtype='f32', verbose=False)
         cache = Cache(cfg)
         m.forward(ids[:, :12], cache)
         dec = Decoder(m, cache, capacity=64)
@@ -81,22 +82,24 @@ def test_fp8_spec_and_snapshots():
     p1 = rng.integers(0, 256, 7).tolist()
     extra = rng.integers(0, 256, 5).tolist()
     ops = TorchOps('cpu', triton=True, kv_dtype='fp8', capture_mode='static')
-    model = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True)
+    model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
     pc = PrefixCache(ops, 1 << 30, 1 << 30)
-    out1 = model.generate(p1, max_new_tokens=6, spec=3, prefix_cache=pc)
+    out1 = generate(model, p1, max_new_tokens=6, spec=3, prefix_cache=pc).tokens
     assert len(out1) == 6 and len(pc.entries) == 2
     p2 = p1 + out1 + extra
-    cold = Qwen35.from_source(src, ops, dtype='f32', verbose=False, mtp=True).generate(p2, max_new_tokens=6, spec=3)
-    warm = model.generate(p2, max_new_tokens=6, spec=3, prefix_cache=pc)
-    assert model.last_prefix[0] > len(p1) and warm == cold, (warm, cold)
+    cold_model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
+    cold = generate(cold_model, p2, max_new_tokens=6, spec=3).tokens
+    rw = generate(model, p2, max_new_tokens=6, spec=3, prefix_cache=pc)
+    warm = rw.tokens
+    assert rw.reused > len(p1) and warm == cold, (warm, cold)
     # the same snapshot read by a bf16 decoder: converted on the way in, runs
     ops16 = TorchOps('cpu', triton=False, capture_mode='static')
-    m16 = Qwen35.from_source(src, ops16, dtype='f32', verbose=False, mtp=True)
+    m16 = load_qwen35(src, ops16, dtype='f32', verbose=False, mtp=True)
     pc16 = PrefixCache(ops16, 1 << 30, 1 << 30)
     snap = next(e.snap for e in pc.entries.values() if len(e.snap.tokens) == len(p1))
     pc16.put(snap)
-    out16 = m16.generate(p1 + extra, max_new_tokens=6, spec=3, prefix_cache=pc16)
-    assert m16.last_prefix == (len(p1), len(p1) + len(extra)) and len(out16) == 6
+    r16 = generate(m16, p1 + extra, max_new_tokens=6, spec=3, prefix_cache=pc16)
+    assert (r16.reused, r16.prompt_tokens) == (len(p1), len(p1) + len(extra)) and len(r16.tokens) == 6
     snap16 = next(e.snap for e in pc16.entries.values() if len(e.snap.tokens) == len(p1) + len(extra))
     assert len(snap16.cache.layers[3]) == 2  # the bf16 decoder's own snapshot is in its format
     print('fp8 spec decode + prefix snapshots OK (fp8 -> fp8 exact, fp8 -> bf16 converts)')

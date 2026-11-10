@@ -37,7 +37,7 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
-from .tokenizer import Tokenizer
+from ..tokenizer import Tokenizer
 
 
 if ta.TYPE_CHECKING:
