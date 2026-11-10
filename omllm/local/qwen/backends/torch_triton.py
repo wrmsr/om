@@ -808,6 +808,11 @@ class GemvConfig:
 # (N, K, bits) -> config, filled by `tune` / `load_tuned`; consulted before the heuristics
 TUNED: dict[tuple[int, int, int], GemvConfig] = {}
 
+# (N, K, bits, dtype, block_n override) -> the config `qlinear` derived when nothing was given or tuned. Filled on the
+# first (eager) call so that the path torch.compile traces is a dict lookup: constructing an omcore dataclass inside a
+# traced function is an unsupported graph break, and dynamo then drops the *whole* step function back to eager.
+_DERIVED: dict[tuple[ta.Any, ...], GemvConfig] = {}
+
 
 def default_config(n: int, k: int, bits: int, dtype: torch.dtype) -> GemvConfig:
     """
@@ -873,9 +878,16 @@ def qlinear(
         raise RuntimeError('triton is not installed')
     ensure_kernels()
     n, k = shape
-    cfg = config or TUNED.get((n, k, bits)) or default_config(n, k, bits, x.dtype)
-    if block_n is not None:
-        cfg = dc.replace(cfg, block_n=block_n)
+    cfg = config or TUNED.get((n, k, bits))
+    if cfg is None or block_n is not None:
+        dkey = (n, k, bits, x.dtype, block_n, cfg)
+        derived = _DERIVED.get(dkey)
+        if derived is None:
+            derived = cfg or default_config(n, k, bits, x.dtype)
+            if block_n is not None:
+                derived = dc.replace(derived, block_n=block_n)
+            _DERIVED[dkey] = derived
+        cfg = derived
     x2 = x.reshape(-1, k)
     if x2.stride(1) != 1:
         x2 = x2.contiguous()

@@ -289,6 +289,10 @@ class GatedDeltaNet:
                 out, S = ops.gated_delta_states(q, k, v, g, beta, S)
             else:
                 out, S = ops.gated_delta(q, k, v, g, beta, S)
+                # a copy, not a slice: a view would keep this layer's whole [B, conv_dim, T + K - 1] float32 input
+                # alive in the cache (40 KB per token per layer, ~7.5 GB across the 48 DeltaNet layers of a
+                # 4096-token prefill chunk on the 27B)
+                conv_state = ops.copy(conv_state)
             out = ops.transpose(out, (0, 2, 1, 3))  # [B,T,Hv,dv]
 
         z = ops.reshape(z, (B, T, Hv, dv))
@@ -798,7 +802,7 @@ class Qwen35:
         for start in range(0, T, max(1, chunk)):
             if should_stop is not None and should_stop():
                 raise Cancelled
-            logits, h = self.forward(toks[:, start:start + chunk], cache, return_hidden=True)
+            logits, h = self.forward(toks[:, start:start + chunk], cache, last_only=True, return_hidden=True)
             hiddens.append(h)
 
         return (
@@ -816,7 +820,8 @@ class Qwen35:
     ) -> ta.Any:
         """
         tokens: [B, T] ints. Returns logits [B, T, V] (or [B, 1, V] with last_only) in float32; with return_hidden also
-        the final-normed hidden states [B, T, hidden] (what the MTP head conditions on).
+        the final-normed hidden states [B, T, hidden] (what the MTP head conditions on) -- every position's, even with
+        last_only, which then restricts only the logits.
         """
 
         ops = self.ops
@@ -838,13 +843,14 @@ class Qwen35:
         if cache is not None:
             cache.seq_len = start_pos + T
 
-        if last_only:
+        if last_only and not return_hidden:
             x = x[:, -1:]
 
         x = ops.rms_norm(x, self.norm_w, c.rms_eps)
         ops.tap('final_norm', x)
 
-        logits = ops.f32(ops.linear(x, self.lm_head))
+        # the full-vocabulary logits of a 4096-token prefill chunk are 4 GB in float32: compute only the rows asked for
+        logits = ops.f32(ops.linear(x[:, -1:] if last_only else x, self.lm_head))
         ops.tap('logits', logits)
 
         if return_hidden:
@@ -1040,6 +1046,7 @@ class Qwen35:
                     start,
                     draft_vocab,
                     mtp_kv,
+                    last_only=True,
                 )
 
         def put_prompt(mkv: FullState | None) -> None:
@@ -1207,18 +1214,31 @@ class MtpHead:
             pos: int = 0,
             draft_vocab: int = 0,
             state: FullState | None = None,
+            last_only: bool = False,
+            chunk: int = 4096,
     ) -> tuple[Array, Array, FullState]:
         """
         Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T, hidden [B,
         T, H] the target's hidden states at pos..pos+T-1, `state` the head's KV for entries 0..pos-1 (None to start
-        empty). Returns logits, d, (k, v) covering entries 0..pos+T-1.
+        empty). Returns logits, d, (k, v) covering entries 0..pos+T-1. With last_only, logits and d are the last entry's
+        only ([B, 1, ...]): the generation loop needs nothing else, and every entry's draft logits over a long prompt
+        are gigabytes (32k entries x 64k ids in float32 is 8 GB). The entries go through the block `chunk` at a time, as
+        Qwen35.prefill does, so its activations stay bounded too.
         """
 
         ops = self.model.ops
-        u = self.stem(ops, ops.array(np.asarray(toks, dtype=np.int32)), hidden)
-        u, state = self.block(ops, u, pos, state)
+        toks = np.asarray(toks, dtype=np.int32)
+        T = toks.shape[1]
+
+        us: list[Array] = []
+        for s in range(0, T, max(1, chunk)):
+            u = self.stem(ops, ops.array(toks[:, s:s + chunk]), hidden[:, s:s + chunk])
+            u, state = self.block(ops, u, pos + s, state)
+            us.append(u[:, -1:] if last_only else u)
+
+        u = us[-1] if (last_only or len(us) == 1) else ops.concat(us, 1)
         logits, d = self.head(ops, u, draft_vocab)
-        return logits, d, state
+        return logits, d, check.not_none(state)
 
     def step_fn(self, T: int, draft_vocab: int = 0, bucket: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
         """
@@ -1358,7 +1378,7 @@ class Sampler:
         l = logits
         if self.penalized and self.counts is not None:
             pen = self.presence_penalty * ops.cast(self.counts > 0, l.dtype) + self.frequency_penalty * self.counts
-            l = l - pen[None, :]
+            l = l - pen[None, :V]  # rows may cover only a prefix of the vocabulary (a restricted draft head)
 
         k = self.top_k if 0 < self.top_k < V else V
         vals, idx = ops.topk(l, k)  # [T, k] descending
@@ -1399,13 +1419,16 @@ class Sampler:
         f32 = ops.dtype('f32')
 
         if self.greedy:
-            mx = ops.amax(logits, -1, keepdims=True)
-            return ops.softmax(logits + ops.cast(logits < mx, f32) * -1e30, -1)
+            # one-hot at the first maximum, the token `sample`'s argmax picks. Not spread over ties: bf16 logits tie
+            # exactly every few dozen tokens on the 27B, and a draw among tied tokens would make greedy speculative
+            # decoding depend on the seed and differ from plain greedy.
+            am = ops.argmax(logits, -1)
+            return ops.cast(ops.arange(V)[None, :] == am[:, None], f32)
 
         l = logits
         if self.penalized and self.counts is not None:
             pen = self.presence_penalty * ops.cast(self.counts > 0, l.dtype) + self.frequency_penalty * self.counts
-            l = l - pen[None, :]
+            l = l - pen[None, :V]  # rows may cover only a prefix of the vocabulary (a restricted draft head)
         l = l / self.temperature
 
         k = self.top_k if 0 < self.top_k < V else V
@@ -1838,7 +1861,7 @@ class SpecDecoder:
         if ops.static_prefill:
             mlogits, d = self._prefill_draft(mtoks, hidden, start, mtp_kv)
         else:
-            mlogits, d, mkv = self.mtp.prefill(mtoks, hidden, start, draft_vocab, mtp_kv)
+            mlogits, d, mkv = self.mtp.prefill(mtoks, hidden, start, draft_vocab, mtp_kv, last_only=True)
             self.mflat = list(mkv)
         self.logits_last = logits[:, -1]  # [1, V]: the target's logits for position n (what next_tok was drawn from)
         self.hidden_last = hidden[:, -1:]  # [1, 1, H]: the target's hidden at position n-1
