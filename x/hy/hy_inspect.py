@@ -7,9 +7,10 @@ monkey-patched into `inspect` at run-time.
 
 The class finder in `findsource` relies on python 3.13 or later.
 """
+import contextlib
 import inspect
 import linecache
-import contextlib
+
 import typping as ta
 
 from .compat import PY3_13

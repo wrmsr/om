@@ -498,7 +498,7 @@ def compile_augassign_expression(compiler, expr, root, target, values):
         (
             tag('chained', sym(':chain') + brackets(oneplus(FORM))) |
             tag('maybe_annotated', maybe_annotated(FORM))
-        ) + FORM
+        ) + FORM,
     )],
 )
 @pattern_macro('setx', [times(1, 1, tag('setx', SYM) + FORM)])

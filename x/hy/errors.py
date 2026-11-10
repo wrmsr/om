@@ -1,9 +1,9 @@
+import contextlib
 import importlib.util
 import os
 import re
 import sys
 import traceback
-import contextlib
 
 from . import _initialize_env_var
 from .compat import PY3_13

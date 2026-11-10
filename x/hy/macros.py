@@ -1,3 +1,4 @@
+import ast
 import builtins
 import importlib
 import inspect
@@ -5,7 +6,6 @@ import os
 import re
 import sys
 import traceback
-import ast
 
 from .. import hy
 from .compat import PY3_11

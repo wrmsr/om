@@ -1,8 +1,7 @@
-"Scope and variable tracking for Hy/Python scopes."
+"""Scope and variable tracking for Hy/Python scopes."""
+import abc
 import ast
 import itertools
-from abc import ABC
-from abc import abstractmethod
 
 from . import compat
 from .models import Expression
@@ -12,12 +11,15 @@ from .models import Tuple
 from .reader import mangle
 
 
+##
+
+
 def is_function_scope(scope):
     return isinstance(scope, ScopeFn) and scope.is_fn
 
 
 def is_inside_function_scope(scope):
-    "True if any enclosing scope (including this one) is a function scope."
+    """True if any enclosing scope (including this one) is a function scope."""
 
     cur = scope
     while not isinstance(cur, ScopeGlobal):
@@ -28,7 +30,7 @@ def is_inside_function_scope(scope):
 
 
 def nearest_python_scope(scope):
-    "Return the closest enclosing scope that corresponds to a Python scope."
+    """Return the closest enclosing scope that corresponds to a Python scope."""
 
     cur = scope
     while isinstance(cur, (ScopeLet, ScopeGen)):
@@ -37,7 +39,7 @@ def nearest_python_scope(scope):
 
 
 class OuterVar(ast.stmt):
-    "Custom AST node that can compile to either Nonlocal or Global."
+    """Custom AST node that can compile to either Nonlocal or Global."""
 
     def __init__(self, expr, scope, names):
         from .compiler import asty
@@ -48,10 +50,11 @@ class OuterVar(ast.stmt):
 
 
 class ResolveOuterVars(ast.NodeTransformer):
-    "Find all OuterVar nodes and replace with Nonlocal or Global as necessary."
+    """Find all OuterVar nodes and replace with Nonlocal or Global as necessary."""
 
     def visit_OuterVar(self, node):
         from .compiler import asty
+
         scope = node._scope
         defined = set()
         undefined = list(node.names)  # keep order, so can't use set
@@ -79,11 +82,9 @@ class ResolveOuterVars(ast.NodeTransformer):
 
 class NodeRef:
     """
-    Wrapper for AST nodes that have symbol names, so that we can rename them if
-    necessary. Each `NodeRef` corresponds to one Python identifier. `ast` nodes
-    that accept multiple identifier names (`global`, `nonlocal`, etc) have
-    their specific identifier referenced by their `index` in the list of
-    `names` provided by the `ast` node.
+    Wrapper for AST nodes that have symbol names, so that we can rename them if necessary. Each `NodeRef` corresponds to
+    one Python identifier. `ast` nodes that accept multiple identifier names (`global`, `nonlocal`, etc) have their
+    specific identifier referenced by their `index` in the list of `names` provided by the `ast` node.
     """
 
     ACCESSOR = {
@@ -115,7 +116,7 @@ class NodeRef:
 
     @name.setter
     def name(self, new_name):
-        "Used to rename `ast` identifiers"
+        """Used to rename `ast` identifiers"""
 
         if self.index is not None:
             getattr(self.node, self._accessor)[self.index] = new_name
@@ -124,7 +125,7 @@ class NodeRef:
 
     @staticmethod
     def wrap(f):
-        "Decorator to convert AST node parameter to NodeRef."
+        """Decorator to convert AST node parameter to NodeRef."""
 
         def _wrapper(self, node, index=None):
             if not isinstance(node, NodeRef):
@@ -140,14 +141,14 @@ class NodeRef:
         )
 
 
-class ScopeBase(ABC):
+class ScopeBase(abc.ABC):
     def __init__(self, compiler):
         self.parent = None
         self.compiler = compiler
         self.children = []
 
     def create(self, scope_type, *args):
-        "Create new scope from this one."
+        """Create new scope from this one."""
 
         return scope_type(self.compiler, *args)
 
@@ -165,32 +166,21 @@ class ScopeBase(ABC):
         return False
 
     # Scope interface
-    @abstractmethod
+    @abc.abstractmethod
     def access(self, node, index=None):
-        "Called when a symbol is accessed."
+        """Called when a symbol is accessed."""
 
-        ...
-
-    @abstractmethod
+    @abc.abstractmethod
     def assign(self, node, index=None):
-        "Called when a symbol is assigned to."
+        """Called when a symbol is assigned to."""
 
-        ...
-
-    @abstractmethod
+    @abc.abstractmethod
     def define(self, name):
-        """
-        Called when a symbol is defined.
-        (e.g., function names, class names, imports)
-        """
+        """Called when a symbol is defined. (e.g., function names, class names, imports)"""
 
-        ...
-
-    @abstractmethod
+    @abc.abstractmethod
     def define_nonlocal(self, node, root):
-        "Called when a symbol is declared nonlocal or global."
-
-        ...
+        """Called when a symbol is declared nonlocal or global."""
 
 
 class ScopeGlobal(ScopeBase):
@@ -199,14 +189,11 @@ class ScopeGlobal(ScopeBase):
     def __init__(self, compiler):
         super().__init__(compiler)
         self.defined = set()
-        'set: of all symbols created or assigned to in this scope'
+        #set: of all symbols created or assigned to in this scope
 
         self.nonlocal_vars = []
-        """
-        list: of all `nonlocal`'s defined in this scope.
-
-        Explicitly not a `set` so that we maintain the order they were defined in
-        """
+        # list: of all `nonlocal`'s defined in this scope.
+        # Explicitly not a `set` so that we maintain the order they were defined in
 
     def __exit__(self, *args):
         nonlocal_vars = self.nonlocal_vars
@@ -236,8 +223,8 @@ class ScopeGlobal(ScopeBase):
 
 class ScopeLet(ScopeBase):
     """
-    Scope that supports let-binding by renaming bound symbols as they are
-    accessed/assigned. Defined symbols are never renamed.
+    Scope that supports let-binding by renaming bound symbols as they are accessed/assigned. Defined symbols are never
+    renamed.
     """
 
     def __init__(self, compiler):
@@ -309,22 +296,18 @@ class ScopeFn(ScopeBase):
     def __init__(self, compiler, args=None, is_async=False):
         super().__init__(compiler)
         self.defined = set()
-        'set: of all vars defined in this scope'
+        # set: of all vars defined in this scope
         self.seen = []
-        'list: of all vars accessedto in this scope'
+        # list: of all vars accessedto in this scope
         self.nonlocal_vars = {}
-        "set: of all `nonlocal`'s defined in this scope"
+        # set: of all `nonlocal`'s defined in this scope
         self.is_fn = args is not None
-        """
-        bool: `True` if this scope is being used to track a python
-        function `False` for classes
-        """
+        # bool: `True` if this scope is being used to track a python function `False` for classes
         self.is_async = is_async
-        """bool: `True` if this scope is for an async function,
-        which may need special handling during compilation"""
+        # bool: `True` if this scope is for an async function, which may need special handling during compilation
         self.has_yield = False
-        """bool: `True` if this scope is tracking a function that has `yield`
-        statements, as generator functions may need special handling"""
+        # bool: `True` if this scope is tracking a function that has `yield` statements, as generator functions may need
+        # special handling
 
         if args:
             for arg in itertools.chain(
@@ -363,9 +346,7 @@ class ScopeFn(ScopeBase):
 
         for n in self.seen:
             if n.name in node.names:
-                raise SyntaxError(
-                    f"name '{n.name}' is declared {root} after being used",
-                )
+                raise SyntaxError(f"name '{n.name}' is declared {root} after being used")
         if root == 'nonlocal':
             # toss all nonlocal names up to parent scope
             for i in range(len(node.names)):
@@ -374,14 +355,13 @@ class ScopeFn(ScopeBase):
 
 class ScopeGen(ScopeFn):
     """
-    Scope that supports generator forms (`lfor`, `gfor`, ...). If this scope is
-    contained within a function scope or the global scope, then any variable
-    assignments are "leaked out" to the parent scope, mimicking Python's inline
+    Scope that supports generator forms (`lfor`, `gfor`, ...). If this scope is contained within a function scope or the
+    global scope, then any variable assignments are "leaked out" to the parent scope, mimicking Python's inline
     generator semantics.
 
     .. note::
-       see :pep:`572#why-not-use-a-sublocal-scope-and-prevent-namespace-pollution`
-       for more details on how and when variables are leaked into enclosing scopes.
+       see :pep:`572#why-not-use-a-sublocal-scope-and-prevent-namespace-pollution` for more details on how and when
+       variables are leaked into enclosing scopes.
     """
 
     def __init__(self, compiler):
@@ -394,17 +374,15 @@ class ScopeGen(ScopeFn):
         super().__enter__()
         enclosing = nearest_python_scope(self.parent)
         if isinstance(enclosing, ScopeGlobal) or is_function_scope(enclosing):
-            # only "leak out" assignments if we're contained in a function
-            # (or global) scope
+            # only "leak out" assignments if we're contained in a function (or global) scope
             self.exposing_assignments = True
         return self
 
     def finalize(self):
         """
-        Access and return all the identifiers created and potentially leaked
-        out by this generator. This should be called once and only once we've
-        processed all of the iterators in this generators so as not to leak out
-        any unwanted identifiers
+        Access and return all the identifiers created and potentially leaked out by this generator. This should be
+        called once and only once we've processed all of the iterators in this generators so as not to leak out any
+        unwanted identifiers
         """
 
         res = set()
@@ -429,15 +407,13 @@ class ScopeGen(ScopeFn):
 
     def iterator(self, target):
         """
-        Declare an iteration variable name for this scope; as in Python, the
-        iteration variable(s) cannot be reassigned.
+        Declare an iteration variable name for this scope; as in Python, the iteration variable(s) cannot be reassigned.
         """
 
         self.iterators.update(
             name.id for name in ast.walk(target) if isinstance(name, ast.Name)
         )
-        # remove potentially leakable identifiers that were actually iteration
-        # variables found in `target`
+        # remove potentially leakable identifiers that were actually iteration variables found in `target`
         self.assignments = [
             node for node in self.assignments if node.name not in self.iterators
         ]

@@ -1,9 +1,9 @@
 """Parser combinators for pattern-matching Hy model trees."""
-from collections import namedtuple
-from functools import reduce
-from itertools import repeat
-from math import isinf
-from operator import add
+import collections
+import functools
+import itertools
+import math
+import operator
 
 from .funcparserlib.parser import NoParseError
 from .funcparserlib.parser import Parser
@@ -74,7 +74,7 @@ def whole(parsers):
         return ((parsers[0] >> (lambda r: (r,) if non_ignored_parsers else ())) +
             skip(finished))
     return ((
-        reduce(add, parsers) >> (lambda r:
+        functools.reduce(operator.add, parsers) >> (lambda r:
             () if non_ignored_parsers == 0 else
             (r,) if non_ignored_parsers == 1 else
             r)) +
@@ -158,7 +158,7 @@ def times(lo, hi, parser):
             result.append(v)
         end = s.max
         try:
-            for _ in repeat(1) if isinf(hi) else range(hi - lo):
+            for _ in itertools.repeat(1) if math.isinf(hi) else range(hi - lo):
                 (v, s) = parser.run(tokens, s)
                 result.append(v)
         except NoParseError as e:
@@ -168,7 +168,7 @@ def times(lo, hi, parser):
     return f
 
 
-Tag = namedtuple('Tag', ['tag', 'value'])
+Tag = collections.namedtuple('Tag', ['tag', 'value'])
 Tag.__doc__ = 'A named tuple; see :func:`collections.namedtuple` and :func:`tag`.'
 
 

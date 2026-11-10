@@ -11,8 +11,7 @@ from .reader import unmangle
 ##
 
 
-# Lazily import `readline` to work around
-# https://github.com/python/cpython/issues/46927#issuecomment-1093418916
+# Lazily import `readline` to work around https://github.com/python/cpython/issues/46927#issuecomment-1093418916
 readline = None
 
 

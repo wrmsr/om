@@ -1,7 +1,7 @@
-import operator
 import contextlib
 import functools
 import math
+import operator
 
 from .compat import PY3_14
 from .errors import HyWrapperError

@@ -2,6 +2,7 @@ import ast
 import builtins
 import code
 import codeop
+import contextlib
 import importlib
 import linecache
 import os
@@ -10,7 +11,6 @@ import sys
 import time
 import traceback
 import types
-from contextlib import contextmanager
 
 from .. import hy
 from .compat import PY3_12
@@ -32,6 +32,9 @@ from .reader.exceptions import PrematureEndOfInput
 from .reader.hy_reader import HyReader
 
 
+##
+
+
 class HyQuitter:
     def __init__(self, name):
         self.name = name
@@ -44,17 +47,14 @@ class HyQuitter:
     def __call__(self, code=None):
         try:
             sys.stdin.close()
-        except:
+        except:  # noqa
             pass
         raise SystemExit(code)
 
 
 class HyHelper:
     def __repr__(self):
-        return (
-            'Use (help) for interactive help, or (help object) for help '
-            'about object.'
-        )
+        return 'Use (help) for interactive help, or (help object) for help about object.'
 
     def __call__(self, *args, **kwds):
         import pydoc
@@ -62,7 +62,7 @@ class HyHelper:
         return pydoc.help(*args, **kwds)
 
 
-@contextmanager
+@contextlib.contextmanager
 def extend_linecache(add_cmdline_cache):
     _linecache_checkcache = linecache.checkcache
 
@@ -77,18 +77,14 @@ def extend_linecache(add_cmdline_cache):
 
 _codeop_maybe_compile = codeop._maybe_compile
 codeop._maybe_compile = (lambda compiler, source, filename, symbol, *args, **kwargs:
-    # Python 3.14 adds a mandatory parameter `flags`, which is
-    # sometimes specified by position and sometimes by name.
+    # Python 3.14 adds a mandatory parameter `flags`, which is sometimes specified by position and sometimes by name.
     compiler(source, filename, symbol)
     if isinstance(compiler, HyCompile) else
     _codeop_maybe_compile(compiler, source, filename, symbol, *args, **kwargs))
 
 
 class HyCompile(codeop.Compile):
-    """
-    This compiler uses `linecache` like
-    `IPython.core.compilerop.CachingCompiler`.
-    """
+    """This compiler uses `linecache` like `IPython.core.compilerop.CachingCompiler`."""
 
     def __init__(
         self, module, locals, ast_callback=None, hy_compiler=None, cmdline_cache={},
@@ -127,16 +123,14 @@ class HyCompile(codeop.Compile):
 
     def __call__(self, source, filename='<input>', symbol=None):
         symbol = 'exec'
-          # This parameter is required by `codeop.Compile`, but we
-          # ignore it in favor of always using "exec".
+        # This parameter is required by `codeop.Compile`, but we ignore it in favor of always using "exec".
 
         name = f'{filename}-{len(self.cmdline_cache)}'
 
         self._cache(source, name)
 
         try:
-            # Our compiler doesn't correspond to a real, fixed source file, so
-            # we need to [re]set these.
+            # Our compiler doesn't correspond to a real, fixed source file, so we need to [re]set these.
             self.hy_compiler.filename = name
             self.hy_compiler.source = source
             hy_ast = read_many(
@@ -166,11 +160,9 @@ class HyCompile(codeop.Compile):
             if isinstance(e, (PrematureEndOfInput, SyntaxError)):
                 raise
             else:
-                # Hy will raise exceptions during compile-time that Python would
-                # raise during run-time (e.g. import errors for `require`).  In
-                # order to work gracefully with the Python world, we convert such
-                # Hy errors to code that purposefully reraises those exceptions in
-                # the places where Python code expects them.
+                # Hy will raise exceptions during compile-time that Python would raise during run-time (e.g. import
+                # errors for `require`).  In order to work gracefully with the Python world, we convert such Hy errors
+                # to code that purposefully reraises those exceptions in the places where Python code expects them.
                 # Capture a traceback without the compiler/REPL frames.
                 exec_code = super(HyCompile, self).__call__(
                     'raise _hy_exc_info[1].with_traceback(_hy_exc_info[2])',
@@ -191,11 +183,9 @@ class HyCommandCompiler(codeop.CommandCompiler):
         try:
             return super().__call__(*args, **kwargs)
         except PrematureEndOfInput:
-            # We have to do this here, because `codeop._maybe_compile` won't
-            # take `None` for a return value (at least not in Python 2.7) and
-            # this exception type is also a `SyntaxError`, so it will be caught
-            # by `code.InteractiveConsole` base methods before it reaches our
-            # `runsource`.
+            # We have to do this here, because `codeop._maybe_compile` won't take `None` for a return value (at least
+            # not in Python 2.7) and this exception type is also a `SyntaxError`, so it will be caught by
+            # `code.InteractiveConsole` base methods before it reaches our `runsource`.
             if not self.allow_incomplete:
                 raise
 
@@ -204,8 +194,8 @@ class REPL(code.InteractiveConsole):
     """
     A subclass of :class:`code.InteractiveConsole` for Hy.
 
-    A convenient way to use this class to interactively debug code is to insert the
-    following in the code you want to debug::
+    A convenient way to use this class to interactively debug code is to insert the following in the code you want to
+    debug::
 
         (.run (hy.REPL :locals {#** (globals) #** (locals)}))
 
@@ -215,24 +205,28 @@ class REPL(code.InteractiveConsole):
 
        import hy; hy.REPL(locals = {**globals(), **locals()}).run()
 
-    Note that as with :func:`code.interact`, changes to local variables inside the
-    REPL are not propagated back to the original scope.
+    Note that as with :func:`code.interact`, changes to local variables inside the REPL are not propagated back to the
+    original scope.
     """
 
     __module__ = __package__
 
-    def __init__(self, spy=False, spy_delimiter=('-' * 30), output_fn=None, locals=None, filename='<stdin>', allow_incomplete=True):
-
-        # Create a proper module for this REPL so that we can obtain it easily
-        # (e.g. using `importlib.import_module`).
-        # We let `InteractiveConsole` initialize `self.locals` when it's
-        # `None`.
+    def __init__(
+            self,
+            spy=False,
+            spy_delimiter=('-' * 30),
+            output_fn=None,
+            locals=None,
+            filename='<stdin>',
+            allow_incomplete=True,
+    ):
+        # Create a proper module for this REPL so that we can obtain it easily (e.g. using `importlib.import_module`).
+        # We let `InteractiveConsole` initialize `self.locals` when it's `None`.
         super().__init__(locals=locals, filename=filename)
 
         module_name = self.locals.get('__name__', '__console__')
-        # Make sure our newly created module is properly introduced to
-        # `sys.modules`, and consistently use its namespace as `self.locals`
-        # from here on.
+        # Make sure our newly created module is properly introduced to `sys.modules`, and consistently use its namespace
+        # as `self.locals` from here on.
         self.module = sys.modules.setdefault(module_name, types.ModuleType(module_name))
         self.module.__dict__.update(self.locals)
         self.locals = self.module.__dict__
@@ -311,8 +305,7 @@ class REPL(code.InteractiveConsole):
     def ast_callback(self, exec_ast, eval_ast):
         if self.spy:
             try:
-                # Mush the two AST chunks into a single module for
-                # conversion into Python.
+                # Mush the two AST chunks into a single module for conversion into Python.
                 new_ast = ast.Module(
                     exec_ast.body
                     + ([] if eval_ast is None else [ast.Expr(eval_ast.body)]),
@@ -325,8 +318,7 @@ class REPL(code.InteractiveConsole):
                 self.write(msg)
 
     def _error_wrap(self, exc_info_override=False, *args, **kwargs):
-        # When `exc_info_override` is true, use a traceback that
-        # doesn't have the REPL frames.
+        # When `exc_info_override` is true, use a traceback that doesn't have the REPL frames.
         t, v, tb = set_last_exc(
             exc_info_override and self.locals.get('_hy_exc_info'))
         sys.excepthook(t, v, tb)
@@ -359,9 +351,8 @@ class REPL(code.InteractiveConsole):
         try:
             res = super().runsource(source, filename, symbol)
         except (HyMacroExpansionError, HyRequireError):
-            # We need to handle these exceptions ourselves, because the base
-            # method only handles `OverflowError`, `SyntaxError` and
-            # `ValueError`.
+            # We need to handle these exceptions ourselves, because the base method only handles `OverflowError`,
+            # `SyntaxError` and `ValueError`.
             self.showsyntaxerror(filename)
             return False
         except (HyLanguageError):
@@ -388,7 +379,7 @@ class REPL(code.InteractiveConsole):
         return res
 
     def run(self):
-        "Start running the REPL. Return 0 when done."
+        """Start running the REPL. Return 0 when done."""
 
         sentinel = []
         saved_values = (
@@ -432,8 +423,7 @@ class REPL(code.InteractiveConsole):
 
 def set_last_exc(exc_info = None):
     """
-    Setting `sys.last_exc`, or `sys.last_type` on earlier Pythons,
-    makes it easier for the user to call the debugger.
+    Setting `sys.last_exc`, or `sys.last_type` on earlier Pythons, makes it easier for the user to call the debugger.
     """
 
     t, v, tb = exc_info or sys.exc_info()

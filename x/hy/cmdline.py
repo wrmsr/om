@@ -1,15 +1,15 @@
 import argparse
 import ast
+import contextlib
 import importlib
 import io
 import os
+import pathlib
 import platform
 import py_compile
 import runpy
 import sys
 import types
-from contextlib import nullcontext
-from pathlib import Path
 
 from .. import hy
 from .compiler import hy_compile
@@ -23,15 +23,15 @@ from .reader import read_many
 from .repl import REPL
 
 
+##
+
+
 def set_path(filename):
-    """
-    Emulate Python cmdline behavior by setting `sys.path` relative
-    to the executed file's location.
-    """
+    """Emulate Python cmdline behavior by setting `sys.path` relative to the executed file's location."""
 
     if sys.path[0] == '':
         sys.path.pop(0)
-    sys.path.insert(0, str(Path(filename).parent.resolve()))
+    sys.path.insert(0, str(pathlib.Path(filename).parent.resolve()))
 
 
 def run_command(source, filename=None):
@@ -70,8 +70,7 @@ class HyArgError(Exception):
 
 
 def cmdline_handler(argv):
-    # We need to terminate interpretation of options after certain
-    # options, such as `-c`. So, we can't use `argparse`.
+    # We need to terminate interpretation of options after certain options, such as `-c`. So, we can't use `argparse`.
 
     defs = [
         dict(
@@ -128,11 +127,9 @@ def cmdline_handler(argv):
         ),
     ]
 
-    # Get the path of the Hy cmdline executable and swap it with
-    # `sys.executable` (saving the original, just in case).
-    # The `__main__` module will also have `__file__` set to the
-    # entry-point script.  Currently, I don't see an immediate problem, but
-    # that's not how the Python cmdline works.
+    # Get the path of the Hy cmdline executable and swap it with `sys.executable` (saving the original, just in case).
+    # The `__main__` module will also have `__file__` set to the entry-point script.  Currently, I don't see an
+    # immediate problem, but that's not how the Python cmdline works.
     hy.executable = argv[0]
     hy.sys_executable = sys.executable
     sys.executable = hy.executable
@@ -225,30 +222,24 @@ def cmdline_handler(argv):
         return 0
 
     action, action_arg = (
-        # If the `command` or `mod` options were provided, we'll run
-        # the corresponding code.
-        ['eval_string', options['command']]
-            if 'command' in options else
-        ['run_module', options['mod']]
-            if 'mod' in options else
-        # Otherwise, we'll run any provided filename as a script (or
-        # standard input, if the filename is "-").
-        ['run_script_stdin', None]
-            if argv and argv[0] == '-' else
-        ['run_script_file', argv[0]]
-            if argv else
-        # With none of those arguments, we'll launch the REPL (if
-        # standard input is a TTY) or run a script from standard input
-        # (otherwise).
-        ['just_repl', None]
-            if sys.stdin.isatty() else
+        # If the `command` or `mod` options were provided, we'll run the corresponding code.
+        ['eval_string', options['command']] if 'command' in options else
+        ['run_module', options['mod']] if 'mod' in options else
+        # Otherwise, we'll run any provided filename as a script (or standard input, if the filename is "-").
+        ['run_script_stdin', None] if argv and argv[0] == '-' else
+        ['run_script_file', argv[0]] if argv else
+        # With none of those arguments, we'll launch the REPL (if standard input is a TTY) or run a script from standard
+        # input (otherwise).
+        ['just_repl', None] if sys.stdin.isatty() else
         ['run_script_stdin', None])
     repl = (
         REPL(
-            spy = options.get('spy'),
-            output_fn = options.get('repl_output_fn'))
+            spy=options.get('spy'),
+            output_fn=options.get('repl_output_fn'),
+        )
         if 'i' in options or action == 'just_repl'
-        else None)
+        else None
+    )
     source = ''
 
     if action == 'eval_string':
@@ -270,16 +261,15 @@ def cmdline_handler(argv):
             return run_command(sys.stdin.read(), filename='<stdin>')
     elif action == 'run_script_file':
         sys.argv = argv
-        filename = Path(action_arg)
+        filename = pathlib.Path(action_arg)
         set_path(filename)
-        # Ensure __file__ is set correctly in the code we're about
-        # to run.
+        # Ensure __file__ is set correctly in the code we're about to run.
         if not filename.is_absolute():
-            filename = Path.cwd() / filename
+            filename = pathlib.Path.cwd() / filename
         if platform.system() == 'Windows':
             filename = os.path.normpath(filename)
         if repl:
-            source = Path(filename).read_text()
+            source = pathlib.Path(filename).read_text()
             repl.compile.compiler.skip_next_shebang = True
         else:
             try:
@@ -312,8 +302,7 @@ def cmdline_handler(argv):
                 res = repl.runsource(accum, filename=filename)
                 if not res:
                     accum = ''
-        # If the command was prematurely ended, show an error (just like Python
-        # does).
+        # If the command was prematurely ended, show an error (just like Python does).
         if res:
             hy_exc_handler(*sys.exc_info())
     return repl.run()
@@ -365,9 +354,15 @@ def hyc_main():
     return rv
 
 
-def hy2py_worker(source, options, filename=None, parent_module=None, output_filepath=None):
+def hy2py_worker(
+        source,
+        options,
+        filename=None,
+        parent_module=None,
+        output_filepath=None,
+):
     source_path = None
-    if isinstance(source, Path):
+    if isinstance(source, pathlib.Path):
         source_path = source
         source = source.read_text(encoding='UTF-8')
         if parent_module is None:
@@ -376,11 +371,10 @@ def hy2py_worker(source, options, filename=None, parent_module=None, output_file
     if not output_filepath and options.output:
         output_filepath = options.output
 
-
     with (
         open(output_filepath, 'w', encoding='utf-8')
         if output_filepath
-        else nullcontext()
+        else contextlib.nullcontext()
     ) as output_file:
 
         def printing_source(hst):
@@ -398,7 +392,7 @@ def hy2py_worker(source, options, filename=None, parent_module=None, output_file
         hst = printing_source(read_many(source, filename, skip_shebang=True))
 
         with filtered_hy_exceptions():
-            module_name = source_path.stem if source_path else Path(filename).name
+            module_name = source_path.stem if source_path else pathlib.Path(filename).name
             if parent_module:
                 module_name = f'{parent_module}.{module_name}'
             module = types.ModuleType(module_name)
@@ -473,16 +467,15 @@ def hy2py_main():
         hy2py_worker(sys.stdin.read(), options, filename)
     elif options.module:
         if options.module[:1] == '.':
-            raise ValueError(
-                'Relative module names not supported',
-            )
+            raise ValueError('Relative module names not supported')
         sys.path.insert(0, '')
         filename = options.module.replace('.', os.sep)
         if os.path.isdir(filename):
             # handle recursively if --output is specified
             if not options.output:
                 raise ValueError(
-                    f'{filename} is a directory but the output directory is not specified. Use --output or -o in command line arguments to specify the output directory.',
+                    f'{filename} is a directory but the output directory is not specified. Use --output or -o in '
+                    f'command line arguments to specify the output directory.',
                 )
             os.makedirs(options.output, exist_ok=True)
             for path, _, files in os.walk(filename):
@@ -497,7 +490,7 @@ def hy2py_main():
                         )
                         os.makedirs(output_directory_path, exist_ok=True)
                         hy2py_worker(
-                            Path(filepath),
+                            pathlib.Path(filepath),
                             options,
                             parent_module=path.replace(os.sep, '.'),
                             output_filepath=os.path.join(
@@ -507,14 +500,13 @@ def hy2py_main():
         else:
             filename += '.hy'
             parent_module = '.'.join(options.module.split('.')[:-1])
-            hy2py_worker(Path(filename), options, parent_module=parent_module)
+            hy2py_worker(pathlib.Path(filename), options, parent_module=parent_module)
     else:
-        hy2py_worker(Path(options.FILE), options, options.FILE)
+        hy2py_worker(pathlib.Path(options.FILE), options, options.FILE)
     parser.exit(0)
 
 
-# remove PYTHON* environment variables,
-# such as "PYTHONPATH"
+# remove PYTHON* environment variables, such as "PYTHONPATH"
 def _remove_python_envs():
     for key in list(os.environ.keys()):
         if key.startswith('PYTHON'):

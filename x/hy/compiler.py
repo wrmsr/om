@@ -1,11 +1,11 @@
 import ast
 import builtins
+import contextlib
 import copy
 import importlib
 import inspect
 import traceback
 import warnings
-import contextlib
 
 from .. import hy
 from .compat import PY3_14
