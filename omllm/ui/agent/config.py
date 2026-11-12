@@ -46,7 +46,8 @@ class AgentConfig(ConfigBase):
         parser.add_argument('--eval', action='store_true')
         parser.add_argument('--exec', action='store_true')
         parser.add_argument('--fs', action='store_true')
-        parser.add_argument('--web', action='store_true')
+        # Not `--web`: that is the frontend dispatcher's, for the web frontend, and never reaches this parser.
+        parser.add_argument('--web-tools', dest='web', action='store_true')
 
         parser.add_argument('--subagents', action='store_true')
 

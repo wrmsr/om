@@ -1,6 +1,10 @@
+import glob
+import os.path
+import shlex
 import typing as ta
 
 from omcore import dataclasses as dc
+from omcore.formats.json import all as json
 
 from .config import UiConfig
 
@@ -30,6 +34,25 @@ def yolo_process_config(config: UiConfigT) -> UiConfigT:
 ##
 
 
+def _add_cwd_tree_rule_command(
+        cwd: str,
+        *,
+        state: str,
+        modes: ta.Sequence[str],
+) -> str:
+    """
+    The command adding a rule over everything beneath the working directory. The directory is data on its way into a
+    glob, into json, and into a command line, and is escaped for each: it may hold anything a path may.
+    """
+
+    body = json.dumps_compact({
+        'glob': os.path.join(glob.escape(cwd), '**'),
+        'modes': list(modes),
+    })
+
+    return f'/permissions add {state} glob_fs {shlex.quote(body)}'
+
+
 def yolo_autoexec(config: UiConfig, cwd: str) -> list[str]:
     if config.yolo:
         return [
@@ -37,7 +60,7 @@ def yolo_autoexec(config: UiConfig, cwd: str) -> list[str]:
 
             '/permissions add allow exec {}',
 
-            f'/permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r","w"]}}\'',
+            _add_cwd_tree_rule_command(cwd, state='allow', modes=['r', 'w']),
 
             '/permissions add allow regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
 
@@ -54,8 +77,8 @@ def yolo_autoexec(config: UiConfig, cwd: str) -> list[str]:
 
             '/permissions add allow tool \'{"tool":"ripgrep","child":{"exec": {}}}\'',
 
-            f'/permissions add allow glob_fs \'{{"glob":"{cwd}/**","modes":["r"]}}\'',
-            f'/permissions add ask glob_fs \'{{"glob":"{cwd}/**","modes":["w"]}}\'',
+            _add_cwd_tree_rule_command(cwd, state='allow', modes=['r']),
+            _add_cwd_tree_rule_command(cwd, state='ask', modes=['w']),
 
             '/permissions add ask regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
 

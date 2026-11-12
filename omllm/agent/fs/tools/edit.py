@@ -50,7 +50,7 @@ class EditTool(ToolClass[EditToolParams]):
 
             The file must exist, must be a valid text file, and must be given as an absolute path.
 
-            If the 'replace_all' parameter is false (the default) then 'new_string' must be present exactly once in the
+            If the 'replace_all' parameter is false (the default) then 'old_string' must be present exactly once in the
             file, otherwise the operation will fail. If 'replace_all' is true then all instances of 'old_string' will be
             replaced by 'new_string', but the operation will fail if there are no instances of 'old_string' present in
             the file.

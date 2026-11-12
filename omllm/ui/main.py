@@ -7,16 +7,26 @@ from omcore import lang
 ##
 
 
-def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
+def _build_frontend_parser() -> argparse.ArgumentParser:
+    """
+    Takes the choice of frontend and nothing else: every other argument is left for the chosen frontend's own parser.
+    A flag taken here never reaches that parser, so none of these may be one of its own.
+    """
+
     parser = argparse.ArgumentParser(
         add_help=False,
         allow_abbrev=False,
     )
+
     frontends = parser.add_mutually_exclusive_group()
     frontends.add_argument('--bare', action='store_true')
     frontends.add_argument('--web', action='store_true')
 
-    ns, args = parser.parse_known_args(argv)
+    return parser
+
+
+def _main(argv: lang.SequenceNotStr[str] | None = None) -> None:
+    ns, args = _build_frontend_parser().parse_known_args(argv)
 
     #
 
