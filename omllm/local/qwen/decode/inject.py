@@ -46,8 +46,9 @@ from .tokens import VerifyTokenSource
 @dc.dataclass(frozen=True)
 class DecodeConfig:
     """
-    The server's decode choices. `capacity` pins the decode buffers (and so the captured / compiled steps) to the
-    longest context served; a request that needs more grows them.
+    Decode choices. `capacity` pins the decode buffers (and so the captured / compiled steps) to the longest context
+    served; a request that needs more grows them (0: every generation gets just what it needs). `static` False decodes
+    with the functional reference decoder (plain decode only: drafts need the static one).
     """
 
     capacity: int = 32768

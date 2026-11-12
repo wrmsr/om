@@ -189,6 +189,7 @@ class ManualGenerationRunner(GenerationRunner):
             capacity: int | None = None,
             prefix_cache: PrefixCache | None = None,
             prefill_chunk: int = 4096,
+            static: bool = True,
     ) -> None:
         super().__init__()
 
@@ -200,6 +201,7 @@ class ManualGenerationRunner(GenerationRunner):
         self._capacity = capacity
         self._prefix_cache = prefix_cache
         self._prefill_chunk = prefill_chunk
+        self._static = static
 
     def run(self, params: GenerationParams) -> Generated:
         return generate(
@@ -208,6 +210,7 @@ class ManualGenerationRunner(GenerationRunner):
             max_new_tokens=params.max_new_tokens,
             eos_ids=params.eos_ids,
             on_token=params.on_token,
+            static=self._static,
             sampler=Sampler(
                 temperature=params.temperature,
                 top_k=params.top_k,

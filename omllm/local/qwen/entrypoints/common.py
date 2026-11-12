@@ -1,20 +1,38 @@
-"""Model-loading options shared by the entrypoints (serve uses them; generate still carries its own copy)."""
+"""
+Model-loading options shared by the entrypoints, the hand-assembled load, and what the generate entrypoint drives
+however it was assembled (by hand here, or by the injector: inject.py).
+"""
 import argparse
 import pathlib
 import time
 import typing as ta
+
+from omcore import dataclasses as dc
 
 from ..arch.qwen35 import load_qwen35
 from ..backends.backends import BACKENDS
 from ..backends.backends import default_dtype
 from ..backends.backends import make_ops
 from ..core.model import Qwen35
+from ..decode.runners import GenerationRunner
 from ..load.weights import open_source
 from ..ops.base import DTYPE_NAMES as DTYPES
+from ..ops.base import Ops
+from ..prefix.cache import PrefixCache
 from ..tokenizer import Tokenizer
 
 
 ##
+
+
+@dc.dataclass(frozen=True)
+class GenerationSetup:
+    """What the generate entrypoint drives, assembled by hand (`ManualGenerationRunner`) or by the injector."""
+
+    ops: Ops
+    tok: Tokenizer
+    runner: GenerationRunner
+    prefix_cache: PrefixCache | None = None
 
 
 def add_model_args(ap: argparse.ArgumentParser, *, model_optional: bool = False) -> None:
@@ -114,7 +132,7 @@ def load_model(
         policy: str = 'uniform',
         quant_search: bool = True,
 ) -> tuple[ta.Any, ta.Any, Tokenizer, Qwen35]:
-    """(ops, source, tokenizer, model) from the options above (and the quantization recipe, see Qwen35.from_source)."""
+    """(ops, source, tokenizer, model) from the options above (and the quantization recipe, see load_qwen35)."""
 
     ops = make_ops(args.backend, args.device)
     dtype = args.dtype or default_dtype(ops)

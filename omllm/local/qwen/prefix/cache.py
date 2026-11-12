@@ -145,6 +145,16 @@ class PrefixCache:
             best.tier = 'device'
         return best.snap.map(self.ops.copy)
 
+    def clear(self) -> None:
+        """
+        Drop every entry and reset the statistics (after a warm-up, whose snapshots would turn the next request into a
+        hit).
+        """
+
+        self.entries.clear()
+        self.tick = 0
+        self.hits = self.misses = self.matched_tokens = 0
+
     def stats(self) -> str:
         n_dev = sum(e.tier == 'device' for e in self.entries.values())
         n_host = len(self.entries) - n_dev

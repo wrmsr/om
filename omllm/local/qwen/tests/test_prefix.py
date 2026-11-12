@@ -64,6 +64,12 @@ def test_prefix_resume():
         cold_h = generate(cold_model, p1 + out1[:2], max_new_tokens=4).tokens
         assert out_h == cold_h, (ops.name, out_h, cold_h)
 
+        # 4. clear (after a warm-up): nothing left to resume from, the statistics reset
+        pc.clear()
+        assert not pc.entries and pc.hits == pc.misses == pc.matched_tokens == 0
+        assert generate(model, p1 + out1[:2], max_new_tokens=4, prefix_cache=pc).reused == 0
+        assert pc.hits == 0 and pc.misses == 1
+
         # 4. no host budget: eviction drops
         pc = PrefixCache(ops, device_bytes=big + 1, host_bytes=0)
         generate(model, p1, max_new_tokens=4, prefix_cache=pc)

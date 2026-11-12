@@ -4,25 +4,28 @@ Load a Qwen3.5-family model straight from Ollama's blob store and generate.
 
 python generate.py --model qwen3.5:0.8b --prompt "Why is the sky blue?"
 python generate.py --model ~/.ollama/models/blobs/sha256-... --raw --prompt "The capital of France is"
+
+Everything is assembled by hand (api.ManualGenerationRunner over api.generate) unless `--inject`, which assembles the
+same roles through the injector (entrypoints/inject.py, inject/): either way the rest of this file drives a
+GenerationRunner, so the two paths differ only in how it was put together.
 """
 import argparse
-import pathlib
 import sys
 import time
 
-from ..api import generate
-from ..api import generation_capacity
-from ..arch.qwen35 import load_qwen35
+from ..api import ManualGenerationRunner
 from ..backends import BACKENDS
-from ..backends import default_dtype
-from ..backends import make_ops
-from ..decode.sampling import Sampler
+from ..decode.runners import GenerationParams
+from ..decode.terminators import BudgetTerminator
 from ..load.weights import OllamaModel
 from ..load.weights import describe_gguf
 from ..load.weights import open_source
 from ..load.weights import resolve_weights
 from ..prefix.cache import PrefixCache
 from ..tokenizer import Tokenizer
+from .common import GenerationSetup
+from .common import load_model
+from .inject import assemble_generation
 
 
 ##
@@ -244,6 +247,11 @@ def main() -> None:
         help='run a short throwaway generation first so graph capture / kernel compile stay out of the timing',
     )
     ap.add_argument(
+        '--inject',
+        action='store_true',
+        help='assemble through the injector (inject/) instead of by hand (api.ManualGenerationRunner)',
+    )
+    ap.add_argument(
         '--preset',
         choices=['thinking', 'non-thinking'],
         default=None,
@@ -258,25 +266,6 @@ def main() -> None:
     elif args.preset == 'non-thinking':
         args.temperature, args.top_p, args.top_k, args.presence_penalty = 0.7, 0.8, 20, 1.5
 
-    ops = make_ops(args.backend, args.device)
-    dtype = args.dtype or default_dtype(ops)
-    if args.compile:
-        if not hasattr(ops, 'compile'):
-            ap.error('--compile is a torch backend option')
-        ops.compile = True
-        if args.cache_dir:
-            ops.compile_cache = str(pathlib.Path(args.cache_dir) / 'torch-compile.bin')  # type: ignore[attr-defined]
-    if args.kv_dtype != 'bf16':
-        if not hasattr(ops, 'kv_dtype'):
-            print(f'[model] --kv-dtype {args.kv_dtype} is a torch backend option; the KV cache stays in the compute dtype')  # noqa
-        else:
-            ops.kv_dtype = args.kv_dtype
-    if args.triton_tuned and hasattr(ops, 'gemv_tuned'):
-        from ..backends.torch_triton import load_tuned
-
-        ops.gemv_tuned = load_tuned(args.triton_tuned)
-        print(f'[model] {len(ops.gemv_tuned)} tuned GEMV configs from {args.triton_tuned}')
-
     if args.info:
         r = resolve_weights(args.model)
         if not isinstance(r, OllamaModel):
@@ -286,28 +275,14 @@ def main() -> None:
         for sn in src.names():
             print(sn)
         return
-    src = open_source(args.model)
-    print(f'[model] {src.config.summary()}')
-    tok = Tokenizer.from_spec(src.tokenizer_spec)
-    t0 = time.time()
-    model = load_qwen35(
-        src,
-        ops,
-        dtype=dtype,
-        quant=args.quant,
-        mtp=args.spec > 0,
-        cache_dir=args.cache_dir,
-        policy=args.policy,
-        quant_search=not args.no_quant_search,
+
+    use_prefix = bool(args.prefix_cache or args.follow_up)
+    setup = (
+        assemble_generation(args, prefix_cache=use_prefix)
+        if args.inject else
+        _assemble_by_hand(args, prefix_cache=use_prefix)
     )
-    print(f'[model] loaded on {ops.name} as {dtype} in {time.time() - t0:.1f}s')
-    sampler = Sampler(
-        temperature=args.temperature,
-        top_k=args.top_k,
-        top_p=args.top_p,
-        min_p=args.min_p,
-        seed=args.seed,
-    )
+    tok, runner, prefix_cache = setup.tok, setup.runner, setup.prefix_cache
 
     text = (
         args.prompt
@@ -319,7 +294,7 @@ def main() -> None:
     )
     ids = tok.encode(text)
     print(f'[gen] {len(ids)} prompt tokens')
-    eos = {
+    eos = frozenset(
         i
         for i in (
             tok.eos_id,
@@ -327,31 +302,34 @@ def main() -> None:
             tok.special.get('<|endoftext|>'),
         )
         if i is not None
-    }
+    )
 
-    capacity = generation_capacity(len(ids), args.max_new_tokens, args.spec, args.capacity)
     if args.warmup:
         t0 = time.time()
-        # same capacity as the real run, or the warm-up compiles/captures steps for the wrong shapes
-        generate(
-            model,
-            ids,
-            max_new_tokens=max(8, 2 * args.spec + 2),
-            sampler=Sampler(),
-            spec=args.spec,
-            capacity=capacity,
-            draft_vocab=args.draft_vocab,
-        )
+        # throwaway generations with the real run's prompt + max_new_tokens, so their decode buffers (and the steps
+        # captured / compiled for them) are the real run's, each ended early by a budget of its own: the real prompt,
+        # then with prompt lookup one counting in a cycle, which a model goes on with, so lookup drafts and its steps
+        # are compiled too (a real prompt rarely repeats itself in a few tokens)
+        total = len(ids) + args.max_new_tokens
+        budget = max(8, 2 * max(args.spec, args.lookup_k if args.lookup else 0) + 2)
+        prompts = [ids]
+        if args.lookup:
+            prompts.append(tok.encode(' '.join(['1 2 3 4 5 6 7 8'] * 6))[:max(1, total - budget)])
+        for prompt in prompts:
+            runner.run(GenerationParams(
+                prompt=prompt,
+                max_new_tokens=total - len(prompt),
+                eos_ids=eos,
+                terminators=[BudgetTerminator(budget)],
+            ))
+        if prefix_cache is not None:
+            prefix_cache.clear()  # (or the real run would resume from the warm-up's snapshot of its own prompt)
         print(f'[gen] warm-up (capture + compile) {time.time() - t0:.1f}s')
-        if args.compile and getattr(ops, 'compile_cache', None):
+        if args.compile and getattr(setup.ops, 'compile_cache', None):
             from ..backends.torch import save_compile_cache
 
-            if save_compile_cache(ops.compile_cache):  # type: ignore[attr-defined]
-                print(f'[gen] saved compile cache to {ops.compile_cache}')  # type: ignore[attr-defined]
-
-    prefix_cache = None
-    if args.prefix_cache or args.follow_up:
-        prefix_cache = PrefixCache(ops, args.cache_device_mib << 20, args.cache_host_mib << 20)
+            if save_compile_cache(setup.ops.compile_cache):  # type: ignore[attr-defined]
+                print(f'[gen] saved compile cache to {setup.ops.compile_cache}')  # type: ignore[attr-defined]
 
     def run(ids: list[int]) -> list[int]:
         streamer = Tokenizer.Streamer(tok)
@@ -366,22 +344,18 @@ def main() -> None:
             sys.stdout.write(streamer.push(i))
             sys.stdout.flush()
 
-        res = generate(
-            model,
-            ids,
+        res = runner.run(GenerationParams(
+            prompt=ids,
             max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+            top_k=args.top_k,
+            top_p=args.top_p,
+            min_p=args.min_p,
+            seed=args.seed,
+            presence_penalty=args.presence_penalty,
             eos_ids=eos,
             on_token=on_token,
-            static=not args.functional,
-            sampler=sampler,
-            presence_penalty=args.presence_penalty,
-            spec=args.spec,
-            capacity=capacity,
-            draft_vocab=args.draft_vocab,
-            lookup_ngram=args.lookup,
-            lookup_k=args.lookup_k,
-            prefix_cache=prefix_cache,
-        )
+        ))
         sys.stdout.write(streamer.flush())
         dt = time.time() - t0
         print(
@@ -408,6 +382,28 @@ def main() -> None:
         ids2 = ids + tail + tok.encode('<|im_end|>\n' + cont)
         print(f'\n[gen] follow-up: {len(ids2)} prompt tokens')
         run(ids2)
+
+
+def _assemble_by_hand(args: argparse.Namespace, *, prefix_cache: bool) -> GenerationSetup:
+    """The runner wired by hand: the model loaded here, the rest per generation by api.generate."""
+
+    ops, _, tok, model = load_model(args, policy=args.policy, quant_search=not args.no_quant_search)
+    pc = PrefixCache(ops, args.cache_device_mib << 20, args.cache_host_mib << 20) if prefix_cache else None
+    return GenerationSetup(
+        ops=ops,
+        tok=tok,
+        runner=ManualGenerationRunner(
+            model,
+            spec=args.spec,
+            draft_vocab=args.draft_vocab,
+            lookup_ngram=args.lookup,
+            lookup_k=args.lookup_k,
+            capacity=args.capacity,
+            prefix_cache=pc,
+            static=not args.functional,
+        ),
+        prefix_cache=pc,
+    )
 
 
 if __name__ == '__main__':

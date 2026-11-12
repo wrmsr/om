@@ -15,18 +15,18 @@ import os
 import sys
 import time
 
-from ..backends.inject import BackendConfig
 from ..decode.inject import DecodeConfig
 from ..inject.inject import create_engine
-from ..load.inject import LoadConfig
-from ..prefix.inject import PrefixConfig
 from ..serve.inject import ServeConfig
 from ..serve.serving import SamplingDefaults
 from ..serve.serving import client
 from ..serve.serving import serve
-from ..spec.inject import LookupConfig
-from ..spec.inject import SpecConfig
 from .common import add_model_args
+from .inject import backend_config
+from .inject import load_config
+from .inject import lookup_config
+from .inject import prefix_config
+from .inject import spec_config
 
 
 ##
@@ -129,37 +129,15 @@ def main() -> None:
 
     # assembled by the injector (inject/): each role's configuration, nothing else
     engine = create_engine(
-        backend=BackendConfig(
-            backend=args.backend,
-            device=args.device,
-            kv_dtype=args.kv_dtype,
-            compile=args.compile,
-            compile_cache_dir=args.cache_dir,
-            triton_tuned=args.triton_tuned,
-        ),
-        load=LoadConfig(
-            model=args.model,
-            dtype=args.dtype,
-            quant=args.quant,
-            policy=args.policy,
-            quant_search=not args.no_quant_search,
-            cache_dir=args.cache_dir,
-            mtp=args.spec > 0,
-        ),
+        backend=backend_config(args),
+        load=load_config(args),
         decode=DecodeConfig(
             capacity=args.capacity,
             prefill_chunk=args.prefill_chunk,
         ),
-        spec=SpecConfig(
-            k=args.spec,
-            draft_vocab=args.draft_vocab,
-        ),
-        lookup=LookupConfig(ngram=args.lookup, k=args.lookup_k) if args.lookup else None,
-        prefix=PrefixConfig(
-            enabled=not args.no_prefix_cache,
-            device_mib=args.cache_device_mib,
-            host_mib=args.cache_host_mib,
-        ),
+        spec=spec_config(args),
+        lookup=lookup_config(args),
+        prefix=prefix_config(args, enabled=not args.no_prefix_cache),
         serve=ServeConfig(
             defaults=defaults,
             enable_thinking=not args.no_think,

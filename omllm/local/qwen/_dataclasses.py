@@ -2044,6 +2044,136 @@ def _process_dataclass__cee94571a5a1febb1198c89f29b8b4b4e2eae976():
 
 
 @_register(
+    installer_sha1='37218a16b737ea700cf794dc09ee712fdc83e8aa',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('ops', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('tok', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False), (('runner', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('prefix_cache', True, True, None, True, False, False, None), 'instance', 'val"
+            "ue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (("
+            "),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.entrypoints.common', 'GenerationSetup'),
+    ),
+)
+def _process_dataclass__37218a16b737ea700cf794dc09ee712fdc83e8aa():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                ops=self.ops,
+                tok=self.tok,
+                runner=self.runner,
+                prefix_cache=self.prefix_cache,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.ops == other.ops and
+                self.tok == other.tok and
+                self.runner == other.runner and
+                self.prefix_cache == other.prefix_cache
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'ops',
+            'tok',
+            'runner',
+            'prefix_cache',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.ops,
+                self.tok,
+                self.runner,
+                self.prefix_cache,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            ops: __dataclass__init__fields__0__annotation,
+            tok: __dataclass__init__fields__1__annotation,
+            runner: __dataclass__init__fields__2__annotation,
+            prefix_cache: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'ops', ops)
+            __dataclass__object_setattr(self, 'tok', tok)
+            __dataclass__object_setattr(self, 'runner', runner)
+            __dataclass__object_setattr(self, 'prefix_cache', prefix_cache)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"ops={self.ops!r}")
+            parts.append(f"tok={self.tok!r}")
+            parts.append(f"runner={self.runner!r}")
+            parts.append(f"prefix_cache={self.prefix_cache!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='d3bbe850a5e22133bde3f26822f24e8cfcb6c3ba',
     spec_keys=(
         (
