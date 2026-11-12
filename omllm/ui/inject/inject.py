@@ -23,22 +23,31 @@ from .runtime import bind_runtime
 ##
 
 
-@dc.dataclass(frozen=True, kw_only=True)
-class _AgentExports:
-    agent: agn.Agent
-    session: agn.Session
-
-    # TODO: events / agent_event_subscribers
-
-    commands_manager: CommandsManager
+class _InjectorBox(dc.Box[inj.AsyncInjector], abstract=True):
+    pass
 
 
-async def _provide_agent_exports(
+def _bind_injector_import(box_cls: type[_InjectorBox], key: ta.Any) -> inj.Elemental:
+    return inj.bind(key, to_async_fn=inj.target(i=box_cls)(lambda i: i.v[key]))
+
+
+#
+
+
+class _AppInjector(_InjectorBox, final=True):
+    pass
+
+
+class _AgentInjector(_InjectorBox, final=True):
+    pass
+
+
+async def _provide_agent_injector(
         config: UiConfig,
         *,
         app_injector: inj.AsyncInjector,
         aes: contextlib.AsyncExitStack,
-) -> ta.Any:
+) -> _AgentInjector:
     @contextlib.asynccontextmanager
     async def provide():
         async with inj.create_asyncio_managed_injector(
@@ -48,20 +57,14 @@ async def _provide_agent_exports(
                 bind_backends(config),
                 bind_commands(config),
 
-                inj.bind(ui.QuitSignal, to_const=(await app_injector[ui.QuitSignal])),
-        ) as injector:
-            yield _AgentExports(
-                agent=(await injector[agn.Agent]),
-                session=(await injector[agn.Session]),
+                inj.bind(_AppInjector(app_injector)),
 
-                commands_manager=(await injector[CommandsManager]),
-            )
+                _bind_injector_import(_AppInjector, ui.QuitSignal),
+                _bind_injector_import(_AppInjector, ui.TextDisplayer),
+        ) as agent_injector:
+            yield _AgentInjector(agent_injector)
 
     return await aes.enter_async_context(provide())
-
-
-def _bind_agent_export(attr, cls):
-    return inj.bind(cls, to_fn=inj.target(x=_AgentExports)(lambda x: getattr(x, attr)), singleton=True)
 
 
 ##
@@ -81,12 +84,12 @@ def bind_ui(config: UiConfig) -> inj.Elements:
 
     if _USE_AGENT_INJECTOR:
         lst.extend([
-            inj.bind(_AgentExports, to_async_fn=_provide_agent_exports, singleton=True),
+            inj.bind(_AgentInjector, to_async_fn=_provide_agent_injector, singleton=True),
 
-            _bind_agent_export('agent', agn.Agent),
-            _bind_agent_export('session', agn.Session),
+            _bind_injector_import(_AgentInjector, agn.Agent),
+            _bind_injector_import(_AgentInjector, agn.Session),
 
-            _bind_agent_export('commands_manager', CommandsManager),
+            _bind_injector_import(_AgentInjector, CommandsManager),
         ])
 
     else:
