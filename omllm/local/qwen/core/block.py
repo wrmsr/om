@@ -54,8 +54,8 @@ class Block:
         ops.tap(f'layers.{i}.out', r)
 
         # a lazy backend evaluates here, so the graph is one layer's at a time: its scheduling cost and the memory of
-        # its temporaries (a prefill expands quantized weights) stay bounded, and the state handed on is a buffer, not
-        # a pending graph every later evaluation would walk again (nothing happens elsewhere: see Ops.materialize)
+        # its temporaries (a prefill expands quantized weights) stay bounded, and the state handed on is a buffer, not a
+        # pending graph every later evaluation would walk again (nothing happens elsewhere: see Ops.materialize)
         ops.materialize(r, *state)
 
         return r, state

@@ -2,13 +2,13 @@
 The loader pipeline: canonical names -> planned specs (placement, precision, fusion; plan.py) -> adopted parameters
 (the cache, native re-pack, or read + quantize; materialize.py), with a report of what came from where. The names and
 the layout rules are inputs, so an architecture supplies them; the draft head is planned from its own names through the
-same loader. Building the model from the parameters is the caller's (`Qwen35.from_source`).
+same loader. Building the model from the parameters is the caller's (an architecture: `Qwen35Architecture.load`).
 
     loader = ParamLoader(src, ops, recipe=LoadRecipe(quant='int4'), layout=QWEN35_LAYOUT, dtype='bf16', cache=cache)
     specs = loader.plan(required_param_names(cfg), optional=['lm_head.weight'])
     specs += loader.plan(mtp_param_names())
     params = loader.materialize(specs)
-    loader.report()
+    report = loader.report()
 """
 import collections
 import typing as ta

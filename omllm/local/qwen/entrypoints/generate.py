@@ -111,24 +111,30 @@ def main() -> None:
         type=int,
         default=0,
         metavar='N',
-        help='draft with an output head restricted to the first N token ids (0 = full vocabulary); 32768-65536 '
-             'makes the draft steps several times cheaper and costs little acceptance',
+        help=(
+            'draft with an output head restricted to the first N token ids (0 = full vocabulary); 32768-65536 makes '
+            'the draft steps several times cheaper and costs little acceptance'
+        ),
     )
     ap.add_argument(
         '--lookup',
         type=int,
         default=0,
         metavar='N',
-        help='prompt-lookup drafting first: when the last N tokens occurred earlier in the context, draft what '
-             'followed them there (else the MTP head, with --spec); 0 = off',
+        help=(
+            'prompt-lookup drafting first: when the last N tokens occurred earlier in the context, draft what followed '
+            'them there (else the MTP head, with --spec); 0 = off'
+        ),
     )
     ap.add_argument(
         '--lookup-k',
         type=int,
         default=3,
         metavar='K',
-        help='prompt-lookup draft length (at least --spec\'s); more than the head\'s pays on copies, within the decode '
-             'attention kernel\'s limit: query heads per kv head x (K + 1) <= 32',
+        help=(
+            'prompt-lookup draft length (at least --spec\'s); more than the head\'s pays on copies, within the decode '
+            'attention kernel\'s limit: query heads per kv head x (K + 1) <= 32'
+        ),
     )
     ap.add_argument(
         '--temperature',
@@ -166,9 +172,23 @@ def main() -> None:
         default=None,
         help='directory for the finished-parameter cache (paramcache.py); e.g. ./.cache/qwen. First load fills it',
     )
-    ap.add_argument('--policy', choices=['uniform', 'km'], default='uniform', help='per-tensor precision policy')
-    ap.add_argument('--kv-dtype', choices=['bf16', 'fp8'], default='bf16', help='KV cache format (torch): see serve')
-    ap.add_argument('--no-quant-search', action='store_true', help='plain min/max quantization')
+    ap.add_argument(
+        '--policy',
+        choices=['uniform', 'km'],
+        default='uniform',
+        help='per-tensor precision policy',
+    )
+    ap.add_argument(
+        '--kv-dtype',
+        choices=['bf16', 'fp8'],
+        default='bf16',
+        help='KV cache format (torch): see serve',
+    )
+    ap.add_argument(
+        '--no-quant-search',
+        action='store_true',
+        help='plain min/max quantization',
+    )
     ap.add_argument(
         '--triton-tuned',
         default=None,
@@ -183,15 +203,19 @@ def main() -> None:
         '--capacity',
         type=int,
         default=None,
-        help='pin the decode buffers (KV positions) to this length, rounded up to a power of two; the captured and '
-             'compiled steps are specific to it, so pin it to your working context (e.g. 8192) and every prompt '
-             'reuses them. Default: prompt + new tokens',
+        help=(
+            'pin the decode buffers (KV positions) to this length, rounded up to a power of two; the captured and '
+            'compiled steps are specific to it, so pin it to your working context (e.g. 8192) and every prompt reuses '
+            'them. Default: prompt + new tokens'
+        ),
     )
     ap.add_argument(
         '--prefix-cache',
         action='store_true',
-        help='snapshot the state after the prompt and after the generation and resume later requests from the longest '
-             'matching snapshot (prefixcache.py); with --follow-up, demonstrates the second turn',
+        help=(
+            'snapshot the state after the prompt and after the generation and resume later requests from the longest '
+            'matching snapshot (prefixcache.py); with --follow-up, demonstrates the second turn'
+        ),
     )
     ap.add_argument(
         '--cache-device-mib',
@@ -209,8 +233,10 @@ def main() -> None:
         '--follow-up',
         default=None,
         metavar='TEXT',
-        help='after the answer, send a second user turn with this text over the same conversation (the ids of the '
-             'first turn, verbatim) and report how much of it the prefix cache reused',
+        help=(
+            'after the answer, send a second user turn with this text over the same conversation (the ids of the first '
+            'turn, verbatim) and report how much of it the prefix cache reused'
+        ),
     )
     ap.add_argument(
         '--warmup',
@@ -221,7 +247,10 @@ def main() -> None:
         '--preset',
         choices=['thinking', 'non-thinking'],
         default=None,
-        help="Qwen's published sampling presets: thinking t=1.0/top-p .95/top-k 20; non-thinking t=0.7/top-p .8/top-k 20/presence 1.5",  # noqa
+        help=(
+            "Qwen's published sampling presets: "
+            "thinking t=1.0/top-p .95/top-k 20; non-thinking t=0.7/top-p .8/top-k 20/presence 1.5"
+        ),
     )
     args = ap.parse_args()
     if args.preset == 'thinking':

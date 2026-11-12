@@ -75,15 +75,25 @@ def generate(
         observers: ta.Iterable[Observer] = (),
 ) -> Generated:
     """
-    Generate up to `max_new_tokens` after `prompt_ids`. `sampler` defaults to greedy; `spec=k` drafts k tokens a round
-    with the MTP head (`draft_vocab` restricts its output head to a vocabulary prefix), or with `draft` when given;
+    Generate up to `max_new_tokens` after `prompt_ids`. `sampler` defaults to greedy;
+
+    `spec=k` drafts k tokens a round with the MTP head (`draft_vocab` restricts its output head to a vocabulary prefix),
+    or with `draft` when given;
+
     `lookup_ngram=n` drafts `lookup_k` tokens by prompt lookup first (n-gram matches against the context), falling back
     to those;
-    `static=False` decodes with the functional reference decoder (plain decode only). With a `prefix_cache` the longest
-    cached state whose tokens are a prefix of the prompt is resumed, and the states after the prompt and after the
-    generation are stored. `constraint` masks every token to a grammar. `should_stop` (polled between prefill chunks
-    and rounds) and `on_token` may raise or trigger `Cancelled`. `observers` see the generation as it happens (the
-    prefill's reuse, every round), which is how a caller gets statistics out of a generation that was cancelled.
+
+    `static=False` decodes with the functional reference decoder (plain decode only).
+
+    With a `prefix_cache` the longest cached state whose tokens are a prefix of the prompt is resumed, and the states
+    after the prompt and after the generation are stored.
+
+    `constraint` masks every token to a grammar.
+
+    `should_stop` (polled between prefill chunks and rounds) and `on_token` may raise or trigger `Cancelled`.
+
+    `observers` see the generation as it happens (the prefill's reuse, every round), which is how a caller gets
+    statistics out of a generation that was cancelled.
     """
 
     ops = model.ops
@@ -94,7 +104,11 @@ def generate(
 
     processors: list[LogitProcessor] = []
     if constraint is not None:
-        processors.append(GrammarProcessor(ops, vocab_size=vocab_size, constraint=constraint))
+        processors.append(GrammarProcessor(
+            ops,
+            vocab_size=vocab_size,
+            constraint=constraint,
+        ))
     if presence_penalty or frequency_penalty:
         processors.append(PenaltyProcessor(
             ops,
@@ -117,7 +131,13 @@ def generate(
             draft = NullDraftSource()
 
     if lookup_ngram:
-        draft = LookupDraftSource(ops, vocab_size=vocab_size, wrapped=draft, ngram=lookup_ngram, k=lookup_k)
+        draft = LookupDraftSource(
+            ops,
+            vocab_size=vocab_size,
+            wrapped=draft,
+            ngram=lookup_ngram,
+            k=lookup_k,
+        )
 
     source = VerifyTokenSource(
         model=model,

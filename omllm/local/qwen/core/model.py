@@ -91,8 +91,8 @@ class Qwen35:
             should_stop: ta.Callable[[], bool] | None = None,
     ) -> tuple[Array, Array]:
         """
-        `forward` over a prompt in chunks of `chunk` tokens through the growing cache, so activation memory (the
-        [T, intermediate] tensors, ~35 KB per token for the 27B) stays bounded whatever the prompt length, and a
+        `forward` over a prompt in chunks of `chunk` tokens through the growing cache, so activation memory (the [T,
+        intermediate] tensors, ~35 KB per token for the 27B) stays bounded whatever the prompt length, and a
         cancellation (`should_stop`) has somewhere to land. Returns the last position's logits [B, 1, V] and the
         final-normed hidden states of every position [B, T, hidden].
         """
