@@ -388,7 +388,7 @@ def _process_dataclass__3826312582c595a18efc0ca4bdeb8079deee7eae():
 
 
 @_register(
-    installer_sha1='9109436c854dfd7fe2f96d6291551e626d92c471',
+    installer_sha1='595892a0441f93f5cea9ddbd6408520e0329176a',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -398,15 +398,15 @@ def _process_dataclass__3826312582c595a18efc0ca4bdeb8079deee7eae():
             "None, False, False, False), (('caps', True, True, None, True, True, False, None), 'instance', 'value', Non"
             "e, False, False, False), (('database', True, True, None, True, True, False, None), 'instance', 'value', No"
             "ne, False, False, False), (('driver', True, True, None, True, True, False, None), 'instance', 'value', Non"
-            "e, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), "
-            "(False,)))"
+            "e, False, False, False)), True, 1, ()), ((False,), (False,), (), (False,), (False, False, ('getter',)), (("
+            "),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omcore.sql.dbs.specs', 'DbSpec'),
     ),
 )
-def _process_dataclass__9109436c854dfd7fe2f96d6291551e626d92c471():
+def _process_dataclass__595892a0441f93f5cea9ddbd6408520e0329176a():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -422,6 +422,7 @@ def _process_dataclass__9109436c854dfd7fe2f96d6291551e626d92c471():
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
         __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
         __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__init_fns__0 = __dataclass__ctx['omcore.dataclasses.impl.concerns.init.InitFunctions'].values[0]
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -516,6 +517,7 @@ def _process_dataclass__9109436c854dfd7fe2f96d6291551e626d92c471():
             __dataclass__object_setattr(self, 'caps', caps)
             __dataclass__object_setattr(self, 'database', database)
             __dataclass__object_setattr(self, 'driver', driver)
+            __dataclass__init__init_fns__0(self)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 

@@ -405,7 +405,7 @@
     "module": ".sql.dbs.specs",
     "attr": null,
     "file": "omcore/sql/dbs/specs.py",
-    "line": 55,
+    "line": 57,
     "value": {
       "!.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omcore.sql.dbs.specs",
@@ -420,7 +420,7 @@
     "module": ".sql.dbs.specs",
     "attr": null,
     "file": "omcore/sql/dbs/specs.py",
-    "line": 61,
+    "line": 63,
     "value": {
       "!.marshal.polymorphism.manifests.SubtypeManifest": {
         "module": "omcore.sql.dbs.specs",

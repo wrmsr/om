@@ -1,6 +1,8 @@
 import typing as ta
 import urllib.parse
 
+from ... import cached
+from ... import check
 from ... import dataclasses as dc
 from ... import lang
 from ... import marshal as msh
@@ -87,8 +89,20 @@ class DbCaps:
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 class DbSpec(lang.Final):
     name: str
-    family: DbFamily  # FIXME: | str
+    family: DbFamily | str
     loc: DbLoc
+
+    @cached.property
+    @dc.init
+    def family_(self) -> DbFamily:
+        fam = self.family
+        if isinstance(fam, DbFamily):
+            return fam
+        elif isinstance(fam, str):
+            check.in_(fam, (fu := fam.upper(), fam.lower()))
+            return DbFamilies[fu]
+        else:
+            raise TypeError(fam)
 
     _: dc.KW_ONLY
 
