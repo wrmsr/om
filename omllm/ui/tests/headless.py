@@ -68,9 +68,8 @@ class HeadlessUi:
 
 @contextlib.asynccontextmanager
 async def headless_ui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessUi]:
-    async with inj.create_async_managed_injector(
+    async with inj.create_asyncio_managed_injector(
         *els,
-        factory=inj.create_asyncio_injector,
     ) as injector:
         # What a frontend's main does with its injector, short of running anything on a terminal.
         agent = await injector[agn.Agent]

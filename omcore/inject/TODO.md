@@ -68,3 +68,4 @@
 - proxy lol
 - InjectorConfig by now probably
 - internal_consts being weakrefs is weird
+- abstract managed away from concrete ExitStack, allow using KeyedExitStack

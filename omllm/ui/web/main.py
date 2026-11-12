@@ -66,9 +66,8 @@ async def running_web(
     if overrides:
         els = inj.as_elements(inj.override(els, *overrides))
 
-    async with inj.create_async_managed_injector(
+    async with inj.create_asyncio_managed_injector(
         els,
-        factory=inj.create_asyncio_injector,
     ) as injector:
         agent = await injector[agn.Agent]
         session = await injector[agn.Session]

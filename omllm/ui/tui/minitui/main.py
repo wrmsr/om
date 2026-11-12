@@ -44,9 +44,8 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
 
     #
 
-    async with inj.create_async_managed_injector(
+    async with inj.create_asyncio_managed_injector(
         bind_minitui(config),
-        factory=inj.create_asyncio_injector,
     ) as injector:
         ui_id = await injector[UiId]
         configure_tui_logging(ui_id)
