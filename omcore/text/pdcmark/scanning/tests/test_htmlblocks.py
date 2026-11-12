@@ -1,3 +1,5 @@
+import pytest
+
 from ..htmlblocks import html_block_close_on_line
 from ..htmlblocks import html_block_closes_on_blank_line
 from ..htmlblocks import scan_html_block_start
@@ -16,6 +18,16 @@ def test_type_1_with_attrs():
 def test_type_1_case_insensitive():
     m = scan_html_block_start('<STYLE>')
     assert m is not None and m.type == 1
+
+
+@pytest.mark.parametrize('tag', ['</pre>', '</SCRIPT>', '</sTyLe>', '</textarea>'])
+def test_type_1_any_exact_end_tag(tag):
+    assert html_block_close_on_line(1, 'before ' + tag + ' after')
+
+
+@pytest.mark.parametrize('tag', ['</pre', '</pre ', '</pre\t', '</pre x>', '</pre >', '</scr\u0131pt>'])
+def test_type_1_incomplete_or_non_ascii_end_tag(tag):
+    assert not html_block_close_on_line(1, tag)
 
 
 def test_type_2_comment_open():

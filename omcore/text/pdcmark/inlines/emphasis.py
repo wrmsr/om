@@ -31,6 +31,9 @@ def resolve_emphasis(nodes: list[InlineNode]) -> list[InlineNode]:
     """
 
     delim_stack: list[int] = []
+    # Failed searches bound later closers with the same flanking/mod-3 rules (upstream #1154). Source positions stay
+    # ordered even when matching pairs splice nodes and truncate the delimiter stack.
+    openers_bottom: dict[tuple[str, bool, int], int] = {}
     i = 0
     while i < len(nodes):
         node = nodes[i]
@@ -39,7 +42,8 @@ def resolve_emphasis(nodes: list[InlineNode]) -> list[InlineNode]:
             continue
 
         if node.can_close:
-            match_s = _find_matching_opener(nodes, delim_stack, node)
+            key = (node.char, node.can_open, node.original_count % 3)
+            match_s = _find_matching_opener(nodes, delim_stack, node, openers_bottom.get(key, -1))
             if match_s is not None:
                 opener_i = delim_stack[match_s]
                 opener = check.isinstance(nodes[opener_i], DelimNode)
@@ -94,6 +98,7 @@ def resolve_emphasis(nodes: list[InlineNode]) -> list[InlineNode]:
                 # Continue at the closer's new position (if it remains, it re-tries matching from there).
                 i = opener_i + (1 if new_opener_count > 0 else 0) + 1
                 continue
+            openers_bottom[key] = node.offset[0]
 
         if node.can_open:
             delim_stack.append(i)
@@ -110,12 +115,15 @@ def _find_matching_opener(
         nodes: list[InlineNode],
         delim_stack: list[int],
         closer: DelimNode,
+        minimum_offset: int,
 ) -> int | None:
     for s_idx in reversed(range(len(delim_stack))):
         opener_i = delim_stack[s_idx]
         opener = nodes[opener_i]
         if not isinstance(opener, DelimNode):
             continue  # stale entry - was rewritten by a prior pair
+        if opener.offset[0] < minimum_offset:
+            break
         if opener.char != closer.char:
             continue
         if not opener.can_open:

@@ -158,9 +158,10 @@ def test_code_span_keeps_interior_trailing_spaces():
     assert isinstance(out[0], CodeNode) and out[0].text == 'code   span'
 
 
-def test_code_span_keeps_interior_leading_spaces():
+def test_code_span_strips_continuation_indent():
     out = tokenize_inline((_line('`a', 0), _line('   b`', 3)))
-    assert isinstance(out[0], CodeNode) and out[0].text == 'a    b'
+    assert isinstance(out[0], CodeNode) and out[0].text == 'a b'
+    assert out[0].offset == (0, 8)
 
 
 def test_raw_html_keeps_interior_whitespace():

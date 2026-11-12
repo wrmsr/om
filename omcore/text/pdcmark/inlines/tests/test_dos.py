@@ -5,8 +5,11 @@ same large refdef can balloon output size quadratically.
 """
 from ..... import dataclasses as dc
 from .... import pdcmark as m
+from ...blocks.leaves import BufferedLine
 from ...options import COMMONMARK
 from ...rendering.html import render_html
+from ..emphasis import resolve_emphasis
+from ..tokenize import tokenize_inline
 
 
 def test_link_ref_expansion_bomb_stays_bounded():
@@ -58,3 +61,24 @@ def test_paren_nesting_cap_configurable():
     assert '<a' not in render_html(m.parse(deep))
     opts = dc.replace(COMMONMARK, max_nested_parens=64)
     assert '<a' in render_html(m.parse(deep, opts))
+
+
+class _CountingNodes(list):
+    def __init__(self, nodes):
+        super().__init__(nodes)
+
+        self.reads = 0
+
+    def __getitem__(self, index):
+        self.reads += 1
+        return super().__getitem__(index)
+
+
+def test_failed_underscore_searches_stay_linear():
+    # Upstream #1154: every underscore can close, but every opener is an asterisk. Count work deterministically;
+    # repeatedly scanning all prior openers exceeds the bound without depending on interpreter speed.
+    src = '*a_' * 2000
+    nodes = _CountingNodes(tokenize_inline((BufferedLine(text=src, line_start=0, line_next=len(src)),)))
+    resolve_emphasis(nodes)
+    assert nodes.reads < 20 * len(src)
+    assert render_html(m.parse(src)) == f'<p>{src}</p>\n'

@@ -79,38 +79,14 @@ from .refdefs import try_consume_refdef
 ##
 
 
-def _strip_columns(line: str, columns: int) -> str:
-    """Remove up to `columns` columns of leading whitespace, respecting tab-stops at 4."""
+def _strip_line_indent(ls: LineStart, columns: int) -> str:
+    """Strip indentation using the original line's tab stops, including leftover columns of a partially consumed tab."""
 
-    cols = 0
-    i = 0
-    n = len(line)
-    while i < n and cols < columns:
-        c = line[i]
-        if c == ' ':
-            cols += 1
-            i += 1
-        elif c == '\t':
-            advance = 4 - (cols % 4)
-            if cols + advance <= columns:
-                cols += advance
-                i += 1
-            else:
-                spaces = cols + advance - columns
-                return ' ' * spaces + line[i + 1:]
-        else:
-            break
-    return line[i:]
-
-
-def _strip_indent_columns(carry: int, text: str, columns: int) -> str:
-    """
-    Strip up to `columns` of indentation from carry-prefixed text. `carry` is a LineStart's leftover tab columns; the
-    text's own tabs are stop-aligned right after the carry, so drawing from the carry first keeps tab math correct.
-    """
-
-    take = min(carry, columns)
-    return ' ' * (carry - take) + _strip_columns(text, columns - take)
+    if not columns:
+        return ' ' * ls.tab_carry + ls.remaining()
+    cursor = ls.clone()
+    cursor.scan_space_upto(columns)
+    return ' ' * cursor.tab_carry + cursor.remaining()
 
 
 def _fence_with_content(f: OpenFencedCode, content: tuple[BufferedLine, ...]) -> OpenFencedCode:
@@ -194,6 +170,12 @@ class BlockMachine:
     def feed_line(self, line: str, line_start: int, line_next: int) -> list[Event]:
         if self._terminated:
             raise RuntimeError('BlockMachine: feed_line after finish()')
+        # Normalize before scanning, including opaque blocks and reference labels. Both characters occupy one source
+        # position in Python, so replacing NULs leaves offsets unchanged (upstream #1065).
+        line = line.replace('\0', '\ufffd')
+        if line_start == 0 and line.startswith('\ufeff'):
+            line = line[1:]
+            line_start += 1
         bl = BufferedLine(text=line, line_start=line_start, line_next=line_next)
         events: list[Event] = []
         self._process_line(bl, events)
@@ -241,14 +223,16 @@ class BlockMachine:
             matched_depth < len(self._stack)
             and isinstance(self._open, OpenParagraph)
             and not blank
-            and not self._line_starts_new_block(ls.remaining(), paragraph_interruption=False)
+            and not self._line_starts_new_block(
+                ls.remaining(), paragraph_interruption=False, line_start=ls,
+            )
         ):
             lazy_bl = BufferedLine(
                 text=bl.text[ls.position:],
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
-            self._open = OpenParagraph(lines=(*self._open.lines, lazy_bl))
+            self._open = OpenParagraph(lines=(*self._open.lines, lazy_bl), task_marker=self._open.task_marker)
             return
 
         # Lists themselves have no continuation marker; they continue iff a same-type item starts here or some inner
@@ -277,7 +261,7 @@ class BlockMachine:
                 # dropped without loosening anything.
                 self._consume_pending_blank(
                     None
-                    if isinstance(self._open, OpenIndentedCode) and _leading_indent(ls.remaining()) >= 4
+                    if isinstance(self._open, OpenIndentedCode) and ls.clone().scan_space(4)
                     else self._receiving_list_index(),
                 )
 
@@ -325,8 +309,8 @@ class BlockMachine:
         """
 
         save = ls.clone()
-        leading = ls.scan_space_upto(3)
-        if leading == 3 and ls.position < len(ls.line) and ls.line[ls.position] == ' ':
+        leading = ls.scan_space_upto(4)
+        if leading == 4:
             ls.restore(save)
             return False
         rem = ls.remaining()
@@ -355,8 +339,8 @@ class BlockMachine:
         for c in self._stack:
             if isinstance(c, OpenBlockQuote):
                 save = ls.clone()
-                ls.scan_space_upto(3)
-                if scan_blockquote_marker(ls.remaining()) is None:
+                indent = ls.scan_space_upto(4)
+                if indent == 4 or scan_blockquote_marker(ls.remaining()) is None:
                     ls.restore(save)
                     break
                 ls.scan_ch('>')
@@ -397,8 +381,8 @@ class BlockMachine:
         # Up-to-3-space indent then the marker. 4+ columns means the line is indented-code or paragraph content; no
         # container can start there.
         save = ls.clone()
-        leading = ls.scan_space_upto(3)
-        if leading == 3 and ls.position < len(ls.line) and ls.line[ls.position] == ' ':
+        leading = ls.scan_space_upto(4)
+        if leading == 4:
             # Actually 4+ spaces of indent - no container start here.
             ls.restore(save)
             return False
@@ -515,20 +499,6 @@ class BlockMachine:
             # Consume the post-marker indent from the LineStart cursor.
             ls.scan_space(post_indent)
 
-            # GFM task list marker: scan immediately after the post-marker indent. Only emitted if the option is on.
-            if self._options.tasklists:
-                tl = scan_task_list_marker(ls.remaining())
-                if tl is not None:
-                    abs_start = bl.line_start + ls.position
-                    abs_end = bl.line_start + ls.position + tl.end
-                    events.append(TaskListMarker(
-                        offset=(abs_start, abs_end),
-                        checked=tl.checked,
-                    ))
-                    ls.advance(tl.end)
-                    if ls.position < len(ls.line) and ls.line[ls.position] == ' ':
-                        ls.scan_space(1)
-
             return True
 
         ls.restore(save)
@@ -548,11 +518,11 @@ class BlockMachine:
             open_ = self._open
 
             if isinstance(open_, OpenFencedCode):
-                self._feed_fenced_code(open_, bl, content, absolute_content_start, events)
+                self._feed_fenced_code(open_, bl, ls, absolute_content_start, events)
                 return
 
             if isinstance(open_, OpenHtmlBlock):
-                self._feed_html_block(open_, bl, content, absolute_content_start, events)
+                self._feed_html_block(open_, bl, _strip_line_indent(ls, 0), absolute_content_start, events)
                 return
 
             if isinstance(open_, OpenTable):
@@ -562,9 +532,9 @@ class BlockMachine:
             if isinstance(open_, OpenIndentedCode):
                 # Continuation requires 4+ columns of indent relative to the container; we already consumed container
                 # markers so we measure on `content`, counting leftover tab-carry columns.
-                if ls.tab_carry + _leading_indent(content) >= 4 or is_blank_line(content):
+                if ls.clone().scan_space(4) or is_blank_line(content):
                     new_line = BufferedLine(
-                        text=_strip_indent_columns(ls.tab_carry, content, 4),
+                        text=_strip_line_indent(ls, 4),
                         line_start=absolute_content_start,
                         line_next=bl.line_next,
                     )
@@ -576,7 +546,7 @@ class BlockMachine:
 
             elif isinstance(open_, OpenParagraph):
                 # Setext underline?
-                if _leading_indent(content) < 4:
+                if not ls.clone().scan_space(4):
                     setext_level = scan_setext_underline(content)
                 else:
                     setext_level = None
@@ -590,7 +560,7 @@ class BlockMachine:
                             dc.replace(open_, lines=remaining), bl.line_next, events, heading_level=setext_level,
                         )
                     else:
-                        self._open_fresh(bl, content, absolute_content_start, events, carry=ls.tab_carry)
+                        self._open_fresh(bl, content, absolute_content_start, events, line_start=ls)
                     return
 
                 # Table head promotion - the LAST line of the open paragraph is a header candidate iff it contains a
@@ -608,7 +578,7 @@ class BlockMachine:
                             head_cells = parse_table_row(head_line.text, len(align))
                             # Emit any preceding paragraph lines as a separate paragraph.
                             if len(open_.lines) > 1:
-                                preceding = OpenParagraph(lines=open_.lines[:-1])
+                                preceding = OpenParagraph(lines=open_.lines[:-1], task_marker=open_.task_marker)
                                 self._emit_paragraph_or_heading(
                                     preceding,
                                     head_line.line_start,
@@ -622,7 +592,7 @@ class BlockMachine:
                             )
                             return
 
-                if self._line_starts_new_block(content):
+                if self._line_starts_new_block(content, line_start=ls):
                     events.extend(self._close_to_events(open_, bl.line_start))
                     self._open = None
                     # Fall through to fresh leaf opening.
@@ -630,11 +600,11 @@ class BlockMachine:
                 else:
                     # Direct paragraph continuation (we already consumed container markers).
                     new_bl = BufferedLine(text=content, line_start=absolute_content_start, line_next=bl.line_next)
-                    self._open = OpenParagraph(lines=(*open_.lines, new_bl))
+                    self._open = OpenParagraph(lines=(*open_.lines, new_bl), task_marker=open_.task_marker)
                     return
 
         # No open leaf (or it just closed): try to open one.
-        self._open_fresh(bl, content, absolute_content_start, events, carry=ls.tab_carry)
+        self._open_fresh(bl, content, absolute_content_start, events, line_start=ls)
 
     def _open_fresh(
             self,
@@ -643,12 +613,12 @@ class BlockMachine:
             absolute_content_start: int,
             events: list[Event],
             *,
-            carry: int = 0,
+            line_start: LineStart,
     ) -> None:
         # Indented code block (only when no other context applies). Leftover tab-carry columns from container-marker
         # consumption count toward (and materialize into) the code indent.
-        if carry + _leading_indent(content) >= 4:
-            stripped = _strip_indent_columns(carry, content, 4)
+        if line_start.clone().scan_space(4):
+            stripped = _strip_line_indent(line_start, 4)
             self._open = OpenIndentedCode(lines=(BufferedLine(
                 text=stripped,
                 line_start=absolute_content_start,
@@ -656,12 +626,11 @@ class BlockMachine:
             ),))
             return
 
-        # Strip up to 3 leading spaces for the dispatchers below.
-        i = 0
-        while i < len(content) and content[i] == ' ' and i < 3:
-            i += 1
-        body = content[i:]
-        body_offset = absolute_content_start + i
+        # Scan with the original tab stops: a tab after a container marker can be fewer than four columns (#1180).
+        cursor = line_start.clone()
+        indent = cursor.scan_space_upto(3)
+        body = cursor.remaining()
+        body_offset = bl.line_start + cursor.position
 
         # ATX heading.
         atx = scan_atx_open(body)
@@ -696,7 +665,7 @@ class BlockMachine:
             self._open = OpenFencedCode(
                 fence_char=fence.fence_char,
                 fence_length=fence.fence_length,
-                fence_indent=i,
+                fence_indent=indent,
                 info=fence.info,
                 open_start=absolute_content_start,
                 open_next=bl.line_next,
@@ -710,7 +679,11 @@ class BlockMachine:
             block = OpenHtmlBlock(
                 html_type=html_start.type,
                 open_start=absolute_content_start,
-                lines=(BufferedLine(text=content, line_start=absolute_content_start, line_next=bl.line_next),),
+                lines=(BufferedLine(
+                    text=' ' * line_start.tab_carry + content,
+                    line_start=absolute_content_start,
+                    line_next=bl.line_next,
+                ),),
             )
             if (
                 not html_block_closes_on_blank_line(block.html_type)
@@ -723,7 +696,20 @@ class BlockMachine:
 
         # Default - open a paragraph.
         new_bl = BufferedLine(text=content, line_start=absolute_content_start, line_next=bl.line_next)
-        self._open = OpenParagraph(lines=(new_bl,))
+        task_marker = None
+        if (
+            self._options.tasklists
+            and self._stack
+            and isinstance(item := self._stack[-1], OpenItem)
+            and item.open_next == bl.line_next
+            and (tl := scan_task_list_marker(content)) is not None
+        ):
+            task_marker = TaskListMarker(
+                offset=(absolute_content_start, absolute_content_start + tl.end),
+                checked=tl.checked,
+            )
+        # Keep the raw marker until block close: setext promotion must cancel its task-list interpretation (#1115).
+        self._open = OpenParagraph(lines=(new_bl,), task_marker=task_marker)
 
     # Leaf-block feed helpers.
 
@@ -731,12 +717,12 @@ class BlockMachine:
             self,
             open_: OpenFencedCode,
             bl: BufferedLine,
-            content: str,
+            ls: LineStart,
             absolute_content_start: int,
             events: list[Event],
     ) -> None:
         # The fence's leading-indent count is stripped from each content line first.
-        stripped = _strip_columns(content, open_.fence_indent)
+        stripped = _strip_line_indent(ls, open_.fence_indent)
         if is_fence_close(stripped, open_.fence_char, open_.fence_length):
             events.extend(self._close_to_events(open_, bl.line_next))
             self._open = None
@@ -815,7 +801,7 @@ class BlockMachine:
             return
 
         # Any leaf-level construct (atx heading, fenced code, etc.) also terminates the table.
-        if self._line_starts_new_block(content):
+        if self._line_starts_new_block(content, line_start=ls):
             events.extend(self._close_to_events(open_, bl.line_start))
             self._open = None
             self._dispatch_leaf(bl, ls, events)
@@ -915,7 +901,7 @@ class BlockMachine:
             # Blank lines inside indented code are kept, retaining whatever whitespace follows the 4 columns of code
             # indent; trailing blanks are stripped at close by `_emit_indented_code`.
             new_line = BufferedLine(
-                text=_strip_indent_columns(ls.tab_carry, ls.remaining(), 4),
+                text=_strip_line_indent(ls, 4),
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
@@ -925,7 +911,7 @@ class BlockMachine:
         if isinstance(self._open, OpenFencedCode):
             # Blank lines inside a fenced code block are content, retaining whitespace past the fence indent.
             new_line = BufferedLine(
-                text=_strip_indent_columns(ls.tab_carry, ls.remaining(), self._open.fence_indent),
+                text=_strip_line_indent(ls, self._open.fence_indent),
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
@@ -938,7 +924,7 @@ class BlockMachine:
                 self._open = None
                 return
             new_line = BufferedLine(
-                text=ls.remaining(),
+                text=_strip_line_indent(ls, 0),
                 line_start=bl.line_start + ls.position,
                 line_next=bl.line_next,
             )
@@ -951,7 +937,13 @@ class BlockMachine:
 
         # No open leaf - blank lines just pass through.
 
-    def _line_starts_new_block(self, line: str, *, paragraph_interruption: bool = True) -> bool:
+    def _line_starts_new_block(
+            self,
+            line: str,
+            *,
+            paragraph_interruption: bool = True,
+            line_start: LineStart | None = None,
+    ) -> bool:
         """
         True if `line` starts a new block construct that would *interrupt* an open paragraph. Used to decide whether
         lazy / direct paragraph continuation applies.
@@ -963,14 +955,10 @@ class BlockMachine:
         e.g. `> foo` followed by `2. bar` splits into a quote and an `<ol start="2">`.
         """
 
-        if _leading_indent(line) >= 4:
+        cursor = line_start.clone() if line_start is not None else LineStart(line)
+        if cursor.scan_space_upto(4) == 4:
             return False
-
-        i = 0
-        while i < len(line) and line[i] == ' ' and i < 3:
-            i += 1
-
-        body = line[i:]
+        body = cursor.remaining()
 
         if scan_atx_open(body) is not None:
             return True
@@ -1045,6 +1033,19 @@ class BlockMachine:
             Paragraph() if heading_level is None else Heading(level=heading_level)
         )
         out.append(Start(offset=(first.line_start, end_offset), tag=tag))
+        if heading_level is None and p.task_marker is not None:
+            marker = p.task_marker
+            out.append(marker)
+            skip = marker.offset[1] - first.line_start
+            if skip < len(first.text) and first.text[skip] in ' \t':
+                skip += 1
+            lines = (BufferedLine(
+                text=first.text[skip:],
+                line_start=first.line_start + skip,
+                line_next=first.line_next,
+            ), *lines[1:])
+            if not lines[0].text and len(lines) > 1:
+                lines = lines[1:]
         out.extend(self._inline.parse(lines))
         out.append(End(offset=(first.line_start, end_offset), tag=tag))
         return out
@@ -1157,20 +1158,3 @@ def _scan_blockquote_kind_consuming(ls: LineStart) -> BlockQuoteKind | None:
     # Consume to end of line.
     ls.advance(len(rem))
     return kind
-
-
-def _leading_indent(line: str, cap: int = 4) -> int:
-    cols = 0
-    i = 0
-    n = len(line)
-    while i < n and cols < cap:
-        c = line[i]
-        if c == ' ':
-            cols += 1
-            i += 1
-        elif c == '\t':
-            cols += 4 - (cols % 4)
-            i += 1
-        else:
-            break
-    return cols

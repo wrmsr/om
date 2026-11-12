@@ -3,8 +3,8 @@ HTML-block start / end recognition for the 7 CommonMark types.
 
 CommonMark §4.6 defines 7 distinct kinds of HTML block, each with its own start condition and its own end condition:
 
-  type 1 - opens with `<script>` / `<pre>` / `<style>` / `<textarea>` (case-insensitive); closes when the corresponding
-           close-tag is matched on the same or a later line.
+  type 1 - opens with `<script>` / `<pre>` / `<style>` / `<textarea>` (case-insensitive); closes when any of the four
+           close-tags is matched on the same or a later line.
   type 2 - opens with `<!--`; closes at `-->`.
   type 3 - opens with `<?`; closes at `?>`.
   type 4 - opens with `<!` followed by an ASCII letter; closes at `>`.
@@ -91,10 +91,7 @@ _HTML_BLOCK_TAGS = frozenset({
 
 
 _TYPE_1_NAMES = ('script', 'pre', 'style', 'textarea')
-_TYPE_1_CLOSE_RES = {
-    name: re.compile(r'</' + name + r'(?:[ \t>]|$)', re.IGNORECASE)
-    for name in _TYPE_1_NAMES
-}
+_TYPE_1_CLOSE_RE = re.compile(r'</(?:script|pre|style|textarea)>', re.IGNORECASE | re.ASCII)
 
 
 # Late-bound import to avoid cycles (inline_html sits below html_blocks in the dep graph).
@@ -178,7 +175,7 @@ def html_block_close_on_line(html_type: int, line: str) -> bool:
 
     if html_type == 1:
         # Any of the four type-1 close tags. Case-insensitive.
-        return any(_TYPE_1_CLOSE_RES[name].search(line) for name in _TYPE_1_NAMES)
+        return _TYPE_1_CLOSE_RE.search(line) is not None
     if html_type == 2:
         return '-->' in line
     if html_type == 3:

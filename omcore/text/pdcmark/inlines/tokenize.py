@@ -401,7 +401,9 @@ def _normalize_code_span(content: str) -> str:
     """
 
     # Replace line breaks with spaces.
-    content = content.replace('\n', ' ')
+    # Paragraph continuation indentation is removed before replacing line endings (upstream #1131). Keep spaces
+    # before the newline and the original joined text for source-offset mapping and raw HTML.
+    content = re.sub(r'\n[ \t]*', ' ', content)
     if (
         len(content) >= 2
         and content[0] == ' '
@@ -585,9 +587,12 @@ def _try_parse_inline_link(s: str, paren_pos: int, max_nested_parens: int) -> tu
         i = dest_scan.end
 
     # Optional whitespace before title.
+    dest_end = i
     i = _consume_link_ws(s, i, allow_nl=True)
     title = ''
     if i < n and s[i] in '"\'(':
+        if i == dest_end:
+            return None
         title_scan = scan_link_title(s, i)
 
         if title_scan is not None:

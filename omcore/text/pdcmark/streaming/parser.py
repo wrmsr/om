@@ -11,6 +11,8 @@ See docs/02_PrePlan.md and docs/00_Goals.md for the contract:
   - `committed + tentative` at any moment equals what an oracle on the prefix-seen-so-far would have produced.
   - Full-reparse equivalence: chunking has zero observable effect on the final committed stream.
 """
+import re
+
 from ..blocks.machine import BlockMachine
 from ..errors import ParserStateError
 from ..events import Event
@@ -20,6 +22,9 @@ from .output import FeedOutput
 
 
 ##
+
+
+_RE_LINE_ENDING = re.compile(r'\r\n?|\n')
 
 
 class StreamingParser:
@@ -69,7 +74,7 @@ class StreamingParser:
 
         committed: list[Event] = []
         # Drain any complete lines still in buffer (shouldn't happen normally, but be safe).
-        self._drain_complete_lines(committed)
+        self._drain_complete_lines(committed, final=True)
 
         # Treat any unterminated trailing buffer as the last line.
         if self._buffer:
@@ -87,43 +92,36 @@ class StreamingParser:
 
     # Internal.
 
-    def _drain_complete_lines(self, committed: list[Event]) -> None:
+    def _drain_complete_lines(self, committed: list[Event], *, final: bool = False) -> None:
         """
         Pull complete (newline-terminated) lines out of the buffer and feed them into the block machine. Recognizes LF
         and CRLF terminators; bare CR followed by non-`\\n` is also treated as a line break, but a CR at the very end of
         buffer is held for the next chunk in case it turns into CRLF.\
         """
 
+        has_cr = '\r' in self._buffer
         while True:
-            nl_pos = self._buffer.find('\n')
-            if nl_pos < 0:
-                # No LF. Check for an unambiguous bare CR (one not at end of buffer).
-                cr_pos = self._buffer.find('\r')
-                if cr_pos < 0:
+            if has_cr:
+                ending = _RE_LINE_ENDING.search(self._buffer)
+                if ending is None:
                     return
-                if cr_pos == len(self._buffer) - 1:
+                nl_pos = ending.start()
+                if nl_pos == len(self._buffer) - 1 and self._buffer[nl_pos] == '\r' and not final:
                     # CR at end - defer; the next chunk might supply `\n` to form CRLF.
                     return
-                line_body = self._buffer[:cr_pos]
-                nl_len = 1
-                line_start = self._offset
-                next_off = line_start + len(line_body) + nl_len
-                committed.extend(self._bm.feed_line(line_body, line_start, next_off))
-                self._offset = next_off
-                self._buffer = self._buffer[cr_pos + 1:]
-                continue
-
-            line_body = self._buffer[:nl_pos]
-            if line_body.endswith('\r'):
-                line_body = line_body[:-1]
-                nl_len = 2  # CRLF
+                nl_len = ending.end() - nl_pos
             else:
-                nl_len = 1  # LF
+                # Preserve the LF-only fast path; searching for an absent CR on every line would be quadratic.
+                nl_pos = self._buffer.find('\n')
+                if nl_pos < 0:
+                    return
+                nl_len = 1
+            line_body = self._buffer[:nl_pos]
             line_start = self._offset
             next_off = line_start + len(line_body) + nl_len
             committed.extend(self._bm.feed_line(line_body, line_start, next_off))
             self._offset = next_off
-            self._buffer = self._buffer[nl_pos + 1:]
+            self._buffer = self._buffer[nl_pos + nl_len:]
 
     def _compute_tentative(self) -> list[Event]:
         """
@@ -140,7 +138,8 @@ class StreamingParser:
         if self._buffer:
             partial_start = self._offset
             partial_end = partial_start + len(self._buffer)
-            events.extend(clone.feed_line(self._buffer, partial_start, partial_end))
+            line_body = self._buffer.removesuffix('\r')
+            events.extend(clone.feed_line(line_body, partial_start, partial_end))
         else:
             partial_end = self._offset
         events.extend(clone.finish(partial_end))

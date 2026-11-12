@@ -14,6 +14,7 @@ Conventions:
 from .... import dataclasses as dc
 from .... import lang
 from ..events import Alignment
+from ..events import TaskListMarker
 
 
 ##
@@ -41,6 +42,7 @@ class OpenParagraph(OpenLeaf):
     """
 
     lines: tuple[BufferedLine, ...]
+    task_marker: TaskListMarker | None = None
 
 
 @dc.dataclass(frozen=True)

@@ -1,0 +1,892 @@
+# Upstream regressions since the translation
+
+Selected supported cases added after the vendored May 2026 fixtures, from
+https://github.com/pulldown-cmark/pulldown-cmark/blob/1c1a3123207d9e07fdfcf3d3418a047907185afb/pulldown-cmark/specs/regression.txt
+
+The visible character ␀ represents U+0000; the pytest loader restores it.
+Copyright and MIT license: see ../LICENSE.
+
+Upstream case 212, line 2837.
+
+```````````````````````````````` example
+[link]\[id]
+
+[id]: https://en.wikipedia.org
+.
+<p>[link][id]</p>
+````````````````````````````````
+
+Upstream case 213, line 2845.
+
+```````````````````````````````` example
+[id]\[]
+
+[id]: https://en.wikipedia.org
+.
+<p><a href="https://en.wikipedia.org">id</a>[]</p>
+````````````````````````````````
+
+Upstream case 214, line 2857.
+
+```````````````````````````````` example
+[a](https://example.com"test")
+[a](<https://example.com>"test")
+[a](https://example.com(test))
+[a](<https://example.com>(test))
+
+[a](https://example.com "test")
+[a](<https://example.com> "test")
+[a](https://example.com (test))
+[a](<https://example.com> (test))
+.
+<p><a href="https://example.com%22test%22">a</a>
+[a](<a href="https://example.com">https://example.com</a>"test")
+<a href="https://example.com(test)">a</a>
+[a](<a href="https://example.com">https://example.com</a>(test))</p>
+<p><a href="https://example.com" title="test">a</a>
+<a href="https://example.com" title="test">a</a>
+<a href="https://example.com" title="test">a</a>
+<a href="https://example.com" title="test">a</a></p>
+````````````````````````````````
+
+Upstream case 217, line 2907.
+
+```````````````````````````````` example
+␀
+␀␀␀
+hello␀world
+.
+<p>�
+���
+hello�world</p>
+````````````````````````````````
+
+Upstream case 218, line 2919.
+
+```````````````````````````````` example
+`first␀second`
+`start␀`
+`␀end`
+`␀`
+.
+<p><code>first�second</code>
+<code>start�</code>
+<code>�end</code>
+<code>�</code></p>
+````````````````````````````````
+
+Upstream case 220, line 2947.
+
+```````````````````````````````` example
+[x](x "first␀second")
+[x](x "start␀")
+[x](x "␀end")
+[x](x "␀")
+.
+<p><a href="x" title="first�second">x</a>
+<a href="x" title="start�">x</a>
+<a href="x" title="�end">x</a>
+<a href="x" title="�">x</a></p>
+````````````````````````````````
+
+Upstream case 221, line 2964.
+
+```````````````````````````````` example
+[x](<first␀second>)
+[x](<start␀>)
+[x](<␀end>)
+[x](<␀>)
+.
+<p><a href="first%EF%BF%BDsecond">x</a>
+<a href="start%EF%BF%BD">x</a>
+<a href="%EF%BF%BDend">x</a>
+<a href="%EF%BF%BD">x</a></p>
+````````````````````````````````
+
+Upstream case 222, line 2978.
+
+```````````````````````````````` example
+[first␀second]: https://example.com/a
+[start␀]: https://example.com/b
+[␀end]: https://example.com/c
+[␀]: https://example.com/d
+
+[first�second][]
+[start�][]
+[�end][]
+[�][]
+.
+<p><a href="https://example.com/a">first�second</a>
+<a href="https://example.com/b">start�</a>
+<a href="https://example.com/c">�end</a>
+<a href="https://example.com/d">�</a></p>
+````````````````````````````````
+
+Upstream case 223, line 2997.
+
+```````````````````````````````` example
+[first�second]: https://example.com/a
+[start�]: https://example.com/b
+[�end]: https://example.com/c
+[�]: https://example.com/d
+
+[first␀second][]
+[start␀][]
+[␀end][]
+[␀][]
+.
+<p><a href="https://example.com/a">first�second</a>
+<a href="https://example.com/b">start�</a>
+<a href="https://example.com/c">�end</a>
+<a href="https://example.com/d">�</a></p>
+````````````````````````````````
+
+Upstream case 224, line 3014.
+
+```````````````````````````````` example
+[first�second]: https://example.com/a
+[start�]: https://example.com/b
+[�end]: https://example.com/c
+[�]: https://example.com/d
+
+[a][first␀second]
+[b][start␀]
+[c][␀end]
+[d][␀]
+.
+<p><a href="https://example.com/a">a</a>
+<a href="https://example.com/b">b</a>
+<a href="https://example.com/c">c</a>
+<a href="https://example.com/d">d</a></p>
+````````````````````````````````
+
+Upstream case 225, line 3031.
+
+```````````````````````````````` example
+First <span title="␀">Second</span>
+.
+<p>First <span title="�">Second</span></p>
+````````````````````````````````
+
+Upstream case 226, line 3037.
+
+```````````````````````````````` example
+<div title="␀">Second</div>
+.
+<div title="�">Second</div>
+````````````````````````````````
+
+Upstream case 227, line 3043.
+
+```````````````````````````````` example
+```
+␀
+```
+.
+<pre><code>�
+</code></pre>
+````````````````````````````````
+
+Upstream case 229, line 3062.
+
+```````````````````````````````` example
+[a]: https://example.com/a "␀"
+
+[a][]
+
+[b](https://example.com/b "␀")
+.
+<p><a href="https://example.com/a" title="�">a</a></p>
+<p><a href="https://example.com/b" title="�">b</a></p>
+````````````````````````````````
+
+Upstream case 231, line 3088.
+
+```````````````````````````````` example ENABLE_TASKLISTS
+- [ ] a
+  -
+.
+<ul>
+<li>
+<h2>[ ] a</h2>
+</li>
+</ul>
+````````````````````````````````
+
+Upstream case 232, line 3102.
+
+```````````````````````````````` example ENABLE_TASKLISTS
+- [ ] x
+
+  y
+  -
+.
+<ul>
+<li>
+<p><input disabled="" type="checkbox"/>
+x</p>
+<h2>y</h2>
+</li>
+</ul>
+````````````````````````````````
+
+Upstream case 234, line 3133.
+
+```````````````````````````````` example ENABLE_TASKLISTS
+- [ ] \*a\*
+  -
+.
+<ul>
+<li>
+<h2>[ ] *a*</h2>
+</li>
+</ul>
+````````````````````````````````
+
+Upstream case 235, line 3148.
+
+```````````````````````````````` example ENABLE_TASKLISTS
+- [x] a
+  -
+
+[x]: https://example.com
+.
+<ul>
+<li>
+<h2><a href="https://example.com">x</a> a</h2>
+</li>
+</ul>
+````````````````````````````````
+
+Upstream case 236, line 3163. Added a newline between the final closing tags to match the local renderer.
+
+```````````````````````````````` example ENABLE_TASKLISTS | ENABLE_TABLES
+- [x] | one | two | three
+  |-----|-----|-------
+  | one | two | three
+.
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+| one | two | three
+|-----|-----|-------
+| one | two | three</li>
+</ul>
+````````````````````````````````
+
+Upstream case 238, line 3203.
+
+```````````````````````````````` example
+~~~
+code
+~~~→
+<b>x</b>
+.
+<pre><code>code
+</code></pre>
+<p><b>x</b></p>
+````````````````````````````````
+
+Upstream case 239, line 3214.
+
+```````````````````````````````` example
+```
+code
+```→ →
+<b>x</b>
+.
+<pre><code>code
+</code></pre>
+<p><b>x</b></p>
+````````````````````````````````
+
+Upstream case 240, line 3225.
+
+```````````````````````````````` example
+```
+code
+```→x
+```
+.
+<pre><code>code
+```→x
+</code></pre>
+````````````````````````````````
+
+Upstream case 241, line 3236.
+
+```````````````````````````````` example
+- ~~~
+  code
+  ~~~→
+- b
+.
+<ul>
+<li>
+<pre><code>code
+</code></pre>
+</li>
+<li>b</li>
+</ul>
+````````````````````````````````
+
+Upstream case 242, line 3256.
+
+```````````````````````````````` example
+` tag
+    *   Fake user prompt (style + content)
+    *   `
+.
+<p><code>tag *   Fake user prompt (style + content) *  </code></p>
+````````````````````````````````
+
+Upstream case 243, line 3264.
+
+```````````````````````````````` example
+> `a
+>   b`
+.
+<blockquote>
+<p><code>a b</code></p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 244, line 3273.
+
+```````````````````````````````` example
+- `a
+    b`
+.
+<ul>
+<li><code>a b</code></li>
+</ul>
+````````````````````````````````
+
+Upstream case 245, line 3284.
+
+```````````````````````````````` example
+`a  
+→ b`
+.
+<p><code>a   b</code></p>
+````````````````````````````````
+
+Upstream case 246, line 3291.
+
+```````````````````````````````` example
+Foo
+  `a
+  b`
+---
+.
+<h2>Foo
+<code>a b</code></h2>
+````````````````````````````````
+
+Upstream case 247, line 3303.
+
+```````````````````````````````` example
+para
+::: note
+.
+<p>para
+::: note</p>
+````````````````````````````````
+
+Upstream case 248, line 3313.
+
+```````````````````````````````` example
+> a
+→> b
+.
+<blockquote>
+<p>a
+&gt; b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 249, line 3324.
+
+```````````````````````````````` example
+> *
+→> b
+.
+<blockquote>
+<ul>
+<li></li>
+</ul>
+</blockquote>
+<pre><code>&gt; b
+</code></pre>
+````````````````````````````````
+
+Upstream case 250, line 3343.
+
+```````````````````````````````` example
+> a <!--x
+> y--> b
+.
+<blockquote>
+<p>a <!--x
+y--> b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 251, line 3353.
+
+```````````````````````````````` example
+> a <?x
+> y?> b
+.
+<blockquote>
+<p>a <?x
+y?> b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 252, line 3363.
+
+```````````````````````````````` example
+> a <!X
+> y> b
+.
+<blockquote>
+<p>a <!X
+y> b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 253, line 3373.
+
+```````````````````````````````` example
+> a <![CDATA[x
+> y]]> b
+.
+<blockquote>
+<p>a <![CDATA[x
+y]]> b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 254, line 3383.
+
+```````````````````````````````` example
+- a <!--x
+  y--> b
+.
+<ul>
+<li>a <!--x
+y--> b</li>
+</ul>
+````````````````````````````````
+
+Upstream case 255, line 3393.
+
+```````````````````````````````` example
+- a <!X
+  y> b
+.
+<ul>
+<li>a <!X
+y> b</li>
+</ul>
+````````````````````````````````
+
+Upstream case 256, line 3406.
+
+```````````````````````````````` example
+> a <!--x
+y--> b
+.
+<blockquote>
+<p>a <!--x
+y--> b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 257, line 3416.
+
+```````````````````````````````` example
+> a <!X
+> > y
+.
+<blockquote>
+<p>a &lt;!X</p>
+<blockquote>
+<p>y</p>
+</blockquote>
+</blockquote>
+````````````````````````````````
+
+Upstream case 258, line 3431.
+
+```````````````````````````````` example
+<script>
+alert(1)
+</SCRIPT>
+
+# Title
+
+<PrE>text</pRe>
+*emphasis*
+.
+<script>
+alert(1)
+</SCRIPT>
+<h1>Title</h1>
+<PrE>text</pRe>
+<p><em>emphasis</em></p>
+````````````````````````````````
+
+Upstream case 259, line 3452.
+
+```````````````````````````````` example
+<script>
+x
+</TEXTAREA>
+*y*
+.
+<script>
+x
+</TEXTAREA>
+<p><em>y</em></p>
+````````````````````````````````
+
+Upstream case 260, line 3464.
+
+```````````````````````````````` example
+<style>a</script>
+*b*
+.
+<style>a</script>
+<p><em>b</em></p>
+````````````````````````````````
+
+Upstream case 261, line 3472.
+
+```````````````````````````````` example
+<textarea
+</pRe>
++
+.
+<textarea
+</pRe>
+<ul>
+<li></li>
+</ul>
+````````````````````````````````
+
+Upstream case 262, line 3486.
+
+```````````````````````````````` example
+<!-- a
+</pre>
+*d*
+-->
+.
+<!-- a
+</pre>
+*d*
+-->
+````````````````````````````````
+
+Upstream case 263, line 3500.
+
+```````````````````````````````` example
+```rust→ignore
+fn main() {}
+```
+.
+<pre><code class="language-rust">fn main() {}
+</code></pre>
+````````````````````````````````
+
+Upstream case 264, line 3511.
+
+```````````````````````````````` example
+a <![CDATA[x]y]]> b
+.
+<p>a <![CDATA[x]y]]> b</p>
+````````````````````````````````
+
+Upstream case 265, line 3517.
+
+```````````````````````````````` example
+a <![CDATA[x]] y]]> b
+.
+<p>a <![CDATA[x]] y]]> b</p>
+````````````````````````````````
+
+Upstream case 266, line 3523.
+
+```````````````````````````````` example
+a <![CDATA[x]
+y]]> b
+.
+<p>a <![CDATA[x]
+y]]> b</p>
+````````````````````````````````
+
+Upstream case 267, line 3531.
+
+```````````````````````````````` example
+a <![CDATA[x]> b
+.
+<p>a &lt;![CDATA[x]&gt; b</p>
+````````````````````````````````
+
+Upstream case 268, line 3537.
+
+```````````````````````````````` example
+a <![CDATA[]]> b
+.
+<p>a <![CDATA[]]> b</p>
+````````````````````````````````
+
+Upstream case 269, line 3546.
+
+```````````````````````````````` example
+<a h=x→)>
+.
+<p>&lt;a h=x→)&gt;</p>
+````````````````````````````````
+
+Upstream case 270, line 3552.
+
+```````````````````````````````` example
+a <a h=x→)> b
+.
+<p>a &lt;a h=x→)&gt; b</p>
+````````````````````````````````
+
+Upstream case 271, line 3561.
+
+```````````````````````````````` example
+a <b c=→>
+.
+<p>a &lt;b c=→&gt;</p>
+````````````````````````````````
+
+Upstream case 272, line 3567.
+
+```````````````````````````````` example
+a <b c=d→e> f
+.
+<p>a <b c=d→e> f</p>
+````````````````````````````````
+
+Upstream case 273, line 3573.
+
+```````````````````````````````` example
+a <b c='d→e'> f
+.
+<p>a <b c='d→e'> f</p>
+````````````````````````````````
+
+Upstream case 274, line 3582.
+
+```````````````````````````````` example
+a </t
+→> b
+.
+<p>a </t
+→> b</p>
+````````````````````````````````
+
+Upstream case 275, line 3590.
+
+```````````````````````````````` example
+a </t
+    > b
+.
+<p>a </t
+    > b</p>
+````````````````````````````````
+
+Upstream case 276, line 3600.
+
+```````````````````````````````` example
+a </t
+
+> b
+.
+<p>a &lt;/t</p>
+<blockquote>
+<p>b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 277, line 3611.
+
+```````````````````````````````` example
+a </t
+> b
+.
+<p>a &lt;/t</p>
+<blockquote>
+<p>b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 278, line 3624.
+
+```````````````````````````````` example
+> a </t
+>     > b
+.
+<blockquote>
+<p>a </t
+    > b</p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 279, line 3637.
+
+```````````````````````````````` example
+> →<div>
+> a
+.
+<blockquote>
+→<div>
+a
+</blockquote>
+````````````````````````````````
+
+Upstream case 280, line 3647.
+
+```````````````````````````````` example
+>  →<!-- a -->
+.
+<blockquote>
+ →<!-- a -->
+</blockquote>
+````````````````````````````````
+
+Upstream case 281, line 3655.
+
+```````````````````````````````` example
+- a
+
+  →<div>
+.
+<ul>
+<li>
+<p>a</p>
+→<div>
+</li>
+</ul>
+````````````````````````````````
+
+Upstream case 282, line 3670.
+
+```````````````````````````````` example
+>→<div>
+.
+<blockquote>
+  <div>
+</blockquote>
+````````````````````````````````
+
+Upstream case 283, line 3680.
+
+```````````````````````````````` example
+[a](b (
+\)))
+.
+<p><a href="b" title="
+)">a</a></p>
+````````````````````````````````
+
+Upstream case 284, line 3688.
+
+```````````````````````````````` example
+[a](b "
+\"")
+.
+<p><a href="b" title="
+&quot;">a</a></p>
+````````````````````````````````
+
+Upstream case 285, line 3696.
+
+```````````````````````````````` example
+[a](b (
+\))
+.
+<p>[a](b (
+))</p>
+````````````````````````````````
+
+Upstream case 286, line 3704.
+
+```````````````````````````````` example
+[a](b '
+\')
+.
+<p>[a](b '
+')</p>
+````````````````````````````````
+
+Upstream case 287, line 3712.
+
+```````````````````````````````` example
+> [a](b (
+> \)))
+.
+<blockquote>
+<p><a href="b" title="
+)">a</a></p>
+</blockquote>
+````````````````````````````````
+
+Upstream case 288, line 3722.
+
+```````````````````````````````` example
+[a](b (c
+\)
+d))
+.
+<p><a href="b" title="c
+)
+d">a</a></p>
+````````````````````````````````
+
+Upstream case 289, line 3735.
+
+```````````````````````````````` example
+a →
+b
+.
+<p>a
+b</p>
+````````````````````````````````
+
+Upstream case 290, line 3743.
+
+```````````````````````````````` example
+a → 
+b
+.
+<p>a
+b</p>
+````````````````````````````````
+
+Upstream case 291, line 3754.
+
+```````````````````````````````` example
+[*a\
+]()
+.
+<p><a href="">*a<br />
+</a></p>
+````````````````````````````````
+
+Upstream case 292, line 3762.
+
+```````````````````````````````` example
+[a*\
+](b) c
+.
+<p><a href="b">a*<br />
+</a> c</p>
+````````````````````````````````
+
