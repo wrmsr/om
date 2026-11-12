@@ -5,7 +5,9 @@ See docs/00_Goals.md for goals / non-goals, docs/02_PrePlan.md for the streaming
 implementation plan and module layout.
 
 Based on pulldown-cmark - see LICENSE file.
-~ https://github.com/pulldown-cmark/pulldown-cmark/tree/b93cbc043fe8a24b5ee3868b21299e320e0f7d41
+Applicable upstream changes reviewed and backported through:
+~ https://github.com/pulldown-cmark/pulldown-cmark/tree/1c1a3123207d9e07fdfcf3d3418a047907185afb
+See _devdocs/05_Upstream.md for the review and intentional divergences.
 """
 from ... import dataclasses as _dc  # noqa
 

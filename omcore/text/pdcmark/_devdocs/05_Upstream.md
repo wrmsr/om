@@ -2,11 +2,10 @@
 
 ## Revision range and method
 
-The Python translation entered this repository in `3ec91e57c` on 2026-05-26. Its original upstream checkout/pin was
-not imported. All 14 vendored `specs/*.txt` files are byte-identical to upstream
+The Python translation entered this repository in `3ec91e57c` on 2026-05-26. Its original `__init__.py` records upstream
 [`b93cbc0`](https://github.com/pulldown-cmark/pulldown-cmark/commit/b93cbc043fe8a24b5ee3868b21299e320e0f7d41)
-(2026-05-22). This establishes a reproducible **inferred fixture baseline**, rather than proving the exact source
-revision used by the translator. The May 25 upstream reference-link/title fixes are absent from those fixtures.
+(2026-05-22) as the baseline, corroborated by all 14 vendored `specs/*.txt` files being byte-identical to that revision.
+The May 25 upstream reference-link/title fixes are absent from those fixtures.
 
 Reviewed the reachable git history and source/test differences from that baseline through
 [`1c1a312`](https://github.com/pulldown-cmark/pulldown-cmark/commit/1c1a3123207d9e07fdfcf3d3418a047907185afb)
