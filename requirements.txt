@@ -34,7 +34,7 @@ pg8000==1.31.6
 
 #> mysql-connector-python
 #> mysqlclient
-pymysql==1.2.3
+pymysql==1.2.4
 
 # pyhive
 

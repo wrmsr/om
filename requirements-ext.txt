@@ -10,8 +10,8 @@
 ##
 # infra
 
-google-api-python-client==2.201.0
-google-cloud-compute==1.57.0  # @om-venv !14t !15t
+google-api-python-client==2.202.0
+google-cloud-compute==1.58.0  # @om-venv !14t !15t
 
 
 ##
@@ -53,7 +53,7 @@ basedpyright==1.40.2
 
 blobfile==3.3.0
 
-pydantic-monty==1.5.0
+pydantic-monty==1.6.0
 
 
 ##
@@ -72,7 +72,7 @@ wasmtime==50.0.1
 # bins
 
 deno==2.9.8
-playwright==1.64.1
+playwright==1.65.1
 ripgrep==15.1.0
 # mojo==1.2.0
 

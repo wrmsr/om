@@ -113,7 +113,7 @@ class Project(ProjectBase):
         ],
 
         'testing': [
-            'pytest ~= 9.1',
+            'pytest ~= 9.2',
         ],
 
         'text': [
@@ -126,7 +126,7 @@ class Project(ProjectBase):
 
             'pygments ~= 2.21',
 
-            'regex ~= 2026.9',
+            'regex ~= 2026.11',
         ],
     }
 

@@ -35,7 +35,7 @@ class Project(ProjectBase):
             'triton ~= 3.8; sys_platform == "linux"',
 
             'transformers ~= 5.22',
-            'sentence-transformers ~= 6.2',
+            'sentence-transformers ~= 6.3',
         ],
 
         'search': [

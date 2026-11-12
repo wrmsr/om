@@ -4,9 +4,9 @@ build>=1.6.1
 twine>=6.2.0
 wheel>=0.48.0
 
-uv>=0.13.7
+uv>=0.13.8
 
-pytest==9.1.1
+pytest==9.2.0
 pytest-benchmark==5.3.1
 pytest-clarity==1.0.1
 pytest-mock==3.17.0
@@ -19,7 +19,7 @@ flake8==7.5.0
 flake8-pyproject==1.2.4
 pyflakes==4.1.0
 
-ruff==0.17.4
+ruff==0.17.5
 
 asyncpg-stubs==0.32.0
 docutils-stubs==0.0.22
@@ -28,11 +28,11 @@ types-awscrt==0.37.0
 types-docutils==0.23.0.20261107
 types-greenlet==3.5.0.20260518
 types-paramiko==5.1.0.20261030
-types-psutil==7.2.2.20260906
+types-psutil==7.2.2.20261111
 types-pygments==2.21.0.20260819
-types-pymysql==1.2.0.20260923
-types-pyyaml==6.0.12.20261103
-types-regex==2026.11.7.20261108
+types-pymysql==1.2.4.20261111
+types-pyyaml==6.0.12.20261111
+types-regex==2026.11.9.20261110
 types-setuptools==84.2.0.20261104
 types-ujson==5.10.0.20250822
 
@@ -42,7 +42,7 @@ mypy==2.4.1
 astpretty==3.0.0
 
 gprof2dot==2025.4.14
-guppy3==3.1.7  # @om-venv !14t !14dt !15 !15t  # TODO: abandoned?
+guppy3==3.2.0  # @om-venv !14t !14dt !15 !15t  # TODO: abandoned?
 objgraph==3.7.0
 memray==1.20.0
 
@@ -72,7 +72,7 @@ psycopg2==2.9.13
 psycopg==3.3.8
 
 mysql-connector-python==26.10.0
-mysqlclient==2.3.0; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
+mysqlclient==2.3.1; sys_platform == "darwin"  # brew install mysql pkg-config  # PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig" pip install ...
 
 ujson==6.1.0
 
@@ -105,6 +105,7 @@ wikitextparser==3.0.0  # !! GPL
 numpy==2.5.4
 
 # !! These install but enable the GIL on import
+# FIXME: tree-sitter==0.26.1 segfaults
 tree-sitter==0.26.0  # @om-venv !14t !14dt !15t
 tree-sitter-bash==0.25.1  # @om-venv !14t !14dt !15t
 tree-sitter-css==0.25.0  # @om-venv !14t !14dt !15t
@@ -117,7 +118,7 @@ tree-sitter-markdown==0.5.4  # @om-venv !14t !14dt !15t
 tree-sitter-python==0.25.0  # @om-venv !14t !14dt !15t
 tree-sitter-regex==0.25.0  # @om-venv !14t !14dt !15t
 tree-sitter-rust==0.24.2  # @om-venv !14t !14dt !15t
-tree-sitter-sql==0.3.11  # @om-venv !14t !14dt !15t
+tree-sitter-sql==0.3.13  # @om-venv !14t !14dt !15t
 tree-sitter-toml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-xml==0.7.0  # @om-venv !14t !14dt !15t
 tree-sitter-yaml==0.7.2  # @om-venv !14t !14dt !15t
@@ -136,10 +137,10 @@ pyzmq==27.3.0
 
 ## NOTE: the following add a full minute to CI just setting up the deps..
 
-datasets==5.1.0
+datasets==5.2.0
 
 transformers==5.22.2  # @om-venv !15t
-sentence-transformers==6.2.0  # @om-venv !15 !15t
+sentence-transformers==6.3.0  # @om-venv !15 !15t
 
 sentencepiece==0.2.3
 tiktoken==0.14.0
@@ -150,9 +151,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.43.126
-botocore==1.43.126
-types-boto3==1.43.126
+boto3==1.44.1
+botocore==1.44.1
+types-boto3==1.44.1
 botocore-stubs==1.43.126
 
 asn1crypto==1.5.1
@@ -177,7 +178,7 @@ pillow==13.0.0
 
 bitsandbytes==0.50.2  # @om-venv !15 !15t
 
-regex==2026.9.29
+regex==2026.11.9
 
 gguf==0.19.0
 

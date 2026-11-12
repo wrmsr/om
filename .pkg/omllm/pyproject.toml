@@ -41,7 +41,7 @@ interop = [
     'torch ~= 2.15',
     'triton ~= 3.8; sys_platform == "linux"',
     'transformers ~= 5.22',
-    'sentence-transformers ~= 6.2',
+    'sentence-transformers ~= 6.3',
 ]
 search = [
     'ddgs ~= 9.16',
@@ -57,7 +57,7 @@ all = [
     'torch ~= 2.15',
     'triton ~= 3.8; sys_platform == "linux"',
     'transformers ~= 5.22',
-    'sentence-transformers ~= 6.2',
+    'sentence-transformers ~= 6.3',
     'ddgs ~= 9.16',
 ]
 
