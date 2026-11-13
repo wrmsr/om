@@ -23,7 +23,7 @@ torch==2.15.0
 torchvision==0.29.2
 # torchcodec==0.7.0
 
-diffusers==0.42.1
+diffusers==0.43.0
 
 scipy==1.18.1
 scikit-learn==1.9.1

@@ -119,8 +119,8 @@ class Project(ProjectBase):
         'text': [
             'markupsafe ~= 3.0',
 
-            'markdown-it-py ~= 4.2',
-            'mdit-py-plugins ~= 0.6',
+            'markdown-it-py ~= 4.3',
+            'mdit-py-plugins ~= 0.7',
 
             'jinja2 ~= 3.1',
 

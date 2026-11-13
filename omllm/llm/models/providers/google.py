@@ -73,18 +73,23 @@ def _make_model(
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
     _make_model(
+        id='gemini-4-carbon',
+        name='Gemini 4 Carbon',
+    ),
+
+    _make_model(
         id='gemini-4-argon',
         name='Gemini 4 Argon',
     ),
 
     _make_model(
-        id=(TEST_MODEL_KEY := ModelKey('google', 'gemini-3.8-flash')),
-        name='Gemini 3.8 Flash',
+        id='gemini-4-hydrogen',
+        name='Gemini 4 Hydrogen',
     ),
 
     _make_model(
-        id='gemini-2.5-flash',
-        name='Gemini 2.5 Flash',
+        id=(TEST_MODEL_KEY := ModelKey('google', 'gemini-3.8-flash')),
+        name='Gemini 3.8 Flash',
     ),
 
     _make_model(

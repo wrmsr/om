@@ -80,10 +80,24 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     # google
 
     DefaultModel(
+        name='gemini-carbon',
+        aliases=['carbon'],
+        key=ModelKey('google', 'gemini-4-carbon'),
+        api_keys=(GEMINI_API_KEYS := secret_or_env_var_api_key('gemini_api_key')),
+    ),
+
+    DefaultModel(
         name='gemini-argon',
         aliases=['argon'],
         key=ModelKey('google', 'gemini-4-argon'),
-        api_keys=(GEMINI_API_KEYS := secret_or_env_var_api_key('gemini_api_key')),
+        api_keys=GEMINI_API_KEYS,
+    ),
+
+    DefaultModel(
+        name='gemini-hydrogen',
+        aliases=['hydrogen'],
+        key=ModelKey('google', 'gemini-4-hydrogen'),
+        api_keys=GEMINI_API_KEYS,
     ),
 
     DefaultModel(

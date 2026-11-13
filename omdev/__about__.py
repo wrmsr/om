@@ -41,7 +41,7 @@ class Project(ProjectBase):
 
         'ocr': [
             'rapidocr ~= 3.10',
-            'onnxruntime ~= 1.31',
+            'onnxruntime ~= 1.32',
         ],
 
         'pillow': [

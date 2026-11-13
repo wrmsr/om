@@ -34,7 +34,7 @@ class Project(ProjectBase):
             'torch ~= 2.15',
             'triton ~= 3.8; sys_platform == "linux"',
 
-            'transformers ~= 5.22',
+            'transformers ~= 5.23',
             'sentence-transformers ~= 6.3',
         ],
 

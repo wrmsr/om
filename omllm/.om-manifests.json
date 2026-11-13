@@ -457,10 +457,16 @@
     "module": ".llm.models.providers.google",
     "attr": "_MANIFEST",
     "file": "omllm/llm/models/providers/google.py",
-    "line": 98,
+    "line": 103,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
+          {
+            "provider": "google",
+            "id": "gemini-4-carbon",
+            "name": "Gemini 4 Carbon",
+            "backend": "google-generative"
+          },
           {
             "provider": "google",
             "id": "gemini-4-argon",
@@ -469,14 +475,14 @@
           },
           {
             "provider": "google",
-            "id": "gemini-3.8-flash",
-            "name": "Gemini 3.8 Flash",
+            "id": "gemini-4-hydrogen",
+            "name": "Gemini 4 Hydrogen",
             "backend": "google-generative"
           },
           {
             "provider": "google",
-            "id": "gemini-2.5-flash",
-            "name": "Gemini 2.5 Flash",
+            "id": "gemini-3.8-flash",
+            "name": "Gemini 3.8 Flash",
             "backend": "google-generative"
           },
           {
