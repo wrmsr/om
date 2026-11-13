@@ -1,17 +1,19 @@
 # This file is also used by py2hy.
-
 import asyncio
+import datetime
 import importlib
 import itertools
 import math
+import os
+import subprocess
 
 from .. import mangle
-from ..globalruntime import get_global_runtime
-from .test_bin import REPO_PYTHON
+from .helpers import PACKAGE
+from .helpers import PACKAGE_DIR
+from .helpers import REPO_PYTHON
 
 
-RT = get_global_runtime()
-hy = RT.hy
+##
 
 
 def test_direct_import():
@@ -20,26 +22,29 @@ def test_direct_import():
 
 
 def test_hy2py_import():
-    import contextlib
-    import os
-    import subprocess
-
-    path = f'{hy.__package__.replace(".", "/")}/tests/resources/pydemo_as_py.py'
+    path = f'{PACKAGE_DIR}/tests/resources/pydemo_as_py.py'
     env = dict(os.environ)
     env['PYTHONIOENCODING'] = 'UTF-8'
     env['PYTHONPATH'] = '.' + os.pathsep + env.get('PYTHONPATH', '')
     try:
         with open(path, 'wb') as o:
             subprocess.check_call(
-                [REPO_PYTHON, '-c',
-                    f'from {hy.__package__}.cmdline import hy2py_main; hy2py_main()',
-                    f'{hy.__package__.replace(".", "/")}/tests/resources/pydemo.hy'],
+                [
+                    REPO_PYTHON,
+                    '-c',
+                    f'from {PACKAGE}.cli import hy2py_main; hy2py_main()',
+                    f'{PACKAGE_DIR}/tests/resources/pydemo.hy',
+                ],
+                stdin=subprocess.DEVNULL,
                 stdout=o,
-                env=env)
+                env=env,
+            )
         m = importlib.import_module('.resources.pydemo_as_py', __package__)
     finally:
-        with contextlib.suppress(FileNotFoundError):
+        try:
             os.remove(path)
+        except FileNotFoundError:
+            pass
     assert_stuff(m)
 
 
@@ -149,8 +154,6 @@ def assert_stuff(m):
     assert m.math is math
     assert m.sqrt is math.sqrt
     assert m.sine is math.sin
-    import datetime
-
     assert m.timedelta is datetime.timedelta
 
     assert m.if_block == 'cd'

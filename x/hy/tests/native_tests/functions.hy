@@ -207,7 +207,7 @@
   (assert (= (not-async) "ok"))
   ; Upstream requires `builtins` here, which holds the core macros - here they're in the runtime, but the Python ones are
   ; also requirable from where they're defined.
-  (require ...core.result-macros :as core)
+  (require ...core.specials :as core)
   (core.defn also-not-async [] "ok")
   (assert (= (also-not-async) "ok")))
 

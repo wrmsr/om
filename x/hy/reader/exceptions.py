@@ -14,12 +14,15 @@ if ta.TYPE_CHECKING:
 class LexException(HySyntaxError):  # noqa: N818
     @classmethod
     def from_reader(cls, message: str, reader: Reader) -> ta.Self:
+        """Create an exception located at the last non-whitespace character `reader` has consumed."""
+
+        lineno, colno = reader._eof_tracker
         return cls(
             message,
-            None,
-            reader._filename,
-            reader._source,
-            *reader._eof_tracker,
+            filename=reader._filename,
+            source=reader._source,
+            lineno=lineno,
+            colno=colno,
         )
 
 

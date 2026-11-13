@@ -24,6 +24,8 @@ if ta.TYPE_CHECKING:
 AstT = ta.TypeVar('AstT', bound=ast.AST)
 ScopeT = ta.TypeVar('ScopeT', bound='ScopeBase')
 
+type NonlocalDecl = ast.Global | ast.Nonlocal | OuterVar
+
 
 ##
 
@@ -40,6 +42,7 @@ def is_inside_function_scope(scope: ScopeBase) -> bool:
         if is_function_scope(cur):
             return True
         cur = cur.parent
+
     return False
 
 
@@ -49,7 +52,11 @@ def nearest_python_scope(scope: ScopeBase | None) -> ScopeBase:
     cur = scope
     while isinstance(cur, (ScopeLet, ScopeGen)):
         cur = cur.parent
+
     return check.not_none(cur)
+
+
+##
 
 
 class OuterVar(ast.stmt):
@@ -57,37 +64,52 @@ class OuterVar(ast.stmt):
 
     def __init__(self, expr: Object | ast.AST, scope: ScopeBase, names: list[str]) -> None:
         super().__init__()
+
         self.__dict__.update(asty._get_pos(expr))
+
         self._scope = scope
+
+        # As with `ast.Global` and `ast.Nonlocal`, scopes rename and remove these in place.
         self.names = names
+
+    @property
+    def scope(self) -> ScopeBase:
+        return self._scope
 
 
 class ResolveOuterVars(ast.NodeTransformer):
     """Find all OuterVar nodes and replace with Nonlocal or Global as necessary."""
 
     def visit_OuterVar(self, node: OuterVar) -> list[ast.stmt]:
-        scope = node._scope
+        scope = node.scope
         defined: set[str] = set()
-        undefined = list(node.names)  # keep order, so can't use set
+        undefined = list(node.names)  # Not a set, to keep the order.
+
         while undefined and scope.parent:
             scope = scope.parent
-            has = set()
+
+            has: ta.AbstractSet[str] = set()
             if isinstance(scope, ScopeFn):
                 has = scope.defined
+
             elif isinstance(scope, ScopeLet):
                 has = set(scope.bindings.keys())
+
             elif isinstance(scope, ScopeGlobal):
-                res = []
-                if not scope.defined.issuperset(undefined):
-                    # emit nonlocal, let python raise the error
+                if not all(name in scope.defined for name in undefined):
+                    # Emit nonlocal, and let Python raise the error.
                     break
+
+                res: list[ast.stmt] = []
                 if undefined:
                     res.append(asty.Global(node, names=list(undefined)))
                 if defined:
                     res.append(asty.Nonlocal(node, names=list(defined)))
                 return res
-            defined.update(has.intersection(undefined))
+
+            defined.update({name for name in undefined if name in has})
             undefined = [name for name in undefined if name not in has]
+
         return [asty.Nonlocal(node, names=node.names)] if node.names else []
 
 
@@ -98,7 +120,7 @@ class NodeRef:
     specific identifier referenced by their `index` in the list of `names` provided by the `ast` node.
     """
 
-    ACCESSOR: ta.ClassVar[dict[type[ast.AST], str]] = {
+    ACCESSOR: ta.ClassVar[ta.Mapping[type[ast.AST], str]] = {
         ast.Name: 'id',
         ast.Global: 'names',
         ast.Nonlocal: 'names',
@@ -111,71 +133,89 @@ class NodeRef:
     def __init__(self, node: ast.AST, index: int | None = None) -> None:
         super().__init__()
 
-        self.node = node
-        self.index = index
-        self._accessor = NodeRef.ACCESSOR[type(self.node)]
+        self._node = node
+        self._index = index
+
+        self._accessor = NodeRef.ACCESSOR[type(node)]
+
+    def __repr__(self) -> str:
+        return f'NodeRef(name={self.name}, node={type(self._node).__name__}, index={self._index})'
+
+    @property
+    def node(self) -> ast.AST:
+        return self._node
+
+    @property
+    def index(self) -> int | None:
+        return self._index
 
     @property
     def name(self) -> str:
-        res = getattr(self.node, self._accessor)
-        if self.index is not None:
-            return res[self.index]
+        res = getattr(self._node, self._accessor)
+        if self._index is not None:
+            return res[self._index]
         return res
 
-    @name.setter
-    def name(self, new_name: str) -> None:
-        """Used to rename `ast` identifiers"""
+    def rename(self, new_name: str) -> None:
+        """Rename the referenced identifier in the wrapped node, in place."""
 
-        if self.index is not None:
-            getattr(self.node, self._accessor)[self.index] = new_name
+        if self._index is not None:
+            getattr(self._node, self._accessor)[self._index] = new_name
         else:
-            setattr(self.node, self._accessor, new_name)
+            setattr(self._node, self._accessor, new_name)
 
     @staticmethod
-    def wrap(f: ta.Callable[..., AstT]) -> ta.Callable[..., AstT]:
-        """Decorator to convert AST node parameter to NodeRef."""
+    def wrap(f: ta.Callable[[ta.Any, NodeRef], AstT]) -> ta.Callable[..., AstT]:
+        """Decorator for scope methods converting an AST node parameter (and optional name index) to a NodeRef."""
 
-        def _wrapper(self, node: ast.AST | NodeRef, index: int | None = None) -> AstT:
+        def _wrapper(self: ta.Any, node: ast.AST | NodeRef, index: int | None = None) -> AstT:
             if not isinstance(node, NodeRef):
                 node = NodeRef(node, index)
             return f(self, node)
 
         return _wrapper
 
-    def __repr__(self) -> str:
-        return (
-            f'NodeRef(name={self.name}, node={type(self.node).__name__},'
-            f' index={self.index})'
-        )
+
+##
 
 
 class ScopeBase(lang.Abstract):
     def __init__(self, compiler: HyASTCompiler) -> None:
         super().__init__()
 
-        self.parent: ScopeBase | None = None
-        self.compiler = compiler
-        self.children: list[ScopeBase] = []
+        self._compiler = compiler
+
+        self._parent: ScopeBase | None = None
+        self._children: list[ScopeBase] = []
+
+    @property
+    def parent(self) -> ScopeBase | None:
+        return self._parent
+
+    @property
+    def children(self) -> ta.Sequence[ScopeBase]:
+        return self._children
 
     def create(self, scope_type: type[ScopeT], *args: ta.Any) -> ScopeT:
         """Create new scope from this one."""
 
-        return scope_type(self.compiler, *args)
+        return scope_type(self._compiler, *args)
 
     def __enter__(self) -> ta.Self:
-        if self.compiler.scope is not self:
-            self.parent = self.compiler.scope
-            if self not in self.parent.children:
-                self.parent.children.append(self)
-        self.compiler.scope = self
+        if self._compiler.scope is not self:
+            parent = self._compiler.scope
+            self._parent = parent
+            if self not in parent._children:
+                parent._children.append(self)
+
+        self._compiler.scope = self
         return self
 
     def __exit__(self, *args: object) -> ta.Literal[False]:
-        if self.parent:
-            self.compiler.scope = self.parent
+        if self._parent is not None:
+            self._compiler.scope = self._parent
         return False
 
-    # Scope interface
     @abc.abstractmethod
     def access(self, node: ast.AST | NodeRef, index: int | None = None) -> ast.AST:
         """Called when a symbol is accessed."""
@@ -190,12 +230,12 @@ class ScopeBase(lang.Abstract):
 
     @abc.abstractmethod
     def define(self, name: str) -> None:
-        """Called when a symbol is defined. (e.g., function names, class names, imports)"""
+        """Called when a symbol is defined (e.g., function names, class names, imports)."""
 
         raise NotImplementedError
 
     @abc.abstractmethod
-    def define_nonlocal(self, node: ast.Global | ast.Nonlocal | OuterVar, root: str) -> None:
+    def define_nonlocal(self, node: NonlocalDecl, root: str) -> None:
         """Called when a symbol is declared nonlocal or global."""
 
         raise NotImplementedError
@@ -207,22 +247,26 @@ class ScopeGlobal(ScopeBase):
     def __init__(self, compiler: HyASTCompiler) -> None:
         super().__init__(compiler)
 
-        self.defined: set[str] = set()
-        #set: of all symbols created or assigned to in this scope
+        # All symbols created or assigned to in this scope.
+        self._defined: set[str] = set()
 
-        self.nonlocal_vars: list[str] = []
-        # list: of all `nonlocal`'s defined in this scope.
-        # Explicitly not a `set` so that we maintain the order they were defined in
+        # All `nonlocal`s declared in this scope - not a set, to keep the order they were declared in.
+        self._nonlocal_vars: list[str] = []
+
+    @property
+    def defined(self) -> ta.AbstractSet[str]:
+        return self._defined
 
     def __exit__(self, *args: object) -> ta.Literal[False]:
-        nonlocal_vars = self.nonlocal_vars
-        self.nonlocal_vars = []
-        if not self.defined.issuperset(nonlocal_vars):
+        nonlocal_vars = self._nonlocal_vars
+        self._nonlocal_vars = []
+        if not self._defined.issuperset(nonlocal_vars):
             raise SyntaxError(f"no binding for nonlocal '{nonlocal_vars[0]}'")
+
         return super().__exit__(*args)
 
     @NodeRef.wrap
-    def access(self, node: NodeRef, index: int | None = 0) -> ast.AST:
+    def access(self, node: NodeRef) -> ast.AST:
         return node.node
 
     @NodeRef.wrap
@@ -231,13 +275,13 @@ class ScopeGlobal(ScopeBase):
         return node.node
 
     def define(self, name: str) -> None:
-        self.defined.add(name)
+        self._defined.add(name)
 
-    def define_nonlocal(self, node: ast.Global | ast.Nonlocal | OuterVar, root: str) -> None:
+    def define_nonlocal(self, node: NonlocalDecl, root: str) -> None:
         if root == 'nonlocal':
-            self.nonlocal_vars.extend(node.names)
+            self._nonlocal_vars.extend(node.names)
         else:
-            self.defined.update(node.names)
+            self._defined.update(node.names)
 
 
 class ScopeLet(ScopeBase):
@@ -249,39 +293,48 @@ class ScopeLet(ScopeBase):
     def __init__(self, compiler: HyASTCompiler) -> None:
         super().__init__(compiler)
 
-        self.bindings: dict[str, str] = {}
+        self._bindings: dict[str, str] = {}
+
+    @property
+    def bindings(self) -> ta.Mapping[str, str]:
+        return self._bindings
 
     def _rename_if_bound(self, node: NodeRef) -> bool:
-        if node.name in self.bindings:
-            node.name = self.bindings[node.name]
+        if node.name in self._bindings:
+            node.rename(self._bindings[node.name])
             return True
+
         return False
 
     @NodeRef.wrap
     def access(self, node: NodeRef) -> ast.AST:
-        self._rename_if_bound(node) or check.not_none(self.parent).access(node)
+        if not self._rename_if_bound(node):
+            check.not_none(self._parent).access(node)
         return node.node
 
     @NodeRef.wrap
     def assign(self, node: NodeRef) -> ast.AST:
-        self._rename_if_bound(node) or check.not_none(self.parent).assign(node)
+        if not self._rename_if_bound(node):
+            check.not_none(self._parent).assign(node)
         return node.node
 
     def define(self, name: str) -> None:
-        self.bindings.pop(name, None)
-        check.not_none(self.parent).define(name)
+        self._bindings.pop(name, None)
+        check.not_none(self._parent).define(name)
 
-    def define_nonlocal(self, node: ast.Global | ast.Nonlocal | OuterVar, root: str) -> None:
-        # remove nonlocal defs of any let scopes in this Python scope
+    def define_nonlocal(self, node: NonlocalDecl, root: str) -> None:
+        # Remove nonlocal defs of any let scopes in this Python scope.
         cur: ScopeBase | None = self
         while isinstance(cur, ScopeLet):
-            for name in node.names:
+            # Iterate over a copy, as names are removed as we go.
+            for name in list(node.names):
                 if root == 'nonlocal':
-                    if name in cur.bindings and cur is not self:
+                    if name in cur._bindings and cur is not self:
                         node.names.remove(name)
                 else:
-                    cur.bindings[name] = name
+                    cur._bindings[name] = name
             cur = cur.parent
+
         check.not_none(cur).define_nonlocal(node, root)
 
     def add(self, target: str | Object, new_name: str | None = None) -> str | Object:
@@ -290,23 +343,29 @@ class ScopeLet(ScopeBase):
         if isinstance(target, (str, Symbol)):
             if '.' in target:
                 raise ValueError('binding target may not contain a dot')
+
             name = mangle(target)
             if new_name is None:
-                new_name = self.compiler.get_anon_var('let', name)
-            self.bindings[name] = new_name
+                new_name = self._compiler.get_anon_var('let', name)
+            self._bindings[name] = new_name
+
             if isinstance(target, Symbol):
                 return Symbol(new_name).replace(target)
             return new_name
+
         if new_name is not None:
             raise ValueError('cannot specify name for compound targets')
+
         if isinstance(target, (List, Tuple)):
-            return target.__class__(map(self.add, target)).replace(target)
+            return type(target)(map(self.add, target)).replace(target)
+
         if (
-            isinstance(target, Expression)
-            and target
-            and target[0] == Symbol('unpack-iterable')
+                isinstance(target, Expression) and
+                target and
+                target[0] == Symbol('unpack-iterable')
         ):
             return Expression([target[0], *map(self.add, target[1:])]).replace(target)
+
         raise ValueError(f'invalid binding target: {type(target)}')
 
 
@@ -316,38 +375,53 @@ class ScopeFn(ScopeBase):
     def __init__(self, compiler: HyASTCompiler, args: ast.arguments | None = None, is_async: bool = False) -> None:
         super().__init__(compiler)
 
-        self.defined: set[str] = set()
-        # set: of all vars defined in this scope
-        self.seen: list[NodeRef] = []
-        # list: of all vars accessedto in this scope
-        self.nonlocal_vars: dict[str, ast.Global | ast.Nonlocal | OuterVar] = {}
-        # set: of all `nonlocal`'s defined in this scope
-        self.is_fn = args is not None
-        # bool: `True` if this scope is being used to track a python function `False` for classes
-        self.is_async = is_async
-        # bool: `True` if this scope is for an async function, which may need special handling during compilation
-        self.has_yield = False
-        # bool: `True` if this scope is tracking a function that has `yield` statements, as generator functions may need
-        # special handling
+        self._defined: set[str] = set()
+        self._seen: list[NodeRef] = []
+        self._nonlocal_vars: dict[str, NonlocalDecl] = {}
 
-        if args:
-            for arg in itertools.chain(
-                args.args, args.posonlyargs, args.kwonlyargs, [args.vararg, args.kwarg],
-            ):
+        # False for class scopes.
+        self._is_fn = args is not None
+
+        # Async functions may need special handling during compilation.
+        self._is_async = is_async
+
+        # Set by the compilation of `yield`, as generator functions may also need special handling.
+        self.has_yield = False
+
+        if args is not None:
+            for arg in itertools.chain(args.args, args.posonlyargs, args.kwonlyargs, [args.vararg, args.kwarg]):
                 if arg:
                     self.define(arg.arg)
 
+    @property
+    def defined(self) -> ta.AbstractSet[str]:
+        return self._defined
+
+    @property
+    def nonlocal_vars(self) -> ta.Mapping[str, NonlocalDecl]:
+        return self._nonlocal_vars
+
+    @property
+    def is_fn(self) -> bool:
+        return self._is_fn
+
+    @property
+    def is_async(self) -> bool:
+        return self._is_async
+
     def __exit__(self, *args: object) -> ta.Literal[False]:
-        self.defined.difference_update(self.nonlocal_vars.keys())
-        for node in self.seen:
-            if node.name not in self.defined:
-                # pass unbound/nonlocal names up to parent scope
-                check.not_none(self.parent).access(node)
+        self._defined.difference_update(self._nonlocal_vars.keys())
+
+        for node in self._seen:
+            if node.name not in self._defined:
+                # Pass unbound and nonlocal names up to the parent scope.
+                check.not_none(self._parent).access(node)
+
         return super().__exit__(*args)
 
     @NodeRef.wrap
     def access(self, node: NodeRef) -> ast.AST:
-        self.seen.append(node)
+        self._seen.append(node)
         return node.node
 
     @NodeRef.wrap
@@ -357,21 +431,22 @@ class ScopeFn(ScopeBase):
         return node.node
 
     def define(self, name: str) -> None:
-        self.defined.add(name)
+        self._defined.add(name)
 
-    def define_nonlocal(self, node: ast.Global | ast.Nonlocal | OuterVar, root: str) -> None:
+    def define_nonlocal(self, node: NonlocalDecl, root: str) -> None:
         if root == 'nonlocal':
-            self.nonlocal_vars.update({name: node for name in node.names})
+            self._nonlocal_vars.update({name: node for name in node.names})
         else:
-            self.defined.update(node.names)
+            self._defined.update(node.names)
 
-        for n in self.seen:
+        for n in self._seen:
             if n.name in node.names:
                 raise SyntaxError(f"name '{n.name}' is declared {root} after being used")
+
         if root == 'nonlocal':
-            # toss all nonlocal names up to parent scope
+            # Pass all nonlocal names up to the parent scope.
             for i in range(len(node.names)):
-                check.not_none(self.parent).access(node, i)
+                check.not_none(self._parent).access(node, i)
 
 
 class ScopeGen(ScopeFn):
@@ -388,43 +463,50 @@ class ScopeGen(ScopeFn):
     def __init__(self, compiler: HyASTCompiler) -> None:
         super().__init__(compiler)
 
-        self.iterators: set[str] = set()
-        self.assignments: list[NodeRef] = []
-        self.exposing_assignments = False
+        self._iterators: set[str] = set()
+        self._assignments: list[NodeRef] = []
+        self._exposing_assignments = False
+
+    @property
+    def exposing_assignments(self) -> bool:
+        return self._exposing_assignments
 
     def __enter__(self) -> ta.Self:
         super().__enter__()
-        enclosing = nearest_python_scope(self.parent)
+
+        # Only "leak out" assignments if we're contained in a function (or global) scope.
+        enclosing = nearest_python_scope(self._parent)
         if isinstance(enclosing, ScopeGlobal) or is_function_scope(enclosing):
-            # only "leak out" assignments if we're contained in a function (or global) scope
-            self.exposing_assignments = True
+            self._exposing_assignments = True
+
         return self
 
     def finalize(self) -> list[str]:
         """
         Access and return all the identifiers created and potentially leaked out by this generator. This should be
         called once and only once we've processed all of the iterators in this generators so as not to leak out any
-        unwanted identifiers
+        unwanted identifiers.
         """
 
-        res = set()
-        for node in self.assignments:
-            if node.name not in self.nonlocal_vars:
-                check.not_none(self.parent).access(node)
+        res: set[str] = set()
+        for node in self._assignments:
+            if node.name not in self._nonlocal_vars:
+                check.not_none(self._parent).access(node)
                 res.add(node.name)
+
         return sorted(res)
 
     @NodeRef.wrap
     def assign(self, node: NodeRef) -> ast.AST:
         self.access(node)
-        if node.name not in self.defined:
-            self.assignments.append(node)
+        if node.name not in self._defined:
+            self._assignments.append(node)
         return node.node
 
     @NodeRef.wrap
     def access(self, node: NodeRef) -> ast.AST:
-        if node.name not in self.iterators:
-            self.seen.append(node)
+        if node.name not in self._iterators:
+            self._seen.append(node)
         return node.node
 
     def iterator(self, target: ast.AST) -> None:
@@ -432,11 +514,8 @@ class ScopeGen(ScopeFn):
         Declare an iteration variable name for this scope; as in Python, the iteration variable(s) cannot be reassigned.
         """
 
-        self.iterators.update(
-            name.id for name in ast.walk(target) if isinstance(name, ast.Name)
-        )
-        # remove potentially leakable identifiers that were actually iteration variables found in `target`
-        self.assignments = [
-            node for node in self.assignments if node.name not in self.iterators
-        ]
-        self.seen = [node for node in self.seen if node.name not in self.iterators]
+        self._iterators.update(name.id for name in ast.walk(target) if isinstance(name, ast.Name))
+
+        # Remove potentially leakable identifiers that were actually iteration variables found in `target`.
+        self._assignments = [node for node in self._assignments if node.name not in self._iterators]
+        self._seen = [node for node in self._seen if node.name not in self._iterators]

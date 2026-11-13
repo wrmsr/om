@@ -1,6 +1,6 @@
 import sys
 
-from .cmdline import hy_main
+from .cli import hy_main
 
 
 ##

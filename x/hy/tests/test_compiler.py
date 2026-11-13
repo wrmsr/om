@@ -4,16 +4,20 @@ import typing as ta
 
 import pytest
 
-from ... import compiler
-from ...compiler import hy_compile
-from ...errors import HyEvalError
-from ...errors import HyTypeError
-from ...globalruntime import get_global_runtime
-from ...models import Expression
-from ...models import Integer
-from ...models import List
-from ...models import Symbol
-from ...reader import read_many
+from .. import compiler
+from ..compiler import hy_compile
+from ..errors import HyEvalError
+from ..errors import HyTypeError
+from ..globalruntime import get_global_runtime
+from ..models import Expression
+from ..models import Integer
+from ..models import List
+from ..models import Symbol
+from ..reader import read_many
+from .helpers import PACKAGE
+
+
+##
 
 
 RT = get_global_runtime()
@@ -108,10 +112,10 @@ def test_relocated_runtime_binding():
     module = types.ModuleType('hy_runtime_binding_test')
     tree = hy_compile(read_many("(setv model 'hello)"), module, preamble=True, runtime=RT)
     source = ast.unparse(tree)
-    assert f'from {hy.__package__}.autoinstall import hy' in source
+    assert f'from {PACKAGE}.autoinstall import hy' in source
     assert 'import typing as ta' in source
     assert 'hy.models.Symbol' in source
-    assert f'{hy.__package__}.models' not in source
+    assert f'{PACKAGE}.models' not in source
 
     namespace: dict[str, ta.Any] = {}
     exec(compile(tree, '<test>', 'exec'), namespace)
@@ -137,3 +141,18 @@ def test_compile_time_error_source():
     assert excinfo.value.filename == 'compile-time.hy'
     assert excinfo.value.text == source
     assert isinstance(excinfo.value.__cause__, ZeroDivisionError)
+
+
+def test_let_nonlocal_of_several_outer_let_bindings():
+    # Every name bound by an enclosing `let` of the same Python scope is dropped from a `nonlocal` - not just every
+    # other one.
+    py = hy2py("""
+        (defn g []
+          (setv a 0 b 0)
+          (defn f []
+            (let [a 1 b 2]
+              (let [c 3]
+                (nonlocal a b)
+                [a b c]))))
+    """)
+    assert 'nonlocal' not in py

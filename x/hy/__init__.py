@@ -37,7 +37,7 @@ from .reader import read  # noqa
 from .reader import read_many  # noqa
 from .reader import unmangle  # noqa
 from .reader.exceptions import PrematureEndOfInput  # noqa
-from .reader.hy_reader import HyReader  # noqa
+from .reader.hyreader import HyReader  # noqa
 from .reader.reader import Reader  # noqa
 from .runtime import DEFAULT_HY_PRELUDE  # noqa
 from .runtime import HyCoreCodeCache  # noqa

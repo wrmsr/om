@@ -1,8 +1,4 @@
-"""
-Check that positioning attributes for AST nodes (which Python
-ultimately uses for tracebacks) are set correctly.
-"""
-
+"""Check that positioning attributes for AST nodes (which Python ultimately uses for tracebacks) are set correctly."""
 import ast
 
 from .. import read_many
@@ -10,11 +6,13 @@ from ..compiler import hy_compile
 from ..runtime import HyRuntime
 
 
+##
+
+
 def cpl(string):
     """
-    Compile the Hy `string` and get its final body element. A
-    newline is prepended so that line 1 is guaranteed to be the wrong
-    position for generated nodes.
+    Compile the Hy `string` and get its final body element. A newline is prepended so that line 1 is guaranteed to be
+    the wrong position for generated nodes.
     """
 
     rt = HyRuntime()

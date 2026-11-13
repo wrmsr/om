@@ -15,31 +15,21 @@
 import typing as ta
 
 
-_A = ta.TypeVar('_A')
+T = ta.TypeVar('T')
 
 
 ##
 
 
 def pretty_tree(
-        x: _A,
-        kids: ta.Callable[[_A], ta.Sequence[_A]],
-        show: ta.Callable[[_A], str],
+        x: T,
+        kids: ta.Callable[[T], ta.Sequence[T]],
+        show: ta.Callable[[T], str],
 ) -> str:
     """
-    Return a pseudo-graphic tree representation of the object `x` similar to the `tree` command in Unix.
+    Return a pseudo-graphic tree representation of the object `x`, similar to the output of the Unix `tree` command.
+    The text of each object is given by `show`, and its children by `kids`.
 
-    Type: `(T, Callable[[T], List[T]], Callable[[T], str]) -> str`
-
-    It applies the parameter `show` (which is a function of type `(T) -> str`) to get a textual representation of the
-    objects to show.
-
-    It applies the parameter `kids` (which is a function of type `(T) -> List[T]`) to list the children of the object to
-    show.
-
-    Examples:
-
-    ```pycon
     >>> print(pretty_tree(
     ...     ["foo", ["bar", "baz"], "quux"],
     ...     lambda obj: obj if isinstance(obj, list) else [],
@@ -51,26 +41,26 @@ def pretty_tree(
     |   |-- bar
     |   `-- baz
     `-- quux
-
-    ```
     """
 
-    (mid, end, continuation, last, root) = ('|-- ', '`-- ', '|   ', '    ', '')
+    mid, end, continuation, last, root = '|-- ', '`-- ', '|   ', '    ', ''
 
-    def rec(obj: _A, indent: str, sym: str) -> str:
+    def rec(obj: T, indent: str, sym: str) -> str:
         line = indent + sym + show(obj)
+
         obj_kids = kids(obj)
         if len(obj_kids) == 0:
             return line
+
+        if sym == mid:
+            next_indent = indent + continuation
+        elif sym == root:
+            next_indent = indent + root
         else:
-            if sym == mid:
-                next_indent = indent + continuation
-            elif sym == root:
-                next_indent = indent + root
-            else:
-                next_indent = indent + last
-            chars = [mid] * (len(obj_kids) - 1) + [end]
-            lines = [rec(kid, next_indent, sym) for kid, sym in zip(obj_kids, chars)]
-            return '\n'.join([line, *lines])
+            next_indent = indent + last
+
+        kid_syms = [mid] * (len(obj_kids) - 1) + [end]
+        lines = [rec(kid, next_indent, kid_sym) for kid, kid_sym in zip(obj_kids, kid_syms)]
+        return '\n'.join([line, *lines])
 
     return rec(x, '', root)

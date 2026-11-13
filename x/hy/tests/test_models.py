@@ -5,7 +5,6 @@ import typing as ta
 import pytest
 
 from ..errors import HyWrapperError
-from ..globalruntime import get_global_runtime
 from ..models import Complex
 from ..models import Dict
 from ..models import Expression
@@ -22,10 +21,14 @@ from ..models import Tuple
 from ..models import as_model
 from ..models import pretty
 from ..models import replace_hy_obj
+from .helpers import global_hy
 
 
-RT = get_global_runtime()
-hy = RT.hy
+##
+
+
+# Model reprs refer to `hy.models`, so evaluating them needs a `hy`.
+hy = global_hy()
 
 
 def test_symbol_or_keyword():
@@ -134,7 +137,7 @@ def test_equality():
     # https://github.com/hylang/hy/issues/1363
 
     assert String('foo') == String('foo')
-    assert String('foo') == hy.as_model('foo')
+    assert String('foo') == as_model('foo')
     assert String('foo') != String('fo')
     assert String('foo') != 'foo'
     assert 'foo' != String('foo')
@@ -145,14 +148,14 @@ def test_equality():
     assert Symbol('foo') != 'foo'
 
     assert Integer(5) == Integer(5)
-    assert Integer(5) == hy.as_model(5)
+    assert Integer(5) == as_model(5)
     assert Integer(5) != Integer(6)
     assert Integer(5) != 5
     assert 5 != Integer(5)
 
     l = [Integer(1), Integer(2)]
     assert List(l) == List(l)
-    assert List(l) == hy.as_model(l)
+    assert List(l) == as_model(l)
     assert List(l) != List(list(reversed(l)))
     assert List(l) != List([Integer(1), Integer(3)])
     assert List(l) != l

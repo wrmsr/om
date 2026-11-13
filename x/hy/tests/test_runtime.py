@@ -1,4 +1,5 @@
 # ruff: noqa: SLF001
+import ast
 import builtins
 import functools
 import inspect
@@ -26,8 +27,11 @@ from ..models import Symbol
 from ..runtime import HyCoreCodeCache
 from ..runtime import HyPreludeImport
 from ..runtime import HyRuntime
-from .test_bin import REPO_PYTHON
-from .test_bin import REPO_ROOT
+from .helpers import REPO_PYTHON
+from .helpers import REPO_ROOT
+
+
+##
 
 
 def mapping_runtime(sources, **kwargs):
@@ -35,9 +39,6 @@ def mapping_runtime(sources, **kwargs):
         modules=functools.partial(IsolatedHyModules, finders=[MappingHyModuleFinder(sources)]),
         **kwargs,
     )
-
-
-##
 
 
 def test_eval_exec_compile():
@@ -59,7 +60,7 @@ def test_eval_exec_compile():
     assert rt.eval('(+ a b)', globals={'a': 1}, locals={'b': 2}) == 3
 
     src = rt.compile("(setv x 'foo)")
-    assert not any(isinstance(s, (__import__('ast').Import, __import__('ast').ImportFrom)) for s in src.body)
+    assert not any(isinstance(s, (ast.Import, ast.ImportFrom)) for s in src.body)
 
 
 def test_runtime_hy_namespace():
@@ -94,14 +95,11 @@ def test_prelude():
     rt = HyRuntime(prelude=[HyPreludeImport('ta', 'typing'), HyPreludeImport('os_', 'os')])
     assert rt.eval('os_') is os
     stmts = rt.preamble_statements()
-    assert [__import__('ast').unparse(s) for s in stmts] == ['import typing as ta', 'import os as os_']
+    assert [ast.unparse(s) for s in stmts] == ['import typing as ta', 'import os as os_']
 
     rt = HyRuntime(prelude=[])
     with pytest.raises(NameError):
         rt.eval('ta')
-
-
-##
 
 
 def _global_state():
@@ -118,23 +116,24 @@ def test_runtime_touches_no_global_state():
     # Run in a fresh interpreter, so the state isn't affected by the global runtime installed for the other tests.
     pkg = __package__.rpartition('.')[0]
     source = textwrap.dedent(f"""
-        import builtins, codeop, inspect, sys
-        before = (dict(builtins.__dict__), list(sys.path_hooks), list(sys.meta_path), inspect.getsource, dict(vars(codeop)))
+        import ast, builtins, codeop, inspect, sys
+        before = (dict(builtins.__dict__), list(sys.path_hooks), list(sys.meta_path), inspect.getsource, dict(vars(codeop)), ast.unparse)
         import {pkg} as hy
         rt = hy.HyRuntime()
         m = rt.exec('(import json) (defn f [#^ta.Sequence[int] xs] (hy.repr (sum xs)))')
         assert m.f([1, 2]) == '3'
         assert rt.eval('(hy.pyops.+ 1 2)') == 3
         rt.hy.REPL()
-        after = (dict(builtins.__dict__), list(sys.path_hooks), list(sys.meta_path), inspect.getsource, dict(vars(codeop)))
+        after = (dict(builtins.__dict__), list(sys.path_hooks), list(sys.meta_path), inspect.getsource, dict(vars(codeop)), ast.unparse)
         assert before == after
         assert not [n for n in sys.modules if n == 'hy' or n.startswith('hy.')]
-        assert not [n for n in sys.modules if n.startswith('{pkg}.') and n.endswith(('.pyops', '.core.util', '.core.hy_repr', '.core.macros'))]
+        assert not [n for n in sys.modules if n.startswith('{pkg}.') and n.endswith(('.pyops', '.core.util', '.core.reprs', '.core.macros'))]
         assert not hasattr(builtins, '_hy_macros')
     """)  # noqa
     result = subprocess.run(
         [REPO_PYTHON, '-c', source],
         env={**os.environ, 'PYTHONPATH': REPO_ROOT},
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         check=False,
         text=True,
@@ -201,9 +200,6 @@ def test_threads():
         t.join()
 
     assert sorted(results) == [str(i) for i in range(8)]
-
-
-##
 
 
 def test_mapping_finder_imports():
@@ -314,9 +310,6 @@ def test_hy_eval_finds_calling_module():
     with pytest.raises(TypeError):
         ns['g'](rt.hy)
     assert rt.hy.eval(rt.hy.read('(+ 1 1)'), module=rt.new_module()) == 2
-
-
-##
 
 
 def test_global_runtime():

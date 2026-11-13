@@ -1,14 +1,18 @@
 import ast
-from textwrap import dedent
+import textwrap
 
 import pytest
 
-from ...compiler import hy_compile
-from ...errors import HyError
-from ...errors import HyLanguageError
-from ...globalruntime import get_global_runtime
-from ...reader import read_many
-from ...reader.exceptions import LexException
+from ..compiler import hy_compile
+from ..errors import HyError
+from ..errors import HyLanguageError
+from ..globalruntime import get_global_runtime
+from ..reader import read_many
+from ..reader.exceptions import LexException
+from .helpers import PACKAGE
+
+
+##
 
 
 RT = get_global_runtime()
@@ -239,14 +243,14 @@ def test_ast_good_import_from():
 
 
 def test_ast_require():
-    can_compile(f'(require {hy.__package__}.tests.resources.tlib)')
-    can_compile(f'(require {hy.__package__}.tests.resources.tlib [qplah parald])')
-    can_compile(f'(require {hy.__package__}.tests.resources.tlib *)')
-    can_compile(f'(require {hy.__package__}.tests.resources.tlib :as foobar)')
-    can_compile(f'(require {hy.__package__}.tests.resources.tlib [qplah :as quiz])')
-    can_compile(f'(require {hy.__package__}.tests.resources.tlib [qplah :as quiz parald])')
-    cant_compile(f'(require [{hy.__package__}.tests.resources.tlib])')
-    cant_compile(f'(require {hy.__package__}.tests.resources.tlib [#taggart]')
+    can_compile(f'(require {PACKAGE}.tests.resources.tlib)')
+    can_compile(f'(require {PACKAGE}.tests.resources.tlib [qplah parald])')
+    can_compile(f'(require {PACKAGE}.tests.resources.tlib *)')
+    can_compile(f'(require {PACKAGE}.tests.resources.tlib :as foobar)')
+    can_compile(f'(require {PACKAGE}.tests.resources.tlib [qplah :as quiz])')
+    can_compile(f'(require {PACKAGE}.tests.resources.tlib [qplah :as quiz parald])')
+    cant_compile(f'(require [{PACKAGE}.tests.resources.tlib])')
+    cant_compile(f'(require {PACKAGE}.tests.resources.tlib [#taggart]')
 
 
 def test_ast_import_require_dotted():
@@ -263,8 +267,8 @@ def test_ast_multi_require():
     # https://github.com/hylang/hy/issues/1903
     x = can_compile(
         f"""(require
-      {hy.__package__}.tests.resources.tlib [qplah]
-      {hy.__package__}.tests.resources.macros [test-macro])""",
+      {PACKAGE}.tests.resources.tlib [qplah]
+      {PACKAGE}.tests.resources.macros [test-macro])""",
     )
     assert sum(1 for stmt in x.body if isinstance(stmt, ast.Expr)) == 2
     dump = ast.dump(x)
@@ -630,7 +634,7 @@ def test_py():
 def test_pys():
     def pys(x): assert (
         ast.dump(can_compile(f'(pys "{x}")')) ==
-        ast.dump(ast.parse(dedent(x))))
+        ast.dump(ast.parse(textwrap.dedent(x))))
 
     pys('')
     pys('1 + 1')
@@ -669,7 +673,7 @@ def test_module_prelude():
         assert [(a.name, a.asname) for a in x[0].names] == [('typing', 'ta')]
 
         assert isinstance(x[1], ast.ImportFrom)
-        assert x[1].module == f'{hy.__package__}.autoinstall'
+        assert x[1].module == f'{PACKAGE}.autoinstall'
         assert x[1].level == 0
         assert [(a.name, a.asname) for a in x[1].names] == [('hy', None)]
 

@@ -12,6 +12,20 @@ MANGLE_DELIM = 'X'
 
 normalizes_to_underscore = '_︳︴﹍﹎﹏＿'
 
+_UNMANGLE_UNDERSCORES_PAT = re.compile(r'(_+)(.*?)(_*)', re.DOTALL)
+_UNMANGLE_CHAR_PAT = re.compile(f'{MANGLE_DELIM}(U)?([_a-z0-9H]+?){MANGLE_DELIM}')
+
+
+def _mangle_char(c: str) -> str:
+    """Replace an illegal identifier character with its Unicode character name, or its hex code if it has no name."""
+
+    # The 'S' is prepended because some characters aren't allowed at the start of an identifier.
+    if c != MANGLE_DELIM and ('S' + c).isidentifier():
+        return c
+
+    name = unicodedata.name(c, '').lower().replace('-', 'H').replace(' ', '_') or f'U{ord(c):x}'
+    return f'{MANGLE_DELIM}{name}{MANGLE_DELIM}'
+
 
 def mangle(s: object) -> str:
     """
@@ -40,29 +54,19 @@ def mangle(s: object) -> str:
     if '.' in s and s.strip('.'):
         return '.'.join(mangle(x) if x else '' for x in s.split('.'))
 
-    # Remove and save leading underscores
+    # Remove leading underscores, to be added back at the end.
     s2 = s.lstrip(normalizes_to_underscore)
     leading_underscores = '_' * (len(s) - len(s2))
     s = s2
 
-    # Convert hyphens without introducing a new leading underscore
-    s = s[0] + s[1:].replace('-', '_') if s else s
+    # Convert hyphens without introducing a new leading underscore.
+    if s:
+        s = s[0] + s[1:].replace('-', '_')
 
-    # Convert invalid characters or reserved words
+    # Convert invalid characters or reserved words.
     if not (leading_underscores + s).isidentifier():
-        # Replace illegal characters with their Unicode character names, or hexadecimal if they don't have one.
-        s = 'hyx_' + ''.join(
-            c if c != MANGLE_DELIM and ('S' + c).isidentifier()
-            # We prepend the "S" because some characters aren't allowed at the start of an identifier.
-            else '{0}{1}{0}'.format(
-                MANGLE_DELIM,
-                unicodedata.name(c, '').lower().replace('-', 'H').replace(' ', '_')
-                or f'U{ord(c):x}',
-            )
-            for c in s
-        )
+        s = 'hyx_' + ''.join(map(_mangle_char, s))
 
-    # Step 5: Add back leading underscores
     s = leading_underscores + s
 
     # Normalize Unicode per PEP 3131.
@@ -70,6 +74,13 @@ def mangle(s: object) -> str:
 
     check.state(s.isidentifier())
     return s
+
+
+def _unmangle_char(m: re.Match[str]) -> str:
+    if m.group(1):
+        return chr(int(m.group(2), base=16))
+
+    return unicodedata.lookup(m.group(2).replace('_', ' ').replace('H', '-').upper())
 
 
 def unmangle(s: object) -> str:
@@ -91,29 +102,22 @@ def unmangle(s: object) -> str:
 
     prefix = ''
     suffix = ''
-    m = re.fullmatch(r'(_+)(.*?)(_*)', s, re.DOTALL)
-    if m:
+    if (m := _UNMANGLE_UNDERSCORES_PAT.fullmatch(s)) is not None:
         prefix, s, suffix = m.groups()
 
     if s.startswith('hyx_'):
-        s = re.sub(
-            f'{MANGLE_DELIM}(U)?([_a-z0-9H]+?){MANGLE_DELIM}',
-            lambda mo: chr(int(mo.group(2), base=16))
-            if mo.group(1)
-            else unicodedata.lookup(
-                mo.group(2).replace('_', ' ').replace('H', '-').upper(),
-            ),
-            s[len('hyx_'):],
-        )
+        s = _UNMANGLE_CHAR_PAT.sub(_unmangle_char, s[len('hyx_'):])
+
     s = s.replace('_', '-')
 
     return prefix + s + suffix
 
 
 def slashes2dots(s: object) -> str:
-    """"Interpret forward slashes as a substitute for periods."""
+    """Interpret forward slashes as a substitute for periods."""
 
     return mangle(re.sub(
         r'/(-*)',
         lambda m: '.' + '_' * len(m.group(1)),
-        unmangle(s)))
+        unmangle(s),
+    ))

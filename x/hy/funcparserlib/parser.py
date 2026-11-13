@@ -22,478 +22,59 @@ cover the whole grammar you want to parse.
 
 The structure of the language:
 
-* Class `Parser`
-    * All the primitives and combinators of the language return `Parser` objects
-    * It defines the main `Parser.parse(tokens)` method
-* Primitive parsers
-    * `tok(type, value)`, `a(value)`, `some(pred)`, `forward_decl()`, `finished`
-* Parser combinators
-    * `p1 + p2`, `p1 | p2`, `p >> f`, `-p`, `maybe(p)`, `many(p)`, `oneplus(p)`, `skip(p)`
-* Abstraction
-    * Use regular Python variables `p = ...  # Expression of type Parser` to define new rules (non-terminals) of your
-      grammar
+- The `Parser` class: all the primitives and combinators of the language return `Parser` objects, and it defines the
+  main `Parser.parse(tokens)` method.
+- Primitive parsers: `tok(type, value)`, `a(value)`, `some(pred)`, `forward_decl()`, `finished`.
+- Parser combinators: `p1 + p2`, `p1 | p2`, `p >> f`, `-p`, `maybe(p)`, `many(p)`, `oneplus(p)`, `skip(p)`.
+- Abstraction: regular Python variables (`p = ...`, of type `Parser`) define new rules (non-terminals) of your grammar.
 
 Every time you apply one of the combinators, you get a new `Parser` object. In other words, the set of `Parser` objects
 is closed under the means of combination.
 
-!!! Note
-
-    We took the parsing combinators language from the book [Introduction to Functional Programming][1] and translated it
-    from ML into Python.
-
-  [1]: https://www.cl.cam.ac.uk/teaching/Lectures/funprog-jrh-1996/
+The parsing combinators language is taken from the book Introduction to Functional Programming
+(https://www.cl.cam.ac.uk/teaching/Lectures/funprog-jrh-1996/), translated from ML into Python.
 """
 import logging
 import typing as ta
-import warnings
+
+from omcore import dataclasses as dc
 
 from .lexer import Token
 
-
-log = logging.getLogger('funcparserlib')
-
-debug = False
 
 _A = ta.TypeVar('_A')
 _B = ta.TypeVar('_B')
 _C = ta.TypeVar('_C')
 
+# The function implementing a parser: given the full token sequence and the current state, returns the parsed value and
+# the new state, or raises `NoParseError`.
+ParserFn: ta.TypeAlias = ta.Callable[[ta.Sequence[_A], 'State'], tuple[_B, 'State']]
+
 
 ##
 
 
-class Parser(ta.Generic[_A, _B]):
-    """
-    A parser object that can parse a sequence of tokens or can be combined with other parsers using `+`, `|`, `>>`,
-    `many()`, and other parsing combinators.
+log = logging.getLogger(__name__)
 
-    Type: `Parser[A, B]`
+# Set to True (in source) to enable the debug-level parsing log, at the cost of a layer of indirection on every parse
+# step.
+_DEBUG: ta.Final[bool] = False
 
-    The generic variables in the type are: `A` — the type of the tokens in the sequence to parse,`B` — the type of the
-    parsed value.
 
-    In order to define a parser for your grammar:
+##
 
-    1. You start with primitive parsers by calling `a(value)`, `some(pred)`, `forward_decl()`, `finished`
-    2. You use parsing combinators `p1 + p2`, `p1 | p2`, `p >> f`, `many(p)`, and others to combine parsers into a more
-       complex parser
-    3. You can assign complex parsers to variables to define names that correspond to the rules of your grammar
 
-    !!! Note
-
-        The constructor `Parser.__init__()` is considered **internal** and may be changed in future versions. Use
-        primitive parsers and parsing combinators to construct new parsers.
-    """
-
-    def __init__(
-            self,
-            p: Parser[_A, _B] | ta.Callable[[ta.Sequence[_A], State], tuple[_B, State]],
-    ) -> None:
-        """Wrap the parser function `p` into a `Parser` object."""
-
-        super().__init__()
-
-        self.name = ''
-        self.define(p)
-
-    def named(self, name: str) -> Parser[_A, _B]:
-        """
-        Specify the name of the parser for easier debugging.
-
-        Type: `(str) -> Parser[A, B]`
-
-        This name is used in the debug-level parsing log. You can also get it via the `Parser.name` attribute.
-
-        Examples:
-
-        ```pycon
-        >>> expr = (a("x") + a("y")).named("expr")
-        >>> expr.name
-        'expr'
-
-        ```
-
-        ```pycon
-        >>> expr = a("x") + a("y")
-        >>> expr.name
-        "('x', 'y')"
-
-        ```
-
-        !!! Note
-
-            You can enable the parsing log this way:
-
-            ```python
-            import logging
-            logging.basicConfig(level=logging.DEBUG)
-            import funcparserlib.parser
-            funcparserlib.parser.debug = True
-            ```
-
-            The way to enable the parsing log may be changed in future versions.
-        """
-
-        self.name = name
-        return self
-
-    def define(
-            self,
-            p: Parser[_A, _B] | ta.Callable[[ta.Sequence[_A], State], tuple[_B, State]],
-    ) -> None:
-        """
-        Define the parser created earlier as a forward declaration.
-
-        Type: `(Parser[A, B]) -> None`
-
-        Use `p = forward_decl()` in combination with `p.define(...)` to define recursive parsers.
-
-        See the examples in the docs for `forward_decl()`.
-        """
-
-        f = getattr(p, 'run', p)
-        if debug:
-            setattr(self, '_run', f)
-        else:
-            setattr(self, 'run', f)
-        name = getattr(p, 'name', p.__doc__)
-        if name is not None:
-            self.named(name)
-
-    def run(self, tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
-        """
-        Run the parser against the tokens with the specified parsing state.
-
-        Type: `(Sequence[A], State) -> tuple[B, State]`
-
-        The parsing state includes the current position in the sequence being parsed, and the position of the rightmost
-        token that has been consumed while parsing for better error messages.
-
-        If the parser fails to parse the tokens, it raises `NoParseError`.
-
-        !!! Warning
-
-            This is method is **internal** and may be changed in future versions. Use `Parser.parse(tokens)` instead and
-            let the parser object take care of updating the parsing state.
-        """
-
-        if debug:
-            log.debug('trying %s', self.name)
-        return self._run(tokens, s)
-
-    def _run(self, tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
-        raise NotImplementedError('you must define() a parser')
-
-    def parse(self, tokens: ta.Sequence[_A]) -> _B:
-        """
-        Parse the sequence of tokens and return the parsed value.
-
-        Type: `(Sequence[A]) -> B`
-
-        It takes a sequence of tokens of arbitrary type `A` and returns the parsed value of arbitrary type `B`.
-
-        If the parser fails to parse the tokens, it raises `NoParseError`.
-
-        !!! Note
-
-            Although `Parser.parse()` can parse sequences of any objects (including `str` which is a sequence of `str`
-            chars), **the recommended way** is parsing sequences of `Token` objects.
-
-            You **should** use a regexp-based tokenizer `make_tokenizer()` defined in `funcparserlib.lexer` to convert
-            your text into a sequence of `Token` objects before parsing it. You will get more readable parsing error
-            messages (as `Token` objects contain their position in the source file) and good separation of the lexical
-            and syntactic levels of the grammar.
-        """
-
-        try:
-            (tree, _) = self.run(tokens, State(0, 0, None))
-            return tree
-        except NoParseError as e:
-            max_pos = e.state.max
-            if len(tokens) > max_pos:
-                t = tokens[max_pos]
-                if isinstance(t, Token):
-                    if t.start is None or t.end is None:
-                        loc = ''
-                    else:
-                        s_line, s_pos = t.start
-                        e_line, e_pos = t.end
-                        loc = f'{s_line},{s_pos}-{e_line},{e_pos}: '
-                    msg = f'{loc}{e.msg}: {t.value!r}'
-                elif isinstance(t, str):
-                    msg = f'{e.msg}: {t!r}'
-                else:
-                    msg = f'{e.msg}: {t}'
-            else:
-                msg = 'got unexpected end of input'
-            e_parser = e.state.parser
-            if isinstance(e_parser, Parser):
-                msg = f'{msg}, expected: {e_parser.name}'
-            e.msg = msg
-            raise
-
-    @ta.overload
-    def __add__(  # type: ignore[overload-overlap]
-            self,
-            other: _IgnoredParser[_A],
-    ) -> Parser[_A, _B]:
-        pass
-
-    @ta.overload
-    def __add__(self, other: Parser[_A, _C]) -> _TupleParser[_A, tuple[_B, _C]]:
-        pass
-
-    def __add__(
-            self,
-            other: _IgnoredParser[_A] | Parser[_A, _C],
-    ) -> Parser[_A, _B] | _TupleParser[_A, tuple[_B, _C]]:
-        """
-        Sequential combination of parsers. It runs this parser, then the other parser.
-
-        The return value of the resulting parser is a tuple of each parsed value in the sum of parsers. We merge all
-        parsing results of `p1 + p2 + ... + pN` into a single tuple. It means that the parsing result may be a 2-tuple,
-        a 3-tuple, a 4-tuple, etc. of parsed values. You avoid this by transforming the parsed pair into a new value
-        using the `>>` combinator.
-
-        You can also skip some parsing results in the resulting parsers by using `-p` or `skip(p)` for some parsers in
-        your sum of parsers. It means that the parsing result might be a single value, not a tuple of parsed values. See
-        the docs for `Parser.__neg__()` for more examples.
-
-        Overloaded types (lots of them to provide stricter checking for the quite dynamic return type of this method):
-
-        * `(self: Parser[A, B], _IgnoredParser[A]) -> Parser[A, B]`
-        * `(self: Parser[A, B], Parser[A, C]) -> _TupleParser[A, tuple[B, C]]`
-        * `(self: _TupleParser[A, B], _IgnoredParser[A]) -> _TupleParser[A, B]`
-        * `(self: _TupleParser[A, B], Parser[A, Any]) -> Parser[A, Any]`
-        * `(self: _IgnoredParser[A], _IgnoredParser[A]) -> _IgnoredParser[A]`
-        * `(self: _IgnoredParser[A], Parser[A, C]) -> Parser[A, C]`
-
-        Examples:
-
-        ```pycon
-        >>> expr = a("x") + a("y")
-        >>> expr.parse("xy")
-        ('x', 'y')
-
-        ```
-
-        ```pycon
-        >>> expr = a("x") + a("y") + a("z")
-        >>> expr.parse("xyz")
-        ('x', 'y', 'z')
-
-        ```
-
-        ```pycon
-        >>> expr = a("x") + a("y")
-        >>> expr.parse("xz")
-        Traceback (most recent call last):
-            ...
-        parser.NoParseError: got unexpected token: 'z', expected: 'y'
-
-        ```
-        """
-
-        def magic(v1: ta.Any, v2: ta.Any) -> _Tuple:
-            if isinstance(v1, _Tuple):
-                return _Tuple((*v1, v2))
-            else:
-                return _Tuple((v1, v2))
-
-        @_TupleParser
-        def _add(tokens: ta.Sequence[_A], s: State) -> tuple[tuple[_B, _C], State]:
-            (v1, s2) = self.run(tokens, s)
-            (v2, s3) = other.run(tokens, s2)
-            return ta.cast('tuple[_B, _C]', magic(v1, v2)), s3
-
-        @Parser
-        def ignored_right(tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
-            v, s2 = self.run(tokens, s)
-            _, s3 = other.run(tokens, s2)
-            return v, s3
-
-        name = f'({self.name}, {other.name})'
-        if isinstance(other, _IgnoredParser):
-            return ignored_right.named(name)
-        else:
-            _add.name = name
-            return _add
-
-    def __or__(self, other: Parser[_A, _C]) -> Parser[_A, _B | _C]:
-        """
-        Choice combination of parsers.
-
-        It runs this parser and returns its result. If the parser fails, it runs the other parser.
-
-        Examples:
-
-        ```pycon
-        >>> expr = a("x") | a("y")
-        >>> expr.parse("x")
-        'x'
-        >>> expr.parse("y")
-        'y'
-        >>> expr.parse("z")
-        Traceback (most recent call last):
-            ...
-        parser.NoParseError: got unexpected token: 'z', expected: 'x' or 'y'
-
-        ```
-        """
-
-        @Parser
-        def _or(tokens: ta.Sequence[_A], s: State) -> tuple[_B | _C, State]:
-            try:
-                return self.run(tokens, s)
-            except NoParseError as e:
-                state = e.state
-            try:
-                return other.run(tokens, State(s.pos, state.max, state.parser))
-            except NoParseError as e:
-                if s.pos == e.state.max:
-                    e.state = State(e.state.pos, e.state.max, _or)
-                raise
-
-        _or.name = f'{self.name} or {other.name}'
-        return _or
-
-    def __rshift__(self, f: ta.Callable[[_B], _C]) -> Parser[_A, _C]:
-        """
-        Transform the parsing result by applying the specified function.
-
-        Type: `(Callable[[B], C]) -> Parser[A, C]`
-
-        You can use it for transforming the parsed value into another value before including it into the parse tree (the
-        AST).
-
-        Examples:
-
-        ```pycon
-        >>> def make_canonical_name(s):
-        ...     return s.lower()
-        >>> expr = (a("D") | a("d")) >> make_canonical_name
-        >>> expr.parse("D")
-        'd'
-        >>> expr.parse("d")
-        'd'
-
-        ```
-        """
-
-        @Parser
-        def _shift(tokens: ta.Sequence[_A], s: State) -> tuple[_C, State]:
-            (v, s2) = self.run(tokens, s)
-            return f(v), s2
-
-        return _shift.named(self.name)
-
-    def bind(self, f: ta.Callable[[_B], Parser[_A, _C]]) -> Parser[_A, _C]:
-        """
-        Bind the parser to a monadic function that returns a new parser.
-
-        Type: `(Callable[[B], Parser[A, C]]) -> Parser[A, C]`
-
-        Also known as `>>=` in Haskell.
-
-        !!! Note
-
-            You can parse any context-free grammar without resorting to `bind`. Due to its poor performance please use
-            it only when you really need it.
-        """
-
-        @Parser
-        def _bind(tokens: ta.Sequence[_A], s: State) -> tuple[_C, State]:
-            (v, s2) = self.run(tokens, s)
-            return f(v).run(tokens, s2)
-
-        _bind.name = f'({self.name} >>=)'
-        return _bind
-
-    def __neg__(self) -> _IgnoredParser[_A]:
-        """
-        Return a parser that parses the same tokens, but its parsing result is ignored by the sequential `+` combinator.
-
-        Type: `(Parser[A, B]) -> _IgnoredParser[A]`
-
-        You can use it for throwing away elements of concrete syntax (e.g. `","`, `";"`).
-
-        Examples:
-
-        ```pycon
-        >>> expr = -a("x") + a("y")
-        >>> expr.parse("xy")
-        'y'
-
-        ```
-
-        ```pycon
-        >>> expr = a("x") + -a("y")
-        >>> expr.parse("xy")
-        'x'
-
-        ```
-
-        ```pycon
-        >>> expr = a("x") + -a("y") + a("z")
-        >>> expr.parse("xyz")
-        ('x', 'z')
-
-        ```
-
-        ```pycon
-        >>> expr = -a("x") + a("y") + -a("z")
-        >>> expr.parse("xyz")
-        'y'
-
-        ```
-
-        ```pycon
-        >>> expr = -a("x") + a("y")
-        >>> expr.parse("yz")
-        Traceback (most recent call last):
-            ...
-        parser.NoParseError: got unexpected token: 'y', expected: 'x'
-
-        ```
-
-        ```pycon
-        >>> expr = a("x") + -a("y")
-        >>> expr.parse("xz")
-        Traceback (most recent call last):
-            ...
-        parser.NoParseError: got unexpected token: 'z', expected: 'y'
-
-        ```
-
-        !!! Note
-
-            You **should not** pass the resulting parser to any combinators other than `+`. You **should** have at least
-            one non-skipped value in your `p1 + p2 + ... + pN`. The parsed value of `-p` is an **internal** `_Ignored`
-            object, not intended for actual use.
-        """
-
-        return _IgnoredParser(self)
-
-
+@dc.dataclass(frozen=True, repr=False)
 class State:
     """
-    Parsing state that is maintained basically for error reporting.
-
-    It consists of the current position `pos` in the sequence being parsed, and the position `max` of the rightmost
-    token that has been consumed while parsing.
+    Parsing state, maintained basically for error reporting: the current position `pos` in the sequence being parsed,
+    the position `max` of the rightmost token that has been consumed while parsing, and the parser which failed at that
+    rightmost position.
     """
 
-    def __init__(
-            self,
-            pos: int,
-            max: int,
-            parser: Parser | ta.Callable[[ta.Any, State], tuple[ta.Any, State]] | None = None,
-    ) -> None:
-        super().__init__()
-
-        self.pos = pos
-        self.max = max
-        self.parser = parser
+    pos: int
+    max: int
+    parser: Parser | ParserFn[ta.Any, ta.Any] | None = None
 
     def __str__(self) -> str:
         return str((self.pos, self.max))
@@ -513,18 +94,317 @@ class NoParseError(Exception):
         return self.msg
 
 
+##
+
+
+class Parser(ta.Generic[_A, _B]):
+    """
+    A parser object that can parse a sequence of tokens of type `_A` into a value of type `_B`, or can be combined with
+    other parsers using `+`, `|`, `>>`, `many()`, and other parsing combinators.
+
+    In order to define a parser for your grammar:
+
+    1. You start with primitive parsers by calling `a(value)`, `some(pred)`, `forward_decl()`, `finished`
+    2. You use parsing combinators `p1 + p2`, `p1 | p2`, `p >> f`, `many(p)`, and others to combine parsers into a more
+       complex parser
+    3. You can assign complex parsers to variables to define names that correspond to the rules of your grammar
+
+    The constructor is considered internal: use primitive parsers and parsing combinators to construct new parsers.
+    """
+
+    def __init__(self, p: Parser[_A, _B] | ParserFn[_A, _B]) -> None:
+        """Wrap the parser function `p` into a `Parser` object."""
+
+        super().__init__()
+
+        self._name = ''
+        self.define(p)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def named(self, name: str) -> ta.Self:
+        """
+        Specify the name of the parser for easier debugging, returning the parser itself. The name is used in parse
+        error messages and in the debug-level parsing log.
+
+        >>> expr = (a("x") + a("y")).named("expr")
+        >>> expr.name
+        'expr'
+
+        >>> expr = a("x") + a("y")
+        >>> expr.name
+        "('x', 'y')"
+        """
+
+        self._name = name
+        return self
+
+    def define(self, p: Parser[_A, _B] | ParserFn[_A, _B]) -> None:
+        """
+        Define the parser created earlier as a forward declaration. Use `p = forward_decl()` in combination with
+        `p.define(...)` to define recursive parsers - see `forward_decl()`.
+        """
+
+        # Outside of debug mode the parser function is installed directly as the instance's `run`, shadowing the logging
+        # `run` method.
+        f = getattr(p, 'run', p)
+        if _DEBUG:
+            setattr(self, '_run', f)
+        else:
+            setattr(self, 'run', f)
+
+        # Note that a plain function's docstring, if it has one, becomes the parser's name.
+        if (name := getattr(p, 'name', p.__doc__)) is not None:
+            self.named(name)
+
+    def run(self, tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
+        """
+        Run the parser against the tokens with the specified parsing state, raising `NoParseError` if it fails to parse
+        them.
+
+        The parsing state includes the current position in the sequence being parsed, and the position of the rightmost
+        token that has been consumed while parsing for better error messages.
+
+        This is a lower-level interface used to implement parsers in terms of other parsers. Otherwise use
+        `Parser.parse(tokens)`, and let the parser object take care of the parsing state.
+        """
+
+        if _DEBUG:
+            log.debug('trying %s', self._name)
+        return self._run(tokens, s)
+
+    def _run(self, tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
+        raise NotImplementedError('you must define() a parser')
+
+    @staticmethod
+    def _format_error_msg(tokens: ta.Sequence[ta.Any], e: NoParseError) -> str:
+        if len(tokens) > (max_pos := e.state.max):
+            t = tokens[max_pos]
+            if isinstance(t, Token):
+                if t.start is None or t.end is None:
+                    loc = ''
+                else:
+                    s_line, s_pos = t.start
+                    e_line, e_pos = t.end
+                    loc = f'{s_line},{s_pos}-{e_line},{e_pos}: '
+                msg = f'{loc}{e.msg}: {t.value!r}'
+            elif isinstance(t, str):
+                msg = f'{e.msg}: {t!r}'
+            else:
+                msg = f'{e.msg}: {t}'
+
+        else:
+            msg = 'got unexpected end of input'
+
+        if isinstance(e_parser := e.state.parser, Parser):
+            msg = f'{msg}, expected: {e_parser.name}'
+
+        return msg
+
+    def parse(self, tokens: ta.Sequence[_A]) -> _B:
+        """
+        Parse the sequence of tokens and return the parsed value, raising `NoParseError` if it fails to parse them.
+
+        Although any sequence of objects can be parsed (including a `str`, as a sequence of `str` chars), the
+        recommended way is parsing sequences of `Token` objects, as produced by a regexp-based tokenizer from
+        `lexer.make_tokenizer()`. This gives more readable parsing error messages (as `Token` objects contain their
+        position in the source file) and good separation of the lexical and syntactic levels of the grammar.
+        """
+
+        try:
+            tree, _ = self.run(tokens, State(0, 0, None))
+            return tree
+
+        except NoParseError as e:
+            e.msg = self._format_error_msg(tokens, e)
+            raise
+
+    @ta.overload
+    def __add__(self, other: _IgnoredParser[_A]) -> Parser[_A, _B]: ...  # type: ignore[overload-overlap]
+
+    @ta.overload
+    def __add__(self, other: Parser[_A, _C]) -> _TupleParser[_A, tuple[_B, _C]]: ...
+
+    def __add__(
+            self,
+            other: _IgnoredParser[_A] | Parser[_A, _C],
+    ) -> Parser[_A, _B] | _TupleParser[_A, tuple[_B, _C]]:
+        """
+        Sequential combination of parsers. It runs this parser, then the other parser.
+
+        The return value of the resulting parser is a tuple of each parsed value in the sum of parsers. We merge all
+        parsing results of `p1 + p2 + ... + pN` into a single tuple. It means that the parsing result may be a 2-tuple,
+        a 3-tuple, a 4-tuple, etc. of parsed values. You avoid this by transforming the parsed pair into a new value
+        using the `>>` combinator.
+
+        You can also skip some parsing results in the resulting parsers by using `-p` or `skip(p)` for some parsers in
+        your sum of parsers. It means that the parsing result might be a single value, not a tuple of parsed values. See
+        the docs for `Parser.__neg__()` for more examples.
+
+        >>> expr = a("x") + a("y")
+        >>> expr.parse("xy")
+        ('x', 'y')
+
+        >>> expr = a("x") + a("y") + a("z")
+        >>> expr.parse("xyz")
+        ('x', 'y', 'z')
+
+        >>> expr = a("x") + a("y")
+        >>> expr.parse("xz")
+        Traceback (most recent call last):
+            ...
+        parser.NoParseError: got unexpected token: 'z', expected: 'y'
+        """
+
+        name = f'({self.name}, {other.name})'
+
+        if isinstance(other, _IgnoredParser):
+            @Parser
+            def ignored_right(tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
+                v, s2 = self.run(tokens, s)
+                _, s3 = other.run(tokens, s2)
+                return v, s3
+
+            return ignored_right.named(name)
+
+        def merge(v1: ta.Any, v2: ta.Any) -> _Tuple:
+            if isinstance(v1, _Tuple):
+                return _Tuple((*v1, v2))
+            else:
+                return _Tuple((v1, v2))
+
+        @_TupleParser
+        def _add(tokens: ta.Sequence[_A], s: State) -> tuple[tuple[_B, _C], State]:
+            v1, s2 = self.run(tokens, s)
+            v2, s3 = other.run(tokens, s2)
+            return ta.cast('tuple[_B, _C]', merge(v1, v2)), s3
+
+        _add.named(name)
+        return _add
+
+    def __or__(self, other: Parser[_A, _C]) -> Parser[_A, _B | _C]:
+        """
+        Choice combination of parsers. It runs this parser and returns its result. If the parser fails, it runs the
+        other parser.
+
+        >>> expr = a("x") | a("y")
+        >>> expr.parse("x")
+        'x'
+        >>> expr.parse("y")
+        'y'
+        >>> expr.parse("z")
+        Traceback (most recent call last):
+            ...
+        parser.NoParseError: got unexpected token: 'z', expected: 'x' or 'y'
+        """
+
+        @Parser
+        def _or(tokens: ta.Sequence[_A], s: State) -> tuple[_B | _C, State]:
+            try:
+                return self.run(tokens, s)
+            except NoParseError as e:
+                state = e.state
+
+            try:
+                return other.run(tokens, State(s.pos, state.max, state.parser))
+            except NoParseError as e:
+                if s.pos == e.state.max:
+                    e.state = State(e.state.pos, e.state.max, _or)
+                raise
+
+        return _or.named(f'{self.name} or {other.name}')
+
+    def __rshift__(self, f: ta.Callable[[_B], _C]) -> Parser[_A, _C]:
+        """
+        Transform the parsing result by applying the specified function, for transforming the parsed value into another
+        value before including it into the parse tree (the AST).
+
+        >>> def make_canonical_name(s):
+        ...     return s.lower()
+        >>> expr = (a("D") | a("d")) >> make_canonical_name
+        >>> expr.parse("D")
+        'd'
+        >>> expr.parse("d")
+        'd'
+        """
+
+        @Parser
+        def _shift(tokens: ta.Sequence[_A], s: State) -> tuple[_C, State]:
+            v, s2 = self.run(tokens, s)
+            return f(v), s2
+
+        return _shift.named(self.name)
+
+    def bind(self, f: ta.Callable[[_B], Parser[_A, _C]]) -> Parser[_A, _C]:
+        """
+        Bind the parser to a monadic function that returns a new parser. Also known as `>>=` in Haskell.
+
+        Any context-free grammar can be parsed without resorting to `bind`. Due to its poor performance, only use it
+        when really needed.
+        """
+
+        @Parser
+        def _bind(tokens: ta.Sequence[_A], s: State) -> tuple[_C, State]:
+            v, s2 = self.run(tokens, s)
+            return f(v).run(tokens, s2)
+
+        return _bind.named(f'({self.name} >>=)')
+
+    def __neg__(self) -> _IgnoredParser[_A]:
+        """
+        Return a parser that parses the same tokens, but its parsing result is ignored by the sequential `+` combinator.
+        You can use it for throwing away elements of concrete syntax (e.g. `","`, `";"`).
+
+        >>> expr = -a("x") + a("y")
+        >>> expr.parse("xy")
+        'y'
+
+        >>> expr = a("x") + -a("y")
+        >>> expr.parse("xy")
+        'x'
+
+        >>> expr = a("x") + -a("y") + a("z")
+        >>> expr.parse("xyz")
+        ('x', 'z')
+
+        >>> expr = -a("x") + a("y") + -a("z")
+        >>> expr.parse("xyz")
+        'y'
+
+        >>> expr = -a("x") + a("y")
+        >>> expr.parse("yz")
+        Traceback (most recent call last):
+            ...
+        parser.NoParseError: got unexpected token: 'y', expected: 'x'
+
+        >>> expr = a("x") + -a("y")
+        >>> expr.parse("xz")
+        Traceback (most recent call last):
+            ...
+        parser.NoParseError: got unexpected token: 'z', expected: 'y'
+
+        The resulting parser should not be passed to any combinators other than `+`, and there should be at least one
+        non-skipped value in a `p1 + p2 + ... + pN`. The parsed value of `-p` is an internal `_Ignored` object, not
+        intended for actual use.
+        """
+
+        return _IgnoredParser(self)
+
+
 class _Tuple(tuple):
+    """The result of a sequence of parsers combined with `+`, to which the results of further parsers are appended."""
+
     __slots__ = ()
 
 
-class _TupleParser(Parser[_A, _B], ta.Generic[_A, _B]):
+class _TupleParser(Parser[_A, _B]):
     @ta.overload  # type: ignore[override]
-    def __add__(self, other: _IgnoredParser[_A]) -> _TupleParser[_A, _B]:
-        pass
+    def __add__(self, other: _IgnoredParser[_A]) -> _TupleParser[_A, _B]: ...
 
     @ta.overload
-    def __add__(self, other: Parser[_A, ta.Any]) -> Parser[_A, ta.Any]:
-        pass
+    def __add__(self, other: Parser[_A, ta.Any]) -> Parser[_A, ta.Any]: ...
 
     def __add__(
             self,
@@ -546,69 +426,70 @@ class _Ignored:  # noqa: PLW1641
         return isinstance(other, _Ignored) and self.value == other.value
 
 
+class _IgnoredParser(Parser[_A, ta.Any]):
+    def __init__(self, p: Parser[_A, ta.Any] | ParserFn[_A, ta.Any]) -> None:
+        super().__init__(p)
+
+        run = self._run if _DEBUG else self.run
+
+        # This must not have a docstring, which would replace the name of `p` as the parser's name.
+        def ignored(tokens: ta.Sequence[_A], s: State) -> tuple[ta.Any, State]:
+            v, s2 = run(tokens, s)
+            return (v if isinstance(v, _Ignored) else _Ignored(v)), s2
+
+        self.define(ignored)
+
+    @ta.overload  # type: ignore[override]
+    def __add__(self, other: _IgnoredParser[_A]) -> _IgnoredParser[_A]: ...
+
+    @ta.overload
+    def __add__(self, other: Parser[_A, _C]) -> Parser[_A, _C]: ...
+
+    def __add__(
+            self,
+            other: _IgnoredParser[_A] | Parser[_A, _C],
+    ) -> _IgnoredParser[_A] | Parser[_A, _C]:
+        name = f'({self.name}, {other.name})'
+
+        if isinstance(other, _IgnoredParser):
+            @_IgnoredParser
+            def ip(tokens: ta.Sequence[_A], s: State) -> tuple[ta.Any, State]:
+                _, s2 = self.run(tokens, s)
+                v, s3 = other.run(tokens, s2)
+                return v, s3
+
+            return ip.named(name)
+
+        @Parser
+        def p(tokens: ta.Sequence[_A], s: State) -> tuple[_C, State]:
+            _, s2 = self.run(tokens, s)
+            v, s3 = other.run(tokens, s2)
+            return v, s3
+
+        return p.named(name)
+
+
+##
+
+
 @Parser
 def finished(tokens: ta.Sequence[ta.Any], s: State) -> tuple[None, State]:
     """A parser that throws an exception if there are any unparsed tokens left in the sequence."""
 
     if s.pos >= len(tokens):
         return None, s
-    else:
-        s2 = State(s.pos, s.max, finished if s.pos == s.max else s.parser)
-        raise NoParseError('got unexpected token', s2)
+
+    s2 = State(s.pos, s.max, finished if s.pos == s.max else s.parser)
+    raise NoParseError('got unexpected token', s2)
 
 
-finished.name = 'end of input'
-
-
-def many(p: Parser[_A, _B]) -> Parser[_A, list[_B]]:
-    """
-    Return a parser that applies the parser `p` as many times as it succeeds at parsing the tokens.
-
-    Return a parser that infinitely applies the parser `p` to the input sequence of tokens as long as it successfully
-    parses them. The parsed value is a list of the sequentially parsed values.
-
-    Examples:
-
-    ```pycon
-    >>> expr = many(a("x"))
-    >>> expr.parse("x")
-    ['x']
-    >>> expr.parse("xx")
-    ['x', 'x']
-    >>> expr.parse("xxxy")  # noqa
-    ['x', 'x', 'x']
-    >>> expr.parse("y")
-    []
-
-    ```
-    """
-
-    @Parser
-    def _many(tokens: ta.Sequence[_A], s: State) -> tuple[list[_B], State]:
-        res = []
-        try:
-            while True:
-                (v, s) = p.run(tokens, s)
-                res.append(v)
-        except NoParseError as e:
-            s2 = State(s.pos, e.state.max, e.state.parser)
-            if debug:
-                log.debug('*matched* %d instances of %s, new state = %s', len(res), _many.name, s2)
-            return res, s2
-
-    _many.name = f'{{ {p.name} }}'
-    return _many
+finished.named('end of input')
 
 
 def some(pred: ta.Callable[[_A], bool]) -> Parser[_A, _A]:
     """
     Return a parser that parses a token if it satisfies the predicate `pred`.
 
-    Type: `(Callable[[A], bool]) -> Parser[A, A]`
-
-    Examples:
-
-    ```pycon
     >>> expr = some(lambda s: s.isalpha()).named('alpha')
     >>> expr.parse("x")
     'x'
@@ -619,13 +500,8 @@ def some(pred: ta.Callable[[_A], bool]) -> Parser[_A, _A]:
         ...
     parser.NoParseError: got unexpected token: '1', expected: alpha
 
-    ```
-
-    !!! Warning
-
-        The `some()` combinator is quite slow and may be changed or removed in future versions. If you need a parser for
-        a token by its type (e.g. any identifier) and maybe its value, use `tok(type[, value])` instead. You should use
-        `make_tokenizer()` from `funcparserlib.lexer` to tokenize your text first.
+    This is a fairly slow combinator. For a parser of a `Token` by its type (and maybe its value), `tok(type[, value])`
+    may be used instead.
     """
 
     @Parser
@@ -633,33 +509,27 @@ def some(pred: ta.Callable[[_A], bool]) -> Parser[_A, _A]:
         if s.pos >= len(tokens):
             s2 = State(s.pos, s.max, _some if s.pos == s.max else s.parser)
             raise NoParseError('got unexpected end of input', s2)
-        else:
-            t = tokens[s.pos]
-            if pred(t):
-                pos = s.pos + 1
-                s2 = State(pos, max(pos, s.max), s.parser)
-                if debug:
-                    log.debug('*matched* %r, new state = %s', t, s2)
-                return t, s2
-            else:
-                s2 = State(s.pos, s.max, _some if s.pos == s.max else s.parser)
-                if debug and isinstance(s2.parser, Parser):
-                    log.debug('failed %r, state = %s, expected = %s', t, s2, s2.parser.name)
-                raise NoParseError('got unexpected token', s2)
 
-    _some.name = 'some(...)'
-    return _some
+        t = tokens[s.pos]
+        if pred(t):
+            pos = s.pos + 1
+            s2 = State(pos, max(pos, s.max), s.parser)
+            if _DEBUG:
+                log.debug('*matched* %r, new state = %s', t, s2)
+            return t, s2
+
+        s2 = State(s.pos, s.max, _some if s.pos == s.max else s.parser)
+        if _DEBUG and isinstance(s2.parser, Parser):
+            log.debug('failed %r, state = %s, expected = %s', t, s2, s2.parser.name)
+        raise NoParseError('got unexpected token', s2)
+
+    return _some.named('some(...)')
 
 
 def a(value: _A) -> Parser[_A, _A]:
     """
     Return a parser that parses a token if it's equal to `value`.
 
-    Type: `(A) -> Parser[A, A]`
-
-    Examples:
-
-    ```pycon
     >>> expr = a("x")
     >>> expr.parse("x")
     'x'
@@ -667,18 +537,6 @@ def a(value: _A) -> Parser[_A, _A]:
     Traceback (most recent call last):
         ...
     parser.NoParseError: got unexpected token: 'y', expected: 'x'
-
-    ```
-
-    !!! Note
-
-        Although `Parser.parse()` can parse sequences of any objects (including `str` which is a sequence of `str`
-        chars), **the recommended way** is parsing sequences of `Token` objects.
-
-        You **should** use a regexp-based tokenizer `make_tokenizer()` defined in `funcparserlib.lexer` to convert your
-        text into a sequence of `Token` objects before parsing it. You will get more readable parsing error messages (as
-        `Token` objects contain their position in the source file) and good separation of the lexical and syntactic
-        levels of the grammar.
     """
 
     name = getattr(value, 'name', value)
@@ -691,15 +549,9 @@ def a(value: _A) -> Parser[_A, _A]:
 
 def tok(type: str, value: str | None = None) -> Parser[Token, str]:
     """
-    Return a parser that parses a `Token` and returns the string value of the token.
+    Return a parser that parses a `Token` and returns the string value of the token. It matches any token of the
+    specified `type`, or, if a `value` is given, a specific token by its type and value.
 
-    Type: `(str, str | None) -> Parser[Token, str]`
-
-    You can match any token of the specified `type` or you can match a specific token by its `type` and `value`.
-
-    Examples:
-
-    ```pycon
     >>> expr = tok("expr")
     >>> expr.parse([Token("expr", "foo")])
     'foo'
@@ -710,9 +562,6 @@ def tok(type: str, value: str | None = None) -> Parser[Token, str]:
         ...
     parser.NoParseError: got unexpected token: '=', expected: expr
 
-    ```
-
-    ```pycon
     >>> expr = tok("op", "=")
     >>> expr.parse([Token("op", "=")])
     '='
@@ -720,15 +569,6 @@ def tok(type: str, value: str | None = None) -> Parser[Token, str]:
     Traceback (most recent call last):
         ...
     parser.NoParseError: got unexpected token: '+', expected: '='
-
-    ```
-
-    !!! Note
-
-        In order to convert your text to parse into a sequence of `Token` objects, use a regexp-based tokenizer
-        `make_tokenizer()` defined in `funcparserlib.lexer`. You will get more readable parsing error messages (as
-        `Token` objects contain their position in the source file) and good separation of the lexical and syntactic
-        levels of the grammar.
     """
 
     def eq_type(t: Token) -> bool:
@@ -738,17 +578,13 @@ def tok(type: str, value: str | None = None) -> Parser[Token, str]:
         p = a(Token(type, value))
     else:
         p = some(eq_type).named(type)
+
     return (p >> (lambda t: t.value)).named(p.name)
 
 
 def pure(x: _A) -> Parser[ta.Any, _A]:
     """
-    Wrap any object into a parser.
-
-    Type: `(A) -> Parser[A, A]`
-
-    A pure parser doesn't touch the tokens sequence, it just returns its pure `x` value.
-
+    Wrap any object into a parser. A pure parser doesn't touch the tokens sequence, it just returns its pure `x` value.
     Also known as `return` in Haskell.
     """
 
@@ -756,101 +592,67 @@ def pure(x: _A) -> Parser[ta.Any, _A]:
     def _pure(_: ta.Sequence[ta.Any], s: State) -> tuple[_A, State]:
         return x, s
 
-    _pure.name = f'(pure {x!r})'
-    return _pure
+    return _pure.named(f'(pure {x!r})')
 
 
 def maybe(p: Parser[_A, _B]) -> Parser[_A, _B | None]:
     """
     Return a parser that returns `None` if the parser `p` fails.
 
-    Examples:
-
-    ```pycon
     >>> expr = maybe(a("x"))
     >>> expr.parse("x")
     'x'
     >>> expr.parse("y") is None
     True
-
-    ```
     """
 
     return (p | pure(None)).named(f'[ {p.name} ]')
 
 
 def skip(p: Parser[_A, ta.Any]) -> _IgnoredParser[_A]:
-    """
-    An alias for `-p`.
-
-    See also the docs for `Parser.__neg__()`.
-    """
+    """An alias for `-p` - see `Parser.__neg__()`."""
 
     return -p
 
 
-class _IgnoredParser(Parser[_A, ta.Any]):
-    def __init__(
-            self,
-            p: Parser[_A, ta.Any] | ta.Callable[[ta.Sequence[_A], State], tuple[ta.Any, State]],
-    ) -> None:
-        super().__init__(p)
+def many(p: Parser[_A, _B]) -> Parser[_A, list[_B]]:
+    """
+    Return a parser that applies the parser `p` as many times as it succeeds at parsing the tokens. The parsed value is
+    a list of the sequentially parsed values.
 
-        run = self._run if debug else self.run
+    >>> expr = many(a("x"))
+    >>> expr.parse("x")
+    ['x']
+    >>> expr.parse("xx")
+    ['x', 'x']
+    >>> expr.parse("xxxy")
+    ['x', 'x', 'x']
+    >>> expr.parse("y")
+    []
+    """
 
-        def ignored(tokens: ta.Sequence[_A], s: State) -> tuple[ta.Any, State]:
-            v, s2 = run(tokens, s)
-            return v if isinstance(v, _Ignored) else _Ignored(v), s2
+    @Parser
+    def _many(tokens: ta.Sequence[_A], s: State) -> tuple[list[_B], State]:
+        res: list[_B] = []
+        try:
+            while True:
+                v, s = p.run(tokens, s)
+                res.append(v)
 
-        self.define(ignored)
-        name = getattr(p, 'name', p.__doc__)
-        if name is not None:
-            self.name = name
+        except NoParseError as e:
+            s2 = State(s.pos, e.state.max, e.state.parser)
+            if _DEBUG:
+                log.debug('*matched* %d instances of %s, new state = %s', len(res), _many.name, s2)
+            return res, s2
 
-    @ta.overload  # type: ignore[override]
-    def __add__(self, other: _IgnoredParser[_A]) -> _IgnoredParser[_A]:  # noqa
-        pass
-
-    @ta.overload
-    def __add__(self, other: Parser[_A, _C]) -> Parser[_A, _C]:
-        pass
-
-    def __add__(
-            self,
-            other: _IgnoredParser[_A] | Parser[_A, _C],
-    ) -> _IgnoredParser[_A] | Parser[_A, _C]:
-        if isinstance(other, _IgnoredParser):
-
-            @_IgnoredParser
-            def ip(tokens: ta.Sequence[_A], s: State) -> tuple[ta.Any, State]:
-                _, s2 = self.run(tokens, s)
-                v, s3 = other.run(tokens, s2)
-                return v, s3
-
-            ip.name = f'({self.name}, {other.name})'
-            return ip
-        else:
-
-            @Parser
-            def p(tokens: ta.Sequence[_A], s: State) -> tuple[_C, State]:
-                _, s2 = self.run(tokens, s)
-                v, s3 = other.run(tokens, s2)
-                return v, s3
-
-            p.name = f'({self.name}, {other.name})'
-            return p
+    return _many.named(f'{{ {p.name} }}')
 
 
 def oneplus(p: Parser[_A, _B]) -> Parser[_A, list[_B]]:
     """
-    Return a parser that applies the parser `p` one or more times.
+    Return a parser that applies the parser `p` one or more times - as opposed to `many(p)`, which applies it zero or
+    more times.
 
-    A similar parser combinator `many(p)` means apply `p` zero or more times, whereas `oneplus(p)` means apply `p` one
-    or more times.
-
-    Examples:
-
-    ```pycon
     >>> expr = oneplus(a("x"))
     >>> expr.parse("x")
     ['x']
@@ -860,74 +662,43 @@ def oneplus(p: Parser[_A, _B]) -> Parser[_A, list[_B]]:
     Traceback (most recent call last):
         ...
     parser.NoParseError: got unexpected token: 'y', expected: 'x'
-
-    ```
     """
+
+    many_p = many(p)
 
     @Parser
     def _oneplus(tokens: ta.Sequence[_A], s: State) -> tuple[list[_B], State]:
-        (v1, s2) = p.run(tokens, s)
-        (v2, s3) = many(p).run(tokens, s2)
+        v1, s2 = p.run(tokens, s)
+        v2, s3 = many_p.run(tokens, s2)
         return [v1, *v2], s3
 
-    _oneplus.name = f'({p.name}, {{ {p.name} }})'
-    return _oneplus
-
-
-def with_forward_decls(suspension: ta.Callable[[], Parser[_A, _B]]) -> Parser[_A, _B]:
-    warnings.warn(
-        'Use forward_decl() instead:\n'
-        '\n'
-        '    p = forward_decl()\n'
-        '    ...\n'
-        '    p.define(parser_value)\n',
-        DeprecationWarning,
-    )
-
-    @Parser
-    def f(tokens: ta.Sequence[_A], s: State) -> tuple[_B, State]:
-        return suspension().run(tokens, s)
-
-    return f
+    return _oneplus.named(f'({p.name}, {{ {p.name} }})')
 
 
 def forward_decl() -> Parser[ta.Any, ta.Any]:
     """
-    Return an undefined parser that can be used as a forward declaration.
+    Return an undefined parser that can be used as a forward declaration. Use `p = forward_decl()` in combination with
+    `p.define(...)` to define recursive parsers.
 
-    Type: `Parser[Any, Any]`
-
-    Use `p = forward_decl()` in combination with `p.define(...)` to define recursive parsers.
-
-    Examples:
-
-    ```pycon
     >>> expr = forward_decl()
     >>> expr.define(a("x") + maybe(expr) + a("y"))
-    >>> expr.parse("xxyy")  # noqa
+    >>> expr.parse("xxyy")
     ('x', ('x', None, 'y'), 'y')
     >>> expr.parse("xxy")
     Traceback (most recent call last):
         ...
     parser.NoParseError: got unexpected end of input, expected: 'y'
 
-    ```
+    For static type checking, the forward declaration should be given a type hint, against which `p.define(...)` will
+    be checked later:
 
-    !!! Note
-
-        If you care about static types, you should add a type hint for your forward declaration, so that your type
-        checker can check types in `p.define(...)` later:
-
-        ```python
         p: Parser[str, int] = forward_decl()
         p.define(a("x"))  # Type checker error
         p.define(a("1") >> int)  # OK
-        ```
     """
 
     @Parser
     def f(_tokens: ta.Any, _s: ta.Any) -> ta.Any:
         raise NotImplementedError('you must define() a forward_decl somewhere')
 
-    f.name = 'forward_decl()'
-    return f
+    return f.named('forward_decl()')

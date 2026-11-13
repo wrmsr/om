@@ -1,31 +1,37 @@
 # ruff: noqa: SLF001
-"Tooling for reading/parsing source character-by-character."
+"""Tooling for reading/parsing source character-by-character."""
 import collections
 import contextlib
 import itertools
 import re
 import typing as ta
 
+from omcore import lang
+
 from ..models import Object
 from .exceptions import PrematureEndOfInput
 
 
 ReaderFunctionT = ta.TypeVar('ReaderFunctionT', bound=ta.Callable[..., ta.Any])
+
 ReaderHandler: ta.TypeAlias = ta.Callable[[ta.Any, str], Object | None]
 
 
 ##
 
 
-_whitespace = re.compile(r'[ \t\n\r\f\v]+')
+_NORMALIZED_SPACE_PAT = re.compile(r'[ \t\n\r\f\v]+')
 
 
 def isnormalizedspace(s: str) -> bool:
-    return bool(_whitespace.match(s))
+    return bool(_NORMALIZED_SPACE_PAT.match(s))
 
 
 class ReaderMeta(type):
-    """Provides a class with a dispatch map `DEFAULT_TABLE` and a decorator `@reader_for`."""
+    """
+    Provides a class with a dispatch map `DEFAULT_TABLE`, built from those of its bases and the handlers registered in
+    its body with the decorator `@reader_for`.
+    """
 
     @classmethod
     def __prepare__(
@@ -44,6 +50,11 @@ class ReaderMeta(type):
             char: str,
             args: tuple[ta.Any, ...] | None = None,
     ) -> ta.Callable[[ReaderFunctionT], ReaderFunctionT]:
+        """
+        Register the decorated method as the handler for `char`. If `args` are given, the method is instead a factory,
+        called with them to produce the handler.
+        """
+
         def wrapper(f: ReaderFunctionT) -> ReaderFunctionT:
             handler = f if args is None else f(*args)
             setattr(f, '_readers', {**getattr(f, '_readers', {}), char: handler})
@@ -53,6 +64,7 @@ class ReaderMeta(type):
 
     def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, ta.Any]) -> ReaderMeta:
         del namespace['reader_for']
+
         default_table: dict[str, ReaderHandler] = {}
         for base in bases:
             if hasattr(base, 'DEFAULT_TABLE'):
@@ -61,28 +73,28 @@ class ReaderMeta(type):
             if callable(method) and hasattr(method, '_readers'):
                 default_table.update(method._readers)
         namespace['DEFAULT_TABLE'] = default_table
+
         return super().__new__(cls, name, bases, namespace)
 
 
-class Reader(metaclass=ReaderMeta):
+class Reader(lang.Abstract, metaclass=ReaderMeta):
     """
     An abstract base class for reading input character-by-character.
 
     See :py:class:`hy.HyReader` for an example of creating a reader class.
 
-    Attributes:
-        ends_ident (set[str]):
-            The set of characters that indicate the end of an identifier
-        reader_table (dict[str, Callable]):
-            A dictionary mapping a reader-macro key to its dispatch function
-        pos (tuple[int, int]):
-            A read-only (line, column) tuple indicating the current cursor position of the source being read
+    The ``ends_ident`` set holds the characters that indicate the end of an identifier, and the ``reader_table`` dict
+    maps a reader-macro key to its dispatch function. :py:attr:`pos` is the current (line, column) cursor position of
+    the source being read.
     """
 
     __module__ = __package__.rpartition('.')[0]
 
     NON_IDENT: ta.ClassVar[ta.AbstractSet[str]]
     DEFAULT_TABLE: ta.ClassVar[dict[str, ReaderHandler]]
+
+    ends_ident: set[str]
+    reader_table: dict[str, ReaderHandler]
 
     _source: str | None
     _filename: str | None
@@ -104,6 +116,7 @@ class Reader(metaclass=ReaderMeta):
     def _set_source(self, stream: ta.TextIO | None = None, filename: str | None = None) -> None:
         if filename is not None:
             self._filename = filename
+
         if stream is not None:
             pos = stream.tell()
             self._source = stream.read()
@@ -141,6 +154,7 @@ class Reader(metaclass=ReaderMeta):
 
         self._saved_chars.append([])
         yield self._saved_chars[-1]
+
         saved = self._saved_chars.pop()
         if self._saved_chars:
             # `saving_chars` is being used recursively. The characters we collected for the inner case should also be
@@ -152,25 +166,27 @@ class Reader(metaclass=ReaderMeta):
 
         if self._peek_chars:
             return self._peek_chars[-1]
+
         nc = self._stream.read(1)
         self._peek_chars.append(nc)
         return nc
 
     def peeking(self, eof_ok: bool = False) -> ta.Iterator[str]:
         """
-        As :func:`chars`, but without consuming any of the returned
-        characters. This method is useful for looking several characters
-        ahead.
+        As :func:`chars`, but without consuming any of the returned characters. This method is useful for looking
+        several characters ahead.
         """
 
         yield from reversed(self._peek_chars)
+
         while True:
             c = self._stream.read(1)
             if not c:
                 break
             self._peek_chars.appendleft(c)
             yield c
-        if not c and not eof_ok:
+
+        if not eof_ok:
             raise PrematureEndOfInput.from_reader('Premature end of input while peeking', self)
 
     def getc(self) -> str:
@@ -208,6 +224,7 @@ class Reader(metaclass=ReaderMeta):
         if nc == target:
             self.getc()
             return True
+
         return False
 
     def chars(self, eof_ok: bool = False) -> ta.Iterator[str]:
@@ -221,10 +238,9 @@ class Reader(metaclass=ReaderMeta):
             if not c:
                 break
             yield c
-        if not c and not eof_ok:
-            raise PrematureEndOfInput.from_reader(
-                'Premature end of input while streaming chars', self,
-            )
+
+        if not eof_ok:
+            raise PrematureEndOfInput.from_reader('Premature end of input while streaming chars', self)
 
     ##
     # Reading multiple characters
@@ -242,6 +258,7 @@ class Reader(metaclass=ReaderMeta):
             if not isnormalizedspace(c):
                 break
             n += 1
+
         return self.getn(n)
 
     def read_ident(self, just_peeking: bool = False) -> str:
@@ -256,8 +273,10 @@ class Reader(metaclass=ReaderMeta):
                 # `not nc` means EOF, but that's okay.
                 break
             ident.append(nc)
+
         if not just_peeking:
             self.getn(len(ident))
+
         return ''.join(ident)
 
     ##

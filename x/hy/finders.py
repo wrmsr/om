@@ -6,13 +6,13 @@ asks its configured finders, in order, for the source of each module being impor
 imported as a regular Python module.
 """
 import abc
-import dataclasses as dc
 import importlib.resources
 import os.path
 import types
 import typing as ta
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 
 

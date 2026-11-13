@@ -84,6 +84,14 @@
        (if False False False)))))
 
 
+(defn test-if-star-is-an-ordinary-name []
+  ; `if*` was once an internal form, which `if` treated specially when it appeared as an else branch.
+  (defn if* [#* args] args)
+  (setv c False)
+  (assert (= (if c 1 (if* (do (setv a 1) 2) 3)) #(2 3)))
+  (assert (= a 1)))
+
+
 (defn test-if-in-if []
   (assert (= 42
              (if (if 1 True False)

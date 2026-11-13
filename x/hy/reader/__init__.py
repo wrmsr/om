@@ -1,8 +1,8 @@
+import io
 import typing as ta
-from io import StringIO
 
 from .. import models
-from .hy_reader import HyReader
+from .hyreader import HyReader
 from .mangling import mangle  # noqa: F401
 from .mangling import unmangle  # noqa: F401
 
@@ -31,14 +31,15 @@ def read_many(
     """
 
     if isinstance(stream, str):
-        stream = StringIO(stream)
+        stream = io.StringIO(stream)
+
     pos = stream.tell()
     source = stream.read()
     stream.seek(pos)
 
     reader = reader or HyReader()
-    m = models.Lazy(reader.parse(
-        stream, filename, skip_shebang))
+
+    m = models.Lazy(reader.parse(stream, filename, skip_shebang))
     m.source = source
     m.filename = filename
     m.reader = reader
@@ -53,10 +54,11 @@ def read(stream: str | ta.TextIO, filename: str | None = None, reader: HyReader 
     """
 
     it = read_many(stream, filename, reader)
+
     try:
         m = next(it)
     except StopIteration:
         raise EOFError from None
-    else:
-        m.source, m.filename, m.reader = it.source, it.filename, it.reader
-        return m
+
+    m.source, m.filename, m.reader = it.source, it.filename, it.reader
+    return m

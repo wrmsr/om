@@ -126,6 +126,10 @@
   (with [(pytest.raises HySyntaxError)]
     (hy.eval '(match 1
                      1 :if True :as x x)))
+  ;; ... even if the guard is a falsey model
+  (with [(pytest.raises HySyntaxError)]
+    (hy.eval '(match 1
+                     1 :if 0 :as x x)))
 
   (defmacro assert-model-match [subject pattern]
      `(assert (match (quote ~subject) ~pattern True _ False)))
@@ -274,3 +278,14 @@
                (match y
                       {"b" b #** a} a)))
     (assert (= b 2))))
+
+
+(defn test-falsey-guards []
+  ; Guards which are falsey models are still guards.
+  (assert (= (match 1  1 :if 0 "one"  _ "other") "other"))
+  (assert (= (match 1  1 :if 0.0 "one"  _ "other") "other"))
+  (assert (= (match 1  1 :if "" "one"  _ "other") "other"))
+  (assert (= (match 1  1 :if [] "one"  _ "other") "other"))
+  (assert (= (match 1  1 :if #() "one"  _ "other") "other"))
+  (assert (= (match 1  1 :if False "one"  _ "other") "other"))
+  (assert (= (match 1  1 :if 1 "one"  _ "other") "one")))

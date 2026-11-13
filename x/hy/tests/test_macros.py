@@ -1,21 +1,26 @@
+import math
+
 import pytest
 
-from ...compiler import HyASTCompiler
-from ...errors import HyMacroExpansionError
-from ...globalruntime import get_global_runtime
-from ...macros import macro
-from ...macros import macroexpand
-from ...macros import rename_function
-from ...models import Expression
-from ...models import Float
-from ...models import List
-from ...models import String
-from ...models import Symbol
-from ...reader import read
+from ..compiler import HyASTCompiler
+from ..errors import HyMacroExpansionError
+from ..globalruntime import get_global_runtime
+from ..macros import macro
+from ..macros import macroexpand
+from ..macros import rename_function
+from ..models import Expression
+from ..models import Float
+from ..models import List
+from ..models import String
+from ..models import Symbol
+from ..reader import read
+from .helpers import PACKAGE
+
+
+##
 
 
 RT = get_global_runtime()
-hy = RT.hy
 
 
 @macro('test')
@@ -62,8 +67,6 @@ def test_preprocessor_exceptions():
 
 def test_macroexpand_nan():
     # https://github.com/hylang/hy/issues/1574
-    import math
-
     nan = float('nan')
     x = macroexpand(Float(nan), __name__, HyASTCompiler(__name__, runtime=RT))
     assert type(x) is Float
@@ -75,7 +78,7 @@ def test_macroexpand_source_data():
     ast = Expression([Symbol('when'), String('a')])
     ast.start_line = 3
     ast.start_column = 5
-    bad = macroexpand(ast, f'{hy.__package__}.core.macros', once=True)
+    bad = macroexpand(ast, f'{PACKAGE}.core.macros', once=True)
     assert isinstance(bad, Expression)
     assert bad.start_line == 3
     assert bad.start_column == 5
@@ -93,3 +96,4 @@ def test_renamed_function_metadata():
     assert renamed.__kwdefaults__ == original.__kwdefaults__
     assert renamed.__kwdefaults__ is not original.__kwdefaults__
     assert renamed.__annotations__ == original.__annotations__
+    assert renamed.__qualname__ == 'test_renamed_function_metadata.<locals>.renamed'

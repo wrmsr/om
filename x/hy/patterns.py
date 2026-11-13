@@ -34,6 +34,8 @@ ValueT = ta.TypeVar('ValueT')
 
 ModelParser: ta.TypeAlias = Parser[Object, ta.Any]
 
+UnpackKind: ta.TypeAlias = ta.Literal['iterable', 'mapping', 'either']
+
 
 ##
 
@@ -45,26 +47,30 @@ STR: ModelParser = some(lambda x: isinstance(x, String)).named('String')
 LITERAL: ModelParser = some(lambda x: isinstance(x, (String, Integer, Float, Complex, Bytes))).named('literal')
 
 
+##
+
+
+def _match_sym(wanted: str) -> ModelParser:
+    """Match a symbol named ``wanted``, or a keyword if ``wanted`` begins with ``":"``."""
+
+    if wanted.startswith(':'):
+        return a(Keyword(wanted[1:]))
+    return some(lambda x: x == Symbol(wanted))
+
+
 def sym(wanted: str) -> _IgnoredParser[Object]:
     """
     Match and skip a symbol with a name equal to the string ``wanted``. You can begin the string with ``":"`` to check
     for a keyword instead.
     """
 
-    return _sym(wanted, skip)
+    return skip(_match_sym(wanted)).named(f'`{wanted}`')
 
 
 def keepsym(wanted: str) -> ModelParser:
     """As :func:`sym`, but the object is kept instead of skipped."""
 
-    return _sym(wanted)
-
-
-def _sym(wanted: str, f: ta.Callable[..., ta.Any] = lambda x: x) -> ta.Any:
-    name = '`' + wanted + '`'
-    if wanted.startswith(':'):
-        return f(a(Keyword(wanted[1:]))).named(name)
-    return f(some(lambda x: x == Symbol(wanted))).named(name)
+    return _match_sym(wanted).named(f'`{wanted}`')
 
 
 def whole(parsers: ta.Sequence[ModelParser]) -> Parser[Object, tuple[ta.Any, ...]]:
@@ -75,29 +81,34 @@ def whole(parsers: ta.Sequence[ModelParser]) -> Parser[Object, tuple[ta.Any, ...
 
     if len(parsers) == 0:
         return finished >> (lambda _: ())
-    non_ignored_parsers = sum(
-        not isinstance(p, _IgnoredParser)
-        for p in parsers)
+
+    num_kept = sum(not isinstance(p, _IgnoredParser) for p in parsers)
+
     if len(parsers) == 1:
-        return ((parsers[0] >> (lambda r: (r,) if non_ignored_parsers else ())) +
-                skip(finished))
-    return ((
-        functools.reduce(operator.add, parsers) >> (lambda r:
-            () if non_ignored_parsers == 0 else
-            (r,) if non_ignored_parsers == 1 else
-            r)) +
-            skip(finished))
+        return (parsers[0] >> (lambda r: (r,) if num_kept else ())) + skip(finished)
+
+    def as_tuple(r: ta.Any) -> tuple[ta.Any, ...]:
+        if num_kept == 0:
+            return ()
+        elif num_kept == 1:
+            return (r,)
+        else:
+            return r
+
+    return (functools.reduce(operator.add, parsers) >> as_tuple) + skip(finished)
 
 
 def _grouped(
         group_type: type[Sequence],
+        parsers: ta.Sequence[ModelParser],
+        *,
         syntax_example: str,
         name: str | None,
-        parsers: ta.Sequence[ModelParser],
 ) -> ModelParser:
+    display_name = name or f'{group_type.__name__} (i.e., `{syntax_example}`)'
+
     return (
-        some(lambda x: isinstance(x, group_type)).named(name or
-                                                        f'{group_type.__name__} (i.e., `{syntax_example}`)') >>
+        some(lambda x: isinstance(x, group_type)).named(display_name) >>
         (lambda x: group_type(whole(parsers).parse(x)).replace(x, recursive=False))
     )
 
@@ -105,25 +116,25 @@ def _grouped(
 def brackets(*parsers: ModelParser, name: str | None = None) -> ModelParser:
     """Match the given parsers inside square brackets (a :class:`List <hy.models.List>`)."""
 
-    return _grouped(List, '[ … ]', name, parsers)
+    return _grouped(List, parsers, syntax_example='[ … ]', name=name)
 
 
 def in_tuple(*parsers: ModelParser, name: str | None = None) -> ModelParser:
     """Match the given parsers inside a :class:`Tuple <hy.models.Tuple>`."""
 
-    return _grouped(Tuple, '#( … )', name, parsers)
+    return _grouped(Tuple, parsers, syntax_example='#( … )', name=name)
 
 
 def braces(*parsers: ModelParser, name: str | None = None) -> ModelParser:
     """Match the given parsers inside curly braces (a :class:`Dict <hy.models.Dict>`)."""
 
-    return _grouped(Dict, '{ … }', name, parsers)
+    return _grouped(Dict, parsers, syntax_example='{ … }', name=name)
 
 
 def pexpr(*parsers: ModelParser, name: str | None = None) -> ModelParser:
     """Match the given parsers inside a parenthesized :class:`Expression <hy.models.Expression>`."""
 
-    return _grouped(Expression, '( … )', name, parsers)
+    return _grouped(Expression, parsers, syntax_example='( … )', name=name)
 
 
 def dolike(head: str) -> ModelParser:
@@ -136,25 +147,25 @@ def notpexpr(*disallowed_heads: str) -> ModelParser:
     """Parse any object other than an expression headed by a symbol whose name is equal to one of the given strings."""
 
     heads = list(map(Symbol, disallowed_heads))
-    return some(
-        lambda x: not (isinstance(x, Expression) and x and x[0] in heads),
-    )
+
+    return some(lambda x: not (isinstance(x, Expression) and x and x[0] in heads))
 
 
-def unpack(kind: str, content_type: type | tuple[type, ...] | None = None) -> ModelParser:
+def unpack(kind: UnpackKind, content_type: type | tuple[type, ...] | None = None) -> ModelParser:
     """
-    Parse an unpacking form, returning it unchanged. ``kind`` should be ``"iterable"``, ``"mapping"``, or ``"either"``.
-    If ``content_type`` is provided, the parser also checks that the unpacking form has exactly one argument and that
-    argument inherits from ``content_type``.
+    Parse an unpacking form, returning it unchanged. If ``content_type`` is provided, the parser also checks that the
+    unpacking form has exactly one argument and that argument inherits from ``content_type``.
     """
+
+    heads = [
+        Symbol('unpack-' + tail)
+        for tail in (['iterable', 'mapping'] if kind == 'either' else [kind])
+    ]
 
     return some(lambda x: (
         isinstance(x, Expression) and
         len(x) > 0 and
-        x[0] in [
-            Symbol('unpack-' + tail)
-            for tail in (['iterable', 'mapping'] if kind == 'either' else [kind])
-        ] and
+        x[0] in heads and
         (
             content_type is None or
             (len(x) == 2 and isinstance(x[1], content_type))
@@ -168,22 +179,25 @@ def times(lo: int, hi: float, parser: Parser[TokenT, ValueT]) -> Parser[TokenT, 
     result is a list no matter the number of instances.
     """
 
+    # The inner parser functions here and in `parse_if` must not have docstrings, which `Parser` would take as names.
     @Parser
-    def f(tokens: ta.Sequence[TokenT], s: State) -> tuple[list[ValueT], State]:
-        result = []
+    def times_parser(tokens: ta.Sequence[TokenT], s: State) -> tuple[list[ValueT], State]:
+        result: list[ValueT] = []
         for _ in range(lo):
-            (v, s) = parser.run(tokens, s)
+            v, s = parser.run(tokens, s)
             result.append(v)
+
         end = s.max
         try:
             for _ in itertools.repeat(1) if math.isinf(hi) else range(ta.cast(int, hi) - lo):
-                (v, s) = parser.run(tokens, s)
+                v, s = parser.run(tokens, s)
                 result.append(v)
         except NoParseError as e:
             end = e.state.max
+
         return result, State(s.pos, end)
 
-    return f
+    return times_parser
 
 
 class Tag(ta.NamedTuple):
@@ -204,8 +218,8 @@ def parse_if(pred: ta.Callable[[TokenT], bool], parser: Parser[TokenT, ValueT]) 
     """Return a parser that parses a token with ``parser`` if it satisfies the predicate ``pred``."""
 
     @Parser
-    def _parse_if(tokens: ta.Sequence[TokenT], s: State) -> tuple[ValueT, State]:
+    def parse_if_parser(tokens: ta.Sequence[TokenT], s: State) -> tuple[ValueT, State]:
         some(pred).run(tokens, s)
         return parser.run(tokens, s)
 
-    return _parse_if
+    return parse_if_parser

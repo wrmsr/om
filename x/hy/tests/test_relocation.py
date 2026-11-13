@@ -5,7 +5,7 @@ import textwrap
 
 import pytest
 
-from .test_bin import REPO_PYTHON
+from .helpers import REPO_PYTHON
 
 
 ##
@@ -77,7 +77,7 @@ def test_relocated_package(tmp_path, package):
 
         assert sys.path_hooks == hooks_before
         assert dict(builtins.__dict__) == builtins_before
-        core_hy_modules = [{package!r} + '.' + n for n in ['core.macros', 'core.util', 'core.hy_repr', 'pyops']]
+        core_hy_modules = [{package!r} + '.' + n for n in ['core.macros', 'core.util', 'core.reprs', 'pyops']]
         assert not [n for n in core_hy_modules if n in sys.modules]
         assert not hy_named()
 
@@ -100,6 +100,7 @@ def test_relocated_package(tmp_path, package):
         [REPO_PYTHON, '-c', source],
         env=env,
         cwd=tmp_path,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         check=False,
         text=True,
@@ -111,6 +112,7 @@ def test_relocated_package(tmp_path, package):
         [REPO_PYTHON, '-m', package, '-c', '(print (cond False 0 True (+ 2 3)))'],
         env=env,
         cwd=tmp_path,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         check=False,
         text=True,

@@ -14,6 +14,9 @@ from ..reader.exceptions import LexException
 from ..runtime import HyRuntime
 
 
+##
+
+
 def sym(s):
     return Symbol(s)
 
@@ -36,9 +39,6 @@ def py_annotation(src):
     stmt = tree.body[0]
     assert isinstance(stmt, ast.AnnAssign)
     return ast.unparse(stmt.annotation)
-
-
-##
 
 
 def test_reading():

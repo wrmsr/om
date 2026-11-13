@@ -1,12 +1,12 @@
+import math
 import sys
 import traceback
-from math import isnan
 
 import pytest
 
+from ..errors import HySyntaxError
 from ..errors import filtered_hy_exceptions
 from ..errors import hy_exc_handler
-from ..globalruntime import get_global_runtime
 from ..models import Bytes
 from ..models import Complex
 from ..models import Dict
@@ -22,10 +22,14 @@ from ..models import Symbol
 from ..reader import read_many
 from ..reader.exceptions import LexException
 from ..reader.exceptions import PrematureEndOfInput
+from .helpers import PACKAGE
+from .helpers import global_hy
 
 
-RT = get_global_runtime()
-hy = RT.hy
+##
+
+
+hy = global_hy()
 
 
 def tokenize(*args, **kwargs):
@@ -165,7 +169,7 @@ def test_lex_strings_exception():
             '  File "<string>", line 1',
             '    "\\x8"',
             '        ^',
-            (f"{hy.__package__}.reader.exceptions.LexException:"
+            (f"{PACKAGE}.reader.exceptions.LexException:"
              " 'unicodeescape' codec can't decode bytes in position 0-2:"
              " truncated \\xXX escape"),
         ],
@@ -209,7 +213,7 @@ def test_lex_big_float():
 
 def test_lex_nan_and_inf():
 
-    assert isnan(tokenize('NaN')[0])
+    assert math.isnan(tokenize('NaN')[0])
     assert tokenize('Nan') == [Symbol('Nan')]
     assert tokenize('nan') == [Symbol('nan')]
     assert tokenize('NAN') == [Symbol('NAN')]
@@ -241,14 +245,14 @@ def test_lex_expression_complex():
     assert t('1.e7J') == f(Complex(1e7j))
     assert t('j') == f(Symbol('j'))
     assert t('J') == f(Symbol('J'))
-    assert isnan(t('NaNj')[0][1].imag)
+    assert math.isnan(t('NaNj')[0][1].imag)
     assert t('nanj') == f(Symbol('nanj'))
     assert t('Inf+Infj') == f(Complex(complex(float('inf'), float('inf'))))
     assert t('Inf-Infj') == f(Complex(complex(float('inf'), float('-inf'))))
     assert t('Inf-INFj') == f(Symbol('Inf-INFj'))
 
     # https://github.com/hylang/hy/issues/2521
-    assert isnan(t('NaNJ')[0][1].imag)
+    assert math.isnan(t('NaNJ')[0][1].imag)
     assert t('nanJ') == f(Symbol('nanJ'))
     assert t('InfJ') == f(Complex(complex(0, float('inf'))))
     assert t('iNfJ') == f(Symbol('iNfJ'))
@@ -314,7 +318,7 @@ def test_lex_bad_attrs():
             '  File "<string>", line 1',
             '    1.foo',
             '        ^',
-            f'{hy.__package__}.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
+            f'{PACKAGE}.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
         ],
     )
 
@@ -676,7 +680,7 @@ def test_lex_exception_filtering(capsys):
         [
             '  File "<string>", line 2',
             '    (foo',
-            f'{hy.__package__}.PrematureEndOfInput: Premature end of input while attempting to parse one form',
+            f'{PACKAGE}.PrematureEndOfInput: Premature end of input while attempting to parse one form',
         ],
     )
 
@@ -689,7 +693,7 @@ def test_lex_exception_filtering(capsys):
         [
             '  File "<string>", line 3',
             '    1.foo',
-            f'{hy.__package__}.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
+            f'{PACKAGE}.reader.exceptions.LexException: The parts of a dotted identifier must be symbols',
         ],
     )
 
@@ -700,10 +704,6 @@ def test_read_error():
     pointing to the source position where the error arose.
     """
 
-    import traceback
-
-    from ..errors import HySyntaxError
-
     with pytest.raises(HySyntaxError) as e:
         hy.eval(hy.read('(do (defn))'))
 
@@ -713,8 +713,6 @@ def test_read_error():
 
 
 def test_shebang():
-    from ..errors import HySyntaxError
-
     with pytest.raises(HySyntaxError):
         # By default, `read_many` doesn't allow a shebang.
         assert tokenize('#!/usr/bin/env hy\n5')
@@ -725,8 +723,8 @@ def test_shebang():
 def test_reader_class_reprs():
     "Don't show internal modules in which these classes are defined."
 
-    assert repr(hy.Reader) == f"<class '{hy.__package__}.Reader'>"
-    assert repr(hy.HyReader) == f"<class '{hy.__package__}.HyReader'>"
+    assert repr(hy.Reader) == f"<class '{PACKAGE}.Reader'>"
+    assert repr(hy.HyReader) == f"<class '{PACKAGE}.HyReader'>"
 
 
 def test_exception_hook_restored():

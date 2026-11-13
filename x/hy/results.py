@@ -1,6 +1,5 @@
 """Compiler results: the bridge between Hy's everything-is-an-expression world and Python's statements."""
 import ast
-import traceback
 import typing as ta
 
 from .models import Object
@@ -12,16 +11,20 @@ if ta.TYPE_CHECKING:
 
 
 ResultStatement: ta.TypeAlias = ast.stmt | ast.excepthandler
+ResultTempVariable: ta.TypeAlias = ast.Name | ast.FunctionDef | ast.AsyncFunctionDef
 
 
 ##
 
 
-# Provide asty.Foo(x, ...) as shorthand for
-# ast.Foo(..., lineno=x.start_line, col_offset=x.start_column) or
-# ast.Foo(..., lineno=x.lineno, col_offset=x.col_offset)
-# Also provides asty.parse(x, ...) which recursively copies x's position data onto the parse result.
 class Asty:
+    """
+    Provides `asty.Foo(x, ...)` as shorthand for `ast.Foo(..., lineno=x.start_line, col_offset=x.start_column, ...)`
+    (or, for AST nodes and results, `ast.Foo(..., lineno=x.lineno, col_offset=x.col_offset, ...)`).
+
+    Also provides `asty.parse(x, ...)`, which recursively copies the position of `x` onto the parse result.
+    """
+
     POS_ATTRS: ta.ClassVar[ta.Mapping[str, str]] = {
         'lineno': 'start_line',
         'col_offset': 'start_column',
@@ -41,6 +44,7 @@ class Asty:
         for attr, value in pos.items():
             if hasattr(node, attr):
                 setattr(node, attr, value)
+
         for child in ast.iter_child_nodes(node):
             Asty._replace_pos(child, pos)
 
@@ -50,13 +54,11 @@ class Asty:
         return res
 
     def __getattr__(self, name: str) -> ta.Any:
-        setattr(
-            Asty,
-            name,
-            staticmethod(
-                lambda x, **kwargs: getattr(ast, name)(**Asty._get_pos(x), **kwargs),
-            ),
-        )
+        def make_node(x: Object | ast.AST | Result, **kwargs: ta.Any) -> ta.Any:
+            return getattr(ast, name)(**Asty._get_pos(x), **kwargs)
+
+        # Cached on the class, so this is only reached once per node type.
+        setattr(Asty, name, staticmethod(make_node))
         return getattr(Asty, name)
 
 
@@ -65,9 +67,9 @@ asty = Asty()
 
 class Result:
     """
-    Smart representation of the result of a hy->AST compilation
+    Smart representation of the result of a Hy-to-AST compilation.
 
-    This object tries to reconcile the hy world, where everything can be used as an expression, with the Python world,
+    This object tries to reconcile the Hy world, where everything can be used as an expression, with the Python world,
     where statements and expressions need to coexist.
 
     To do so, we represent a compiler result as a list of statements `stmts`, terminated by an expression context
@@ -76,88 +78,64 @@ class Result:
     Results are chained by addition: adding two results together returns a Result representing the succession of the two
     Results' statements, with the second Result's expression context.
 
-    We make sure that a non-empty expression context does not get clobbered by adding more results, by checking accesses
-    to the expression context. We assume that the context has been used, or deliberately ignored, if it has been
-    accessed.
-
-    The Result object is interoperable with python AST objects: when an AST object gets added to a Result object, it
+    The Result object is interoperable with Python AST objects: when an AST object gets added to a Result object, it
     gets converted on-the-fly.
     """
 
-    __slots__ = ('stmts', 'temp_variables', '_expr', '__used_expr')
+    __slots__ = ('expr', 'stmts', 'temp_variables')
+
+    stmts: list[ResultStatement]
+    expr: ast.expr | None
+    temp_variables: list[ResultTempVariable]
 
     def __init__(
             self,
             *,
             stmts: ta.Iterable[ResultStatement] = (),
             expr: ast.expr | None = None,
-            temp_variables: ta.Iterable[ast.Name | ast.FunctionDef | ast.AsyncFunctionDef] = (),
+            temp_variables: ta.Iterable[ResultTempVariable] = (),
     ) -> None:
         super().__init__()
 
         self.stmts = list(stmts)
+        self.expr = expr
         self.temp_variables = list(temp_variables)
-        self._expr = expr
 
-        self.__used_expr = False
-
-    @property
-    def expr(self) -> ast.expr | None:
-        self.__used_expr = True
-        return self._expr
-
-    @expr.setter
-    def expr(self, value: ast.expr | None) -> None:
-        self.__used_expr = False
-        self._expr = value
+    def _pos_node(self) -> ast.expr | ResultStatement | None:
+        if self.expr is not None:
+            return self.expr
+        if self.stmts:
+            return self.stmts[-1]
+        return None
 
     @property
     def lineno(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.lineno
-        if self.stmts:
-            return self.stmts[-1].lineno
-        return None
+        return node.lineno if (node := self._pos_node()) is not None else None
 
     @property
     def col_offset(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.col_offset
-        if self.stmts:
-            return self.stmts[-1].col_offset
-        return None
-
-    @property
-    def end_col_offset(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.end_col_offset
-        if self.stmts:
-            return self.stmts[-1].end_col_offset
-        return None
+        return node.col_offset if (node := self._pos_node()) is not None else None
 
     @property
     def end_lineno(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.end_lineno
-        if self.stmts:
-            return self.stmts[-1].end_lineno
-        return None
+        return node.end_lineno if (node := self._pos_node()) is not None else None
+
+    @property
+    def end_col_offset(self) -> int | None:
+        return node.end_col_offset if (node := self._pos_node()) is not None else None
 
     def is_expr(self) -> bool:
-        """Check whether I am a pure expression"""
+        """Check whether this is a pure expression."""
 
-        return self._expr is not None and not self.stmts
+        return self.expr is not None and not self.stmts
 
     @property
     def force_expr(self) -> ast.expr:
-        """
-        Force the expression context of the Result.
+        """The expression context of the Result, or a `None` constant expression if there is none."""
 
-        If there is no expression context, we return a "None" expression.
-        """
-
-        if self.expr:
+        if self.expr is not None:
             return self.expr
+
         return ast.Constant(
             value=None,
             lineno=self.stmts[-1].lineno if self.stmts else 0,
@@ -166,28 +144,23 @@ class Result:
 
     def expr_as_stmt(self) -> Result:
         """
-        Convert the Result's expression context to a statement
+        Convert the Result's expression context to a statement, which is useful when using it in a statement context
+        (for instance in a code branch). If there is no expression context, return an empty result.
 
-        This is useful when we want to use the stored expression in a statement context (for instance in a code branch).
-
-        We drop ast.Names if they are appended to statements, as they can't have any side effect. "Bare" names still get
-        converted to statements.
-
-        If there is no expression context, return an empty result.
+        `ast.Name`s are dropped if they would follow statements, as they can't have any side effect. 'Bare' names still
+        get converted to statements.
         """
 
-        if self.expr and not (isinstance(self.expr, ast.Name) and self.stmts):
+        if self.expr is not None and not (isinstance(self.expr, ast.Name) and self.stmts):
             return Result() + asty.Expr(self.expr, value=self.expr)
+
         return Result()
 
     def rename(self, compiler: HyASTCompiler, new_name: str) -> None:
-        """
-        Rename the Result's temporary variables to a `new_name`.
-
-        We know how to handle ast.Names and ast.FunctionDefs.
-        """
+        """Rename the Result's temporary variables (`ast.Name`s and function definitions) to `new_name`."""
 
         new_name = mangle(new_name)
+
         for var in self.temp_variables:
             if isinstance(var, ast.Name):
                 var.id = new_name
@@ -196,41 +169,27 @@ class Result:
                 var.name = new_name
             else:
                 raise TypeError(f"Don't know how to rename a {var.__class__.__name__}!")
+
         self.temp_variables = []
 
     def __add__(self, other: Result | ast.AST) -> Result:
-        # If we add an ast statement, convert it first
-        if isinstance(other, ast.stmt):
+        if isinstance(other, (ast.stmt, ast.excepthandler)):
             return self + Result(stmts=[other])
 
-        # If we add an ast expression, clobber the expression context
+        # Adding an expression replaces the expression context.
         if isinstance(other, ast.expr):
             return self + Result(expr=other)
-
-        if isinstance(other, ast.excepthandler):
-            return self + Result(stmts=[other])
 
         if not isinstance(other, Result):
             raise TypeError(f"Can't add {self!r} with non-compiler result {other!r}")
 
-        # Check for expression context clobbering
-        if self.expr and not self.__used_expr:
-            traceback.print_stack()
-            print(
-                f'Bad boy clobbered expr {ast.dump(self.expr)} with '
-                f'{ast.dump(other.expr) if other.expr is not None else None}',
-            )
-
-        # Fairly obvious addition
         result = Result()
         result.stmts = self.stmts + other.stmts
         result.expr = other.expr
         result.temp_variables = other.temp_variables
-
         return result
 
     def __str__(self) -> str:
-        return 'Result(stmts=[{}], expr={})'.format(
-            ', '.join(ast.dump(x) for x in self.stmts),
-            ast.dump(self.expr) if self.expr else None,
-        )
+        stmts = ', '.join(ast.dump(x) for x in self.stmts)
+        expr = ast.dump(self.expr) if self.expr is not None else None
+        return f'Result(stmts=[{stmts}], expr={expr})'

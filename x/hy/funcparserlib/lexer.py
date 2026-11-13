@@ -13,12 +13,19 @@
 # WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""A regexp-based tokenizer producing sequences of `Token` objects for the parsing combinators to consume."""
 import re
 import typing as ta
 
+from omcore import check
+from omcore import dataclasses as dc
 
+
+# A (line, column) position.
 _Place: ta.TypeAlias = tuple[int, int]
-_Spec: ta.TypeAlias = tuple[str, tuple]
+
+# A token type and the positional arguments to `re.compile()`.
+_LegacyTokenSpec: ta.TypeAlias = tuple[str, tuple]
 
 
 ##
@@ -32,84 +39,59 @@ class LexerError(Exception):
         self.msg = msg
 
     def __str__(self) -> str:
-        s = 'cannot tokenize data'
         line, pos = self.place
-        return f'{s}: {line},{pos}: "{self.msg}"'
+        return f'cannot tokenize data: {line},{pos}: "{self.msg}"'
 
 
+@dc.dataclass(frozen=True, repr=False)
 class TokenSpec:
-    """A token specification for generating a lexer via `make_tokenizer()`."""
+    """
+    A token specification for generating a lexer via `make_tokenizer()`: a user-defined token `type` (e.g. `"name"`,
+    `"number"`, `"operator"`), the regexp `pattern` matching it, and the regexp `flags` to compile the pattern with.
+    """
 
-    def __init__(self, type: str, pattern: str, flags: int = 0) -> None:
-        """
-        Initialize a `TokenSpec` object.
-
-        Parameters:
-            type (str): User-defined type of the token (e.g. `"name"`, `"number"`, `"operator"`)
-            pattern (str): Regexp for matching this token type
-            flags (int, optional): Regexp flags, the second argument of `re.compile()`
-        """
-
-        super().__init__()
-
-        self.type = type
-        self.pattern = pattern
-        self.flags = flags
+    type: str
+    pattern: str
+    flags: int = 0
 
     def __repr__(self) -> str:
         return f'TokenSpec({self.type!r}, {self.pattern!r}, {self.flags!r})'
 
 
+@dc.dataclass(frozen=True, eq=False, repr=False)
 class Token:  # noqa: PLW1641
     """
-    A token object that represents a substring of certain type in your text.
+    A token object that represents a substring of certain type in your text: its user-defined `type` (e.g. `"name"`,
+    `"number"`, `"operator"`), its text `value`, and optionally its `start` and `end` positions.
 
-    You can compare tokens for equality using the `==` operator. Tokens also define custom `repr()` and `str()`.
-
-    Attributes:
-        type (str): User-defined type of the token (e.g. `"name"`, `"number"`, `"operator"`)
-        value (str): Text value of the token
-        start (Optional[tuple[int, int]]): Start position (_line_, _column_)
-        end (Optional[tuple[int, int]]): End position (_line_, _column_)
+    Tokens compare equal by their type and value alone, regardless of their positions.
     """
 
-    def __init__(
-            self,
-            type: str,
-            value: str,
-            start: _Place | None = None,
-            end: _Place | None = None,
-    ) -> None:
-        """Initialize a `Token` object."""
-
-        super().__init__()
-
-        self.type = type
-        self.value = value
-        self.start = start
-        self.end = end
+    type: str
+    value: str
+    start: _Place | None = None
+    end: _Place | None = None
 
     def __repr__(self) -> str:
         return f'Token({self.type!r}, {self.value!r})'
 
     def __eq__(self, other: object) -> bool:
-        # FIXME: Case sensitivity is assumed here
-        if not isinstance(other, Token):
-            return False
-        else:
-            return self.type == other.type and self.value == other.value
+        return (
+            isinstance(other, Token) and
+            self.type == other.type and
+            self.value == other.value
+        )
 
     def _pos_str(self) -> str:
         if self.start is None or self.end is None:
             return ''
-        else:
-            sl, sp = self.start
-            el, ep = self.end
-            return f'{sl},{sp}-{el},{ep}:'
+
+        sl, sp = self.start
+        el, ep = self.end
+        return f'{sl},{sp}-{el},{ep}:'
 
     def __str__(self) -> str:
-        s = f"{self._pos_str()} {self.type} '{self.value}'"
-        return s.strip()
+        return f"{self._pos_str()} {self.type} '{self.value}'".strip()
 
     @property
     def name(self) -> str:
@@ -119,103 +101,67 @@ class Token:  # noqa: PLW1641
         return f"{self._pos_str().ljust(20)} {self.type.ljust(14)} '{self.value}'"
 
 
-def make_tokenizer(
-        specs: ta.Sequence[TokenSpec | _Spec],
-) -> ta.Callable[[str], ta.Iterable[Token]]:
-    # noinspection GrazieInspection
+def make_tokenizer(specs: ta.Sequence[TokenSpec | _LegacyTokenSpec]) -> ta.Callable[[str], ta.Iterable[Token]]:
     """
-    Make a function that tokenizes text based on the regexp specs.
+    Make a function that tokenizes text based on the regexp specs. The returned function takes a string and returns an
+    iterable of `Token` objects, raising `LexerError` if it cannot tokenize the string according to its token specs.
 
-    Type: `(Sequence[TokenSpec | tuple]) -> Callable[[str], Iterable[Token]]`
+    For legacy reasons, a token spec may also be a tuple of (type, args), where type sets the value of `Token.type` for
+    the token, and args are the positional arguments for `re.compile()`: either just (pattern,) or (pattern, flags).
 
-    A token spec is `TokenSpec` instance.
-
-    !!! Note
-
-        For legacy reasons, a token spec may also be a tuple of (_type_, _args_), where _type_ sets the value of
-        `Token.type` for the token, and _args_ are the positional arguments for `re.compile()`: either just (_pattern_,)
-        or (_pattern_, _flags_).
-
-    It returns a tokenizer function that takes a string and returns an iterable of `Token` objects, or raises
-    `LexerError` if it cannot tokenize the string according to its token specs.
-
-    Examples:
-
-    ```pycon
     >>> tokenize = make_tokenizer([
     ...     TokenSpec("space", r"\\s+"),
     ...     TokenSpec("id", r"\\w+"),
     ...     TokenSpec("op", r"[,!]"),
     ... ])
     >>> text = "Hello, World!"
-    >>> [t for t in tokenize(text) if t.type != "space"]  # noqa
+    >>> [t for t in tokenize(text) if t.type != "space"]
     [Token('id', 'Hello'), Token('op', ','), Token('id', 'World'), Token('op', '!')]
     >>> text = "Bye?"
     >>> list(tokenize(text))
     Traceback (most recent call last):
         ...
     lexer.LexerError: cannot tokenize data: 1,4: "Bye?"
-
-    ```
     """
 
-    compiled: list[tuple[str, ta.Pattern[str]]] = []
+    compiled: list[tuple[str, re.Pattern[str]]] = []
     for spec in specs:
         if isinstance(spec, TokenSpec):
-            c = spec.type, re.compile(spec.pattern, spec.flags)
+            compiled.append((spec.type, re.compile(spec.pattern, spec.flags)))
         else:
             name, args = spec
-            c = name, re.compile(*args)
-        compiled.append(c)
+            compiled.append((name, re.compile(*args)))
 
-    def match_specs(s: str, i: int, position: tuple[int, int]) -> Token:
+    def match_specs(s: str, i: int, position: _Place) -> Token:
         line, pos = position
+
         for type_name, regexp in compiled:
-            m = regexp.match(s, i)
-            if m is not None:
-                value = m.group()
-                nls = value.count('\n')
-                n_line = line + nls
-                if nls == 0:
-                    n_pos = pos + len(value)
-                else:
-                    n_pos = len(value) - value.rfind('\n') - 1
-                return Token(type_name, value, (line, pos + 1), (n_line, n_pos))
+            if (m := regexp.match(s, i)) is None:
+                continue
+
+            value = m.group()
+            nls = value.count('\n')
+            n_line = line + nls
+            if nls == 0:
+                n_pos = pos + len(value)
+            else:
+                n_pos = len(value) - value.rfind('\n') - 1
+
+            return Token(type_name, value, (line, pos + 1), (n_line, n_pos))
+
         err_line = s.splitlines()[line - 1]
         raise LexerError((line, pos + 1), err_line)
 
-    def f(s: str) -> ta.Iterable[Token]:
+    def tokenize(s: str) -> ta.Iterator[Token]:
         length = len(s)
         line, pos = 1, 0
         i = 0
+
         while i < length:
             t = match_specs(s, i, (line, pos))
             yield t
-            if t.end is None:
-                raise ValueError('Token %r has no end specified', (t,))
-            line, pos = t.end
+
+            line, pos = check.not_none(t.end)
             i += len(t.value)
 
-    return f
-
-
-# This is an example of token specs. See also [this article][1] for a discussion of searching for multiline comments
-# using regexps (including `*?`).
-#
-#   [1]: http://ostermiller.org/findcomment.html
-_example_token_specs = [
-    TokenSpec('COMMENT', r'\(\*(.|[\r\n])*?\*\)', re.MULTILINE),
-    TokenSpec('COMMENT', r'\{(.|[\r\n])*?\}', re.MULTILINE),
-    TokenSpec('COMMENT', r'//.*'),
-    TokenSpec('NL', r'[\r\n]+'),
-    TokenSpec('SPACE', r'[ \t\r\n]+'),
-    TokenSpec('NAME', r'[A-Za-z_][A-Za-z_0-9]*'),
-    TokenSpec('REAL', r'[0-9]+\.[0-9]*([Ee][+\-]?[0-9]+)*'),
-    TokenSpec('INT', r'[0-9]+'),
-    TokenSpec('INT', r'\$[0-9A-Fa-f]+'),
-    TokenSpec('OP', r'(\.\.)|(<>)|(<=)|(>=)|(:=)|[;,=\(\):\[\]\.+\-<>\*/@\^]'),
-    TokenSpec('STRING', r"'([^']|(''))*'"),
-    TokenSpec('CHAR', r'#[0-9]+'),
-    TokenSpec('CHAR', r'#\$[0-9A-Fa-f]+'),
-]
-# tokenize = make_tokenizer(_example_token_specs)
+    return tokenize

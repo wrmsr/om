@@ -104,7 +104,9 @@
 
 (defn test-help-class-attr []
   "Our tampering with `pydoc` or `inspect` shouldn't cause `help` to
-  raise `TypeError` on classes with non-method attributes."
+  raise `TypeError` on classes with non-method attributes. (This renders
+  what `help` would show, without going through its pager - which may
+  be interactive.)"
   (defclass C []
     (setv attribute 1))
-  (help C))
+  (assert (in "attribute = 1" (pydoc.render-doc C :renderer pydoc.plaintext))))

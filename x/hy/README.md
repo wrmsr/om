@@ -112,7 +112,7 @@ and installs, reversibly (`globalruntime.uninstall()`):
 
 - `sys.path_hooks` entries making `.hy` files importable from directories and zip archives, preferred over same-named
   `.py` files, and bytecode-cached like them (`HyLoader`, `HyZipImporter`),
-- Hy-aware source inspection in `inspect` (`hy_inspect`),
+- Hy-aware source inspection in `inspect` (`inspection`),
 - `multiprocessing` support: `spawn` children run `install()` first (by way of their bootstrap command line), and the
   `forkserver` preloads `autoinstall`.
 
@@ -131,8 +131,8 @@ global runtime's prelude, delete stale `__pycache__` entries of `.hy` files.
 
 ## Command line
 
-`python -m x.hy` is the `hy` command (with `cmdline.hyc_main` and `cmdline.hy2py_main` the `hyc` and `hy2py` commands).
-The command line is a process entrypoint, and so installs the global runtime. Unlike upstream, it leaves
+`python -m x.hy` is the `hy` command (with `cli.hyc_main` and `cli.hy2py_main` the `hyc` and `hy2py` commands). The
+command line is a process entrypoint, and so installs the global runtime. Unlike upstream, it leaves
 `sys.executable` alone, and runs Hy files itself (rather than through a patched `runpy`) - giving the main module a spec
 naming the script, as Python does for `-m`, so that `multiprocessing` children re-import it by name.
 
@@ -142,6 +142,9 @@ naming the script, as Python does for `-m`, so that `multiprocessing` children r
 - `importing` - the `HyModules` interface, `IsolatedHyModules` (and its `__import__`), and `SysHyModules`.
 - `finders` - `HyModuleFinder` and its implementations.
 - `globalruntime` / `autoinstall` - the opt-in global runtime, and its loaders and path hooks.
-- `reader` - reading source into models (`models`); `compiler` / `results` / `scoping` / `macros` / `core` - compiling
-  models to Python ASTs; `pyops.hy`, `core/*.hy` - the core Hy modules.
-- `repl`, `completer`, `cmdline`, `hy_inspect` - the interactive and command-line tooling.
+- `reader` - reading source into models (`models`).
+- `compiler` / `results` / `scoping` / `macros` / `patterns` - compiling models to Python ASTs.
+- `core/specials` - the special forms: the core macros written in Python, which compile directly to Python ASTs.
+- `core/*.hy`, `pyops.hy` - the core Hy modules: the core macros written in Hy, `hy.repr`, `hy.gensym`, and `hy.pyops`.
+- `repl`, `completer`, `cli`, `inspection` - the interactive and command-line tooling.
+- `funcparserlib` - a vendored copy of the parser combinator library used to describe the syntax of macros.

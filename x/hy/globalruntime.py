@@ -6,7 +6,7 @@ process-wide :class:`HyRuntime <.runtime.HyRuntime>` - using ``sys.modules`` as 
 
   - ``.hy`` files becoming importable through Python's regular import system, from directories and zip archives on
     ``sys.path``, preferred over same-named ``.py`` files and bytecode-cached like them,
-  - Hy-aware source inspection in :mod:`inspect` (see :mod:`.hy_inspect`),
+  - Hy-aware source inspection in :mod:`inspect` (see :mod:`.inspection`),
   - :mod:`multiprocessing` children (in ``spawn`` and ``forkserver`` modes) installing the global runtime themselves
     before running anything, so they can import Hy modules and run Hy main scripts.
 
@@ -30,7 +30,7 @@ import zipimport
 
 from omcore import check
 
-from . import hy_inspect
+from . import inspection
 from .compiler import hy_compile
 from .importing import SysHyModules
 from .reader import read_many
@@ -375,7 +375,7 @@ def install(
             _STATE.path_hooks = _install_path_hooks()
 
         if not no_inspect and not _STATE.inspect_installed:
-            hy_inspect.install()
+            inspection.install()
             _STATE.inspect_installed = True
 
         if not no_multiprocessing and _STATE.multiprocessing_installed is None:
@@ -398,7 +398,7 @@ def uninstall() -> None:
             _STATE.multiprocessing_installed = None
 
         if _STATE.inspect_installed:
-            hy_inspect.uninstall()
+            inspection.uninstall()
             _STATE.inspect_installed = False
 
         if (hooks := _STATE.path_hooks) is not None:

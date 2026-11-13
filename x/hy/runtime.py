@@ -12,7 +12,6 @@ to :mod:`typing`.
 import ast
 import collections.abc
 import contextlib
-import dataclasses as dc
 import functools
 import importlib
 import importlib.resources
@@ -24,13 +23,14 @@ import typing as ta
 import weakref
 
 from omcore import check
+from omcore import dataclasses as dc
 from omcore import lang
 
 from . import macros as macros_
 from . import models
 from .compiler import hy_compile
 from .compiler import hy_eval
-from .core import result_macros
+from .core import specials
 from .importing import HyModules
 from .importing import HyModulesFactory
 from .importing import IsolatedHyModules
@@ -40,7 +40,7 @@ from .models import as_model
 from .reader import read
 from .reader import read_many
 from .reader.exceptions import PrematureEndOfInput
-from .reader.hy_reader import HyReader
+from .reader.hyreader import HyReader
 from .reader.mangling import mangle
 from .reader.mangling import slashes2dots
 from .reader.mangling import unmangle
@@ -110,7 +110,7 @@ _DEFAULT_HY_CORE_CODE_CACHE = HyCoreCodeCache()
 _CORE_HY_MODULES: ta.AbstractSet[str] = frozenset([
     'core.macros',
     'core.util',
-    'core.hy_repr',
+    'core.reprs',
     'pyops',
 ])
 
@@ -259,7 +259,7 @@ class HyNamespace(types.ModuleType):
 
             case 'repr' | 'repr_register':
                 return getattr(
-                    runtime.load_core_module(f'{_HY_PACKAGE}.core.hy_repr'),
+                    runtime.load_core_module(f'{_HY_PACKAGE}.core.reprs'),
                     f'hy_{name}',
                 )
 
@@ -321,9 +321,9 @@ class HyRuntime:
         self._core_macros_state: ta.Literal['unloaded', 'loading', 'loaded'] = 'unloaded'
 
         # The core macros implemented in Python are always available. Those implemented in Hy are added once loaded.
-        self._core_macros: dict[str, ta.Callable[..., ta.Any]] = dict(getattr(result_macros, '_hy_macros'))
+        self._core_macros: dict[str, ta.Callable[..., ta.Any]] = dict(getattr(specials, '_hy_macros'))
         self._core_reader_macros: dict[str, ta.Callable[..., ta.Any]] = dict(
-            getattr(result_macros, '_hy_reader_macros', {}),
+            getattr(specials, '_hy_reader_macros', {}),
         )
 
         self._hy = HyNamespace(self)
