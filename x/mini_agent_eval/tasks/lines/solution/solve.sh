@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-cp /solution/lines.py /work/lines.py
+cp "${MINIEVAL_SOLUTION_DIR:-/solution}/lines.py" "${MINIEVAL_WORKDIR:-/work}/lines.py"

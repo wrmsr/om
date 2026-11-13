@@ -1,10 +1,13 @@
-"""A small, standard-library-only coding-agent evaluator using the Docker CLI."""
+"""A small, standard-library-only coding-agent evaluator with Docker and local runtimes."""
 import argparse
+import ctypes
 import dataclasses as dc
 import datetime
+import glob
 import hashlib
 import json
 import os
+import platform
 import re
 import secrets
 import shlex
@@ -12,6 +15,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import typing as ta
 
@@ -63,6 +67,60 @@ def stop_process(process: subprocess.Popen) -> None:
     process.wait(timeout=5)
 
 
+def restrict_local_writes(paths: ta.Sequence[str]) -> None:
+    """Apply inherited Linux Landlock write restrictions before an untrusted command starts."""
+
+    if sys.platform != 'linux':
+        raise OSError('The local runtime requires Linux Landlock')
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.syscall.restype = ctypes.c_long
+    libc.prctl.restype = ctypes.c_int
+
+    def syscall(number: int, *args: ta.Any) -> int:
+        result = libc.syscall(number, *args)
+        if result < 0:
+            error = ctypes.get_errno()
+            raise OSError(error, os.strerror(error))
+        return result
+
+    class RulesetAttr(ctypes.Structure):
+        _fields_ = [('handled_access_fs', ctypes.c_uint64)]
+
+    class PathBeneathAttr(ctypes.Structure):
+        _fields_ = [('allowed_access', ctypes.c_uint64), ('parent_fd', ctypes.c_int32)]
+
+    # WRITE_FILE, REMOVE_DIR/FILE, MAKE_*, REFER, and TRUNCATE (Landlock ABI 3).
+    write_access = (1 << 1) | sum(1 << bit for bit in range(4, 15))
+    ruleset = syscall(444, ctypes.byref(RulesetAttr(write_access)), ctypes.sizeof(RulesetAttr), 0)
+    try:
+        for path in (*paths, '/dev/null'):
+            fd = os.open(path, os.O_PATH | os.O_CLOEXEC)
+            try:
+                access = ((1 << 1) | (1 << 14)) if path == '/dev/null' else write_access
+                rule = PathBeneathAttr(access, fd)
+                syscall(445, ruleset, 1, ctypes.byref(rule), 0)
+            finally:
+                os.close(fd)
+        if libc.prctl(38, 1, 0, 0, 0):
+            error = ctypes.get_errno()
+            raise OSError(error, os.strerror(error))
+        syscall(446, ruleset, 0)
+    finally:
+        os.close(ruleset)
+
+
+def check_local_runtime() -> int:
+    if sys.platform != 'linux':
+        raise ValueError('The local runtime requires Linux Landlock')
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.syscall.restype = ctypes.c_long
+    abi = libc.syscall(444, 0, 0, 1)
+    if abi < 3:
+        raise ValueError('The local runtime requires Landlock ABI 3 or newer')
+    return abi
+
+
 def run_command(
         command: ta.Sequence[str],
         *,
@@ -70,6 +128,10 @@ def run_command(
         timeout: float,
         input_data: bytes | None = None,
         capture: bool = False,
+        cwd: str | None = None,
+        env: ta.Mapping[str, str] | None = None,
+        local_write_paths: ta.Sequence[str] | None = None,
+        cleanup_group: bool = False,
 ) -> CommandResult:
     started = time.monotonic()
     timed_out = False
@@ -82,6 +144,12 @@ def run_command(
                 stdout=subprocess.PIPE if capture else log,
                 stderr=log,
                 start_new_session=True,
+                cwd=cwd,
+                env=env,
+                preexec_fn=(  # noqa: PLW1509
+                    (lambda: restrict_local_writes(local_write_paths))
+                    if local_write_paths is not None else None
+                ),
         ) as process:
             try:
                 stdout, _ = process.communicate(input=input_data, timeout=timeout)
@@ -92,6 +160,11 @@ def run_command(
             except BaseException:
                 stop_process(process)
                 raise
+        if cleanup_group:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         if capture and stdout:
             log.write(stdout)
     return CommandResult(process.returncode, time.monotonic() - started, timed_out, stdout or b'')
@@ -182,7 +255,7 @@ class Agent:
 
 
 def load_agent(name: str, root: str, command: ta.Sequence[str]) -> Agent:
-    if name in {'oracle', 'nop', 'external'}:
+    if name in {'oracle', 'nop', 'external', 'scripted'}:
         if (name == 'external') != bool(command):
             raise ValueError('Use --agent external -- COMMAND [ARGS...] for a host agent')
         return Agent(name, name, tuple(command))
@@ -535,12 +608,233 @@ def run_trial(
 ##
 
 
+def local_environment(
+        workdir: str,
+        scratch: str,
+        *,
+        tests: str | None = None,
+        inherit_pythonpath: bool = False,
+) -> dict[str, str]:
+    env = {
+        'HOME': scratch,
+        'PATH': os.environ.get('PATH', '/usr/bin:/bin'),
+        'TMPDIR': scratch,
+        'PYTHONDONTWRITEBYTECODE': '1',
+        'PYTHONPATH': workdir,
+        'MINIEVAL_WORKDIR': workdir,
+        'MINIEVAL_PYTHON': sys.executable,
+    }
+    if tests is not None:
+        env['MINIEVAL_TESTS_DIR'] = tests
+    if inherit_pythonpath and (pythonpath := os.environ.get('PYTHONPATH')):
+        env['PYTHONPATH'] += os.pathsep + pythonpath
+    return env
+
+
+def prepare_local_workspace(task: Task, workdir: str, log_path: str) -> None:
+    dockerfile = read_text(os.path.join(task.path, 'environment', 'Dockerfile'))
+    copy_lines = [line.strip() for line in dockerfile.splitlines() if line.lstrip().startswith(('COPY ', 'ADD '))]
+    if copy_lines != ['COPY *.py ./']:
+        raise ValueError(f'Task {task.name} needs a local task setup; supported Dockerfile copy: COPY *.py ./')
+    os.mkdir(workdir)
+    for source in sorted(glob.glob(os.path.join(task.path, 'environment', '*.py'))):
+        shutil.copy2(source, workdir)
+    for command in (
+            ['git', 'init', '-q'],
+            ['git', 'config', 'user.name', 'Mini Eval'],
+            ['git', 'config', 'user.email', 'minieval@localhost'],
+            ['git', 'add', '-f', '-A', '--', '.'],
+            ['git', '-c', 'core.hooksPath=/dev/null', 'commit', '-qm', 'Initial task', '--allow-empty'],
+    ):
+        checked(run_command(command, cwd=workdir, log_path=log_path, timeout=30), log_path)
+
+
+def run_local_agent(
+        agent: Agent,
+        task: Task,
+        request: ta.Mapping[str, ta.Any],
+        *,
+        scratch: str,
+        timeout: float,
+        extra_args: ta.Sequence[str],
+        extra_env: ta.Sequence[str],
+        script: str | None,
+) -> CommandResult:
+    workdir = request['workdir']
+    log_path = os.path.join(request['output_dir'], 'agent.log')
+    if agent.kind == 'nop':
+        return CommandResult(0, 0.0)
+    env = local_environment(workdir, scratch, inherit_pythonpath=True)
+    for name in extra_env:
+        env[name] = os.environ[name]
+    if agent.kind == 'oracle':
+        solution = os.path.join(task.path, 'solution')
+        if not os.path.isfile(os.path.join(solution, 'solve.sh')):
+            raise ValueError(f'Task {task.name} has no solution/solve.sh')
+        env['MINIEVAL_SOLUTION_DIR'] = solution
+        command = ['sh', os.path.join(solution, 'solve.sh')]
+        input_data = None
+    elif agent.kind == 'external':
+        tokens = {
+            'workdir': workdir,
+            'instruction_file': request['instruction_file'],
+            'prompt_file': request['container_instruction_file'],
+            'output_dir': request['output_dir'],
+        }
+        command = [replace_tokens(arg, tokens) for arg in (*agent.command, *extra_args)]
+        input_data = (json.dumps(dict(request)) + '\n').encode()
+    elif agent.kind == 'scripted':
+        command = [sys.executable, '-m', 'x.mini_agent_eval.examples.scripted']
+        if script is not None:
+            command.extend(['--script', script])
+        input_data = (json.dumps(dict(request)) + '\n').encode()
+    else:
+        raise ValueError(f'Agent {agent.name} requires the Docker runtime')
+    return run_command(
+        command,
+        cwd=workdir,
+        env=env,
+        log_path=log_path,
+        timeout=timeout,
+        input_data=input_data,
+        local_write_paths=[workdir, scratch, request['artifact_dir']],
+        cleanup_group=True,
+    )
+
+
+def run_local_trial(
+        task: Task,
+        agent: Agent,
+        *,
+        output_dir: str,
+        timeout: float,
+        test_timeout: float,
+        extra_args: ta.Sequence[str] = (),
+        extra_env: ta.Sequence[str] = (),
+        script: str | None = None,
+) -> dict[str, ta.Any]:
+    os.mkdir(output_dir)
+    started = time.monotonic()
+    result: dict[str, ta.Any] = {
+        'task': task.name,
+        'task_sha256': hash_tree(task.path),
+        'agent': agent.name,
+        'runtime': 'local',
+        'task_image': None,
+        'agent_image': None,
+        'status': 'infrastructure_error',
+    }
+    phase = 'setup'
+    try:
+        with tempfile.TemporaryDirectory(prefix='local-', dir=output_dir) as temporary:
+            agent_workdir = os.path.join(temporary, 'agent')
+            agent_scratch = os.path.join(temporary, 'agent-tmp')
+            os.mkdir(agent_scratch)
+            prepare_local_workspace(task, agent_workdir, os.path.join(output_dir, 'setup.log'))
+            instruction_file = os.path.join(output_dir, 'instruction.md')
+            with open(instruction_file, 'w', encoding='utf-8') as f:
+                f.write(task.instruction)
+            artifact_dir = os.path.join(output_dir, 'agent-artifacts')
+            os.mkdir(artifact_dir)
+            request = {
+                'task_id': task.name,
+                'runtime': 'local',
+                'workdir': agent_workdir,
+                'instruction': task.instruction,
+                'instruction_file': instruction_file,
+                'container_instruction_file': instruction_file,
+                'output_dir': output_dir,
+                'artifact_dir': artifact_dir,
+                'timeout_seconds': timeout,
+            }
+            write_json(os.path.join(output_dir, 'request.json'), request)
+            phase = 'agent'
+            attempt = run_local_agent(
+                agent,
+                task,
+                request,
+                scratch=agent_scratch,
+                timeout=timeout,
+                extra_args=extra_args,
+                extra_env=extra_env,
+                script=script,
+            )
+            result['agent_result'] = dc.asdict(attempt) | {'stdout': None}
+            phase = 'snapshot'
+            workspace = os.path.join(output_dir, 'workspace')
+            shutil.copytree(
+                agent_workdir,
+                workspace,
+                symlinks=True,
+                ignore=shutil.ignore_patterns('.git', '__pycache__'),
+            )
+            phase = 'grader_setup'
+            grader_workdir = os.path.join(temporary, 'grader')
+            grader_scratch = os.path.join(temporary, 'grader-tmp')
+            tests = os.path.join(temporary, 'tests')
+            os.mkdir(grader_scratch)
+            prepare_local_workspace(task, grader_workdir, os.path.join(output_dir, 'setup.log'))
+            for name in os.listdir(grader_workdir):
+                if name != '.git':
+                    remove_path(os.path.join(grader_workdir, name))
+            shutil.copytree(workspace, grader_workdir, dirs_exist_ok=True, symlinks=True)
+            shutil.copytree(os.path.join(task.path, 'tests'), tests)
+            for command in (
+                    ['git', 'add', '-f', '-A', '--', '.'],
+                    ['git', 'diff', '--cached', '--binary', '--no-ext-diff', '--no-textconv', 'HEAD', '--'],
+            ):
+                command_result = checked(run_command(
+                    command,
+                    cwd=grader_workdir,
+                    log_path=os.path.join(output_dir, 'setup.log'),
+                    timeout=30,
+                    capture=command[1] == 'diff',
+                ), os.path.join(output_dir, 'setup.log'))
+            with open(os.path.join(output_dir, 'patch.diff'), 'wb') as f:
+                f.write(command_result.stdout)
+            phase = 'grader'
+            verification = run_command(
+                ['sh', os.path.join(tests, 'test.sh')],
+                cwd=grader_workdir,
+                env=local_environment(grader_workdir, grader_scratch, tests=tests),
+                log_path=os.path.join(output_dir, 'verifier.log'),
+                timeout=test_timeout,
+                local_write_paths=[grader_workdir, grader_scratch],
+                cleanup_group=True,
+            )
+            result['verifier_result'] = dc.asdict(verification) | {'stdout': None}
+            result['tests_passed'] = not verification.timed_out and verification.returncode == 0
+            result['status'] = classify_result(attempt, verification)
+    except KeyboardInterrupt:
+        result['status'] = 'interrupted'
+        raise
+    except Exception as exc:  # noqa
+        if result.get('agent_result', {}).get('timed_out'):
+            result['status'] = 'agent_timeout'
+        elif result.get('agent_result', {}).get('returncode'):
+            result['status'] = 'agent_error'
+        elif phase == 'snapshot':
+            result['status'] = 'submission_error'
+        elif phase == 'agent':
+            result['status'] = 'agent_error'
+        result['phase'] = phase
+        result['error'] = f'{type(exc).__name__}: {exc}'
+    finally:
+        result['seconds'] = time.monotonic() - started
+        write_json(os.path.join(output_dir, 'result.json'), result)
+    return result
+
+
+##
+
+
 def add_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--tasks', default='tasks')
     parser.add_argument('--task', action='append', default=[])
     parser.add_argument('--runs', default='runs')
     parser.add_argument('--run-id')
     parser.add_argument('--docker', default='docker')
+    parser.add_argument('--runtime', choices=['docker', 'local'], default='docker')
     parser.add_argument('--platform', choices=['linux/amd64', 'linux/arm64'])
     parser.add_argument('--timeout', type=float, default=600)
     parser.add_argument('--test-timeout', type=float, default=120)
@@ -581,6 +875,71 @@ def run_suite(args: argparse.Namespace) -> int:
     os.mkdir(run_dir)
     print(f'Run: {run_dir}', flush=True)
     write_json(os.path.join(run_dir, 'run.json'), vars(args) | {'run_id': run_id})
+    if args.runtime == 'local':
+        if args.platform or args.keep_containers:
+            raise ValueError('--platform and --keep-containers require the Docker runtime')
+        for agent in agents:
+            if agent.kind == 'container':
+                raise ValueError(f'Agent {agent.name} requires the Docker runtime')
+        script = getattr(args, 'script', None)
+        if script is not None and agents[0].kind != 'scripted':
+            raise ValueError('--script requires --agent scripted')
+        if agents[0].kind == 'scripted' and getattr(args, 'agent_arg', []):
+            raise ValueError('--agent-arg is not supported with --agent scripted')
+        if script is not None:
+            script = os.path.abspath(script)
+            if not os.path.isfile(script):
+                raise ValueError(f'Script file does not exist: {script}')
+            copied_script = os.path.join(run_dir, 'script.json')
+            shutil.copy2(script, copied_script)
+            script = copied_script
+        abi = check_local_runtime()
+        local_info: dict[str, ta.Any] = {
+            'landlock_abi': abi,
+            'platform': platform.platform(),
+            'python': sys.version,
+            'python_executable': sys.executable,
+        }
+        if script is not None:
+            with open(script, 'rb') as f:
+                local_info['script_sha256'] = hashlib.sha256(f.read()).hexdigest()
+        write_json(os.path.join(run_dir, 'local.json'), local_info)
+        results = []
+        all_expected = True
+        for task in tasks:
+            for agent in agents:
+                for attempt in range(1, repeat + 1):
+                    trial_name = f'{task.name}-{agent.name}-{attempt}'
+                    print(f'Running {trial_name} ...', flush=True)
+                    result = run_local_trial(
+                        task,
+                        agent,
+                        output_dir=os.path.join(run_dir, trial_name),
+                        timeout=args.timeout,
+                        test_timeout=args.test_timeout,
+                        extra_args=getattr(args, 'agent_arg', []),
+                        extra_env=getattr(args, 'env', []),
+                        script=script,
+                    )
+                    results.append(result)
+                    with open(os.path.join(run_dir, 'results.jsonl'), 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(result, sort_keys=True) + '\n')
+                    expected = 'failed' if args.action == 'check' and agent.kind == 'nop' else 'passed'
+                    all_expected = all_expected and result['status'] == expected
+                    print(f"  {result['status']} ({result['seconds']:.1f}s)", flush=True)
+                    if 'error' in result:
+                        print('  ' + result['error'], file=sys.stderr, flush=True)
+        local_counts: dict[str, int] = {}
+        for result in results:
+            status = result['status']
+            local_counts[status] = local_counts.get(status, 0) + 1
+        write_json(os.path.join(run_dir, 'summary.json'), {'attempts': len(results), 'counts': local_counts})
+        print(json.dumps(local_counts, sort_keys=True), flush=True)
+        return 0 if all_expected else 1
+    if getattr(args, 'script', None) is not None:
+        raise ValueError('--script requires --runtime local --agent scripted')
+    if any(agent.kind == 'scripted' for agent in agents):
+        raise ValueError('--agent scripted requires --runtime local')
     docker = Docker(
         executable=args.docker,
         platform=args.platform,
@@ -665,6 +1024,7 @@ def _main() -> None:
     run.add_argument('--agents', default='agents')
     run.add_argument('--agent-version')
     run.add_argument('--agent-arg', action='append', default=[])
+    run.add_argument('--script', help='JSON turns for the local scripted omllm backend')
     run.add_argument('--env', action='append', default=[], metavar='NAME')
     run.add_argument('--repeat', type=int, default=1)
     run.add_argument('command', nargs=argparse.REMAINDER)

@@ -1,11 +1,13 @@
 # Mini agent eval
 
-A small coding-agent evaluator: one standard-library Python module, the Docker CLI, three starter tasks, and optional
-Codex, Claude Code, and Pi adapters. Your own host agent can work directly against the container ID.
+A small coding-agent evaluator: one standard-library Python runner, Docker and local runtimes, three starter tasks, and
+optional Codex, Claude Code, and Pi adapters. Your own host agent can work against a Docker container or a local trial
+workspace.
 
-The runner targets Python 3.11+ on Linux and macOS, including Python 3.14. It requires an ordinary running Linux Docker
-daemon: Docker Engine on Linux or Docker Desktop on macOS. There are no host Python packages to install. Host Node and
-Git are not required; the optional agent images contain Node, and task images contain Git.
+The runner targets Python 3.11+ on Linux and macOS, including Python 3.14. Docker is the default runtime and requires an
+ordinary running Linux Docker daemon: Docker Engine on Linux or Docker Desktop on macOS. The local runtime requires
+Linux Landlock ABI 3 or newer, host Git, and a Python interpreter. Neither runtime needs extra host Python packages.
+Host Node is only needed for host agents which use it.
 
 ## First run
 
@@ -26,6 +28,52 @@ For a quicker first check:
 python3 -m minieval check --task intervals
 ```
 
+### Without Docker
+
+From the monorepo root, use its Python launcher and select the local runtime:
+
+```sh
+./python -m x.mini_agent_eval.minieval check --runtime local --tasks x/mini_agent_eval/tasks
+./python -m x.mini_agent_eval.minieval run --runtime local --tasks x/mini_agent_eval/tasks --agent oracle
+```
+
+`check` creates fresh workspaces and a fresh grader for every trial. It verifies that all three starters fail and all
+three reference solutions pass. Local processes inherit Linux Landlock rules that permit filesystem writes only in the
+trial workspace and its temporary directory. The runner gives them a trial HOME and TMPDIR, and kills the process group
+after each command. No Docker socket or model credentials are needed.
+
+The local runtime currently supports task images with `COPY *.py ./` as their sole Dockerfile copy operation, as in the
+three included tasks. It copies those Python sources into each workspace and uses the host interpreter and Git. A task
+with build-time dependencies or other Dockerfile copy operations needs a local setup implementation before it can run
+locally. `local.json` records the host platform, Python version, executable, and Landlock ABI; results retain each task's
+content hash. Use the same host toolchain when comparing local runs.
+
+Landlock here restricts **writes**, not reads or network access. A local agent can read host files, including the bundled
+reference solutions, so this runtime is suitable for trusted development and wiring checks. Use Docker for isolated
+benchmark runs or untrusted agent code. Docker remains the default.
+
+The in-repo `omllm` agent can run with an internally configured scripted backend, without provider keys:
+
+```sh
+./python -m x.mini_agent_eval.minieval run --runtime local --tasks x/mini_agent_eval/tasks \
+    --task intervals --agent scripted
+```
+
+The default script calls `bash` to inspect the workspace and then ends; the grader should report `failed` because no
+repair was made. Supply `--script FILE` to replace those turns. The file is a JSON array: each turn has either a `text`
+string or a nonempty `tool_calls` array. Every tool call has a `name` and an `args` object. For example:
+
+```json
+[
+  {"tool_calls": [{"name": "bash", "args": {"command": "pwd"}}]},
+  {"text": "Workspace inspected."}
+]
+```
+
+The adapter builds an `omllm.llm.BackendScript`, injects a `ScriptedImmediateBackend` into the normal `omllm.ui` agent,
+and grants its tools access to the trial workspace. This is a deterministic integration control, not an agent score.
+`--agent scripted` is available from this monorepo checkout and requires `--runtime local`.
+
 Ordinary runs use `run`:
 
 ```sh
@@ -38,16 +86,17 @@ The second command is expected to exit 1 because the supplied source is buggy. T
 
 ## Your host agent
 
-Supply a host command after `--`. The runner starts the task container, then runs your command once per task, sending a
-single JSON object followed by a newline to its stdin:
+Supply a host command after `--`. With Docker, the runner starts the task container, then runs your command once per
+task, sending a single JSON object followed by a newline to its stdin:
 
 ```sh
 python3 -m minieval run --agent external --task intervals -- \
     python3 -m your_agent.eval_adapter
 ```
 
-The command runs in the caller's current directory and inherits the caller's environment. The task container is already
-running and has a writable Git workspace at `/work`. Its `agent` user owns that workspace. The request includes:
+With Docker, the command runs in the caller's current directory and inherits the caller's environment. The task
+container is already running and has a writable Git workspace at `/work`. Its `agent` user owns that workspace. The
+request includes:
 
 ```json
 {
@@ -63,6 +112,11 @@ running and has a writable Git workspace at `/work`. Its `agent` user owns that 
   "timeout_seconds": 600
 }
 ```
+
+With `--runtime local`, the same external agent contract sends `runtime: "local"` and a host `workdir` path. It does not
+send `container_id` or `docker_executable`. The command runs under the local write restrictions and should edit that
+workspace directly. It may write extra metrics to the request's `artifact_dir`; the rest of `output_dir` is read-only to
+the local agent. The Docker-only example below still expects a container ID.
 
 Your integration entrypoint can load that request and call your existing harness. This is an illustration of the adapter
 body; `run_my_agent` is your own function:
@@ -255,17 +309,19 @@ Important outputs:
 | File | Contents |
 | --- | --- |
 | `run.json` | Runner invocation settings |
-| `docker.json` | Docker version and platform metadata |
-| `setup.log` | Image preparation and Docker operations |
+| `docker.json` or `local.json` | Runtime version and platform metadata |
+| `setup.log` | Image preparation and Docker operations, or local Git setup |
 | `results.jsonl` and `summary.json` | Per-attempt records and outcome counts |
 | Per attempt: `request.json`, `instruction.md` | Exact external request and assignment |
 | Per attempt: `workspace/`, `patch.diff` | Submitted files and a diff against the starting tree |
+| Per local attempt: `agent-artifacts/` | Writable agent metrics and transcript directory |
 | Per attempt: `agent.log`, `agent-version.log` | Agent output and installed CLI version, when applicable |
 | Per attempt: `verifier.log`, `result.json` | Test output and final outcome |
 
-Results include task-content hashes, concrete image IDs, agent and verifier elapsed time, return codes, and timeout
-flags. An agent crash or timeout remains a failed attempt even if its partial changes pass the tests; `tests_passed`
-records that separate fact. Outcomes include `passed`, `failed`, `agent_error`, `agent_timeout`, `test_timeout`,
+Results include task-content hashes, agent and verifier elapsed time, return codes, and timeout flags. Docker results
+also include concrete image IDs. An agent crash or timeout remains a failed attempt even if its partial changes pass the
+tests; `tests_passed` records that separate fact. Outcomes include `passed`, `failed`, `agent_error`, `agent_timeout`,
+`test_timeout`,
 `grader_error`, `submission_error`, and `infrastructure_error`. Token counts and provider costs are not normalized yet;
 native CLI logs and your external agent's extra files retain the material for that next step.
 
@@ -274,6 +330,10 @@ per setup command. Agent timing excludes image installation and grading. Trials 
 own process group, and timed-out groups are terminated; the task container is then stopped before collecting files.
 Containers are removed after each attempt. `--keep-containers` keeps them stopped for inspection. Built images remain
 cached in Docker for subsequent runs. This runner does not prune unrelated images or containers.
+
+For local runs, `local.json` replaces `docker.json`. Container images, container IDs, `--platform`, and
+`--keep-containers` do not apply. A local agent process receives PATH, HOME, TMPDIR, PYTHONPATH, the trial paths, and
+variables explicitly forwarded with `--env NAME`. The runner kills its process group when it exits.
 
 Exit status is 0 when every requested attempt meets its expected result, 1 for completed runs with a failed expectation,
 2 for configuration/setup errors, and 130 for an interrupt. For `check`, the expected no-op result is `failed`.
@@ -286,9 +346,9 @@ Run the local standard-library tests with:
 python3 -m unittest discover -s tests -v
 ```
 
-Those tests exercise fixture behavior and runner helpers without requiring a Docker daemon. The live Docker integration
-check is `python3 -m minieval check`, and the external-interface integration check uses `examples.externaloracle` above.
-Both are intentionally model-free.
+Those tests exercise fixture behavior, runner helpers, local write restrictions, snapshot transfer, and the scripted
+`omllm` adapter without a Docker daemon. The live Docker integration check is `python3 -m minieval check`, and the
+external-interface integration check uses `examples.externaloracle` above. Both are intentionally model-free.
 
 For the extended Docker tests, including committed/staged/new/deleted file transfer and container cleanup:
 
@@ -299,15 +359,10 @@ MINIEVAL_DOCKER_TESTS=1 python3 -m unittest tests.test_docker -v
 Those tests accept optional `MINIEVAL_DOCKER` and `MINIEVAL_PLATFORM` selectors. Explicitly enabling them with an
 unavailable Docker engine fails the tests rather than silently skipping them.
 
-In the authoring environment, the task fixtures were checked in fresh local workspaces: all visible tests pass on the
-starting files, all three starters fail grading, and all reference fixes pass. The three pinned agent packages were
-installed and their exact configured commands checked with `--help` on Linux amd64. The environment cannot start
-Docker, so Docker image builds, live container execution, arm64 execution, and authenticated model calls were not
-tested here. Published image manifests and native package metadata were checked for both target architectures.
-
-The final local test run contained 20 tests: 17 passed and the 3 opt-in Docker tests were skipped. The fixture tests
-include nine checks across the three tasks: visible starter success, hidden starter failure, and hidden oracle success.
-Across the task suites there are 8 visible test methods and 22 grading test methods.
+In this development container, `check --runtime local` passed all six controls: three starter failures and three
+reference successes. A scripted `omllm` tool call installed the reference fix for `intervals`, and its trial passed
+grading. Docker image builds, live container execution, arm64 execution, and authenticated model calls remain untested
+here because the Docker socket and provider credentials are unavailable.
 
 The next useful addition is a real repository task importer. The current version keeps the core loop small: task setup,
 agent invocation, snapshot transfer, independent grading, and files on disk.
