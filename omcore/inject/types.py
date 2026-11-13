@@ -3,6 +3,17 @@ import typing as ta
 from .. import lang
 
 
+if ta.TYPE_CHECKING:
+    from . import injector as _injector
+    from . import sync as _sync
+else:
+    _injector = lang.proxy_import('.injector', __package__)
+    _sync = lang.proxy_import('.sync', __package__)
+
+
+type AnyInjector = _injector.AsyncInjector | _sync.Injector
+
+
 ##
 
 

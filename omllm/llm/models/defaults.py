@@ -109,7 +109,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
 
     DefaultModel(
         name='gemini-cheap',
-        key=ModelKey('google', 'gemini-2.5-flash'),
+        key=ModelKey('google', 'gemini-2.5-flash-lite'),
         api_keys=GEMINI_API_KEYS,
     ),
 

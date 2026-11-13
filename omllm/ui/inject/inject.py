@@ -36,12 +36,33 @@ def _bind_injector_import(box_cls: type[_InjectorBox], key: ta.Any) -> inj.Eleme
 #
 
 
-class _AppInjector(_InjectorBox, final=True):
+class _UiInjector(_InjectorBox, final=True):
     pass
 
 
 class _AgentInjector(_InjectorBox, final=True):
     pass
+
+
+class _AgentUiInjector(_InjectorBox, final=True):
+    pass
+
+
+async def _provide_agent_ui_injector(
+        config: UiConfig,
+        *,
+        agent_injector: inj.AsyncInjector,
+) -> _AgentUiInjector:
+    agent_ui_injector = await inj.create_asyncio_injector(
+        bind_commands(config),
+
+        _bind_injector_import(_UiInjector, ui.QuitSignal),
+        _bind_injector_import(_UiInjector, ui.TextDisplayer),
+
+        parent=agent_injector,
+    )
+
+    return _AgentUiInjector(agent_ui_injector)
 
 
 async def _provide_agent_injector(
@@ -57,14 +78,12 @@ async def _provide_agent_injector(
 
                 bind_agent(config),
                 bind_backends(config),
-                bind_commands(config),
 
                 bind_runtime(config),
 
-                inj.bind(_AppInjector(app_injector)),
+                inj.bind(_AgentUiInjector, to_async_fn=_provide_agent_ui_injector, singleton=True, eager=True),
 
-                _bind_injector_import(_AppInjector, ui.QuitSignal),
-                _bind_injector_import(_AppInjector, ui.TextDisplayer),
+                inj.bind(_UiInjector(app_injector)),
         ) as agent_injector:
             yield _AgentInjector(agent_injector)
 

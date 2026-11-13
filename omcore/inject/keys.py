@@ -1,5 +1,4 @@
 import inspect
-import itertools
 import typing as ta
 
 from .. import dataclasses as dc
@@ -89,50 +88,3 @@ def as_key(o, *, tag=TAG_NOT_SET):
         raise TypeError(o)
 
     return Key(rfl.reflect_type(o), tag=tag if tag is not TAG_NOT_SET else None)
-
-
-##
-
-
-@ta.final
-class KeyList(ta.Sequence[Key]):
-    def __init__(self, key: Key | ta.Sequence[Key], tail: KeyList | None = None) -> None:
-        super().__init__()
-
-        self._key = key
-        self._tail = tail
-        self._len: int = (len(tail) if tail is not None else 0) + (1 if isinstance(key, Key) else len(key))
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}([{", ".join(map(repr, self))}])'
-
-    def __len__(self) -> int:
-        return self._len
-
-    def __iter__(self) -> ta.Iterator[Key]:
-        cur: KeyList | None = self
-        while cur is not None:
-            if isinstance(key := cur._key, Key):  # noqa
-                yield key
-            else:
-                yield from key
-            cur = cur._tail  # noqa
-
-    @ta.overload
-    def __getitem__(self, index: int, /) -> Key: ...
-
-    @ta.overload
-    def __getitem__(self, index: slice[int | None], /) -> ta.Sequence[Key]: ...  # noqa
-
-    def __getitem__(self, index):
-        if isinstance(index, int):
-            idx = index + self._len if index < 0 else index
-            if not 0 <= idx < self._len:
-                raise IndexError(f'index {index} out of range for sequence of length {self._len}')
-            return next(itertools.islice(self, idx, None))
-
-        elif isinstance(index, slice):
-            return tuple(itertools.islice(self, *index.indices(self._len)))
-
-        else:
-            raise TypeError(index)

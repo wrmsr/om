@@ -133,12 +133,15 @@ with _lang.auto_proxy_init(
         target,
     )
 
+    from .keychain import (  # noqa
+        KeyChainEntry,
+        KeyChain,
+    )
+
     from .keys import (  # noqa
         Key,
 
         as_key,
-
-        KeyList,
     )
 
     from .listeners import (  # noqa
@@ -217,6 +220,8 @@ with _lang.auto_proxy_init(
     )
 
     from .types import (  # noqa
+        AnyInjector,
+
         Tag,
 
         Scope,

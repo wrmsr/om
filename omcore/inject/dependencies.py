@@ -1,21 +1,13 @@
-import functools
 import typing as ta
 
 from .. import cached
 from .. import check
 from .. import dataclasses as dc
+from .. import lang
 from .keys import Key
 
 
 ##
-
-
-def _merge_hack(fn):
-    @functools.wraps(fn)
-    def compose(self=None, *tfs):
-        return fn(self, *tfs)
-
-    return compose
 
 
 def _set_repr(s: frozenset) -> str | None:
@@ -68,7 +60,7 @@ class Dependencies(ta.Collection[Key]):
 
     #
 
-    @_merge_hack
+    @lang.opt_self
     def merge(self: Dependencies | None, *others: Dependencies | None) -> Dependencies:
         keys: set[Key] = set()
         required: set[Key] = set()

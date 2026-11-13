@@ -33,8 +33,8 @@ from ..elements import Elements
 from ..errors import ConflictingKeyError
 from ..errors import ScopeEagerUnsupportedError
 from ..errors import UnboundKeyError
+from ..keychain import KeyChain
 from ..keys import Key
-from ..keys import KeyList
 from ..listeners import ProvisionListenerBinding
 from ..multis import MapBinding
 from ..multis import MapProvider
@@ -188,7 +188,7 @@ class ElementCollection(CollectedElements, lang.Final):
 
     def _get_single_binding(self, k: Key, bs: ta.Sequence[Binding]) -> Binding:
         if not bs:
-            raise UnboundKeyError(k, chain=KeyList(k))
+            raise UnboundKeyError(k, chain=KeyChain().add(k))
 
         elif len(bs) > 1:
             # Grouped pairwise by equality, not in a dict - bindings need not be hashable (eg. unhashable consts).
@@ -284,7 +284,7 @@ class ElementCollection(CollectedElements, lang.Final):
             try:
                 bi = bim[e.key]
             except KeyError:
-                raise UnboundKeyError(e.key, chain=KeyList(e.key)) from None
+                raise UnboundKeyError(e.key, chain=KeyChain().add(e.key)) from None
             dct.setdefault(bi.scope, []).append(e)
 
         # Temporary impls, as with _get_scope_auto_elements - eagerability is declared by the impl, and the injector's
@@ -312,7 +312,7 @@ class ElementCollection(CollectedElements, lang.Final):
 
         check.isinstance(key, Key)
         if key not in self.binding_impl_map():
-            raise UnboundKeyError(key, chain=KeyList(key))
+            raise UnboundKeyError(key, chain=KeyChain().add(key))
 
         p = _plans.ProvisionPlanCompiler(self).compile(key)
         return p if not p.is_degenerate else None

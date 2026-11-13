@@ -1,8 +1,8 @@
 import typing as ta
 
 from .. import dataclasses as dc
+from .keychain import KeyChain
 from .keys import Key
-from .keys import KeyList
 from .types import Scope
 
 
@@ -29,12 +29,12 @@ class BaseKeyError(Exception):
 
 @dc.dataclass()
 class UnboundKeyError(BaseKeyError):
-    chain: KeyList | None = None
+    chain: KeyChain | None = None
 
     def __str__(self) -> str:
         parts = [f'Unbound key: {self.key!r}']
         if self.chain:
-            parts.append(f'Provision path:\n{_key_chain_repr(self.chain)}')
+            parts.append(f'Provision path:\n{self.chain.render()}')
         return '\n'.join(parts)
 
 
@@ -51,20 +51,20 @@ class DuplicateMapKeyError(BaseKeyError):
 @dc.dataclass()
 class CyclicDependencyError(BaseKeyError):
     # The provision (or compilation) path, from the requested root to the repeated key.
-    chain: KeyList | None = None
+    chain: KeyChain | None = None
 
     # Wait-graph edges are distinct from the local provision path: each may hide many provider calls.
-    wait_chain: KeyList | None = None
+    wait_chain: KeyChain | None = None
 
     def __str__(self) -> str:
         parts = [f'Cyclic dependency: {self.key!r}']
         if self.chain:
-            parts.append(f'Provision path:\n{_key_chain_repr(self.chain)}')
+            parts.append(f'Provision path:\n{self.chain.render()}')
         if self.wait_chain:
             if len(self.wait_chain) == 1:
                 parts.append(f'Waiting for own in-progress provision: {self.wait_chain[0]!r}')
             else:
-                parts.append(f'Provision wait cycle:\n{_key_chain_repr([*self.wait_chain, self.wait_chain[0]])}')
+                parts.append(f'Provision wait cycle:\n{self.wait_chain.render(tail=[self.wait_chain[0]])}')
         return '\n'.join(parts)
 
 

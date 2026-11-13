@@ -43,8 +43,8 @@ from ..errors import CyclicDependencyError
 from ..errors import ScopeFrozenError
 from ..errors import UnboundKeyError
 from ..injector import AsyncInjector
+from ..keychain import KeyChain
 from ..keys import Key
-from ..keys import KeyList
 from ..keys import as_key
 from ..scopes import DelimitedScope
 from ..scopes import Singleton
@@ -205,13 +205,13 @@ class ProvisionPlanCompiler(lang.Final):
 
         # Local cycles surface at compile time - before any provision - rather than at first provision:
         if key in self._visiting:
-            raise CyclicDependencyError(key, chain=KeyList(key))
+            raise CyclicDependencyError(key, chain=KeyChain().add(key))
 
         self._visiting.add(key)
         try:
             node = self._make_node(key)
         except (CyclicDependencyError, UnboundKeyError) as e:
-            e.chain = KeyList(key, e.chain)
+            e.chain = KeyChain.add(e.chain, key, where='head')
             raise
         finally:
             self._visiting.discard(key)
@@ -300,7 +300,7 @@ class ProvisionPlanCompiler(lang.Final):
                 return mv.must()
             if optional:
                 return _MISSING
-            raise UnboundKeyError(key, chain=KeyList(key))
+            raise UnboundKeyError(key, chain=KeyChain().add(key))
         return _Node(hole, True)
 
     def _wrap_slot(self, key: Key, inner: _Node, *, scoped: bool) -> _Node:
@@ -324,7 +324,7 @@ class ProvisionPlanCompiler(lang.Final):
                     v = inner_fn(ii, frame, cr)
                 except (CyclicDependencyError, UnboundKeyError) as e:
                     if not scoped:
-                        e.chain = KeyList(key, e.chain)
+                        e.chain = KeyChain.add(e.chain, key, where='head')
                     raise
                 frame[idx] = v
                 if cr is not None:
@@ -345,7 +345,7 @@ class ProvisionPlanCompiler(lang.Final):
                 v = await inner_fn(ii, frame, cr)
             except (CyclicDependencyError, UnboundKeyError) as e:
                 if not scoped:
-                    e.chain = KeyList(key, e.chain)
+                    e.chain = KeyChain.add(e.chain, key, where='head')
                 raise
             frame[idx] = v
             if cr is not None:
@@ -382,7 +382,7 @@ class ProvisionPlanCompiler(lang.Final):
                 try:
                     return await om.provide(bi, ii, make_compute(ii, frame, cr))
                 except (CyclicDependencyError, UnboundKeyError) as ex:
-                    ex.chain = KeyList(bi.key, ex.chain)
+                    ex.chain = KeyChain.add(ex.chain, bi.key, where='head')
                     raise
             return _Node(singleton_node, True)
 
@@ -398,7 +398,7 @@ class ProvisionPlanCompiler(lang.Final):
                 try:
                     return await om.provide(bi, ii, make_compute(ii, frame, cr))
                 except (CyclicDependencyError, UnboundKeyError) as ex:
-                    ex.chain = KeyList(bi.key, ex.chain)
+                    ex.chain = KeyChain.add(ex.chain, bi.key, where='head')
                     raise
             return _Node(delimited_node, True)
 

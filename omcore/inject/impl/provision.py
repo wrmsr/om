@@ -8,8 +8,8 @@ from ... import lang
 from ...asyncs.asynclite import all as asl
 from ..errors import CyclicDependencyError
 from ..injector import AsyncInjector
+from ..keychain import KeyChain
 from ..keys import Key
-from ..keys import KeyList
 from .bindings import BindingImpl
 from .concurrency import ConcurrencyIdentity
 
@@ -56,7 +56,7 @@ class _ProvisionWaitRegistry(lang.Final):
         cur = target_owner
         while True:
             if cur == owner:
-                raise CyclicDependencyError(key, wait_chain=KeyList(chain))
+                raise CyclicDependencyError(key, wait_chain=KeyChain().add(*chain))
             if cur in seen:
                 return
             seen.add(cur)

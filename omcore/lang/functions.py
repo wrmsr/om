@@ -439,3 +439,14 @@ def copy_function(f: types.FunctionType) -> types.FunctionType:
 
 def get_function_body_source(fn: ta.Any) -> str:
     return textwrap.dedent('\n'.join(inspect.getsource(fn).splitlines()[1:]))
+
+
+##
+
+
+def opt_self(fn):
+    @functools.wraps(fn)
+    def inner(self=None, *args, **kwargs):
+        return fn(self, *args, **kwargs)
+
+    return inner

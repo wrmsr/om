@@ -338,6 +338,8 @@ with _auto_proxy_init(
         copy_function,
 
         get_function_body_source,
+
+        opt_self,
     )
 
     from .generators import (  # noqa

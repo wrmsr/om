@@ -18,8 +18,8 @@ from ..errors import ScopeNotRegisteredError
 from ..errors import UnboundKeyError
 from ..injector import AsyncInjector
 from ..inspect import KwargsTarget
+from ..keychain import KeyChain
 from ..keys import Key
-from ..keys import KeyList
 from ..keys import as_key
 from ..listeners import ProvisionListener
 from ..listeners import ProvisionListenerBinding
@@ -416,7 +416,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
         except (CyclicDependencyError, UnboundKeyError) as e:
             if trace_key:
-                e.chain = KeyList(key, e.chain)
+                e.chain = KeyChain.add(e.chain, key, injector=self, where='head')
             raise
 
         finally:
@@ -433,7 +433,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         if v.present:
             return v.must()
         key = as_key(key)
-        self._raise_error(UnboundKeyError(key, chain=KeyList(key)))
+        self._raise_error(UnboundKeyError(key, chain=KeyChain().add(key, injector=self)))
         raise RuntimeError  # noqa
 
     #
@@ -446,7 +446,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         if v.present:
             return v.must()
         key = as_key(key)
-        self._raise_error(UnboundKeyError(key, chain=KeyList(key)))
+        self._raise_error(UnboundKeyError(key, chain=KeyChain().add(key, injector=self)))
         raise RuntimeError  # noqa
 
     async def provide_kwargs(self, kt: KwargsTarget) -> ta.Mapping[str, ta.Any]:
