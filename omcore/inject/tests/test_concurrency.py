@@ -495,13 +495,16 @@ def test_wait_registry_walk():
     # Self-cycle: o1 re-arriving at its own in-flight construction.
     with pytest.raises(inj.CyclicDependencyError) as ei:
         reg._detect(o1, k1, o1)
-    assert ei.value.chain == (k1,)
+    assert ei.value.wait_chain == (k1,)
+    assert 'Waiting for own in-progress provision:' in str(ei.value)
 
     # Two-context cycle: o1 waits on k2 owned by o2, and o2 then wants k1 owned by o1.
     reg._waits[o1] = _ProvisionWaitRegistry._Wait(k2, p2, o2)
     with pytest.raises(inj.CyclicDependencyError) as ei:
         reg._detect(o2, k1, o1)
-    assert ei.value.chain == (k1, k2)
+    assert ei.value.wait_chain == (k1, k2)
+    assert 'Provision wait cycle:' in str(ei.value)
+    assert '\n  -> '.join(map(repr, (k1, k2, k1))) in str(ei.value)
 
     # A done promise's edge is treated as absent - the wait is already unwinding.
     p2.set_value(None)
@@ -558,6 +561,10 @@ def test_cross_context_cycle_threads():
 
     assert isinstance(res['t1'], inj.CyclicDependencyError)
     assert isinstance(res['t2'], inj.CyclicDependencyError)
+    c1, c2 = res['t1'].chain, res['t2'].chain
+    assert c1 and c1[0] == inj.as_key(A)
+    assert c2 and c2[0] == inj.as_key(B)
+    assert any(e.wait_chain and len(e.wait_chain) == 2 for e in res.values())
 
 
 @pytest.mark.asyncs('asyncio')

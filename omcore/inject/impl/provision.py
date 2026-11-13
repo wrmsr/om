@@ -55,7 +55,7 @@ class _ProvisionWaitRegistry(lang.Final):
         cur = target_owner
         while True:
             if cur == owner:
-                raise CyclicDependencyError(key, chain=tuple(chain))
+                raise CyclicDependencyError(key, wait_chain=tuple(chain))
             if cur in seen:
                 return
             seen.add(cur)

@@ -372,6 +372,7 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
         ss = cr._source_stack  # noqa
         ss.append(source)
+        trace_key = True
         try:
             if (rv := cr.handle_key(key)).present:
                 return rv.must()
@@ -384,13 +385,17 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
                 # Compiled-plan fast path: plans are per-key caches on the (shared) ElementCollection, async-native and
                 # correct under any concurrency - only listener-bearing injectors always interpret (listeners wrap every
                 # provision). Sync-rooted plans complete without a coroutine.
-                if not self._pls and (plan := self._ec.provision_plan(key)) is not None:
-                    is_aw, v = plan._begin(self, cr, tok is None)  # noqa
-                    if is_aw:
-                        v = await v
-                    if (mv := cr._provisions.get(key)) is not None:  # noqa  # mirroring plans mirror their own root
-                        return mv
-                    return cr.handle_provision(key, lang.just(v))
+                if not self._pls:
+                    # Compilation and compiled nodes record their own keys on failure, including this root.
+                    trace_key = False
+                    if (plan := self._ec.provision_plan(key)) is not None:
+                        is_aw, v = plan._begin(self, cr, tok is None)  # noqa
+                        if is_aw:
+                            v = await v
+                        if (mv := cr._provisions.get(key)) is not None:  # noqa  # plans mirror their own root
+                            return mv
+                        return cr.handle_provision(key, lang.just(v))
+                    trace_key = True
 
                 sc = self.get_scope_impl(bi.scope)
 
@@ -408,6 +413,11 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
 
             return cr.handle_provision(key, lang.nothing())
 
+        except (CyclicDependencyError, UnboundKeyError) as e:
+            if trace_key:
+                e.chain = (key, *(e.chain or ()))
+            raise
+
         finally:
             try:
                 nsource = ss.pop()
@@ -421,7 +431,8 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         v = await self._try_provide(key, source=source)
         if v.present:
             return v.must()
-        self._raise_error(UnboundKeyError(key))
+        key = as_key(key)
+        self._raise_error(UnboundKeyError(key, chain=(key,)))
         raise RuntimeError  # noqa
 
     #
@@ -433,7 +444,8 @@ class AsyncInjectorImpl(AsyncInjector, lang.Final):
         v = await self._try_provide(key)
         if v.present:
             return v.must()
-        self._raise_error(UnboundKeyError(key))
+        key = as_key(key)
+        self._raise_error(UnboundKeyError(key, chain=(key,)))
         raise RuntimeError  # noqa
 
     async def provide_kwargs(self, kt: KwargsTarget) -> ta.Mapping[str, ta.Any]:

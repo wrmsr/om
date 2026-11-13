@@ -459,6 +459,18 @@ The system provides clear error types for common issues:
 - `CyclicDependencyError` - circular dependency detected
 - `ScopeError` - scope-related errors (not open, already open)
 
+`UnboundKeyError` and `CyclicDependencyError` include the provision path in both their messages and their `chain` fields,
+including dependencies executed by compiled plans. The path follows the failing calls from the requested root to the
+missing or repeated key; successfully completed sibling dependencies are omitted. For a cycle detected during plan
+compilation, it contains the corresponding compilation path. An absent optional dependency still uses its default, and
+`try_provide` still returns an empty result for an unbound requested key; missing dependencies of a bound provider raise
+`UnboundKeyError` with their path in either case.
+
+Cycles involving provision waits also carry a separate `wait_chain`: the keys labeling the wait-for graph's edges.
+One edge means the current execution context tried to wait for its own unfinished provision; multiple edges mean a
+cycle across execution contexts. These edges are printed separately because each can span several provider calls, and
+the local provision path alone need not contain the entire cross-context cycle.
+
 ## Advanced Topics
 
 ### Custom Scopes

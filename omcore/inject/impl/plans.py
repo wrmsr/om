@@ -204,11 +204,14 @@ class ProvisionPlanCompiler(lang.Final):
 
         # Local cycles surface at compile time - before any provision - rather than at first provision:
         if key in self._visiting:
-            raise CyclicDependencyError(key)
+            raise CyclicDependencyError(key, chain=(key,))
 
         self._visiting.add(key)
         try:
             node = self._make_node(key)
+        except (CyclicDependencyError, UnboundKeyError) as e:
+            e.chain = (key, *(e.chain or ()))
+            raise
         finally:
             self._visiting.discard(key)
 
@@ -258,7 +261,7 @@ class ProvisionPlanCompiler(lang.Final):
             # interpreter.
             return self._make_hole(key, optional=False)
 
-        return self._wrap_scope(bi, self._wrap_slot(key, inner))
+        return self._wrap_scope(bi, self._wrap_slot(key, inner, scoped=not isinstance(bi.scope, Unscoped)))
 
     def _make_call_node(self, obj: ta.Any, entries: list[tuple[str, ta.Any, bool, bool]]) -> _Node:
         ets = tuple(entries)
@@ -296,14 +299,15 @@ class ProvisionPlanCompiler(lang.Final):
                 return mv.must()
             if optional:
                 return _MISSING
-            raise UnboundKeyError(key)
+            raise UnboundKeyError(key, chain=(key,))
         return _Node(hole, True)
 
-    def _wrap_slot(self, key: Key, inner: _Node) -> _Node:
+    def _wrap_slot(self, key: Key, inner: _Node, *, scoped: bool) -> _Node:
         # The slot frame is the compiled portion's request memoization: diamond deps within one plan execution share one
         # instance, exactly as interpreted request memoization would. With mirroring (cr not None), the ambient request
         # is read on slot miss and written on compute, extending that sharing across the compiled/interpreted boundary
         # in both directions.
+        # Scoped nodes record error paths in the outer scope wrapper, which also covers waits before slot execution.
         idx = self._alloc_slot()
         inner_fn = inner.fn
 
@@ -315,7 +319,12 @@ class ProvisionPlanCompiler(lang.Final):
                     if (mv := cr._provisions.get(key)) is not None and mv.present:  # noqa
                         frame[idx] = v = mv.must()
                         return v
-                v = inner_fn(ii, frame, cr)
+                try:
+                    v = inner_fn(ii, frame, cr)
+                except (CyclicDependencyError, UnboundKeyError) as e:
+                    if not scoped:
+                        e.chain = (key, *(e.chain or ()))
+                    raise
                 frame[idx] = v
                 if cr is not None:
                     cr._seen_keys.add(key)  # noqa
@@ -331,7 +340,12 @@ class ProvisionPlanCompiler(lang.Final):
                 if (mv := cr._provisions.get(key)) is not None and mv.present:  # noqa
                     frame[idx] = v = mv.must()
                     return v
-            v = await inner_fn(ii, frame, cr)
+            try:
+                v = await inner_fn(ii, frame, cr)
+            except (CyclicDependencyError, UnboundKeyError) as e:
+                if not scoped:
+                    e.chain = (key, *(e.chain or ()))
+                raise
             frame[idx] = v
             if cr is not None:
                 cr._seen_keys.add(key)  # noqa
@@ -364,7 +378,11 @@ class ProvisionPlanCompiler(lang.Final):
                 om = ta.cast(SingletonScopeImpl, ii.get_scope_impl(sc))._om  # noqa
                 if isinstance(e := om._dct.get(bi), OnceProvisionMap._Done):  # noqa
                     return e.v
-                return await om.provide(bi, ii, make_compute(ii, frame, cr))
+                try:
+                    return await om.provide(bi, ii, make_compute(ii, frame, cr))
+                except (CyclicDependencyError, UnboundKeyError) as ex:
+                    ex.chain = (bi.key, *(ex.chain or ()))
+                    raise
             return _Node(singleton_node, True)
 
         if isinstance(sc, DelimitedScope):
@@ -376,7 +394,11 @@ class ProvisionPlanCompiler(lang.Final):
                     return e.v
                 if st.frozen and not om.has(bi):
                     raise ScopeFrozenError(sc, bi.key)
-                return await om.provide(bi, ii, make_compute(ii, frame, cr))
+                try:
+                    return await om.provide(bi, ii, make_compute(ii, frame, cr))
+                except (CyclicDependencyError, UnboundKeyError) as ex:
+                    ex.chain = (bi.key, *(ex.chain or ()))
+                    raise
             return _Node(delimited_node, True)
 
         # ThreadScope etc.: interpreter.

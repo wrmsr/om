@@ -18,7 +18,13 @@ class BaseKeyError(Exception):
 
 @dc.dataclass()
 class UnboundKeyError(BaseKeyError):
-    pass
+    chain: ta.Sequence[Key] | None = None
+
+    def __str__(self) -> str:
+        parts = [f'Unbound key: {self.key!r}']
+        if self.chain:
+            parts.append('Provision path:\n  ' + '\n  -> '.join(repr(k) for k in self.chain))
+        return '\n'.join(parts)
 
 
 @dc.dataclass()
@@ -33,7 +39,24 @@ class DuplicateMapKeyError(BaseKeyError):
 
 @dc.dataclass()
 class CyclicDependencyError(BaseKeyError):
+    # The provision (or compilation) path, from the requested root to the repeated key.
     chain: ta.Sequence[Key] | None = None
+
+    # Wait-graph edges are distinct from the local provision path: each may hide many provider calls.
+    wait_chain: ta.Sequence[Key] | None = None
+
+    def __str__(self) -> str:
+        parts = [f'Cyclic dependency: {self.key!r}']
+        if self.chain:
+            parts.append('Provision path:\n  ' + '\n  -> '.join(repr(k) for k in self.chain))
+        if self.wait_chain:
+            if len(self.wait_chain) == 1:
+                parts.append(f'Waiting for own in-progress provision: {self.wait_chain[0]!r}')
+            else:
+                parts.append('Provision wait cycle:\n  ' + '\n  -> '.join(
+                    repr(k) for k in (*self.wait_chain, self.wait_chain[0])
+                ))
+        return '\n'.join(parts)
 
 
 ##

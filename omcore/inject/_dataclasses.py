@@ -539,7 +539,6 @@ def _process_dataclass__aac1548ca95469f6738569fa33d44f06ab8dab50():
     cls_names=(
         ('omcore.inject.errors', 'BaseKeyError'),
         ('omcore.inject.errors', 'ConflictingKeyError'),
-        ('omcore.inject.errors', 'UnboundKeyError'),
     ),
 )
 def _process_dataclass__c9de43a76d8895b319da241b763a6b8b5d7d6a2d():
@@ -614,7 +613,7 @@ def _process_dataclass__c9de43a76d8895b319da241b763a6b8b5d7d6a2d():
 
 
 @_register(
-    installer_sha1='0b85c27601e14d721527caac2307b4d02cddfaf8',
+    installer_sha1='86b11b76e98ee65cf49bd169aad2dea4198b9c22',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -622,15 +621,16 @@ def _process_dataclass__c9de43a76d8895b319da241b763a6b8b5d7d6a2d():
             "one, False, False, False), (('source', True, True, None, True, False, False, None), 'instance', 'value', N"
             "one, False, False, False), (('name', True, True, None, True, False, False, None), 'instance', 'value', Non"
             "e, False, False, False), (('chain', True, True, None, True, False, False, None), 'instance', 'value', None"
-            ", False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), "
-            "(False,)))"
+            ", False, False, False), (('wait_chain', True, True, None, True, False, False, None), 'instance', 'value', "
+            "None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), "
+            "(), (False,)))"
         ),
     ),
     cls_names=(
         ('omcore.inject.errors', 'CyclicDependencyError'),
     ),
 )
-def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
+def _process_dataclass__86b11b76e98ee65cf49bd169aad2dea4198b9c22():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -644,6 +644,8 @@ def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
         __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
@@ -656,6 +658,7 @@ def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
                 source=self.source,
                 name=self.name,
                 chain=self.chain,
+                wait_chain=self.wait_chain,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -669,7 +672,8 @@ def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
                 self.key == other.key and
                 self.source == other.source and
                 self.name == other.name and
-                self.chain == other.chain
+                self.chain == other.chain and
+                self.wait_chain == other.wait_chain
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -682,11 +686,13 @@ def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
             source: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             name: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             chain: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            wait_chain: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
         ) -> __dataclass__None:
             self.key = key
             self.source = source
             self.name = name
             self.chain = chain
+            self.wait_chain = wait_chain
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -697,6 +703,7 @@ def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
             parts.append(f"source={self.source!r}")
             parts.append(f"name={self.name!r}")
             parts.append(f"chain={self.chain!r}")
+            parts.append(f"wait_chain={self.wait_chain!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -1007,6 +1014,101 @@ def _process_dataclass__3c97eb0061aa3f387245abfeb8f50533ad3d49d7():
             parts = []
             parts.append(f"scope={self.scope!r}")
             parts.append(f"key={self.key!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='0b85c27601e14d721527caac2307b4d02cddfaf8',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('key', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('source', True, True, None, True, False, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('name', True, True, None, True, False, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('chain', True, True, None, True, False, False, None), 'instance', 'value', None"
+            ", False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), "
+            "(False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omcore.inject.errors', 'UnboundKeyError'),
+    ),
+)
+def _process_dataclass__0b85c27601e14d721527caac2307b4d02cddfaf8():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                key=self.key,
+                source=self.source,
+                name=self.name,
+                chain=self.chain,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.key == other.key and
+                self.source == other.source and
+                self.name == other.name and
+                self.chain == other.chain
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            key: __dataclass__init__fields__0__annotation,
+            source: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            name: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            chain: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            self.key = key
+            self.source = source
+            self.name = name
+            self.chain = chain
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"key={self.key!r}")
+            parts.append(f"source={self.source!r}")
+            parts.append(f"name={self.name!r}")
+            parts.append(f"chain={self.chain!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
