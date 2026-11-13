@@ -7,12 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from .... import hy
 from ...compiler import hy_compile
 from ...errors import HyLanguageError
 from ...errors import hy_exc_handler
-from ...importer import HyLoader
+from ...globalruntime import HyLoader
+from ...globalruntime import get_global_runtime
 from ...reader import read_many
+
+
+RT = get_global_runtime()
+hy = RT.hy
 
 
 def test_basics():
@@ -29,8 +33,10 @@ def test_runpy():
     # `runpy` won't update cached bytecode. It's not clear if that's
     # intentional.
 
-    basic_ns = runpy.run_path(f'{hy.__package__.replace(".", "/")}/tests/resources/importer/basic.hy')
-    assert 'square' in basic_ns
+    # Running Hy files by path requires `runpy` to compile them as Hy, which it doesn't do (that requires patching it).
+    # The `hy` command runs Hy files itself.
+    with pytest.raises(SyntaxError):
+        runpy.run_path(f'{hy.__package__.replace(".", "/")}/tests/resources/importer/basic.hy')
 
     main_ns = runpy.run_path(f'{hy.__package__.replace(".", "/")}/tests/resources/bin')
     assert main_ns['visited_main'] == 1
@@ -45,7 +51,7 @@ def test_runpy():
 
 def test_stringer():
     _ast = hy_compile(
-        read_many('(defn square [x] (* x x))'), __name__, import_stdlib=False,
+        read_many('(defn square [x] (* x x))'), __name__, runtime=RT,
     )
 
     assert type(_ast.body[0]) is ast.FunctionDef
@@ -70,7 +76,7 @@ def test_import_error_reporting():
     "Make sure that (import) reports errors correctly."
 
     with pytest.raises(HyLanguageError):
-        hy_compile(read_many('(import "sys")'), __name__)
+        hy_compile(read_many('(import "sys")'), __name__, runtime=RT)
 
 
 def test_import_error_cleanup():
@@ -90,7 +96,12 @@ def test_import_autocompiles(tmp_path):
     p.write_text('(defn pyctest [s] (+ "X" s "Y"))')
 
     def import_from_path(path):
-        spec = importlib.util.spec_from_file_location('mymodule', path)
+        # `.hy` isn't a globally registered source suffix, so the loader for source files must be given explicitly.
+        spec = importlib.util.spec_from_file_location(
+            'mymodule',
+            path,
+            loader=HyLoader('mymodule', str(path)) if str(path).endswith('.hy') else None,
+        )
         assert spec is not None
         module = importlib.util.module_from_spec(spec)
         assert spec.loader is not None

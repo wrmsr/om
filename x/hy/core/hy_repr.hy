@@ -1,4 +1,5 @@
 (import
+  contextvars [ContextVar]
   math [isnan]
   fractions [Fraction]
   re
@@ -31,8 +32,10 @@
   (for [typ (if (isinstance types list) types [types])]
     (setv (get _registry typ) #(f placeholder))))
 
-(setv _quoting False)
-(setv _seen (set))
+; Whether we're inside of a quoted model, and the ids of the objects being represented: both dynamically scoped to the
+; current call tree (and thus safe for concurrent use).
+(setv _quoting (ContextVar "_quoting" :default False))
+(setv _seen (ContextVar "_seen" :default (frozenset)))
 (defn hy-repr [obj]
   #[[This function is Hy's equivalent of Python's :func:`repr`.
   It returns a string representing the input object in Hy syntax. ::
@@ -61,24 +64,23 @@
 
   (setv [f placeholder] (.get _registry (type obj) [_base-repr None]))
 
-  (global _quoting)
-  (setv started-quoting False)
-  (when (and (not _quoting) (isinstance obj hy.models.Object)
-             (not (isinstance obj hy.models.Keyword)))
-    (setv _quoting True)
-    (setv started-quoting True))
-
   (setv oid (id obj))
-  (when (in oid _seen)
+  (setv seen (.get _seen))
+  (when (in oid seen)
     (return (if (is placeholder None) "..." placeholder)))
-  (.add _seen oid)
+
+  (setv quoting-token None)
+  (when (and (not (.get _quoting)) (isinstance obj hy.models.Object)
+             (not (isinstance obj hy.models.Keyword)))
+    (setv quoting-token (.set _quoting True)))
+  (setv seen-token (.set _seen (| seen #{oid})))
 
   (try
-    (+ (if started-quoting "'" "") (f obj))
+    (+ (if (is-not quoting-token None) "'" "") (f obj))
     (finally
-      (.discard _seen oid)
-      (when started-quoting
-        (setv _quoting False)))))
+      (.reset _seen seen-token)
+      (when (is-not quoting-token None)
+        (.reset _quoting quoting-token)))))
 
 (hy-repr-register
   [tuple hy.models.Tuple]

@@ -1,8 +1,9 @@
 """Character reader for parsing Hy source."""
 import codecs
 import contextlib
-import inspect
+import contextvars
 import itertools
+import sys
 import typing as ta
 
 from ..models import Bytes
@@ -21,6 +22,7 @@ from ..models import String
 from ..models import Symbol
 from ..models import Tuple
 from ..models import as_model
+from ..models import is_unpack
 from .exceptions import LexException
 from .exceptions import PrematureEndOfInput
 from .reader import Reader
@@ -119,6 +121,15 @@ def as_identifier(ident: str, reader: Reader | None = None) -> Object:
 reader_for: ta.Any
 
 
+# The reader currently reading (or whose output is currently being compiled), dynamically scoped to the current context.
+# This is what allows reader macros defined at compile-time to be installed into the reader that's reading the rest of
+# the source.
+_CURRENT_READER: contextvars.ContextVar[HyReader | None] = contextvars.ContextVar(
+    f'{__name__}._CURRENT_READER',
+    default=None,
+)
+
+
 class HyReader(Reader):
     """
     A modular reader for Hy source. It inherits from :py:class:`hy.Reader`.
@@ -133,7 +144,6 @@ class HyReader(Reader):
     ###
 
     NON_IDENT: ta.ClassVar[ta.AbstractSet[str]] = set("()[]{};\"'`~")
-    _current_reader: ta.ClassVar[HyReader | None] = None
 
     if ta.TYPE_CHECKING:
         # ReaderMeta supplies this decorator while executing the class body.
@@ -144,6 +154,8 @@ class HyReader(Reader):
 
         self.bracketed_templates = bracketed_templates
 
+        self._reading_annotation = False
+
         # move any reader macros declared using `reader_for("#...")` to the macro table
         self.reader_macros = {}
         for tag in list(self.reader_table.keys()):
@@ -152,21 +164,20 @@ class HyReader(Reader):
 
         if use_current_readers:
             self.reader_macros.update(
-                inspect.stack()[1].frame.f_globals.get('_hy_reader_macros', {}),
+                sys._getframe(1).f_globals.get('_hy_reader_macros', {}),  # noqa: SLF001
             )
 
     @classmethod
     def current_reader(cls, override: HyReader | None = None, create: bool = True) -> HyReader | None:
-        return override or HyReader._current_reader or (cls() if create else None)
+        return override or _CURRENT_READER.get() or (cls() if create else None)
 
     @contextlib.contextmanager
     def as_current_reader(self) -> ta.Iterator[None]:
-        old_reader = HyReader._current_reader
-        HyReader._current_reader = self
+        token = _CURRENT_READER.set(self)
         try:
             yield
         finally:
-            HyReader._current_reader = old_reader
+            _CURRENT_READER.reset(token)
 
     @classmethod
     @contextlib.contextmanager
@@ -231,6 +242,9 @@ class HyReader(Reader):
             LexException: If there is an error during form parsing.
         """
 
+        return self._try_parse_one_form()
+
+    def _try_parse_one_form(self, *, no_annotation_union: bool = False) -> Object | None:
         with self.as_current_reader():
             try:
                 self.slurp_space()
@@ -244,6 +258,8 @@ class HyReader(Reader):
                 model = handler(self, c) if handler else self.read_default(c)
                 if model is not None:
                     model = self.fill_pos(model, start)
+                    if self._reading_annotation:
+                        model = self._read_annotation_postfix(model, start, no_union=no_annotation_union)
                     model.reader = self
                     return model
                 return None
@@ -390,6 +406,18 @@ class HyReader(Reader):
                 'Premature end of input while attempting dispatch', self,
             )
 
+        # `#^Type target` - an annotation with no whitespace after the `#^` - unless there's actually a reader macro of
+        # that name.
+        peeked = self.read_ident(just_peeking=True)
+        if (
+                len(peeked) > 1 and
+                peeked[0] == '^' and
+                peeked not in self.reader_macros and
+                (annotate := self.reader_macros.get('^')) is not None
+        ):
+            self.getc()
+            return annotate(self, '^')
+
         # try dispatching tagged ident
         ident = self.read_ident() or self.getc()
         if ident in self.reader_macros:
@@ -418,9 +446,55 @@ class HyReader(Reader):
     def annotate(self, _: str) -> Expression:
         """Annotate a symbol, usually with a type."""
 
-        typ = self.parse_one_form()
+        typ = self.parse_annotation_form()
         target = self.parse_one_form()
         return mkexpr('annotate', target, typ)
+
+    def parse_annotation_form(self) -> Object:
+        """
+        Parse the next form as a type annotation. The annotation may immediately follow the ``#^`` - as in ``#^int x`` -
+        unless that would spell the name of a defined reader macro. Within an annotation form, Python-style postfix type
+        syntax is additionally accepted:
+
+          - A form *immediately* followed by a bracketed sequence (with no intervening whitespace) is read as a
+            subscript: ``ta.Sequence[int]`` reads as ``(get ta.Sequence int)``, and ``ta.Mapping[str int]`` reads as
+            ``(get ta.Mapping #(str int))``.
+          - Forms *immediately* separated by ``|`` are read as a union: ``int|None`` reads as ``(| int None)``.
+
+        These compose and nest, so ``ta.Mapping[str ta.Sequence[int|None]]|None`` is accepted. Plain Hy forms, such as
+        ``(| int None)`` or ``(get ta.Sequence int)``, remain valid annotations.
+        """
+
+        was_reading_annotation = self._reading_annotation
+        self._reading_annotation = True
+        try:
+            with self.end_identifier('|'):
+                return self.parse_one_form()
+        finally:
+            self._reading_annotation = was_reading_annotation
+
+    def _read_annotation_postfix(self, model: Object, start: tuple[int, int], *, no_union: bool = False) -> Object:
+        while self.peekc() == '[':
+            self.getc()
+            items = list(self.parse_forms_until(']'))
+            if not items:
+                raise LexException.from_reader('Empty subscript in annotation', self)
+            if any(is_unpack('mapping', x) for x in items):
+                raise LexException.from_reader('Mapping unpacking is not allowed in an annotation subscript', self)
+            index = items[0] if len(items) == 1 and not is_unpack('iterable', items[0]) else Tuple(items)
+            model = self.fill_pos(mkexpr('get', model, index), start)
+
+        if no_union or self.peekc() != '|':
+            return model
+
+        operands = [model]
+        while self.peek_and_getc('|'):
+            # Continue the flat union here rather than letting the operand's own postfix parsing nest a new one.
+            operand = None
+            while operand is None:
+                operand = self._try_parse_one_form(no_annotation_union=True)
+            operands.append(operand)
+        return self.fill_pos(mkexpr('|', *operands), start)
 
     ##
     # Strings (these are more complicated because f-strings form their own sublanguage)

@@ -2270,7 +2270,12 @@ def compile_require(
                 if readers == Symbol('*')
                 else [str(reader) for reader in readers[0]]
             )
-            if require_reader(module_name, compiler.module, reader_assignments):
+            if require_reader(
+                    module_name,
+                    compiler.module,
+                    reader_assignments,
+                    importer=compiler.runtime.import_module,
+            ):
                 ret += compiler.compile(
                     mkexpr(
                         'do',

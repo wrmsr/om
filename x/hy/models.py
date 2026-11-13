@@ -1,4 +1,5 @@
 import contextlib
+import contextvars
 import functools
 import itertools
 import math
@@ -7,29 +8,38 @@ import typing as ta
 from string.templatelib import Interpolation
 from string.templatelib import Template
 
+from omcore import lang
+
 from .errors import HyWrapperError
 
 
+# The reader depends on models, so is imported lazily here.
 if ta.TYPE_CHECKING:
+    from .reader import hy_reader as reader_hy_reader
+    from .reader import mangling as reader_mangling
+    from .reader import reader as reader_reader
     from .reader.hy_reader import HyReader
+else:
+    reader_hy_reader = lang.proxy_import('.reader.hy_reader', __package__)
+    reader_mangling = lang.proxy_import('.reader.mangling', __package__)
+    reader_reader = lang.proxy_import('.reader.reader', __package__)
 
 
 ##
 
 
-PRETTY = True
+_PRETTY: contextvars.ContextVar[bool] = contextvars.ContextVar(f'{__name__}._PRETTY', default=True)
 
 
 @contextlib.contextmanager
 def pretty(pretty: bool = True) -> ta.Iterator[None]:
-    """Context manager to temporarily enable or disable pretty-printing of Hy model reprs."""
+    """Context manager to temporarily enable or disable pretty-printing of Hy model reprs in the current context."""
 
-    global PRETTY
-    old, PRETTY = PRETTY, pretty
+    token = _PRETTY.set(pretty)
     try:
         yield
     finally:
-        PRETTY = old
+        _PRETTY.reset(token)
 
 
 class Object:
@@ -113,8 +123,42 @@ class Object:
         return super().__hash__()
 
 
-_wrappers: dict[type, ta.Callable[[ta.Any], Object]] = {}
-_seen: set[int] = set()
+class _ModelWrapping:
+    """State for a single top-level `as_model` call, used to detect self-referential structures."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._seen: set[int] = set()
+
+    def wrap(self, x: object) -> Object:
+        if id(x) in self._seen:
+            raise HyWrapperError(f'Self-referential structure detected in {x!r}')
+
+        wrapper = _wrappers.get(type(x))
+        new = wrapper(x, self) if wrapper is not None else x
+        if not isinstance(new, Object):
+            raise HyWrapperError(f"Don't know how to wrap {type(x)!r}: {x!r}")
+        if isinstance(x, Object):
+            new = new.replace(x, recursive=False)
+        return new
+
+    def wrap_all(
+            self,
+            container: object,
+            items: ta.Iterable[ta.Any],
+            f: ta.Callable[[ta.Iterable[Object]], Object],
+    ) -> Object:
+        self._seen.add(id(container))
+        try:
+            return f(self.wrap(x) for x in items)
+        finally:
+            self._seen.discard(id(container))
+
+
+_ModelWrapper: ta.TypeAlias = ta.Callable[[ta.Any, _ModelWrapping], Object]
+
+_wrappers: dict[type, _ModelWrapper] = {}
 
 
 def as_model(x: object) -> Object:
@@ -130,15 +174,7 @@ def as_model(x: object) -> Object:
     Hy literal, such as a function.
     """
 
-    if id(x) in _seen:
-        raise HyWrapperError(f'Self-referential structure detected in {x!r}')
-
-    new = _wrappers.get(type(x), lambda y: y)(x)
-    if not isinstance(new, Object):
-        raise HyWrapperError(f"Don't know how to wrap {type(x)!r}: {x!r}")
-    if isinstance(x, Object):
-        new = new.replace(x, recursive=False)
-    return new
+    return _ModelWrapping().wrap(x)
 
 
 def replace_hy_obj(obj: object, other: Object) -> Object:
@@ -188,7 +224,7 @@ class String(Object, str):  # type: ignore[misc]  # Models use Object.replace ra
         return str(self)
 
 
-_wrappers[str] = String
+_wrappers[str] = lambda x, _: String(x)
 
 
 class Bytes(Object, bytes):  # type: ignore[misc]  # Models use Object.replace rather than bytes.replace.
@@ -201,7 +237,7 @@ class Bytes(Object, bytes):  # type: ignore[misc]  # Models use Object.replace r
         return bytes(self)
 
 
-_wrappers[bytes] = Bytes
+_wrappers[bytes] = lambda x, _: Bytes(x)
 
 
 class Symbol(Object, str):  # type: ignore[misc]  # Models use Object.replace rather than str.replace.
@@ -219,10 +255,8 @@ class Symbol(Object, str):  # type: ignore[misc]  # Models use Object.replace ra
     def __new__(cls, s: object, from_parser: bool = False) -> Symbol:  # noqa: PYI034
         s = str(s)
         if not from_parser:
-            # Check that the symbol is syntactically legal. import here to prevent circular imports.
-            from .reader.hy_reader import as_identifier
-
-            sym = as_identifier(s)
+            # Check that the symbol is syntactically legal.
+            sym = reader_hy_reader.as_identifier(s)
             if not isinstance(sym, Symbol):
                 raise ValueError(f'Syntactically illegal symbol: {s!r}')
             return sym
@@ -233,8 +267,8 @@ class Symbol(Object, str):  # type: ignore[misc]  # Models use Object.replace ra
         return str(self)
 
 
-_wrappers[bool] = lambda x: Symbol('True') if x else Symbol('False')
-_wrappers[type(None)] = lambda _: Symbol('None')
+_wrappers[bool] = lambda x, _: Symbol('True') if x else Symbol('False')
+_wrappers[type(None)] = lambda x, _: Symbol('None')
 
 
 @functools.total_ordering
@@ -255,14 +289,11 @@ class Keyword(Object):
 
         value = str(value)
         if not from_parser:
-            # Check that the keyword is syntactically legal. import here to prevent circular imports.
-            from .reader.hy_reader import HyReader
-            from .reader.reader import isnormalizedspace
-
+            # Check that the keyword is syntactically legal.
             if value and (
                 '.' in value
-                or any(isnormalizedspace(c) for c in value)
-                or not HyReader.NON_IDENT.isdisjoint(value)
+                or any(reader_reader.isnormalizedspace(c) for c in value)
+                or not reader_hy_reader.HyReader.NON_IDENT.isdisjoint(value)
             ):
                 raise ValueError(f'Syntactically illegal keyword: {":" + value!r}')
         self.name = value
@@ -310,10 +341,8 @@ class Keyword(Object):
         <hy.pyops.get>` will be caught, and the default returned instead.
         """
 
-        from .reader import mangle
-
         try:
-            return data[mangle(self.name)]
+            return data[reader_mangling.mangle(self.name)]
         except KeyError:
             if default is Keyword._sentinel:
                 raise
@@ -354,7 +383,7 @@ class Integer(Object, int):
         return int(self)
 
 
-_wrappers[int] = Integer
+_wrappers[int] = lambda x, _: Integer(x)
 
 
 def check_inf_nan_cap(arg: object, value: float) -> None:
@@ -380,7 +409,7 @@ class Float(Object, float):
         return float(self)
 
 
-_wrappers[float] = Float
+_wrappers[float] = lambda x, _: Float(x)
 
 
 class Complex(Object, complex):
@@ -414,7 +443,7 @@ class Complex(Object, complex):
         return super().__new__(cls, real, imag)
 
 
-_wrappers[complex] = Complex
+_wrappers[complex] = lambda x, _: Complex(x)
 
 
 class Sequence(Object, tuple[ta.Any, ...]):
@@ -463,7 +492,7 @@ class Sequence(Object, tuple[ta.Any, ...]):
         return ret
 
     def __repr__(self) -> str:
-        return self._pretty_str() if PRETTY else super().__repr__()
+        return self._pretty_str() if _PRETTY.get() else super().__repr__()
 
     def __str__(self) -> str:
         return self._pretty_str()
@@ -595,25 +624,21 @@ class List(Sequence):
     """
 
 
-def recwrap(f: ta.Callable[[ta.Iterable[Object]], Object]) -> ta.Callable[[ta.Iterable[ta.Any]], Object]:
-    def lambda_to_return(l: ta.Iterable[ta.Any]) -> Object:
-        _seen.add(id(l))
-        try:
-            return f(as_model(x) for x in l)
-        finally:
-            _seen.remove(id(l))
+def recwrap(f: ta.Callable[[ta.Iterable[Object]], Object]) -> _ModelWrapper:
+    def wrapper(l: ta.Iterable[ta.Any], w: _ModelWrapping) -> Object:
+        return w.wrap_all(l, l, f)
 
-    return lambda_to_return
+    return wrapper
 
 
 _wrappers[FComponent] = recwrap(FComponent)
-_wrappers[Interpolation] = lambda interp: FComponent(
-    [as_model(interp.value), as_model(interp.format_spec)],
+_wrappers[Interpolation] = lambda interp, w: FComponent(
+    [w.wrap(interp.value), w.wrap(interp.format_spec)],
     conversion=interp.conversion,
     expression=interp.expression,
     is_tstring=True)
-_wrappers[FString] = lambda fstr: FString(
-    (as_model(x) for x in fstr),
+_wrappers[FString] = lambda fstr, w: FString(
+    (w.wrap(x) for x in fstr),
     brackets=fstr.brackets,
     is_tstring=fstr.is_tstring,
 )
@@ -652,12 +677,8 @@ class Dict(Sequence):
         return list(zip(self.keys(), self.values()))
 
 
-def _dict_wrapper(d: ta.Mapping[ta.Any, ta.Any]) -> Dict:
-    _seen.add(id(d))
-    try:
-        return Dict(as_model(x) for x in sum(d.items(), ()))
-    finally:
-        _seen.remove(id(d))
+def _dict_wrapper(d: ta.Mapping[ta.Any, ta.Any], w: _ModelWrapping) -> Object:
+    return w.wrap_all(d, (x for kv in d.items() for x in kv), Dict)
 
 
 _wrappers[Dict] = recwrap(Dict)

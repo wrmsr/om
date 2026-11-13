@@ -1,74 +1,46 @@
-"""97dd2327b0a2ceb3c1e0bf8d9c6b5d04ace974c2"""
-import importlib
-import types
-import typing as ta
+"""
+An internal fork of Hy (https://github.com/hylang/hy, at 97dd2327b0a2ceb3c1e0bf8d9c6b5d04ace974c2), a Lisp dialect
+embedded in Python.
 
-from . import hy_inspect  # noqa: F401  # Register Hy inspection hooks.
-from . import importer
-from .reader.mangling import slashes2dots
+This package has no import-time side effects and holds no global state. Hy is used through instances of
+:class:`HyRuntime`: self-contained engines with their own core macros, core modules, ``hy`` namespace, and - by default
+- private module registries, which leave ``sys.modules``, ``builtins``, and Python's import system untouched::
 
+    rt = HyRuntime()
+    rt.eval('(+ 1 2)')  # => 3
 
-##
+    mod = rt.exec('(defn #^int inc [#^int x] (+ x 1))')
+    mod.inc(1)  # => 2
 
+All Hy code compiled by a runtime sees ``hy`` (bound to its runtime's namespace) and the runtime's prelude, by default
+just ``ta`` (bound to :mod:`typing`). Type annotations accept Python-style subscripts and unions, so
+``#^ta.Sequence[int]`` and ``#^str|None`` work as written.
 
-class _Importer:
-    """
-    ``hy.I`` is an object that provides syntactic sugar for imports. It allows syntax like ``(hy.I.math.sqrt 2)``  to
-    mean ``(import math) (math.sqrt 2)``, except without bringing ``math`` or ``math.sqrt`` into scope. (See :ref:`hy.R
-    <hy.R>` for a version that requires a macro instead of importing a Python object.) This is useful in macros to avoid
-    namespace pollution. To refer to a module with dots in its name, use slashes instead: ``hy.I.os/path.basename`` gets
-    the function ``basename`` from the module ``os.path``.
+Alternatively, :func:`.globalruntime.install` opts in to a single process-wide runtime integrated with Python's import
+system, under which ``.hy`` files are importable just like ``.py`` files.
 
-    You can also call ``hy.I`` like a function, as in ``(hy.I "math")``, which is useful when the module name isn't
-    known until run-time. This interface just calls :py:func:`importlib.import_module`, avoiding (1) mangling due to
-    attribute lookup, and (2) the translation of ``/`` to ``.`` in the module name. The advantage of ``(hy.I modname)``
-    over ``importlib.import_module(modname)`` is merely that it avoids bringing ``importlib`` itself into scope.
-    """
-
-    def __call__(self, module_name: str) -> types.ModuleType:
-        return importlib.import_module(module_name)
-
-    def __getattr__(self, s: str) -> types.ModuleType:
-        return self(slashes2dots(s))
-
-
-I = _Importer()
-
-
-# Import some names on demand so that the dependent modules don't have to be loaded if they're not needed.
-
-
-_jit_imports: dict[str, str | tuple[str, str | None]] = dict(
-    pyops=('.pyops', None),
-    read='.reader',
-    read_many='.reader',
-    mangle='.reader',
-    unmangle='.reader',
-    eval=('.compiler', 'hy_eval_user'),
-    repr=('.core.hy_repr', 'hy_repr'),
-    repr_register=('.core.hy_repr', 'hy_repr_register'),
-    gensym='.core.util',
-    macroexpand='.core.util',
-    macroexpand_1='.core.util',
-    disassemble='.core.util',
-    as_model='.models',
-    REPL='.repl',
-    Reader='.reader.reader',
-    HyReader='.reader.hy_reader',
-    PrematureEndOfInput='.reader.exceptions',
-)
-
-
-def __getattr__(k: str) -> ta.Any:
-    if k not in _jit_imports:
-        raise AttributeError(f'module {__name__!r} has no attribute {k!r}')
-
-    v = _jit_imports[k]
-    module_name, original_name = v if isinstance(v, tuple) else (v, k)
-    module = importlib.import_module(module_name, __package__)
-
-    globals()[k] = getattr(module, original_name) if original_name else module
-    return globals()[k]
-
-
-importer._inject_builtins()  # noqa: SLF001
+The package never refers to its own absolute name: it may be relocated, and code it generates refers to ``hy`` only as a
+name which is either injected into the namespace it runs in, or imported in a preamble derived from ``__package__``.
+"""
+from . import models  # noqa
+from .finders import DirectoryHyModuleFinder  # noqa
+from .finders import HyModuleFinder  # noqa
+from .finders import HyModuleSource  # noqa
+from .finders import MappingHyModuleFinder  # noqa
+from .finders import PackageHyModuleFinder  # noqa
+from .importing import HyModules  # noqa
+from .importing import IsolatedHyModules  # noqa
+from .importing import SysHyModules  # noqa
+from .models import as_model  # noqa
+from .reader import mangle  # noqa
+from .reader import read  # noqa
+from .reader import read_many  # noqa
+from .reader import unmangle  # noqa
+from .reader.exceptions import PrematureEndOfInput  # noqa
+from .reader.hy_reader import HyReader  # noqa
+from .reader.reader import Reader  # noqa
+from .runtime import DEFAULT_HY_PRELUDE  # noqa
+from .runtime import HyCoreCodeCache  # noqa
+from .runtime import HyNamespace  # noqa
+from .runtime import HyPreludeImport  # noqa
+from .runtime import HyRuntime  # noqa

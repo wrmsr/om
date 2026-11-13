@@ -4,8 +4,8 @@ import typing as ta
 
 import pytest
 
-from ... import hy
 from ..errors import HyWrapperError
+from ..globalruntime import get_global_runtime
 from ..models import Complex
 from ..models import Dict
 from ..models import Expression
@@ -22,6 +22,10 @@ from ..models import Tuple
 from ..models import as_model
 from ..models import pretty
 from ..models import replace_hy_obj
+
+
+RT = get_global_runtime()
+hy = RT.hy
 
 
 def test_symbol_or_keyword():

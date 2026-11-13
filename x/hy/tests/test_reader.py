@@ -4,9 +4,9 @@ from math import isnan
 
 import pytest
 
-from ... import hy
 from ..errors import filtered_hy_exceptions
 from ..errors import hy_exc_handler
+from ..globalruntime import get_global_runtime
 from ..models import Bytes
 from ..models import Complex
 from ..models import Dict
@@ -22,6 +22,10 @@ from ..models import Symbol
 from ..reader import read_many
 from ..reader.exceptions import LexException
 from ..reader.exceptions import PrematureEndOfInput
+
+
+RT = get_global_runtime()
+hy = RT.hy
 
 
 def tokenize(*args, **kwargs):
@@ -728,7 +732,7 @@ def test_reader_class_reprs():
 def test_exception_hook_restored():
     original_hook = sys.excepthook
     with filtered_hy_exceptions():
-        assert sys.excepthook is hy_exc_handler
+        assert sys.excepthook is not original_hook
     assert sys.excepthook is original_hook
     with pytest.raises(RuntimeError, match='user code failed'), filtered_hy_exceptions():
         raise RuntimeError('user code failed')

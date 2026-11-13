@@ -205,8 +205,10 @@
   ; https://github.com/hylang/hy/issues/2475
   ((. defn) not-async [] "ok")
   (assert (= (not-async) "ok"))
-  (require builtins)
-  (builtins.defn also-not-async [] "ok")
+  ; Upstream requires `builtins` here, which holds the core macros - here they're in the runtime, but the Python ones are
+  ; also requirable from where they're defined.
+  (require ...core.result-macros :as core)
+  (core.defn also-not-async [] "ok")
   (assert (= (also-not-async) "ok")))
 
 

@@ -3,12 +3,16 @@ from textwrap import dedent
 
 import pytest
 
-from .... import hy
 from ...compiler import hy_compile
 from ...errors import HyError
 from ...errors import HyLanguageError
+from ...globalruntime import get_global_runtime
 from ...reader import read_many
 from ...reader.exceptions import LexException
+
+
+RT = get_global_runtime()
+hy = RT.hy
 
 
 def _ast_spotcheck(arg, root, secondary):
@@ -19,8 +23,8 @@ def _ast_spotcheck(arg, root, secondary):
     return None
 
 
-def can_compile(expr, import_stdlib=False):
-    return hy_compile(read_many(expr), __name__, import_stdlib=import_stdlib)
+def can_compile(expr, preamble=False):
+    return hy_compile(read_many(expr), __name__, preamble=preamble, runtime=RT)
 
 
 def can_eval(expr):
@@ -29,7 +33,7 @@ def can_eval(expr):
 
 def cant_compile(expr):
     with pytest.raises(HyError) as excinfo:
-        hy_compile(read_many(expr), __name__)
+        hy_compile(read_many(expr), __name__, runtime=RT)
     # Anything that can't be compiled should raise a user friendly
     # error, otherwise it's a compiler bug.
     assert isinstance(excinfo.value, HyLanguageError)
@@ -48,7 +52,7 @@ def test_ast_bad_type():
         pass
 
     with pytest.raises(TypeError):
-        hy_compile(C(), __name__, filename='<string>', source='')
+        hy_compile(C(), __name__, filename='<string>', source='', runtime=RT)
 
 
 def test_empty_expr():
@@ -393,7 +397,7 @@ def test_ast_unicode_strings():
         hy_s = hy.models.String(s)
 
         code = hy_compile(
-            [hy_s], __name__, filename='<string>', source=s, import_stdlib=False,
+            [hy_s], __name__, filename='<string>', source=s, runtime=RT,
         )
         # We put hy_s in a list so it isn't interpreted as a docstring.
 
@@ -655,17 +659,19 @@ def test_models_accessible():
 
 
 def test_module_prelude():
-    """Make sure the hy prelude appears at the top of a compiled module."""
+    """Make sure the preamble (binding the prelude and hy) appears at the top of a compiled module."""
 
-    for code, n in ('', 1), ('(setv flag (- hy.models.Symbol 1))', 2):
-        x = can_compile(code, import_stdlib=True).body
+    for code, n in ('', 2), ('(setv flag (- hy.models.Symbol 1))', 3):
+        x = can_compile(code, preamble=True).body
         assert len(x) == n
-        assert isinstance(x[0], ast.ImportFrom)
-        assert x[0].module == hy.__package__.rpartition('.')[0]
-        assert x[0].level == 0
-        x = x[0].names[0]
-        assert x.name == 'hy'
-        assert x.asname is None
+
+        assert isinstance(x[0], ast.Import)
+        assert [(a.name, a.asname) for a in x[0].names] == [('typing', 'ta')]
+
+        assert isinstance(x[1], ast.ImportFrom)
+        assert x[1].module == f'{hy.__package__}.autoinstall'
+        assert x[1].level == 0
+        assert [(a.name, a.asname) for a in x[1].names] == [('hy', None)]
 
 
 def test_pragma():

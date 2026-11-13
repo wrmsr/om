@@ -171,10 +171,9 @@
 (defn test-no-extra-hy-removal []
   "`hy.eval` shouldn't remove `hy` from a provided namespace if it
   was already there."
-  (setv g {})
-  (exec f"from {(get (hy.__package__.rpartition ".") 0)} import hy" g)
+  (setv g {"hy" hy})
   (assert (= (hy.eval '(hy.repr [1 2]) g) "[1 2]"))
-  (assert (in "hy" g)))
+  (assert (is (get g "hy") hy)))
 
 
 (defmacro test-macro []

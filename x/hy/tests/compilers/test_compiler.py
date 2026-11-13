@@ -4,16 +4,20 @@ import typing as ta
 
 import pytest
 
-from .... import hy
 from ... import compiler
 from ...compiler import hy_compile
 from ...errors import HyEvalError
 from ...errors import HyTypeError
+from ...globalruntime import get_global_runtime
 from ...models import Expression
 from ...models import Integer
 from ...models import List
 from ...models import Symbol
 from ...reader import read_many
+
+
+RT = get_global_runtime()
+hy = RT.hy
 
 
 def make_expression(*args):
@@ -26,14 +30,14 @@ def make_expression(*args):
 
 
 def hy2py(s):
-    return ast.unparse(hy_compile(read_many(s), 'test', import_stdlib=False))
+    return ast.unparse(hy_compile(read_many(s), 'test', runtime=RT))
 
 
 def test_compiler_bare_names():
     """Check that the compiler doesn't drop bare names from code branches"""
 
     e = make_expression(Symbol('do'), Symbol('a'), Symbol('b'), Symbol('c'))
-    ret = compiler.HyASTCompiler(types.ModuleType('test')).compile(e)
+    ret = compiler.HyASTCompiler(types.ModuleType('test'), runtime=RT).compile(e)
 
     # We expect two statements and a final expr.
 
@@ -62,7 +66,7 @@ def test_compiler_yield_return():
         Expression([Symbol('yield'), Integer(2)]),
         Expression([Symbol('+'), Integer(1), Integer(1)]),
     )
-    ret = compiler.HyASTCompiler(types.ModuleType('test')).compile_atom(e)
+    ret = compiler.HyASTCompiler(types.ModuleType('test'), runtime=RT).compile_atom(e)
 
     assert len(ret.stmts) == 1
     (stmt,) = ret.stmts
@@ -102,15 +106,17 @@ def test_correct_logic():
 
 def test_relocated_runtime_binding():
     module = types.ModuleType('hy_runtime_binding_test')
-    tree = hy_compile(read_many("(setv model 'hello)"), module)
+    tree = hy_compile(read_many("(setv model 'hello)"), module, preamble=True, runtime=RT)
     source = ast.unparse(tree)
-    assert f'from {hy.__package__.rpartition(".")[0]} import hy' in source
+    assert f'from {hy.__package__}.autoinstall import hy' in source
+    assert 'import typing as ta' in source
     assert 'hy.models.Symbol' in source
     assert f'{hy.__package__}.models' not in source
 
     namespace: dict[str, ta.Any] = {}
     exec(compile(tree, '<test>', 'exec'), namespace)
     assert namespace['hy'] is hy
+    assert namespace['ta'] is ta
     assert namespace['model'] == Symbol('hello')
 
 
@@ -119,7 +125,7 @@ def test_relocated_runtime_binding():
 def test_unquote_arity_error(operator, arguments, count):
     source = f'`({operator}{arguments})'
     with pytest.raises(HyTypeError, match=f'needs 1 argument, got {count}') as excinfo:
-        hy_compile(read_many(source, filename='bad-unquote.hy'), __name__)
+        hy_compile(read_many(source, filename='bad-unquote.hy'), __name__, runtime=RT)
     assert excinfo.value.filename == 'bad-unquote.hy'
     assert excinfo.value.text == source
 
@@ -127,7 +133,7 @@ def test_unquote_arity_error(operator, arguments, count):
 def test_compile_time_error_source():
     source = '(eval-when-compile (/ 1 0))'
     with pytest.raises(HyEvalError, match='division by zero') as excinfo:
-        hy_compile(read_many(source, filename='compile-time.hy'), __name__)
+        hy_compile(read_many(source, filename='compile-time.hy'), __name__, runtime=RT)
     assert excinfo.value.filename == 'compile-time.hy'
     assert excinfo.value.text == source
     assert isinstance(excinfo.value.__cause__, ZeroDivisionError)

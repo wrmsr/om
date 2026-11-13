@@ -1,7 +1,7 @@
 # ruff: noqa: SLF001
 import ast
-import builtins
-import importlib
+import importlib.machinery
+import importlib.util
 import inspect
 import os
 import re
@@ -12,7 +12,6 @@ import typing as ta
 
 from omcore import check
 
-from .. import hy
 from .errors import HyLanguageError
 from .errors import HyMacroExpansionError
 from .errors import HyRequireError
@@ -29,22 +28,20 @@ from .models import replace_hy_obj
 from .reader import HyReader
 from .reader import mangle
 from .reader.mangling import slashes2dots
+from .results import Result
 
 
 if ta.TYPE_CHECKING:
     from .compiler import HyASTCompiler
-    from .compiler import Result
 
 
 FunctionT = ta.TypeVar('FunctionT', bound=ta.Callable[..., ta.Any])
 MacroNames: ta.TypeAlias = str | list[str] | tuple[tuple[int, ...], str | list[str]]
 RequireAssignments: ta.TypeAlias = ta.Literal['ALL', 'EXPORTS'] | ta.Sequence[tuple[str, str]]
+ModuleImporter: ta.TypeAlias = ta.Callable[[str], types.ModuleType]
 
 
 ##
-
-
-EXTRA_MACROS = ['.core.result_macros', '.core.macros']
 
 
 def macro(name: str) -> ta.Callable[[FunctionT], FunctionT]:
@@ -148,14 +145,21 @@ def _same_modules(source_module: types.ModuleType | str | None, target_module: t
 
 def derive_target_module(
         target_module: types.ModuleType | str | None,
-        parent_frame: types.FrameType,
+        target_globals: ta.Mapping[str, ta.Any] | None,
+        *,
+        importer: ModuleImporter = importlib.import_module,
 ) -> tuple[types.ModuleType | str, dict[str, ta.Any]]:
+    """
+    Resolve a macro target into a (module or module name, namespace) pair. A `None` target means the module whose
+    globals are `target_globals` - usually those of the calling frame.
+    """
+
     if target_module is None:
-        target_namespace = parent_frame.f_globals
+        target_namespace = ta.cast('dict[str, ta.Any]', check.not_none(target_globals))
         target_module = target_namespace.get('__name__', 'builtins')
         # Why "builtins"? Because that's what Python produces with `exec("print(__name__)", globals = {})`.
     elif isinstance(target_module, str):
-        target_module = importlib.import_module(target_module)
+        target_module = importer(target_module)
         target_namespace = target_module.__dict__
     elif inspect.ismodule(target_module):
         target_namespace = target_module.__dict__
@@ -164,14 +168,19 @@ def derive_target_module(
     return target_module, target_namespace
 
 
-def import_module_from_string(module_name: str, package_module: types.ModuleType | str) -> types.ModuleType:
-    package = None
+def import_module_from_string(
+        module_name: str,
+        package_module: types.ModuleType | str,
+        *,
+        importer: ModuleImporter = importlib.import_module,
+) -> types.ModuleType:
     if module_name.startswith('.'):
         package = getattr(package_module, '__package__', None)
         if not package:
             package = getattr(package_module, '__name__', package_module).rpartition('.')[0]
+        module_name = importlib.util.resolve_name(module_name, package)
     try:
-        return importlib.import_module(module_name, package)
+        return importer(module_name)
     except ImportError as e:
         raise HyRequireError(e.args[0]).with_traceback(None) from None
 
@@ -180,14 +189,19 @@ def require_reader(
         source_module: types.ModuleType | str,
         target_module: types.ModuleType | str | None,
         assignments: ta.Literal['ALL'] | ta.Iterable[str],
+        *,
+        target_globals: ta.Mapping[str, ta.Any] | None = None,
+        importer: ModuleImporter = importlib.import_module,
 ) -> bool:
-    target_module, target_namespace = derive_target_module(target_module, inspect.stack()[1][0])
+    if target_module is None and target_globals is None:
+        target_globals = sys._getframe(1).f_globals
+    target_module, target_namespace = derive_target_module(target_module, target_globals, importer=importer)
 
     if _same_modules(source_module, target_module):
         return False
 
     if not inspect.ismodule(source_module):
-        source_module = import_module_from_string(source_module, target_module)
+        source_module = import_module_from_string(source_module, target_module, importer=importer)
 
     source_macros = source_module.__dict__.setdefault('_hy_reader_macros', {})
     target_macros = target_namespace.setdefault('_hy_reader_macros', {})
@@ -207,8 +221,13 @@ def enable_readers(
         module: types.ModuleType | str | None,
         reader: HyReader,
         names: ta.Literal['ALL'] | ta.Iterable[str],
+        *,
+        target_globals: ta.Mapping[str, ta.Any] | None = None,
+        importer: ModuleImporter = importlib.import_module,
 ) -> None:
-    _, namespace = derive_target_module(module, inspect.stack()[1][0])
+    if module is None and target_globals is None:
+        target_globals = sys._getframe(1).f_globals
+    _, namespace = derive_target_module(module, target_globals, importer=importer)
     names = namespace['_hy_reader_macros'].keys() if names == 'ALL' else names
     for name in names:
         if name not in namespace['_hy_reader_macros']:
@@ -223,20 +242,30 @@ def require(
         prefix: str = '',
         target_module_name: str | None = None,
         compiler: HyASTCompiler | None = None,
+        *,
+        target_globals: ta.Mapping[str, ta.Any] | None = None,
+        importer: ModuleImporter | None = None,
 ) -> list[tuple[str, str, ta.Callable[..., ta.Any]]]:
     """
     Load macros from a module. Return a list of (new name, source name, macro object) tuples, including only macros that
     were actually transferred.
 
-    - `target` can be a a string (naming a module), a module object, a dictionary, or `None` (meaning the calling
-      module).
+    - `target` can be a a string (naming a module), a module object, a dictionary, or `None` (meaning the module whose
+      globals are `target_globals`, by default those of the calling frame).
     - `assignments` can be "ALL", "EXPORTS", or a list of (macro name, alias) pairs.
+    - `importer` is used to import source modules named by strings, defaulting to that of the `compiler`'s runtime if
+      given, and otherwise to Python's import system.
     """
+
+    if importer is None:
+        importer = compiler.runtime.import_module if compiler is not None else importlib.import_module
 
     if isinstance(target, dict):
         target_module = None
     else:
-        target_module, target_namespace = derive_target_module(target, inspect.stack()[1][0],)
+        if target is None and target_globals is None:
+            target_globals = sys._getframe(1).f_globals
+        target_module, target_namespace = derive_target_module(target, target_globals, importer=importer)
         # Let's do a quick check to make sure the source module isn't actually the module being compiled (e.g. when
         # `runpy` executes a module's code in `__main__`). We use the module's underlying filename for this (when they
         # exist), since it's the most "fixed" attribute.
@@ -244,7 +273,11 @@ def require(
             return []
 
     if not inspect.ismodule(source_module):
-        source_module = import_module_from_string(source_module, target_module_name or target_module or '')
+        source_module = import_module_from_string(
+            source_module,
+            target_module_name or target_module or '',
+            importer=importer,
+        )
 
     source_macros = source_module.__dict__.setdefault('_hy_macros', {})
     source_exports = getattr(
@@ -264,6 +297,8 @@ def require(
                     target_module or target,
                     'ALL',
                     prefix=alias,
+                    target_globals=target_globals,
+                    importer=importer,
                 ))
             except HyRequireError:
                 raise HyRequireError(
@@ -314,27 +349,6 @@ def local_macro_name(original: str) -> str:
         .replace('D', 'DN')
         .replace('.', 'DD')
     )
-
-
-def load_macros(module: types.ModuleType) -> None:
-    """
-    Load the hy builtin macros into module `module_name`, removing any prior macros set. It is an error to call this on
-    any module in `hy.core`.
-    """
-
-    builtin_macros = EXTRA_MACROS
-    module.__dict__['_hy_macros'] = {}
-    module.__dict__['_hy_reader_macros'] = {}
-
-    for builtin_mod_name in builtin_macros:
-        builtin_mod = importlib.import_module(builtin_mod_name, __package__)
-
-        # This may overwrite macros in the module.
-        if hasattr(builtin_mod, '_hy_macros'):
-            module.__dict__['_hy_macros'].update(getattr(builtin_mod, '_hy_macros', {}))
-
-        if hasattr(builtin_mod, '_hy_reader_macros'):
-            module.__dict__['_hy_reader_macros'].update(getattr(builtin_mod, '_hy_reader_macros', {}))
 
 
 class MacroExceptions:
@@ -399,9 +413,13 @@ def macroexpand(
     """
 
     if not inspect.ismodule(module):
-        module = importlib.import_module(module)
+        module = compiler.runtime.import_module(module) if compiler is not None else importlib.import_module(module)
 
     check.state(not compiler or compiler.module == module)
+
+    core_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] = (
+        compiler.runtime.core_macros if compiler is not None else {}
+    )
 
     while isinstance(tree, Expression) and tree:
 
@@ -423,7 +441,11 @@ def macroexpand(
             req_from, _, fn = fn[len('hy.R.'):].partition('.')
             req_from = slashes2dots(req_from)
             try:
-                m = importlib.import_module(req_from).__dict__['_hy_macros'][fn]
+                m = (
+                    compiler.runtime.import_module(req_from)
+                    if compiler is not None
+                    else importlib.import_module(req_from)
+                ).__dict__['_hy_macros'][fn]
             except ImportError as e:
                 raise HyRequireError(e.args[0]).with_traceback(None) from None
             except (AttributeError, KeyError):
@@ -438,16 +460,13 @@ def macroexpand(
                         d[fn]
                         for d in [
                             compiler.extra_macros,
-                            *(s['macros'] for s in reversed(compiler.local_state_stack))
+                            *(s['macros'] for s in reversed(compiler.local_state_stack)),
                         ]
                         if fn in d
                     ), None)
                 ) or
-                next((
-                    mod.__dict__['_hy_macros'][fn]
-                    for mod in (module, builtins)
-                    if fn in getattr(mod, '_hy_macros', ())
-                ), None)
+                module.__dict__.get('_hy_macros', {}).get(fn) or
+                core_macros.get(fn)
             )
             if not m:
                 break
@@ -461,7 +480,7 @@ def macroexpand(
                 *([compiler] if m.__code__.co_varnames[:1] == ('_hy_compiler',) else []),
                 *map(as_model, tree[1:]),
             )
-            if isinstance(obj, (hy.compiler.Result, ast.AST)):
+            if isinstance(obj, (Result, ast.AST)):
                 return obj if result_ok else tree
 
             tree = replace_hy_obj(obj, tree)

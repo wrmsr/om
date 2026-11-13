@@ -136,7 +136,7 @@
 
 (defn test-macro-errors []
   (import traceback
-          ...importer [read-many])
+          ...reader [read-many])
 
   (setv test-expr (read-many "(defmacro blah [x] `(print ~@z)) (blah y)"))
 

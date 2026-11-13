@@ -5,9 +5,13 @@ import importlib
 import itertools
 import math
 
-from ... import hy
 from .. import mangle
+from ..globalruntime import get_global_runtime
 from .test_bin import REPO_PYTHON
+
+
+RT = get_global_runtime()
+hy = RT.hy
 
 
 def test_direct_import():

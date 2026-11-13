@@ -14,6 +14,7 @@ from .models import Object
 from .models import Symbol
 from .models import Tuple
 from .reader import mangle
+from .results import asty
 
 
 if ta.TYPE_CHECKING:
@@ -55,7 +56,6 @@ class OuterVar(ast.stmt):
     """Custom AST node that can compile to either Nonlocal or Global."""
 
     def __init__(self, expr: Object | ast.AST, scope: ScopeBase, names: list[str]) -> None:
-        from .compiler import asty
         super().__init__()
         self.__dict__.update(asty._get_pos(expr))
         self._scope = scope
@@ -66,8 +66,6 @@ class ResolveOuterVars(ast.NodeTransformer):
     """Find all OuterVar nodes and replace with Nonlocal or Global as necessary."""
 
     def visit_OuterVar(self, node: OuterVar) -> list[ast.stmt]:
-        from .compiler import asty
-
         scope = node._scope
         defined: set[str] = set()
         undefined = list(node.names)  # keep order, so can't use set

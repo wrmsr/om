@@ -7,6 +7,7 @@ import ast
 
 from .. import read_many
 from ..compiler import hy_compile
+from ..runtime import HyRuntime
 
 
 def cpl(string):
@@ -16,7 +17,8 @@ def cpl(string):
     position for generated nodes.
     """
 
-    return hy_compile(read_many('\n' + string), __name__).body[-1]
+    rt = HyRuntime()
+    return hy_compile(read_many('\n' + string), rt.new_module(), runtime=rt).body[-1]
 
 
 def test_do_mac():

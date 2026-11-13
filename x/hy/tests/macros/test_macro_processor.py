@@ -1,8 +1,8 @@
 import pytest
 
-from .... import hy
 from ...compiler import HyASTCompiler
 from ...errors import HyMacroExpansionError
+from ...globalruntime import get_global_runtime
 from ...macros import macro
 from ...macros import macroexpand
 from ...macros import rename_function
@@ -12,6 +12,10 @@ from ...models import List
 from ...models import String
 from ...models import Symbol
 from ...reader import read
+
+
+RT = get_global_runtime()
+hy = RT.hy
 
 
 @macro('test')
@@ -24,7 +28,7 @@ def tmac(*tree):
 def test_preprocessor_simple():
     """Test basic macro expansion"""
 
-    obj = macroexpand(read('(test "one" "two")'), __name__, HyASTCompiler(__name__))
+    obj = macroexpand(read('(test "one" "two")'), __name__, HyASTCompiler(__name__, runtime=RT))
     assert obj == List([String('one'), String('two')])
     assert type(obj) is List
 
@@ -33,7 +37,7 @@ def test_preprocessor_expression():
     """Test that macro expansion doesn't recurse"""
 
     obj = macroexpand(
-        read('(test (test "one" "two"))'), __name__, HyASTCompiler(__name__),
+        read('(test (test "one" "two"))'), __name__, HyASTCompiler(__name__, runtime=RT),
     )
 
     assert type(obj) is List
@@ -45,14 +49,14 @@ def test_preprocessor_expression():
     form = read('(shill ["one" "two"])')
     assert isinstance(form, Expression)
     obj = form[1]
-    assert obj == macroexpand(obj, __name__, HyASTCompiler(__name__))
+    assert obj == macroexpand(obj, __name__, HyASTCompiler(__name__, runtime=RT))
 
 
 def test_preprocessor_exceptions():
     """Test that macro expansion raises appropriate exceptions"""
 
     with pytest.raises(HyMacroExpansionError) as excinfo:
-        macroexpand(read('(when)'), __name__, HyASTCompiler(__name__))
+        macroexpand(read('(when)'), __name__, HyASTCompiler(__name__, runtime=RT))
     assert 'TypeError: when()' in excinfo.value.msg
 
 
@@ -61,7 +65,7 @@ def test_macroexpand_nan():
     import math
 
     nan = float('nan')
-    x = macroexpand(Float(nan), __name__, HyASTCompiler(__name__))
+    x = macroexpand(Float(nan), __name__, HyASTCompiler(__name__, runtime=RT))
     assert type(x) is Float
     assert math.isnan(x)
 

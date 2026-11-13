@@ -2,29 +2,31 @@ import argparse
 import ast
 import contextlib
 import importlib
+import importlib.machinery
+import importlib.util
 import io
 import os
 import platform
-import py_compile
 import runpy
 import sys
 import types
 import typing as ta
+import zipfile
 
 from omcore import check
 
-from .. import hy
+from . import globalruntime
 from .compiler import hy_compile
 from .compiler import hy_eval
 from .errors import HyLanguageError
 from .errors import filtered_hy_exceptions
 from .errors import hy_exc_handler
-from .importer import runhy
-from .macros import require
 from .models import Lazy
 from .models import Object
+from .reader import mangle
 from .reader import read_many
 from .repl import REPL
+from .runtime import HyRuntime
 
 
 ##
@@ -56,11 +58,22 @@ def set_path(filename: str | os.PathLike[str]) -> None:
     sys.path.insert(0, os.path.realpath(os.path.dirname(os.path.normpath(filename))))
 
 
-def run_command(source: str, filename: str | None = None) -> int:
-    __main__ = importlib.import_module('__main__')
-    require(__name__, __main__, assignments='ALL')
+def _show_internal_errors() -> bool:
+    return bool(os.environ.get('HY_SHOW_INTERNAL_ERRORS', ''))
 
-    with filtered_hy_exceptions():
+
+def _filtered_hy_exceptions() -> ta.ContextManager[None]:
+    return filtered_hy_exceptions(show_internal_errors=_show_internal_errors())
+
+
+def _handle_exc(exc_info: tuple[ta.Any, ta.Any, ta.Any] | None = None) -> None:
+    hy_exc_handler(*(exc_info or sys.exc_info()), show_internal_errors=_show_internal_errors())
+
+
+def run_command(runtime: HyRuntime, source: str, filename: str | None = None) -> int:
+    __main__ = importlib.import_module('__main__')
+
+    with _filtered_hy_exceptions():
         try:
             hy_eval(
                 read_many(source, filename=filename),
@@ -68,11 +81,62 @@ def run_command(source: str, filename: str | None = None) -> int:
                 __main__,
                 filename=filename,
                 source=source,
+                runtime=runtime,
             )
         except HyLanguageError:
-            hy_exc_handler(*sys.exc_info())
+            _handle_exc()
             return 1
     return 0
+
+
+_PYTHON_FILE_SUFFIXES: ta.AbstractSet[str] = frozenset([
+    *importlib.machinery.SOURCE_SUFFIXES,
+    *importlib.machinery.BYTECODE_SUFFIXES,
+])
+
+
+def run_path(filename: str) -> None:
+    """
+    Run a file, directory, or zip archive as `__main__`. Files are treated as Hy source unless they have a Python
+    extension. Requires the global runtime to be installed.
+    """
+
+    check.state(globalruntime.is_installed())
+
+    if (
+            os.path.isdir(filename) or
+            zipfile.is_zipfile(filename) or
+            os.path.splitext(filename)[1] in _PYTHON_FILE_SUFFIXES
+    ):
+        # With the global runtime installed, Python's machinery handles everything else - including finding a
+        # `__main__.hy` in a directory or archive.
+        runpy.run_path(filename, run_name='__main__')
+        return
+
+    # Load Hy source files with a `HyLoader` (meaning they're bytecode-cached, as imported modules are) into a fresh
+    # `__main__` module.
+    loader = globalruntime.HyLoader('__main__', filename)
+    main = types.ModuleType('__main__')
+    main.__file__ = filename
+    main.__loader__ = loader
+
+    # Give the main module a spec naming the script as a module - as Python itself does for `-m` - so that
+    # `multiprocessing`'s `spawn` and `forkserver` children (which can't run Hy files by path) re-import it by name.
+    base, ext = os.path.splitext(os.path.basename(filename))
+    if ext == '.hy':
+        main.__spec__ = importlib.util.spec_from_file_location(
+            base,
+            filename,
+            loader=globalruntime.HyLoader(base, filename),
+        )
+
+    prev_main = sys.modules.get('__main__')
+    sys.modules['__main__'] = main
+    try:
+        loader.exec_module(main)
+    finally:
+        if prev_main is not None:
+            sys.modules['__main__'] = prev_main
 
 
 USAGE = 'hy [-h | -v | -i | -c CMD | -m MODULE | FILE | -] [ARG]...'
@@ -151,12 +215,7 @@ def cmdline_handler(argv: ta.Sequence[str]) -> int:
         ),
     ]
 
-    # Get the path of the Hy cmdline executable and swap it with `sys.executable` (saving the original, just in case).
-    # The `__main__` module will also have `__file__` set to the entry-point script.  Currently, I don't see an
-    # immediate problem, but that's not how the Python cmdline works.
-    hy.executable = argv[0]
-    hy.sys_executable = sys.executable
-    sys.executable = hy.executable
+    runtime = globalruntime.install()
 
     program = argv[0]
     argv = list(argv[1:])
@@ -261,6 +320,8 @@ def cmdline_handler(argv: ta.Sequence[str]) -> int:
         REPL(
             spy=bool(options.get('spy')),
             output_fn=check.isinstance(options['repl_output_fn'], str) if 'repl_output_fn' in options else None,
+            runtime=runtime,
+            startup=os.environ.get('HYSTARTUP'),
         )
         if 'i' in options or action == 'just_repl'
         else None
@@ -274,18 +335,18 @@ def cmdline_handler(argv: ta.Sequence[str]) -> int:
             source = check.not_none(action_arg)
             filename = '<string>'
         else:
-            return run_command(check.not_none(action_arg), filename='<string>')
+            return run_command(runtime, check.not_none(action_arg), filename='<string>')
     elif action == 'run_module':
         if repl:
             raise ValueError
         set_path('')
         sys.argv = [program, *argv]
-        runpy.run_module(hy.mangle(action_arg), run_name='__main__', alter_sys=True)
+        runpy.run_module(mangle(action_arg), run_name='__main__', alter_sys=True)
         return 0
     elif action == 'run_script_stdin':
         sys.argv = argv
         if not repl:
-            return run_command(sys.stdin.read(), filename='<stdin>')
+            return run_command(runtime, sys.stdin.read(), filename='<stdin>')
     elif action == 'run_script_file':
         sys.argv = argv
         filename = check.not_none(action_arg)
@@ -301,8 +362,8 @@ def cmdline_handler(argv: ta.Sequence[str]) -> int:
             repl.compile.compiler.skip_next_shebang = True
         else:
             try:
-                with filtered_hy_exceptions():
-                    runhy.run_path(str(filename), run_name='__main__')
+                with _filtered_hy_exceptions():
+                    run_path(str(filename))
                 return 0
             except FileNotFoundError as e:
                 print(
@@ -311,7 +372,7 @@ def cmdline_handler(argv: ta.Sequence[str]) -> int:
                 )
                 sys.exit(e.errno)
             except HyLanguageError:
-                hy_exc_handler(*sys.exc_info())
+                _handle_exc()
                 sys.exit(1)
     else:
         check.state(action == 'just_repl')
@@ -322,7 +383,7 @@ def cmdline_handler(argv: ta.Sequence[str]) -> int:
         # Execute `source` in the REPL before entering interactive mode.
         res = None
         filename = str(filename)
-        with filtered_hy_exceptions():
+        with _filtered_hy_exceptions():
             accum = ''
             for chunk in ([source] if isinstance(source, str) else source):
                 accum += chunk
@@ -331,7 +392,7 @@ def cmdline_handler(argv: ta.Sequence[str]) -> int:
                     accum = ''
         # If the command was prematurely ended, show an error (just like Python does).
         if res:
-            hy_exc_handler(*sys.exc_info())
+            _handle_exc()
     return repl.run()
 
 
@@ -344,11 +405,11 @@ def hy_main() -> ta.NoReturn:
         print(e)
         sys.exit(1)
     except Exception as e:  # noqa: BLE001  # Report exceptions raised by the user's program.
-        hy_exc_handler(type(e), e, e.__traceback__)
+        _handle_exc((type(e), e, e.__traceback__))
         sys.exit(1)
 
 
-def hyc_main() -> int:
+def hyc_main() -> ta.NoReturn:
     parser = argparse.ArgumentParser(
         prog='hyc',
         description='Compile Hy source files to Python bytecode (.pyc).',
@@ -364,6 +425,8 @@ def hyc_main() -> int:
 
     options = parser.parse_args(sys.argv[1:])
 
+    globalruntime.install()
+
     rv = 0
     for filename in options.files:
         set_path(filename)
@@ -373,15 +436,16 @@ def hyc_main() -> int:
                     f'Compiling {filename!r} --> {importlib.util.cache_from_source(filename)!r}',
                     file=sys.stderr,
                 )
-            py_compile.compile(filename, doraise=True)
-        except py_compile.PyCompileError as error:
+            globalruntime.compile_hy_file(filename)
+        except (OSError, SyntaxError, HyLanguageError) as error:
             rv = 1
-            print(error.msg, file=sys.stderr)
+            print(f'{type(error).__name__}: {error}', file=sys.stderr)
         sys.path.pop(0)
-    return rv
+    sys.exit(rv)
 
 
 def hy2py_worker(
+        runtime: HyRuntime,
         source: str | os.PathLike[str],
         options: _Hy2pyOptions,
         filename: str | None = None,
@@ -413,7 +477,7 @@ def hy2py_worker(
                     if options.with_source:
                         print(node, file=output_file)
                     yield node
-            printing_hst = hy.models.Lazy(_printing_gen(hst))
+            printing_hst = Lazy(_printing_gen(hst))
             printing_hst.source = hst.source
             printing_hst.filename = hst.filename
             printing_hst.reader = hst.reader
@@ -421,23 +485,26 @@ def hy2py_worker(
 
         hst = printing_source(read_many(source, filename, skip_shebang=True))
 
-        with filtered_hy_exceptions():
+        with _filtered_hy_exceptions():
             module_name = (
                 os.path.splitext(os.path.basename(source_path))[0]
                 if source_path else
                 os.path.basename(check.not_none(filename)))
             if parent_module:
                 module_name = f'{parent_module}.{module_name}'
-            module = types.ModuleType(module_name)
-            sys.modules[module_name] = module
+            module = runtime.new_module(module_name, filename=source_path)
+            runtime.modules.add_module(module)
             try:
                 _ast = hy_compile(
                     hst,
                     module,
                     filename=filename,
-                    source=source)
+                    source=source,
+                    preamble=True,
+                    runtime=runtime,
+                )
             finally:
-                del sys.modules[module_name]
+                runtime.modules.remove_module(module_name)
 
         if options.with_source:
             print()
@@ -493,10 +560,12 @@ def hy2py_main() -> ta.NoReturn:
 
     options = parser.parse_args(sys.argv[1:], namespace=_Hy2pyOptions())
 
+    runtime = globalruntime.install()
+
     if options.use_stdin or (options.FILE is None and options.module is None):
         sys.path.insert(0, '')
         filename = '<stdin>'
-        hy2py_worker(sys.stdin.read(), options, filename)
+        hy2py_worker(runtime, sys.stdin.read(), options, filename)
     elif options.module:
         if options.module[:1] == '.':
             raise ValueError('Relative module names not supported')
@@ -522,6 +591,7 @@ def hy2py_main() -> ta.NoReturn:
                         )
                         os.makedirs(output_directory_path, exist_ok=True)
                         hy2py_worker(
+                            runtime,
                             filepath,
                             options,
                             parent_module=path.replace(os.sep, '.'),
@@ -533,9 +603,9 @@ def hy2py_main() -> ta.NoReturn:
         else:
             filename += '.hy'
             parent_module = '.'.join(options.module.split('.')[:-1])
-            hy2py_worker(filename, options, parent_module=parent_module, source_is_file=True)
+            hy2py_worker(runtime, filename, options, parent_module=parent_module, source_is_file=True)
     else:
-        hy2py_worker(check.not_none(options.FILE), options, options.FILE, source_is_file=True)
+        hy2py_worker(runtime, check.not_none(options.FILE), options, options.FILE, source_is_file=True)
     parser.exit(0)
 
 

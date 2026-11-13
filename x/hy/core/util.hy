@@ -1,6 +1,7 @@
 (import itertools)
 (import collections.abc [Iterable])
-(import ..compiler [HyASTCompiler calling-module])
+(import sys)
+(import ..compiler [HyASTCompiler])
 
 (import threading [Lock])
 (setv _gensym_counter 0)
@@ -41,20 +42,12 @@
     (+ "_" (cut g (len "_hyx_") None))
     g)))
 
-(defn _calling-module-name [[n 1]]
-  "Get the name of the module calling `n` levels up the stack from the
-  `_calling-module-name` function call (by default, one level up)"
-  (import inspect)
-
-  (setv f (get (.stack inspect) (+ n 1) 0))
-  (get f.f_globals "__name__"))
-
 (defn _macroexpand [model module macros #** kwargs]
   (if (and (isinstance model hy.models.Expression) model)
     (hy.macros.macroexpand
       :tree model
       :module module
-      :compiler (HyASTCompiler module :extra-macros macros)
+      :compiler (HyASTCompiler module :extra-macros macros :runtime hy.runtime)
       :result-ok False
       #** kwargs)
     model))
@@ -70,7 +63,7 @@
         ; => '0
 
   Note that in general, macro calls in the arguments of the expression still won't expanded. To expand these, too, try Hyrule's :hy:func:`macroexpand-all <hyrule.macroexpand-all>`."
-  (_macroexpand model (or module (calling-module)) macros))
+  (_macroexpand model (or module (hy.runtime.calling-module (sys._getframe 1))) macros))
 
 (defn macroexpand-1 [model [module None] [macros None]]
   "Check if ``model`` is an :class:`Expression <hy.models.Expression>` specifying a macro call. If so, expand the macro and return the expansion; otherwise, return ``model`` unchanged. ::
@@ -85,6 +78,6 @@
   As with :hy:func:`hy.eval`, the optional arguments ``module`` and ``macros`` can be provided to control where macros are looked up, and local macros are invisible unless provided via e.g. ``:macros (local-macros)``.
 
   See also :hy:func:`hy.macroexpand`."
-  (_macroexpand model (or module (calling-module)) macros :once True))
+  (_macroexpand model (or module (hy.runtime.calling-module (sys._getframe 1))) macros :once True))
 
 (setv __all__ [])

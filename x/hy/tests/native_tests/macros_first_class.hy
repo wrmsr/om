@@ -2,20 +2,19 @@
 deleting them, and retrieving their docstrings. We also test `get-macro`
 (with regular, non-reader macros)."
 
-(import
-  builtins)
-
 ;; * Core macros
 
+; Core macros belong to the runtime, which makes them available as `hy._hy_macros` (rather than, as upstream, as
+; `hy._hy_macros`).
 (defn test-core []
-  (assert (in "when" (.keys builtins._hy_macros)))
-  (assert (not-in "global1" (.keys builtins._hy_macros)))
-  (assert (not-in "nonexistent" (.keys builtins._hy_macros)))
+  (assert (in "when" (.keys hy._hy_macros)))
+  (assert (not-in "global1" (.keys hy._hy_macros)))
+  (assert (not-in "nonexistent" (.keys hy._hy_macros)))
 
   (assert (is
     (get-macro when)
     (get-macro "when")
-    (get builtins._hy_macros "when")))
+    (get hy._hy_macros "when")))
 
   (setv s (. (get-macro when) __doc__))
   (assert s)

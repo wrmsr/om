@@ -7,6 +7,8 @@ import traceback
 import types
 import typing as ta
 
+from omcore import lang
+
 from .compat import PYPY
 
 
@@ -15,9 +17,6 @@ if ta.TYPE_CHECKING:
 
 
 ##
-
-
-_hy_show_internal_errors = bool(os.environ.get('HY_SHOW_INTERNAL_ERRORS', ''))
 
 
 class HyError(Exception):
@@ -210,33 +209,39 @@ def _module_filter_name(module_name: str) -> str | None:
         return None
 
 
-_tb_hidden_modules = {
-    m
-    for m in map(
-        _module_filter_name,
-        [
-            '.compiler',
-            '.reader',
-            '.cmdline',
-            '.__main__',
-            '.repl',
-            '.reader.parser',
-            '.importer',
-            '.compat',
-            '.macros',
-            '.models',
-            '.core.result_macros',
-        ],
-    )
-    if m is not None
-}
+@lang.cached_function
+def _tb_hidden_modules() -> frozenset[str]:
+    hidden = {
+        m
+        for m in map(
+            _module_filter_name,
+            [
+                '.compiler',
+                '.reader',
+                '.cmdline',
+                '.__main__',
+                '.repl',
+                '.reader.parser',
+                '.globalruntime',
+                '.importing',
+                '.runtime',
+                '.compat',
+                '.macros',
+                '.models',
+                '.core.result_macros',
+            ],
+        )
+        if m is not None
+    }
 
-# We can't derive these easily from just their module names due to missing magic attributes in internal importlib
-# modules
-_tb_hidden_modules.update(
-    f'<builtin>/frozen {x}' if PYPY else f'<frozen {x}>'
-    for x in ('importlib._bootstrap', 'importlib._bootstrap_external')
-)
+    # We can't derive these easily from just their module names due to missing magic attributes in internal importlib
+    # modules
+    hidden.update(
+        f'<builtin>/frozen {x}' if PYPY else f'<frozen {x}>'
+        for x in ('importlib._bootstrap', 'importlib._bootstrap_external')
+    )
+
+    return frozenset(hidden)
 
 
 def hy_exc_filter(
@@ -252,12 +257,14 @@ def hy_exc_filter(
     This does not remove the frames from the actual tracebacks, so debugging will show everything.
     """
 
+    hidden_modules = _tb_hidden_modules()
+
     # frame = (filename, line number, function name*, text)
     new_tb = []
     for frame in traceback.extract_tb(exc_traceback):
         if not (
-            frame[0].replace('.pyc', '.py') in _tb_hidden_modules
-            or os.path.dirname(frame[0]) in _tb_hidden_modules
+            frame[0].replace('.pyc', '.py') in hidden_modules
+            or os.path.dirname(frame[0]) in hidden_modules
             or os.path.basename(os.path.dirname(frame[0])) == 'hy.exe'
         ):
             new_tb += [frame]
@@ -276,13 +283,15 @@ def hy_exc_handler(
         exc_type: type[BaseException],
         exc_value: BaseException,
         exc_traceback: types.TracebackType | None,
+        *,
+        show_internal_errors: bool = False,
 ) -> None:
     """
-    A `sys.excepthook` handler that uses `hy_exc_filter` to remove internal Hy frames from a traceback print-out, so
-    long as `_hy_show_internal_errors` is false.
+    A `sys.excepthook` handler that uses `hy_exc_filter` to remove internal Hy frames from a traceback print-out, unless
+    `show_internal_errors` is true.
     """
 
-    if _hy_show_internal_errors:
+    if show_internal_errors:
         return sys.__excepthook__(exc_type, exc_value, exc_traceback)
     try:
         output = hy_exc_filter(exc_type, exc_value, exc_traceback)
@@ -293,16 +302,18 @@ def hy_exc_handler(
 
 
 @contextlib.contextmanager
-def filtered_hy_exceptions() -> ta.Iterator[None]:
-    """
-    Temporarily apply a `sys.excepthook` that filters Hy internal frames from tracebacks.
+def filtered_hy_exceptions(*, show_internal_errors: bool = False) -> ta.Iterator[None]:
+    """Temporarily apply a `sys.excepthook` that filters Hy internal frames from tracebacks."""
 
-    Filtering can be controlled by the variable `hy.errors._hy_show_internal_errors` and environment variable
-    `HY_SHOW_INTERNAL_ERRORS`.
-    """
+    def hook(
+            exc_type: type[BaseException],
+            exc_value: BaseException,
+            exc_traceback: types.TracebackType | None,
+    ) -> None:
+        hy_exc_handler(exc_type, exc_value, exc_traceback, show_internal_errors=show_internal_errors)
 
     current_hook = sys.excepthook
-    sys.excepthook = hy_exc_handler
+    sys.excepthook = hook
     try:
         yield
     finally:

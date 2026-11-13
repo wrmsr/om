@@ -1,10 +1,7 @@
 # ruff: noqa: A001, A002, S307
 import ast
-import builtins
 import contextlib
 import copy
-import importlib
-import inspect
 import traceback
 import types
 import typing as ta
@@ -12,7 +9,6 @@ import warnings
 
 from omcore import check
 
-from .. import hy
 from .errors import HyCompileError
 from .errors import HyLanguageError
 from .errors import HySyntaxError
@@ -38,45 +34,24 @@ from .models import as_model
 from .models import is_unpack
 from .reader import HyReader
 from .reader import mangle
+from .results import Result
+from .results import ResultStatement  # noqa: F401
+from .results import asty
 from .scoping import ResolveOuterVars
 from .scoping import ScopeBase
 from .scoping import ScopeGlobal
 
 
-CompilerOutput: ta.TypeAlias = ta.Union['Result', ast.AST]  # noqa: UP007
+if ta.TYPE_CHECKING:
+    from .runtime import HyRuntime
+
+
+CompilerOutput: ta.TypeAlias = Result | ast.AST
 ModelCompilerT = ta.TypeVar('ModelCompilerT', bound=ta.Callable[..., CompilerOutput])
 SequenceT = ta.TypeVar('SequenceT', bound=Sequence)
-ResultStatement: ta.TypeAlias = ast.stmt | ast.excepthandler
 
 
 ##
-
-
-def calling_module(n: int = 1) -> types.ModuleType | None:
-    """
-    Get the module calling, if available.
-
-    As a fallback, this will import a module using the calling frame's globals value of `__name__`.
-
-    Args:
-        n (int): The number of levels up the stack from this function call.
-            The default is `1` (level up).
-
-    Returns:
-        types.ModuleType: The module at stack level `n + 1` or `None`.
-    """
-
-    frame_up = inspect.stack(0)[n + 1][0]
-    module = inspect.getmodule(frame_up)
-    if module is None:
-        # This works for modules like `__main__`
-        module_name = frame_up.f_globals.get('__name__', None)
-        if module_name:
-            try:
-                module = importlib.import_module(module_name)
-            except ImportError:
-                pass
-    return module
 
 
 _model_compilers: dict[type[Object], ta.Callable[..., Result | ast.AST]] = {}
@@ -91,225 +66,6 @@ def builds_model(*model_types: type[Object]) -> ta.Callable[[ModelCompilerT], Mo
         return fn
 
     return _dec
-
-
-# Provide asty.Foo(x, ...) as shorthand for
-# ast.Foo(..., lineno=x.start_line, col_offset=x.start_column) or
-# ast.Foo(..., lineno=x.lineno, col_offset=x.col_offset)
-# Also provides asty.parse(x, ...) which recursively copies x's position data onto the parse result.
-class Asty:
-    POS_ATTRS: ta.ClassVar[ta.Mapping[str, str]] = {
-        'lineno': 'start_line',
-        'col_offset': 'start_column',
-        'end_lineno': 'end_line',
-        'end_col_offset': 'end_column',
-    }
-
-    @staticmethod
-    def _get_pos(node: Object | ast.AST | Result) -> dict[str, int | None]:
-        return {
-            attr: getattr(node, hy_attr, getattr(node, attr, None))
-            for attr, hy_attr in Asty.POS_ATTRS.items()
-        }
-
-    @staticmethod
-    def _replace_pos(node: ast.AST, pos: ta.Mapping[str, int | None]) -> None:
-        for attr, value in pos.items():
-            if hasattr(node, attr):
-                setattr(node, attr, value)
-        for child in ast.iter_child_nodes(node):
-            Asty._replace_pos(child, pos)
-
-    def parse(self, x: Object | ast.AST | Result, *args: ta.Any, **kwargs: ta.Any) -> ta.Any:
-        res = ast.parse(*args, **kwargs)
-        Asty._replace_pos(res, Asty._get_pos(x))
-        return res
-
-    def __getattr__(self, name: str) -> ta.Any:
-        setattr(
-            Asty,
-            name,
-            staticmethod(
-                lambda x, **kwargs: getattr(ast, name)(**Asty._get_pos(x), **kwargs),
-            ),
-        )
-        return getattr(Asty, name)
-
-
-asty = Asty()
-
-
-class Result:
-    """
-    Smart representation of the result of a hy->AST compilation
-
-    This object tries to reconcile the hy world, where everything can be used as an expression, with the Python world,
-    where statements and expressions need to coexist.
-
-    To do so, we represent a compiler result as a list of statements `stmts`, terminated by an expression context
-    `expr`. The expression context is used when the compiler needs to use the result as an expression.
-
-    Results are chained by addition: adding two results together returns a Result representing the succession of the two
-    Results' statements, with the second Result's expression context.
-
-    We make sure that a non-empty expression context does not get clobbered by adding more results, by checking accesses
-    to the expression context. We assume that the context has been used, or deliberately ignored, if it has been
-    accessed.
-
-    The Result object is interoperable with python AST objects: when an AST object gets added to a Result object, it
-    gets converted on-the-fly.
-    """
-
-    __slots__ = ('stmts', 'temp_variables', '_expr', '__used_expr')
-
-    def __init__(
-            self,
-            *,
-            stmts: ta.Iterable[ResultStatement] = (),
-            expr: ast.expr | None = None,
-            temp_variables: ta.Iterable[ast.Name | ast.FunctionDef | ast.AsyncFunctionDef] = (),
-    ) -> None:
-        super().__init__()
-
-        self.stmts = list(stmts)
-        self.temp_variables = list(temp_variables)
-        self._expr = expr
-
-        self.__used_expr = False
-
-    @property
-    def expr(self) -> ast.expr | None:
-        self.__used_expr = True
-        return self._expr
-
-    @expr.setter
-    def expr(self, value: ast.expr | None) -> None:
-        self.__used_expr = False
-        self._expr = value
-
-    @property
-    def lineno(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.lineno
-        if self.stmts:
-            return self.stmts[-1].lineno
-        return None
-
-    @property
-    def col_offset(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.col_offset
-        if self.stmts:
-            return self.stmts[-1].col_offset
-        return None
-
-    @property
-    def end_col_offset(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.end_col_offset
-        if self.stmts:
-            return self.stmts[-1].end_col_offset
-        return None
-
-    @property
-    def end_lineno(self) -> int | None:
-        if self._expr is not None:
-            return self._expr.end_lineno
-        if self.stmts:
-            return self.stmts[-1].end_lineno
-        return None
-
-    def is_expr(self) -> bool:
-        """Check whether I am a pure expression"""
-
-        return self._expr is not None and not self.stmts
-
-    @property
-    def force_expr(self) -> ast.expr:
-        """
-        Force the expression context of the Result.
-
-        If there is no expression context, we return a "None" expression.
-        """
-
-        if self.expr:
-            return self.expr
-        return ast.Constant(
-            value=None,
-            lineno=self.stmts[-1].lineno if self.stmts else 0,
-            col_offset=self.stmts[-1].col_offset if self.stmts else 0,
-        )
-
-    def expr_as_stmt(self) -> Result:
-        """
-        Convert the Result's expression context to a statement
-
-        This is useful when we want to use the stored expression in a statement context (for instance in a code branch).
-
-        We drop ast.Names if they are appended to statements, as they can't have any side effect. "Bare" names still get
-        converted to statements.
-
-        If there is no expression context, return an empty result.
-        """
-
-        if self.expr and not (isinstance(self.expr, ast.Name) and self.stmts):
-            return Result() + asty.Expr(self.expr, value=self.expr)
-        return Result()
-
-    def rename(self, compiler: HyASTCompiler, new_name: str) -> None:
-        """
-        Rename the Result's temporary variables to a `new_name`.
-
-        We know how to handle ast.Names and ast.FunctionDefs.
-        """
-
-        new_name = mangle(new_name)
-        for var in self.temp_variables:
-            if isinstance(var, ast.Name):
-                var.id = new_name
-                compiler.scope.assign(var)
-            elif isinstance(var, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                var.name = new_name
-            else:
-                raise TypeError(f"Don't know how to rename a {var.__class__.__name__}!")
-        self.temp_variables = []
-
-    def __add__(self, other: Result | ast.AST) -> Result:
-        # If we add an ast statement, convert it first
-        if isinstance(other, ast.stmt):
-            return self + Result(stmts=[other])
-
-        # If we add an ast expression, clobber the expression context
-        if isinstance(other, ast.expr):
-            return self + Result(expr=other)
-
-        if isinstance(other, ast.excepthandler):
-            return self + Result(stmts=[other])
-
-        if not isinstance(other, Result):
-            raise TypeError(f"Can't add {self!r} with non-compiler result {other!r}")
-
-        # Check for expression context clobbering
-        if self.expr and not self.__used_expr:
-            traceback.print_stack()
-            print(
-                f'Bad boy clobbered expr {ast.dump(self.expr)} with '
-                f'{ast.dump(other.expr) if other.expr is not None else None}',
-            )
-
-        # Fairly obvious addition
-        result = Result()
-        result.stmts = self.stmts + other.stmts
-        result.expr = other.expr
-        result.temp_variables = other.temp_variables
-
-        return result
-
-    def __str__(self) -> str:
-        return 'Result(stmts=[{}], expr={})'.format(
-            ', '.join(ast.dump(x) for x in self.stmts),
-            ast.dump(self.expr) if self.expr else None,
-        )
 
 
 def make_hy_model(outer: type[SequenceT], x: ta.Iterable[ta.Any], rest: list[ta.Any] | None) -> SequenceT:
@@ -328,7 +84,14 @@ def is_annotate_expression(model: Object) -> bool:
 
 
 class HyASTCompiler:
-    """A Hy-to-Python AST compiler"""
+    """
+    A Hy-to-Python AST compiler.
+
+    The compiler compiles into the context of a given ``module``, in which macros are looked up and compile-time code is
+    evaluated, and on behalf of a given ``runtime``, which provides the core macros, the names visible to all Hy code
+    (such as ``hy``), and module importing. ``filename`` and ``source`` are optional information used for error messages
+    and debugging. ``extra_macros`` take precedence over macros in ``module``.
+    """
 
     def __init__(
             self,
@@ -336,19 +99,12 @@ class HyASTCompiler:
             filename: str | None = None,
             source: str | None = None,
             extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+            *,
+            runtime: HyRuntime,
     ) -> None:
-        """
-        Args:
-            module (Union[str, types.ModuleType]): Module name or object in which the Hy tree is evaluated.
-            filename (Optional[str]): The name of the file for the source to be compiled.
-                This is optional information for informative error messages and debugging.
-            source (Optional[str]): The source for the file, if any, being compiled.  This is optional
-                information for informative error messages and debugging.
-            extra_macros (Optional[dict]): More macros to use during lookup. They take precedence
-                over macros in `module`.
-        """
-
         super().__init__()
+
+        self.runtime = runtime
 
         self.anon_var_count = 0
         self.temp_if: str | None = None
@@ -359,12 +115,14 @@ class HyASTCompiler:
         self.local_state_stack: list[dict[str, ta.Any]] = []
         self.new_local_state()
 
-        if not inspect.ismodule(module):
-            self.module = importlib.import_module(module)
+        if isinstance(module, str):
+            self.module = runtime.import_module(module)
         else:
             self.module = module
-        self.module.__dict__['hy'] = hy
-        # The `hy` module itself should always be in scope.
+
+        # This makes the runtime's `hy` namespace and prelude available to - and the macro tables expected by - the code
+        # being compiled.
+        runtime.prepare_module(self.module)
 
         self.module_name = self.module.__name__
 
@@ -374,10 +132,6 @@ class HyASTCompiler:
         self.this: Expression | None = None
         # Set in `macroexpand` to the current expression being macro-expanded, so it can be accessed as
         # `&compiler.this`.
-
-        # Hy expects this to be present, so we prep the module for Hy compilation.
-        self.module.__dict__.setdefault('_hy_macros', {})
-        self.module.__dict__.setdefault('_hy_reader_macros', {})
 
         self.scope: ScopeBase = ScopeGlobal(self)
 
@@ -400,7 +154,7 @@ class HyASTCompiler:
 
     def warn_on_core_shadow(self, name: str) -> None:
         if (
-                mangle(name) in getattr(builtins, '_hy_macros', {}) and
+                mangle(name) in self.runtime.core_macros and
                 self.get_local_option('warn_on_core_shadow', True)
         ):
             warnings.warn(
@@ -567,7 +321,7 @@ class HyASTCompiler:
             module=self.module,
             filename=self.filename,
             source=self.source,
-            import_stdlib=False,
+            runtime=self.runtime,
         )
 
     @contextlib.contextmanager
@@ -744,42 +498,22 @@ class HyASTCompiler:
         return ret + asty.Tuple(expression, elts=elts, ctx=ast.Load())
 
 
-def get_compiler_module(
-        module: types.ModuleType | str | None = None,
-        compiler: HyASTCompiler | None = None,
-        calling_frame: bool = False,
-) -> types.ModuleType:
-    """
-    Get a module object from a compiler, given module object, string name of a module, and (optionally) the calling
-    frame; otherwise, raise an error.
-    """
-
-    module = getattr(compiler, 'module', None) or module
-
-    if isinstance(module, str):
-        module = importlib.import_module(mangle(module))
-
-    if calling_frame and not module:
-        module = calling_module(n=2)
-
-    if not inspect.ismodule(module):
-        raise TypeError(f'Invalid module type: {type(module)}')
-
-    return module
-
-
 def hy_eval(
         hytree: ta.Any,
         locals: ta.MutableMapping[str, ta.Any] | None,
-        module: types.ModuleType | str | None = None,
+        module: types.ModuleType | str,
         compiler: HyASTCompiler | None = None,
         filename: str | None = None,
         source: str | None = None,
-        import_stdlib: bool = True,
         globals: dict[str, ta.Any] | None = None,
         extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+        *,
+        runtime: HyRuntime | None = None,
 ) -> ta.Any:
-    module = get_compiler_module(module, compiler, True)
+    """
+    Compile and evaluate a Hy tree in the context of ``module``, returning the value of its final form. The low-level
+    workhorse of evaluation: no stack introspection is done, and nothing beyond ``module`` (and ``globals``) is touched.
+    """
 
     # Does the Hy AST object come with its own information?
     filename = getattr(hytree, 'filename', filename) or '<string>'
@@ -792,89 +526,23 @@ def hy_eval(
         compiler=compiler,
         filename=filename,
         source=source,
-        import_stdlib=import_stdlib,
         extra_macros=extra_macros,
+        runtime=runtime,
     )
 
     if globals is None:
-        globals = module.__dict__
+        if compiler is not None:
+            globals = compiler.module.__dict__
+        elif isinstance(module, types.ModuleType):
+            globals = module.__dict__
+        else:
+            globals = check.not_none(runtime).import_module(module).__dict__
 
     # Two-step eval: eval() the body of the exec call
     eval(compile(_ast, filename, 'exec'), globals, locals)
 
     # Then eval the expression context and return that
     return eval(compile(expr, filename, 'eval'), globals, locals)
-
-
-def hy_eval_user(
-        model: ta.Any,
-        globals: dict[str, ta.Any] | None = None,
-        locals: ta.MutableMapping[str, ta.Any] | None = None,
-        module: types.ModuleType | str | None = None,
-        macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
-) -> ta.Any:
-    # This function is advertised as `hy.eval`.
-    """
-    An equivalent of Python's :func:`eval` for evaluating Hy code. The chief difference is that the first argument
-    should be a :ref:`model <models>` rather than source text. If you have a string of source text you want to evaluate,
-    convert it to a model first with :hy:func:`hy.read` or :hy:func:`hy.read-many`::
-
-        (hy.eval '(+ 1 1))             ; => 2
-        (hy.eval (hy.read "(+ 1 1)"))  ; => 2
-
-    The optional arguments ``globals`` and ``locals`` work as in the case of :func:`eval`.
-
-    Another optional argument, ``module``, can be a module object or a string naming a module. The module's ``__dict__``
-    attribute can fill in for ``globals`` (and hence also for ``locals``) if ``module`` is provided but ``globals``
-    isn't, but the primary purpose of ``module`` is to control where macro calls are looked up. Without this argument,
-    the calling module of ``hy.eval`` is used instead. ::
-
-        (defmacro my-test-mac [] 3)
-        (hy.eval '(my-test-mac))                 ; => 3
-        (import hyrule)
-        (hy.eval '(my-test-mac) :module hyrule)  ; NameError
-        (hy.eval '(list-n 3 1) :module hyrule)   ; => [1 1 1]
-
-    Finally, finer control of macro lookup can be achieved by passing in a dictionary of macros as the ``macros``
-    argument. The keys of this dictionary should be mangled macro names, and the values should be function objects to
-    implement those macros. This is the same structure as is produced by :hy:func:`local-macros
-    <hy.core.macros.local-macros>`, and in fact, ``(hy.eval … :macros (local-macros))`` is useful to make local macros
-    visible to ``hy.eval``, which otherwise doesn't see them. ::
-
-        (defn f []
-          (defmacro lmac [] 1)
-          (hy.eval '(lmac))     ; NameError
-          (print (hy.eval '(lmac) :macros (local-macros)))) ; => 1
-        (f)
-
-    In any case, macros provided in this dictionary will shadow macros of the same name that are associated with the
-    provided or implicit module. You can shadow a core macro, too, so be careful: there's no warning for this as there
-    is in the case of :hy:func:`defmacro`.
-    """
-
-    if locals is None:
-        locals = globals
-    hy_was = None
-    if locals and 'hy' in locals:
-        hy_was = (locals['hy'],)
-    try:
-        value = hy_eval(
-            hytree=model,
-            globals=globals,
-            locals=(inspect.getargvalues(inspect.stack()[1][0]).locals
-                    if locals is None and module is None
-                    else locals),
-            module=get_compiler_module(module, None, True),
-            extra_macros=macros)
-    finally:
-        if locals is not None:
-            if hy_was:
-                # Restore the old value of `hy`.
-                locals['hy'], = hy_was
-            else:
-                # Remove the implicitly added `hy` (if execution reached far enough to add it).
-                locals.pop('hy', None)
-    return value
 
 
 @ta.overload
@@ -886,8 +554,10 @@ def hy_compile(
         compiler: HyASTCompiler | None = None,
         filename: str | None = None,
         source: str | None = None,
-        import_stdlib: bool = True,
+        preamble: bool = False,
         extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+        *,
+        runtime: HyRuntime | None = None,
 ) -> ast.Module | ast.Interactive:
     ...
 
@@ -902,8 +572,9 @@ def hy_compile(
         compiler: HyASTCompiler | None = None,
         filename: str | None = None,
         source: str | None = None,
-        import_stdlib: bool = True,
+        preamble: bool = False,
         extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+        runtime: HyRuntime | None = None,
 ) -> tuple[ast.Module | ast.Interactive, ast.Expression]:
     ...
 
@@ -916,8 +587,10 @@ def hy_compile(
         compiler: HyASTCompiler | None = None,
         filename: str | None = None,
         source: str | None = None,
-        import_stdlib: bool = True,
+        preamble: bool = False,
         extra_macros: ta.Mapping[str, ta.Callable[..., ta.Any]] | None = None,
+        *,
+        runtime: HyRuntime | None = None,
 ) -> ast.Module | ast.Interactive | tuple[ast.Module | ast.Interactive, ast.Expression]:
     """
     Compile a hy.models.Object tree into a Python AST Module.
@@ -929,20 +602,26 @@ def hy_compile(
         root (Type[ast.AST]): Root object for the Python AST tree.
         get_expr (bool): If true, return a tuple with `(root_obj, last_expression)`.
         compiler (Optional[HyASTCompiler]): An existing Hy compiler to use for compilation.  Also serves as
-            the `module` value when given.
+            the `module` and `runtime` values when given.
         filename (Optional[str]): The filename corresponding to the source for `tree`.  This will be
             overridden by the `filename` field of `tree`, if any; otherwise, it defaults to "<string>".  When `compiler`
             is given, its `filename` field value is always used.
         source (Optional[str]): A string containing the source code for `tree`.  This will be
             overridden by the `source` field of `tree`, if any; otherwise, if `None`, an attempt will be made to obtain
             it from the module given by `module`.  When `compiler` is given, its `source` field value is always used.
+        preamble (bool): If true, prefix the module body with statements binding `hy` and the runtime's prelude (such as
+            `ta`), for code which will be executed somewhere the runtime can't inject them itself (such as in bytecode
+            loaded by Python's import system).
         extra_macros (Optional[dict]): Passed through to `HyASTCompiler`, if it's called.
+        runtime (Optional[HyRuntime]): The runtime on whose behalf to compile. Required unless `compiler` is given.
 
     Returns:
         ast.AST: A Python AST tree
     """
 
-    module = get_compiler_module(module, compiler, False)
+    if compiler is not None:
+        runtime = compiler.runtime
+    runtime = check.not_none(runtime)
 
     filename = getattr(tree, 'filename', filename)
     source = getattr(tree, 'source', source)
@@ -956,7 +635,9 @@ def hy_compile(
         module,
         filename=filename,
         source=source,
-        extra_macros=extra_macros)
+        extra_macros=extra_macros,
+        runtime=runtime,
+    )
 
     with HyReader.using_reader(reader, create=False), compiler.scope:
         result = compiler.compile(tree)
@@ -989,16 +670,8 @@ def hy_compile(
 
             body += [result.stmts.pop(0)]
 
-        # Import hy for runtime.
-        if import_stdlib:
-            package, _, name = __package__.rpartition('.')
-            body.append(ast.fix_missing_locations(
-                ast.ImportFrom(
-                    module=package,
-                    names=[ast.alias(name=name, asname='hy' if name != 'hy' else None)],
-                    level=0,
-                ),
-            ))
+        if preamble:
+            body.extend(runtime.preamble_statements())
 
     body += result.stmts
     ret = root(

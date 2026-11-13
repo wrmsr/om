@@ -87,7 +87,6 @@
 
   Except when retrieving a local macro, ``get-macro`` expands to a :hy:func:`get <hy.pyops.get>` form on the appropriate object, such as ``_hy_macros``, selected at the time of expanding ``get-macro``. This means you can say ``(del (get-macro …))``, perhaps wrapped in :hy:func:`eval-and-compile` or :hy:func:`eval-when-compile`, to delete a macro, but it's easy to get confused by the order of evaluation and number of evaluations. For more predictable results in complex situations, use ``(del (get …))`` directly instead of ``(del (get-macro …))``."
 
-  (import builtins)
   (setv [name reader?] (cond
     (= arg1 ':reader)
       [(str arg2) True]
@@ -101,8 +100,8 @@
       local
     (in name (getattr _hy_compiler.module namespace {}))
       `(get ~(hy.models.Symbol namespace) ~name)
-    (in name (getattr builtins namespace {}))
-      `(get (. hy.I.builtins ~(hy.models.Symbol namespace)) ~name)
+    (in name (getattr hy namespace {}))
+      `(get (. hy ~(hy.models.Symbol namespace)) ~name)
     True
       (raise (NameError (.format "no such {}macro: {!r}"
         (if reader? "reader " "")

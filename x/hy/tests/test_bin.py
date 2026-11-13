@@ -9,8 +9,11 @@ from textwrap import dedent
 
 import pytest
 
-from ... import hy
+from ..globalruntime import compile_hy_file
+from ..globalruntime import get_global_runtime
 
+
+hy = get_global_runtime().hy
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
 REPO_PYTHON = os.path.join(REPO_ROOT, 'python')
@@ -332,9 +335,11 @@ def test_module_no_main():
 
 
 def test_sys_executable():
+    # Unlike upstream Hy, `sys.executable` is left alone: this package is run as `python -m <package>`, not through an
+    # executable of its own.
     output, _ = run_cmd("hy -c '(do (import sys) (print sys.executable))'")
-    assert os.path.realpath(output.strip()) == os.path.join(
-        REPO_ROOT, f'{hy.__package__.replace(".", "/")}/__main__.py')
+    py_out, _ = run_cmd(['python', '-c', 'import sys; print(sys.executable)'])
+    assert output.strip() == py_out.strip()
 
 
 def test_file_no_extension():
@@ -604,7 +609,7 @@ def test_assert(tmp_path, monkeypatch):
             out, err = run_cmd(
                 cmd='python3 {} {}'.format(
                     ('-O' if optim else ''),
-                    f"-c 'from {hy.__package__.rpartition(".")[0]} import hy; import ex; ex.f({test})'"),
+                    f"-c 'import {hy.__package__}.autoinstall; import ex; ex.f({test})'"),
                 expect=(1 if not optim and not test else 0))
             assert ('testing' in out) == (not optim)
             show_msg = has_msg and not optim and not test
@@ -725,13 +730,11 @@ def test_run_dir_or_zip(tmp_path):
 
 def test_hyc_dfile_nonexistent_path(tmp_path):
     # https://github.com/hylang/hy/issues/2701
-    import py_compile
     out = tmp_path / 'hello.pyc'
-    py_compile.compile(
+    compile_hy_file(
         f'{hy.__package__.replace(".", "/")}/tests/resources/hello_world.hy',
         cfile=str(out),
         dfile='/nonexistent/override/path.hy',
-        doraise=True,
     )
     assert out.exists()
 

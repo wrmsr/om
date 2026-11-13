@@ -4,9 +4,7 @@ import builtins
 import code
 import codeop
 import contextlib
-import importlib
 import linecache
-import os
 import platform
 import pydoc
 import sys
@@ -17,7 +15,6 @@ import typing as ta
 
 from omcore import check
 
-from .. import hy
 from .compiler import HyASTCompiler
 from .compiler import hy_compile
 from .completer import Completer
@@ -26,7 +23,6 @@ from .errors import HyLanguageError
 from .errors import HyMacroExpansionError
 from .errors import HyRequireError
 from .errors import filtered_hy_exceptions
-from .importer import HyLoader
 from .macros import enable_readers
 from .macros import require
 from .macros import require_reader
@@ -34,6 +30,7 @@ from .reader import mangle
 from .reader import read_many
 from .reader.exceptions import PrematureEndOfInput
 from .reader.hy_reader import HyReader
+from .runtime import HyRuntime
 
 
 CacheEntry: ta.TypeAlias = tuple[int, float, list[str], str]
@@ -87,26 +84,6 @@ def extend_linecache(add_cmdline_cache: ta.Mapping[str, CacheEntry]) -> ta.Itera
         linecache.checkcache = _linecache_checkcache
 
 
-_codeop_maybe_compile = getattr(codeop, '_maybe_compile')
-
-
-def _maybe_compile(
-        compiler: codeop.Compile,
-        source: str,
-        filename: str,
-        symbol: str,
-        *args: ta.Any,
-        **kwargs: ta.Any,
-) -> CodePair | types.CodeType | None:
-    # Python 3.14 passes `flags` either positionally or by keyword.
-    if isinstance(compiler, HyCompile):
-        return compiler(source, filename, symbol)
-    return _codeop_maybe_compile(compiler, source, filename, symbol, *args, **kwargs)
-
-
-setattr(codeop, '_maybe_compile', _maybe_compile)
-
-
 class HyCompile(codeop.Compile):
     """This compiler uses `linecache` like `IPython.core.compilerop.CachingCompiler`."""
 
@@ -115,13 +92,14 @@ class HyCompile(codeop.Compile):
             module: types.ModuleType,
             locals: dict[str, ta.Any],
             ast_callback: AstCallback | None = None,
-            hy_compiler: HyASTCompiler | None = None,
+            *,
+            hy_compiler: HyASTCompiler,
             cmdline_cache: dict[str, CacheEntry] | None = None,
     ) -> None:
         self.module = module
         self.locals = locals
         self.ast_callback = ast_callback
-        self.hy_compiler = hy_compiler or HyASTCompiler(module)
+        self.hy_compiler = hy_compiler
         self.reader = HyReader()
         self.skip_next_shebang = False
 
@@ -182,7 +160,6 @@ class HyCompile(codeop.Compile):
                 compiler=self.hy_compiler,
                 filename=name,
                 source=source,
-                import_stdlib=False,
             )
 
             if self.ast_callback:
@@ -220,9 +197,17 @@ class HyCommandCompiler(codeop.CommandCompiler):
         self.compiler = HyCompile(*args, **kwargs)
         self.allow_incomplete = allow_incomplete
 
-    def __call__(self, *args: ta.Any, **kwargs: ta.Any) -> CodePair | None:  # type: ignore[override]
+    def __call__(  # type: ignore[override]
+            self,
+            source: str,
+            filename: str = '<input>',
+            symbol: str = 'single',
+            flags: int = 0,
+    ) -> CodePair | None:
+        # Hy's compiler handles incomplete input itself (by raising `PrematureEndOfInput`), so none of `codeop`'s
+        # heuristics are necessary.
         try:
-            return ta.cast('CodePair | None', super().__call__(*args, **kwargs))
+            return self.compiler(source, filename, symbol)
         except PrematureEndOfInput:
             # Catch this here because it is also a `SyntaxError`, which `code.InteractiveConsole` would otherwise
             # handle before it reaches our `runsource`.
@@ -262,29 +247,40 @@ class REPL(code.InteractiveConsole):
             locals: dict[str, ta.Any] | None = None,
             filename: str = '<stdin>',
             allow_incomplete: bool = True,
+            *,
+            runtime: HyRuntime | None = None,
+            startup: str | None = None,
     ) -> None:
-        # Create a proper module for this REPL so that we can obtain it easily (e.g. using `importlib.import_module`).
+        """
+        Code is run in ``runtime`` - a new isolated one by default. ``startup``, if given, is the path of a Hy file to
+        run first (see the ``HYSTARTUP`` environment variable of the ``hy`` command).
+        """
+
         # We let `InteractiveConsole` initialize `self.locals` when it's `None`.
         super().__init__(locals=locals, filename=filename)
 
+        if runtime is None:
+            runtime = HyRuntime()
+        self.runtime = runtime
+
         module_name = self.locals.get('__name__', '__console__')
-        # Make sure our newly created module is properly introduced to `sys.modules`, and consistently use its namespace
-        # as `self.locals` from here on.
-        self.module = sys.modules.setdefault(module_name, types.ModuleType(module_name))
+        # Use a proper module (registered with the runtime's module system) for this REPL, and consistently use its
+        # namespace as `self.locals` from here on.
+        if (module := runtime.modules.get_module(module_name)) is None:
+            module = runtime.new_module(module_name)
+            runtime.modules.add_module(module)
+        self.module = module
         self.module.__dict__.update(self.locals)
         self.locals = self.module.__dict__
 
         self.ps1 = '=> '
         self.ps2 = '... '
 
-        startup = os.environ.get('HYSTARTUP')
         if startup:
             try:
-                loader = HyLoader('__hystartup__', startup)
-                spec = importlib.util.spec_from_loader(loader.name, loader)
-                mod = importlib.util.module_from_spec(check.not_none(spec))
-                sys.modules.setdefault(mod.__name__, mod)
-                loader.exec_module(mod)
+                mod = runtime.new_module('__hystartup__', filename=startup)
+                with open(startup, encoding='utf-8') as f:
+                    runtime.exec_module_source(mod, f.read(), filename=startup)
                 imports = mod.__dict__.get(
                     '__all__',
                     [name for name in mod.__dict__ if not name.startswith('_')],
@@ -299,12 +295,12 @@ class REPL(code.InteractiveConsole):
                 self.locals.update(imports)
 
                 # load module macros
-                require(mod, self.module, assignments='ALL')
-                require_reader(mod, self.module, assignments='ALL')
+                require(mod, self.module, assignments='ALL', importer=runtime.import_module)
+                require_reader(mod, self.module, assignments='ALL', importer=runtime.import_module)
             except Exception as e:  # noqa: BLE001
                 print(e)
 
-        self.hy_compiler = HyASTCompiler(self.module, module_name)
+        self.hy_compiler = HyASTCompiler(self.module, module_name, runtime=runtime)
 
         self.cmdline_cache: dict[str, CacheEntry] = {}
         self.compile = HyCommandCompiler(
@@ -322,13 +318,13 @@ class REPL(code.InteractiveConsole):
         self.print_last_value = True
 
         if output_fn is None:
-            self.output_fn = hy.repr
+            self.output_fn = runtime.hy.repr
         elif callable(output_fn):
             self.output_fn = output_fn
         elif '.' in output_fn:
             parts = [mangle(x) for x in output_fn.split('.')]
-            module, f = '.'.join(parts[:-1]), parts[-1]
-            self.output_fn = getattr(importlib.import_module(module), f)
+            module_path, fn_name = '.'.join(parts[:-1]), parts[-1]
+            self.output_fn = getattr(runtime.import_module(module_path), fn_name)
         else:
             self.output_fn = getattr(builtins, mangle(output_fn))
 
@@ -339,9 +335,9 @@ class REPL(code.InteractiveConsole):
         # Allow access to the running REPL instance
         self.locals['_hy_repl'] = self
 
-        # Compile an empty statement to load the standard prelude
+        # Compile an empty statement, showing the standard preamble (when spying)
         exec_ast = hy_compile(
-            read_many(''), self.module, compiler=self.hy_compiler, import_stdlib=True,
+            read_many(''), self.module, compiler=self.hy_compiler, preamble=True,
         )
         if callable(self.ast_callback):
             self.ast_callback(exec_ast, None)
@@ -428,17 +424,20 @@ class REPL(code.InteractiveConsole):
         """Start running the REPL. Return 0 when done."""
 
         sentinel = object()
-        saved_values: tuple[ta.Any, ...] = (
+        saved_ps: tuple[ta.Any, ...] = (
             getattr(sys, 'ps1', sentinel),
             getattr(sys, 'ps2', sentinel),
-            builtins.quit,
-            builtins.exit,
-            builtins.help,
         )
+
+        # Rather than replacing these in `builtins` (which would be visible to everything in the process), they're
+        # shadowed in the REPL's own namespace for the duration.
+        repl_builtins: dict[str, ta.Any] = dict(quit=HyQuitter('quit'), exit=HyQuitter('exit'), help=HyHelper())
+        saved_builtins = {k: self.locals.get(k, sentinel) for k in repl_builtins}
+
         try:
             sys.ps1 = self.ps1
             sys.ps2 = self.ps2
-            builtins.__dict__.update(quit=HyQuitter('quit'), exit=HyQuitter('exit'), help=HyHelper())
+            self.locals.update(repl_builtins)
 
             namespace = self.locals
             with filtered_hy_exceptions(), extend_linecache(
@@ -447,10 +446,16 @@ class REPL(code.InteractiveConsole):
                 self.interact(self.banner())
 
         finally:
-            sys.ps1, sys.ps2, builtins.quit, builtins.exit, builtins.help = saved_values
+            sys.ps1, sys.ps2 = saved_ps
             for a in 'ps1', 'ps2':
                 if getattr(sys, a) is sentinel:
                     delattr(sys, a)
+
+            for k, v in saved_builtins.items():
+                if v is sentinel:
+                    self.locals.pop(k, None)
+                else:
+                    self.locals[k] = v
 
         return 0
 

@@ -253,48 +253,72 @@ def getsourcelines(object: ta.Any) -> tuple[list[str], int]:
         return py_getsourcelines(obj)
 
 
-if hasattr(inspect, '_hy_originals'):
-    # Retrieve saved versions of `inspect`'s original functions.
-    (
-        py_findsource,
-        py_getcomments,
-        py_getfile,
-        py_getsource,
-        py_getsourcelines,
-    ) = getattr(inspect, '_hy_originals')
+class _HyInspectOriginals(ta.NamedTuple):
+    findsource: ta.Callable[..., tuple[list[str], int]]
+    getcomments: ta.Callable[..., str | None]
+    getfile: ta.Callable[..., str]
+    getsource: ta.Callable[..., str]
+    getsourcelines: ta.Callable[..., tuple[list[str], int]]
 
-else:
-    # Save the originals and then monkey-patch.
-    (
-        py_findsource,
-        py_getcomments,
-        py_getfile,
-        py_getsource,
-        py_getsourcelines,
-    ) = (
-        inspect.findsource,
-        inspect.getcomments,
-        inspect.getfile,
-        inspect.getsource,
-        inspect.getsourcelines,
-    )
-    setattr(inspect, '_hy_originals', (
-        py_findsource,
-        py_getcomments,
-        py_getfile,
-        py_getsource,
-        py_getsourcelines,
-    ))
-    (
-        inspect.findsource,
-        inspect.getcomments,
-        inspect.getfile,
-        inspect.getsource,
-        inspect.getsourcelines,
-    ) = (
-        findsource,
-        getcomments,
-        getfile,
-        getsource,
-        getsourcelines,
-    )
+
+_HY_INSPECT_ORIGINALS_ATTR = '_hy_originals'
+
+_HY_INSPECT_FUNCTION_NAMES: ta.Sequence[str] = _HyInspectOriginals._fields
+
+
+def _get_originals() -> _HyInspectOriginals:
+    # If the functions are currently patched, the originals are stashed on the `inspect` module itself.
+    if (o := getattr(inspect, _HY_INSPECT_ORIGINALS_ATTR, None)) is not None:
+        return o
+    return _HyInspectOriginals(*[getattr(inspect, n) for n in _HY_INSPECT_FUNCTION_NAMES])
+
+
+def py_findsource(obj: ta.Any) -> tuple[list[str], int]:
+    return _get_originals().findsource(obj)
+
+
+def py_getcomments(obj: ta.Any) -> str | None:
+    return _get_originals().getcomments(obj)
+
+
+def py_getfile(obj: ta.Any) -> str:
+    return _get_originals().getfile(obj)
+
+
+def py_getsource(obj: ta.Any) -> str:
+    return _get_originals().getsource(obj)
+
+
+def py_getsourcelines(obj: ta.Any) -> tuple[list[str], int]:
+    return _get_originals().getsourcelines(obj)
+
+
+def is_installed() -> bool:
+    return hasattr(inspect, _HY_INSPECT_ORIGINALS_ATTR)
+
+
+def install() -> None:
+    """
+    Monkey-patch the source-inspecting functions of :mod:`inspect` to be Hy-aware. This is global interpreter state, and
+    is done as part of installing the global runtime - see :mod:`.globalruntime`.
+    """
+
+    if is_installed():
+        return
+
+    setattr(inspect, _HY_INSPECT_ORIGINALS_ATTR, _get_originals())
+    for name, fn in zip(
+        _HY_INSPECT_FUNCTION_NAMES,
+        [findsource, getcomments, getfile, getsource, getsourcelines],
+        strict=True,
+    ):
+        setattr(inspect, name, fn)
+
+
+def uninstall() -> None:
+    if (o := getattr(inspect, _HY_INSPECT_ORIGINALS_ATTR, None)) is None:
+        return
+
+    for name, fn in zip(_HY_INSPECT_FUNCTION_NAMES, o, strict=True):
+        setattr(inspect, name, fn)
+    delattr(inspect, _HY_INSPECT_ORIGINALS_ATTR)
