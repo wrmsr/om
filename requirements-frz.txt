@@ -21,8 +21,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.10.1
 blobfile==3.3.0
-boto3==1.44.1
-botocore==1.44.1
+boto3==1.44.2
+botocore==1.44.2
 botocore-stubs==1.43.126
 brotli==1.2.1
 build==1.6.1
@@ -267,7 +267,7 @@ truststore==0.10.5
 twine==7.0.0
 typer==0.29.1
 types-awscrt==0.37.0
-types-boto3==1.44.1
+types-boto3==1.44.2
 types-docutils==0.23.0.20261107
 types-greenlet==3.5.0.20260518
 types-paramiko==5.1.0.20261030

@@ -15675,21 +15675,22 @@ def _process_dataclass__95c98a8b5a91a8ced9bc86332c37267d6ccaf533():
 
 
 @_register(
-    installer_sha1='267c616c00c937fbed5cbff5ce25b49133dc76b2',
+    installer_sha1='a73624def226578cab4a8031f75e48e06dd77b66',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
-            "', None, False, False, False), (('state', True, True, None, True, True, False, None), 'instance', 'value',"
-            " None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),),"
-            " (), (False,)))"
+            "', None, False, False, False), (('metric_category_ids', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('state', True, True, None, True, True, False, None), 'instanc"
+            "e', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False,"
+            " ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.ec2', 'Monitoring'),
     ),
 )
-def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
+def _process_dataclass__a73624def226578cab4a8031f75e48e06dd77b66():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -15699,6 +15700,8 @@ def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -15709,6 +15712,7 @@ def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
+                metric_category_ids=self.metric_category_ids,
                 state=self.state,
             )
 
@@ -15720,6 +15724,7 @@ def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
+                self.metric_category_ids == other.metric_category_ids and
                 self.state == other.state
             )
 
@@ -15727,6 +15732,7 @@ def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
 
         __dataclass___frozen_fields = {
             '__shape__',
+            'metric_category_ids',
             'state',
         }
 
@@ -15752,6 +15758,7 @@ def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
 
         def __hash__(self):
             return hash((
+                self.metric_category_ids,
                 self.state,
             ))
 
@@ -15760,8 +15767,10 @@ def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
         def __init__(
             self,
             *,
-            state: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            metric_category_ids: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            state: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'metric_category_ids', metric_category_ids)
             __dataclass__object_setattr(self, 'state', state)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -15769,6 +15778,7 @@ def _process_dataclass__267c616c00c937fbed5cbff5ce25b49133dc76b2():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
+            parts.append(f"metric_category_ids={self.metric_category_ids!r}")
             parts.append(f"state={self.state!r}")
             return (
                 f"{self.__class__.__qualname__}("
@@ -20051,21 +20061,22 @@ def _process_dataclass__c499e7a2c3e0f1169691c3f3e27d3dd42ca260ac():
 
 
 @_register(
-    installer_sha1='f17aad3c2d10b75d1c951d586ff106a2462b3b5b',
+    installer_sha1='978799c6f98510819db6b3dc55c23bd841101b80',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
-            "', None, False, False, False), (('enabled', True, True, None, True, True, False, None), 'instance', 'missi"
-            "ng', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (("
-            "),), (), (False,)))"
+            "', None, False, False, False), (('metric_category_ids', True, True, None, True, True, False, None), 'insta"
+            "nce', 'value', None, False, False, False), (('enabled', True, True, None, True, True, False, None), 'insta"
+            "nce', 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, Fa"
+            "lse, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.ec2', 'RunInstancesMonitoringEnabled'),
     ),
 )
-def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
+def _process_dataclass__978799c6f98510819db6b3dc55c23bd841101b80():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -20074,6 +20085,8 @@ def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -20084,6 +20097,7 @@ def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
             if self.__class__ is not __class__:
                 raise TypeError(self)
             return __class__(  # noqa
+                metric_category_ids=self.metric_category_ids,
                 enabled=self.enabled,
             )
 
@@ -20095,6 +20109,7 @@ def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
+                self.metric_category_ids == other.metric_category_ids and
                 self.enabled == other.enabled
             )
 
@@ -20102,6 +20117,7 @@ def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
 
         __dataclass___frozen_fields = {
             '__shape__',
+            'metric_category_ids',
             'enabled',
         }
 
@@ -20127,6 +20143,7 @@ def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
 
         def __hash__(self):
             return hash((
+                self.metric_category_ids,
                 self.enabled,
             ))
 
@@ -20135,8 +20152,10 @@ def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
         def __init__(
             self,
             *,
-            enabled: __dataclass__init__fields__1__annotation,
+            metric_category_ids: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            enabled: __dataclass__init__fields__2__annotation,
         ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'metric_category_ids', metric_category_ids)
             __dataclass__object_setattr(self, 'enabled', enabled)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -20144,6 +20163,7 @@ def _process_dataclass__f17aad3c2d10b75d1c951d586ff106a2462b3b5b():
         @__dataclass___recursive_repr()
         def __repr__(self):
             parts = []
+            parts.append(f"metric_category_ids={self.metric_category_ids!r}")
             parts.append(f"enabled={self.enabled!r}")
             return (
                 f"{self.__class__.__qualname__}("
@@ -23580,7 +23600,7 @@ def _process_dataclass__9ddc97fcb38ff821e9ca7a04b3b31a8589522eaa():
 
 
 @_register(
-    installer_sha1='6d6455586563ea5a8cd41481c3e911f8f965cc9b',
+    installer_sha1='88c7ea79e5de022ea9bf3fd53948be7f749ca004',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -23593,38 +23613,44 @@ def _process_dataclass__9ddc97fcb38ff821e9ca7a04b3b31a8589522eaa():
             "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('lambda_', True, Tr"
             "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('vpc_lattice', True"
             ", True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('elastic_file_s"
-            "ystem', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), Fals"
-            "e, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "ystem', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('gl"
+            "obal_accelerator', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fa"
+            "lse), (('api_gateway_v2', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.ec2', 'VpcEncryptionControlExclusions'),
     ),
 )
-def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
+def _process_dataclass__88c7ea79e5de022ea9bf3fd53948be7f749ca004():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
         __dataclass__ctx,
         __dataclass__globals,
     ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
-        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
-        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
-        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
-        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
-        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
-        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
-        __dataclass__init__fields__8__annotation = __dataclass__spec.fields[8].annotation
-        __dataclass__init__fields__8__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__10__default = __dataclass__spec.fields[10].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -23643,6 +23669,8 @@ def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
                 lambda_=self.lambda_,
                 vpc_lattice=self.vpc_lattice,
                 elastic_file_system=self.elastic_file_system,
+                global_accelerator=self.global_accelerator,
+                api_gateway_v2=self.api_gateway_v2,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -23660,7 +23688,9 @@ def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
                 self.vpc_peering == other.vpc_peering and
                 self.lambda_ == other.lambda_ and
                 self.vpc_lattice == other.vpc_lattice and
-                self.elastic_file_system == other.elastic_file_system
+                self.elastic_file_system == other.elastic_file_system and
+                self.global_accelerator == other.global_accelerator and
+                self.api_gateway_v2 == other.api_gateway_v2
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -23675,6 +23705,8 @@ def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
             'lambda_',
             'vpc_lattice',
             'elastic_file_system',
+            'global_accelerator',
+            'api_gateway_v2',
         }
 
         def __setattr__(self, name, value):
@@ -23707,6 +23739,8 @@ def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
                 self.lambda_,
                 self.vpc_lattice,
                 self.elastic_file_system,
+                self.global_accelerator,
+                self.api_gateway_v2,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -23714,14 +23748,16 @@ def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
         def __init__(
             self,
             *,
-            internet_gateway: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            egress_only_internet_gateway: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            nat_gateway: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            virtual_private_gateway: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            vpc_peering: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            lambda_: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
-            vpc_lattice: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
-            elastic_file_system: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
+            internet_gateway: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            egress_only_internet_gateway: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            nat_gateway: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            virtual_private_gateway: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            vpc_peering: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            lambda_: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            vpc_lattice: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            elastic_file_system: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            global_accelerator: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            api_gateway_v2: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'internet_gateway', internet_gateway)
             __dataclass__object_setattr(self, 'egress_only_internet_gateway', egress_only_internet_gateway)
@@ -23731,6 +23767,8 @@ def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
             __dataclass__object_setattr(self, 'lambda_', lambda_)
             __dataclass__object_setattr(self, 'vpc_lattice', vpc_lattice)
             __dataclass__object_setattr(self, 'elastic_file_system', elastic_file_system)
+            __dataclass__object_setattr(self, 'global_accelerator', global_accelerator)
+            __dataclass__object_setattr(self, 'api_gateway_v2', api_gateway_v2)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -23745,6 +23783,8 @@ def _process_dataclass__6d6455586563ea5a8cd41481c3e911f8f965cc9b():
             parts.append(f"lambda_={self.lambda_!r}")
             parts.append(f"vpc_lattice={self.vpc_lattice!r}")
             parts.append(f"elastic_file_system={self.elastic_file_system!r}")
+            parts.append(f"global_accelerator={self.global_accelerator!r}")
+            parts.append(f"api_gateway_v2={self.api_gateway_v2!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

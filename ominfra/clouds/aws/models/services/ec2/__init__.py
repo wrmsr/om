@@ -1889,6 +1889,8 @@ MediaDeviceName = _ta.NewType('MediaDeviceName', str)
 
 MemorySize = _ta.NewType('MemorySize', int)
 
+MetricCategoryId = _ta.NewType('MetricCategoryId', str)
+
 
 class MonitoringState(_base.Enum):
     DISABLED = 'disabled'
@@ -2130,6 +2132,7 @@ class ResourceType(_base.Enum):
     CAPACITY_RESERVATION_CANCELLATION_QUOTE = 'capacity-reservation-cancellation-quote'
     APPLICATION_STATUS_CHECK = 'application-status-check'
     CAPACITY_RESERVATION_MODIFICATION_QUOTE = 'capacity-reservation-modification-quote'
+    METRIC_CATEGORY = 'metric-category'
 
 
 class RootDeviceType(_base.Enum):
@@ -3947,17 +3950,7 @@ class MemoryInfo(
     ))
 
 
-@_dc.dataclass(frozen=True, kw_only=True)
-class Monitoring(
-    _base.Shape,
-    shape_name='Monitoring',
-):
-    state: MonitoringState | None = _dc.field(default=None, metadata=_base.field_metadata(
-        member_name='State',
-        serialization_name='state',
-        shape_name='MonitoringState',
-    ))
-
+MetricCategoryIdList: _ta.TypeAlias = _ta.Sequence[MetricCategoryId]
 
 NetworkCardInterfaceTypeList: _ta.TypeAlias = _ta.Sequence[NetworkCardInterfaceType]
 
@@ -4482,18 +4475,6 @@ class RouteTableAssociationState(
 
 
 RouteTableIdStringList: _ta.TypeAlias = _ta.Sequence[RouteTableId]
-
-
-@_dc.dataclass(frozen=True, kw_only=True)
-class RunInstancesMonitoringEnabled(
-    _base.Shape,
-    shape_name='RunInstancesMonitoringEnabled',
-):
-    enabled: bool = _dc.field(metadata=_base.field_metadata(
-        member_name='Enabled',
-        serialization_name='enabled',
-        shape_name='Boolean',
-    ))
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
@@ -5194,6 +5175,26 @@ class MediaDeviceInfo(
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
+class Monitoring(
+    _base.Shape,
+    shape_name='Monitoring',
+):
+    metric_category_ids: MetricCategoryIdList | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MetricCategoryIds',
+        serialization_name='metricCategoryIdSet',
+        list_member_name='item',
+        value_type=_base.ListValueType(MetricCategoryId),
+        shape_name='MetricCategoryIdList',
+    ))
+
+    state: MonitoringState | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='State',
+        serialization_name='state',
+        shape_name='MonitoringState',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
 class NetworkCardInfo(
     _base.Shape,
     shape_name='NetworkCardInfo',
@@ -5468,6 +5469,26 @@ class RouteTableAssociation(
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
+class RunInstancesMonitoringEnabled(
+    _base.Shape,
+    shape_name='RunInstancesMonitoringEnabled',
+):
+    metric_category_ids: MetricCategoryIdList | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='MetricCategoryIds',
+        serialization_name='MetricCategoryId',
+        list_member_name='item',
+        value_type=_base.ListValueType(MetricCategoryId),
+        shape_name='MetricCategoryIdList',
+    ))
+
+    enabled: bool = _dc.field(metadata=_base.field_metadata(
+        member_name='Enabled',
+        serialization_name='enabled',
+        shape_name='Boolean',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
 class StartInstancesRequest(
     _base.Shape,
     shape_name='StartInstancesRequest',
@@ -5719,6 +5740,18 @@ class VpcEncryptionControlExclusions(
     elastic_file_system: VpcEncryptionControlExclusion | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ElasticFileSystem',
         serialization_name='elasticFileSystem',
+        shape_name='VpcEncryptionControlExclusion',
+    ))
+
+    global_accelerator: VpcEncryptionControlExclusion | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='GlobalAccelerator',
+        serialization_name='globalAccelerator',
+        shape_name='VpcEncryptionControlExclusion',
+    ))
+
+    api_gateway_v2: VpcEncryptionControlExclusion | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='ApiGatewayV2',
+        serialization_name='apiGatewayV2',
         shape_name='VpcEncryptionControlExclusion',
     ))
 
