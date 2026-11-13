@@ -144,7 +144,9 @@ def test_qgemv_experts_kernel():
 def test_gdn_step_kernel():
     """
     The fused DeltaNet step against the composed Ops.gdn_step reference: T in (1, 4), 3 value heads per key
-    head, final state and all-states variants.
+    head, final state and all-states variants. And as a prefill: runs of 9 and 70 tokens (past the composed path's
+    chunk of 64, and not a multiple of it), and 300 where compiled (the interpreter takes a minute over it), against
+    the per-token recurrence in float64 -- the definition; the kernel is that recurrence in float32.
     """
 
     if _skip():
@@ -181,6 +183,39 @@ def test_gdn_step_kernel():
         fo, fs = gdn_step(qq.reshape(B, T, Hk, dk), kk.reshape(B, T, Hk, dk), vv.reshape(B, T, Hv, dv), a, b, A, dt, S0, False)  # noqa
         assert ((fo - ro).abs().max() / ro.abs().max()).item() < 1e-4
     print('fused DeltaNet step matches the reference (T=1, 4; final and all states)')
+
+    ops64 = TorchOps(device, triton=False)
+    runs = (9, 70, 300) if device == 'cuda' else (9, 70)
+    Bl = B if device == 'cuda' else 1  # (the interpreter runs every program in numpy: keep its share small)
+    for T in runs:
+        q = torch.randn(Bl, T, Hk, dk, device=device)
+        k = torch.randn(Bl, T, Hk, dk, device=device)
+        v = torch.randn(Bl, T, Hv, dv, device=device)
+        a = torch.randn(Bl, T, Hv, device=device)
+        b = torch.randn(Bl, T, Hv, device=device)
+        S0 = torch.randn(Bl, Hv, dk, dv, device=device) * 0.3
+        q64, k64, v64, a64, b64, A64, dt64, S64 = (t.double() for t in (q, k, v, a, b, A, dt, S0))
+        # the recurrence, every state: [T, B, Hv, dk, dv]
+        ro, rs = ops64.gdn_step(q64, k64, v64, a64, b64, A64, dt64, S64, True)
+
+        fo, fs = gdn_step(q, k, v, a, b, A, dt, S0, False)
+        eo = ((fo - ro).abs().max() / ro.abs().max()).item()
+        es = ((fs - rs[-1]).abs().max() / rs[-1].abs().max()).item()
+        assert eo < 1e-5 and es < 1e-5, (T, eo, es)
+
+        if T <= 70:  # the state after every token, past the 8 tokens a verify step asks for
+            fo, fs = gdn_step(q, k, v, a, b, A, dt, S0, True)
+            assert fs.shape == rs.shape
+            es = ((fs - rs).abs().max() / rs.abs().max()).item()
+            assert ((fo - ro).abs().max() / ro.abs().max()).item() < 1e-5 and es < 1e-5, (T, 'all states', es)
+
+        # a run split in two equals the run: the state carries exactly what a prefill chunk boundary needs
+        h = T // 2
+        o1, s1 = gdn_step(q[:, :h], k[:, :h], v[:, :h], a[:, :h], b[:, :h], A, dt, S0, False)
+        o2, s2 = gdn_step(q[:, h:], k[:, h:], v[:, h:], a[:, h:], b[:, h:], A, dt, s1, False)
+        full_o, full_s = gdn_step(q, k, v, a, b, A, dt, S0, False)
+        assert torch.equal(torch.cat([o1, o2], 1), full_o) and torch.equal(s2, full_s), T
+    print(f'fused DeltaNet recurrence matches float64 over {runs} tokens; split runs are bitwise the whole')
 
 
 @triton_modes('interpret', 'compiled')
@@ -401,3 +436,109 @@ def test_model_decode_with_kernel():
     e = rel_err(outs[1], outs[0])
     assert e < 1e-4, e
     print(f'int4 model decode: kernel vs dequant path rel err {e:.1e}')
+
+
+@triton_modes('interpret', 'compiled')
+def test_model_prefill_with_kernel():
+    """
+    A prefill through the fused DeltaNet kernel (TorchOps with Triton runs every chunk's recurrence in it) gives the
+    composed chunked path's logits, in one pass and in chunks through the cache; and the state it leaves is the one
+    decode continues from.
+    """
+
+    if _skip():
+        return
+
+    from ..backends.torch import TorchOps
+    from ..core.cache import Cache
+    from ..decode.decoder import Decoder
+    from .test_parity import rel_err
+    from .test_parity import synthetic_source
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    cfg, hf, src = synthetic_source()
+    ids = np.random.default_rng(7).integers(0, 256, (1, 45))  # (the composed path chunks at 64: one padded chunk)
+
+    logits = {}
+    steps = {}
+    for use in (False, True):
+        ops = TorchOps(device, triton=use)
+        assert (ops.gdn_fused_max_t > 45) == use
+        m = load_qwen35(src, ops, dtype='f32', verbose=False)
+        logits[use] = ops.numpy(m.forward(ids[:, :40]))
+
+        cache = Cache(cfg)
+        parts = [ops.numpy(m.forward(ids[:, s:min(s + 13, 40)], cache)) for s in range(0, 40, 13)]
+        e = rel_err(np.concatenate(parts, 1), logits[use])
+        assert e < 1e-4, (use, 'chunked', e)
+
+        dec = Decoder(m, cache, capacity=64)
+        steps[use] = np.concatenate([ops.numpy(dec.step(int(t))) for t in ids[0, 40:]], 0)
+
+    e = rel_err(logits[True], logits[False])
+    assert e < 1e-4, e
+    e2 = rel_err(steps[True], steps[False])
+    assert e2 < 1e-4, e2
+    print(f'prefill through the kernel vs composed: logits rel err {e:.1e}; decode after it {e2:.1e}')
+
+
+@triton_modes('compiled')
+def test_prompt_lengths_do_not_multiply_kernel_variants():
+    """
+    Triton compiles a kernel variant per combination of its integer arguments' properties ("is 1", "is a multiple of
+    16"), a second or two each, wherever it first meets one -- mid-request, for arguments that follow the prompt's
+    length. The kernels pin those arguments (torch_triton.ensure_kernels): any number of prefill tokens, rows or past
+    positions runs the variant the first one compiled. Only the single-token / single-row forms keep one of their own
+    (the decode step's, which every warm-up compiles).
+    """
+
+    if _skip():
+        return
+
+    from ..backends.torch import TorchOps
+    from ..backends.torch_triton import gdn_step
+    from ..backends.torch_triton import kernel_variants
+    from ..backends.torch_triton import qlinear
+
+    device = 'cuda'
+    ops = TorchOps(device, kv_dtype='fp8')
+    torch.manual_seed(0)
+
+    Hk, Hv, dk, dv = 2, 6, 16, 32  # (Hv not a multiple of 16: the batch strides' alignment follows T too)
+    A = -torch.rand(Hv, device=device)
+    dt = torch.randn(Hv, device=device)
+
+    def recurrence(T):
+        gdn_step(
+            torch.randn(1, T, Hk, dk, device=device),
+            torch.randn(1, T, Hk, dk, device=device),
+            torch.randn(1, T, Hv, dv, device=device),
+            torch.randn(1, T, Hv, device=device),
+            torch.randn(1, T, Hv, device=device),
+            A,
+            dt,
+            torch.zeros(1, Hv, dk, dv, device=device),
+            False,
+        )
+
+    for T in (9, 16, 17, 32, 48, 300):
+        recurrence(T)
+        assert kernel_variants('gdn') == 1, T
+    recurrence(1)
+    assert kernel_variants('gdn') == 2
+
+    H, KV, D = 4, 2, 32
+    for T, past in ((18, 36), (16, 0), (17, 0), (40, 1), (64, 16), (33, 17)):
+        q = torch.randn(1, H, T, D, device=device, dtype=torch.bfloat16)
+        k = torch.randn(1, KV, past + T, D, device=device, dtype=torch.bfloat16)
+        ops.sdpa_state(q, ops.kv_new(k, torch.randn_like(k)), D**-0.5, past)
+        assert kernel_variants('attn_prefill') == 1, (T, past)
+
+    w = ops.qweight(quantize_np((np.random.default_rng(0).standard_normal((96, 256)) * 0.05).astype(np.float32), 4, 64), torch.bfloat16)  # noqa
+    for m in (2, 5, 16, 32, 7):
+        x = torch.randn(m, 256, device=device, dtype=torch.bfloat16)
+        qlinear(x, w.q, w.scale, w.bias, 4, 64, w.shape)
+        assert kernel_variants('gemv') + kernel_variants('gemv_fma') == 1, m
+    qlinear(torch.randn(1, 256, device=device, dtype=torch.bfloat16), w.q, w.scale, w.bias, 4, 64, w.shape)
+    assert kernel_variants('gemv') + kernel_variants('gemv_fma') == 2
+    print('prompt lengths compile no new kernel variants')

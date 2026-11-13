@@ -188,8 +188,8 @@ of these:
   speculative-only -- useless on the models without an MTP head (the Qwen3.5 sizes). Verify steps are captured per
   draft-length bucket (padded; the pad positions are rewritten before anything attends to them, as the static
   prefill already does), so a lookup draft of 8 does not mean a compile per length. Mind the kernel limits: the decode
-  attention kernel holds `G * T <= 32` query rows (T <= 5 on the 27B) and the fused DeltaNet step `T <= 8`; longer
-  drafts need the row-block loop in the attention kernel or the prefill kernel past that.
+  attention kernel holds `G * T <= 32` query rows (T <= 5 on the 27B); longer drafts need the row-block loop in the
+  attention kernel or the prefill kernel past that. (The fused DeltaNet step takes any T since 2026-11-13.)
   *Why commit is separate (bug):* with `next() -> committed tokens`, a round that commits four tokens past an EOS or
   the budget leaves the recurrent state four tokens ahead of the answer, and since the DeltaNet state cannot be
   rewound, the end-of-generation prefix snapshot never matched a follow-up.

@@ -20,16 +20,27 @@ from ...core.ple import NGramLayerEmbedding
 from ...load.weights import open_source
 from ...ops.reference import NumpyOps
 from ...tests.test_parity import backends
+from ...tests.tritonmodes import triton_modes
 
 
 ##
 
 
+def _reference() -> ta.Any:
+    """transformers when it is installed with qwen4_exp (the oracle, and the checkpoint writer), else None."""
+
+    try:
+        import torch  # noqa
+        import transformers
+    except ImportError:
+        return None
+    return transformers if hasattr(transformers, 'Qwen4ExpForCausalLM') else None
+
+
 def _checkpoint(path: str, **overrides: ta.Any) -> ta.Any:
-    torch = pytest.importorskip('torch')
-    transformers = pytest.importorskip('transformers')
-    if not hasattr(transformers, 'Qwen4ExpForCausalLM'):
-        pytest.skip('transformers without qwen4_exp')
+    import torch
+
+    transformers = _reference()
 
     cfg = transformers.Qwen4ExpTextConfig(**{**dict(
         vocab_size=256,
@@ -72,7 +83,10 @@ def _checkpoint(path: str, **overrides: ta.Any) -> ta.Any:
 
 
 def test_qwen4exp_matches_the_reference():
-    torch = pytest.importorskip('torch')
+    if _reference() is None:
+        pytest.skip('transformers with qwen4_exp not installed')
+
+    import torch
 
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'qwen4exp')
@@ -136,16 +150,18 @@ def test_qwen4exp_matches_the_reference():
             assert res.drafted, 'no lookup rounds: nothing verified'
 
 
+@triton_modes('compiled', timeout_s=600)
 def test_qwen4exp_compiles_whole():
     """
     On CUDA, compiled and graph-captured, in both KV formats: every step traces as one graph (QSA's selection, the
     experts' gather, the n-gram hash in int64 included), a prompt of another length compiles nothing, and the tokens
-    -- plain and verifying prompt-lookup drafts -- are the functional path's.
+    -- plain and verifying prompt-lookup drafts -- are the functional path's. (It executes Triton kernels, so it
+    runs in a child process: tests/tritonmodes.py.)
     """
 
-    torch = pytest.importorskip('torch')
-    if not torch.cuda.is_available():
-        pytest.skip('no CUDA')
+    if _reference() is None:
+        print('transformers with qwen4_exp not installed; skipping')
+        return
 
     import torch._dynamo as dynamo
     from torch._dynamo.utils import counters
@@ -182,7 +198,9 @@ def test_qwen4exp_resumes_and_injects():
     conv, QSA's indexer keys) equals a cold run of the whole prompt; and the injector assembles the same model.
     """
 
-    pytest.importorskip('torch')
+    if _reference() is None:
+        pytest.skip('transformers with qwen4_exp not installed')
+
     from omcore import inject as inj
 
     from ...backends.inject import BackendConfig
@@ -223,16 +241,17 @@ def test_qwen4exp_resumes_and_injects():
         assert got.tokens == cold.tokens, (got.tokens, cold.tokens)
 
 
+@triton_modes('compiled', timeout_s=600)
 def test_qwen4exp_quantized_experts():
     """
     With int4 weights the experts are stacked quantized (Ops.expert_weights) and run through the expert GEMV on CUDA:
     its logits equal the CPU's (which dequantizes the selected experts), and the compiled, captured static decode
-    traces whole and gives the functional path's tokens.
+    traces whole and gives the functional path's tokens. (In a child process, as above.)
     """
 
-    torch = pytest.importorskip('torch')
-    if not torch.cuda.is_available():
-        pytest.skip('no CUDA')
+    if _reference() is None:
+        print('transformers with qwen4_exp not installed; skipping')
+        return
 
     import torch._dynamo as dynamo
 

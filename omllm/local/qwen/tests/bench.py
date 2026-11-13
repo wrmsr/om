@@ -87,7 +87,7 @@ def _timed_generate(model: Qwen35, ids: list[int], **kwargs: ta.Any) -> tuple[Ge
     return out, (first[0] if first else 0.), time.perf_counter() - t0
 
 
-def _effective_torch_config(model: Qwen35) -> dict[str, ta.Any]:
+def _effective_torch_config(model: Qwen35, draft_vocab: int = 0) -> dict[str, ta.Any]:
     ops = model.ops
     if not ops.name.startswith('torch'):
         return {}
@@ -95,10 +95,15 @@ def _effective_torch_config(model: Qwen35) -> dict[str, ta.Any]:
     from torch._dynamo.utils import counters
 
     from ..backends.torch import TorchQWeight
+
     shapes = set()
     for w in _all_weights(model):
         if isinstance(w, TorchQWeight):
             shapes.add((w.shape[0], w.shape[1], w.bits))
+    # the draft head's restricted output head: rows of the output head sliced at run time, a GEMV shape of its own
+    head = model.lm_head
+    if model.mtp is not None and draft_vocab and isinstance(head, TorchQWeight) and draft_vocab < head.shape[0]:
+        shapes.add((draft_vocab, head.shape[1], head.bits))
     return {
         'compile': bool(getattr(ops, 'compile', False)),
         'triton': bool(getattr(ops, 'triton', False)),
@@ -112,7 +117,11 @@ def _effective_torch_config(model: Qwen35) -> dict[str, ta.Any]:
 
 def _all_weights(model: Qwen35) -> list[ta.Any]:
     out: list[ta.Any] = [model.embed, model.lm_head]
-    for blk in model.blocks:
+    blocks = list(model.blocks)
+    if model.mtp is not None:
+        out.append(model.mtp.fc)
+        blocks.append(model.mtp.block)
+    for blk in blocks:
         out.extend(v for v in vars(blk.mixer).values() if v is not None)
         out.extend(v for v in vars(blk.ffn).values() if v is not None)
     return out
@@ -241,7 +250,7 @@ def run(
         res['long_prefill_tok_s'] = len(long_ids) / max(1e-9, first)
         res['long_peak_gib'] = _peak_gib(ops)
 
-    res['effective'] = _effective_torch_config(model)
+    res['effective'] = _effective_torch_config(model, draft_vocab if has_spec else 0)
     return res
 
 

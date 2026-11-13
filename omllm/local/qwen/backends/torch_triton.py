@@ -173,7 +173,7 @@ def _gdn_step_kernel(
         ss_out_t,
         Hv,
         R,
-        T: tl.constexpr,
+        T,
         DK: tl.constexpr,
         DV: tl.constexpr,
         BLOCK_DV: tl.constexpr,
@@ -181,6 +181,15 @@ def _gdn_step_kernel(
         EPS: tl.constexpr,
         QSCALE: tl.constexpr,
 ):
+    """
+    The Gated DeltaNet recurrence over T tokens, any T: a decode step (1), a speculative verify (k + 1, with the state
+    after every token), a prefill chunk (thousands). A program owns a [DK, BLOCK_DV] slice of one head's state in
+    registers for the whole run, so the serial chain per token is two reductions and a rank-1 update: ~1 us a token on
+    a 5090 however many heads there are. Each token's inputs are read through pointers advanced a token at a time, so
+    no offset is ever T times a stride (a long chunk cannot overflow 32 bits, and the interpreter's plain-int loop
+    variable needs no cast).
+    """
+
     pid = tl.program_id(0)  # b * Hv + h
     pid_v = tl.program_id(1)  # slice of the value dim
     bidx = pid // Hv
@@ -192,14 +201,21 @@ def _gdn_step_kernel(
     S = tl.load(s_in_ptr + s_off)  # [DK, BLOCK_DV] float32, held in registers for all T tokens
     A_h = tl.load(A_ptr + h)
     dt_h = tl.load(dt_ptr + h)
-    for t in tl.static_range(T):
-        qv = tl.load(q_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
-        kv = tl.load(k_ptr + bidx * sq_b + t * sq_t + kh * sq_h + rk).to(tl.float32)
+    q_p = q_ptr + bidx * sq_b + kh * sq_h + rk
+    k_p = k_ptr + bidx * sq_b + kh * sq_h + rk
+    v_p = v_ptr + bidx * sv_b + h * sv_h + rv
+    a_p = a_ptr + bidx * sa_b + h
+    b_p = b_ptr + bidx * sa_b + h
+    o_p = out_ptr + bidx * so_b + h * so_h + rv
+    st_p = s_out_ptr + s_off
+    for _ in range(T):
+        qv = tl.load(q_p).to(tl.float32)
+        kv = tl.load(k_p).to(tl.float32)
         qn = qv * tl.rsqrt(tl.sum(qv * qv, 0) + EPS) * QSCALE
         kn = kv * tl.rsqrt(tl.sum(kv * kv, 0) + EPS)
-        vt = tl.load(v_ptr + bidx * sv_b + t * sv_t + h * sv_h + rv).to(tl.float32)
-        a_t = tl.load(a_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
-        b_t = tl.load(b_ptr + bidx * sa_b + t * sa_t + h).to(tl.float32)
+        vt = tl.load(v_p).to(tl.float32)
+        a_t = tl.load(a_p).to(tl.float32)
+        b_t = tl.load(b_p).to(tl.float32)
         beta = tl.sigmoid(b_t)
         xg = a_t + dt_h
         sp = tl.where(xg > 20.0, xg, tl.log(1.0 + tl.exp(tl.minimum(xg, 20.0))))
@@ -208,11 +224,18 @@ def _gdn_step_kernel(
         delta = (vt - mem) * beta
         S = S + kn[:, None] * delta[None, :]  # rank-1 update
         o = tl.sum(S * qn[:, None], 0)  # q^T S
-        tl.store(out_ptr + bidx * so_b + t * so_t + h * so_h + rv, o)
+        tl.store(o_p, o)
         if ALL_STATES:
-            tl.store(s_out_ptr + t * ss_out_t + s_off, S)
+            tl.store(st_p, S)
+            st_p += ss_out_t
+        q_p += sq_t
+        k_p += sq_t
+        v_p += sv_t
+        a_p += sa_t
+        b_p += sa_t
+        o_p += so_t
     if not ALL_STATES:
-        tl.store(s_out_ptr + s_off, S)
+        tl.store(st_p, S)
 
 
 def _attn_decode_kernel(
@@ -594,12 +617,24 @@ def ensure_kernels() -> None:
     g = globals()
     g['triton'] = importlib.import_module('triton')
     g['tl'] = importlib.import_module('triton.language')
-    _fma_jit = triton.jit(_qgemv_fma_kernel)
+    # Triton compiles a variant of a kernel per combination of its integer arguments' properties -- "is 1" and "is a
+    # multiple of 16" -- so arguments that follow the prompt's length (rows, tokens, positions, the strides that scale
+    # with them) would compile new variants mid-request, a second or two each, the first time a machine sees a 16-token
+    # prompt or a resume at an odd position. Those arguments are pinned: no alignment variants for the GEMV's rows and
+    # the DeltaNet's token count (their "is 1" variant is the decode step's, compiled by any warm-up), none at all for
+    # the prefill attention's.
+    _fma_jit = triton.jit(_qgemv_fma_kernel, do_not_specialize_on_alignment=['M'])
     _experts_jit = triton.jit(_qgemv_experts_kernel)
-    _gdn_jit = triton.jit(_gdn_step_kernel)
+    _gdn_jit = triton.jit(
+        _gdn_step_kernel,
+        do_not_specialize_on_alignment=['sq_b', 'sv_b', 'sa_b', 'so_b', 'T'],
+    )
     _attn_jit = triton.jit(_attn_decode_kernel)
-    _attn_prefill_jit = triton.jit(_attn_prefill_kernel)
-    _qlinear_jit = triton.jit(_qlinear_kernel)  # last: it is the "built" flag
+    _attn_prefill_jit = triton.jit(_attn_prefill_kernel, do_not_specialize=['stride_sh', 'T', 'past'])
+    _qlinear_jit = triton.jit(  # last: it is the "built" flag
+        _qlinear_kernel,
+        do_not_specialize_on_alignment=['M'],
+    )
 
 
 # attention launch configurations that fit the GPU's shared memory, resolved per (kind, head_dim, dtype) on first use:
@@ -610,6 +645,24 @@ _ATTN_LADDER: dict[str, tuple[tuple[int, int, int], ...]] = {
     'decode': ((32, 64, 2), (32, 32, 2), (32, 32, 1), (32, 16, 1)),
     'prefill': ((64, 64, 2), (64, 32, 2), (32, 32, 2), (32, 32, 1), (32, 16, 1)),
 }
+
+
+def kernel_variants(name: str) -> int:
+    """
+    How many variants Triton has compiled of one of this module's kernels ('gemv', 'gemv_fma', 'gemv_experts', 'gdn',
+    'attn_decode', 'attn_prefill') in this process: what a test counts to see that prompt lengths do not multiply them
+    (see ensure_kernels). 0 before the kernel is first launched, and under the interpreter, which compiles nothing.
+    """
+
+    jit = {
+        'gemv': _qlinear_jit,
+        'gemv_fma': _fma_jit,
+        'gemv_experts': _experts_jit,
+        'gdn': _gdn_jit,
+        'attn_decode': _attn_jit,
+        'attn_prefill': _attn_prefill_jit,
+    }[name]
+    return sum(len(caches[0]) for caches in getattr(jit, 'device_caches', {}).values())
 
 
 def _resolve_attn(
@@ -644,17 +697,29 @@ def gdn_step(
         state: torch.Tensor,
         all_states: bool,
         eps: float = 1e-6,
-        block_dv: int = 32,
-        num_warps: int = 8,
+        block_dv: int = 16,
+        num_warps: int = 1,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Fused DeltaNet token step (the whole of Ops.gdn_step) in one launch per layer: each program owns a [dk, block_dv]
-    slice of one head's state in registers, runs the T-token recurrence on it -- l2-norm of q/k, beta and the decay
-    computed in-kernel, key heads broadcast by index -- and writes the outputs and either the final state or the state
-    after every token. Replaces ~25 small kernels (and ~24 MB of state traffic per layer at T=1) with one kernel that
-    reads and writes the 3 MB state once.
+    Fused DeltaNet step (the whole of Ops.gdn_step) for any number of tokens in one launch per layer: each program owns
+    a [dk, block_dv] slice of one head's state in registers, runs the T-token recurrence on it -- l2-norm of q/k, beta
+    and the decay computed in-kernel, key heads broadcast by index -- and writes the outputs and either the final state
+    or the state after every token. At T = 1 it replaces ~25 small kernels (and ~24 MB of state traffic per layer) with
+    one that reads and writes the 3 MB state once; over a prefill chunk it replaces the chunked form's ~1000 launches
+    per layer (4096 tokens of the 27B's geometry: 4 ms against 33).
+
+    Numerically it is the recurrence itself, token by token in float32 -- exactly what decode computes, so a prefill
+    leaves the state decoding the same tokens would have (a run split anywhere is bitwise the whole run). Its rounding
+    accumulates with the run: against a float64 recurrence on the 27B's activations, ~3e-6 relative over 4096 tokens,
+    where the chunked WY form (64x fewer state updates) is at ~2e-7 -- and with fast-decaying random inputs the order
+    reverses (2e-7 against the WY form's cancellation, 3e-6). Either is three orders under the bf16 the model
+    computes in: swapping one for the other moves the 27B's outputs no more than re-chunking the same prefill does.
 
     q, k: [B, T, Hk, dk]; v: [B, T, Hv, dv]; a, b: [B, T, Hv]; A, dt_bias: [Hv]; state: [B, Hv, dk, dv] float32.
+
+    block_dv 16 with one warp is the fastest launch at every T on a 5090 and a 5080 (the chain is serial per program,
+    so small tiles in one warp -- no cross-warp reductions -- beat more threads): 2.7 us at T = 1, ~0.9 us a token
+    from there.
     """
 
     if not HAVE_TRITON:
@@ -710,7 +775,7 @@ def gdn_step(
         ss_out_t,
         Hv,
         Hv // Hk,
-        T=T,
+        T,
         DK=dk,
         DV=dv,
         BLOCK_DV=block_dv,

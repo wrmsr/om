@@ -160,7 +160,8 @@ class GatedDeltaNet(Mixer):
             conv_state = ops.copy(inp[..., -(K - 1):])
 
         if T <= ops.gdn_fused_max_t:
-            # decode / verify: one op from the raw projections (fusable into a single kernel per layer)
+            # decode / verify -- and prefill, on a backend whose kernel takes any T -- as one op from the raw
+            # projections (fusable into a single kernel per layer)
             out, S = ops.gdn_step(
                 ops.reshape(q, (B, T, Hk, dk)),
                 ops.reshape(k, (B, T, Hk, dk)),

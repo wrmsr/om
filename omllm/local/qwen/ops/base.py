@@ -473,7 +473,9 @@ class Ops(lang.Abstract):
             states.append(S)
         return self.stack(outs, 2), self.stack(states, 0)
 
-    gdn_fused_max_t: int = 8  # up to this many tokens the model calls `gdn_step` (fusable); beyond, the chunked path
+    # up to this many tokens the model calls `gdn_step` (fusable); beyond, the chunked path. A backend whose fused
+    # kernel takes any T (torch's Triton one) raises it, and its prefill goes through `gdn_step` too
+    gdn_fused_max_t: int = 8
 
     def gdn_step(
             self,

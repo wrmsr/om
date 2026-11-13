@@ -284,9 +284,12 @@ class TorchOps(Ops):
         self.triton_max_m = triton_max_m
         self.triton_block_n = triton_block_n
         self.gemv_tuned: GemvTable = dict(gemv_tuned or {})  # per-shape GEMV configs (entrypoints/tune, load_tuned)
-        self.gdn_block_dv = 32  # fused DeltaNet step: value-dim slice per program (state tile [dk, block_dv] f32)
+        self.gdn_block_dv = 16  # fused DeltaNet step: value-dim slice per program (state tile [dk, block_dv] f32)
         self.quant_native = False  # on-device quantizer search (faster, not byte-identical across machines)
-        self.gdn_num_warps = 8
+        self.gdn_num_warps = 1
+        # the Triton kernel runs the recurrence for any number of tokens, so the model's fused path (Ops.gdn_step)
+        # serves prefill chunks too; without it, only the few tokens of a decode / verify step (the composed step)
+        self.gdn_fused_max_t = (1 << 30) if self.triton else 8
 
     def dtype(self, name):
         return dtypes()[name]

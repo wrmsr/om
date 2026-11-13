@@ -141,9 +141,10 @@ shapes only. Those are exactly the constraints the captured decode step relies o
 The gated delta rule has two composed forms behind `Ops.gated_delta`: the per-token recurrence (used for decode,
 T == 1) and a chunked WY form (used for prefill) that does everything inside a 64-token chunk as batched matmuls
 and carries the state across chunks, so a prompt costs O(T/64) sequential steps instead of O(T). The per-chunk
-triangular inverse is a Neumann product (exact, since the matrix is nilpotent), which keeps it item-assignment
-free and graph-friendly. On lazy backends (MLX, tinygrad) this is what makes prefill viable at all: the recurrence
-would build a T-step graph.
+unit-triangular inverse is forward substitution, row by row (the Neumann product is the same matrix in exact
+arithmetic and unusable in floating point when keys repeat). On lazy backends (MLX, tinygrad) the chunked form is
+what makes prefill viable at all: the recurrence would build a T-step graph. Torch with Triton does not use it:
+its fused kernel runs the recurrence itself over a whole prefill chunk (below).
 
 ## The static decode step
 
@@ -209,20 +210,29 @@ turns it off. Narrow projections (o_proj, down_proj, out_proj at N=5120, k/v_pro
 across several programs with a float32 partial-sum reduction, so they fill the GPU; the launch configuration
 per (N, K) comes from a tuned table when one is loaded (`entrypoints/tune` sweeps block sizes, warps, stages and
 split factor on the actual GPU and writes JSON; `--triton-tuned FILE`, or `TorchOps(gemv_tuned=load_tuned(FILE))`,
-loads it) and from a fill-the-GPU heuristic otherwise. The tuner times by CUDA-graph replay and rotates through
-enough copies of each weight to overflow L2, so it measures DRAM streaming -- what the decode step does -- rather
-than the cache-resident bandwidth a single weight timed in a loop reports. Two formulations are swept per shape: the
+loads it) and from a fill-the-GPU heuristic otherwise. `tune --draft-vocab N` adds the draft head's restricted
+output head, a shape that exists only at run time; `--update` keeps a table's entries and tunes only what it lacks.
+The tuner times by CUDA-graph replay and rotates through enough copies of each weight to overflow L2, so it measures
+DRAM streaming -- what the decode step does -- rather than the cache-resident bandwidth a single weight timed in a
+loop reports. Two formulations are swept per shape: the
 tensor-core `_qlinear_kernel` (`tl.dot`, weight tile staged through shared memory) and `_qgemv_fma_kernel`
 (`GemvConfig.fma`: plain FMAs reduced in registers, M <= 8, the way llama.cpp / exllama GEMVs work); the tuner keeps
 whichever streams faster on the GPU at hand. Default tuning M is 4 (spec-3 verify).
 
 The DeltaNet token step is one op on the seam, `Ops.gdn_step` (l2-norm, head broadcast, gate, recurrence, from
-the raw projections in their natural layout), which the model calls for T <= 8 -- decode and speculative
-verify. On torch with Triton it is a single fused kernel per layer (`torch_triton.gdn_step`): each program keeps
-a `[dk, block_dv]` slice of one head's state in registers for all T tokens and writes the outputs plus the
-final or per-token states. That replaces ~25 small kernels per layer (and the state's ~24 MB of round-trip
-traffic) with one, which matters because the decode graph is otherwise ~2,500 nodes of a few microseconds each.
-`test_triton.py::test_gdn_step_kernel` checks it against the composed reference under the interpreter.
+the raw projections in their natural layout), which the model calls for T <= `Ops.gdn_fused_max_t` tokens: decode
+and speculative verify (8) everywhere, and on torch with Triton any T, prefill chunks included. There it is a
+single fused kernel per layer (`torch_triton.gdn_step`): each program keeps a `[dk, block_dv]` slice of one head's
+state in registers for all T tokens and writes the outputs plus the final or per-token states. For decode that
+replaces ~25 small kernels per layer (and the state's ~24 MB of round-trip traffic) with one, which matters because
+the decode graph is otherwise ~2,500 nodes of a few microseconds each. For prefill it replaces the chunked form's
+~1,000 launches per layer: the chain is serial, ~0.9 us a token, so a 4096-token chunk of the 27B's geometry is 4
+ms a layer against 33, a 32k-token prompt prefills in 15 s instead of 26 (2,100 tok/s; two thirds of what is left
+is the quantized linears), and a 20-token prompt's prefill is 70 ms instead of 410. It is the recurrence in
+float32, exactly what decoding the same tokens one at a time computes; swapping it for the chunked form moves the
+27B's outputs no more than re-chunking the same prefill does (bf16 through 64 layers is the noise floor: KL ~2e-3
+nats either way). `test_torch_triton.py::test_gdn_step_kernel` checks it against the composed reference and the
+float64 recurrence, under the interpreter and compiled.
 
 On MLX the same step is a custom Metal kernel (`backends/mlx_metal.py`, `MlxOps.gdn_step`): one launch per layer,
 a threadgroup per head and slice of 32 value columns with the `[dk, 32]` state tile in threadgroup memory for

@@ -9,6 +9,7 @@ import typing as ta
 from omcore import lang
 from omcore.logs import all as logs
 
+from ..backends.torch_triton import load_tuned
 from ..backends.torch_triton import save_tuned
 from ..backends.torch_triton import tune
 from ..core.params import mtp_param_names
@@ -27,11 +28,18 @@ else:
 ##
 
 
-def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[tuple[int, int]]]:
+def model_shapes(
+        model: str,
+        bits: int,
+        with_mtp: bool = True,
+        draft_vocab: int = 0,
+) -> dict[int, set[tuple[int, int]]]:
     """
     Distinct (N, K) of the model's quantized 2-D weights as the model actually runs them -- fused projections (gate_up,
-    qkv, qkvz, ab; see model.FUSIONS) count once with their stacked N -- grouped b:38y bit width (the a/b pair is int8
-    whatever the model's width).
+    qkv, qkvz, ab; see load.policies.FUSIONS) count once with their stacked N -- grouped by bit width (the a/b pair is
+    int8 whatever the model's width). `draft_vocab` adds the draft head's restricted output head, the first that many
+    rows of the output head (`--draft-vocab`): a shape of its own that exists only at run time, launched three times
+    a speculative round.
     """
 
     src = open_source(model)
@@ -71,6 +79,12 @@ def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[
             b = bits
         if k % 64 == 0:
             out.setdefault(b, set()).add((n, k))
+
+    if draft_vocab and with_mtp and cfg.num_mtp_layers:
+        n, k = shape_of('lm_head.weight' if 'lm_head.weight' in names else 'embed_tokens.weight')
+        if k % 64 == 0 and draft_vocab < n:
+            out.setdefault(bits, set()).add((draft_vocab, k))
+
     return out
 
 
@@ -103,9 +117,21 @@ def main() -> None:
         help='activation rows to tune for (1 = plain decode; 4 = spec-3 verify, the default)',
     )
     ap.add_argument(
+        '--draft-vocab',
+        type=int,
+        default=0,
+        metavar='N',
+        help="also tune the draft head's restricted output head, as run with `--draft-vocab N` (0 = not used)",
+    )
+    ap.add_argument(
         '--out',
         required=True,
         help='JSON to write, e.g. ./.cache/qwen/gemv-int4.json',
+    )
+    ap.add_argument(
+        '--update',
+        action='store_true',
+        help='keep the configurations already in --out and tune only the shapes it lacks',
     )
     args = ap.parse_args()
     dtype = {
@@ -113,14 +139,17 @@ def main() -> None:
         'f16': torch.float16,
         'f32': torch.float32,
     }[args.dtype]
-    by_bits = model_shapes(args.model, QUANT_BITS[args.quant])
-    tuned = {}
+    by_bits = model_shapes(args.model, QUANT_BITS[args.quant], draft_vocab=args.draft_vocab)
+    tuned = load_tuned(args.out) if args.update else {}
+    if tuned:
+        print(f'[tune] keeping {len(tuned)} configurations from {args.out}')
     for b, shape_set in sorted(by_bits.items()):
-        shapes = sorted(shape_set)
+        shapes = sorted(sh for sh in shape_set if (*sh, b) not in tuned)
         print(f'[tune] int{b}: {len(shapes)} shapes: {shapes}')
-        tuned.update(tune(shapes, b, dtype=dtype, m=args.m))
+        if shapes:
+            tuned.update(tune(shapes, b, dtype=dtype, m=args.m))
     save_tuned(args.out, tuned)
-    print(f'[tune] wrote {args.out}')
+    print(f'[tune] wrote {args.out} ({len(tuned)} configurations)')
 
 
 if __name__ == '__main__':
