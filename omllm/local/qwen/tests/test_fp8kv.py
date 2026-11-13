@@ -103,3 +103,40 @@ def test_fp8_spec_and_snapshots():
     snap16 = next(e.snap for e in pc16.entries.values() if len(e.snap.tokens) == len(p1) + len(extra))
     assert len(snap16.cache.layers[3]) == 2  # the bf16 decoder's own snapshot is in its format
     print('fp8 spec decode + prefix snapshots OK (fp8 -> fp8 exact, fp8 -> bf16 converts)')
+
+
+def test_kv_write_tokens():
+    """
+    A step's positions written at once (TorchOps.kv_write_tokens: one indexed write per buffer) leave exactly the
+    buffers the per-position loop does (the seam's default), in both KV formats, at the start, the middle and the end
+    of the buffer; nothing else is touched.
+    """
+
+    if _skip():
+        return
+
+    import torch
+
+    from ..backends.torch import TorchOps
+    from ..ops.base import Ops
+
+    torch.manual_seed(0)
+    kv_heads, length, dim = 2, 24, 16
+    for kv_dtype in ('bf16', 'fp8'):
+        ops = TorchOps('cpu', kv_dtype=kv_dtype)
+        for n in (1, 4, 7):
+            for p in (0, 5, length - n):
+                base = ops.kv_new(torch.randn(1, kv_heads, length, dim), torch.randn(1, kv_heads, length, dim))
+                k = torch.randn(1, kv_heads, n, dim)
+                v = torch.randn(1, kv_heads, n, dim)
+                pos = ops.scalar(p)
+
+                want = Ops.kv_write_tokens(ops, tuple(a.clone() for a in base), pos, k, v)  # one position at a time
+                got = ops.kv_write_tokens(tuple(a.clone() for a in base), pos, k, v)
+                assert len(got) == len(want) == ops.kv_arity
+                for g, w in zip(got, want):
+                    assert torch.equal(g.float(), w.float()), (kv_dtype, n, p)
+
+                keep = [i for i in range(length) if not p <= i < p + n]
+                for g, b0 in zip(got, base):
+                    assert torch.equal(g[:, :, keep].float(), b0[:, :, keep].float()), (kv_dtype, n, p)

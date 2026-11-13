@@ -22,6 +22,7 @@ from .torch_triton import HAVE_TRITON
 from .torch_triton import GemvTable
 from .torch_triton import attn_decode
 from .torch_triton import attn_prefill
+from .torch_triton import dequantize
 from .torch_triton import ensure_kernels
 from .torch_triton import gdn_step
 from .torch_triton import qgemv_experts
@@ -617,8 +618,28 @@ class TorchOps(Ops):
                     w.shape,
                     launch=launch,
                 )
-            return w.linear(x)
+            return self._linear_dense(x, w)
         return F.linear(x, w)
+
+    def _linear_dense(self, x, w, chunk_rows=16384):
+        """
+        A quantized weight against many rows (a prefill chunk): dequantized, 16384 output rows at a time (the 27B's
+        output head whole would be 2.5 GB), and matmul'd by cuBLAS. With Triton the dequantization is one fused pass
+        (torch_triton.dequantize: a fifth of the composed tensor ops' time, and computed in float32 like the GEMV
+        kernels' use of the same weight, where the composition rounds to the compute dtype three times); without,
+        TorchQWeight.dequant's composition.
+        """
+
+        if not (self.triton and x.is_cuda):
+            return w.linear(x, chunk_rows)
+
+        n, k = w.shape
+        outs = []
+        for i in range(0, n, chunk_rows):
+            j = min(i + chunk_rows, n)
+            dense = dequantize(w.q[i:j], w.scale[i:j], w.bias[i:j], w.bits, w.group, (j - i, k), x.dtype)
+            outs.append(F.linear(x, dense))
+        return outs[0] if len(outs) == 1 else torch.cat(outs, dim=-1)
 
     def embedding(self, ids, w, dtype):
         if isinstance(w, TorchQWeight):
@@ -782,13 +803,22 @@ class TorchOps(Ops):
         return tuple(out)
 
     def kv_write_state(self, state, pos, k, v):
+        return self.kv_write_tokens(state, pos, k, v)
+
+    def kv_write_tokens(self, state, pos, k, v):
+        # every position of the step in one indexed write per buffer (and one fp8 quantization): a T-token step made
+        # T of each, per attention layer -- ~200 small kernels a speculative round on the 27B, and T-long chains of
+        # in-place writes that torch.compile took minutes over past a dozen tokens
+        idx = pos.reshape(1).to(torch.int64) + torch.arange(k.shape[2], device=k.device)
         if self.kv_dtype != 'fp8':
-            return super().kv_write_state(state, pos, k, v)
+            kbuf, vbuf = state
+            kbuf.index_copy_(2, idx, k.to(kbuf.dtype))
+            vbuf.index_copy_(2, idx, v.to(vbuf.dtype))
+            return (kbuf, vbuf)
         kq, ks = self._fp8_quant(k)
         vq, vs = self._fp8_quant(v)
-        idx = pos.reshape(1).to(torch.int64)
         kbuf, ksb, vbuf, vsb = state
-        # In place, same objects out. Item assignment with a 1-element index is an index_put_ on the fp8 buffer itself,
+        # In place, same objects out. Item assignment with an index array is an index_put_ on the fp8 buffer itself,
         # which is the one indexed write that works here: index_copy_ has no float8 kernel (cpu or cuda), and writing
         # through a uint8 view of the buffer breaks torch.compile - inductor stores the view's bytes through the
         # buffer's own fp8-typed pointer, and Triton has no int -> fp8 value cast ('cannot cast uint8[..] to

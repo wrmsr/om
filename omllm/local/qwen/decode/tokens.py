@@ -116,7 +116,7 @@ class VerifyTokenSource(TokenSource):
 
         if self._static and ops.static_prefill:
             # a backend whose eager forward is costly prefills through the captured step (see Decoder.prefill)
-            dec = Decoder(self._model, cache, capacity=gen.capacity)
+            dec = Decoder(self._model, cache, capacity=gen.capacity, consume=True)
             logits, hidden = dec.prefill(ids, poll)
             return logits, hidden, dec
 
@@ -163,14 +163,16 @@ class VerifyTokenSource(TokenSource):
 
         if dec is None:
             if self._static:
-                dec = Decoder(model, cache, capacity=gen.capacity)
+                # the cache is ours to give away (a prefill's, or a store's private copy): the decoder takes its
+                # state layer by layer, so the exact-length KV and the buffers are never both held whole
+                dec = Decoder(model, cache, capacity=gen.capacity, consume=True)
             else:
                 dec = FunctionalDecoder(model, cache)
         gen.decoder = dec
 
-        # the prefill's cache now lives in the decoder (a static one copied it into its buffers and keeps none of it):
-        # let it go before the draft source's own prefill, which is where a long prompt's memory peaks (~1.1 GB of
-        # exact-length KV at 32k tokens on the 27B)
+        # the prefill's cache now lives in the decoder (a static one has taken its state; a functional one holds the
+        # object): no reference to it stays here through the draft source's own prefill, which is where a long
+        # prompt's memory peaks
         del cache
         resume = None
 

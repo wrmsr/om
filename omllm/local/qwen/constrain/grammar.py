@@ -251,14 +251,25 @@ class Acceptor:
             return outs
 
         if kind == 'keystr':  # a free (undeclared) object key; no escapes, must not be a declared property
+            # Its text is tracked only while it can still become a declared name (None after): past that every free
+            # key is the same state, with one token mask, instead of a new state -- and a new walk of the vocabulary --
+            # per character of every key.
             text = fr[1]
             if b == ord('"'):
+                if text is None:
+                    return [rest]
                 obj = rest[-1]
                 props = self.schemas[obj[1]].get('properties') or {}
                 return [] if text in props else [rest]
             if b == ord('\\') or b < 0x20:
                 return []
-            return [(*rest, ('keystr', text + chr(b)))]
+            if text is None:
+                return [st]
+            text += chr(b)
+            obj = rest[-1]
+            if not any(name.startswith(text) for name in self.schemas[obj[1]].get('properties') or {}):
+                return [(*rest, ('keystr', None))]
+            return [(*rest, ('keystr', text))]
 
         if kind == 'argsvalue':
             raise AssertionError('arguments schema not bound')
@@ -476,7 +487,7 @@ class Acceptor:
                 outs.append((*rest, ('obj', sid, 'colon', seen, None), ('keyname', remaining, 0)))
 
             if extra:  # any other key: its text is tracked so a declared name cannot sneak in through this branch
-                outs.append((*rest, ('obj', sid, 'colon', seen, '*'), ('keystr', '')))
+                outs.append((*rest, ('obj', sid, 'colon', seen, '*'), ('keystr', '' if props else None)))
 
             return outs
 
@@ -587,6 +598,11 @@ class Vocab:
 
         self.plain_frozen = frozenset(self.plain)
 
+        # what every request's controller needs of the vocabulary, found once here rather than per request (0.1 s of
+        # scanning each, on 248k tokens): the all-whitespace tokens, and the tag sets (ToolConstraint._tag_set)
+        self.ws_tokens = frozenset(i for i in range(self.n) if self.bytes[i] and all(c in WS for c in self.bytes[i]))
+        self.tag_memo: dict[tuple[bool, bytes], frozenset[int]] = {}
+
     @staticmethod
     def _insert(root: dict, b: bytes, i: int) -> None:
         node = root
@@ -610,8 +626,17 @@ class TokenMasks:
         if got is not None:
             return got
 
-        if all(st and st[-1] == ('str', 0, 0) for st in state):
-            # inside a string, nothing escaped: every plain token continues it; only the others need checking
+        if len(state) > 1:
+            # The alternatives advance independently, so the state allows what any one of them does. Each is then
+            # walked (and memoised) alone: a free key gets its shortcut whatever it is paired with -- beside a declared
+            # key's alternative it used to cost a walk of the whole vocabulary, a second each on 248k tokens.
+            res = frozenset().union(*(self.allowed(frozenset((st,))) for st in state))
+            self.memo[state] = res
+            return res
+
+        if all(st and (st[-1] == ('str', 0, 0) or st[-1][0] == 'keystr') for st in state):
+            # inside a string or a free key, nothing escaped: every plain token continues it; only the others (a
+            # quote, a backslash, a control character somewhere in them) need checking
             out = set(self.vocab.plain)
             self._walk(state, self.vocab.special_root, out)
 
@@ -661,6 +686,25 @@ def _compiled(tools: ta.Sequence[dict], only: str | None, vocab: Vocab) -> tuple
     return got
 
 
+_COMPILED_JSON: dict[tuple[str, int], tuple[Acceptor, TokenMasks]] = {}
+
+
+def _compiled_json(schema: ta.Any, vocab: Vocab) -> tuple[Acceptor, TokenMasks]:
+    """
+    The acceptor and its memoised masks for a JSON-mode schema, shared across requests like a tool set's: without it
+    every request walked the vocabulary again for every state it met (0.2 s a token on a 248k vocabulary).
+    """
+
+    key = (json.dumps(schema, sort_keys=True), id(vocab))
+    got = _COMPILED_JSON.get(key)
+    if got is None:
+        if len(_COMPILED_JSON) >= 16:
+            _COMPILED_JSON.pop(next(iter(_COMPILED_JSON)))
+        acc = Acceptor(value_schema=schema)
+        got = _COMPILED_JSON[key] = (acc, TokenMasks(acc, vocab))
+    return got
+
+
 @dc.dataclass()
 class ToolConstraint:
     """
@@ -692,13 +736,8 @@ class ToolConstraint:
         self.in_think = False
         self.calls = 0
         self.violations = 0
-        self._ws_tokens = frozenset(
-            i
-            for i in range(self.vocab.n)
-            if self.vocab.bytes[i]
-            and all(c in WS for c in self.vocab.bytes[i])
-        )
-        self._tag_memo: dict[tuple[bool, bytes], frozenset[int]] = {}
+        self._ws_tokens = self.vocab.ws_tokens
+        self._tag_memo = self.vocab.tag_memo  # shared: the sets depend only on the vocabulary
 
     def clone(self) -> ToolConstraint:
         """A cheap copy for speculative lookahead (states are immutable; the memo is shared)."""
@@ -830,8 +869,7 @@ class JsonConstraint:
 
     def __post_init__(self) -> None:
         self.vocab = Vocab.for_tokenizer(self.tok)
-        self.acc = Acceptor(value_schema=self.schema if self.schema is not None else {})
-        self.masks = TokenMasks(self.acc, self.vocab)
+        self.acc, self.masks = _compiled_json(self.schema if self.schema is not None else {}, self.vocab)
         self.state: State | None = None  # None until the value starts (after the reasoning block)
         self.done = False
         self.in_think = False

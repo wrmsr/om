@@ -141,6 +141,50 @@ def test_qgemv_experts_kernel():
 
 
 @triton_modes('interpret', 'compiled')
+def test_dequantize_kernel():
+    """
+    The fused dequantization (a prefill's dense weights) against TorchQWeight.dequant's composition in float32, for
+    int8 and int4, N off the row block, K at each tile width: bitwise equal interpreted, within an ulp compiled (the
+    kernel's multiply-add is fused). In bf16 (compiled) it is one rounding from the float32 values where the
+    composition, computing in bf16, is three. And TorchOps.linear past the GEMV's row limit goes through it, whole and
+    in row chunks.
+    """
+
+    if _skip():
+        return
+
+    from ..backends.torch import TorchOps
+    from ..backends.torch_triton import dequantize
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    ops = TorchOps(device)
+    rng = np.random.default_rng(2)
+    for bits in (8, 4):
+        for n, k in ((100, 320), (48, 512), (33, 128)):  # K tiles of 64, 256 and 128
+            w = (rng.standard_normal((n, k)) * 0.05).astype(np.float32)
+            qw = ops.qweight(quantize_np(w, bits, 64), torch.float32)
+            ref = qw.dequant(torch.float32)
+            got = dequantize(qw.q, qw.scale, qw.bias, bits, 64, qw.shape, torch.float32)
+            if device == 'cuda':
+                assert ((got - ref).abs().max() / ref.abs().max()).item() < 1e-6, (bits, n, k)
+            else:
+                assert torch.equal(got, ref), (bits, n, k)
+
+            if device == 'cuda':
+                qb = ops.qweight(quantize_np(w, bits, 64), torch.bfloat16)
+                ref = qb.dequant(torch.float32)
+                got = dequantize(qb.q, qb.scale, qb.bias, bits, 64, qb.shape, torch.bfloat16)
+                e = ((got.float() - ref).abs().max() / ref.abs().max()).item()
+                assert e < 4e-3, (bits, n, k, e)  # bf16 keeps 8 bits
+
+                x = torch.from_numpy(rng.standard_normal((40, k)).astype(np.float32)).to(device)  # rows > the GEMV's
+                want = x @ qw.dequant(torch.float32).T
+                for out in (ops.linear(x, qw), ops._linear_dense(x, qw, chunk_rows=32)):  # noqa
+                    assert ((out - want).abs().max() / want.abs().max()).item() < 1e-5, (bits, n, k)
+    print('fused dequantize == composed dequant in f32; dense linear through it')
+
+
+@triton_modes('interpret', 'compiled')
 def test_gdn_step_kernel():
     """
     The fused DeltaNet step against the composed Ops.gdn_step reference: T in (1, 4), 3 value heads per key
@@ -223,7 +267,8 @@ def test_attn_decode_kernel():
     """
     The length-aware decode attention against the composed Ops.sdpa_static: GQA fold order, per-token causal masks for T
     = 1 and 4, several `pos` (including ones that leave most splits without a key block, and one where a query row has
-    no allowed key in a block), splits 1 / 4 / 32, and only the positions in use read.
+    no allowed key in a block), splits 1 / 4 / 32, and only the positions in use read. And more rows than one program
+    holds (32): T = 11 (33 rows: a second block of one row), 16 and 22 (three blocks) -- a long verify step.
     """
 
     if _skip():
@@ -249,6 +294,16 @@ def test_attn_decode_kernel():
                 out = attn_decode(q, kbuf, vbuf, pos, scale, splits=splits)
                 e = ((out - ref).abs().max() / ref.abs().max()).item()
                 assert e < 1e-4, (T, p, splits, e)
+    compiled = device == 'cuda'  # (the interpreter gets a share it can finish: every program runs in numpy)
+    for T in ((11, 16, 22) if compiled else (11, 22)):  # G * T = 33, 48, 66 rows
+        q = torch.randn(B, H, T, D, device=device)
+        for p in ((0, 5, 200, L - T) if compiled else (5, 200)):
+            pos = ops.scalar(p)
+            ref = ops.sdpa_static(q, kbuf, vbuf, pos, ar, scale)
+            for splits in ((4, 32) if compiled else (4,)):
+                out = attn_decode(q, kbuf, vbuf, pos, scale, splits=splits)
+                e = ((out - ref).abs().max() / ref.abs().max()).item()
+                assert e < 1e-4, (T, p, splits, e)
     # positions past pos + T - 1 are never read: poison them and nothing changes
     q = torch.randn(B, H, 4, D, device=device)
     pos = ops.scalar(100)
@@ -259,7 +314,7 @@ def test_attn_decode_kernel():
     vb2[:, :, 104:] = float('nan')
     out = attn_decode(q, kb2, vb2, pos, scale)
     assert torch.isfinite(out).all() and torch.equal(out, ref)
-    print('length-aware decode attention matches the composed reference (T=1/4, GQA, splits 1/4/32)')
+    print('length-aware decode attention matches the composed reference (T=1/4/11/16/22, GQA, splits 1/4/32)')
 
 
 @triton_modes('interpret', 'compiled')

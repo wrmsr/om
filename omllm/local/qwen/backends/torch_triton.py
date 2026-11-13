@@ -266,6 +266,7 @@ def _attn_decode_kernel(
         T,
         G,
         KV,
+        RB,
         BLOCK_M: tl.constexpr,
         BLOCK_N: tl.constexpr,
         D: tl.constexpr,
@@ -275,22 +276,25 @@ def _attn_decode_kernel(
         FP8: tl.constexpr,
 ):
     """
-    Decode attention over the static KV buffer that reads only the positions in use: the number of key blocks comes from
-    `pos` (a device scalar) at run time, so one fixed CUDA graph serves every sequence length and the work grows with
-    the sequence, not the capacity. One program per (batch, kv head, split): its rows are that kv head's G query heads x
-    T tokens (row g*T + t), it walks its share of the key blocks up to pos + T with an online softmax, and writes
-    partial (max, sum, acc); the wrapper merges the SPLITS partials (flash-decoding). Query row (g, t) may see keys <=
-    pos + t. With FP8 the buffers hold e4m3 codes and ks / vs the per-position scales: a key's score is the dot with its
-    codes times its scale, a value is its codes times its scale. SCALE is a constexpr rather than a runtime float: eager
-    Triton types a Python float argument as fp32 but torch.compile passes one as fp64, which changed the running max's
-    dtype mid-loop and failed compilation; a literal is fp32 wherever it meets fp32.
+    Decode attention over the static KV buffer that reads only the positions in use: the number of key blocks comes
+    from `pos` (a device scalar) at run time, so one fixed CUDA graph serves every sequence length and the work
+    grows with the sequence, not the capacity. One program per (batch, kv head, row block, split): a kv head's rows
+    are its G query heads x T tokens (row g*T + t), BLOCK_M to a program and RB programs' worth (one, for a decode
+    step and a short verify: Triton folds RB == 1 away); a program walks its share of the key blocks up to pos + T
+    with an online softmax and writes partial (max, sum, acc); the wrapper merges the SPLITS partials
+    (flash-decoding). Query row (g, t) may see keys <= pos + t. With FP8 the buffers hold e4m3 codes and ks / vs the
+    per-position scales: a key's score is the dot with its codes times its scale, a value is its codes times its
+    scale. SCALE is a constexpr rather than a runtime float: eager Triton types a Python float argument as fp32 but
+    torch.compile passes one as fp64, which changed the running max's dtype mid-loop and failed compilation; a
+    literal is fp32 wherever it meets fp32.
     """
 
     pid = tl.program_id(0)
     s = tl.program_id(1)
-    b = pid // KV
-    kvh = pid % KV
-    rm = tl.arange(0, BLOCK_M)
+    bk = pid // RB
+    b = bk // KV
+    kvh = bk % KV
+    rm = (pid % RB) * BLOCK_M + tl.arange(0, BLOCK_M)  # this program's rows of the kv head's G * T
     rd = tl.arange(0, D)
     g_of = rm // T
     t_of = rm % T
@@ -357,26 +361,27 @@ def attn_decode(
 ) -> torch.Tensor:
     """
     Ops.sdpa_static on the length-aware kernel: q [B, H, T, D] for positions pos..pos+T-1, kbuf / vbuf [B, KV, L, D]
-    (positions 0..pos+T-1 valid), pos a 0-d int device tensor -> [B, H, T, D] in q's dtype. G*T query rows must fit
-    BLOCK_M = 32 (24 heads / 4 = 6 per kv head, so T <= 5). The partials of the `splits` programs per head are merged
-    here with a few torch ops (graph-capturable). With ks / vs ([B, KV, L] float32 scales) the buffers are fp8 e4m3
-    codes.
+    (positions 0..pos+T-1 valid), pos a 0-d int device tensor -> [B, H, T, D] in q's dtype. A kv head's G*T query rows
+    go BLOCK_M = 32 to a program: one program for a decode step or a short verify (24 heads / 4 = 6 per kv head, so T
+    <= 5 on the 27B), more for a longer one -- each walks the keys again, so a long verify's attention costs its
+    row blocks' multiple of a short one's. The partials of the `splits` programs per head are merged here with a few
+    torch ops (graph-capturable). With ks / vs ([B, KV, L] float32 scales) the buffers are fp8 e4m3 codes.
     """
 
     B, H, T, D = q.shape
     KV = kbuf.shape[1]
     G = H // KV
     block_m = 32
-    if G * T > block_m:
-        raise ValueError(f'{G} query heads x {T} tokens exceed the {block_m} rows the decode attention kernel holds')
+    rb = triton.cdiv(G * T, block_m)
+    rows = rb * block_m
     if D & (D - 1):
         raise ValueError(f'head_dim {D} must be a power of two')
     q = q.contiguous()
     if kbuf.stride(-1) != 1 or vbuf.stride(-1) != 1:
         raise ValueError('KV buffers must be contiguous along head_dim')
-    m = torch.empty((B, KV, splits, block_m), dtype=torch.float32, device=q.device)
+    m = torch.empty((B, KV, splits, rows), dtype=torch.float32, device=q.device)
     l = torch.empty_like(m)
-    o = torch.empty((B, KV, splits, block_m, D), dtype=torch.float32, device=q.device)
+    o = torch.empty((B, KV, splits, rows, D), dtype=torch.float32, device=q.device)
     fp8 = ks is not None
     if fp8:
         ks = check.not_none(ks).contiguous()
@@ -386,7 +391,7 @@ def attn_decode(
     ensure_kernels()
 
     def launch(block_m_: int, block_n_: int, num_stages: int) -> None:
-        _attn_jit[(B * KV, splits)](
+        _attn_jit[(B * KV * rb, splits)](
             q,
             kbuf,
             vbuf,
@@ -414,6 +419,7 @@ def attn_decode(
             T,
             G,
             KV,
+            rb,
             BLOCK_M=block_m_,
             BLOCK_N=block_n_,
             D=D,
@@ -595,6 +601,7 @@ def attn_prefill(
 _qlinear_jit: ta.Any = None
 _fma_jit: ta.Any = None
 _experts_jit: ta.Any = None
+_dequant_jit: ta.Any = None
 _gdn_jit: ta.Any = None
 _attn_jit: ta.Any = None
 _attn_prefill_jit: ta.Any = None
@@ -608,7 +615,7 @@ def ensure_kernels() -> None:
     point.
     """
 
-    global _qlinear_jit, _fma_jit, _experts_jit, _gdn_jit, _attn_jit, _attn_prefill_jit
+    global _qlinear_jit, _fma_jit, _experts_jit, _dequant_jit, _gdn_jit, _attn_jit, _attn_prefill_jit
 
     if _qlinear_jit is not None:
         return
@@ -629,8 +636,9 @@ def ensure_kernels() -> None:
         _gdn_step_kernel,
         do_not_specialize_on_alignment=['sq_b', 'sv_b', 'sa_b', 'so_b', 'T'],
     )
-    _attn_jit = triton.jit(_attn_decode_kernel)
+    _attn_jit = triton.jit(_attn_decode_kernel, do_not_specialize_on_alignment=['T', 'RB'])
     _attn_prefill_jit = triton.jit(_attn_prefill_kernel, do_not_specialize=['stride_sh', 'T', 'past'])
+    _dequant_jit = triton.jit(_dequant_kernel, do_not_specialize_on_alignment=['N'])
     _qlinear_jit = triton.jit(  # last: it is the "built" flag
         _qlinear_kernel,
         do_not_specialize_on_alignment=['M'],
@@ -649,15 +657,17 @@ _ATTN_LADDER: dict[str, tuple[tuple[int, int, int], ...]] = {
 
 def kernel_variants(name: str) -> int:
     """
-    How many variants Triton has compiled of one of this module's kernels ('gemv', 'gemv_fma', 'gemv_experts', 'gdn',
-    'attn_decode', 'attn_prefill') in this process: what a test counts to see that prompt lengths do not multiply them
-    (see ensure_kernels). 0 before the kernel is first launched, and under the interpreter, which compiles nothing.
+    How many variants Triton has compiled of one of this module's kernels ('gemv', 'gemv_fma', 'gemv_experts',
+    'dequant', 'gdn', 'attn_decode', 'attn_prefill') in this process: what a test counts to see that prompt lengths
+    do not multiply them (see ensure_kernels). 0 before the kernel is first launched, and under the interpreter,
+    which compiles nothing.
     """
 
     jit = {
         'gemv': _qlinear_jit,
         'gemv_fma': _fma_jit,
         'gemv_experts': _experts_jit,
+        'dequant': _dequant_jit,
         'gdn': _gdn_jit,
         'attn_decode': _attn_jit,
         'attn_prefill': _attn_prefill_jit,
@@ -994,6 +1004,92 @@ def qgemv_experts(
         num_warps=4,
     )
     return y
+
+
+def _dequant_kernel(
+        q_ptr,
+        s_ptr,
+        b_ptr,
+        w_ptr,
+        N,
+        K,
+        BITS: tl.constexpr,
+        GROUP: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+):
+    """
+    A quantized weight written out dense, one pass: a program reads a [BLOCK_N, BLOCK_K] tile of codes with its
+    per-group scales and biases and stores `code * scale + bias`, computed in float32 as the GEMV kernels compute it,
+    in the output's dtype. What a prefill's matmul needs from a weight, without the half dozen passes and temporaries of
+    composing it from tensor ops.
+    """
+
+    rn = tl.program_id(0) * BLOCK_N + tl.arange(0, BLOCK_N)
+    k0 = tl.program_id(1) * BLOCK_K
+    n_mask = rn < N
+    n_groups = K // GROUP
+    G: tl.constexpr = BLOCK_K // GROUP
+    gcol = k0 // GROUP + tl.arange(0, G)
+    s = tl.load(s_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+    b = tl.load(b_ptr + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+    s = s.to(tl.float32)[:, :, None]
+    b = b.to(tl.float32)[:, :, None]
+    w_row = w_ptr + rn[:, None].to(tl.int64) * K
+    if BITS == 4:
+        KB: tl.constexpr = BLOCK_K // 2
+        GB: tl.constexpr = GROUP // 2
+        rb = tl.arange(0, KB)
+        q_off = rn[:, None].to(tl.int64) * (K // 2) + (k0 // 2 + rb)[None, :]
+        q = tl.load(q_ptr + q_off, mask=n_mask[:, None], other=0)
+        lo = tl.reshape(tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+        hi = tl.reshape(tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+        ke = (k0 + 2 * rb)[None, :]  # the low nibble is the even column
+        tl.store(w_row + ke, lo.to(w_ptr.dtype.element_ty), mask=n_mask[:, None])
+        tl.store(w_row + ke + 1, hi.to(w_ptr.dtype.element_ty), mask=n_mask[:, None])
+    else:
+        rk = (k0 + tl.arange(0, BLOCK_K))[None, :]
+        q = tl.load(q_ptr + rn[:, None].to(tl.int64) * K + rk, mask=n_mask[:, None], other=0)
+        w = tl.reshape(tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b, (BLOCK_N, BLOCK_K))
+        tl.store(w_row + rk, w.to(w_ptr.dtype.element_ty), mask=n_mask[:, None])
+
+
+def dequantize(
+        q: torch.Tensor,
+        scale: torch.Tensor,
+        bias: torch.Tensor,
+        bits: int,
+        group: int,
+        shape: tuple[int, int],
+        dtype: torch.dtype,
+        block_n: int = 16,
+) -> torch.Tensor:
+    """
+    The dense [N, K] weight of packed codes q with per-group scale / bias ([N, K / group]), in `dtype`: see
+    _dequant_kernel. K must be a multiple of the tile (256, 128 or 64 columns, whichever divides it) -- it is one of
+    the group, 64, for anything the quantizer made.
+    """
+
+    ensure_kernels()
+    n, k = shape
+    bk = next((c for c in (256, 128, 64) if k % c == 0 and c % group == 0), 0)
+    if not bk:
+        raise ValueError(f'dequantize needs K ({k}) a multiple of 64 and of the group ({group})')
+    w = torch.empty((n, k), dtype=dtype, device=q.device)
+    _dequant_jit[(triton.cdiv(n, block_n), k // bk)](
+        q,
+        scale,
+        bias,
+        w,
+        n,
+        k,
+        BITS=bits,
+        GROUP=group,
+        BLOCK_N=block_n,
+        BLOCK_K=bk,
+        num_warps=4,
+    )
+    return w
 
 
 def _block_k(k: int, cap: int = 128) -> int:

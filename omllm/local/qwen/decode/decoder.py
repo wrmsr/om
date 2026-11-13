@@ -85,7 +85,21 @@ class Decoder(TargetDecoder):
 
     MIN_BUCKET = 1024
 
-    def __init__(self, model: Qwen35, cache: Cache, capacity: int | None = None) -> None:
+    def __init__(
+            self,
+            model: Qwen35,
+            cache: Cache,
+            capacity: int | None = None,
+            *,
+            consume: bool = False,
+    ) -> None:
+        """
+        From a functional cache's state (a prefill's, a snapshot's), laid out in buffers of `capacity` positions.
+        `consume`: the cache is the caller's to give away -- each layer's state is released as soon as it is in its
+        buffer, so the exact-length KV and the buffers are never both held whole. At the full 262k window that is
+        8.6 GB of fp8 KV (17 at bf16) not held twice, which a 32 GB card cannot afford next to the 27B's weights.
+        """
+
         super().__init__()
 
         if model.ops.taps is not None:
@@ -98,12 +112,17 @@ class Decoder(TargetDecoder):
             self.capacity = _pow2_at_least(self.seq_len + 1)
         self._layouts = model.state_layouts()  # each layer's mixer says how its state is carried
         self.flat: list[Array] = []
-        for st, layout in zip(cache.layers, self._layouts):
+        for i, (st, layout) in enumerate(zip(cache.layers, self._layouts)):
             if st is None:
                 if cache.seq_len:
                     raise ValueError('cache has no state; run a prefill first')
                 st = layout.empty(self.ops, model.dtype)  # a decoder starting from nothing (see `prefill`)
-            self.flat.extend(layout.adapt(self.ops, st, model.dtype))
+            elif consume:
+                cache.layers[i] = None
+            # padded layer by layer, so with `consume` only one layer's state is ever held in both forms
+            st = layout.pad(self.ops, layout.adapt(self.ops, st, model.dtype), self.capacity)
+            self.flat.extend(st)
+            del st
         self._alloc(self.capacity, first=True)
 
     def _layers(self, flat: ta.Sequence[Array]) -> ta.Iterator[tuple[StateLayout, tuple[Array, ...]]]:

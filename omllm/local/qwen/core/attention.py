@@ -148,14 +148,11 @@ class Attention(Mixer):
         sin = ctx.sin
         bucket = ctx.bucket
 
-        T = x.shape[1]
-
         q, gate, k, v = self._heads(ops, x)
         q = ops.rope_with(q, cos, sin)
         k = ops.rope_with(k, cos, sin)
 
-        for i in range(T):
-            state = ops.kv_write_state(state, pos + i, k[:, :, i:i + 1], v[:, :, i:i + 1])
+        state = ops.kv_write_tokens(state, pos, k, v)
 
         if bucket and bucket < ops.kv_len(state):
             o = ops.sdpa_static_state(q, ops.kv_window(state, bucket), pos, ar[:bucket], self.scale)

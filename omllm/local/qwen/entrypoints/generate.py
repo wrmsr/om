@@ -139,8 +139,8 @@ def main() -> None:
         default=3,
         metavar='K',
         help=(
-            'prompt-lookup draft length (at least --spec\'s); more than the head\'s pays on copies, within the decode '
-            'attention kernel\'s limit: query heads per kv head x (K + 1) <= 32'
+            'prompt-lookup draft length (at least --spec\'s); more than the head\'s pays on copies (15 is 2.8x the '
+            'head alone on a file rewrite with the 27B), and compiles a verify step of its own; keep K + 1 <= 16'
         ),
     )
     ap.add_argument(

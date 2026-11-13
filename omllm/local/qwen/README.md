@@ -434,8 +434,9 @@ always uses the full head, so drafting from a subset can only lower acceptance, 
 
 `--lookup N --lookup-k K` drafts by prompt lookup first (`spec/lookup.py`): when the last N tokens occurred earlier
 in the context, the K tokens that followed them there are the draft (point masses, so the same rejection step
-applies), else the head drafts. On a file rewrite it is 5x plain decode on qwen3.5:4b (no MTP head, K = 7) and +22%
-over the head on the 27B with K = 4, one more than the head's; at the head's own K it loses (NEXT.md 1.1).
+applies), else the head drafts. On a file rewrite it is 5x plain decode on qwen3.5:4b (no MTP head, K = 7); on the
+27B, over the head, 235 tok/s at K = 4 and 523 at K = 15 against the head's own 189 (at the head's K it loses: NEXT.md
+1.1 has the table). K + 1 rows go through one verify step, compiled once per K.
 
 `Sampler` does temperature / top-k / top-p / min-p on the device, as `Ops` calls over the logits (top-k, then
 top-p/min-p among the candidates, then a Gumbel-max draw); presence and frequency penalties are a logit processor

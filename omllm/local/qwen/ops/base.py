@@ -654,6 +654,17 @@ class Ops(lang.Abstract):
 
         return (self.kv_write(state[0], pos, k), self.kv_write(state[1], pos, v))
 
+    def kv_write_tokens(self, state: tuple[Array, ...], pos: Array, k: Array, v: Array) -> tuple[Array, ...]:
+        """
+        The static-buffer write of a step's T consecutive positions, k and v [B, KV, T, D], starting at `pos`: what a
+        T-token step does with its new keys and values. Default: one position at a time (`kv_write_state`); a backend
+        with an indexed write does all T at once, which is T times fewer small ops in every verify step.
+        """
+
+        for i in range(k.shape[2]):
+            state = self.kv_write_state(state, pos + i, k[:, :, i:i + 1], v[:, :, i:i + 1])
+        return state
+
     def sdpa_state(self, q: Array, state: tuple[Array, ...], scale: float, past: int) -> Array:
         """Prefill attention of q [B, H, T, D] over a state holding past + T positions."""
 

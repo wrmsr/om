@@ -196,10 +196,9 @@ class IndexedAttention(Attention):
         k = ops.rope_with(k, ctx.cos, ctx.sin)
         iq, ik = self._index(ops, x, ctx.cos, ctx.sin)
 
-        kv = tuple(state[:-1])
+        kv = ops.kv_write_tokens(tuple(state[:-1]), ctx.pos, k, v)
         keys = state[-1]
         for i in range(T):
-            kv = ops.kv_write_state(kv, ctx.pos + i, k[:, :, i:i + 1], v[:, :, i:i + 1])
             keys = ops.kv_write(keys, ctx.pos + i, ik[:, :, i:i + 1])
 
         L = keys.shape[2]

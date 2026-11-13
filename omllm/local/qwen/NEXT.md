@@ -92,11 +92,28 @@ n=3 744, n=4 825, n=6 849 tok/s (6.72 tokens a round) -- 5x plain, for nothing.
 
 At the head's own draft length lookup loses to it (the head accepts 95% on a copy; a copied continuation is padded
 where it runs out and n-grams match in the wrong places). One draft longer, it wins: +22% over the head on the 27B
-with n = 6. Longer still is what the decode attention kernel stands in the way of (5.1 of UNTANGLING.md: `G * T <= 32`
-rows, so k <= 4 on the 27B, k <= 7 on the 4b): a row-block loop there, then k = 8-16 for long matches, is the next
-step. Also: longer n-grams did better on both models (fewer wrong matches); one task is not a policy, so the defaults
-stay n = 3 (the CLI makes you choose) and k = 3, which fits every model's kernel limit. The prompt is indexed in Python
-per generation (~50 ms per 100k tokens), which a prefix hit could carry over.
+with n = 6.
+
+**Longer drafts (2026-11-13).** The decode attention kernel held 32 query rows a kv head (k <= 4 on the 27B, k <= 7 on
+the 4b); it now takes row blocks, and a step writes all its positions' keys and values at once (the per-token writes
+were what made a 12-token step take minutes to compile). Same task on the 27B, n = 6 over the head, output identical
+throughout (a loaded machine: every row ~10% slow):
+
+| drafts                 | tok/s | tokens/round | ms/round | at a 30k-token context   |
+|------------------------|-------|--------------|----------|--------------------------|
+| MTP head, k=3          | 189   | 3.82         | 20.3     | 168 tok/s, 22.7 ms/round |
+| lookup k=4 over head   | 235   | 4.64         | 19.7     | 222 tok/s, 20.9 ms/round |
+| lookup k=7             | 333   | 6.93         | 20.8     |                          |
+| lookup k=11            | 433   | 9.86         | 22.8     |                          |
+| lookup k=15            | 523   | 12.56        | 24.0     | 474 tok/s, 26.4 ms/round |
+
+2.8x the head alone at k = 15, and the round grows slowly: each extra row block of attention re-reads the keys (the
++2.4 ms at 30k), and past 16 rows the GEMV would stream every weight twice, so k = 15 is the natural ceiling. Each
+k is a verify step (and a head refresh) of its own to compile, once. Longer n-grams did better on both models (fewer
+wrong matches); one task is not a policy, so the defaults stay n = 3 (the CLI makes you choose) and k = 3 -- `--lookup
+6 --lookup-k 15` is the setting to try on an agent's traffic. Still open: a policy for when to prefer the head (a
+15-draft round that misses early costs 24 ms where the head's costs 18), and the prompt is indexed in Python per
+generation (~50 ms per 100k tokens), which a prefix hit could carry over.
 
 ### 1.2 Checkpointed prefill: resume at chunk boundaries
 
@@ -141,6 +158,51 @@ Not a feature; listed so they happen. On the 27B: the KL cost of `--kv-dtype fp8
 (trie build, free-string mask walks) and the per-turn cost after memoisation; prefill and decode timings at 32k,
 100k and the full 262k; the int4-from-bf16 and `km` recipes against a bf16 reference scored on the Mac
 (the int8 reference is biased toward Ollama-derived candidates because it carries the blob's Q4_K rounding).
+
+**Status (2026-11-13): measured, all but the Mac-scored recipes.** The 27B at int4 on the 5090, compiled, with the
+machine's CPUs shared (host-side numbers ~10% slow).
+
+*The fp8 KV cache.* 4096 tokens of this repository's source, teacher-forced in chunks of 512, against the same
+weights with a bf16 KV (which isolates the KV format; the int8 reference would add the weights' difference):
+
+| compared with bf16 KV, chunks of 512        | KL mean | median  | p99     | top-1 agreement | perplexity     |
+|---------------------------------------------|---------|---------|---------|-----------------|----------------|
+| fp8 KV, same chunks                         | 1.31e-3 | 1.89e-4 | 1.11e-2 | 99.37%          | 2.644 -> 2.650 |
+| bf16 KV, chunks of 384 (the noise floor)    | 5.95e-4 | 5.59e-5 | 5.09e-3 | 99.46%          | 2.644 -> 2.645 |
+| fp8 KV, chunks of 384                       | 1.18e-3 | 1.86e-4 | 9.91e-3 | 99.02%          | 2.644 -> 2.649 |
+
+So about a thousandth of a nat, as expected, and half of that is what the same bf16 computation moves by when it is
+only chunked differently: fp8 costs ~0.7e-3 nats and 0.2% of perplexity over the floor, for half the KV memory.
+
+*The tool grammar on the 248k vocabulary.* Three tools, a 47-token call. The vocabulary trie and the acceptor are
+built once a process (1.8 s); the first call then costs 226 ms of masks (4.8 ms/token, the worst single mask 20 ms),
+and a later call with the same tools 1 ms (0.01 ms/token: every mask is memoised). `tool_choice=required` adds one
+161 ms mask the first time. JSON mode: 3.4 ms/token the first pass, 0.01 after. Before the mask fixes of this date
+the first call was 9.2 s and JSON mode 235 ms/token: a multi-alternative state and a key-string state each walked
+the whole vocabulary.
+
+*Long contexts* (fp8 KV, `--draft-vocab 65536`, the MTP head at k = 3):
+
+| context | prefill              | plain decode          | speculative               | peak     |
+|---------|----------------------|-----------------------|---------------------------|----------|
+| 512     | 8.6 ms/token (first) | 64.7 tok/s            | 152 tok/s, 18.6 ms/round  |          |
+| 32k     | 13.8 s, 2,379 tok/s  |                       |                           | 20.9 GiB |
+| 100k    | 52.8 s, 1,895 tok/s  | 50.8 tok/s, 19.7 ms   | 165 tok/s, 22.1 ms/round  | 23.0 GiB |
+| 262k    | 223 s, 1,175 tok/s   | 41.7 tok/s, 24.0 ms   | 144 tok/s, 26.4 ms/round  | 29.5 GiB |
+
+Decode slows 22% from an empty context to 100k and 36% to 262k (the attention kernel reads every key; 16 layers of
+64), prefill 20% from 32k to 100k and half by 262k (attention's share grows with the context it attends to).
+
+The 262k row needs a caveat: **the full window does not fit as the code stands by default.** It ran out of memory
+during prefill (24.7 GiB allocated, 5.1 GiB reserved by the allocator but unusable): the functional prefill grows
+each attention layer's KV by concatenation every 4096-token chunk, and a series of ever-larger buffers fragments
+torch's allocator. The row above was measured with two things changed at once -- the decoder now takes the prefill's
+state layer by layer instead of holding the exact-length KV and its capacity buffers together (`Decoder(consume=True)`,
+in the tree), and the process ran with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, which nothing here sets --
+so which of the two it needs is not separated. Next: prefill straight into capacity-sized KV buffers (what
+`kv_write_tokens` does for a decode step), which removes the growth, the fragmentation and ~270 GB of re-copying over
+a 262k prefill, and needs no allocator setting; then re-measure without one. At 29.5 GiB of 32 the speculative path
+has little room either way (the head's KV and 2.7 GB of prompt hidden states ride along).
 
 
 ## 2. Mid term (a week or two each)

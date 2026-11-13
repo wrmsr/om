@@ -10,6 +10,7 @@ import json
 import pathlib
 import random
 import tempfile
+import typing as ta
 
 from ..api import ManualGenerationRunner
 from ..arch.qwen35 import load_qwen35
@@ -170,6 +171,99 @@ def test_token_masks():
         obj = json.loads(body[:-len('\n</tool_call>')])
         _check_args(obj['name'], obj['arguments'])
     print(f'token masks: 150 random constrained walks all valid ({len(masks.memo)} memoised states)')
+
+
+def test_token_masks_equal_brute_force():
+    """
+    Every mask TokenMasks computes -- through its shortcuts for strings and free keys, and its union over a state's
+    alternatives -- is exactly the set of tokens the acceptor takes byte by byte, along random walks through tool
+    calls (declared and free keys together) and free-form and schema'd JSON values. And a free key's state forgets its
+    text once it cannot become a declared name, so key characters do not multiply states.
+    """
+
+    tok = _tokenizer()
+    vocab = Vocab.for_tokenizer(tok)
+
+    def survives(acc: Acceptor, st: ta.Any, bs: bytes) -> bool:
+        for c in bs:
+            st = acc.advance(st, c)
+            if not st:
+                return False
+        return True
+
+    schema = {
+        'type': 'object',
+        'properties': {'city': {'type': 'string'}, 'n': {'type': 'integer'}},
+        'required': ['city'],
+    }  # (extra keys allowed: a key is a declared name or a free one, both alive until they part)
+    rng = random.Random(1)
+    kinds: set[str] = set()
+    multi = 0
+    for acc in (Acceptor(TOOLS), Acceptor(value_schema={}), Acceptor(value_schema=schema)):
+        masks = TokenMasks(acc, vocab)
+        for _ in range(40):
+            st = acc.initial()
+            steps = 0
+            while not acc.is_complete(st) and steps < 60:
+                allowed = masks.allowed(st)
+                brute = {i for i in vocab_ids(vocab) if survives(acc, st, vocab.bytes[i])}
+                assert allowed == brute, (sorted(allowed ^ brute)[:5], st)
+                kinds |= {stack[-1][0] for stack in st if stack}
+                multi += len(st) > 1
+                if not allowed:
+                    break
+                tid = rng.choice(sorted(allowed))
+                for c in vocab.bytes[tid]:
+                    st = acc.advance(st, c)
+                steps += 1
+    assert 'keystr' in kinds and 'str' in kinds and multi, (kinds, multi)
+
+    # a free key's text: tracked while it can still become a declared name, forgotten after
+    acc = Acceptor(value_schema=schema)
+    st = acc.initial()
+    for c in b'{"ci':
+        st = acc.advance(st, c)
+    assert {stack[-1] for stack in st if stack[-1][0] == 'keystr'} == {('keystr', 'ci')}
+    for c in b'r':
+        st = acc.advance(st, c)
+    assert {stack[-1] for stack in st if stack[-1][0] == 'keystr'} == {('keystr', None)}
+    after = st
+    for c in b'cus':
+        st = acc.advance(st, c)
+    assert st == after  # more key characters: the same state
+
+    def value_ok(a: Acceptor, text: str) -> bool:  # (a JSON-mode value is done when it can end, not at a closing tag)
+        s = a.initial()
+        for c in text.encode():
+            s = a.advance(s, c)
+            if not s:
+                return False
+        return a.can_end(s)
+
+    assert value_ok(acc, '{"city": "x", "circus": 1}')
+    assert value_ok(acc, '{"city": "x", "cit": 1, "cityy": 2}')
+    assert not value_ok(acc, '{"city": "x", "city": "y"}')  # a declared name twice: not through the free branch
+    assert not value_ok(acc, '{"n": 1}')  # (required)
+    assert value_ok(Acceptor(value_schema={}), '{"any key at all": {"k": [1, "v"]}}')
+
+
+def vocab_ids(vocab: Vocab) -> ta.AbstractSet[int]:
+    """The token ids the grammar's trie holds (special tokens are not in it, save the ones a tool call needs)."""
+
+    got = getattr(vocab, '_test_ids', None)
+    if got is None:
+        ids: set[int] = set()
+
+        def walk(node: dict) -> None:
+            for b, child in node.items():
+                if b == -1:
+                    ids.add(child)
+                else:
+                    walk(child)
+
+        walk(vocab.root)
+        got = vocab._test_ids = frozenset(ids)  # type: ignore[attr-defined]  # noqa
+    return got
 
 
 def test_controller():

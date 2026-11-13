@@ -25,8 +25,10 @@ class LookupDraftSource(DraftSource):
     Drafts are point masses (decode/drafts.py point_drafts): the output distribution is unchanged. It always proposes
     `k` drafts, at least as many as the source it wraps would, padding a short continuation with its last token, so a
     lookup round has one verify shape. A `k` above the wrapped source's buys longer copied runs at the price of a
-    second verify shape (and, over the MTP head, a second refresh shape); the decode attention kernel bounds it (5.1 of
-    UNTANGLING.md: G * (k + 1) <= 32, so k <= 4 on the 27B, k <= 7 on qwen3.5:4b).
+    second verify shape (and, over the MTP head, a second refresh shape) to compile, and a slightly longer round: on
+    the 27B a file rewrite runs at 189 tok/s on the head alone (k = 3), 235 at k = 4, 333 at k = 7, 433 at k = 11 and
+    523 at k = 15, the round growing from 20 to 24 ms. k + 1 <= 16 keeps the GEMV to one pass over each weight (its
+    row tile), which is where the round would start to cost.
     """
 
     def __init__(
