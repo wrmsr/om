@@ -29,13 +29,13 @@ def test_static_cycle_path(interpreted):
 
     error = ei.value
     assert error.key == a
-    assert error.chain == (a, b, c, a)
+    assert list(error.chain or []) == [a, b, c, a]
     assert error.wait_chain is None
-    assert '\n  -> '.join(map(repr, error.chain)) in str(error)
+    assert '\n  -> '.join(map(repr, error.chain or [])) in str(error)
 
     with pytest.raises(inj.CyclicDependencyError) as ei:
         compile_provision_plan(elements, a)
-    assert ei.value.chain == (a, b, c, a)
+    assert list(ei.value.chain or []) == [a, b, c, a]
 
 
 @pytest.mark.parametrize('interpreted', [False, True])
@@ -50,7 +50,7 @@ def test_reentrant_self_cycle_path(interpreted, scoped):
     )
     with pytest.raises(inj.CyclicDependencyError) as ei:
         injector[int]
-    assert ei.value.chain == (inj.as_key(int), inj.as_key(int))
+    assert list(ei.value.chain or []) == [inj.as_key(int), inj.as_key(int)]
 
 
 @pytest.mark.parametrize('interpreted', [False, True])
@@ -90,9 +90,9 @@ def test_export_provider_cycle_path(interpreted, delimited):
     with pytest.raises(inj.CyclicDependencyError) as ei:
         lang.sync_await(run())
     error = ei.value
-    assert error.chain == (agent, exports, quit_signal, app, renderer, paths, agent)
+    assert list(error.chain or []) == [agent, exports, quit_signal, app, renderer, paths, agent]
     if not interpreted:
-        assert error.wait_chain == (agent,)
+        assert list(error.wait_chain or []) == [agent]
         assert 'Waiting for own in-progress provision:' in str(error)
 
 
@@ -103,7 +103,7 @@ def test_cross_injector_cycle_path():
 
     with pytest.raises(inj.CyclicDependencyError) as ei:
         inj.create_injector(inj.bind(outer))[int]
-    assert ei.value.chain == tuple(map(inj.as_key, (int, str, int)))
+    assert list(ei.value.chain or []) == list(map(inj.as_key, [int, str, int]))
 
 
 def test_cycle_message_without_path():
@@ -139,8 +139,8 @@ def test_unbound_dependency_path(interpreted, scope, entrypoint):
 
     error = ei.value
     assert error.key == missing
-    assert error.chain == (inj.as_key(tuple), inj.as_key(str), missing)
-    assert '\n  -> '.join(map(repr, error.chain)) in str(error)
+    assert list(error.chain or []) == [inj.as_key(tuple), inj.as_key(str), missing]
+    assert '\n  -> '.join(map(repr, error.chain or [])) in str(error)
 
 
 @pytest.mark.parametrize('use_async', [False, True])
@@ -157,7 +157,7 @@ def test_unbound_root_path(use_async):
             injector[int]
 
     assert ei.value.key == inj.as_key(int)
-    assert ei.value.chain == (inj.as_key(int),)
+    assert list(ei.value.chain or []) == [inj.as_key(int)]
 
 
 @pytest.mark.parametrize('interpreted', [False, True])
@@ -175,7 +175,7 @@ def test_unbound_async_provider_path(interpreted):
 
     with pytest.raises(inj.UnboundKeyError) as ei:
         lang.sync_await(run())
-    assert ei.value.chain == tuple(map(inj.as_key, (tuple, str, float)))
+    assert list(ei.value.chain or []) == list(map(inj.as_key, [tuple, str, float]))
 
 
 @pytest.mark.parametrize('interpreted', [False, True])
@@ -192,7 +192,7 @@ def test_unbound_optional_dependency_path(interpreted):
     with pytest.raises(inj.UnboundKeyError) as ei:
         child[tuple]
     # str appears once for the child lookup and once for its provision in the parent.
-    assert ei.value.chain == tuple(map(inj.as_key, (tuple, str, str, float)))
+    assert list(ei.value.chain or []) == list(map(inj.as_key, [tuple, str, str, float]))
 
 
 @pytest.mark.parametrize('interpreted', [False, True])
@@ -207,7 +207,7 @@ def test_unbound_inject_path(interpreted):
     with pytest.raises(inj.UnboundKeyError) as ei:
         injector.inject(make)
     # An injected callable need not have a binding; only its provisioned arguments have keys.
-    assert ei.value.chain == tuple(map(inj.as_key, (str, float)))
+    assert list(ei.value.chain or []) == list(map(inj.as_key, [str, float]))
 
 
 def test_unbound_cross_injector_path():
@@ -216,13 +216,13 @@ def test_unbound_cross_injector_path():
 
     with pytest.raises(inj.UnboundKeyError) as ei:
         inj.create_injector(inj.bind(make))[int]
-    assert ei.value.chain == tuple(map(inj.as_key, (int, str, float)))
+    assert list(ei.value.chain or []) == list(map(inj.as_key, [int, str, float]))
 
 
 def test_unbound_eager_key_path():
     with pytest.raises(inj.UnboundKeyError) as ei:
         inj.create_injector(inj.Eager(inj.as_key(int)))
-    assert ei.value.chain == (inj.as_key(int),)
+    assert list(ei.value.chain or []) == [inj.as_key(int)]
 
 
 def test_unbound_message_without_path():

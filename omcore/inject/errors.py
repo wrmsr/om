@@ -2,6 +2,7 @@ import typing as ta
 
 from .. import dataclasses as dc
 from .keys import Key
+from .keys import KeyList
 from .types import Scope
 
 
@@ -18,7 +19,7 @@ class BaseKeyError(Exception):
 
 @dc.dataclass()
 class UnboundKeyError(BaseKeyError):
-    chain: ta.Sequence[Key] | None = None
+    chain: KeyList | None = None
 
     def __str__(self) -> str:
         parts = [f'Unbound key: {self.key!r}']
@@ -40,10 +41,10 @@ class DuplicateMapKeyError(BaseKeyError):
 @dc.dataclass()
 class CyclicDependencyError(BaseKeyError):
     # The provision (or compilation) path, from the requested root to the repeated key.
-    chain: ta.Sequence[Key] | None = None
+    chain: KeyList | None = None
 
     # Wait-graph edges are distinct from the local provision path: each may hide many provider calls.
-    wait_chain: ta.Sequence[Key] | None = None
+    wait_chain: KeyList | None = None
 
     def __str__(self) -> str:
         parts = [f'Cyclic dependency: {self.key!r}']

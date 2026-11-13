@@ -137,6 +137,8 @@ with _lang.auto_proxy_init(
         Key,
 
         as_key,
+
+        KeyList,
     )
 
     from .listeners import (  # noqa

@@ -9,6 +9,7 @@ from ...asyncs.asynclite import all as asl
 from ..errors import CyclicDependencyError
 from ..injector import AsyncInjector
 from ..keys import Key
+from ..keys import KeyList
 from .bindings import BindingImpl
 from .concurrency import ConcurrencyIdentity
 
@@ -55,13 +56,13 @@ class _ProvisionWaitRegistry(lang.Final):
         cur = target_owner
         while True:
             if cur == owner:
-                raise CyclicDependencyError(key, wait_chain=tuple(chain))
+                raise CyclicDependencyError(key, wait_chain=KeyList(chain))
             if cur in seen:
                 return
             seen.add(cur)
             # A done promise's wait is already unwinding - treating it as absent keeps the walk conservative against
             # false positives from stale edges.
-            if (w := self._waits.get(cur)) is None or w.promise.is_done():
+            if (w := self._waits.get(cur)) is None or w.promise.is_done():  # noqa
                 return
             chain.append(w.key)
             cur = w.target_owner
