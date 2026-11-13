@@ -9,6 +9,16 @@ from .types import Scope
 ##
 
 
+def _key_chain_repr(kl: ta.Sequence[Key]) -> str:
+    return '\n'.join([
+        f'  {k!r}{" ->" if i < len(kl) - 1 else ""}'
+        for i, k in enumerate(kl)
+    ])
+
+
+##
+
+
 @dc.dataclass()
 class BaseKeyError(Exception):
     key: Key
@@ -24,7 +34,7 @@ class UnboundKeyError(BaseKeyError):
     def __str__(self) -> str:
         parts = [f'Unbound key: {self.key!r}']
         if self.chain:
-            parts.append('Provision path:\n  ' + '\n  -> '.join(repr(k) for k in self.chain))
+            parts.append(f'Provision path:\n{_key_chain_repr(self.chain)}')
         return '\n'.join(parts)
 
 
@@ -49,14 +59,12 @@ class CyclicDependencyError(BaseKeyError):
     def __str__(self) -> str:
         parts = [f'Cyclic dependency: {self.key!r}']
         if self.chain:
-            parts.append('Provision path:\n  ' + '\n  -> '.join(repr(k) for k in self.chain))
+            parts.append(f'Provision path:\n{_key_chain_repr(self.chain)}')
         if self.wait_chain:
             if len(self.wait_chain) == 1:
                 parts.append(f'Waiting for own in-progress provision: {self.wait_chain[0]!r}')
             else:
-                parts.append('Provision wait cycle:\n  ' + '\n  -> '.join(
-                    repr(k) for k in (*self.wait_chain, self.wait_chain[0])
-                ))
+                parts.append(f'Provision wait cycle:\n{_key_chain_repr([*self.wait_chain, self.wait_chain[0]])}')
         return '\n'.join(parts)
 
 

@@ -2033,6 +2033,7 @@ class ResourceType(_base.Enum):
     ELASTIC_GPU = 'elastic-gpu'
     EXPORT_IMAGE_TASK = 'export-image-task'
     EXPORT_INSTANCE_TASK = 'export-instance-task'
+    FCA_POLICY = 'fca-policy'
     FLEET = 'fleet'
     FPGA_IMAGE = 'fpga-image'
     HOST_RESERVATION = 'host-reservation'

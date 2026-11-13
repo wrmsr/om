@@ -1,3 +1,4 @@
+import collections
 import typing as ta
 
 from omcore import lang
@@ -21,17 +22,18 @@ class EventBus(ta.Generic[E]):
     ) -> None:
         super().__init__()
 
-        self._subscribers: list[EventSubscriber[E]] = []
+        self._subscribers: collections.OrderedDict[int, EventSubscriber[E]] = collections.OrderedDict()
 
         for subs in initial_subscribers or []:
             self.subscribe(subs)
 
     def subscribe(self, subscriber: EventSubscriber[E]) -> None:
-        self._subscribers.append(subscriber)
+        if (sid := id(subscriber)) not in self._subscribers:
+            self._subscribers[sid] = subscriber
 
     async def publish(self, *events: E) -> None:
         for e in events:
-            for subs in self._subscribers:
+            for subs in list(self._subscribers.values()):
                 if (aw := subs(e)) is not None:
                     await aw
 

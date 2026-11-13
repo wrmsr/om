@@ -31,7 +31,7 @@ def test_static_cycle_path(interpreted):
     assert error.key == a
     assert list(error.chain or []) == [a, b, c, a]
     assert error.wait_chain is None
-    assert '\n  -> '.join(map(repr, error.chain or [])) in str(error)
+    assert '\n'.join([f'  {a!r} ->', f'  {b!r} ->', f'  {c!r} ->', f'  {a!r}']) in str(error)
 
     with pytest.raises(inj.CyclicDependencyError) as ei:
         compile_provision_plan(elements, a)
@@ -139,8 +139,8 @@ def test_unbound_dependency_path(interpreted, scope, entrypoint):
 
     error = ei.value
     assert error.key == missing
-    assert list(error.chain or []) == [inj.as_key(tuple), inj.as_key(str), missing]
-    assert '\n  -> '.join(map(repr, error.chain or [])) in str(error)
+    assert list(error.chain or []) == [k1 := inj.as_key(tuple), k2 := inj.as_key(str), missing]
+    assert '\n'.join([f'  {k1!r} ->', f'  {k2!r} ->', f'  {missing!r}']) in str(ei.value)
 
 
 @pytest.mark.parametrize('use_async', [False, True])

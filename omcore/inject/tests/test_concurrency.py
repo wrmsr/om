@@ -504,7 +504,7 @@ def test_wait_registry_walk():
         reg._detect(o2, k1, o1)
     assert list(ei.value.wait_chain or []) == [k1, k2]
     assert 'Provision wait cycle:' in str(ei.value)
-    assert '\n  -> '.join(map(repr, (k1, k2, k1))) in str(ei.value)
+    assert '\n'.join([f'  {k1!r} ->', f'  {k2!r} ->', f'  {k1!r}']) in str(ei.value)
 
     # A done promise's edge is treated as absent - the wait is already unwinding.
     p2.set_value(None)

@@ -1,10 +1,12 @@
 from omcore import dataclasses as dc
+from omcore import lang
 
 from ... import agent as agn
 from ... import llm
 from ...core import processes as procs
 from ..types import InitialLlmOptions
 from ..types import RequestedCwd
+from .events import AgentEventSubscribers
 
 
 ##
@@ -17,6 +19,7 @@ class AgentSetup:
             self,
             *,
             agent: agn.Agent,
+            agent_event_subscribers: AgentEventSubscribers | None = None,
             backends: agn.BackendManager,
             tools: agn.ToolSet,
             environment_info: agn.EnvironmentInfoGetter,
@@ -30,6 +33,7 @@ class AgentSetup:
         super().__init__()
 
         self._agent = agent
+        self._agent_event_subscribers = agent_event_subscribers
         self._backends = backends
         self._tools = tools
         self._environment_info = environment_info
@@ -38,7 +42,14 @@ class AgentSetup:
         self._process_scope = process_scope
         self._initial_llm_options = initial_llm_options
 
+    @lang.cached_function
+    def pre_setup(self) -> None:
+        for el in self._agent_event_subscribers or []:
+            self._agent.subscribe(el)
+
     async def run(self) -> None:
+        self.pre_setup()
+
         async def update(state: agn.State) -> agn.State:
             info = await self._environment_info()
 

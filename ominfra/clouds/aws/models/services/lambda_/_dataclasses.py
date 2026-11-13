@@ -836,7 +836,7 @@ def _process_dataclass__c6929bebcb32b7957b1742323ad923267c929006():
 
 
 @_register(
-    installer_sha1='f72e5d0c5c815ef56bf8406d1136b49208d95d0e',
+    installer_sha1='67ef056acbd068a1ddfa9231ddb688640ba7b1f5',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -883,15 +883,16 @@ def _process_dataclass__c6929bebcb32b7957b1742323ad923267c929006():
             "ne), 'instance', 'value', None, False, False, False), (('capacity_provider_config', True, True, None, True"
             ", True, False, None), 'instance', 'value', None, False, False, False), (('config_sha256', True, True, None"
             ", True, True, False, None), 'instance', 'value', None, False, False, False), (('durable_config', True, Tru"
-            "e, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((Fals"
-            "e,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "e, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('runtime_config', Tr"
+            "ue, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()),"
+            " ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.lambda_', 'FunctionConfiguration'),
     ),
 )
-def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
+def _process_dataclass__67ef056acbd068a1ddfa9231ddb688640ba7b1f5():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -979,6 +980,8 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
         __dataclass__init__fields__39__default = __dataclass__spec.fields[39].default.must()
         __dataclass__init__fields__40__annotation = __dataclass__spec.fields[40].annotation
         __dataclass__init__fields__40__default = __dataclass__spec.fields[40].default.must()
+        __dataclass__init__fields__41__annotation = __dataclass__spec.fields[41].annotation
+        __dataclass__init__fields__41__default = __dataclass__spec.fields[41].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -1029,6 +1032,7 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
                 capacity_provider_config=self.capacity_provider_config,
                 config_sha256=self.config_sha256,
                 durable_config=self.durable_config,
+                runtime_config=self.runtime_config,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1078,7 +1082,8 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
                 self.tenancy_config == other.tenancy_config and
                 self.capacity_provider_config == other.capacity_provider_config and
                 self.config_sha256 == other.config_sha256 and
-                self.durable_config == other.durable_config
+                self.durable_config == other.durable_config and
+                self.runtime_config == other.runtime_config
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -1125,6 +1130,7 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
             'capacity_provider_config',
             'config_sha256',
             'durable_config',
+            'runtime_config',
         }
 
         def __setattr__(self, name, value):
@@ -1189,6 +1195,7 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
                 self.capacity_provider_config,
                 self.config_sha256,
                 self.durable_config,
+                self.runtime_config,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -1236,6 +1243,7 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
             capacity_provider_config: __dataclass__init__fields__38__annotation = __dataclass__init__fields__38__default,
             config_sha256: __dataclass__init__fields__39__annotation = __dataclass__init__fields__39__default,
             durable_config: __dataclass__init__fields__40__annotation = __dataclass__init__fields__40__default,
+            runtime_config: __dataclass__init__fields__41__annotation = __dataclass__init__fields__41__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'function_name', function_name)
             __dataclass__object_setattr(self, 'function_arn', function_arn)
@@ -1277,6 +1285,7 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
             __dataclass__object_setattr(self, 'capacity_provider_config', capacity_provider_config)
             __dataclass__object_setattr(self, 'config_sha256', config_sha256)
             __dataclass__object_setattr(self, 'durable_config', durable_config)
+            __dataclass__object_setattr(self, 'runtime_config', runtime_config)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1323,6 +1332,122 @@ def _process_dataclass__f72e5d0c5c815ef56bf8406d1136b49208d95d0e():
             parts.append(f"capacity_provider_config={self.capacity_provider_config!r}")
             parts.append(f"config_sha256={self.config_sha256!r}")
             parts.append(f"durable_config={self.durable_config!r}")
+            parts.append(f"runtime_config={self.runtime_config!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='8d3d64da37f36fb45b67e5f24bc9c124cfe28f48',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('runtime_arn', True, True, None, True, True, False, None), 'instance', 'm"
+            "issing', None, False, False, False), (('runtime_alias', True, True, None, True, True, False, None), 'insta"
+            "nce', 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, Fa"
+            "lse, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.lambda_', 'FunctionRuntimeConfig'),
+    ),
+)
+def _process_dataclass__8d3d64da37f36fb45b67e5f24bc9c124cfe28f48():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                runtime_arn=self.runtime_arn,
+                runtime_alias=self.runtime_alias,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.runtime_arn == other.runtime_arn and
+                self.runtime_alias == other.runtime_alias
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'runtime_arn',
+            'runtime_alias',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.runtime_arn,
+                self.runtime_alias,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            runtime_arn: __dataclass__init__fields__1__annotation,
+            runtime_alias: __dataclass__init__fields__2__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'runtime_arn', runtime_arn)
+            __dataclass__object_setattr(self, 'runtime_alias', runtime_alias)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"runtime_arn={self.runtime_arn!r}")
+            parts.append(f"runtime_alias={self.runtime_alias!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

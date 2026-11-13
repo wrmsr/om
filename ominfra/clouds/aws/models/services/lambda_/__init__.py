@@ -59,6 +59,10 @@ FileSystemArn = _ta.NewType('FileSystemArn', str)
 
 FunctionArn = _ta.NewType('FunctionArn', str)
 
+FunctionRuntimeAlias = _ta.NewType('FunctionRuntimeAlias', str)
+
+FunctionRuntimeArn = _ta.NewType('FunctionRuntimeArn', str)
+
 
 class FunctionVersion(_base.Enum):
     ALL = 'ALL'
@@ -208,6 +212,7 @@ class Runtime(_base.Enum):
     JAVA8_AL2023 = 'java8.al2023'
     JAVA11_AL2023 = 'java11.al2023'
     JAVA17_AL2023 = 'java17.al2023'
+    CUSTOM = 'custom'
 
 
 RuntimeVersionArn = _ta.NewType('RuntimeVersionArn', str)
@@ -384,6 +389,22 @@ class EphemeralStorage(
     size: EphemeralStorageSize = _dc.field(metadata=_base.field_metadata(
         member_name='Size',
         shape_name='EphemeralStorageSize',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
+class FunctionRuntimeConfig(
+    _base.Shape,
+    shape_name='FunctionRuntimeConfig',
+):
+    runtime_arn: FunctionRuntimeArn = _dc.field(metadata=_base.field_metadata(
+        member_name='RuntimeArn',
+        shape_name='FunctionRuntimeArn',
+    ))
+
+    runtime_alias: FunctionRuntimeAlias = _dc.field(metadata=_base.field_metadata(
+        member_name='RuntimeAlias',
+        shape_name='FunctionRuntimeAlias',
     ))
 
 
@@ -989,6 +1010,11 @@ class FunctionConfiguration(
         shape_name='DurableConfig',
     ))
 
+    runtime_config: FunctionRuntimeConfig | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='RuntimeConfig',
+        shape_name='FunctionRuntimeConfig',
+    ))
+
 
 FunctionList: _ta.TypeAlias = _ta.Sequence[FunctionConfiguration]
 
@@ -1019,6 +1045,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     EphemeralStorage,
     FileSystemConfig,
     FunctionConfiguration,
+    FunctionRuntimeConfig,
     ImageConfig,
     ImageConfigError,
     ImageConfigResponse,

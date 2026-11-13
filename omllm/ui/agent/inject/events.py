@@ -6,12 +6,10 @@ from omcore import lang
 from .... import agent as agn
 from ....core.eventbus import EventSubscriber
 from ..config import AgentConfig
+from ..events import AgentEventSubscribers
 
 
 ##
-
-
-AgentEventSubscribers = ta.NewType('AgentEventSubscribers', ta.Sequence[EventSubscriber[agn.Event]])
 
 
 @lang.cached_function

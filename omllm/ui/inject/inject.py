@@ -11,7 +11,9 @@ from omcore import inject as inj
 
 from ... import agent as agn
 from ...core import ui
+from ..agent.inject.events import agent_event_subscribers
 from ..agent.inject.inject import bind_agent
+from ..agent.setup import AgentSetup
 from ..backends.inject import bind_backends
 from ..commands.inject import bind_commands
 from ..commands.manager import CommandsManager
@@ -57,6 +59,8 @@ async def _provide_agent_injector(
                 bind_backends(config),
                 bind_commands(config),
 
+                bind_runtime(config),
+
                 inj.bind(_AppInjector(app_injector)),
 
                 _bind_injector_import(_AppInjector, ui.QuitSignal),
@@ -89,7 +93,11 @@ def bind_ui(config: UiConfig) -> inj.Elements:
             _bind_injector_import(_AgentInjector, agn.Agent),
             _bind_injector_import(_AgentInjector, agn.Session),
 
+            _bind_injector_import(_AgentInjector, AgentSetup),
+
             _bind_injector_import(_AgentInjector, CommandsManager),
+
+            agent_event_subscribers().bind_items_provider(singleton=True),
         ])
 
     else:

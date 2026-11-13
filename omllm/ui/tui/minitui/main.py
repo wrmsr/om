@@ -79,10 +79,15 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         await asyncio.sleep(0)
 
         try:
+            setup = await injector[AgentSetup]
+            setup.pre_setup()
+
             for el in await injector[AgentEventSubscribers]:
                 agent.subscribe(el)
 
-            await (await injector[AgentSetup]).run()
+            await setup.run()
+
+            #
 
             cwd = check.non_empty_str(get_agent_cwd(agent))
 
