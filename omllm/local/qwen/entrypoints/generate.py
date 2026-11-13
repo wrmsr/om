@@ -13,6 +13,8 @@ import argparse
 import sys
 import time
 
+from omcore.logs import all as logs
+
 from ..api import ManualGenerationRunner
 from ..backends import BACKENDS
 from ..decode.runners import GenerationParams
@@ -39,6 +41,8 @@ DTYPES = (
 
 
 def main() -> None:
+    logs.configure_standard_logging('INFO')
+
     ap = argparse.ArgumentParser()
     ap.add_argument(
         '--model',

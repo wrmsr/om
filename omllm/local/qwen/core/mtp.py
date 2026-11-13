@@ -10,6 +10,7 @@ from ..ops.base import Weight
 from .block import Block
 from .cache import FullState
 from .config import Qwen35Config
+from .mixing import ResidualStream
 from .mixing import StepContext
 
 
@@ -35,8 +36,8 @@ class MtpHead:
 
     and can recurse, feeding its own normed output `d` back in as the next hidden. All norm weights are stored with the
     +1 already applied, like the text model's. The block runs through `Block.step` on its own KV buffers (positions
-    are the hidden's position). It shares the target's embedding and output head, and its block is built by the
-    architecture like the target's.
+    are the hidden's position). It shares the target's embedding and output head; its block and its residual stream
+    (whose exit is the final `norm`) are built by the architecture like the target's.
     """
 
     def __init__(
@@ -50,7 +51,7 @@ class MtpHead:
             fc: Weight,
             enorm: Weight,
             hnorm: Weight,
-            norm: Weight,
+            residual: ResidualStream,
             block: Block,
     ) -> None:
         super().__init__()
@@ -63,7 +64,7 @@ class MtpHead:
         self.fc = fc
         self.enorm = enorm
         self.hnorm = hnorm
-        self.norm_w = norm
+        self.residual = residual
         self.block = block
         self._steps: dict[tuple[int, int, int], ta.Callable[..., tuple[Array, ...]]] = {}
         self._heads: dict[int, Weight] = {}
@@ -74,22 +75,20 @@ class MtpHead:
         h = ops.rms_norm(ops.cast(hidden, self.dtype), self.hnorm, c.rms_eps)
         return ops.linear(ops.concat([e, h], -1), self.fc)
 
-    def head(self, ops: Ops, u: Array, draft_vocab: int = 0) -> tuple[Array, Array]:
+    def head(self, ops: Ops, d: Array, draft_vocab: int = 0) -> Array:
         """
-        Final norm + output head. draft_vocab > 0 restricts the head to the first that many vocabulary ids: Qwen's BPE
-        ids are roughly in merge-frequency order, so the first 32-64k cover almost every token the target will pick
-        while costing a fraction of the 248k-row matmul (ninfer's `--lm-head-draft`).
+        The output head over the final-normed `d`. draft_vocab > 0 restricts it to the first that many vocabulary ids:
+        Qwen's BPE ids are roughly in merge-frequency order, so the first 32-64k cover almost every token the target
+        will pick while costing a fraction of the 248k-row matmul (ninfer's `--lm-head-draft`).
         """
 
-        c = self.cfg
-        d = ops.rms_norm(u, self.norm_w, c.rms_eps)
         head = self.lm_head
         if draft_vocab:
             key = draft_vocab
             head = self._heads.get(key)
             if head is None:
                 head = self._heads[key] = ops.head_rows(self.lm_head, draft_vocab)
-        return ops.f32(ops.linear(d, head)), d
+        return ops.f32(ops.linear(d, head))
 
     def prefill(
             self,
@@ -114,16 +113,15 @@ class MtpHead:
         toks = np.asarray(toks, dtype=np.int32)
         T = toks.shape[1]
 
-        us: list[Array] = []
+        ds: list[Array] = []
         for s in range(0, T, max(1, chunk)):
             u = self.stem(ops, ops.array(toks[:, s:s + chunk]), hidden[:, s:s + chunk])
-            r, state = self.block(ops, self.block.residual.enter(ops, u), pos + s, state)
-            u = self.block.residual.exit(ops, r)
-            us.append(u[:, -1:] if last_only else u)
+            r, state = self.block(ops, self.residual.enter(ops, u), pos + s, state)
+            d = self.residual.exit(ops, r)
+            ds.append(d[:, -1:] if last_only else d)
 
-        u = us[-1] if (last_only or len(us) == 1) else ops.concat(us, 1)
-        logits, d = self.head(ops, u, draft_vocab)
-        return logits, d, check.not_none(state)
+        d = ds[-1] if (last_only or len(ds) == 1) else ops.concat(ds, 1)
+        return self.head(ops, d, draft_vocab), d, check.not_none(state)
 
     def step_fn(self, T: int, draft_vocab: int = 0, bucket: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
         """
@@ -148,11 +146,10 @@ class MtpHead:
             ):
                 rows = ops.reshape(pos, (1,)) + ar[:T]
                 u = self.stem(ops, toks, hidden)
-                ctx = StepContext(pos, ar, cos_tab[rows], sin_tab[rows], False, bucket)
-                r, kv = self.block.step(ops, self.block.residual.enter(ops, u), ctx, tuple(kv))
-                u = self.block.residual.exit(ops, r)
-                logits, d = self.head(ops, u, draft_vocab)
-                return (logits, d, *kv)
+                ctx = StepContext(pos, ar, cos_tab[rows], sin_tab[rows], False, bucket, cos_tab, sin_tab, toks)
+                r, kv = self.block.step(ops, self.residual.enter(ops, u), ctx, tuple(kv))
+                d = self.residual.exit(ops, r)
+                return (self.head(ops, d, draft_vocab), d, *kv)
 
             fn = self._steps[key] = ops.compile_fn(raw)
 

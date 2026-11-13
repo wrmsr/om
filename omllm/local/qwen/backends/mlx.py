@@ -38,6 +38,7 @@ def dtypes() -> dict[str, ta.Any]:
         'f16': mx.float16,
         'bf16': mx.bfloat16,
         'i32': mx.int32,
+        'i64': mx.int64,
     }
 
 
@@ -287,6 +288,8 @@ class MlxOps(Ops):
     # fused overrides
 
     def rms_norm(self, x, w, eps):
+        if w.ndim > 1:  # a weight per group (see Ops.rms_norm): mx.fast.rms_norm takes one for the last dim only
+            return super().rms_norm(x, w, eps)
         return mx.fast.rms_norm(x.astype(mx.float32), w.astype(mx.float32), eps).astype(x.dtype)
 
     def rope(self, x, offset, dims, theta):

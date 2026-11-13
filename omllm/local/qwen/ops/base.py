@@ -46,6 +46,7 @@ DTYPE_NAMES = (
     'f16',
     'bf16',
     'i32',
+    'i64',
 )
 
 
@@ -290,6 +291,24 @@ class Ops(lang.Abstract):
     def linear(self, x: Array, w: Weight) -> Array:
         """x @ w.T for a dense or quantized weight."""
 
+    def expert_weights(self, parts: ta.Sequence[ta.Sequence[Weight]]) -> Weight:
+        """
+        Per-expert weights stacked into one for `expert_linear`: expert e's weight is parts[e] concatenated along the
+        output rows (gate then up, say). Default: a dense [E, N, K] array (a backend stacks its quantized weights).
+        """
+
+        return self.stack([self.concat(list(p), 0) if len(p) > 1 else p[0] for p in parts], 0)
+
+    def expert_linear(self, x: Array, w: Weight, eids: Array, x_div: int = 1) -> Array:
+        """
+        [R, N]: row r is x[r // x_div] @ w[eids[r]].T -- every row against its own expert of a stacked weight
+        (`expert_weights`; x_div = k when a token's k expert slots share its input row). The composed reference
+        gathers each row's expert; a kernel reads the selected experts in place.
+        """
+
+        rows = self.repeat(x, x_div, 0) if x_div > 1 else x
+        return (w[eids] @ rows[:, :, None])[..., 0]
+
     @abc.abstractmethod
     def embedding(self, ids: Array, w: Weight, dtype: ta.Any) -> Array:
         """Row gather -> [..., in] in `dtype`."""
@@ -297,6 +316,11 @@ class Ops(lang.Abstract):
     # fused-able model primitives (reference implementations)
 
     def rms_norm(self, x: Array, w: Array, eps: float) -> Array:
+        """
+        Over x's last dim, times w -- [D], or a weight per group, [G, D] over x [..., G, D] (Flash-Next's per-branch
+        norms; a backend's fused kernel may take only the former).
+        """
+
         xf = self.f32(x)
         y = xf * self.rsqrt(self.mean(xf * xf, -1, keepdims=True) + eps)
         return self.cast(y * self.f32(w), x.dtype)
@@ -632,6 +656,36 @@ class Ops(lang.Abstract):
         """Prefill attention of q [B, H, T, D] over a state holding past + T positions."""
 
         return self.sdpa(q, state[0], state[1], scale, past)
+
+    def kv_dense(self, state: tuple[Array, ...], dtype: ta.Any) -> tuple[Array, Array]:
+        """The state's keys and values as plain [B, KV, L, D] arrays (a quantized format is dequantized to `dtype`)."""
+
+        return state[0], state[1]
+
+    def kv_gather(self, state: tuple[Array, ...], positions: Array, dtype: ta.Any) -> tuple[Array, Array]:
+        """
+        Keys and values at `positions` [N] (int) of a batch-1 state: [KV, N, D] each, plain in `dtype` -- a quantized
+        format dequantizes only the gathered rows.
+        """
+
+        k, v = self.kv_dense(state, dtype)
+        return k[0][:, positions], v[0][:, positions]
+
+    def sdpa_masked(self, q: Array, k: Array, v: Array, scale: float, keep: Array) -> Array:
+        """
+        Attention of q [B, H, T, D] over k, v [B, KV, L, D] where `keep` [B, T, L] (1 / 0) says which keys each query
+        sees: QSA's selection (core/qsa.py). The composed reference -- every key scored, the rest masked -- which a
+        sparse kernel replaces.
+        """
+
+        H = q.shape[1]
+        KV = k.shape[1]
+        if KV != H:
+            k = self.repeat(k, H // KV, 1)
+            v = self.repeat(v, H // KV, 1)
+        scores = self.f32(q @ self.transpose(k, (0, 1, 3, 2))) * scale  # [B, H, T, L]
+        scores = scores + (1 - self.f32(keep))[:, None] * -1e30
+        return self.cast(self.softmax(scores, -1), v.dtype) @ v
 
     def sdpa_static_state(self, q: Array, state: tuple[Array, ...], pos: Array, ar: Array, scale: float) -> Array:
         """Decode attention of q over the static buffers (see sdpa_static)."""

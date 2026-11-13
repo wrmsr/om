@@ -15,6 +15,8 @@ import os
 import sys
 import time
 
+from omcore.logs import all as logs
+
 from ..decode.inject import DecodeConfig
 from ..inject.inject import create_engine
 from ..serve.inject import ServeConfig
@@ -33,6 +35,8 @@ from .inject import spec_config
 
 
 def main() -> None:
+    logs.configure_standard_logging('INFO')
+
     ap = argparse.ArgumentParser()
     ap.add_argument(
         '--client',

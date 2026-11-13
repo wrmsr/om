@@ -9,12 +9,14 @@ mlx-lm / mlx.nn, no `safetensors` package (there is a 30-line reader in `load/we
 relevant parts are vendored).
 
 ```
-core/            the model, backend-free: the decoder (model.py) assembled from blocks (block.py), each a residual
-                 stream + mixer + feed-forward (mixing.py's interfaces); gated GQA attention w/ partial RoPE
-                 (attention.py) and Gated DeltaNet (deltanet.py) as mixers owning their decode-state layouts;
-                 SwiGLU (mlp.py); the MTP draft head (mtp.py); config, functional cache, parameter names
+core/            the model, backend-free: the decoder (model.py) assembled from blocks (block.py), each a mixer +
+                 feed-forward and their connections to the residual stream (mixing.py's interfaces); gated GQA
+                 attention w/ partial RoPE (attention.py) and Gated DeltaNet (deltanet.py) as mixers owning their
+                 decode-state layouts; SwiGLU (mlp.py); the MTP draft head (mtp.py); config, functional cache,
+                 parameter names. Qwen3.8-Flash-Next's parts beside them: the four-branch gated residual
+                 (gated_residual.py), mixture of experts (moe.py), sparse attention (qsa.py), the n-gram layer (ple.py)
 arch/            architectures: what blocks a checkpoint's layers are and how its parameters become them
-                 (qwen35.py: Qwen35Architecture, load_qwen35)
+                 (qwen35.py: Qwen35Architecture, load_qwen35; qwen4exp.py: Flash-Next; registry.py: by config)
 ops/             the backend seam: `Ops` ABC (abstract primitives + composed reference implementations of the
                  fusable ones, base.py), `NumpyOps` the float64 golden (reference.py), weight-only int8/int4 affine
                  quantization (quant.py)

@@ -4,9 +4,12 @@ import typing as ta
 from ..ops.base import Array
 from ..ops.base import Ops
 from ..ops.base import Weight
+from .mixing import CompositeStateLayout
+from .mixing import Connection
 from .mixing import FeedForward
+from .mixing import LayerEmbedding
 from .mixing import Mixer
-from .mixing import ResidualStream
+from .mixing import StateLayout
 from .mixing import StepContext
 
 
@@ -15,8 +18,9 @@ from .mixing import StepContext
 
 class Block:
     """
-    One layer as a composition: read the residual stream, norm, mix, write; read, norm, feed forward, write. Which
-    mixer, which feed-forward and which residual stream is the architecture's choice (arch/); the block only routes.
+    One layer as a composition: read the mixer's input from the residual stream, mix, write the result back; the same
+    for the feed-forward. Which mixer, which feed-forward and which connections to the stream is the architecture's
+    choice (arch/); the block only routes. The pre-norms are the connections' (Flash-Next's gated residual is its own).
     """
 
     def __init__(
@@ -25,37 +29,65 @@ class Block:
             index: int,
             mixer: Mixer,
             ffn: FeedForward,
-            residual: ResidualStream,
-            ln1: Weight,
-            ln2: Weight,
-            eps: float,
+            mixer_conn: Connection,
+            ffn_conn: Connection,
+            embedding: LayerEmbedding | None = None,
     ) -> None:
         super().__init__()
 
         self.index = index
         self.mixer = mixer
         self.ffn = ffn
-        self.residual = residual
-        self.ln1 = ln1
-        self.ln2 = ln2
-        self.eps = eps
+        self.mixer_conn = mixer_conn
+        self.ffn_conn = ffn_conn
+        self.embedding = embedding
 
-    def __call__(self, ops: Ops, r: Array, pos: int, state: ta.Any) -> tuple[Array, ta.Any]:
-        res = self.residual
+        self._state = (
+            mixer.state
+            if embedding is None else
+            CompositeStateLayout([mixer.state, embedding.state])
+        )
+
+    @property
+    def state(self) -> StateLayout:
+        """The layer's decode state: the mixer's, then the layer embedding's."""
+
+        return self._state
+
+    def __call__(
+            self,
+            ops: Ops,
+            r: Array,
+            pos: int,
+            state: ta.Any,
+            ids: ta.Any = None,
+    ) -> tuple[Array, ta.Any]:
+        """The functional form; `ids` [B, T] are the token ids (host ints), which a layer embedding reads."""
+
         i = self.index
 
-        h = ops.rms_norm(res.read(ops, r, 2 * i), self.ln1, self.eps)
+        emb_state: tuple[Array, ...] = ()
+        if self.embedding is not None:
+            n = self.mixer.state.arity(ops)
+            mix_state = None if state is None else tuple(state[:n])
+            add, emb_state = self.embedding(ops, r, ids, None if state is None else tuple(state[n:]))
+            r = r + add
+            state = mix_state
+
+        h, carry = self.mixer_conn.read(ops, r)
         m, state = self.mixer(ops, h, pos, state)
         ops.tap(f'layers.{i}.mixer', m)
-        r = res.write(ops, r, m, 2 * i)
+        r = self.mixer_conn.write(ops, r, m, carry)
 
-        f = self.ffn(ops, ops.rms_norm(res.read(ops, r, 2 * i + 1), self.ln2, self.eps))
-        r = res.write(ops, r, f, 2 * i + 1)
+        h, carry = self.ffn_conn.read(ops, r)
+        r = self.ffn_conn.write(ops, r, self.ffn(ops, h), carry)
         ops.tap(f'layers.{i}.out', r)
 
+        state = (*state, *emb_state)
+
         # a lazy backend evaluates here, so the graph is one layer's at a time: its scheduling cost and the memory of
-        # its temporaries (a prefill expands quantized weights) stay bounded, and the state handed on is a buffer, not a
-        # pending graph every later evaluation would walk again (nothing happens elsewhere: see Ops.materialize)
+        # its temporaries (a prefill expands quantized weights) stay bounded, and the state handed on is a buffer, not
+        # a pending graph every later evaluation would walk again (nothing happens elsewhere: see Ops.materialize)
         ops.materialize(r, *state)
 
         return r, state
@@ -63,15 +95,21 @@ class Block:
     def step(self, ops: Ops, r: Array, ctx: StepContext, state: ta.Any) -> tuple[Array, ta.Any]:
         """Static-shape step for T tokens (no taps: a captured step cannot leave the device)."""
 
-        res = self.residual
-        i = self.index
+        emb_state: tuple[Array, ...] = ()
+        if self.embedding is not None:
+            n = self.mixer.state.arity(ops)
+            add, emb_state = self.embedding.step(ops, r, ctx, tuple(state[n:]))
+            r = r + add
+            state = tuple(state[:n])
 
-        h = ops.rms_norm(res.read(ops, r, 2 * i), self.ln1, self.eps)
+        h, carry = self.mixer_conn.read(ops, r)
         m, state = self.mixer.step(ops, h, ctx, state)
-        r = res.write(ops, r, m, 2 * i)
+        r = self.mixer_conn.write(ops, r, m, carry)
 
-        f = self.ffn(ops, ops.rms_norm(res.read(ops, r, 2 * i + 1), self.ln2, self.eps))
-        r = res.write(ops, r, f, 2 * i + 1)
+        h, carry = self.ffn_conn.read(ops, r)
+        r = self.ffn_conn.write(ops, r, self.ffn(ops, h), carry)
+
+        state = (*state, *emb_state)
 
         ops.materialize(r, *state)  # as in __call__; a captured step records it, so the replay is unaffected
         return r, state

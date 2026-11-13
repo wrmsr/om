@@ -47,7 +47,9 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.logs import all as logs
 
+from ..core.config import Qwen4ExpConfig
 from ..core.config import Qwen35Config
 
 
@@ -58,6 +60,9 @@ else:
 
 
 ##
+
+
+log = logs.get_module_logger(globals())
 
 
 MT_GGUF = 'application/vnd.ollama.image.model'
@@ -390,7 +395,7 @@ class GGUFSource(TensorSource):
         if from_tensors is None:
             return from_meta
         if from_tensors != from_meta:
-            print(f'[weights] WARNING: layer kinds from tensors disagree with metadata; trusting tensors')
+            log.warning('layer kinds from tensors disagree with metadata; trusting tensors')
         return from_tensors
 
     def _build_tokenizer_spec(self) -> dict:
@@ -608,8 +613,17 @@ class OllamaTensorSource(TensorSource):
                 break
         return name
 
-    def _build_config(self, cfg: dict) -> Qwen35Config:
+    @classmethod
+    def config_from_hf(cls, cfg: dict) -> Qwen35Config:
+        """Our config from a Hugging Face config.json's contents."""
+
+        return cls._build_config(cfg)
+
+    @classmethod
+    def _build_config(cls, cfg: dict) -> Qwen35Config:
         t = cfg.get('text_config', cfg)
+        if str(t.get('model_type', cfg.get('model_type', ''))).startswith('qwen4_exp'):
+            return cls._build_qwen4exp_config(cfg, t)
         rp = t.get('rope_parameters') or t.get('rope_scaling') or {}
         head_dim = t.get('head_dim') or t['hidden_size'] // t['num_attention_heads']
         prf = rp.get('partial_rotary_factor', t.get('partial_rotary_factor', 0.25))
@@ -648,11 +662,56 @@ class OllamaTensorSource(TensorSource):
             extra={'format': 'ollama-tensor'},
         )
 
+    @classmethod
+    def _build_qwen4exp_config(cls, cfg: dict, t: dict) -> Qwen4ExpConfig:
+        """Qwen3.8-Flash-Next (`qwen4_exp`): the geometry it shares with Qwen3.5, then its own parts (FLASHNEXT.md)."""
+
+        base = cls._build_config({**t, 'model_type': 'qwen3_5_text', 'intermediate_size': 0})
+        layer_types = ['linear' if x == 'linear_attention' else 'indexed' for x in t['layer_types']]
+        eos = t.get('eos_token_id', cfg.get('eos_token_id'))
+        return Qwen4ExpConfig(
+            **{f.name: getattr(base, f.name) for f in dc.fields(base) if f.name not in ('layer_types', 'output_gate')},
+            layer_types=layer_types,
+            num_experts=t['num_experts'],
+            num_experts_per_tok=t['num_experts_per_tok'],
+            moe_intermediate_size=t['moe_intermediate_size'],
+            shared_expert_intermediate_size=t['shared_expert_intermediate_size'],
+            norm_topk_prob=t.get('norm_topk_prob', True),
+            hc_count=t.get('hc_count', 4),
+            hc_lowrank=t.get('hc_lowrank', 320),
+            output_gate=t.get('output_gate_type') or t.get('hidden_act', 'silu'),
+            indexer_heads=t.get('indexer_n_heads') or 0,
+            indexer_head_dim=t.get('indexer_head_dim') or 0,
+            indexer_budget=t.get('indexer_budget') or 0,
+            indexer_compress_ratio=t.get('indexer_compress_ratio') or 0,
+            ple_layers=sorted(i - 1 for i in (t.get('ple_layer_ids') or [])),
+            ple_embed_dim=t.get('ple_embed_dim') or t['hidden_size'],
+            ple_conv_kernel=t.get('ple_conv_kernel_size', 4),
+            ngram_size=t.get('ngram_size', 3),
+            heads_per_ngram=t.get('heads_per_ngram', 8),
+            ngram_vocab_size_base=t.get('ngram_vocab_size_base', 20_000_000),
+            ngram_vocab_divisor=t.get('make_ngram_vocab_size_divisible_by', 128),
+            ngram_seed=t.get('seed', 1234),
+            eos_id=(eos[0] if isinstance(eos, list) else eos) or 0,
+        )
+
+    # the n-gram table is stored in shards (`...ngram_embedding.shard_{i}.weight`); it is one tensor to the model
+    _NGRAM_SHARD = '.ngram_embedding.shard_'
+
+    def _ngram_shards(self, name: str) -> list[str]:
+        prefix = name[: -len('weight')] + 'shard_'
+        shards = [n for n in self._layers if n.startswith(prefix)]
+        return sorted(shards, key=lambda n: int(n[len(prefix):].split('.')[0]))
+
     def names(self) -> list[str]:
         out = []
         for n in self._layers:
             if n.endswith('.A_log'):
                 out.append(n[: -len('A_log')] + 'A')
+            elif self._NGRAM_SHARD in n:
+                whole = n[:n.index(self._NGRAM_SHARD)] + '.ngram_embedding.weight'
+                if whole not in out:
+                    out.append(whole)
             else:
                 out.append(n)
         return out
@@ -713,12 +772,18 @@ class OllamaTensorSource(TensorSource):
     def get(self, name: str) -> np.ndarray:
         if name.endswith('.linear_attn.A'):
             return -np.exp(self._load_hf(name[:-1] + 'A_log'))
+        if name.endswith('.ngram_embedding.weight') and name not in self._layers:
+            return np.concatenate([self._load_hf(s) for s in self._ngram_shards(name)], 0)
         x = self._load_hf(name)
         # HF stores zero-centred norm weights (1 + w) for every RMSNorm except the gated one (the draft head's
-        # pre_fc_norm_* are norms too, just not named *norm.weight)
-        if (name.endswith('norm.weight') and not name.endswith('linear_attn.norm.weight')) or 'pre_fc_norm' in name:
+        # pre_fc_norm_* are norms too, just not named *norm.weight; so are Flash-Next's n-gram layer's norm_*)
+        if (
+                (name.endswith('norm.weight') and not name.endswith('linear_attn.norm.weight')) or
+                'pre_fc_norm' in name or
+                '.ple.norm_' in name
+        ):
             x = x + 1.0
-        if name.endswith('linear_attn.conv1d.weight') and x.ndim == 3:
+        if name.endswith('conv1d.weight') and x.ndim == 3:  # the Gated DeltaNet's, and the n-gram layer's
             x = x[:, 0, :]
         return x
 
@@ -815,7 +880,7 @@ def resolve_weights(model: str) -> pathlib.Path | OllamaModel | HFSource:
     if ggufs:
         ggufs.sort(key=lambda l: -l.get('size', 0))
         if len(ggufs) > 1:
-            print(f"[weights] {len(ggufs)} model layers in manifest; using largest ({ggufs[0]['digest'][:19]})")
+            log.info('%d model layers in manifest; using largest (%s)', len(ggufs), ggufs[0]['digest'][:19])
         return om.blob(ggufs[0]['digest'])
     if om.layers(MT_TENSOR):
         return om

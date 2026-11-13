@@ -191,6 +191,7 @@ class GatedDeltaNet(Mixer):
             out = ops.transpose(out, (0, 2, 1, 3))  # [B,T,Hv,dv]
 
         z = ops.reshape(z, (B, T, Hv, dv))
-        out = ops.rms_norm(out, self.norm_w, c.rms_eps) * ops.silu(z)  # gated RMSNorm
+        gate = ops.sigmoid(z) if c.output_gate == 'sigmoid' else ops.silu(z)
+        out = ops.rms_norm(out, self.norm_w, c.rms_eps) * gate  # gated RMSNorm
         y = ops.linear(ops.cast(ops.reshape(out, (B, T, c.value_dim)), x.dtype), self.w_out)
         return y, (conv_state, S)

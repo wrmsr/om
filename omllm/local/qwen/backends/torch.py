@@ -12,6 +12,7 @@ import typing as ta
 from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
+from omcore.logs import all as logs
 
 from ..ops.base import Ops
 from ..ops.quant import SEARCH_SHRINKS
@@ -23,6 +24,7 @@ from .torch_triton import attn_decode
 from .torch_triton import attn_prefill
 from .torch_triton import ensure_kernels
 from .torch_triton import gdn_step
+from .torch_triton import qgemv_experts
 from .torch_triton import qlinear
 from .torch_triton import resolve_launch
 
@@ -40,6 +42,9 @@ else:
 ##
 
 
+log = logs.get_module_logger(globals())
+
+
 def dtypes() -> dict[str, ta.Any]:
     """Compute dtype names -> torch dtypes (a function: torch is imported lazily)."""
 
@@ -48,6 +53,7 @@ def dtypes() -> dict[str, ta.Any]:
         'f16': torch.float16,
         'bf16': torch.bfloat16,
         'i32': torch.int32,
+        'i64': torch.int64,
     }
 
 
@@ -85,6 +91,35 @@ class TorchQWeight:
             [F.linear(x, self.dequant(x.dtype, slice(i, i + chunk_rows))) for i in range(0, out, chunk_rows)],
             dim=-1,
         )
+
+
+@dc.dataclass()
+class TorchQExperts:
+    """
+    Quantized weights of E experts stacked (Ops.expert_weights): codes [E, N, K / per byte], scale / bias [E, N, K /
+    group], each expert an N x K TorchQWeight's layout. `expert_linear` runs it through the expert GEMV kernel.
+    """
+
+    q: torch.Tensor
+    scale: torch.Tensor
+    bias: torch.Tensor
+    bits: int
+    group: int
+    shape: tuple[int, int]  # one expert's (N, K)
+
+    def nbytes(self) -> int:
+        return self.q.numel() + self.scale.numel() * self.scale.element_size() * 2
+
+    def dequant(self, dtype: torch.dtype, experts: torch.Tensor) -> torch.Tensor:
+        """The given experts' weights, [R, N, K] in `dtype`."""
+
+        q = self.q[experts]
+        if self.bits == 4:
+            q = torch.stack([q & 0xF, q >> 4], dim=-1).reshape(*q.shape[:-1], -1)
+        r, n, _ = q.shape
+        x = q.reshape(r, n, -1, self.group).to(dtype)
+        x = x * self.scale[experts][..., None].to(dtype) + self.bias[experts][..., None].to(dtype)
+        return x.reshape(r, n, -1)
 
 
 class CudaGraphStep:
@@ -143,7 +178,7 @@ def load_compile_cache(path: str) -> bool:
         torch.compiler.load_cache_artifacts(p.read_bytes())
         return True
     except Exception as e:  # noqa
-        print(f'[torch] could not load compile cache {p}: {e}')
+        log.warning('could not load compile cache %s: %s', p, e)
         return False
 
 
@@ -155,7 +190,7 @@ def save_compile_cache(path: str) -> bool:
     try:
         got = torch.compiler.save_cache_artifacts()
     except Exception as e:  # noqa
-        print(f'[torch] could not save compile cache: {e}')
+        log.warning('could not save compile cache: %s', e)
         return False
     if not got:
         return False
@@ -595,6 +630,8 @@ class TorchOps(Ops):
             w,
             eps,
     ):
+        if w.dim() > 1:  # a weight per group (see Ops.rms_norm): F.rms_norm takes one for the normalized dim only
+            return super().rms_norm(x, w, eps)
         xf = x.float()
         return F.rms_norm(xf, (xf.shape[-1],), weight=w.float(), eps=eps).to(x.dtype)
 
@@ -659,6 +696,56 @@ class TorchOps(Ops):
             dt = dtype if dtype is not None else (torch.bfloat16 if self.device.type != 'cpu' else torch.float32)
             return (self._fp8_dequant(state[0], state[1], dt), self._fp8_dequant(state[2], state[3], dt))
         raise ValueError(f'cannot adapt a {len(state)}-array KV state to kv_dtype={self.kv_dtype}')
+
+    def expert_weights(self, parts):
+        flat = [w for p in parts for w in p]
+        if not all(isinstance(w, TorchQWeight) for w in flat):
+            dense = [[w.dequant(self.dtype('f32')) if isinstance(w, TorchQWeight) else w for w in p] for p in parts]
+            return super().expert_weights(dense)
+        bits, group = flat[0].bits, flat[0].group
+        if any(w.bits != bits or w.group != group for w in flat):
+            raise ValueError('experts quantized at different widths or groups cannot be stacked')
+        experts = [
+            (torch.cat([w.q for w in p], 0), torch.cat([w.scale for w in p], 0), torch.cat([w.bias for w in p], 0))
+            for p in parts
+        ]
+        return TorchQExperts(
+            q=torch.stack([e[0] for e in experts], 0),
+            scale=torch.stack([e[1] for e in experts], 0),
+            bias=torch.stack([e[2] for e in experts], 0),
+            bits=bits,
+            group=group,
+            shape=(sum(w.shape[0] for w in parts[0]), parts[0][0].shape[1]),
+        )
+
+    def expert_linear(self, x, w, eids, x_div=1):
+        if not isinstance(w, TorchQExperts):
+            return super().expert_linear(x, w, eids, x_div)
+        if self.triton and x.is_cuda:
+            return qgemv_experts(
+                x,
+                eids.to(torch.int32),
+                w.q,
+                w.scale.to(x.dtype),
+                w.bias.to(x.dtype),
+                w.bits,
+                w.group,
+                w.shape,
+                x_div=x_div,
+            )
+        rows = x.repeat_interleave(x_div, 0) if x_div > 1 else x
+        return (w.dequant(x.dtype, eids) @ rows[:, :, None])[..., 0]
+
+    def kv_gather(self, state, positions, dtype):
+        if len(state) == 2:
+            return state[0][0][:, positions], state[1][0][:, positions]
+        kq, ks, vq, vs = (a[0][:, positions] for a in state)
+        return self._fp8_dequant(kq, ks, dtype), self._fp8_dequant(vq, vs, dtype)
+
+    def kv_dense(self, state, dtype):
+        if len(state) == 2:
+            return state[0], state[1]
+        return self._fp8_dequant(state[0], state[1], dtype), self._fp8_dequant(state[2], state[3], dtype)
 
     def kv_concat(self, state, k, v):
         if self.kv_dtype != 'fp8':

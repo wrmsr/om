@@ -25,6 +25,7 @@ import time
 import typing as ta
 
 from omcore import lang
+from omcore.logs import all as logs
 
 from ..core.cache import Cache
 from ..core.model import Qwen35
@@ -85,6 +86,8 @@ def compare(ref: np.ndarray, cur: np.ndarray, ids: list[int]) -> dict:
 
 
 def main() -> None:
+    logs.configure_standard_logging('INFO')
+
     ap = argparse.ArgumentParser()
     ap.add_argument(
         '--text',

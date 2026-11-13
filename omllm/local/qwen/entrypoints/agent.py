@@ -22,6 +22,8 @@ import sys
 import time
 import typing as ta
 
+from omcore.logs import all as logs
+
 from ..serve.serving import client
 
 
@@ -299,6 +301,8 @@ def run(
 
 
 def main() -> None:
+    logs.configure_standard_logging('INFO')
+
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,

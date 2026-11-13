@@ -30,6 +30,7 @@ import typing as ta
 import urllib.request
 
 from omcore import lang
+from omcore.logs import all as logs
 
 from ..api import generate
 from ..arch.qwen35 import load_qwen35
@@ -62,6 +63,8 @@ def post(url: str, payload: dict) -> dict:
 
 
 def main() -> None:
+    logs.configure_standard_logging('INFO')
+
     ap = argparse.ArgumentParser()
     ap.add_argument(
         '--model',

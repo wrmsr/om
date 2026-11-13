@@ -404,6 +404,113 @@ def _process_dataclass__030e598f2fd59ebe3517822a2ee45e56cbb497ac():
 
 
 @_register(
+    installer_sha1='971d90b1116a2f9b60d8a87a9013958cf369f75b',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('q', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False), (('scale', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('bias', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('bits', True, True, None, True, False, False, None), 'instance', 'missing', No"
+            "ne, False, False, False), (('group', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('shape', True, True, None, True, False, False, None), 'instance', 'missing', "
+            "None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), "
+            "(), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.backends.torch', 'TorchQExperts'),
+        ('omllm.local.qwen.ops.quant', 'QWeight'),
+    ),
+)
+def _process_dataclass__971d90b1116a2f9b60d8a87a9013958cf369f75b():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                q=self.q,
+                scale=self.scale,
+                bias=self.bias,
+                bits=self.bits,
+                group=self.group,
+                shape=self.shape,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.q == other.q and
+                self.scale == other.scale and
+                self.bias == other.bias and
+                self.bits == other.bits and
+                self.group == other.group and
+                self.shape == other.shape
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            q: __dataclass__init__fields__0__annotation,
+            scale: __dataclass__init__fields__1__annotation,
+            bias: __dataclass__init__fields__2__annotation,
+            bits: __dataclass__init__fields__3__annotation,
+            group: __dataclass__init__fields__4__annotation,
+            shape: __dataclass__init__fields__5__annotation,
+        ) -> __dataclass__None:
+            self.q = q
+            self.scale = scale
+            self.bias = bias
+            self.bits = bits
+            self.group = group
+            self.shape = shape
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"q={self.q!r}")
+            parts.append(f"scale={self.scale!r}")
+            parts.append(f"bias={self.bias!r}")
+            parts.append(f"bits={self.bits!r}")
+            parts.append(f"group={self.group!r}")
+            parts.append(f"shape={self.shape!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='af59a89e71e2384e635fac46e0695509328d7c0f',
     spec_keys=(
         (
@@ -701,7 +808,7 @@ def _process_dataclass__c70ce9ed277dec4c7b15e920f95e8366be668461():
 
 
 @_register(
-    installer_sha1='bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25',
+    installer_sha1='86043281ca224260645c0328594c6c7f145f419c',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -726,16 +833,17 @@ def _process_dataclass__c70ce9ed277dec4c7b15e920f95e8366be668461():
             "e', None, False, False, False), (('rope_scaling', True, True, None, True, False, False, None), 'instance',"
             " 'value', None, False, False, False), (('tied_embeddings', True, True, None, True, False, False, None), 'i"
             "nstance', 'value', None, False, False, False), (('num_mtp_layers', True, True, None, True, False, False, N"
-            "one), 'instance', 'value', None, False, False, False), (('extra', True, True, None, True, False, False, No"
-            "ne), 'instance', 'factory', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,),"
-            " (False, False, ()), ((),), (), (False,)))"
+            "one), 'instance', 'value', None, False, False, False), (('output_gate', True, True, None, True, False, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('extra', True, True, None, True, False, Fals"
+            "e, None), 'instance', 'factory', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (Fal"
+            "se,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.local.qwen.core.config', 'Qwen35Config'),
     ),
 )
-def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
+def _process_dataclass__86043281ca224260645c0328594c6c7f145f419c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -767,7 +875,9 @@ def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
         __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
         __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
         __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
-        __dataclass__init__fields__20__default_factory = __dataclass__spec.fields[20].default.must().fn
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default_factory = __dataclass__spec.fields[21].default.must().fn
         __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -797,6 +907,7 @@ def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
                 rope_scaling=self.rope_scaling,
                 tied_embeddings=self.tied_embeddings,
                 num_mtp_layers=self.num_mtp_layers,
+                output_gate=self.output_gate,
                 extra=self.extra,
             )
 
@@ -828,6 +939,7 @@ def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
                 self.rope_scaling == other.rope_scaling and
                 self.tied_embeddings == other.tied_embeddings and
                 self.num_mtp_layers == other.num_mtp_layers and
+                self.output_gate == other.output_gate and
                 self.extra == other.extra
             )
 
@@ -857,10 +969,11 @@ def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
             rope_scaling: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
             tied_embeddings: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
             num_mtp_layers: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
-            extra: __dataclass__init__fields__20__annotation = __dataclass__HAS_DEFAULT_FACTORY,
+            output_gate: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            extra: __dataclass__init__fields__21__annotation = __dataclass__HAS_DEFAULT_FACTORY,
         ) -> __dataclass__None:
             if extra is __dataclass__HAS_DEFAULT_FACTORY:
-                extra = __dataclass__init__fields__20__default_factory()
+                extra = __dataclass__init__fields__21__default_factory()
             self.vocab_size = vocab_size
             self.hidden_size = hidden_size
             self.num_layers = num_layers
@@ -881,6 +994,7 @@ def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
             self.rope_scaling = rope_scaling
             self.tied_embeddings = tied_embeddings
             self.num_mtp_layers = num_mtp_layers
+            self.output_gate = output_gate
             self.extra = extra
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -908,7 +1022,400 @@ def _process_dataclass__bb619e4c2d3e9a0e1b1eff149d1fd9ae37c04b25():
             parts.append(f"rope_scaling={self.rope_scaling!r}")
             parts.append(f"tied_embeddings={self.tied_embeddings!r}")
             parts.append(f"num_mtp_layers={self.num_mtp_layers!r}")
+            parts.append(f"output_gate={self.output_gate!r}")
             parts.append(f"extra={self.extra!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='e79f1626b80b0af441173b1bec386ec889b53a1d',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
+            "lse, False, False, False), ((('vocab_size', True, True, None, True, False, False, None), 'instance', 'miss"
+            "ing', None, False, False, False), (('hidden_size', True, True, None, True, False, False, None), 'instance'"
+            ", 'missing', None, False, False, False), (('num_layers', True, True, None, True, False, False, None), 'ins"
+            "tance', 'missing', None, False, False, False), (('intermediate_size', True, True, None, True, False, False"
+            ", None), 'instance', 'missing', None, False, False, False), (('rms_eps', True, True, None, True, False, Fa"
+            "lse, None), 'instance', 'missing', None, False, False, False), (('num_heads', True, True, None, True, Fals"
+            "e, False, None), 'instance', 'missing', None, False, False, False), (('num_kv_heads', True, True, None, Tr"
+            "ue, False, False, None), 'instance', 'missing', None, False, False, False), (('head_dim', True, True, None"
+            ", True, False, False, None), 'instance', 'missing', None, False, False, False), (('rope_theta', True, True"
+            ", None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('rope_dim', True, "
+            "True, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('num_k_heads',"
+            " True, True, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (('num_v_"
+            "heads', True, True, None, True, False, False, None), 'instance', 'missing', None, False, False, False), (("
+            "'head_k_dim', True, True, None, True, False, False, None), 'instance', 'missing', None, False, False, Fals"
+            "e), (('head_v_dim', True, True, None, True, False, False, None), 'instance', 'missing', None, False, False"
+            ", False), (('conv_kernel', True, True, None, True, False, False, None), 'instance', 'missing', None, False"
+            ", False, False), (('layer_types', True, True, None, True, False, False, None), 'instance', 'missing', None"
+            ", False, False, False), (('context_length', True, True, None, True, False, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('rope_scaling', True, True, None, True, False, False, None), 'instance',"
+            " 'value', None, False, False, False), (('tied_embeddings', True, True, None, True, False, False, None), 'i"
+            "nstance', 'value', None, False, False, False), (('num_mtp_layers', True, True, None, True, False, False, N"
+            "one), 'instance', 'value', None, False, False, False), (('output_gate', True, True, None, True, False, Fal"
+            "se, None), 'instance', 'value', None, False, False, False), (('extra', True, True, None, True, False, Fals"
+            "e, None), 'instance', 'factory', None, False, False, False), (('num_experts', True, True, None, True, Fals"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('num_experts_per_tok', True, True, Non"
+            "e, True, False, False, None), 'instance', 'value', None, False, False, False), (('moe_intermediate_size', "
+            "True, True, None, True, False, False, None), 'instance', 'value', None, False, False, False), (('shared_ex"
+            "pert_intermediate_size', True, True, None, True, False, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False), (('norm_topk_prob', True, True, None, True, False, False, None), 'instance', 'value', None, F"
+            "alse, False, False), (('hc_count', True, True, None, True, False, False, None), 'instance', 'value', None,"
+            " False, False, False), (('hc_lowrank', True, True, None, True, False, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('indexer_heads', True, True, None, True, False, False, None), 'instance', 'va"
+            "lue', None, False, False, False), (('indexer_head_dim', True, True, None, True, False, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('indexer_budget', True, True, None, True, False, False, None"
+            "), 'instance', 'value', None, False, False, False), (('indexer_compress_ratio', True, True, None, True, Fa"
+            "lse, False, None), 'instance', 'value', None, False, False, False), (('ple_layers', True, True, None, True"
+            ", False, False, None), 'instance', 'factory', None, False, False, False), (('ple_embed_dim', True, True, N"
+            "one, True, False, False, None), 'instance', 'value', None, False, False, False), (('ple_conv_kernel', True"
+            ", True, None, True, False, False, None), 'instance', 'value', None, False, False, False), (('ngram_size', "
+            "True, True, None, True, False, False, None), 'instance', 'value', None, False, False, False), (('heads_per"
+            "_ngram', True, True, None, True, False, False, None), 'instance', 'value', None, False, False, False), (('"
+            "ngram_vocab_size_base', True, True, None, True, False, False, None), 'instance', 'value', None, False, Fal"
+            "se, False), (('ngram_vocab_divisor', True, True, None, True, False, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('ngram_seed', True, True, None, True, False, False, None), 'instance', 'value',"
+            " None, False, False, False), (('eos_id', True, True, None, True, False, False, None), 'instance', 'value',"
+            " None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),),"
+            " (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.core.config', 'Qwen4ExpConfig'),
+    ),
+)
+def _process_dataclass__e79f1626b80b0af441173b1bec386ec889b53a1d():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__10__annotation = __dataclass__spec.fields[10].annotation
+        __dataclass__init__fields__11__annotation = __dataclass__spec.fields[11].annotation
+        __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
+        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
+        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__16__annotation = __dataclass__spec.fields[16].annotation
+        __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
+        __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
+        __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
+        __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
+        __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
+        __dataclass__init__fields__19__annotation = __dataclass__spec.fields[19].annotation
+        __dataclass__init__fields__19__default = __dataclass__spec.fields[19].default.must()
+        __dataclass__init__fields__20__annotation = __dataclass__spec.fields[20].annotation
+        __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
+        __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
+        __dataclass__init__fields__21__default_factory = __dataclass__spec.fields[21].default.must().fn
+        __dataclass__init__fields__22__annotation = __dataclass__spec.fields[22].annotation
+        __dataclass__init__fields__22__default = __dataclass__spec.fields[22].default.must()
+        __dataclass__init__fields__23__annotation = __dataclass__spec.fields[23].annotation
+        __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
+        __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
+        __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
+        __dataclass__init__fields__25__annotation = __dataclass__spec.fields[25].annotation
+        __dataclass__init__fields__25__default = __dataclass__spec.fields[25].default.must()
+        __dataclass__init__fields__26__annotation = __dataclass__spec.fields[26].annotation
+        __dataclass__init__fields__26__default = __dataclass__spec.fields[26].default.must()
+        __dataclass__init__fields__27__annotation = __dataclass__spec.fields[27].annotation
+        __dataclass__init__fields__27__default = __dataclass__spec.fields[27].default.must()
+        __dataclass__init__fields__28__annotation = __dataclass__spec.fields[28].annotation
+        __dataclass__init__fields__28__default = __dataclass__spec.fields[28].default.must()
+        __dataclass__init__fields__29__annotation = __dataclass__spec.fields[29].annotation
+        __dataclass__init__fields__29__default = __dataclass__spec.fields[29].default.must()
+        __dataclass__init__fields__30__annotation = __dataclass__spec.fields[30].annotation
+        __dataclass__init__fields__30__default = __dataclass__spec.fields[30].default.must()
+        __dataclass__init__fields__31__annotation = __dataclass__spec.fields[31].annotation
+        __dataclass__init__fields__31__default = __dataclass__spec.fields[31].default.must()
+        __dataclass__init__fields__32__annotation = __dataclass__spec.fields[32].annotation
+        __dataclass__init__fields__32__default = __dataclass__spec.fields[32].default.must()
+        __dataclass__init__fields__33__annotation = __dataclass__spec.fields[33].annotation
+        __dataclass__init__fields__33__default_factory = __dataclass__spec.fields[33].default.must().fn
+        __dataclass__init__fields__34__annotation = __dataclass__spec.fields[34].annotation
+        __dataclass__init__fields__34__default = __dataclass__spec.fields[34].default.must()
+        __dataclass__init__fields__35__annotation = __dataclass__spec.fields[35].annotation
+        __dataclass__init__fields__35__default = __dataclass__spec.fields[35].default.must()
+        __dataclass__init__fields__36__annotation = __dataclass__spec.fields[36].annotation
+        __dataclass__init__fields__36__default = __dataclass__spec.fields[36].default.must()
+        __dataclass__init__fields__37__annotation = __dataclass__spec.fields[37].annotation
+        __dataclass__init__fields__37__default = __dataclass__spec.fields[37].default.must()
+        __dataclass__init__fields__38__annotation = __dataclass__spec.fields[38].annotation
+        __dataclass__init__fields__38__default = __dataclass__spec.fields[38].default.must()
+        __dataclass__init__fields__39__annotation = __dataclass__spec.fields[39].annotation
+        __dataclass__init__fields__39__default = __dataclass__spec.fields[39].default.must()
+        __dataclass__init__fields__40__annotation = __dataclass__spec.fields[40].annotation
+        __dataclass__init__fields__40__default = __dataclass__spec.fields[40].default.must()
+        __dataclass__init__fields__41__annotation = __dataclass__spec.fields[41].annotation
+        __dataclass__init__fields__41__default = __dataclass__spec.fields[41].default.must()
+        __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                vocab_size=self.vocab_size,
+                hidden_size=self.hidden_size,
+                num_layers=self.num_layers,
+                intermediate_size=self.intermediate_size,
+                rms_eps=self.rms_eps,
+                num_heads=self.num_heads,
+                num_kv_heads=self.num_kv_heads,
+                head_dim=self.head_dim,
+                rope_theta=self.rope_theta,
+                rope_dim=self.rope_dim,
+                num_k_heads=self.num_k_heads,
+                num_v_heads=self.num_v_heads,
+                head_k_dim=self.head_k_dim,
+                head_v_dim=self.head_v_dim,
+                conv_kernel=self.conv_kernel,
+                layer_types=self.layer_types,
+                context_length=self.context_length,
+                rope_scaling=self.rope_scaling,
+                tied_embeddings=self.tied_embeddings,
+                num_mtp_layers=self.num_mtp_layers,
+                output_gate=self.output_gate,
+                extra=self.extra,
+                num_experts=self.num_experts,
+                num_experts_per_tok=self.num_experts_per_tok,
+                moe_intermediate_size=self.moe_intermediate_size,
+                shared_expert_intermediate_size=self.shared_expert_intermediate_size,
+                norm_topk_prob=self.norm_topk_prob,
+                hc_count=self.hc_count,
+                hc_lowrank=self.hc_lowrank,
+                indexer_heads=self.indexer_heads,
+                indexer_head_dim=self.indexer_head_dim,
+                indexer_budget=self.indexer_budget,
+                indexer_compress_ratio=self.indexer_compress_ratio,
+                ple_layers=self.ple_layers,
+                ple_embed_dim=self.ple_embed_dim,
+                ple_conv_kernel=self.ple_conv_kernel,
+                ngram_size=self.ngram_size,
+                heads_per_ngram=self.heads_per_ngram,
+                ngram_vocab_size_base=self.ngram_vocab_size_base,
+                ngram_vocab_divisor=self.ngram_vocab_divisor,
+                ngram_seed=self.ngram_seed,
+                eos_id=self.eos_id,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.vocab_size == other.vocab_size and
+                self.hidden_size == other.hidden_size and
+                self.num_layers == other.num_layers and
+                self.intermediate_size == other.intermediate_size and
+                self.rms_eps == other.rms_eps and
+                self.num_heads == other.num_heads and
+                self.num_kv_heads == other.num_kv_heads and
+                self.head_dim == other.head_dim and
+                self.rope_theta == other.rope_theta and
+                self.rope_dim == other.rope_dim and
+                self.num_k_heads == other.num_k_heads and
+                self.num_v_heads == other.num_v_heads and
+                self.head_k_dim == other.head_k_dim and
+                self.head_v_dim == other.head_v_dim and
+                self.conv_kernel == other.conv_kernel and
+                self.layer_types == other.layer_types and
+                self.context_length == other.context_length and
+                self.rope_scaling == other.rope_scaling and
+                self.tied_embeddings == other.tied_embeddings and
+                self.num_mtp_layers == other.num_mtp_layers and
+                self.output_gate == other.output_gate and
+                self.extra == other.extra and
+                self.num_experts == other.num_experts and
+                self.num_experts_per_tok == other.num_experts_per_tok and
+                self.moe_intermediate_size == other.moe_intermediate_size and
+                self.shared_expert_intermediate_size == other.shared_expert_intermediate_size and
+                self.norm_topk_prob == other.norm_topk_prob and
+                self.hc_count == other.hc_count and
+                self.hc_lowrank == other.hc_lowrank and
+                self.indexer_heads == other.indexer_heads and
+                self.indexer_head_dim == other.indexer_head_dim and
+                self.indexer_budget == other.indexer_budget and
+                self.indexer_compress_ratio == other.indexer_compress_ratio and
+                self.ple_layers == other.ple_layers and
+                self.ple_embed_dim == other.ple_embed_dim and
+                self.ple_conv_kernel == other.ple_conv_kernel and
+                self.ngram_size == other.ngram_size and
+                self.heads_per_ngram == other.heads_per_ngram and
+                self.ngram_vocab_size_base == other.ngram_vocab_size_base and
+                self.ngram_vocab_divisor == other.ngram_vocab_divisor and
+                self.ngram_seed == other.ngram_seed and
+                self.eos_id == other.eos_id
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
+
+        def __init__(
+            self,
+            vocab_size: __dataclass__init__fields__00__annotation,
+            hidden_size: __dataclass__init__fields__01__annotation,
+            num_layers: __dataclass__init__fields__02__annotation,
+            intermediate_size: __dataclass__init__fields__03__annotation,
+            rms_eps: __dataclass__init__fields__04__annotation,
+            num_heads: __dataclass__init__fields__05__annotation,
+            num_kv_heads: __dataclass__init__fields__06__annotation,
+            head_dim: __dataclass__init__fields__07__annotation,
+            rope_theta: __dataclass__init__fields__08__annotation,
+            rope_dim: __dataclass__init__fields__09__annotation,
+            num_k_heads: __dataclass__init__fields__10__annotation,
+            num_v_heads: __dataclass__init__fields__11__annotation,
+            head_k_dim: __dataclass__init__fields__12__annotation,
+            head_v_dim: __dataclass__init__fields__13__annotation,
+            conv_kernel: __dataclass__init__fields__14__annotation,
+            layer_types: __dataclass__init__fields__15__annotation,
+            context_length: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            rope_scaling: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            tied_embeddings: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            num_mtp_layers: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            output_gate: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            extra: __dataclass__init__fields__21__annotation = __dataclass__HAS_DEFAULT_FACTORY,
+            num_experts: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
+            num_experts_per_tok: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            moe_intermediate_size: __dataclass__init__fields__24__annotation = __dataclass__init__fields__24__default,
+            shared_expert_intermediate_size: __dataclass__init__fields__25__annotation = __dataclass__init__fields__25__default,
+            norm_topk_prob: __dataclass__init__fields__26__annotation = __dataclass__init__fields__26__default,
+            hc_count: __dataclass__init__fields__27__annotation = __dataclass__init__fields__27__default,
+            hc_lowrank: __dataclass__init__fields__28__annotation = __dataclass__init__fields__28__default,
+            indexer_heads: __dataclass__init__fields__29__annotation = __dataclass__init__fields__29__default,
+            indexer_head_dim: __dataclass__init__fields__30__annotation = __dataclass__init__fields__30__default,
+            indexer_budget: __dataclass__init__fields__31__annotation = __dataclass__init__fields__31__default,
+            indexer_compress_ratio: __dataclass__init__fields__32__annotation = __dataclass__init__fields__32__default,
+            ple_layers: __dataclass__init__fields__33__annotation = __dataclass__HAS_DEFAULT_FACTORY,
+            ple_embed_dim: __dataclass__init__fields__34__annotation = __dataclass__init__fields__34__default,
+            ple_conv_kernel: __dataclass__init__fields__35__annotation = __dataclass__init__fields__35__default,
+            ngram_size: __dataclass__init__fields__36__annotation = __dataclass__init__fields__36__default,
+            heads_per_ngram: __dataclass__init__fields__37__annotation = __dataclass__init__fields__37__default,
+            ngram_vocab_size_base: __dataclass__init__fields__38__annotation = __dataclass__init__fields__38__default,
+            ngram_vocab_divisor: __dataclass__init__fields__39__annotation = __dataclass__init__fields__39__default,
+            ngram_seed: __dataclass__init__fields__40__annotation = __dataclass__init__fields__40__default,
+            eos_id: __dataclass__init__fields__41__annotation = __dataclass__init__fields__41__default,
+        ) -> __dataclass__None:
+            if extra is __dataclass__HAS_DEFAULT_FACTORY:
+                extra = __dataclass__init__fields__21__default_factory()
+            if ple_layers is __dataclass__HAS_DEFAULT_FACTORY:
+                ple_layers = __dataclass__init__fields__33__default_factory()
+            self.vocab_size = vocab_size
+            self.hidden_size = hidden_size
+            self.num_layers = num_layers
+            self.intermediate_size = intermediate_size
+            self.rms_eps = rms_eps
+            self.num_heads = num_heads
+            self.num_kv_heads = num_kv_heads
+            self.head_dim = head_dim
+            self.rope_theta = rope_theta
+            self.rope_dim = rope_dim
+            self.num_k_heads = num_k_heads
+            self.num_v_heads = num_v_heads
+            self.head_k_dim = head_k_dim
+            self.head_v_dim = head_v_dim
+            self.conv_kernel = conv_kernel
+            self.layer_types = layer_types
+            self.context_length = context_length
+            self.rope_scaling = rope_scaling
+            self.tied_embeddings = tied_embeddings
+            self.num_mtp_layers = num_mtp_layers
+            self.output_gate = output_gate
+            self.extra = extra
+            self.num_experts = num_experts
+            self.num_experts_per_tok = num_experts_per_tok
+            self.moe_intermediate_size = moe_intermediate_size
+            self.shared_expert_intermediate_size = shared_expert_intermediate_size
+            self.norm_topk_prob = norm_topk_prob
+            self.hc_count = hc_count
+            self.hc_lowrank = hc_lowrank
+            self.indexer_heads = indexer_heads
+            self.indexer_head_dim = indexer_head_dim
+            self.indexer_budget = indexer_budget
+            self.indexer_compress_ratio = indexer_compress_ratio
+            self.ple_layers = ple_layers
+            self.ple_embed_dim = ple_embed_dim
+            self.ple_conv_kernel = ple_conv_kernel
+            self.ngram_size = ngram_size
+            self.heads_per_ngram = heads_per_ngram
+            self.ngram_vocab_size_base = ngram_vocab_size_base
+            self.ngram_vocab_divisor = ngram_vocab_divisor
+            self.ngram_seed = ngram_seed
+            self.eos_id = eos_id
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"vocab_size={self.vocab_size!r}")
+            parts.append(f"hidden_size={self.hidden_size!r}")
+            parts.append(f"num_layers={self.num_layers!r}")
+            parts.append(f"intermediate_size={self.intermediate_size!r}")
+            parts.append(f"rms_eps={self.rms_eps!r}")
+            parts.append(f"num_heads={self.num_heads!r}")
+            parts.append(f"num_kv_heads={self.num_kv_heads!r}")
+            parts.append(f"head_dim={self.head_dim!r}")
+            parts.append(f"rope_theta={self.rope_theta!r}")
+            parts.append(f"rope_dim={self.rope_dim!r}")
+            parts.append(f"num_k_heads={self.num_k_heads!r}")
+            parts.append(f"num_v_heads={self.num_v_heads!r}")
+            parts.append(f"head_k_dim={self.head_k_dim!r}")
+            parts.append(f"head_v_dim={self.head_v_dim!r}")
+            parts.append(f"conv_kernel={self.conv_kernel!r}")
+            parts.append(f"layer_types={self.layer_types!r}")
+            parts.append(f"context_length={self.context_length!r}")
+            parts.append(f"rope_scaling={self.rope_scaling!r}")
+            parts.append(f"tied_embeddings={self.tied_embeddings!r}")
+            parts.append(f"num_mtp_layers={self.num_mtp_layers!r}")
+            parts.append(f"output_gate={self.output_gate!r}")
+            parts.append(f"extra={self.extra!r}")
+            parts.append(f"num_experts={self.num_experts!r}")
+            parts.append(f"num_experts_per_tok={self.num_experts_per_tok!r}")
+            parts.append(f"moe_intermediate_size={self.moe_intermediate_size!r}")
+            parts.append(f"shared_expert_intermediate_size={self.shared_expert_intermediate_size!r}")
+            parts.append(f"norm_topk_prob={self.norm_topk_prob!r}")
+            parts.append(f"hc_count={self.hc_count!r}")
+            parts.append(f"hc_lowrank={self.hc_lowrank!r}")
+            parts.append(f"indexer_heads={self.indexer_heads!r}")
+            parts.append(f"indexer_head_dim={self.indexer_head_dim!r}")
+            parts.append(f"indexer_budget={self.indexer_budget!r}")
+            parts.append(f"indexer_compress_ratio={self.indexer_compress_ratio!r}")
+            parts.append(f"ple_layers={self.ple_layers!r}")
+            parts.append(f"ple_embed_dim={self.ple_embed_dim!r}")
+            parts.append(f"ple_conv_kernel={self.ple_conv_kernel!r}")
+            parts.append(f"ngram_size={self.ngram_size!r}")
+            parts.append(f"heads_per_ngram={self.heads_per_ngram!r}")
+            parts.append(f"ngram_vocab_size_base={self.ngram_vocab_size_base!r}")
+            parts.append(f"ngram_vocab_divisor={self.ngram_vocab_divisor!r}")
+            parts.append(f"ngram_seed={self.ngram_seed!r}")
+            parts.append(f"eos_id={self.eos_id!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3170,112 +3677,6 @@ def _process_dataclass__0a4248d882884871a6c95e286c28594147baa7bd():
             parts.append(f"manifest_path={self.manifest_path!r}")
             parts.append(f"manifest={self.manifest!r}")
             parts.append(f"blobs_dir={self.blobs_dir!r}")
-            return (
-                f"{self.__class__.__qualname__}("
-                f"{', '.join(parts)}"
-                f")"
-            )
-
-        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
-
-    return _process_dataclass
-
-
-@_register(
-    installer_sha1='971d90b1116a2f9b60d8a87a9013958cf369f75b',
-    spec_keys=(
-        (
-            "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
-            "lse, False, False, False), ((('q', True, True, None, True, False, False, None), 'instance', 'missing', Non"
-            "e, False, False, False), (('scale', True, True, None, True, False, False, None), 'instance', 'missing', No"
-            "ne, False, False, False), (('bias', True, True, None, True, False, False, None), 'instance', 'missing', No"
-            "ne, False, False, False), (('bits', True, True, None, True, False, False, None), 'instance', 'missing', No"
-            "ne, False, False, False), (('group', True, True, None, True, False, False, None), 'instance', 'missing', N"
-            "one, False, False, False), (('shape', True, True, None, True, False, False, None), 'instance', 'missing', "
-            "None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), "
-            "(), (False,)))"
-        ),
-    ),
-    cls_names=(
-        ('omllm.local.qwen.ops.quant', 'QWeight'),
-    ),
-)
-def _process_dataclass__971d90b1116a2f9b60d8a87a9013958cf369f75b():
-    def _process_dataclass(
-        __class__,
-        __dataclass__spec,
-        __dataclass__ctx,
-        __dataclass__globals,
-    ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
-        __dataclass__None = __dataclass__globals['__dataclass__None']
-        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
-        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
-
-        def __copy__(self):
-            if self.__class__ is not __class__:
-                raise TypeError(self)
-            return __class__(  # noqa
-                q=self.q,
-                scale=self.scale,
-                bias=self.bias,
-                bits=self.bits,
-                group=self.group,
-                shape=self.shape,
-            )
-
-        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
-
-        def __eq__(self, other):
-            if self is other:
-                return True
-            if self.__class__ is not other.__class__:
-                return NotImplemented
-            return (
-                self.q == other.q and
-                self.scale == other.scale and
-                self.bias == other.bias and
-                self.bits == other.bits and
-                self.group == other.group and
-                self.shape == other.shape
-            )
-
-        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
-
-        __dataclass__set_cls_attr(__class__, '__hash__', None, 'replace')
-
-        def __init__(
-            self,
-            q: __dataclass__init__fields__0__annotation,
-            scale: __dataclass__init__fields__1__annotation,
-            bias: __dataclass__init__fields__2__annotation,
-            bits: __dataclass__init__fields__3__annotation,
-            group: __dataclass__init__fields__4__annotation,
-            shape: __dataclass__init__fields__5__annotation,
-        ) -> __dataclass__None:
-            self.q = q
-            self.scale = scale
-            self.bias = bias
-            self.bits = bits
-            self.group = group
-            self.shape = shape
-
-        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
-
-        @__dataclass___recursive_repr()
-        def __repr__(self):
-            parts = []
-            parts.append(f"q={self.q!r}")
-            parts.append(f"scale={self.scale!r}")
-            parts.append(f"bias={self.bias!r}")
-            parts.append(f"bits={self.bits!r}")
-            parts.append(f"group={self.group!r}")
-            parts.append(f"shape={self.shape!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

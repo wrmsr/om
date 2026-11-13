@@ -90,6 +90,7 @@ def dtypes() -> dict[str, ta.Any]:
         'f16': tg.dtypes.float16,
         'bf16': tg.dtypes.bfloat16,
         'i32': tg.dtypes.int32,
+        'i64': tg.dtypes.int64,
     }
 
 

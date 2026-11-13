@@ -107,6 +107,9 @@ def test_injected_engine_serves_json_mode():
         'messages': [{'role': 'user', 'content': 'json please'}],
         'response_format': {'type': 'json_object'},
         'chat_template_kwargs': {'enable_thinking': False},
+        # a fixed seed: the grammar makes every output a valid JSON prefix, but an unlucky draw from the clock-seeded
+        # default can still run into max_tokens mid-string (this one is an 82-token document)
+        'seed': 0,
     }, engine.defaults, engine.enable_thinking))
-    json.loads(res.content)  # grammar-constrained: always valid JSON
+    json.loads(res.content)  # grammar-constrained: valid JSON when it stops
     assert res.finish_reason == 'stop', res.finish_reason

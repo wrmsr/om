@@ -338,7 +338,12 @@ step 0's number was a mismeasurement.) What is left:
   trimming -- is an observer (`serve/serving.py`'s `_ChatStream`), so `Engine._run` is assembly plus translation.
 - Step 7: half done. The block as a composition and mixers owning their state layouts (the part Flash-Next needs
   first) landed; the KV format, the attention strategy and the capture / compile strategy are still `TorchOps` flags.
-- Step 9: done for the code each step touched; the loaders, `arch/` and the backends still print.
+  Flash-Next's reference implementation (2026-11-12) did not need the rest: QSA's state composes the ops-level KV
+  format with a buffer of its own (`core/qsa.py`), and its keep-mask attention is one more Ops primitive. What it did
+  need was a change to the layer contract: sublayers meet the residual stream through per-sublayer connections that
+  own the pre-norm (`Connection` in core/mixing.py), the stream keeping only its two ends.
+- Step 9: done. The library logs through module loggers (`omcore.logs`, warnings and info); the entrypoints configure
+  logging and keep their own console output; `load_qwen35(verbose=)`'s progress line is the one print left, by design.
 - Older and smaller models: qwen3.5:4b (no MTP head, tied embeddings, 32 layers) runs through the same code, by hand
   and through the injector, plain and with prompt lookup (the numbers are in NEXT.md 1.1).
 - Step 10: prompt lookup (`spec/lookup.py`, NEXT.md 1.1) is one draft source, which wraps the next one down the chain,

@@ -34,6 +34,8 @@ class NumpyOps(Ops):
             raise ValueError(name)
         if name == 'i32':
             return np.int32
+        if name == 'i64':
+            return np.int64
         return self.precision
 
     def array(self, a, dtype=None):

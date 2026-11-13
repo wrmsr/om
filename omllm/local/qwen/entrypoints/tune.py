@@ -7,6 +7,7 @@ import argparse
 import typing as ta
 
 from omcore import lang
+from omcore.logs import all as logs
 
 from ..backends.torch_triton import save_tuned
 from ..backends.torch_triton import tune
@@ -74,6 +75,8 @@ def model_shapes(model: str, bits: int, with_mtp: bool = True) -> dict[int, set[
 
 
 def main() -> None:
+    logs.configure_standard_logging('INFO')
+
     ap = argparse.ArgumentParser()
     ap.add_argument(
         '--model',

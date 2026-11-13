@@ -2,12 +2,16 @@ import os
 
 from omcore import dataclasses as dc
 from omcore import inject as inj
+from omcore.logs import all as logs
 
 from ..ops.base import Ops
 from .backends import make_ops
 
 
 ##
+
+
+log = logs.get_module_logger(globals())
 
 
 @dc.dataclass(frozen=True)
@@ -40,13 +44,16 @@ def _ops(config: BackendConfig) -> Ops:
         if hasattr(ops, 'kv_dtype'):
             ops.kv_dtype = config.kv_dtype
         else:
-            print(f'[model] kv_dtype {config.kv_dtype} is a torch backend option; the KV cache stays in the compute dtype')  # noqa
+            log.warning(
+                'kv_dtype %s is a torch backend option; the KV cache stays in the compute dtype',
+                config.kv_dtype,
+            )
 
     if config.triton_tuned and hasattr(ops, 'gemv_tuned'):
         from .torch_triton import load_tuned
 
         ops.gemv_tuned = load_tuned(config.triton_tuned)
-        print(f'[model] {len(ops.gemv_tuned)} tuned GEMV configs from {config.triton_tuned}')
+        log.info('%d tuned GEMV configs from %s', len(ops.gemv_tuned), config.triton_tuned)
 
     return ops
 

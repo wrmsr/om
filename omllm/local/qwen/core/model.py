@@ -46,7 +46,8 @@ else:
 class Qwen35:
     """
     The decoder model, assembled from parts by an architecture (arch/): the embedding and output head, the blocks (each
-    a composition of residual stream, mixer and feed-forward), the final norm, and the draft head when one is loaded. It
+    a composition of mixer, feed-forward and their connections to the residual stream), the stream's two ends (the
+    final norm is its exit's), and the draft head when one is loaded. It
     owns the functional forward and prefill and builds the static step; it knows neither how it was loaded nor how it is
     decoded.
     """
@@ -59,7 +60,6 @@ class Qwen35:
             dtype: ta.Any,
             embed: Weight,
             lm_head: Weight,
-            norm: Weight,
             blocks: ta.Sequence[Block],
             residual: ResidualStream,
             mtp: MtpHead | None = None,
@@ -72,7 +72,6 @@ class Qwen35:
         self.dtype = dtype
         self.embed = embed
         self.lm_head = lm_head
-        self.norm_w = norm
         self.blocks: list[Block] = list(blocks)
         self.residual = residual
         self.mtp = mtp
@@ -129,7 +128,6 @@ class Qwen35:
         """
 
         ops = self.ops
-        c = self.cfg
         tokens = np.asarray(tokens, dtype=np.int32)
         B, T = tokens.shape
 
@@ -141,18 +139,17 @@ class Qwen35:
 
         r = self.residual.enter(ops, x)
         for i, blk in enumerate(self.blocks):
-            r, st = blk(ops, r, start_pos, cache.layers[i] if cache is not None else None)
+            r, st = blk(ops, r, start_pos, cache.layers[i] if cache is not None else None, ids=tokens)
             if cache is not None:
                 cache.layers[i] = st
-        x = self.residual.exit(ops, r)
 
         if cache is not None:
             cache.seq_len = start_pos + T
 
         if last_only and not return_hidden:
-            x = x[:, -1:]
+            r = r[:, -1:]
 
-        x = ops.rms_norm(x, self.norm_w, c.rms_eps)
+        x = self.residual.exit(ops, r)  # final-normed
         ops.tap('final_norm', x)
 
         # the full-vocabulary logits of a 4096-token prefill chunk are 4 GB in float32: compute only the rows asked for
@@ -210,9 +207,9 @@ class Qwen35:
         return t
 
     def state_layouts(self) -> list[StateLayout]:
-        """Each layer's decode-state layout, from its mixer."""
+        """Each layer's decode-state layout (its mixer's, and its layer embedding's when it has one)."""
 
-        return [blk.mixer.state for blk in self.blocks]
+        return [blk.state for blk in self.blocks]
 
     def state_offsets(self) -> list[tuple[int, int]]:
         """(start, count) of each layer's arrays in a flat state, as its layout says."""
@@ -232,7 +229,7 @@ class Qwen35:
             return_hidden: bool,
             bucket: int,
     ) -> ta.Callable[..., tuple[Array, ...]]:
-        ops, c = self.ops, self.cfg
+        ops = self.ops
         offsets = self.state_offsets()
 
         def fn(toks, pos, ar, cos_tab, sin_tab, *flat):
@@ -242,7 +239,7 @@ class Qwen35:
             cos = cos_tab[rows]  # [T, rope_dim]
             sin = sin_tab[rows]
 
-            ctx = StepContext(pos, ar, cos, sin, all_states, bucket)
+            ctx = StepContext(pos, ar, cos, sin, all_states, bucket, cos_tab, sin_tab, toks)
 
             r = self.residual.enter(ops, ops.embedding(toks, self.embed, self.dtype))
 
@@ -252,7 +249,7 @@ class Qwen35:
                 r, st = blk.step(ops, r, ctx, tuple(flat[o:o + n]))
                 out.extend(st)
 
-            x = ops.rms_norm(self.residual.exit(ops, r), self.norm_w, c.rms_eps)
+            x = self.residual.exit(ops, r)
             logits = ops.f32(ops.linear(x, self.lm_head))
 
             if return_hidden:

@@ -229,6 +229,52 @@ copied into a static buffer before replay), which the static-input protocol alre
 **Tests.** Hash equality against the reference on a few thousand token pairs; a parity test that the device path
 with the table "on host" equals the table on device.
 
+#### 4.4.1 The n-gram layer, specified
+
+What `core/ple.py` implements, stated as behaviour (math and prose). n is `ngram_size`, V `vocab_size`, hc
+`hc_count`, H `hidden_size`, K `ple_conv_kernel`, E the EOS id (`eos_id`), and p the layer's index among the PLE
+layers (0 for the first in `ple_layers`, and so on). All integer arithmetic below is on non-negative values below
+2^63, so it is exact in int64.
+
+*Hash parameters, per PLE layer.*
+
+- SplitMix64, the published mixing function (Steele, Lea and Flood, "Fast splittable pseudorandom number
+  generators", 2014; Vigna's public-domain `splitmix64.c`), as a function of a 64-bit input x, all arithmetic mod
+  2^64: x' = x + 0x9E3779B97F4A7C15; z = (x' xor (x' >> 30)) * 0xBF58476D1CE4E5B9; z = (z xor (z >> 27)) *
+  0x94D049BB133111EB; the result is z xor (z >> 31).
+- Multipliers m_0 .. m_(n-1): with bound = max(1, floor(floor((2^63 - 1) / max(V, 1)) / 2)) and
+  base = `ngram_seed` + 10007 p, m_j = 2 (SplitMix64((base + 0x9E3779B97F4A7C15 (j + 1)) mod 2^64) mod bound) + 1.
+  They are odd, and below (2^63 - 1) / V, so a token id times one fits in int64.
+- Heads: (n - 1) x `heads_per_ngram` of them, the order-2 (bigram) heads first, then order 3, and so on up to n.
+  Head h of layer p has global number g = p (n - 1) `heads_per_ngram` + h; its vocabulary size P_h is the (g + 1)-th
+  smallest prime that is at least `ngram_vocab_size_base`; its offset O_h is the sum of P over the layer's earlier
+  heads. The table has at least sum(P_h) rows (it is padded to a multiple of `ngram_vocab_divisor`) of
+  `ple_embed_dim` / heads dims each.
+
+*Ids.* Take the token history: the sequence processed so far, preceded by n - 1 copies of E (so the first real token
+has a context too). For the token at position t and a shift s in 0 .. n - 1, the shifted token a_s(t) is the token at
+t itself for s = 0; for s >= 1 it is the token at t - s, unless one of the tokens at t - s, ..., t - 1 is E, in which
+case it is E. (A token's n-gram never reaches back past an end of text.) For each order k in 2 .. n:
+x_k(t) = (a_0(t) m_0) xor (a_1(t) m_1) xor ... xor (a_(k-1)(t) m_(k-1)), and for each head h of order k,
+id_h(t) = (x_k(t) mod P_h) + O_h. The token's embedding e(t) is the table's rows id_h(t) concatenated in head order:
+`ple_embed_dim` values.
+
+*The addend.* With R the residual stream at the layer, before the gated residual's read, as hc branches of H, and
+"per-branch norm" an RMS norm over each H-sized branch (eps `rms_eps`) times that branch's weights (given as
+[hc, H], the +1 already in them):
+
+- key = per-branch norm of W_key e (W_key: `ple_embed_dim` -> hc H), with `norm_key`; value = W_value e
+  (`ple_embed_dim` -> H); q = per-branch norm of R, with `norm_query`.
+- per branch b: s_b = (key_b . q_b) / sqrt(H), then s_b <- sign(s_b) sqrt(max(|s_b|, 1e-6)); v_b = sigmoid(s_b) value.
+  v is the hc branches side by side (branch b at [b H, (b + 1) H)).
+- u = per-branch norm of v, with `norm_conv`; c = a causal depthwise convolution over time of u, per channel (hc H of
+  them): c(t) = sum over j in 0 .. K - 1 of w[:, j] u(t - (K - 1 - j) n) -- dilation n -- with u = 0 before the
+  sequence starts; w is [hc H, K].
+- the addend is v + silu(c); the block adds it to R.
+
+*State,* per layer: the last n - 1 tokens of the history (initially n - 1 copies of E) and the convolution's history,
+the last (K - 1) n positions of u (initially zeros).
+
 ### 4.5 MTP head
 
 One layer, 4B parameters, with QSA and an MoE block — i.e. a full new-architecture `Block`, which our `MtpHead`
@@ -278,6 +324,45 @@ or 128 GB of Apple unified memory with the n-gram table alongside.
 
 
 ## 6. Plan of work
+
+**Status (2026-11-12).** Phases 0-2 done, and the reference halves of 3-5: every component exists as the composed
+reference, the whole model equals transformers' `qwen4_exp` on a tiny random checkpoint written by transformers
+(logits at every position to ~1e-6, QSA past its budget, an EOS through the n-gram hash; greedy tokens equal the
+reference's own `generate()`), and it runs through the static decoder -- compiled and graph-captured on CUDA as
+whole graphs in both KV formats, verifying prompt-lookup drafts, resuming from prefix snapshots, assembled by hand
+or by the injector (`arch/tests/test_qwen4exp.py`). Where things are:
+
+- `core/gated_residual.py` (phase 2: connections and the stream's ends -- the "layer contract change" landed as the
+  `Connection` seam, which the Qwen3.5 blocks use too); `core/moe.py` (phase 3, reference); `core/qsa.py` (phase 4,
+  reference); `core/ple.py` (phase 5, reference: the hash bit-exact on the host and on the device);
+  `arch/qwen4exp.py` and `arch/registry.py`; the config and source in `core/config.py`, `load/weights.py`.
+
+At the real dimensions -- 4 layers built directly on the 5090 with random int4 weights (32 experts: a token's cost
+depends on the 10 it routes to, not on the total), a 3000-token prompt so QSA selects past its 2048 budget, fp8 KV --
+every step compiles and captures as one graph, and a decode step takes 1.9 ms: ~23 ms per token extrapolated to 48
+layers, about 10x §5's bandwidth floor. The composed references (the gated residual's small matmuls, QSA's block
+scoring and gathered attention through cuBLAS, the n-gram layer) are where the next kernels go.
+
+What the real checkpoint still needs, in the order it would block:
+
+1. *Expert stacking in the loader* (phase 3, the rest). Experts are quantized like any linear and stacked by
+   `Ops.expert_weights` (TorchQExperts on torch), and every (token, slot) row runs against its own expert through
+   `Ops.expert_linear` -- on CUDA the expert GEMV kernel (`_qgemv_experts_kernel`, one program per output block and
+   row, reading only the selected experts), elsewhere a gather of the selected experts dequantized. What remains: the
+   loader quantizes and caches the experts one by one (73,728 tensors, a cache entry each) and the stacking copies
+   them, so the per-expert tensors and the stacks are both resident while the model is built -- the loader should
+   stack per layer-projection itself (§4.1). MLX's `gather_qmm` and a grouped GEMM for prefill (the GEMV runs one
+   row per program, fine for decode) are the other halves of §4.1. Measured at the real shapes (512 experts,
+   2560 / 640, int4, a decode token's 10 rows) on the 5090: 13 µs for gate_up and 6 µs for down per layer, ~1.4
+   TB/s; about 1 ms per token for the routed experts over 48 layers, as §5 estimated.
+2. *A host-resident n-gram table* (phase 5 proper): it is loaded like any weight (device-resident; 95 GB at bf16).
+   The device-side hash in the static step then becomes host-side ids + a host gather into a step input.
+3. *Sparse QSA prefill* (phase 4 proper). Decode and verify already gather each query's selection (`Ops.kv_gather`:
+   only the gathered fp8 rows are dequantized) and attend over a fixed `budget + ratio` rows, so their cost is flat
+   in the context apart from scoring every block key. Prefill past the budget still goes through a keep-mask over
+   every position (`Ops.sdpa_masked`): `[heads, T, L]` scores, impossible for a long prompt at the real size. A
+   flash-style kernel with a per-row block list (§4.3, item 4) is what it needs, then a fused sparse decode kernel.
+4. *The MTP head*: not in the reference, so there is nothing to check it against; the architecture refuses `mtp`.
 
 Each phase ends with the parity tests green on a synthetic configuration of the new architecture (the synthetic
 builder gains a second config: 8 layers, hidden 64, 8 experts of width 32 with top-2, QSA with `r = 2` and

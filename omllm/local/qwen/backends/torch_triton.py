@@ -52,6 +52,13 @@ else:
 
 HAVE_TRITON = lang.can_import('triton')  # found, not imported: the kernels are jitted on first use
 
+# Keep `a * b + c` fused into FMAs in every Triton kernel -- ours and the ones torch.compile generates. That is Triton
+# 3.9's default, which 3.10 turns off: every tuned table and baseline here was measured with it, and the int4 GEMV is
+# ~3% slower without it (the 27B's gate_up: 70 vs 73 us). An environment variable, regrettably: Triton warns at every
+# compile unless this one is set, and it is read at compile time, so setting it here, before any kernel compiles,
+# covers the process. setdefault leaves an explicit choice in the environment alone.
+os.environ.setdefault('TRITON_DEFAULT_FP_FUSION', '1')
+
 # (N, K, bits, dtype, config) -> (block_k, num_stages, split_k) that launched successfully; filled by `_resolve`, which
 # is the only place a launch may fail and be retried smaller (keeps try/except out of the traced hot path)
 _RESOLVED: dict[tuple[ta.Any, ...], tuple[int, int, int]] = {}
@@ -564,6 +571,7 @@ def attn_prefill(
 # calls when it is constructed with Triton on, so importing this module still imports neither triton nor torch.
 _qlinear_jit: ta.Any = None
 _fma_jit: ta.Any = None
+_experts_jit: ta.Any = None
 _gdn_jit: ta.Any = None
 _attn_jit: ta.Any = None
 _attn_prefill_jit: ta.Any = None
@@ -577,7 +585,7 @@ def ensure_kernels() -> None:
     point.
     """
 
-    global _qlinear_jit, _fma_jit, _gdn_jit, _attn_jit, _attn_prefill_jit
+    global _qlinear_jit, _fma_jit, _experts_jit, _gdn_jit, _attn_jit, _attn_prefill_jit
 
     if _qlinear_jit is not None:
         return
@@ -587,6 +595,7 @@ def ensure_kernels() -> None:
     g['triton'] = importlib.import_module('triton')
     g['tl'] = importlib.import_module('triton.language')
     _fma_jit = triton.jit(_qgemv_fma_kernel)
+    _experts_jit = triton.jit(_qgemv_experts_kernel)
     _gdn_jit = triton.jit(_gdn_step_kernel)
     _attn_jit = triton.jit(_attn_decode_kernel)
     _attn_prefill_jit = triton.jit(_attn_prefill_kernel)
@@ -797,6 +806,129 @@ def _qgemv_fma_kernel(
     y_base = y_ptr + pid_s * M * stride_ym
     y = acc.to(y_ptr.dtype.element_ty)
     tl.store(y_base + rm[:, None] * stride_ym + rn[None, :], y, mask=(rm[:, None] < M) & n_mask[None, :])
+
+
+def _qgemv_experts_kernel(
+        x_ptr,
+        e_ptr,
+        q_ptr,
+        s_ptr,
+        b_ptr,
+        y_ptr,
+        N,
+        K,
+        stride_x,
+        stride_y,
+        stride_qe,
+        stride_se,
+        BITS: tl.constexpr,
+        GROUP: tl.constexpr,
+        X_DIV: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+        BLOCK_K: tl.constexpr,
+):
+    """
+    One GEMV per row r against expert e_ptr[r] of a stack of quantized weights ([E, N, K] as codes [E, N, K / per
+    byte] and per-group scale / bias [E, N, K / GROUP]): row r reads input row r // X_DIV (a token's k expert slots
+    share its input; X_DIV = 1 when each slot has its own). The FMA formulation of _qgemv_fma_kernel with one row and
+    the expert's base offset: the program grid is (N blocks, rows), so a decode step's k experts per token fill the
+    GPU, and only the selected experts' weights are read.
+    """
+
+    pid_n = tl.program_id(0)
+    r = tl.program_id(1)
+    e = tl.load(e_ptr + r).to(tl.int64)
+    xrow = x_ptr + (r // X_DIV) * stride_x
+    qb = q_ptr + e * stride_qe
+    sb = s_ptr + e * stride_se
+    bb = b_ptr + e * stride_se
+
+    rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    n_mask = rn < N
+    n_groups = K // GROUP
+    G: tl.constexpr = BLOCK_K // GROUP
+    rg = tl.arange(0, G)
+    acc = tl.zeros((BLOCK_N,), dtype=tl.float32)
+    if BITS == 4:
+        KB: tl.constexpr = BLOCK_K // 2
+        GB: tl.constexpr = GROUP // 2
+        rb = tl.arange(0, KB)
+        for k0 in range(0, K, BLOCK_K):
+            kb = k0 // 2 + rb
+            ke = k0 + 2 * rb
+            gcol = k0 // GROUP + rg
+            q = tl.load(qb + rn[:, None] * (K // 2) + kb[None, :], mask=n_mask[:, None], other=0)
+            s = tl.load(sb + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            b = tl.load(bb + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            s = s.to(tl.float32)[:, :, None]
+            b = b.to(tl.float32)[:, :, None]
+            lo = tl.reshape(tl.reshape((q & 0xF).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+            hi = tl.reshape(tl.reshape((q >> 4).to(tl.float32), (BLOCK_N, G, GB)) * s + b, (BLOCK_N, KB))
+            xe = tl.load(xrow + ke).to(tl.float32)
+            xo = tl.load(xrow + ke + 1).to(tl.float32)
+            acc += tl.sum(lo * xe[None, :], 1) + tl.sum(hi * xo[None, :], 1)
+    else:
+        rk0 = tl.arange(0, BLOCK_K)
+        for k0 in range(0, K, BLOCK_K):
+            rk = k0 + rk0
+            gcol = k0 // GROUP + rg
+            q = tl.load(qb + rn[:, None] * K + rk[None, :], mask=n_mask[:, None], other=0)
+            s = tl.load(sb + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            b = tl.load(bb + rn[:, None] * n_groups + gcol[None, :], mask=n_mask[:, None], other=0.0)
+            s = s.to(tl.float32)[:, :, None]
+            b = b.to(tl.float32)[:, :, None]
+            w = tl.reshape(tl.reshape(q.to(tl.float32), (BLOCK_N, G, GROUP)) * s + b, (BLOCK_N, BLOCK_K))
+            xt = tl.load(xrow + rk).to(tl.float32)
+            acc += tl.sum(w * xt[None, :], 1)
+    tl.store(y_ptr + r * stride_y + rn, acc.to(y_ptr.dtype.element_ty), mask=n_mask)
+
+
+def qgemv_experts(
+        x: torch.Tensor,
+        eids: torch.Tensor,
+        q: torch.Tensor,
+        scale: torch.Tensor,
+        bias: torch.Tensor,
+        bits: int,
+        group: int,
+        shape: tuple[int, int],
+        x_div: int = 1,
+        block_n: int = 32,
+) -> torch.Tensor:
+    """
+    y [R, N]: row r = x[r // x_div] @ w[eids[r]].T, w a stack of quantized weights (codes q [E, N, K / per byte],
+    scale / bias [E, N, K / group]). K must be a multiple of the block (128, or 64).
+    """
+
+    ensure_kernels()
+    n, k = shape
+    bk = 128 if k % 128 == 0 else 64
+    if k % bk or bk % group:
+        raise ValueError(f'expert GEMV needs K ({k}) a multiple of {bk} and of the group ({group})')
+    x2 = x if x.stride(-1) == 1 else x.contiguous()
+    r = eids.shape[0]
+    y = torch.empty((r, n), dtype=x.dtype, device=x.device)
+    _experts_jit[(triton.cdiv(n, block_n), r)](
+        x2,
+        eids,
+        q,
+        scale,
+        bias,
+        y,
+        n,
+        k,
+        x2.stride(0),
+        y.stride(0),
+        q.stride(0),
+        scale.stride(0),
+        BITS=bits,
+        GROUP=group,
+        X_DIV=x_div,
+        BLOCK_N=block_n,
+        BLOCK_K=bk,
+        num_warps=4,
+    )
+    return y
 
 
 def _block_k(k: int, cap: int = 128) -> int:

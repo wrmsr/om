@@ -100,6 +100,47 @@ def test_qlinear_kernel():
 
 
 @triton_modes('interpret', 'compiled')
+def test_qgemv_experts_kernel():
+    """
+    The expert GEMV (Flash-Next's MoE): every row against its own expert of a quantized stack, rows sharing a token's
+    input (x_div = k) or not; int8 and int4, N not a multiple of the block, K at both block sizes; against the
+    dequantized experts. And TorchOps.expert_linear on such a stack equals it on the dense stack.
+    """
+
+    if _skip():
+        return
+
+    from ..backends.torch import TorchOps
+    from ..backends.torch_triton import qgemv_experts
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    ops = TorchOps(device)
+    rng = np.random.default_rng(1)
+    for bits in (8, 4):
+        for n, k in ((96, 256), (40, 192)):
+            ws = [(rng.standard_normal((n, k)) * 0.05).astype(np.float32) for _ in range(6)]
+            experts = [ops.qweight(quantize_np(w, bits, 64), torch.float32) for w in ws]
+            stack = ops.expert_weights([[w] for w in experts])
+            for x_div in (1, 3):
+                rows = 7 * x_div
+                x = torch.from_numpy(rng.standard_normal((rows // x_div, k)).astype(np.float32)).to(device)
+                eids = torch.from_numpy(rng.integers(0, 6, rows)).to(device)
+                y = qgemv_experts(x, eids.to(torch.int32), stack.q, stack.scale, stack.bias, bits, 64, (n, k), x_div)
+                ref = torch.stack([
+                    x[r // x_div] @ experts[int(eids[r])].dequant(torch.float32).T
+                    for r in range(rows)
+                ])
+                err = ((y - ref).abs().max() / ref.abs().max()).item()
+                assert err < 1e-4, (bits, n, k, x_div, err)
+
+                dense = TorchOps.expert_weights(ops, [[w.dequant(torch.float32)] for w in experts])
+                via_ops = ops.expert_linear(x, stack, eids, x_div)
+                via_dense = super(TorchOps, ops).expert_linear(x, dense, eids, x_div)
+                assert ((via_ops - via_dense).abs().max() / via_dense.abs().max()).item() < 1e-4, (bits, x_div)
+    print('expert GEMV int8/int4 == dequantized experts')
+
+
+@triton_modes('interpret', 'compiled')
 def test_gdn_step_kernel():
     """
     The fused DeltaNet step against the composed Ops.gdn_step reference: T in (1, 4), 3 value heads per key

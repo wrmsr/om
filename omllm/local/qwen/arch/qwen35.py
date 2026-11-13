@@ -12,7 +12,9 @@ from ..core.block import Block
 from ..core.block import block_params
 from ..core.config import Qwen35Config
 from ..core.deltanet import GatedDeltaNet
+from ..core.mixing import Connection
 from ..core.mixing import Mixer
+from ..core.mixing import PlainConnection
 from ..core.mixing import PlainResidual
 from ..core.mixing import ResidualStream
 from ..core.mlp import MLP
@@ -58,8 +60,15 @@ class Qwen35Architecture:
 
     # construction
 
-    def _residual(self) -> ResidualStream:
-        return PlainResidual()
+    def _residual(self, cfg: Qwen35Config, norm: Weight) -> ResidualStream:
+        """The stream's two ends; `norm` is the final norm before the output head."""
+
+        return PlainResidual(norm, cfg.rms_eps)
+
+    def _connection(self, cfg: Qwen35Config, norm: Weight) -> Connection:
+        """A sublayer's connection to the stream; `norm` is its pre-norm."""
+
+        return PlainConnection(norm, cfg.rms_eps)
 
     def _mixer(self, cfg: Qwen35Config, kind: str, p: ta.Mapping[str, Weight]) -> Mixer:
         if kind == 'full':
@@ -74,16 +83,13 @@ class Qwen35Architecture:
             index: int,
             kind: str,
             p: ta.Mapping[str, Weight],
-            residual: ResidualStream,
     ) -> Block:
         return Block(
             index=index,
             mixer=self._mixer(cfg, kind, p),
             ffn=MLP(dict(p)),
-            residual=residual,
-            ln1=p['input_layernorm'],
-            ln2=p['post_attention_layernorm'],
-            eps=cfg.rms_eps,
+            mixer_conn=self._connection(cfg, p['input_layernorm']),
+            ffn_conn=self._connection(cfg, p['post_attention_layernorm']),
         )
 
     def build(
@@ -95,9 +101,8 @@ class Qwen35Architecture:
     ) -> Qwen35:
         """A model from finished parameters (canonical names, fused as `layout` says)."""
 
-        residual = self._residual()
         blocks = [
-            self._block(cfg, i, kind, block_params(params, f'layers.{i}.'), residual)
+            self._block(cfg, i, kind, block_params(params, f'layers.{i}.'))
             for i, kind in enumerate(cfg.layer_types)
         ]
 
@@ -115,8 +120,8 @@ class Qwen35Architecture:
                 fc=params['mtp.fc.weight'],
                 enorm=params['mtp.pre_fc_norm_embedding.weight'],
                 hnorm=params['mtp.pre_fc_norm_hidden.weight'],
-                norm=params['mtp.norm.weight'],
-                block=self._block(cfg, cfg.num_layers, 'full', block_params(params, 'mtp.layers.0.'), self._residual()),
+                residual=self._residual(cfg, params['mtp.norm.weight']),
+                block=self._block(cfg, cfg.num_layers, 'full', block_params(params, 'mtp.layers.0.')),
             )
 
         return Qwen35(
@@ -125,9 +130,8 @@ class Qwen35Architecture:
             dtype=dtype,
             embed=embed,
             lm_head=lm_head,
-            norm=params['norm.weight'],
             blocks=blocks,
-            residual=residual,
+            residual=self._residual(cfg, params['norm.weight']),
             mtp=mtp,
             nbytes=sum(ops.nbytes(p) for p in params.values()),
         )
@@ -187,8 +191,8 @@ def load_qwen35(
         quant_search: bool = True,
 ) -> Qwen35:
     """
-    A Qwen3.5 model from a source, for scripts, tests and the CLIs (the injector bindings use the architecture
-    directly).
+    A Qwen3.5-family model from a source -- whichever architecture its config is (arch/registry.py), Qwen3.8-Flash-Next
+    included -- for scripts, tests and the CLIs (the injector bindings use the architecture directly).
 
     dtype: 'bf16' | 'f16' | 'f32' (compute dtype; norms, A, dt_bias, conv stay f32).
     quant: None, 'int8' or 'int4' (weight-only affine, see ops/quant.py). If the source already holds MLX-quantized
@@ -214,7 +218,9 @@ def load_qwen35(
         if done % 50 == 1 or done == total:
             print(f'\r[model] loading tensors {done}/{total}', end='', flush=True)
 
-    model, report = Qwen35Architecture().load(
+    from .registry import architecture_for  # (a function-local import: the other architectures build on this module)
+
+    model, report = architecture_for(cfg).load(
         src,
         ops,
         recipe=LoadRecipe(

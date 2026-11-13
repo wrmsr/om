@@ -91,7 +91,7 @@ def test_model_quant():
             isinstance(blk.w_ab, TorchQWeight) and  # type: ignore
             blk.w_ab.bits == 8  # type: ignore
         )
-        assert not isinstance(m.blocks[0].ln1, TorchQWeight)
+        assert not isinstance(m.blocks[0].mixer_conn.norm, TorchQWeight)  # type: ignore[attr-defined]
         assert m.nbytes < ref.nbytes
         lg = ops.numpy(m.forward(ids))
         lp = lg - np.log(np.exp(lg).sum(-1, keepdims=True))
@@ -166,7 +166,7 @@ def test_param_cache():
     for m in (b, c):
         assert torch.equal(m.blocks[0].ffn.wgu.q, a.blocks[0].ffn.wgu.q)  # type: ignore
         assert torch.equal(m.blocks[0].ffn.wgu.scale, a.blocks[0].ffn.wgu.scale)  # type: ignore
-        assert torch.equal(m.blocks[0].ln1, a.blocks[0].ln1)
+        assert torch.equal(m.blocks[0].mixer_conn.norm, a.blocks[0].mixer_conn.norm)  # type: ignore[attr-defined]
         assert torch.equal(m.forward(ids), a.forward(ids))
     # a later load with the draft head adds only its entries
     d = load_qwen35(src, ops, dtype='f32', quant='int4', verbose=False, cache_dir=cdir, mtp=True)
