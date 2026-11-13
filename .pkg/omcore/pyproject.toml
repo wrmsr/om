@@ -81,7 +81,7 @@ sqldrivers = [
     'duckdb ~= 2.0',
 ]
 testing = [
-    'pytest ~= 9.2',
+    'pytest ~= 9.1',
 ]
 text = [
     'markupsafe ~= 3.0',
@@ -139,7 +139,7 @@ all = [
     'apsw ~= 3.54',
     'sqlean.py ~= 3.50',
     'duckdb ~= 2.0',
-    'pytest ~= 9.2',
+    'pytest ~= 9.1',
     'markupsafe ~= 3.0',
     'markdown-it-py ~= 4.2',
     'mdit-py-plugins ~= 0.6',

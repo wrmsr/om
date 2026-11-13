@@ -6,7 +6,7 @@ wheel>=0.48.0
 
 uv>=0.13.8
 
-pytest==9.2.0
+pytest==9.1.1  # FIXME: 9.2.0 breaks xdist groups
 pytest-benchmark==5.3.1
 pytest-clarity==1.0.1
 pytest-mock==3.17.0
