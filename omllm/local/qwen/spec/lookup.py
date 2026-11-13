@@ -80,6 +80,10 @@ class LookupDraftSource(DraftSource):
     def accepts(self, resume: Snapshot) -> bool:
         return self._wrapped.accepts(resume)
 
+    @property
+    def reads_prompt_hidden(self) -> bool:
+        return self._wrapped.reads_prompt_hidden
+
     def start(
             self,
             gen: Generation,
@@ -117,3 +121,6 @@ class LookupDraftSource(DraftSource):
 
     def export(self, gen: Generation) -> tuple[Array, ...] | None:
         return self._wrapped.export(gen)
+
+    def export_at(self, gen: Generation, n: int) -> tuple[Array, ...] | None:
+        return self._wrapped.export_at(gen, n)

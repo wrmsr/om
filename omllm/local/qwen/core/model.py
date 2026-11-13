@@ -82,18 +82,45 @@ class Qwen35:
 
     # forward
 
+    def reserve(self, cache: Cache, capacity: int) -> None:
+        """
+        Room for `capacity` positions in the cache's growing states (the attention layers' KV), where the backend
+        writes such buffers in place (Ops.kv_reserve); a no-op for a state that already has it, and for the rest.
+        """
+
+        for i, (st, layout) in enumerate(zip(cache.layers, self.state_layouts())):
+            if st is not None:
+                cache.layers[i] = layout.reserve(self.ops, st, capacity)
+
     def prefill(
             self,
             tokens: ta.Sequence[int],
             cache: Cache,
             chunk: int = 4096,
             should_stop: ta.Callable[[], bool] | None = None,
+            *,
+            reserve: int | None = None,
+            all_hidden: bool = True,
+            on_chunk: ta.Callable[[Array, Array], None] | None = None,
     ) -> tuple[Array, Array]:
         """
         `forward` over a prompt in chunks of `chunk` tokens through the growing cache, so activation memory (the [T,
         intermediate] tensors, ~35 KB per token for the 27B) stays bounded whatever the prompt length, and a
         cancellation (`should_stop`) has somewhere to land. Returns the last position's logits [B, 1, V] and the
-        final-normed hidden states of every position [B, T, hidden].
+        final-normed hidden states of every position [B, T, hidden] -- or, without `all_hidden`, of the last position
+        only [B, 1, hidden]: every position's is 10 KB a token on the 27B (2.5 GiB at 262k), which only a draft head
+        reads.
+
+        `reserve`: the positions the cache's states will be asked to hold in the end (a static decoder's capacity).
+        From the second chunk on the KV is then written into buffers of that size (`reserve`), not grown by a
+        concatenation per chunk per layer: the same values, without re-copying the whole KV 64 times over a 262k
+        prompt (~270 GB on the 27B) through allocations that never fit the last one's hole. The cache's KV states
+        then have room past `seq_len`, which a static decoder of that capacity adopts as its buffers without a copy.
+
+        `on_chunk(logits, hidden)` is called after each chunk with what this method would return had the prompt ended
+        there (the chunk's last position's logits, its hidden states), the cache standing at that position: the
+        chunk boundaries are where a prefill can be checkpointed (the DeltaNet state exists only at the position
+        the prefill has reached).
         """
 
         ops = self.ops
@@ -105,8 +132,15 @@ class Qwen35:
         for start in range(0, T, max(1, chunk)):
             if should_stop is not None and should_stop():
                 raise Cancelled
+            if reserve is not None:
+                self.reserve(cache, reserve)
             logits, h = self.forward(toks[:, start:start + chunk], cache, last_only=True, return_hidden=True)
-            hiddens.append(h)
+            if all_hidden:
+                hiddens.append(h)
+            else:
+                hiddens[:] = [ops.copy(h[:, -1:])]  # (a copy: a view would keep the chunk's)
+            if on_chunk is not None:
+                on_chunk(logits[:, -1:], h)
 
         return (
             check.not_none(logits)[:, -1:],

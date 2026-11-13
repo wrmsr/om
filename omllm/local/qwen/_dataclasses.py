@@ -1578,22 +1578,23 @@ def _process_dataclass__8d77c87bb5f0e26bd86cc6a93a343105817f8be3():
 
 
 @_register(
-    installer_sha1='5021efc821704d9bf8c3cf606cabd96b2f382d12',
+    installer_sha1='76a64075abe2808d42eeadd6fb84973cfc237ad6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, False, False), ((('capacity', True, True, None, True, False, False, None), 'instance', 'value',"
             " None, False, False, False), (('prefill_chunk', True, True, None, True, False, False, None), 'instance', '"
             "value', None, False, False, False), (('static', True, True, None, True, False, False, None), 'instance', '"
-            "value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()),"
-            " ((),), (), (False,)))"
+            "value', None, False, False, False), (('prefill_checkpoints', True, True, None, True, False, False, None), "
+            "'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False"
+            ", False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.local.qwen.decode.inject', 'DecodeConfig'),
     ),
 )
-def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
+def _process_dataclass__76a64075abe2808d42eeadd6fb84973cfc237ad6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1606,6 +1607,8 @@ def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -1619,6 +1622,7 @@ def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
                 capacity=self.capacity,
                 prefill_chunk=self.prefill_chunk,
                 static=self.static,
+                prefill_checkpoints=self.prefill_checkpoints,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -1631,7 +1635,8 @@ def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
             return (
                 self.capacity == other.capacity and
                 self.prefill_chunk == other.prefill_chunk and
-                self.static == other.static
+                self.static == other.static and
+                self.prefill_checkpoints == other.prefill_checkpoints
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -1640,6 +1645,7 @@ def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
             'capacity',
             'prefill_chunk',
             'static',
+            'prefill_checkpoints',
         }
 
         def __setattr__(self, name, value):
@@ -1667,6 +1673,7 @@ def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
                 self.capacity,
                 self.prefill_chunk,
                 self.static,
+                self.prefill_checkpoints,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -1676,10 +1683,12 @@ def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
             capacity: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             prefill_chunk: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
             static: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            prefill_checkpoints: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'capacity', capacity)
             __dataclass__object_setattr(self, 'prefill_chunk', prefill_chunk)
             __dataclass__object_setattr(self, 'static', static)
+            __dataclass__object_setattr(self, 'prefill_checkpoints', prefill_checkpoints)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -1689,6 +1698,7 @@ def _process_dataclass__5021efc821704d9bf8c3cf606cabd96b2f382d12():
             parts.append(f"capacity={self.capacity!r}")
             parts.append(f"prefill_chunk={self.prefill_chunk!r}")
             parts.append(f"static={self.static!r}")
+            parts.append(f"prefill_checkpoints={self.prefill_checkpoints!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2452,7 +2462,7 @@ def _process_dataclass__16b89d653f75a765bb7ce2edf75b5a43c44ee1f8():
 
 
 @_register(
-    installer_sha1='cee94571a5a1febb1198c89f29b8b4b4e2eae976',
+    installer_sha1='a0494328b928629dea97dc032e1e9546c4e36fd4',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -2461,15 +2471,16 @@ def _process_dataclass__16b89d653f75a765bb7ce2edf75b5a43c44ee1f8():
             "', None, False, False, False), (('logits', True, True, None, True, False, False, None), 'instance', 'missi"
             "ng', None, False, False, False), (('hidden', True, True, None, True, False, False, None), 'instance', 'mis"
             "sing', None, False, False, False), (('draft', True, True, None, True, False, False, None), 'instance', 'mi"
-            "ssing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()),"
-            " ((),), (), (False,)))"
+            "ssing', None, False, False, False), (('earlier', True, True, None, True, False, False, None), 'instance', "
+            "'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ())"
+            ", ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.local.qwen.decode.state', 'Snapshot'),
     ),
 )
-def _process_dataclass__cee94571a5a1febb1198c89f29b8b4b4e2eae976():
+def _process_dataclass__a0494328b928629dea97dc032e1e9546c4e36fd4():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2481,6 +2492,8 @@ def _process_dataclass__cee94571a5a1febb1198c89f29b8b4b4e2eae976():
         __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
         __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
         __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
@@ -2494,6 +2507,7 @@ def _process_dataclass__cee94571a5a1febb1198c89f29b8b4b4e2eae976():
                 logits=self.logits,
                 hidden=self.hidden,
                 draft=self.draft,
+                earlier=self.earlier,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2508,7 +2522,8 @@ def _process_dataclass__cee94571a5a1febb1198c89f29b8b4b4e2eae976():
                 self.cache == other.cache and
                 self.logits == other.logits and
                 self.hidden == other.hidden and
-                self.draft == other.draft
+                self.draft == other.draft and
+                self.earlier == other.earlier
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -2522,12 +2537,14 @@ def _process_dataclass__cee94571a5a1febb1198c89f29b8b4b4e2eae976():
             logits: __dataclass__init__fields__2__annotation,
             hidden: __dataclass__init__fields__3__annotation,
             draft: __dataclass__init__fields__4__annotation,
+            earlier: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             self.tokens = tokens
             self.cache = cache
             self.logits = logits
             self.hidden = hidden
             self.draft = draft
+            self.earlier = earlier
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2539,6 +2556,7 @@ def _process_dataclass__cee94571a5a1febb1198c89f29b8b4b4e2eae976():
             parts.append(f"logits={self.logits!r}")
             parts.append(f"hidden={self.hidden!r}")
             parts.append(f"draft={self.draft!r}")
+            parts.append(f"earlier={self.earlier!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

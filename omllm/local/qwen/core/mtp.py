@@ -99,6 +99,7 @@ class MtpHead:
             state: FullState | None = None,
             last_only: bool = False,
             chunk: int = 4096,
+            reserve: int | None = None,
     ) -> tuple[Array, Array, FullState]:
         """
         Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T, hidden [B,
@@ -106,7 +107,8 @@ class MtpHead:
         empty). Returns logits, d, (k, v) covering entries 0..pos+T-1. With last_only, logits and d are the last entry's
         only ([B, 1, ...]): the generation loop needs nothing else, and every entry's draft logits over a long prompt
         are gigabytes (32k entries x 64k ids in float32 is 8 GB). The entries go through the block `chunk` at a time, as
-        Qwen35.prefill does, so its activations stay bounded too.
+        Qwen35.prefill does, so its activations stay bounded too -- and, as there, into KV buffers of `reserve`
+        positions from the second chunk on when one is given (the returned state then has room past the entries).
         """
 
         ops = self.ops
@@ -115,12 +117,17 @@ class MtpHead:
 
         ds: list[Array] = []
         for s in range(0, T, max(1, chunk)):
+            if reserve is not None and state is not None:
+                state = self.block.state.reserve(ops, state, reserve)
             u = self.stem(ops, ops.array(toks[:, s:s + chunk]), hidden[:, s:s + chunk])
             r, state = self.block(ops, self.residual.enter(ops, u), pos + s, state)
             d = self.residual.exit(ops, r)
-            ds.append(d[:, -1:] if last_only else d)
+            if last_only:
+                ds[:] = [ops.copy(d[:, -1:])]  # a copy: a view would keep the whole chunk's, every chunk
+            else:
+                ds.append(d)
 
-        d = ds[-1] if (last_only or len(ds) == 1) else ops.concat(ds, 1)
+        d = ds[0] if len(ds) == 1 else ops.concat(ds, 1)
         return self.head(ops, d, draft_vocab), d, check.not_none(state)
 
     def step_fn(self, T: int, draft_vocab: int = 0, bucket: int = 0) -> ta.Callable[..., tuple[Array, ...]]:

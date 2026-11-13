@@ -225,6 +225,16 @@ def main() -> None:
         ),
     )
     ap.add_argument(
+        '--prefill-checkpoints',
+        type=int,
+        default=0,
+        metavar='N',
+        help=(
+            'with the prefix cache: also keep up to N states from inside each prefill (after its 1st, 2nd, 4th ... '
+            'chunk of 4096 tokens), which a prompt sharing only the start of an earlier one resumes from'
+        ),
+    )
+    ap.add_argument(
         '--cache-device-mib',
         type=int,
         default=4096,
@@ -404,6 +414,7 @@ def _assemble_by_hand(args: argparse.Namespace, *, prefix_cache: bool) -> Genera
             lookup_k=args.lookup_k,
             capacity=args.capacity,
             prefix_cache=pc,
+            prefill_checkpoints=args.prefill_checkpoints,
             static=not args.functional,
         ),
         prefix_cache=pc,

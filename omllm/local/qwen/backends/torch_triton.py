@@ -523,6 +523,15 @@ def _attn_prefill_kernel(
     tl.store(o_ptr + o_off, out.to(o_ptr.dtype.element_ty), mask=q_ok[:, None])
 
 
+def _attn_rows_alike(a: torch.Tensor, b: torch.Tensor) -> bool:
+    """
+    Whether a and b ([B, KV, L, ...]) can be addressed by one set of strides with the batch folded into the heads:
+    the same layout, and a batch stride of KV head strides -- true of contiguous tensors and of slices along L of them.
+    """
+
+    return a.stride() == b.stride() and (a.shape[0] == 1 or a.stride(0) == a.shape[1] * a.stride(1))
+
+
 def attn_prefill(
         q: torch.Tensor,
         k: torch.Tensor,
@@ -535,8 +544,10 @@ def attn_prefill(
 ) -> torch.Tensor:
     """
     Ops.sdpa for prefill on the flash-attention kernel: q [B, H, T, D], k / v [B, KV, past + T, D] -> [B, H, T, D],
-    query i attending keys <= past + i. Requires D a power of two (<= 256) and the tensors contiguous along D. With
-    ks / vs ([B, KV, past + T] float32) k / v are fp8 e4m3 codes with per-position scales.
+    query i attending keys <= past + i. Requires D a power of two (<= 256). With ks / vs ([B, KV, past + T] float32)
+    k / v are fp8 e4m3 codes with per-position scales. k / v (and ks / vs) are read where they are when they are the
+    first past + T positions of larger buffers (a prefill into reserved KV: Ops.kv_reserve) -- the kernel takes the
+    head and position strides -- and copied only when their layout is something else.
     """
 
     B, H, T, D = q.shape
@@ -545,13 +556,17 @@ def attn_prefill(
     if D & (D - 1):
         raise ValueError(f'head_dim {D} must be a power of two')
     q = q.contiguous()
-    k = k.contiguous()
-    v = v.contiguous()
+    if not (_attn_rows_alike(k, v) and k.stride(3) == 1):
+        k = k.contiguous()
+        v = v.contiguous()
     out = torch.empty_like(q)
     fp8 = ks is not None
     if fp8:
-        ks = check.not_none(ks).contiguous()
-        vs = check.not_none(vs).contiguous()
+        ks = check.not_none(ks)
+        vs = check.not_none(vs)
+        if not (_attn_rows_alike(ks, vs) and ks.stride(2) == 1):
+            ks = ks.contiguous()
+            vs = vs.contiguous()
     else:
         ks = vs = out  # unread
     # batch and head folded: q / out [B*H, T, D]; k / v [B*KV, L, D]; kv row of head bh is bh // G because

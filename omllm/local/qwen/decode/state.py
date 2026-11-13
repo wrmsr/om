@@ -22,6 +22,11 @@ class Snapshot:
     hidden: Array  # [1, 1, hidden]: the target's final-normed hidden state at position n-1
     draft: tuple[Array, ...] | None  # the draft source's exported state (the MTP head's KV for entries 0..n-2), if any
 
+    # Checkpoints: complete states at earlier positions of the same tokens, taken during the prefill that led here
+    # (VerifyTokenSource's `prefill_checkpoints`). How a token source hands them to a store, which keeps them as
+    # states of their own -- so they are not part of this one's `arrays`, and `map` does not carry them.
+    earlier: ta.Sequence[Snapshot] = ()
+
     @property
     def n(self) -> int:
         return len(self.tokens)

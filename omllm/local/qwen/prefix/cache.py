@@ -7,7 +7,9 @@ every prefill and every generation the state is snapshotted under its token ids,
 longest cached snapshot whose tokens are a prefix of its own -- prefilling only what is new. For this hybrid model that
 is the only kind of reuse possible: the DeltaNet layers' state is a fixed-size recurrence that cannot be rewound to an
 arbitrary earlier position, so snapshots are taken at request boundaries (prompt end, generation end) and matched whole,
-never split.
+never split. A token source may also hand over states it took inside the prefill, at chunk boundaries
+(`Snapshot.earlier`, VerifyTokenSource's `prefill_checkpoints`): they are stored as entries of their own, which is what
+lets a request that shares only the start of an earlier prompt resume at all.
 
 What a snapshot holds (all on the device while resident): the functional `Cache` (exact-length KV for the attention
 layers, the (conv, S) pairs for the DeltaNet ones), the target's logits for the next position and its final-normed
@@ -107,7 +109,14 @@ class PrefixCache:
         """
         Store a snapshot, taking ownership of its arrays (pass copies if the state stays live elsewhere). Replaces an
         entry with the same tokens; demotes device LRU entries to make room; drops the snapshot if it cannot fit.
+        The checkpoints it comes with (`Snapshot.earlier`) are stored first, as entries of their own -- older than it,
+        so the first to be demoted.
         """
+
+        for ck in snap.earlier:
+            if ck.tokens not in self.entries:  # (an earlier request's is as good: same tokens, same state)
+                self.put(ck)
+        snap.earlier = ()
 
         old = self.entries.pop(snap.tokens, None)
         if old is not None:

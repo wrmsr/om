@@ -802,6 +802,10 @@ class TorchOps(Ops):
             out.append(a)
         return tuple(out)
 
+    def kv_reserve(self, state, capacity):
+        # index writes are in place here, so a prefill fills capacity buffers (the decoder's own, in the end)
+        return self.kv_pad(state, capacity) if self.kv_len(state) < capacity else state
+
     def kv_write_state(self, state, pos, k, v):
         return self.kv_write_tokens(state, pos, k, v)
 

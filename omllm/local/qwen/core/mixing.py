@@ -67,6 +67,14 @@ class StateLayout(lang.Abstract):
 
         raise NotImplementedError
 
+    def reserve(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+        """
+        A functional state given room for `capacity` positions ahead of a long prefill, for a layout whose functional
+        form can write into spare room (attention's KV: Ops.kv_reserve). Default: the state as it is.
+        """
+
+        return state
+
     @abc.abstractmethod
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         """A copy at exact length, for the functional cache and snapshots."""
@@ -114,6 +122,9 @@ class CompositeStateLayout(StateLayout):
 
     def pad(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
         return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.pad(ops, s, capacity))
+
+    def reserve(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+        return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.reserve(ops, s, capacity))
 
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.export(ops, s, seq_len))

@@ -111,9 +111,38 @@ throughout (a loaded machine: every row ~10% slow):
 +2.4 ms at 30k), and past 16 rows the GEMV would stream every weight twice, so k = 15 is the natural ceiling. Each
 k is a verify step (and a head refresh) of its own to compile, once. Longer n-grams did better on both models (fewer
 wrong matches); one task is not a policy, so the defaults stay n = 3 (the CLI makes you choose) and k = 3 -- `--lookup
-6 --lookup-k 15` is the setting to try on an agent's traffic. Still open: a policy for when to prefer the head (a
-15-draft round that misses early costs 24 ms where the head's costs 18), and the prompt is indexed in Python per
+6 --lookup-k 15` is the setting to try on an agent's traffic. Still open: the prompt is indexed in Python per
 generation (~50 ms per 100k tokens), which a prefix hit could carry over.
+
+**Away from a pure copy (2026-11-13): does it need a policy for when to prefer the head?** A 15-draft round that
+misses early costs 24 ms where the head's costs 18. Four tasks over the same 1.4k-token file, 900 new tokens each,
+tok/s on the 27B (lookup rounds of all rounds):
+
+| task                                    | head, k=3 | lookup n=6 k=15  | n=3 k=15         | n=6 k=7           |
+|-----------------------------------------|-----------|------------------|------------------|-------------------|
+| rewrite it with one rename              | 191       | 522 (70 of 74)   | 451 (83 of 85)   | 330 (128 of 132)  |
+| rewrite it, commenting every method     | 189       | 279 (73 of 151)  | 255 (104 of 162) | 246 (111 of 186)  |
+| write tests for it                      | 181       | 206 (34 of 216)  | 192 (75 of 222)  | 199 (50 of 232)   |
+| explain it in prose                     | 151       | 147 (2 of 269)   | (28 of 280)      | (2 of 269)        |
+
+No policy for wrong matches is needed at n = 6: where copies are interrupted by edits it is still +47%, on new code
+that reuses the file's names +14%, and on prose that matches almost nothing -3% (147 against 151, runs alternated).
+(n = 3 matches more and is right less: slower than n = 6 on every row measured.) What the -3% is made of is mostly
+not the missed drafts but **the first lookup round of a generation**: one gap of 100-130 ms where a round is 18. That
+is where this generation's decoder first runs the 16-row verify step and the head's refresh -- every generation
+captures its own step graphs on first use -- and a generation that never drafts by lookup never does. Every other
+round, lookup or head, takes what it takes without the wrapper (the median round is 18 ms either way). So a
+generation needs two or three good lookup rounds to come out ahead, and the thing to fix is not a draft-source policy
+but that cost: step graphs that outlive a generation (they are bound to the decoder's buffers, which would have to
+be pooled) would take the 0.1 s off every generation that looks up. Unwarmed it is far worse -- the first lookup
+round ever compiles those steps (~25 s on a loaded machine) -- which `serve --warmup` covers with a prompt that
+provokes one.
+
+On "the same output": drafts change only the speed in exact arithmetic. In bf16 a wider verify step rounds
+differently, and where two tokens are a rounding step apart greedy decoding can take the other. Two of these twelve
+lookup runs left the head-only transcript; the one examined (the head-only run there is also the plain decoder's)
+did so at token 466, where the two logits were 25.625 and 25.5 -- adjacent bf16 values. Deterministic for a given
+step shape, and no different in kind from the head's own verify step against plain decode.
 
 ### 1.2 Checkpointed prefill: resume at chunk boundaries
 
@@ -135,6 +164,33 @@ DeltaNet states, the logits/hidden at that position, with the KV taken by slicin
 existing exact-prefix match over more entries; a hit resumes there and prefills the remainder. Keep whole-request
 snapshots as they are (they are the common hit). A radix-tree index over token ids replaces the linear scan once
 the entry count makes it matter.
+
+**Status (2026-11-13): the checkpoints are in; shared storage is not.** `prefill_checkpoints=N`
+(`--prefill-checkpoints` in `serve`, `DecodeConfig.prefill_checkpoints`): the token source keeps up to N states from
+inside each prefill, after its 1st, 2nd, 4th, 8th ... chunk (`VerifyTokenSource._checkpoint`, through
+`Model.prefill`'s `on_chunk`), completes them with the draft source's part once it has started
+(`DraftSource.export_at`: the MTP head's KV is cut by length like the target's) and hands them to the store with the
+prompt's own state (`Snapshot.earlier`); the prefix cache keeps them as ordinary entries, so lookup, budgets, tiers
+and eviction are what they were. Geometric rather than every chunk: a bounded number of states whatever the prompt's
+length, and a request re-prefills less than half of what it shares beyond the first chunk. On the 27B (int4, fp8 KV,
+MTP head, a loaded machine), two sessions sharing a system prompt, the second's time to its first token:
+
+| system prompt | no checkpoints | 3 checkpoints           | first session's cost | states kept (MiB)          |
+|---------------|----------------|-------------------------|----------------------|----------------------------|
+| 6k tokens     | 2.38 s         | 0.97 s (4,096 resumed)  | +0.1 s               | 288                        |
+| 20k tokens    | 8.07 s         | 1.76 s (16,384 resumed) | +0.05 s              | 288, 426, 703              |
+
+The output is the cold run's in both. What is left of the plan above:
+
+- *Store the KV once.* Each checkpoint is a complete state with its own copy of the KV up to its position, as the
+  prompt-end and generation-end states already each have theirs: for the 20k prompt, 1.4 GiB of checkpoints beside
+  two 0.8 GiB states of which all but ~150 MB each is the same KV. Entries that reference one KV by length would make
+  checkpoints cost the DeltaNet state alone, and every chunk boundary affordable. That changes the cache's
+  accounting and its tiers (a shared array has no single owner to demote), which is why it is not in this step. Until
+  then the option is off by default.
+- *A backend that prefills through the captured step* (`Ops.static_prefill`: tinygrad) keeps none:
+  `Decoder.prefill` has no chunk callback yet.
+- The radix index, when the entry count makes the linear scan matter.
 
 ### 1.3 Jump-forward in constrained decoding
 
@@ -183,27 +239,39 @@ the whole vocabulary.
 
 *Long contexts* (fp8 KV, `--draft-vocab 65536`, the MTP head at k = 3):
 
-| context | prefill              | plain decode          | speculative               | peak     |
-|---------|----------------------|-----------------------|---------------------------|----------|
-| 512     | 8.6 ms/token (first) | 64.7 tok/s            | 152 tok/s, 18.6 ms/round  |          |
-| 32k     | 13.8 s, 2,379 tok/s  |                       |                           | 20.9 GiB |
-| 100k    | 52.8 s, 1,895 tok/s  | 50.8 tok/s, 19.7 ms   | 165 tok/s, 22.1 ms/round  | 23.0 GiB |
-| 262k    | 223 s, 1,175 tok/s   | 41.7 tok/s, 24.0 ms   | 144 tok/s, 26.4 ms/round  | 29.5 GiB |
+| context | prefill              | plain decode          | speculative               | peak, plain / speculative |
+|---------|----------------------|-----------------------|---------------------------|---------------------------|
+| 512     | 8.2 ms/token (first) | 64.4 tok/s            | 145 tok/s, 19.5 ms/round  |                           |
+| 32k     | 13.9 s, 2,357 tok/s  |                       |                           | 20.7 GiB                  |
+| 100k    | 52.5 s, 1,905 tok/s  | 55.0 tok/s, 18.2 ms   | 170 tok/s, 21.5 ms/round  | 19.8 / 20.8 GiB           |
+| 262k    | 222 s, 1,178 tok/s   | 41.8 tok/s, 23.9 ms   | 138 tok/s, 27.6 ms/round  | 24.0 / 27.8 GiB           |
 
-Decode slows 22% from an empty context to 100k and 36% to 262k (the attention kernel reads every key; 16 layers of
-64), prefill 20% from 32k to 100k and half by 262k (attention's share grows with the context it attends to).
+(The 32k row is the bench's, at a capacity of 131,072 and with the head's states; the 100k row is at that capacity
+too, the 262k one at 262,144, and it was taken on a busier machine than the others.) Decode slows about 15% from an
+empty context to 100k and about a third by 262k (the attention kernel reads every key; 16 layers of 64), prefill 20%
+from 32k to 100k and half by 262k (attention's share grows with the context it attends to).
 
-The 262k row needs a caveat: **the full window does not fit as the code stands by default.** It ran out of memory
-during prefill (24.7 GiB allocated, 5.1 GiB reserved by the allocator but unusable): the functional prefill grows
-each attention layer's KV by concatenation every 4096-token chunk, and a series of ever-larger buffers fragments
-torch's allocator. The row above was measured with two things changed at once -- the decoder now takes the prefill's
-state layer by layer instead of holding the exact-length KV and its capacity buffers together (`Decoder(consume=True)`,
-in the tree), and the process ran with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, which nothing here sets --
-so which of the two it needs is not separated. Next: prefill straight into capacity-sized KV buffers (what
-`kv_write_tokens` does for a decode step), which removes the growth, the fragmentation and ~270 GB of re-copying over
-a 262k prefill, and needs no allocator setting; then re-measure without one. At 29.5 GiB of 32 the speculative path
-has little room either way (the head's KV and 2.7 GB of prompt hidden states ride along).
+**The full window fits, as the code stands by default** (the 262k row; plain decode peaks at 24.0 GiB, speculative at
+27.8). It did not at first: the prefill ran out of memory at 24.7 GiB allocated with 5.1 GiB more reserved and
+unusable. What it took, all in the tree:
 
+- *The KV is prefilled into the decoder's buffers.* The functional prefill grew each attention layer's KV by a
+  concatenation per 4096-token chunk -- ~270 GB of re-copying over 262k tokens, through ever-larger allocations that
+  fragmented torch's allocator -- and the decoder then copied the result into capacity buffers, holding both. Now
+  the token source tells the prefill the decoder's capacity (`Model.prefill(reserve=)`, `Ops.kv_reserve`): from the
+  second chunk on the keys and values are written in place into buffers of that size, the attention kernel reads the
+  filled part of them where it is, and the decoder adopts the buffers without a copy. The MTP head's own KV goes the
+  same way. Same values, bit for bit (the bench transcripts did not move).
+- *No hidden states nobody reads.* The prefill returned every position's final hidden state (10 KB a token: 2.5
+  GiB at 262k, twice that while its chunks are joined) for the draft head; a draft source now says whether it reads
+  them (`DraftSource.reads_prompt_hidden`) and plain decode keeps the last position's only.
+- *Two one-row views.* The head's prefill kept `d[:, -1:]` of every chunk and the token source `hidden[:, -1:]` of
+  the prompt: views, each pinning the whole tensor it was cut from (2.5 GiB apiece at 262k, the second for the whole
+  generation). Copies now.
+
+What is left of the speculative peak is the join of the hidden states' chunks (2.5 GiB twice over for a moment).
+Streaming them to the draft head chunk by chunk as the prefill produces them would remove both the join and the
+2.5 GiB itself; it needs `DraftSource.start` to take the prompt in pieces.
 
 ## 2. Mid term (a week or two each)
 

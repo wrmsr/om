@@ -311,6 +311,15 @@ with Triton, `sdpa` is a flash-attention forward with the KV offset (`torch_trit
 are checked against the composed references under the Triton interpreter (`test_torch_triton.py`), and
 `test_parity.py::test_attention_buckets` walks a sequence across four bucket boundaries against the golden.
 
+Where the prefill's KV goes matters as much at the full window. Grown by a concatenation per chunk and then copied
+into the decoder's capacity buffers, it was re-copied 64 times over a 262k-token prompt and held twice at the end,
+and the 27B's full context did not fit a 32 GB card. On torch the token source now tells the prefill the decoder's
+capacity (`Model.prefill(reserve=)`): from the second chunk on, keys and values are written in place into buffers of
+that size (`Ops.kv_reserve`; the attention kernel reads the filled part where it is), and the decoder adopts them
+without a copy -- the same values to the bit. With that, and with the prompt's hidden states kept only for a draft
+source that reads them, 262k tokens prefill in 222 s and decode at 42 tok/s plain, 138 speculative, peaking at 24.0
+and 27.8 GiB (NEXT.md 1.4).
+
 ## The tinygrad backend
 
 Tier-2: fully functional, kept current with the submodule's revision, never the fastest. `--backend tinygrad` runs
@@ -436,7 +445,10 @@ always uses the full head, so drafting from a subset can only lower acceptance, 
 in the context, the K tokens that followed them there are the draft (point masses, so the same rejection step
 applies), else the head drafts. On a file rewrite it is 5x plain decode on qwen3.5:4b (no MTP head, K = 7); on the
 27B, over the head, 235 tok/s at K = 4 and 523 at K = 15 against the head's own 189 (at the head's K it loses: NEXT.md
-1.1 has the table). K + 1 rows go through one verify step, compiled once per K.
+1.1 has the table). K + 1 rows go through one verify step, compiled once per K. Away from a pure copy, with N = 6
+and K = 15: +47% on a rewrite that comments every method, +14% on tests written for the file, -3% on prose about it
+-- the cost there being ~0.1 s at a generation's first lookup round (its decoder's first use of the wider step), not
+the missed drafts.
 
 `Sampler` does temperature / top-k / top-p / min-p on the device, as `Ops` calls over the logits (top-k, then
 top-p/min-p among the candidates, then a Gumbel-max draw); presence and frequency penalties are a logit processor
@@ -458,6 +470,18 @@ boundary, and the draft head's KV when the MTP head is loaded, so a resumed requ
 speculative decoding picks up its draft head where it left off. For a hybrid model this whole-snapshot matching is
 the only reuse there is: the DeltaNet state cannot be rewound, so snapshots are taken at request boundaries and
 matched whole.
+
+States at request boundaries are prefixes of nothing but the same conversation continued. A second session with
+the same system prompt and tool block, or a harness that rewrote a late turn, shares only the start of an earlier
+prompt, and would start cold. `--prefill-checkpoints N` (`generate(..., prefill_checkpoints=N)`) keeps up to N
+states from inside each prefill as well -- after its 1st, 2nd, 4th, 8th ... chunk of `--prefill-chunk` tokens, the
+only places a state can be had: geometric, so a request re-prefills less than half of what it shares (beyond the
+first chunk) from a bounded number of states. They are ordinary entries of the cache, complete and independent, put
+in before the prompt's own and so the first demoted. On the 27B, two sessions sharing a 20k-token system prompt:
+the second reaches its first token in 1.8 s instead of 8.1 (16,384 tokens resumed), and with a 6k one in 0.97 s
+instead of 2.4; taking the checkpoints cost the first session 0.1 s, and the output is the cold run's. Off by default
+because of what they weigh: 288, 426 and 703 MiB for the states at 4096, 8192 and 16,384 tokens, each with its own
+copy of the KV so far (sharing it between nested states is NEXT.md 1.2's remainder).
 
 Two tiers with byte budgets (`--cache-device-mib`, `--cache-host-mib`): LRU on the device, eviction demotes to
 host memory (pinned on torch/CUDA: `Ops.to_host` / `from_host`), a hit promotes back. A 27B snapshot is ~150 MB of

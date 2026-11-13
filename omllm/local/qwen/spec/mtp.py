@@ -129,6 +129,7 @@ class MtpDraftSource(DraftSource):
                 self._draft_vocab,
                 state,
                 last_only=True,
+                reserve=self._decoder(gen).capacity,  # what `_sync_capacity` pads it to: filled in place instead
             )
             self._mflat = list(mkv)
 
@@ -277,4 +278,8 @@ class MtpDraftSource(DraftSource):
 
     def export(self, gen: Generation) -> tuple[Array, ...] | None:
         n = gen.require_decoder().seq_len
+        return self._ops.kv_slice(tuple(self._mflat), n - 1) if n > 1 else None
+
+    def export_at(self, gen: Generation, n: int) -> tuple[Array, ...] | None:
+        # entry j pairs the hidden state at j with the token at j + 1: entries 0..n-2 lie within the first n tokens
         return self._ops.kv_slice(tuple(self._mflat), n - 1) if n > 1 else None

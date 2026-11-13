@@ -344,6 +344,12 @@ def test_attn_prefill_kernel():
         out = attn_prefill(q, k, v, scale, past)
         e = ((out - ref).abs().max() / ref.abs().max()).item()
         assert e < 1e-4, (past, T, e)
+
+        # the same keys as the first L positions of larger buffers (a prefill into reserved KV): read where they are
+        kbuf = torch.cat([k, torch.randn(B, KV, 19, D, device=device)], 2)
+        vbuf = torch.cat([v, torch.randn(B, KV, 19, D, device=device)], 2)
+        assert not kbuf[:, :, :L].is_contiguous()
+        assert torch.equal(attn_prefill(q, kbuf[:, :, :L], vbuf[:, :, :L], scale, past), out), (past, T)
     print('flash-attention prefill kernel matches the composed reference (GQA, KV offset, ragged blocks)')
 
 
@@ -529,6 +535,16 @@ def test_model_prefill_with_kernel():
 
         dec = Decoder(m, cache, capacity=64)
         steps[use] = np.concatenate([ops.numpy(dec.step(int(t))) for t in ids[0, 40:]], 0)
+
+        # the same chunks into reserved KV buffers (the attention kernel then reads windows of them): the same state,
+        # so decode from it is the same to the bit, in buffers the decoder adopts
+        reserved = Cache(cfg)
+        last, _ = m.prefill(ids[0, :40].tolist(), reserved, chunk=13, reserve=64)
+        e = rel_err(ops.numpy(last)[:, -1], parts[-1][:, -1])
+        assert e < 1e-4, (use, 'reserved', e)
+        dec = Decoder(m, reserved, capacity=64, consume=True)
+        again = np.concatenate([ops.numpy(dec.step(int(t))) for t in ids[0, 40:]], 0)
+        assert np.array_equal(again, steps[use]), (use, 'decode after a reserved prefill')
 
     e = rel_err(logits[True], logits[False])
     assert e < 1e-4, e

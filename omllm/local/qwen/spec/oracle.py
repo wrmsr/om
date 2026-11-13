@@ -46,6 +46,10 @@ class OracleDraftSource(DraftSource):
     def accepts(self, resume: Snapshot) -> bool:
         return True
 
+    @property
+    def reads_prompt_hidden(self) -> bool:
+        return False
+
     def start(
             self,
             gen: Generation,

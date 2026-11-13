@@ -41,6 +41,9 @@ class KvStateLayout(StateLayout):
     def pad(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
         return ops.kv_pad(state, capacity)
 
+    def reserve(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+        return ops.kv_reserve(ops.kv_adapt(state), capacity)  # (adapted as the functional form adapts it)
+
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return ops.kv_slice(state, seq_len)
 
@@ -121,15 +124,27 @@ class Attention(Mixer):
         q = ops.rope(q, pos, c.rope_dim, c.rope_theta)
         k = ops.rope(k, pos, c.rope_dim, c.rope_theta)
 
+        T = x.shape[1]
         past = 0
-        if state is not None:
+        if state is None:
+            state = seen = ops.kv_new(k, v)
+        else:
             state = ops.kv_adapt(state)
             past = ops.kv_len(state)
-            state = ops.kv_concat(state, k, v)
-        else:
-            state = ops.kv_new(k, v)
+            if past >= pos + T:
+                # A reserved state (StateLayout.reserve): `pos` positions and room past them. The new keys and values
+                # are written into the room in place, where concatenating would re-copy the whole KV into an
+                # ever-larger allocation every chunk of a long prefill; attention sees the filled part.
+                past = pos
+                state = ops.kv_write_tokens(state, ops.scalar(pos), k, v)
+                seen = ops.kv_window(state, pos + T)
+            else:
+                if past > pos:  # room, but not enough of it: back to an exact-length state
+                    past = pos
+                    state = ops.kv_slice(state, pos)
+                state = seen = ops.kv_concat(state, k, v)
 
-        o = ops.sdpa_state(q, state, self.scale, past)  # [B,H,T,D]
+        o = ops.sdpa_state(q, seen, self.scale, past)  # [B,H,T,D]
         return self._out(ops, o, gate), state
 
     def step(self, ops: Ops, x: Array, ctx: StepContext, state: FullState) -> tuple[Array, FullState]:

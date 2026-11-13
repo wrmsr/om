@@ -77,3 +77,56 @@ def test_prefix_resume():
         if hasattr(ops, 'capture_mode'):
             ops.capture_mode = 'auto'
         print(f'{ops.name}: host tier demotion / promotion and eviction OK')
+
+
+def test_prefill_checkpoints():
+    """
+    States kept from inside a prefill (after its 1st, 2nd, 4th chunk) are resumed by a prompt that shares only the
+    start of an earlier one -- which the states at the request's boundaries cannot serve -- and the resumed
+    generation is the cold one's, plain and speculative.
+    """
+
+    cfg, hf, src = synthetic_source()
+    rng = np.random.default_rng(11)
+    p1 = rng.integers(0, 256, 23).tolist()
+    p2 = p1[:10] + rng.integers(0, 256, 9).tolist()  # shares 10 tokens: two chunks of 4, and a bit
+    kw: dict = dict(max_new_tokens=6, prefill_chunk=4)
+    for ops in backends():
+        if ops.static_prefill:
+            continue  # (a prefill through the captured step keeps none yet: Decoder.prefill)
+        if getattr(ops, 'capture_mode', None) == 'auto' and ops.name.endswith('cpu'):
+            ops.capture_mode = 'static'  # type: ignore
+        model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
+        _check_prefill_checkpoints(model, p1, p2, kw)
+        print(f'{ops.name}: prefill checkpoints resume == cold run (plain and spec)')
+
+
+def _check_prefill_checkpoints(model, p1, p2, kw):
+    ops = model.ops
+    for spec in (0, 3):
+        ref = generate(model, p2, spec=spec, **kw).tokens
+
+        # without checkpoints the earlier request leaves nothing this one is an extension of
+        pc = PrefixCache(ops, device_bytes=1 << 30, host_bytes=1 << 30)
+        out1 = generate(model, p1, spec=spec, prefix_cache=pc, **kw).tokens
+        assert sorted(len(t) for t in pc.entries) == [len(p1), len(p1) + len(out1)]
+        assert generate(model, p2, spec=spec, prefix_cache=pc, **kw).reused == 0
+
+        # with them: states at 4, 8 and 16 tokens (chunks 1, 2, 4) beside the two boundaries
+        pc = PrefixCache(ops, device_bytes=1 << 30, host_bytes=1 << 30)
+        r1 = generate(model, p1, spec=spec, prefix_cache=pc, prefill_checkpoints=3, **kw)
+        assert r1.tokens == out1, spec
+        assert sorted(len(t) for t in pc.entries) == [4, 8, 16, len(p1), len(p1) + len(out1)], spec
+        r2 = generate(model, p2, spec=spec, prefix_cache=pc, prefill_checkpoints=3, **kw)
+        assert r2.reused == 8, (spec, r2.reused)
+        assert r2.tokens == ref, (spec, r2.tokens, ref)
+        # (the resumed prefill left checkpoints of its own: 8 + 4, 8 + 8 -- its 4th chunk would be past its end)
+        assert {12, 16} <= {len(t) for t in pc.entries}, spec
+
+        # fewer are kept when fewer are asked for, and a prompt of one chunk has none
+        pc = PrefixCache(ops, device_bytes=1 << 30, host_bytes=1 << 30)
+        generate(model, p1, spec=spec, prefix_cache=pc, prefill_checkpoints=1, **kw)
+        assert sorted(len(t) for t in pc.entries)[:2] == [4, len(p1)], spec
+        pc = PrefixCache(ops, device_bytes=1 << 30, host_bytes=1 << 30)
+        generate(model, p1[:4], spec=spec, prefix_cache=pc, prefill_checkpoints=3, **kw)
+        assert min(len(t) for t in pc.entries) == 4 and len(pc.entries) == 2, spec

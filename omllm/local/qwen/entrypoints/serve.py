@@ -110,6 +110,16 @@ def main() -> None:
         action='store_true',
     )
     ap.add_argument(
+        '--prefill-checkpoints',
+        type=int,
+        default=0,
+        metavar='N',
+        help='keep up to N states from inside each prefill in the prefix cache (after its 1st, 2nd, 4th ... chunk), '
+             'so a request that shares only the start of an earlier prompt -- another session with the same system '
+             'prompt and tools, a rewritten history -- resumes there instead of starting cold; each is a full state '
+             '(on the 27B ~150 MB plus 32 KB a token), so mind the cache budgets',
+    )
+    ap.add_argument(
         '--warmup',
         action='store_true',
         help='capture / compile the decode steps before listening',
@@ -138,6 +148,7 @@ def main() -> None:
         decode=DecodeConfig(
             capacity=args.capacity,
             prefill_chunk=args.prefill_chunk,
+            prefill_checkpoints=0 if args.no_prefix_cache else args.prefill_checkpoints,
         ),
         spec=spec_config(args),
         lookup=lookup_config(args),

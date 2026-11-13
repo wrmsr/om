@@ -40,6 +40,15 @@ class DraftSource(lang.Abstract):
 
         raise NotImplementedError
 
+    @property
+    def reads_prompt_hidden(self) -> bool:
+        """
+        Whether `start` reads the hidden states of the prompt's positions (a draft head does, to build its own state
+        over them). A source that says no is started with the last position's only, and the prefill keeps no others.
+        """
+
+        return True
+
     @abc.abstractmethod
     def start(
             self,
@@ -53,7 +62,8 @@ class DraftSource(lang.Abstract):
         """
         Bring up over the prompt: `hidden` [1, R, H] is the target's final-normed hidden states at positions
         start..start+R-1 and `tokens` the token at each following position (the last one the pending token); `state` is
-        this source's exported state from a resumed snapshot (covering what precedes `start`), or None.
+        this source's exported state from a resumed snapshot (covering what precedes `start`), or None. Without
+        `reads_prompt_hidden`, R is 1: the last prompt position and the pending token.
         """
 
         raise NotImplementedError
@@ -76,6 +86,15 @@ class DraftSource(lang.Abstract):
 
         raise NotImplementedError
 
+    def export_at(self, gen: Generation, n: int) -> tuple[Array, ...] | None:
+        """
+        This source's state for a snapshot of the first `n` prompt tokens (a prefill checkpoint: see
+        VerifyTokenSource), asked for once the source has started over the whole prompt; None if it has none. A
+        checkpoint this source would not then `accepts` is not kept. Default: none.
+        """
+
+        return None
+
 
 class NullDraftSource(DraftSource):
     """No drafts: the token source decodes one token per round."""
@@ -86,6 +105,10 @@ class NullDraftSource(DraftSource):
 
     def accepts(self, resume: Snapshot) -> bool:
         return True
+
+    @property
+    def reads_prompt_hidden(self) -> bool:
+        return False
 
     def start(
             self,

@@ -649,6 +649,16 @@ class Ops(lang.Abstract):
             out.append(a)
         return tuple(out)
 
+    def kv_reserve(self, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+        """
+        A functional state given room for `capacity` positions, where that pays: a backend whose `kv_write_tokens`
+        writes in place returns capacity buffers here (`kv_pad`), and a prefill then fills them chunk by chunk instead
+        of concatenating an ever-longer state (see Model.prefill). The default has no in-place write to gain from and
+        returns the state as it is.
+        """
+
+        return state
+
     def kv_write_state(self, state: tuple[Array, ...], pos: Array, k: Array, v: Array) -> tuple[Array, ...]:
         """The static-buffer write of one position's k, v ([B, KV, 1, D]) at `pos` (see kv_write)."""
 

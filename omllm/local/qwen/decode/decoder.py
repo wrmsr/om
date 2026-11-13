@@ -71,8 +71,10 @@ class Decoder(TargetDecoder):
     """
     Fixed-capacity decode state plus the captured step.
 
-    Built from a `Cache` after prefill: the KV of every attention layer is copied into a zero-padded buffer of
-    `capacity` positions, the DeltaNet (conv, S) pairs are carried as-is, and the position becomes a 0-d device array.
+    Built from a `Cache` after prefill: the KV of every attention layer is carried in buffers of `capacity` positions
+    (copied into zero-padded ones -- unless the prefill already filled buffers of that size, `Model.prefill`'s
+    `reserve`, which are then adopted as they are), the DeltaNet (conv, S) pairs are carried as-is, and the position
+    becomes a 0-d device array.
     `step(tok)` runs the captured `decode_fn`; the only host<->device traffic per token is the token id in and the
     logits out. When the sequence reaches capacity the buffers are doubled and the step re-captured.
 
@@ -84,6 +86,15 @@ class Decoder(TargetDecoder):
     """
 
     MIN_BUCKET = 1024
+
+    @staticmethod
+    def capacity_for(capacity: int | None, seq_len: int) -> int:
+        """The buffer positions a decoder asked for `capacity` allocates when it starts from `seq_len` tokens."""
+
+        c = _pow2_at_least(capacity or (seq_len + 1))
+        if c <= seq_len:
+            c = _pow2_at_least(seq_len + 1)
+        return c
 
     def __init__(
             self,
@@ -107,9 +118,7 @@ class Decoder(TargetDecoder):
         self.model = model
         self.ops = model.ops
         self.seq_len = cache.seq_len
-        self.capacity = _pow2_at_least(capacity or (cache.seq_len + 1))
-        if self.capacity <= self.seq_len:
-            self.capacity = _pow2_at_least(self.seq_len + 1)
+        self.capacity = self.capacity_for(capacity, self.seq_len)
         self._layouts = model.state_layouts()  # each layer's mixer says how its state is carried
         self.flat: list[Array] = []
         for i, (st, layout) in enumerate(zip(cache.layers, self._layouts)):
@@ -180,7 +189,8 @@ class Decoder(TargetDecoder):
 
     def _alloc(self, capacity: int, first: bool = False) -> None:
         self.capacity = capacity
-        self._pad_to(capacity)
+        if not first:  # (the constructor has laid each layer's state out already, as it took it)
+            self._pad_to(capacity)
         self.ar, self.cos_tab, self.sin_tab = self.model.decode_tables(capacity)
 
         self.fns: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]] = {}

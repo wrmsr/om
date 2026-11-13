@@ -1,5 +1,6 @@
 # ruff: noqa: N803 N806 N812
 import abc
+import functools
 import typing as ta
 
 from omcore import check
@@ -87,7 +88,14 @@ class VerifyTokenSource(TokenSource):
             draft: DraftSource,
             static: bool = True,
             prefill_chunk: int = 4096,
+            prefill_checkpoints: int = 0,
     ) -> None:
+        """
+        `prefill_checkpoints`: how many resumable states to keep from inside each prefill, at most -- after its
+        1st, 2nd, 4th, 8th ... chunk (`_checkpoint`). They leave with the first `export` (`Snapshot.earlier`), so
+        this is for a source whose states go to a store: with nowhere to go they are copies held for nothing.
+        """
+
         super().__init__()
 
         self._model = model
@@ -97,6 +105,10 @@ class VerifyTokenSource(TokenSource):
         self._draft = draft
         self._static = static
         self._prefill_chunk = prefill_chunk
+        self._prefill_checkpoints = prefill_checkpoints
+
+        self._checkpoints: list[Snapshot] = []  # this prefill's, until the first export takes them
+        self._chunks = 0  # of this prefill, so far
 
         self._logits_last: Array | None = None  # [1, V]: the target's logits for the position after the committed ones
         self._hidden_last: Array | None = None  # [1, 1, H]: the target's hidden state at the last committed position
@@ -110,7 +122,10 @@ class VerifyTokenSource(TokenSource):
             ids: ta.Sequence[int],
             poll: ta.Callable[[], bool] | None,
     ) -> tuple[Array, Array, TargetDecoder | None]:
-        """Logits [1, 1, V] after `ids` and the hidden states of their positions [1, len, H]."""
+        """
+        Logits [1, 1, V] after `ids` and the hidden states of their positions [1, len, H] (at least the last one's,
+        when the draft source reads no others).
+        """
 
         ops = self._ops
 
@@ -120,8 +135,62 @@ class VerifyTokenSource(TokenSource):
             logits, hidden = dec.prefill(ids, poll)
             return logits, hidden, dec
 
-        logits, hidden = self._model.prefill(ids, cache, self._prefill_chunk, poll)
+        # a static decoder takes this cache next (`start`): the KV is prefilled straight into buffers of its capacity
+        reserve = Decoder.capacity_for(gen.capacity, cache.seq_len + len(ids)) if self._static else None
+        on_chunk: ta.Callable[[Array, Array], None] | None = None
+        if self._prefill_checkpoints:
+            on_chunk = functools.partial(self._checkpoint, gen, cache)
+
+        logits, hidden = self._model.prefill(
+            ids,
+            cache,
+            self._prefill_chunk,
+            poll,
+            reserve=reserve,
+            all_hidden=self._draft.reads_prompt_hidden,
+            on_chunk=on_chunk,
+        )
         return logits, hidden, None
+
+    def _checkpoint(self, gen: Generation, cache: Cache, logits: Array, hidden: Array) -> None:
+        """
+        After a prefill chunk: keep a resumable state of the prompt so far, if this boundary is one of those kept.
+
+        A stored state is resumed only by a request whose tokens it is a prefix of, and the states stored at request
+        boundaries (the prompt's end, the generation's) are prefixes of nothing but the same conversation continued:
+        another session that shares a system prompt and tool block, or a harness that rewrote a late turn, starts
+        cold. The DeltaNet layers' state cannot be cut back to an earlier position, so states for those requests to
+        resume from have to be taken while the prefill passes by. Kept: after the 1st, 2nd, 4th, 8th ... chunk --
+        geometrically, so however long the prompt, a request sharing some prefix of it re-prefills less than half of
+        what it shares (beyond the first chunk), from a bounded number of states.
+
+        Each is a complete, independent state (its own copy of the KV so far, ~32 KB a token on the 27B, and of the
+        DeltaNet states, ~150 MB), less the draft source's part, which `export` adds once the source has started.
+        """
+
+        ops = self._ops
+        self._chunks += 1
+        n = cache.seq_len
+        if (
+                len(self._checkpoints) >= self._prefill_checkpoints or
+                self._chunks & (self._chunks - 1) or
+                n >= len(gen.prompt)  # the prompt's end is stored anyway
+        ):
+            return
+
+        c = Cache(self._model.cfg)
+        c.seq_len = n
+        c.layers = [
+            layout.export(ops, check.not_none(st), n)
+            for layout, st in zip(self._model.state_layouts(), cache.layers)
+        ]
+        self._checkpoints.append(Snapshot(
+            tuple(gen.prompt[:n]),
+            c,
+            ops.copy(logits[:, -1]),
+            ops.copy(hidden[:, -1:]),
+            None,
+        ))
 
     def start(
             self,
@@ -133,6 +202,9 @@ class VerifyTokenSource(TokenSource):
         ops = self._ops
         model = self._model
         n = len(gen.prompt)
+
+        self._checkpoints = []
+        self._chunks = 0
 
         if resume is not None and not self._draft.accepts(resume):
             resume = None
@@ -161,6 +233,11 @@ class VerifyTokenSource(TokenSource):
             start = 0
             draft_state = None
 
+        if not self._draft.reads_prompt_hidden:
+            # the draft source is started with the last position's alone (and the prefill kept no others)
+            hidden = hidden[:, -1:]
+            start = n - 1
+
         if dec is None:
             if self._static:
                 # the cache is ours to give away (a prefill's, or a store's private copy): the decoder takes its
@@ -177,7 +254,9 @@ class VerifyTokenSource(TokenSource):
         resume = None
 
         self._logits_last = logits[:, -1]
-        self._hidden_last = hidden[:, -1:]
+        # (a copy: a view would hold every prompt position's hidden state -- 2.5 GiB at 262k tokens on the 27B --
+        # until the first commit)
+        self._hidden_last = ops.copy(hidden[:, -1:])
 
         self._set_pending(gen, self._sample(gen, logits[:, -1]))
 
@@ -284,10 +363,20 @@ class VerifyTokenSource(TokenSource):
         if dec.seq_len != len(ids):
             raise RuntimeError(f'decoder at {dec.seq_len}, committed ids {len(ids)}')
 
+        # the prefill's checkpoints leave with the first state exported (the prompt's end), completed by the draft
+        # source's part now that it has started; one it could not resume from is dropped
+        earlier = []
+        for ck in self._checkpoints:
+            ck.draft = self._draft.export_at(gen, ck.n)
+            if self._draft.accepts(ck):
+                earlier.append(ck)
+        self._checkpoints = []
+
         return Snapshot(
             tuple(ids),
             dec.export_cache(),
             ops.copy(check.not_none(self._logits_last)),
             ops.copy(check.not_none(self._hidden_last)),
             self._draft.export(gen),
+            earlier=tuple(earlier),
         )

@@ -160,8 +160,11 @@ def run(
     common: dict[str, ta.Any] = dict(capacity=capacity, draft_vocab=draft_vocab)
     res: dict[str, ta.Any] = {'backend': ops.name}
 
-    # warm-up: every step shape the measurements use is captured / compiled here
+    # warm-up: every step shape the measurements use is captured / compiled here -- and a prompt long enough for the
+    # prefill's dense linears (past the GEMV kernel's rows), whose one-time setup otherwise lands in the first
+    # measurement with such a prompt: the follow-up's (0.2 s there on an idle machine, over a second on a loaded one)
     generate(model, prompts[0], max_new_tokens=8, sampler=Sampler(), **common)
+    generate(model, (list(prompts[0]) * 64)[:96], max_new_tokens=1, sampler=Sampler(), **common)
     if has_spec:
         generate(model, prompts[0], max_new_tokens=8, sampler=Sampler(), spec=spec, **common)
 
@@ -210,7 +213,12 @@ def run(
             )
             res[f'follow_up_first_token_ms_{name}'] = first * 1e3
 
-    # reference transcripts: greedy ids, plain and speculative, which must agree
+    # reference transcripts: greedy ids, plain and speculative. They agree in exact arithmetic (and do on the
+    # synthetic float32 model); in bf16 the verify step's rounding differs from the one-token step's, and greedy
+    # decoding parts wherever the top two logits are within a step or two of each other -- on the 27B all three of
+    # these prompts do within 256 tokens (at logits 22.25 / 22.25, 22.625 / 22.5 and 20.75 / 20.5, 2026-11-13). So
+    # `spec_equals_plain` is reported, not required; what `--check` requires is each transcript against its own
+    # reference.
     transcripts: dict[str, list[int]] = {}
     for i, ids in enumerate(prompts):
         transcripts[f'{i}/plain'] = list(generate(
