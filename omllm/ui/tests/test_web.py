@@ -53,12 +53,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 @pytest.mark.asyncs('asyncio')
 async def test_web_defaults_resolve_through_injection():
     async with headless_ui(bind_headless_ui(UiConfig(
-            model='scripted',
-            in_memory=True,
-            web=True,
+        model='scripted',
+        in_memory=True,
+        web=True,
     ))) as hui:
-        assert isinstance(await hui.injector[agn.WebFetcher], agn.HttpWebFetcher)
-        assert isinstance(await hui.injector[agn.WebSearcher], DuckduckgoWebSearcher)
+        assert isinstance(await hui.ui_injector[agn.WebFetcher], agn.HttpWebFetcher)
+        assert isinstance(await hui.ui_injector[agn.WebSearcher], DuckduckgoWebSearcher)
         assert {t.name for t in check.not_none(hui.agent.state.context.tools)} == {'web_search', 'web_fetch'}
 
 
@@ -70,23 +70,25 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
     thread.start()
     url = f'http://127.0.0.1:{server.server_address[1]}/'
     try:
-        async with headless_ui(inj.override(
-            bind_headless_ui(UiConfig(
+        async with headless_ui(bind_headless_ui(
+            UiConfig(
                 model='scripted',
                 in_memory=True,
                 web=True,
                 autoexec=[
                     '/permissions add ask regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
                 ],
-            )),
-            inj.bind(agn.PermissionAsker, to_const=asker),
-            inj.bind(agn.WebSearcher, to_const=_Searcher()),
-            bind_scripted_backend(
-                tool_call_message(
-                    llm.ToolCall('fetch', 'web_fetch', {'url': url}),
-                    llm.ToolCall('search', 'web_search', {'query': 'verification'}),
+            ),
+            agent_rewriter=inj.overrider(
+                inj.bind(agn.PermissionAsker, to_const=asker),
+                inj.bind(agn.WebSearcher, to_const=_Searcher()),
+                bind_scripted_backend(
+                    tool_call_message(
+                        llm.ToolCall('fetch', 'web_fetch', {'url': url}),
+                        llm.ToolCall('search', 'web_search', {'query': 'verification'}),
+                    ),
+                    text_message('done'),
                 ),
-                text_message('done'),
             ),
         )) as hui:
             await hui.agent.prompt('Fetch and search.')
@@ -106,18 +108,20 @@ async def test_web_tools_make_http_requests_and_ask_permission(tmp_path):
 @pytest.mark.online
 @pytest.mark.asyncs('asyncio')
 async def test_live_search_and_fetch_through_the_ui_tools():
-    async with headless_ui(inj.override(
-        bind_headless_ui(UiConfig(
+    async with headless_ui(bind_headless_ui(
+        UiConfig(
             model='scripted',
             in_memory=True,
             web=True,
             autoexec=[
                 '/permissions add allow regex_url \'{"pat":"https?://.*",methods:["GET"]}\'',
             ],
-        )),
-        inj.bind(agn.PermissionAsker, to_const=_AllowingAsker()),
+        ),
+        agent_rewriter=inj.overrider(
+            inj.bind(agn.PermissionAsker, to_const=_AllowingAsker()),
+        ),
     )) as hui:
-        tools = await hui.injector[agn.ToolSet]
+        tools = await hui.ui_injector[agn.ToolSet]
         search = await tools['web_search'].executor(agn.ToolContext(args={'query': 'Python official documentation'}))
         assert search.error is None, search.error
         assert 'https://' in search.content.text

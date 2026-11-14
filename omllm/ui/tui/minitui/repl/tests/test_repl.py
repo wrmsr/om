@@ -168,7 +168,7 @@ async def test_wiring():
         inj.bind(repl.ImmediateRunner()),
         inj.bind(repl.Runner, to_key=repl.ImmediateRunner),
     )) as tui:
-        app = await tui.injector[MinituiChatApp]
+        app = await tui.ui_injector[MinituiChatApp]
         names = set(tui.commands.get_commands())
         assert {'py', 'chat'} <= names
 
@@ -218,8 +218,8 @@ async def test_bash_wiring(tmp_path):
         inj.bind(mt.AsyncioDriver, to_const=ta.cast(mt.AsyncioDriver, driver)),
         inj.bind(MinituiChatApp, singleton=True),
     ) as tui:
-        app = await tui.injector[MinituiChatApp]
-        manager = await tui.injector[processes.ProcessManager]
+        app = await tui.ui_injector[MinituiChatApp]
+        manager = await tui.ui_injector[processes.ProcessManager]
         assert 'bash' in tui.commands.get_commands()
 
         await tui.commands.parse('bash').run()

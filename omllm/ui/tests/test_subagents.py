@@ -33,8 +33,8 @@ def _allow_rules(cwd):
 
 
 def _bind(cwd, *turns, autoexec=None, subagents=True):
-    return inj.override(
-        bind_headless_ui(UiConfig(
+    return bind_headless_ui(
+        UiConfig(
             model='scripted',
             immediate=True,
             in_memory=True,
@@ -42,8 +42,10 @@ def _bind(cwd, *turns, autoexec=None, subagents=True):
             subagents=subagents,
             cwd=cwd,
             autoexec=autoexec if autoexec is not None else _allow_rules(cwd),
-        )),
-        bind_scripted_backend(*turns),
+        ),
+        agent_rewriter=inj.overrider(
+            bind_scripted_backend(*turns),
+        ),
     )
 
 
@@ -103,7 +105,7 @@ async def test_subagent_runs_as_an_agent_scope_of_its_own():
             assert 'note.txt' in child_end.result.content.text
 
             # The parent's session recorded the parent's run alone.
-            storage = await hui.injector[agn.InMemorySessionStorage]
+            storage = await hui.ui_injector[agn.InMemorySessionStorage]
             assert [type(e.message) for e in await storage.get_entries()] == [  # type: ignore[attr-defined]
                 llm.UserMessage,
                 llm.AiMessage,
@@ -112,7 +114,7 @@ async def test_subagent_runs_as_an_agent_scope_of_its_own():
             ]
 
             # The child's process scope is gone with it.
-            pm = await hui.injector[processes.ProcessManager]
+            pm = await hui.ui_injector[processes.ProcessManager]
             assert not pm.root.children
 
             # And the root's own tool instances were not the child's: the child got instances of its own.
@@ -196,7 +198,7 @@ async def test_subagents_in_one_message_each_get_a_scope_of_their_own():
             assert sorted(tr.content[0].text for tr in _tool_results(result.new_messages)) == ['first', 'second']
             assert len({u.run_id for u in _relayed(events)}) == 2
 
-            pm = await hui.injector[processes.ProcessManager]
+            pm = await hui.ui_injector[processes.ProcessManager]
             assert not pm.root.children
 
 

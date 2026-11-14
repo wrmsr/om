@@ -1,6 +1,7 @@
 import typing as ta
 import uuid
 
+from omcore import check
 from omcore import dataclasses as dc
 from omcore import lang
 
@@ -32,6 +33,12 @@ class AgentConfig(ConfigBase):
 
     in_memory: bool | None = None
     jsonl: bool | None = None
+
+    @dc.init
+    def _check_agent_storage_flags(self) -> None:
+        check.arg(not (self.in_memory and self.jsonl), 'Session storage is in memory or in jsonl, not both')
+        check.arg(not (self.in_memory and self.resume is not None), 'An in-memory session cannot be resumed')
+
     resume: uuid.UUID | None = None
 
     ##

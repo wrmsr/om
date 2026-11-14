@@ -29,7 +29,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='f9076317a30385a5e5cc32b10b2af584d9271ac4',
+    installer_sha1='b33bfc92fbf5e07f0483498284f3e9985db12c8f',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -55,15 +55,15 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
             "lue', None, False, False, False), (('yolo', True, True, None, True, True, False, None), 'instance', 'value"
             "', None, False, False, False), (('diet_yolo', True, True, None, True, True, False, None), 'instance', 'val"
             "ue', None, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (("
-            "),), (), (False,)))"
+            "ue', None, False, False, False)), False, 1, ()), ((False,), (False,), (), (False,), (False, False, ('calla"
+            "ble',)), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.tui.config', 'TuiConfig'),
     ),
 )
-def _process_dataclass__f9076317a30385a5e5cc32b10b2af584d9271ac4():
+def _process_dataclass__b33bfc92fbf5e07f0483498284f3e9985db12c8f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -114,6 +114,7 @@ def _process_dataclass__f9076317a30385a5e5cc32b10b2af584d9271ac4():
         __dataclass__init__fields__20__default = __dataclass__spec.fields[20].default.must()
         __dataclass__init__fields__21__annotation = __dataclass__spec.fields[21].annotation
         __dataclass__init__fields__21__default = __dataclass__spec.fields[21].default.must()
+        __dataclass__init__init_fns__0 = __dataclass__ctx['omcore.dataclasses.impl.concerns.init.InitFunctions'].values[0]
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -303,6 +304,7 @@ def _process_dataclass__f9076317a30385a5e5cc32b10b2af584d9271ac4():
             __dataclass__object_setattr(self, 'yolo', yolo)
             __dataclass__object_setattr(self, 'diet_yolo', diet_yolo)
             __dataclass__object_setattr(self, 'verbose', verbose)
+            __dataclass__init__init_fns__0(self)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 

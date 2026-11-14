@@ -33,18 +33,18 @@ def test_config_arguments():
     assert UiConfig.parse_from_arguments(['--resume', str(session_id)]).resume == session_id
 
     with pytest.raises(RuntimeError):  # noqa
-        bind_headless_ui(UiConfig(
+        UiConfig(
             model='scripted',
             jsonl=True,
             in_memory=True,
-        ))
+        )
 
     with pytest.raises(RuntimeError):  # noqa
-        bind_headless_ui(UiConfig(
+        UiConfig(
             model='scripted',
             in_memory=True,
             resume=session_id,
-        ))
+        )
 
 
 @pytest.mark.asyncs('asyncio')
@@ -60,19 +60,22 @@ async def test_sql_sessions():
     )})
 
     def bind(*turns, resume=None):
-        return inj.as_elements(
-            inj.override(
-                bind_headless_ui(UiConfig(
-                    model='scripted',
-                    immediate=True,
-                    resume=resume,
-                )),
-                bind_scripted_backend(*turns),
-                inj.bind(db_sets),
+        return bind_headless_ui(
+            UiConfig(
+                model='scripted',
+                immediate=True,
+                resume=resume,
             ),
+            agent_rewriter=lambda els: inj.as_elements(
+                inj.override(
+                    els,
+                    bind_scripted_backend(*turns),
+                    inj.bind(db_sets),
+                ),
 
-            inj.bind(EchoTool, singleton=True),
-            bind_agent_tool_class(EchoTool),
+                inj.bind(EchoTool, singleton=True),
+                bind_agent_tool_class(EchoTool),
+            ),
         )
 
     async with headless_ui(bind(
@@ -80,13 +83,13 @@ async def test_sql_sessions():
             text_message('ok'),
             text_message('ok again'),
     )) as hui:
-        storage = await hui.injector[agn.SessionStorage]
+        storage = await hui.agent_injector[agn.SessionStorage]
         assert isinstance(storage, agn.OrmSessionStorage)
-        assert isinstance(await hui.injector[agn.Orm], agn.SqlOrm)
+        assert isinstance(await hui.agent_injector[agn.Orm], agn.SqlOrm)
 
         await hui.agent.prompt('hi')
         await hui.agent.prompt('again')
-        assert (await hui.injector[EchoTool]).calls == ['x']
+        assert (await hui.agent_injector[EchoTool]).calls == ['x']
 
         # A command is not the transcript's business, so none of storage's either.
         await hui.commands.parse('echo hi').run()
@@ -102,7 +105,7 @@ async def test_sql_sessions():
 
         await hui.agent.prompt('hi')
 
-        await check_stored_transcript(await hui.injector[agn.OrmSessionStorage], hui.agent)
+        await check_stored_transcript(await hui.agent_injector[agn.OrmSessionStorage], hui.agent)
 
         second_session_id = hui.session.id
 
@@ -110,7 +113,7 @@ async def test_sql_sessions():
     async with headless_ui(bind(text_message('resumed'), resume=first_session_id.v)) as hui:
         assert hui.session.id == first_session_id
         assert len(hui.agent.state.context.messages or ()) == 6
-        resumed_storage = await hui.injector[agn.OrmSessionStorage]
+        resumed_storage = await hui.agent_injector[agn.OrmSessionStorage]
         assert len(await resumed_storage.get_entries()) == 6
 
         await hui.agent.prompt('resuming')

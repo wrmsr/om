@@ -29,7 +29,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='94f8bd19e1cbc2375778a81a151faf346aefdc08',
+    installer_sha1='2aaf062382c6fbbf1b9da7e5b3fcb4716addcd9c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -58,15 +58,15 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
             ", None, False, False, False), (('port', True, True, None, True, True, False, None), 'instance', 'value', N"
             "one, False, False, False), (('no_auth', True, True, None, True, True, False, None), 'instance', 'value', N"
             "one, False, False, False), (('verbose', True, True, None, True, True, False, None), 'instance', 'value', N"
-            "one, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ("
-            "), (False,)))"
+            "one, False, False, False)), False, 1, ()), ((False,), (False,), (), (False,), (False, False, ('callable',)"
+            "), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.ui.web.config', 'WebConfig'),
     ),
 )
-def _process_dataclass__94f8bd19e1cbc2375778a81a151faf346aefdc08():
+def _process_dataclass__2aaf062382c6fbbf1b9da7e5b3fcb4716addcd9c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -123,6 +123,7 @@ def _process_dataclass__94f8bd19e1cbc2375778a81a151faf346aefdc08():
         __dataclass__init__fields__23__default = __dataclass__spec.fields[23].default.must()
         __dataclass__init__fields__24__annotation = __dataclass__spec.fields[24].annotation
         __dataclass__init__fields__24__default = __dataclass__spec.fields[24].default.must()
+        __dataclass__init__init_fns__0 = __dataclass__ctx['omcore.dataclasses.impl.concerns.init.InitFunctions'].values[0]
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -330,6 +331,7 @@ def _process_dataclass__94f8bd19e1cbc2375778a81a151faf346aefdc08():
             __dataclass__object_setattr(self, 'port', port)
             __dataclass__object_setattr(self, 'no_auth', no_auth)
             __dataclass__object_setattr(self, 'verbose', verbose)
+            __dataclass__init__init_fns__0(self)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 

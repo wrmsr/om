@@ -20,9 +20,9 @@ async def test_live_completions_effort_without_tools(harness, immediate):
     harness[HarnessSecrets].get_or_skip('openai_api_key')
     async with headless_ui(bind_headless_ui(UiConfig(
         model='gpt-nano',
-            immediate=immediate,
-            in_memory=True,
-            effort=llm.ReasoningEffort.LOW,
+        immediate=immediate,
+        in_memory=True,
+        effort=llm.ReasoningEffort.LOW,
     ))) as hui:
         result = await hui.agent.prompt('Reply with exactly: effort verified')
         assert result.reason is agn.AgentEndReason.COMPLETED, result.error

@@ -43,7 +43,7 @@ async def test_bare_boot_commands_read_as_blocks(tmp_path):
         inj.bind(TerminalTextDisplayer, singleton=True, to_fn=build_text_displayer),
         bind_scripted_backend(),
     )) as tui:
-        prompter = await tui.injector[Prompter]
+        prompter = await tui.ui_injector[Prompter]
         for ax in yolo_autoexec(config, root):
             await prompter.prompt(ax, echo=True)
 
@@ -83,7 +83,7 @@ async def test_bare_shows_a_typed_commands_output_as_a_block_without_echoing_it(
         inj.bind(TerminalTextDisplayer, singleton=True, to_fn=build_text_displayer),
         bind_scripted_backend(),
     )) as tui:
-        prompter = await tui.injector[Prompter]
+        prompter = await tui.ui_injector[Prompter]
         await prompter.prompt('/echo hi')
         await prompter.prompt('/nope')
         await prompter.prompt('/permissions clear')

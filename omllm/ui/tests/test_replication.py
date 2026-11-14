@@ -85,12 +85,14 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
     ):
         edge_db_path = check.isinstance(hs.sqlite().backend, sbx.SqliteSandboxBackend).sandbox_db_path(edge_sb.name)
 
-        async with headless_ui(
+        async with headless_ui(bind_headless_ui(
+            UiConfig(
+                model='scripted',
+                immediate=True,
+            ),
+            agent_rewriter=lambda els: inj.as_elements(
                 inj.override(
-                    bind_headless_ui(UiConfig(
-                        model='scripted',
-                        immediate=True,
-                    )),
+                    els,
                     bind_scripted_backend(
                         text_message('before'),
                         tool_call_message(llm.ToolCall('t1', 'echo', {'text': 'x'})),
@@ -102,7 +104,8 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
                 inj.bind(EchoTool, singleton=True),
                 bind_agent_tool_class(EchoTool),
-        ) as hui:
+            ),
+        )) as hui:
             # The harness was here first: its db exists, with a turn in it, before anyone thinks to replicate it.
             await hui.agent.prompt('hi')
 
@@ -153,7 +156,7 @@ async def test_sqlite_sessions_replicate_to_postgres(harness):
 
             #
 
-            storage = await hui.injector[agn.OrmSessionStorage]
+            storage = await hui.agent_injector[agn.OrmSessionStorage]
             await check_stored_transcript(storage, hui.agent)
             num_entries = len(await storage.get_entries())
             assert num_entries == 8

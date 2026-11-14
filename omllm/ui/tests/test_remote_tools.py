@@ -99,31 +99,31 @@ async def test_docker_remote_tool_bindings(tmp_path):
     cwd = os.path.realpath(tmp_path / 'container-root')
     path = os.path.join(cwd, 'remote.txt')
 
-    async with headless_ui(
-            inj.override(
-                bind_headless_ui(_container_config()),
-                inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
-            ),
-    ) as hui:
-        fs = await hui.injector[agn.FsOps]
-        manager = await hui.injector[processes.ProcessManager]
+    async with headless_ui(bind_headless_ui(
+        _container_config(),
+        agent_rewriter=inj.overrider(
+            inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
+        ),
+    )) as hui:
+        fs = await hui.agent_injector[agn.FsOps]
+        manager = await hui.agent_injector[processes.ProcessManager]
 
         assert isinstance(fs, agn.RemoteFsOps)
         assert isinstance(manager, processes.RemoteProcessManager)
         assert check.not_none(hui.agent.state.tool_env).cwd == cwd
 
         # And the agent is told of the far side as the far side: the environment is the container's, marked remote.
-        info = await (await hui.injector[agn.EnvironmentOps]).inspect_environment()
+        info = await (await hui.agent_injector[agn.EnvironmentOps]).inspect_environment()
         assert info.remote
         assert info.cwd == cwd
-        assert isinstance(await hui.injector[agn.SessionStorage], agn.InMemorySessionStorage)
+        assert isinstance(await hui.agent_injector[agn.SessionStorage], agn.InMemorySessionStorage)
 
         # The root scope is the remote manager's, and it is what the agent hands to tools.
-        assert (await hui.injector[processes.RootProcessScope]) is manager.root
+        assert (await hui.agent_injector[processes.RootProcessScope]) is manager.root
         assert check.not_none(hui.agent.state.tool_env).processes is manager.root
 
         # The host's platform sandbox cannot confine a process which runs in the container.
-        ripgrep = await hui.injector[agn.RipgrepTool]
+        ripgrep = await hui.agent_injector[agn.RipgrepTool]
         assert not ripgrep._sandbox  # noqa: SLF001
 
         await fs.write_file(path, b'from remote')
@@ -143,8 +143,9 @@ async def test_bash_tool_runs_in_the_container_through_the_agent(tmp_path):
     docker = _make_fake_docker(tmp_path)
     cwd = os.path.realpath(tmp_path / 'container-root')
 
-    async with headless_ui(inj.override(
-            bind_headless_ui(_container_config()),
+    async with headless_ui(bind_headless_ui(
+        _container_config(),
+        agent_rewriter=inj.overrider(
             inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
             bind_scripted_backend(
                 tool_call_message(llm.ToolCall(
@@ -154,6 +155,7 @@ async def test_bash_tool_runs_in_the_container_through_the_agent(tmp_path):
                 )),
                 text_message('done'),
             ),
+        ),
     )) as hui:
         tool_env = check.not_none(hui.agent.state.tool_env)
         assert tool_env.cwd == cwd
@@ -168,7 +170,7 @@ async def test_bash_tool_runs_in_the_container_through_the_agent(tmp_path):
         assert 'warn' in text
         assert 'exit code 5' in text
 
-        manager = await hui.injector[processes.ProcessManager]
+        manager = await hui.agent_injector[processes.ProcessManager]
         assert not manager.processes
 
 
@@ -179,8 +181,9 @@ async def test_ripgrep_tool_runs_in_the_container_through_the_agent(tmp_path):
     cwd = os.path.realpath(tmp_path / 'container-root')
     (tmp_path / 'container-root' / 'haystack.txt').write_text('hay\nneedle here\n')
 
-    async with headless_ui(inj.override(
-            bind_headless_ui(_container_config()),
+    async with headless_ui(bind_headless_ui(
+        _container_config(),
+        agent_rewriter=inj.overrider(
             inj.bind(agn.DockerRemoteAgentConfig(docker=docker)),
             bind_scripted_backend(
                 tool_call_message(llm.ToolCall(
@@ -190,6 +193,7 @@ async def test_ripgrep_tool_runs_in_the_container_through_the_agent(tmp_path):
                 )),
                 text_message('done'),
             ),
+        ),
     )) as hui:
         await _allow_everything_under(hui, cwd)
         await hui.agent.prompt('search')

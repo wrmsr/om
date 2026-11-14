@@ -6,6 +6,7 @@ from .. import lang
 from .elements import Element
 from .elements import Elemental
 from .elements import Elements
+from .elements import ElementsRewriter
 from .elements import as_elements
 
 
@@ -32,3 +33,25 @@ def override(src: ta.Any, *ovr: ta.Any) -> Elemental:
     if not lang.ilen(ove):
         return sce
     return Overrides(sce, ove)
+
+
+def override_(src: ta.Any, *ovr: ta.Any) -> Elements:
+    return as_elements(override(src, *ovr))
+
+
+##
+
+
+@lang.static_check_issubclass[ElementsRewriter]()
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(terse_repr=True)
+class Overrider:
+    ovr: Elements
+
+    def __call__(self, src: Elements) -> Elements:
+        return override_(src, self.ovr)
+
+
+def overrider(*ovr: ta.Any) -> Overrider:
+    return Overrider(as_elements(*ovr))

@@ -3160,21 +3160,21 @@ def _process_dataclass__a4065c04923423b2ef1c8201fcb3f3cf0a9d756c():
 
 
 @_register(
-    installer_sha1='79b9bb4ef8b7e7a9362bf90f9b04a72f6f075d2f',
+    installer_sha1='dceeaa1d142f8171abcb660bb2dc32ecb4460ce3',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, True, False), ((('key', True, True, None, True, False, False, None), 'instance', 'missing', Non"
-            "e, False, False, False), (('injector', True, True, None, True, True, False, None), 'instance', 'value', No"
-            "ne, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (),"
-            " (False,)))"
+            "e, False, False, False), (('injector_ref', True, True, None, True, True, False, None), 'instance', 'value'"
+            ", None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),),"
+            " (), (False,)))"
         ),
     ),
     cls_names=(
         ('omcore.inject.keychain', 'KeyChainEntry'),
     ),
 )
-def _process_dataclass__79b9bb4ef8b7e7a9362bf90f9b04a72f6f075d2f():
+def _process_dataclass__dceeaa1d142f8171abcb660bb2dc32ecb4460ce3():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3196,7 +3196,7 @@ def _process_dataclass__79b9bb4ef8b7e7a9362bf90f9b04a72f6f075d2f():
                 raise TypeError(self)
             return __class__(  # noqa
                 key=self.key,
-                injector=self.injector,
+                injector_ref=self.injector_ref,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3208,14 +3208,14 @@ def _process_dataclass__79b9bb4ef8b7e7a9362bf90f9b04a72f6f075d2f():
                 return NotImplemented
             return (
                 self.key == other.key and
-                self.injector == other.injector
+                self.injector_ref == other.injector_ref
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'key',
-            'injector',
+            'injector_ref',
         }
 
         def __setattr__(self, name, value):
@@ -3241,7 +3241,7 @@ def _process_dataclass__79b9bb4ef8b7e7a9362bf90f9b04a72f6f075d2f():
         def __hash__(self):
             return hash((
                 self.key,
-                self.injector,
+                self.injector_ref,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3250,10 +3250,10 @@ def _process_dataclass__79b9bb4ef8b7e7a9362bf90f9b04a72f6f075d2f():
             self,
             key: __dataclass__init__fields__0__annotation,
             *,
-            injector: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            injector_ref: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'key', key)
-            __dataclass__object_setattr(self, 'injector', injector)
+            __dataclass__object_setattr(self, 'injector_ref', injector_ref)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3262,8 +3262,8 @@ def _process_dataclass__79b9bb4ef8b7e7a9362bf90f9b04a72f6f075d2f():
             parts = []
             if (s := __dataclass__repr__default_fn(self.key)) is not None:
                 parts.append(f"{s}")
-            if (s := __dataclass__repr__default_fn(self.injector)) is not None:
-                parts.append(f"injector={s}")
+            if (s := __dataclass__repr__default_fn(self.injector_ref)) is not None:
+                parts.append(f"injector_ref={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3995,6 +3995,108 @@ def _process_dataclass__2b0055b991afeb3feb266b23847188f104f2cf96():
         def __repr__(self):
             parts = []
             parts.append(f"lst={self.lst!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='cc8aef25b5f7f137f6a37b2f90d9fe7c075e448e',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, True, False), ((('ovr', True, True, None, True, False, False, None), 'instance', 'missing', Non"
+            "e, False, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ()"
+            ", (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omcore.inject.overrides', 'Overrider'),
+    ),
+)
+def _process_dataclass__cc8aef25b5f7f137f6a37b2f90d9fe7c075e448e():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                ovr=self.ovr,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.ovr == other.ovr
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'ovr',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.ovr,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            ovr: __dataclass__init__fields__0__annotation,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'ovr', ovr)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"{self.ovr!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

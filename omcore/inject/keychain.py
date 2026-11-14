@@ -20,7 +20,13 @@ class KeyChainEntry:
 
     _: dc.KW_ONLY
 
-    injector: weakref.ref[AnyInjector] | None = None
+    injector_ref: weakref.ref[AnyInjector] | None = None
+
+    @property
+    def injector(self) -> AnyInjector | None:
+        if (ir := self.injector_ref) is None:
+            return None
+        return ir()
 
 
 @ta.final
@@ -51,7 +57,7 @@ class KeyChain(ta.Sequence[KeyChainEntry]):
         entries = [
             KeyChainEntry(
                 key,
-                injector=weakref.ref(injector) if injector is not None else None,
+                injector_ref=weakref.ref(injector) if injector is not None else None,
             )
             for key in keys
         ]
@@ -152,6 +158,6 @@ class KeyChain(ta.Sequence[KeyChainEntry]):
     def injectors(self) -> ta.AbstractSet[AnyInjector]:
         dct: dict[AnyInjector, None] = {}
         for e in self._entries:
-            if (iwr := e.injector) is not None and (i := iwr()) is not None and i not in dct:  # noqa
+            if (i := e.injector) is not None and i not in dct:
                 dct[i] = None
         return dct.keys()

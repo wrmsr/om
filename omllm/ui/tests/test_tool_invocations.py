@@ -94,22 +94,26 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
     probe = _ScopeProbe()
     provided: list = []
 
-    async with headless_ui(
+    async with headless_ui(bind_headless_ui(
+        UiConfig(
+            model='scripted',
+            immediate=True,
+            in_memory=True,
+        ),
+        agent_rewriter=lambda els: inj.as_elements(
             inj.override(
-                bind_headless_ui(UiConfig(
-                    model='scripted',
-                    immediate=True,
-                    in_memory=True,
-                )),
+                els,
                 bind_scripted_backend(
                     tool_call_message(llm.ToolCall('t1', 'probe', {}), llm.ToolCall('t2', 'probe', {})),
                     text_message('done'),
                 ),
                 _bind_recording_direct_tool_invoker(provided),
             ),
+
             agent_tools().bind_item(to_const=probe.tool()),
-    ) as hui:
-        probe.injector = hui.injector
+        ),
+    )) as hui:
+        probe.injector = hui.ui_injector
         probe_tool = check.not_none(hui.agent.state.context.tools)['probe']
 
         result = await hui.agent.prompt('go')
@@ -142,7 +146,7 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
 
         # And none of it is open once the calls are done.
         with pytest.raises(inj.ScopeNotOpenError):
-            await hui.injector[agn.ToolContext]
+            await hui.ui_injector[agn.ToolContext]
 
 
 @pytest.mark.asyncs('asyncio')
@@ -155,19 +159,20 @@ async def test_a_subagents_tool_calls_are_invoked_in_a_scope_of_its_own():
 
         provided: list = []
 
-        async with headless_ui(inj.override(
-                bind_headless_ui(UiConfig(
-                    model='scripted',
-                    immediate=True,
-                    in_memory=True,
-                    fs=True,
-                    subagents=True,
-                    cwd=td,
-                    autoexec=[
-                        '/permissions add allow subagent {}',
-                        f'/permissions add allow glob_fs \'{{"glob":"{td}/**","modes":["r"]}}\'',
-                    ],
-                )),
+        async with headless_ui(bind_headless_ui(
+            UiConfig(
+                model='scripted',
+                immediate=True,
+                in_memory=True,
+                fs=True,
+                subagents=True,
+                cwd=td,
+                autoexec=[
+                    '/permissions add allow subagent {}',
+                    f'/permissions add allow glob_fs \'{{"glob":"{td}/**","modes":["r"]}}\'',
+                ],
+            ),
+            agent_rewriter=inj.overrider(
                 bind_scripted_backend(
                     tool_call_message(llm.ToolCall('p1', 'subagent', {'prompt': 'look', 'profile': 'explore'})),
                     tool_call_message(llm.ToolCall('c1', 'ls', {'dir_path': td})),
@@ -175,6 +180,7 @@ async def test_a_subagents_tool_calls_are_invoked_in_a_scope_of_its_own():
                     text_message('parent done'),
                 ),
                 _bind_recording_direct_tool_invoker(provided),
+            ),
         )) as hui:
             events: list = []
             hui.agent.subscribe(events.append)

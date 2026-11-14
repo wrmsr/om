@@ -129,17 +129,19 @@ def test_terminal_text_displayer_builds_its_renderer_with_the_options():
 
 @pytest.mark.asyncs('asyncio')
 async def test_bound_options_reach_the_frontends():
-    async with headless_ui(inj.override(
-        inj.as_elements(
-            bind_headless_ui(tui_config := TuiConfig(
-                model='scripted',
-                in_memory=True,
-            )),
-            bind_rendering(tui_config),
+    async with headless_ui(bind_headless_ui(
+        tui_config := TuiConfig(
+            model='scripted',
+            in_memory=True,
         ),
-        inj.bind(ui.TextRenderingOptions(diff_layout='split')),
+        ui_rewriter=inj.overrider(
+            inj.override(
+                bind_rendering(tui_config),
+            inj.bind(ui.TextRenderingOptions(diff_layout='split')),
+            ),
+        ),
     )) as tui:
-        rows_renderer = await tui.injector[TextRowsRenderer]
+        rows_renderer = await tui.ui_injector[TextRowsRenderer]
 
     rendered = '\n'.join(mt.segments_text(row) for row in rows_renderer.render_rows(60, _DIFF))
     assert _shares_a_row(rendered)

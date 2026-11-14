@@ -91,6 +91,8 @@ with _lang.auto_proxy_init(
     from .elements import (  # noqa
         Elemental,
 
+        ElementsRewriter,
+
         Element,
 
         Elements,
@@ -170,6 +172,10 @@ with _lang.auto_proxy_init(
     from .overrides import (  # noqa
         Overrides,
         override,
+        override_,
+
+        Overrider,
+        overrider,
     )
 
     from .origins import (  # noqa

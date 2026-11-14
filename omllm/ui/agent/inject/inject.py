@@ -7,6 +7,7 @@ from ..setup import AgentSetup
 from .context import bind_context
 from .events import bind_events
 from .permissions import bind_permissions
+from .runtime import bind_runtime
 from .session import bind_sessions
 from .subagents import bind_subagents
 from .systemprompt import bind_system_prompt
@@ -34,6 +35,7 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
         bind_context(config),
         bind_events(config),
         bind_permissions(config),
+        bind_runtime(config),
         bind_sessions(config),
         bind_subagents(config),
         bind_system_prompt(config),

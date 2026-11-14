@@ -69,3 +69,4 @@
 - InjectorConfig by now probably
 - internal_consts being weakrefs is weird
 - abstract managed away from concrete ExitStack, allow using KeyedExitStack
+- some opt-in degree of strictness - 'must_use=False'? default-on for overrides?

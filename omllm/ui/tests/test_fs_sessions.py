@@ -22,15 +22,17 @@ async def test_fs_session_resume():
         session_dir = os.path.join(temp_dir, 'session')
 
         def bind(*turns, resume=None):
-            return inj.override(
-                bind_headless_ui(UiConfig(
+            return bind_headless_ui(
+                UiConfig(
                     model='scripted',
                     immediate=True,
                     jsonl=True,
                     resume=resume,
-                )),
-                bind_scripted_backend(*turns),
-                inj.bind(agn.FsSessionStorage.Config(dir_path=session_dir)),
+                ),
+                agent_rewriter=inj.overrider(
+                    bind_scripted_backend(*turns),
+                    inj.bind(agn.FsSessionStorage.Config(dir_path=session_dir)),
+                ),
             )
 
         async with headless_ui(bind(text_message('hello'))) as hui:
@@ -44,7 +46,7 @@ async def test_fs_session_resume():
             await hui.agent.prompt('again')
 
             assert len(hui.agent.state.context.messages or ()) == 4
-            storage = await hui.injector[agn.FsSessionStorage]
+            storage = await hui.agent_injector[agn.FsSessionStorage]
             assert len(await storage.get_entries()) == 4
 
         with open(os.path.join(session_dir, agn.FsSessionStorage.ENTRIES_FILE_NAME), encoding='utf-8') as f:  # noqa

@@ -21,6 +21,9 @@ type Elemental = ta.Union[  # noqa: UP007
 ]
 
 
+type ElementsRewriter = ta.Callable[[Elements], Elements]
+
+
 ##
 
 

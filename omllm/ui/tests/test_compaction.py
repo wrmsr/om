@@ -23,17 +23,19 @@ async def test_compact_command_through_the_uis_wiring():
     def expect(invocation):
         seen.append(invocation.context)
 
-    async with headless_ui(inj.override(
-            bind_headless_ui(UiConfig(
-                model='scripted',
-                immediate=True,
-                in_memory=True,
-            )),
+    async with headless_ui(bind_headless_ui(
+        UiConfig(
+            model='scripted',
+            immediate=True,
+            in_memory=True,
+        ),
+        agent_rewriter=inj.overrider(
             bind_scripted_backend(
                 text_message('hello'),
                 text_message('The user said hi.'),
                 llm.BackendScriptTurn(text_message('again'), expect=expect),
             ),
+        ),
     )) as hui:
         await hui.agent.prompt('hi')
 
@@ -44,7 +46,7 @@ async def test_compact_command_through_the_uis_wiring():
         assert projection.first_kept_message_index == 1
         assert len(hui.agent.state.context.messages or ()) == 2
 
-        storage = await hui.injector[agn.SessionStorage]
+        storage = await hui.agent_injector[agn.SessionStorage]
         assert [type(e) for e in await storage.get_entries()] == [
             agn.MessageSessionEntry,
             agn.MessageSessionEntry,

@@ -32,15 +32,15 @@ async def _test_explore(harness, model: str) -> None:
             f.write(f'The secret word is {_WORD}.\n')
 
         async with headless_ui(bind_headless_ui(UiConfig(
-                model=model,
-                in_memory=True,
-                fs=True,
-                subagents=True,
-                cwd=td,
-                autoexec=[
-                    '/permissions add allow subagent {}',
-                    f'/permissions add allow glob_fs \'{{"glob":"{td}/**","modes":["r"]}}\'',
-                ],
+            model=model,
+            in_memory=True,
+            fs=True,
+            subagents=True,
+            cwd=td,
+            autoexec=[
+                '/permissions add allow subagent {}',
+                f'/permissions add allow glob_fs \'{{"glob":"{td}/**","modes":["r"]}}\'',
+            ],
         ))) as hui:
             events: list = []
             hui.agent.subscribe(events.append)

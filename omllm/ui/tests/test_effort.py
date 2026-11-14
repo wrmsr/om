@@ -47,14 +47,16 @@ async def test_effort_reaches_turn_options():
 async def test_unsupported_effort_is_rejected_at_startup():
     # The plain scripted test model declares no effort levels at all.
     with pytest.raises(ValueError, match='does not support effort low'):
-        async with headless_ui(inj.override(
-            bind_headless_ui(UiConfig(
+        async with headless_ui(bind_headless_ui(
+            UiConfig(
                 model='scripted',
                 immediate=True,
                 in_memory=True,
                 effort=llm.ReasoningEffort.LOW,
-            )),
-            bind_scripted_backend(text_message('hello')),
+            ),
+            agent_rewriter=inj.overrider(
+                bind_scripted_backend(text_message('hello')),
+            ),
         )):
             pass
 
@@ -68,15 +70,17 @@ async def test_effort_is_validated_against_installed_tools():
     )
 
     def bind(**kwargs):
-        return inj.override(
-            bind_headless_ui(UiConfig(
+        return bind_headless_ui(
+            UiConfig(
                 model='scripted',
                 immediate=True,
                 in_memory=True,
                 effort=llm.ReasoningEffort.LOW,
                 **kwargs,
-            )),
-            _bind_backend(model),
+            ),
+            agent_rewriter=inj.overrider(
+                _bind_backend(model),
+            ),
         )
 
     async with headless_ui(bind()) as hui:
