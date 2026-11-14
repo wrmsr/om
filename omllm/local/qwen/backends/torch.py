@@ -133,13 +133,20 @@ class CudaGraphStep:
     `kv_write`'s in-place return gives us for the KV buffers), replay, and hand back the graph's output tensors. Outputs
     are overwritten by the next replay, so a caller that keeps state must feed the outputs straight back in -- the copy
     into the static inputs is what carries it forward.
+
+    With `carry = (outputs_from, inputs_from)` -- the outputs from the one index on are the next call's arguments from
+    the other on -- that copy is part of the graph: it ends by writing those outputs into the static inputs they
+    belong to, and hands *those* back, which the next call then finds are already its inputs. A plain decode step on
+    the 27B has 96 such arrays (the DeltaNet layers' states, 150 MiB): copied in by the host at the next launch they
+    were 0.6 ms of launches a token, with nothing for the GPU to do meanwhile.
     """
 
-    def __init__(self, fn, use_graph: bool = True) -> None:
+    def __init__(self, fn, use_graph: bool = True, carry: tuple[int, int] | None = None) -> None:
         super().__init__()
 
         self.fn = fn
         self.use_graph = use_graph  # False: same static-input protocol, no graph (testable on CPU)
+        self.carry = carry
         self.graph: torch.cuda.CUDAGraph | None = None
         self.static_in: list[torch.Tensor] = []
         self.static_out: tuple[torch.Tensor, ...] = ()
@@ -157,7 +164,17 @@ class CudaGraphStep:
             torch.cuda.current_stream().wait_stream(s)
             self.graph = torch.cuda.CUDAGraph()
             with torch.cuda.graph(self.graph):
-                self.static_out = tuple(self.fn(*self.static_in))
+                out = tuple(self.fn(*self.static_in))
+                if self.carry is not None:
+                    outputs_from, inputs_from = self.carry
+                    state = self.static_in[inputs_from:]
+                    if len(out) - outputs_from != len(state):
+                        raise ValueError('carried outputs and inputs differ in number')
+                    for dst, src in zip(state, out[outputs_from:]):
+                        if src is not dst:
+                            dst.copy_(src)
+                    out = (*out[:outputs_from], *state)
+                self.static_out = out
             self.graph.replay()  # capture only records; run it once so this call's outputs are real
             return self.static_out
         for dst, src in zip(self.static_in, args):
@@ -295,6 +312,12 @@ class TorchOps(Ops):
     def dtype(self, name):
         return dtypes()[name]
 
+    # Host arrays up to this size go to a CUDA device through pinned memory, without waiting. A plain `.to(device)`
+    # is a blocking copy: it waits for everything queued on the GPU first, and the small arrays made mid-generation
+    # -- a prompt-lookup round's drafts, a grammar's mask rows, a token id -- are made while the draft head's refresh
+    # is queued and the next launch is waiting on the host. (Weights are larger, loaded once, and not worth pinning.)
+    ASYNC_ARRAY_BYTES: ta.ClassVar[int] = 1 << 20
+
     def array(self, a, dtype=None):
         a = np.ascontiguousarray(a)
         if not a.flags.writeable:  # memmap-backed (gguf / safetensors) arrays: torch wants ownership
@@ -302,10 +325,28 @@ class TorchOps(Ops):
         t = torch.from_numpy(a)
         if dtype is not None:
             t = t.to(dtype)
+        if self.device.type == 'cuda' and 0 < t.numel() * t.element_size() <= self.ASYNC_ARRAY_BYTES:
+            return t.pin_memory().to(self.device, non_blocking=True)
         return t.to(self.device)
 
     def numpy(self, x):
         return x.detach().float().cpu().numpy() if x.is_floating_point() else x.detach().cpu().numpy()
+
+    def numpy_later(self, x):
+        if x.device.type != 'cuda':
+            return super().numpy_later(x)
+        # a copy into pinned memory is queued like a kernel, and the event after it marks where to wait up to
+        x = x.detach().float() if x.is_floating_point() else x.detach()
+        host = torch.empty(x.shape, dtype=x.dtype, pin_memory=True)
+        host.copy_(x, non_blocking=True)
+        event = torch.cuda.Event()
+        event.record()
+
+        def get():
+            event.synchronize()
+            return host.numpy().copy()
+
+        return get
 
     def cast(self, x, dtype):
         return x.to(dtype)
@@ -366,7 +407,10 @@ class TorchOps(Ops):
         return torch.arange(n, dtype=torch.int32, device=self.device)
 
     def scalar(self, v):
-        return torch.tensor(v, dtype=torch.int32, device=self.device)
+        # filled on the device. Not `torch.tensor(v, device=...)`: that is a host tensor and a blocking copy of it,
+        # which waits for everything queued on the GPU -- and a step's position is made between launches (the draft
+        # head's k steps a round, each then waiting out the one before it, with the GPU idle while the host caught up)
+        return torch.full((), v, dtype=torch.int32, device=self.device)
 
     def kv_write(self, buf, pos, x):
         # in place, so a captured graph keeps writing into the same storage
@@ -810,6 +854,7 @@ class TorchOps(Ops):
         return tuple(out)
 
     kv_in_place = True
+    capture_sampling = True
 
     def kv_reserve(self, state, capacity, into=None):
         # index writes are in place here, so a prefill fills capacity buffers (the decoder's own, in the end)
@@ -932,13 +977,19 @@ class TorchOps(Ops):
             load_compile_cache(self.compile_cache)
         return _DeferredCompile(fn)
 
-    def capture(self, fn):
+    def _capture(self, fn, carry=None):
         mode = self.capture_mode
         if mode == 'auto':
             mode = 'graph' if self.device.type == 'cuda' else 'plain'
         if mode == 'plain':
             return fn
-        return CudaGraphStep(fn, use_graph=(mode == 'graph'))
+        return CudaGraphStep(fn, use_graph=(mode == 'graph'), carry=carry)
+
+    def capture(self, fn):
+        return self._capture(fn)
+
+    def capture_carrying(self, fn, outputs_from, inputs_from):
+        return self._capture(fn, (outputs_from, inputs_from))
 
     def rope(
             self,

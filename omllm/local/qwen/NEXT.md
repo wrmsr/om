@@ -344,6 +344,13 @@ tokenizer cuts them, and offered as a draft to be verified, not by looking for s
 syntax the forced runs are long -- `\n</parameter>\n<`, `</function>\n</tool_call>` -- which at a dozen drafts a
 round is most of a call's ~35 scaffolding tokens in three or four rounds where the head takes nine.
 
+**Less to gain than that since the head drafts longer (2026-11-14).** With `--spec 5,9,15` (2.3) the head takes a
+46-token `read_file` call in 12 rounds where it took 17 at k = 3, a 64-token grep in 12 (21), a 65-token write in
+12 (20): the scaffolding is where it is surest, so that is where it now goes long by itself. What forced bytes would
+still add is certainty -- the remaining rounds are the ones that start mid-value -- for calls that are a quarter of
+a second each; on the long ones (a module, a file) the value is everything and this does nothing. Third in line
+behind a calibrated head and lookup at the right length.
+
 
 ### 1.4 Measurements owed on the real model
 
@@ -431,6 +438,43 @@ The speculative path still holds those 2.5 GiB through the head's prefill. Strea
 by chunk as the target's prefill produces them would remove that too; it needs `DraftSource.start` to take the
 prompt in pieces. At 28.0 GiB of 32 the margin is what it is.
 
+**Where the GPU waited for the host (2026-11-14).** A decode step is one graph launch, so the round looked
+GPU-bound; timing the host between launches (when each launch returns, when each read comes back) said otherwise in
+six places, all on the 27B, compiled:
+
+| what the host was doing                                                 | it cost                    | now                                             |
+|-------------------------------------------------------------------------|----------------------------|-------------------------------------------------|
+| making each step's position: `torch.tensor(v, device=...)`, a blocking copy that waits for the step before | 0.37 ms a draft-head step | `torch.full` on the device                      |
+| launching a draft: the head's step and 25 (greedy) / 40 (sampled) sampling operations | 0.35 / 0.63 ms a draft      | a run of drafts is one captured call            |
+| reading the head's confidence at a draft length, then launching the verify step | 0.8 ms a round that stops   | read two drafts early, those two queued behind  |
+| a commit picking 96 per-token states before the next round's first launch | 0.28 ms a round             | picked when the next step asks                  |
+| plain decode copying its state into the graph's inputs at every launch  | 0.3 ms a token (of 15.3)    | carried inside the graph                        |
+| small host arrays (a lookup round's drafts, mask rows) sent with a blocking copy that waits out the head's refresh | 0.2 ms a prompt-lookup round | through pinned memory, not waiting              |
+
+Still there, and smaller: a round's first launch comes 0.11 ms after its read (the bookkeeping between), and the
+verify step's launch is 0.6 ms of host time (its 96 state arrays are copied in, as plain decode's were), hidden
+behind the drafts whenever there are drafts to hide behind. (A 15-draft prompt-lookup round on the rewrite of 1.1
+now takes 19.6 ms, 612 tok/s; the table there has 24.0 and 523, read on a machine it calls ~10% slow.)
+
+**The next one: the verify launch, when the host is busy.** Hidden is not gone. With the machine's cores
+oversubscribed (a load average of 55 on 48) the host's launches take two or three times as long and stop fitting
+behind the head's ~1.6 ms of drafting: the bench's speculative round reads 18.7 ms where it reads 16.9 on a quiet
+host, while plain decode, whose launch is now two copies and a replay, barely moves (15.2 against 15.0 ms a token;
+the commit before it, 16.9). What is left on the host in a speculative round is almost all in one place: picking
+the kept state out of the verify step's per-token outputs (~100 selects) and copying it into the next verify
+step's inputs (96 launches). One captured call could do both -- `fn(n, *stacked, *state)` writing `stacked[i][n]`
+into `state[i]` -- if every step of a decoder took the same state arrays as its inputs, which they do not today:
+each captured step keeps the arrays of its own first call. So the work is to give the DeltaNet state what the KV
+buffers already have -- arrays that belong to the slab (`core/slab.py`), that a new decoder copies its state into
+once and every step then reads and writes in place -- and then the commit is one launch and the verify launch is
+a replay. Worth about 10% of a speculative round on a busy host, nothing on an idle one.
+
+And the state plain decode carries is still copied -- by the graph now, 150 MiB and 0.3 ms a token: a step
+that wrote its new state where its next run reads it (two graphs over two sets of buffers, each reading the other's)
+would not copy at all. The way to find the next one is the same: `CudaGraphStep.__call__` and `Ops.numpy` wrapped
+with timestamps -- and nothing else inside the timed region: a first version of the plain-decode measurement counted
+the arguments copied while timing the launch, and reported 0.9 ms of launch where there was 0.6.
+
 ## 2. Mid term (a week or two each)
 
 ### 2.1 LoRA: PEFT adapters at inference, and a differentiable model mode
@@ -493,6 +537,41 @@ the multi-draft generalisation (each node accepted against its parent's residual
 EAGLE-2 and SpecInfer papers. Training the head needs the differentiable mode (2.1) or an external loop over
 exported hiddens: the head conditions on the target's final hidden and the next token, so a few hours of
 agent transcripts is the dataset.
+
+**Status (2026-11-14): how many drafts, and what a draft costs -- the cheap half of this.** k had been 3 since the
+head went in. Per position, of fifteen drafts the 27B's target keeps 2.9 in prose, 5.7 and 6.5 in new code, 4.9 in
+reasoning, 11.1 in a file being rewritten (all fifteen at 46% of its positions), so:
+
+- *A longer fixed draft.* `--spec 7` is +22% over `--spec 3` across eight kinds of output and slower on none (README,
+  "Speculative decoding"); 15 is +92% on the rewrite and -18% on prose.
+- *Several lengths* (`--spec 5,9,15`, `MtpDraftSource`): a round goes on to the next length while the product of the
+  head's own probabilities for its drafts holds at `--spec-confidence`. Within 3% of 7 on new code and reasoning, +34%
+  on the rewrite (465 tok/s against 348). Through the engine, on five of the agent's tool calls in the function syntax
+  (two short reads, a short write, a new module, a file rewritten): 3.67 tokens a round at k = 3, 6.17 at 7, 8.03 at
+  5,9,15 and 8.52 with `--lookup 6 --lookup-k 15` on top -- 133, 192, 222 and 255 tok/s uncompiled.
+- *It is the predictor that limits this, not the rule.* The head is an optimist: when it gives seven drafts 0.85
+  together, the target keeps all seven 56% of the time; at 0.7, 37%. On per-position traces of six texts (what the
+  target would keep of fifteen drafts at each position, and the head's probability of each), with the measured round
+  cost (15.1 ms + 0.69 a draft): its confidence at any thresholds and any set of lengths, what the last round kept
+  (no read at all), a read after three drafts choosing the round's whole length, and an expected-tokens estimate all
+  land between 1.30x and 1.35x `--spec 3`; fixed 7 is 1.25x; an oracle choosing among three lengths 1.47x, among all
+  fifteen 1.57x. So the next gain here is a head whose probabilities mean what they say -- a temperature fitted on
+  traffic would be the one-parameter version, the tuning above the real one -- or a second signal (the target's own
+  entropy at the last verified row is free).
+- *What a draft costs.* The loop that drafted one token at a time was bound by the host, not the GPU: two dozen
+  launches a draft greedy and forty sampled (0.35 / 0.63 ms) around a step of 0.38 / 0.52 ms, and a blocking copy for
+  each step's position on top. A run of drafts is now one captured call (README). What is left is the GPU's: the
+  head's step streams ~380 MB of int4 weights, 44% of it the 65,536-row output head; a verify row is 0.19 ms (below).
+  A smaller draft vocabulary does not pay: at seven drafts `--draft-vocab 32768` takes 0.4 ms off a 19.7 ms round and
+  loses more than that in drafts kept (the rewrite 353 -> 316 tok/s, a duration parser 288 -> 251, prose 163 -> 157;
+  reasoning unchanged), and 16384 is worse on everything (the rewrite 263).
+- *What a verify row costs, and that it does not want its own GEMV launch table.* The verify step alone is 15.7 /
+  16.5 / 18.0 ms at 4 / 8 / 16 rows: 0.19 ms a row, so more than half of a draft's 0.69 ms is the head's own step,
+  not its row. Of the 2.3 ms between 4 and 16 rows: ~0.9 is the GEMVs -- the table is tuned at four rows (`tune -m
+  4`, the three-draft verify), and tuned at 16 every shape keeps its block sizes, warps and split (stage counts
+  aside) while the kernels run 5-8% slower (the output head 14%: 507 -> 578 us); 0.7 is the state kept after every
+  token for a commit to pick from (150 MiB a row: a 16-row step asked for the last state only takes 17.3 ms, and at
+  4 or 8 rows the difference does not show); the rest is the per-token work. Nothing here to tune.
 
 ### 2.4 FP4 on Blackwell tensor cores (asterisk: only if it does not need hand-written CUDA)
 

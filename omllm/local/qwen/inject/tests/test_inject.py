@@ -32,12 +32,19 @@ from ..inject import create_engine
 ##
 
 
+SPEC_CONFIDENCE = 9.5e-3  # (a random head's probability of a draft: some rounds stop at the first length, some go on)
+
+
 def _configs(src, spec, lookup=0):
+    if isinstance(spec, tuple):  # several draft lengths
+        spec_config = SpecConfig(k=max(spec), lengths=spec, confidence=SPEC_CONFIDENCE)
+    else:
+        spec_config = SpecConfig(k=spec)
     return dict(
         backend=BackendConfig(backend='torch', device='cpu'),
         load=LoadConfig(model=str(src.path), dtype='f32', mtp=True),
         decode=DecodeConfig(capacity=256),
-        spec=SpecConfig(k=spec),
+        spec=spec_config,
         prefix=PrefixConfig(enabled=True, device_mib=1024, host_mib=0),
         lookup=LookupConfig(ngram=lookup) if lookup else None,
     )
@@ -50,12 +57,15 @@ def test_injected_generation_equals_hand_assembled():
     ops = TorchOps('cpu')
     ref_model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
 
-    for spec, lookup in ((0, 0), (3, 0), (0, 1), (3, 1)):  # (unigram lookup: any repeated token is a match)
+    # (unigram lookup: any repeated token is a match; the two draft lengths are ones no other case's steps have, so
+    # the hand-assembled model's head has as much to build for them as the injector's new one)
+    for spec, lookup in ((0, 0), (3, 0), (0, 1), (3, 1), ((2, 5), 0)):
         injector = inj.create_injector(bind_qwen(**_configs(src, spec, lookup)))
         runner = injector[GenerationRunner]
+        kw: dict = dict(spec_confidence=SPEC_CONFIDENCE) if isinstance(spec, tuple) else {}
 
         res = runner.run(GenerationParams(prompt=prompt, max_new_tokens=12))
-        ref = generate(ref_model, prompt, max_new_tokens=12, spec=spec, lookup_ngram=lookup, capacity=256)
+        ref = generate(ref_model, prompt, max_new_tokens=12, spec=spec, lookup_ngram=lookup, capacity=256, **kw)
         assert list(res.tokens) == list(ref.tokens), (spec, lookup, res.tokens, ref.tokens)
         assert (res.rounds, res.drafted, res.accepted) == (ref.rounds, ref.drafted, ref.accepted), (spec, lookup)
         assert res.reused == 0 and (res.drafted > 0) == bool(spec or lookup), (spec, lookup, res)
@@ -83,6 +93,7 @@ def test_injected_generation_equals_hand_assembled():
             capacity=256,
             sampler=Sampler(temperature=1.0, top_k=20, seed=7),
             presence_penalty=1.5,
+            **kw,
         )
         assert list(got.tokens) == list(ref_s.tokens), (spec, lookup, got.tokens, ref_s.tokens)
 

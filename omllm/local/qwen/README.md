@@ -163,14 +163,21 @@ and `ops.capture` makes it fast:
 - torch on CUDA: `CudaGraphStep` -- two warm-up runs on a side stream, capture against the argument tensors, then
   replay with `copy_` into the static inputs (skipped for the KV buffers, which `kv_write` mutates in place); a
   27B step becomes one graph launch instead of ~700 kernel launches. `capture_mode='static'` runs the same
-  protocol without a graph, which is how it is tested on CPU.
+  protocol without a graph, which is how it is tested on CPU. A step whose state goes round as it is -- plain
+  decode: the DeltaNet layers' 96 arrays, 150 MiB on the 27B -- is captured with that copy inside the graph
+  (`Ops.capture_carrying`: the graph ends by writing the new state into its own inputs and hands those back, so
+  the next call finds its arguments already in place). Copied in by the host they were 0.6 ms of launches before
+  every token with nothing for the GPU to do meanwhile: 15.3 -> 15.0 ms a token (the copies themselves, now the
+  graph's, are the other 0.3).
 - MLX: `mx.compile` (the setitem index is a runtime input; verified).
 - tinygrad: `TinyJit` over a step whose tables and state are buffers the jitted function closes over and carries in
   place, with the position a bound `Variable`, so `kv_write` is a symbolic-index write and the attention reads a
   symbolic-length window (see "The tinygrad backend" below).
 
 `Decoder.step(tok)` moves one token id in and the logits out per token (`Decoder.verify` / `commit` are the
-T = k + 1 variant used by speculative decoding, below); `snapshot()` / `restore()` are the
+T = k + 1 variant used by speculative decoding, below; a commit moves the position at once and picks the state out
+of the step's per-token outputs when the next step asks for it, which is after the draft head's launches rather
+than before them); `snapshot()` / `restore()` are the
 prefix-cache primitives (restore re-pads or re-captures across a capacity change); when the sequence reaches
 `capacity` the buffers double and the step is re-captured. Attention reads the full buffer every step, so cost
 tracks the power-of-two capacity, not the live length -- at 64 KB/token that is ~2 GB per step at 32k, fine
@@ -452,25 +459,69 @@ and refreshes the draft head over the committed positions with the target's true
 T = k + 1 draft step). The output distribution is exactly the target's (the speculative-sampling theorem;
 `test_sampler.py` checks it empirically) and the per-draft acceptance is sum(min(p, q)) = 1 - TV(p, q) rather than
 p(argmax q) -- the same thing for greedy, where every distribution is one-hot, and typically 10-20 points more when
-sampling. All of it runs on the device; the round still has one host sync (accept flags, corrections, drafts).
+sampling. All of it runs on the device; the round still has one host sync (accept flags, corrections, drafts) --
+and, with several draft lengths, the head's confidence in its drafts (below).
 Rollback costs nothing: the KV buffers are masked by position and the verify step returns the DeltaNet state after
 every token, so the state after the accepted prefix is a slice.
 
 ```bash
-python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 -p "..."
-python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 3 --preset thinking -p "..."
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 7 -p "..."
+python -m omllm.local.qwen.entrypoints.generate --model qwen3.8:27b --quant int4 --spec 5,9,15 --preset thinking -p "..."
 ```
 
 `--draft-vocab N` drafts with the output head restricted to the first N token ids (ninfer's `--lm-head-draft`):
 Qwen's BPE ids are roughly in merge-frequency order, so 32-64k of the 248k cover almost every token the target
-picks, and the three draft-head launches per round each drop a 636 MB matmul to a fraction of that. Verify
+picks, and the draft head's steps each drop a 636 MB matmul to a fraction of that. Verify
 always uses the full head, so drafting from a subset can only lower acceptance, never correctness.
+
+How many drafts a round is worth depends on what is being written: of fifteen drafts the 27B's target keeps 3 in
+prose, 5-6 in new code or reasoning and 11 in a file being rewritten, and a draft costs 0.7 ms of a ~17 ms round
+whether it is kept or not (0.4 for the head's step, the rest a row of the verify step and of the refresh). So no one
+length suits everything, and `--spec 5,9,15` gives the head several: a round drafts to the shortest and goes on to
+each next one while the head still believes itself -- while the product of the probabilities it gave its drafts
+holds at `--spec-confidence` (0.9). The read is taken two drafts short of each length, over the drafts before those
+(`Ops.numpy_later`: a copy queued behind them and an event to wait on), so the GPU is drafting the last two while
+the host decides and, if the round stops there, launches the verify step; read at the length itself, every round
+that stopped idled the GPU for that launch, 0.8 ms. Each length is a verify step and a head refresh to compile, and
+a round drafts to a length whose step has not been built before anything else, so `--warmup` compiles them all.
+Tokens a second on the 27B (int4, compiled, the 5090; 400 tokens each):
+
+| output                                   | `--spec 3` | `--spec 7` | `--spec 15` | `--spec 5,9,15` |
+|------------------------------------------|------------|------------|-------------|-----------------|
+| prose (an explanation)                   | 157        | 162        | 128         | 203 †           |
+| new code (an LRU cache class)            | 210        | 268        | 229         | 259             |
+| new code (a duration parser)             | 200        | 280        | 260         | 272             |
+| a file rewritten with one rename         | 223        | 348        | 428         | 465             |
+| reasoning (a counting problem)           | 194        | 223        | 208         | 220             |
+| reasoning (a word problem)               | 175        | 193        | 157         | 206 †           |
+| code, sampled (t 0.7, top-p 0.8, top-k 20) | 196      | 234        | 196         | 221 †           |
+| prose, sampled                           | 158        | 180        | 132         | 154 †           |
+
+† not the text the other columns wrote: greedy output can part ways between configurations at a bf16 near-tie (the
+verify step's shape is part of the arithmetic), and a sampled one always does (the drafts drawn move the generator).
+On the same text, 7 is the better single length than 3 everywhere (+22% over the eight rows), and the several are
+within 3% of it on new code and reasoning and a third faster where the output copies its context. That is as far as
+choosing a length goes with this head: it is an optimist (when it puts 0.85 on seven drafts together, the target
+keeps all seven a little over half the time), and every rule tried on per-position traces -- its confidence at any
+thresholds and lengths, what the last round kept, an expected-tokens estimate -- lands within 2% of the others,
+1.3x `--spec 3`, where knowing the answer would be 1.5x (NEXT.md 2.3).
+
+A run of drafts is one captured call (`MtpDraftSource._stage_fn`, where the backend has `Ops.capture_sampling`):
+draw, step the head on the draw, draw again, with the sampler's noise and its settings (temperature, top-p, min-p)
+as arguments, so one graph serves every request whose sampler has the same shape. Launched one at a time a draft
+was the head's step and two dozen small sampling operations greedy, forty sampled, and that kept the host busier
+than the GPU: 0.35 and 0.63 ms of launches a draft against 0.38 and 0.52 ms of GPU work. (And each step's position
+was made with `torch.tensor(v, device=...)`, a blocking copy that waited for the step before it, so the host could
+not get ahead: 1.3 ms of a seven-draft round, by itself.) A round at seven drafts went from 21.2 to 19.9 ms greedy
+and 22.7 to 21.0 sampled on an idle host; with the host's cores busy (30 runnable on 48) the one-at-a-time loop ran
+20.7-22.8 and 23.3-26.0 ms where the captured runs stay at 19.8-20.1 and 21.0-21.3.
 
 `--lookup N --lookup-k K` drafts by prompt lookup first (`spec/lookup.py`): when the last N tokens occurred earlier
 in the context, the K tokens that followed them there are the draft (point masses, so the same rejection step
 applies), else the head drafts. On a file rewrite it is 5x plain decode on qwen3.5:4b (no MTP head, K = 7); on the
-27B, over the head, 235 tok/s at K = 4 and 523 at K = 15 against the head's own 189 (at the head's K it loses: NEXT.md
-1.1 has the table). K + 1 rows go through one verify step, compiled once per K. Away from a pure copy, with N = 6
+27B, over the head, 612 tok/s at K = 15 (19.6 ms a round) against the head's own 223 at three drafts, 348 at seven
+and 465 at `--spec 5,9,15` (at the head's K it loses; NEXT.md 1.1 has the table by K, read before the rounds were
+this fast: 523 at K = 15 then). K + 1 rows go through one verify step, compiled once per K. Away from a pure copy, with N = 6
 and K = 15: +47% on a rewrite that comments every method, +14% on tests written for the file, -3% on prose about it
 -- the cost there being ~0.1 s at a generation's first lookup round (its decoder's first use of the wider step), not
 the missed drafts.
@@ -563,7 +614,7 @@ python -m omllm.local.qwen.entrypoints.agent --url http://localhost:8000 --cwd ~
 `entrypoints/serve` puts a model behind an OpenAI chat-completions endpoint (`serving.py`):
 
 ```bash
-python -m omllm.local.qwen.entrypoints.serve --model qwen3.8:27b --quant int4 --spec 3 --draft-vocab 65536 \
+python -m omllm.local.qwen.entrypoints.serve --model qwen3.8:27b --quant int4 --spec 5,9,15 --draft-vocab 65536 \
     --compile --warmup --cache-dir ./.cache/qwen --triton-tuned ./.cache/qwen/gemv-int4.json --port 8000
 curl -N http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/json' \
     -d '{"messages": [{"role": "user", "content": "Why is the sky blue?"}], "stream": true}'

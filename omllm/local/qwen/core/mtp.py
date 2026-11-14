@@ -137,6 +137,11 @@ class MtpHead(StepSlabHolder):
         d = ds[0] if len(ds) == 1 else ops.concat(ds, 1)
         return self.head(ops, d, draft_vocab), d, state
 
+    def has_step(self, T: int, draft_vocab: int = 0, bucket: int = 0) -> bool:
+        """Whether `step_fn` has built this step already: its first use is what a compiling backend's compilation is."""
+
+        return (T, draft_vocab, bucket) in self._steps
+
     def step_fn(self, T: int, draft_vocab: int = 0, bucket: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
         """
         Static T-entry step: `fn(toks [B,T], hidden [B,T,H], pos, ar, cos_tab, sin_tab, kbuf, vbuf) -> (logits, d, kbuf,

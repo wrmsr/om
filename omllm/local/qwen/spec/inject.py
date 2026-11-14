@@ -17,10 +17,16 @@ from .mtp import MtpDraftSource
 
 @dc.dataclass(frozen=True)
 class SpecConfig:
-    """Speculative decoding with the MTP head: k drafts a round (0 = off), drafted over the first draft_vocab ids."""
+    """
+    Speculative decoding with the MTP head: k drafts a round (0 = off), drafted over the first draft_vocab ids. With
+    `lengths` a round drafts to the shortest of those counts and on to the next ones while the head's confidence in its
+    drafts holds at `confidence` (None: MtpDraftSource's default), and `k` is the largest of them.
+    """
 
     k: int = 0
     draft_vocab: int = 0
+    lengths: tuple[int, ...] = ()
+    confidence: float | None = None
 
 
 def _mtp(
@@ -33,8 +39,9 @@ def _mtp(
         model=model,
         sampler=sampler,
         processor=processor,
-        k=config.k,
+        k=config.lengths or config.k,
         draft_vocab=config.draft_vocab,
+        confidence=config.confidence,
     )
 
 

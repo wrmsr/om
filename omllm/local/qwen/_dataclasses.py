@@ -4934,21 +4934,23 @@ def _process_dataclass__1c9e3f5dce2619aec2802a9d4f06b1c9ea3683a6():
 
 
 @_register(
-    installer_sha1='c9998747efcad3054c711a8e2382df928649cdfb',
+    installer_sha1='9889110493b4f8d30026babe3f29570c2ddc0af0',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, False, False), ((('k', True, True, None, True, False, False, None), 'instance', 'value', None, "
             "False, False, False), (('draft_vocab', True, True, None, True, False, False, None), 'instance', 'value', N"
-            "one, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), ("
-            "), (False,)))"
+            "one, False, False, False), (('lengths', True, True, None, True, False, False, None), 'instance', 'value', "
+            "None, False, False, False), (('confidence', True, True, None, True, False, False, None), 'instance', 'valu"
+            "e', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (()"
+            ",), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.local.qwen.spec.inject', 'SpecConfig'),
     ),
 )
-def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
+def _process_dataclass__9889110493b4f8d30026babe3f29570c2ddc0af0():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4959,6 +4961,10 @@ def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
         __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -4971,6 +4977,8 @@ def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
             return __class__(  # noqa
                 k=self.k,
                 draft_vocab=self.draft_vocab,
+                lengths=self.lengths,
+                confidence=self.confidence,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -4982,7 +4990,9 @@ def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
                 return NotImplemented
             return (
                 self.k == other.k and
-                self.draft_vocab == other.draft_vocab
+                self.draft_vocab == other.draft_vocab and
+                self.lengths == other.lengths and
+                self.confidence == other.confidence
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -4990,6 +5000,8 @@ def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
         __dataclass___frozen_fields = {
             'k',
             'draft_vocab',
+            'lengths',
+            'confidence',
         }
 
         def __setattr__(self, name, value):
@@ -5016,6 +5028,8 @@ def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
             return hash((
                 self.k,
                 self.draft_vocab,
+                self.lengths,
+                self.confidence,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -5024,9 +5038,13 @@ def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
             self,
             k: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
             draft_vocab: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            lengths: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            confidence: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'k', k)
             __dataclass__object_setattr(self, 'draft_vocab', draft_vocab)
+            __dataclass__object_setattr(self, 'lengths', lengths)
+            __dataclass__object_setattr(self, 'confidence', confidence)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -5035,6 +5053,8 @@ def _process_dataclass__c9998747efcad3054c711a8e2382df928649cdfb():
             parts = []
             parts.append(f"k={self.k!r}")
             parts.append(f"draft_vocab={self.draft_vocab!r}")
+            parts.append(f"lengths={self.lengths!r}")
+            parts.append(f"confidence={self.confidence!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

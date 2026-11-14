@@ -74,6 +74,15 @@ class Ops(lang.Abstract):
     def numpy(self, x: Array) -> np.ndarray:
         pass
 
+    def numpy_later(self, x: Array) -> ta.Callable[[], np.ndarray]:
+        """
+        Start bringing a small array to the host: the returned call gives it. On a backend that queues its work the
+        call waits only for what was queued before this -- not for what is launched in between, which is the point:
+        the device has that to work on while the host reads and decides. Default: the read happens at the call.
+        """
+
+        return lambda: self.numpy(x)
+
     @abc.abstractmethod
     def cast(self, x: Array, dtype: ta.Any) -> Array:
         pass
@@ -778,6 +787,25 @@ class Ops(lang.Abstract):
         """
 
         return fn
+
+    def capture_carrying(
+            self,
+            fn: ta.Callable[..., tuple[Array, ...]],
+            outputs_from: int,
+            inputs_from: int,
+    ) -> ta.Callable[..., tuple[Array, ...]]:
+        """
+        `capture` for a step whose outputs from index `outputs_from` on are what its next call takes as its arguments
+        from `inputs_from` on -- a state that goes round, the same arrays in shape. A backend may then carry it forward
+        itself, and hand back as those outputs arrays that the next call takes as they are. Default: `capture`.
+        """
+
+        return self.capture(fn)
+
+    # Whether `capture` takes a function that draws tokens (`Sampler.probs` / `draw` on noise passed in) between
+    # model steps as well as it takes one step: the draft head then drafts a run of tokens in one captured call
+    # (spec/mtp.py) rather than a step and a dozen sampling launches a token.
+    capture_sampling: bool = False
 
     def capture(self, fn: ta.Callable[..., tuple[Array, ...]]) -> ta.Callable[..., tuple[Array, ...]]:
         """

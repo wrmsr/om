@@ -61,9 +61,10 @@ def generate(
         sampler: Sampler | None = None,
         presence_penalty: float = 0.,
         frequency_penalty: float = 0.,
-        spec: int = 0,
+        spec: int | ta.Sequence[int] = 0,
         capacity: int | None = None,
         draft_vocab: int = 0,
+        spec_confidence: float | None = None,
         lookup_ngram: int = 0,
         lookup_k: int = 3,
         draft: DraftSource | None = None,
@@ -80,7 +81,8 @@ def generate(
     Generate up to `max_new_tokens` after `prompt_ids`. `sampler` defaults to greedy;
 
     `spec=k` drafts k tokens a round with the MTP head (`draft_vocab` restricts its output head to a vocabulary prefix),
-    or with `draft` when given;
+    or with `draft` when given; with `spec=(5, 9, 15)` a round drafts 5 and goes on to 9, then 15, while the head's
+    confidence in its drafts is at least `spec_confidence` (MtpDraftSource);
 
     `lookup_ngram=n` drafts `lookup_k` tokens by prompt lookup first (n-gram matches against the context), falling back
     to those;
@@ -133,6 +135,7 @@ def generate(
                 processor=processor,
                 k=spec,
                 draft_vocab=draft_vocab,
+                confidence=spec_confidence,
             )
         else:
             draft = NullDraftSource()
@@ -191,8 +194,9 @@ class ManualGenerationRunner(GenerationRunner):
             self,
             model: Qwen35,
             *,
-            spec: int = 0,
+            spec: int | ta.Sequence[int] = 0,
             draft_vocab: int = 0,
+            spec_confidence: float | None = None,
             lookup_ngram: int = 0,
             lookup_k: int = 3,
             capacity: int | None = None,
@@ -207,6 +211,7 @@ class ManualGenerationRunner(GenerationRunner):
         self._model = model
         self._spec = spec
         self._draft_vocab = draft_vocab
+        self._spec_confidence = spec_confidence
         self._lookup_ngram = lookup_ngram
         self._lookup_k = lookup_k
         self._capacity = capacity
@@ -236,6 +241,7 @@ class ManualGenerationRunner(GenerationRunner):
             spec=self._spec,
             capacity=self._capacity,
             draft_vocab=self._draft_vocab,
+            spec_confidence=self._spec_confidence,
             lookup_ngram=self._lookup_ngram,
             lookup_k=self._lookup_k,
             prefix_cache=self._prefix_cache,

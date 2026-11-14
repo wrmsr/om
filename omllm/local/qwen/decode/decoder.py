@@ -131,7 +131,8 @@ class Decoder(TargetDecoder):
         self.seq_len = cache.seq_len
         self.capacity = self.capacity_for(capacity, self.seq_len)
         self._layouts = model.state_layouts()  # each layer's mixer says how its state is carried
-        self.flat: list[Array] = []
+        self._flat: list[Array] = []
+        self._kept: tuple[Verified, int] | None = None  # a commit not yet made of `_flat` (see `commit`)
         for i, (st, layout) in enumerate(zip(cache.layers, self._layouts)):
             if st is None:
                 if cache.seq_len:
@@ -246,7 +247,12 @@ class Decoder(TargetDecoder):
 
         key = (T, all_states, return_hidden, self.bucket(self.seq_len + T))
         if key not in self.fns:
-            self.fns[key] = self.ops.capture(self.model.step_fn(T, all_states, return_hidden, key[3]))
+            fn = self.model.step_fn(T, all_states, return_hidden, key[3])
+            if all_states:
+                self.fns[key] = self.ops.capture(fn)
+            else:
+                # (tokens, position, three tables, state) -> (logits, [hidden,] state): the state goes round as it is
+                self.fns[key] = self.ops.capture_carrying(fn, 2 if return_hidden else 1, 5)
         return self.fns[key]
 
     def tables(self) -> tuple[Array, Array, Array]:
@@ -310,12 +316,37 @@ class Decoder(TargetDecoder):
         if not verified.stacked and n != verified.logits.shape[1]:
             raise ValueError('a step without per-token states commits whole')
 
-        flat: list[Array] = []
-        for layout, st in self._layers(verified.states):
-            flat.extend(layout.commit(self.ops, st, n, verified.stacked))
-
-        self.flat = flat
+        # The position moves now; the state is picked out of the step's outputs when it is next asked for (`flat`).
+        # A speculative round's commit comes between its read of the device and the next round's first launches --
+        # the draft head's refresh and drafts, which need the position and not the state -- and picking a hundred
+        # per-token states is a quarter of a millisecond of host time on the 27B that the GPU spent idle; this way
+        # it is spent beside those launches' work. (The outputs are the verify step's buffers, good until it runs
+        # again, which is what asks.)
+        self._settle()  # (an earlier commit's first)
+        self._kept = (verified, n)
         self.seq_len += n
+
+    def _settle(self) -> None:
+        kept = self._kept
+        if kept is not None:
+            self._kept = None
+            verified, n = kept
+            flat: list[Array] = []
+            for layout, st in self._layers(verified.states):
+                flat.extend(layout.commit(self.ops, st, n, verified.stacked))
+            self._flat = flat
+
+    @property
+    def flat(self) -> list[Array]:
+        """The state, every layer's arrays in order: what a step takes after the tables."""
+
+        self._settle()
+        return self._flat
+
+    @flat.setter
+    def flat(self, flat: list[Array]) -> None:
+        self._kept = None
+        self._flat = flat
 
     def snapshot(self) -> tuple[int, list[Array]]:
         """(seq_len, copies of the state) -- the prefix-cache primitive for the static path."""

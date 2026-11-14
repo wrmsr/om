@@ -27,6 +27,7 @@ from ..serve.serving import serve
 from ..tokenizer import DEFAULT_REASONING_EFFORT
 from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from .common import add_model_args
+from .common import warmup_tokens
 from .inject import backend_config
 from .inject import load_config
 from .inject import lookup_config
@@ -210,7 +211,7 @@ def main() -> None:
 
     if args.warmup:
         t0 = time.time()
-        engine.warmup(max_new_tokens=max(8, 2 * args.spec + 2))
+        engine.warmup(max_new_tokens=warmup_tokens(args))
         print(f'[serve] warm-up (capture + compile) {time.time() - t0:.1f}s')
         if args.compile and args.cache_dir:
             from ..backends.torch import save_compile_cache

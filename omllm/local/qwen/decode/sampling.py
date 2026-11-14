@@ -108,7 +108,43 @@ class Sampler:
             am = ops.argmax(logits, -1)
             return ops.cast(ops.arange(V)[None, :] == am[:, None], f32)
 
-        l = logits / self.temperature
+        return self.warp(logits, *self.settings())
+
+    def shape(self, width: int) -> tuple[int, bool, bool] | None:
+        """
+        What of the settings decides which operations `warp` is over rows `width` wide, and not just their operands:
+        how many candidates top-k keeps, and whether top-p and min-p apply at all. None for greedy. Two samplers of
+        one shape differ only in `settings`, so a function captured around `warp` with those passed in serves both.
+        """
+
+        if self.greedy:
+            return None
+        return (self.top_k if 0 < self.top_k < width else width, self.top_p < 1.0, self.min_p > 0)
+
+    def settings(self) -> tuple[float, float, float]:
+        """`warp`'s operands: the temperature, top-p, and ln min-p (0 without min-p)."""
+
+        return (self.temperature, self.top_p, math.log(self.min_p) if self.min_p > 0 else 0.)
+
+    def warp(
+            self,
+            logits: Array,
+            temperature: float | Array,
+            top_p: float | Array,
+            log_min_p: float | Array,
+    ) -> Array:
+        """
+        `probs` for a sampler that is not greedy, its `settings` as arguments: numbers, or 0-d float32 arrays holding
+        them (the same arithmetic either way) when the caller is a captured function that should not have them baked
+        in. Which truncations apply is still this sampler's (`shape`).
+        """
+
+        ops = self._ops()
+
+        T, V = logits.shape
+        f32 = ops.dtype('f32')
+
+        l = logits / temperature
 
         k = self.top_k if 0 < self.top_k < V else V
         vals, _ = ops.topk(l, k)  # [T, k] descending
@@ -116,25 +152,29 @@ class Sampler:
 
         if self.top_p < 1.0:
             p = ops.softmax(vals, -1)
-            keep = ops.cast(ops.cumsum(p, -1) - p < self.top_p, f32)
+            keep = ops.cast(ops.cumsum(p, -1) - p < top_p, f32)
             thr_p = -ops.amax(-(vals + (1 - keep) * 1e30), -1, keepdims=True)  # smallest kept value
             thr = ops.amax(ops.stack([thr, thr_p], 0), 0)
 
         if self.min_p > 0:
             # p >= min_p * p_max <=> z >= z_max + ln min_p
-            thr_m = ops.amax(vals, -1, keepdims=True) + math.log(self.min_p)
+            thr_m = ops.amax(vals, -1, keepdims=True) + log_min_p
             thr = ops.amax(ops.stack([thr, thr_m], 0), 0)
 
         return ops.softmax(l + ops.cast(l < thr, f32) * -1e30, -1)
 
-    def draw(self, probs: Array) -> Array:
-        """One token per row of a [T, V] probability matrix (Gumbel-max over log p; zeros never win)."""
+    def draw(self, probs: Array, noise: Array | None = None) -> Array:
+        """
+        One token per row of a [T, V] probability matrix (Gumbel-max over log p; zeros never win). `noise` is the
+        [T, V] uniform draws to use rather than new ones: for a caller that draws inside a captured function, which
+        cannot hold the generator.
+        """
 
         ops = self._ops()
 
         T, V = probs.shape
 
-        u = ops.random_uniform((T, V))
+        u = ops.random_uniform((T, V)) if noise is None else noise
         g = -ops.log(-ops.log(u * (1 - 2e-7) + 1e-7))
         return ops.argmax(ops.log(probs) + g, -1)
 

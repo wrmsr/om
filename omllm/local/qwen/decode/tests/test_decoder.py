@@ -151,12 +151,18 @@ def test_decoders_pass_on_buffers_and_steps():
             ops = TorchOps('cpu', kv_dtype=kv_dtype, capture_mode='static')
             captured: list = []
             capture = ops.capture
+            capture_carrying = ops.capture_carrying
 
             def counting(fn, _capture=capture, _captured=captured):
                 _captured.append(fn)
                 return _capture(fn)
 
+            def counting_carrying(fn, outputs_from, inputs_from, _capture=capture_carrying, _captured=captured):
+                _captured.append(fn)
+                return _capture(fn, outputs_from, inputs_from)
+
             ops.capture = counting  # type: ignore[method-assign]
+            ops.capture_carrying = counting_carrying  # type: ignore[method-assign]
             model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
 
             want = []
@@ -234,3 +240,51 @@ def test_short_prefills_through_the_captured_step():
             assert again.reused == len(long) + len(first.tokens) and again.tokens == want, (kv_dtype, spec)
             assert not eager_forwards, (kv_dtype, spec, eager_forwards)
             assert model._slab is not None and model._slab.fns  # noqa
+
+
+def test_cuda_graph_steps_carry_the_state():
+    """
+    On CUDA the steps are graphs. A plain step's state goes round inside its graph (`Ops.capture_carrying`: the graph
+    ends by writing it back into its own inputs), and a commit picks its state out of a verify step's outputs only when
+    the next step asks: plain steps, verify steps kept in part, and plain steps again must leave the logits the same
+    steps on the CPU leave, and export the same state.
+    """
+
+    try:
+        import torch
+    except ImportError:
+        return
+    if not torch.cuda.is_available():
+        print('no CUDA device; skipping')
+        return
+
+    from ...tests.test_parity import rel_err
+
+    cfg, hf, src = synthetic_source()
+    ids = np.random.default_rng(12).integers(0, cfg.vocab_size, (1, 30))
+
+    outs = {}
+    for device in ('cpu', 'cuda'):
+        ops = TorchOps(device)
+        model = load_qwen35(src, ops, dtype='f32', verbose=False)
+        cache = Cache(cfg)
+        model.forward(ids[:, :5], cache)
+        dec = Decoder(model, cache, capacity=64)
+
+        logits = [ops.numpy(dec.step(int(t))) for t in ids[0, 5:11]]
+        for at in (11, 17):
+            verified = dec.verify(ops.array(ids[:, at:at + 4].astype(np.int32)))
+            logits.append(ops.numpy(verified.logits)[0, :2])
+            dec.commit(verified, 2)  # (and the next step is what picks the state out)
+            logits.extend(ops.numpy(dec.step(int(t))) for t in ids[0, at + 2:at + 6])
+        assert dec.seq_len == 23
+
+        exported = [a for st in dec.export_cache().layers if st is not None for a in st]
+        logits.append(ops.numpy(dec.step(int(ids[0, 23]))))  # (the export is a copy: this step leaves it alone)
+        outs[device] = (np.concatenate(logits, 0), [ops.numpy(a) for a in exported])
+
+    e = rel_err(outs['cuda'][0], outs['cpu'][0])
+    assert e < 1e-4, e
+    for a, b in zip(outs['cuda'][1], outs['cpu'][1]):
+        assert a.shape == b.shape and rel_err(a, b) < 1e-3, rel_err(a, b)
+    print(f'CUDA graph steps vs CPU: logits rel err {e:.1e}')

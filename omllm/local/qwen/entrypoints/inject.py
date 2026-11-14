@@ -54,6 +54,8 @@ def spec_config(args: argparse.Namespace) -> SpecConfig:
     return SpecConfig(
         k=args.spec,
         draft_vocab=args.draft_vocab,
+        lengths=tuple(getattr(args, 'spec_lengths', None) or ()),
+        confidence=getattr(args, 'spec_confidence', None),
     )
 
 

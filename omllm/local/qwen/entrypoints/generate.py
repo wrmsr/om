@@ -29,7 +29,9 @@ from ..tokenizer import DEFAULT_REASONING_EFFORT
 from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
 from .common import GenerationSetup
+from .common import SpecLengthsAction
 from .common import load_model
+from .common import warmup_tokens
 from .inject import assemble_generation
 
 
@@ -126,10 +128,25 @@ def main() -> None:
     )
     ap.add_argument(
         '--spec',
-        type=int,
+        action=SpecLengthsAction,
         default=0,
-        metavar='K',
-        help='MTP speculative decoding with K draft tokens per round (loads the draft head); 0 = off',
+        metavar='K[,K...]',
+        help=(
+            'MTP speculative decoding with K draft tokens per round (loads the draft head); 0 = off. With several '
+            'lengths, e.g. 5,9,15, a round drafts the shortest and goes on to each next one while the head is still '
+            'confident in its drafts (--spec-confidence)'
+        ),
+    )
+    ap.set_defaults(spec_lengths=None)
+    ap.add_argument(
+        '--spec-confidence',
+        type=float,
+        default=None,
+        metavar='P',
+        help=(
+            'with several --spec lengths: draft on to the next length while the head\'s probability of its drafts so '
+            'far is at least P (default 0.9; 0 always drafts the longest, 1 the shortest)'
+        ),
     )
     ap.add_argument(
         '--draft-vocab',
@@ -353,12 +370,17 @@ def main() -> None:
         # throwaway generations with the real run's prompt + max_new_tokens, so their decode buffers (and the steps
         # captured / compiled for them) are the real run's, each ended early by a budget of its own: the real prompt,
         # then with prompt lookup one counting in a cycle, which a model goes on with, so lookup drafts and its steps
-        # are compiled too (a real prompt rarely repeats itself in a few tokens)
+        # are compiled too (a real prompt rarely repeats itself in a few tokens) -- and, when lookup wraps the draft
+        # head, one too short for anything to match, so that the head drafts and its steps are compiled as well: a
+        # real prompt that asks for a copy is all lookup rounds from its first token (a file rewrite's first round
+        # by the head otherwise came a minute into the real run, behind two step shapes' compilation)
         total = len(ids) + args.max_new_tokens
-        budget = max(8, 2 * max(args.spec, args.lookup_k if args.lookup else 0) + 2)
+        budget = warmup_tokens(args)
         prompts = [ids]
         if args.lookup:
             prompts.append(tok.encode(' '.join(['1 2 3 4 5 6 7 8'] * 6))[:max(1, total - budget)])
+            if args.spec:
+                prompts.append(tok.encode('hello'))
         for prompt in prompts:
             runner.run(GenerationParams(
                 prompt=prompt,
@@ -447,7 +469,8 @@ def _assemble_by_hand(args: argparse.Namespace, *, prefix_cache: bool) -> Genera
         tok=tok,
         runner=ManualGenerationRunner(
             model,
-            spec=args.spec,
+            spec=args.spec_lengths or args.spec,
+            spec_confidence=args.spec_confidence,
             draft_vocab=args.draft_vocab,
             lookup_ngram=args.lookup,
             lookup_k=args.lookup_k,

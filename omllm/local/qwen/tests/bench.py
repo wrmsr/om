@@ -148,7 +148,7 @@ def run(
         prompts: ta.Sequence[list[int]],
         *,
         capacity: int,
-        spec: int,
+        spec: int | ta.Sequence[int],
         draft_vocab: int,
         n_decode: int,
         n_transcript: int,
@@ -156,7 +156,7 @@ def run(
         follow_up: list[int] | None = None,
 ) -> dict[str, ta.Any]:
     ops = model.ops
-    has_spec = spec > 0 and model.mtp is not None
+    has_spec = bool(spec) and model.mtp is not None
     common: dict[str, ta.Any] = dict(capacity=capacity, draft_vocab=draft_vocab)
     res: dict[str, ta.Any] = {'backend': ops.name}
 
@@ -166,7 +166,9 @@ def run(
     generate(model, prompts[0], max_new_tokens=8, sampler=Sampler(), **common)
     generate(model, (list(prompts[0]) * 64)[:96], max_new_tokens=1, sampler=Sampler(), **common)
     if has_spec:
-        generate(model, prompts[0], max_new_tokens=8, sampler=Sampler(), spec=spec, **common)
+        # (with several draft lengths, enough rounds for the head to draft at each)
+        warm = 8 if isinstance(spec, int) else sum(k + 1 for k in spec) + 2
+        generate(model, prompts[0], max_new_tokens=warm, sampler=Sampler(), spec=spec, **common)
 
     # plain decode, and prefill per prompt token (time to the first token over the prompt length)
     out, first, total = _timed_generate(model, prompts[0], max_new_tokens=n_decode, sampler=Sampler(), **common)
@@ -313,7 +315,7 @@ def _main() -> None:
         prompts = [rng.integers(0, cfg.vocab_size, 12).tolist() for _ in range(3)]
         follow_up = rng.integers(0, cfg.vocab_size, 6).tolist()
         long_ids = rng.integers(0, cfg.vocab_size, args.long).tolist() if args.long else None
-        spec = args.spec or 3
+        spec = args.spec_lengths or args.spec or 3
         capacity = 1024
 
     else:
@@ -327,7 +329,7 @@ def _main() -> None:
         long_ids = None
         if args.long:
             long_ids = tok.encode(_corpus())[:args.long]
-        spec = args.spec
+        spec = args.spec_lengths or args.spec
         capacity = args.capacity
 
     res = run(

@@ -35,6 +35,30 @@ class GenerationSetup:
     prefix_cache: PrefixCache | None = None
 
 
+class SpecLengthsAction(argparse.Action):
+    """`--spec K` or `--spec K1,K2,...`: `spec` is the largest (what sizes buffers and warm-ups); `spec_lengths` all."""
+
+    def __call__(self, parser, namespace, values, option_string=None):  # noqa
+        try:
+            lengths = tuple(sorted({int(v) for v in str(values).split(',')}))
+        except ValueError:
+            parser.error(f'--spec takes a draft count or a comma-separated list of them: {values!r}')
+        setattr(namespace, self.dest, lengths[-1])
+        namespace.spec_lengths = lengths if len(lengths) > 1 else None
+
+
+def warmup_tokens(args: argparse.Namespace) -> int:
+    """
+    The new tokens a warm-up generation needs for its rounds to use every step shape the draft sources have: two rounds
+    of the longest draft, and with several --spec lengths a round at each (the head drafts at a length it has not used
+    before anything else, and a round may keep all its drafts).
+    """
+
+    longest = max(args.spec, args.lookup_k if args.lookup else 0)
+    lengths = getattr(args, 'spec_lengths', None) or ()
+    return max(8, 2 * longest + 2, sum(n + 1 for n in lengths) + 2)
+
+
 def add_model_args(ap: argparse.ArgumentParser, *, model_optional: bool = False) -> None:
     ap.add_argument(
         '--model',
@@ -66,10 +90,22 @@ def add_model_args(ap: argparse.ArgumentParser, *, model_optional: bool = False)
     )
     ap.add_argument(
         '--spec',
-        type=int,
+        action=SpecLengthsAction,
         default=0,
-        metavar='K',
-        help='MTP speculative decoding with K draft tokens per round (loads the draft head); 0 = off',
+        metavar='K[,K...]',
+        help='MTP speculative decoding with K draft tokens per round (loads the draft head); 0 = off. With several '
+             'lengths, e.g. 5,9,15, a round drafts the shortest and goes on to each next one while the head is still '
+             'confident in its drafts (--spec-confidence): prose keeps few drafts however many it is given, code and '
+             'rewrites many. One more step shape to compile per length',
+    )
+    ap.set_defaults(spec_lengths=None)
+    ap.add_argument(
+        '--spec-confidence',
+        type=float,
+        default=None,
+        metavar='P',
+        help='with several --spec lengths: draft on to the next length while the head\'s probability of its drafts so '
+             'far is at least P (default 0.9; 0 always drafts the longest, 1 the shortest)',
     )
     ap.add_argument(
         '--draft-vocab',
