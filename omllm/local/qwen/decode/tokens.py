@@ -7,6 +7,7 @@ from omcore import check
 from omcore import lang
 
 from ..core.cache import Cache
+from ..core.slab import StepSlab
 from ..ops.base import Array
 from .decoder import Decoder
 from .decoder import FunctionalDecoder
@@ -89,11 +90,19 @@ class VerifyTokenSource(TokenSource):
             static: bool = True,
             prefill_chunk: int = 4096,
             prefill_checkpoints: int = 0,
+            step_prefill_max: int = 0,
     ) -> None:
         """
         `prefill_checkpoints`: how many resumable states to keep from inside each prefill, at most -- after its
         1st, 2nd, 4th, 8th ... chunk (`_checkpoint`). They leave with the first `export` (`Snapshot.earlier`), so
         this is for a source whose states go to a store: with nowhere to go they are copies held for nothing.
+
+        `step_prefill_max`: a prefill of up to this many tokens goes through the static decoder's captured
+        `Decoder.PREFILL_T`-token step rather than the eager forward (`_prefill`). The eager forward is what makes
+        long prompts fast, but it pays some two thousand operation launches whatever the length -- ~55 ms on the 27B
+        -- where a captured step is one launch: a dozen new tokens take 20 ms that way, not 68. Worth it up to about
+        three steps' worth (48); 0, the default, never does it, since the step is one more shape to compile (the
+        one a 15-draft lookup verifies with) and its arithmetic is not the eager forward's bit for bit.
         """
 
         super().__init__()
@@ -106,6 +115,7 @@ class VerifyTokenSource(TokenSource):
         self._static = static
         self._prefill_chunk = prefill_chunk
         self._prefill_checkpoints = prefill_checkpoints
+        self._step_prefill_max = step_prefill_max
 
         self._checkpoints: list[Snapshot] = []  # this prefill's, until the first export takes them
         self._chunks = 0  # of this prefill, so far
@@ -121,6 +131,7 @@ class VerifyTokenSource(TokenSource):
             cache: Cache,
             ids: ta.Sequence[int],
             poll: ta.Callable[[], bool] | None,
+            slab: StepSlab | None,
     ) -> tuple[Array, Array, TargetDecoder | None]:
         """
         Logits [1, 1, V] after `ids` and the hidden states of their positions [1, len, H] (at least the last one's,
@@ -129,13 +140,19 @@ class VerifyTokenSource(TokenSource):
 
         ops = self._ops
 
-        if self._static and ops.static_prefill:
-            # a backend whose eager forward is costly prefills through the captured step (see Decoder.prefill)
-            dec = Decoder(self._model, cache, capacity=gen.capacity, consume=True)
+        if self._static and (ops.static_prefill or len(ids) <= self._step_prefill_max):
+            # A backend whose eager forward is costly prefills through the captured step (see Decoder.prefill); so
+            # does a prefill short enough that the eager forward's fixed cost is most of it (`step_prefill_max`).
+            # The decoder comes first, then: in the last one's buffers when it left them, a resumed state placed
+            # there too.
+            if slab is not None:
+                self._model.reserve(cache, Decoder.capacity_for(gen.capacity, cache.seq_len), slab.layers)
+            dec = Decoder(self._model, cache, capacity=gen.capacity, consume=True, slab=slab)
             logits, hidden = dec.prefill(ids, poll)
             return logits, hidden, dec
 
         # a static decoder takes this cache next (`start`): the KV is prefilled straight into buffers of its capacity
+        # -- the last decoder's, when it left them
         reserve = Decoder.capacity_for(gen.capacity, cache.seq_len + len(ids)) if self._static else None
         on_chunk: ta.Callable[[Array, Array], None] | None = None
         if self._prefill_checkpoints:
@@ -147,6 +164,7 @@ class VerifyTokenSource(TokenSource):
             self._prefill_chunk,
             poll,
             reserve=reserve,
+            reserve_into=slab.layers if slab is not None else None,
             all_hidden=self._draft.reads_prompt_hidden,
             on_chunk=on_chunk,
         )
@@ -209,42 +227,57 @@ class VerifyTokenSource(TokenSource):
         if resume is not None and not self._draft.accepts(resume):
             resume = None
 
+        # A static decoder starts in the buffers the last one left, when it left any of this capacity (core/slab.py):
+        # the prefill writes into them, the decoder adopts them, and the steps captured against them run as they are.
+        capacity = Decoder.capacity_for(gen.capacity, n) if self._static else None
+        slab = model.take_slab(capacity) if capacity is not None and ops.kv_in_place else None
+
         dec: TargetDecoder | None
-        if resume is not None:
-            # resume: the snapshot's cache is a private copy; prefill only the tokens past it
-            cache = resume.cache
-            n0 = resume.n
-            gen.reused = n0
+        try:
+            if resume is not None:
+                # resume: the snapshot's cache is a private copy; prefill only the tokens past it
+                cache = resume.cache
+                n0 = resume.n
+                gen.reused = n0
 
-            if n0 < n:
-                logits, hidden_new, dec = self._prefill(gen, cache, gen.prompt[n0:], poll)
-                hidden = ops.concat([resume.hidden, hidden_new], 1)  # positions n0-1 .. n-1
+                if n0 < n:
+                    logits, hidden_new, dec = self._prefill(gen, cache, gen.prompt[n0:], poll, slab)
+                    hidden = ops.concat([resume.hidden, hidden_new], 1)  # positions n0-1 .. n-1
+                else:
+                    logits = ops.reshape(resume.logits, (1, 1, -1))
+                    hidden = resume.hidden  # position n-1
+                    dec = None
+
+                start = n0 - 1  # the position of hidden's first row
+                draft_state = resume.draft
+
             else:
-                logits = ops.reshape(resume.logits, (1, 1, -1))
-                hidden = resume.hidden  # position n-1
-                dec = None
+                cache = Cache(model.cfg)
+                logits, hidden, dec = self._prefill(gen, cache, gen.prompt, poll, slab)
+                start = 0
+                draft_state = None
 
-            start = n0 - 1  # the position of hidden's first row
-            draft_state = resume.draft
+            if not self._draft.reads_prompt_hidden:
+                # the draft source is started with the last position's alone (and the prefill kept no others)
+                hidden = hidden[:, -1:]
+                start = n - 1
 
-        else:
-            cache = Cache(model.cfg)
-            logits, hidden, dec = self._prefill(gen, cache, gen.prompt, poll)
-            start = 0
-            draft_state = None
+            if dec is None:
+                if capacity is not None:
+                    # The cache is ours to give away (a prefill's, or a store's private copy). Whatever of its KV is
+                    # not in capacity buffers yet -- a prompt of one chunk's, a snapshot resumed whole -- goes into
+                    # them here, the slab's when there is one, and the decoder takes them as they are.
+                    model.reserve(cache, capacity, slab.layers if slab is not None else None)
+                    dec = Decoder(model, cache, capacity=gen.capacity, consume=True, slab=slab)
+                else:
+                    dec = FunctionalDecoder(model, cache)
 
-        if not self._draft.reads_prompt_hidden:
-            # the draft source is started with the last position's alone (and the prefill kept no others)
-            hidden = hidden[:, -1:]
-            start = n - 1
+        except BaseException:
+            if slab is not None:
+                model.put_slab(slab)  # (a cancelled prefill: the buffers serve the next generation all the same)
+            raise
 
-        if dec is None:
-            if self._static:
-                # the cache is ours to give away (a prefill's, or a store's private copy): the decoder takes its
-                # state layer by layer, so the exact-length KV and the buffers are never both held whole
-                dec = Decoder(model, cache, capacity=gen.capacity, consume=True)
-            else:
-                dec = FunctionalDecoder(model, cache)
+        del slab
         gen.decoder = dec
 
         # the prefill's cache now lives in the decoder (a static one has taken its state; a functional one holds the

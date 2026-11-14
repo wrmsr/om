@@ -50,12 +50,14 @@ class DecodeConfig:
     served; a request that needs more grows them (0: every generation gets just what it needs). `static` False decodes
     with the functional reference decoder (plain decode only: drafts need the static one). `prefill_checkpoints`:
     states kept from inside each prefill for the state store, at most (VerifyTokenSource); 0 without a store.
+    `step_prefill_max`: prefills of up to this many tokens go through the captured step (VerifyTokenSource).
     """
 
     capacity: int = 32768
     prefill_chunk: int = 4096
     static: bool = True
     prefill_checkpoints: int = 0
+    step_prefill_max: int = 0
 
 
 class GENERATION_SCOPED(lang.Marker):  # noqa
@@ -192,6 +194,7 @@ def _token_source(
         static=config.static or bool(draft.max_drafts),
         prefill_chunk=config.prefill_chunk,
         prefill_checkpoints=config.prefill_checkpoints,
+        step_prefill_max=config.step_prefill_max,
     )
 
 

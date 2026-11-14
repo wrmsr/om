@@ -43,6 +43,7 @@ from ..decode.runners import GenerationParams
 from ..decode.runners import GenerationRunner
 from ..decode.terminators import StopStringTerminator
 from ..prefix.cache import PrefixCache
+from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
 from .chat import StreamParser
 from .chat import parse_output
@@ -64,6 +65,35 @@ class SamplingDefaults:
     max_tokens: int = 4096
 
 
+# OpenAI's names for reasoning efforts the checkpoint's template (tokenizer.py) does not have, as the nearest it does
+REASONING_EFFORT_ALIASES: ta.Mapping[str, str] = {
+    'minimal': 'low',
+    'high': 'xhigh',
+    'max': 'xhigh',
+}
+
+
+def reasoning_effort_of(value: ta.Any) -> tuple[str | None, bool | None]:
+    """
+    A request's `reasoning_effort` as (the template's level or None, whether it settles thinking or None): the
+    template's own levels as they are, OpenAI's other names as the nearest of them, 'none' as thinking off. Anything
+    else is the client's mistake.
+    """
+
+    if value is None:
+        return None, None
+    v = str(value).lower()
+    if v == 'none':
+        return None, False
+    v = REASONING_EFFORT_ALIASES.get(v, v)
+    if v not in REASONING_EFFORT_INSTRUCTIONS:
+        raise ValueError(
+            f'reasoning_effort must be one of {", ".join(REASONING_EFFORT_INSTRUCTIONS)} '
+            f'(or none, {", ".join(REASONING_EFFORT_ALIASES)}): {value!r}',
+        )
+    return v, None
+
+
 @dc.dataclass()
 class Request:
     messages: list[dict]
@@ -82,6 +112,7 @@ class Request:
     model: str | None = None
     tool_choice: ta.Any = 'auto'  # 'auto' | 'none' | 'required' | {'type': 'function', 'function': {'name': ...}}
     response_format: ta.Any = None  # {'type': 'json_object'} | {'type': 'json_schema', 'json_schema': {'schema': ..}}
+    reasoning_effort: str | None = None  # a level of the checkpoint's template; None: the server's default
 
     @classmethod
     def from_json(cls, body: dict, defaults: SamplingDefaults, enable_thinking: bool) -> Request:
@@ -92,6 +123,9 @@ class Request:
         if isinstance(stop, str):
             stop = [stop]
         kw = body.get('chat_template_kwargs') or {}
+        effort, effort_thinks = reasoning_effort_of(body.get('reasoning_effort', kw.get('reasoning_effort')))
+        if effort_thinks is not None:
+            enable_thinking = effort_thinks  # (an explicit enable_thinking still has the last word)
         think = body.get('enable_thinking', kw.get('enable_thinking', enable_thinking))
         mt = body.get('max_completion_tokens', body.get('max_tokens', defaults.max_tokens))
         return cls(
@@ -111,6 +145,7 @@ class Request:
             model=body.get('model'),
             tool_choice=body.get('tool_choice', 'auto'),
             response_format=body.get('response_format'),
+            reasoning_effort=effort,
         )
 
 
@@ -184,11 +219,12 @@ class _ChatStream(Observer):
             stop: StopStringTerminator,
             deliver: ta.Callable[[list[tuple[str, ta.Any]]], None] | None,
             t0: float,
+            think_open: bool = False,
     ) -> None:
         super().__init__()
 
         self._streamer = Tokenizer.Streamer(tok)
-        self._parser = StreamParser()
+        self._parser = StreamParser(think_open)
         self._eos = eos
         self._stop = stop
         self._deliver = deliver
@@ -238,7 +274,7 @@ class _ChatStream(Observer):
         return text, stopped
 
 
-def _constraint(req: Request, tok: Tokenizer) -> ToolConstraint | JsonConstraint | None:
+def _constraint(req: Request, tok: Tokenizer, think_open: bool = False) -> ToolConstraint | JsonConstraint | None:
     """
     Tools present: every tool call the model opens is grammar-constrained to the declared schemas, and tool_choice
     'none' / 'required' / a named function forbids or forces one (constrain/grammar.py). Without tools, response_format
@@ -246,7 +282,13 @@ def _constraint(req: Request, tok: Tokenizer) -> ToolConstraint | JsonConstraint
     """
 
     if req.tools:
-        return ToolConstraint(tok, req.tools, req.tool_choice or 'auto', thinking=req.enable_thinking)
+        return ToolConstraint(
+            tok,
+            req.tools,
+            req.tool_choice or 'auto',
+            thinking=req.enable_thinking,
+            think_open=think_open,
+        )
 
     rf = req.response_format
     if isinstance(rf, dict) and rf.get('type') in ('json_object', 'json_schema'):
@@ -254,7 +296,7 @@ def _constraint(req: Request, tok: Tokenizer) -> ToolConstraint | JsonConstraint
         if rf.get('type') == 'json_schema':
             js = rf.get('json_schema') or {}
             schema = js.get('schema', js) if isinstance(js, dict) else {}
-        return JsonConstraint(tok, schema, thinking=req.enable_thinking)
+        return JsonConstraint(tok, schema, thinking=req.enable_thinking, think_open=think_open)
 
     return None
 
@@ -277,10 +319,21 @@ class Engine:
             defaults: SamplingDefaults | None = None,
             enable_thinking: bool = True,
             preserve_thinking: bool = True,
+            reasoning_effort: str | None = None,
+            open_think: bool = False,
             max_queue: int = 4,
             model_name: str = 'qwen',
             log: ta.Callable[[str], None] | None = print,
     ) -> None:
+        """
+        `reasoning_effort`: the level a request that names none is rendered at, for a checkpoint whose chat template
+        takes one (`Tokenizer.reasoning_efforts`); None is the template's own default, its highest.
+
+        `open_think`: with thinking on, the generation prompt ends with the opened reasoning block, as the
+        checkpoints' templates render it (`render_chat`), and the answer is read as starting inside it. Off by
+        default until the rest of the format is the templates' too (NEXT.md 0).
+        """
+
         super().__init__()
 
         self.runner = runner
@@ -289,6 +342,9 @@ class Engine:
         self.defaults = defaults or SamplingDefaults()
         self.enable_thinking = enable_thinking
         self.preserve_thinking = preserve_thinking
+        tok.reasoning_instruction(reasoning_effort)  # (raises on a level the template does not have)
+        self.reasoning_effort = reasoning_effort
+        self.open_think = open_think
         self.model_name = model_name
         self.log = log
         self.eos = {
@@ -336,6 +392,11 @@ class Engine:
             add_generation_prompt=True,
             enable_thinking=req.enable_thinking,
             preserve_thinking=self.preserve_thinking,
+            reasoning_instruction=self.tok.reasoning_instruction(
+                req.reasoning_effort or self.reasoning_effort,
+                req.enable_thinking,
+            ),
+            open_think=self.open_think,
         )
 
     def encode_prompt(self, text: str) -> list[int]:
@@ -442,7 +503,15 @@ class Engine:
         # stop strings end the generation through a terminator, which cuts the round at the token completing one, so the
         # stored state ends there too; the answer (and what streams) ends where the stop string starts
         stop = StopStringTerminator(tok, req.stop or (), end_ids=self.eos)
-        answer = _ChatStream(tok, eos=self.eos, stop=stop, deliver=deliver if req.stream else None, t0=t0)
+        opened = self.open_think and req.enable_thinking  # the prompt ends inside the reasoning block
+        answer = _ChatStream(
+            tok,
+            eos=self.eos,
+            stop=stop,
+            deliver=deliver if req.stream else None,
+            t0=t0,
+            think_open=opened,
+        )
         prefill = _PrefillStats()
 
         gen_res = self.runner.run(GenerationParams(
@@ -456,14 +525,14 @@ class Engine:
             presence_penalty=req.presence_penalty,
             frequency_penalty=req.frequency_penalty,
             eos_ids=frozenset(self.eos),
-            constraint=_constraint(req, tok),
+            constraint=_constraint(req, tok, opened),
             should_stop=lambda: job.cancelled,  # (polled between prefill chunks and rounds)
             terminators=[stop],
             observers=[answer, prefill],
         ))
 
         full, stopped = answer.finish()
-        parsed = parse_output(full)
+        parsed = parse_output(full, think_open=opened)
         out_ids = answer.ids
         if parsed.tool_calls:
             finish = 'tool_calls'

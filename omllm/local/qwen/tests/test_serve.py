@@ -182,3 +182,53 @@ def test_serve():
         f'{engine.n_cancelled} cancelled; '
         f'{engine.prefix_cache.stats()}',  # type: ignore
     )
+
+
+def test_open_think_engine():
+    """
+    An engine whose generation prompt opens the reasoning block: the answer is read as starting inside it, and a
+    follow-up carrying that answer back still extends the stored state (the turn's memoised ids begin with the
+    block's opening, which was the prompt's).
+    """
+
+    try:
+        from ..backends.torch import TorchOps
+    except ImportError:
+        print('torch not installed; skipping')
+        return
+
+    from ..serve.chat import THINK_OPEN
+
+    cfg, hf, src = synthetic_source()
+    ops = TorchOps('cpu', capture_mode='static')
+    model = load_qwen35(src, ops, dtype='f32', verbose=False)
+    tok = Tokenizer.from_spec(src.tokenizer_spec)
+    pc = PrefixCache(ops, 1 << 30, 1 << 30)
+    defaults = SamplingDefaults(temperature=0.0, top_k=0, top_p=1.0, max_tokens=10)
+    engine = Engine(
+        ManualGenerationRunner(model, capacity=256, prefix_cache=pc),
+        tok,
+        prefix_cache=pc,
+        defaults=defaults,
+        open_think=True,
+        log=None,
+    ).start()
+
+    first = Request.from_json({'messages': [{'role': 'user', 'content': 'hello'}]}, defaults, True)
+    assert engine.render(first).endswith('<|im_start|>assistant\n' + THINK_OPEN)
+    quiet = Request.from_json({'messages': first.messages, 'enable_thinking': False}, defaults, True)
+    assert engine.render(quiet).endswith('<|im_start|>assistant\n<think>\n\n</think>\n\n')
+
+    res = engine.run_sync(first)
+    assert res.completion_tokens == 10
+    # (the random model does not close the block: all of it is reasoning, none of it content)
+    if '</think>' not in res.text:
+        assert res.reasoning and not res.content, (res.reasoning, res.content)
+
+    history = [
+        *first.messages,
+        {'role': 'assistant', 'content': res.content, 'reasoning_content': res.reasoning or ''},
+        {'role': 'user', 'content': 'and?'},
+    ]
+    res2 = engine.run_sync(Request.from_json({'messages': history}, defaults, True))
+    assert res2.prompt_reused >= res.prompt_tokens + res.completion_tokens - 1, (res2.prompt_reused, res.prompt_tokens)

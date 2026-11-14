@@ -12,6 +12,7 @@ from .cache import FullState
 from .config import Qwen35Config
 from .mixing import ResidualStream
 from .mixing import StepContext
+from .slab import StepSlabHolder
 
 
 if ta.TYPE_CHECKING:
@@ -23,7 +24,7 @@ else:
 ##
 
 
-class MtpHead:
+class MtpHead(StepSlabHolder):
     """
     Qwen3.5's multi-token-prediction head (the `nextn` block of the GGUF, `mtp.*` in HF): given the target's
     final-normed hidden state at position p and the token at p+1, it predicts the token at p+2 --
@@ -100,6 +101,7 @@ class MtpHead:
             last_only: bool = False,
             chunk: int = 4096,
             reserve: int | None = None,
+            reserve_into: tuple[Array, ...] | None = None,
     ) -> tuple[Array, Array, FullState]:
         """
         Functional (growing-cache) pass over T entries: toks [B, T] are the tokens at positions pos+1..pos+T, hidden [B,
@@ -108,7 +110,8 @@ class MtpHead:
         only ([B, 1, ...]): the generation loop needs nothing else, and every entry's draft logits over a long prompt
         are gigabytes (32k entries x 64k ids in float32 is 8 GB). The entries go through the block `chunk` at a time, as
         Qwen35.prefill does, so its activations stay bounded too -- and, as there, into KV buffers of `reserve`
-        positions from the second chunk on when one is given (the returned state then has room past the entries).
+        positions from the second chunk on when one is given; the returned state then is in such buffers, with room
+        past the entries (`reserve_into`: the buffers to use, an earlier generation's).
         """
 
         ops = self.ops
@@ -118,7 +121,7 @@ class MtpHead:
         ds: list[Array] = []
         for s in range(0, T, max(1, chunk)):
             if reserve is not None and state is not None:
-                state = self.block.state.reserve(ops, state, reserve)
+                state = self.block.state.reserve(ops, state, reserve, reserve_into)
             u = self.stem(ops, ops.array(toks[:, s:s + chunk]), hidden[:, s:s + chunk])
             r, state = self.block(ops, self.residual.enter(ops, u), pos + s, state)
             d = self.residual.exit(ops, r)
@@ -127,8 +130,12 @@ class MtpHead:
             else:
                 ds.append(d)
 
+        state = check.not_none(state)
+        if reserve is not None:
+            state = self.block.state.reserve(ops, state, reserve, reserve_into)  # (a single chunk's, too)
+
         d = ds[0] if len(ds) == 1 else ops.concat(ds, 1)
-        return self.head(ops, d, draft_vocab), d, check.not_none(state)
+        return self.head(ops, d, draft_vocab), d, state
 
     def step_fn(self, T: int, draft_vocab: int = 0, bucket: int = 0) -> ta.Callable[..., tuple[Array, ...]]:
         """

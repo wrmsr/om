@@ -132,6 +132,21 @@ class Ops(lang.Abstract):
     def concat(self, xs: ta.Sequence[Array], axis: int) -> Array:
         pass
 
+    def rows_buffer(self, like: Array, total: int) -> Array | None:
+        """
+        An uninitialised array shaped like `like` [B, n, ...] but with `total` rows, for `rows_write` to fill -- or
+        None, the default, where arrays are not written in place: the caller then collects its pieces and `concat`s
+        them, which holds the pieces and the result together for a moment (gigabytes, for a long prompt's hidden
+        states).
+        """
+
+        return None
+
+    def rows_write(self, buf: Array, start: int, x: Array) -> Array:
+        """x [B, n, ...] written into a `rows_buffer` at rows start..start+n-1; returns the buffer."""
+
+        raise NotImplementedError
+
     @abc.abstractmethod
     def stack(self, xs: ta.Sequence[Array], axis: int) -> Array:
         pass
@@ -649,12 +664,23 @@ class Ops(lang.Abstract):
             out.append(a)
         return tuple(out)
 
-    def kv_reserve(self, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+    # Whether buffer writes are in place (`kv_write` returns its argument) and `capture` binds a step to the arrays it
+    # is first called with: what makes it worth prefilling into capacity buffers (`kv_reserve`) and keeping a
+    # decoder's buffers and captured steps for the next one (core/slab.py).
+    kv_in_place: bool = False
+
+    def kv_reserve(
+            self,
+            state: tuple[Array, ...],
+            capacity: int,
+            into: tuple[Array, ...] | None = None,
+    ) -> tuple[Array, ...]:
         """
         A functional state given room for `capacity` positions, where that pays: a backend whose `kv_write_tokens`
         writes in place returns capacity buffers here (`kv_pad`), and a prefill then fills them chunk by chunk instead
-        of concatenating an ever-longer state (see Model.prefill). The default has no in-place write to gain from and
-        returns the state as it is.
+        of concatenating an ever-longer state (see Model.prefill). `into`: buffers of that capacity to use rather
+        than new ones (an earlier decoder's: core/slab.py) -- the state's positions are copied in, and what the rest
+        of them holds does not matter. The default has no in-place write to gain from and returns the state as it is.
         """
 
         return state

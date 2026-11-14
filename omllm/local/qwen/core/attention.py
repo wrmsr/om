@@ -41,8 +41,14 @@ class KvStateLayout(StateLayout):
     def pad(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
         return ops.kv_pad(state, capacity)
 
-    def reserve(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
-        return ops.kv_reserve(ops.kv_adapt(state), capacity)  # (adapted as the functional form adapts it)
+    def reserve(
+            self,
+            ops: Ops,
+            state: tuple[Array, ...],
+            capacity: int,
+            into: tuple[Array, ...] | None = None,
+    ) -> tuple[Array, ...]:
+        return ops.kv_reserve(ops.kv_adapt(state), capacity, into)  # (adapted as the functional form adapts it)
 
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return ops.kv_slice(state, seq_len)

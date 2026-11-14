@@ -1,6 +1,7 @@
 # ruff: noqa: N803 N806 N812
 import abc
 import typing as ta
+import weakref
 
 from omcore import check
 from omcore import lang
@@ -8,6 +9,7 @@ from omcore import lang
 from ..core.cache import Cache
 from ..core.errors import Cancelled
 from ..core.mixing import StateLayout
+from ..core.slab import StepSlab
 from ..ops.base import Array
 from .rounds import Verified
 
@@ -87,6 +89,10 @@ class Decoder(TargetDecoder):
 
     MIN_BUCKET = 1024
 
+    # the captured steps, by (T, all_states, return_hidden, attention window): this decoder's own, or -- with the
+    # buffers they were captured against -- the last one's (core/slab.py)
+    fns: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]]
+
     @staticmethod
     def capacity_for(capacity: int | None, seq_len: int) -> int:
         """The buffer positions a decoder asked for `capacity` allocates when it starts from `seq_len` tokens."""
@@ -103,12 +109,17 @@ class Decoder(TargetDecoder):
             capacity: int | None = None,
             *,
             consume: bool = False,
+            slab: StepSlab | None = None,
     ) -> None:
         """
         From a functional cache's state (a prefill's, a snapshot's), laid out in buffers of `capacity` positions.
         `consume`: the cache is the caller's to give away -- each layer's state is released as soon as it is in its
         buffer, so the exact-length KV and the buffers are never both held whole. At the full 262k window that is
         8.6 GB of fp8 KV (17 at bf16) not held twice, which a 32 GB card cannot afford next to the 27B's weights.
+
+        `slab`: what an earlier decoder left (taken from the model: `take_slab`). If the cache's state already lies in
+        its buffers -- the prefill was pointed at them -- this decoder runs the steps captured against them instead of
+        capturing its own. Where buffer writes are in place the decoder leaves a slab in its turn when it goes.
         """
 
         super().__init__()
@@ -126,6 +137,8 @@ class Decoder(TargetDecoder):
                 if cache.seq_len:
                     raise ValueError('cache has no state; run a prefill first')
                 st = layout.empty(self.ops, model.dtype)  # a decoder starting from nothing (see `prefill`)
+                if slab is not None and slab.capacity == self.capacity and i < len(slab.layers):
+                    st = layout.reserve(self.ops, st, self.capacity, slab.layers[i])  # ... in the slab's buffers
             elif consume:
                 cache.layers[i] = None
             # padded layer by layer, so with `consume` only one layer's state is ever held in both forms
@@ -133,6 +146,25 @@ class Decoder(TargetDecoder):
             self.flat.extend(st)
             del st
         self._alloc(self.capacity, first=True)
+
+        if slab is not None and slab.capacity == self.capacity and slab.holds(self._buffers()):
+            self.fns = slab.fns
+        del slab  # (taken or not, its buffers are not kept past this decoder's own)
+
+        self._leaves: StepSlab | None = None
+        if self.ops.kv_in_place:
+            # kept current (`_alloc`), and put where the next decoder finds it when this one is collected -- which,
+            # nothing else holding a generation's decoder, is as its generation ends
+            self._leaves = StepSlab(self.capacity, self._buffers(), self.fns)
+            weakref.finalize(self, model.put_slab, self._leaves).atexit = False
+
+    def _buffers(self) -> list[tuple[Array, ...] | None]:
+        """Per layer, the state arrays of a layer whose state lives in capacity buffers (None for a fixed-size one)."""
+
+        return [
+            st if layout.capacity(self.ops, st) is not None else None
+            for layout, st in self._layers(self.flat)
+        ]
 
     def _layers(self, flat: ta.Sequence[Array]) -> ta.Iterator[tuple[StateLayout, tuple[Array, ...]]]:
         for (o, n), layout in zip(self.model.state_offsets(), self._layouts):
@@ -193,7 +225,11 @@ class Decoder(TargetDecoder):
             self._pad_to(capacity)
         self.ar, self.cos_tab, self.sin_tab = self.model.decode_tables(capacity)
 
-        self.fns: dict[tuple[int, bool, bool, int], ta.Callable[..., tuple[Array, ...]]] = {}
+        self.fns = {}
+
+        leaves: StepSlab | None = getattr(self, '_leaves', None)
+        if leaves is not None:  # new buffers, new steps: what this decoder will leave follows
+            leaves.capacity, leaves.layers, leaves.fns = capacity, self._buffers(), self.fns
 
     def bucket(self, n: int) -> int:
         """The attention window for a step whose last position is n - 1: 0 (whole buffer) unless the backend buckets."""
@@ -299,6 +335,8 @@ class Decoder(TargetDecoder):
             self._alloc(snap_cap)  # snapshot taken after a growth; the step must be re-captured for its shapes
         else:
             self._pad_to(self.capacity)
+            if self._leaves is not None:
+                self._leaves.layers = self._buffers()
 
 
 class FunctionalDecoder(TargetDecoder):

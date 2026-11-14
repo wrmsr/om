@@ -19,7 +19,77 @@ option; prefix snapshots with device and pinned-host tiers; an OpenAI-dialect se
 calls and JSON mode; a KL harness for quality; a small local agent for exercising the loop.
 
 
-## 0. Immediate: a citizen of the repo
+## 0. Immediate: the checkpoints' own chat format
+
+**Found 2026-11-13, by rendering the checkpoints' chat templates as a black box (`tests/chat_oracle.py`) beside
+`serve/chat.py`: the format this code renders, constrains and parses is not the one these models were trained on.**
+It was written from knowledge of the earlier Qwen format (JSON tool calls), and nothing checked it against the
+templates the checkpoints carry. Where the templates differ from us (qwen3.8:27b rendered in full; qwen3.5:4b shows
+the same first four, and the 0.8b / 9b templates carry the same call syntax):
+
+- *The tools preamble.* Theirs: "You have access to the following functions:", the schemas, then a worked example
+  of a call and an `<IMPORTANT>` list of reminders. Ours: the older "You may call one or more functions ..." text.
+- *A system message with tools.* Theirs comes after the tools block; ours before it.
+- *A tool call.* Theirs: `<tool_call>`, `<function=name>`, one `<parameter=key>` ... `</parameter>` block per
+  argument (a string's value raw, anything else as JSON), `</function>`, `</tool_call>`. Ours: a JSON object,
+  `<tool_call>{"name": ..., "arguments": {...}}</tool_call>`.
+- *The generation prompt with thinking on.* Theirs ends `<think>\n`, so the model continues inside the block; ours
+  ends `assistant\n` and the model opens the block itself. **Available by option** (`--open-think`, below).
+- *Assistant turns in the history* (3.8; a 3.5 turn without reasoning renders as ours does). Theirs always carry a
+  `<think>` block -- empty when there was no reasoning -- and in the conversation rendered kept the reasoning of the
+  turns before the last user message, which our `preserve_thinking` also does but the 3.5 format did not.
+- *Reasoning effort* (3.8 only): an instruction at the head of the system turn. **Done** (below).
+
+The models do follow what they are given -- the tool grammar leaves them no choice about the call syntax -- so
+nothing is broken in the sense of failing; but every tool-using prompt is off-distribution, and how much answer
+quality that costs has not been measured. What bringing it into line takes, in order:
+
+1. `render_chat` per template family behind one interface (3.8 differs from 3.5 in the effort switch and in how
+   history turns carry `<think>`), with the oracle run over a wider set of conversations as its test whenever Jinja
+   and a checkpoint are at hand, and golden strings taken from it for the suite.
+2. Parsing: `parse_output` and `StreamParser` for `<function=...>` blocks, typing each parameter by the tool's schema
+   (a string is the raw text between the tags; anything else is JSON), and a stream that starts inside `<think>`.
+3. The tool grammar (`ToolConstraint`): function name from the declared set, parameter names from that function's
+   schema with the required ones present, a string parameter free text up to its closing tag, the others the JSON
+   grammar that exists. Jump-forward (1.3) gets easier in this format: the tags are long forced runs.
+4. Then measure: tool-call validity and task success on an agent loop, old format against new.
+
+The reasoning-effort part is in: `Tokenizer.reasoning_efforts` / `reasoning_instruction`, a request's
+`reasoning_effort`, `--reasoning-effort`; the default is the template's (`xhigh`), where until now the 27B was in
+effect served at `medium`. The oracle checks the instruction against the template for every level.
+
+A first look at what the 27B does with it, and at what one of the gaps above costs: three questions, greedy,
+thinking on, reasoning tokens / answer tokens -- rendered as this code renders the generation prompt, and with the
+template's `<think>\n` appended to it:
+
+| question                    | prompt ends      | low        | medium      | xhigh       |
+|-----------------------------|------------------|------------|-------------|-------------|
+| the bat and the ball        | `assistant\n`    | 200 / 194  | 2 / 364     | 60 / 17     |
+|                             | `<think>\n`      | 198 / 194  | 158 / 198   | 58 / 17     |
+| is 2027 prime               | `assistant\n`    | 932 / 133  | 895 / 191   | 611 / 93    |
+|                             | `<think>\n`      | 930 / 133  | 893 / 191   | 435 / 40    |
+| Fibonacci in O(log n)       | `assistant\n`    | 622 / 1032 | 1254 / 993  | 1126 / 362  |
+|                             | `<think>\n`      | 421 / 972  | 1137 / 963  | 1425 / 391  |
+
+Nine samples characterise nothing, but two things show. The level changes the answer more than the amount of
+reasoning: at `xhigh` the 27B answers tersely (17 tokens where the other levels write 200-360), and its reasoning is
+not uniformly longer. And without the opened `<think>` block the model can skip reasoning altogether in thinking mode
+(2 tokens, the bat and the ball at `medium`) where with it, it reasons: the generation prompt is the cheapest of the
+gaps to close and is not cosmetic.
+
+So that one is closed, by option: `serve --open-think` (`Engine(open_think=)`, `ServeConfig.open_think`;
+`render_chat(open_think=)`). The prompt ends with the opened block and everything that reads the answer is told it
+starts inside it: `parse_output` and `StreamParser` (`think_open=`), and the grammar's controllers, so that a forced
+tool call or a JSON value waits for the block the prompt opened to close (`ToolConstraint` / `JsonConstraint`
+`think_open=`). The memoised ids of an assistant turn needed nothing: they are the generation prompt's ids plus the
+answer's, and the opening is the prompt's. Checked live on the 27B: reasoning at every level, a follow-up reusing 161
+of 176 prompt tokens, a forced tool call and a JSON-mode answer each valid after their reasoning. It is off by default
+only because it changes every thinking-mode prompt and the engine tests drive a random model that never closes a
+block; it becomes the default with step 1. (Found on the way: `parse_output` took a reasoning block that never
+closed -- the budget ran out mid-thought -- for content, where `StreamParser` called it reasoning. Reasoning now.)
+
+
+## 0.1 A citizen of the repo
 
 This code was written in a chat session against stubs of `omcore`; it works, it is tested, and it is alien to the
 repository around it. Before or alongside anything below it gets brought into line. The structural half of that --
@@ -132,11 +202,12 @@ not the missed drafts but **the first lookup round of a generation**: one gap of
 is where this generation's decoder first runs the 16-row verify step and the head's refresh -- every generation
 captures its own step graphs on first use -- and a generation that never drafts by lookup never does. Every other
 round, lookup or head, takes what it takes without the wrapper (the median round is 18 ms either way). So a
-generation needs two or three good lookup rounds to come out ahead, and the thing to fix is not a draft-source policy
-but that cost: step graphs that outlive a generation (they are bound to the decoder's buffers, which would have to
-be pooled) would take the 0.1 s off every generation that looks up. Unwarmed it is far worse -- the first lookup
-round ever compiles those steps (~25 s on a loaded machine) -- which `serve --warmup` covers with a prompt that
-provokes one.
+generation needed two or three good lookup rounds to come out ahead, and the thing to fix was not a draft-source
+policy but that cost. **Fixed the same day**: a decoder now leaves its capacity buffers and captured steps for the
+next (`core/slab.py`), so a step is captured once a process, not once a generation -- the largest gap in a
+generation with lookup rounds is 20 ms, and every generation's first token comes ~70 ms sooner (a prefix hit 156 ->
+92 ms). Unwarmed it is still far worse -- the first lookup round ever compiles those steps (~25 s on a loaded
+machine) -- which `serve --warmup` covers with a prompt that provokes one.
 
 On "the same output": drafts change only the speed in exact arithmetic. In bf16 a wider verify step rounds
 differently, and where two tokens are a rounding step apart greedy decoding can take the other. Two of these twelve
@@ -241,18 +312,34 @@ the whole vocabulary.
 
 | context | prefill              | plain decode          | speculative               | peak, plain / speculative |
 |---------|----------------------|-----------------------|---------------------------|---------------------------|
-| 512     | 8.2 ms/token (first) | 64.4 tok/s            | 145 tok/s, 19.5 ms/round  |                           |
-| 32k     | 13.9 s, 2,357 tok/s  |                       |                           | 20.7 GiB                  |
+| 512     | 4.5 ms/token (first) | 65.2 tok/s            | 159 tok/s, 17.7 ms/round  |                           |
+| 32k     | 13.7 s, 2,385 tok/s  |                       |                           | 21.9 GiB                  |
 | 100k    | 52.5 s, 1,905 tok/s  | 55.0 tok/s, 18.2 ms   | 170 tok/s, 21.5 ms/round  | 19.8 / 20.8 GiB           |
-| 262k    | 222 s, 1,178 tok/s   | 41.8 tok/s, 23.9 ms   | 138 tok/s, 27.6 ms/round  | 24.0 / 27.8 GiB           |
+| 262k    | 222 s, 1,180 tok/s   | 44.7 tok/s, 22.4 ms   | 144 tok/s, 27.5 ms/round  | 25.5 / 28.0 GiB           |
 
 (The 32k row is the bench's, at a capacity of 131,072 and with the head's states; the 100k row is at that capacity
-too, the 262k one at 262,144, and it was taken on a busier machine than the others.) Decode slows about 15% from an
+too, the 262k one at 262,144. The 512, 32k and 262k rows are from after decoders began leaving their buffers and
+captured steps for the next -- `core/slab.py`: the first token sooner, ~1.5 GiB of graphs held -- and the 100k row
+from before.)
+
+*A turn's first token*, the latency an agent loop pays every turn (22-token prompt / an 18-token follow-up that hits
+the prefix cache; capacity 131,072; same machine, same hour):
+
+| | first turn | follow-up, cached |
+|---|---|---|
+| each generation in fresh buffers, capturing its own steps | 164 ms | 156 ms |
+| buffers and captured steps passed on (`core/slab.py`) | 90-94 ms | 92-95 ms |
+| ... and prefills of up to 48 tokens through the captured step (`--step-prefill-max 48`) | 61 ms | 61 ms |
+
+Of the first row, ~60 ms was the capture of the one-token step and 10-18 the buffers' allocation; of the second,
+~55 is the eager forward's fixed cost (two thousand operation launches whatever the length). What remains in the third
+is two 16-token steps and the first decode step; the eager forward compiled per chunk shape, or a prefill step of a
+few fixed lengths chosen by the remainder, would be the next step down. Decode slows about 15% from an
 empty context to 100k and about a third by 262k (the attention kernel reads every key; 16 layers of 64), prefill 20%
 from 32k to 100k and half by 262k (attention's share grows with the context it attends to).
 
-**The full window fits, as the code stands by default** (the 262k row; plain decode peaks at 24.0 GiB, speculative at
-27.8). It did not at first: the prefill ran out of memory at 24.7 GiB allocated with 5.1 GiB more reserved and
+**The full window fits, as the code stands by default** (the 262k row; plain decode peaks at 25.5 GiB, speculative at
+28.0). It did not at first: the prefill ran out of memory at 24.7 GiB allocated with 5.1 GiB more reserved and
 unusable. What it took, all in the tree:
 
 - *The KV is prefilled into the decoder's buffers.* The functional prefill grew each attention layer's KV by a
@@ -269,9 +356,13 @@ unusable. What it took, all in the tree:
   the prompt: views, each pinning the whole tensor it was cut from (2.5 GiB apiece at 262k, the second for the whole
   generation). Copies now.
 
-What is left of the speculative peak is the join of the hidden states' chunks (2.5 GiB twice over for a moment).
-Streaming them to the draft head chunk by chunk as the prefill produces them would remove both the join and the
-2.5 GiB itself; it needs `DraftSource.start` to take the prompt in pieces.
+- *No join of the hidden states.* Their chunks were collected and concatenated -- 2.5 GiB twice over for a moment,
+  at the prefill's fullest -- which fit until the retained step graphs took 1.5 GiB of the margin. They are written
+  into one buffer as they come (`Ops.rows_buffer` / `rows_write`).
+
+The speculative path still holds those 2.5 GiB through the head's prefill. Streaming them to the draft head chunk
+by chunk as the target's prefill produces them would remove that too; it needs `DraftSource.start` to take the
+prompt in pieces. At 28.0 GiB of 32 the margin is what it is.
 
 ## 2. Mid term (a week or two each)
 

@@ -173,6 +173,27 @@ tracks the power-of-two capacity, not the live length -- at 64 KB/token that is 
 against 15 GB of weights. `test_parity.py::test_static_decode_parity` checks the step against the golden forward on
 every backend, through a growth and a restore. `--functional` in `generate` selects the old path for comparison.
 
+A captured step is bound to the buffers it was captured against, so a decoder in fresh buffers captures again: on
+the 27B ~60 ms for the one-token step at every generation's first token, as much for each other shape or attention
+window it reaches, 100-130 ms at a generation's first prompt-lookup round. On torch a decoder therefore leaves its
+capacity buffers and its captured steps behind (`core/slab.py`: the model holds one `StepSlab`, the MTP head one for
+its own steps); the next generation of that capacity prefills into the same buffers, its decoder finds them to be the
+slab's, and runs the steps as they are. First-token latency on the 27B, before and after: a 22-token first turn 164
+-> 90 ms, a follow-up that hits the prefix cache 156 -> 92, the same follow-up cold 180 -> 106; the lookup round's
+stall is gone. What that costs is memory held between generations -- the KV buffers of one capacity (4.3 GiB at
+131k positions, 8.1 at 262k) and the captured graphs' own pools (~1.5 GiB on the 27B) -- which
+`model.drop_slab()` gives back; a generation at another capacity replaces the slab rather than adding to it, so pin
+`--capacity`.
+
+What is left of a short turn's first token after that is the eager prefill's fixed cost: some two thousand
+operation launches whatever the length, ~55 ms on the 27B, for a dozen new tokens as for a hundred. A captured step
+is one launch, so `--step-prefill-max N` (`generate(step_prefill_max=N)`) sends a prefill of up to N tokens -- a
+short prompt, or what a cached conversation's follow-up adds -- through the decoder's 16-token step instead (the
+path `Ops.static_prefill` backends always take): a 22-token turn's first token 94 -> 61 ms, the same for an 18-token
+follow-up to a cached conversation; past about 48 tokens (by estimate: three steps) the eager forward wins. Off by
+default: it is one more step shape to compile (~220 s for the 27B's, once; the shape `--lookup-k 15` verifies
+with), and the step's bf16 arithmetic is not the eager forward's bit for bit.
+
 Instrumentation: set `ops.taps = {}` and every `ops.tap(name, x)` in the model records a numpy copy (embedding,
 each block's mixer output and block output, final norm, logits). Wrapping an `Ops` is the general mechanism --
 a timing wrapper (force `eval` per op), a NaN-checking wrapper, a tracing wrapper that logs op/shape/dtype.
@@ -556,6 +577,31 @@ thinking preset by default) with per-request overrides (`temperature`, `top_p`, 
 noticed on the next write and the generation stops at its next round; long prompts prefill in `--prefill-chunk`
 pieces. `GET /health` reports counts and cache stats; `--client TEXT` sends one streaming request to a running
 server.
+
+**Reasoning effort.** qwen3.8's chat template takes a `reasoning_effort` -- `low`, `medium` or `xhigh`, its default
+-- and with thinking on renders it as one instruction at the head of the system turn (none at `medium`); the 27B
+answers to it strongly. A request sets it as OpenAI clients do (`"reasoning_effort": "low"`, or inside
+`chat_template_kwargs`); `--reasoning-effort` sets what a request that names none gets, and without the flag that is
+the template's own default, `xhigh`. OpenAI's other names map to the nearest level (`minimal` -> `low`, `high` and
+`max` -> `xhigh`), `none` turns thinking off, and anything else is a 400. A checkpoint whose template has no such
+switch (qwen3.5) is rendered as before whatever is asked (`Tokenizer.reasoning_efforts` says which it is).
+`generate --think --reasoning-effort LEVEL` and `agent --reasoning-effort LEVEL` reach the same thing. Before this
+existed the 27B was in effect always served at `medium`: no instruction was rendered.
+
+**The format is not yet the checkpoints' own.** `tests/chat_oracle.py` renders a checkpoint's template with Jinja
+(as a black box) beside `render_chat`. The effort instruction agrees character for character; the rest of the format
+does not. The templates of qwen3.5 and qwen3.8 alike describe tools under their own preamble with the system message
+after it, have the model call them as `<function=name>` / `<parameter=key>` blocks inside `<tool_call>` where this
+code renders, constrains and parses JSON objects, and open `<think>` in the generation prompt when thinking is on;
+qwen3.8's also puts a `<think>` block in every assistant turn of the history. The models follow the format they are
+given here, but it is not the one they were trained on: NEXT.md 0 has what bringing it into line takes.
+
+One of those gaps can be closed today, by option: `--open-think` (`Engine(open_think=True)`) ends the generation
+prompt with the opened `<think>` block as the templates do, and the answer is read -- by both parsers, the tool
+grammar and JSON mode -- as starting inside it. It is not cosmetic: left to open the block itself, the 27B answered
+one of three test questions without reasoning at all in thinking mode; with the block opened it reasons. Off by
+default until the rest of the format follows, because it changes every thinking-mode prompt. (`generate --think
+--open-think` does the same for a single prompt.)
 
 Two choices keep the prefix cache hitting across an agent's turns. Reasoning is preserved in every rendered turn
 (`preserve_thinking`; `--strip-thinking` restores the stock template's behaviour, which rewrites the history each

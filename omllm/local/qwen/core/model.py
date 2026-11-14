@@ -32,6 +32,7 @@ from .mixing import ResidualStream
 from .mixing import StateLayout
 from .mixing import StepContext
 from .mtp import MtpHead
+from .slab import StepSlabHolder
 
 
 if ta.TYPE_CHECKING:
@@ -43,7 +44,7 @@ else:
 ##
 
 
-class Qwen35:
+class Qwen35(StepSlabHolder):
     """
     The decoder model, assembled from parts by an architecture (arch/): the embedding and output head, the blocks (each
     a composition of mixer, feed-forward and their connections to the residual stream), the stream's two ends (the
@@ -82,15 +83,25 @@ class Qwen35:
 
     # forward
 
-    def reserve(self, cache: Cache, capacity: int) -> None:
+    def reserve(
+            self,
+            cache: Cache,
+            capacity: int,
+            into: ta.Sequence[tuple[Array, ...] | None] | None = None,
+    ) -> None:
         """
         Room for `capacity` positions in the cache's growing states (the attention layers' KV), where the backend
         writes such buffers in place (Ops.kv_reserve); a no-op for a state that already has it, and for the rest.
+        `into`: per layer, the state arrays an earlier decoder left (a `StepSlab`'s `layers`), whose capacity buffers
+        are used in place of new ones.
         """
 
-        for i, (st, layout) in enumerate(zip(cache.layers, self.state_layouts())):
+        layouts = self.state_layouts()
+        if into is None or len(into) != len(layouts):
+            into = [None] * len(layouts)
+        for i, (st, layout, prev) in enumerate(zip(cache.layers, layouts, into)):
             if st is not None:
-                cache.layers[i] = layout.reserve(self.ops, st, capacity)
+                cache.layers[i] = layout.reserve(self.ops, st, capacity, prev)
 
     def prefill(
             self,
@@ -100,6 +111,7 @@ class Qwen35:
             should_stop: ta.Callable[[], bool] | None = None,
             *,
             reserve: int | None = None,
+            reserve_into: ta.Sequence[tuple[Array, ...] | None] | None = None,
             all_hidden: bool = True,
             on_chunk: ta.Callable[[Array, Array], None] | None = None,
     ) -> tuple[Array, Array]:
@@ -116,6 +128,7 @@ class Qwen35:
         concatenation per chunk per layer: the same values, without re-copying the whole KV 64 times over a 262k
         prompt (~270 GB on the 27B) through allocations that never fit the last one's hole. The cache's KV states
         then have room past `seq_len`, which a static decoder of that capacity adopts as its buffers without a copy.
+        `reserve_into` names the buffers to use (`reserve`'s `into`).
 
         `on_chunk(logits, hidden)` is called after each chunk with what this method would return had the prompt ended
         there (the chunk's last position's logits, its hidden states), the cache standing at that position: the
@@ -127,25 +140,36 @@ class Qwen35:
         toks = np.asarray(tokens, dtype=np.int32).reshape(1, -1)
         T = toks.shape[1]
         hiddens: list[Array] = []
+        joined: Array | None = None  # every position's hidden state in one buffer, where the backend writes in place
         logits = None
 
         for start in range(0, T, max(1, chunk)):
             if should_stop is not None and should_stop():
                 raise Cancelled
             if reserve is not None:
-                self.reserve(cache, reserve)
+                self.reserve(cache, reserve, reserve_into)
             logits, h = self.forward(toks[:, start:start + chunk], cache, last_only=True, return_hidden=True)
-            if all_hidden:
+            if not all_hidden:
+                hiddens[:] = [ops.copy(h[:, -1:])]  # (a copy: a view would keep the chunk's)
+            elif T <= chunk:
                 hiddens.append(h)
             else:
-                hiddens[:] = [ops.copy(h[:, -1:])]  # (a copy: a view would keep the chunk's)
+                # chunks collected and concatenated are held twice over at the end (2.5 GiB of them at 262k tokens on
+                # the 27B, at the prefill's fullest); written into one buffer as they come they never are
+                if start == 0:
+                    joined = ops.rows_buffer(h, T)
+                if joined is not None:
+                    joined = ops.rows_write(joined, start, h)
+                else:
+                    hiddens.append(h)
             if on_chunk is not None:
                 on_chunk(logits[:, -1:], h)
 
-        return (
-            check.not_none(logits)[:, -1:],
-            (hiddens[0] if len(hiddens) == 1 else ops.concat(hiddens, 1)),
-        )
+        if joined is not None:
+            hidden = joined
+        else:
+            hidden = hiddens[0] if len(hiddens) == 1 else ops.concat(hiddens, 1)
+        return check.not_none(logits)[:, -1:], hidden
 
     def forward(
         self,

@@ -71,6 +71,7 @@ def generate(
         constraint: ToolConstraint | JsonConstraint | None = None,
         prefill_chunk: int = 4096,
         prefill_checkpoints: int = 0,
+        step_prefill_max: int = 0,
         should_stop: ta.Callable[[], bool] | None = None,
         terminators: ta.Iterable[Terminator] = (),
         observers: ta.Iterable[Observer] = (),
@@ -90,6 +91,9 @@ def generate(
     after the prompt and after the generation are stored -- and, with `prefill_checkpoints`, up to that many states
     from inside the prefill (after its 1st, 2nd, 4th ... chunk of `prefill_chunk` tokens), which a later prompt that
     shares only the start of this one resumes from.
+
+    `step_prefill_max`: a prefill of up to that many tokens (a short prompt, or what a resumed one has left) runs
+    through the decoder's captured 16-token step instead of the eager forward, whose fixed cost dominates there.
 
     `constraint` masks every token to a grammar.
 
@@ -150,6 +154,7 @@ def generate(
         static=static or bool(draft.max_drafts),
         prefill_chunk=prefill_chunk,
         prefill_checkpoints=prefill_checkpoints if prefix_cache is not None else 0,  # (kept for a store only)
+        step_prefill_max=step_prefill_max,
     )
 
     all_terminators: list[Terminator] = [BudgetTerminator(max_new_tokens), *terminators]
@@ -194,6 +199,7 @@ class ManualGenerationRunner(GenerationRunner):
             prefix_cache: PrefixCache | None = None,
             prefill_chunk: int = 4096,
             prefill_checkpoints: int = 0,
+            step_prefill_max: int = 0,
             static: bool = True,
     ) -> None:
         super().__init__()
@@ -207,6 +213,7 @@ class ManualGenerationRunner(GenerationRunner):
         self._prefix_cache = prefix_cache
         self._prefill_chunk = prefill_chunk
         self._prefill_checkpoints = prefill_checkpoints
+        self._step_prefill_max = step_prefill_max
         self._static = static
 
     def run(self, params: GenerationParams) -> Generated:
@@ -235,6 +242,7 @@ class ManualGenerationRunner(GenerationRunner):
             constraint=params.constraint,
             prefill_chunk=self._prefill_chunk,
             prefill_checkpoints=self._prefill_checkpoints,
+            step_prefill_max=self._step_prefill_max,
             should_stop=params.should_stop,
             terminators=params.terminators,
             observers=params.observers,

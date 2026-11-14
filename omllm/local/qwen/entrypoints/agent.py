@@ -340,6 +340,11 @@ def main() -> None:
         action='store_true',
     )
     ap.add_argument(
+        '--reasoning-effort',
+        default=None,
+        help="sent as the requests' `reasoning_effort` (low / medium / xhigh on qwen3.8; default: the server's)",
+    )
+    ap.add_argument(
         '--temperature',
         type=float,
         default=None,
@@ -366,6 +371,8 @@ def main() -> None:
     params: dict[str, ta.Any] = {}
     if args.temperature is not None:
         params['temperature'] = args.temperature
+    if args.reasoning_effort is not None:
+        params['reasoning_effort'] = args.reasoning_effort
 
     messages = run(
         args.url,

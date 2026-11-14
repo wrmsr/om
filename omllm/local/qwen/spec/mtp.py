@@ -1,11 +1,13 @@
 # ruff: noqa: N803 N806 N812
 import typing as ta
+import weakref
 
 from omcore import check
 from omcore import lang
 
 from ..core.cache import FullState
 from ..core.mtp import MtpHead
+from ..core.slab import StepSlab
 from ..decode.decoder import Decoder
 from ..decode.drafts import DraftSource
 from ..decode.generation import Generation
@@ -71,6 +73,7 @@ class MtpDraftSource(DraftSource):
         self._mflat: list[Array] = []
         self._mlogits_last: Array | None = None  # [1, V or draft_vocab]: the head's logits from its last entry
         self._d_last: Array | None = None  # [1, 1, H]: the head's normed output at its last entry
+        self._leaves: StepSlab | None = None  # the head's buffers and captured steps, for the next generation's
 
     @staticmethod
     def _decoder(gen: Generation) -> Decoder:
@@ -88,6 +91,8 @@ class MtpDraftSource(DraftSource):
         self._mflat = list(self._ops.kv_pad(tuple(self._mflat), cap))
         self._mcap = cap
         self._mfns = {}
+        if self._leaves is not None:
+            self._leaves.capacity, self._leaves.layers, self._leaves.fns = cap, [tuple(self._mflat)], self._mfns
 
     def _mfn(self, dec: Decoder, T: int, n_last: int) -> ta.Callable[..., tuple[Array, ...]]:
         """The head's captured T-entry step for a round whose last entry is at position n_last - 1."""
@@ -122,16 +127,34 @@ class MtpDraftSource(DraftSource):
         if ops.static_prefill:
             mlogits, d = self._prefill_static(gen, toks, hidden, start, state)
         else:
-            mlogits, d, mkv = self._mtp.prefill(
-                toks,
-                hidden,
-                start,
-                self._draft_vocab,
-                state,
-                last_only=True,
-                reserve=self._decoder(gen).capacity,  # what `_sync_capacity` pads it to: filled in place instead
-            )
+            # The head's KV goes straight into buffers of the target's capacity (what `_sync_capacity` would pad it
+            # to) -- the last generation's, when it left them, and then its captured steps run as they are too
+            # (core/slab.py, as for the target's decoder).
+            cap = self._decoder(gen).capacity
+            slab = self._mtp.take_slab(cap) if ops.kv_in_place else None
+            try:
+                mlogits, d, mkv = self._mtp.prefill(
+                    toks,
+                    hidden,
+                    start,
+                    self._draft_vocab,
+                    state,
+                    last_only=True,
+                    reserve=cap,
+                    reserve_into=slab.layers[0] if slab is not None else None,
+                )
+            except BaseException:
+                if slab is not None:
+                    self._mtp.put_slab(slab)
+                raise
             self._mflat = list(mkv)
+
+            if ops.kv_in_place:
+                if slab is not None and slab.holds([tuple(self._mflat)]):
+                    self._mfns = slab.fns
+                    self._mcap = cap
+                self._leaves = StepSlab(cap, [tuple(self._mflat)], self._mfns)
+                weakref.finalize(self, self._mtp.put_slab, self._leaves).atexit = False
 
         self._mlogits_last = mlogits[:, -1]
         self._d_last = ops.copy(d[:, -1:])  # dense: see on_commit

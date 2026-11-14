@@ -23,6 +23,8 @@ from ..serve.inject import ServeConfig
 from ..serve.serving import SamplingDefaults
 from ..serve.serving import client
 from ..serve.serving import serve
+from ..tokenizer import DEFAULT_REASONING_EFFORT
+from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from .common import add_model_args
 from .inject import backend_config
 from .inject import load_config
@@ -83,6 +85,20 @@ def main() -> None:
         help='reasoning off unless a request turns it on (chat_template_kwargs.enable_thinking)',
     )
     ap.add_argument(
+        '--reasoning-effort',
+        choices=list(REASONING_EFFORT_INSTRUCTIONS),
+        default=None,
+        help='the reasoning effort of a request that names none (`reasoning_effort`), for a checkpoint whose chat '
+             f"template takes one (qwen3.8); default: the template's own, {DEFAULT_REASONING_EFFORT}",
+    )
+    ap.add_argument(
+        '--open-think',
+        action='store_true',
+        help="with thinking on, end the generation prompt with the opened <think> block, as the checkpoints' own "
+             'templates do (the model then reasons rather than deciding whether to); off by default until the rest '
+             'of the chat format follows the templates (NEXT.md 0)',
+    )
+    ap.add_argument(
         '--strip-thinking',
         action='store_true',
         help="render history the stock template's way (reasoning dropped from turns before the last user query); "
@@ -108,6 +124,15 @@ def main() -> None:
     ap.add_argument(
         '--no-prefix-cache',
         action='store_true',
+    )
+    ap.add_argument(
+        '--step-prefill-max',
+        type=int,
+        default=0,
+        metavar='N',
+        help='prefill up to N new tokens through the captured 16-token decode step instead of the eager forward '
+             '(a short follow-up to a cached conversation: 20 ms where the eager forward takes 68 on the 27B); 48 is '
+             'about where the two cross. One more step shape to compile, the same one --lookup-k 15 uses; 0: off',
     )
     ap.add_argument(
         '--prefill-checkpoints',
@@ -149,6 +174,7 @@ def main() -> None:
             capacity=args.capacity,
             prefill_chunk=args.prefill_chunk,
             prefill_checkpoints=0 if args.no_prefix_cache else args.prefill_checkpoints,
+            step_prefill_max=args.step_prefill_max,
         ),
         spec=spec_config(args),
         lookup=lookup_config(args),
@@ -157,6 +183,8 @@ def main() -> None:
             defaults=defaults,
             enable_thinking=not args.no_think,
             preserve_thinking=not args.strip_thinking,
+            reasoning_effort=args.reasoning_effort,
+            open_think=args.open_think,
             max_queue=args.max_queue,
             model_name=args.model,
         ),

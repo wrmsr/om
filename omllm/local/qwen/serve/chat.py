@@ -25,6 +25,8 @@ from omcore import dataclasses as dc
 ##
 
 
+THINK_OPEN = '<think>\n'  # what a generation prompt ends with when it opens the reasoning block itself
+
 TOOLS_PREAMBLE = (
     '# Tools\n'
     '\n'
@@ -67,23 +69,31 @@ def render_chat(
         add_generation_prompt: bool = True,
         enable_thinking: bool = True,
         preserve_thinking: bool = True,
+        reasoning_instruction: str | None = None,
+        open_think: bool = False,
 ) -> str:
-    """The prompt string for an OpenAI-style message list (roles system / user / assistant / tool)."""
+    """
+    The prompt string for an OpenAI-style message list (roles system / user / assistant / tool).
+    `reasoning_instruction`: the checkpoint's instruction for the request's reasoning effort
+    (`Tokenizer.reasoning_instruction`), which opens the system turn -- a system turn of its own when there would be
+    none. `open_think`: with thinking on, end the generation prompt with the opened reasoning block (`THINK_OPEN`), as
+    the checkpoints' own templates do: the model then continues inside it, where otherwise it opens the block itself
+    -- or does not. Whoever reads the generation must know it started there (`parse_output` / `StreamParser` /
+    the constraints take the same flag).
+    """
 
     out: list[str] = []
     msgs = list(messages)
 
+    system: list[str] = []
+    if reasoning_instruction:
+        system.append(reasoning_instruction)
+    if msgs and msgs[0].get('role') == 'system':
+        system.append(str(msgs[0].get('content') or ''))
     if tools:
-        out.append('<|im_start|>system\n')
-        if msgs and msgs[0].get('role') == 'system':
-            out.append(str(msgs[0].get('content') or '') + '\n\n')
-        out.append(TOOLS_PREAMBLE)
-        for t in tools:
-            out.append('\n' + _tojson(t))
-        out.append(TOOLS_POSTAMBLE + '<|im_end|>\n')
-
-    elif msgs and msgs[0].get('role') == 'system':
-        out.append('<|im_start|>system\n' + str(msgs[0].get('content') or '') + '<|im_end|>\n')
+        system.append(TOOLS_PREAMBLE + ''.join('\n' + _tojson(t) for t in tools) + TOOLS_POSTAMBLE)
+    if system:
+        out.append('<|im_start|>system\n' + '\n\n'.join(system) + '<|im_end|>\n')
 
     # the template keeps reasoning only for assistant turns after the last real user query (tool responses do not
     # count); with preserve_thinking every assistant turn keeps it
@@ -132,6 +142,8 @@ def render_chat(
         out.append('<|im_start|>assistant\n')
         if not enable_thinking:
             out.append('<think>\n\n</think>\n\n')
+        elif open_think:
+            out.append(THINK_OPEN)
 
     return ''.join(out)
 
@@ -211,14 +223,25 @@ def _tool_call_obj(raw: str, idx: int) -> dict | None:
     }
 
 
-def parse_output(text: str) -> Parsed:
-    """Split a finished completion into reasoning, tool calls and content."""
+def parse_output(text: str, think_open: bool = False) -> Parsed:
+    """
+    Split a finished completion into reasoning, tool calls and content. `think_open`: the prompt had opened the
+    reasoning block (`render_chat`'s `open_think`), so the completion starts inside it.
+    """
+
+    if think_open:
+        text = THINK_OPEN + text
 
     reasoning = None
     m = _THINK_RE.search(text)
     if m:
         reasoning = m.group(1).strip('\n')
         text = text[:m.start()] + text[m.end():]
+    elif '<think>' in text:
+        # a block that never closed (the budget ran out mid-thought): all of it is reasoning, as StreamParser has it
+        at = text.index('<think>')
+        reasoning = text[at + len('<think>'):].strip('\n')
+        text = text[:at]
     calls: list[dict] = []
     for i, mt in enumerate(_TOOL_CALL_RE.finditer(text)):
         tc = _tool_call_obj(mt.group(1), i)
@@ -235,12 +258,13 @@ class StreamParser:
     as the name is known, then ('tool_call', {'index', 'function': {'arguments': piece}}) pieces of the arguments' JSON
     text as it streams (the OpenAI delta shape: clients concatenate the pieces), and nothing more at the closing tag. A
     call whose head never parsed is delivered whole at its closing tag instead. Text that may be the start of a tag is
-    held back until it is either a tag or clearly not.
+    held back until it is either a tag or clearly not. `think_open`: the stream starts inside a reasoning block the
+    prompt opened.
     """
 
     TAGS = ('<think>', '</think>', '<tool_call>', '</tool_call>')
 
-    def __init__(self) -> None:
+    def __init__(self, think_open: bool = False) -> None:
         super().__init__()
 
         self.buf = ''
@@ -256,6 +280,9 @@ class StreamParser:
         self.call_args_sent = 0      # characters of the arguments text already delivered
         self.call_args_any = False   # a non-blank argument piece has been delivered
         self.call_text = ''          # the current call's body so far
+
+        if think_open:
+            self.feed(THINK_OPEN)  # (delivers nothing: the tag and the newline after it are format)
 
     def feed(self, text: str) -> list[tuple[str, ta.Any]]:
         self.buf += text

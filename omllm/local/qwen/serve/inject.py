@@ -16,6 +16,8 @@ class ServeConfig:
     defaults: SamplingDefaults = dc.field(default_factory=SamplingDefaults)
     enable_thinking: bool = True
     preserve_thinking: bool = True
+    reasoning_effort: str | None = None  # None: the chat template's default, where it takes one
+    open_think: bool = False  # the generation prompt opens the reasoning block, as the checkpoints' templates do
     max_queue: int = 4
     model_name: str = 'qwen'
 
@@ -33,6 +35,8 @@ def _engine(
         defaults=config.defaults,
         enable_thinking=config.enable_thinking,
         preserve_thinking=config.preserve_thinking,
+        reasoning_effort=config.reasoning_effort,
+        open_think=config.open_think,
         max_queue=config.max_queue,
         model_name=config.model_name,
     )

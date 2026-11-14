@@ -719,6 +719,7 @@ class ToolConstraint:
     tools: ta.Sequence[dict]
     tool_choice: ta.Any = 'auto'  # 'auto' | 'none' | 'required' | {'type': 'function', 'function': {'name': ..}}
     thinking: bool = True         # the generation may start with a reasoning block
+    think_open: bool = False      # ... which the prompt has already opened: the generation starts inside it
 
     def __post_init__(self) -> None:
         only = None
@@ -733,7 +734,7 @@ class ToolConstraint:
         self.mode = 'free'
         self.state: State | None = None
         self.tail = b''  # last bytes of free text, for tag detection
-        self.in_think = False
+        self.in_think = self.thinking and self.think_open
         self.calls = 0
         self.violations = 0
         self._ws_tokens = self.vocab.ws_tokens
@@ -866,13 +867,14 @@ class JsonConstraint:
     tok: Tokenizer
     schema: ta.Any = None
     thinking: bool = True
+    think_open: bool = False  # the prompt has already opened the reasoning block: the generation starts inside it
 
     def __post_init__(self) -> None:
         self.vocab = Vocab.for_tokenizer(self.tok)
         self.acc, self.masks = _compiled_json(self.schema if self.schema is not None else {}, self.vocab)
         self.state: State | None = None  # None until the value starts (after the reasoning block)
         self.done = False
-        self.in_think = False
+        self.in_think = self.thinking and self.think_open
         self.started = False
         self.tail = b''
         self.end_ids = frozenset(

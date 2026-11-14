@@ -120,9 +120,117 @@ def test_prefill_keeps_only_the_hidden_states_asked_for():
 
     logits, hidden = model.prefill(ids, Cache(cfg), chunk=5)
     assert tuple(hidden.shape[:2]) == (1, 14)
+
+    # (every position's, written into one buffer as the chunks come: the chunks' own, joined)
+    by_hand = Cache(cfg)
+    parts = [
+        model.forward(np.asarray([ids[s:s + 5]], dtype=np.int32), by_hand, last_only=True, return_hidden=True)[1]
+        for s in range(0, 14, 5)
+    ]
+    assert np.array_equal(ops.numpy(hidden), ops.numpy(ops.concat(parts, 1)))
     for chunk in (5, 64):
         ll, last = model.prefill(ids, Cache(cfg), chunk=chunk, all_hidden=False)
         assert tuple(last.shape[:2]) == (1, 1)
         if chunk == 5:
             assert np.array_equal(ops.numpy(last), ops.numpy(hidden[:, -1:]))
             assert np.array_equal(ops.numpy(ll), ops.numpy(logits))
+
+
+def test_decoders_pass_on_buffers_and_steps():
+    """
+    A generation's decoder starts in the capacity buffers the last one left and runs the steps captured against them
+    (core/slab.py): nothing is captured twice -- the target's steps or the draft head's -- across generations of one
+    capacity, what is generated is what a model with nothing left over generates, and another capacity starts afresh.
+    """
+
+    cfg, _, src = synthetic_source()
+    rng = np.random.default_rng(13)
+    prompts = [rng.integers(0, cfg.vocab_size, n).tolist() for n in (9, 14, 6)]
+    for kv_dtype in ('bf16', 'fp8'):
+        for spec in (0, 3):
+            ops = TorchOps('cpu', kv_dtype=kv_dtype, capture_mode='static')
+            captured: list = []
+            capture = ops.capture
+
+            def counting(fn, _capture=capture, _captured=captured):
+                _captured.append(fn)
+                return _capture(fn)
+
+            ops.capture = counting  # type: ignore[method-assign]
+            model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
+
+            want = []
+            for p in prompts:
+                fresh = load_qwen35(src, TorchOps('cpu', kv_dtype=kv_dtype, capture_mode='static'), dtype='f32',
+                                    verbose=False, mtp=True)
+                want.append(generate(fresh, p, max_new_tokens=7, spec=spec, capacity=64, prefill_chunk=5).tokens)
+
+            counts = []
+            for p, w in zip(prompts, want):
+                got = generate(model, p, max_new_tokens=7, spec=spec, capacity=64, prefill_chunk=5)
+                assert got.tokens == w, (kv_dtype, spec)
+                counts.append(len(captured))
+                slab = model._slab  # noqa
+                assert slab is not None and slab.capacity == 64 and slab.fns, (kv_dtype, spec)
+            assert counts[0] > 0 and counts[1] == counts[0] and counts[2] == counts[0], (kv_dtype, spec, counts)
+
+            # with a prefix cache: a follow-up resumed from a stored state lands in the same buffers
+            pc = PrefixCache(ops, device_bytes=1 << 30, host_bytes=1 << 30)
+            first = generate(model, prompts[0], max_new_tokens=7, spec=spec, capacity=64, prefix_cache=pc)
+            more = prompts[0] + first.tokens + prompts[2]
+            ref = generate(fresh, more, max_new_tokens=7, spec=spec, capacity=64).tokens
+            again = generate(model, more, max_new_tokens=7, spec=spec, capacity=64, prefix_cache=pc)
+            assert again.reused == len(prompts[0]) + len(first.tokens) and again.tokens == ref, (kv_dtype, spec)
+            assert len(captured) == counts[0], (kv_dtype, spec, len(captured), counts)
+
+            # another capacity: new buffers, new captures, and the old slab is not kept beside them
+            generate(model, prompts[0], max_new_tokens=7, spec=spec, capacity=128)
+            assert len(captured) > counts[0], (kv_dtype, spec)
+            assert model._slab is not None and model._slab.capacity == 128, (kv_dtype, spec)  # noqa
+
+
+def test_short_prefills_through_the_captured_step():
+    """
+    With `step_prefill_max` a prefill of at most that many tokens -- a short prompt, or what is left of one resumed
+    from a stored state -- runs through the decoder's captured step: in the buffers and with the steps the last
+    decoder left, generating what the eager prefill generates; a longer one takes the eager forward as before.
+    """
+
+    cfg, _, src = synthetic_source()
+    rng = np.random.default_rng(17)
+    short = rng.integers(0, cfg.vocab_size, 9).tolist()
+    more = rng.integers(0, cfg.vocab_size, 21).tolist()
+    long = rng.integers(0, cfg.vocab_size, 40).tolist()
+    for kv_dtype in ('bf16', 'fp8'):
+        for spec in (0, 3):
+            ops = TorchOps('cpu', kv_dtype=kv_dtype, capture_mode='static')
+            model = load_qwen35(src, ops, dtype='f32', verbose=False, mtp=True)
+            eager_forwards: list = []
+            forward = model.forward
+
+            def counting(*a, _forward=forward, _seen=eager_forwards, **kw):
+                _seen.append(a[0].shape[1])
+                return _forward(*a, **kw)
+
+            model.forward = counting  # type: ignore[method-assign]
+            kw: dict = dict(max_new_tokens=6, spec=spec, capacity=128)
+
+            fresh = load_qwen35(src, TorchOps('cpu', kv_dtype=kv_dtype, capture_mode='static'), dtype='f32',
+                                verbose=False, mtp=True)
+            for prompt in (short, short + more, long):
+                want = generate(fresh, prompt, **kw).tokens
+                eager_forwards.clear()
+                got = generate(model, prompt, step_prefill_max=32, **kw)
+                assert got.tokens == want, (kv_dtype, spec, len(prompt))
+                assert bool(eager_forwards) == (len(prompt) > 32), (kv_dtype, spec, len(prompt), eager_forwards)
+
+            # a follow-up to a stored conversation: only its new tokens are prefilled, through the step
+            pc = PrefixCache(ops, device_bytes=1 << 30, host_bytes=1 << 30)
+            first = generate(model, long, prefix_cache=pc, step_prefill_max=32, **kw)
+            follow = long + first.tokens + short
+            want = generate(fresh, follow, **kw).tokens
+            eager_forwards.clear()
+            again = generate(model, follow, prefix_cache=pc, step_prefill_max=32, **kw)
+            assert again.reused == len(long) + len(first.tokens) and again.tokens == want, (kv_dtype, spec)
+            assert not eager_forwards, (kv_dtype, spec, eager_forwards)
+            assert model._slab is not None and model._slab.fns  # noqa

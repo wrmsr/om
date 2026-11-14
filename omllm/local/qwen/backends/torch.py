@@ -346,6 +346,13 @@ class TorchOps(Ops):
     def concat(self, xs, axis):
         return torch.cat(list(xs), dim=axis)
 
+    def rows_buffer(self, like, total):
+        return torch.empty((like.shape[0], total, *like.shape[2:]), dtype=like.dtype, device=like.device)
+
+    def rows_write(self, buf, start, x):
+        buf[:, start:start + x.shape[1]].copy_(x)
+        return buf
+
     def stack(self, xs, axis):
         return torch.stack(list(xs), dim=axis)
 
@@ -802,9 +809,28 @@ class TorchOps(Ops):
             out.append(a)
         return tuple(out)
 
-    def kv_reserve(self, state, capacity):
+    kv_in_place = True
+
+    def kv_reserve(self, state, capacity, into=None):
         # index writes are in place here, so a prefill fills capacity buffers (the decoder's own, in the end)
-        return self.kv_pad(state, capacity) if self.kv_len(state) < capacity else state
+        n = self.kv_len(state)
+        if n >= capacity:
+            return state
+        if (
+                into is not None and
+                len(into) == len(state) and
+                all(
+                    d.shape[2] == capacity and d.dtype == s.dtype and d.device == s.device and
+                    d.shape[:2] == s.shape[:2] and d.shape[3:] == s.shape[3:]
+                    for d, s in zip(into, state)
+                )
+        ):
+            # an earlier decoder's buffers: no allocation and no zero fill, just the state's own positions
+            if n:
+                for d, s in zip(into, state):
+                    d[:, :, :n].copy_(s)
+            return tuple(into)
+        return self.kv_pad(state, capacity)
 
     def kv_write_state(self, state, pos, k, v):
         return self.kv_write_tokens(state, pos, k, v)

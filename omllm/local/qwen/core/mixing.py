@@ -67,10 +67,17 @@ class StateLayout(lang.Abstract):
 
         raise NotImplementedError
 
-    def reserve(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
+    def reserve(
+            self,
+            ops: Ops,
+            state: tuple[Array, ...],
+            capacity: int,
+            into: tuple[Array, ...] | None = None,
+    ) -> tuple[Array, ...]:
         """
         A functional state given room for `capacity` positions ahead of a long prefill, for a layout whose functional
-        form can write into spare room (attention's KV: Ops.kv_reserve). Default: the state as it is.
+        form can write into spare room (attention's KV: Ops.kv_reserve). `into`: this layer's state arrays as an
+        earlier decoder left them, whose capacity buffers are used where they fit. Default: the state as it is.
         """
 
         return state
@@ -123,8 +130,18 @@ class CompositeStateLayout(StateLayout):
     def pad(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
         return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.pad(ops, s, capacity))
 
-    def reserve(self, ops: Ops, state: tuple[Array, ...], capacity: int) -> tuple[Array, ...]:
-        return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.reserve(ops, s, capacity))
+    def reserve(
+            self,
+            ops: Ops,
+            state: tuple[Array, ...],
+            capacity: int,
+            into: tuple[Array, ...] | None = None,
+    ) -> tuple[Array, ...]:
+        parts = self._split(ops, state)
+        intos: ta.Sequence[tuple[Array, ...] | None] = [None] * len(parts)
+        if into is not None and len(into) == len(state):
+            intos = self._split(ops, into)
+        return tuple(a for p, s, i in zip(self._parts, parts, intos) for a in p.reserve(ops, s, capacity, i))
 
     def export(self, ops: Ops, state: tuple[Array, ...], seq_len: int) -> tuple[Array, ...]:
         return tuple(a for p, s in zip(self._parts, self._split(ops, state)) for a in p.export(ops, s, seq_len))

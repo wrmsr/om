@@ -90,6 +90,7 @@ def assemble_generation(args: argparse.Namespace, *, prefix_cache: bool) -> Gene
             capacity=args.capacity or 0,
             static=not args.functional,
             prefill_checkpoints=args.prefill_checkpoints if prefix_cache else 0,
+            step_prefill_max=args.step_prefill_max,
         ),
         spec=spec_config(args),
         prefix=prefix_config(args, enabled=prefix_cache),

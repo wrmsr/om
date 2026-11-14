@@ -24,6 +24,8 @@ from ..load.weights import describe_gguf
 from ..load.weights import open_source
 from ..load.weights import resolve_weights
 from ..prefix.cache import PrefixCache
+from ..tokenizer import DEFAULT_REASONING_EFFORT
+from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
 from .common import GenerationSetup
 from .common import load_model
@@ -63,6 +65,19 @@ def main() -> None:
         '--think',
         action='store_true',
         help='leave reasoning enabled in the chat template',
+    )
+    ap.add_argument(
+        '--open-think',
+        action='store_true',
+        help="with --think, end the prompt with the opened <think> block, as the checkpoints' own templates do: the "
+             'model continues inside it (printed here with the tag put back)',
+    )
+    ap.add_argument(
+        '--reasoning-effort',
+        choices=list(REASONING_EFFORT_INSTRUCTIONS),
+        default=None,
+        help='with --think, on a checkpoint whose chat template takes a reasoning effort (qwen3.8): the level; '
+             f"default: the template's own, {DEFAULT_REASONING_EFFORT}",
     )
     ap.add_argument(
         '-n',
@@ -235,6 +250,14 @@ def main() -> None:
         ),
     )
     ap.add_argument(
+        '--step-prefill-max',
+        type=int,
+        default=0,
+        metavar='N',
+        help='prefill up to N new tokens through the captured 16-token decode step instead of the eager forward '
+             '(a short prompt or follow-up: its fixed cost is most of the eager time); 0: off',
+    )
+    ap.add_argument(
         '--cache-device-mib',
         type=int,
         default=4096,
@@ -304,6 +327,8 @@ def main() -> None:
         else tok.apply_chat(
             [{'role': 'user', 'content': args.prompt}],
             think=args.think,
+            reasoning_effort=args.reasoning_effort,
+            open_think=args.open_think,
         )
     )
     ids = tok.encode(text)
@@ -345,11 +370,15 @@ def main() -> None:
             if save_compile_cache(setup.ops.compile_cache):  # type: ignore[attr-defined]
                 print(f'[gen] saved compile cache to {setup.ops.compile_cache}')  # type: ignore[attr-defined]
 
+    opened = args.think and args.open_think and not args.raw  # the prompt ends inside the reasoning block
+
     def run(ids: list[int]) -> list[int]:
         streamer = Tokenizer.Streamer(tok)
         t0 = time.time()
         n = [0]
         first = [0.0]
+        if opened:
+            sys.stdout.write('<think>\n')
 
         def on_token(i):
             if not n[0]:
@@ -392,7 +421,12 @@ def main() -> None:
         tail = list(out)
         if tail and tail[-1] == im_end:
             tail = tail[:-1]
-        cont = tok.apply_chat([{'role': 'user', 'content': args.follow_up}], think=args.think)
+        cont = tok.apply_chat(
+            [{'role': 'user', 'content': args.follow_up}],
+            think=args.think,
+            open_think=args.open_think,
+            continuation=True,  # (the first turn's system turn carries the reasoning-effort instruction, if any)
+        )
         ids2 = ids + tail + tok.encode('<|im_end|>\n' + cont)
         print(f'\n[gen] follow-up: {len(ids2)} prompt tokens')
         run(ids2)
@@ -415,6 +449,7 @@ def _assemble_by_hand(args: argparse.Namespace, *, prefix_cache: bool) -> Genera
             capacity=args.capacity,
             prefix_cache=pc,
             prefill_checkpoints=args.prefill_checkpoints,
+            step_prefill_max=args.step_prefill_max,
             static=not args.functional,
         ),
         prefix_cache=pc,
