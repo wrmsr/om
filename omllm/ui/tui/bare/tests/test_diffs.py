@@ -72,30 +72,34 @@ class _Run:
 
     def tui(self):
         return headless_ui(inj.override(
-            bind_bare(TuiConfig(
-                model='scripted',
-                immediate=True,
-                in_memory=True,
-                cwd=self.root,
-                fs=True,
-                autoexec=[
-                    '/permissions clear',
-                    f'/permissions add allow glob_fs \'{{"glob":"{self.root}/**","modes":["r"]}}\'',
-                    f'/permissions add ask glob_fs \'{{"glob":"{self.root}/**","modes":["w"]}}\'',
-                ],
-            )),
+            bind_bare(
+                TuiConfig(
+                    model='scripted',
+                    immediate=True,
+                    in_memory=True,
+                    cwd=self.root,
+                    fs=True,
+                    autoexec=[
+                        '/permissions clear',
+                        f'/permissions add allow glob_fs \'{{"glob":"{self.root}/**","modes":["r"]}}\'',
+                        f'/permissions add ask glob_fs \'{{"glob":"{self.root}/**","modes":["w"]}}\'',
+                    ],
+                ),
+
+                agent_rewriter=inj.overrider(
+                    bind_scripted_backend(
+                        tool_call_message(llm.ToolCall(
+                            id='edit-1',
+                            name='edit',
+                            args={'file_path': self.path, 'old_string': 'two\n', 'new_string': 'TWO\n'},
+                        )),
+                        text_message('edited'),
+                    ),
+                ),
+            ),
 
             inj.bind(InputManager, to_const=self.input_manager),
             inj.bind(TerminalTextDisplayer, singleton=True, to_fn=self._build_text_displayer),
-
-            bind_scripted_backend(
-                tool_call_message(llm.ToolCall(
-                    id='edit-1',
-                    name='edit',
-                    args={'file_path': self.path, 'old_string': 'two\n', 'new_string': 'TWO\n'},
-                )),
-                text_message('edited'),
-            ),
         ))
 
 
