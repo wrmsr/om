@@ -105,7 +105,7 @@ async def test_subagent_runs_as_an_agent_scope_of_its_own():
             assert 'note.txt' in child_end.result.content.text
 
             # The parent's session recorded the parent's run alone.
-            storage = await hui.ui_injector[agn.InMemorySessionStorage]
+            storage = await hui.agent_injector[agn.InMemorySessionStorage]
             assert [type(e.message) for e in await storage.get_entries()] == [  # type: ignore[attr-defined]
                 llm.UserMessage,
                 llm.AiMessage,
@@ -114,7 +114,7 @@ async def test_subagent_runs_as_an_agent_scope_of_its_own():
             ]
 
             # The child's process scope is gone with it.
-            pm = await hui.ui_injector[processes.ProcessManager]
+            pm = await hui.agent_injector[processes.ProcessManager]
             assert not pm.root.children
 
             # And the root's own tool instances were not the child's: the child got instances of its own.
@@ -198,7 +198,7 @@ async def test_subagents_in_one_message_each_get_a_scope_of_their_own():
             assert sorted(tr.content[0].text for tr in _tool_results(result.new_messages)) == ['first', 'second']
             assert len({u.run_id for u in _relayed(events)}) == 2
 
-            pm = await hui.ui_injector[processes.ProcessManager]
+            pm = await hui.agent_injector[processes.ProcessManager]
             assert not pm.root.children
 
 

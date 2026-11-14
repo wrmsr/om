@@ -113,7 +113,7 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
             agent_tools().bind_item(to_const=probe.tool()),
         ),
     )) as hui:
-        probe.injector = hui.ui_injector
+        probe.injector = hui.agent_injector
         probe_tool = check.not_none(hui.agent.state.context.tools)['probe']
 
         result = await hui.agent.prompt('go')
@@ -146,7 +146,7 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
 
         # And none of it is open once the calls are done.
         with pytest.raises(inj.ScopeNotOpenError):
-            await hui.ui_injector[agn.ToolContext]
+            await hui.agent_injector[agn.ToolContext]
 
 
 @pytest.mark.asyncs('asyncio')

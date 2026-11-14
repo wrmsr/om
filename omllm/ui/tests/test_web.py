@@ -57,8 +57,8 @@ async def test_web_defaults_resolve_through_injection():
         in_memory=True,
         web=True,
     ))) as hui:
-        assert isinstance(await hui.ui_injector[agn.WebFetcher], agn.HttpWebFetcher)
-        assert isinstance(await hui.ui_injector[agn.WebSearcher], DuckduckgoWebSearcher)
+        assert isinstance(await hui.agent_injector[agn.WebFetcher], agn.HttpWebFetcher)
+        assert isinstance(await hui.agent_injector[agn.WebSearcher], DuckduckgoWebSearcher)
         assert {t.name for t in check.not_none(hui.agent.state.context.tools)} == {'web_search', 'web_fetch'}
 
 
@@ -121,7 +121,7 @@ async def test_live_search_and_fetch_through_the_ui_tools():
             inj.bind(agn.PermissionAsker, to_const=_AllowingAsker()),
         ),
     )) as hui:
-        tools = await hui.ui_injector[agn.ToolSet]
+        tools = await hui.agent_injector[agn.ToolSet]
         search = await tools['web_search'].executor(agn.ToolContext(args={'query': 'Python official documentation'}))
         assert search.error is None, search.error
         assert 'https://' in search.content.text
