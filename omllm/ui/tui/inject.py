@@ -1,3 +1,5 @@
+import typing as ta
+
 from omcore import inject as inj
 
 from ..inject.inject import bind_ui
@@ -8,11 +10,14 @@ from .rendering.inject import bind_rendering
 ##
 
 
-def bind_tui(config: TuiConfig) -> inj.Elements:
+def bind_tui(
+        config: TuiConfig,
+        **kwargs: ta.Any,
+) -> inj.Elements:
     lst: list[inj.Elemental] = [
         inj.bind(TuiConfig, to_const=config),
 
-        bind_ui(config),
+        bind_ui(config, **kwargs),
 
         bind_rendering(config),
     ]

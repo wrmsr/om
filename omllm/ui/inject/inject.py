@@ -29,7 +29,7 @@ class InjectorBox(dc.Box[inj.AsyncInjector], abstract=True):
     pass
 
 
-def _bind_injector_import(box_cls: type[InjectorBox], key: ta.Any) -> inj.Elemental:
+def bind_injector_import(box_cls: type[InjectorBox], key: ta.Any) -> inj.Elemental:
     return inj.bind(key, to_async_fn=inj.target(i=box_cls)(lambda i: i.v[key]))
 
 
@@ -76,8 +76,8 @@ class UiBinder:
 
             #
 
-            _bind_injector_import(UiInjector, ui.QuitSignal),
-            _bind_injector_import(UiInjector, ui.TextDisplayer),
+            bind_injector_import(UiInjector, ui.QuitSignal),
+            bind_injector_import(UiInjector, ui.TextDisplayer),
         ))
 
     async def _provide_agent_ui_injector(
@@ -106,7 +106,7 @@ class UiBinder:
 
             #
 
-            _bind_injector_import(UiInjector, agn.PermissionAsker),
+            bind_injector_import(UiInjector, agn.PermissionAsker),
         ))
 
     async def _provide_agent_injector(
@@ -139,16 +139,16 @@ class UiBinder:
 
             #
 
-            _bind_injector_import(AgentInjector, agn.Agent),
-            _bind_injector_import(AgentInjector, agn.Session),
+            bind_injector_import(AgentInjector, agn.Agent),
+            bind_injector_import(AgentInjector, agn.Session),
 
-            _bind_injector_import(AgentInjector, AgentSetup),
+            bind_injector_import(AgentInjector, AgentSetup),
 
-            _bind_injector_import(AgentInjector, AgentUiInjector),
+            bind_injector_import(AgentInjector, AgentUiInjector),
 
             #
 
-            _bind_injector_import(AgentUiInjector, CommandsManager),
+            bind_injector_import(AgentUiInjector, CommandsManager),
 
             #
 
@@ -159,5 +159,8 @@ class UiBinder:
 ##
 
 
-def bind_ui(config: UiConfig) -> inj.Elements:
-    return UiBinder(config).bind_ui()
+def bind_ui(
+        config: UiConfig,
+        **kwargs: ta.Any,
+) -> inj.Elements:
+    return UiBinder(config, **kwargs).bind_ui()
