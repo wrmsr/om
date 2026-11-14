@@ -35,7 +35,10 @@ TOOLS: list[dict] = [
         'type': 'function',
         'function': {
             'name': 'read_file',
-            'description': 'Read a text file (optionally a line range) relative to the working directory.',
+            'description': (
+                'Read a text file relative to the working directory: the whole file as it is, or, with start / end, '
+                'that range of lines, numbered.'
+            ),
             'parameters': {
                 'type': 'object',
                 'properties': {
@@ -180,10 +183,18 @@ class Tools:
             start: int | None = None,
             end: int | None = None,
     ) -> str:
-        lines = self._path(path).read_text(errors='replace').split('\n')
+        text = self._path(path).read_text(errors='replace')
+        if start is None and end is None:
+            # The whole file, as it is: what the model writes back is then what it read, character for character --
+            # nothing to strip, and a prompt-lookup draft source can draft the unchanged lines (NEXT.md 1.1).
+            return text
+
+        lines = text.split('\n')
         a = max(1, start or 1)
         b = min(len(lines), end or len(lines))
-        return '\n'.join(f'{i:5d}| {lines[i - 1]}' for i in range(a, b + 1))
+        # A range is numbered as `cat -n` numbers: a tab after the number, the line as it is. (A '| ' gutter once had
+        # the 27B conclude that every line of a file began with a space, and write them back that way.)
+        return '\n'.join(f'{i:6d}\t{lines[i - 1]}' for i in range(a, b + 1))
 
     def t_write_file(self, path: str, content: str) -> str:
         p = self._path(path)

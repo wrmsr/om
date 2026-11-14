@@ -721,7 +721,7 @@ def _process_dataclass__5a9755e813bde9abcabe7284fdbb926fae2bbac4():
 
 
 @_register(
-    installer_sha1='b8c8b7d573d11a8587b2ee24978d9840cab915fc',
+    installer_sha1='a6c5f408f32d13211c5a1ed6b3d6dbbd7c3b776f',
     spec_keys=(
         (
             "(((True, True, True, False, False, False, True, False, False, False, False, False, False, False, False, Fa"
@@ -730,6 +730,7 @@ def _process_dataclass__5a9755e813bde9abcabe7284fdbb926fae2bbac4():
             "None, False, False, False), (('tool_choice', True, True, None, True, False, False, None), 'instance', 'val"
             "ue', None, False, False, False), (('thinking', True, True, None, True, False, False, None), 'instance', 'v"
             "alue', None, False, False, False), (('think_open', True, True, None, True, False, False, None), 'instance'"
+            ", 'value', None, False, False, False), (('syntax', True, True, None, True, False, False, None), 'instance'"
             ", 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()"
             "), ((),), (), (False,)))"
         ),
@@ -738,7 +739,7 @@ def _process_dataclass__5a9755e813bde9abcabe7284fdbb926fae2bbac4():
         ('omllm.local.qwen.constrain.grammar', 'ToolConstraint'),
     ),
 )
-def _process_dataclass__b8c8b7d573d11a8587b2ee24978d9840cab915fc():
+def _process_dataclass__a6c5f408f32d13211c5a1ed6b3d6dbbd7c3b776f():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -753,6 +754,8 @@ def _process_dataclass__b8c8b7d573d11a8587b2ee24978d9840cab915fc():
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
         __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
@@ -766,6 +769,7 @@ def _process_dataclass__b8c8b7d573d11a8587b2ee24978d9840cab915fc():
                 tool_choice=self.tool_choice,
                 thinking=self.thinking,
                 think_open=self.think_open,
+                syntax=self.syntax,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -780,7 +784,8 @@ def _process_dataclass__b8c8b7d573d11a8587b2ee24978d9840cab915fc():
                 self.tools == other.tools and
                 self.tool_choice == other.tool_choice and
                 self.thinking == other.thinking and
-                self.think_open == other.think_open
+                self.think_open == other.think_open and
+                self.syntax == other.syntax
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -794,12 +799,14 @@ def _process_dataclass__b8c8b7d573d11a8587b2ee24978d9840cab915fc():
             tool_choice: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             thinking: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             think_open: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+            syntax: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
         ) -> __dataclass__None:
             self.tok = tok
             self.tools = tools
             self.tool_choice = tool_choice
             self.thinking = thinking
             self.think_open = think_open
+            self.syntax = syntax
             self.__post_init__()
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -812,6 +819,7 @@ def _process_dataclass__b8c8b7d573d11a8587b2ee24978d9840cab915fc():
             parts.append(f"tool_choice={self.tool_choice!r}")
             parts.append(f"thinking={self.thinking!r}")
             parts.append(f"think_open={self.think_open!r}")
+            parts.append(f"syntax={self.syntax!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3948,6 +3956,148 @@ def _process_dataclass__e2d580eb8390b3733970c3370f42ef267dc7ed6e():
 
 
 @_register(
+    installer_sha1='80fea30b87208d34ad03d85b3efb38910459ee2a',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
+            "se, False, False, False), ((('name', True, True, None, True, False, False, None), 'instance', 'missing', N"
+            "one, False, False, False), (('call_syntax', True, True, None, True, False, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('open_think', True, True, None, True, False, False, None), 'instance', '"
+            "value', None, False, False, False), (('empty_think', True, True, None, True, False, False, None), 'instanc"
+            "e', 'value', None, False, False, False), (('python_literals', True, True, None, True, False, False, None),"
+            " 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (Fals"
+            "e, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.local.qwen.serve.chat', 'ChatFormat'),
+    ),
+)
+def _process_dataclass__80fea30b87208d34ad03d85b3efb38910459ee2a():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                name=self.name,
+                call_syntax=self.call_syntax,
+                open_think=self.open_think,
+                empty_think=self.empty_think,
+                python_literals=self.python_literals,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.name == other.name and
+                self.call_syntax == other.call_syntax and
+                self.open_think == other.open_think and
+                self.empty_think == other.empty_think and
+                self.python_literals == other.python_literals
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'name',
+            'call_syntax',
+            'open_think',
+            'empty_think',
+            'python_literals',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.name,
+                self.call_syntax,
+                self.open_think,
+                self.empty_think,
+                self.python_literals,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            name: __dataclass__init__fields__0__annotation,
+            call_syntax: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            open_think: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            empty_think: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+            python_literals: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'name', name)
+            __dataclass__object_setattr(self, 'call_syntax', call_syntax)
+            __dataclass__object_setattr(self, 'open_think', open_think)
+            __dataclass__object_setattr(self, 'empty_think', empty_think)
+            __dataclass__object_setattr(self, 'python_literals', python_literals)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"name={self.name!r}")
+            parts.append(f"call_syntax={self.call_syntax!r}")
+            parts.append(f"open_think={self.open_think!r}")
+            parts.append(f"empty_think={self.empty_think!r}")
+            parts.append(f"python_literals={self.python_literals!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
     installer_sha1='90743ff9b91b5e5027b585bbd2fe83f18e29e304',
     spec_keys=(
         (
@@ -4033,7 +4183,7 @@ def _process_dataclass__90743ff9b91b5e5027b585bbd2fe83f18e29e304():
 
 
 @_register(
-    installer_sha1='79f0c300e29c0e069b24b44b2b6e5df9e824f0dd',
+    installer_sha1='6a30b638c2474824ad927ecab6db080cb68d019b',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
@@ -4042,17 +4192,18 @@ def _process_dataclass__90743ff9b91b5e5027b585bbd2fe83f18e29e304():
             "', 'value', None, False, False, False), (('preserve_thinking', True, True, None, True, False, False, None)"
             ", 'instance', 'value', None, False, False, False), (('reasoning_effort', True, True, None, True, False, Fa"
             "lse, None), 'instance', 'value', None, False, False, False), (('open_think', True, True, None, True, False"
-            ", False, None), 'instance', 'value', None, False, False, False), (('max_queue', True, True, None, True, Fa"
-            "lse, False, None), 'instance', 'value', None, False, False, False), (('model_name', True, True, None, True"
-            ", False, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,"
-            "), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            ", False, None), 'instance', 'value', None, False, False, False), (('chat_format', True, True, None, True, "
+            "False, False, None), 'instance', 'value', None, False, False, False), (('max_queue', True, True, None, Tru"
+            "e, False, False, None), 'instance', 'value', None, False, False, False), (('model_name', True, True, None,"
+            " True, False, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (F"
+            "alse,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.local.qwen.serve.inject', 'ServeConfig'),
     ),
 )
-def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
+def _process_dataclass__6a30b638c2474824ad927ecab6db080cb68d019b():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -4073,6 +4224,8 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
         __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
         __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
         __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__HAS_DEFAULT_FACTORY = __dataclass__globals['__dataclass__HAS_DEFAULT_FACTORY']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -4089,6 +4242,7 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
                 preserve_thinking=self.preserve_thinking,
                 reasoning_effort=self.reasoning_effort,
                 open_think=self.open_think,
+                chat_format=self.chat_format,
                 max_queue=self.max_queue,
                 model_name=self.model_name,
             )
@@ -4106,6 +4260,7 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
                 self.preserve_thinking == other.preserve_thinking and
                 self.reasoning_effort == other.reasoning_effort and
                 self.open_think == other.open_think and
+                self.chat_format == other.chat_format and
                 self.max_queue == other.max_queue and
                 self.model_name == other.model_name
             )
@@ -4118,6 +4273,7 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
             'preserve_thinking',
             'reasoning_effort',
             'open_think',
+            'chat_format',
             'max_queue',
             'model_name',
         }
@@ -4149,6 +4305,7 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
                 self.preserve_thinking,
                 self.reasoning_effort,
                 self.open_think,
+                self.chat_format,
                 self.max_queue,
                 self.model_name,
             ))
@@ -4162,8 +4319,9 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
             preserve_thinking: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
             reasoning_effort: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
             open_think: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            max_queue: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            model_name: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            chat_format: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
+            max_queue: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
+            model_name: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
         ) -> __dataclass__None:
             if defaults is __dataclass__HAS_DEFAULT_FACTORY:
                 defaults = __dataclass__init__fields__0__default_factory()
@@ -4172,6 +4330,7 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
             __dataclass__object_setattr(self, 'preserve_thinking', preserve_thinking)
             __dataclass__object_setattr(self, 'reasoning_effort', reasoning_effort)
             __dataclass__object_setattr(self, 'open_think', open_think)
+            __dataclass__object_setattr(self, 'chat_format', chat_format)
             __dataclass__object_setattr(self, 'max_queue', max_queue)
             __dataclass__object_setattr(self, 'model_name', model_name)
 
@@ -4185,6 +4344,7 @@ def _process_dataclass__79f0c300e29c0e069b24b44b2b6e5df9e824f0dd():
             parts.append(f"preserve_thinking={self.preserve_thinking!r}")
             parts.append(f"reasoning_effort={self.reasoning_effort!r}")
             parts.append(f"open_think={self.open_think!r}")
+            parts.append(f"chat_format={self.chat_format!r}")
             parts.append(f"max_queue={self.max_queue!r}")
             parts.append(f"model_name={self.model_name!r}")
             return (

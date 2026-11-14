@@ -24,6 +24,7 @@ from ..load.weights import describe_gguf
 from ..load.weights import open_source
 from ..load.weights import resolve_weights
 from ..prefix.cache import PrefixCache
+from ..serve.chat import chat_format_for
 from ..tokenizer import DEFAULT_REASONING_EFFORT
 from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
@@ -68,9 +69,11 @@ def main() -> None:
     )
     ap.add_argument(
         '--open-think',
-        action='store_true',
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="with --think, end the prompt with the opened <think> block, as the checkpoints' own templates do: the "
-             'model continues inside it (printed here with the tag put back)',
+             "model continues inside it (printed here with the tag put back); default: as the checkpoint's chat "
+             'format has it',
     )
     ap.add_argument(
         '--reasoning-effort',
@@ -320,6 +323,8 @@ def main() -> None:
         _assemble_by_hand(args, prefix_cache=use_prefix)
     )
     tok, runner, prefix_cache = setup.tok, setup.runner, setup.prefix_cache
+    if args.open_think is None:
+        args.open_think = chat_format_for(tok).open_think
 
     text = (
         args.prompt

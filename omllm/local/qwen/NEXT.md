@@ -22,45 +22,87 @@ calls and JSON mode; a KL harness for quality; a small local agent for exercisin
 ## 0. Immediate: the checkpoints' own chat format
 
 **Found 2026-11-13, by rendering the checkpoints' chat templates as a black box (`tests/chat_oracle.py`) beside
-`serve/chat.py`: the format this code renders, constrains and parses is not the one these models were trained on.**
-It was written from knowledge of the earlier Qwen format (JSON tool calls), and nothing checked it against the
-templates the checkpoints carry. Where the templates differ from us (qwen3.8:27b rendered in full; qwen3.5:4b shows
-the same first four, and the 0.8b / 9b templates carry the same call syntax):
+`serve/chat.py`: the format this code rendered, constrained and parsed was not the one these models were trained on.**
+It had been written from knowledge of the earlier Qwen format (JSON tool calls), and nothing checked it against the
+templates the checkpoints carry. **Closed 2026-11-14**: `serve/chat.py`'s `ChatFormat` (`QWEN35`, `QWEN38`, and
+`LEGACY` for what was there) is chosen from the checkpoint's template, and the renderer, the tool grammar, both
+parsers and the engine follow it. What differed, all now as the templates have it:
 
-- *The tools preamble.* Theirs: "You have access to the following functions:", the schemas, then a worked example
-  of a call and an `<IMPORTANT>` list of reminders. Ours: the older "You may call one or more functions ..." text.
-- *A system message with tools.* Theirs comes after the tools block; ours before it.
-- *A tool call.* Theirs: `<tool_call>`, `<function=name>`, one `<parameter=key>` ... `</parameter>` block per
-  argument (a string's value raw, anything else as JSON), `</function>`, `</tool_call>`. Ours: a JSON object,
-  `<tool_call>{"name": ..., "arguments": {...}}</tool_call>`.
-- *The generation prompt with thinking on.* Theirs ends `<think>\n`, so the model continues inside the block; ours
-  ends `assistant\n` and the model opens the block itself. **Available by option** (`--open-think`, below).
-- *Assistant turns in the history* (3.8; a 3.5 turn without reasoning renders as ours does). Theirs always carry a
-  `<think>` block -- empty when there was no reasoning -- and in the conversation rendered kept the reasoning of the
-  turns before the last user message, which our `preserve_thinking` also does but the 3.5 format did not.
-- *Reasoning effort* (3.8 only): an instruction at the head of the system turn. **Done** (below).
+- *The tools preamble.* "You have access to the following functions:", the schemas, a worked example of a call and
+  an `<IMPORTANT>` list of reminders -- with the system message after the tools block, not before.
+- *A tool call.* `<tool_call>`, `<function=name>`, one `<parameter=key>` ... `</parameter>` block per argument (a
+  string's value raw, anything else as JSON), `</function>`, `</tool_call>` -- where ours was a JSON object. The
+  grammar (`Acceptor(syntax='function')`) holds the name to the declared functions, the parameters to the declared
+  ones with the required all present, and each value to its schema: free text up to the closing tag for anything
+  that may be a string, the enum's values, JSON otherwise. Its masks cost less than the JSON syntax's: 138 ms for a
+  first call on the 248k vocabulary (278), 1 ms after.
+- *The generation prompt with thinking on* ends `<think>\n`: the model continues inside the block.
+- *Assistant turns in the history.* A turn that keeps its reasoning has the block even when it is empty; qwen3.8's
+  template keeps every turn's (as our `preserve_thinking` does), qwen3.5's only those after the last user query.
+- *Reasoning effort* (3.8 only): an instruction at the head of the system turn.
 
-The models do follow what they are given -- the tool grammar leaves them no choice about the call syntax -- so
-nothing is broken in the sense of failing; but every tool-using prompt is off-distribution, and how much answer
-quality that costs has not been measured. What bringing it into line takes, in order:
+The oracle compares twelve conversation shapes, thinking on and off, at every reasoning effort, and exits non-zero
+on a difference; qwen3.8:27b and qwen3.5:4b agree with it character for character. Checked live on the 27B over HTTP:
+`get_weather` called with `{"city": "Paris", "days": 3, "units": "celsius"}`; the turn with its result reusing 494 of
+530 prompt tokens; a `write_file` whose `content` is thirty lines of Python as one text parameter, and a boolean
+beside it; forced and forbidden calls; streamed arguments equal to the unstreamed ones.
 
-1. `render_chat` per template family behind one interface (3.8 differs from 3.5 in the effort switch and in how
-   history turns carry `<think>`), with the oracle run over a wider set of conversations as its test whenever Jinja
-   and a checkpoint are at hand, and golden strings taken from it for the suite.
-2. Parsing: `parse_output` and `StreamParser` for `<function=...>` blocks, typing each parameter by the tool's schema
-   (a string is the raw text between the tags; anything else is JSON), and a stream that starts inside `<think>`.
-3. The tool grammar (`ToolConstraint`): function name from the declared set, parameter names from that function's
-   schema with the required ones present, a string parameter free text up to its closing tag, the others the JSON
-   grammar that exists. Jump-forward (1.3) gets easier in this format: the tags are long forced runs.
-4. Then measure: tool-call validity and task success on an agent loop, old format against new.
+What is left of this item:
 
-The reasoning-effort part is in: `Tokenizer.reasoning_efforts` / `reasoning_instruction`, a request's
-`reasoning_effort`, `--reasoning-effort`; the default is the template's (`xhigh`), where until now the 27B was in
-effect served at `medium`. The oracle checks the instruction against the template for every level.
+1. **Measure what it bought.** Tool-call validity was never the question (the grammar forces it); task success on
+   an agent loop, old format against new (`--chat-format legacy` is the old one), is. A first measurement is below;
+   what it needs next is tasks hard enough to fail.
+2. ~~Text parameters stream whole, when their block closes.~~ Done the same day: a string parameter's text goes out
+   JSON-escaped as it is written; parameters of other types still go out whole, typed, when their block closes.
+3. A text value cannot contain its own closing sequence (a newline and `</parameter>`), by construction of the
+   format; nothing else is refused of it. A file that contains that text cannot be written through a call.
+4. Jump-forward (1.3) is easier in this syntax: `<function=`, `<parameter=`, the closing tags are long forced runs.
+5. The oracle needs Jinja and a checkpoint, so it is a tool, not part of the suite; the suite pins the formats with
+   strings taken from it (`test_chat.py::test_function_format`). A new checkpoint is one oracle run away from knowing
+   whether it is one of these formats.
 
-A first look at what the 27B does with it, and at what one of the gaps above costs: three questions, greedy,
-thinking on, reasoning tokens / answer tokens -- rendered as this code renders the generation prompt, and with the
-template's `<think>\n` appended to it:
+**The measurement (2026-11-14).** `tests/agent_eval.py` drives the agent loop (entrypoints/agent.py: read / write /
+list / grep, no shell) through small tasks in a temporary directory and checks what is on disk afterwards. 27B,
+reasoning effort medium, each task once greedy and once at temperature 0.7, the server started once with
+`--chat-format legacy` and once in the checkpoint's own format:
+
+| tasks                                                     | legacy format | the checkpoint's own |
+|-----------------------------------------------------------|---------------|----------------------|
+| twelve small file tasks, greedy                           | 12 of 12      | 12 of 12             |
+| twelve small file tasks, temperature 0.7                  | 12 of 12      | 12 of 12             |
+| five exact copies of hard-to-quote files, greedy          | 3 of 5        | 3 of 5               |
+| five exact copies of hard-to-quote files, temperature 0.7 | 4 of 5        | 2 of 5               |
+
+**These tasks do not tell the two formats apart.** The twelve are too easy for the 27B in either. The copies fail in
+both, and not by syntax: the same slip in both formats on the same file (a space inserted after `\\s+` in a
+JSON-escaped regex, three runs of four), trailing spaces miscounted (three for two), and three runs that ended
+without writing the file. No call was malformed in either format (the grammar), and none failed to parse. So the case
+for the checkpoints' format rests, for now, on what else was measured -- the model reasons when its block is
+opened for it, and text arguments are raw text, which lookup drafts (1.1) and nothing has to escape -- and on it
+being what the model was trained on; a benchmark with the size and difficulty to show a difference in task success
+is still owed. Ten samples a format on the copies decide nothing either way.
+
+Two things the measurement turned up on the way. The agent's `read_file` numbered lines with a `| ` gutter, and the
+27B, in the new format, took the space after the bar for the file's own and wrote every line back with it (the one
+failure of the first run of the twelve; numbered as `cat -n` numbers now, and the task passes). And one task's
+wording ("optional whitespace") was read defensibly as zero-or-one where the check wanted zero-or-more: reworded.
+The tokenizer was checked too while looking for the inserted space: every one of the copy files encodes and decodes
+back exactly, whole and streamed, raw and with line numbers.
+
+One change came of it: the agent's `read_file` now returns a whole file as it is, and numbers lines only when asked
+for a range. In the checkpoint's format the copies then come out 7 of 10 (3 greedy, 4 sampled) where numbered reads
+gave 5, the twelve tasks stay 12 of 12 in two thirds of the time, and a file read that way is one prompt lookup can
+draft when it is written back (1.1). What still fails is one thing: the inserted space in `data.json`, in every run
+of every configuration that wrote the file -- five of five. It is the checkpoint's, not our quantization's: at that
+token the right continuation (`\"`) has a logit of 21.9 and the wrong one (a space, then `\"`) 30.6 with the int4
+weights, and 19.6 against 30.0 with the same blob held at int8. The model is sure a space belongs between `\\s+`
+and a quote.
+
+Reasoning effort (2026-11-13): `Tokenizer.reasoning_efforts` / `reasoning_instruction`, a request's
+`reasoning_effort`, `--reasoning-effort`; the default is the template's (`xhigh`), where until then the 27B was in
+effect served at `medium`. A first look at what the 27B does with it, and at what the generation prompt costs: three
+questions, greedy, thinking on, reasoning tokens / answer tokens -- with the generation prompt as it was, and with the
+template's `<think>\n`:
 
 | question                    | prompt ends      | low        | medium      | xhigh       |
 |-----------------------------|------------------|------------|-------------|-------------|
@@ -74,19 +116,9 @@ template's `<think>\n` appended to it:
 Nine samples characterise nothing, but two things show. The level changes the answer more than the amount of
 reasoning: at `xhigh` the 27B answers tersely (17 tokens where the other levels write 200-360), and its reasoning is
 not uniformly longer. And without the opened `<think>` block the model can skip reasoning altogether in thinking mode
-(2 tokens, the bat and the ball at `medium`) where with it, it reasons: the generation prompt is the cheapest of the
-gaps to close and is not cosmetic.
-
-So that one is closed, by option: `serve --open-think` (`Engine(open_think=)`, `ServeConfig.open_think`;
-`render_chat(open_think=)`). The prompt ends with the opened block and everything that reads the answer is told it
-starts inside it: `parse_output` and `StreamParser` (`think_open=`), and the grammar's controllers, so that a forced
-tool call or a JSON value waits for the block the prompt opened to close (`ToolConstraint` / `JsonConstraint`
-`think_open=`). The memoised ids of an assistant turn needed nothing: they are the generation prompt's ids plus the
-answer's, and the opening is the prompt's. Checked live on the 27B: reasoning at every level, a follow-up reusing 161
-of 176 prompt tokens, a forced tool call and a JSON-mode answer each valid after their reasoning. It is off by default
-only because it changes every thinking-mode prompt and the engine tests drive a random model that never closes a
-block; it becomes the default with step 1. (Found on the way: `parse_output` took a reasoning block that never
-closed -- the budget ran out mid-thought -- for content, where `StreamParser` called it reasoning. Reasoning now.)
+(2 tokens, the bat and the ball at `medium`) where with it, it reasons. (Found on the way: `parse_output` took a
+reasoning block that never closed -- the budget ran out mid-thought -- for content, where `StreamParser` called it
+reasoning. Reasoning now.)
 
 
 ## 0.1 A citizen of the repo
@@ -209,6 +241,24 @@ generation with lookup rounds is 20 ms, and every generation's first token comes
 92 ms). Unwarmed it is still far worse -- the first lookup round ever compiles those steps (~25 s on a loaded
 machine) -- which `serve --warmup` covers with a prompt that provokes one.
 
+**Through a tool call (2026-11-14).** What an agent copies, it mostly copies into a call: a file read with one
+tool and written back, changed, with another. The same 1.3k-token file, read into the conversation as a tool result
+and rewritten with one rename through `write_file` (27B, uncompiled steps, so the tok/s are low throughout; the
+file came back right in every row):
+
+| call syntax, tool result                 | head, k=3: tok/round, tok/s | lookup n=6 k=15 over it  |
+|------------------------------------------|-----------------------------|--------------------------|
+| the checkpoint's own, result as raw text | 3.81, 134                   | 11.12, 359               |
+| the checkpoint's own, numbered lines     | 3.82, 132                   | 5.14, 169                |
+| legacy (JSON), numbered lines            | 3.77, 132                   | 4.92, 168                |
+
+In the checkpoint's format a string argument is raw text, so a file body written through a call is the file's own
+tokens and lookup drafts it as it does a plain rewrite: 2.7x the head. But only if the file was *read* as raw text:
+line numbers in the tool result end every match at the end of its line, and the yield halves. The agent's
+`read_file` returned every read numbered; it now returns a whole file as it is and numbers only a range (section 0
+has what that did to its task success: nothing bad). (The legacy syntax with a raw result is missing from the
+table: the model made a different call there, 62 tokens, and wrote no file.)
+
 On "the same output": drafts change only the speed in exact arithmetic. In bf16 a wider verify step rounds
 differently, and where two tokens are a rounding step apart greedy decoding can take the other. Two of these twelve
 lookup runs left the head-only transcript; the one examined (the head-only run there is also the plain decoder's)
@@ -277,6 +327,23 @@ With speculation on, the forced run can simply be supplied as the draft at lengt
 (it is accepted with certainty); without, it is a verify-shaped step with no sampling. Tokenisation subtlety:
 the forced bytes must be split into tokens the model would have produced (the trie gives a canonical split; the
 grammar then accepts any tokenisation of the same bytes, so it is safe).
+
+**What there is to gain, measured (2026-11-14).** Four of the agent's calls (two reads, a grep, a short write) in
+each call syntax, on the real vocabulary:
+
+| call syntax          | tokens | of them argument values | with one allowed token | longest such run |
+|----------------------|--------|-------------------------|------------------------|------------------|
+| the checkpoints' own | 172    | 38                      | 40                     | 2                |
+| legacy (JSON)        | 134    | 38                      | 8                      | 1                |
+
+Three quarters of a call is scaffolding in either syntax, and the checkpoints' own spends 28% more tokens on it --
+but almost none of it is forced *token by token*: the bytes are, and the vocabulary offers several ways to cut them
+(`</` `parameter` `>` or `</parameter` `>` ...), so a mask of one token is rare and never lasts. Which settles how
+this has to be built: from the acceptor's forced *bytes* (walk while one byte is alive), cut into tokens the way the
+tokenizer cuts them, and offered as a draft to be verified, not by looking for single-token masks. In the function
+syntax the forced runs are long -- `\n</parameter>\n<`, `</function>\n</tool_call>` -- which at a dozen drafts a
+round is most of a call's ~35 scaffolding tokens in three or four rounds where the head takes nine.
+
 
 ### 1.4 Measurements owed on the real model
 

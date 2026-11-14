@@ -35,6 +35,7 @@ from omcore import dataclasses as dc
 
 from ..constrain.grammar import JsonConstraint
 from ..constrain.grammar import ToolConstraint
+from ..constrain.grammar import Vocab
 from ..core.errors import Cancelled
 from ..decode.generation import Generation
 from ..decode.observers import Observer
@@ -43,9 +44,12 @@ from ..decode.runners import GenerationParams
 from ..decode.runners import GenerationRunner
 from ..decode.terminators import StopStringTerminator
 from ..prefix.cache import PrefixCache
+from ..tokenizer import DEFAULT_REASONING_EFFORT
 from ..tokenizer import REASONING_EFFORT_INSTRUCTIONS
 from ..tokenizer import Tokenizer
+from .chat import ChatFormat
 from .chat import StreamParser
+from .chat import chat_format_for
 from .chat import parse_output
 from .chat import render_assistant_turn
 from .chat import render_chat
@@ -220,11 +224,13 @@ class _ChatStream(Observer):
             deliver: ta.Callable[[list[tuple[str, ta.Any]]], None] | None,
             t0: float,
             think_open: bool = False,
+            fmt: ChatFormat | None = None,
+            tools: ta.Sequence[dict] | None = None,
     ) -> None:
         super().__init__()
 
         self._streamer = Tokenizer.Streamer(tok)
-        self._parser = StreamParser(think_open)
+        self._parser = StreamParser(think_open, fmt, tools) if fmt is not None else StreamParser(think_open)
         self._eos = eos
         self._stop = stop
         self._deliver = deliver
@@ -274,11 +280,17 @@ class _ChatStream(Observer):
         return text, stopped
 
 
-def _constraint(req: Request, tok: Tokenizer, think_open: bool = False) -> ToolConstraint | JsonConstraint | None:
+def _constraint(
+        req: Request,
+        tok: Tokenizer,
+        think_open: bool = False,
+        call_syntax: str = 'json',
+) -> ToolConstraint | JsonConstraint | None:
     """
-    Tools present: every tool call the model opens is grammar-constrained to the declared schemas, and tool_choice
-    'none' / 'required' / a named function forbids or forces one (constrain/grammar.py). Without tools, response_format
-    json_object / json_schema constrains the content to one JSON value instead.
+    Tools present: every tool call the model opens is grammar-constrained to the declared schemas, in the call syntax
+    of the checkpoint's chat format, and tool_choice 'none' / 'required' / a named function forbids or forces one
+    (constrain/grammar.py). Without tools, response_format json_object / json_schema constrains the content to one
+    JSON value instead.
     """
 
     if req.tools:
@@ -288,6 +300,7 @@ def _constraint(req: Request, tok: Tokenizer, think_open: bool = False) -> ToolC
             req.tool_choice or 'auto',
             thinking=req.enable_thinking,
             think_open=think_open,
+            syntax=call_syntax,
         )
 
     rf = req.response_format
@@ -320,18 +333,22 @@ class Engine:
             enable_thinking: bool = True,
             preserve_thinking: bool = True,
             reasoning_effort: str | None = None,
-            open_think: bool = False,
+            open_think: bool | None = None,
+            chat_format: ChatFormat | None = None,
             max_queue: int = 4,
             model_name: str = 'qwen',
             log: ta.Callable[[str], None] | None = print,
     ) -> None:
         """
+        `chat_format`: the format requests are rendered in, tool calls constrained to and answers parsed from
+        (serve/chat.py's `ChatFormat`); None is the checkpoint's own, as its chat template shows it
+        (`chat_format_for`) -- the legacy format for a checkpoint without one.
+
         `reasoning_effort`: the level a request that names none is rendered at, for a checkpoint whose chat template
         takes one (`Tokenizer.reasoning_efforts`); None is the template's own default, its highest.
 
-        `open_think`: with thinking on, the generation prompt ends with the opened reasoning block, as the
-        checkpoints' templates render it (`render_chat`), and the answer is read as starting inside it. Off by
-        default until the rest of the format is the templates' too (NEXT.md 0).
+        `open_think`: with thinking on, the generation prompt ends with the opened reasoning block (`render_chat`) and
+        the answer is read as starting inside it; None is as the chat format has it.
         """
 
         super().__init__()
@@ -344,7 +361,8 @@ class Engine:
         self.preserve_thinking = preserve_thinking
         tok.reasoning_instruction(reasoning_effort)  # (raises on a level the template does not have)
         self.reasoning_effort = reasoning_effort
-        self.open_think = open_think
+        self.format = chat_format if chat_format is not None else chat_format_for(tok)
+        self.open_think = self.format.open_think if open_think is None else open_think
         self.model_name = model_name
         self.log = log
         self.eos = {
@@ -377,11 +395,14 @@ class Engine:
         Throwaway generations, so step capture and compilation happen before the first request: one from a single token
         (plain rounds, as nothing has occurred for a prompt lookup to match, or the draft head's), and one from a prompt
         counting in a cycle, which a model goes on with, so a prompt-lookup draft source drafts and its verify step is
-        compiled too.
+        compiled too. And the tool grammar's vocabulary trie, which the first request with tools would otherwise wait
+        for.
         """
 
         for text in ('hello', ' '.join(['1 2 3 4 5 6 7 8'] * 6)):
             self.runner.run(GenerationParams(prompt=self.tok.encode(text), max_new_tokens=max_new_tokens))
+
+        Vocab.for_tokenizer(self.tok)  # the grammar's trie over the vocabulary: 1.5 s on 248k tokens, once
 
     # prompts
 
@@ -397,7 +418,19 @@ class Engine:
                 req.enable_thinking,
             ),
             open_think=self.open_think,
+            fmt=self.format,
         )
+
+    def describe_format(self) -> dict[str, ta.Any]:
+        """How requests are rendered, for the log and /health: the chat format, and what a request can change of it."""
+
+        effort = self.reasoning_effort or (DEFAULT_REASONING_EFFORT if self.tok.reasoning_efforts else None)
+        return {
+            'chat_format': self.format.name,
+            'open_think': self.open_think,
+            'reasoning_effort': effort,
+            'thinking': self.enable_thinking,
+        }
 
     def encode_prompt(self, text: str) -> list[int]:
         """
@@ -426,7 +459,10 @@ class Engine:
         return ids
 
     def _remember_answer(self, gen_prompt_ids: list[int], out_ids: list[int], msg: dict) -> None:
-        seg = render_assistant_turn(msg, with_reasoning=True if self.preserve_thinking else None)
+        # (as `render_chat` will render this turn when it comes back: with its reasoning block, which in the newer
+        # formats is there even when empty)
+        always = self.preserve_thinking or self.format.empty_think
+        seg = render_assistant_turn(msg, with_reasoning=True if always else None, fmt=self.format)
         ids = list(gen_prompt_ids) + list(out_ids)
         if self.im_end is not None and (not ids or ids[-1] != self.im_end):
             ids.append(self.im_end)
@@ -511,6 +547,8 @@ class Engine:
             deliver=deliver if req.stream else None,
             t0=t0,
             think_open=opened,
+            fmt=self.format,
+            tools=req.tools,
         )
         prefill = _PrefillStats()
 
@@ -525,14 +563,14 @@ class Engine:
             presence_penalty=req.presence_penalty,
             frequency_penalty=req.frequency_penalty,
             eos_ids=frozenset(self.eos),
-            constraint=_constraint(req, tok, opened),
+            constraint=_constraint(req, tok, opened, self.format.call_syntax),
             should_stop=lambda: job.cancelled,  # (polled between prefill chunks and rounds)
             terminators=[stop],
             observers=[answer, prefill],
         ))
 
         full, stopped = answer.finish()
-        parsed = parse_output(full, think_open=opened)
+        parsed = parse_output(full, think_open=opened, fmt=self.format, tools=req.tools)
         out_ids = answer.ids
         if parsed.tool_calls:
             finish = 'tool_calls'
@@ -685,6 +723,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 'queued': eng.queue.qsize(),
                 'running': eng.running is not None,
                 'prefix_cache': eng.prefix_cache.stats() if eng.prefix_cache is not None else None,
+                **eng.describe_format(),
             })
         else:
             self._json(404, {'error': {'message': 'not found'}})

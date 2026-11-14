@@ -10,6 +10,11 @@ so a tool call that comes out is always well-formed, names a real tool, and carr
 every required key present. `tool_choice` builds on the same machinery: "none" forbids opening a call, "required" (or a
 named function) forces one as soon as the model is out of its reasoning block.
 
+That is the legacy call syntax. The checkpoints' own chat formats (serve/chat.py) write a call as a `<function=name>`
+block holding one `<parameter=key>` block per argument, and the same acceptor holds a call in that syntax to the same
+guarantees (`Acceptor`'s `syntax`): the frames that differ are the ones for parameter names and for values written as
+raw text, which end at their closing tag rather than at a quote.
+
 How: `Acceptor` is a prefix acceptor over bytes for that language, compiled from the tools' JSON schemas -- a small NFA
 whose states are tuples of frames (literals, string / number / object / array parsers, each knowing its schema),
 immutable and hashable. `Vocab` is a byte trie over the tokenizer. The allowed tokens in a state are the trie's complete
@@ -38,6 +43,8 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ..tokenizer import Tokenizer
+from .schemas import schema_allows_type
+from .schemas import schema_takes_text
 
 
 if ta.TYPE_CHECKING:
@@ -57,6 +64,7 @@ WS = frozenset(b' \t\n\r')
 DIGITS = frozenset(b'0123456789')
 ESCAPES = frozenset(b'"\\/bfnrtu')
 HEX = frozenset(b'0123456789abcdefABCDEF')
+IDENT = frozenset(b'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-')
 
 
 def _lit(text: str) -> Frame:
@@ -68,23 +76,48 @@ def _ws() -> Frame:
 
 
 class Acceptor:
-    """Prefix acceptor for one tool-call body (after `<tool_call>`), compiled from the tools' schemas."""
+    """
+    Prefix acceptor for one tool-call body (after `<tool_call>`), compiled from the tools' schemas.
+
+    Two call syntaxes (`syntax`). 'json' is the one the module docstring describes. 'function' is the checkpoints' own
+    (serve/chat.py's `ChatFormat`):
+
+        \\n<function=NAME>\\n ( <parameter=KEY>\\nVALUE\\n</parameter>\\n )* </function>\\n</tool_call>
+
+    with NAME a declared function, each KEY one of its parameters at most once and the required ones all there before
+    the call may close, and VALUE by the parameter's schema: raw text up to the closing tag for a parameter that may
+    be a string (it cannot contain the closing sequence, and nothing else is refused of it), one of the values for an
+    enum, and JSON of the schema for anything else -- a top-level boolean or null also as True / False / None, which
+    is how one of the templates writes them. Undeclared parameters are admitted only where the schema says so
+    (`additionalProperties`, or no `properties` at all): names of identifier characters, values as text.
+    """
 
     OPEN = '\n{'
     NAME_KEY = '"name"'
     ARGS_KEY = '"arguments"'
     CLOSE = '\n</tool_call>'
 
+    FUNCTION_OPEN = '\n<function='
+    FUNCTION_CLOSE = '</function>\n</tool_call>'
+    PARAMETER_OPEN = '<parameter='
+    PARAMETER_END = '\n</parameter>'
+    PARAMETER_END_B = PARAMETER_END.encode()
+
     def __init__(
             self,
             tools: ta.Sequence[dict] = (),
             only: str | None = None,
             value_schema: ta.Any = None,
+            syntax: str = 'json',
     ) -> None:
         """
-        Tool-call bodies for `tools` (optionally just the function `only`), or, with `value_schema`, one bare JSON value
-        of that schema (`{}` for any) -- JSON mode.
+        Tool-call bodies for `tools` (optionally just the function `only`) in the given `syntax`, or, with
+        `value_schema`, one bare JSON value of that schema (`{}` for any) -- JSON mode.
         """
+
+        if syntax not in ('json', 'function'):
+            raise ValueError(f'unknown call syntax {syntax!r}')
+        self.syntax = syntax
 
         self.schemas: list[ta.Any] = []  # id -> schema (dict) ; shared across frames to keep them small
         self._ids: dict[str, int] = {}
@@ -131,6 +164,15 @@ class Acceptor:
                 _ws(),
                 ('value', self.value_sid),
                 _ws(),
+            )])
+
+        if self.syntax == 'function':
+            return frozenset([(
+                _lit(self.FUNCTION_CLOSE),
+                ('fparams',),  # replaced by the chosen function's parameters once the name is known
+                _lit('>\n'),
+                ('name', tuple(sorted(self.functions)), 0),
+                _lit(self.FUNCTION_OPEN),
             )])
 
         return frozenset([(
@@ -271,8 +313,72 @@ class Acceptor:
                 return [(*rest, ('keystr', None))]
             return [(*rest, ('keystr', text))]
 
-        if kind == 'argsvalue':
+        if kind in ('argsvalue', 'fparams'):
             raise AssertionError('arguments schema not bound')
+
+        if kind == 'params':
+            return self._advance_params(rest, fr, b)
+
+        if kind == 'pkey':  # a parameter name being matched against the declared ones not used yet; '>' completes it
+            opts = fr[1]
+            i = fr[2]
+            outs = []
+            alive = tuple(o for o in opts if len(o) > i and o[i] == b)
+            if alive:
+                outs.append((*rest, ('pkey', alive, i + 1)))
+            if b == ord('>'):
+                for o in opts:
+                    if len(o) == i:
+                        outs.append(self._parameter_value(rest, o.decode()))
+            return outs
+
+        if kind == 'pfree':  # an undeclared parameter's name; tracked only while it may still become a declared one
+            text = fr[1]
+            props = self.schemas[rest[-1][1]].get('properties') or {}
+            if b == ord('>'):
+                if text == '' or (text is not None and text in props):
+                    return []
+                return [self._parameter_value(rest, None)]
+            if b not in IDENT:
+                return []
+            if text is None:
+                return [st]
+            text += chr(b)
+            if not any(name.startswith(text) for name in props):
+                return [(*rest, ('pfree', None))]
+            return [(*rest, ('pfree', text))]
+
+        if kind == 'ptext':
+            # Raw text up to and including the closing sequence, which this frame matches as it goes (fr[1] bytes of
+            # it so far). The sequence starts with its only newline, so after a mismatch a newline is a fresh start of
+            # it and anything else is none.
+            end = self.PARAMETER_END_B
+            j = fr[1]
+            if b == end[j]:
+                return [rest] if j + 1 == len(end) else [(*rest, ('ptext', j + 1))]
+            return [(*rest, ('ptext', 1 if b == end[0] else 0))]
+
+        if kind == 'alts':  # one of several byte strings
+            opts = fr[1]
+            i = fr[2]
+            alive = tuple(o for o in opts if len(o) > i and o[i] == b)
+            outs = []
+            more = tuple(o for o in alive if len(o) > i + 1)
+            if more:
+                outs.append((*rest, ('alts', more, i + 1)))
+            if len(more) < len(alive):
+                outs.append(rest)
+            return outs
+
+        if kind == 'pvalue':  # a parameter's JSON value; at its top level a boolean or null also in Python's spelling
+            schema = self.schemas[fr[1]]
+            outs = self._start_value(rest, schema, b)
+            if schema_allows_type(schema, 'boolean'):
+                for lit in ('True', 'False'):
+                    outs.extend(self._advance_stack((*rest, _lit(lit)), b))
+            if schema_allows_type(schema, 'null'):
+                outs.extend(self._advance_stack((*rest, _lit('None')), b))
+            return outs
 
         if kind == 'value':
             return self._start_value(rest, self.schemas[fr[1]], b)
@@ -296,10 +402,81 @@ class Acceptor:
 
     def _bind_args(self, rest: Stack, name: str) -> Stack:
         sid = self.functions[name]
-        out = []
+        out: list[Frame] = []
         for f in rest:
-            out.append(('value', sid) if f[0] == 'argsvalue' else f)
+            if f[0] == 'argsvalue':
+                out.append(('value', sid))
+            elif f[0] == 'fparams':
+                out.append(('params', sid, frozenset()))
+            else:
+                out.append(f)
         return tuple(out)
+
+    # the function syntax's parameters
+
+    @staticmethod
+    def _extra_parameters(schema: dict) -> ta.Any:
+        """Whether (and of what schema) undeclared parameters may appear: where the schema says, or says nothing."""
+
+        return schema.get('additionalProperties', 'properties' not in schema)
+
+    def _advance_params(self, rest: Stack, fr: Frame, b: int) -> list[Stack]:
+        """('params', schema id, names seen): another parameter block, or -- the required ones all seen -- the end."""
+
+        sid = fr[1]
+        seen = fr[2]
+        schema = self.schemas[sid]
+        props = schema.get('properties') or {}
+        outs: list[Stack] = []
+
+        remaining = tuple(sorted(k.encode() for k in props if k not in seen))
+        if remaining:
+            outs.extend(self._advance_stack((*rest, fr, ('pkey', remaining, 0), _lit(self.PARAMETER_OPEN)), b))
+
+        if self._extra_parameters(schema):
+            outs.extend(self._advance_stack((*rest, fr, ('pfree', ''), _lit(self.PARAMETER_OPEN)), b))
+
+        if all(k in seen for k in schema.get('required') or () if k in props):
+            outs.extend(self._advance_stack(rest, b))  # zero-width: the byte is the closing tag's
+
+        return outs
+
+    def _parameter_value(self, rest: Stack, key: str | None) -> Stack:
+        """
+        The stack once a parameter's name has closed (`rest` ends with the 'params' frame; `key` None for an undeclared
+        name): a newline, the value by the parameter's schema with the closing sequence, a newline, and the 'params'
+        frame again, the name now seen.
+        """
+
+        params = rest[-1]
+        sid = params[1]
+        seen = params[2]
+        schema = self.schemas[sid]
+
+        if key is not None:
+            vs = (schema.get('properties') or {}).get(key)
+            seen = seen | {key}
+        else:
+            extra = self._extra_parameters(schema)
+            vs = extra if isinstance(extra, dict) else {}
+
+        return (*rest[:-1], ('params', sid, seen), _lit('\n'), *self._parameter_frames(vs), _lit('\n'))
+
+    def _parameter_frames(self, schema: ta.Any) -> tuple[Frame, ...]:
+        """The frames (bottom first) that take one parameter's value and the sequence that closes it."""
+
+        if not isinstance(schema, dict):
+            schema = {}
+
+        if 'const' in schema or 'enum' in schema:
+            vals = [schema['const']] if 'const' in schema else list(schema['enum'])
+            texts = {v if isinstance(v, str) else json.dumps(v, ensure_ascii=False) for v in vals}
+            return (('alts', tuple(sorted(t.encode() + self.PARAMETER_END_B for t in texts)), 0),)
+
+        if schema_takes_text(schema):
+            return (('ptext', 0),)
+
+        return (_lit(self.PARAMETER_END), ('pvalue', self._schema_id(schema)))
 
     # values
 
@@ -577,6 +754,11 @@ class Vocab:
         self.root: dict = {}  # byte -> node; a node is a dict with an optional key -1 -> token id
         self.plain: set[int] = set()  # tokens that are fine anywhere inside a JSON string
         self.special_root: dict = {}  # trie over the tokens that are not plain
+        # the function syntax: a text parameter ends at a sequence that ends in '>', so a token without one is fine
+        # anywhere inside it; and a free parameter name is identifier characters up to its '>'
+        self.text_plain: set[int] = set()
+        self.text_root: dict = {}  # trie over the tokens with a '>'
+        self.ident_plain: set[int] = set()
         self.bytes: list[bytes] = []
 
         for i in range(self.n):
@@ -595,6 +777,13 @@ class Vocab:
                 self.plain.add(i)
             else:
                 self._insert(self.special_root, b, i)
+
+            if 0x3E not in b and tok.tokens[i] not in keep:
+                self.text_plain.add(i)
+                if all(c in IDENT for c in b):
+                    self.ident_plain.add(i)
+            else:
+                self._insert(self.text_root, b, i)
 
         self.plain_frozen = frozenset(self.plain)
 
@@ -640,6 +829,18 @@ class TokenMasks:
             out = set(self.vocab.plain)
             self._walk(state, self.vocab.special_root, out)
 
+        elif all(st and st[-1][0] == 'ptext' for st in state):
+            # inside a text parameter: only a token with a '>' can complete the closing sequence (and then has to go
+            # on as the grammar does); every other token continues the text
+            out = set(self.vocab.text_plain)
+            self._walk(state, self.vocab.text_root, out)
+
+        elif all(st and st[-1][0] == 'pfree' for st in state):
+            # inside an undeclared parameter's name: identifier tokens continue it, and nothing else can but a token
+            # with the '>' that closes it
+            out = set(self.vocab.ident_plain)
+            self._walk(state, self.vocab.text_root, out)
+
         else:
             out = set()
             self._walk(state, self.vocab.root, out)
@@ -667,21 +868,26 @@ class TokenMasks:
 ##
 
 
-_COMPILED: dict[tuple[str, str | None, int], tuple[Acceptor, TokenMasks]] = {}
+_COMPILED: dict[tuple[str, str | None, int, str], tuple[Acceptor, TokenMasks]] = {}
 
 
-def _compiled(tools: ta.Sequence[dict], only: str | None, vocab: Vocab) -> tuple[Acceptor, TokenMasks]:
+def _compiled(
+        tools: ta.Sequence[dict],
+        only: str | None,
+        vocab: Vocab,
+        syntax: str = 'json',
+) -> tuple[Acceptor, TokenMasks]:
     """
     The acceptor and its memoised masks for a tool set, shared across requests: an agent sends the same tools every
     turn, and the expensive states (free strings) are then computed once per process.
     """
 
-    key = (json.dumps(tools, sort_keys=True), only, id(vocab))
+    key = (json.dumps(tools, sort_keys=True), only, id(vocab), syntax)
     got = _COMPILED.get(key)
     if got is None:
         if len(_COMPILED) >= 16:
             _COMPILED.pop(next(iter(_COMPILED)))
-        acc = Acceptor(tools, only)
+        acc = Acceptor(tools, only, syntax=syntax)
         got = _COMPILED[key] = (acc, TokenMasks(acc, vocab))
     return got
 
@@ -720,6 +926,7 @@ class ToolConstraint:
     tool_choice: ta.Any = 'auto'  # 'auto' | 'none' | 'required' | {'type': 'function', 'function': {'name': ..}}
     thinking: bool = True         # the generation may start with a reasoning block
     think_open: bool = False      # ... which the prompt has already opened: the generation starts inside it
+    syntax: str = 'json'          # the call syntax the checkpoint was trained on: 'json' | 'function' (Acceptor)
 
     def __post_init__(self) -> None:
         only = None
@@ -730,7 +937,7 @@ class ToolConstraint:
         self.acc: Acceptor | None = None
         self.masks: TokenMasks | None = None
         if self.tool_choice != 'none':
-            self.acc, self.masks = _compiled(self.tools, only, self.vocab)
+            self.acc, self.masks = _compiled(self.tools, only, self.vocab, self.syntax)
         self.mode = 'free'
         self.state: State | None = None
         self.tail = b''  # last bytes of free text, for tag detection

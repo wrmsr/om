@@ -76,6 +76,10 @@ def test_serve():
         # models / health
         with urllib.request.urlopen(base + '/v1/models') as r:  # noqa
             assert json.loads(r.read())['data'][0]['id'] == 'tiny'
+        with urllib.request.urlopen(base + '/health') as r:  # noqa
+            health = json.loads(r.read())
+        assert health['status'] == 'ok' and health['chat_format'] == 'legacy' and health['open_think'] is False
+        assert health['reasoning_effort'] is None and health['thinking'] is True
 
         # 1. non-streaming, greedy
         code, res = _post(base + '/v1/chat/completions', {'messages': [{'role': 'user', 'content': 'hello'}]})

@@ -290,3 +290,157 @@ def test_open_think():
     sp = StreamParser(think_open=True)
     tail = sp.feed('still thinking') + sp.finish()
     assert all(k == 'reasoning' for k, _ in tail) and ''.join(p for _, p in tail) == 'still thinking'
+
+
+FUNCTION_TOOL = {
+    'type': 'function',
+    'function': {
+        'name': 'f',
+        'description': 'd',
+        'parameters': {'type': 'object', 'properties': {
+            'a': {'type': 'integer'}, 'b': {'type': 'string'}, 's': {'type': 'string'}, 't': {'type': 'boolean'},
+            'n': {'type': ['string', 'null']}, 'l': {'type': 'array'}, 'd': {'type': 'object'},
+        }},
+    },
+}
+
+
+def test_function_format():
+    """
+    The checkpoints' own chat formats (`QWEN35`, `QWEN38`): the strings below are what their templates render
+    (tests/chat_oracle.py compares whole conversations against the templates themselves when a checkpoint is at hand),
+    and what is rendered parses back, whole and streamed.
+    """
+
+    from ..serve.chat import CHAT_FORMATS
+    from ..serve.chat import FUNCTION_TOOLS_POSTAMBLE
+    from ..serve.chat import FUNCTION_TOOLS_PREAMBLE
+    from ..serve.chat import LEGACY
+    from ..serve.chat import QWEN35
+    from ..serve.chat import QWEN38
+    from ..serve.chat import chat_format_for
+    from .test_grammar import _tokenizer
+
+    # which format a checkpoint gets
+    tok = _tokenizer()
+    assert chat_format_for(tok) is LEGACY
+    tok.chat_template = '... <function={{ name }}> ...'
+    assert chat_format_for(tok) is QWEN35
+    tok.chat_template += ' {% if reasoning_effort %}'
+    assert chat_format_for(tok) is QWEN38
+    assert set(CHAT_FORMATS) == {'legacy', 'qwen3.5', 'qwen3.8'}
+
+    user = {'role': 'user', 'content': 'Q'}
+
+    def call(args, i='c1'):
+        return {'id': i, 'type': 'function', 'function': {'name': 'f', 'arguments': json.dumps(args)}}
+
+    # the system turn: the tools first, then the system message; the generation prompt opens the reasoning block
+    for fmt in (QWEN35, QWEN38):
+        text = render_chat([{'role': 'system', 'content': 'SYS'}, user], [FUNCTION_TOOL], fmt=fmt)
+        tools_block = FUNCTION_TOOLS_PREAMBLE + '\n' + json.dumps(FUNCTION_TOOL) + FUNCTION_TOOLS_POSTAMBLE
+        assert text == (
+            '<|im_start|>system\n' + tools_block + '\n\nSYS<|im_end|>\n'
+            '<|im_start|>user\nQ<|im_end|>\n<|im_start|>assistant\n<think>\n'
+        ), fmt.name
+        assert tools_block.startswith('# Tools\n\nYou have access to the following functions:\n\n<tools>\n{"type"')
+        assert tools_block.endswith('do not tell the user about function calls\n</IMPORTANT>')
+        assert render_chat([user], fmt=fmt, enable_thinking=False).endswith('assistant\n<think>\n\n</think>\n\n')
+        assert render_chat([user], fmt=fmt, open_think=False).endswith('<|im_start|>assistant\n')
+
+    # an assistant turn: reasoning block, content, a blank line, the calls one per line
+    turn = {'role': 'assistant', 'content': 'C', 'reasoning_content': 'R',
+            'tool_calls': [call({'a': 1}), call({'b': 'x'}, 'c2')]}
+    want = (
+        '<|im_start|>assistant\n<think>\nR\n</think>\n\nC\n\n'
+        '<tool_call>\n<function=f>\n<parameter=a>\n1\n</parameter>\n</function>\n</tool_call>\n'
+        '<tool_call>\n<function=f>\n<parameter=b>\nx\n</parameter>\n</function>\n</tool_call><|im_end|>\n'
+    )
+    assert render_assistant_turn(turn, fmt=QWEN38) == want and render_assistant_turn(turn, fmt=QWEN35) == want
+
+    # argument values: a string as it is, anything else as JSON -- but for qwen3.5's True / False / None
+    values = {'s': 'two\nlines "q" <b>', 'b': '', 'a': 3, 't': True, 'n': None, 'l': [1, 'x', True], 'd': {'k': None}}
+    bare = {'role': 'assistant', 'content': None, 'tool_calls': [call(values)]}
+    body = (
+        '<tool_call>\n<function=f>\n'
+        '<parameter=s>\ntwo\nlines "q" <b>\n</parameter>\n'
+        '<parameter=b>\n\n</parameter>\n'
+        '<parameter=a>\n3\n</parameter>\n'
+        '<parameter=t>\n{t}\n</parameter>\n'
+        '<parameter=n>\n{n}\n</parameter>\n'
+        '<parameter=l>\n[1, "x", true]\n</parameter>\n'
+        '<parameter=d>\n{{"k": null}}\n</parameter>\n'
+        '</function>\n</tool_call>'
+    )
+    head = '<|im_start|>assistant\n<think>\n\n</think>\n\n'
+    assert render_assistant_turn(bare, fmt=QWEN38) == head + body.format(t='true', n='null') + '<|im_end|>\n'
+    assert render_assistant_turn(bare, fmt=QWEN35) == head + body.format(t='True', n='None') + '<|im_end|>\n'
+
+    # reasoning in the history. qwen3.8's template keeps a block in every turn (our preserve_thinking); qwen3.5's
+    # drops the reasoning of turns before the last user query and keeps a block, empty or not, in those after it
+    hist: list[dict] = [
+        user, {'role': 'assistant', 'content': 'A1', 'reasoning_content': 'R1'}, {'role': 'user', 'content': 'Q2'},
+        {'role': 'assistant', 'content': '', 'tool_calls': [call({'a': 1})]}, {'role': 'tool', 'content': 'RES'},
+    ]
+    one_call = '<tool_call>\n<function=f>\n<parameter=a>\n1\n</parameter>\n</function>\n</tool_call>'
+    tail = (
+        '<|im_end|>\n<|im_start|>user\nQ2<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n' + one_call +
+        '<|im_end|>\n<|im_start|>user\n<tool_response>\nRES\n</tool_response><|im_end|>\n'
+        '<|im_start|>assistant\n<think>\n'
+    )
+    start = '<|im_start|>user\nQ<|im_end|>\n<|im_start|>assistant\n'
+    assert render_chat(hist, fmt=QWEN38) == start + '<think>\nR1\n</think>\n\nA1' + tail
+    assert render_chat(hist, fmt=QWEN35, preserve_thinking=False) == start + 'A1' + tail
+    assert render_chat(hist, fmt=QWEN35) == start + '<think>\nR1\n</think>\n\nA1' + tail  # (ours: the prefix stays)
+
+    # back again: a parameter's text is typed by its schema
+    for fmt in (QWEN35, QWEN38):
+        text = render_assistant_turn({**bare, 'content': 'C', 'reasoning_content': 'R'}, fmt=fmt)
+        text = text[len('<|im_start|>assistant\n'):-len('<|im_end|>\n')]
+        got = parse_output(text, fmt=fmt, tools=[FUNCTION_TOOL])
+        assert got.reasoning == 'R' and got.content == 'C' and len(got.tool_calls) == 1, fmt.name
+        assert got.tool_calls[0]['function']['name'] == 'f'
+        assert json.loads(got.tool_calls[0]['function']['arguments']) == values, fmt.name
+        assert parse_output(text[len('<think>\n'):], think_open=True, fmt=fmt, tools=[FUNCTION_TOOL]) == got
+
+        for step in (1, 3, 7, 50, len(text)):
+            sp = StreamParser(fmt=fmt, tools=[FUNCTION_TOOL])
+            events = []
+            for i in range(0, len(text), step):
+                events += sp.feed(text[i:i + step])
+            events += sp.finish()
+            assert ''.join(p for k, p in events if k == 'reasoning').strip('\n') == 'R', (fmt.name, step)
+            assert ''.join(p for k, p in events if k == 'content').strip('\n') == 'C', (fmt.name, step)
+            calls = [p for k, p in events if k == 'tool_call']
+            assert calls[0]['function'] == {'name': 'f', 'arguments': ''} and calls[0]['id'] == 'call_0'
+            joined = ''.join(c['function']['arguments'] for c in calls)
+            assert joined == got.tool_calls[0]['function']['arguments'], (fmt.name, step, joined)
+            if step <= 3:  # a string parameter streams as it is written, not when its block closes: many pieces
+                assert len(calls) > 2 * len(values), (fmt.name, step, len(calls))
+
+    def args_of(block: str, tools=(FUNCTION_TOOL,)) -> dict:
+        (tc,) = parse_output(block, fmt=QWEN38, tools=list(tools)).tool_calls
+        return json.loads(tc['function']['arguments'])
+
+    def block(*params: tuple[str, str]) -> str:
+        inner = ''.join(f'<parameter={k}>\n{v}\n</parameter>\n' for k, v in params)
+        return f'<tool_call>\n<function=f>\n{inner}</function>\n</tool_call>'
+
+    # a string parameter is its text whatever it looks like; others are JSON, in either spelling of the literals
+    typed = args_of(block(('s', '3'), ('a', '3'), ('t', 'True'), ('n', 'None')))
+    assert typed == {'s': '3', 'a': 3, 't': True, 'n': None}
+    assert args_of(block(('s', 'true'), ('t', 'false'), ('n', 'null'))) == {'s': 'true', 't': False, 'n': None}
+    assert args_of(block(('n', 'some text'), ('s', '  padded  \n'))) == {'n': 'some text', 's': '  padded  \n'}
+    # an undeclared parameter, or an unknown function: JSON when it is JSON, text otherwise
+    loose = args_of(block(('x', '{"k": 1}'), ('y', 'plain'), ('z', '"quoted"')))
+    assert loose == {'x': {'k': 1}, 'y': 'plain', 'z': '"quoted"'}
+    assert args_of(block(('a', '7')), tools=()) == {'a': 7}
+    assert args_of('<tool_call>\n<function=f>\n</function>\n</tool_call>') == {}
+    # two calls, content between and around them
+    two = parse_output('before\n\n' + block(('a', '1')) + '\n' + block(('a', '2')), fmt=QWEN38, tools=[FUNCTION_TOOL])
+    assert two.content == 'before'
+    assert [json.loads(c['function']['arguments']) for c in two.tool_calls] == [{'a': 1}, {'a': 2}]
+    assert [c['id'] for c in two.tool_calls] == ['call_0', 'call_1']
+    # the legacy syntax is not this format's (and the other way about)
+    assert not parse_output('<tool_call>\n{"name": "f", "arguments": {}}\n</tool_call>', fmt=QWEN38).tool_calls
+    assert not parse_output(block(('a', '1'))).tool_calls

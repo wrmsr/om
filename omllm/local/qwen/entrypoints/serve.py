@@ -19,6 +19,7 @@ from omcore.logs import all as logs
 
 from ..decode.inject import DecodeConfig
 from ..inject.inject import create_engine
+from ..serve.chat import CHAT_FORMATS
 from ..serve.inject import ServeConfig
 from ..serve.serving import SamplingDefaults
 from ..serve.serving import client
@@ -92,11 +93,18 @@ def main() -> None:
              f"template takes one (qwen3.8); default: the template's own, {DEFAULT_REASONING_EFFORT}",
     )
     ap.add_argument(
+        '--chat-format',
+        choices=sorted(CHAT_FORMATS),
+        default=None,
+        help="the chat format: how tools are described and called, where reasoning blocks go (serve/chat.py); "
+             "default: the checkpoint's own, by its chat template ('legacy', the JSON tool-call format, without one)",
+    )
+    ap.add_argument(
         '--open-think',
-        action='store_true',
-        help="with thinking on, end the generation prompt with the opened <think> block, as the checkpoints' own "
-             'templates do (the model then reasons rather than deciding whether to); off by default until the rest '
-             'of the chat format follows the templates (NEXT.md 0)',
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help='with thinking on, end the generation prompt with the opened <think> block (the model then reasons '
+             'rather than deciding whether to); default: as the chat format has it',
     )
     ap.add_argument(
         '--strip-thinking',
@@ -185,9 +193,19 @@ def main() -> None:
             preserve_thinking=not args.strip_thinking,
             reasoning_effort=args.reasoning_effort,
             open_think=args.open_think,
+            chat_format=args.chat_format,
             max_queue=args.max_queue,
             model_name=args.model,
         ),
+    )
+
+    fmt = engine.describe_format()
+    print(
+        f"[serve] chat format {fmt['chat_format']} (the checkpoint's own unless --chat-format said otherwise); "
+        f"thinking {'on' if fmt['thinking'] else 'off'} by default"
+        + (f", reasoning effort {fmt['reasoning_effort']}" if fmt['reasoning_effort'] else '')
+        + (', generation prompt opens the reasoning block' if fmt['open_think'] else ''),
+        flush=True,
     )
 
     if args.warmup:

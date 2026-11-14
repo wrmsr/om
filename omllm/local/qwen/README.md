@@ -31,18 +31,22 @@ decode/          the generation loop (loop.py) and its extension points: the one
                  penalties), the sampler and rejection step (sampling.py), terminators, observers, state stores;
                  the static and functional decoders (decoder.py); GenerationRunner (runners.py)
 spec/            draft sources: the MTP head (mtp.py), prompt lookup (lookup.py), test oracles (oracle.py)
-constrain/       tool-call / JSON-mode grammars -> per-step token masks (grammar.py), as a logit processor
+constrain/       tool-call / JSON-mode grammars -> per-step token masks (grammar.py: both call syntaxes), as a
+                 logit processor; what the function syntax asks of a parameter's schema (schemas.py)
 prefix/          prefix snapshots: exact-prefix reuse of decode state across requests, device + pinned-host tiers
                  (cache.py), as a state store (store.py)
-serve/           Qwen chat format: rendering and output parsing (chat.py); the Engine and the OpenAI
-                 chat-completions HTTP server (serving.py)
+serve/           the chat formats -- the checkpoints' own and the legacy one -- rendered and parsed (chat.py);
+                 the Engine and the OpenAI chat-completions HTTP server (serving.py)
 inject/          assembly by omcore.inject: the composition root over each package's inject.py (role binders, one
                  config dataclass each); everything also assembles by hand
 api.py           `generate` (the loop assembled by hand) and ManualGenerationRunner
-tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode
+tokenizer.py     byte-level BPE (qwen2 / qwen35 pre-tokenizer regexes), special tokens, streaming decode; what
+                 the checkpoint's chat template is seen to take (reasoning effort)
 entrypoints/     generate, serve, agent, tune (GEMV launch tables), kl (quality), validate (vs llama-server)
 tests/           golden parity across backends, synthetic models, quantization, kernels, tracing, sampling,
-                 prefix reuse, grammars, the server; bench.py, the performance arm
+                 prefix reuse, grammars, the chat formats, the server; and three tools that need a real checkpoint:
+                 bench.py (performance and transcripts), chat_oracle.py (our chat format against the checkpoint's own
+                 template), agent_eval.py (file tasks through the agent loop)
 ```
 
 On the radar, not started: a `ggml` backend (ctypes to libggml; a lazy `Ops` whose calls emit graph nodes). It
@@ -567,8 +571,9 @@ curl -N http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/
 
 `Engine` owns the model, its compiled steps, the prefix cache and one worker thread; a bounded queue in front
 (`--max-queue`, 503 beyond it) is the admission control one user needs. A request is rendered with `chat.render_chat`
--- system prompt, tool schemas in the `# Tools` block, assistant turns with `<think>` reasoning / content /
-`<tool_call>` blocks, tool results as `<tool_response>` blocks -- tokenised, resumed from the longest cached prefix,
+in the checkpoint's chat format (below) -- system prompt, tool schemas in the `# Tools` block, assistant turns with
+`<think>` reasoning / content / `<tool_call>` blocks, tool results as `<tool_response>` blocks -- tokenised, resumed
+from the longest cached prefix,
 generated, and parsed back (`chat.parse_output`, incrementally `chat.StreamParser`) into `content`,
 `reasoning_content` and `tool_calls`. Streaming is SSE chunks with those as deltas; `finish_reason` is `stop`,
 `length` or `tool_calls`; `usage.prompt_tokens_reused` reports the cache. Sampling comes from `--preset` (Qwen's
@@ -588,20 +593,38 @@ switch (qwen3.5) is rendered as before whatever is asked (`Tokenizer.reasoning_e
 `generate --think --reasoning-effort LEVEL` and `agent --reasoning-effort LEVEL` reach the same thing. Before this
 existed the 27B was in effect always served at `medium`: no instruction was rendered.
 
-**The format is not yet the checkpoints' own.** `tests/chat_oracle.py` renders a checkpoint's template with Jinja
-(as a black box) beside `render_chat`. The effort instruction agrees character for character; the rest of the format
-does not. The templates of qwen3.5 and qwen3.8 alike describe tools under their own preamble with the system message
-after it, have the model call them as `<function=name>` / `<parameter=key>` blocks inside `<tool_call>` where this
-code renders, constrains and parses JSON objects, and open `<think>` in the generation prompt when thinking is on;
-qwen3.8's also puts a `<think>` block in every assistant turn of the history. The models follow the format they are
-given here, but it is not the one they were trained on: NEXT.md 0 has what bringing it into line takes.
+**The chat format is the checkpoint's own.** A checkpoint carries a chat template, and the format it describes is
+the one the model was trained on; `serve/chat.py` knows three (`ChatFormat`) and the engine takes the checkpoint's
+(`chat_format_for`, by what the template is seen to contain; `--chat-format` overrides):
 
-One of those gaps can be closed today, by option: `--open-think` (`Engine(open_think=True)`) ends the generation
-prompt with the opened `<think>` block as the templates do, and the answer is read -- by both parsers, the tool
-grammar and JSON mode -- as starting inside it. It is not cosmetic: left to open the block itself, the 27B answered
-one of three test questions without reasoning at all in thinking mode; with the block opened it reasons. Off by
-default until the rest of the format follows, because it changes every thinking-mode prompt. (`generate --think
---open-think` does the same for a single prompt.)
+- `qwen3.5` and `qwen3.8`: tools described under "You have access to the following functions", the system message
+  after them; a tool call written as `<function=name>` with one `<parameter=key>` block per argument inside
+  `<tool_call>` -- a string argument as raw text, anything else as JSON; a `<think>` block in every assistant turn
+  that keeps its reasoning, empty or not; and the generation prompt ending with the opened `<think>` when thinking is
+  on (so the model reasons rather than deciding whether to: left to open the block itself, the 27B answered one of
+  three test questions with no reasoning at all; `--no-open-think` is that old behaviour). The two differ in how
+  the history's reasoning is kept and in qwen3.5 writing a boolean or null argument as Python does.
+- `legacy`: the older Qwen format -- tool calls as `{"name": ..., "arguments": {...}}` JSON -- which a checkpoint
+  without a template gets, and which was the only one here until 2026-11-14.
+
+All of it follows the format: `render_chat`, the tool grammar (`constrain/grammar.py`, which holds a call to declared
+functions, declared parameters, required ones present and values of their schemas in either syntax),
+`parse_output` and `StreamParser` (a parameter's text becomes a value by its schema; streamed arguments are still
+JSON pieces that concatenate to what the unstreamed call carries), and the memoised ids of assistant turns.
+`tests/chat_oracle.py` is the check: it renders the checkpoint's own template with Jinja, as a black box, beside
+`render_chat` over a dozen conversation shapes (tools, calls of every argument type, results, reasoning in the
+history, thinking on and off, every reasoning effort) and exits non-zero on any difference -- qwen3.8:27b and
+qwen3.5:4b both agree character for character. Where this code departs on purpose: `preserve_thinking` (below), a
+system message after the first turn (rendered; the templates refuse it), and reasoning found inside a message's
+content (split out).
+
+`tests/agent_eval.py` is the other kind of check: small tasks through the agent loop with the result on disk
+verified (twelve file tasks, five exact copies of files that are hard to quote), for comparing two servers. Old
+format against new it shows no difference in task success -- 24 of 24 both on the twelve, 7 and 5 of 10 on the
+copies (7 for the new one too, once the agent's `read_file` returned whole files as they are), failing alike on the
+model's own copying slips -- so what the checkpoints' format is known to buy is what
+was measured elsewhere: reasoning that actually happens when the block is opened, and arguments as raw text, which
+prompt-lookup drafts at 11 tokens a round where the tool result is raw text too (NEXT.md 0 and 1.1).
 
 Two choices keep the prefix cache hitting across an agent's turns. Reasoning is preserved in every rendered turn
 (`preserve_thinking`; `--strip-thinking` restores the stock template's behaviour, which rewrites the history each

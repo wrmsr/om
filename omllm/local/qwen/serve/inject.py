@@ -4,6 +4,7 @@ from omcore import inject as inj
 from ..decode.runners import GenerationRunner
 from ..prefix.cache import PrefixCache
 from ..tokenizer import Tokenizer
+from .chat import CHAT_FORMATS
 from .serving import Engine
 from .serving import SamplingDefaults
 
@@ -17,7 +18,8 @@ class ServeConfig:
     enable_thinking: bool = True
     preserve_thinking: bool = True
     reasoning_effort: str | None = None  # None: the chat template's default, where it takes one
-    open_think: bool = False  # the generation prompt opens the reasoning block, as the checkpoints' templates do
+    open_think: bool | None = None  # the generation prompt opens the reasoning block; None: as the chat format has it
+    chat_format: str | None = None  # a name in serve.chat.CHAT_FORMATS; None: the checkpoint's own, by its template
     max_queue: int = 4
     model_name: str = 'qwen'
 
@@ -37,6 +39,7 @@ def _engine(
         preserve_thinking=config.preserve_thinking,
         reasoning_effort=config.reasoning_effort,
         open_think=config.open_think,
+        chat_format=CHAT_FORMATS[config.chat_format] if config.chat_format is not None else None,
         max_queue=config.max_queue,
         model_name=config.model_name,
     )
