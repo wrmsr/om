@@ -161,7 +161,7 @@ async def web_test_session(
 
     async with running_web(
             config,
-            overrides=[inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend))],
+            agent_overrides=[inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend))],
     ) as rw:
         async with AsyncioIoPipelineAsyncHttpClient() as client:
             yield WebTestSession(

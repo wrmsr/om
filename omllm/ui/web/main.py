@@ -58,13 +58,18 @@ class RunningWeb:
 async def running_web(
         config: WebConfig,
         *,
-        overrides: ta.Sequence[inj.Elemental] = (),
+        ui_overrides: ta.Sequence[inj.Elemental] = (),
+        agent_overrides: ta.Sequence[inj.Elemental] = (),
+        agent_ui_overrides: ta.Sequence[inj.Elemental] = (),
 ) -> ta.AsyncIterator[RunningWeb]:
     """The frontend, serving, until the context exits. Overrides replace any of its bindings - its backends, say."""
 
-    els = bind_web(config)
-    if overrides:
-        els = inj.as_elements(inj.override(els, *overrides))
+    els = bind_web(
+        config,
+        ui_rewriter=inj.overrider(*ui_overrides) if ui_overrides else None,
+        agent_rewriter=inj.overrider(*agent_overrides) if agent_overrides else None,
+        agent_ui_rewriter=inj.overrider(*agent_ui_overrides) if agent_ui_overrides else None,
+    )
 
     async with inj.create_asyncio_managed_injector(
         els,
@@ -137,10 +142,9 @@ async def running_web(
 
 async def serve_web(
         config: WebConfig,
-        *,
-        overrides: ta.Sequence[inj.Elemental] = (),
+        **kwargs: ta.Any,
 ) -> None:
-    async with running_web(config, overrides=overrides) as rw:
+    async with running_web(config, **kwargs) as rw:
         log.info('Serving session %s on %s', rw.session.id.v, rw.url)
 
         await rw.quit_signal.wait_announced()

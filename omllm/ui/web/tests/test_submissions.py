@@ -18,12 +18,15 @@ from ..submissions import SubmitterBusyError
 
 @pytest.mark.asyncs('asyncio')
 async def test_cancelled_before_it_starts():
-    async with inj.create_asyncio_managed_injector(
-        inj.override(
-            bind_web(WebConfig(in_memory=True, port=0)),
+    async with inj.create_asyncio_managed_injector(bind_web(
+        WebConfig(
+            in_memory=True,
+            port=0,
+        ),
+        agent_rewriter=inj.overrider(
             inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(scripted_backend(text_message('hi')))),
         ),
-    ) as injector:
+    )) as injector:
         submitter = await injector[Submitter]
         feed = await injector[Feed]
 

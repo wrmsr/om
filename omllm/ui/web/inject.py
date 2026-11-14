@@ -1,3 +1,5 @@
+import typing as ta
+
 from omcore import inject as inj
 
 from ... import agent as agn
@@ -63,11 +65,14 @@ def bind_input(config: WebConfig) -> inj.Elements:
 ##
 
 
-def bind_web(config: WebConfig) -> inj.Elements:
+def bind_web(
+        config: WebConfig,
+        **kwargs: ta.Any,
+) -> inj.Elements:
     lst: list[inj.Elemental] = [
         inj.bind(WebConfig, to_const=config),
 
-        bind_ui(config),
+        bind_ui(config, **kwargs),
 
         inj.bind(Feed, singleton=True),
 

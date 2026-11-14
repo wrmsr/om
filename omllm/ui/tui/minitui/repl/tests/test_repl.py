@@ -219,7 +219,7 @@ async def test_bash_wiring(tmp_path):
         inj.bind(MinituiChatApp, singleton=True),
     ) as tui:
         app = await tui.ui_injector[MinituiChatApp]
-        manager = await tui.ui_injector[processes.ProcessManager]
+        manager = await tui.agent_injector[processes.ProcessManager]
         assert 'bash' in tui.commands.get_commands()
 
         await tui.commands.parse('bash').run()

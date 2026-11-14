@@ -1,12 +1,7 @@
-"""
-TODO:
- - AgentUi child injector
-"""
 import contextlib
 import typing as ta
 import uuid
 
-from omcore import dataclasses as dc
 from omcore import inject as inj
 from omcore import lang
 
@@ -20,32 +15,14 @@ from ..commands.inject import bind_commands
 from ..commands.manager import CommandsManager
 from ..config import UiConfig
 from ..types import UiId
-
-
-##
-
-
-class InjectorBox(dc.Box[inj.AsyncInjector], abstract=True):
-    pass
-
-
-def bind_injector_import(box_cls: type[InjectorBox], key: ta.Any) -> inj.Elemental:
-    return inj.bind(key, to_async_fn=inj.target(i=box_cls)(lambda i: i.v[key]))
-
-
-##
-
-
-class UiInjector(InjectorBox, final=True):
-    pass
-
-
-class AgentInjector(InjectorBox, final=True):
-    pass
-
-
-class AgentUiInjector(InjectorBox, final=True):
-    pass
+from .injectors import AgentInjector
+from .injectors import AgentUiInjector
+from .injectors import UiInjector
+from .injectors import bind_injector_import
+from .injectors import agent_injector_bindings
+from .injectors import AgentInjectorBindings
+from .injectors import agent_ui_injector_bindings
+from .injectors import AgentUiInjectorBindings
 
 
 ##
@@ -90,6 +67,10 @@ class UiBinder:
 
             #
 
+            *(await agent_injector[AgentUiInjectorBindings]),
+
+            #
+
             parent=agent_injector,
         )
 
@@ -107,6 +88,8 @@ class UiBinder:
             #
 
             bind_injector_import(UiInjector, agn.PermissionAsker),
+
+            bind_injector_import(UiInjector, AgentUiInjectorBindings),
         ))
 
     async def _provide_agent_injector(
@@ -119,6 +102,8 @@ class UiBinder:
             self.bind_agent(),
 
             inj.bind(UiInjector(ui_injector)),
+
+            *(await ui_injector[AgentInjectorBindings]),
 
             inj.bind(AgentUiInjector, to_async_fn=self._provide_agent_ui_injector, singleton=True, eager=True),
         ))
@@ -136,6 +121,11 @@ class UiBinder:
             #
 
             inj.bind(AgentInjector, to_async_fn=self._provide_agent_injector, singleton=True),
+
+            #
+
+            agent_injector_bindings().bind_items_provider(singleton=True),
+            agent_ui_injector_bindings().bind_items_provider(singleton=True),
 
             #
 
