@@ -6,8 +6,6 @@ from omcore import lang
 from ....core import ui
 from ...commands.base import Commands
 from ...commands.manager import CommandsManager
-from ...inject.inject import UiInjector
-from ...inject.inject import bind_injector_import
 from ..config import TuiConfig
 from ..inject import bind_tui
 from ..rendering.text import BlockTerminalTextDisplayer
@@ -32,21 +30,19 @@ def _provide_commands_manager(
 def bind_bare(
         config: TuiConfig,
         *,
-        agent_ui_rewriter: inj.ElementsRewriter | None = None,
+        ui_rewriter: inj.ElementsRewriter | None = None,
         **kwargs: ta.Any,
 ) -> inj.Elements:
     return inj.as_elements(
         bind_tui(
             config,
 
-            agent_ui_rewriter=lambda els: (agent_ui_rewriter or lang.identity)(inj.override_(
+            ui_rewriter=lambda els: (ui_rewriter or lang.identity)(inj.override_(
                 els,
 
                 # Commands write for a surface which commits blocks. Bare's stream gives their output that shape, rather
                 # than running it into whatever follows - the prompt, say.
                 inj.bind(_provide_commands_manager, singleton=True),
-
-                bind_injector_import(UiInjector, BlockTerminalTextDisplayer),
             )),
 
             **kwargs,

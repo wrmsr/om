@@ -5,6 +5,9 @@ from omdev import minitui as mt
 from .... import agent as agn
 from ....core import ui
 from ...agent.inject.events import bind_on_agent_event_subscriber
+from ...inject.injectors import UiInjector
+from ...inject.injectors import bind_agent_ui_injector_bindings
+from ...inject.injectors import bind_injector_import
 from ..config import TuiConfig
 from ..inject import bind_tui
 from .app import AppQuitSignal
@@ -78,10 +81,18 @@ def bind_minitui(config: TuiConfig) -> inj.Elements:
     lst: list[inj.Elemental] = [
         bind_tui(config),
 
+        bind_agent_ui_injector_bindings(
+            bind_injector_import(UiInjector, MinituiChatApp),
+            bind_injector_import(UiInjector, mt.AsyncioDriver),
+        ),
+
         bind_app(config),
         bind_input(config),
         bind_output(config),
-        bind_repl(config),
+
+        bind_agent_ui_injector_bindings(
+            bind_repl(config),
+        ),
 
         inj.bind(AppQuitSignal, singleton=True),
         inj.bind(ui.QuitSignal, to_key=AppQuitSignal),

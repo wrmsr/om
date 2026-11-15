@@ -3,6 +3,9 @@ import typing as ta
 from omcore import inject as inj
 from omcore import lang
 
+from ..config import UiConfig
+from ..inject.injectors import AgentUiInjector
+from ..inject.injectors import bind_agent_ui_injector_bindings
 from .base import Command
 from .base import Commands
 from .compact import CompactCommand
@@ -14,9 +17,6 @@ from .simple import EchoCommand
 from .simple import QuitCommand
 from .status import StatusCommand
 from .steer import SteerCommand
-from ..config import UiConfig
-from ..inject.injectors import bind_agent_ui_injector_bindings
-from ..inject.injectors import AgentUiInjector
 
 
 ##
@@ -47,10 +47,10 @@ async def _provide_commands(
 ) -> Commands:
     ui_commands = await ui_injector[inj.as_key(Commands, tag=_UI_COMMANDS)]
     agent_ui_commands = await agent_ui_injector.v[Commands]
-    return [
+    return Commands([
         *ui_commands,
         *agent_ui_commands,
-    ]
+    ])
 
 
 ##

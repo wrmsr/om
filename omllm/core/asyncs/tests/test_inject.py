@@ -5,7 +5,7 @@ from omcore import inject as inj
 from ..asyncio import AsyncioJobRunner
 from ..base import AsyncJob
 from ..base import AsyncJobRunner
-from ..inject import bind_job_runner
+from ..inject import bind_asyncio_job_runner
 
 
 class _One(AsyncJob[int]):
@@ -17,7 +17,7 @@ class _One(AsyncJob[int]):
 async def test_bind_job_runner():
     seen = {}
     async with inj.create_async_managed_injector(
-        bind_job_runner(),
+        bind_asyncio_job_runner(),
         factory=inj.create_asyncio_injector,
     ) as injector:
         runner = await injector[AsyncJobRunner]

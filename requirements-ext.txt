@@ -72,7 +72,7 @@ wasmtime==50.0.1
 # bins
 
 deno==2.9.8
-playwright==1.65.1
+playwright==1.65.2
 ripgrep==15.1.0
 # mojo==1.2.0
 

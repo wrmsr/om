@@ -11,6 +11,8 @@ from omdev import repl
 
 from ......core import processes
 from .....commands.repl import ReplSwitchError
+from .....inject.injectors import UiInjector
+from .....inject.injectors import bind_injector_import
 from .....tests.headless import bind_headless_ui
 from .....tests.headless import headless_ui
 from ....config import TuiConfig
@@ -213,8 +215,17 @@ async def test_bash_wiring(tmp_path):
     )
     driver = CommitSignallingDriver()
     async with headless_ui(
-        bind_headless_ui(config),
-        bind_repl(config),
+        bind_headless_ui(
+            config,
+            agent_ui_rewriter=lambda els: inj.as_elements(
+                els,
+                bind_repl(config),
+
+                bind_injector_import(UiInjector, MinituiChatApp),
+                bind_injector_import(UiInjector, mt.AsyncioDriver),
+            ),
+        ),
+
         inj.bind(mt.AsyncioDriver, to_const=ta.cast(mt.AsyncioDriver, driver)),
         inj.bind(MinituiChatApp, singleton=True),
     ) as tui:

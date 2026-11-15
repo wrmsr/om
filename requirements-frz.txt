@@ -26,7 +26,7 @@ botocore==1.44.3
 botocore-stubs==1.43.126
 brotli==1.2.1
 build==1.6.1
-cbor2==6.2.1
+cbor2==6.3.0
 certifi==2026.10.23
 cffi==2.1.1
 charset-normalizer==3.5.2
@@ -151,7 +151,7 @@ pexpect==4.9.0
 pg8000==1.31.6
 pillow==13.0.0
 platformdirs==4.14.5
-playwright==1.65.1
+playwright==1.65.2
 pluggy==1.7.0
 pprintpp==0.4.0
 primp==2.0.1
@@ -267,7 +267,7 @@ truststore==0.10.5
 twine==7.0.0
 typer==0.29.1
 types-awscrt==0.37.0
-types-boto3==1.44.2
+types-boto3==1.44.3
 types-docutils==0.23.0.20261107
 types-greenlet==3.5.0.20260518
 types-paramiko==5.1.0.20261030
