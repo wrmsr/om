@@ -1,6 +1,6 @@
 from omcore import inject as inj
 
-from .... import agent as agn
+from ... import agent as agn
 
 
 ##

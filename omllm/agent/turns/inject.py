@@ -4,7 +4,7 @@ import typing as ta
 from omcore import inject as inj
 from omcore import lang
 
-from .... import agent as agn
+from ... import agent as agn
 
 
 ##

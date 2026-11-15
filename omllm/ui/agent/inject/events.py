@@ -19,11 +19,11 @@ def agent_event_subscribers() -> inj.ItemsBinderHelper[EventSubscriber[agn.Event
 #
 
 
-class HasOnEventAgent(ta.Protocol):
+class HasOnAgentEvent(ta.Protocol):
     def on_agent_event(self, ev: agn.Event) -> ta.Awaitable[None]: ...
 
 
-def bind_on_agent_event_subscriber(cls: type[HasOnEventAgent]) -> inj.Elements:
+def bind_on_agent_event_subscriber(cls: type[HasOnAgentEvent]) -> inj.Elements:
     return agent_event_subscribers().bind_item(to_fn=inj.target(o=cls)(lambda o: o.on_agent_event))
 
 

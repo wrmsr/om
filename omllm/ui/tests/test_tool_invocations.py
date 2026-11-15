@@ -15,7 +15,7 @@ from ... import agent as agn
 from ... import llm
 from ...agent.tests.scripted import text_message
 from ...agent.tests.scripted import tool_call_message
-from ..agent.inject.toolinvocation import TOOL_INVOCATION_SCOPE
+from ...agent.tools.inject import TOOL_INVOCATION_SCOPE
 from ..agent.inject.tools import agent_tools
 from ..config import UiConfig
 from .headless import bind_headless_ui

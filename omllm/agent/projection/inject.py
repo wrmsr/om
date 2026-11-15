@@ -2,7 +2,7 @@ import typing as ta
 
 from omcore import inject as inj
 
-from .... import agent as agn
+from ... import agent as agn
 
 
 ##
@@ -23,7 +23,7 @@ def bind_agent_message_projector(
 ##
 
 
-def bind_context() -> inj.Elements:
+def bind_projection() -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #
@@ -35,16 +35,6 @@ def bind_context() -> inj.Elements:
         inj.bind(agn.AgentMessageProjector, to_key=agn.TypeMapAgentMessageProjector),
         inj.bind(agn.StandardLlmContextBuilder, singleton=True),
         inj.bind(agn.LlmContextBuilder, to_key=agn.StandardLlmContextBuilder),
-
-        # What a run reaches for when its view is too big for the model and pruning has not been enough, and what
-        # /compact asks for outright: a summary of the older part of the transcript, asked of the model itself.
-        inj.bind(agn.SummarizingContextCompactor, singleton=True),
-        inj.bind(agn.ContextCompactor, to_key=agn.SummarizingContextCompactor),
-
-        inj.bind(agn.StandardContextLifecycleManager, singleton=True),
-        inj.bind(agn.ContextLifecycleManager, to_key=agn.StandardContextLifecycleManager),
-
-        inj.bind(agn.ContextCompactionRunner, singleton=True),
     ])
 
     #

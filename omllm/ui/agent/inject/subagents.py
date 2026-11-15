@@ -18,6 +18,8 @@ from omcore import inject as inj
 from omcore import lang
 
 from .... import agent as agn
+from ....agent.tools.inject import ScopedToolInvoker
+from ....agent.turns.inject import ScopedTurnRunner
 from ....core import processes as procs
 from ..config import AgentConfig
 from ..setup import AgentSetup
@@ -25,12 +27,10 @@ from ..systemprompt import EnvironmentSystemPromptContributor
 from .events import AgentEventSubscribers
 from .events import agent_event_subscribers
 from .systemprompt import system_prompt_contributors_binder
-from .toolinvocation import ScopedToolInvoker
 from .tools import AgentTools
 from .tools import AgentToolSets
 from .tools import bind_agent_tool_class
 from .tools import bind_tool_classes
-from .turns import ScopedTurnRunner
 
 
 ##

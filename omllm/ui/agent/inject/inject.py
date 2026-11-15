@@ -1,19 +1,20 @@
 from omcore import inject as inj
 
 from .... import agent as agn
+from ....agent.lifecycle.inject import bind_lifecycle
+from ....agent.permissions.inject import bind_permissions
+from ....agent.projection.inject import bind_projection
+from ....agent.tools.inject import bind_tool_invocation
+from ....agent.turns.inject import bind_turns
 from ....core.asyncs.inject import bind_asyncio_job_runner
 from ....core.asyncs.inject import bind_asyncio_runtime
 from ..config import AgentConfig
 from ..setup import AgentSetup
-from .context import bind_context
 from .events import bind_events
-from .permissions import bind_permissions
 from .session import bind_sessions
 from .subagents import bind_subagents
 from .systemprompt import bind_system_prompt
-from .toolinvocation import bind_tool_invocation
 from .tools import bind_tools
-from .turns import bind_turns
 from .web import bind_web
 
 
@@ -32,20 +33,25 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
     #
 
     lst.extend([
-        bind_asyncio_runtime(),
-        bind_context(),
-        bind_events(),
+        bind_lifecycle(),
         bind_permissions(),
-        bind_sessions(config),
-        bind_subagents(config),
-        bind_system_prompt(config),
+        bind_projection(),
         bind_tool_invocation(),
-        bind_tools(config),
         bind_turns(),
-        bind_web(config),
 
         bind_asyncio_job_runner(),
         bind_asyncio_runtime(),
+    ])
+
+    #
+
+    lst.extend([
+        bind_events(),
+        bind_sessions(config),
+        bind_subagents(config),
+        bind_system_prompt(config),
+        bind_tools(config),
+        bind_web(config),
     ])
 
     #
