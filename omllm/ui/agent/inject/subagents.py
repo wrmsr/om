@@ -9,15 +9,17 @@ injector. That shadowing is a known wart of child injectors, accepted here as th
 ahead of the split of the root into an app injector and an agent injector per agent, the root agent's included.
 """
 import contextlib
-import contextvars
 import typing as ta
 import uuid
 
 from omcore import check
 from omcore import inject as inj
-from omcore import lang
 
 from .... import agent as agn
+from ....agent.subagents.inject import SUBAGENT_TOOL_INVOCATION_SCOPE
+from ....agent.subagents.inject import SUBAGENT_TURN_SCOPE
+from ....agent.subagents.inject import provide_subagent_tool_invoker
+from ....agent.subagents.inject import provide_subagent_turn_runner
 from ....agent.tools.inject import ScopedToolInvoker
 from ....agent.turns.inject import ScopedTurnRunner
 from ....core import processes as procs
@@ -31,61 +33,6 @@ from .tools import AgentTools
 from .tools import AgentToolSets
 from .tools import bind_agent_tool_class
 from .tools import bind_tool_classes
-
-
-##
-
-
-class SUBAGENT_TURN_SCOPED(lang.Marker):  # noqa
-    pass
-
-
-_SUBAGENT_TURN_SCOPE_CONTEXT: contextvars.ContextVar = contextvars.ContextVar(
-    f'{__name__}._SUBAGENT_TURN_SCOPE_CONTEXT',
-)
-
-# A turn scope of the subagent's own. A child injector may not redeclare its ancestor's `TURN_SCOPE`, and the parent's
-# opening of it is in any case visible in the task a subagent runs in, so a nested opening would be refused. Each child
-# injector registers this scope for itself: the scope's state is per injector, so any number of subagents run at once
-# without seeing each other's openings.
-SUBAGENT_TURN_SCOPE: ta.Final = inj.DelimitedScope(
-    SUBAGENT_TURN_SCOPED,
-    context=inj.ContextVarScopeContext(_SUBAGENT_TURN_SCOPE_CONTEXT),
-)
-
-
-def _provide_subagent_turn_runner(injector: inj.AsyncInjector) -> ScopedTurnRunner:
-    return ScopedTurnRunner(
-        injector=injector,
-        scope=SUBAGENT_TURN_SCOPE,
-    )
-
-
-#
-
-
-class SUBAGENT_TOOL_INVOCATION_SCOPED(lang.Marker):  # noqa
-    pass
-
-
-_SUBAGENT_TOOL_INVOCATION_SCOPE_CONTEXT: contextvars.ContextVar = contextvars.ContextVar(
-    f'{__name__}._SUBAGENT_TOOL_INVOCATION_SCOPE_CONTEXT',
-)
-
-# A tool invocation scope of the subagent's own, for the turn scope's reasons and then some: a subagent runs inside the
-# parent's subagent tool call, which is itself an opening of the parent's `TOOL_INVOCATION_SCOPE`. Falling through to
-# the parent's invoker would open that scope again, on the parent's injector, in a task which already sees it open.
-SUBAGENT_TOOL_INVOCATION_SCOPE: ta.Final = inj.DelimitedScope(
-    SUBAGENT_TOOL_INVOCATION_SCOPED,
-    context=inj.ContextVarScopeContext(_SUBAGENT_TOOL_INVOCATION_SCOPE_CONTEXT),
-)
-
-
-def _provide_subagent_tool_invoker(injector: inj.AsyncInjector) -> ScopedToolInvoker:
-    return ScopedToolInvoker(
-        injector=injector,
-        scope=SUBAGENT_TOOL_INVOCATION_SCOPE,
-    )
 
 
 ##
@@ -137,7 +84,7 @@ def bind_subagent_agent(
         inj.bind_scope(SUBAGENT_TURN_SCOPE),
         inj.bind_scope_seed(agn.TurnParams, SUBAGENT_TURN_SCOPE),
         inj.bind(agn.TurnLoop, in_=SUBAGENT_TURN_SCOPE),
-        inj.bind(ScopedTurnRunner, singleton=True, to_fn=_provide_subagent_turn_runner),
+        inj.bind(ScopedTurnRunner, singleton=True, to_fn=provide_subagent_turn_runner),
         inj.bind(agn.TurnRunner, to_key=ScopedTurnRunner),
 
         # And its own tool invocation scope, likewise.
@@ -145,7 +92,7 @@ def bind_subagent_agent(
         inj.bind_scope_seed(agn.Tool, SUBAGENT_TOOL_INVOCATION_SCOPE),
         inj.bind_scope_seed(agn.ToolContext, SUBAGENT_TOOL_INVOCATION_SCOPE),
         inj.bind(agn.DirectToolInvoker, in_=SUBAGENT_TOOL_INVOCATION_SCOPE),
-        inj.bind(ScopedToolInvoker, singleton=True, to_fn=_provide_subagent_tool_invoker),
+        inj.bind(ScopedToolInvoker, singleton=True, to_fn=provide_subagent_tool_invoker),
         inj.bind(agn.ToolInvoker, to_key=ScopedToolInvoker),
 
         inj.bind(agn.Agent, singleton=True),
