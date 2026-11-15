@@ -1,13 +1,13 @@
 from omcore import inject as inj
 
 from .... import agent as agn
-from ....core.asyncs.inject import bind_job_runner
+from ....core.asyncs.inject import bind_asyncio_job_runner
+from ....core.asyncs.inject import bind_asyncio_runtime
 from ..config import AgentConfig
 from ..setup import AgentSetup
 from .context import bind_context
 from .events import bind_events
 from .permissions import bind_permissions
-from .runtime import bind_runtime
 from .session import bind_sessions
 from .subagents import bind_subagents
 from .systemprompt import bind_system_prompt
@@ -32,10 +32,10 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
     #
 
     lst.extend([
+        bind_asyncio_runtime(),
         bind_context(config),
         bind_events(config),
         bind_permissions(config),
-        bind_runtime(config),
         bind_sessions(config),
         bind_subagents(config),
         bind_system_prompt(config),
@@ -44,8 +44,8 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
         bind_turns(config),
         bind_web(config),
 
-        # Blocking work (the quickjs tool's evals) runs off the loop through this, one per injector, closed with it.
-        bind_job_runner(),
+        bind_asyncio_job_runner(),
+        bind_asyncio_runtime(),
     ])
 
     #

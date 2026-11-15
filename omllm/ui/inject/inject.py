@@ -7,22 +7,23 @@ from omcore import lang
 
 from ... import agent as agn
 from ...core import ui
+from ...core.asyncs.inject import bind_asyncio_job_runner
+from ...core.asyncs.inject import bind_asyncio_runtime
 from ..agent.inject.events import agent_event_subscribers
 from ..agent.inject.inject import bind_agent
 from ..agent.setup import AgentSetup
 from ..backends.inject import bind_backends
 from ..commands.inject import bind_commands
-from ..commands.manager import CommandsManager
 from ..config import UiConfig
 from ..types import UiId
 from .injectors import AgentInjector
-from .injectors import AgentUiInjector
-from .injectors import UiInjector
-from .injectors import bind_injector_import
-from .injectors import agent_injector_bindings
 from .injectors import AgentInjectorBindings
-from .injectors import agent_ui_injector_bindings
+from .injectors import AgentUiInjector
 from .injectors import AgentUiInjectorBindings
+from .injectors import UiInjector
+from .injectors import agent_injector_bindings
+from .injectors import agent_ui_injector_bindings
+from .injectors import bind_injector_import
 
 
 ##
@@ -49,7 +50,6 @@ class UiBinder:
 
     def bind_agent_ui(self) -> inj.Elements:
         return self._agent_ui_rewriter(inj.as_elements(
-            bind_commands(self._config),
 
             #
 
@@ -120,6 +120,13 @@ class UiBinder:
 
             #
 
+            bind_commands(self._config),
+
+            bind_asyncio_job_runner(),
+            bind_asyncio_runtime(),
+
+            #
+
             inj.bind(AgentInjector, to_async_fn=self._provide_agent_injector, singleton=True),
 
             #
@@ -135,10 +142,6 @@ class UiBinder:
             bind_injector_import(AgentInjector, AgentSetup),
 
             bind_injector_import(AgentInjector, AgentUiInjector),
-
-            #
-
-            bind_injector_import(AgentUiInjector, CommandsManager),
 
             #
 

@@ -39,9 +39,13 @@ async def test_bare_boot_commands_read_as_blocks(tmp_path):
         yolo=True,
     ))
     async with headless_ui(inj.override(
-        bind_bare(config),
+        bind_bare(
+            config,
+            agent_rewriter=inj.overrider(
+                bind_scripted_backend(),
+            ),
+        ),
         inj.bind(TerminalTextDisplayer, singleton=True, to_fn=build_text_displayer),
-        bind_scripted_backend(),
     )) as tui:
         prompter = await tui.ui_injector[Prompter]
         for ax in yolo_autoexec(config, root):
