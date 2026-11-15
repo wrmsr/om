@@ -33,15 +33,15 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
 
     lst.extend([
         bind_asyncio_runtime(),
-        bind_context(config),
-        bind_events(config),
-        bind_permissions(config),
+        bind_context(),
+        bind_events(),
+        bind_permissions(),
         bind_sessions(config),
         bind_subagents(config),
         bind_system_prompt(config),
-        bind_tool_invocation(config),
+        bind_tool_invocation(),
         bind_tools(config),
-        bind_turns(config),
+        bind_turns(),
         bind_web(config),
 
         bind_asyncio_job_runner(),

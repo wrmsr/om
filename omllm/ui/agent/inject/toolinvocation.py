@@ -5,7 +5,6 @@ from omcore import inject as inj
 from omcore import lang
 
 from .... import agent as agn
-from ..config import AgentConfig
 
 
 ##
@@ -67,7 +66,7 @@ class ScopedToolInvoker(agn.ToolInvoker):
 ##
 
 
-def bind_tool_invocation(config: AgentConfig) -> inj.Elements:
+def bind_tool_invocation() -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

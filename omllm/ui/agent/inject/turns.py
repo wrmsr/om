@@ -5,7 +5,6 @@ from omcore import inject as inj
 from omcore import lang
 
 from .... import agent as agn
-from ..config import AgentConfig
 
 
 ##
@@ -60,7 +59,7 @@ class ScopedTurnRunner(agn.TurnRunner):
 ##
 
 
-def bind_turns(config: AgentConfig) -> inj.Elements:
+def bind_turns() -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #

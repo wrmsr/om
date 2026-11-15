@@ -3,7 +3,6 @@ import typing as ta
 from omcore import inject as inj
 
 from .... import agent as agn
-from ..config import AgentConfig
 
 
 ##
@@ -24,7 +23,7 @@ def bind_agent_message_projector(
 ##
 
 
-def bind_context(config: AgentConfig) -> inj.Elements:
+def bind_context() -> inj.Elements:
     lst: list[inj.Elemental] = []
 
     #
