@@ -236,3 +236,32 @@ def test_open_think_engine():
     ]
     res2 = engine.run_sync(Request.from_json({'messages': history}, defaults, True))
     assert res2.prompt_reused >= res.prompt_tokens + res.completion_tokens - 1, (res2.prompt_reused, res.prompt_tokens)
+
+
+def test_warmup_covers_the_default_sampling():
+    """The warm-up generates greedy and as the server's sampling defaults say (once, when those are greedy too)."""
+
+    from ..decode.generation import Generated
+    from ..decode.runners import GenerationParams
+    from ..decode.runners import GenerationRunner
+
+    class Recording(GenerationRunner):
+        def __init__(self) -> None:
+            super().__init__()
+
+            self.seen: list[GenerationParams] = []
+
+        def run(self, params: GenerationParams) -> Generated:
+            self.seen.append(params)
+            return Generated(tokens=[], prompt_tokens=len(params.prompt), reused=0, rounds=0, drafted=0, accepted=0)
+
+    cfg, hf, src = synthetic_source()
+    tok = Tokenizer.from_spec(src.tokenizer_spec)
+    for defaults, want in (
+            (SamplingDefaults(temperature=.7, top_k=20, top_p=.8), [(0., 0, 1.), (.7, 20, .8)] * 2),
+            (SamplingDefaults(temperature=0.), [(0., 0, 1.)] * 2),
+    ):
+        runner = Recording()
+        Engine(runner, tok, defaults=defaults, log=None).warmup(max_new_tokens=5)
+        assert [(p.temperature, p.top_k, p.top_p) for p in runner.seen] == want
+        assert all(p.max_new_tokens == 5 for p in runner.seen)

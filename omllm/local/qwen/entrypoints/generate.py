@@ -382,9 +382,14 @@ def main() -> None:
             if args.spec:
                 prompts.append(tok.encode('hello'))
         for prompt in prompts:
+            # (sampled as the real run will be: the draft head's runs are captured per sampler shape)
             runner.run(GenerationParams(
                 prompt=prompt,
                 max_new_tokens=total - len(prompt),
+                temperature=args.temperature,
+                top_k=args.top_k,
+                top_p=args.top_p,
+                min_p=args.min_p,
                 eos_ids=eos,
                 terminators=[BudgetTerminator(budget)],
             ))

@@ -440,7 +440,7 @@ prompt in pieces. At 28.0 GiB of 32 the margin is what it is.
 
 **Where the GPU waited for the host (2026-11-14).** A decode step is one graph launch, so the round looked
 GPU-bound; timing the host between launches (when each launch returns, when each read comes back) said otherwise in
-six places, all on the 27B, compiled:
+seven places, all on the 27B, compiled:
 
 | what the host was doing                                                 | it cost                    | now                                             |
 |-------------------------------------------------------------------------|----------------------------|-------------------------------------------------|
@@ -450,24 +450,43 @@ six places, all on the 27B, compiled:
 | a commit picking 96 per-token states before the next round's first launch | 0.28 ms a round             | picked when the next step asks                  |
 | plain decode copying its state into the graph's inputs at every launch  | 0.3 ms a token (of 15.3)    | carried inside the graph                        |
 | small host arrays (a lookup round's drafts, mask rows) sent with a blocking copy that waits out the head's refresh | 0.2 ms a prompt-lookup round | through pinned memory, not waiting              |
+| the rejection step run for greedy: thirty operations on vocabulary-wide rows, on the GPU after the verify step | 0.1-0.15 ms a round, 0.5 of launches | an argmax (2026-11-15)                          |
 
 Still there, and smaller: a round's first launch comes 0.11 ms after its read (the bookkeeping between), and the
 verify step's launch is 0.6 ms of host time (its 96 state arrays are copied in, as plain decode's were), hidden
 behind the drafts whenever there are drafts to hide behind. (A 15-draft prompt-lookup round on the rewrite of 1.1
 now takes 19.6 ms, 612 tok/s; the table there has 24.0 and 523, read on a machine it calls ~10% slow.)
 
-**The next one: the verify launch, when the host is busy.** Hidden is not gone. With the machine's cores
-oversubscribed (a load average of 55 on 48) the host's launches take two or three times as long and stop fitting
-behind the head's ~1.6 ms of drafting: the bench's speculative round reads 18.7 ms where it reads 16.9 on a quiet
-host, while plain decode, whose launch is now two copies and a replay, barely moves (15.2 against 15.0 ms a token;
-the commit before it, 16.9). What is left on the host in a speculative round is almost all in one place: picking
-the kept state out of the verify step's per-token outputs (~100 selects) and copying it into the next verify
-step's inputs (96 launches). One captured call could do both -- `fn(n, *stacked, *state)` writing `stacked[i][n]`
-into `state[i]` -- if every step of a decoder took the same state arrays as its inputs, which they do not today:
-each captured step keeps the arrays of its own first call. So the work is to give the DeltaNet state what the KV
-buffers already have -- arrays that belong to the slab (`core/slab.py`), that a new decoder copies its state into
-once and every step then reads and writes in place -- and then the commit is one launch and the verify launch is
-a replay. Worth about 10% of a speculative round on a busy host, nothing on an idle one.
+**The verify launch, when the host is busy: built, measured, taken out again (2026-11-15).** Hidden is not gone:
+what is left on the host in a speculative round is almost all in one place -- picking the kept state out of the
+verify step's per-token outputs (~100 selects) and copying it into the next verify step's inputs (96 launches) --
+and with the machine's cores oversubscribed the bench's speculative round had read 18.7 ms against 16.9. So: the
+DeltaNet state kept in arrays that belong to the slab, as the KV buffers do, which every step reads and writes in
+place and a new decoder copies its state into once; and a commit that is one captured call writing row n of each
+per-token output into them. It worked -- a round's launches were all made 0.48 ms after its read instead of 1.30,
+and a target step's launch copied in its tokens and its position and nothing else -- and it bought next to nothing:
+
+| the round, ms                                    | before | after |
+|--------------------------------------------------|--------|-------|
+| three drafts, quiet host (three alternations)    | 16.75  | 16.85 |
+| seven drafts, quiet host                         | 19.32  | 19.40 |
+| three drafts, 56 busy loops on the 48 cores      | 17.9   | 17.4  |
+| seven drafts, the same load                      | 19.5   | 19.6  |
+| fifteen drafts by prompt lookup, natural load    | 19.5   | 19.2-19.5 |
+
+The launches fit behind the head's drafting on a quiet host already, and with seven drafts they fit on a busy one;
+only the three-draft round on a busy host gains, half a millisecond. And the one call is a gather (0.34 ms for the
+150 MiB of state) where the copies it replaced were plain ones (0.28), on the GPU's path either way. Two hundred
+lines for that were not kept. What the 18.7 was made of is then mostly not the launches. Nor is it how the round
+waits for its read: that wait spins (CUDA's choice with one context on many cores -- the process holds 1.1 cores
+throughout), and waiting on an event instead, yielding or sleeping through most of the step first, holds 0.4-0.6 of
+a core and is 0.1-0.5 ms a round *slower*. A spinning thread on an oversubscribed machine is preempted like any
+other, which is the scheduler's to change (a priority, a core of its own), not the engine's.
+
+What would be worth having is not making the copy at all: 150 MiB a round, 0.28 ms of a 16.8 ms round, and as much
+for every plain token. A verify step that took its starting state from the last step's per-token outputs at row n
+-- each program of the DeltaNet kernel loading its slice of row n before it writes its own rows -- would make a
+commit a number. That is the kernel's interface and every step function's state plumbing, not a decoder change.
 
 And the state plain decode carries is still copied -- by the graph now, 150 MiB and 0.3 ms a token: a step
 that wrote its new state where its next run reads it (two graphs over two sets of buffers, each reading the other's)
@@ -556,8 +575,10 @@ reasoning, 11.1 in a file being rewritten (all fifteen at 46% of its positions),
   (no read at all), a read after three drafts choosing the round's whole length, and an expected-tokens estimate all
   land between 1.30x and 1.35x `--spec 3`; fixed 7 is 1.25x; an oracle choosing among three lengths 1.47x, among all
   fifteen 1.57x. So the next gain here is a head whose probabilities mean what they say -- a temperature fitted on
-  traffic would be the one-parameter version, the tuning above the real one -- or a second signal (the target's own
-  entropy at the last verified row is free).
+  traffic would be the one-parameter version, the tuning above the real one. A second signal from the target is not
+  it: how sure the target was of the tokens it has just written (the probability it gave each, or its entropy,
+  smoothed over the last few -- free, it is in the verify step's rows) correlates 0.05-0.35 with the drafts then
+  kept, where the head's probability of its first five correlates 0.45-0.7 on the same six texts.
 - *What a draft costs.* The loop that drafted one token at a time was bound by the host, not the GPU: two dozen
   launches a draft greedy and forty sampled (0.35 / 0.63 ms) around a step of 0.38 / 0.52 ms, and a blocking copy for
   each step's position on top. A run of drafts is now one captured call (README). What is left is the GPU's: the
@@ -565,6 +586,19 @@ reasoning, 11.1 in a file being rewritten (all fifteen at 46% of its positions),
   A smaller draft vocabulary does not pay: at seven drafts `--draft-vocab 32768` takes 0.4 ms off a 19.7 ms round and
   loses more than that in drafts kept (the rewrite 353 -> 316 tok/s, a duration parser 288 -> 251, prose 163 -> 157;
   reasoning unchanged), and 16384 is worse on everything (the rewrite 263).
+- *A sampler shape's first runs.* The head's runs are captured per sampler shape (greedy; or what top-k, top-p
+  and min-p do to the operations -- their values are arguments), ~100 ms a run on the 27B, once. The warm-ups now
+  generate as the server's defaults / the run will sample, so the usual shape is captured before the first
+  request (which had paid a third of a second). Still paid in a request: a shape no warm-up used (0.2 s), and with
+  several lengths the runs to the longer ones, which a warm-up captures only if its text takes the head that far
+  -- a round there is drafted to a length whose *step* is unbuilt whatever the confidence, not to one whose run is
+  uncaptured for this sampler.
+- *The sampled rejection step is the same thirty operations and still runs.* 0.8 ms of launches a round (hidden
+  behind the verify step) over k + 1 rows of 248k where top-k leaves twenty candidates a row: the probabilities of
+  the drafts, the residuals and the draws need those candidates and the head's, forty numbers a row. A step over
+  the candidates only would be a second implementation of `speculative_accept` to pin against the first
+  (`test_sampler.py` does that for `sample` against `probs`), and would move a seed's stream; what it would save on
+  the GPU is not measured.
 - *What a verify row costs, and that it does not want its own GEMV launch table.* The verify step alone is 15.7 /
   16.5 / 18.0 ms at 4 / 8 / 16 rows: 0.19 ms a row, so more than half of a draft's 0.69 ms is the head's own step,
   not its row. Of the 2.3 ms between 4 and 16 rows: ~0.9 is the GEMVs -- the table is tuned at four rows (`tune -m
@@ -692,6 +726,8 @@ Explicitly out, so nobody spends a weekend on them:
 
 - **Embeddings and logprobs endpoints, model management.** The API will not outgrow what a plain Ollama-style
   server does; the harness needs chat completions with tools, streaming and cancellation, and has them.
+- **An Anthropic messages dialect.** The server speaks OpenAI chat completions and that is the one dialect it will
+  speak: a second renderer / parser beside it is strictly out of scope (decided 2026-11-15), whatever harness asks.
 - **Competitive throughput.** Good, not maximal: the engine should be more than reasonable and will not chase
   vLLM for paying users. The remaining 90% of the work for the last 10% of speed is not this project.
 - **A persistent megakernel, and hand-written CUDA in general.** Triton is already a heavier dependency than

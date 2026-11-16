@@ -395,12 +395,29 @@ class Engine:
         Throwaway generations, so step capture and compilation happen before the first request: one from a single token
         (plain rounds, as nothing has occurred for a prompt lookup to match, or the draft head's), and one from a prompt
         counting in a cycle, which a model goes on with, so a prompt-lookup draft source drafts and its verify step is
-        compiled too. And the tool grammar's vocabulary trie, which the first request with tools would otherwise wait
-        for.
+        compiled too. Each greedy and with the server's default sampling: the draft head's runs are captured per
+        sampler shape (spec/mtp.py), and a first request sampled as the defaults say otherwise spent a third of a
+        second on that (the 27B, several draft lengths). And the tool grammar's vocabulary trie, which the first
+        request with tools would otherwise wait for.
         """
 
+        defaults = self.defaults
+        samplings: list[dict[str, ta.Any]] = [{}]
+        if defaults.temperature > 0:
+            samplings.append(dict(
+                temperature=defaults.temperature,
+                top_k=defaults.top_k,
+                top_p=defaults.top_p,
+                min_p=defaults.min_p,
+            ))
+
         for text in ('hello', ' '.join(['1 2 3 4 5 6 7 8'] * 6)):
-            self.runner.run(GenerationParams(prompt=self.tok.encode(text), max_new_tokens=max_new_tokens))
+            for sampling in samplings:
+                self.runner.run(GenerationParams(
+                    prompt=self.tok.encode(text),
+                    max_new_tokens=max_new_tokens,
+                    **sampling,
+                ))
 
         Vocab.for_tokenizer(self.tok)  # the grammar's trie over the vocabulary: 1.5 s on 248k tokens, once
 

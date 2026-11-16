@@ -283,11 +283,25 @@ class MtpDraftSource(DraftSource):
             """Drafts a+1..b; their probabilities under the head's unwarped distribution, if asked for."""
 
             nonlocal lead, hid
-            fn = self._stage(dec, a, b, sure, width, n + b)
-            noise = self._noise(b - a, width)
-            # (the run's first step is on draft a, at the position before its own)
-            pos = ops.scalar(n + max(a - 1, 0))
-            t, q, qd, p, lead, hid, *mkv = fn(lead, hid, pos, noise, *self._settings(), *dec.tables(), *self._mflat)
+            fn = self._stage(
+                dec,
+                a,
+                b,
+                sure,
+                width,
+                n + b,
+            )
+
+            t, q, qd, p, lead, hid, *mkv = fn(
+                lead,
+                hid,
+                ops.scalar(n + max(a - 1, 0)),  # (the run's first step is on draft a, at the position before its own)
+                self._noise(b - a, width),
+                *self._settings(),
+                *dec.tables(),
+                *self._mflat,
+            )
+
             self._mflat = list(mkv)
             toks.append(t)
             qs.append(q)
@@ -401,7 +415,15 @@ class MtpDraftSource(DraftSource):
             tok = None if a == 0 else lead
             for i in range(b - a):
                 if row is None:
-                    ml, hid, *rest = step(tok, hid, pos + (i if a else i - 1), ar, cos_tab, sin_tab, *kv)
+                    ml, hid, *rest = step(
+                        tok,
+                        hid,
+                        pos + (i if a else i - 1),
+                        ar,
+                        cos_tab,
+                        sin_tab,
+                        *kv,
+                    )
                     kv = tuple(rest)
                     row = ml[:, -1]
 

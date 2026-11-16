@@ -179,3 +179,51 @@ def test_sampled_spec_runs():
         if hasattr(ops, 'capture_mode'):
             ops.capture_mode = 'auto'
         print(f'{ops.name}: sampled spec decode OK ({res.rounds} rounds)')
+
+
+def test_greedy_rejection_step_is_an_argmax():
+    """
+    With a greedy sampler the token source does not run the rejection step: it keeps a draft iff it is its row's first
+    maximum and corrects with that maximum (decode/tokens.py). That is what the rejection step gives whatever
+    distributions the drafts came from -- one-hot or spread, right or wrong, with tied maxima in a row.
+    """
+
+    from ..decode.sampling import speculative_accept
+
+    rng = np.random.default_rng(31)
+    V = 48
+    k = 6
+    for ops in backends():
+        f32 = ops.dtype('f32')
+        i32 = ops.dtype('i32')
+        sampler = Sampler()
+        sampler.bind(ops)
+
+        for trial in range(20):
+            logits = rng.normal(size=(k + 1, V)).astype(np.float32)
+            logits[2, [5, 9]] = logits[2].max() + 1  # a tie: the first of them is the maximum
+            first_max = logits.argmax(-1)
+
+            # drafts: some the row's maximum, some not; drawn from distributions that are sometimes one-hot, sometimes
+            # spread over the vocabulary (the draft among them)
+            drafts = np.where(rng.random(k) < .5, first_max[:k], rng.integers(0, V, k)).astype(np.int32)
+            q = rng.random((k, V)).astype(np.float32) + 1e-3
+            q[trial % k] = 0
+            q[trial % k, drafts[trial % k]] = 1
+            q /= q.sum(-1, keepdims=True)
+
+            rows = ops.array(logits, f32)
+            d = ops.array(drafts, i32)
+            q_rows = ops.array(q, f32)
+            accept, corrections = speculative_accept(
+                ops,
+                sampler,
+                sampler.probs(rows),
+                q_rows,
+                d,
+                Sampler.gather(ops, q_rows, d),
+            )
+
+            assert ops.numpy(sampler.sample(rows)).tolist() == first_max.tolist(), ops.name
+            assert ops.numpy(corrections).tolist() == first_max.tolist(), ops.name
+            assert ops.numpy(accept).tolist() == (first_max[:k] == drafts).astype(int).tolist(), ops.name

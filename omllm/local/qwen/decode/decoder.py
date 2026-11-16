@@ -230,7 +230,9 @@ class Decoder(TargetDecoder):
 
         leaves: StepSlab | None = getattr(self, '_leaves', None)
         if leaves is not None:  # new buffers, new steps: what this decoder will leave follows
-            leaves.capacity, leaves.layers, leaves.fns = capacity, self._buffers(), self.fns
+            leaves.capacity = capacity
+            leaves.layers = self._buffers()
+            leaves.fns = self.fns
 
     def bucket(self, n: int) -> int:
         """The attention window for a step whose last position is n - 1: 0 (whole buffer) unless the backend buckets."""

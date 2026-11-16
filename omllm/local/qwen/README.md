@@ -459,7 +459,9 @@ and refreshes the draft head over the committed positions with the target's true
 T = k + 1 draft step). The output distribution is exactly the target's (the speculative-sampling theorem;
 `test_sampler.py` checks it empirically) and the per-draft acceptance is sum(min(p, q)) = 1 - TV(p, q) rather than
 p(argmax q) -- the same thing for greedy, where every distribution is one-hot, and typically 10-20 points more when
-sampling. All of it runs on the device; the round still has one host sync (accept flags, corrections, drafts) --
+sampling. (Greedy does not run that step at all: with one-hot rows it is "keep a draft iff it is its row's first
+maximum, and correct with that maximum", three operations on k + 1 numbers where the general step is thirty on
+k + 1 vocabulary-wide rows.) All of it runs on the device; the round still has one host sync (accept flags, corrections, drafts) --
 and, with several draft lengths, the head's confidence in its drafts (below).
 Rollback costs nothing: the KV buffers are masked by position and the verify step returns the DeltaNet state after
 every token, so the state after the accepted prefix is a slice.
@@ -692,6 +694,6 @@ queue limit).
    int8 with the same scales is the other half-size option where fp8 is unavailable.
 2. **Batching** — the static step is batch-1 by construction; a second concurrent conversation would want
    B > 1 buffers and a scheduler in `Engine`, which is a different engine.
-3. **Anthropic messages dialect** in `serving.py`, if a harness needs it: same engine, a second renderer / parser.
 
-MoE variants (`qwen35moe`) and the vision tower are deliberately not supported.
+MoE variants (`qwen35moe`) and the vision tower are deliberately not supported, and the server speaks OpenAI chat
+completions only: an Anthropic messages dialect will not be added (NEXT.md, non-goals).

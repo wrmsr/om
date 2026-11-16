@@ -344,10 +344,21 @@ class VerifyTokenSource(TokenSource):
         toks = ops.reshape(ops.concat([ops.cast(pending_arr, i32), drafts.tokens], 0), (1, k + 1))
         verified = dec.verify(toks)
 
-        # row i is the target's distribution for the position after the pending token and drafts[:i]
+        # row i is the target's logits for the position after the pending token and drafts[:i]
         contribution = self._processor.rows(gen, drafts.tokens, k + 1)
-        p_rows = self._sampler.probs(contribution.apply(verified.logits[0]))
-        accept, corr = speculative_accept(ops, self._sampler, p_rows, drafts.q, drafts.tokens, drafts.q_d)
+        rows = contribution.apply(verified.logits[0])
+
+        if self._sampler.greedy:
+            # Every row's distribution is one-hot at its first maximum, and the rejection step is then this whatever
+            # the drafts were drawn from: a draft is kept iff it is that maximum (p(d) / q(d) is 0 or at least 1),
+            # and what follows a rejection is that maximum too (the residual max(0, p - q) has nowhere else to be).
+            # Three operations on k + 1 numbers instead of the general step's thirty on k + 1 vocabulary-wide rows,
+            # which ran on the GPU after the verify step with nothing else to hide behind.
+            corr = ops.cast(self._sampler.sample(rows), i32)
+            accept = ops.cast(corr[:k] == drafts.tokens, i32)
+        else:
+            p_rows = self._sampler.probs(rows)
+            accept, corr = speculative_accept(ops, self._sampler, p_rows, drafts.q, drafts.tokens, drafts.q_d)
 
         got = ops.numpy(ops.concat([drafts.tokens, accept, ops.cast(corr, i32)], 0)).tolist()
         draft_ids, flags, corrections = got[:k], got[k:2 * k], got[2 * k:]
