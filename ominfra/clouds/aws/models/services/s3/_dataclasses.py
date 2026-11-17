@@ -29,21 +29,22 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
 
 
 @_register(
-    installer_sha1='aa234ae227776972715716a92176bdbcd24ab1ca',
+    installer_sha1='0489869f0ea0316b0dc68ced5fa07d477e585a75',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
             "', None, False, False, False), (('request_charged', True, True, None, True, True, False, None), 'instance'"
-            ", 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ("
-            ")), ((),), (), (False,)))"
+            ", 'value', None, False, False, False), (('version_id', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False"
+            ", ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.s3', 'AbortMultipartUploadOutput'),
     ),
 )
-def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
+def _process_dataclass__0489869f0ea0316b0dc68ced5fa07d477e585a75():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -53,6 +54,8 @@ def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
         __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
         __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -64,6 +67,7 @@ def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
                 raise TypeError(self)
             return __class__(  # noqa
                 request_charged=self.request_charged,
+                version_id=self.version_id,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -74,7 +78,8 @@ def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.request_charged == other.request_charged
+                self.request_charged == other.request_charged and
+                self.version_id == other.version_id
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -82,6 +87,7 @@ def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
         __dataclass___frozen_fields = {
             '__shape__',
             'request_charged',
+            'version_id',
         }
 
         def __setattr__(self, name, value):
@@ -107,6 +113,7 @@ def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
         def __hash__(self):
             return hash((
                 self.request_charged,
+                self.version_id,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -115,8 +122,10 @@ def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
             self,
             *,
             request_charged: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            version_id: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'request_charged', request_charged)
+            __dataclass__object_setattr(self, 'version_id', version_id)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -124,6 +133,7 @@ def _process_dataclass__aa234ae227776972715716a92176bdbcd24ab1ca():
         def __repr__(self):
             parts = []
             parts.append(f"request_charged={self.request_charged!r}")
+            parts.append(f"version_id={self.version_id!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -3171,7 +3181,7 @@ def _process_dataclass__a6829a65254ab5b32b6baec672b20f501ab2d8d8():
 
 
 @_register(
-    installer_sha1='e0f5a5b829776fd10f4839e066ccd8459575aa30',
+    installer_sha1='f95b41eb672e1e2891392b29741687c7e3c13ac9',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -3191,15 +3201,16 @@ def _process_dataclass__a6829a65254ab5b32b6baec672b20f501ab2d8d8():
             "e, False), (('request_charged', True, True, None, True, True, False, None), 'instance', 'value', None, Fal"
             "se, False, False), (('checksum_algorithm', True, True, None, True, True, False, None), 'instance', 'value'"
             ", None, False, False, False), (('checksum_type', True, True, None, True, True, False, None), 'instance', '"
-            "value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()),"
-            " ((),), (), (False,)))"
+            "value', None, False, False, False), (('version_id', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ("
+            ")), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.s3', 'CreateMultipartUploadOutput'),
     ),
 )
-def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
+def _process_dataclass__f95b41eb672e1e2891392b29741687c7e3c13ac9():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -3235,6 +3246,8 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
         __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
         __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
         __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
+        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
+        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -3259,6 +3272,7 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
                 request_charged=self.request_charged,
                 checksum_algorithm=self.checksum_algorithm,
                 checksum_type=self.checksum_type,
+                version_id=self.version_id,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -3282,7 +3296,8 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
                 self.bucket_key_enabled == other.bucket_key_enabled and
                 self.request_charged == other.request_charged and
                 self.checksum_algorithm == other.checksum_algorithm and
-                self.checksum_type == other.checksum_type
+                self.checksum_type == other.checksum_type and
+                self.version_id == other.version_id
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -3303,6 +3318,7 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
             'request_charged',
             'checksum_algorithm',
             'checksum_type',
+            'version_id',
         }
 
         def __setattr__(self, name, value):
@@ -3341,6 +3357,7 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
                 self.request_charged,
                 self.checksum_algorithm,
                 self.checksum_type,
+                self.version_id,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -3362,6 +3379,7 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
             request_charged: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
             checksum_algorithm: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
             checksum_type: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            version_id: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'abort_date', abort_date)
             __dataclass__object_setattr(self, 'abort_rule_id', abort_rule_id)
@@ -3377,6 +3395,7 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
             __dataclass__object_setattr(self, 'request_charged', request_charged)
             __dataclass__object_setattr(self, 'checksum_algorithm', checksum_algorithm)
             __dataclass__object_setattr(self, 'checksum_type', checksum_type)
+            __dataclass__object_setattr(self, 'version_id', version_id)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -3397,6 +3416,7 @@ def _process_dataclass__e0f5a5b829776fd10f4839e066ccd8459575aa30():
             parts.append(f"request_charged={self.request_charged!r}")
             parts.append(f"checksum_algorithm={self.checksum_algorithm!r}")
             parts.append(f"checksum_type={self.checksum_type!r}")
+            parts.append(f"version_id={self.version_id!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -7866,7 +7886,7 @@ def _process_dataclass__11a3bf3c66d0d1d36e1ad4f83c07868d24f0f779():
 
 
 @_register(
-    installer_sha1='e913f8d77501b303ad055fcba33f615c41143507',
+    installer_sha1='65b464562727d31c29d029c851deeaf01f951d46',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -7879,38 +7899,41 @@ def _process_dataclass__11a3bf3c66d0d1d36e1ad4f83c07868d24f0f779():
             "alue', None, False, False, False), (('initiator', True, True, None, True, True, False, None), 'instance', "
             "'value', None, False, False, False), (('checksum_algorithm', True, True, None, True, True, False, None), '"
             "instance', 'value', None, False, False, False), (('checksum_type', True, True, None, True, True, False, No"
-            "ne), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), ("
-            "False, False, ()), ((),), (), (False,)))"
+            "ne), 'instance', 'value', None, False, False, False), (('version_id', True, True, None, True, True, False,"
+            " None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,)"
+            ", (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.s3', 'MultipartUpload'),
     ),
 )
-def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
+def _process_dataclass__65b464562727d31c29d029c851deeaf01f951d46():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
         __dataclass__ctx,
         __dataclass__globals,
     ):
-        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
-        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
-        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
-        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
-        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
-        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
-        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
-        __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
-        __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
-        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
-        __dataclass__init__fields__5__default = __dataclass__spec.fields[5].default.must()
-        __dataclass__init__fields__6__annotation = __dataclass__spec.fields[6].annotation
-        __dataclass__init__fields__6__default = __dataclass__spec.fields[6].default.must()
-        __dataclass__init__fields__7__annotation = __dataclass__spec.fields[7].annotation
-        __dataclass__init__fields__7__default = __dataclass__spec.fields[7].default.must()
-        __dataclass__init__fields__8__annotation = __dataclass__spec.fields[8].annotation
-        __dataclass__init__fields__8__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__00__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__01__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__01__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__02__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__02__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__03__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__03__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__init__fields__04__annotation = __dataclass__spec.fields[4].annotation
+        __dataclass__init__fields__04__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__05__annotation = __dataclass__spec.fields[5].annotation
+        __dataclass__init__fields__05__default = __dataclass__spec.fields[5].default.must()
+        __dataclass__init__fields__06__annotation = __dataclass__spec.fields[6].annotation
+        __dataclass__init__fields__06__default = __dataclass__spec.fields[6].default.must()
+        __dataclass__init__fields__07__annotation = __dataclass__spec.fields[7].annotation
+        __dataclass__init__fields__07__default = __dataclass__spec.fields[7].default.must()
+        __dataclass__init__fields__08__annotation = __dataclass__spec.fields[8].annotation
+        __dataclass__init__fields__08__default = __dataclass__spec.fields[8].default.must()
+        __dataclass__init__fields__09__annotation = __dataclass__spec.fields[9].annotation
+        __dataclass__init__fields__09__default = __dataclass__spec.fields[9].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -7929,6 +7952,7 @@ def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
                 initiator=self.initiator,
                 checksum_algorithm=self.checksum_algorithm,
                 checksum_type=self.checksum_type,
+                version_id=self.version_id,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -7946,7 +7970,8 @@ def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
                 self.owner == other.owner and
                 self.initiator == other.initiator and
                 self.checksum_algorithm == other.checksum_algorithm and
-                self.checksum_type == other.checksum_type
+                self.checksum_type == other.checksum_type and
+                self.version_id == other.version_id
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -7961,6 +7986,7 @@ def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
             'initiator',
             'checksum_algorithm',
             'checksum_type',
+            'version_id',
         }
 
         def __setattr__(self, name, value):
@@ -7993,6 +8019,7 @@ def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
                 self.initiator,
                 self.checksum_algorithm,
                 self.checksum_type,
+                self.version_id,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -8000,14 +8027,15 @@ def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
         def __init__(
             self,
             *,
-            upload_id: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
-            key: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
-            initiated: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
-            storage_class: __dataclass__init__fields__4__annotation = __dataclass__init__fields__4__default,
-            owner: __dataclass__init__fields__5__annotation = __dataclass__init__fields__5__default,
-            initiator: __dataclass__init__fields__6__annotation = __dataclass__init__fields__6__default,
-            checksum_algorithm: __dataclass__init__fields__7__annotation = __dataclass__init__fields__7__default,
-            checksum_type: __dataclass__init__fields__8__annotation = __dataclass__init__fields__8__default,
+            upload_id: __dataclass__init__fields__01__annotation = __dataclass__init__fields__01__default,
+            key: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
+            initiated: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            storage_class: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            owner: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            initiator: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            checksum_algorithm: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            checksum_type: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            version_id: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'upload_id', upload_id)
             __dataclass__object_setattr(self, 'key', key)
@@ -8017,6 +8045,7 @@ def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
             __dataclass__object_setattr(self, 'initiator', initiator)
             __dataclass__object_setattr(self, 'checksum_algorithm', checksum_algorithm)
             __dataclass__object_setattr(self, 'checksum_type', checksum_type)
+            __dataclass__object_setattr(self, 'version_id', version_id)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -8031,6 +8060,7 @@ def _process_dataclass__e913f8d77501b303ad055fcba33f615c41143507():
             parts.append(f"initiator={self.initiator!r}")
             parts.append(f"checksum_algorithm={self.checksum_algorithm!r}")
             parts.append(f"checksum_type={self.checksum_type!r}")
+            parts.append(f"version_id={self.version_id!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -9517,7 +9547,7 @@ def _process_dataclass__707bd83541fcb2b8107c58a3b9c0693fc284d31d():
 
 
 @_register(
-    installer_sha1='73b12f6fc149f1aeadc90347858ff05ce969dc98',
+    installer_sha1='3b75d3f8653b462dfbacc6770a096cebe8e6dc1c',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -9540,15 +9570,16 @@ def _process_dataclass__707bd83541fcb2b8107c58a3b9c0693fc284d31d():
             "instance', 'value', None, False, False, False), (('sse_kms_key_id', True, True, None, True, True, False, N"
             "one), 'instance', 'value', None, False, False, False), (('bucket_key_enabled', True, True, None, True, Tru"
             "e, False, None), 'instance', 'value', None, False, False, False), (('request_charged', True, True, None, T"
-            "rue, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (Fals"
-            "e,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "rue, True, False, None), 'instance', 'value', None, False, False, False), (('version_id', True, True, None"
+            ", True, True, False, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (F"
+            "alse,), (), (False,), (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.s3', 'UploadPartOutput'),
     ),
 )
-def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
+def _process_dataclass__3b75d3f8653b462dfbacc6770a096cebe8e6dc1c():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -9590,6 +9621,8 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
         __dataclass__init__fields__16__default = __dataclass__spec.fields[16].default.must()
         __dataclass__init__fields__17__annotation = __dataclass__spec.fields[17].annotation
         __dataclass__init__fields__17__default = __dataclass__spec.fields[17].default.must()
+        __dataclass__init__fields__18__annotation = __dataclass__spec.fields[18].annotation
+        __dataclass__init__fields__18__default = __dataclass__spec.fields[18].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -9617,6 +9650,7 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
                 sse_kms_key_id=self.sse_kms_key_id,
                 bucket_key_enabled=self.bucket_key_enabled,
                 request_charged=self.request_charged,
+                version_id=self.version_id,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -9643,7 +9677,8 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
                 self.sse_customer_key_md5 == other.sse_customer_key_md5 and
                 self.sse_kms_key_id == other.sse_kms_key_id and
                 self.bucket_key_enabled == other.bucket_key_enabled and
-                self.request_charged == other.request_charged
+                self.request_charged == other.request_charged and
+                self.version_id == other.version_id
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -9667,6 +9702,7 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
             'sse_kms_key_id',
             'bucket_key_enabled',
             'request_charged',
+            'version_id',
         }
 
         def __setattr__(self, name, value):
@@ -9708,6 +9744,7 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
                 self.sse_kms_key_id,
                 self.bucket_key_enabled,
                 self.request_charged,
+                self.version_id,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -9732,6 +9769,7 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
             sse_kms_key_id: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
             bucket_key_enabled: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
             request_charged: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            version_id: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'server_side_encryption', server_side_encryption)
             __dataclass__object_setattr(self, 'etag', etag)
@@ -9750,6 +9788,7 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
             __dataclass__object_setattr(self, 'sse_kms_key_id', sse_kms_key_id)
             __dataclass__object_setattr(self, 'bucket_key_enabled', bucket_key_enabled)
             __dataclass__object_setattr(self, 'request_charged', request_charged)
+            __dataclass__object_setattr(self, 'version_id', version_id)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -9773,6 +9812,7 @@ def _process_dataclass__73b12f6fc149f1aeadc90347858ff05ce969dc98():
             parts.append(f"sse_kms_key_id={self.sse_kms_key_id!r}")
             parts.append(f"bucket_key_enabled={self.bucket_key_enabled!r}")
             parts.append(f"request_charged={self.request_charged!r}")
+            parts.append(f"version_id={self.version_id!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

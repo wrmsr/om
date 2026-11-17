@@ -6,6 +6,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore import marshal as msh
 
+from ...core.apikeys import ApiKey
 from .compat import Compat
 from .options import CacheRetention
 from .options import Options
@@ -145,7 +146,14 @@ class Model:
     def backend_(self) -> str:
         return check.not_none(self.backend)
 
-    name: str | None = ''
+    #
+
+    name: str | None = None
+
+    #
+
+    short_id: str | None = None
+    short_id_aliases: lang.SequenceNotStr | None = None
 
     #
 
@@ -199,7 +207,17 @@ class Model:
 
     #
 
+    api_keys: ta.Sequence[ApiKey] | None = None
+
+    #
+
     default_options: Options | None = None
+
+    #
+
+    # For local models, allows preferring things like mlx/nvfp4 based on host platform ('darwin' / 'linux')
+    include_platforms: ta.AbstractSet[str] | None = None
+    exclude_platforms: ta.AbstractSet[str] | None = None
 
 
 ##

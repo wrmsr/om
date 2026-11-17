@@ -18,6 +18,9 @@ _dc.init_package(
 ##
 
 
+AcceleratorMemoryGB = _ta.NewType('AcceleratorMemoryGB', int)
+
+
 class ApplicationLogLevel(_base.Enum):
     TRACE = 'TRACE'
     DEBUG = 'DEBUG'
@@ -118,6 +121,7 @@ class LastUpdateStatusReasonCode(_base.Enum):
     FUNCTION_ERROR__TOO_MANY_EXTENSIONS = 'FunctionError.TooManyExtensions'
     FUNCTION_ERROR__INIT_RESOURCE_EXHAUSTED = 'FunctionError.InitResourceExhausted'
     DISALLOWED_BY_VPC_ENCRYPTION_CONTROL = 'DisallowedByVpcEncryptionControl'
+    INCOMPATIBLE_ACCELERATOR_INSTANCE_TYPES = 'IncompatibleAcceleratorInstanceTypes'
     DEPENDENCY_ERROR = 'DependencyError'
 
 
@@ -286,6 +290,7 @@ class StateReasonCode(_base.Enum):
     FUNCTION_ERROR__INIT_RESOURCE_EXHAUSTED = 'FunctionError.InitResourceExhausted'
     DISALLOWED_BY_VPC_ENCRYPTION_CONTROL = 'DisallowedByVpcEncryptionControl'
     DRAINING_DURABLE_EXECUTIONS = 'DrainingDurableExecutions'
+    INCOMPATIBLE_ACCELERATOR_INSTANCE_TYPES = 'IncompatibleAcceleratorInstanceTypes'
     DEPENDENCY_ERROR = 'DependencyError'
 
 
@@ -326,6 +331,18 @@ Version = _ta.NewType('Version', str)
 VpcId = _ta.NewType('VpcId', str)
 
 WorkingDirectory = _ta.NewType('WorkingDirectory', str)
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
+class AcceleratorConfig(
+    _base.Shape,
+    shape_name='AcceleratorConfig',
+):
+    accelerator_memory_size: AcceleratorMemoryGB = _dc.field(metadata=_base.field_metadata(
+        member_name='AcceleratorMemorySize',
+        shape_name='AcceleratorMemoryGB',
+    ))
+
 
 ArchitecturesList: _ta.TypeAlias = _ta.Sequence[Architecture]
 
@@ -1015,6 +1032,11 @@ class FunctionConfiguration(
         shape_name='FunctionRuntimeConfig',
     ))
 
+    accelerator_config: AcceleratorConfig | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='AcceleratorConfig',
+        shape_name='AcceleratorConfig',
+    ))
+
 
 FunctionList: _ta.TypeAlias = _ta.Sequence[FunctionConfiguration]
 
@@ -1037,6 +1059,7 @@ class ListFunctionsResponse(
 
 
 ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
+    AcceleratorConfig,
     CapacityProviderConfig,
     DeadLetterConfig,
     DurableConfig,

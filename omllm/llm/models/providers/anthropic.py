@@ -7,6 +7,7 @@ TODO:
 """
 import typing as ta
 
+from ....core.apikeys import secret_or_env_var_api_key
 from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
@@ -23,6 +24,16 @@ from ..modeldb import modeldb_token_pricing
 
 _BASE_URL = 'https://api.anthropic.com/v1'
 
+_DEFAULT_HTTP = Model.Http(
+    base_url=_BASE_URL,
+    extra_headers={
+        'anthropic-version': '2023-06-01',
+    },
+)
+
+_API_KEYS = secret_or_env_var_api_key('anthropic_api_key')
+
+
 _REASONING_EFFORTS = frozenset({
     ReasoningEffort.LOW,
     ReasoningEffort.MEDIUM,
@@ -31,12 +42,8 @@ _REASONING_EFFORTS = frozenset({
     ReasoningEffort.MAX,
 })
 
-_DEFAULT_HTTP = Model.Http(
-    base_url=_BASE_URL,
-    extra_headers={
-        'anthropic-version': '2023-06-01',
-    },
-)
+
+##
 
 
 def _make_model(
@@ -73,6 +80,8 @@ def _make_model(
                 pricing=modeldb_token_pricing('anthropic', key.id),
 
                 http=_DEFAULT_HTTP,
+
+                api_keys=_API_KEYS,
             ),
 
             **kwargs,
@@ -86,8 +95,11 @@ def _make_model(
 MODELS: ta.Final[ta.Sequence[Model]] = [
 
     _make_model(
-        id='claude-fable-5-1',
-        name='Claude Fable 5.1',
+        id='claude-fable-5-2',
+        name='Claude Fable 5.2',
+
+        short_id='claude-fable',
+        short_id_aliases=['fable'],
 
         default_options=Options(
             max_tokens=128000,
@@ -98,6 +110,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='claude-opus-5-5',
         name='Claude Opus 5.5',
 
+        short_id='claude-opus',
+        short_id_aliases=['opus'],
+
         default_options=Options(
             max_tokens=128000,
         ),
@@ -106,6 +121,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     _make_model(
         id=(TEST_MODEL_KEY := ModelKey('anthropic', 'claude-sonnet-5-5')),
         name='Claude Sonnet 5.5',
+
+        short_id='claude-sonnet',
+        short_id_aliases=['sonnet', 'claude'],
 
         default_options=Options(
             max_tokens=128000,
@@ -116,6 +134,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='claude-haiku-5-5',
         name='Claude Haiku 5.5',
 
+        short_id='claude-haiku',
+        short_id_aliases=['haiku'],
+
         default_options=Options(
             max_tokens=64000,
         ),
@@ -125,4 +146,4 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
 
 
 # @om-manifest
-_MANIFEST = ModelsModuleManifest.of(MODELS)
+_MODELS_MANIFEST = ModelsModuleManifest.of(MODELS)

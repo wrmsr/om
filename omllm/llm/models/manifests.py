@@ -23,6 +23,14 @@ class ModuleManifestModel:
 
     backend: str
 
+    #
+
+    short_id: str | None = None
+    short_id_aliases: ta.Sequence[str] | None = None
+
+    include_platforms: ta.AbstractSet[str] | None = None
+    exclude_platforms: ta.AbstractSet[str] | None = None
+
 
 @dc.dataclass(frozen=True, kw_only=True)
 class ModelsModuleManifest:
@@ -39,6 +47,14 @@ class ModelsModuleManifest:
                     name=m.name,
 
                     backend=m.backend_,
+
+                    #
+
+                    short_id=m.short_id,
+                    short_id_aliases=tuple(m.short_id_aliases) if m.short_id_aliases else None,
+
+                    include_platforms=frozenset(m.include_platforms) if m.include_platforms else None,
+                    exclude_platforms=frozenset(m.exclude_platforms) if m.exclude_platforms else None,
                 )
                 for m in models
             ],

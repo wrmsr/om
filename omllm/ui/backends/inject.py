@@ -9,6 +9,7 @@ from omdev.home.secrets import load_secrets
 from ... import agent as agn
 from ... import llm
 from ...core import registry as reg
+from ...core.apikeys import ApiKeyResolverImpl
 from ..types import InitialLlmOptions
 from .config import BackendsConfig
 
@@ -55,7 +56,7 @@ def _bind_backend(config: BackendsConfig) -> inj.Elements:
     backend_impl_cls = reg.get_registry_cls(backend_cls, llm_model.backend_)
 
     async def provide_backend() -> agn.BackendManager:
-        akr = llm.ApiKeyResolverImpl(
+        akr = ApiKeyResolverImpl(
             secrets=load_secrets(),
             environ=types.MappingProxyType(os.environ),  # noqa
         )

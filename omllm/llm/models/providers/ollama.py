@@ -49,6 +49,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='qwen3.8:27b',
         ),
         name='qwen3.8:27b',
+        short_id='ollama-qwen',
+        short_id_aliases=['qwen'],
+        exclude_platforms={'darwin'},
         backend='openai-completions',
         compat=_DEFAULT_COMPAT,
         http=_DEFAULT_HTTP,
@@ -60,6 +63,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='qwen3.8:27b-mlx',
         ),
         name='qwen3.8:27b-mlx',
+        short_id='ollama-qwen',
+        short_id_aliases=['qwen'],
+        include_platforms={'darwin'},
         backend='openai-completions',
         compat=_DEFAULT_COMPAT,
         http=_DEFAULT_HTTP,
@@ -69,4 +75,4 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
 
 
 # @om-manifest
-_MANIFEST = ModelsModuleManifest.of(MODELS)
+_MODELS_MANIFEST = ModelsModuleManifest.of(MODELS)

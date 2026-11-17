@@ -6,9 +6,9 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore.formats.json import all as json
 
+from ...core.apikeys import ApiKey
+from ...core.apikeys import secret_or_env_var_api_key
 from ..types.models import ModelKey
-from .apikeys import ApiKey
-from .apikeys import secret_or_env_var_api_key
 
 
 ##
@@ -41,7 +41,7 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='claude-fable',
         aliases=['fable'],
-        key=ModelKey('anthropic', 'claude-fable-5-1'),
+        key=ModelKey('anthropic', 'claude-fable-5-2'),
         api_keys=(ANTHROPIC_API_KEYS := secret_or_env_var_api_key('anthropic_api_key')),
     ),
 
@@ -145,14 +145,14 @@ ALL_DEFAULT_MODELS: ta.Final[ta.Sequence[DefaultModel]] = [
     DefaultModel(
         name='gpt-astra',
         aliases=['astra'],
-        key=ModelKey('openai', 'gpt-6-astra'),
+        key=ModelKey('openai', 'gpt-6.2-astra'),
         api_keys=(OPENAI_API_KEYS := secret_or_env_var_api_key('openai_api_key')),
     ),
 
     DefaultModel(
         name='gpt-sol',
         aliases=['sol'],
-        key=ModelKey('openai', 'gpt-6.1-sol'),
+        key=ModelKey('openai', 'gpt-6.2-sol'),
         api_keys=OPENAI_API_KEYS,
     ),
 

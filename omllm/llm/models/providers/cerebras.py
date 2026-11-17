@@ -4,6 +4,7 @@ https://inference-docs.cerebras.ai/models/overview
 """
 import typing as ta
 
+from ....core.apikeys import secret_or_env_var_api_key
 from ...types.models import Model
 from ...types.models import ModelKey
 from ..manifests import ModelsModuleManifest
@@ -23,6 +24,8 @@ _DEFAULT_HTTP = Model.Http(
     },
 )
 
+_API_KEYS = secret_or_env_var_api_key('cerebras_api_key')
+
 
 ##
 
@@ -35,10 +38,13 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='gpt-oss-120b',
         ),
         name='GPT OSS 120B',
+        short_id='cerebras-gpt',
+        short_id_aliases=['cerebras'],
         backend='openai-completions',
         limits=modeldb_model_limits('cerebras', 'gpt-oss-120b'),
         pricing=modeldb_token_pricing('cerebras', 'gpt-oss-120b'),
         http=_DEFAULT_HTTP,
+        api_keys=_API_KEYS,
     ),
 
     Model(
@@ -51,10 +57,11 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         limits=modeldb_model_limits('cerebras', 'qwen-3.8-27b'),
         pricing=modeldb_token_pricing('cerebras', 'qwen-3.8-27b'),
         http=_DEFAULT_HTTP,
+        api_keys=_API_KEYS,
     ),
 
 ]
 
 
 # @om-manifest
-_MANIFEST = ModelsModuleManifest.of(MODELS)
+_MODELS_MANIFEST = ModelsModuleManifest.of(MODELS)

@@ -9,12 +9,14 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore import dispatch
 from omcore import lang
+from omcore import marshal as msh
 from omcore.secrets import all as sec
 
 
 ##
 
 
+@msh.set_polymorphic(naming='snake')
 @dc.dataclass(frozen=True, kw_only=True)
 class ApiKey(lang.Abstract, lang.Sealed):
     pass

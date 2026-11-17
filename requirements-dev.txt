@@ -4,7 +4,7 @@ build>=1.6.1
 twine>=6.2.0
 wheel>=0.48.0
 
-uv>=0.13.8
+uv>=0.13.9
 
 pytest==9.1.1  # FIXME: 9.2.0 breaks xdist groups
 pytest-benchmark==5.3.1
@@ -30,9 +30,9 @@ types-greenlet==3.5.0.20260518
 types-paramiko==5.1.0.20261030
 types-psutil==7.2.2.20261111
 types-pygments==2.21.0.20261115
-types-pymysql==1.2.4.20261111
+types-pymysql==1.2.4.20261116
 types-pyyaml==6.0.12.20261113
-types-regex==2026.11.9.20261110
+types-regex==2026.11.15.20261116
 types-setuptools==84.2.0.20261104
 types-ujson==5.10.0.20250822
 
@@ -102,7 +102,7 @@ pygments==2.21.0
 mwparserfromhell==0.7.2
 wikitextparser==3.0.0  # !! GPL
 
-numpy==2.5.4
+numpy==2.5.5
 
 # !! These install but enable the GIL on import
 # FIXME: tree-sitter==0.26.1 segfaults
@@ -151,8 +151,8 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.44.3
-botocore==1.44.3
+boto3==1.44.5
+botocore==1.44.5
 types-boto3==1.44.3
 botocore-stubs==1.43.126
 

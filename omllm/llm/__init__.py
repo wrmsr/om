@@ -77,17 +77,6 @@ with _lang.auto_proxy_init(
 
     ##
 
-    from .models.apikeys import (  # noqa
-        ApiKey,
-        SecretApiKey,
-        EnvVarApiKey,
-
-        secret_or_env_var_api_key,
-
-        ApiKeyResolver,
-        ApiKeyResolverImpl,
-    )
-
     from .models.catalog import (  # noqa
         ModelCatalog,
     )

@@ -9,6 +9,7 @@ from omcore.secrets.tests.harness import HarnessSecrets
 
 from ... import agent as agn
 from ... import llm
+from ...core.apikeys import SecretApiKey
 from ..config import UiConfig
 from .headless import bind_headless_ui
 from .headless import headless_ui
@@ -22,7 +23,7 @@ _WORD = 'marmalade'
 
 async def _test_explore(harness, model: str) -> None:
     dm = llm.default_models_by_name()[model]
-    dm_sak = check.isinstance(check.not_none(dm.api_keys)[0], llm.SecretApiKey)
+    dm_sak = check.isinstance(check.not_none(dm.api_keys)[0], SecretApiKey)
     harness[HarnessSecrets].get_or_skip(dm_sak.name)
 
     with tempfile.TemporaryDirectory() as td:

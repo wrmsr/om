@@ -575,6 +575,13 @@ class AbortMultipartUploadOutput(
         shape_name='RequestCharged',
     ))
 
+    version_id: ObjectVersionId | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='VersionId',
+        serialization_name='x-amz-version-id',
+        location='header',
+        shape_name='ObjectVersionId',
+    ))
+
 
 @_dc.dataclass(frozen=True, kw_only=True)
 class AbortMultipartUploadRequest(
@@ -1057,6 +1064,13 @@ class CreateMultipartUploadOutput(
         serialization_name='x-amz-checksum-type',
         location='header',
         shape_name='ChecksumType',
+    ))
+
+    version_id: ObjectVersionId | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='VersionId',
+        serialization_name='x-amz-version-id',
+        location='header',
+        shape_name='ObjectVersionId',
     ))
 
 
@@ -2050,6 +2064,13 @@ class UploadPartOutput(
         serialization_name='x-amz-request-charged',
         location='header',
         shape_name='RequestCharged',
+    ))
+
+    version_id: ObjectVersionId | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='VersionId',
+        serialization_name='x-amz-version-id',
+        location='header',
+        shape_name='ObjectVersionId',
     ))
 
 
@@ -3712,6 +3733,11 @@ class MultipartUpload(
     checksum_type: ChecksumType | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='ChecksumType',
         shape_name='ChecksumType',
+    ))
+
+    version_id: ObjectVersionId | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='VersionId',
+        shape_name='ObjectVersionId',
     ))
 
 
