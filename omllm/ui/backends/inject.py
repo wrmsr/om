@@ -45,8 +45,8 @@ def _bind_scripted_backend(config: BackendsConfig) -> inj.Elements:
 def _bind_backend(config: BackendsConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
-    model = llm.default_models_by_name()[config.model or llm.DEFAULT_MODEL_NAME]
-    llm_model = llm.provider_model_catalog()[model.key]
+    default_model = llm.default_models_by_name()[config.model or llm.DEFAULT_MODEL_NAME]
+    llm_model = llm.provider_model_catalog()[default_model.key]
 
     if config.immediate:
         backend_cls: ta.Any = llm.ImmediateBackend
@@ -60,7 +60,7 @@ def _bind_backend(config: BackendsConfig) -> inj.Elements:
             secrets=load_secrets(),
             environ=types.MappingProxyType(os.environ),  # noqa
         )
-        api_key = akr.resolve_first_api_key(model.api_keys or [])
+        api_key = akr.resolve_first_api_key(llm_model.api_keys or [])
 
         backend = backend_impl_cls(
             llm_model,

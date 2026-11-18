@@ -105,6 +105,11 @@ with _lang.auto_proxy_init(
         fill_estimated_token_cost,
     )
 
+    from .models.shortids import (  # noqa
+        model_short_ids_by_model_key,
+        model_keys_by_short_id,
+    )
+
     ##
 
     from .tools.jsonschema import (  # noqa

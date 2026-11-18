@@ -5,6 +5,7 @@ from omcore import cached
 
 from ..types.models import Model
 from ..types.models import ModelKey
+from ..types.models import ModelShortIds
 
 
 ##
@@ -32,6 +33,16 @@ class ModuleManifestModel:
 
     include_platforms: ta.AbstractSet[str] | None = None
     exclude_platforms: ta.AbstractSet[str] | None = None
+
+    @cached.property
+    def short_ids(self) -> ModelShortIds:
+        return ModelShortIds(
+            short_id=self.short_id,
+            short_id_aliases=ta.cast(ta.Any, self.short_id_aliases),
+
+            include_platforms=self.include_platforms,
+            exclude_platforms=self.exclude_platforms,
+        )
 
 
 @dc.dataclass(frozen=True, kw_only=True)
