@@ -16,21 +16,20 @@ from omcore import check
 from omcore import inject as inj
 
 from .... import agent as agn
+from ....agent.inject.events import event_subscribers_binder as agent_event_subscribers
 from ....agent.subagents.inject import SUBAGENT_TOOL_INVOCATION_SCOPE
 from ....agent.subagents.inject import SUBAGENT_TURN_SCOPE
 from ....agent.subagents.inject import provide_subagent_tool_invoker
 from ....agent.subagents.inject import provide_subagent_turn_runner
+from ....agent.tools.inject import AgentTools
+from ....agent.tools.inject import AgentToolSets
 from ....agent.tools.inject import ScopedToolInvoker
 from ....agent.turns.inject import ScopedTurnRunner
 from ....core import processes as procs
 from ..config import AgentConfig
 from ..setup import AgentSetup
 from ..systemprompt import EnvironmentSystemPromptContributor
-from .events import AgentEventSubscribers
-from .events import agent_event_subscribers
 from .systemprompt import system_prompt_contributors_binder
-from .tools import AgentTools
-from .tools import AgentToolSets
 from .tools import bind_agent_tool_class
 from .tools import bind_tool_classes
 
@@ -163,7 +162,7 @@ class ChildInjectorSubagentRunner(agn.SubagentRunner):
             # What a frontend's main does with its injector.
             agent = await child[agn.Agent]
 
-            for el in await child[AgentEventSubscribers]:
+            for el in await child[agn.EventSubscribers]:
                 agent.subscribe(el)
 
             await (await child[AgentSetup]).run()

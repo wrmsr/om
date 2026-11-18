@@ -12,7 +12,6 @@ from omcore import lang
 from ... import agent as agn
 from ...agent.tests.scripted import scripted_backend
 from ...core import ui
-from ..agent.inject.events import AgentEventSubscribers
 from ..agent.setup import AgentSetup
 from ..commands.manager import CommandsManager
 from ..config import UiConfig
@@ -99,7 +98,7 @@ async def headless_ui(*els: inj.Elemental) -> ta.AsyncIterator[HeadlessUi]:
 
         setup = await ui_injector[AgentSetup]
         setup.pre_setup()
-        for el in await ui_injector[AgentEventSubscribers]:
+        for el in await ui_injector[agn.EventSubscribers]:
             agent.subscribe(el)
         await setup.run()
 

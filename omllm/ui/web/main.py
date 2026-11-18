@@ -18,7 +18,6 @@ from omcore.io.pipelines.drivers.asyncio.streams import PollAsyncioStreamIoPipel
 from omcore.logs import all as logs
 
 from ... import agent as agn
-from ..agent.inject.events import AgentEventSubscribers
 from ..agent.setup import AgentSetup
 from ..paths import get_agent_cwd
 from ..yolo import yolo_autoexec
@@ -85,7 +84,7 @@ async def running_web(
         setup = await injector[AgentSetup]
         setup.pre_setup()
 
-        for el in await injector[AgentEventSubscribers]:
+        for el in await injector[agn.EventSubscribers]:
             agent.subscribe(el)
 
         await setup.run()

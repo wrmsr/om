@@ -3,8 +3,8 @@ from omdev import clipboard as clip
 from omdev import minitui as mt
 
 from .... import agent as agn
+from ....agent.inject.events import bind_on_agent_event_subscriber
 from ....core import ui
-from ...agent.inject.events import bind_on_agent_event_subscriber
 from ...inject.injectors import UiInjector
 from ...inject.injectors import bind_agent_ui_injector_bindings
 from ...inject.injectors import bind_injector_import

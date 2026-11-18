@@ -39,18 +39,18 @@ AgentUiInjectorBindings = ta.NewType('AgentUiInjectorBindings', ta.Sequence[inj.
 
 
 @lang.cached_function
-def agent_injector_bindings() -> inj.ItemsBinderHelper[inj.Elements]:
+def agent_injector_bindings_binder() -> inj.ItemsBinderHelper[inj.Elements]:
     return inj.items_binder_helper[inj.Elements](AgentInjectorBindings)
 
 
 @lang.cached_function
-def agent_ui_injector_bindings() -> inj.ItemsBinderHelper[inj.Elements]:
+def agent_ui_injector_bindings_binder() -> inj.ItemsBinderHelper[inj.Elements]:
     return inj.items_binder_helper[inj.Elements](AgentUiInjectorBindings)
 
 
 def bind_agent_injector_bindings(*els: inj.Elemental) -> inj.Elemental:
-    return agent_injector_bindings().bind_item(to_const=inj.as_elements(*els))
+    return agent_injector_bindings_binder().bind_item(to_const=inj.as_elements(*els))
 
 
 def bind_agent_ui_injector_bindings(*els: inj.Elemental) -> inj.Elemental:
-    return agent_ui_injector_bindings().bind_item(to_const=inj.as_elements(*els))
+    return agent_ui_injector_bindings_binder().bind_item(to_const=inj.as_elements(*els))

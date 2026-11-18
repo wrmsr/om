@@ -10,6 +10,38 @@ from ... import agent as agn
 ##
 
 
+AgentTools = ta.NewType('AgentTools', ta.Sequence[agn.Tool])
+
+
+@lang.cached_function
+def agent_tools_binder() -> inj.ItemsBinderHelper[agn.Tool]:
+    return inj.items_binder_helper[agn.Tool](AgentTools)
+
+
+def bind_agent_tool_class(tool_cls: type[agn.ToolClass]) -> inj.Elements:
+    return agent_tools_binder().bind_item(to_fn=inj.target(o=tool_cls)(lambda o: o.tool()))
+
+
+#
+
+
+AgentToolSets = ta.NewType('AgentToolSets', ta.Sequence[agn.ToolSet])
+
+
+@lang.cached_function
+def agent_tool_sets_binder() -> inj.ItemsBinderHelper[agn.ToolSet]:
+    """Tool sets discovered at provisioning time, alongside individually bound tools."""
+
+    return inj.items_binder_helper[agn.ToolSet](AgentToolSets)
+
+
+def provide_tool_set(tools: AgentTools, tool_sets: AgentToolSets) -> agn.ToolSet:
+    return agn.ToolSet([*tools, *(t for ts in tool_sets for t in ts)])
+
+
+##
+
+
 class TOOL_INVOCATION_SCOPED(lang.Marker):  # noqa
     pass
 

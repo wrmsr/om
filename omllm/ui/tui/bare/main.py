@@ -6,7 +6,6 @@ from omcore import lang
 
 from .... import agent as agn
 from ....core import ui
-from ...agent.inject.events import AgentEventSubscribers
 from ...agent.setup import AgentSetup
 from ...logs import configure_tui_logging
 from ...paths import get_agent_cwd
@@ -46,7 +45,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
         setup = await injector[AgentSetup]
         setup.pre_setup()
 
-        for el in await injector[AgentEventSubscribers]:
+        for el in await injector[agn.EventSubscribers]:
             agent.subscribe(el)
 
         await setup.run()

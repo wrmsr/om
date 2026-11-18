@@ -2,7 +2,7 @@ from omcore import inject as inj
 
 from ..core.model import Qwen35
 from ..decode.inject import GENERATION_SCOPE
-from ..decode.inject import logit_processors
+from ..decode.inject import logit_processors_binder
 from ..decode.processors import LogitProcessor
 from ..decode.processors import NullLogitProcessor
 from ..decode.runners import GenerationParams
@@ -22,4 +22,4 @@ def _grammar(params: GenerationParams, ops: Ops, model: Qwen35) -> LogitProcesso
 def bind_constrain() -> inj.Elements:
     """A request's grammar (tool calls, JSON mode), when it brings one, as one of its logit processors."""
 
-    return logit_processors().bind_item(to_fn=_grammar, in_=GENERATION_SCOPE)
+    return logit_processors_binder().bind_item(to_fn=_grammar, in_=GENERATION_SCOPE)

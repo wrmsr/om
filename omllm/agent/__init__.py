@@ -467,6 +467,9 @@ with _lang.auto_proxy_init(
     from .types.events import (  # noqa
         Event,
 
+        EventSubscriber,
+        EventSubscribers,
+
         LlmAiStreamEvent,
         LlmRetryEvent,
 

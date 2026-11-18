@@ -16,7 +16,6 @@ from omcore.logs import all as logs
 from omdev import minitui as mt
 
 from .... import agent as agn
-from ...agent.inject.events import AgentEventSubscribers
 from ...agent.setup import AgentSetup
 from ...commands.manager import CommandsManager
 from ...logs import configure_tui_logging
@@ -82,7 +81,7 @@ async def _a_main(argv: lang.SequenceNotStr[str] | None = None) -> None:
             setup = await injector[AgentSetup]
             setup.pre_setup()
 
-            for el in await injector[AgentEventSubscribers]:
+            for el in await injector[agn.EventSubscribers]:
                 agent.subscribe(el)
 
             await setup.run()

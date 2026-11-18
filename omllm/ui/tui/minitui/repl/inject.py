@@ -29,7 +29,7 @@ from .repl import ReplNamespaceSeeds
 
 
 @lang.cached_function
-def repl_namespace_seeds() -> inj.ItemsBinderHelper[ta.Mapping[str, ta.Any]]:
+def repl_namespace_seeds_binder() -> inj.ItemsBinderHelper[ta.Mapping[str, ta.Any]]:
     """Mappings merged into the python repl's namespace - how any module hands the manhole its own objects."""
 
     return inj.items_binder_helper[ta.Mapping[str, ta.Any]](ReplNamespaceSeeds)
@@ -97,7 +97,7 @@ def _provide_session(
 
 def bind_repl(config: TuiConfig) -> inj.Elements:
     return inj.as_elements(
-        repl_namespace_seeds().bind_items_provider(singleton=True),
+        repl_namespace_seeds_binder().bind_items_provider(singleton=True),
 
         inj.bind(repl.Session, singleton=True, to_async_fn=inj.make_async_managed_provider(_provide_session)),
 

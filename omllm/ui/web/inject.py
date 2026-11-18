@@ -3,8 +3,8 @@ import typing as ta
 from omcore import inject as inj
 
 from ... import agent as agn
+from ...agent.inject.events import bind_on_agent_event_subscriber
 from ...core import ui
-from ..agent.inject.events import bind_on_agent_event_subscriber
 from ..inject.inject import bind_ui
 from ..paths import AgentCwdDisplayPathResolver
 from .config import WebConfig

@@ -5,6 +5,7 @@ from omcore import dataclasses as dc
 from omcore import lang
 
 from ... import llm
+from ...core import eventbus
 from .contexts import Context
 from .lifecycle import ContextBudget
 from .lifecycle import ContextProjection
@@ -25,6 +26,10 @@ from .turns import AgentEndReason
 @dc.dataclass(frozen=True)
 class Event(lang.Abstract):
     """Explicitly *not* a marshal polymorphism."""
+
+
+EventSubscriber: ta.TypeAlias = eventbus.EventSubscriber[Event]
+EventSubscribers = ta.NewType('EventSubscribers', ta.Sequence[EventSubscriber])
 
 
 ##

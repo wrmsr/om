@@ -78,17 +78,17 @@ Observers = ta.NewType('Observers', ta.Sequence[Observer])
 
 
 @lang.cached_function
-def logit_processors() -> inj.ItemsBinderHelper[LogitProcessor]:
+def logit_processors_binder() -> inj.ItemsBinderHelper[LogitProcessor]:
     return inj.items_binder_helper[LogitProcessor](LogitProcessors)
 
 
 @lang.cached_function
-def terminators() -> inj.ItemsBinderHelper[Terminator]:
+def terminators_binder() -> inj.ItemsBinderHelper[Terminator]:
     return inj.items_binder_helper[Terminator](Terminators)
 
 
 @lang.cached_function
-def observers() -> inj.ItemsBinderHelper[Observer]:
+def observers_binder() -> inj.ItemsBinderHelper[Observer]:
     return inj.items_binder_helper[Observer](Observers)
 
 
@@ -219,19 +219,19 @@ def bind_decode(config: DecodeConfig) -> inj.Elements:
         inj.bind(Generation, to_fn=_generation, in_=GENERATION_SCOPE),
         inj.bind(Sampler, to_fn=_sampler, in_=GENERATION_SCOPE),
 
-        logit_processors().bind_items_provider(in_=GENERATION_SCOPE),
-        logit_processors().bind_item(to_fn=_penalties, in_=GENERATION_SCOPE),
+        logit_processors_binder().bind_items_provider(in_=GENERATION_SCOPE),
+        logit_processors_binder().bind_item(to_fn=_penalties, in_=GENERATION_SCOPE),
         inj.bind(LogitProcessor, to_fn=_processor, in_=GENERATION_SCOPE),
 
-        terminators().bind_items_provider(in_=GENERATION_SCOPE),
-        terminators().bind_item(to_fn=_budget, in_=GENERATION_SCOPE),
-        terminators().bind_item(to_fn=_eos, in_=GENERATION_SCOPE),
-        terminators().bind_item(to_fn=_cancel, in_=GENERATION_SCOPE),
-        terminators().bind_item(to_fn=_request_terminators, in_=GENERATION_SCOPE),
+        terminators_binder().bind_items_provider(in_=GENERATION_SCOPE),
+        terminators_binder().bind_item(to_fn=_budget, in_=GENERATION_SCOPE),
+        terminators_binder().bind_item(to_fn=_eos, in_=GENERATION_SCOPE),
+        terminators_binder().bind_item(to_fn=_cancel, in_=GENERATION_SCOPE),
+        terminators_binder().bind_item(to_fn=_request_terminators, in_=GENERATION_SCOPE),
         inj.bind(Terminator, to_fn=_terminator, in_=GENERATION_SCOPE),
 
-        observers().bind_items_provider(in_=GENERATION_SCOPE),
-        observers().bind_item(to_fn=_request_observers, in_=GENERATION_SCOPE),
+        observers_binder().bind_items_provider(in_=GENERATION_SCOPE),
+        observers_binder().bind_item(to_fn=_request_observers, in_=GENERATION_SCOPE),
         inj.bind(Observer, to_fn=_observer, in_=GENERATION_SCOPE),
 
         inj.bind(TokenSource, to_fn=_token_source, in_=GENERATION_SCOPE),

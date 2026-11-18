@@ -6,8 +6,8 @@ from omcore import lang
 
 from .... import agent as agn
 from .... import llm
+from ....agent.inject.events import bind_on_agent_event_subscriber
 from ....core import ui
-from ...agent.inject.events import bind_on_agent_event_subscriber
 from ..config import TuiConfig
 from ..rendering.text import BlockTerminalTextDisplayer
 from ..rendering.text import TerminalTextDisplayer

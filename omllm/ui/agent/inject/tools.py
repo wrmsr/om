@@ -1,46 +1,15 @@
-import typing as ta
-
 from omcore import inject as inj
-from omcore import lang
 from omcore.asyncs.asynclite import all as asl
 
 from .... import agent as agn
 from ....agent.remote.inject import bind_docker_remote_agent
+from ....agent.tools.inject import agent_tool_sets_binder
+from ....agent.tools.inject import agent_tools_binder
+from ....agent.tools.inject import bind_agent_tool_class
+from ....agent.tools.inject import provide_tool_set
 from ....core import processes
 from ...types import RequestedCwd
 from ..config import AgentConfig
-
-
-##
-
-
-AgentTools = ta.NewType('AgentTools', ta.Sequence[agn.Tool])
-
-
-@lang.cached_function
-def agent_tools() -> inj.ItemsBinderHelper[agn.Tool]:
-    return inj.items_binder_helper[agn.Tool](AgentTools)
-
-
-def bind_agent_tool_class(tool_cls: type[agn.ToolClass]) -> inj.Elements:
-    return agent_tools().bind_item(to_fn=inj.target(o=tool_cls)(lambda o: o.tool()))
-
-
-#
-
-
-AgentToolSets = ta.NewType('AgentToolSets', ta.Sequence[agn.ToolSet])
-
-
-@lang.cached_function
-def agent_tool_sets() -> inj.ItemsBinderHelper[agn.ToolSet]:
-    """Tool sets discovered at provisioning time, alongside individually bound tools."""
-
-    return inj.items_binder_helper[agn.ToolSet](AgentToolSets)
-
-
-def _provide_tool_set(tools: AgentTools, tool_sets: AgentToolSets) -> agn.ToolSet:
-    return agn.ToolSet([*tools, *(t for ts in tool_sets for t in ts)])
 
 
 ##
@@ -221,8 +190,8 @@ def bind_tool_classes(config: AgentConfig) -> inj.Elements:
         ])
 
     lst.extend([
-        agent_tools().bind_items_provider(singleton=True),
-        agent_tool_sets().bind_items_provider(singleton=True),
+        agent_tools_binder().bind_items_provider(singleton=True),
+        agent_tool_sets_binder().bind_items_provider(singleton=True),
     ])
 
     return inj.as_elements(*lst)
@@ -237,5 +206,5 @@ def bind_tools(config: AgentConfig) -> inj.Elements:
 
         bind_tool_classes(config),
 
-        inj.bind(agn.ToolSet, to_fn=_provide_tool_set, singleton=True),
+        inj.bind(agn.ToolSet, to_fn=provide_tool_set, singleton=True),
     )

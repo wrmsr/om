@@ -16,7 +16,7 @@ from ... import llm
 from ...agent.tests.scripted import text_message
 from ...agent.tests.scripted import tool_call_message
 from ...agent.tools.inject import TOOL_INVOCATION_SCOPE
-from ..agent.inject.tools import agent_tools
+from ..agent.inject.tools import agent_tools_binder
 from ..config import UiConfig
 from .headless import bind_headless_ui
 from .headless import bind_scripted_backend
@@ -110,7 +110,7 @@ async def test_each_tool_call_is_invoked_in_an_opening_of_its_own():
                 _bind_recording_direct_tool_invoker(provided),
             ),
 
-            agent_tools().bind_item(to_const=probe.tool()),
+            agent_tools_binder().bind_item(to_const=probe.tool()),
         ),
     )) as hui:
         probe.injector = hui.agent_injector

@@ -6,10 +6,10 @@ from omcore import inject as inj
 from omcore import lang
 
 from ... import agent as agn
+from ...agent.inject.events import event_subscribers_binder as agent_event_subscribers
 from ...core import ui
 from ...core.asyncs.inject import bind_asyncio_job_runner
 from ...core.asyncs.inject import bind_asyncio_runtime
-from ..agent.inject.events import agent_event_subscribers
 from ..agent.inject.inject import bind_agent
 from ..agent.setup import AgentSetup
 from ..backends.inject import bind_backends
@@ -21,8 +21,8 @@ from .injectors import AgentInjectorBindings
 from .injectors import AgentUiInjector
 from .injectors import AgentUiInjectorBindings
 from .injectors import UiInjector
-from .injectors import agent_injector_bindings
-from .injectors import agent_ui_injector_bindings
+from .injectors import agent_injector_bindings_binder
+from .injectors import agent_ui_injector_bindings_binder
 from .injectors import bind_injector_import
 
 
@@ -131,8 +131,8 @@ class UiBinder:
 
             #
 
-            agent_injector_bindings().bind_items_provider(singleton=True),
-            agent_ui_injector_bindings().bind_items_provider(singleton=True),
+            agent_injector_bindings_binder().bind_items_provider(singleton=True),
+            agent_ui_injector_bindings_binder().bind_items_provider(singleton=True),
 
             #
 

@@ -26,7 +26,7 @@ from ...tests.utils import frame_lines
 from ...tests.utils import make_app
 from ..inject import REPL_PROCESS_SCOPE_NAME
 from ..inject import bind_repl
-from ..inject import repl_namespace_seeds
+from ..inject import repl_namespace_seeds_binder
 from ..repl import MinituiRepl
 
 
@@ -165,7 +165,7 @@ async def test_wiring():
             bind_repl(config),
             inj.bind(mt.AsyncioDriver, to_const=ta.cast(mt.AsyncioDriver, driver)),
             inj.bind(MinituiChatApp, singleton=True),
-            repl_namespace_seeds().bind_item(to_const={'extra': 'seeded'}),
+            repl_namespace_seeds_binder().bind_item(to_const={'extra': 'seeded'}),
         ),
         inj.bind(repl.ImmediateRunner()),
         inj.bind(repl.Runner, to_key=repl.ImmediateRunner),

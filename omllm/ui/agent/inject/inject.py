@@ -1,6 +1,7 @@
 from omcore import inject as inj
 
 from .... import agent as agn
+from ....agent.inject.events import bind_events
 from ....agent.lifecycle.inject import bind_lifecycle
 from ....agent.permissions.inject import bind_permissions
 from ....agent.projection.inject import bind_projection
@@ -10,7 +11,6 @@ from ....core.asyncs.inject import bind_asyncio_job_runner
 from ....core.asyncs.inject import bind_asyncio_runtime
 from ..config import AgentConfig
 from ..setup import AgentSetup
-from .events import bind_events
 from .session import bind_sessions
 from .subagents import bind_subagents
 from .systemprompt import bind_system_prompt
@@ -33,6 +33,7 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
     #
 
     lst.extend([
+        bind_events(),
         bind_lifecycle(),
         bind_permissions(),
         bind_projection(),
@@ -46,7 +47,6 @@ def bind_agent(config: AgentConfig) -> inj.Elements:
     #
 
     lst.extend([
-        bind_events(),
         bind_sessions(config),
         bind_subagents(config),
         bind_system_prompt(config),

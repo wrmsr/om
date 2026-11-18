@@ -6,7 +6,6 @@ from ... import llm
 from ...core import processes as procs
 from ..types import InitialLlmOptions
 from ..types import RequestedCwd
-from .events import AgentEventSubscribers
 
 
 ##
@@ -19,7 +18,7 @@ class AgentSetup:
             self,
             *,
             agent: agn.Agent,
-            agent_event_subscribers: AgentEventSubscribers | None = None,
+            agent_event_subscribers: agn.EventSubscribers | None = None,
             backends: agn.BackendManager,
             tools: agn.ToolSet,
             environment_info: agn.EnvironmentInfoGetter,
