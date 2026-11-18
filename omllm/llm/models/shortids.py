@@ -1,3 +1,7 @@
+"""
+TODO:
+ - uhh what's the point of manifests if we import providers/all.py anyway lol
+"""
 import sys
 import typing as ta
 
@@ -8,6 +12,12 @@ from omcore.manifests.globals import GlobalManifestLoader
 from ..types.models import ModelKey
 from ..types.models import ModelShortIds
 from .manifests import ModelsModuleManifest
+
+
+##
+
+
+DEFAULT_MODEL_SHORT_ID: ta.Final = 'gpt'
 
 
 ##

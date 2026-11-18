@@ -45,8 +45,8 @@ def _bind_scripted_backend(config: BackendsConfig) -> inj.Elements:
 def _bind_backend(config: BackendsConfig) -> inj.Elements:
     lst: list[inj.Elemental] = []
 
-    default_model = llm.default_models_by_name()[config.model or llm.DEFAULT_MODEL_NAME]
-    llm_model = llm.provider_model_catalog()[default_model.key]
+    model_key = llm.model_keys_by_short_id()[config.model or llm.DEFAULT_MODEL_SHORT_ID]
+    llm_model = llm.provider_model_catalog()[model_key]
 
     if config.immediate:
         backend_cls: ta.Any = llm.ImmediateBackend
@@ -93,7 +93,7 @@ def bind_backends(config: BackendsConfig) -> inj.Elements:
 
     #
 
-    if (config.model or llm.DEFAULT_MODEL_NAME) == 'scripted':
+    if (config.model or llm.DEFAULT_MODEL_SHORT_ID) == 'scripted':
         lst.append(_bind_scripted_backend(config))
     else:
         lst.append(_bind_backend(config))
