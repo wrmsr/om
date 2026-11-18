@@ -103,15 +103,19 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='deepseek/deepseek-v4-pro-0813',
         name='DeepSeek V4 Pro 0813',
 
-        short_id='deepseek-pro',
+        short_ids=Model.ShortIds(
+            short_id='deepseek-pro',
+        ),
     ),
 
     _make_model(
         id=(TEST_MODEL_KEY := ModelKey('openrouter', 'deepseek/deepseek-v4.1-flash-1017')).id,
         name='DeepSeek V4.1 Flash 1017',
 
-        short_id='deepseek-flash',
-        short_id_aliases=['deepseek'],
+        short_ids=Model.ShortIds(
+            short_id='deepseek-flash',
+            short_id_aliases=['deepseek'],
+        ),
     ),
 
     ##
@@ -121,7 +125,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='moonshotai/kimi-k3',
         name='Kimi K3',
 
-        short_id='kimi',
+        short_ids=Model.ShortIds(
+            short_id='kimi',
+        ),
     ),
 
     ##
@@ -131,7 +137,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='z-ai/glm-5.3',
         name='GLM 5.3',
 
-        short_id='glm',
+        short_ids=Model.ShortIds(
+            short_id='glm',
+        ),
 
         reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
@@ -140,7 +148,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='z-ai/glm-5.3-flash',
         name='GLM 5.3 Flash',
 
-        short_id='glm-flash',
+        short_ids=Model.ShortIds(
+            short_id='glm-flash',
+        ),
 
         reasoning_efforts=_MANDATORY_REASONING_EFFORTS,
     ),
@@ -152,7 +162,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='inclusionai/ling-3.0-flash',
         name='Ling 3.0 Flash',
 
-        short_id='ling',
+        short_ids=Model.ShortIds(
+            short_id='ling',
+        ),
     ),
 
     ##
@@ -162,7 +174,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='inception/mercury-2.5',
         name='Mercury 2.5',
 
-        short_id='mercury',
+        short_ids=Model.ShortIds(
+            short_id='mercury',
+        ),
     ),
 
     ##
@@ -172,7 +186,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='xiaomi/mimo-v2.6-pro',
         name='MiMo 2.6 Pro',
 
-        short_id='mimo',
+        short_ids=Model.ShortIds(
+            short_id='mimo',
+        ),
     ),
 
     ##
@@ -182,7 +198,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='mistralai/mistral-large-4-0',
         name='Mistral Large 4',
 
-        short_id='mistral',
+        short_ids=Model.ShortIds(
+            short_id='mistral',
+        ),
     ),
 
     ##

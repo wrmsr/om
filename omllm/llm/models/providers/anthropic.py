@@ -98,8 +98,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='claude-fable-5-2',
         name='Claude Fable 5.2',
 
-        short_id='claude-fable',
-        short_id_aliases=['fable'],
+        short_ids=Model.ShortIds(
+            short_id='claude-fable',
+            short_id_aliases=['fable'],
+        ),
 
         default_options=Options(
             max_tokens=128000,
@@ -110,8 +112,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='claude-opus-5-5',
         name='Claude Opus 5.5',
 
-        short_id='claude-opus',
-        short_id_aliases=['opus'],
+        short_ids=Model.ShortIds(
+            short_id='claude-opus',
+            short_id_aliases=['opus'],
+        ),
 
         default_options=Options(
             max_tokens=128000,
@@ -122,8 +126,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id=(TEST_MODEL_KEY := ModelKey('anthropic', 'claude-sonnet-5-5')),
         name='Claude Sonnet 5.5',
 
-        short_id='claude-sonnet',
-        short_id_aliases=['sonnet', 'claude'],
+        short_ids=Model.ShortIds(
+            short_id='claude-sonnet',
+            short_id_aliases=['sonnet', 'claude'],
+        ),
 
         default_options=Options(
             max_tokens=128000,
@@ -134,8 +140,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='claude-haiku-5-5',
         name='Claude Haiku 5.5',
 
-        short_id='claude-haiku',
-        short_id_aliases=['haiku'],
+        short_ids=Model.ShortIds(
+            short_id='claude-haiku',
+            short_id_aliases=['haiku'],
+        ),
 
         default_options=Options(
             max_tokens=64000,

@@ -90,8 +90,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gpt-6.2-astra',
         name='GPT 6.2 Astra',
 
-        short_id='gpt-astra',
-        short_id_aliases=['astra'],
+        short_ids=Model.ShortIds(
+            short_id='gpt-astra',
+            short_id_aliases=['astra'],
+        ),
 
         reasoning_efforts=_REASONING_EFFORTS - {ReasoningEffort.NONE},
     ),
@@ -100,8 +102,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gpt-6.2-sol',
         name='GPT 6.2 Sol',
 
-        short_id='gpt-sol',
-        short_id_aliases=['sol'],
+        short_ids=Model.ShortIds(
+            short_id='gpt-sol',
+            short_id_aliases=['sol'],
+        ),
 
         # Like astra, this model rejects none (verified against the live API).
         reasoning_efforts=_REASONING_EFFORTS - {ReasoningEffort.NONE},
@@ -111,24 +115,30 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gpt-6.1-terra',
         name='GPT 6.1 Terra',
 
-        short_id='gpt-terra',
-        short_id_aliases=['terra'],
+        short_ids=Model.ShortIds(
+            short_id='gpt-terra',
+            short_id_aliases=['terra'],
+        ),
     ),
 
     _make_model(
         id=(RESPONSES_TEST_MODEL_KEY := ModelKey('openai', 'gpt-6-luna')),
         name='GPT 6 Luna',
 
-        short_id='gpt-luna',
-        short_id_aliases=['luna', 'gpt'],
+        short_ids=Model.ShortIds(
+            short_id='gpt-luna',
+            short_id_aliases=['luna', 'gpt'],
+        ),
     ),
 
     _make_model(
         id=(COMPLETIONS_TEST_MODEL_KEY := ModelKey('openai', 'gpt-5.4-nano')),
         name='GPT 5.4 Nano',
 
-        short_id='gpt-nano',
-        short_id_aliases=['nano'],
+        short_ids=Model.ShortIds(
+            short_id='gpt-nano',
+            short_id_aliases=['nano'],
+        ),
 
         backend='openai-completions',
 

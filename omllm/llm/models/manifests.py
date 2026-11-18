@@ -50,11 +50,11 @@ class ModelsModuleManifest:
 
                     #
 
-                    short_id=m.short_id,
-                    short_id_aliases=tuple(m.short_id_aliases) if m.short_id_aliases else None,
+                    short_id=msi.short_id if (msi := m.short_ids) else None,
+                    short_id_aliases=tuple(msi.short_id_aliases) if msi and msi.short_id_aliases else None,
 
-                    include_platforms=frozenset(m.include_platforms) if m.include_platforms else None,
-                    exclude_platforms=frozenset(m.exclude_platforms) if m.exclude_platforms else None,
+                    include_platforms=frozenset(msi.include_platforms) if msi and msi.include_platforms else None,
+                    exclude_platforms=frozenset(msi.exclude_platforms) if msi and msi.exclude_platforms else None,
                 )
                 for m in models
             ],

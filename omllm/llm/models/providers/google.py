@@ -84,39 +84,49 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gemini-4-carbon',
         name='Gemini 4 Carbon',
 
-        short_id='gemini-carbon',
-        short_id_aliases=['carbon'],
+        short_ids=Model.ShortIds(
+            short_id='gemini-carbon',
+            short_id_aliases=['carbon'],
+        ),
     ),
 
     _make_model(
         id='gemini-4-argon',
         name='Gemini 4 Argon',
 
-        short_id='gemini-argon',
-        short_id_aliases=['argon'],
+        short_ids=Model.ShortIds(
+            short_id='gemini-argon',
+            short_id_aliases=['argon'],
+        ),
     ),
 
     _make_model(
         id='gemini-4-hydrogen',
         name='Gemini 4 Hydrogen',
 
-        short_id='gemini-hydrogen',
-        short_id_aliases=['hydrogen'],
+        short_ids=Model.ShortIds(
+            short_id='gemini-hydrogen',
+            short_id_aliases=['hydrogen'],
+        ),
     ),
 
     _make_model(
         id=(TEST_MODEL_KEY := ModelKey('google', 'gemini-3.8-flash')),
         name='Gemini 3.8 Flash',
 
-        short_id='gemini-flash',
-        short_id_aliases=['gemini', 'google'],
+        short_ids=Model.ShortIds(
+            short_id='gemini-flash',
+            short_id_aliases=['gemini', 'google'],
+        ),
     ),
 
     _make_model(
         id='gemini-2.5-flash-lite',
         name='Gemini 2.5 Flash Lite',
 
-        short_id='gemini-cheap',
+        short_ids=Model.ShortIds(
+            short_id='gemini-cheap',
+        ),
     ),
 
 ]

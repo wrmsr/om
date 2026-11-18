@@ -1917,35 +1917,32 @@ def _process_dataclass__f1e877179fb4758c7e9d49c82539135f8e0005d7():
 
 
 @_register(
-    installer_sha1='7eb107aeba644edbf72174f5db8d2431f6d15c3e',
+    installer_sha1='5bd962220edee03161990e863caf507710328e0d',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
             "e, False, False, False), ((('key', True, True, None, True, True, False, None), 'instance', 'missing', None"
             ", False, False, False), (('backend', True, True, None, True, True, False, None), 'instance', 'missing', No"
             "ne, False, False, False), (('name', True, True, None, True, True, False, None), 'instance', 'value', None,"
-            " False, False, False), (('short_id', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('short_id_aliases', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('compat', True, True, None, True, True, False, None), 'instance', 'valu"
-            "e', None, False, False, False), (('cache', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('reasoning_efforts', True, True, None, True, True, False, None), 'instance"
-            "', 'value', None, False, False, False), (('reasoning_efforts_with_tools', True, True, None, True, True, Fa"
-            "lse, None), 'instance', 'value', None, False, False, False), (('limits', True, True, None, True, True, Fal"
-            "se, None), 'instance', 'value', None, False, False, False), (('pricing', True, True, None, True, True, Fal"
-            "se, None), 'instance', 'value', None, False, False, False), (('http', True, True, None, True, True, False,"
-            " None), 'instance', 'value', None, False, False, False), (('api_keys', True, True, None, True, True, False"
-            ", None), 'instance', 'value', None, False, False, False), (('default_options', True, True, None, True, Tru"
-            "e, False, None), 'instance', 'value', None, False, False, False), (('include_platforms', True, True, None,"
-            " True, True, False, None), 'instance', 'value', None, False, False, False), (('exclude_platforms', True, T"
-            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False)), True, 0, ()), ((Fal"
-            "se,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            " False, False, False), (('short_ids', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('compat', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('cache', True, True, None, True, True, False, None), 'instance', 'value', None, "
+            "False, False, False), (('reasoning_efforts', True, True, None, True, True, False, None), 'instance', 'valu"
+            "e', None, False, False, False), (('reasoning_efforts_with_tools', True, True, None, True, True, False, Non"
+            "e), 'instance', 'value', None, False, False, False), (('limits', True, True, None, True, True, False, None"
+            "), 'instance', 'value', None, False, False, False), (('pricing', True, True, None, True, True, False, None"
+            "), 'instance', 'value', None, False, False, False), (('http', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False), (('api_keys', True, True, None, True, True, False, None),"
+            " 'instance', 'value', None, False, False, False), (('default_options', True, True, None, True, True, False"
+            ", None), 'instance', 'value', None, False, False, False)), True, 0, ()), ((False,), (False,), (), (False,)"
+            ", (False, False, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.llm.types.models', 'Model'),
     ),
 )
-def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
+def _process_dataclass__5bd962220edee03161990e863caf507710328e0d():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1976,12 +1973,6 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
         __dataclass__init__fields__11__default = __dataclass__spec.fields[11].default.must()
         __dataclass__init__fields__12__annotation = __dataclass__spec.fields[12].annotation
         __dataclass__init__fields__12__default = __dataclass__spec.fields[12].default.must()
-        __dataclass__init__fields__13__annotation = __dataclass__spec.fields[13].annotation
-        __dataclass__init__fields__13__default = __dataclass__spec.fields[13].default.must()
-        __dataclass__init__fields__14__annotation = __dataclass__spec.fields[14].annotation
-        __dataclass__init__fields__14__default = __dataclass__spec.fields[14].default.must()
-        __dataclass__init__fields__15__annotation = __dataclass__spec.fields[15].annotation
-        __dataclass__init__fields__15__default = __dataclass__spec.fields[15].default.must()
         __dataclass__repr__default_fn = __dataclass__spec.default_repr_fn
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
@@ -1996,8 +1987,7 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 key=self.key,
                 backend=self.backend,
                 name=self.name,
-                short_id=self.short_id,
-                short_id_aliases=self.short_id_aliases,
+                short_ids=self.short_ids,
                 compat=self.compat,
                 cache=self.cache,
                 reasoning_efforts=self.reasoning_efforts,
@@ -2007,8 +1997,6 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 http=self.http,
                 api_keys=self.api_keys,
                 default_options=self.default_options,
-                include_platforms=self.include_platforms,
-                exclude_platforms=self.exclude_platforms,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2022,8 +2010,7 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 self.key == other.key and
                 self.backend == other.backend and
                 self.name == other.name and
-                self.short_id == other.short_id and
-                self.short_id_aliases == other.short_id_aliases and
+                self.short_ids == other.short_ids and
                 self.compat == other.compat and
                 self.cache == other.cache and
                 self.reasoning_efforts == other.reasoning_efforts and
@@ -2032,9 +2019,7 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 self.pricing == other.pricing and
                 self.http == other.http and
                 self.api_keys == other.api_keys and
-                self.default_options == other.default_options and
-                self.include_platforms == other.include_platforms and
-                self.exclude_platforms == other.exclude_platforms
+                self.default_options == other.default_options
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -2043,8 +2028,7 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
             'key',
             'backend',
             'name',
-            'short_id',
-            'short_id_aliases',
+            'short_ids',
             'compat',
             'cache',
             'reasoning_efforts',
@@ -2054,8 +2038,6 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
             'http',
             'api_keys',
             'default_options',
-            'include_platforms',
-            'exclude_platforms',
         }
 
         def __setattr__(self, name, value):
@@ -2083,8 +2065,7 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 self.key,
                 self.backend,
                 self.name,
-                self.short_id,
-                self.short_id_aliases,
+                self.short_ids,
                 self.compat,
                 self.cache,
                 self.reasoning_efforts,
@@ -2094,8 +2075,6 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 self.http,
                 self.api_keys,
                 self.default_options,
-                self.include_platforms,
-                self.exclude_platforms,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -2106,25 +2085,21 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
             key: __dataclass__init__fields__00__annotation,
             backend: __dataclass__init__fields__01__annotation,
             name: __dataclass__init__fields__02__annotation = __dataclass__init__fields__02__default,
-            short_id: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
-            short_id_aliases: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
-            compat: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
-            cache: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
-            reasoning_efforts: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            reasoning_efforts_with_tools: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            limits: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            pricing: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            http: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            api_keys: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            default_options: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            include_platforms: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
-            exclude_platforms: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            short_ids: __dataclass__init__fields__03__annotation = __dataclass__init__fields__03__default,
+            compat: __dataclass__init__fields__04__annotation = __dataclass__init__fields__04__default,
+            cache: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
+            reasoning_efforts: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
+            reasoning_efforts_with_tools: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
+            limits: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            pricing: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            http: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            api_keys: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            default_options: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'key', key)
             __dataclass__object_setattr(self, 'backend', backend)
             __dataclass__object_setattr(self, 'name', name)
-            __dataclass__object_setattr(self, 'short_id', short_id)
-            __dataclass__object_setattr(self, 'short_id_aliases', short_id_aliases)
+            __dataclass__object_setattr(self, 'short_ids', short_ids)
             __dataclass__object_setattr(self, 'compat', compat)
             __dataclass__object_setattr(self, 'cache', cache)
             __dataclass__object_setattr(self, 'reasoning_efforts', reasoning_efforts)
@@ -2134,8 +2109,6 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
             __dataclass__object_setattr(self, 'http', http)
             __dataclass__object_setattr(self, 'api_keys', api_keys)
             __dataclass__object_setattr(self, 'default_options', default_options)
-            __dataclass__object_setattr(self, 'include_platforms', include_platforms)
-            __dataclass__object_setattr(self, 'exclude_platforms', exclude_platforms)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2148,10 +2121,8 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 parts.append(f"backend={s}")
             if (s := __dataclass__repr__default_fn(self.name)) is not None:
                 parts.append(f"name={s}")
-            if (s := __dataclass__repr__default_fn(self.short_id)) is not None:
-                parts.append(f"short_id={s}")
-            if (s := __dataclass__repr__default_fn(self.short_id_aliases)) is not None:
-                parts.append(f"short_id_aliases={s}")
+            if (s := __dataclass__repr__default_fn(self.short_ids)) is not None:
+                parts.append(f"short_ids={s}")
             if (s := __dataclass__repr__default_fn(self.compat)) is not None:
                 parts.append(f"compat={s}")
             if (s := __dataclass__repr__default_fn(self.cache)) is not None:
@@ -2170,10 +2141,6 @@ def _process_dataclass__7eb107aeba644edbf72174f5db8d2431f6d15c3e():
                 parts.append(f"api_keys={s}")
             if (s := __dataclass__repr__default_fn(self.default_options)) is not None:
                 parts.append(f"default_options={s}")
-            if (s := __dataclass__repr__default_fn(self.include_platforms)) is not None:
-                parts.append(f"include_platforms={s}")
-            if (s := __dataclass__repr__default_fn(self.exclude_platforms)) is not None:
-                parts.append(f"exclude_platforms={s}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -2291,6 +2258,140 @@ def _process_dataclass__84a173b320741c84a6e3d98a029177eb1d7a6d9d():
                 parts.append(f"base_url={s}")
             if (s := __dataclass__repr__default_fn(self.extra_headers)) is not None:
                 parts.append(f"extra_headers={s}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='95ec00bea6ab55f93af10d61f698b8f55fbbb191',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('short_id', True, True, None, True, True, False, None), 'instance', 'value', N"
+            "one, False, False, False), (('short_id_aliases', True, True, None, True, True, False, None), 'instance', '"
+            "value', None, False, False, False), (('include_platforms', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('exclude_platforms', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,),"
+            " (False, False, ()), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('omllm.llm.types.models', 'Model.ShortIds'),
+    ),
+)
+def _process_dataclass__95ec00bea6ab55f93af10d61f698b8f55fbbb191():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__0__default = __dataclass__spec.fields[0].default.must()
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__init__fields__3__annotation = __dataclass__spec.fields[3].annotation
+        __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                short_id=self.short_id,
+                short_id_aliases=self.short_id_aliases,
+                include_platforms=self.include_platforms,
+                exclude_platforms=self.exclude_platforms,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.short_id == other.short_id and
+                self.short_id_aliases == other.short_id_aliases and
+                self.include_platforms == other.include_platforms and
+                self.exclude_platforms == other.exclude_platforms
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            'short_id',
+            'short_id_aliases',
+            'include_platforms',
+            'exclude_platforms',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.short_id,
+                self.short_id_aliases,
+                self.include_platforms,
+                self.exclude_platforms,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            short_id: __dataclass__init__fields__0__annotation = __dataclass__init__fields__0__default,
+            short_id_aliases: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            include_platforms: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+            exclude_platforms: __dataclass__init__fields__3__annotation = __dataclass__init__fields__3__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'short_id', short_id)
+            __dataclass__object_setattr(self, 'short_id_aliases', short_id_aliases)
+            __dataclass__object_setattr(self, 'include_platforms', include_platforms)
+            __dataclass__object_setattr(self, 'exclude_platforms', exclude_platforms)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"short_id={self.short_id!r}")
+            parts.append(f"short_id_aliases={self.short_id_aliases!r}")
+            parts.append(f"include_platforms={self.include_platforms!r}")
+            parts.append(f"exclude_platforms={self.exclude_platforms!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

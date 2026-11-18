@@ -29,7 +29,9 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='openai/gpt-oss-120b',
         ),
         name='GPT OSS 120B',
-        short_id='groq',
+        short_ids=Model.ShortIds(
+            short_id='groq',
+        ),
         backend='openai-completions',
         limits=modeldb_model_limits('groq', 'openai/gpt-oss-120b'),
         pricing=modeldb_token_pricing('groq', 'openai/gpt-oss-120b'),

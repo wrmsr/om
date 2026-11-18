@@ -38,8 +38,10 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='gpt-oss-120b',
         ),
         name='GPT OSS 120B',
-        short_id='cerebras-gpt',
-        short_id_aliases=['cerebras'],
+        short_ids=Model.ShortIds(
+            short_id='cerebras-gpt',
+            short_id_aliases=['cerebras'],
+        ),
         backend='openai-completions',
         limits=modeldb_model_limits('cerebras', 'gpt-oss-120b'),
         pricing=modeldb_token_pricing('cerebras', 'gpt-oss-120b'),

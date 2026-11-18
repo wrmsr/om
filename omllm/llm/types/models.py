@@ -152,8 +152,17 @@ class Model:
 
     #
 
-    short_id: str | None = None
-    short_id_aliases: lang.SequenceNotStr | None = None
+    @ta.final
+    @dc.dataclass(frozen=True, kw_only=True)
+    class ShortIds:
+        short_id: str | None = None
+        short_id_aliases: lang.SequenceNotStr | None = None
+
+        # For local models, allows preferring things like mlx/nvfp4 based on host platform ('darwin' / 'linux')
+        include_platforms: ta.AbstractSet[str] | None = None
+        exclude_platforms: ta.AbstractSet[str] | None = None
+
+    short_ids: ShortIds | None = None
 
     #
 
@@ -212,12 +221,6 @@ class Model:
     #
 
     default_options: Options | None = None
-
-    #
-
-    # For local models, allows preferring things like mlx/nvfp4 based on host platform ('darwin' / 'linux')
-    include_platforms: ta.AbstractSet[str] | None = None
-    exclude_platforms: ta.AbstractSet[str] | None = None
 
 
 ##
