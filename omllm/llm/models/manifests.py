@@ -19,9 +19,11 @@ class ModuleManifestModel:
     def key(self) -> ModelKey:
         return ModelKey(self.provider, self.id)
 
-    name: str | None = None
-
     backend: str
+
+    #
+
+    name: str | None = None
 
     #
 

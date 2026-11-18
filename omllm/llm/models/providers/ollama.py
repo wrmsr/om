@@ -7,6 +7,7 @@ import typing as ta
 from ...types.compat import OpenaiCompletionsCompat
 from ...types.models import Model
 from ...types.models import ModelKey
+from ...types.models import ModelShortIds
 from ..manifests import ModelsModuleManifest
 
 
@@ -49,7 +50,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='qwen3.8:27b',
         ),
         name='qwen3.8:27b',
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='ollama-qwen',
             short_id_aliases=['qwen'],
             exclude_platforms={'darwin'},
@@ -65,7 +66,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='qwen3.8:27b-mlx',
         ),
         name='qwen3.8:27b-mlx',
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='ollama-qwen',
             short_id_aliases=['qwen'],
             include_platforms={'darwin'},

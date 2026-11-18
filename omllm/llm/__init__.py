@@ -197,6 +197,7 @@ with _lang.auto_proxy_init(
         TokenPricing,
 
         ModelKey,
+        ModelShortIds,
         Model,
     )
 

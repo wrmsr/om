@@ -397,15 +397,15 @@
     "module": ".llm.models.providers.anthropic",
     "attr": "_MODELS_MANIFEST",
     "file": "omllm/llm/models/providers/anthropic.py",
-    "line": 156,
+    "line": 157,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "anthropic",
             "id": "claude-fable-5-2",
-            "name": "Claude Fable 5.2",
             "backend": "anthropic-messages",
+            "name": "Claude Fable 5.2",
             "short_id": "claude-fable",
             "short_id_aliases": [
               "fable"
@@ -416,8 +416,8 @@
           {
             "provider": "anthropic",
             "id": "claude-opus-5-5",
-            "name": "Claude Opus 5.5",
             "backend": "anthropic-messages",
+            "name": "Claude Opus 5.5",
             "short_id": "claude-opus",
             "short_id_aliases": [
               "opus"
@@ -428,8 +428,8 @@
           {
             "provider": "anthropic",
             "id": "claude-sonnet-5-5",
-            "name": "Claude Sonnet 5.5",
             "backend": "anthropic-messages",
+            "name": "Claude Sonnet 5.5",
             "short_id": "claude-sonnet",
             "short_id_aliases": [
               "sonnet",
@@ -441,8 +441,8 @@
           {
             "provider": "anthropic",
             "id": "claude-haiku-5-5",
-            "name": "Claude Haiku 5.5",
             "backend": "anthropic-messages",
+            "name": "Claude Haiku 5.5",
             "short_id": "claude-haiku",
             "short_id_aliases": [
               "haiku"
@@ -458,15 +458,15 @@
     "module": ".llm.models.providers.cerebras",
     "attr": "_MODELS_MANIFEST",
     "file": "omllm/llm/models/providers/cerebras.py",
-    "line": 68,
+    "line": 69,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "cerebras",
             "id": "gpt-oss-120b",
-            "name": "GPT OSS 120B",
             "backend": "openai-completions",
+            "name": "GPT OSS 120B",
             "short_id": "cerebras-gpt",
             "short_id_aliases": [
               "cerebras"
@@ -477,8 +477,8 @@
           {
             "provider": "cerebras",
             "id": "qwen-3.8-27b",
-            "name": "Qwen 3.8 27B",
             "backend": "openai-completions",
+            "name": "Qwen 3.8 27B",
             "short_id": null,
             "short_id_aliases": null,
             "include_platforms": null,
@@ -492,15 +492,15 @@
     "module": ".llm.models.providers.google",
     "attr": "_MODELS_MANIFEST",
     "file": "omllm/llm/models/providers/google.py",
-    "line": 135,
+    "line": 136,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "google",
             "id": "gemini-4-carbon",
-            "name": "Gemini 4 Carbon",
             "backend": "google-generative",
+            "name": "Gemini 4 Carbon",
             "short_id": "gemini-carbon",
             "short_id_aliases": [
               "carbon"
@@ -511,8 +511,8 @@
           {
             "provider": "google",
             "id": "gemini-4-argon",
-            "name": "Gemini 4 Argon",
             "backend": "google-generative",
+            "name": "Gemini 4 Argon",
             "short_id": "gemini-argon",
             "short_id_aliases": [
               "argon"
@@ -523,8 +523,8 @@
           {
             "provider": "google",
             "id": "gemini-4-hydrogen",
-            "name": "Gemini 4 Hydrogen",
             "backend": "google-generative",
+            "name": "Gemini 4 Hydrogen",
             "short_id": "gemini-hydrogen",
             "short_id_aliases": [
               "hydrogen"
@@ -535,8 +535,8 @@
           {
             "provider": "google",
             "id": "gemini-3.8-flash",
-            "name": "Gemini 3.8 Flash",
             "backend": "google-generative",
+            "name": "Gemini 3.8 Flash",
             "short_id": "gemini-flash",
             "short_id_aliases": [
               "gemini",
@@ -548,8 +548,8 @@
           {
             "provider": "google",
             "id": "gemini-2.5-flash-lite",
-            "name": "Gemini 2.5 Flash Lite",
             "backend": "google-generative",
+            "name": "Gemini 2.5 Flash Lite",
             "short_id": "gemini-cheap",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -563,15 +563,15 @@
     "module": ".llm.models.providers.groq",
     "attr": "_MODELS_MANIFEST",
     "file": "omllm/llm/models/providers/groq.py",
-    "line": 50,
+    "line": 51,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "groq",
             "id": "openai/gpt-oss-120b",
-            "name": "GPT OSS 120B",
             "backend": "openai-completions",
+            "name": "GPT OSS 120B",
             "short_id": "groq",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -585,15 +585,15 @@
     "module": ".llm.models.providers.ollama",
     "attr": "_MODELS_MANIFEST",
     "file": "omllm/llm/models/providers/ollama.py",
-    "line": 81,
+    "line": 82,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "ollama",
             "id": "qwen3.5:2b",
-            "name": "qwen3.5:2b",
             "backend": "openai-completions",
+            "name": "qwen3.5:2b",
             "short_id": null,
             "short_id_aliases": null,
             "include_platforms": null,
@@ -602,8 +602,8 @@
           {
             "provider": "ollama",
             "id": "qwen3.8:27b",
-            "name": "qwen3.8:27b",
             "backend": "openai-completions",
+            "name": "qwen3.8:27b",
             "short_id": "ollama-qwen",
             "short_id_aliases": [
               "qwen"
@@ -616,8 +616,8 @@
           {
             "provider": "ollama",
             "id": "qwen3.8:27b-mlx",
-            "name": "qwen3.8:27b-mlx",
             "backend": "openai-completions",
+            "name": "qwen3.8:27b-mlx",
             "short_id": "ollama-qwen",
             "short_id_aliases": [
               "qwen"
@@ -635,15 +635,15 @@
     "module": ".llm.models.providers.openai",
     "attr": "_MODELS_MANIFEST",
     "file": "omllm/llm/models/providers/openai.py",
-    "line": 163,
+    "line": 164,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "openai",
             "id": "gpt-6.2-astra",
-            "name": "GPT 6.2 Astra",
             "backend": "openai-responses",
+            "name": "GPT 6.2 Astra",
             "short_id": "gpt-astra",
             "short_id_aliases": [
               "astra"
@@ -654,8 +654,8 @@
           {
             "provider": "openai",
             "id": "gpt-6.2-sol",
-            "name": "GPT 6.2 Sol",
             "backend": "openai-responses",
+            "name": "GPT 6.2 Sol",
             "short_id": "gpt-sol",
             "short_id_aliases": [
               "sol"
@@ -666,8 +666,8 @@
           {
             "provider": "openai",
             "id": "gpt-6.1-terra",
-            "name": "GPT 6.1 Terra",
             "backend": "openai-responses",
+            "name": "GPT 6.1 Terra",
             "short_id": "gpt-terra",
             "short_id_aliases": [
               "terra"
@@ -678,8 +678,8 @@
           {
             "provider": "openai",
             "id": "gpt-6-luna",
-            "name": "GPT 6 Luna",
             "backend": "openai-responses",
+            "name": "GPT 6 Luna",
             "short_id": "gpt-luna",
             "short_id_aliases": [
               "luna",
@@ -691,8 +691,8 @@
           {
             "provider": "openai",
             "id": "gpt-5.4-nano",
-            "name": "GPT 5.4 Nano",
             "backend": "openai-completions",
+            "name": "GPT 5.4 Nano",
             "short_id": "gpt-nano",
             "short_id_aliases": [
               "nano"
@@ -708,15 +708,15 @@
     "module": ".llm.models.providers.openrouter",
     "attr": "_MODELS_MANIFEST",
     "file": "omllm/llm/models/providers/openrouter.py",
-    "line": 224,
+    "line": 225,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
         "models": [
           {
             "provider": "openrouter",
             "id": "deepseek/deepseek-v4-pro-0813",
-            "name": "DeepSeek V4 Pro 0813",
             "backend": "openai-completions",
+            "name": "DeepSeek V4 Pro 0813",
             "short_id": "deepseek-pro",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -725,8 +725,8 @@
           {
             "provider": "openrouter",
             "id": "deepseek/deepseek-v4.1-flash-1017",
-            "name": "DeepSeek V4.1 Flash 1017",
             "backend": "openai-completions",
+            "name": "DeepSeek V4.1 Flash 1017",
             "short_id": "deepseek-flash",
             "short_id_aliases": [
               "deepseek"
@@ -737,8 +737,8 @@
           {
             "provider": "openrouter",
             "id": "moonshotai/kimi-k3",
-            "name": "Kimi K3",
             "backend": "openai-completions",
+            "name": "Kimi K3",
             "short_id": "kimi",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -747,8 +747,8 @@
           {
             "provider": "openrouter",
             "id": "z-ai/glm-5.3",
-            "name": "GLM 5.3",
             "backend": "openai-completions",
+            "name": "GLM 5.3",
             "short_id": "glm",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -757,8 +757,8 @@
           {
             "provider": "openrouter",
             "id": "z-ai/glm-5.3-flash",
-            "name": "GLM 5.3 Flash",
             "backend": "openai-completions",
+            "name": "GLM 5.3 Flash",
             "short_id": "glm-flash",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -767,8 +767,8 @@
           {
             "provider": "openrouter",
             "id": "inclusionai/ling-3.0-flash",
-            "name": "Ling 3.0 Flash",
             "backend": "openai-completions",
+            "name": "Ling 3.0 Flash",
             "short_id": "ling",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -777,8 +777,8 @@
           {
             "provider": "openrouter",
             "id": "inception/mercury-2.5",
-            "name": "Mercury 2.5",
             "backend": "openai-completions",
+            "name": "Mercury 2.5",
             "short_id": "mercury",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -787,8 +787,8 @@
           {
             "provider": "openrouter",
             "id": "xiaomi/mimo-v2.6-pro",
-            "name": "MiMo 2.6 Pro",
             "backend": "openai-completions",
+            "name": "MiMo 2.6 Pro",
             "short_id": "mimo",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -797,8 +797,8 @@
           {
             "provider": "openrouter",
             "id": "mistralai/mistral-large-4-0",
-            "name": "Mistral Large 4",
             "backend": "openai-completions",
+            "name": "Mistral Large 4",
             "short_id": "mistral",
             "short_id_aliases": null,
             "include_platforms": null,
@@ -807,8 +807,8 @@
           {
             "provider": "openrouter",
             "id": "qwen/qwen3.8-max-prime",
-            "name": "Qwen3.8 Max Prime",
             "backend": "openai-completions",
+            "name": "Qwen3.8 Max Prime",
             "short_id": null,
             "short_id_aliases": null,
             "include_platforms": null,
@@ -817,8 +817,8 @@
           {
             "provider": "openrouter",
             "id": "qwen/qwen3.8-flash",
-            "name": "Qwen 3.8 Flash",
             "backend": "openai-completions",
+            "name": "Qwen 3.8 Flash",
             "short_id": null,
             "short_id_aliases": null,
             "include_platforms": null,

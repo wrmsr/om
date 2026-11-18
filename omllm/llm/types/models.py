@@ -130,6 +130,17 @@ class ModelKey:
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
+class ModelShortIds:
+    short_id: str | None = None
+    short_id_aliases: lang.SequenceNotStr | None = None
+
+    # For local models, allows preferring things like mlx/nvfp4 based on host platform ('darwin' / 'linux')
+    include_platforms: ta.AbstractSet[str] | None = None
+    exclude_platforms: ta.AbstractSet[str] | None = None
+
+
+@ta.final
+@dc.dataclass(frozen=True, kw_only=True)
 @dc.extra_class_params(default_repr_fn=lang.opt_repr)
 @msh.update_field_options(omit_if=lang.is_none)
 class Model:
@@ -152,17 +163,7 @@ class Model:
 
     #
 
-    @ta.final
-    @dc.dataclass(frozen=True, kw_only=True)
-    class ShortIds:
-        short_id: str | None = None
-        short_id_aliases: lang.SequenceNotStr | None = None
-
-        # For local models, allows preferring things like mlx/nvfp4 based on host platform ('darwin' / 'linux')
-        include_platforms: ta.AbstractSet[str] | None = None
-        exclude_platforms: ta.AbstractSet[str] | None = None
-
-    short_ids: ShortIds | None = None
+    short_ids: ModelShortIds | None = None
 
     #
 

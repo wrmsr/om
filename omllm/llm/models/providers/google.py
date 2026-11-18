@@ -8,6 +8,7 @@ from ....core.apikeys import secret_or_env_var_api_key
 from ...types.models import CacheCapabilities
 from ...types.models import Model
 from ...types.models import ModelKey
+from ...types.models import ModelShortIds
 from ...types.options import ReasoningEffort
 from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_model_limits
@@ -84,7 +85,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gemini-4-carbon',
         name='Gemini 4 Carbon',
 
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='gemini-carbon',
             short_id_aliases=['carbon'],
         ),
@@ -94,7 +95,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gemini-4-argon',
         name='Gemini 4 Argon',
 
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='gemini-argon',
             short_id_aliases=['argon'],
         ),
@@ -104,7 +105,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gemini-4-hydrogen',
         name='Gemini 4 Hydrogen',
 
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='gemini-hydrogen',
             short_id_aliases=['hydrogen'],
         ),
@@ -114,7 +115,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id=(TEST_MODEL_KEY := ModelKey('google', 'gemini-3.8-flash')),
         name='Gemini 3.8 Flash',
 
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='gemini-flash',
             short_id_aliases=['gemini', 'google'],
         ),
@@ -124,7 +125,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
         id='gemini-2.5-flash-lite',
         name='Gemini 2.5 Flash Lite',
 
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='gemini-cheap',
         ),
     ),

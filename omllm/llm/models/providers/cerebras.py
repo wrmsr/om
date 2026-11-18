@@ -7,6 +7,7 @@ import typing as ta
 from ....core.apikeys import secret_or_env_var_api_key
 from ...types.models import Model
 from ...types.models import ModelKey
+from ...types.models import ModelShortIds
 from ..manifests import ModelsModuleManifest
 from ..modeldb import modeldb_model_limits
 from ..modeldb import modeldb_token_pricing
@@ -38,7 +39,7 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
             id='gpt-oss-120b',
         ),
         name='GPT OSS 120B',
-        short_ids=Model.ShortIds(
+        short_ids=ModelShortIds(
             short_id='cerebras-gpt',
             short_id_aliases=['cerebras'],
         ),
