@@ -2522,7 +2522,7 @@ def _process_dataclass__b964fbae960ea557aa9e0a7ffbba00bcafa394cf():
 
 
 @_register(
-    installer_sha1='95ec00bea6ab55f93af10d61f698b8f55fbbb191',
+    installer_sha1='ba411026084e86b8d336da57b7c098b2a87b5c67',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -2531,14 +2531,14 @@ def _process_dataclass__b964fbae960ea557aa9e0a7ffbba00bcafa394cf():
             "value', None, False, False, False), (('include_platforms', True, True, None, True, True, False, None), 'in"
             "stance', 'value', None, False, False, False), (('exclude_platforms', True, True, None, True, True, False, "
             "None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,),"
-            " (False, False, ()), ((),), (), (False,)))"
+            " (False, True, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.llm.types.models', 'ModelShortIds'),
     ),
 )
-def _process_dataclass__95ec00bea6ab55f93af10d61f698b8f55fbbb191():
+def _process_dataclass__ba411026084e86b8d336da57b7c098b2a87b5c67():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -2634,6 +2634,7 @@ def _process_dataclass__95ec00bea6ab55f93af10d61f698b8f55fbbb191():
             __dataclass__object_setattr(self, 'short_id_aliases', short_id_aliases)
             __dataclass__object_setattr(self, 'include_platforms', include_platforms)
             __dataclass__object_setattr(self, 'exclude_platforms', exclude_platforms)
+            self.__post_init__()
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 

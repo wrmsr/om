@@ -1,4 +1,3 @@
-import sys
 import typing as ta
 
 from omcore import cached
@@ -128,6 +127,10 @@ class ModelKey:
             id=id,
         )
 
+    @classmethod
+    def try_parse(cls, s: str) -> ta.Self | None:
+        return cls.parse(s) if cls.SEPARATOR in s else None
+
 
 @ta.final
 @dc.dataclass(frozen=True, kw_only=True)
@@ -137,9 +140,21 @@ class ModelShortIds:
 
     #
 
+    def __post_init__(self) -> None:
+        for si in self.iter():
+            check.none(ModelKey.try_parse(si))
+
+    #
+
     # For local models, allows preferring things like mlx/nvfp4 based on host platform ('darwin' / 'linux')
     include_platforms: ta.AbstractSet[str] | None = None
     exclude_platforms: ta.AbstractSet[str] | None = None
+
+    def enabled_for_platform(self, platform: str) -> bool:
+        return not (
+            ((ip := self.include_platforms) is not None and platform not in ip) or
+            ((ep := self.exclude_platforms) is not None and platform in ep)
+        )
 
     #
 
@@ -149,15 +164,7 @@ class ModelShortIds:
             *,
             platform: str | None = None,
     ) -> ta.Iterator[str]:
-        if self is None:
-            return
-
-        if platform is None:
-            platform = sys.platform
-        if (
-                ((ip := self.include_platforms) is not None and platform not in ip) or
-                ((ep := self.exclude_platforms) is not None and platform in ep)
-        ):
+        if self is None or (platform is not None and not self.enabled_for_platform(platform)):
             return
 
         if (si := self.short_id) is not None:

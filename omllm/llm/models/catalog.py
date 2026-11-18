@@ -1,5 +1,6 @@
 import abc
 import importlib
+import sys
 import typing as ta
 
 from omcore import cached
@@ -173,11 +174,24 @@ class ModelCatalog:
     def __iter__(self) -> ta.Iterator[Entry]:
         return iter(self._by_key.values())
 
-    def __contains__(self, key: ModelKey) -> bool:
-        return check.isinstance(key, ModelKey) in self._by_key
+    def __contains__(self, key: ModelKey | str) -> bool:
+        try:
+            self[key]
+        except KeyError:
+            return False
+        else:
+            return True
 
-    def __getitem__(self, key: ModelKey, /) -> Entry:
-        return self._by_key[check.isinstance(key, ModelKey)]
+    def __getitem__(self, key: ModelKey | str, /) -> Entry:
+        if isinstance(key, str):
+            if (pmk := ModelKey.try_parse(key)) is not None:
+                return self._by_key[pmk]
+            else:
+                return self.by_short_id[key]
+        elif isinstance(key, ModelKey):
+            return self._by_key[key]
+        else:
+            raise TypeError(key)
 
 
 ##
@@ -192,7 +206,10 @@ def _models_module_manifests() -> ta.Sequence[ModelsModuleManifest]:
 
 @cached.function(lock=True)
 def manifest_model_catalog() -> ModelCatalog:
-    return ModelCatalog(_models_module_manifests())
+    return ModelCatalog(
+        _models_module_manifests(),
+        platform=sys.platform,
+    )
 
 
 #

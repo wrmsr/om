@@ -125,6 +125,7 @@ async def test_live_search_and_fetch_through_the_ui_tools():
         search = await tools['web_search'].executor(agn.ToolContext(args={'query': 'Python official documentation'}))
         if search.error is not None:
             assert repr(search.error) == "DDGSException('No results found.')"
+            return
         assert search.error is None, search.error
         assert 'https://' in search.content.text
         fetch = await tools['web_fetch'].executor(agn.ToolContext(args={'url': 'https://pypi.org/'}))
