@@ -51,7 +51,7 @@ def do_request(
 ) -> llm.AiMessage:
 
     be = llm.OpenaiResponsesStreamBackend(
-        model=llm.manifest_model_catalog().by_short_id['luna'].model(),
+        model=llm.manifest_model_catalog()['luna'].model(),
         oauth_tokens=llm.OpenaiResponsesImmediateBackend.OauthTokens(
             access_token=sec.Secret(value=auth_tokens.access_token),
             account_id=sec.Secret(value=check.not_none(auth_tokens.account_id())),

@@ -22,7 +22,7 @@ _WORD = 'marmalade'
 
 
 async def _test_explore(harness, model: str) -> None:
-    mdl = llm.manifest_model_catalog().by_short_id[model].model()
+    mdl = llm.manifest_model_catalog()[model].model()
     dm_sak = check.isinstance(check.not_none(mdl.api_keys)[0], SecretApiKey)
     harness[HarnessSecrets].get_or_skip(dm_sak.name)
 
