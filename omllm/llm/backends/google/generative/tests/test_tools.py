@@ -4,7 +4,7 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.google import TEST_MODEL_KEY
 from .....types.backends import ImmediateBackend
 from .....types.content import TextContent
@@ -37,7 +37,7 @@ async def test_google_tools(
     model_key, api_key_name = (TEST_MODEL_KEY, 'gemini_api_key')
 
     svc: ImmediateBackend = svc_cls(  # noqa
-        provider_model_catalog()[model_key],
+        manifest_model_catalog()[model_key].model(),
         api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
     )
 

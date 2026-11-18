@@ -79,11 +79,14 @@ with _lang.auto_proxy_init(
 
     from .models.catalog import (  # noqa
         ModelCatalog,
+
+        manifest_model_catalog,
+
+        default_model,
     )
 
-    from .models.providers import (  # noqa
-        provider_models,
-        provider_model_catalog,
+    from .models.defaults import (  # noqa
+        DEFAULT_MODEL_SHORT_ID,
     )
 
     from .models.modeldb import (  # noqa
@@ -94,13 +97,6 @@ with _lang.auto_proxy_init(
     from .models.pricing import (  # noqa
         estimate_token_cost,
         fill_estimated_token_cost,
-    )
-
-    from .models.shortids import (  # noqa
-        DEFAULT_MODEL_SHORT_ID,
-
-        model_short_ids_by_model_key,
-        model_keys_by_short_id,
     )
 
     ##

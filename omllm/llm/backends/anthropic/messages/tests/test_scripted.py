@@ -6,7 +6,7 @@ from omcore.formats.json import all as json
 from omcore.http import all as http
 from omcore.secrets import all as sec
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.anthropic import TEST_MODEL_KEY
 from .....types.content import TextContent
 from .....types.content import ThinkingContent
@@ -23,7 +23,7 @@ from ..stream import AnthropicMessagesStreamBackend
 
 
 def _model():
-    return provider_model_catalog()[TEST_MODEL_KEY]
+    return manifest_model_catalog()[TEST_MODEL_KEY].model()
 
 
 def _api_key():

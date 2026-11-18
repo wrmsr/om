@@ -400,6 +400,7 @@
     "line": 157,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
+        "module": "omllm.llm.models.providers.anthropic",
         "models": [
           {
             "provider": "anthropic",
@@ -461,6 +462,7 @@
     "line": 69,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
+        "module": "omllm.llm.models.providers.cerebras",
         "models": [
           {
             "provider": "cerebras",
@@ -495,6 +497,7 @@
     "line": 136,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
+        "module": "omllm.llm.models.providers.google",
         "models": [
           {
             "provider": "google",
@@ -566,6 +569,7 @@
     "line": 51,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
+        "module": "omllm.llm.models.providers.groq",
         "models": [
           {
             "provider": "groq",
@@ -588,6 +592,7 @@
     "line": 82,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
+        "module": "omllm.llm.models.providers.ollama",
         "models": [
           {
             "provider": "ollama",
@@ -638,6 +643,7 @@
     "line": 164,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
+        "module": "omllm.llm.models.providers.openai",
         "models": [
           {
             "provider": "openai",
@@ -711,6 +717,7 @@
     "line": 225,
     "value": {
       "!.llm.models.manifests.ModelsModuleManifest": {
+        "module": "omllm.llm.models.providers.openrouter",
         "models": [
           {
             "provider": "openrouter",

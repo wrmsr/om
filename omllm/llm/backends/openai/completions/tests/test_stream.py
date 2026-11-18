@@ -4,7 +4,7 @@ from omcore import lang
 from omcore.http import all as http
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
 from .....models.providers.openrouter import TEST_MODEL_KEY as OPENROUTER_TEST_MODEL_KEY
 from .....types.context import Context
@@ -26,7 +26,7 @@ class BaseBackendTest:
         model_key, api_key_name = model
 
         svc = OpenaiCompletionsStreamBackend(
-            provider_model_catalog()[model_key],  # noqa
+            manifest_model_catalog()[model_key].model(),  # noqa
             **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
         )
 
@@ -66,7 +66,7 @@ class BaseBackendTest:
         model_key, api_key_name = model
 
         svc = OpenaiCompletionsStreamBackend(
-            provider_model_catalog()[model_key],  # noqa
+            manifest_model_catalog()[model_key].model(),  # noqa
             **(dict(api_key=harness[HarnessSecrets].get_or_skip(api_key_name)) if api_key_name is not None else {}),
             http_client=http.SyncAsyncHttpClient(http.client()),
         )

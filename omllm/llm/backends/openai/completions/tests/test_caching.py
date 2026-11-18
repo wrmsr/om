@@ -8,7 +8,7 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
 from .....models.providers.openrouter import TEST_MODEL_KEY as OPENROUTER_TEST_MODEL_KEY
 from .....types.context import Context
@@ -31,7 +31,7 @@ _MIN_CACHEABLE_PROMPT_TOKENS = 1024
 @pytest.mark.timeout(180)
 async def test_openai_prompt_caching(harness):
     svc = OpenaiCompletionsImmediateBackend(
-        provider_model_catalog()[COMPLETIONS_TEST_MODEL_KEY],  # noqa
+        manifest_model_catalog()[COMPLETIONS_TEST_MODEL_KEY].model(),  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('openai_api_key'),
     )
 
@@ -85,7 +85,7 @@ async def test_openai_prompt_caching(harness):
 
 
 def test_openrouter_cache_request_translation():
-    model = provider_model_catalog()[OPENROUTER_TEST_MODEL_KEY]  # noqa
+    model = manifest_model_catalog()[OPENROUTER_TEST_MODEL_KEY].model()  # noqa
     context = Context(messages=[UserMessage('hi')])
 
     # The cache key becomes the session affinity header, never a request body field.
@@ -112,7 +112,7 @@ def test_openrouter_cache_request_translation():
 ])
 async def test_openrouter_prompt_caching(harness, model_id):
     svc = OpenaiCompletionsImmediateBackend(
-        provider_model_catalog()[ModelKey('openrouter', model_id)],  # noqa
+        manifest_model_catalog()[ModelKey('openrouter', model_id)].model(),  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('openrouter_api_key'),
     )
 

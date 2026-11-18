@@ -3,7 +3,7 @@ import pytest
 from omcore import dataclasses as dc
 from omcore import marshal as msh
 
-from ...models.providers import provider_model_catalog
+from ...models.catalog import manifest_model_catalog
 from ...models.providers.anthropic import TEST_MODEL_KEY as ANTHROPIC_TEST_MODEL_KEY
 from ...models.providers.google import TEST_MODEL_KEY as GOOGLE_TEST_API_KEY
 from ...models.providers.openai import COMPLETIONS_TEST_MODEL_KEY as OPENAI_COMPLETIONS_TEST_MODEL_KEY
@@ -53,7 +53,7 @@ from ..openai.responses.requests import RequestPreparer as ResponsesRequestPrepa
     ),
 ])
 def test_effort_request_shapes_and_defaults(key, preparer, expected):
-    model = provider_model_catalog()[key]
+    model = manifest_model_catalog()[key].model()
     raw = preparer(model, Context(), Options(reasoning_effort=ReasoningEffort.LOW)).raw_request()
     for field, value in expected.items():
         assert raw[field] == value
@@ -71,7 +71,7 @@ def test_effort_request_shapes_and_defaults(key, preparer, expected):
 
 @pytest.mark.parametrize('thinking', [None, False, True])
 def test_gemini_effort_and_returned_thoughts_are_independent(thinking):
-    model = provider_model_catalog()[GOOGLE_TEST_API_KEY]
+    model = manifest_model_catalog()[GOOGLE_TEST_API_KEY].model()
     raw = GoogleRequestPreparer(model, Context(), Options(
         reasoning_effort=ReasoningEffort.LOW,
         thinking=thinking,
@@ -87,7 +87,7 @@ def test_gemini_effort_and_returned_thoughts_are_independent(thinking):
 
 
 def test_openai_effort_preserves_summary_request():
-    model = provider_model_catalog()[OPENAI_RESPONSES_TEST_MODEL_KEY]
+    model = manifest_model_catalog()[OPENAI_RESPONSES_TEST_MODEL_KEY].model()
     raw = ResponsesRequestPreparer(model, Context(), Options(
         reasoning_effort=ReasoningEffort.HIGH,
         thinking=True,
@@ -97,7 +97,7 @@ def test_openai_effort_preserves_summary_request():
 
 
 def test_completions_rejects_tool_effort_combinations_before_sending():
-    model = provider_model_catalog()[OPENAI_COMPLETIONS_TEST_MODEL_KEY]
+    model = manifest_model_catalog()[OPENAI_COMPLETIONS_TEST_MODEL_KEY].model()
     context = Context(tools=[Tool(name='act')])
     with pytest.raises(ValueError, match='does not support effort low with tools'):
         CompletionsRequestPreparer(model, context, Options(reasoning_effort=ReasoningEffort.LOW)).raw_request()

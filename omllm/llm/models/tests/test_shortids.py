@@ -2,8 +2,10 @@ import typing as ta
 
 from omcore import lang
 
-from .... import llm
-from ..shortids import model_keys_by_short_id
+from ...types.models import Model
+from ..catalog import ModelCatalog
+from ..catalog import _models_module_manifests
+from ..defaults import DEFAULT_MODEL_SHORT_ID
 
 
 _CHECKED_PLATFORMS: ta.Final[lang.SequenceNotStr[str]] = [
@@ -12,8 +14,12 @@ _CHECKED_PLATFORMS: ta.Final[lang.SequenceNotStr[str]] = [
 ]
 
 
-def test_model_keys():
-    mc = llm.provider_model_catalog()
+def test_short_ids():
     for platform in _CHECKED_PLATFORMS:
-        for mk in model_keys_by_short_id(platform=platform).values():
-            assert mk in mc.by_key
+        mc = ModelCatalog(
+            _models_module_manifests(),
+            platform=platform,
+        )
+
+        de = mc.by_short_id[DEFAULT_MODEL_SHORT_ID]
+        assert isinstance(de.model(), Model)

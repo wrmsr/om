@@ -16,7 +16,7 @@ import pytest
 from omcore import dataclasses as dc
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from ...models.providers import provider_model_catalog
+from ...models.catalog import manifest_model_catalog
 from ...models.providers.anthropic import TEST_MODEL_KEY as ANTHROPIC_TEST_MODEL_KEY
 from ...models.providers.google import TEST_MODEL_KEY as GOOGLE_TEST_MODEL_KEY
 from ...models.providers.openai import COMPLETIONS_TEST_MODEL_KEY as OPENAI_COMPLETIONS_TEST_MODEL_KEY
@@ -100,7 +100,7 @@ def _params() -> list:
     params: list = []
 
     for case in _CASES:
-        model = provider_model_catalog()[case.key]  # noqa
+        model = manifest_model_catalog()[case.key].model()  # noqa
         base_levels = supported_reasoning_efforts(model)
         tool_levels = supported_reasoning_efforts(model, with_tools=True)
 
@@ -148,7 +148,7 @@ _TOOL = Tool(
 @pytest.mark.asyncs('asyncio')
 @pytest.mark.parametrize(('key', 'backend_cls', 'api_key_name', 'effort', 'tools', 'accepted'), _params())
 async def test_declared_efforts_match_provider(harness, key, backend_cls, api_key_name, effort, tools, accepted):
-    model = provider_model_catalog()[key]  # noqa
+    model = manifest_model_catalog()[key].model()  # noqa
 
     # Undeclared levels are sent regardless, so that the provider - not the catalog - is what rejects them.
     svc = backend_cls(

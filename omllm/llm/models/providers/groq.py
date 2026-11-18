@@ -49,4 +49,4 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
 
 
 # @om-manifest
-_MODELS_MANIFEST = ModelsModuleManifest.of(MODELS)
+_MODELS_MANIFEST = ModelsModuleManifest.of(__name__, MODELS)

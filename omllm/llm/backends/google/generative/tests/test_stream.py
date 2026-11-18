@@ -2,7 +2,7 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.google import TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import AiMessage
@@ -24,7 +24,7 @@ async def test_google_chat_stream_model_async(harness):
     model_key, api_key_name = model
 
     svc = GoogleGenerativeStreamBackend(
-        provider_model_catalog()[model_key],  # noqa
+        manifest_model_catalog()[model_key].model(),  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
     )
 

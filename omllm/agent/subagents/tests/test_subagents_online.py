@@ -51,7 +51,7 @@ _PROMPT = (
 
 async def _test_subagent(harness: Harness, model: ModelForTest) -> None:
     backend = model.stream_backend_cls(
-        llm.provider_model_catalog()[model.model_key],  # noqa
+        llm.manifest_model_catalog()[model.model_key].model(),  # noqa
         api_key=harness[HarnessSecrets].get_or_skip(model.api_key_name),
     )
 

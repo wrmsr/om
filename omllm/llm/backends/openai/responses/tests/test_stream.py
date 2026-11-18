@@ -4,7 +4,7 @@ from omcore import lang
 from omcore.http import all as http
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.openai import RESPONSES_TEST_MODEL_KEY
 from .....types.context import Context
 from .....types.messages import AiMessage
@@ -30,7 +30,7 @@ class TestOpenaiBackend:
         model_key, api_key_name = model
 
         svc = OpenaiResponsesStreamBackend(
-            provider_model_catalog()[model_key],  # noqa
+            manifest_model_catalog()[model_key].model(),  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 
@@ -70,7 +70,7 @@ class TestOpenaiBackend:
         model_key, api_key_name = model
 
         svc = OpenaiResponsesStreamBackend(
-            provider_model_catalog()[model_key],  # noqa
+            manifest_model_catalog()[model_key].model(),  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
             http_client=http.SyncAsyncHttpClient(http.client()),
         )

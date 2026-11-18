@@ -106,7 +106,7 @@ class LlmGitMessageGenerator(GitMessageGenerator):
         from omdev.home.secrets import load_secrets
 
         svc = llm.OpenaiCompletionsImmediateBackend(
-            llm.provider_model_catalog()[llm.ModelKey('groq', 'openai/gpt-oss-120b')],
+            llm.manifest_model_catalog()[llm.ModelKey('groq', 'openai/gpt-oss-120b')].model(),
             api_key=load_secrets().get('groq_api_key'),
             http_client=http.SyncAsyncHttpClient(http.client()),
         )

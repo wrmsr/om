@@ -1,3 +1,4 @@
+import sys
 import typing as ta
 
 from omcore import cached
@@ -134,9 +135,36 @@ class ModelShortIds:
     short_id: str | None = None
     short_id_aliases: lang.SequenceNotStr | None = None
 
+    #
+
     # For local models, allows preferring things like mlx/nvfp4 based on host platform ('darwin' / 'linux')
     include_platforms: ta.AbstractSet[str] | None = None
     exclude_platforms: ta.AbstractSet[str] | None = None
+
+    #
+
+    @lang.opt_self
+    def iter(
+            self: ModelShortIds | None,
+            *,
+            platform: str | None = None,
+    ) -> ta.Iterator[str]:
+        if self is None:
+            return
+
+        if platform is None:
+            platform = sys.platform
+        if (
+                ((ip := self.include_platforms) is not None and platform not in ip) or
+                ((ep := self.exclude_platforms) is not None and platform in ep)
+        ):
+            return
+
+        if (si := self.short_id) is not None:
+            yield si
+        for si in self.short_id_aliases or ():
+            if si is not None:
+                yield si
 
 
 @ta.final

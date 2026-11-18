@@ -2,7 +2,7 @@ from omcore import check
 from omcore import dataclasses as dc
 from omcore.formats.json import all as json
 
-from .providers import provider_model_catalog
+from .catalog import manifest_model_catalog
 
 
 ##
@@ -11,7 +11,7 @@ from .providers import provider_model_catalog
 def _main() -> None:
     dcts: dict[str, dict] = {}
 
-    for m in provider_model_catalog():
+    for m in manifest_model_catalog().all():
         dct: dict = {}
 
         limits = m.limits

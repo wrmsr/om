@@ -5,7 +5,7 @@ from omcore import dataclasses as dc
 from omcore.http import all as http
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.openai import COMPLETIONS_TEST_MODEL_KEY
 from .....types.backends import ImmediateBackend
 from .....types.content import TextContent
@@ -37,7 +37,7 @@ class BaseToolsTest:
         model_key, api_key_name = model
 
         svc: ImmediateBackend = svc_cls(  # noqa
-            provider_model_catalog()[model_key],  # noqa
+            manifest_model_catalog()[model_key].model(),  # noqa
             api_key=harness[HarnessSecrets].get_or_skip(api_key_name),
         )
 

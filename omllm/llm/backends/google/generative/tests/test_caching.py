@@ -3,7 +3,7 @@ import pytest
 
 from omcore.secrets.tests.harness import HarnessSecrets
 
-from .....models.providers import provider_model_catalog
+from .....models.catalog import manifest_model_catalog
 from .....models.providers.google import TEST_MODEL_KEY
 from ....tests import caching
 from ..immediate import GoogleGenerativeImmediateBackend
@@ -24,7 +24,7 @@ _MIN_ASSERTED_CACHED_TOKENS = 1024
 @pytest.mark.timeout(180)
 async def test_google_prompt_caching(harness):
     svc = GoogleGenerativeImmediateBackend(
-        provider_model_catalog()[TEST_MODEL_KEY],  # noqa
+        manifest_model_catalog()[TEST_MODEL_KEY].model(),  # noqa
         api_key=harness[HarnessSecrets].get_or_skip('gemini_api_key'),
     )
 
