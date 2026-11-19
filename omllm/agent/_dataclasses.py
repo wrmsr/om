@@ -418,20 +418,21 @@ def _process_dataclass__90ae1a3679bd09add6879688c325c2eedec72908():
 
 
 @_register(
-    installer_sha1='998140863e7362c330ddca17591932ab6ae29f02',
+    installer_sha1='fbb65cab1c264ec0ac037e09ca96dffe379fdf69',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, False, False, False, False, False, False, False, False, Fal"
             "se, False, True, False), ((('id', True, True, None, True, False, False, None), 'instance', 'missing', None"
-            ", False, False, False),), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), (), "
-            "(False,)))"
+            ", False, False, False), (('user', True, True, None, True, True, False, None), 'instance', 'value', None, F"
+            "alse, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, True, ()), ((),), (), (Fal"
+            "se,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.remote.docker', 'DockerContainerId'),
     ),
 )
-def _process_dataclass__998140863e7362c330ddca17591932ab6ae29f02():
+def _process_dataclass__fbb65cab1c264ec0ac037e09ca96dffe379fdf69():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -439,6 +440,8 @@ def _process_dataclass__998140863e7362c330ddca17591932ab6ae29f02():
         __dataclass__globals,
     ):
         __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -450,6 +453,7 @@ def _process_dataclass__998140863e7362c330ddca17591932ab6ae29f02():
                 raise TypeError(self)
             return __class__(  # noqa
                 id=self.id,
+                user=self.user,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -460,13 +464,15 @@ def _process_dataclass__998140863e7362c330ddca17591932ab6ae29f02():
             if self.__class__ is not other.__class__:
                 return NotImplemented
             return (
-                self.id == other.id
+                self.id == other.id and
+                self.user == other.user
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
 
         __dataclass___frozen_fields = {
             'id',
+            'user',
         }
 
         def __setattr__(self, name, value):
@@ -492,6 +498,7 @@ def _process_dataclass__998140863e7362c330ddca17591932ab6ae29f02():
         def __hash__(self):
             return hash((
                 self.id,
+                self.user,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -499,8 +506,11 @@ def _process_dataclass__998140863e7362c330ddca17591932ab6ae29f02():
         def __init__(
             self,
             id: __dataclass__init__fields__0__annotation,
+            *,
+            user: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'id', id)
+            __dataclass__object_setattr(self, 'user', user)
             self.__post_init__()
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
@@ -509,6 +519,7 @@ def _process_dataclass__998140863e7362c330ddca17591932ab6ae29f02():
         def __repr__(self):
             parts = []
             parts.append(f"{self.id!r}")
+            parts.append(f"user={self.user!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

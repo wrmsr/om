@@ -23,8 +23,35 @@ from .payload import get_remote_agent_payload_src
 class DockerContainerId:
     id: str
 
+    _: dc.KW_ONLY
+
+    user: int | str | None = None
+
     def __post_init__(self) -> None:
         check.non_empty_str(self.id)
+        if (user := self.user) is not None:
+            if isinstance(user, str):
+                check.non_empty_str(user)
+            else:
+                check.isinstance(user, int)
+
+    def render(self) -> str:
+        return (f'{self.user}@' if self.user is not None else '') + self.id
+
+    @classmethod
+    def parse(cls, s: str) -> DockerContainerId:
+        user: int | str | None = None
+        if '@' in s:
+            us, s = s.split('@')
+            try:
+                user = int(us)
+            except ValueError:
+                user = us
+
+        return DockerContainerId(
+            s,
+            user=user,
+        )
 
 
 @dc.dataclass(frozen=True, kw_only=True)
@@ -57,6 +84,7 @@ def build_docker_remote_agent_argv(
         config.docker,
         'exec',
         '-i',
+        *(['-u', str(container_id.user)] if container_id.user is not None else []),
         container_id.id,
         'sh',
         '-c',
