@@ -264,6 +264,7 @@ def test_git_clone(tmp_path):
     assert run.staged['autoexec.sh'].splitlines()[2:] == [
         'git config --global --add safe.directory /git',
         'git clone -q /git /work/git',
+        'git config --global --add safe.directory /work/git',
         'exec "$@"',
     ]
 
@@ -278,6 +279,7 @@ def test_autoexecs_follow_the_steps_lines(tmp_path):
     assert run.staged['autoexec.sh'].splitlines()[2:] == [
         'git config --global --add safe.directory /git',
         'git clone -q /git /work/git',
+        'git config --global --add safe.directory /work/git',
         'echo one',
         'echo "two"',
         'exec "$@"',
