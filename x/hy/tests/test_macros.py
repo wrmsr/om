@@ -14,7 +14,6 @@ from ..models import List
 from ..models import String
 from ..models import Symbol
 from ..reader import read
-from .helpers import PACKAGE
 
 
 ##
@@ -78,10 +77,11 @@ def test_macroexpand_source_data():
     ast = Expression([Symbol('when'), String('a')])
     ast.start_line = 3
     ast.start_column = 5
-    bad = macroexpand(ast, f'{PACKAGE}.core.macros', once=True)
-    assert isinstance(bad, Expression)
-    assert bad.start_line == 3
-    assert bad.start_column == 5
+    expanded = macroexpand(ast, __name__, HyASTCompiler(__name__, runtime=RT), once=True)
+    assert isinstance(expanded, Expression)
+    assert expanded[0] == Symbol('if')
+    assert expanded.start_line == 3
+    assert expanded.start_column == 5
 
 
 def test_renamed_function_metadata():

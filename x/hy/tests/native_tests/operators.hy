@@ -246,7 +246,8 @@
 
   (setv n None)
   (assert (is (f n None) True))
-  (assert (is (f n "b") False)))
+  (setv b "b")
+  (assert (is (f n b) False)))
 
 
 (op-and-shadow-test [!= is-not]

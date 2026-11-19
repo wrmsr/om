@@ -245,12 +245,12 @@
   (setv x 1  y 2)
   (let [x 3  y 4]
     (match (Point 3 4)
-      (Point :y m :x n) :if (= [n m] [x y]) True
+      (Point :y m :x n) :if (= [n m] [x y]) None
       _ (assert False)))
   (let [x 3  y 4
         n 5  m 6]
     (match (Point 3 4)
-      (Point :y m :x n) :if (= [n m] [x y]) True
+      (Point :y m :x n) :if (= [n m] [x y]) None
       _ (assert False))))
 
 (defn test-let-with-pattern-matching []

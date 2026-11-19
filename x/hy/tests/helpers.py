@@ -1,4 +1,7 @@
+import contextlib
 import os
+import typing as ta
+import warnings
 
 from ..globalruntime import get_global_runtime
 from ..runtime import HyNamespace
@@ -19,3 +22,22 @@ def global_hy() -> HyNamespace:
     """The `hy` of the global runtime, which the conftest installs."""
 
     return get_global_runtime().hy
+
+
+@contextlib.contextmanager
+def filter_native_test_syntax_warnings() -> ta.Iterator[None]:
+    # These tests deliberately compile literal calls to check Hy's parsing and runtime behavior, not Python's warnings.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            'ignore',
+            message=r"^'str' object is not callable; perhaps you missed a comma\?$",
+            category=SyntaxWarning,
+            module=r'.*[/\\]native_tests[/\\](comprehensions|conditional|other|try)\.hy$',
+        )
+        warnings.filterwarnings(
+            'ignore',
+            message=r"^'NoneType' object is not callable; perhaps you missed a comma\?$",
+            category=SyntaxWarning,
+            module=r'.*[/\\]native_tests[/\\]setv\.hy$',
+        )
+        yield

@@ -14,6 +14,7 @@ import pytest
 from ..finders import PackageHyModuleFinder
 from ..importing import IsolatedHyModules
 from ..runtime import HyRuntime
+from .helpers import filter_native_test_syntax_warnings
 
 
 ##
@@ -42,7 +43,8 @@ def test_native_isolated(name):
     mod_name = f'{__package__}.native_tests.{name}'
 
     rt = HyRuntime(modules=functools.partial(IsolatedHyModules, finders=[PackageHyModuleFinder(prefixes=[pkg])]))
-    mod = rt.import_module(mod_name)
+    with filter_native_test_syntax_warnings():
+        mod = rt.import_module(mod_name)
     assert sys.modules.get(mod_name) is not mod
 
     failures = []

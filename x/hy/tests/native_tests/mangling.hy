@@ -204,7 +204,7 @@
 
 (defn test-mangle-bad-indent []
   ; Shouldn't crash with IndentationError
-  (hy.mangle "  0\n 0"))
+  (assert (isinstance (hy.mangle "  0\n 0") str)))
 
 
 (defn test-normalize-to-underscore-list []

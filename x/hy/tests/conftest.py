@@ -3,9 +3,16 @@ import os.path
 import pytest
 
 from .. import globalruntime
+from .helpers import filter_native_test_syntax_warnings
 
 
 ##
+
+
+class _HyNativeTestModule(pytest.Module):
+    def _getobj(self):
+        with filter_native_test_syntax_warnings():
+            return super()._getobj()
 
 
 def pytest_collect_file(file_path, parent):
@@ -18,5 +25,5 @@ def pytest_collect_file(file_path, parent):
         'native_tests' in os.path.relpath(file_path, os.path.dirname(__file__)).split(os.path.sep) and
         file_path.name != '__init__.hy'
     ):
-        return pytest.Module.from_parent(parent, path=file_path)
+        return _HyNativeTestModule.from_parent(parent, path=file_path)
     return None

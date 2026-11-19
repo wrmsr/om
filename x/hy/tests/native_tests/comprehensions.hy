@@ -162,7 +162,8 @@
     (assert (= (next g) 1))
     (assert (= y [0 1]))
     (assert (= (next g) 2))
-    (assert (= y [2 3])))))))
+    (assert (= y [2 3]))))))
+  (return))
 
 
 (defn test-unpack-loop-vs-yieldfrom []
@@ -180,7 +181,8 @@
       #* (f)))
     (assert (= (next g) "first"))
     (assert (= (.send g "hello") "received: None"))
-    (assert (= (next g) "last"))))))
+    (assert (= (next g) "last")))))
+  (return))
 
 
 (defn test-async-lfor []
@@ -196,7 +198,8 @@
         (+ i 10)))
       (print g)
       g)
-    (assert (= (asyncio.run (top)) [10 11 12]))))))
+    (assert (= (asyncio.run (top)) [10 11 12])))))
+  (return))
 
 
 (defn test-raise-in-comp []
