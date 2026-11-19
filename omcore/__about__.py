@@ -176,6 +176,8 @@ class SetuptoolsBase:
             '*.mjs',
             '*.ts',
 
+            '*.hy',
+
             '*.abnf',
             '*.g4',
 

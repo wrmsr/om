@@ -151,9 +151,9 @@ llama-cpp-python; sys_platform == "darwin"
 segno==1.6.6
 
 # Used for codegen
-boto3==1.44.5
-botocore==1.44.5
-types-boto3==1.44.3
+boto3==1.44.6
+botocore==1.44.6
+types-boto3==1.44.6
 botocore-stubs==1.43.126
 
 asn1crypto==1.5.1

@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "module": ".hy.__main__",
+    "attr": null,
+    "file": "omxtra/hy/__main__.py",
+    "line": 1,
+    "value": {
+      "!omdev.cli.types.CliModule": {
+        "name": [
+          "llm"
+        ],
+        "module": "omxtra.hy.__main__"
+      }
+    }
+  }
+]

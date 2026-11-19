@@ -3,7 +3,7 @@ aiohttp==3.14.5
 aiomysql==0.3.2
 aiosignal==1.4.0
 aiosqlite==0.22.1
-annotated-doc==0.0.6
+annotated-doc==0.0.7
 annotated-types==0.8.0
 anyio==4.16.0
 apsw==3.54.1.0
@@ -21,8 +21,8 @@ bcrypt==5.0.0
 bitsandbytes==0.50.2
 black==26.10.1
 blobfile==3.3.0
-boto3==1.44.5
-botocore==1.44.5
+boto3==1.44.6
+botocore==1.44.6
 botocore-stubs==1.43.126
 brotli==1.2.1
 build==1.6.1
@@ -51,7 +51,7 @@ duckdb==2.0.0
 emoji==2.16.0
 execnet==2.1.2
 executing==2.3.0
-filelock==4.2.11
+filelock==4.2.12
 flake8==7.5.0
 Flake8-pyproject==1.2.4
 flatbuffers==25.12.19
@@ -67,8 +67,8 @@ google-cloud-compute==1.58.0
 googleapis-common-protos==1.76.0
 gprof2dot==2025.4.14
 greenlet==3.5.6
-grpcio==1.85.1
-grpcio-status==1.85.1
+grpcio==1.85.3
+grpcio-status==1.85.3
 guppy3==3.2.0
 h11==0.16.0
 h2==4.4.1
@@ -265,9 +265,9 @@ trino==0.340.0
 trio==0.35.0
 truststore==0.10.5
 twine==7.0.0
-typer==0.29.1
+typer==0.29.2
 types-awscrt==0.37.0
-types-boto3==1.44.3
+types-boto3==1.44.6
 types-docutils==0.23.0.20261107
 types-greenlet==3.5.0.20260518
 types-paramiko==5.1.0.20261030

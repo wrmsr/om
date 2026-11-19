@@ -86,6 +86,7 @@ exclude = [
     '*.js',
     '*.mjs',
     '*.ts',
+    '*.hy',
     '*.abnf',
     '*.g4',
     '.om-manifests.json',
