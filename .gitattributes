@@ -52,7 +52,6 @@ ominfra/clouds/aws/models/services/rds/_dataclasses.py linguist-generated
 ominfra/clouds/aws/models/services/s3/__init__.py linguist-generated
 ominfra/clouds/aws/models/services/s3/_dataclasses.py linguist-generated
 ominfra/scripts/journald2aws.py linguist-generated
-ominfra/scripts/manage.py linguist-generated
 omllm/agent/_dataclasses.py linguist-generated
 omllm/agent/eval/_dataclasses.py linguist-generated
 omllm/agent/exec/_dataclasses.py linguist-generated

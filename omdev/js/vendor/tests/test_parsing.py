@@ -98,3 +98,24 @@ def test_import_meta_and_dynamic_import_are_distinguished() -> None:
     result = parse_module("const m = await import('./x.js')\n")
     assert result.specifiers == ()
     assert result.dynamic_import
+
+
+def test_optional_and_private_import_properties_are_not_module_syntax():
+    result = parse_module('loader?.import; loader?.import("dep"); class C { #import() {} f() { this.#import() } }')
+    assert result.specifiers == ()
+    assert not result.dynamic_import
+
+
+def test_adjacent_template_expressions_do_not_conceal_dynamic_import():
+    assert parse_module('`${import("dep")}${{}}`').dynamic_import
+
+
+def test_default_import_binding_can_be_named_from():
+    assert _specifiers('import from from "dep"; import from, {a} from "other";') == ('dep', 'other')
+
+
+def test_unicode_specifier_offsets_remain_codepoints_and_exclude_quotes():
+    source = 'const π = "🌍"; import "./α.js";'
+    specifier, = parse_module(source).specifiers
+    assert specifier.value == './α.js'
+    assert source[specifier.start:specifier.end] == specifier.value
