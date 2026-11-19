@@ -18,6 +18,8 @@ from ...home.secretinject import inject_secrets
 from ...home.secrets import DEFAULT_INJECTED_SECRETS_FILE_NAME
 from ...home.secrets import load_secrets
 from .consts import ID_LABEL
+from .uids import ShiftUidParam
+from .uids import resolve_shift_uid
 
 
 ##
@@ -67,7 +69,7 @@ def _inject_update(
         secrets_file: str,
         update: ta.Mapping[str, ta.Any],
         *,
-        shift_uid: tuple[int, int] | None = None,
+        shift_uid: ShiftUidParam = None,
 ) -> None:
     _check_container_id(container_id)
 
@@ -100,7 +102,7 @@ def _inject_update(
 
     exec_args: list[str] = []
 
-    if shift_uid is not None:
+    if (shift_uid := resolve_shift_uid(shift_uid)) is not None:
         uid, gid = shift_uid
         exec_args.append(f'--user={uid}')
 
@@ -139,7 +141,7 @@ def inject_dockerdev_secrets(
         secrets: lang.SequenceNotStr[str | tuple[str, ta.Any]],
         *,
         secrets_file: str | None = None,
-        shift_uid: tuple[int, int] | None = None,
+        shift_uid: ShiftUidParam = None,
 ) -> None:
     if secrets_file is None:
         # NOTE: this is unusual because `expanduser` has to be done inside the container, otherwise we'd just do

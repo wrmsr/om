@@ -14,14 +14,11 @@ try:
 finally:
     subprocess.check_call(['docker', 'image', 'rm', tag], stdout=subprocess.DEVNULL)
 """
-import os
 import re
 import subprocess
-import sys
 import tomllib
 import typing as ta
 
-from omcore import check
 from omcore import lang
 from omcore import marshal as msh
 from omcore.argparse import all as ap
@@ -36,6 +33,7 @@ from .run.args import RunArgs
 from .run.consts import ID_LABEL
 from .run.plans import RunHost
 from .run.run import run_image
+from .run.uids import parse_shift_uid
 
 
 ##
@@ -57,23 +55,7 @@ class Cli(ap.Cli):
 
     _SHIFT_UID_ARGS: ta.ClassVar = (
         ap.arg('--shift-uid'),
-        ap.arg('-U', '--auto-shift-uid', action='store_true'),
     )
-
-    class _ShiftUid(ta.NamedTuple):
-        uid: int
-        gid: int
-
-    def _get_args_shift_uid(self) -> _ShiftUid | None:
-        if (su := self.args.shift_uid) is not None:
-            check.arg(not self.args.auto_shift_uid)
-            return Cli._ShiftUid(*map(int, su.split(':')))
-
-        if self.args.auto_shift_uid:
-            if sys.platform == 'linux':
-                return Cli._ShiftUid(os.getuid(), os.getgid())
-
-        return None
 
     #
 
@@ -141,7 +123,7 @@ class Cli(ap.Cli):
             env_secrets=[s.split('=') if '=' in s else s for s in self.args.env_secret or []],
             env_secret_pats=[re.compile(p) for p in self.args.env_secret_pat or []],
 
-            shift_uid=self._get_args_shift_uid(),
+            shift_uid=parse_shift_uid(self._args.shift_uid),
 
             unknown_args=self.unknown_args or None,
             extra_args=extra_args or None,
@@ -266,7 +248,7 @@ class Cli(ap.Cli):
             self.args.container_id,
             secrets,
             secrets_file=self.args.secrets_file,
-            shift_uid=self._get_args_shift_uid(),
+            shift_uid=parse_shift_uid(self._args.shift_uid),
         )
 
 

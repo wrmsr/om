@@ -15,6 +15,7 @@ from .consts import PERSIST_DIR
 from .consts import PERSIST_VOLUME
 from .plans import RunPlan
 from .plans import SetupRun
+from .uids import resolve_shift_uid
 
 
 ##
@@ -226,7 +227,7 @@ class ShiftUidRunStep(RunStep):
     """
 
     def apply(self, plan: RunPlan) -> None:
-        if (shift_uid := plan.args.shift_uid) is None:
+        if (shift_uid := resolve_shift_uid(plan.args.shift_uid)) is None:
             return
 
         uid, gid = shift_uid

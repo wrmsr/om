@@ -8,6 +8,8 @@ from omcore import dataclasses as dc
 from omcore import lang
 from omcore import marshal as msh
 
+from .uids import ShiftUidParam
+
 
 ##
 # Args
@@ -82,7 +84,7 @@ class RunArgs:
         coerce=col.opt_seq_of(check.of_isinstance(re.Pattern)),
     )
 
-    shift_uid: tuple[int, int] | None = None
+    shift_uid: ShiftUidParam = None
 
     unknown_args: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)
     extra_args: ta.Sequence[str] | None = dc.xfield(None, coerce=col.opt_seq)

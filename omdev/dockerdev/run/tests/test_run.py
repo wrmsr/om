@@ -20,6 +20,7 @@ from ..consts import ID_LABEL
 from ..plans import RunHost
 from ..run import process_run_args
 from ..steps import RunSecretsUnavailableError
+from ..uids import ShiftUid
 
 
 ##
@@ -305,7 +306,7 @@ def _shift_uid_options(inner_entrypoint: str) -> list[str]:
 
 
 def test_shift_uid(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, shift_uid=(1000, 1001)))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, shift_uid=ShiftUid(1000, 1001)))
     assert run.options == sorted([
         '--rm',
         '-i',
@@ -319,7 +320,7 @@ def test_shift_uid(tmp_path):
 
 
 def test_shift_uid_wraps_the_autoexec_entrypoint(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, shift_uid=(1000, 1001), autoexecs=['echo hi']))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, shift_uid=ShiftUid(1000, 1001), autoexecs=['echo hi']))
 
     # One staging dir and mount for both scripts, and only the outer entrypoint given to docker.
     assert run.options == sorted([
@@ -419,7 +420,7 @@ def test_kitchen_sink(tmp_path):
             mount_cache=True,
             clone_mount_git=True,
             autoexecs=['echo hi'],
-            shift_uid=(1000, 1001),
+            shift_uid=ShiftUid(1000, 1001),
             x11=True,
             env_secret_pats=[re.compile('foo.*')],
             extra_args=['python3'],
