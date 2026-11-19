@@ -1606,7 +1606,7 @@ def _process_dataclass__b2f0a4eaae34ddb82da127c87aa18a3127781f9b():
 
 
 @_register(
-    installer_sha1='d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7',
+    installer_sha1='e5638c01535098051aa59fc0c0c5a06acbd56ef6',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -1618,114 +1618,117 @@ def _process_dataclass__b2f0a4eaae34ddb82da127c87aa18a3127781f9b():
             "e, False, None), 'instance', 'value', None, False, False, False), (('master_username', True, True, None, T"
             "rue, True, False, None), 'instance', 'value', None, False, False, False), (('db_name', True, True, None, T"
             "rue, True, False, None), 'instance', 'value', None, False, False, False), (('endpoint', True, True, None, "
-            "True, True, False, None), 'instance', 'value', None, False, False, False), (('allocated_storage', True, Tr"
-            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('instance_create_ti"
-            "me', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('prefe"
-            "rred_backup_window', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
-            "False), (('backup_retention_period', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('db_security_groups', True, True, None, True, True, False, None), 'instance', 'v"
-            "alue', None, False, False, False), (('vpc_security_groups', True, True, None, True, True, False, None), 'i"
-            "nstance', 'value', None, False, False, False), (('db_parameter_groups', True, True, None, True, True, Fals"
-            "e, None), 'instance', 'value', None, False, False, False), (('availability_zone', True, True, None, True, "
-            "True, False, None), 'instance', 'value', None, False, False, False), (('db_subnet_group', True, True, None"
-            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('preferred_maintenance_wind"
-            "ow', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('upgra"
-            "de_rollout_order', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fa"
-            "lse), (('pending_modified_values', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('latest_restorable_time', True, True, None, True, True, False, None), 'instance', "
-            "'value', None, False, False, False), (('multi_az', True, True, None, True, True, False, None), 'instance',"
-            " 'value', None, False, False, False), (('engine_version', True, True, None, True, True, False, None), 'ins"
-            "tance', 'value', None, False, False, False), (('auto_minor_version_upgrade', True, True, None, True, True,"
-            " False, None), 'instance', 'value', None, False, False, False), (('read_replica_source_db_instance_identif"
-            "ier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('read"
-            "_replica_db_instance_identifiers', True, True, None, True, True, False, None), 'instance', 'value', None, "
-            "False, False, False), (('read_replica_db_cluster_identifiers', True, True, None, True, True, False, None),"
-            " 'instance', 'value', None, False, False, False), (('replica_mode', True, True, None, True, True, False, N"
-            "one), 'instance', 'value', None, False, False, False), (('license_model', True, True, None, True, True, Fa"
-            "lse, None), 'instance', 'value', None, False, False, False), (('iops', True, True, None, True, True, False"
-            ", None), 'instance', 'value', None, False, False, False), (('storage_throughput', True, True, None, True, "
-            "True, False, None), 'instance', 'value', None, False, False, False), (('option_group_memberships', True, T"
-            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('character_set_nam"
-            "e', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('nchar_"
-            "character_set_name', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
-            "False), (('secondary_availability_zone', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False), (('publicly_accessible', True, True, None, True, True, False, None), 'instance"
-            "', 'value', None, False, False, False), (('status_infos', True, True, None, True, True, False, None), 'ins"
-            "tance', 'value', None, False, False, False), (('storage_type', True, True, None, True, True, False, None),"
-            " 'instance', 'value', None, False, False, False), (('storage_encryption_type', True, True, None, True, Tru"
-            "e, False, None), 'instance', 'value', None, False, False, False), (('tde_credential_arn', True, True, None"
-            ", True, True, False, None), 'instance', 'value', None, False, False, False), (('db_instance_port', True, T"
-            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_cluster_identi"
-            "fier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('sto"
-            "rage_encrypted', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fals"
-            "e), (('kms_key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
-            "alse), (('dbi_resource_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
-            "False, False), (('ca_certificate_identifier', True, True, None, True, True, False, None), 'instance', 'val"
-            "ue', None, False, False, False), (('domain_memberships', True, True, None, True, True, False, None), 'inst"
-            "ance', 'value', None, False, False, False), (('copy_tags_to_snapshot', True, True, None, True, True, False"
-            ", None), 'instance', 'value', None, False, False, False), (('monitoring_interval', True, True, None, True,"
-            " True, False, None), 'instance', 'value', None, False, False, False), (('enhanced_monitoring_resource_arn'"
-            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('monitori"
-            "ng_role_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False),"
-            " (('promotion_tier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
-            "False), (('db_instance_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('timezone', True, True, None, True, True, False, None), 'instance', 'value', None, False"
-            ", False, False), (('iam_database_authentication_enabled', True, True, None, True, True, False, None), 'ins"
-            "tance', 'value', None, False, False, False), (('database_insights_mode', True, True, None, True, True, Fal"
-            "se, None), 'instance', 'value', None, False, False, False), (('performance_insights_enabled', True, True, "
-            "None, True, True, False, None), 'instance', 'value', None, False, False, False), (('performance_insights_k"
-            "ms_key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), ("
-            "('performance_insights_retention_period', True, True, None, True, True, False, None), 'instance', 'value',"
-            " None, False, False, False), (('enabled_cloudwatch_logs_exports', True, True, None, True, True, False, Non"
-            "e), 'instance', 'value', None, False, False, False), (('processor_features', True, True, None, True, True,"
-            " False, None), 'instance', 'value', None, False, False, False), (('deletion_protection', True, True, None,"
-            " True, True, False, None), 'instance', 'value', None, False, False, False), (('associated_roles', True, Tr"
-            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('listener_endpoint'"
-            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('max_allo"
-            "cated_storage', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False"
-            "), (('tag_list', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, Fals"
-            "e), (('automation_mode', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
-            "se, False), (('resume_full_automation_mode_time', True, True, None, True, True, False, None), 'instance', "
-            "'value', None, False, False, False), (('customer_owned_ip_enabled', True, True, None, True, True, False, N"
-            "one), 'instance', 'value', None, False, False, False), (('network_type', True, True, None, True, True, Fal"
-            "se, None), 'instance', 'value', None, False, False, False), (('activity_stream_status', True, True, None, "
-            "True, True, False, None), 'instance', 'value', None, False, False, False), (('activity_stream_kms_key_id',"
-            " True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('activity_"
-            "stream_kinesis_stream_name', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
-            " False, False), (('activity_stream_mode', True, True, None, True, True, False, None), 'instance', 'value',"
-            " None, False, False, False), (('activity_stream_engine_native_audit_fields_included', True, True, None, Tr"
-            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('aws_backup_recovery_point_arn'"
-            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_insta"
-            "nce_automated_backups_replications', True, True, None, True, True, False, None), 'instance', 'value', None"
-            ", False, False, False), (('backup_target', True, True, None, True, True, False, None), 'instance', 'value'"
-            ", None, False, False, False), (('automatic_restart_time', True, True, None, True, True, False, None), 'ins"
-            "tance', 'value', None, False, False, False), (('custom_iam_instance_profile', True, True, None, True, True"
-            ", False, None), 'instance', 'value', None, False, False, False), (('activity_stream_policy_status', True, "
-            "True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('certificate_deta"
-            "ils', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_s"
-            "ystem_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
-            "'master_user_secret', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
-            " False), (('read_replica_source_db_cluster_identifier', True, True, None, True, True, False, None), 'insta"
-            "nce', 'value', None, False, False, False), (('percent_progress', True, True, None, True, True, False, None"
-            "), 'instance', 'value', None, False, False, False), (('multi_tenant', True, True, None, True, True, False,"
-            " None), 'instance', 'value', None, False, False, False), (('dedicated_log_volume', True, True, None, True,"
-            " True, False, None), 'instance', 'value', None, False, False, False), (('is_storage_config_upgrade_availab"
-            "le', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('engin"
-            "e_lifecycle_support', True, True, None, True, True, False, None), 'instance', 'value', None, False, False,"
-            " False), (('additional_storage_volumes', True, True, None, True, True, False, None), 'instance', 'value', "
-            "None, False, False, False), (('storage_volume_status', True, True, None, True, True, False, None), 'instan"
-            "ce', 'value', None, False, False, False), (('storage_operation_status', True, True, None, True, True, Fals"
-            "e, None), 'instance', 'value', None, False, False, False), (('storage_operation_percent_progress', True, T"
-            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_capacity_reser"
-            "vation_identifier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
-            "alse)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), ((),), (), (False,)))"
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('primary_endpoint', True, Tru"
+            "e, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('allocated_storage',"
+            " True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('instance_"
+            "create_time', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False),"
+            " (('preferred_backup_window', True, True, None, True, True, False, None), 'instance', 'value', None, False"
+            ", False, False), (('backup_retention_period', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('db_security_groups', True, True, None, True, True, False, None), 'inst"
+            "ance', 'value', None, False, False, False), (('vpc_security_groups', True, True, None, True, True, False, "
+            "None), 'instance', 'value', None, False, False, False), (('db_parameter_groups', True, True, None, True, T"
+            "rue, False, None), 'instance', 'value', None, False, False, False), (('availability_zone', True, True, Non"
+            "e, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_subnet_group', True, T"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('preferred_mainten"
+            "ance_window', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False),"
+            " (('upgrade_rollout_order', True, True, None, True, True, False, None), 'instance', 'value', None, False, "
+            "False, False), (('pending_modified_values', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('latest_restorable_time', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('multi_az', True, True, None, True, True, False, None), 'i"
+            "nstance', 'value', None, False, False, False), (('engine_version', True, True, None, True, True, False, No"
+            "ne), 'instance', 'value', None, False, False, False), (('auto_minor_version_upgrade', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('read_replica_source_db_instanc"
+            "e_identifier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)"
+            ", (('read_replica_db_instance_identifiers', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('read_replica_db_cluster_identifiers', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('replica_mode', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('license_model', True, True, None, True,"
+            " True, False, None), 'instance', 'value', None, False, False, False), (('iops', True, True, None, True, Tr"
+            "ue, False, None), 'instance', 'value', None, False, False, False), (('storage_throughput', True, True, Non"
+            "e, True, True, False, None), 'instance', 'value', None, False, False, False), (('option_group_memberships'"
+            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('characte"
+            "r_set_name', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), "
+            "(('nchar_character_set_name', True, True, None, True, True, False, None), 'instance', 'value', None, False"
+            ", False, False), (('secondary_availability_zone', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('publicly_accessible', True, True, None, True, True, False, None), "
+            "'instance', 'value', None, False, False, False), (('status_infos', True, True, None, True, True, False, No"
+            "ne), 'instance', 'value', None, False, False, False), (('storage_type', True, True, None, True, True, Fals"
+            "e, None), 'instance', 'value', None, False, False, False), (('storage_encryption_type', True, True, None, "
+            "True, True, False, None), 'instance', 'value', None, False, False, False), (('tde_credential_arn', True, T"
+            "rue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_instance_port'"
+            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_clust"
+            "er_identifier', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False"
+            "), (('storage_encrypted', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False), (('kms_key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
+            " False, False), (('dbi_resource_id', True, True, None, True, True, False, None), 'instance', 'value', None"
+            ", False, False, False), (('ca_certificate_identifier', True, True, None, True, True, False, None), 'instan"
+            "ce', 'value', None, False, False, False), (('domain_memberships', True, True, None, True, True, False, Non"
+            "e), 'instance', 'value', None, False, False, False), (('copy_tags_to_snapshot', True, True, None, True, Tr"
+            "ue, False, None), 'instance', 'value', None, False, False, False), (('monitoring_interval', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', None, False, False, False), (('enhanced_monitoring_reso"
+            "urce_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
+            "'monitoring_role_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False"
+            ", False), (('promotion_tier', True, True, None, True, True, False, None), 'instance', 'value', None, False"
+            ", False, False), (('db_instance_arn', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('timezone', True, True, None, True, True, False, None), 'instance', 'value', No"
+            "ne, False, False, False), (('iam_database_authentication_enabled', True, True, None, True, True, False, No"
+            "ne), 'instance', 'value', None, False, False, False), (('database_insights_mode', True, True, None, True, "
+            "True, False, None), 'instance', 'value', None, False, False, False), (('performance_insights_enabled', Tru"
+            "e, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('performance_i"
+            "nsights_kms_key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, "
+            "False), (('performance_insights_retention_period', True, True, None, True, True, False, None), 'instance',"
+            " 'value', None, False, False, False), (('enabled_cloudwatch_logs_exports', True, True, None, True, True, F"
+            "alse, None), 'instance', 'value', None, False, False, False), (('processor_features', True, True, None, Tr"
+            "ue, True, False, None), 'instance', 'value', None, False, False, False), (('deletion_protection', True, Tr"
+            "ue, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('associated_roles',"
+            " True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('listener_"
+            "endpoint', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
+            "'max_allocated_storage', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fal"
+            "se, False), (('tag_list', True, True, None, True, True, False, None), 'instance', 'value', None, False, Fa"
+            "lse, False), (('automation_mode', True, True, None, True, True, False, None), 'instance', 'value', None, F"
+            "alse, False, False), (('resume_full_automation_mode_time', True, True, None, True, True, False, None), 'in"
+            "stance', 'value', None, False, False, False), (('customer_owned_ip_enabled', True, True, None, True, True,"
+            " False, None), 'instance', 'value', None, False, False, False), (('network_type', True, True, None, True, "
+            "True, False, None), 'instance', 'value', None, False, False, False), (('activity_stream_status', True, Tru"
+            "e, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('activity_stream_kms"
+            "_key_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('"
+            "activity_stream_kinesis_stream_name', True, True, None, True, True, False, None), 'instance', 'value', Non"
+            "e, False, False, False), (('activity_stream_mode', True, True, None, True, True, False, None), 'instance',"
+            " 'value', None, False, False, False), (('activity_stream_engine_native_audit_fields_included', True, True,"
+            " None, True, True, False, None), 'instance', 'value', None, False, False, False), (('aws_backup_recovery_p"
+            "oint_arn', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (("
+            "'db_instance_automated_backups_replications', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False), (('backup_target', True, True, None, True, True, False, None), 'instance'"
+            ", 'value', None, False, False, False), (('automatic_restart_time', True, True, None, True, True, False, No"
+            "ne), 'instance', 'value', None, False, False, False), (('custom_iam_instance_profile', True, True, None, T"
+            "rue, True, False, None), 'instance', 'value', None, False, False, False), (('activity_stream_policy_status"
+            "', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('certifi"
+            "cate_details', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False)"
+            ", (('db_system_id', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, F"
+            "alse), (('master_user_secret', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
+            "e, False, False), (('read_replica_source_db_cluster_identifier', True, True, None, True, True, False, None"
+            "), 'instance', 'value', None, False, False, False), (('percent_progress', True, True, None, True, True, Fa"
+            "lse, None), 'instance', 'value', None, False, False, False), (('multi_tenant', True, True, None, True, Tru"
+            "e, False, None), 'instance', 'value', None, False, False, False), (('dedicated_log_volume', True, True, No"
+            "ne, True, True, False, None), 'instance', 'value', None, False, False, False), (('is_storage_config_upgrad"
+            "e_available', True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False),"
+            " (('engine_lifecycle_support', True, True, None, True, True, False, None), 'instance', 'value', None, Fals"
+            "e, False, False), (('additional_storage_volumes', True, True, None, True, True, False, None), 'instance', "
+            "'value', None, False, False, False), (('storage_volume_status', True, True, None, True, True, False, None)"
+            ", 'instance', 'value', None, False, False, False), (('storage_operation_status', True, True, None, True, T"
+            "rue, False, None), 'instance', 'value', None, False, False, False), (('storage_operation_percent_progress'"
+            ", True, True, None, True, True, False, None), 'instance', 'value', None, False, False, False), (('db_capac"
+            "ity_reservation_identifier', True, True, None, True, True, False, None), 'instance', 'value', None, False,"
+            " False, False), (('v_p_c_networking_enabled', True, True, None, True, True, False, None), 'instance', 'val"
+            "ue', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()), (("
+            "),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('ominfra.clouds.aws.models.services.rds', 'DBInstance'),
     ),
 )
-def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
+def _process_dataclass__e5638c01535098051aa59fc0c0c5a06acbd56ef6():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -1921,6 +1924,10 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
         __dataclass__init__fields__93__default = __dataclass__spec.fields[93].default.must()
         __dataclass__init__fields__94__annotation = __dataclass__spec.fields[94].annotation
         __dataclass__init__fields__94__default = __dataclass__spec.fields[94].default.must()
+        __dataclass__init__fields__95__annotation = __dataclass__spec.fields[95].annotation
+        __dataclass__init__fields__95__default = __dataclass__spec.fields[95].default.must()
+        __dataclass__init__fields__96__annotation = __dataclass__spec.fields[96].annotation
+        __dataclass__init__fields__96__default = __dataclass__spec.fields[96].default.must()
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -1938,6 +1945,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
                 master_username=self.master_username,
                 db_name=self.db_name,
                 endpoint=self.endpoint,
+                primary_endpoint=self.primary_endpoint,
                 allocated_storage=self.allocated_storage,
                 instance_create_time=self.instance_create_time,
                 preferred_backup_window=self.preferred_backup_window,
@@ -2025,6 +2033,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
                 storage_operation_status=self.storage_operation_status,
                 storage_operation_percent_progress=self.storage_operation_percent_progress,
                 db_capacity_reservation_identifier=self.db_capacity_reservation_identifier,
+                v_p_c_networking_enabled=self.v_p_c_networking_enabled,
             )
 
         __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
@@ -2042,6 +2051,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
                 self.master_username == other.master_username and
                 self.db_name == other.db_name and
                 self.endpoint == other.endpoint and
+                self.primary_endpoint == other.primary_endpoint and
                 self.allocated_storage == other.allocated_storage and
                 self.instance_create_time == other.instance_create_time and
                 self.preferred_backup_window == other.preferred_backup_window and
@@ -2128,7 +2138,8 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
                 self.storage_volume_status == other.storage_volume_status and
                 self.storage_operation_status == other.storage_operation_status and
                 self.storage_operation_percent_progress == other.storage_operation_percent_progress and
-                self.db_capacity_reservation_identifier == other.db_capacity_reservation_identifier
+                self.db_capacity_reservation_identifier == other.db_capacity_reservation_identifier and
+                self.v_p_c_networking_enabled == other.v_p_c_networking_enabled
             )
 
         __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
@@ -2142,6 +2153,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
             'master_username',
             'db_name',
             'endpoint',
+            'primary_endpoint',
             'allocated_storage',
             'instance_create_time',
             'preferred_backup_window',
@@ -2229,6 +2241,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
             'storage_operation_status',
             'storage_operation_percent_progress',
             'db_capacity_reservation_identifier',
+            'v_p_c_networking_enabled',
         }
 
         def __setattr__(self, name, value):
@@ -2260,6 +2273,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
                 self.master_username,
                 self.db_name,
                 self.endpoint,
+                self.primary_endpoint,
                 self.allocated_storage,
                 self.instance_create_time,
                 self.preferred_backup_window,
@@ -2347,6 +2361,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
                 self.storage_operation_status,
                 self.storage_operation_percent_progress,
                 self.db_capacity_reservation_identifier,
+                self.v_p_c_networking_enabled,
             ))
 
         __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
@@ -2361,93 +2376,95 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
             master_username: __dataclass__init__fields__05__annotation = __dataclass__init__fields__05__default,
             db_name: __dataclass__init__fields__06__annotation = __dataclass__init__fields__06__default,
             endpoint: __dataclass__init__fields__07__annotation = __dataclass__init__fields__07__default,
-            allocated_storage: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
-            instance_create_time: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
-            preferred_backup_window: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
-            backup_retention_period: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
-            db_security_groups: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
-            vpc_security_groups: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
-            db_parameter_groups: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
-            availability_zone: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
-            db_subnet_group: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
-            preferred_maintenance_window: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
-            upgrade_rollout_order: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
-            pending_modified_values: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
-            latest_restorable_time: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
-            multi_az: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
-            engine_version: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
-            auto_minor_version_upgrade: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
-            read_replica_source_db_instance_identifier: __dataclass__init__fields__24__annotation = __dataclass__init__fields__24__default,
-            read_replica_db_instance_identifiers: __dataclass__init__fields__25__annotation = __dataclass__init__fields__25__default,
-            read_replica_db_cluster_identifiers: __dataclass__init__fields__26__annotation = __dataclass__init__fields__26__default,
-            replica_mode: __dataclass__init__fields__27__annotation = __dataclass__init__fields__27__default,
-            license_model: __dataclass__init__fields__28__annotation = __dataclass__init__fields__28__default,
-            iops: __dataclass__init__fields__29__annotation = __dataclass__init__fields__29__default,
-            storage_throughput: __dataclass__init__fields__30__annotation = __dataclass__init__fields__30__default,
-            option_group_memberships: __dataclass__init__fields__31__annotation = __dataclass__init__fields__31__default,
-            character_set_name: __dataclass__init__fields__32__annotation = __dataclass__init__fields__32__default,
-            nchar_character_set_name: __dataclass__init__fields__33__annotation = __dataclass__init__fields__33__default,
-            secondary_availability_zone: __dataclass__init__fields__34__annotation = __dataclass__init__fields__34__default,
-            publicly_accessible: __dataclass__init__fields__35__annotation = __dataclass__init__fields__35__default,
-            status_infos: __dataclass__init__fields__36__annotation = __dataclass__init__fields__36__default,
-            storage_type: __dataclass__init__fields__37__annotation = __dataclass__init__fields__37__default,
-            storage_encryption_type: __dataclass__init__fields__38__annotation = __dataclass__init__fields__38__default,
-            tde_credential_arn: __dataclass__init__fields__39__annotation = __dataclass__init__fields__39__default,
-            db_instance_port: __dataclass__init__fields__40__annotation = __dataclass__init__fields__40__default,
-            db_cluster_identifier: __dataclass__init__fields__41__annotation = __dataclass__init__fields__41__default,
-            storage_encrypted: __dataclass__init__fields__42__annotation = __dataclass__init__fields__42__default,
-            kms_key_id: __dataclass__init__fields__43__annotation = __dataclass__init__fields__43__default,
-            dbi_resource_id: __dataclass__init__fields__44__annotation = __dataclass__init__fields__44__default,
-            ca_certificate_identifier: __dataclass__init__fields__45__annotation = __dataclass__init__fields__45__default,
-            domain_memberships: __dataclass__init__fields__46__annotation = __dataclass__init__fields__46__default,
-            copy_tags_to_snapshot: __dataclass__init__fields__47__annotation = __dataclass__init__fields__47__default,
-            monitoring_interval: __dataclass__init__fields__48__annotation = __dataclass__init__fields__48__default,
-            enhanced_monitoring_resource_arn: __dataclass__init__fields__49__annotation = __dataclass__init__fields__49__default,
-            monitoring_role_arn: __dataclass__init__fields__50__annotation = __dataclass__init__fields__50__default,
-            promotion_tier: __dataclass__init__fields__51__annotation = __dataclass__init__fields__51__default,
-            db_instance_arn: __dataclass__init__fields__52__annotation = __dataclass__init__fields__52__default,
-            timezone: __dataclass__init__fields__53__annotation = __dataclass__init__fields__53__default,
-            iam_database_authentication_enabled: __dataclass__init__fields__54__annotation = __dataclass__init__fields__54__default,
-            database_insights_mode: __dataclass__init__fields__55__annotation = __dataclass__init__fields__55__default,
-            performance_insights_enabled: __dataclass__init__fields__56__annotation = __dataclass__init__fields__56__default,
-            performance_insights_kms_key_id: __dataclass__init__fields__57__annotation = __dataclass__init__fields__57__default,
-            performance_insights_retention_period: __dataclass__init__fields__58__annotation = __dataclass__init__fields__58__default,
-            enabled_cloudwatch_logs_exports: __dataclass__init__fields__59__annotation = __dataclass__init__fields__59__default,
-            processor_features: __dataclass__init__fields__60__annotation = __dataclass__init__fields__60__default,
-            deletion_protection: __dataclass__init__fields__61__annotation = __dataclass__init__fields__61__default,
-            associated_roles: __dataclass__init__fields__62__annotation = __dataclass__init__fields__62__default,
-            listener_endpoint: __dataclass__init__fields__63__annotation = __dataclass__init__fields__63__default,
-            max_allocated_storage: __dataclass__init__fields__64__annotation = __dataclass__init__fields__64__default,
-            tag_list: __dataclass__init__fields__65__annotation = __dataclass__init__fields__65__default,
-            automation_mode: __dataclass__init__fields__66__annotation = __dataclass__init__fields__66__default,
-            resume_full_automation_mode_time: __dataclass__init__fields__67__annotation = __dataclass__init__fields__67__default,
-            customer_owned_ip_enabled: __dataclass__init__fields__68__annotation = __dataclass__init__fields__68__default,
-            network_type: __dataclass__init__fields__69__annotation = __dataclass__init__fields__69__default,
-            activity_stream_status: __dataclass__init__fields__70__annotation = __dataclass__init__fields__70__default,
-            activity_stream_kms_key_id: __dataclass__init__fields__71__annotation = __dataclass__init__fields__71__default,
-            activity_stream_kinesis_stream_name: __dataclass__init__fields__72__annotation = __dataclass__init__fields__72__default,
-            activity_stream_mode: __dataclass__init__fields__73__annotation = __dataclass__init__fields__73__default,
-            activity_stream_engine_native_audit_fields_included: __dataclass__init__fields__74__annotation = __dataclass__init__fields__74__default,
-            aws_backup_recovery_point_arn: __dataclass__init__fields__75__annotation = __dataclass__init__fields__75__default,
-            db_instance_automated_backups_replications: __dataclass__init__fields__76__annotation = __dataclass__init__fields__76__default,
-            backup_target: __dataclass__init__fields__77__annotation = __dataclass__init__fields__77__default,
-            automatic_restart_time: __dataclass__init__fields__78__annotation = __dataclass__init__fields__78__default,
-            custom_iam_instance_profile: __dataclass__init__fields__79__annotation = __dataclass__init__fields__79__default,
-            activity_stream_policy_status: __dataclass__init__fields__80__annotation = __dataclass__init__fields__80__default,
-            certificate_details: __dataclass__init__fields__81__annotation = __dataclass__init__fields__81__default,
-            db_system_id: __dataclass__init__fields__82__annotation = __dataclass__init__fields__82__default,
-            master_user_secret: __dataclass__init__fields__83__annotation = __dataclass__init__fields__83__default,
-            read_replica_source_db_cluster_identifier: __dataclass__init__fields__84__annotation = __dataclass__init__fields__84__default,
-            percent_progress: __dataclass__init__fields__85__annotation = __dataclass__init__fields__85__default,
-            multi_tenant: __dataclass__init__fields__86__annotation = __dataclass__init__fields__86__default,
-            dedicated_log_volume: __dataclass__init__fields__87__annotation = __dataclass__init__fields__87__default,
-            is_storage_config_upgrade_available: __dataclass__init__fields__88__annotation = __dataclass__init__fields__88__default,
-            engine_lifecycle_support: __dataclass__init__fields__89__annotation = __dataclass__init__fields__89__default,
-            additional_storage_volumes: __dataclass__init__fields__90__annotation = __dataclass__init__fields__90__default,
-            storage_volume_status: __dataclass__init__fields__91__annotation = __dataclass__init__fields__91__default,
-            storage_operation_status: __dataclass__init__fields__92__annotation = __dataclass__init__fields__92__default,
-            storage_operation_percent_progress: __dataclass__init__fields__93__annotation = __dataclass__init__fields__93__default,
-            db_capacity_reservation_identifier: __dataclass__init__fields__94__annotation = __dataclass__init__fields__94__default,
+            primary_endpoint: __dataclass__init__fields__08__annotation = __dataclass__init__fields__08__default,
+            allocated_storage: __dataclass__init__fields__09__annotation = __dataclass__init__fields__09__default,
+            instance_create_time: __dataclass__init__fields__10__annotation = __dataclass__init__fields__10__default,
+            preferred_backup_window: __dataclass__init__fields__11__annotation = __dataclass__init__fields__11__default,
+            backup_retention_period: __dataclass__init__fields__12__annotation = __dataclass__init__fields__12__default,
+            db_security_groups: __dataclass__init__fields__13__annotation = __dataclass__init__fields__13__default,
+            vpc_security_groups: __dataclass__init__fields__14__annotation = __dataclass__init__fields__14__default,
+            db_parameter_groups: __dataclass__init__fields__15__annotation = __dataclass__init__fields__15__default,
+            availability_zone: __dataclass__init__fields__16__annotation = __dataclass__init__fields__16__default,
+            db_subnet_group: __dataclass__init__fields__17__annotation = __dataclass__init__fields__17__default,
+            preferred_maintenance_window: __dataclass__init__fields__18__annotation = __dataclass__init__fields__18__default,
+            upgrade_rollout_order: __dataclass__init__fields__19__annotation = __dataclass__init__fields__19__default,
+            pending_modified_values: __dataclass__init__fields__20__annotation = __dataclass__init__fields__20__default,
+            latest_restorable_time: __dataclass__init__fields__21__annotation = __dataclass__init__fields__21__default,
+            multi_az: __dataclass__init__fields__22__annotation = __dataclass__init__fields__22__default,
+            engine_version: __dataclass__init__fields__23__annotation = __dataclass__init__fields__23__default,
+            auto_minor_version_upgrade: __dataclass__init__fields__24__annotation = __dataclass__init__fields__24__default,
+            read_replica_source_db_instance_identifier: __dataclass__init__fields__25__annotation = __dataclass__init__fields__25__default,
+            read_replica_db_instance_identifiers: __dataclass__init__fields__26__annotation = __dataclass__init__fields__26__default,
+            read_replica_db_cluster_identifiers: __dataclass__init__fields__27__annotation = __dataclass__init__fields__27__default,
+            replica_mode: __dataclass__init__fields__28__annotation = __dataclass__init__fields__28__default,
+            license_model: __dataclass__init__fields__29__annotation = __dataclass__init__fields__29__default,
+            iops: __dataclass__init__fields__30__annotation = __dataclass__init__fields__30__default,
+            storage_throughput: __dataclass__init__fields__31__annotation = __dataclass__init__fields__31__default,
+            option_group_memberships: __dataclass__init__fields__32__annotation = __dataclass__init__fields__32__default,
+            character_set_name: __dataclass__init__fields__33__annotation = __dataclass__init__fields__33__default,
+            nchar_character_set_name: __dataclass__init__fields__34__annotation = __dataclass__init__fields__34__default,
+            secondary_availability_zone: __dataclass__init__fields__35__annotation = __dataclass__init__fields__35__default,
+            publicly_accessible: __dataclass__init__fields__36__annotation = __dataclass__init__fields__36__default,
+            status_infos: __dataclass__init__fields__37__annotation = __dataclass__init__fields__37__default,
+            storage_type: __dataclass__init__fields__38__annotation = __dataclass__init__fields__38__default,
+            storage_encryption_type: __dataclass__init__fields__39__annotation = __dataclass__init__fields__39__default,
+            tde_credential_arn: __dataclass__init__fields__40__annotation = __dataclass__init__fields__40__default,
+            db_instance_port: __dataclass__init__fields__41__annotation = __dataclass__init__fields__41__default,
+            db_cluster_identifier: __dataclass__init__fields__42__annotation = __dataclass__init__fields__42__default,
+            storage_encrypted: __dataclass__init__fields__43__annotation = __dataclass__init__fields__43__default,
+            kms_key_id: __dataclass__init__fields__44__annotation = __dataclass__init__fields__44__default,
+            dbi_resource_id: __dataclass__init__fields__45__annotation = __dataclass__init__fields__45__default,
+            ca_certificate_identifier: __dataclass__init__fields__46__annotation = __dataclass__init__fields__46__default,
+            domain_memberships: __dataclass__init__fields__47__annotation = __dataclass__init__fields__47__default,
+            copy_tags_to_snapshot: __dataclass__init__fields__48__annotation = __dataclass__init__fields__48__default,
+            monitoring_interval: __dataclass__init__fields__49__annotation = __dataclass__init__fields__49__default,
+            enhanced_monitoring_resource_arn: __dataclass__init__fields__50__annotation = __dataclass__init__fields__50__default,
+            monitoring_role_arn: __dataclass__init__fields__51__annotation = __dataclass__init__fields__51__default,
+            promotion_tier: __dataclass__init__fields__52__annotation = __dataclass__init__fields__52__default,
+            db_instance_arn: __dataclass__init__fields__53__annotation = __dataclass__init__fields__53__default,
+            timezone: __dataclass__init__fields__54__annotation = __dataclass__init__fields__54__default,
+            iam_database_authentication_enabled: __dataclass__init__fields__55__annotation = __dataclass__init__fields__55__default,
+            database_insights_mode: __dataclass__init__fields__56__annotation = __dataclass__init__fields__56__default,
+            performance_insights_enabled: __dataclass__init__fields__57__annotation = __dataclass__init__fields__57__default,
+            performance_insights_kms_key_id: __dataclass__init__fields__58__annotation = __dataclass__init__fields__58__default,
+            performance_insights_retention_period: __dataclass__init__fields__59__annotation = __dataclass__init__fields__59__default,
+            enabled_cloudwatch_logs_exports: __dataclass__init__fields__60__annotation = __dataclass__init__fields__60__default,
+            processor_features: __dataclass__init__fields__61__annotation = __dataclass__init__fields__61__default,
+            deletion_protection: __dataclass__init__fields__62__annotation = __dataclass__init__fields__62__default,
+            associated_roles: __dataclass__init__fields__63__annotation = __dataclass__init__fields__63__default,
+            listener_endpoint: __dataclass__init__fields__64__annotation = __dataclass__init__fields__64__default,
+            max_allocated_storage: __dataclass__init__fields__65__annotation = __dataclass__init__fields__65__default,
+            tag_list: __dataclass__init__fields__66__annotation = __dataclass__init__fields__66__default,
+            automation_mode: __dataclass__init__fields__67__annotation = __dataclass__init__fields__67__default,
+            resume_full_automation_mode_time: __dataclass__init__fields__68__annotation = __dataclass__init__fields__68__default,
+            customer_owned_ip_enabled: __dataclass__init__fields__69__annotation = __dataclass__init__fields__69__default,
+            network_type: __dataclass__init__fields__70__annotation = __dataclass__init__fields__70__default,
+            activity_stream_status: __dataclass__init__fields__71__annotation = __dataclass__init__fields__71__default,
+            activity_stream_kms_key_id: __dataclass__init__fields__72__annotation = __dataclass__init__fields__72__default,
+            activity_stream_kinesis_stream_name: __dataclass__init__fields__73__annotation = __dataclass__init__fields__73__default,
+            activity_stream_mode: __dataclass__init__fields__74__annotation = __dataclass__init__fields__74__default,
+            activity_stream_engine_native_audit_fields_included: __dataclass__init__fields__75__annotation = __dataclass__init__fields__75__default,
+            aws_backup_recovery_point_arn: __dataclass__init__fields__76__annotation = __dataclass__init__fields__76__default,
+            db_instance_automated_backups_replications: __dataclass__init__fields__77__annotation = __dataclass__init__fields__77__default,
+            backup_target: __dataclass__init__fields__78__annotation = __dataclass__init__fields__78__default,
+            automatic_restart_time: __dataclass__init__fields__79__annotation = __dataclass__init__fields__79__default,
+            custom_iam_instance_profile: __dataclass__init__fields__80__annotation = __dataclass__init__fields__80__default,
+            activity_stream_policy_status: __dataclass__init__fields__81__annotation = __dataclass__init__fields__81__default,
+            certificate_details: __dataclass__init__fields__82__annotation = __dataclass__init__fields__82__default,
+            db_system_id: __dataclass__init__fields__83__annotation = __dataclass__init__fields__83__default,
+            master_user_secret: __dataclass__init__fields__84__annotation = __dataclass__init__fields__84__default,
+            read_replica_source_db_cluster_identifier: __dataclass__init__fields__85__annotation = __dataclass__init__fields__85__default,
+            percent_progress: __dataclass__init__fields__86__annotation = __dataclass__init__fields__86__default,
+            multi_tenant: __dataclass__init__fields__87__annotation = __dataclass__init__fields__87__default,
+            dedicated_log_volume: __dataclass__init__fields__88__annotation = __dataclass__init__fields__88__default,
+            is_storage_config_upgrade_available: __dataclass__init__fields__89__annotation = __dataclass__init__fields__89__default,
+            engine_lifecycle_support: __dataclass__init__fields__90__annotation = __dataclass__init__fields__90__default,
+            additional_storage_volumes: __dataclass__init__fields__91__annotation = __dataclass__init__fields__91__default,
+            storage_volume_status: __dataclass__init__fields__92__annotation = __dataclass__init__fields__92__default,
+            storage_operation_status: __dataclass__init__fields__93__annotation = __dataclass__init__fields__93__default,
+            storage_operation_percent_progress: __dataclass__init__fields__94__annotation = __dataclass__init__fields__94__default,
+            db_capacity_reservation_identifier: __dataclass__init__fields__95__annotation = __dataclass__init__fields__95__default,
+            v_p_c_networking_enabled: __dataclass__init__fields__96__annotation = __dataclass__init__fields__96__default,
         ) -> __dataclass__None:
             __dataclass__object_setattr(self, 'db_instance_identifier', db_instance_identifier)
             __dataclass__object_setattr(self, 'db_instance_class', db_instance_class)
@@ -2456,6 +2473,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
             __dataclass__object_setattr(self, 'master_username', master_username)
             __dataclass__object_setattr(self, 'db_name', db_name)
             __dataclass__object_setattr(self, 'endpoint', endpoint)
+            __dataclass__object_setattr(self, 'primary_endpoint', primary_endpoint)
             __dataclass__object_setattr(self, 'allocated_storage', allocated_storage)
             __dataclass__object_setattr(self, 'instance_create_time', instance_create_time)
             __dataclass__object_setattr(self, 'preferred_backup_window', preferred_backup_window)
@@ -2543,6 +2561,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
             __dataclass__object_setattr(self, 'storage_operation_status', storage_operation_status)
             __dataclass__object_setattr(self, 'storage_operation_percent_progress', storage_operation_percent_progress)
             __dataclass__object_setattr(self, 'db_capacity_reservation_identifier', db_capacity_reservation_identifier)
+            __dataclass__object_setattr(self, 'v_p_c_networking_enabled', v_p_c_networking_enabled)
 
         __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
 
@@ -2556,6 +2575,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
             parts.append(f"master_username={self.master_username!r}")
             parts.append(f"db_name={self.db_name!r}")
             parts.append(f"endpoint={self.endpoint!r}")
+            parts.append(f"primary_endpoint={self.primary_endpoint!r}")
             parts.append(f"allocated_storage={self.allocated_storage!r}")
             parts.append(f"instance_create_time={self.instance_create_time!r}")
             parts.append(f"preferred_backup_window={self.preferred_backup_window!r}")
@@ -2643,6 +2663,7 @@ def _process_dataclass__d3fd37a70dc2fa5a84f31ea4881effc7a3a792a7():
             parts.append(f"storage_operation_status={self.storage_operation_status!r}")
             parts.append(f"storage_operation_percent_progress={self.storage_operation_percent_progress!r}")
             parts.append(f"db_capacity_reservation_identifier={self.db_capacity_reservation_identifier!r}")
+            parts.append(f"v_p_c_networking_enabled={self.v_p_c_networking_enabled!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"
@@ -5021,6 +5042,123 @@ def _process_dataclass__756f51d79fd8000873f88ae551bde51517d7a5b8():
             parts.append(f"engine={self.engine!r}")
             parts.append(f"additional_storage_volumes={self.additional_storage_volumes!r}")
             parts.append(f"db_capacity_reservation_identifier={self.db_capacity_reservation_identifier!r}")
+            return (
+                f"{self.__class__.__qualname__}("
+                f"{', '.join(parts)}"
+                f")"
+            )
+
+        __dataclass__set_cls_attr(__class__, '__repr__', __repr__, 'raise', set_qualname=True)
+
+    return _process_dataclass
+
+
+@_register(
+    installer_sha1='90985e98ad101b8053b703a13ccaa50772818e7a',
+    spec_keys=(
+        (
+            "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
+            "e, False, False, False), ((('__shape__', True, True, None, True, None, False, None), 'class_var', 'missing"
+            "', None, False, False, False), (('address', True, True, None, True, True, False, None), 'instance', 'value"
+            "', None, False, False, False), (('hosted_zone_id', True, True, None, True, True, False, None), 'instance',"
+            " 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (False,), (False, False, ()"
+            "), ((),), (), (False,)))"
+        ),
+    ),
+    cls_names=(
+        ('ominfra.clouds.aws.models.services.rds', 'PrimaryEndpoint'),
+    ),
+)
+def _process_dataclass__90985e98ad101b8053b703a13ccaa50772818e7a():
+    def _process_dataclass(
+        __class__,
+        __dataclass__spec,
+        __dataclass__ctx,
+        __dataclass__globals,
+    ):
+        __dataclass__init__fields__0__annotation = __dataclass__spec.fields[0].annotation
+        __dataclass__init__fields__1__annotation = __dataclass__spec.fields[1].annotation
+        __dataclass__init__fields__1__default = __dataclass__spec.fields[1].default.must()
+        __dataclass__init__fields__2__annotation = __dataclass__spec.fields[2].annotation
+        __dataclass__init__fields__2__default = __dataclass__spec.fields[2].default.must()
+        __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
+        __dataclass__None = __dataclass__globals['__dataclass__None']
+        __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
+        __dataclass__object_setattr = __dataclass__globals['__dataclass__object_setattr']
+        __dataclass__set_cls_attr = __dataclass__globals['__dataclass__set_cls_attr']
+
+        def __copy__(self):
+            if self.__class__ is not __class__:
+                raise TypeError(self)
+            return __class__(  # noqa
+                address=self.address,
+                hosted_zone_id=self.hosted_zone_id,
+            )
+
+        __dataclass__set_cls_attr(__class__, '__copy__', __copy__, 'raise', set_qualname=True)
+
+        def __eq__(self, other):
+            if self is other:
+                return True
+            if self.__class__ is not other.__class__:
+                return NotImplemented
+            return (
+                self.address == other.address and
+                self.hosted_zone_id == other.hosted_zone_id
+            )
+
+        __dataclass__set_cls_attr(__class__, '__eq__', __eq__, 'raise', set_qualname=True)
+
+        __dataclass___frozen_fields = {
+            '__shape__',
+            'address',
+            'hosted_zone_id',
+        }
+
+        def __setattr__(self, name, value):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot assign to field {name!r}")
+            super(__class__, self).__setattr__(name, value)
+
+        __dataclass__set_cls_attr(__class__, '__setattr__', __setattr__, 'raise', set_qualname=True)
+
+        def __delattr__(self, name):
+            if (
+                type(self) is __class__
+                or name in __dataclass___frozen_fields
+            ):
+                raise __dataclass__FrozenInstanceError(f"cannot delete field {name!r}")
+            super(__class__, self).__delattr__(name)
+
+        __dataclass__set_cls_attr(__class__, '__delattr__', __delattr__, 'raise', set_qualname=True)
+
+        def __hash__(self):
+            return hash((
+                self.address,
+                self.hosted_zone_id,
+            ))
+
+        __dataclass__set_cls_attr(__class__, '__hash__', __hash__, 'replace', set_qualname=True)
+
+        def __init__(
+            self,
+            *,
+            address: __dataclass__init__fields__1__annotation = __dataclass__init__fields__1__default,
+            hosted_zone_id: __dataclass__init__fields__2__annotation = __dataclass__init__fields__2__default,
+        ) -> __dataclass__None:
+            __dataclass__object_setattr(self, 'address', address)
+            __dataclass__object_setattr(self, 'hosted_zone_id', hosted_zone_id)
+
+        __dataclass__set_cls_attr(__class__, '__init__', __init__, 'raise', set_qualname=True)
+
+        @__dataclass___recursive_repr()
+        def __repr__(self):
+            parts = []
+            parts.append(f"address={self.address!r}")
+            parts.append(f"hosted_zone_id={self.hosted_zone_id!r}")
             return (
                 f"{self.__class__.__qualname__}("
                 f"{', '.join(parts)}"

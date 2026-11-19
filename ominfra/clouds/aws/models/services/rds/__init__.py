@@ -632,6 +632,22 @@ class Outpost(
 
 
 @_dc.dataclass(frozen=True, kw_only=True)
+class PrimaryEndpoint(
+    _base.Shape,
+    shape_name='PrimaryEndpoint',
+):
+    address: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='Address',
+        shape_name='String',
+    ))
+
+    hosted_zone_id: str | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='HostedZoneId',
+        shape_name='String',
+    ))
+
+
+@_dc.dataclass(frozen=True, kw_only=True)
 class ProcessorFeature(
     _base.Shape,
     shape_name='ProcessorFeature',
@@ -1483,6 +1499,11 @@ class DBInstance(
         shape_name='Endpoint',
     ))
 
+    primary_endpoint: PrimaryEndpoint | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='PrimaryEndpoint',
+        shape_name='PrimaryEndpoint',
+    ))
+
     allocated_storage: int | None = _dc.field(default=None, metadata=_base.field_metadata(
         member_name='AllocatedStorage',
         shape_name='Integer',
@@ -1944,6 +1965,11 @@ class DBInstance(
         shape_name='DBCapacityReservationIdentifier',
     ))
 
+    v_p_c_networking_enabled: BooleanOptional | None = _dc.field(default=None, metadata=_base.field_metadata(
+        member_name='VPCNetworkingEnabled',
+        shape_name='BooleanOptional',
+    ))
+
 
 @_dc.dataclass(frozen=True, kw_only=True)
 class CreateDBInstanceResult(
@@ -2071,6 +2097,7 @@ ALL_SHAPES: frozenset[type[_base.Shape]] = frozenset([
     Outpost,
     PendingCloudwatchLogsExports,
     PendingModifiedValues,
+    PrimaryEndpoint,
     ProcessorFeature,
     ProvisionedIopsNotAvailableInAZFault,
     RebootDBInstanceMessage,
