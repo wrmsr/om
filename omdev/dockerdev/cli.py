@@ -14,11 +14,14 @@ try:
 finally:
     subprocess.check_call(['docker', 'image', 'rm', tag], stdout=subprocess.DEVNULL)
 """
+import os
 import re
+import shutil
 import subprocess
 import tomllib
 import typing as ta
 
+from omcore import check
 from omcore import lang
 from omcore import marshal as msh
 from omcore.argparse import all as ap
@@ -249,6 +252,24 @@ class Cli(ap.Cli):
             secrets,
             secrets_file=self.args.secrets_file,
             shift_uid=parse_shift_uid(self._args.shift_uid),
+        )
+
+    #
+
+    @ap.cmd(
+        ap.arg('container-id'),
+    )
+    def bash(self) -> None:
+        docker = check.not_none(shutil.which('docker'))
+
+        os.execl(
+            docker,
+            docker,
+            'exec',
+            '-u', 'om',
+            '-it',
+            self._args.container_id,
+            'bash',
         )
 
 
