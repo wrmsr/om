@@ -1,4 +1,4 @@
-"""Run the in-repo omllm agent with explicit, offline scripted model turns."""
+"""Run the in-repo omllm agent headlessly, with a scripted or configured live backend."""
 import argparse
 import asyncio
 import glob
@@ -7,13 +7,19 @@ import os
 import sys
 import typing as ta
 
+from omcore import dataclasses as dc
 from omcore import inject as inj
+from omcore.manifests.globals import GlobalManifestLoader
+from omcore.manifests.loading import ManifestLoader
+from omcore.secrets import all as sec
 from omllm import agent as agn
 from omllm import llm
+from omllm.core import registry as reg
 from omllm.core import ui
 from omllm.ui.agent.setup import AgentSetup
 from omllm.ui.config import UiConfig
-from omllm.ui.inject.inject import bind_ui
+from omllm.ui.inject.inject import AgentInjector
+from omllm.ui.inject.inject import UiBinder
 
 
 ##
@@ -69,40 +75,90 @@ def load_script(path: str | None) -> llm.BackendScript:
     return llm.BackendScript(turns)
 
 
-async def run_scripted(request: ta.Mapping[str, ta.Any], script: llm.BackendScript) -> None:
+def prepare_source_manifests() -> None:
+    roots = [
+        path
+        for path in sys.path
+        if path and os.path.isfile(os.path.join(path, 'omllm', '.om-manifests.json'))
+    ]
+    if roots:
+        GlobalManifestLoader.initialize(ManifestLoader.Config.merge(
+            GlobalManifestLoader.default_config(),
+            ManifestLoader.Config(discover_packages_fallback_scan_root_dirs=roots),
+        ))
+
+
+async def run_agent(
+        request: ta.Mapping[str, ta.Any],
+        *,
+        model: str,
+        script: llm.BackendScript | None,
+        api_key: str | None = None,
+        max_turns: int,
+) -> None:
     if request.get('runtime') != 'local':
-        raise ValueError('The scripted adapter requires a local runtime request')
+        raise ValueError('The omllm adapter requires a local runtime request')
     workdir = request.get('workdir')
     instruction = request.get('instruction')
     if not isinstance(workdir, str) or not os.path.isdir(workdir) or not isinstance(instruction, str):
         raise ValueError('The request needs a workdir and instruction')
+    if max_turns < 1:
+        raise ValueError('max_turns must be positive')
+    if (model == 'scripted') != (script is not None):
+        raise ValueError('A script is required exactly when using the scripted model')
+    if script is None:
+        prepare_source_manifests()
 
     config = UiConfig(
-        model='scripted',
+        model=model,
         immediate=True,
         in_memory=True,
         cwd=workdir,
         exec=True,
         fs=True,
     )
-    model = llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted')
-    backend = llm.ScriptedImmediateBackend(model, script)
+    backend = None
+    if script is not None:
+        scripted_model = llm.Model(key=llm.ModelKey('scripted', 'scripted'), backend='scripted')
+        backend = llm.ScriptedImmediateBackend(scripted_model, script)
+    else:
+        if not api_key:
+            raise ValueError('A live model requires one API key from the runner')
+        selected = llm.default_models_by_name()[model]
+        llm_model = llm.provider_model_catalog()[selected.key]
+        backend_cls = reg.get_registry_cls(llm.ImmediateBackend, llm_model.backend_)
+        backend = backend_cls(llm_model, api_key=sec.Secret(value=api_key))
 
-    async with inj.create_asyncio_managed_injector(
-            inj.override(
-                bind_ui(config),
-                inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend)),
-            ),
+    def rewrite_ui(els: inj.Elements) -> inj.Elements:
+        return inj.as_elements(
+            els,
             inj.bind(ui.NopTextDisplayer()),
             inj.bind(ui.TextDisplayer, to_key=ui.NopTextDisplayer),
             inj.bind(ui.RaiseQuitSignal(SystemExit)),
             inj.bind(ui.QuitSignal, to_key=ui.RaiseQuitSignal),
             inj.bind(DenyingPermissionAsker()),
             inj.bind(agn.PermissionAsker, to_key=DenyingPermissionAsker),
+        )
+
+    def rewrite_agent(els: inj.Elements) -> inj.Elements:
+        if backend is None:
+            return els
+        return inj.as_elements(inj.override(
+            els,
+            inj.bind(agn.BackendManager, to_const=agn.DictBackendManager.of(backend)),
+        ))
+
+    async with inj.create_asyncio_managed_injector(
+            UiBinder(
+                config,
+                ui_rewriter=rewrite_ui,
+                agent_rewriter=rewrite_agent,
+            ).bind_ui(),
     ) as injector:
         agent = await injector[agn.Agent]
         await (await injector[AgentSetup]).run()
-        permissions = await injector[agn.PermissionsManager]
+        agent_injector = (await injector[AgentInjector]).v
+        permissions = await agent_injector[agn.PermissionsManager]
         permissions.update_rules(lambda rules: agn.PermissionRules([
             *rules,
             agn.PermissionRule(agn.ExecPermissionMatcher(), agn.PermissionState.ALLOW),
@@ -111,11 +167,31 @@ async def run_scripted(request: ta.Mapping[str, ta.Any], script: llm.BackendScri
                 agn.PermissionState.ALLOW,
             ),
         ]))
-        result = await agent.prompt(instruction)
+        await agent.update_state(lambda state: dc.replace(
+            state,
+            turn_config=dc.replace(state.turn_config or agn.TurnConfig(), max_turns=max_turns),
+        ))
+        prompt = instruction
+        if script is None:
+            prompt += (
+                f'\nLocal runtime: paths written as /work in this task refer to {workdir}. '
+                'Use relative paths here.\n'
+            )
+        artifact_dir = request.get('artifact_dir')
+        if isinstance(artifact_dir, str):
+            with open(os.path.join(artifact_dir, 'prompt.txt'), 'w', encoding='utf-8') as f:  # noqa: ASYNC230
+                f.write(prompt)
+        result = await agent.prompt(prompt)
         print(f'Agent end reason: {result.reason.name}')
         for message in result.new_messages:
+            if isinstance(message, llm.AiMessage):
+                for content in message.content:
+                    if isinstance(content, llm.TextContent):
+                        print(f'AI: {content.text}')
+                    elif isinstance(content, llm.ToolCall):
+                        print(f'Tool call: {content.name} {json.dumps(content.args)}')
             if isinstance(message, llm.ToolResultMessage):
-                print(f'Tool result {message.tool_call_id}: {message.content}')
+                print(f'Tool result {message.tool_call_id}: {str(message.content)[:3000]}')
         if result.reason is not agn.AgentEndReason.COMPLETED:
             raise RuntimeError(f'Agent ended with {result.reason.name}: {result.error}')
 
@@ -123,12 +199,25 @@ async def run_scripted(request: ta.Mapping[str, ta.Any], script: llm.BackendScri
 def _main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--script', help='JSON array of scripted turns')
+    parser.add_argument('--model', default='scripted', help='omllm model alias, such as gpt')
+    parser.add_argument('--max-turns', type=int, default=16)
     args = parser.parse_args()
     try:
-        request = json.load(sys.stdin)
+        payload = json.load(sys.stdin)
+        api_key = None
+        if args.model == 'scripted':
+            request = payload
+        else:
+            if not isinstance(payload, dict):
+                raise TypeError('Expected a live request and API key object on stdin')
+            request = payload.get('request')
+            api_key = payload.get('api_key')
+            if not isinstance(api_key, str):
+                raise TypeError('Expected one API key on stdin')
         if not isinstance(request, dict):
             raise TypeError('Expected one JSON request object on stdin')
-        asyncio.run(run_scripted(request, load_script(args.script)))
+        script = load_script(args.script) if args.model == 'scripted' else None
+        asyncio.run(run_agent(request, model=args.model, script=script, api_key=api_key, max_turns=args.max_turns))
     except (OSError, TypeError, ValueError, RuntimeError) as exc:
         print(f'{type(exc).__name__}: {exc}', file=sys.stderr)
         raise SystemExit(1) from exc

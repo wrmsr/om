@@ -67,8 +67,15 @@ def stop_process(process: subprocess.Popen) -> None:
     process.wait(timeout=5)
 
 
-def restrict_local_writes(paths: ta.Sequence[str]) -> None:
-    """Apply inherited Linux Landlock write restrictions before an untrusted command starts."""
+@dc.dataclass(frozen=True)
+class LocalReadAccess:
+    trees: tuple[str, ...] = ()
+    directories: tuple[str, ...] = ()
+    files: tuple[str, ...] = ()
+
+
+def restrict_local_access(write_paths: ta.Sequence[str], read_access: LocalReadAccess | None) -> None:
+    """Apply inherited Linux Landlock filesystem restrictions before an untrusted command starts."""
 
     if sys.platform != 'linux':
         raise OSError('The local runtime requires Linux Landlock')
@@ -92,12 +99,33 @@ def restrict_local_writes(paths: ta.Sequence[str]) -> None:
 
     # WRITE_FILE, REMOVE_DIR/FILE, MAKE_*, REFER, and TRUNCATE (Landlock ABI 3).
     write_access = (1 << 1) | sum(1 << bit for bit in range(4, 15))
-    ruleset = syscall(444, ctypes.byref(RulesetAttr(write_access)), ctypes.sizeof(RulesetAttr), 0)
+    read_file = 1 << 2
+    read_dir = 1 << 3
+    read_tree = read_file | read_dir
+    handled_access = write_access | (read_tree if read_access is not None else 0)
+    ruleset = syscall(444, ctypes.byref(RulesetAttr(handled_access)), ctypes.sizeof(RulesetAttr), 0)
     try:
-        for path in (*paths, '/dev/null'):
+        access_by_path: dict[str, int] = {}
+
+        def add_path(path: str, access: int) -> None:
+            access_by_path[path] = access_by_path.get(path, 0) | access
+
+        for path in write_paths:
+            add_path(path, write_access | (read_tree if read_access is not None else 0))
+        add_path('/dev/null', (1 << 1) | (1 << 14) | (read_file if read_access is not None else 0))
+        if read_access is not None:
+            for path in read_access.trees:
+                add_path(path, read_tree)
+            for path in read_access.directories:
+                add_path(path, read_dir)
+            for path in read_access.files:
+                add_path(path, read_file)
+
+        for path, access in access_by_path.items():
             fd = os.open(path, os.O_PATH | os.O_CLOEXEC)
             try:
-                access = ((1 << 1) | (1 << 14)) if path == '/dev/null' else write_access
+                if not os.path.isdir(path):
+                    access &= (1 << 1) | (1 << 14) | read_file
                 rule = PathBeneathAttr(access, fd)
                 syscall(445, ruleset, 1, ctypes.byref(rule), 0)
             finally:
@@ -131,6 +159,7 @@ def run_command(
         cwd: str | None = None,
         env: ta.Mapping[str, str] | None = None,
         local_write_paths: ta.Sequence[str] | None = None,
+        local_read_access: LocalReadAccess | None = None,
         cleanup_group: bool = False,
 ) -> CommandResult:
     started = time.monotonic()
@@ -147,7 +176,7 @@ def run_command(
                 cwd=cwd,
                 env=env,
                 preexec_fn=(  # noqa: PLW1509
-                    (lambda: restrict_local_writes(local_write_paths))
+                    (lambda: restrict_local_access(local_write_paths, local_read_access))
                     if local_write_paths is not None else None
                 ),
         ) as process:
@@ -255,7 +284,7 @@ class Agent:
 
 
 def load_agent(name: str, root: str, command: ta.Sequence[str]) -> Agent:
-    if name in {'oracle', 'nop', 'external', 'scripted'}:
+    if name in {'oracle', 'nop', 'external', 'scripted', 'om'}:
         if (name == 'external') != bool(command):
             raise ValueError('Use --agent external -- COMMAND [ARGS...] for a host agent')
         return Agent(name, name, tuple(command))
@@ -613,11 +642,10 @@ def local_environment(
         scratch: str,
         *,
         tests: str | None = None,
-        inherit_pythonpath: bool = False,
 ) -> dict[str, str]:
     env = {
         'HOME': scratch,
-        'PATH': os.environ.get('PATH', '/usr/bin:/bin'),
+        'PATH': os.path.join(scratch, 'bin') + os.pathsep + '/usr/bin:/bin',
         'TMPDIR': scratch,
         'PYTHONDONTWRITEBYTECODE': '1',
         'PYTHONPATH': workdir,
@@ -626,9 +654,102 @@ def local_environment(
     }
     if tests is not None:
         env['MINIEVAL_TESTS_DIR'] = tests
-    if inherit_pythonpath and (pythonpath := os.environ.get('PYTHONPATH')):
-        env['PYTHONPATH'] += os.pathsep + pythonpath
     return env
+
+
+def prepare_local_scratch(scratch: str) -> None:
+    os.mkdir(scratch)
+    bin_dir = os.path.join(scratch, 'bin')
+    os.mkdir(bin_dir)
+    for name in ('python', 'python3'):
+        os.symlink(sys.executable, os.path.join(bin_dir, name))
+
+
+def local_om_api_key(model_name: str) -> str:
+    # Only the trusted runner reads the normal om config. The agent receives one selected value on stdin.
+    from omdev.home.secrets import load_secrets
+    from omllm import llm
+
+    try:
+        model = llm.default_models_by_name()[model_name]
+    except KeyError as exc:
+        raise ValueError(f'Unknown omllm model alias: {model_name}') from exc
+    loaded = load_secrets()
+    for source in model.api_keys or ():
+        if isinstance(source, llm.SecretApiKey):
+            secret = loaded.try_get(source.name)
+            if secret is not None:
+                return secret.reveal()
+        elif isinstance(source, llm.EnvVarApiKey):
+            value = os.environ.get(source.name)
+            if value:
+                return value
+    raise ValueError(f'No configured API key for omllm model alias: {model_name}')
+
+
+def local_system_read_trees() -> tuple[str, ...]:
+    return tuple(path for path in (
+        os.path.join(sys.prefix, 'bin'),
+        os.path.join(sys.prefix, 'lib'),
+        os.path.join(sys.base_prefix, 'bin'),
+        os.path.join(sys.base_prefix, 'lib'),
+        '/cache/uv/archive-v0',  # uv links installed package files into the environment from this cache.
+        '/usr/bin',
+        '/usr/lib',
+        '/usr/lib64',
+        '/usr/share',
+        '/usr/local/bin',
+        '/usr/local/lib',
+        '/etc/ssl/certs',
+        '/etc/pki/tls/certs',
+    ) if os.path.isdir(path))
+
+
+def local_python_read_access(*, files: ta.Sequence[str] = (), trees: ta.Sequence[str] = ()) -> LocalReadAccess:
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    package_trees = tuple(
+        os.path.join(root, name)
+        for name in ('omcore', 'omdev', 'omllm', 'ominfra', 'omxtra')
+        if os.path.isdir(os.path.join(root, name))
+    )
+    system_files = tuple(path for path in (
+        '/etc/hosts',
+        '/etc/resolv.conf',
+        '/etc/nsswitch.conf',
+        '/etc/gai.conf',
+        '/etc/passwd',
+        '/etc/group',
+        '/etc/ld.so.cache',
+        '/etc/ssl/openssl.cnf',
+        os.path.join(sys.prefix, 'pyvenv.cfg'),
+        '/dev/urandom',
+        '/dev/random',
+    ) if os.path.isfile(path))
+    return LocalReadAccess(
+        trees=(
+            *local_system_read_trees(),
+            *package_trees,
+            os.path.join(root, 'x', 'mini_agent_eval', 'examples'),
+            *trees,
+        ),
+        directories=(root, os.path.join(root, 'x'), os.path.join(root, 'x', 'mini_agent_eval')),
+        files=(
+            *system_files,
+            os.path.join(root, 'x', '__init__.py'),
+            os.path.join(root, 'x', '.om-manifests.json'),
+            os.path.join(root, 'x', 'mini_agent_eval', '__init__.py'),
+            *files,
+        ),
+    )
+
+
+def local_grader_read_access(tests: str) -> LocalReadAccess:
+    return LocalReadAccess(
+        trees=(*local_system_read_trees(), tests),
+        files=tuple(path for path in (
+            '/etc/ld.so.cache', '/dev/urandom', '/dev/random', os.path.join(sys.prefix, 'pyvenv.cfg'),
+        ) if os.path.isfile(path)),
+    )
 
 
 def prepare_local_workspace(task: Task, workdir: str, log_path: str) -> None:
@@ -664,14 +785,19 @@ def run_local_agent(
     log_path = os.path.join(request['output_dir'], 'agent.log')
     if agent.kind == 'nop':
         return CommandResult(0, 0.0)
-    env = local_environment(workdir, scratch, inherit_pythonpath=True)
-    for name in extra_env:
-        env[name] = os.environ[name]
+    if extra_env:
+        raise ValueError('--env is not supported with the local runtime: it could expose other secrets')
+    env = local_environment(workdir, scratch)
+    if agent.kind in {'scripted', 'om'}:
+        env['PYTHONPATH'] += os.pathsep + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    read_files: list[str] = [request['instruction_file']]
+    read_trees: list[str] = []
     if agent.kind == 'oracle':
         solution = os.path.join(task.path, 'solution')
         if not os.path.isfile(os.path.join(solution, 'solve.sh')):
             raise ValueError(f'Task {task.name} has no solution/solve.sh')
         env['MINIEVAL_SOLUTION_DIR'] = solution
+        read_trees.append(solution)
         command = ['sh', os.path.join(solution, 'solve.sh')]
         input_data = None
     elif agent.kind == 'external':
@@ -682,12 +808,33 @@ def run_local_agent(
             'output_dir': request['output_dir'],
         }
         command = [replace_tokens(arg, tokens) for arg in (*agent.command, *extra_args)]
+        if len(command) > 1 and command[0] == sys.executable and os.path.isfile(command[1]):
+            read_files.append(command[1])
         input_data = (json.dumps(dict(request)) + '\n').encode()
     elif agent.kind == 'scripted':
         command = [sys.executable, '-m', 'x.mini_agent_eval.examples.scripted']
         if script is not None:
             command.extend(['--script', script])
+            read_files.append(script)
         input_data = (json.dumps(dict(request)) + '\n').encode()
+    elif agent.kind == 'om':
+        parser = argparse.ArgumentParser(add_help=False)
+        parser.add_argument('--model', default='gpt')
+        parser.add_argument('--max-turns', type=int, default=16)
+        options = parser.parse_args(extra_args)
+        if options.model == 'scripted':
+            raise ValueError('Use --agent scripted for the scripted model')
+        api_key = local_om_api_key(options.model)
+        command = [
+            sys.executable,
+            '-m',
+            'x.mini_agent_eval.examples.scripted',
+            '--model',
+            options.model,
+            '--max-turns',
+            str(options.max_turns),
+        ]
+        input_data = (json.dumps({'request': dict(request), 'api_key': api_key}) + '\n').encode()
     else:
         raise ValueError(f'Agent {agent.name} requires the Docker runtime')
     return run_command(
@@ -698,6 +845,7 @@ def run_local_agent(
         timeout=timeout,
         input_data=input_data,
         local_write_paths=[workdir, scratch, request['artifact_dir']],
+        local_read_access=local_python_read_access(files=read_files, trees=read_trees),
         cleanup_group=True,
     )
 
@@ -729,7 +877,7 @@ def run_local_trial(
         with tempfile.TemporaryDirectory(prefix='local-', dir=output_dir) as temporary:
             agent_workdir = os.path.join(temporary, 'agent')
             agent_scratch = os.path.join(temporary, 'agent-tmp')
-            os.mkdir(agent_scratch)
+            prepare_local_scratch(agent_scratch)
             prepare_local_workspace(task, agent_workdir, os.path.join(output_dir, 'setup.log'))
             instruction_file = os.path.join(output_dir, 'instruction.md')
             with open(instruction_file, 'w', encoding='utf-8') as f:
@@ -772,7 +920,7 @@ def run_local_trial(
             grader_workdir = os.path.join(temporary, 'grader')
             grader_scratch = os.path.join(temporary, 'grader-tmp')
             tests = os.path.join(temporary, 'tests')
-            os.mkdir(grader_scratch)
+            prepare_local_scratch(grader_scratch)
             prepare_local_workspace(task, grader_workdir, os.path.join(output_dir, 'setup.log'))
             for name in os.listdir(grader_workdir):
                 if name != '.git':
@@ -800,6 +948,7 @@ def run_local_trial(
                 log_path=os.path.join(output_dir, 'verifier.log'),
                 timeout=test_timeout,
                 local_write_paths=[grader_workdir, grader_scratch],
+                local_read_access=local_grader_read_access(tests),
                 cleanup_group=True,
             )
             result['verifier_result'] = dc.asdict(verification) | {'stdout': None}
@@ -938,8 +1087,8 @@ def run_suite(args: argparse.Namespace) -> int:
         return 0 if all_expected else 1
     if getattr(args, 'script', None) is not None:
         raise ValueError('--script requires --runtime local --agent scripted')
-    if any(agent.kind == 'scripted' for agent in agents):
-        raise ValueError('--agent scripted requires --runtime local')
+    if any(agent.kind in {'scripted', 'om'} for agent in agents):
+        raise ValueError('--agent scripted and --agent om require --runtime local')
     docker = Docker(
         executable=args.docker,
         platform=args.platform,

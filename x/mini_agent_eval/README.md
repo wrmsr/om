@@ -38,9 +38,11 @@ From the monorepo root, use its Python launcher and select the local runtime:
 ```
 
 `check` creates fresh workspaces and a fresh grader for every trial. It verifies that all three starters fail and all
-three reference solutions pass. Local processes inherit Linux Landlock rules that permit filesystem writes only in the
-trial workspace and its temporary directory. The runner gives them a trial HOME and TMPDIR, and kills the process group
-after each command. No Docker socket or model credentials are needed.
+three reference solutions pass. Local agent and grader processes inherit Linux Landlock rules that permit filesystem
+reads from the trial files, interpreter, installed packages, and required system files, and writes only in their
+workspace, temporary directory, and (for agents) artifacts directory. The runner gives them a trial HOME and
+TMPDIR, makes the project interpreter available as `python` and `python3`, and kills the process group after each
+command. No Docker socket or model credentials are needed for `check`.
 
 The local runtime currently supports task images with `COPY *.py ./` as their sole Dockerfile copy operation, as in the
 three included tasks. It copies those Python sources into each workspace and uses the host interpreter and Git. A task
@@ -48,9 +50,10 @@ with build-time dependencies or other Dockerfile copy operations needs a local s
 locally. `local.json` records the host platform, Python version, executable, and Landlock ABI; results retain each task's
 content hash. Use the same host toolchain when comparing local runs.
 
-Landlock here restricts **writes**, not reads or network access. A local agent can read host files, including the bundled
-reference solutions, so this runtime is suitable for trusted development and wiring checks. Use Docker for isolated
-benchmark runs or untrusted agent code. Docker remains the default.
+The local runtime does not grant the agent or grader access to the host's `om` secrets files or the bundled reference
+solutions, unless running the `oracle` control. Local processes receive a minimal environment; `--env` is rejected for
+local runs. Landlock does not isolate network access, processes, or every kernel interface. This runtime is useful for
+development and wiring checks; use Docker or a stronger sandbox for hostile agent code. Docker remains the default.
 
 The in-repo `omllm` agent can run with an internally configured scripted backend, without provider keys:
 
@@ -73,6 +76,21 @@ string or a nonempty `tool_calls` array. Every tool call has a `name` and an `ar
 The adapter builds an `omllm.llm.BackendScript`, injects a `ScriptedImmediateBackend` into the normal `omllm.ui` agent,
 and grants its tools access to the trial workspace. This is a deterministic integration control, not an agent score.
 `--agent scripted` is available from this monorepo checkout and requires `--runtime local`.
+
+To run the actual `omllm` coding harness with its configured default `gpt` model and the usual `om` secrets files:
+
+```sh
+./python -m x.mini_agent_eval.minieval run --runtime local --tasks x/mini_agent_eval/tasks \
+    --agent om --timeout 300
+```
+
+`--agent om` uses the same headless `omllm.ui` agent and file/shell tools as the scripted control. The trusted runner
+resolves one model API key from the usual `om` config, passes only that value to the agent on stdin, and injects the live
+backend explicitly. The agent receives neither the host secrets-file paths nor other environment secrets. The key is
+not written to request, result, or command logs; agent-generated output can still reveal what the agent sees. It
+defaults to at most 16 model turns per task. `--agent-arg` accepts `--model` and `--max-turns`, for example
+`--agent-arg=--model --agent-arg=OTHER_MODEL_ALIAS`. This makes real provider requests and requires `--runtime local`.
+The exact prompt is saved in each trial's `agent-artifacts/prompt.txt`.
 
 Ordinary runs use `run`:
 
@@ -114,7 +132,7 @@ request includes:
 ```
 
 With `--runtime local`, the same external agent contract sends `runtime: "local"` and a host `workdir` path. It does not
-send `container_id` or `docker_executable`. The command runs under the local write restrictions and should edit that
+send `container_id` or `docker_executable`. The command runs under the local read and write restrictions and should edit that
 workspace directly. It may write extra metrics to the request's `artifact_dir`; the rest of `output_dir` is read-only to
 the local agent. The Docker-only example below still expects a container ID.
 
@@ -346,7 +364,7 @@ Run the local standard-library tests with:
 python3 -m unittest discover -s tests -v
 ```
 
-Those tests exercise fixture behavior, runner helpers, local write restrictions, snapshot transfer, and the scripted
+Those tests exercise fixture behavior, runner helpers, local read and write restrictions, snapshot transfer, and the scripted
 `omllm` adapter without a Docker daemon. The live Docker integration check is `python3 -m minieval check`, and the
 external-interface integration check uses `examples.externaloracle` above. Both are intentionally model-free.
 
@@ -361,8 +379,8 @@ unavailable Docker engine fails the tests rather than silently skipping them.
 
 In this development container, `check --runtime local` passed all six controls: three starter failures and three
 reference successes. A scripted `omllm` tool call installed the reference fix for `intervals`, and its trial passed
-grading. Docker image builds, live container execution, arm64 execution, and authenticated model calls remain untested
-here because the Docker socket and provider credentials are unavailable.
+grading. A live `--agent om` run with the `gpt` alias passed all three graders. Docker image builds, live container
+execution, and arm64 execution remain untested here because the Docker socket is unavailable.
 
 The next useful addition is a real repository task importer. The current version keeps the core loop small: task setup,
 agent invocation, snapshot transfer, independent grading, and files on disk.
