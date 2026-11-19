@@ -8,14 +8,14 @@ from omcore.argparse import all as ap
 
 from ...core import processes
 from ...core import ui
+from .argparse import ArgparseCommandClass
 from .base import CommandContext
-from .classes import ParserCommandClass
 
 
 ##
 
 
-class ProcessesCommand(ParserCommandClass):
+class ProcessesCommand(ArgparseCommandClass):
     """
     Inspects and manages the processes owned by the process manager (the same ones the agent's process_* tools see).
     """

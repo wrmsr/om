@@ -57,7 +57,7 @@ class Command(lang.Abstract):
         return False
 
     @abc.abstractmethod
-    def run(self, ctx: CommandContext, argv: list[str]) -> ta.Awaitable[RunCommandResult | None]:
+    def run(self, ctx: CommandContext, args: str | lang.SequenceNotStr[str]) -> ta.Awaitable[RunCommandResult | None]:
         raise NotImplementedError
 
 

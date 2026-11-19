@@ -59,11 +59,14 @@ def find_any(
         start: int | None = None,
         end: int | None = None,
 ) -> int:
+    # Normalize only end so it can be compared with absolute indices.
+    end = slice(None, end).indices(len(string))[1]
+
     r = -1
     for sub in subs:
-        if (p := string.find(sub, start, end)) >= 0:  # type: ignore
-            if r < 0 or p < r:
-                r = p
+        sub_end = end if r < 0 else min(end, r + len(sub))
+        if (p := string.find(sub, start, sub_end)) >= 0:  # type: ignore
+            r = p
     return r
 
 
@@ -76,8 +79,8 @@ def rfind_any(
     r = -1
     for sub in subs:
         if (p := string.rfind(sub, start, end)) >= 0:  # type: ignore
-            if r < 0 or p > r:
-                r = p
+            r = p
+            start = p + 1
     return r
 
 

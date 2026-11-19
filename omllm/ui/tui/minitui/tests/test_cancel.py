@@ -15,8 +15,8 @@ from .....agent.eval.permissions import EvalLanguage
 from .....agent.eval.permissions import EvalPermissionTarget
 from .....agent.tests.scripted import scripted_backend
 from .....agent.tests.scripted import text_message
+from ....commands.argparse import ArgparseCommand
 from ....commands.base import Commands
-from ....commands.classes import CommandClass
 from ....commands.compact import CompactCommand
 from ....commands.manager import CommandsManager
 from ....commands.simple import EchoCommand
@@ -338,7 +338,7 @@ async def test_commands_echo_as_submitted_and_run_in_order():
     await pump.aclose()
 
 
-class NoteCommand(CommandClass):
+class NoteCommand(ArgparseCommand):
     async def _run_args(self, ctx, args):
         await ctx.print('noted')
 

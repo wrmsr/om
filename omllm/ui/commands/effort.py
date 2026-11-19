@@ -3,14 +3,14 @@ from omcore.argparse import all as ap
 
 from ... import agent as agn
 from ... import llm
+from .argparse import ArgparseCommand
 from .base import CommandContext
-from .classes import CommandClass
 
 
 ##
 
 
-class EffortCommand(CommandClass):
+class EffortCommand(ArgparseCommand):
     def __init__(
             self,
             *,

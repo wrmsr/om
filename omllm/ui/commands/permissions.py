@@ -9,14 +9,14 @@ from omcore.formats import json5
 
 from ... import agent as agn
 from ...core import ui
+from .argparse import ArgparseCommandClass
 from .base import CommandContext
-from .classes import ParserCommandClass
 
 
 ##
 
 
-class PermissionsCommand(ParserCommandClass):
+class PermissionsCommand(ArgparseCommandClass):
     def __init__(self, permissions: agn.PermissionsManager) -> None:
         super().__init__()
 

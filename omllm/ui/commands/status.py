@@ -2,14 +2,14 @@ from omcore.argparse import all as argparse
 
 from ... import agent as agn
 from ...core import ui
+from .argparse import ArgparseCommand
 from .base import CommandContext
-from .classes import CommandClass
 
 
 ##
 
 
-class StatusCommand(CommandClass):
+class StatusCommand(ArgparseCommand):
     def __init__(
             self,
             *,

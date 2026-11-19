@@ -1,14 +1,14 @@
 from omcore.argparse import all as ap
 
 from ... import agent as agn
+from .argparse import ArgparseCommand
 from .base import CommandContext
-from .classes import CommandClass
 
 
 ##
 
 
-class CompactCommand(CommandClass):
+class CompactCommand(ArgparseCommand):
     """
     Compacts the agent's context now: the older part of the conversation is summarized for the model, the transcript
     itself untouched. Any words given are instructions for the summary - what it is to keep, what it may leave out.

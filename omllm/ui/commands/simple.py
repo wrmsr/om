@@ -1,14 +1,14 @@
 from omcore.argparse import all as argparse
 
 from ...core import ui
+from .argparse import ArgparseCommand
 from .base import CommandContext
-from .classes import CommandClass
 
 
 ##
 
 
-class EchoCommand(CommandClass):
+class EchoCommand(ArgparseCommand):
     @property
     def can_run_while_busy(self) -> bool:
         return True
@@ -25,7 +25,7 @@ class EchoCommand(CommandClass):
 ##
 
 
-class QuitCommand(CommandClass):
+class QuitCommand(ArgparseCommand):
     def __init__(
             self,
             *,

@@ -9,8 +9,8 @@ from omcore import lang
 from omcore.argparse import all as ap
 from omdev import repl
 
+from .argparse import ArgparseCommand
 from .base import CommandContext
-from .classes import CommandClass
 
 
 ##
@@ -36,7 +36,7 @@ class ReplModeSwitcher(lang.Abstract):
 ##
 
 
-class _ReplSwitchCommand(CommandClass, lang.Abstract):
+class _ReplSwitchCommand(ArgparseCommand, lang.Abstract):
     _target: ta.ClassVar[str | None] = None
 
     def __init__(self, *, switcher: ReplModeSwitcher) -> None:

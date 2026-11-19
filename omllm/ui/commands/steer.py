@@ -1,14 +1,14 @@
 from omcore.argparse import all as ap
 
 from ... import agent as agn
+from .argparse import ArgparseCommand
 from .base import CommandContext
-from .classes import CommandClass
 
 
 ##
 
 
-class SteerCommand(CommandClass):
+class SteerCommand(ArgparseCommand):
     def __init__(self, *, agent: agn.Agent) -> None:
         super().__init__()
 

@@ -1,5 +1,6 @@
 import abc
 import contextvars
+import shlex
 import typing as ta
 
 from omcore import lang
@@ -18,11 +19,11 @@ _ARGPARSE_PRINTED_MESSAGES_CV: contextvars.ContextVar[list[str]] = contextvars.C
 )
 
 
-class CommandClass(Command, lang.Abstract):
+class ArgparseCommand(Command, lang.Abstract):
     def __init__(self) -> None:
         super().__init__()
 
-        self.__parser: CommandClass._ArgumentParser = self._ArgumentParser(
+        self.__parser: ArgparseCommand._ArgumentParser = self._ArgumentParser(
             prog=self.name,
             description=self.description,
             formatter_class=self._HelpFormatter,
@@ -71,17 +72,22 @@ class CommandClass(Command, lang.Abstract):
     #
 
     @ta.final
-    async def run(self, ctx: CommandContext, argv: list[str]) -> None:
+    async def run(self, ctx: CommandContext, args: str | lang.SequenceNotStr[str]) -> None:
+        if isinstance(args, str):
+            argv = shlex.split(args)
+        else:
+            argv = list(args)
+
         pm: list[str] = []
 
-        args: ap.Namespace | None
+        ns: ap.Namespace | None
 
         with lang.context_var_setting(_ARGPARSE_PRINTED_MESSAGES_CV, pm):
             try:
-                args = self.__parser.parse_args(argv)
+                ns = self.__parser.parse_args(argv)
 
             except ap.NoExitArgumentParser.ExitNotSupportedError:
-                args = None
+                ns = None
 
             except ap.ArgumentError as ae:
                 raise ArgsCommandError(
@@ -94,8 +100,8 @@ class CommandClass(Command, lang.Abstract):
         if pm:
             await ctx.print('\n'.join(pm))
 
-        if args is not None:
-            await self._run_args(ctx, args)
+        if ns is not None:
+            await self._run_args(ctx, ns)
 
     @abc.abstractmethod
     def _run_args(self, ctx: CommandContext, args: ap.Namespace) -> ta.Awaitable[None]:
@@ -105,7 +111,7 @@ class CommandClass(Command, lang.Abstract):
 ##
 
 
-class ParserCommandClass(CommandClass, lang.Abstract):
+class ArgparseCommandClass(ArgparseCommand, lang.Abstract):
     def _configure_parser(self, parser: ap.ArgumentParser) -> None:
         super()._configure_parser(parser)
 

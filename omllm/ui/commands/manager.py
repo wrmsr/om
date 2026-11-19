@@ -3,6 +3,7 @@ import typing as ta
 
 from omcore import collections as col
 from omcore import dataclasses as dc
+from omcore import lang
 
 from ...core import ui
 from .base import Command
@@ -45,17 +46,17 @@ class CommandsManager:
     def get_commands(self) -> ta.Mapping[str, Command]:
         return self._commands_by_name
 
-    def parse(self, text: str) -> ParsedCommand:
-        try:
-            parts = shlex.split(text)
-        except ValueError as e:
-            raise ParseCommandError(f'Invalid command syntax: {e}') from e
+    WHITESPACE: ta.ClassVar[str] = ' \t\r\n'
 
-        if not parts:
+    def parse(self, text: str) -> ParsedCommand:
+        if not (text := text.lstrip(self.WHITESPACE)):
             raise ParseCommandError('Empty command')
 
-        cmd = parts[0].lower()
-        argv = parts[1:]
+        args: str | lang.SequenceNotStr[str]
+        if (wp := lang.find_any(text, self.WHITESPACE)) < 0:
+            cmd, args = text, []
+        else:
+            cmd, args = text[:wp], text[wp:].strip()
 
         command = self._commands_by_name.get(cmd)
         if command is None:
@@ -66,7 +67,7 @@ class CommandsManager:
         )
 
         async def run() -> RunCommandResult:
-            if (rc := await command.run(ctx, argv)) is not None:
+            if (rc := await command.run(ctx, args)) is not None:
                 return rc
             return RunCommandResult.SUCCESS
 
