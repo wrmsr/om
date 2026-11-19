@@ -28,6 +28,7 @@ class FunctionData:
     defaults: tuple[Value, ...]
     kwdefaults: ta.Mapping[str, Value]
     annotations: ObjectRef | None = None
+    module: Value = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -35,6 +36,8 @@ class ClassData:
     name: str
     namespace: ObjectRef
     base: ObjectRef | None
+    bases: ObjectRef | None = None
+    mro: ObjectRef | None = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -47,6 +50,13 @@ class InstanceData:
 class BoundMethodData:
     function: Value
     receiver: Value
+
+
+@dc.dataclass(frozen=True, slots=True)
+class SuperData:
+    start: ObjectRef
+    receiver: Value
+    owner: ObjectRef
 
 
 @dc.dataclass(frozen=True, slots=True)

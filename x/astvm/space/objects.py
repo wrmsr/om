@@ -3,17 +3,17 @@ import ast
 import dataclasses as dc
 import typing as ta
 
-from .state import BoundMethodData
-from .state import BuiltinData
-from .state import ExceptionData
-from .values import _ELLIPSIS
-from .values import _MISSING
-from .values import _NOT_IMPLEMENTED
-from .values import _SCALARS
-from .values import BoundaryError
-from .values import ObjectRef
-from .values import Value
-from .values import _GuestRaise
+from ..state import BoundMethodData
+from ..state import BuiltinData
+from ..state import ExceptionData
+from ..values import _ELLIPSIS
+from ..values import _MISSING
+from ..values import _NOT_IMPLEMENTED
+from ..values import _SCALARS
+from ..values import BoundaryError
+from ..values import ObjectRef
+from ..values import Value
+from ..values import _GuestRaise
 
 
 ##
@@ -113,6 +113,19 @@ class SpaceObjects:
 
         return _MISSING
 
+    def lookup_super(self, start: ObjectRef, name: str, receiver: Value) -> Value:
+        base = self.data(start).base
+        if base is None:
+            return _MISSING
+        found = self.lookup_class(base, name)
+        if found is not _MISSING:
+            return found
+        if name in ('__init__', '__getattribute__', '__setattr__', '__delattr__', '__hash__'):
+            if name == '__init__' and self.subclass(base, self.types['BaseException']):
+                return self.new('builtin', BuiltinData('exception_init_bound', receiver))
+            return self.new('builtin', BuiltinData('object_' + name.strip('_')))
+        return _MISSING
+
     def bind(
             self,
             value: Value,
@@ -129,6 +142,11 @@ class SpaceObjects:
 
         if receiver is not _MISSING and kind == 'function':
             return self.new('bound_method', BoundMethodData(value, receiver))
+
+        if receiver is not _MISSING and kind == 'builtin':
+            info = self.data(ta.cast(ObjectRef, value))
+            if info.name in ('object_init', 'object_getattribute', 'object_setattr', 'object_delattr', 'object_hash'):
+                return self.new('builtin', BuiltinData(info.name, receiver))
 
         return value
 
@@ -171,6 +189,9 @@ class SpaceObjects:
             if found is not _MISSING:
                 return self.bind(found, value, info.cls)
 
+            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__'):
+                return self.new('builtin', BuiltinData('object_' + name.strip('_'), value))
+
         elif kind in ('class', 'type'):
             info = self.data(value)
 
@@ -183,13 +204,38 @@ class SpaceObjects:
             if name == '__init__' and value == self.types['object']:
                 return self.new('builtin', BuiltinData('object_init'))
 
+            if value == self.types['object'] and name in (
+                    '__getattribute__', '__setattr__', '__delattr__', '__hash__',
+            ):
+                return self.new('builtin', BuiltinData('object_' + name.strip('_')))
+
             if name == '__bases__':
-                return self.new('tuple', () if info.base is None else (info.base,))
+                if info.bases is None:
+                    bases = self.new('tuple', () if info.base is None else (info.base,))
+                    self.runtime.replace(value, dc.replace(info, bases=bases))
+                    return bases
+                return info.bases
+
+            if name == '__mro__':
+                if info.mro is not None:
+                    return info.mro
+                classes: list[ObjectRef] = []
+                current: ObjectRef | None = ta.cast(ObjectRef, value)
+                while current is not None:
+                    self.budget.tick()
+                    classes.append(current)
+                    current = self.data(current).base
+                mro = self.new('tuple', tuple(classes))
+                self.runtime.replace(value, dc.replace(info, mro=mro))
+                return mro
 
             # Do not return a writable class dictionary bypassing class attribute policy.
             found = self.lookup_class(value, name)
             if found is not _MISSING:
                 return self.bind(found, _MISSING, value)
+
+            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__'):
+                return self.new('builtin', BuiltinData('object_' + name.strip('_')))
 
             if name == '__init__' and self.subclass(value, self.types['BaseException']):
                 return self.new('builtin', BuiltinData('exception_init', value))
@@ -204,6 +250,9 @@ class SpaceObjects:
             if name == '__doc__':
                 return ast.get_docstring(info.node, clean=False) if isinstance(info.node, ast.FunctionDef) else None
 
+            if name == '__module__':
+                return info.module
+
             if name == '__annotations__':
                 return info.annotations
 
@@ -216,12 +265,29 @@ class SpaceObjects:
             if name == '__kwdefaults__':
                 return self.make_dict(tuple(info.kwdefaults.items())) if info.kwdefaults else None
 
+        elif kind in ('staticmethod', 'classmethod'):
+            wrapped = self.data(ta.cast(ObjectRef, value))
+            if name in ('__func__', '__wrapped__'):
+                return wrapped
+            if name in ('__name__', '__qualname__', '__module__', '__doc__', '__annotations__'):
+                if self.kind(wrapped) == 'function':
+                    return self.get_attribute(wrapped, name)
+
         elif kind == 'bound_method':
             if name == '__self__':
                 return self.data(value).receiver
 
             if name == '__func__':
                 return self.data(value).function
+
+        elif kind == 'super':
+            info = self.data(ta.cast(ObjectRef, value))
+            if name == '__thisclass__':
+                return info.start
+            if name == '__self__':
+                return info.receiver
+            if name == '__self_class__':
+                return info.owner
 
         elif kind == 'property':
             info = self.data(value)
@@ -268,6 +334,9 @@ class SpaceObjects:
             found = self.lookup_class(info.cls, name)
             if found is not _MISSING:
                 return self.bind(found, value, info.cls)
+
+            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__'):
+                return self.new('builtin', BuiltinData('object_' + name.strip('_'), value))
 
             if name == '__init__':
                 return self.new('builtin', BuiltinData('exception_init_bound', value))
@@ -385,13 +454,21 @@ class SpaceObjects:
             namespace = info.namespace
 
         elif kind == 'class':
-            if name in (
-                    '__del__',
-                    '__getattribute__',
-                    '__setattr__',
-                    '__delattr__',
-                    '__new__',
-            ):
+            if name == '__name__':
+                if delete:
+                    self.error('TypeError', 'class name cannot be deleted')
+                if type(item) is not str:
+                    self.error('TypeError', 'class name must be a string')
+                self.runtime.replace(value, dc.replace(self.data(ta.cast(ObjectRef, value)), name=item))
+                return
+
+            if name in ('__qualname__', '__module__'):
+                if delete:
+                    self.error('TypeError', 'class metadata cannot be deleted')
+                if name == '__qualname__' and type(item) is not str:
+                    self.error('TypeError', 'class qualified name must be a string')
+
+            if name == '__del__':
                 self.error('TypeError', f'{name} is not supported')
 
             namespace = self.data(value).namespace

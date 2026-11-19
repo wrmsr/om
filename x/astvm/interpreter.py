@@ -10,9 +10,9 @@ from .frontend import Frontend
 from .frontend import Program
 from .frontend import Scope
 from .machine import Machine
-from .objectspace import ObjectSpace
 from .runtime import DictRuntime
 from .runtime import Runtime
+from .space import ObjectSpace
 from .state import Checkpoint
 from .state import Environment
 from .state import SourceModule

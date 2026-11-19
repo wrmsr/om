@@ -1,9 +1,9 @@
 # mypy: disable-error-code=attr-defined
 
-from .state import Environment
-from .state import Task
-from .values import ObjectRef
-from .values import Value
+from ..state import Environment
+from ..state import Task
+from ..values import ObjectRef
+from ..values import Value
 
 
 ##

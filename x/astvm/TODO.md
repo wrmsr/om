@@ -216,18 +216,20 @@ coverage still need work.
   are classes; dynamic source strings must receive their own appropriate compilation context.
 
 - [ ] **M02 — Add descriptors, properties, and custom attribute access.** Basic instance `__getattr__` fallback,
-  guest `__get__`/`__set__`/`__delete__` dispatch, and `property` decorators are implemented for ordinary
-  and exception instances. Finish descriptor edge cases and expand `staticmethod`/`classmethod` consistently
-  instead of accumulating unrelated lookup exceptions. Implement guest `__getattribute__`, `__setattr__`, and `__delattr__`
-  through resumable operations, including a usable base-object path that custom hooks can delegate to without
-  recursing forever. Cover descriptor exceptions, deletion, inheritance, and class-versus-instance access.
+  guest `__get__`/`__set__`/`__delete__` dispatch, `property` decorators, and custom `__getattribute__`,
+  `__setattr__`, and `__delattr__` hooks are implemented for ordinary and exception instances. Hooks can
+  delegate through the guest `object` methods without recursion. Finish descriptor edge cases and expand
+  `staticmethod`/`classmethod` consistently beyond their callable/static metadata wrappers instead of
+  accumulating unrelated lookup exceptions. Cover
+  descriptor exceptions, deletion, inheritance, and class-versus-instance access more thoroughly.
   Lookups may execute arbitrary guest code, mutate the class, or be interrupted by a checkpoint; store their
   intermediate state accordingly. Do not use host descriptors or forward attribute access to the native
   dataclasses that happen to represent guest objects. Reference: [the data model][py-data-model].
 
 - [ ] **M03 — Complete ordinary class construction without custom metaclasses.** Guest `__set_name__` and
   `__init_subclass__` now run before class decorators. Guest `__new__`, `object.__new__`, and the resulting
-  `__init__` rules are implemented for ordinary classes, including foreign return values. Complete class-body
+  `__init__` rules are implemented for ordinary classes, including foreign return values, dynamic `__new__`
+  replacement, and the argument rules for explicit `object.__new__`/`object.__init__`. Complete class-body
   metadata initialization and construction edge cases. Keep normal
   `object`/`type` behavior intrinsic for now rather than quietly enabling arbitrary metaclass execution.
   Checkpoint partway through construction and test failed initialization, inherited hooks, custom exceptions,
@@ -235,11 +237,13 @@ coverage still need work.
   Ensure partially constructed objects remain ordinary GC-managed guest state. These hooks cover many common
   class-customization use cases before L01's full metaclass work. Reference: [PEP 487][pep-487].
 
-- [ ] **M04 — Add multiple inheritance, C3 lookup, and `super`.** Replace single-base `ClassData` assumptions
-  with explicit base tuples and a validated method-resolution order. Implement both explicit and zero-argument
-  `super`, using frontend-created class cells rather than searching native frames. Support cooperative methods,
+- [ ] **M04 — Add multiple inheritance, C3 lookup, and `super`.** Explicit two-argument `super` now works with
+  single inheritance, descriptors, class methods, and guest exception initialization. Replace single-base
+  `ClassData` assumptions with explicit base tuples and a validated method-resolution order. Implement
+  zero-argument `super`, using frontend-created class cells rather than searching native frames. Support cooperative methods,
   diamonds, inherited constructors, classmethods, descriptor access through `super`, and rejection of
-  inconsistent hierarchies. Expose the resulting guest bases and MRO through the introspection model, and make
+  inconsistent hierarchies. Single-inheritance `__bases__` and `__mro__` are exposed; extend them for multiple
+  inheritance, and make
   lookup caches respond correctly to class-dictionary mutation and restore. Keep arbitrary post-creation base
   replacement and exotic mixed builtin layouts explicitly unsupported until their invariants are implemented.
   This item should make ordinary mixins practical, not require reproducing CPython's physical instance layout
@@ -255,10 +259,12 @@ coverage still need work.
   mutation/version guards for any optimized method caches, including after restore. N05/N08 handle the
   immediate container and conversion holes; this item completes the general class-level contract.
 
-- [ ] **M06 — Support guest-defined dictionary and set keys.** Implement resumable hash-table operations that
-  can call guest `__hash__`, `__eq__`, and truth conversion without hiding execution inside native dictionary
-  callbacks. Default identity keys now work for instances without guest equality or hashing methods. Complete
-  deliberately unhashable classes, hash/equality inheritance rules,
+- [ ] **M06 — Support guest-defined dictionary and set keys.** Standalone `hash(instance)` now invokes guest
+  `__hash__` through a continuation, and classes defining equality without hashing become unhashable when
+  constructed. Default identity keys and classes explicitly restoring `object.__hash__` work as mapping keys.
+  Implement resumable hash-table operations that can call guest `__hash__`, `__eq__`, and truth conversion
+  without hiding execution inside native dictionary callbacks. Complete
+  hash/equality inheritance rules,
   collisions, cross-type equal keys, and exceptions or table mutations during comparison. Retain a fast path
   for proven intrinsic keys where it preserves the same semantics. Represent pending probes and mutation
   checks as execution data so collection, interruption, and restore remain valid during a lookup. Preserve

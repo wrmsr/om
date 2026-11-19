@@ -3,15 +3,15 @@ import dataclasses as dc
 import operator
 import typing as ta
 
-from .state import IteratorData
-from .state import RangeData
-from .values import _ELLIPSIS
-from .values import _MISSING
-from .values import _NOT_IMPLEMENTED
-from .values import _SCALARS
-from .values import InterpreterError
-from .values import ObjectRef
-from .values import Value
+from ..state import IteratorData
+from ..state import RangeData
+from ..values import _ELLIPSIS
+from ..values import _MISSING
+from ..values import _NOT_IMPLEMENTED
+from ..values import _SCALARS
+from ..values import InterpreterError
+from ..values import ObjectRef
+from ..values import Value
 
 
 ##
@@ -67,10 +67,13 @@ class SpaceCollections:
 
         if type(value) is ObjectRef and kind in ('instance', 'exception'):
             cls = self.data(value).cls
-            if self.lookup_class(cls, '__eq__') is _MISSING and self.lookup_class(cls, '__hash__') is _MISSING:
+            method = self.lookup_class(cls, '__hash__')
+            if method is _MISSING or (
+                    self.kind(method) == 'builtin' and self.data(method).name == 'object_hash'
+            ):
                 return _IdentityKey(value.serial)
 
-        if kind in ('class', 'type', 'function', 'builtin', 'capability', 'generator'):
+        if kind in ('class', 'type', 'function', 'builtin', 'capability', 'generator', 'super'):
             return _IdentityKey(value.serial)
 
         if value is _ELLIPSIS or value is _NOT_IMPLEMENTED:

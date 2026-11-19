@@ -1,13 +1,13 @@
 # mypy: disable-error-code=attr-defined
 import typing as ta
 
-from .state import Environment
-from .state import Task
-from .values import _MISSING
-from .values import InterpreterError
-from .values import ObjectRef
-from .values import Value
-from .values import _GuestRaise
+from ..state import Environment
+from ..state import Task
+from ..values import _MISSING
+from ..values import InterpreterError
+from ..values import ObjectRef
+from ..values import Value
+from ..values import _GuestRaise
 
 
 ##

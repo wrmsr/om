@@ -1,12 +1,12 @@
 # mypy: disable-error-code=attr-defined
 
-from .capabilities import HostObject
-from .values import _ELLIPSIS
-from .values import _MISSING
-from .values import _NOT_IMPLEMENTED
-from .values import _SCALARS
-from .values import BoundaryError
-from .values import Value
+from ..capabilities import HostObject
+from ..values import _ELLIPSIS
+from ..values import _MISSING
+from ..values import _NOT_IMPLEMENTED
+from ..values import _SCALARS
+from ..values import BoundaryError
+from ..values import Value
 
 
 ##

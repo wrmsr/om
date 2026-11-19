@@ -1,10 +1,10 @@
 # mypy: disable-error-code=attr-defined
 import typing as ta
 
-from .state import Environment
-from .state import Task
-from .values import InterpreterError
-from .values import Value
+from ..state import Environment
+from ..state import Task
+from ..values import InterpreterError
+from ..values import Value
 
 
 ##

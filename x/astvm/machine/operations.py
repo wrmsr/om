@@ -4,14 +4,14 @@ import re
 import sys
 import typing as ta
 
-from .state import BuiltinData
-from .state import IteratorData
-from .state import Task
-from .values import _MISSING
-from .values import _NUMBERS
-from .values import _SCALARS
-from .values import InterpreterError
-from .values import _GuestRaise
+from ..state import BuiltinData
+from ..state import IteratorData
+from ..state import Task
+from ..values import _MISSING
+from ..values import _NUMBERS
+from ..values import _SCALARS
+from ..values import InterpreterError
+from ..values import _GuestRaise
 
 
 ##
@@ -131,8 +131,41 @@ class MachineOperations:
             else:
                 space.error('TypeError', 'object is not an iterator')
 
-        elif name == 'getattr':
+        elif name in ('getattr', 'getattribute_base'):
             attribute_name = values[1]
+            if type(attribute_name) is not str:
+                space.error('TypeError', 'attribute name must be a string')
+            if kind == 'super':
+                if attribute_name in ('__class__', '__thisclass__', '__self__', '__self_class__'):
+                    self._push(space.get_attribute(value, attribute_name))
+                    return
+                info = space.data(value)
+                found = space.lookup_super(info.start, attribute_name, info.receiver)
+                if found is _MISSING:
+                    space.error('AttributeError', attribute_name)
+                receiver = info.receiver if space.kind(info.receiver) in ('instance', 'exception') else _MISSING
+                if space.kind(found) == 'property':
+                    if receiver is _MISSING:
+                        self._push(found)
+                    else:
+                        getter = space.data(found).getter
+                        if getter is None:
+                            space.error('AttributeError', attribute_name)
+                        self._invoke(env, getter, (receiver,))
+                    return
+                getter = space.special(found, '__get__')
+                if getter is not _MISSING:
+                    self._invoke(env, getter, (receiver if receiver is not _MISSING else None, info.owner))
+                else:
+                    self._resolve(space.bind(found, receiver, info.owner), env)
+                return
+            fallback = name == 'getattr'
+            if fallback and kind in ('instance', 'exception'):
+                method = space.special(value, '__getattribute__')
+                if method is not _MISSING:
+                    self._add('descriptor_get_guard', env, data=(value, attribute_name, True))
+                    self._invoke(env, method, (attribute_name,))
+                    return
             exception_fields = (
                 'args', '__cause__', '__context__', '__suppress_context__', '__traceback__', '__dict__',
             )
@@ -149,12 +182,12 @@ class MachineOperations:
                             return
                         getter = space.data(found).getter
                         if getter is None:
-                            fallback = space.special(value, '__getattr__')
-                            if fallback is not _MISSING:
-                                self._invoke(env, fallback, (attribute_name,))
+                            getattr_method = space.special(value, '__getattr__') if fallback else _MISSING
+                            if getattr_method is not _MISSING:
+                                self._invoke(env, getattr_method, (attribute_name,))
                                 return
                             space.error('AttributeError', attribute_name)
-                        self._add('descriptor_get_guard', env, data=(value, attribute_name))
+                        self._add('descriptor_get_guard', env, data=(value, attribute_name, fallback))
                         self._invoke(env, getter, (value,))
                         return
 
@@ -167,7 +200,7 @@ class MachineOperations:
                             space.special(found, '__delete__') is not _MISSING
                         )
                         if kind == 'class' or data_descriptor or attribute_name not in namespace:
-                            self._add('descriptor_get_guard', env, data=(value, attribute_name))
+                            self._add('descriptor_get_guard', env, data=(value, attribute_name, fallback))
                             self._invoke(env, getter, (value if kind in ('instance', 'exception') else None, cls))
                             return
 
@@ -175,7 +208,7 @@ class MachineOperations:
                 attribute = space.get_attribute(value, values[1])
 
             except _GuestRaise as exc:
-                if kind not in ('instance', 'exception') or not space.exception_matches(
+                if not fallback or kind not in ('instance', 'exception') or not space.exception_matches(
                     exc.value, space.types['AttributeError'],
                 ):
                     raise
@@ -189,8 +222,18 @@ class MachineOperations:
             else:
                 self._resolve(attribute, env)
 
-        elif name in ('setattr', 'delattr'):
+        elif name in ('setattr', 'delattr', 'setattr_base', 'delattr_base'):
             attribute_name = values[1]
+            if type(attribute_name) is not str:
+                space.error('TypeError', 'attribute name must be a string')
+            delete = name in ('delattr', 'delattr_base')
+            if name in ('setattr', 'delattr') and kind in ('instance', 'exception'):
+                method = space.special(value, '__delattr__' if delete else '__setattr__')
+                if method is not _MISSING:
+                    self._add('constant', env, data=None)
+                    self._add('discard', env)
+                    self._invoke(env, method, (attribute_name,) if delete else (attribute_name, values[2]))
+                    return
             structural: tuple[str, ...] = ('__class__', '__dict__', '__bases__', '__mro__')
             if kind == 'exception':
                 structural += ('args', '__cause__', '__context__', '__suppress_context__', '__traceback__')
@@ -199,24 +242,24 @@ class MachineOperations:
                 if found is not _MISSING:
                     if space.kind(found) == 'property':
                         data = space.data(found)
-                        method = data.deleter if name == 'delattr' else data.setter
+                        method = data.deleter if delete else data.setter
                         if method is None:
                             space.error('AttributeError', attribute_name)
                         self._add('constant', env, data=None)
                         self._add('discard', env)
-                        self._invoke(env, method, (value,) if name == 'delattr' else (value, values[2]))
+                        self._invoke(env, method, (value,) if delete else (value, values[2]))
                         return
 
-                    method = space.special(found, '__delete__' if name == 'delattr' else '__set__')
+                    method = space.special(found, '__delete__' if delete else '__set__')
                     if method is not _MISSING:
                         self._add('constant', env, data=None)
                         self._add('discard', env)
-                        self._invoke(env, method, (value,) if name == 'delattr' else (value, values[2]))
+                        self._invoke(env, method, (value,) if delete else (value, values[2]))
                         return
-                    if space.special(found, '__set__' if name == 'delattr' else '__delete__') is not _MISSING:
+                    if space.special(found, '__set__' if delete else '__delete__') is not _MISSING:
                         space.error('AttributeError', 'descriptor does not support this operation')
             space.set_attribute(
-                value, attribute_name, values[2] if name == 'setattr' else None, delete=name == 'delattr',
+                value, attribute_name, values[2] if not delete else None, delete=delete,
             )
             self._push(None)
 

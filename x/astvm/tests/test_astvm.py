@@ -626,6 +626,84 @@ def test_class_descriptors_read_write_delete_differential():
     ''')
 
 
+def test_descriptor_without_getter_precedes_instance_dictionary_differential():
+    check("""
+    events = []
+    class Descriptor:
+        def __set__(self, instance, value):
+            events.append(('set', value))
+        def __delete__(self, instance):
+            events.append(('delete',))
+    descriptor = Descriptor()
+    class Base:
+        field = descriptor
+    class Child(Base):
+        pass
+    obj = Child()
+    obj.__dict__['field'] = 41
+    first = obj.field is descriptor
+    obj.field = 5
+    del obj.field
+    result = first, obj.field is descriptor, obj.__dict__['field'], events
+    """)
+
+
+def test_staticmethod_and_classmethod_wrapper_metadata_differential():
+    check("""
+    def function(value):
+        return value + 1
+    static = staticmethod(function)
+    classed = classmethod(function)
+    result = (
+        static(3), callable(static), callable(classed),
+        static.__func__ is function, classed.__func__ is function,
+        static.__wrapped__ is function, classed.__wrapped__ is function,
+        static.__name__, classed.__name__, static.__qualname__, classed.__qualname__,
+        static.__module__, classed.__module__, static.__doc__, classed.__doc__,
+    )
+    """, initial={'__name__': 'sample'})
+
+
+def test_function_module_metadata_is_captured_when_defined_differential():
+    check("""
+    def function():
+        pass
+    static = staticmethod(function)
+    first = function.__module__, static.__module__
+    __name__ = 'changed'
+    result = first, function.__module__, static.__module__
+    """, initial={'__name__': 'sample'})
+
+
+def test_callable_staticmethod_restores_inside_function():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+def function(value):
+    events.append('entered')
+    return value + 1
+static = staticmethod(function)
+result = static(7)
+""")
+    for _ in range(300):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['entered']:
+            break
+    else:
+        raise AssertionError('staticmethod call did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == 8
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == 8
+
+
 def test_class_nondata_descriptor_override_and_getattr_differential():
     check('''
     calls = []
@@ -959,6 +1037,152 @@ def test_guest_new_returning_subclass_uses_subclass_initializer_differential():
     value = Parent()
     result = type(value).__name__, calls
     ''')
+
+
+def test_guest_new_accepts_arguments_without_custom_initializer_differential():
+    check("""
+    class NewOnly:
+        def __new__(cls, value, *, offset=0):
+            instance = object.__new__(cls)
+            instance.value = value + offset
+            return instance
+    class Child(NewOnly):
+        pass
+    item = Child(5, offset=2)
+    result = item.value, type(item).__name__
+    """)
+
+
+def test_class_new_method_can_be_replaced_after_creation_differential():
+    check("""
+    class Example: pass
+    def make(cls, value):
+        instance = object.__new__(cls)
+        instance.value = value
+        return instance
+    Example.__new__ = make
+    item = Example(7)
+    del Example.__new__
+    try:
+        Example(7)
+    except TypeError:
+        rejected = True
+    else:
+        rejected = False
+    result = item.value, rejected
+    """)
+
+
+def test_explicit_object_initializer_binds_on_instance_differential():
+    check("""
+    class Example:
+        def __new__(cls, value):
+            return object.__new__(cls)
+        __init__ = object.__init__
+    item = Example(8)
+    result = item.__init__() is None
+    """)
+
+
+def test_plain_class_still_rejects_constructor_arguments():
+    guest_error('class Plain: pass\nPlain(3)', 'TypeError')
+
+
+def test_object_new_accepts_arguments_for_custom_initializer_differential():
+    check("""
+    class Example:
+        def __init__(self, value):
+            self.value = value
+    item = object.__new__(Example, 7)
+    item.__init__(7)
+    result = item.value, type(item).__name__
+    """)
+
+
+def test_object_new_and_init_argument_matrix_differential():
+    check("""
+    class Plain: pass
+    class InitOnly:
+        def __init__(self, *args, **kwargs): pass
+    class NewOnly:
+        def __new__(cls, *args, **kwargs): return object.__new__(cls)
+    class Both:
+        def __new__(cls, *args, **kwargs): return object.__new__(cls)
+        def __init__(self, *args, **kwargs): pass
+    class ExplicitInit:
+        def __new__(cls, *args, **kwargs): return object.__new__(cls)
+        __init__ = object.__init__
+    result = []
+    for cls in (Plain, InitOnly, NewOnly, Both, ExplicitInit):
+        for mode in ('new', 'init'):
+            for variant in ('none', 'pos', 'kw'):
+                try:
+                    if mode == 'new':
+                        if variant == 'none': object.__new__(cls)
+                        elif variant == 'pos': object.__new__(cls, 1)
+                        else: object.__new__(cls, x=1)
+                    else:
+                        obj = object.__new__(cls)
+                        if variant == 'none': object.__init__(obj)
+                        elif variant == 'pos': object.__init__(obj, 1)
+                        else: object.__init__(obj, x=1)
+                    result.append((cls.__name__, mode, variant, True))
+                except TypeError:
+                    result.append((cls.__name__, mode, variant, False))
+    """)
+
+
+def test_failed_initializer_keeps_reachable_partial_instance_differential():
+    check("""
+    saved = []
+    class Example:
+        def __init__(self, value):
+            saved.append(self)
+            self.value = value
+            raise ValueError('stop')
+    try:
+        Example(9)
+    except ValueError:
+        pass
+    result = len(saved), saved[0].value, isinstance(saved[0], Example)
+    """)
+
+
+def test_partial_initializer_restores_after_checkpoint():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+saved = []
+class Example:
+    def __init__(self, value):
+        saved.append(self)
+        events.append('entered')
+        self.value = value
+        events.append('assigned')
+        raise ValueError('stop')
+try:
+    Example(9)
+except ValueError:
+    pass
+result = saved[0].value, events
+""")
+    for _ in range(500):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['entered']:
+            break
+    else:
+        raise AssertionError('initializer did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == (9, ['entered', 'assigned'])
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == (9, ['entered', 'assigned'])
 
 
 def test_guest_new_resumes_after_checkpoint():
@@ -1760,6 +1984,244 @@ def test_classes(source):
     check(source)
 
 
+def test_explicit_super_methods_properties_and_classmethods_differential():
+    check("""
+    class Base:
+        def __init__(self, value):
+            self.value = value
+        def method(self):
+            return self.value + 1
+        @property
+        def doubled(self):
+            return self.value * 2
+        @classmethod
+        def label(cls):
+            return cls.__name__
+        @staticmethod
+        def fixed():
+            return 17
+    class Child(Base):
+        def __init__(self, value):
+            super(Child, self).__init__(value)
+        def method(self):
+            return super(Child, self).method() + 1
+        @classmethod
+        def label(cls):
+            return super(Child, cls).label() + '!'
+    obj = Child(5)
+    result = obj.method(), super(Child, obj).doubled, Child.label(), super(Child, obj).fixed()
+    """)
+
+
+def test_explicit_super_descriptor_and_metadata_differential():
+    check("""
+    class Descriptor:
+        def __get__(self, instance, owner):
+            return instance is None, owner.__name__
+    class Base:
+        field = Descriptor()
+    class Child(Base):
+        pass
+    obj = Child()
+    bound = super(Child, obj)
+    unbound = super(Child, Child)
+    result = (
+        bound.field, unbound.field,
+        bound.__self__ is obj, bound.__self_class__ is Child, bound.__thisclass__ is Child,
+    )
+    """)
+
+
+def test_explicit_super_exception_initializer_differential():
+    check("""
+    class Error(ValueError):
+        def __init__(self, value):
+            super(Error, self).__init__(value)
+    error = Error('message')
+    result = error.args, isinstance(error, ValueError)
+    """)
+
+
+def test_explicit_super_rejects_unrelated_receiver():
+    guest_error('class A: pass\nclass B: pass\nsuper(A, B())', 'TypeError')
+
+
+def test_single_inheritance_mro_introspection_differential():
+    check("""
+    class Base:
+        pass
+    class Middle(Base):
+        pass
+    class Child(Middle):
+        pass
+    result = (
+        tuple(cls.__name__ for cls in Child.__mro__),
+        Child.__bases__[0] is Middle,
+        object.__mro__ == (object,),
+        type.__mro__ == (type, object),
+    )
+    """)
+
+
+def test_class_bases_and_mro_tuple_identity_differential():
+    check("""
+    class Base: pass
+    class Child(Base): pass
+    first_bases = Child.__bases__
+    first_mro = Child.__mro__
+    result = (
+        first_bases is Child.__bases__, first_mro is Child.__mro__,
+        first_bases[0] is Base, first_mro[0] is Child,
+    )
+    """)
+
+
+def test_class_mro_tuple_alias_survives_checkpoint():
+    vm = astvm.Interpreter()
+    vm.execute("""
+class Base: pass
+class Child(Base): pass
+bases = Child.__bases__
+mro = Child.__mro__
+""")
+    checkpoint = vm.checkpoint()
+    assert vm.evaluate('bases is Child.__bases__ and mro is Child.__mro__') is True
+    vm.restore(checkpoint)
+    assert vm.evaluate('bases is Child.__bases__ and mro is Child.__mro__') is True
+
+
+def test_class_name_assignment_updates_metadata_differential():
+    check("""
+    class Example: pass
+    original = Example.__name__, Example.__qualname__
+    Example.__name__ = 'Renamed'
+    result = original, Example.__name__, Example.__qualname__, type(Example()).__name__
+    """)
+
+
+def test_class_name_assignment_validates_value_and_deletion():
+    guest_error('class Example: pass\nExample.__name__ = 3', 'TypeError')
+    guest_error('class Example: pass\ndel Example.__name__', 'TypeError')
+
+
+def test_class_representation_uses_module_and_qualified_name_differential():
+    check("""
+    class Example: pass
+    class Outer:
+        class Inner: pass
+    first = repr(Example)
+    nested = repr(Outer.Inner)
+    Example.__module__ = None
+    second = repr(Example)
+    Example.__module__ = 'other'
+    Example.__qualname__ = 'Outer.Inner'
+    Example.__name__ = 'Renamed'
+    qualified = repr(Example)
+    Example.__module__ = None
+    no_module = repr(Example)
+    Example.__module__ = 'builtins'
+    result = first, nested, second, qualified, no_module, repr(Example), Example.__name__
+    """, initial={'__name__': 'sample'})
+
+
+def test_class_qualified_name_and_module_deletion_rules():
+    guest_error('class Example: pass\nExample.__qualname__ = 3', 'TypeError')
+    guest_error('class Example: pass\ndel Example.__qualname__', 'TypeError')
+    guest_error('class Example: pass\ndel Example.__module__', 'TypeError')
+    guest_error('class Example:\n __qualname__ = 3', 'TypeError')
+
+
+def test_explicit_super_tracks_class_mutation_and_skips_instance_hook_differential():
+    check("""
+    calls = []
+    class Base:
+        value = 3
+    class Child(Base):
+        def __getattribute__(self, name):
+            calls.append(name)
+            return object.__getattribute__(self, name)
+    obj = Child()
+    obj.value = 100
+    parent = super(Child, obj)
+    first = parent.value
+    Base.value = 7
+    second = parent.value
+    del Base.value
+    result = first, second, getattr(parent, 'value', 9), calls, type(parent) is super
+    """)
+
+
+def test_explicit_super_can_delegate_to_object_initializer_differential():
+    check("""
+    class Base:
+        pass
+    class Child(Base):
+        def __init__(self):
+            super(Child, self).__init__()
+            self.value = 5
+    result = Child().value
+    """)
+
+
+def test_explicit_super_selects_next_class_and_handles_descriptor_error_differential():
+    check("""
+    class Missing:
+        def __get__(self, instance, owner):
+            raise AttributeError('missing')
+    class Base:
+        value = 2
+        absent = Missing()
+    class Middle(Base):
+        value = 5
+    class Child(Middle):
+        value = 9
+    obj = Child()
+    result = (
+        super(Child, obj).value,
+        super(Middle, obj).value,
+        getattr(super(Child, obj), 'absent', 17),
+    )
+    """)
+
+
+def test_zero_argument_super_is_rejected_until_class_cells_are_supported():
+    guest_error('class Base: pass\nclass Child(Base):\n def method(self): return super()\nChild().method()', 'TypeError')
+
+
+def test_explicit_super_descriptor_restores_after_checkpoint():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Descriptor:
+    def __get__(self, instance, owner):
+        events.append('get')
+        return owner.__name__
+class Base:
+    field = Descriptor()
+class Child(Base):
+    pass
+result = super(Child, Child()).field
+""")
+    for _ in range(500):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['get']:
+            break
+    else:
+        raise AssertionError('super descriptor did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == 'Child'
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == 'Child'
+    assert vm.get('events') == ['get']
+
+
 @pytest.mark.parametrize('source, name', [
     ('class C:\n def __init__(self): return 1\nC()', 'TypeError'),
     ('class C:\n def __bool__(self): return 1\nbool(C())', 'TypeError'),
@@ -1768,11 +2230,295 @@ def test_classes(source):
     ('class C:\n def __repr__(self): return 1\nrepr(C())', 'TypeError'),
     ('class C:\n pass\nC().__class__ = C', 'AttributeError'),
     ('class C:\n def __del__(self): pass', 'TypeError'),
-    ('class C:\n def __getattribute__(self, name): pass', 'TypeError'),
     ('class C(int): pass', 'TypeError'),
 ])
 def test_class_restrictions(source, name):
     guest_error(source, name)
+
+
+def test_class_custom_attribute_get_and_fallback_differential():
+    check("""
+    events = []
+    class Base:
+        def __getattribute__(self, name):
+            events.append(('get', name))
+            if name == 'virtual':
+                return 37
+            return object.__getattribute__(self, name)
+        def __getattr__(self, name):
+            events.append(('fallback', name))
+            if name == 'absent':
+                raise AttributeError(name)
+            return name.upper()
+    class Child(Base):
+        pass
+    obj = Child()
+    obj.known = 5
+    try:
+        object.__getattribute__(obj, 'missing')
+    except AttributeError:
+        raw_missing = True
+    else:
+        raw_missing = False
+    result = obj.known, obj.virtual, obj.other, getattr(obj, 'absent', 11), hasattr(obj, 'other'), raw_missing, events
+    """)
+
+
+def test_guest_hash_method_and_unhashable_classes_differential():
+    check("""
+    events = []
+    class Hashed:
+        def __hash__(self):
+            events.append('hash')
+            return 2 ** 70
+    class BooleanHash:
+        def __hash__(self):
+            return True
+    class Unhashable:
+        def __eq__(self, other):
+            return True
+    class Invalid:
+        def __hash__(self):
+            return 'bad'
+    class Base:
+        def __hash__(self):
+            return 23
+    class Child(Base):
+        def __eq__(self, other):
+            return True
+    failures = []
+    for value in (Unhashable(), Invalid(), Child()):
+        try:
+            hash(value)
+        except TypeError:
+            failures.append(type(value).__name__)
+    result = hash(Hashed()), hash(BooleanHash()), failures, events
+    """)
+
+
+def test_hash_inheritance_class_creation_and_mutation_differential():
+    check("""
+    class Mutable:
+        pass
+    mutable = Mutable()
+    first = hash(mutable)
+    Mutable.__eq__ = lambda self, other: True
+    second = hash(mutable)
+    class EqOnly:
+        def __eq__(self, other):
+            return True
+    class Restored(EqOnly):
+        __hash__ = object.__hash__
+    restored = Restored()
+    values = {restored: 4}
+    result = (
+        first == second == object.__hash__(mutable),
+        hash(restored) == object.__hash__(restored),
+        values[restored],
+        EqOnly.__hash__ is None,
+    )
+    """)
+
+
+def test_object_hash_is_identity_based_for_all_guest_values_differential():
+    check("""
+    values = ([], {}, 3, None)
+    result = tuple(object.__hash__(value) == object.__hash__(value) for value in values)
+    """)
+
+
+def test_super_object_identity_hash_and_mapping_key_differential():
+    check("""
+    class Base: pass
+    class Child(Base): pass
+    value = super(Child, Child())
+    mapping = {value: 4}
+    result = hash(value) == object.__hash__(value), mapping[value]
+    """)
+
+
+def test_guest_hash_method_restores_after_checkpoint():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Key:
+    def __hash__(self):
+        events.append('entered')
+        return 23
+result = hash(Key())
+""")
+    for _ in range(300):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['entered']:
+            break
+    else:
+        raise AssertionError('hash method did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == 23
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == 23
+
+
+def test_class_custom_attribute_set_delete_and_descriptor_differential():
+    check("""
+    events = []
+    class Base:
+        def __setattr__(self, name, value):
+            events.append(('set', name, value))
+            object.__setattr__(self, name, value)
+        def __delattr__(self, name):
+            events.append(('delete', name))
+            object.__delattr__(self, name)
+        @property
+        def prop(self):
+            return self.value * 2
+        @prop.setter
+        def prop(self, value):
+            events.append(('property', value))
+            self.value = value
+    class Child(Base):
+        pass
+    obj = Child()
+    obj.value = 4
+    obj.prop = 6
+    before = obj.prop
+    del obj.value
+    result = before, 'value' in obj.__dict__, events
+    """)
+
+
+def test_class_attribute_hook_mutation_and_name_validation_differential():
+    check("""
+    calls = []
+    class Base:
+        pass
+    class Child(Base):
+        pass
+    obj = Child()
+    def read(self, name):
+        calls.append(('read', name))
+        return object.__getattribute__(self, name)
+    def write(self, name, value):
+        calls.append(('write', name))
+        object.__setattr__(self, name, value)
+    def delete(self, name):
+        calls.append(('delete', name))
+        object.__delattr__(self, name)
+    Base.__getattribute__ = read
+    Base.__setattr__ = write
+    Base.__delattr__ = delete
+    obj.value = 5
+    first = obj.value
+    del obj.value
+    for action in ('get', 'set', 'delete'):
+        try:
+            if action == 'get':
+                getattr(obj, 1)
+            elif action == 'set':
+                setattr(obj, 1, 2)
+            else:
+                delattr(obj, 1)
+        except TypeError:
+            calls.append(('invalid', action))
+    del Base.__getattribute__
+    del Base.__setattr__
+    del Base.__delattr__
+    obj.value = 8
+    result = first, obj.value, calls
+    """)
+
+
+def test_inherited_object_attribute_methods_differential():
+    check("""
+    class Base:
+        pass
+    class Child(Base):
+        pass
+    obj = Child()
+    obj.__setattr__('value', 5)
+    first = obj.__getattribute__('value'), Base.__getattribute__(obj, 'value')
+    Child.__setattr__(obj, 'value', 7)
+    second = object.__getattribute__(obj, 'value')
+    obj.__delattr__('value')
+    result = first, second, hasattr(obj, 'value')
+    """)
+
+
+def test_object_attribute_methods_are_guest_builtins():
+    vm = astvm.Interpreter()
+    assert vm.evaluate('callable(object.__getattribute__)') is True
+    guest_error('result = object.__getattribute__.__globals__', 'AttributeError')
+
+
+def test_class_attribute_hook_descriptor_error_and_exception_differential():
+    check("""
+    events = []
+    class Probe:
+        @property
+        def value(self):
+            events.append('property')
+            raise AttributeError('unavailable')
+        def __getattribute__(self, name):
+            events.append(('get', name))
+            return object.__getattribute__(self, name)
+        def __getattr__(self, name):
+            events.append(('fallback', name))
+            return 19
+    obj = Probe()
+    first = obj.value
+    try:
+        object.__getattribute__(obj, 'value')
+    except AttributeError:
+        raw_failed = True
+    else:
+        raw_failed = False
+    class Error(ValueError):
+        def __getattribute__(self, name):
+            events.append(('error', name))
+            return object.__getattribute__(self, name)
+    error = Error('problem')
+    result = first, raw_failed, error.args, events
+    """)
+
+
+def test_class_attribute_hook_checkpoint_during_delegation():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Probe:
+    def __getattribute__(self, name):
+        events.append(name)
+        return object.__getattribute__(self, name)
+obj = Probe()
+obj.value = 41
+result = obj.value + 1
+""")
+    for _ in range(500):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['value']:
+            break
+    else:
+        raise AssertionError('attribute hook did not start')
+
+    assert not vm.done
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == 42
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == 42
+    assert vm.get('events') == ['value']
 
 
 ## Context managers, including partial entry and cleanup errors
@@ -2311,8 +3057,8 @@ def test_import_denied(source):
     "().__class__.__bases__[0].__subclasses__()",
     "(lambda: 0).__code__", "(lambda: 0).__closure__", "(lambda: 0).__dict__['host']",
     "(x for x in ()).gi_frame", "(x for x in ()).gi_code", "len.__self__", "len.__globals__",
-    "[].__getattribute__", "[].__reduce__", "object.__subclasses__", "type.__call__", "type.__mro__",
-    "'x'.format", "'x'.format_map", "'x'.__reduce_ex__", "int.__new__", "object.__getattribute__",
+    "[].__getattribute__", "[].__reduce__", "object.__subclasses__", "type.__call__",
+    "'x'.format", "'x'.format_map", "'x'.__reduce_ex__", "int.__new__",
 ])
 def test_no_native_introspection(expression):
     vm = astvm.Interpreter()
@@ -2321,7 +3067,7 @@ def test_no_native_introspection(expression):
     assert caught.value.name in ('AttributeError', 'KeyError')
 
 
-@pytest.mark.parametrize('name', ['open', 'exec', 'eval', 'compile', '__import__', 'input', 'help', 'breakpoint', 'print', 'super'])
+@pytest.mark.parametrize('name', ['open', 'exec', 'eval', 'compile', '__import__', 'input', 'help', 'breakpoint', 'print'])
 def test_no_ambient_authority(name):
     guest_error(name, 'NameError')
 

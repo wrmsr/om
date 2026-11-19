@@ -3,15 +3,15 @@ import ast
 import dataclasses as dc
 import typing as ta
 
-from .state import CollectionState
-from .state import Environment
-from .state import Execution
-from .state import Outcome
-from .state import Task
-from .values import _MISSING
-from .values import InterpreterError
-from .values import ObjectRef
-from .values import Value
+from ..state import CollectionState
+from ..state import Environment
+from ..state import Execution
+from ..state import Outcome
+from ..state import Task
+from ..values import _MISSING
+from ..values import InterpreterError
+from ..values import ObjectRef
+from ..values import Value
 
 
 ##
@@ -335,8 +335,8 @@ class MachineFlow:
                     )
 
             elif kind == 'descriptor_get_guard' and outcome.kind == 'raise':
-                if space.exception_matches(outcome.value, space.types['AttributeError']):
-                    receiver, attribute = task.data
+                receiver, attribute, fallback = task.data
+                if fallback and space.exception_matches(outcome.value, space.types['AttributeError']):
                     method = space.special(receiver, '__getattr__')
                     if method is not _MISSING:
                         self._invoke(task.env, method, (attribute,))

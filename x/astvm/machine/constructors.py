@@ -2,13 +2,15 @@
 import ast
 import typing as ta
 
-from .state import Environment
-from .state import PropertyData
-from .state import RangeData
-from .state import Task
-from .values import _MISSING
-from .values import _NUMBERS
-from .values import Value
+from ..state import Environment
+from ..state import PropertyData
+from ..state import RangeData
+from ..state import SuperData
+from ..state import Task
+from ..values import _MISSING
+from ..values import _NUMBERS
+from ..values import ObjectRef
+from ..values import Value
 
 
 ##
@@ -158,6 +160,24 @@ class MachineConstructors:
         elif name == 'type':
             self._arity(name, args, kwargs, 1, 1)
             self._push(space.type_of(args[0]))
+
+        elif name == 'super':
+            self._arity(name, args, kwargs, 2, 2)
+            start, receiver = args
+            if space.kind(start) not in ('class', 'type'):
+                space.error('TypeError', 'super() argument 1 must be a guest type')
+            receiver_kind = space.kind(receiver)
+            if receiver_kind in ('instance', 'exception'):
+                owner = space.type_of(receiver)
+            elif receiver_kind in ('class', 'type'):
+                owner = receiver
+            else:
+                space.error('TypeError', 'super() argument 2 must be a guest instance or type')
+            start_ref = ta.cast(ObjectRef, start)
+            owner_ref = ta.cast(ObjectRef, owner)
+            if not space.subclass(owner_ref, start_ref):
+                space.error('TypeError', 'super() argument 2 is not a subtype of argument 1')
+            self._push(space.new('super', SuperData(start_ref, receiver, owner_ref)))
 
         else:
             space.error('TypeError', name + ' cannot be constructed directly')

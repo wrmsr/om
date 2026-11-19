@@ -2,16 +2,16 @@
 import dataclasses as dc
 import typing as ta
 
-from .state import AdapterData
-from .state import BuiltinData
-from .state import Environment
-from .state import InstanceData
-from .state import ReductionState
-from .state import Task
-from .values import _MISSING
-from .values import _NUMBERS
-from .values import InterpreterError
-from .values import Value
+from ..state import AdapterData
+from ..state import BuiltinData
+from ..state import Environment
+from ..state import InstanceData
+from ..state import ReductionState
+from ..state import Task
+from ..values import _MISSING
+from ..values import _NUMBERS
+from ..values import InterpreterError
+from ..values import Value
 
 
 ##
@@ -43,18 +43,65 @@ class MachineBuiltins:
             return
 
         elif name == 'object_new':
-            self._arity(name, args, kwargs, 1, 1)
+            self._arity(name, args, {}, 1, None)
             cls = args[0]
             if space.kind(cls) not in ('class', 'type') or not space.subclass(cls, space.types['object']):
                 space.error('TypeError', 'object.__new__ requires a guest class')
             if space.kind(cls) == 'type' and cls != space.types['object']:
                 space.error('TypeError', 'object.__new__ does not allocate intrinsic types')
+            if len(args) > 1 or kwargs:
+                # CPython lets object.__new__ ignore constructor arguments when __init__ is overridden.
+                initializer = space.lookup_class(cls, '__init__')
+                accepts_arguments = (
+                    space.lookup_class(cls, '__new__') is _MISSING and
+                    initializer is not _MISSING and
+                    not (
+                        space.kind(initializer) == 'builtin' and space.data(initializer).name == 'object_init'
+                    )
+                )
+                if not accepts_arguments:
+                    self._arity(name, args, kwargs, 1, 1)
             self._push(space.new('instance', InstanceData(cls, space.new('namespace', {}))))
             return
 
         elif name == 'object_init':
-            self._arity(name, args, kwargs, 1, 1)
+            if info.receiver is not _MISSING:
+                args = (info.receiver, *args)
+            self._arity(name, args, {}, 1, None)
+            if len(args) > 1 or kwargs:
+                # The dual rule applies to object.__init__ when __new__ is overridden.
+                value = args[0]
+                accepts_arguments = False
+                if space.kind(value) in ('instance', 'exception'):
+                    cls = space.type_of(value)
+                    initializer = space.lookup_class(cls, '__init__')
+                    accepts_arguments = (
+                        space.lookup_class(cls, '__new__') is not _MISSING and
+                        (
+                            initializer is _MISSING or
+                            (space.kind(initializer) == 'builtin' and space.data(initializer).name == 'object_init')
+                        )
+                    )
+                if not accepts_arguments:
+                    self._arity(name, args, kwargs, 1, 1)
             self._push(None)
+            return
+
+        elif name == 'object_hash':
+            if info.receiver is not _MISSING:
+                args = (info.receiver, *args)
+            self._arity(name, args, kwargs, 1, 1)
+            self._push(hash(space.identity_number(args[0])))
+            return
+
+        elif name in ('object_getattribute', 'object_setattr', 'object_delattr'):
+            if info.receiver is not _MISSING:
+                args = (info.receiver, *args)
+            count = 3 if name == 'object_setattr' else 2
+            self._arity(name, args, kwargs, count, count)
+            if space.kind(args[0]) not in ('instance', 'exception'):
+                space.error('TypeError', 'object attribute method requires a guest instance')
+            self._operation(name.removeprefix('object_') + '_base', env, *args)
             return
 
         if info.receiver is not _MISSING:
@@ -99,7 +146,9 @@ class MachineBuiltins:
             self._arity(name, args, kwargs, 1, 1)
             value = args[0]
             self._push(
-                space.kind(value) in ('type', 'class', 'function', 'builtin', 'bound_method', 'capability') or
+                space.kind(value) in (
+                    'type', 'class', 'function', 'builtin', 'bound_method', 'capability', 'staticmethod',
+                ) or
                 space.special(value, '__call__') is not _MISSING,
             )
 
@@ -124,7 +173,22 @@ class MachineBuiltins:
 
         elif name == 'hash':
             self._arity(name, args, kwargs, 1, 1)
-            self._push(hash(space.key(args[0])))
+            value = args[0]
+            if space.kind(value) in ('instance', 'exception'):
+                method = space.special(value, '__hash__')
+                if method is not _MISSING:
+                    if method is None:
+                        space.error('TypeError', 'unhashable type')
+                    self._add('hash_result', env)
+                    self._invoke(env, method, ())
+                    return
+            key = space.key(value)
+            if space.kind(value) in (
+                    'instance', 'exception', 'class', 'type', 'function', 'builtin', 'capability', 'generator', 'super',
+            ):
+                self._push(hash(space.identity_number(value)))
+            else:
+                self._push(hash(key))
 
         elif name in ('staticmethod', 'classmethod'):
             self._arity(name, args, kwargs, 1, 1)
@@ -276,6 +340,12 @@ class MachineBuiltins:
     def _task_integer_builtin(self, task: Task) -> None:
         function = {'chr': chr, 'bin': bin, 'oct': oct, 'hex': hex}[task.data]
         self._push(self._space.native(function, self._pop()))
+
+    def _task_hash_result(self, task: Task) -> None:
+        value = self._pop()
+        if type(value) not in (int, bool):
+            self._space.error('TypeError', '__hash__ method should return an integer')
+        self._push(hash(value))
 
     def _task_round_digits(self, task: Task) -> None:
         self._push(self._space.native(round, task.data, self._pop()))

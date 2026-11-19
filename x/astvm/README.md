@@ -7,7 +7,7 @@ Python functions, native Python generators, or a guest bytecode instruction set.
 
 **Status:** experimental implementation, not an audited security boundary and not a complete
 Python implementation. The target is a substantial synchronous Python subset with selected 3.14
-semantics. The suite currently passes all 463 cases under CPython 3.14.10 in dockerdev.
+semantics. The suite passes under CPython 3.14.10 in dockerdev.
 
 ## Files and running the tests
 
@@ -18,8 +18,8 @@ Run the tests from the repository root with the project Python launcher. Pytest 
 ```
 
 `astvm.py` preserves the existing public import surface. `frontend.py` validates source; `runtime.py` owns storage;
-`space*.py` implement the guest object space; `machine*.py` implement continuations; and `interpreter.py` exposes the
-embedding API. `objectspace.py` and `machine.py` assemble their respective mixins. `values.py`, `state.py`, `budget.py`,
+`space/` implements the guest object space; `machine/` implements continuations; and `interpreter.py` exposes the
+embedding API. Each package's `core.py` assembles its mixins. `values.py`, `state.py`, `budget.py`,
 and `capabilities.py` hold shared data and boundaries.
 
 The test suite's CPython-oracle helpers use native `exec`/`eval` on fixed or deliberately generated
@@ -101,13 +101,20 @@ explicit `close` where cleanup matters.
 ### Minimal classes
 
 Class bodies, construction, instance attributes, method binding, single inheritance, private-name mangling,
-basic qualified names, and `__getattr__` fallback. Ordinary classes support guest `__new__`, descriptors,
+basic qualified names, and custom `__getattribute__`, `__getattr__`, `__setattr__`, and `__delattr__` hooks.
+Ordinary classes support guest `__new__`, descriptors,
 `property`, `__set_name__`, and `__init_subclass__`; guest exception subclasses support custom fields and
-descriptors. `staticmethod` and `classmethod` are available. Useful special methods are dispatched through the
+descriptors. `staticmethod` and `classmethod` are available, and their wrappers expose guest function metadata;
+standalone `staticmethod` wrappers are callable. Useful special methods are dispatched through the
 guest machine, including truth/length, iteration, subscription, operators, representations and context management.
+Explicit `super(CurrentClass, instance)` works for the supported single-inheritance model, including guest
+descriptors and class methods. `hash(instance)` runs a guest `__hash__` method; dictionary and set keys with
+custom guest hashing and equality remain unsupported. Class `__bases__` and `__mro__` tuples retain identity,
+and assigning `__name__` updates the guest class name. Class representations use guest module and qualified
+names.
 
-No metaclasses, multiple inheritance, `super`, builtin-container subclassing, custom
-`__getattribute__`/`__setattr__`/`__delattr__`, finalizers, weak references or slots. Full class/function
+No metaclasses, multiple inheritance, zero-argument `super()`, builtin-container subclassing,
+finalizers, weak references or slots. Full class/function
 introspection and the remaining data-model protocols are not implemented.
 
 ### Annotations and imports

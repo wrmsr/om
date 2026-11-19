@@ -2,13 +2,13 @@
 import ast
 import dataclasses as dc
 
-from .state import AnnotationData
-from .state import Environment
-from .state import LoopState
-from .state import Outcome
-from .state import Task
-from .values import _MISSING
-from .values import InterpreterError
+from ..state import AnnotationData
+from ..state import Environment
+from ..state import LoopState
+from ..state import Outcome
+from ..state import Task
+from ..values import _MISSING
+from ..values import InterpreterError
 
 
 ##

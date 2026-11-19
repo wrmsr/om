@@ -2,12 +2,12 @@
 import ast
 import dataclasses as dc
 
-from .state import ComprehensionState
-from .state import Environment
-from .state import Execution
-from .state import GeneratorData
-from .state import Outcome
-from .state import Task
+from ..state import ComprehensionState
+from ..state import Environment
+from ..state import Execution
+from ..state import GeneratorData
+from ..state import Outcome
+from ..state import Task
 
 
 ##

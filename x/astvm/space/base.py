@@ -2,15 +2,15 @@
 import operator
 import typing as ta
 
-from .budget import Budget
-from .capabilities import Capabilities
-from .runtime import Runtime
-from .state import BuiltinData
-from .state import ClassData
-from .values import _ELLIPSIS
-from .values import _NOT_IMPLEMENTED
-from .values import ObjectRef
-from .values import Value
+from ..budget import Budget
+from ..capabilities import Capabilities
+from ..runtime import Runtime
+from ..state import BuiltinData
+from ..state import ClassData
+from ..values import _ELLIPSIS
+from ..values import _NOT_IMPLEMENTED
+from ..values import ObjectRef
+from ..values import Value
 
 
 ##
@@ -68,6 +68,7 @@ class SpaceBase:
         'iterator',
         'module',
         'property',
+        'super',
     )
 
     _FUNCTION_NAMES = (

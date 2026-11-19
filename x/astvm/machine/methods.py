@@ -3,12 +3,12 @@ import ast
 import dataclasses as dc
 import typing as ta
 
-from .state import BuiltinData
-from .state import Environment
-from .state import Task
-from .values import _SCALARS
-from .values import InterpreterError
-from .values import Value
+from ..state import BuiltinData
+from ..state import Environment
+from ..state import Task
+from ..values import _SCALARS
+from ..values import InterpreterError
+from ..values import Value
 
 
 ##

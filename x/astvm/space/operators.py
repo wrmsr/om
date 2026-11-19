@@ -1,11 +1,11 @@
 # mypy: disable-error-code=attr-defined
 
-from .values import _ELLIPSIS
-from .values import _NOT_IMPLEMENTED
-from .values import _NUMBERS
-from .values import _SCALARS
-from .values import ObjectRef
-from .values import Value
+from ..values import _ELLIPSIS
+from ..values import _NOT_IMPLEMENTED
+from ..values import _NUMBERS
+from ..values import _SCALARS
+from ..values import ObjectRef
+from ..values import Value
 
 
 ##
@@ -273,7 +273,15 @@ class SpaceOperators:
                 return '{' + ', '.join(parts) + '}'
 
             if kind in ('class', 'type'):
-                return "<class '" + self.data(value).name + "'>"
+                info = self.data(value)
+                if kind == 'type':
+                    return "<class '" + info.name + "'>"
+                namespace = self.data(info.namespace)
+                qualname = namespace.get('__qualname__', info.name)
+                module = namespace.get('__module__')
+                if type(module) is str and module != 'builtins':
+                    return "<class '" + module + '.' + qualname + "'>"
+                return "<class '" + info.name + "'>"
 
             if kind == 'exception':
                 info = self.data(value)

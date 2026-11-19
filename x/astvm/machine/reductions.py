@@ -2,9 +2,9 @@
 import dataclasses as dc
 import math
 
-from .state import SortState
-from .state import Task
-from .values import _MISSING
+from ..state import SortState
+from ..state import Task
+from ..values import _MISSING
 
 
 ##

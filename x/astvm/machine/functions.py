@@ -3,17 +3,17 @@ import ast
 import dataclasses as dc
 import typing as ta
 
-from .state import AnnotationData
-from .state import ClassData
-from .state import Environment
-from .state import Execution
-from .state import FunctionData
-from .state import GeneratorData
-from .state import Task
-from .values import _MISSING
-from .values import InterpreterError
-from .values import ObjectRef
-from .values import Value
+from ..state import AnnotationData
+from ..state import ClassData
+from ..state import Environment
+from ..state import Execution
+from ..state import FunctionData
+from ..state import GeneratorData
+from ..state import Task
+from ..values import _MISSING
+from ..values import InterpreterError
+from ..values import ObjectRef
+from ..values import Value
 
 
 ##
@@ -59,6 +59,7 @@ class MachineFunctions:
                 defaults,
                 kwdefaults,
                 thunk,
+                self._space.data(task.env.globals).get('__name__', '__main__'),
             ),
         )
 
@@ -212,9 +213,6 @@ class MachineFunctions:
     _TASK_CLASS_END_UNSUPPORTED: ta.ClassVar = frozenset({
         '__del__',
         '__slots__',
-        '__getattribute__',
-        '__setattr__',
-        '__delattr__',
         '__class_getitem__',
     })
 
@@ -225,6 +223,12 @@ class MachineFunctions:
         bad = unsupported.intersection(namespace)
         if bad:
             self._space.error('TypeError', 'unsupported class hooks: ' + ', '.join(sorted(bad)))
+
+        if type(namespace.get('__qualname__')) is not str:
+            self._space.error('TypeError', 'class qualified name must be a string')
+
+        if '__eq__' in namespace and '__hash__' not in namespace:
+            self._runtime.write(task.env.namespace, '__hash__', None)
 
         base, decorators = task.data
 

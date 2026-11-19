@@ -12,9 +12,9 @@ from .frontend import Program
 from .frontend import Scope
 from .interpreter import Interpreter
 from .machine import Machine
-from .objectspace import ObjectSpace
 from .runtime import DictRuntime
 from .runtime import Runtime
+from .space import ObjectSpace
 from .state import AdapterData
 from .state import AnnotationData
 from .state import BoundMethodData
@@ -38,6 +38,7 @@ from .state import RangeData
 from .state import ReductionState
 from .state import SortState
 from .state import SourceModule
+from .state import SuperData
 from .state import Task
 from .state import ThreadState
 from .state import WithState

@@ -2,17 +2,17 @@
 import dataclasses as dc
 import typing as ta
 
-from .capabilities import CapabilityFailure
-from .state import Environment
-from .state import ExceptionData
-from .state import InstanceData
-from .state import Outcome
-from .state import Task
-from .values import _MISSING
-from .values import InterpreterError
-from .values import ObjectRef
-from .values import Value
-from .values import _GuestRaise
+from ..capabilities import CapabilityFailure
+from ..state import Environment
+from ..state import ExceptionData
+from ..state import InstanceData
+from ..state import Outcome
+from ..state import Task
+from ..values import _MISSING
+from ..values import InterpreterError
+from ..values import ObjectRef
+from ..values import Value
+from ..values import _GuestRaise
 
 
 ##
@@ -30,6 +30,9 @@ class MachineCalls:
 
         elif kind == 'function':
             self._enter_function(function, args, kwargs)
+
+        elif kind == 'staticmethod':
+            self._invoke(task.env, space.data(function), args, kwargs)
 
         elif kind == 'builtin':
             self._builtin(task.env, space.data(function), args, kwargs)
@@ -77,7 +80,7 @@ class MachineCalls:
                     self._invoke(task.env, constructor, (function, *args), kwargs)
                 else:
                     value = space.new('instance', InstanceData(function, space.new('namespace', {})))
-                    self._initialize_constructed(task.env, function, value, args, kwargs)
+                    self._initialize_constructed(task.env, function, value, args, kwargs, new_invoked=False)
 
         else:
             method = space.special(function, '__call__')
@@ -87,7 +90,7 @@ class MachineCalls:
 
     def _task_class_new_result(self, task: Task) -> None:
         cls, args, kwargs = task.data
-        self._initialize_constructed(task.env, cls, self._pop(), args, kwargs)
+        self._initialize_constructed(task.env, cls, self._pop(), args, kwargs, new_invoked=True)
 
     def _initialize_constructed(
             self,
@@ -96,6 +99,8 @@ class MachineCalls:
             value: Value,
             args: tuple[Value, ...],
             kwargs: dict[str, Value] | ta.Mapping[str, Value],
+            *,
+            new_invoked: bool,
     ) -> None:
         space = self._space
         if space.kind(value) != 'instance' or not space.subclass(space.type_of(value), cls):
@@ -106,7 +111,7 @@ class MachineCalls:
         if init is not _MISSING:
             self._add('instance_initialized', env, data=value)
             self._invoke(env, init, args, kwargs)
-        elif args or kwargs:
+        elif (args or kwargs) and not new_invoked:
             space.error('TypeError', 'class takes no arguments')
         else:
             self._push(value)
