@@ -146,9 +146,7 @@ class MinituiRepl(ReplModeSwitcher):
         self._app.set_input_mode(self._app.chat_mode)
 
     async def submit_to(self, name: str | None, text: str) -> None:
-        prev = self._session.active_name
-        await self.switch(name)
-        try:
-            self._mode.submit(text)
-        finally:
-            await self.switch(prev)
+        if name is None:
+            self._app.chat_mode.submit(text)
+        else:
+            self._console.submit(text, name=name)

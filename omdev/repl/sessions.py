@@ -135,8 +135,26 @@ class Session:
     ##
     # Execution
 
-    def execute(self, source: str, sink: OutputSink) -> ta.Awaitable[Result]:
-        return self.active.execute(source, sink)
+    async def execute(
+            self,
+            source: str,
+            sink: OutputSink,
+            *,
+            name: str | None = None,
+    ) -> Result:
+        prev: str | None
+        if name is not None:
+            if (prev := self._active) != name:
+                self.switch(name)
+        else:
+            prev = None
+
+        try:
+            return await self.active.execute(source, sink)
+
+        finally:
+            if prev is not None:
+                self.switch(prev)
 
     async def aclose(self) -> None:
         for interpreter in list(self._interpreters.values()):

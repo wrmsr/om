@@ -7,6 +7,8 @@ reads no keys. A host app composes it: the standalone `ReplApp` here, or a chat 
 import collections
 import typing as ta
 
+from omcore import dataclasses as dc
+
 from ...minitui.controls.textarea import TextArea
 from ...minitui.text.parts import TextParts
 from ...minitui.text.segments import Segment
@@ -58,11 +60,19 @@ class Console:
         self._on_exit = on_exit
         self._on_change = on_change
 
-        self._queue: collections.deque[str] = collections.deque()
+        self._queue: collections.deque[Console._QueueEntry] = collections.deque()
         self._running: Running | None = None
         self._active = False
 
         session.add_listener(self._on_session_change)
+
+    @dc.dataclass(frozen=True)
+    class _QueueEntry:
+        text: str
+
+        _: dc.KW_ONLY
+
+        name: str | None = None
 
     @property
     def session(self) -> Session:
@@ -131,27 +141,41 @@ class Console:
     ##
     # Execution
 
-    def submit(self, text: str) -> None:
+    def submit(
+            self,
+            text: str,
+            *,
+            name: str | None = None,
+    ) -> None:
         """Echo and queue a source; it runs when whatever is ahead of it has finished."""
 
         if not text.strip():
             return
-        self._commit(render_echo(self.language, text, self._width()))
-        self._queue.append(text)
+        if name is not None:
+            language = self._session.get(name).language
+        else:
+            language = self._session.active.language
+        self._commit(render_echo(language, text, self._width()))
+        self._queue.append(Console._QueueEntry(text, name=name))
         self._pump()
         self._changed()
 
     def _pump(self) -> None:
         if self.is_running or not self._queue:
             return
-        text = self._queue.popleft()
-        self._running = self._runner.start(lambda: self._run(text))
+        entry = self._queue.popleft()
+        self._running = self._runner.start(lambda: self._run(entry.text, name=entry.name))
 
-    async def _run(self, text: str) -> None:
+    async def _run(
+            self,
+            text: str,
+            *,
+            name: str | None = None,
+    ) -> None:
         sink = CallbackOutputSink(self._on_output)
         exited = False
         try:
-            result = await self._session.execute(text, sink)
+            result = await self._session.execute(text, sink, name=name)
         except InterpreterBusyError:
             self._note('the interpreter is busy')
         except Exception as e:  # noqa: BLE001
