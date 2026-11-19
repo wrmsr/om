@@ -62,9 +62,6 @@ def hy2py_convert(
     default, `options.output` or else standard output).
     """
 
-    if source_path is not None and parent_module is None:
-        set_path(source_path)
-
     if not output_path and options.output:
         output_path = options.output
 
@@ -209,6 +206,7 @@ def hy2py_main() -> ta.NoReturn:
             )
 
     else:
+        set_path(check.not_none(options.FILE))
         hy2py_convert_file(runtime, check.not_none(options.FILE), options, filename=options.FILE)
 
     parser.exit(0)

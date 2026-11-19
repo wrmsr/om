@@ -1,9 +1,9 @@
 import importlib.util
 import os
-import pathlib
 import platform
 import re
 import shlex
+import shutil
 import subprocess
 import textwrap
 import zipfile
@@ -36,16 +36,18 @@ def run_cmd(
         stdout=subprocess.PIPE,
         env=None,
 ):
-    env = {**dict(os.environ), **(env or {})}
+    extra_pythonpath = (env or {}).get('PYTHONPATH', '')
+    env = {**os.environ, **(env or {})}
     if dontwritebytecode:
         env['PYTHONDONTWRITEBYTECODE'] = '1'
     else:
         env.pop('PYTHONDONTWRITEBYTECODE', None)
 
     # Keep the repository and current directory importable, even with a different cwd.
-    env['PYTHONPATH'] = os.pathsep.join((REPO_ROOT, os.getcwd(), env.get('PYTHONPATH', '')))
+    search_cwd = os.fspath(cwd) if cwd is not None else os.getcwd()
+    env['PYTHONPATH'] = os.pathsep.join((REPO_ROOT, search_cwd, extra_pythonpath))
 
-    cmd = shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
+    cmd = [os.fspath(part) for part in (shlex.split(cmd) if isinstance(cmd, str) else cmd)]
     if cmd[0] == 'hy':
         cmd = [REPO_PYTHON, '-m', PACKAGE, *cmd[1:]]
     elif cmd[0] in ('hyc', 'hy2py'):
@@ -220,15 +222,15 @@ def test_ifile_with_args():
     assert 'foo' in run_cmd(f'{cmd} -i foo -c bar')[0]
 
 
-def test_hyc():
+def test_hyc(tmp_path):
     output, _ = run_cmd('hyc -h')
     assert 'usage' in output
 
-    path = f'{PACKAGE_DIR}/tests/resources/argparse_ex.hy'
+    path = os.path.join(str(tmp_path), 'argparse_ex.hy')
+    shutil.copyfile(f'{PACKAGE_DIR}/tests/resources/argparse_ex.hy', path)
     _, err = run_cmd(['hyc', path])
     assert 'Compiling' in err
     assert os.path.exists(importlib.util.cache_from_source(path))
-    rm(importlib.util.cache_from_source(path))
 
 
 def test_hyc_missing_file():
@@ -236,8 +238,10 @@ def test_hyc_missing_file():
     assert '[Errno 2]' in err
 
 
-def test_hyc_quiet():
-    _, err = run_cmd(f'hyc -q {PACKAGE_DIR}/tests/resources/hello_world.hy')
+def test_hyc_quiet(tmp_path):
+    path = os.path.join(str(tmp_path), 'hello_world.hy')
+    shutil.copyfile(f'{PACKAGE_DIR}/tests/resources/hello_world.hy', path)
+    _, err = run_cmd(['hyc', '-q', path])
     assert err == ''
 
 
@@ -246,7 +250,6 @@ def test_no_main():
     assert 'This Should Still Work' in output
 
 
-@pytest.mark.serial
 @pytest.mark.parametrize(
     'scenario', ['normal', 'prevent_by_force', 'prevent_by_env', 'prevent_by_option'],
 )
@@ -255,42 +258,44 @@ def test_no_main():
     [
         ['hy', '{fpath}'],
         ['hy', '-m', '{modname}'],
-        ['hy', '-c', "'(import {modname})'"],
+        ['hy', '-c', '(import {modname})'],
     ],
 )
-def test_byte_compile(scenario, cmd_fmt):
-    modname = f'{PACKAGE}.tests.resources.bin.bytecompile'
-    fpath = modname.replace('.', '/') + '.hy'
+def test_byte_compile(scenario, cmd_fmt, tmp_path):
+    source_path = f'{PACKAGE_DIR}/tests/resources/bin/bytecompile.hy'
+    fpath = os.path.join(str(tmp_path), 'bytecompile.hy')
+    with open(source_path, encoding='utf-8') as source, open(fpath, 'w', encoding='utf-8') as target:
+        target.write(source.read())
+    modname = 'bytecompile'
+    cache_path = importlib.util.cache_from_source(fpath)
 
+    cmd = [part.format(fpath=fpath, modname=modname) for part in cmd_fmt]
     if scenario == 'prevent_by_option':
-        cmd_fmt.insert(1, '-B')
-
-    cmd = ' '.join(cmd_fmt).format(**locals())
-
-    rm(importlib.util.cache_from_source(fpath))
+        cmd.insert(1, '-B')
 
     if scenario == 'prevent_by_force':
         # Keep Hy from being able to byte-compile the module by
         # creating a directory at the target location.
-        os.mkdir(importlib.util.cache_from_source(fpath))
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        os.mkdir(cache_path)
 
     # Whether or not we can byte-compile the module, we should be able
     # to run it.
-    output, _ = run_cmd(cmd, dontwritebytecode=(scenario == 'prevent_by_env'))
+    output, _ = run_cmd(cmd, dontwritebytecode=(scenario == 'prevent_by_env'), env={'PYTHONPATH': str(tmp_path)})
     assert 'Hello from macro' in output
     assert 'The macro returned: boink' in output
 
     if scenario == 'normal':
         # That should've byte-compiled the module.
-        assert os.path.exists(importlib.util.cache_from_source(fpath))
+        assert os.path.exists(cache_path)
     elif scenario == 'prevent_by_env' or scenario == 'prevent_by_option':
         # No byte-compiled version should've been created.
-        assert not os.path.exists(importlib.util.cache_from_source(fpath))
+        assert not os.path.exists(cache_path)
 
     # When we run the same command again, and we've byte-compiled the
     # module, the byte-compiled version should be run instead of the
     # source, in which case the macro shouldn't be run.
-    output, _ = run_cmd(cmd)
+    output, _ = run_cmd(cmd, env={'PYTHONPATH': str(tmp_path)})
     assert ('Hello from macro' in output) ^ (scenario == 'normal')
     assert 'The macro returned: boink' in output
 
@@ -323,18 +328,24 @@ def test_file_sys_path():
     assert repr(file_relative_path) in output
 
 
-def testc_file_sys_path():
+def testc_file_sys_path(tmp_path):
     # similar to test_file_sys_path, test hyc and hy2py to make sure
     # they can find the relative import at compile time
     # https://github.com/hylang/hy/issues/2021
 
-    test_file = f'{PACKAGE_DIR}/tests/resources/relative_import_compile_time.hy'
+    source_dir = f'{PACKAGE_DIR}/tests/resources'
+    test_file = os.path.join(str(tmp_path), 'relative_import_compile_time.hy')
+    shutil.copyfile(os.path.join(source_dir, 'relative_import_compile_time.hy'), test_file)
+    bin_dir = os.path.join(str(tmp_path), 'bin')
+    os.mkdir(bin_dir)
+    shutil.copyfile(os.path.join(source_dir, 'bin', '__init__.hy'), os.path.join(bin_dir, '__init__.hy'))
+    shutil.copyfile(os.path.join(source_dir, 'bin', 'printenv.hy'), os.path.join(bin_dir, 'printenv.hy'))
     file_relative_path = os.path.realpath(os.path.dirname(test_file))
 
     for binary in ('hy', 'hyc', 'hy2py'):
         # Ensure we hit the compiler
         rm(importlib.util.cache_from_source(test_file))
-        assert not os.path.exists(importlib.util.cache_from_source(file_relative_path))
+        assert not os.path.exists(importlib.util.cache_from_source(test_file))
 
         output, _ = run_cmd([binary, test_file])
         assert repr(file_relative_path) in output
@@ -360,26 +371,30 @@ def test_file_no_extension():
     assert 'This Should Still Work' in output
 
 
-def test_circular_macro_require():
+def test_circular_macro_require(tmp_path):
     """
     Confirm that macros can require themselves during expansion and when
     run from the command line.
     """
 
     # First, with no bytecode
-    test_file = f'{PACKAGE_DIR}/tests/resources/bin/circular_macro_require.hy'
-    rm(importlib.util.cache_from_source(test_file))
+    test_file = os.path.join(str(tmp_path), 'circular_macro_require.hy')
+    with open(f'{PACKAGE_DIR}/tests/resources/bin/circular_macro_require.hy', encoding='utf-8') as source:
+        code = source.read()
+    code = code.replace('{hy.__package__}.tests.resources.bin.circular-macro-require', 'circular-macro-require')
+    with open(test_file, 'w', encoding='utf-8') as target:
+        target.write(code)
     assert not os.path.exists(importlib.util.cache_from_source(test_file))
-    output, _ = run_cmd(['hy', test_file])
+    output, _ = run_cmd(['hy', test_file], env={'PYTHONPATH': str(tmp_path)})
     assert output.strip() == 'WOWIE'
 
     # Now, with bytecode
     assert os.path.exists(importlib.util.cache_from_source(test_file))
-    output, _ = run_cmd(['hy', test_file])
+    output, _ = run_cmd(['hy', test_file], env={'PYTHONPATH': str(tmp_path)})
     assert output.strip() == 'WOWIE'
 
 
-def test_macro_require():
+def test_macro_require(tmp_path):
     """
     Confirm that a `require` will load macros into the non-module namespace
     (i.e. `exec(code, locals)`) used by `runpy.run_path`.
@@ -388,8 +403,8 @@ def test_macro_require():
     """
 
     # First, with no bytecode
-    test_file = f'{PACKAGE_DIR}/tests/resources/bin/require_and_eval.hy'
-    rm(importlib.util.cache_from_source(test_file))
+    test_file = os.path.join(str(tmp_path), 'require_and_eval.hy')
+    shutil.copyfile(f'{PACKAGE_DIR}/tests/resources/bin/require_and_eval.hy', test_file)
     assert not os.path.exists(importlib.util.cache_from_source(test_file))
     output, _ = run_cmd(['hy', test_file])
     assert output.strip() == 'abc'
@@ -570,7 +585,7 @@ def test_output_buffering(tmp_path):
         assert tf.read_text().splitlines() == ['line 1', 'line 2']
 
 
-def test_uufileuu(tmp_path, monkeypatch):
+def test_uufileuu(tmp_path):
     # `__file__` should be set the same way as in Python.
     # https://github.com/hylang/hy/issues/2318
 
@@ -578,40 +593,34 @@ def test_uufileuu(tmp_path, monkeypatch):
     (tmp_path / 'realdir' / 'hyex.hy').write_text('(print __file__)')
     (tmp_path / 'realdir' / 'pyex.py').write_text('print(__file__)')
 
-    def file_is(arg, expected):
-        output, _ = run_cmd(['python3', arg + 'pyex.py'])
+    def file_is(arg, expected, cwd):
+        output, _ = run_cmd(['python3', arg + 'pyex.py'], cwd=cwd)
         assert output.rstrip() == str(expected / 'pyex.py')
-        output, _ = run_cmd(['hy', arg + 'hyex.hy'])
+        output, _ = run_cmd(['hy', arg + 'hyex.hy'], cwd=cwd)
         assert output.rstrip() == str(expected / 'hyex.hy')
 
-    monkeypatch.chdir(tmp_path)
-    file_is('realdir/', tmp_path / 'realdir')
-
-    monkeypatch.chdir(tmp_path / 'realdir')
-    file_is('', tmp_path / 'realdir')
+    file_is('realdir/', tmp_path / 'realdir', tmp_path)
+    file_is('', tmp_path / 'realdir', tmp_path / 'realdir')
 
     (tmp_path / 'symdir').symlink_to('realdir', target_is_directory=True)
-    monkeypatch.chdir(tmp_path)
-    file_is('symdir/', tmp_path / 'symdir')
+    file_is('symdir/', tmp_path / 'symdir', tmp_path)
 
     (tmp_path / 'realdir' / 'child').mkdir()
-    monkeypatch.chdir(tmp_path / 'realdir' / 'child')
     file_is('../',
             tmp_path / 'realdir'
             if platform.system() == 'Windows' else
-            tmp_path / 'realdir' / 'child' / '..')
+            tmp_path / 'realdir' / 'child' / '..',
+            tmp_path / 'realdir' / 'child')
 
 
-def test_assert(tmp_path, monkeypatch):
+def test_assert(tmp_path):
     # Check when statements pulled out of `assert` are run.
     # https://github.com/hylang/hy/issues/1390
     # https://github.com/hylang/hy/issues/2319
 
-    monkeypatch.chdir(tmp_path)
-
     for has_msg in False, True:
 
-        pathlib.Path('ex.hy').write_text(
+        (tmp_path / 'ex.hy').write_text(
             '(defn f [test] (assert {} {}))'.format(
                 '(do (print "testing") test)',
                 '(do (print "msging") "bye")' if has_msg else ''))
@@ -621,7 +630,8 @@ def test_assert(tmp_path, monkeypatch):
                 cmd='python3 {} {}'.format(
                     ('-O' if optim else ''),
                     f"-c 'from {PACKAGE}.globalruntime import install; install(); import ex; ex.f({test})'"),
-                expect=(1 if not optim and not test else 0))
+                expect=(1 if not optim and not test else 0),
+                cwd=tmp_path)
             assert ('testing' in out) == (not optim)
             show_msg = has_msg and not optim and not test
             assert ('msging' in out) == show_msg
@@ -650,21 +660,21 @@ def test_hy2py_import_does_not_install(tmp_path):
     )
 
 
-def test_hy2py_compile_only(monkeypatch):
+def test_hy2py_compile_only():
     def check(args):
-        output, _ = run_cmd(f'hy2py {args}')
+        output, _ = run_cmd(f'hy2py {args}', cwd=cwd)
         assert not re.search(r'^hello world$', output, re.MULTILINE)
 
-    monkeypatch.chdir(f'{PACKAGE_DIR}/tests/resources')
+    cwd = f'{PACKAGE_DIR}/tests/resources'
     check('hello_world.hy')
     check('-m hello_world')
 
-    monkeypatch.chdir('..')
+    cwd = f'{PACKAGE_DIR}/tests'
     check('resources/hello_world.hy')
     check('-m resources.hello_world')
 
 
-def test_hy2py_recursive(monkeypatch, tmp_path):
+def test_hy2py_recursive(tmp_path):
     (tmp_path / 'foo').mkdir()
     (tmp_path / 'foo/__init__.py').touch()
     (tmp_path / 'foo/first.hy').write_text("""
@@ -677,12 +687,10 @@ def test_hy2py_recursive(monkeypatch, tmp_path):
         (setv a 1)
         (setv b "hello world")""")
 
-    monkeypatch.chdir(tmp_path)
-
-    _, err = run_cmd('hy2py -m foo', expect=1)
+    _, err = run_cmd('hy2py -m foo', expect=1, cwd=tmp_path)
     assert 'ValueError' in err
 
-    run_cmd('hy2py -m foo --output bar')
+    run_cmd('hy2py -m foo --output bar', cwd=tmp_path)
     assert set((tmp_path / 'bar').rglob('*')) == {
         tmp_path / 'bar' / p
         for p in ('first.py', 'folder', 'folder/second.py')}
@@ -691,12 +699,13 @@ def test_hy2py_recursive(monkeypatch, tmp_path):
     output, _ = run_cmd(
         ['python3', '-c', f'from {PACKAGE}.globalruntime import install; install(); import first'],
         cwd=tmp_path / 'bar',
+        env={'PYTHONPATH': str(tmp_path)},
     )
     assert output == '1\nhello world\n'
 
 
 @pytest.mark.parametrize('case', ['hy -m', 'hy2py -m'])
-def test_relative_require(case, monkeypatch, tmp_path):
+def test_relative_require(case, tmp_path):
     # https://github.com/hylang/hy/issues/2204
 
     (tmp_path / 'pkg').mkdir()
@@ -708,23 +717,21 @@ def test_relative_require(case, monkeypatch, tmp_path):
         (require .a [m])
         (m)
         (print x)""")
-    monkeypatch.chdir(tmp_path)
-
     if case == 'hy -m':
-        output, _ = run_cmd('hy -m pkg.b')
+        output, _ = run_cmd('hy -m pkg.b', cwd=tmp_path)
     elif case == 'hy2py -m':
-        run_cmd('hy2py -m pkg -o out')
+        run_cmd('hy2py -m pkg -o out', cwd=tmp_path)
         (tmp_path / 'out' / '__init__.py').touch()
         output, _ = run_cmd([
             'python3',
             '-c',
             f'from {PACKAGE}.globalruntime import install; install(); import out.b',
-        ])
+        ], cwd=tmp_path)
 
     assert 'HELLO' in output
 
 
-def test_require_doesnt_pollute_core(monkeypatch, tmp_path):
+def test_require_doesnt_pollute_core(tmp_path):
     # https://github.com/hylang/hy/issues/1978
     """
     Macros loaded from an external module should not pollute
@@ -742,11 +749,9 @@ def test_require_doesnt_pollute_core(monkeypatch, tmp_path):
           (not-in "if" _hy_macros)
           (not-in "cond" _hy_macros))""")
     # `if` is a result macro; `cond` is a regular macro.
-    monkeypatch.chdir(tmp_path)
-
     # Try it without and then with bytecode.
     for _ in (1, 2):
-        assert 'ARGELFRASTER True True' in run_cmd('hy bbb.hy')[0]
+        assert 'ARGELFRASTER True True' in run_cmd('hy bbb.hy', cwd=tmp_path)[0]
 
 
 def test_run_dir_or_zip(tmp_path):

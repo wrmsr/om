@@ -5,6 +5,8 @@ import textwrap
 
 import pytest
 
+from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
+
 from .helpers import REPO_PYTHON
 
 
@@ -119,7 +121,7 @@ def test_relocated_package(tmp_path, package):
         assert not hy_named()
     """)
     result = subprocess.run(
-        [REPO_PYTHON, '-c', source],
+        subprocess_maybe_shell_wrap_exec(REPO_PYTHON, '-c', source),
         env=env,
         cwd=tmp_path,
         stdin=subprocess.DEVNULL,
@@ -131,7 +133,9 @@ def test_relocated_package(tmp_path, package):
     assert result.returncode == 0, result.stderr
 
     result = subprocess.run(
-        [REPO_PYTHON, '-m', package, '-c', '(print (cond False 0 True (+ 2 3)))'],
+        subprocess_maybe_shell_wrap_exec(
+            REPO_PYTHON, '-m', package, '-c', '(print (cond False 0 True (+ 2 3)))',
+        ),
         env=env,
         cwd=tmp_path,
         stdin=subprocess.DEVNULL,

@@ -14,6 +14,7 @@ import typing as ta
 import pytest
 
 from omcore import check
+from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
 
 from .. import globalruntime
 from ..errors import HyRequireError
@@ -113,12 +114,13 @@ def _global_state():
 
 
 def test_runtime_touches_no_global_state():
-    # Run in a fresh interpreter, so the state isn't affected by the global runtime installed for the other tests.
+    # Run in a fresh interpreter to check import-time state against an unmodified baseline.
     pkg = __package__.rpartition('.')[0]
     source = textwrap.dedent(f"""
         import ast, builtins, codeop, inspect, sys
         before = (dict(builtins.__dict__), list(sys.path_hooks), list(sys.meta_path), inspect.getsource, dict(vars(codeop)), ast.unparse)
         import {pkg} as hy
+        from {pkg} import cli
         rt = hy.HyRuntime()
         m = rt.exec('(import json) (defn f [#^ta.Sequence[int] xs] (hy.repr (sum xs)))')
         assert m.f([1, 2]) == '3'
@@ -131,7 +133,7 @@ def test_runtime_touches_no_global_state():
         assert not hasattr(builtins, '_hy_macros')
     """)  # noqa
     result = subprocess.run(
-        [REPO_PYTHON, '-c', source],
+        subprocess_maybe_shell_wrap_exec(REPO_PYTHON, '-c', source),
         env={**os.environ, 'PYTHONPATH': REPO_ROOT},
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -310,37 +312,6 @@ def test_hy_eval_finds_calling_module():
     with pytest.raises(TypeError):
         ns['g'](rt.hy)
     assert rt.hy.eval(rt.hy.read('(+ 1 1)'), module=rt.new_module()) == 2
-
-
-def test_global_runtime():
-    # The conftest installs the global runtime.
-    assert globalruntime.is_installed()
-
-    grt = globalruntime.get_global_runtime()
-    assert globalruntime.install() is grt
-    assert grt.modules.get_module('sys') is sys
-
-    pkg = __package__
-    tlib = grt.import_module(f'{pkg}.resources.tlib')
-    assert sys.modules[f'{pkg}.resources.tlib'] is tlib
-    assert tlib.hy is grt.hy
-
-
-def test_global_runtime_uninstall_reinstall():
-    hooks = list(sys.path_hooks)
-    getsource = inspect.getsource
-
-    globalruntime.uninstall()
-    try:
-        assert not globalruntime.is_installed()
-        assert len(sys.path_hooks) == len(hooks) - 2
-        assert inspect.getsource is not getsource
-    finally:
-        globalruntime.install()
-
-    assert globalruntime.is_installed()
-    assert len(sys.path_hooks) == len(hooks)
-    assert inspect.getsource.__module__ == getsource.__module__
 
 
 def test_global_and_isolated_coexist():

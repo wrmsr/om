@@ -2,50 +2,53 @@
 # This file is also used by py2hy.
 import asyncio
 import datetime
-import importlib
+import importlib.util
 import itertools
 import math
 import os
-import subprocess
+import sys
 
+from .. import globalruntime
 from .. import mangle
+from ..cli.hy2py import Hy2pyOptions
+from ..cli.hy2py import hy2py_convert
+from ..cli.hy2py import hy2py_convert_file
+from ..runtime import HyRuntime
 from .helpers import PACKAGE
 from .helpers import PACKAGE_DIR
-from .helpers import REPO_PYTHON
+from .helpers import new_test_runtime
 
 
 ##
 
 
 def test_direct_import():
-    pydemo = importlib.import_module('.resources.pydemo', __package__)
+    pydemo = new_test_runtime().import_module(f'{PACKAGE}.tests.resources.pydemo')
     assert_stuff(pydemo)
 
 
-def test_hy2py_import():
-    path = f'{PACKAGE_DIR}/tests/resources/pydemo_as_py.py'
-    env = dict(os.environ)
-    env['PYTHONIOENCODING'] = 'UTF-8'
-    env['PYTHONPATH'] = '.' + os.pathsep + env.get('PYTHONPATH', '')
-    try:
-        with open(path, 'wb') as o:
-            subprocess.check_call(
-                [
-                    REPO_PYTHON,
-                    '-c',
-                    f'from {PACKAGE}.cli import hy2py_main; hy2py_main()',
-                    f'{PACKAGE_DIR}/tests/resources/pydemo.hy',
-                ],
-                stdin=subprocess.DEVNULL,
-                stdout=o,
-                env=env,
-            )
-        m = importlib.import_module('.resources.pydemo_as_py', __package__)
-    finally:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
+def test_hy2py_convert_does_not_change_search_path(tmp_path):
+    output_path = os.path.join(str(tmp_path), 'out.py')
+    source_path = os.path.join(str(tmp_path), 'source.hy')
+    options = Hy2pyOptions(output=output_path, with_source=False, with_ast=False, without_python=False)
+    before = list(sys.path)
+    hy2py_convert(HyRuntime(), '(+ 1 2)', options, source_path=source_path)
+    assert sys.path == before
+    with open(output_path, encoding='utf-8') as output:
+        assert '1 + 2' in output.read()
+
+
+def test_hy2py_import(tmp_path):
+    path = os.path.join(str(tmp_path), 'pydemo_as_py.py')
+    source_path = f'{PACKAGE_DIR}/tests/resources/pydemo.hy'
+    options = Hy2pyOptions(output=path, with_source=False, with_ast=False, without_python=False)
+    assert not globalruntime.is_installed()
+    hy2py_convert_file(globalruntime.get_global_runtime(), source_path, options, filename=source_path)
+    assert not globalruntime.is_installed()
+    spec = importlib.util.spec_from_file_location('pydemo_as_py_test', path)
+    assert spec is not None and spec.loader is not None
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
     assert_stuff(m)
 
 

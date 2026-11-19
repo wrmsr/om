@@ -23,13 +23,13 @@ from ..reader import read_many
 from ..reader.exceptions import LexException
 from ..reader.exceptions import PrematureEndOfInput
 from .helpers import PACKAGE
-from .helpers import global_hy
+from .helpers import new_test_runtime
 
 
 ##
 
 
-hy = global_hy()
+hy = new_test_runtime().hy
 
 
 def tokenize(*args, **kwargs):
@@ -705,7 +705,7 @@ def test_read_error():
     """
 
     with pytest.raises(HySyntaxError) as e:
-        hy.eval(hy.read('(do (defn))'))
+        hy.eval(hy.read('(do (defn))'), module=hy.runtime.new_module('test_read_error'))
 
     assert ''.join(traceback.format_exception_only(e.type, e.value)).startswith(
         '  File "<string>", line 1\n    (do (defn))\n         ^',

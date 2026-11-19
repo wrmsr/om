@@ -22,14 +22,14 @@ from ..models import Tuple
 from ..models import as_model
 from ..models import pretty
 from ..models import replace_hy_obj
-from .helpers import global_hy
+from .helpers import new_test_runtime
 
 
 ##
 
 
 # Model reprs refer to `hy.models`, so evaluating them needs a `hy`.
-hy = global_hy()
+hy = new_test_runtime().hy
 
 
 def test_symbol_or_keyword():

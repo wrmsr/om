@@ -15,13 +15,13 @@ from ..models import List
 from ..models import Symbol
 from ..reader import read_many
 from .helpers import PACKAGE
+from .helpers import new_test_runtime
 
 
 ##
 
 
-RT = get_global_runtime()
-hy = RT.hy
+RT = new_test_runtime()
 
 
 def make_expression(*args):
@@ -34,8 +34,7 @@ def make_expression(*args):
 
 
 def hy2py(s):
-    pytest.skip("FIXME: ModuleNotFoundError: No module named 'test'")
-    return ast.unparse(hy_compile(read_many(s), 'test', runtime=RT))  # type: ignore  # noqa
+    return ast.unparse(hy_compile(read_many(s), types.ModuleType('test'), runtime=RT))
 
 
 def test_compiler_bare_names():
@@ -105,8 +104,9 @@ def test_correct_logic():
 
 
 def test_relocated_runtime_binding():
+    global_rt = get_global_runtime()
     module = types.ModuleType('hy_runtime_binding_test')
-    tree = hy_compile(read_many("(setv model 'hello)"), module, preamble=True, runtime=RT)
+    tree = hy_compile(read_many("(setv model 'hello)"), module, preamble=True, runtime=global_rt)
     source = ast.unparse(tree)
     assert f'from {PACKAGE}.globalruntime import get_global_runtime' in source
     assert 'import typing as ta' in source
@@ -115,7 +115,7 @@ def test_relocated_runtime_binding():
 
     namespace: dict[str, ta.Any] = {}
     exec(compile(tree, '<test>', 'exec'), namespace)
-    assert namespace['hy'] is hy
+    assert namespace['hy'] is global_rt.hy
     assert namespace['ta'] is ta
     assert namespace['model'] == Symbol('hello')
 

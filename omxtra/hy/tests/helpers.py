@@ -1,10 +1,12 @@
 import contextlib
+import functools
 import os
 import typing as ta
 import warnings
 
-from ..globalruntime import get_global_runtime
-from ..runtime import HyNamespace
+from ..finders import PackageHyModuleFinder
+from ..importing import IsolatedHyModules
+from ..runtime import HyRuntime
 
 
 ##
@@ -18,10 +20,11 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
 REPO_PYTHON = os.path.join(REPO_ROOT, 'python')
 
 
-def global_hy() -> HyNamespace:
-    """The `hy` of the global runtime, which the conftest installs."""
-
-    return get_global_runtime().hy
+def new_test_runtime() -> HyRuntime:
+    return HyRuntime(modules=functools.partial(
+        IsolatedHyModules,
+        finders=[PackageHyModuleFinder(prefixes=[PACKAGE])],
+    ))
 
 
 @contextlib.contextmanager

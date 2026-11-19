@@ -10,12 +10,13 @@ from ..globalruntime import get_global_runtime
 from ..reader import read_many
 from ..reader.exceptions import LexException
 from .helpers import PACKAGE
+from .helpers import new_test_runtime
 
 
 ##
 
 
-RT = get_global_runtime()
+RT = new_test_runtime()
 hy = RT.hy
 
 
@@ -658,7 +659,7 @@ def test_module_prelude():
     """Make sure the preamble (binding the prelude and hy) appears at the top of a compiled module."""
 
     for code, n in ('', 4), ('(setv flag (- hy.models.Symbol 1))', 5):
-        body = can_compile(code, preamble=True).body
+        body = hy_compile(read_many(code), __name__, preamble=True, runtime=get_global_runtime()).body
         assert len(body) == n
         assert ast.unparse(ast.Module(body=body[:4], type_ignores=[])).splitlines() == [
             'import typing as ta',

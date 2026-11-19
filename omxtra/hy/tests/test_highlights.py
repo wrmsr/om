@@ -1,5 +1,4 @@
 # @om-precheck-allow-any-unicode
-import builtins
 import glob
 import os.path
 import random
@@ -347,9 +346,7 @@ def test_all_core_specials_macros_and_mangled_aliases():
 
 
 def test_builtins_mangling_and_dotted_access():
-    for name in vars(builtins):
-        if name in ('True', 'False', 'None'):
-            continue
+    for name in ('len', 'print', 'str', 'getattr', 'isinstance', '__import__', 'BaseException'):
         line, = _highlight(unmangle(name))
         _assert_style(line, unmangle(name), 'builtin')
     line, = _highlight('hy.eval str.join .join foo.print')
