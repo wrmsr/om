@@ -9,5 +9,11 @@ from .operators import SpaceOperators
 ##
 
 
-class ObjectSpace(SpaceBase, SpaceObjects, SpaceCollections, SpaceOperators, SpaceConversions):
+class ObjectSpace(
+    SpaceBase,
+    SpaceObjects,
+    SpaceCollections,
+    SpaceOperators,
+    SpaceConversions,
+):
     pass

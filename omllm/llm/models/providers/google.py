@@ -92,12 +92,12 @@ MODELS: ta.Final[ta.Sequence[Model]] = [
     ),
 
     _make_model(
-        id='gemini-4-argon',
-        name='Gemini 4 Argon',
+        id='gemini-4-neon',
+        name='Gemini 4 Neon',
 
         short_ids=ModelShortIds(
-            short_id='gemini-argon',
-            short_id_aliases=['argon'],
+            short_id='gemini-neon',
+            short_id_aliases=['neon'],
         ),
     ),
 

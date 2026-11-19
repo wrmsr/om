@@ -513,12 +513,12 @@
           },
           {
             "provider": "google",
-            "id": "gemini-4-argon",
+            "id": "gemini-4-neon",
             "backend": "google-generative",
-            "name": "Gemini 4 Argon",
-            "short_id": "gemini-argon",
+            "name": "Gemini 4 Neon",
+            "short_id": "gemini-neon",
             "short_id_aliases": [
-              "argon"
+              "neon"
             ],
             "include_platforms": null,
             "exclude_platforms": null
