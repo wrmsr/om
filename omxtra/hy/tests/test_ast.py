@@ -50,7 +50,7 @@ def s(x):
 
 
 def test_ast_bad_type():
-    "Make sure AST breakage can happen"
+    """Make sure AST breakage can happen"""
 
     class C:
         pass
@@ -60,7 +60,7 @@ def test_ast_bad_type():
 
 
 def test_empty_expr():
-    "Empty expressions should be illegal at the top level."
+    """Empty expressions should be illegal at the top level."""
 
     cant_compile('(print ())')
     can_compile("(print '())")
