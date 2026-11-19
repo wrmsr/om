@@ -1757,12 +1757,19 @@ def test_invalid_context_rejected(source):
 
 
 def test_no_guest_exec_eval_compile_or_host_generator_implementation():
-    with open(astvm.__file__) as file:
-        tree = ast.parse(file.read())
-    assert not any(isinstance(node, (ast.Yield, ast.YieldFrom, ast.Await, ast.AsyncFunctionDef)) for node in ast.walk(tree))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            assert node.func.id not in ('exec', 'eval', 'compile')
+    directory = os.path.dirname(astvm.__file__)
+    for name in os.listdir(directory):
+        if not name.endswith('.py') or name.endswith('_dataclasses.py'):
+            continue
+        with open(os.path.join(directory, name)) as file:
+            tree = ast.parse(file.read())
+        assert not any(
+            isinstance(node, (ast.Yield, ast.YieldFrom, ast.Await, ast.AsyncFunctionDef))
+            for node in ast.walk(tree)
+        )
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                assert node.func.id not in ('exec', 'eval', 'compile')
 
 
 def test_deep_guest_recursion_does_not_consume_host_call_stack():

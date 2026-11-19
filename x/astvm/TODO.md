@@ -1,7 +1,8 @@
 # ASTVM TODO
 
 Roadmap for the first-cut, closed-object-space Python AST interpreter. The implementation remains in
-[`astvm.py`][implementation], with regression tests in [`test_astvm.py`][tests]. These are proposed work items,
+the [`x/astvm` implementation][implementation], with regression tests in [`test_astvm.py`][tests]. These are proposed
+work items,
 not claims that the corresponding features already work. An item can extend an existing feature rather than
 introduce it from scratch. IDs are stable references for dependencies; the ordering within each horizon is
 roughly by priority, not a requirement to finish every earlier item before starting another.
@@ -516,8 +517,8 @@ are the baseline for current-state claims. The Python references below define in
 backend architecture, prioritization, GC safe points, checkpoint contracts, and embedding policy are design
 proposals rather than claims that those documents prescribe this implementation.
 
-[implementation]: astvm.py
-[tests]: test_astvm.py
+[implementation]: ./
+[tests]: tests/test_astvm.py
 [readme]: README.md
 [results]: TEST_RESULTS.txt
 [pypy-object-space]: https://doc.pypy.org/en/latest/objspace.html

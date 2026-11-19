@@ -1,27 +1,26 @@
 # astvm — a first, closed-object-space AST interpreter
 
-A single-file, pure-standard-library implementation, paired with a standalone pytest suite.
+A pure-standard-library implementation split into frontend, runtime, object-space, continuation, and embedding modules,
+paired with a pytest suite.
 The runtime imports no `om` modules. The guest runs on explicit AST continuations, not generated
 Python functions, native Python generators, or a guest bytecode instruction set.
 
 **Status:** experimental implementation, not an audited security boundary and not a complete
 Python implementation. The target is a substantial synchronous Python subset with selected 3.14
-semantics. Actual validation in the development environment used **CPython 3.13.5**, not 3.14.
-The delivered suite has **461 passing cases and 2 version-gated skips** in that environment.
-The final branch-enabled coverage run measured 90.36% statement coverage and 82.36% branch coverage of `astvm.py`.
-Those skipped cases require the 3.14 parser/annotation oracle. Run the suite on your 3.14 installation
-before integrating it; the manual deferred-annotation tests do run on 3.13.
+semantics. The suite currently passes all 463 cases under CPython 3.14.10 in dockerdev.
 
 ## Files and running the tests
 
-Keep `astvm.py` and `test_astvm.py` in the same directory. Pytest is a **test-only** dependency.
+Run the tests from the repository root with the project Python launcher. Pytest is a **test-only** dependency.
 
 ```sh
-python3.14 -m pytest -q test_astvm.py
+./python -m pytest -q x/astvm/tests/test_astvm.py
 ```
 
-`TEST_RESULTS.txt` records the actual development runner and test results. Only the two `.py` files
-are needed to use and test the implementation; this document is not loaded at runtime.
+`astvm.py` preserves the existing public import surface. `frontend.py` validates source; `runtime.py` owns storage;
+`space*.py` implement the guest object space; `machine*.py` implement continuations; and `interpreter.py` exposes the
+embedding API. `objectspace.py` and `machine.py` assemble their respective mixins. `values.py`, `state.py`, `budget.py`,
+and `capabilities.py` hold shared data and boundaries.
 
 The test suite's CPython-oracle helpers use native `exec`/`eval` on fixed or deliberately generated
 **trusted test fixtures**. They are not sandbox APIs and must not be used with untrusted input.
@@ -31,7 +30,7 @@ It uses `ast.parse` and `symtable.symtable` as frontends, without producing exec
 ## Quick example: generator state really rolls back
 
 ```python
-import astvm
+from x.astvm import astvm
 
 vm = astvm.Interpreter()
 vm.execute('''
