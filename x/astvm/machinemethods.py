@@ -1,4 +1,6 @@
 # mypy: disable-error-code=attr-defined
+import ast
+import dataclasses as dc
 import typing as ta
 
 from .state import BuiltinData
@@ -37,6 +39,17 @@ class MachineMethods:
                 self._operation('next', env, value)
             return
 
+        if kind == 'property':
+            self._arity(name, args, kwargs, 1, 1)
+            field = {'getter': 'getter', 'setter': 'setter', 'deleter': 'deleter'}[name]
+            data = space.data(value)
+            changes = {field: args[0]}
+            if name == 'getter' and not data.doc_explicit:
+                node = space.data(args[0]).node if space.kind(args[0]) == 'function' else None
+                changes['doc'] = ast.get_docstring(node, clean=False) if isinstance(node, ast.FunctionDef) else None
+            self._push(space.new('property', dc.replace(data, **changes)))
+            return
+
         if kind in ('str', 'bytes'):
             self._string_method(env, value, name, args, kwargs)
             return
@@ -55,6 +68,19 @@ class MachineMethods:
 
             self._push(space.native(range.count if name == 'count' else range.index, seq, args[0]))
             return
+
+        if kind in ('list', 'tuple'):
+            indices = (
+                (0,) if kind == 'list' and name in ('insert', 'pop') and args else
+                tuple(range(1, len(args))) if name == 'index' else
+                ()
+            )
+            if any(space.kind(args[index]) in ('instance', 'exception') for index in indices):
+                minimum, maximum = {'insert': (2, 2), 'pop': (0, 1), 'index': (1, 3)}[name]
+                self._arity(name, args, kwargs, minimum, maximum)
+                self._add('method_index_next', env, data=(info, args, kwargs, indices, 0))
+                self._operation('index', env, args[indices[0]])
+                return
 
         if name in ('copy', 'clear', 'reverse'):
             self._arity(name, args, kwargs, 0, 0)
@@ -144,6 +170,17 @@ class MachineMethods:
 
     def _task_extend_iterator(self, task: Task) -> None:
         self._add('extend_next', task.env, data=(task.data, self._pop()))
+
+    def _task_method_index_next(self, task: Task) -> None:
+        info, args, kwargs, indices, offset = task.data
+        index = indices[offset]
+        args = (*args[:index], self._pop(), *args[index + 1:])
+
+        if offset + 1 < len(indices):
+            self._add('method_index_next', task.env, data=(info, args, kwargs, indices, offset + 1))
+            self._operation('index', task.env, args[indices[offset + 1]])
+        else:
+            self._method(task.env, info, args, kwargs)
 
     def _task_extend_next(self, task: Task) -> None:
         target, iterator = task.data

@@ -70,11 +70,11 @@ class MachineStatements:
                 self._evaluate(node.value, env)
 
         elif isinstance(node, ast.FunctionDef):
-            self._add('bind_definition', env, node, node.name)
+            self._add('bind_definition', env, node, getattr(node, '_astvm_binding_name', node.name))
             self._define_function(node, env)
 
         elif isinstance(node, ast.ClassDef):
-            self._add('bind_definition', env, node, node.name)
+            self._add('bind_definition', env, node, getattr(node, '_astvm_binding_name', node.name))
             self._add('class_values', env, node)
             self._many((*node.decorator_list, *node.bases), env)
 
@@ -200,7 +200,8 @@ class MachineStatements:
             self._write_name(receiver, key, value, delete=delete)
 
         elif kind == 'attribute':
-            self._space.set_attribute(receiver, key, value, delete=delete)
+            self._add('discard', task.env)
+            self._operation('delattr' if delete else 'setattr', task.env, receiver, key, value)
 
         else:
             self._add('discard', task.env)

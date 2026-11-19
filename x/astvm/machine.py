@@ -5,6 +5,7 @@ from .frontend import Program
 from .machineadapters import MachineAdapters
 from .machinebuiltins import MachineBuiltins
 from .machinecalls import MachineCalls
+from .machinecomparisons import MachineComparisons
 from .machinecomprehensions import MachineComprehensions
 from .machineconstructors import MachineConstructors
 from .machinecontrol import MachineControl
@@ -17,6 +18,7 @@ from .machinemethods import MachineMethods
 from .machineoperations import MachineOperations
 from .machineprotocols import MachineProtocols
 from .machinereductions import MachineReductions
+from .machinerepresentation import MachineRepresentation
 from .machinestatements import MachineStatements
 from .machinestrings import MachineStrings
 from .objectspace import ObjectSpace
@@ -40,6 +42,8 @@ class Machine(
     MachineFunctions,
     MachineOperations,
     MachineProtocols,
+    MachineComparisons,
+    MachineRepresentation,
     MachineCalls,
     MachineComprehensions,
     MachineImports,

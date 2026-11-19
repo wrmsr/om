@@ -5,11 +5,13 @@ import sys
 import typing as ta
 
 from .state import BuiltinData
+from .state import IteratorData
 from .state import Task
 from .values import _MISSING
 from .values import _NUMBERS
 from .values import _SCALARS
 from .values import InterpreterError
+from .values import _GuestRaise
 
 
 ##
@@ -19,6 +21,7 @@ class MachineOperations:
     _TASK_OPERATION_NAMES: ta.ClassVar = (
         'truth',
         'len',
+        'index',
         'iter',
         'next',
         'str',
@@ -33,6 +36,7 @@ class MachineOperations:
     _TASK_OPERATION_SPECIAL_NAMES: ta.ClassVar = {
         'truth': '__bool__',
         'len': '__len__',
+        'index': '__index__',
         'iter': '__iter__',
         'next': '__next__',
         'str': '__str__',
@@ -47,6 +51,7 @@ class MachineOperations:
     _TASK_OPERATION_EXPECTED: ta.ClassVar = {
         'truth': 'bool',
         'len': 'len',
+        'index': 'index',
         'iter': 'iterator',
         'str': 'str',
         'repr': 'str',
@@ -94,9 +99,14 @@ class MachineOperations:
                 space.error('OverflowError', 'length does not fit in a platform index')
             self._push(length)
 
+        elif name == 'index':
+            self._push(space.index(value))
+
         elif name == 'iter':
             if kind == 'adapter':
                 self._push(value)
+            elif kind in ('instance', 'exception') and space.special(value, '__getitem__') is not _MISSING:
+                self._push(space.new('iterator', IteratorData(value)))
             else:
                 self._push(space.iter_value(value))
 
@@ -104,22 +114,137 @@ class MachineOperations:
             if kind == 'generator':
                 self._resume_generator(env, value, 'next', None)
             elif kind == 'iterator':
-                self._push(space.next_value(value))
+                info = space.data(value)
+                if space.kind(info.target) in ('instance', 'exception'):
+                    if info.exhausted:
+                        space.error('StopIteration')
+                    method = space.special(info.target, '__getitem__')
+                    if method is _MISSING:
+                        space.error('TypeError', 'sequence no longer supports indexing')
+                    self._add('sequence_next_guard', env, data=value)
+                    self._add('sequence_next_value', env, data=value)
+                    self._invoke(env, method, (info.index,))
+                else:
+                    self._push(space.next_value(value))
             elif kind == 'adapter':
                 self._adapter_next(env, value)
             else:
                 space.error('TypeError', 'object is not an iterator')
 
         elif name == 'getattr':
-            self._resolve(space.get_attribute(value, values[1]), env)
+            attribute_name = values[1]
+            exception_fields = (
+                'args', '__cause__', '__context__', '__suppress_context__', '__traceback__', '__dict__',
+            )
+            if (
+                kind in ('instance', 'exception', 'class') and attribute_name != '__class__' and
+                (kind != 'exception' or attribute_name not in exception_fields)
+            ):
+                cls = space.type_of(value) if kind in ('instance', 'exception') else value
+                found = space.lookup_class(cls, attribute_name)
+                if found is not _MISSING:
+                    if space.kind(found) == 'property':
+                        if kind == 'class':
+                            self._push(found)
+                            return
+                        getter = space.data(found).getter
+                        if getter is None:
+                            fallback = space.special(value, '__getattr__')
+                            if fallback is not _MISSING:
+                                self._invoke(env, fallback, (attribute_name,))
+                                return
+                            space.error('AttributeError', attribute_name)
+                        self._add('descriptor_get_guard', env, data=(value, attribute_name))
+                        self._invoke(env, getter, (value,))
+                        return
+
+                    getter = space.special(found, '__get__')
+                    if getter is not _MISSING:
+                        namespace_ref = space.data(value).namespace if kind in ('instance', 'exception') else None
+                        namespace = space.data(namespace_ref) if namespace_ref is not None else {}
+                        data_descriptor = (
+                            space.special(found, '__set__') is not _MISSING or
+                            space.special(found, '__delete__') is not _MISSING
+                        )
+                        if kind == 'class' or data_descriptor or attribute_name not in namespace:
+                            self._add('descriptor_get_guard', env, data=(value, attribute_name))
+                            self._invoke(env, getter, (value if kind in ('instance', 'exception') else None, cls))
+                            return
+
+            try:
+                attribute = space.get_attribute(value, values[1])
+
+            except _GuestRaise as exc:
+                if kind not in ('instance', 'exception') or not space.exception_matches(
+                    exc.value, space.types['AttributeError'],
+                ):
+                    raise
+
+                method = space.special(value, '__getattr__')
+                if method is _MISSING:
+                    raise
+
+                self._invoke(env, method, (values[1],))
+
+            else:
+                self._resolve(attribute, env)
+
+        elif name in ('setattr', 'delattr'):
+            attribute_name = values[1]
+            structural: tuple[str, ...] = ('__class__', '__dict__', '__bases__', '__mro__')
+            if kind == 'exception':
+                structural += ('args', '__cause__', '__context__', '__suppress_context__', '__traceback__')
+            if kind in ('instance', 'exception') and attribute_name not in structural:
+                found = space.lookup_class(space.type_of(value), attribute_name)
+                if found is not _MISSING:
+                    if space.kind(found) == 'property':
+                        data = space.data(found)
+                        method = data.deleter if name == 'delattr' else data.setter
+                        if method is None:
+                            space.error('AttributeError', attribute_name)
+                        self._add('constant', env, data=None)
+                        self._add('discard', env)
+                        self._invoke(env, method, (value,) if name == 'delattr' else (value, values[2]))
+                        return
+
+                    method = space.special(found, '__delete__' if name == 'delattr' else '__set__')
+                    if method is not _MISSING:
+                        self._add('constant', env, data=None)
+                        self._add('discard', env)
+                        self._invoke(env, method, (value,) if name == 'delattr' else (value, values[2]))
+                        return
+                    if space.special(found, '__set__' if name == 'delattr' else '__delete__') is not _MISSING:
+                        space.error('AttributeError', 'descriptor does not support this operation')
+            space.set_attribute(
+                value, attribute_name, values[2] if name == 'setattr' else None, delete=name == 'delattr',
+            )
+            self._push(None)
 
         elif name == 'getitem':
-            self._resolve(space.get_item(value, values[1]), env)
+            if kind in ('list', 'tuple', 'str', 'bytes', 'range') and space.kind(values[1]) == 'slice' and any(
+                space.kind(part) in ('instance', 'exception') for part in space.data(values[1]) if part is not None
+            ):
+                self._add('slice_index_next', env, data=(name, values, tuple(space.data(values[1])), 0))
+            elif (
+                kind in ('list', 'tuple', 'str', 'bytes', 'range') and
+                space.kind(values[1]) in ('instance', 'exception')
+            ):
+                self._add('indexed_getitem', env, data=value)
+                self._operation('index', env, values[1])
+            else:
+                self._resolve(space.get_item(value, values[1]), env)
 
         elif name in ('setitem', 'delitem'):
-            if name == 'setitem' and kind == 'list' and space.kind(values[1]) == 'slice':
+            if kind == 'list' and space.kind(values[1]) == 'slice' and any(
+                space.kind(part) in ('instance', 'exception') for part in space.data(values[1]) if part is not None
+            ):
+                self._add('slice_index_next', env, data=(name, values, tuple(space.data(values[1])), 0))
+            elif name == 'setitem' and kind == 'list' and space.kind(values[1]) == 'slice':
                 self._add('slice_assignment', env, data=values[:2])
                 self._collect(env, values[2])
+            elif kind == 'list' and space.kind(values[1]) in ('instance', 'exception'):
+                self._add('indexed_setitem', env, data=(value, values[2], name == 'delitem'))
+                self._operation('index', env, values[1])
             else:
                 space.set_item(value, values[1], values[2], delete=name == 'delitem')
                 self._push(None)
@@ -167,9 +292,13 @@ class MachineOperations:
                 return
 
             if category == 'inplace' and kind == 'list' and op == 'Mult':
-                result = space.binary(op, left, right)
-                self._runtime.replace(left, list(space.data(result)))
-                self._push(left)
+                if space.kind(right) in ('instance', 'exception'):
+                    self._add('inplace_repeat_index', env, data=left)
+                    self._operation('index', env, right)
+                else:
+                    result = space.binary(op, left, right)
+                    self._runtime.replace(left, list(space.data(result)))
+                    self._push(left)
                 return
 
             if category == 'inplace' and kind in ('dict', 'namespace') and op == 'BitOr':
@@ -243,6 +372,18 @@ class MachineOperations:
                 space.error('TypeError', 'invalid unary operand')
 
         elif name in ('str', 'repr', 'ascii'):
+            if kind in self._REPRESENTED_CONTAINERS:
+                if self._flat_intrinsic_container(value):
+                    text = space.representation(value)
+                    if name == 'ascii':
+                        text = text.encode('ascii', 'backslashreplace').decode('ascii')
+                    self._budget.size(len(text), string=True)
+                    self._push(text)
+                else:
+                    if name == 'ascii':
+                        self._add('representation_ascii', env)
+                    self._represent_container(env, value)
+                return
             text = space.representation(value, string=name == 'str')
             if name == 'ascii':
                 text = text.encode('ascii', 'backslashreplace').decode('ascii')

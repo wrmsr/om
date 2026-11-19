@@ -5,6 +5,7 @@ import typing as ta
 from .state import AdapterData
 from .state import BuiltinData
 from .state import Environment
+from .state import InstanceData
 from .state import ReductionState
 from .state import Task
 from .values import _MISSING
@@ -41,6 +42,21 @@ class MachineBuiltins:
             self._push(None)
             return
 
+        elif name == 'object_new':
+            self._arity(name, args, kwargs, 1, 1)
+            cls = args[0]
+            if space.kind(cls) not in ('class', 'type') or not space.subclass(cls, space.types['object']):
+                space.error('TypeError', 'object.__new__ requires a guest class')
+            if space.kind(cls) == 'type' and cls != space.types['object']:
+                space.error('TypeError', 'object.__new__ does not allocate intrinsic types')
+            self._push(space.new('instance', InstanceData(cls, space.new('namespace', {}))))
+            return
+
+        elif name == 'object_init':
+            self._arity(name, args, kwargs, 1, 1)
+            self._push(None)
+            return
+
         if info.receiver is not _MISSING:
             self._method(env, info, args, kwargs)
             return
@@ -73,8 +89,7 @@ class MachineBuiltins:
         elif name in ('setattr', 'delattr'):
             count = 3 if name == 'setattr' else 2
             self._arity(name, args, kwargs, count, count)
-            space.set_attribute(args[0], args[1], args[2] if len(args) == 3 else None, delete=name == 'delattr')
-            self._push(None)
+            self._operation(name, env, *args)
 
         elif name in ('isinstance', 'issubclass'):
             self._arity(name, args, kwargs, 2, 2)
@@ -124,7 +139,8 @@ class MachineBuiltins:
                 self._push(space.native(ord, args[0]))
 
             else:
-                self._push(space.native({'chr': chr, 'bin': bin, 'oct': oct, 'hex': hex}[name], space.index(args[0])))
+                self._add('integer_builtin', env, data=name)
+                self._operation('index', env, args[0])
 
         elif name in ('abs', 'round'):
             self._arity(name, args, kwargs, 1, 2 if name == 'round' else 1)
@@ -135,8 +151,10 @@ class MachineBuiltins:
 
             elif type(args[0]) in _NUMBERS:
                 if len(args) == 2:
-                    space.index(args[1])
-                self._push(space.native(abs if name == 'abs' else round, *args))
+                    self._add('round_digits', env, data=args[0])
+                    self._operation('index', env, args[1])
+                else:
+                    self._push(space.native(abs if name == 'abs' else round, *args))
 
             else:
                 space.error('TypeError', 'invalid numeric operand')
@@ -168,8 +186,9 @@ class MachineBuiltins:
                 if len(args) == 2 and 'start' in kwargs:
                     space.error('TypeError', 'multiple values for start')
 
-                index = space.index(args[1] if len(args) == 2 else kwargs.get('start', 0))
-                state, inputs = AdapterData(name, (), index=index), args[:1]
+                self._add('enumerate_start', env, data=args[0])
+                self._operation('index', env, args[1] if len(args) == 2 else kwargs.get('start', 0))
+                return
 
             elif name == 'zip':
                 self._arity(name, args, kwargs, 0, None, frozenset({'strict'}))
@@ -189,6 +208,15 @@ class MachineBuiltins:
                 method = space.special(args[0], '__reversed__')
                 if method is not _MISSING:
                     self._invoke(env, method, ())
+                    return
+
+                if (
+                    space.kind(args[0]) in ('instance', 'exception') and
+                    space.special(args[0], '__len__') is not _MISSING and
+                    space.special(args[0], '__getitem__') is not _MISSING
+                ):
+                    self._add('reversed_length', env, data=args[0])
+                    self._operation('len', env, args[0])
                     return
 
                 if space.kind(args[0]) not in ('list', 'tuple', 'str', 'bytes', 'range'):
@@ -244,6 +272,20 @@ class MachineBuiltins:
 
         else:
             raise InterpreterError('unimplemented registered builtin: ' + name)
+
+    def _task_integer_builtin(self, task: Task) -> None:
+        function = {'chr': chr, 'bin': bin, 'oct': oct, 'hex': hex}[task.data]
+        self._push(self._space.native(function, self._pop()))
+
+    def _task_round_digits(self, task: Task) -> None:
+        self._push(self._space.native(round, task.data, self._pop()))
+
+    def _task_enumerate_start(self, task: Task) -> None:
+        state = AdapterData('enumerate', (), index=self._pop())
+        self._add('adapter_iterators', task.env, data=(state, (task.data,), 0))
+
+    def _task_reversed_length(self, task: Task) -> None:
+        self._push(self._space.new('adapter', AdapterData('reversed', (), index=self._pop() - 1, extra=task.data)))
 
     def _task_hasattr_guard(self, task: Task) -> None:
         if task.data[1]:

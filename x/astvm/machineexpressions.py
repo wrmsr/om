@@ -163,6 +163,11 @@ class MachineExpressions:
         value = self._pop()
 
         if task.node.keys[index] is None:
+            if self._space.kind(value) in ('instance', 'exception'):
+                self._add('dict_next', task.env, task.node, (index + 1, result))
+                self._add('dict_unpack_guard', task.env, data=(result, value))
+                self._operation('getattr', task.env, value, 'keys')
+                return
             for key, item in self._space.mapping_pairs(value):
                 self._budget.tick()
                 self._space.set_item(result, key, item)
@@ -172,6 +177,10 @@ class MachineExpressions:
             self._space.set_item(result, key, item)
 
         self._add('dict_next', task.env, task.node, (index + 1, result))
+
+    def _task_dict_unpack_guard(self, task: Task) -> None:
+        self._add('mapping_keys_iterable', task.env, data=task.data)
+        self._invoke(task.env, self._pop(), ())
 
     def _task_binary_values(self, task: Task) -> None:
         left, right = self._space.data(self._pop())
@@ -338,6 +347,10 @@ class MachineExpressions:
         state = task.data
         key = task.node.keywords[state.index - len(task.node.args)].arg
         value = self._pop()
+        if key is None and self._space.kind(value) in ('instance', 'exception'):
+            self._add('call_kwargs_guard', task.env, task.node, (state, value))
+            self._operation('getattr', task.env, value, 'keys')
+            return
         pairs = [(key, value)] if key is not None else self._space.mapping_pairs(value)
         keywords = dict(state.keywords)
 
@@ -352,3 +365,43 @@ class MachineExpressions:
         self._add('call_argument', task.env, task.node, dc.replace(
             state, index=state.index + 1, keywords=tuple(keywords.items()),
         ))
+
+    def _task_call_kwargs_guard(self, task: Task) -> None:
+        self._add('call_kwargs_keys', task.env, task.node, task.data)
+        self._invoke(task.env, self._pop(), ())
+
+    def _task_call_kwargs_keys(self, task: Task) -> None:
+        self._add('call_kwargs_entries_start', task.env, task.node, task.data)
+        self._collect(task.env, self._pop())
+
+    def _task_call_kwargs_entries_start(self, task: Task) -> None:
+        state, source = task.data
+        self._add('call_kwargs_entries', task.env, task.node, (state, source, self._pop(), 0, state.keywords))
+
+    def _task_call_kwargs_entries(self, task: Task) -> None:
+        state, source, keys, index, keywords = task.data
+        keys = self._space.data(keys)
+
+        if index == len(keys):
+            self._budget.size(len(keywords))
+            self._add('call_argument', task.env, task.node, dc.replace(
+                state, index=state.index + 1, keywords=keywords,
+            ))
+            return
+
+        name = keys[index]
+        if type(name) is not str:
+            self._space.error('TypeError', 'keywords must be strings')
+        if name in dict(keywords):
+            self._space.error('TypeError', f'multiple values for keyword argument {name!r}')
+
+        self._add('call_kwargs_item', task.env, task.node, task.data)
+        self._operation('getitem', task.env, source, name)
+
+    def _task_call_kwargs_item(self, task: Task) -> None:
+        state, source, keys, index, keywords = task.data
+        name = self._space.data(keys)[index]
+        self._add(
+            'call_kwargs_entries', task.env, task.node,
+            (state, source, keys, index + 1, (*keywords, (name, self._pop()))),
+        )

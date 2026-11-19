@@ -24,10 +24,10 @@ coroutines and awaitable protocols, **not running asyncio**, and does not requir
 Introspection must expose guest objects and metadata, never native frames, callbacks, or implementation
 records. Prefer documented language semantics over reproducing accidental CPython allocation identities.
 
-The [README][readme] and [validation record][results] describe the starting point. The recorded full-suite
-validation used CPython 3.13.5, not 3.14. Targeted probes while preparing this roadmap also used 3.13.5 and
-confirmed the NaN comparison, `dict(None)`, numeric-method, intrinsic-key, keyword-argument, and floating
-summation gaps called out below. No new Python 3.14 validation is implied.
+The [README][readme] describes the current validation. The original roadmap was written after CPython 3.13.5
+probes; the full suite now runs on CPython 3.14.10. The NaN comparison, explicit-`None` mapping arguments, and
+floating summation examples below have targeted fixes. Numeric-method, intrinsic-key, and keyword-argument
+coverage still need work.
 
 ## Near term — make ordinary Python dependable
 
@@ -63,20 +63,17 @@ summation gaps called out below. No new Python 3.14 validation is implied.
   oversized single operations, and inability to evade quotas by collecting or restoring repeatedly. These
   remain conservative limits, not promises of exact byte accounting or wall-clock enforcement.
 
-- [ ] **N04 — Fix small semantic errors before expanding the language.** Add targeted regressions for
-  confirmed first-cut mismatches: a NaN compared directly with itself currently compares equal; `dict(None)`
-  creates an empty dictionary; and `{}.update(None)` silently succeeds. Distinguish missing arguments from
-  actual `None` using a dedicated sentinel, and distinguish ordinary scalar equality from container identity
-  shortcuts. Audit constructor and builtin signatures systematically, including keyword-only and positional-only
-  forms and 3.14's `map(..., strict=True)`. Also address the floating `sum([1e16, 1.0, -1e16])` discrepancy without
-  materializing arbitrary iterators or delegating guest callbacks to host code. Give 3.14 numeric reductions
+- [ ] **N04 — Fix small semantic errors before expanding the language.** The NaN self-comparison, `dict(None)`,
+  `{}.update(None)`, and compensated floating `sum` regressions are fixed. Continue auditing constructor and
+  builtin signatures systematically, including keyword-only and positional-only forms and 3.14's
+  `map(..., strict=True)`. Give 3.14 numeric reductions
   their own oracle tests. This work should fix incorrect results and accepted-invalid calls, not merely add
   more builtin names. Reference: [Python builtins][py-builtins].
 
-- [ ] **N05 — Make compound intrinsic operations resumable and protocol-correct.** Replace recursive shortcuts
-  in `ObjectSpace.equal`, `compare`, and `representation` with explicit continuation state wherever an operation
-  can traverse an unbounded graph or invoke guest behavior. Nested list/tuple/dictionary comparisons and
-  representations must dispatch to contained guest objects through the same machine as top-level operations.
+- [ ] **N05 — Make compound intrinsic operations resumable and protocol-correct.** List/tuple/dictionary
+  comparisons and container representations now use machine continuations and call contained guest methods.
+  Replace the remaining recursive shortcuts in `ObjectSpace.equal`, `compare`, and `representation` wherever
+  an operation can traverse an unbounded graph or invoke guest behavior, including exception rendering.
   Preserve recursion guards, identity shortcuts in the appropriate container contexts, exception timing, and
   side effects from comparison or representation methods. Include cyclic and deeply nested graphs, methods
   that mutate the traversed container, and comparison results requiring guest truth conversion. Checkpoint and
@@ -103,11 +100,12 @@ summation gaps called out below. No new Python 3.14 validation is implied.
   replacement requires it. Full guest-defined `__hash__`/`__eq__` key support belongs to M06; the initial fixes
   should nevertheless leave a clean path to that implementation.
 
-- [ ] **N08 — Implement the small protocol bridges everyday objects need.** Make existing minimal classes
-  useful with ordinary builtins by adding a shared guest `__index__` conversion path and routing indexing,
-  slicing, ranges, repetition, and relevant numeric helpers through it. Implement the sequence-iteration
-  fallback using indexed `__getitem__`, reversal fallbacks where applicable, and the mapping protocol needed
-  by `dict`, `update`, unpacking, and keyword expansion. Keep the different requirements of these callers
+- [ ] **N08 — Implement the small protocol bridges everyday objects need.** Guest `__index__` now covers
+  intrinsic indexing, slicing, ranges, repetition, common conversion builtins, `enumerate`, and list/tuple
+  index-taking methods. Sequence iteration via `__getitem__` and reversal via `__len__`/`__getitem__` are
+  implemented. Guest mappings with `keys`/`__getitem__` now work in `dict`, `update`, dictionary displays,
+  and keyword expansion; iterable pairs remain the fallback for dictionary construction. Finish the remaining
+  conversion and mapping edge cases. Keep the different requirements of these callers
   explicit: accepting an iterable of pairs is not the same operation as accepting a keyword mapping. Validate
   results and propagate guest errors rather than coercing them through host objects. Optional length hints
   must never authorize unchecked allocation. This is near-term protocol completion on today's classes, not a
@@ -205,30 +203,32 @@ summation gaps called out below. No new Python 3.14 validation is implied.
 
 ## Mid term — a useful object model and bare async machinery
 
-- [ ] **M01 — Implement private-name mangling and complete lexical class metadata.** Perform name mangling in
-  the frontend using the correct lexical class context, covering attribute names, parameters, relevant bindings,
-  nested scopes, annotations, and class names with leading underscores. Keep nested-class contexts distinct
-  and do not mangle strings passed to `getattr` or other runtime APIs. Build accurate class/function qualified
-  names and the class-cell infrastructure required by `__class__` and zero-argument `super`. Test methods,
+- [ ] **M01 — Implement private-name mangling and complete lexical class metadata.** The frontend now mangles
+  private names in the lexical class context, including attributes, parameters, bindings, nested scopes,
+  globals, and nonlocals, while retaining original class/function names. Extend differential coverage for
+  annotations, import aliases, and source-module boundaries; keep nested-class contexts distinct and do not
+  mangle strings passed to `getattr` or other runtime APIs. Basic lexical class/function qualified names are
+  implemented; finish comprehension and edge-case metadata and build the class-cell infrastructure required
+  by `__class__` and zero-argument `super`. Test methods,
   comprehensions, nested functions, nested classes, and source-module boundaries together, not only direct
   `self.__field` assignments. Preserve immutable analyzed program metadata so these rules do not become
   repeated runtime work. This is a compiler/frontend correctness feature even though its primary beneficiaries
   are classes; dynamic source strings must receive their own appropriate compilation context.
 
-- [ ] **M02 — Add descriptors, properties, and custom attribute access.** Introduce guest descriptor dispatch
-  with the correct ordering between data descriptors, instance dictionaries, and non-data descriptors. Build
-  `property` on that mechanism, and expand `staticmethod`/`classmethod` consistently instead of accumulating
-  unrelated lookup exceptions. Implement guest `__getattribute__`, `__getattr__`, `__setattr__`, and `__delattr__`
+- [ ] **M02 — Add descriptors, properties, and custom attribute access.** Basic instance `__getattr__` fallback,
+  guest `__get__`/`__set__`/`__delete__` dispatch, and `property` decorators are implemented for ordinary
+  and exception instances. Finish descriptor edge cases and expand `staticmethod`/`classmethod` consistently
+  instead of accumulating unrelated lookup exceptions. Implement guest `__getattribute__`, `__setattr__`, and `__delattr__`
   through resumable operations, including a usable base-object path that custom hooks can delegate to without
   recursing forever. Cover descriptor exceptions, deletion, inheritance, and class-versus-instance access.
   Lookups may execute arbitrary guest code, mutate the class, or be interrupted by a checkpoint; store their
   intermediate state accordingly. Do not use host descriptors or forward attribute access to the native
   dataclasses that happen to represent guest objects. Reference: [the data model][py-data-model].
 
-- [ ] **M03 — Complete ordinary class construction without custom metaclasses.** Implement the allocation and
-  initialization stages around guest `__new__` and `__init__`, including constructors that return a different
-  object and the resulting initialization rules. Add `__set_name__` and `__init_subclass__` support, class-body
-  metadata initialization, and correct ordering relative to descriptors and class decorators. Keep normal
+- [ ] **M03 — Complete ordinary class construction without custom metaclasses.** Guest `__set_name__` and
+  `__init_subclass__` now run before class decorators. Guest `__new__`, `object.__new__`, and the resulting
+  `__init__` rules are implemented for ordinary classes, including foreign return values. Complete class-body
+  metadata initialization and construction edge cases. Keep normal
   `object`/`type` behavior intrinsic for now rather than quietly enabling arbitrary metaclass execution.
   Checkpoint partway through construction and test failed initialization, inherited hooks, custom exceptions,
   constructor argument forwarding, and objects whose initialization makes them reachable before completion.
@@ -257,7 +257,8 @@ summation gaps called out below. No new Python 3.14 validation is implied.
 
 - [ ] **M06 — Support guest-defined dictionary and set keys.** Implement resumable hash-table operations that
   can call guest `__hash__`, `__eq__`, and truth conversion without hiding execution inside native dictionary
-  callbacks. Handle default identity hashing, deliberately unhashable classes, hash/equality inheritance rules,
+  callbacks. Default identity keys now work for instances without guest equality or hashing methods. Complete
+  deliberately unhashable classes, hash/equality inheritance rules,
   collisions, cross-type equal keys, and exceptions or table mutations during comparison. Retain a fast path
   for proven intrinsic keys where it preserves the same semantics. Represent pending probes and mutation
   checks as execution data so collection, interruption, and restore remain valid during a lookup. Preserve

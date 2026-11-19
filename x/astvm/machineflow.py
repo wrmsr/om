@@ -8,6 +8,7 @@ from .state import Environment
 from .state import Execution
 from .state import Outcome
 from .state import Task
+from .values import _MISSING
 from .values import InterpreterError
 from .values import ObjectRef
 from .values import Value
@@ -231,6 +232,12 @@ class MachineFlow:
         'hasattr_guard',
         'delegate_guard',
         'default_next_guard',
+        'sequence_next_guard',
+        'reversed_guard',
+        'mapping_keys_guard',
+        'call_kwargs_guard',
+        'dict_unpack_guard',
+        'descriptor_get_guard',
     )
 
     def _unwind(self, outcome: Outcome) -> None:
@@ -295,6 +302,45 @@ class MachineFlow:
                 if space.exception_matches(outcome.value, space.types['StopIteration']):
                     self._push(task.data)
                     return
+
+            elif kind == 'sequence_next_guard' and outcome.kind == 'raise':
+                index_error = space.exception_matches(outcome.value, space.types['IndexError'])
+                if index_error or space.exception_matches(outcome.value, space.types['StopIteration']):
+                    info = space.data(task.data)
+                    self._runtime.replace(task.data, dc.replace(info, exhausted=True))
+                    if index_error:
+                        outcome = Outcome('raise', space.exception('StopIteration', ()))
+
+            elif kind == 'reversed_guard' and outcome.kind == 'raise':
+                if space.exception_matches(outcome.value, space.types['IndexError']):
+                    info = space.data(task.data)
+                    self._runtime.replace(task.data, dc.replace(info, exhausted=True))
+                    outcome = Outcome('raise', space.exception('StopIteration', ()))
+
+            elif kind == 'mapping_keys_guard' and outcome.kind == 'raise':
+                if space.exception_matches(outcome.value, space.types['AttributeError']):
+                    target, source = task.data
+                    self._add('mapping_update_iterator', task.env, data=target)
+                    self._operation('iter', task.env, source)
+                    return
+
+            elif kind == 'call_kwargs_guard' and outcome.kind == 'raise':
+                if space.exception_matches(outcome.value, space.types['AttributeError']):
+                    outcome = Outcome('raise', space.exception('TypeError', ('argument after ** must be a mapping',)))
+
+            elif kind == 'dict_unpack_guard' and outcome.kind == 'raise':
+                if space.exception_matches(outcome.value, space.types['AttributeError']):
+                    outcome = Outcome(
+                        'raise', space.exception('TypeError', ('dictionary unpacking requires a mapping',)),
+                    )
+
+            elif kind == 'descriptor_get_guard' and outcome.kind == 'raise':
+                if space.exception_matches(outcome.value, space.types['AttributeError']):
+                    receiver, attribute = task.data
+                    method = space.special(receiver, '__getattr__')
+                    if method is not _MISSING:
+                        self._invoke(task.env, method, (attribute,))
+                        return
 
             elif kind == 'hasattr_guard' and outcome.kind == 'raise':
                 if space.exception_matches(outcome.value, space.types['AttributeError']):

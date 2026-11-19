@@ -1,5 +1,6 @@
 # mypy: disable-error-code=attr-defined
 import dataclasses as dc
+import math
 
 from .state import SortState
 from .state import Task
@@ -29,8 +30,34 @@ class MachineReductions:
             self._operation('truth', task.env, value)
 
         elif state.name == 'sum':
-            self._add('reduction_sum', task.env, data=state)
-            self._operation('binary:Add', task.env, state.value, value)
+            if (
+                type(state.value) in (bool, int, float) and
+                type(value) in (bool, int, float) and
+                (type(state.value) is float or type(value) is float or state.compensation is not None)
+            ):
+                total = self._space.native(float, state.value)
+                part = self._space.native(float, value)
+                next_total = total + part
+                compensation = state.compensation or 0.0
+
+                if math.isfinite(next_total):
+                    if abs(total) >= abs(part):
+                        compensation += (total - next_total) + part
+                    else:
+                        compensation += (part - next_total) + total
+                else:
+                    compensation = 0.0
+
+                self._budget.tick()
+                self._add('reduction_next', task.env, data=dc.replace(
+                    state, value=next_total, compensation=compensation,
+                ))
+
+            else:
+                if state.compensation is not None:
+                    state = dc.replace(state, value=state.value + state.compensation, compensation=None)
+                self._add('reduction_sum', task.env, data=state)
+                self._operation('binary:Add', task.env, state.value, value)
 
         else:
             self._add('reduction_key', task.env, data=(state, value))
@@ -81,7 +108,10 @@ class MachineReductions:
             self._push(state.name == 'all')
 
         elif state.value is not _MISSING:
-            self._push(state.value)
+            if state.name == 'sum' and state.compensation is not None:
+                self._push(state.value + state.compensation)
+            else:
+                self._push(state.value)
 
         elif state.default is not _MISSING:
             self._push(state.default)

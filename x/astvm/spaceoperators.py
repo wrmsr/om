@@ -37,7 +37,7 @@ class SpaceOperators:
     ) -> bool:
         self.budget.tick()
 
-        if self.identical(left, right):
+        if type(left) is ObjectRef and self.identical(left, right):
             return True
 
         if depth > self.budget.limits.conversion_depth:
@@ -50,14 +50,23 @@ class SpaceOperators:
 
         if lk == rk and lk in ('list', 'tuple'):
             a, b = self.data(left), self.data(right)
-            return len(a) == len(b) and all(self.equal(x, y, depth + 1) for x, y in zip(a, b))
+            return len(a) == len(b) and all(
+                self.identical(x, y) or self.equal(x, y, depth + 1)
+                for x, y in zip(a, b)
+            )
 
         if lk in ('dict', 'namespace') and rk in ('dict', 'namespace'):
             a, b = self.mapping_pairs(left), self.mapping_pairs(right)
             if len(a) != len(b):
                 return False
             tokens = {self.key(k): v for k, v in b}
-            return all(self.key(k) in tokens and self.equal(v, tokens[self.key(k)], depth + 1) for k, v in a)
+            return all(
+                self.key(k) in tokens and (
+                    self.identical(v, tokens[self.key(k)]) or
+                    self.equal(v, tokens[self.key(k)], depth + 1)
+                )
+                for k, v in a
+            )
 
         if lk in ('set', 'frozenset') and rk in ('set', 'frozenset'):
             return self.data(left).keys() == self.data(right).keys()
@@ -93,6 +102,8 @@ class SpaceOperators:
         if self.kind(left) == self.kind(right) and self.kind(left) in ('list', 'tuple'):
             a, b = self.data(left), self.data(right)
             for x, y in zip(a, b):
+                if self.identical(x, y):
+                    continue
                 if not self.equal(x, y):
                     return self.compare(name, x, y, depth + 1)
 

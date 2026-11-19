@@ -3,6 +3,7 @@ import typing as ta
 
 from .state import Environment
 from .state import Task
+from .values import _MISSING
 from .values import InterpreterError
 from .values import ObjectRef
 from .values import Value
@@ -63,7 +64,7 @@ class MachineMappings:
 
         elif name == 'update':
             self._arity(name, args, {}, 0, 1)
-            self._update_mapping(env, ref, args[0] if args else None, kwargs, None)
+            self._update_mapping(env, ref, args[0] if args else _MISSING, kwargs, None)
 
         else:
             raise InterpreterError('unknown mapping method')
@@ -78,7 +79,7 @@ class MachineMappings:
     ) -> None:
         self._add('mapping_update_keywords', env, data=(target, tuple(keywords.items()), result))
 
-        if source is None:
+        if source is _MISSING:
             return
 
         if self._space.kind(source) in ('dict', 'namespace'):
@@ -86,9 +87,39 @@ class MachineMappings:
                 self._budget.tick()
                 self._space.set_item(target, key, value)
 
+        elif self._space.kind(source) in ('instance', 'exception'):
+            self._add('mapping_keys_guard', env, data=(target, source))
+            self._operation('getattr', env, source, 'keys')
+
         else:
             self._add('mapping_update_iterator', env, data=target)
             self._operation('iter', env, source)
+
+    def _task_mapping_keys_guard(self, task: Task) -> None:
+        self._add('mapping_keys_iterable', task.env, data=task.data)
+        self._invoke(task.env, self._pop(), ())
+
+    def _task_mapping_keys_iterable(self, task: Task) -> None:
+        self._add('mapping_keys_iterator', task.env, data=task.data)
+        self._collect(task.env, self._pop())
+
+    def _task_mapping_keys_iterator(self, task: Task) -> None:
+        target, source = task.data
+        keys = tuple(self._space.data(self._pop()))
+        self._add('mapping_keys_next', task.env, data=(target, source, keys, 0))
+
+    def _task_mapping_keys_next(self, task: Task) -> None:
+        target, source, keys, index = task.data
+        if index == len(keys):
+            return
+        key = keys[index]
+        self._add('mapping_keys_value', task.env, data=(task.data, key))
+        self._operation('getitem', task.env, source, key)
+
+    def _task_mapping_keys_value(self, task: Task) -> None:
+        state, key = task.data
+        self._space.set_item(state[0], key, self._pop())
+        self._add('mapping_keys_next', task.env, data=(*state[:3], state[3] + 1))
 
     def _task_mapping_update_keywords(self, task: Task) -> None:
         target, pairs, result = task.data

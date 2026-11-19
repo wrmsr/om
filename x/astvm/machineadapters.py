@@ -37,8 +37,14 @@ class MachineAdapters:
             self._space.error('StopIteration')
 
         if info.kind == 'reversed':
-            if info.index < 0 or info.index >= self._space.length(info.extra):
+            guest = self._space.kind(info.extra) in ('instance', 'exception')
+            if info.index < 0 or (not guest and info.index >= self._space.length(info.extra)):
                 self._adapter_stop(ref)
+            if guest:
+                self._add('reversed_guard', env, data=ref)
+                self._add('reversed_value', env, data=ref)
+                self._operation('getitem', env, info.extra, info.index)
+                return
             value = self._space.get_item(info.extra, info.index)
             self._runtime.replace(ref, dc.replace(info, index=info.index - 1))
             self._push(value)
@@ -81,6 +87,15 @@ class MachineAdapters:
             Task('adapter_item', task.env, data=task.data),
             Task('adapter_exhausted', task.env, data=task.data),
         )
+
+    def _task_reversed_value(self, task: Task) -> None:
+        value = self._pop()
+        info = self._space.data(task.data)
+        self._runtime.replace(task.data, dc.replace(info, index=info.index - 1))
+        self._push(value)
+
+    def _task_reversed_guard(self, task: Task) -> None:
+        pass
 
     def _task_adapter_item(self, task: Task) -> None:
         ref, row, index = task.data

@@ -1,7 +1,9 @@
 # mypy: disable-error-code=attr-defined
+import ast
 import typing as ta
 
 from .state import Environment
+from .state import PropertyData
 from .state import RangeData
 from .state import Task
 from .values import _MISSING
@@ -51,7 +53,7 @@ class MachineConstructors:
         elif name == 'dict':
             self._arity(name, args, {}, 0, 1)
             result = space.new('dict', {})
-            self._update_mapping(env, result, args[0] if args else None, kwargs, result)
+            self._update_mapping(env, result, args[0] if args else _MISSING, kwargs, result)
 
         elif name == 'bool':
             self._arity(name, args, kwargs, 0, 1)
@@ -78,6 +80,12 @@ class MachineConstructors:
                 if method is not _MISSING and len(args) == 1 and not kwargs:
                     self._add('numeric_constructed', env, data=name)
                     self._invoke(env, method, ())
+                    return
+                if (
+                    name == 'int' and len(args) == 1 and not kwargs and
+                    space.special(args[0], '__index__') is not _MISSING
+                ):
+                    self._operation('index', env, args[0])
                     return
 
             if any(type(v) not in (*_NUMBERS, str, bytes) for v in args):
@@ -108,30 +116,44 @@ class MachineConstructors:
                 self._budget.allocate(max(0, count))
                 self._push(space.native(bytes, count))
 
+            elif (
+                space.kind(args[0]) in ('instance', 'exception') and
+                space.special(args[0], '__index__') is not _MISSING
+            ):
+                self._add('bytes_count', env)
+                self._operation('index', env, args[0])
+
             else:
-                self._add('construct_bytes', env)
-                self._collect(env, args[0])
+                self._add('construct_bytes_iterator', env)
+                self._operation('iter', env, args[0])
 
         elif name == 'range':
             self._arity(name, args, kwargs, 1, 3)
-            numbers = tuple(space.index(v) for v in args)
-
-            if len(numbers) == 1:
-                start, stop, step = 0, numbers[0], 1
-            elif len(numbers) == 2:
-                start, stop, step = *numbers, 1
-            else:
-                start, stop, step = numbers
-
-            if step == 0:
-                space.error('ValueError', 'range() arg 3 must not be zero')
-
-            self._push(space.new('range', RangeData(start, stop, step)))
+            self._add('range_index_next', env, data=(args, (), 0))
+            self._operation('index', env, args[0])
 
         elif name == 'slice':
             self._arity(name, args, kwargs, 1, 3)
             parts = (None, args[0], None) if len(args) == 1 else (*args, None) if len(args) == 2 else args
             self._push(space.new('slice', parts))
+
+        elif name == 'property':
+            self._arity(name, args, kwargs, 0, 4, frozenset({'fget', 'fset', 'fdel', 'doc'}))
+            fields = ('fget', 'fset', 'fdel', 'doc')
+            values = {}
+            for index, field in enumerate(fields):
+                if field in kwargs and index < len(args):
+                    space.error('TypeError', 'multiple values for property argument ' + field)
+                values[field] = args[index] if index < len(args) else kwargs.get(field)
+            explicit_doc = values['doc'] is not None
+            getter = values['fget']
+            if values['doc'] is None and space.kind(getter) == 'function':
+                node = space.data(getter).node
+                if isinstance(node, ast.FunctionDef):
+                    values['doc'] = ast.get_docstring(node, clean=False)
+            self._push(space.new('property', PropertyData(
+                values['fget'], values['fset'], values['fdel'], values['doc'], explicit_doc,
+            )))
 
         elif name == 'type':
             self._arity(name, args, kwargs, 1, 1)
@@ -139,6 +161,33 @@ class MachineConstructors:
 
         else:
             space.error('TypeError', name + ' cannot be constructed directly')
+
+    def _task_range_index_next(self, task: Task) -> None:
+        args, converted, index = task.data
+        numbers = (*converted, self._pop())
+
+        if index + 1 < len(args):
+            self._add('range_index_next', task.env, data=(args, numbers, index + 1))
+            self._operation('index', task.env, args[index + 1])
+            return
+
+        if len(numbers) == 1:
+            start, stop, step = 0, numbers[0], 1
+        elif len(numbers) == 2:
+            start, stop, step = *numbers, 1
+        else:
+            start, stop, step = numbers
+
+        if step == 0:
+            self._space.error('ValueError', 'range() arg 3 must not be zero')
+
+        self._push(self._space.new('range', RangeData(start, stop, step)))
+
+    def _task_bytes_count(self, task: Task) -> None:
+        count = self._pop()
+        self._budget.size(count, string=True)
+        self._budget.allocate(max(0, count))
+        self._push(self._space.native(bytes, count))
 
     def _task_numeric_constructed(self, task: Task) -> None:
         value = self._pop()
@@ -164,11 +213,33 @@ class MachineConstructors:
                 result[self._space.key(item)] = item
             self._push(self._space.new(task.data, result))
 
-    def _task_construct_bytes(self, task: Task) -> None:
-        values = self._space.data(self._pop())
+    def _task_construct_bytes_iterator(self, task: Task) -> None:
+        self._add('construct_bytes_next', task.env, data=(self._pop(), ()))
 
-        self._budget.size(len(values), string=True)
-        self._push(self._space.native(bytes, [self._space.index(v) for v in values]))
+    def _task_construct_bytes_next(self, task: Task) -> None:
+        iterator, values = task.data
+        self._pull(
+            task.env, iterator,
+            Task('construct_bytes_item', task.env, data=task.data),
+            Task('construct_bytes_stop', task.env, data=values),
+        )
+
+    def _task_construct_bytes_item(self, task: Task) -> None:
+        self._add('construct_bytes_indexed', task.env, data=task.data)
+        self._operation('index', task.env, self._pop())
+
+    def _task_construct_bytes_indexed(self, task: Task) -> None:
+        value = self._pop()
+        if not 0 <= value <= 255:
+            self._space.error('ValueError', 'bytes must be in range(0, 256)')
+        iterator, values = task.data
+        self._budget.size(len(values) + 1, string=True)
+        self._add('construct_bytes_next', task.env, data=(iterator, (*values, value)))
+
+    def _task_construct_bytes_stop(self, task: Task) -> None:
+        self._pop()
+        self._budget.allocate(len(task.data))
+        self._push(self._space.native(bytes, task.data))
 
     def _isinstance(
             self,

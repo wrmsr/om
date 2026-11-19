@@ -10,6 +10,8 @@ from .state import Execution
 from .state import FunctionData
 from .state import GeneratorData
 from .state import Task
+from .values import _MISSING
+from .values import InterpreterError
 from .values import ObjectRef
 from .values import Value
 
@@ -176,6 +178,8 @@ class MachineFunctions:
         self._push(None)
 
     def _task_class_values(self, task: Task) -> None:
+        if not isinstance(task.node, ast.ClassDef):
+            raise InterpreterError('class task lacks a class definition')
         values = self._space.data(self._pop())
         count = len(task.node.decorator_list)
         decorators = values[:count]
@@ -190,7 +194,8 @@ class MachineFunctions:
 
         namespace = self._space.new('namespace', {
             '__module__': self._space.data(task.env.globals).get('__name__', '__main__'),
-            '__qualname__': task.node.name,
+            '__qualname__': getattr(task.node, '_astvm_qualname', task.node.name),
+            '__doc__': ast.get_docstring(task.node, clean=False),
         })
 
         env = Environment(
@@ -208,16 +213,9 @@ class MachineFunctions:
         '__del__',
         '__slots__',
         '__getattribute__',
-        '__getattr__',
         '__setattr__',
         '__delattr__',
-        '__new__',
-        '__init_subclass__',
         '__class_getitem__',
-        '__set_name__',
-        '__get__',
-        '__set__',
-        '__delete__',
     })
 
     def _task_class_end(self, task: Task) -> None:
@@ -233,6 +231,32 @@ class MachineFunctions:
         cls = self._space.new('class', ClassData(task.node.name, task.env.namespace, base))
 
         self._add('decorate', task.env.parent, data=(decorators, cls))
+        self._add('class_init_subclass', task.env, data=(base, cls))
+        self._add('class_set_name_next', task.env, data=(cls, tuple(namespace.items()), 0))
+
+    def _task_class_init_subclass(self, task: Task) -> None:
+        base, cls = task.data
+        method = self._space.lookup_class(base, '__init_subclass__')
+        if method is _MISSING:
+            return
+
+        kind = self._space.kind(method)
+        if kind in ('classmethod', 'staticmethod'):
+            method = self._space.data(method)
+        self._add('discard', task.env)
+        self._invoke(task.env, method, () if kind == 'staticmethod' else (cls,))
+
+    def _task_class_set_name_next(self, task: Task) -> None:
+        cls, entries, index = task.data
+        if index == len(entries):
+            return
+
+        name, value = entries[index]
+        self._add('class_set_name_next', task.env, data=(cls, entries, index + 1))
+        method = self._space.special(value, '__set_name__')
+        if method is not _MISSING:
+            self._add('discard', task.env)
+            self._invoke(task.env, method, (cls, name))
 
     def _task_instance_initialized(self, task: Task) -> None:
         if self._pop() is not None:

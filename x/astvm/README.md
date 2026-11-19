@@ -100,15 +100,15 @@ explicit `close` where cleanup matters.
 
 ### Minimal classes
 
-Class bodies, construction, instance attributes, method binding, single inheritance, guest exception
-subclasses with custom initialization and fields, `staticmethod`, and `classmethod`. Useful special
-methods are dispatched through the guest machine, including truth/length, iteration, subscription,
-operators, representations and context management.
+Class bodies, construction, instance attributes, method binding, single inheritance, private-name mangling,
+basic qualified names, and `__getattr__` fallback. Ordinary classes support guest `__new__`, descriptors,
+`property`, `__set_name__`, and `__init_subclass__`; guest exception subclasses support custom fields and
+descriptors. `staticmethod` and `classmethod` are available. Useful special methods are dispatched through the
+guest machine, including truth/length, iteration, subscription, operators, representations and context management.
 
-No metaclasses, multiple inheritance, `super`, descriptors/properties, builtin-container subclassing,
-custom attribute-lookup hooks, `__new__`, finalizers, weak references or slots. Private-name mangling
-and full class/function introspection are not implemented. Do not assume unsupported data-model
-protocols are emulated just because defining a normally named method is syntactically possible.
+No metaclasses, multiple inheritance, `super`, builtin-container subclassing, custom
+`__getattribute__`/`__setattr__`/`__delattr__`, finalizers, weak references or slots. Full class/function
+introspection and the remaining data-model protocols are not implemented.
 
 ### Annotations and imports
 
@@ -284,7 +284,8 @@ restrictions above:
 * Nested intrinsic container equality/ordering and representations do not fully dispatch to contained
   guest instances' special methods. Top-level guest special-method dispatch is implemented. Guest
   instance hashing/custom-key protocols are not implemented. Set ordering and full dict-view protocols
-  are incomplete, as are generic mapping and sequence-protocol fallbacks.
+  are incomplete, as are generic mapping and most sequence-protocol fallbacks. Iteration through guest
+  `__getitem__` is supported.
 * Builtin signatures and methods are subsets: for example there is `sorted` but not `list.sort`, no
   `str.format`/`format_map` or string `%` formatting, and not every scalar conversion or builtin keyword
   form is supported. Some collection construction/error timing differs from CPython.

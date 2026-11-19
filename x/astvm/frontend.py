@@ -4,6 +4,8 @@ import symtable
 import typing as ta
 
 from .budget import Budget
+from .privatenames import PrivateNames
+from .qualifiednames import QualifiedNames
 from .values import _SCALARS
 from .values import UnsupportedSyntaxError
 
@@ -71,7 +73,7 @@ class _Bindings(ast.NodeVisitor):
             self.names.add(alias.asname or alias.name)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self.names.add(node.name)
+        self.names.add(getattr(node, '_astvm_binding_name', node.name))
         for item in [*node.decorator_list, *node.args.defaults, *node.args.kw_defaults]:
             if item is not None:
                 self.visit(item)
@@ -82,7 +84,7 @@ class _Bindings(ast.NodeVisitor):
                 self.visit(item)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        self.names.add(node.name)
+        self.names.add(getattr(node, '_astvm_binding_name', node.name))
         for item in [*node.decorator_list, *node.bases, *(k.value for k in node.keywords)]:
             self.visit(item)
 
@@ -327,6 +329,8 @@ class Frontend:
         symtable.symtable(source, filename, mode)
 
         self._validate_context(tree)
+        QualifiedNames().visit(tree)
+        PrivateNames().visit(tree)
         self._budget.allocate(len(nodes))
 
         scopes: dict[ast.AST, Scope] = {}

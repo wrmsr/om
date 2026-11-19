@@ -50,6 +50,15 @@ class BoundMethodData:
 
 
 @dc.dataclass(frozen=True, slots=True)
+class PropertyData:
+    getter: Value = None
+    setter: Value = None
+    deleter: Value = None
+    doc: Value = None
+    doc_explicit: bool = False
+
+
+@dc.dataclass(frozen=True, slots=True)
 class BuiltinData:
     name: str
     receiver: Value = _MISSING
@@ -211,6 +220,7 @@ class ReductionState:
     value_key: Value
     key: Value
     default: Value
+    compensation: float | None = None
 
 
 @dc.dataclass(frozen=True, slots=True)

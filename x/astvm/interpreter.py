@@ -161,8 +161,18 @@ class Interpreter:
     def run(self) -> Value:
         self._check_host_entry()
 
-        while not self.done:
-            self.step()
+        self._busy = True
+        try:
+            if not self.done:
+                while not self._machine.step():
+                    pass
+
+        except Exception:
+            self._poisoned = True
+            raise
+
+        finally:
+            self._busy = False
 
         self._check_error()
 

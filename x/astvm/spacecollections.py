@@ -65,6 +65,11 @@ class SpaceCollections:
         if kind == 'frozenset':
             return frozenset(self.key(v, depth + 1) for v in self.data(value).values())
 
+        if type(value) is ObjectRef and kind in ('instance', 'exception'):
+            cls = self.data(value).cls
+            if self.lookup_class(cls, '__eq__') is _MISSING and self.lookup_class(cls, '__hash__') is _MISSING:
+                return _IdentityKey(value.serial)
+
         if kind in ('class', 'type', 'function', 'builtin', 'capability', 'generator'):
             return _IdentityKey(value.serial)
 

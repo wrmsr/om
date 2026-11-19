@@ -1,5 +1,6 @@
 # mypy: disable-error-code=attr-defined
 import dataclasses as dc
+import typing as ta
 
 from .capabilities import CapabilityFailure
 from .state import Environment
@@ -68,24 +69,47 @@ class MachineCalls:
                 self._constructor(task.env, space.data(function).name, args, kwargs)
 
             else:
-                value = space.new('instance', InstanceData(function, space.new('namespace', {})))
-                init = space.special(value, '__init__')
-
-                if init is not _MISSING:
-                    self._add('instance_initialized', task.env, data=value)
-                    self._invoke(task.env, init, args, kwargs)
-
-                elif args or kwargs:
-                    space.error('TypeError', 'class takes no arguments')
-
+                constructor = space.lookup_class(function, '__new__')
+                if constructor is not _MISSING:
+                    if space.kind(constructor) == 'staticmethod':
+                        constructor = space.data(constructor)
+                    self._add('class_new_result', task.env, data=(function, args, dict(kwargs)))
+                    self._invoke(task.env, constructor, (function, *args), kwargs)
                 else:
-                    self._push(value)
+                    value = space.new('instance', InstanceData(function, space.new('namespace', {})))
+                    self._initialize_constructed(task.env, function, value, args, kwargs)
 
         else:
             method = space.special(function, '__call__')
             if method is _MISSING:
                 space.error('TypeError', 'object is not callable')
             self._invoke(task.env, method, args, kwargs)
+
+    def _task_class_new_result(self, task: Task) -> None:
+        cls, args, kwargs = task.data
+        self._initialize_constructed(task.env, cls, self._pop(), args, kwargs)
+
+    def _initialize_constructed(
+            self,
+            env: Environment,
+            cls: ObjectRef,
+            value: Value,
+            args: tuple[Value, ...],
+            kwargs: dict[str, Value] | ta.Mapping[str, Value],
+    ) -> None:
+        space = self._space
+        if space.kind(value) != 'instance' or not space.subclass(space.type_of(value), cls):
+            self._push(value)
+            return
+
+        init = space.special(value, '__init__')
+        if init is not _MISSING:
+            self._add('instance_initialized', env, data=value)
+            self._invoke(env, init, args, kwargs)
+        elif args or kwargs:
+            space.error('TypeError', 'class takes no arguments')
+        else:
+            self._push(value)
 
     def _resume_generator(
             self,

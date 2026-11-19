@@ -67,6 +67,7 @@ class SpaceBase:
         'generator',
         'iterator',
         'module',
+        'property',
     )
 
     _FUNCTION_NAMES = (

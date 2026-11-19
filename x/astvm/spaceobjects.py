@@ -177,6 +177,12 @@ class SpaceObjects:
             if name == '__name__':
                 return info.name
 
+            if name == '__new__' and value == self.types['object']:
+                return self.new('builtin', BuiltinData('object_new'))
+
+            if name == '__init__' and value == self.types['object']:
+                return self.new('builtin', BuiltinData('object_init'))
+
             if name == '__bases__':
                 return self.new('tuple', () if info.base is None else (info.base,))
 
@@ -192,7 +198,11 @@ class SpaceObjects:
             info = self.data(value)
 
             if name in ('__name__', '__qualname__'):
-                return info.node.name if isinstance(info.node, ast.FunctionDef) else '<lambda>'
+                short = info.node.name if isinstance(info.node, ast.FunctionDef) else '<lambda>'
+                return short if name == '__name__' else getattr(info.node, '_astvm_qualname', short)
+
+            if name == '__doc__':
+                return ast.get_docstring(info.node, clean=False) if isinstance(info.node, ast.FunctionDef) else None
 
             if name == '__annotations__':
                 return info.annotations
@@ -212,6 +222,18 @@ class SpaceObjects:
 
             if name == '__func__':
                 return self.data(value).function
+
+        elif kind == 'property':
+            info = self.data(value)
+            if name in ('fget', 'fset', 'fdel', '__doc__'):
+                return {
+                    'fget': info.getter,
+                    'fset': info.setter,
+                    'fdel': info.deleter,
+                    '__doc__': info.doc,
+                }[name]
+            if name in ('getter', 'setter', 'deleter'):
+                return self.new('builtin', BuiltinData('property.' + name, value))
 
         elif kind == 'exception':
             info = self.data(value)
@@ -366,7 +388,6 @@ class SpaceObjects:
             if name in (
                     '__del__',
                     '__getattribute__',
-                    '__getattr__',
                     '__setattr__',
                     '__delattr__',
                     '__new__',

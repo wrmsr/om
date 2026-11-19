@@ -89,6 +89,993 @@ def test_expression_differential(expression):
     check_expression(expression)
 
 
+def test_nan_scalar_equality_differential():
+    check('''
+    value = float('nan')
+    result = value == value, value != value
+    ''')
+
+
+def test_nan_container_identity_differential():
+    check('''
+    value = float('nan')
+    left = [value]
+    right = [value]
+    result = left == right, left < [value, 1], {'x': value} == {'x': value}
+    ''')
+
+
+def test_class_getattr_fallback_differential():
+    check('''
+    calls = []
+    class Fallback:
+        def __init__(self):
+            self.known = 3
+        def __getattr__(self, name):
+            calls.append(name)
+            if name == 'missing':
+                raise AttributeError(name)
+            return '<' + name + '>'
+    obj = Fallback()
+    result = obj.known, obj.other, getattr(obj, 'missing', 9), hasattr(obj, 'foo'), calls
+    ''')
+
+
+def test_inherited_getattr_tracks_class_mutation_differential():
+    check('''
+    class Base:
+        pass
+    class Child(Base):
+        pass
+    child = Child()
+    def fallback(self, name):
+        return name.upper()
+    Base.__getattr__ = fallback
+    first = child.answer
+    del Base.__getattr__
+    result = first, hasattr(child, 'answer')
+    ''')
+
+
+def test_class_sequence_iteration_fallback_differential():
+    check('''
+    class Sequence:
+        def __init__(self):
+            self.values = [4, 5, 6]
+            self.indices = []
+        def __getitem__(self, index):
+            self.indices.append(index)
+            return self.values[index]
+    sequence = Sequence()
+    iterator = iter(sequence)
+    first = next(iterator)
+    rest = list(iterator)
+    sequence.values.append(7)
+    result = first, rest, sequence.indices, list(iterator)
+    ''')
+
+
+def test_class_sequence_stop_iteration_is_sticky_differential():
+    check('''
+    class Sequence:
+        def __init__(self):
+            self.calls = []
+        def __getitem__(self, index):
+            self.calls.append(index)
+            raise StopIteration
+    sequence = Sequence()
+    iterator = iter(sequence)
+    result = next(iterator, 'end'), next(iterator, 'end'), sequence.calls
+    ''')
+
+
+def test_class_index_protocol_differential():
+    check('''
+    calls = []
+    class Index:
+        def __init__(self, value):
+            self.value = value
+        def __index__(self):
+            calls.append(self.value)
+            return self.value
+    index = Index(1)
+    values = [10, 20, 30]
+    first = values[index]
+    values[index] = 99
+    del values[index]
+    result = first, values, list(range(index, 4, 2)), calls
+    ''')
+
+
+def test_class_index_protocol_rejects_non_integer_result():
+    guest_error('''
+    class Index:
+        def __index__(self):
+            return 1.5
+    result = [1, 2][Index()]
+    ''', 'TypeError')
+
+
+def test_class_index_protocol_in_slices_differential():
+    check('''
+    calls = []
+    class Index:
+        def __init__(self, name, value):
+            self.name = name
+            self.value = value
+        def __index__(self):
+            calls.append(self.name)
+            return self.value
+    values = [0, 1, 2, 3, 4, 5]
+    read = values[Index('start', 1):Index('stop', 5):Index('step', 2)]
+    values[Index('start', 0):Index('stop', 4):Index('step', 2)] = [8, 9]
+    del values[Index('start', 0):Index('stop', 2):Index('step', 1)]
+    result = read, values, calls
+    ''')
+
+
+def test_class_index_protocol_in_repetition_differential():
+    check('''
+    class Index:
+        def __index__(self):
+            return 3
+    index = Index()
+    values = [1]
+    original = values
+    values *= index
+    result = 'ab' * index, index * (4,), values, values is original
+    ''')
+
+
+def test_class_index_protocol_in_constructors_and_builtins_differential():
+    check('''
+    calls = []
+    class Index:
+        def __index__(self):
+            calls.append('index')
+            return 3
+    value = Index()
+    result = int(value), bytes(value), chr(value), bin(value), oct(value), hex(value), list(enumerate('ab', value)), calls
+    ''')
+
+
+def test_class_index_protocol_in_list_methods_differential():
+    check('''
+    calls = []
+    class Index:
+        def __init__(self, name, value):
+            self.name = name
+            self.value = value
+        def __index__(self):
+            calls.append(self.name)
+            return self.value
+    values = [4, 5, 6, 5]
+    found = values.index(5, Index('start', 2), Index('stop', 4))
+    values.insert(Index('insert', 1), 8)
+    popped = values.pop(Index('pop', -2))
+    tuple_found = (4, 5, 6).index(5, Index('tuple_start', 1))
+    result = found, popped, tuple_found, values, calls
+    ''')
+
+
+def test_class_index_protocol_in_round_and_bytes_items_differential():
+    check('''
+    calls = []
+    class Index:
+        def __init__(self, value):
+            self.value = value
+        def __index__(self):
+            calls.append(('index', self.value))
+            return self.value
+    class Source:
+        def __iter__(self):
+            for value in [65, 66]:
+                calls.append(('yield', value))
+                yield Index(value)
+    result = round(1.2345, Index(2)), bytes(Source()), calls
+    ''')
+
+
+def test_class_reversed_sequence_fallback_differential():
+    check('''
+    calls = []
+    class Sequence:
+        def __len__(self):
+            calls.append('len')
+            return 4
+        def __getitem__(self, index):
+            calls.append(index)
+            if index == 1:
+                raise IndexError(index)
+            return index * 10
+    iterator = reversed(Sequence())
+    first = next(iterator)
+    second = next(iterator)
+    third = next(iterator, 'done')
+    fourth = next(iterator, 'done')
+    result = first, second, third, fourth, calls
+    ''')
+
+
+def test_class_mapping_protocol_for_dict_and_update_differential():
+    check('''
+    calls = []
+    class Mapping:
+        def keys(self):
+            calls.append('keys')
+            return ['a', 'b']
+        def __getitem__(self, key):
+            calls.append(key)
+            return {'a': 2, 'b': 3}[key]
+    first = dict(Mapping(), c=4)
+    second = {'z': 1}
+    second.update(Mapping(), d=5)
+    result = first, second, calls
+    ''')
+
+
+def test_class_iterable_pairs_fallback_for_dict_differential():
+    check('''
+    calls = []
+    class Pairs:
+        def __getattr__(self, name):
+            calls.append(name)
+            raise AttributeError(name)
+        def __iter__(self):
+            return iter([('x', 2), ('y', 3)])
+    result = dict(Pairs()), calls
+    ''')
+
+
+def test_class_mapping_protocol_for_keyword_expansion_differential():
+    check('''
+    calls = []
+    class Mapping:
+        def keys(self):
+            calls.append('keys')
+            return ['a', 'b']
+        def __getitem__(self, key):
+            calls.append(key)
+            return {'a': 2, 'b': 3}[key]
+    def f(**kwargs):
+        return kwargs
+    result = f(**Mapping()), calls
+    ''')
+
+
+def test_class_keyword_expansion_rejects_non_string_and_duplicate_keys():
+    guest_error('''
+    class Mapping:
+        def keys(self):
+            return [1]
+        def __getitem__(self, key):
+            return 3
+    def f(**kwargs):
+        pass
+    f(**Mapping())
+    ''', 'TypeError')
+    guest_error('''
+    class Mapping:
+        def keys(self):
+            return ['a']
+        def __getitem__(self, key):
+            return 3
+    def f(**kwargs):
+        pass
+    f(a=2, **Mapping())
+    ''', 'TypeError')
+
+
+def test_class_mapping_protocol_for_dict_unpacking_differential():
+    check('''
+    calls = []
+    class Mapping:
+        def keys(self):
+            calls.append('keys')
+            return ['x', 'y']
+        def __getitem__(self, key):
+            calls.append(key)
+            return {'x': 2, 'y': 3}[key]
+    result = {'w': 0, **Mapping(), 'x': 4}, calls
+    ''')
+
+
+def test_class_mapping_keys_are_collected_before_value_lookup_differential():
+    check('''
+    calls = []
+    class Mapping:
+        def keys(self):
+            def names():
+                for name in ['a', 'b']:
+                    calls.append(('key', name))
+                    yield name
+            return names()
+        def __getitem__(self, name):
+            calls.append(('value', name))
+            return name.upper()
+    first = dict(Mapping())
+    second = {}
+    second.update(Mapping())
+    third = {**Mapping()}
+    def f(**kwargs):
+        return kwargs
+    fourth = f(**Mapping())
+    result = first, second, third, fourth, calls
+    ''')
+
+
+def test_class_dict_unpacking_requires_mapping():
+    guest_error('''
+    class Pairs:
+        def __iter__(self):
+            return iter([('x', 2)])
+    result = {**Pairs()}
+    ''', 'TypeError')
+
+
+def test_class_methods_in_container_comparison_differential():
+    check('''
+    calls = []
+    class Item:
+        def __init__(self, value):
+            self.value = value
+        def __eq__(self, other):
+            calls.append(('eq', self.value, other.value))
+            return self.value == other.value
+        def __lt__(self, other):
+            calls.append(('lt', self.value, other.value))
+            return self.value < other.value
+    equal_list = [Item(2)] == [Item(2)]
+    equal_dict = {'x': Item(2)} == {'x': Item(2)}
+    less_tuple = (Item(1),) < (Item(2),)
+    result = equal_list, equal_dict, less_tuple, calls
+    ''')
+
+
+def test_nested_container_comparison_uses_guest_truth_differential():
+    check('''
+    calls = []
+    class Truth:
+        def __bool__(self):
+            calls.append('bool')
+            return True
+    class Item:
+        def __eq__(self, other):
+            calls.append('eq')
+            return Truth()
+    a, b = Item(), Item()
+    result = [[a]] == [[b]], {'x': [a]} == {'x': [b]}, [[a]] != [[b]], calls
+    ''')
+
+
+def test_container_comparison_observes_guest_mutation_differential():
+    check('''
+    class Item:
+        def __eq__(self, other):
+            left.append(2)
+            right.append(3)
+            return True
+    left, right = [Item()], [Item()]
+    equal = left == right
+    result = equal, len(left), len(right), left[1], right[1]
+    ''')
+
+
+def test_nested_container_representation_calls_guest_repr_differential():
+    check('''
+    calls = []
+    class Item:
+        def __repr__(self):
+            calls.append('repr')
+            return 'Item(3)'
+    item = Item()
+    values = [item]
+    values.append(values)
+    result = repr(values), str({'x': (item,)}), ascii([item]), calls
+    ''')
+
+
+def test_container_representation_observes_guest_mutation_differential():
+    check('''
+    class Item:
+        def __repr__(self):
+            values.append(2)
+            mapping['y'] = 3
+            return 'Item()'
+    item = Item()
+    values = [item]
+    mapping = {'x': item}
+    first = repr(values)
+    second = repr(mapping)
+    result = first, second, len(values), len(mapping)
+    ''')
+
+
+def test_container_protocol_calls_resume_after_checkpoint():
+    vm = astvm.Interpreter()
+    vm.execute('''
+calls = []
+class Item:
+    def __init__(self, value):
+        self.value = value
+    def __repr__(self):
+        calls.append('repr')
+        return 'Item(' + str(self.value) + ')'
+    def __eq__(self, other):
+        calls.append('eq')
+        return self.value == other.value
+''')
+    vm.start('result = repr([Item(1)]), [Item(1)] == [Item(1)]')
+    for _ in range(200):
+        thread = vm._runtime.read_thread()
+        if any(task.kind == 'representation_next' for execution in thread.executions for task in execution.tasks):
+            break
+        vm.step()
+    else:
+        raise AssertionError('container representation did not start')
+
+    checkpoint = vm.checkpoint()
+    for _ in range(2):
+        vm.run()
+        assert vm.get('result') == ('[Item(1)]', True)
+        assert vm.get('calls') == ['repr', 'eq']
+        vm.restore(checkpoint)
+
+
+def test_class_private_name_mangling_differential():
+    check('''
+    class Vault:
+        __base = 7
+        def __init__(self, __value):
+            self.__value = __value
+        def __method(self):
+            return self.__value + self.__base
+        def read(self):
+            return self.__method()
+        class __Nested:
+            __number = 4
+            def read(self):
+                return self.__number
+    value = Vault(5)
+    nested = Vault._Vault__Nested()
+    result = (
+        value.read(), value._Vault__value, Vault._Vault__base,
+        nested.read(), Vault._Vault__Nested.__name__,
+    )
+    ''')
+
+
+def test_class_private_names_in_nested_scopes_differential():
+    check('''
+    class __Container:
+        def f(self):
+            __value = 3
+            def inner():
+                return __value
+            return inner(), [__value + i for i in range(2)]
+    result = __Container().f()
+    ''')
+
+
+def test_class_private_names_in_global_and_nonlocal_declarations_differential():
+    check('''
+    _C__global = 1
+    class C:
+        def change_global(self):
+            global __global
+            __global = 4
+        def nested(self):
+            __local = 2
+            def change():
+                nonlocal __local
+                __local += 3
+            change()
+            return __local
+    value = C()
+    value.change_global()
+    result = _C__global, value.nested()
+    ''')
+
+
+def test_class_and_function_qualified_names_differential():
+    check('''
+    def outer():
+        class Inner:
+            def method(self):
+                def nested():
+                    pass
+                return nested.__qualname__
+        return Inner, Inner().method()
+    class Container:
+        class Nested:
+            pass
+        def method(self):
+            return (lambda: None).__qualname__
+    inner, nested_name = outer()
+    result = (
+        outer.__qualname__, inner.__qualname__, inner.__name__, nested_name,
+        Container.__qualname__, Container.Nested.__qualname__,
+        Container.method.__qualname__, Container().method(),
+    )
+    ''')
+
+
+def test_class_descriptors_read_write_delete_differential():
+    check('''
+    calls = []
+    class Descriptor:
+        def __get__(self, obj, cls):
+            calls.append(('get', obj is None))
+            return self if obj is None else obj._value
+        def __set__(self, obj, value):
+            calls.append(('set', value))
+            obj._value = value
+        def __delete__(self, obj):
+            calls.append(('delete',))
+            del obj._value
+    class Example:
+        field = Descriptor()
+    item = Example()
+    item.field = 3
+    first = item.field
+    class_access = Example.field is Example.field
+    item.__dict__['field'] = 99
+    second = item.field
+    del item.field
+    result = first, second, class_access, calls
+    ''')
+
+
+def test_class_nondata_descriptor_override_and_getattr_differential():
+    check('''
+    calls = []
+    class Descriptor:
+        def __get__(self, obj, cls):
+            calls.append('get')
+            if obj is None:
+                return self
+            raise AttributeError('missing')
+    class Example:
+        field = Descriptor()
+        def __getattr__(self, name):
+            calls.append('getattr')
+            return 7
+    item = Example()
+    first = item.field
+    item.__dict__['field'] = 8
+    result = first, item.field, calls
+    ''')
+
+
+def test_property_getter_setter_deleter_differential():
+    check('''
+    calls = []
+    class Example:
+        def __init__(self):
+            self._value = 2
+        @property
+        def value(self):
+            calls.append('get')
+            return self._value
+        @value.setter
+        def value(self, new):
+            calls.append('set')
+            self._value = new
+        @value.deleter
+        def value(self):
+            calls.append('delete')
+            del self._value
+    item = Example()
+    first = item.value
+    item.value = 5
+    item.__dict__['value'] = 99
+    second = item.value
+    del item.value
+    result = first, second, Example.value.fget.__name__, calls
+    ''')
+
+
+def test_class_function_and_property_docstrings_differential():
+    check('''
+    class Example:
+        """An example class."""
+
+        @property
+        def value(self):
+            """The current value."""
+
+            return 3
+        def method(self):
+            """A method."""
+
+            return self.value
+    result = Example.__doc__, Example.value.__doc__, Example.method.__doc__, Example().value
+    ''')
+
+
+def test_property_replacement_getter_updates_inherited_docstring_differential():
+    check('''
+    def original(self):
+        """Original doc."""
+
+        return 1
+    def replacement(self):
+        """Replacement doc."""
+
+        return 2
+    inherited = property(original).getter(replacement)
+    explicit = property(original, doc='Explicit doc.').getter(replacement)
+    result = inherited.__doc__, explicit.__doc__
+    ''')
+
+
+def test_readonly_property_rejects_assignment():
+    guest_error('''
+    class Example:
+        @property
+        def value(self):
+            return 3
+    item = Example()
+    item.value = 5
+    ''', 'AttributeError')
+
+
+def test_property_attribute_error_uses_getattr_fallback_differential():
+    check('''
+    calls = []
+    class Example:
+        @property
+        def value(self):
+            calls.append('property')
+            raise AttributeError('missing')
+        def __getattr__(self, name):
+            calls.append(('getattr', name))
+            return 7
+    result = Example().value, calls
+    ''')
+
+
+def test_inherited_descriptor_tracks_class_mutation_differential():
+    check('''
+    calls = []
+    class Descriptor:
+        def __get__(self, obj, cls):
+            calls.append(cls.__name__)
+            return 3
+    class Base:
+        value = Descriptor()
+    class Child(Base):
+        pass
+    child = Child()
+    first = child.value
+    Base.value = 8
+    result = first, child.value, calls
+    ''')
+
+
+def test_exception_subclass_descriptor_differential():
+    check('''
+    calls = []
+    class Descriptor:
+        def __get__(self, obj, cls):
+            calls.append('get')
+            return obj._value
+        def __set__(self, obj, value):
+            calls.append('set')
+            obj._value = value
+        def __delete__(self, obj):
+            calls.append('delete')
+            del obj._value
+    class Problem(Exception):
+        field = Descriptor()
+    error = Problem()
+    error.field = 5
+    first = error.field
+    del error.field
+    result = first, calls
+    ''')
+
+
+def test_default_instance_identity_keys_differential():
+    check('''
+    class Item:
+        pass
+    first, second = Item(), Item()
+    mapping = {first: 3, second: 4}
+    values = {first, second, first}
+    result = mapping[first], mapping[second], len(mapping), len(values), first in values, Item() in values
+    ''')
+
+
+def test_custom_equality_without_hash_is_unhashable():
+    guest_error('''
+    class Item:
+        def __eq__(self, other):
+            return True
+    result = {Item(): 3}
+    ''', 'TypeError')
+
+
+def test_descriptor_set_name_before_class_decorator_differential():
+    check('''
+    calls = []
+    class Field:
+        def __set_name__(self, owner, name):
+            calls.append(('set_name', owner.__name__, name))
+            self.name = name
+        def __get__(self, obj, cls):
+            return self.name
+    def decorate(cls):
+        calls.append(('decorate', cls.__name__))
+        return cls
+    @decorate
+    class Example:
+        first = Field()
+        second = Field()
+    result = Example().first, Example().second, calls
+    ''')
+
+
+def test_private_property_and_descriptor_names_differential():
+    check('''
+    calls = []
+    class Field:
+        def __set_name__(self, owner, name):
+            calls.append(name)
+    class Example:
+        __field = Field()
+        @property
+        def __value(self):
+            return self._value
+        @__value.setter
+        def __value(self, value):
+            self._value = value
+    item = Example()
+    item._Example__value = 7
+    result = item._Example__value, calls
+    ''')
+
+
+def test_init_subclass_after_set_name_before_decorator_differential():
+    check('''
+    calls = []
+    class Field:
+        def __set_name__(self, owner, name):
+            calls.append(('set_name', name))
+    class Base:
+        def __init_subclass__(cls):
+            calls.append(('init_subclass', cls.__name__))
+            cls.ready = True
+    def decorate(cls):
+        calls.append(('decorate', cls.ready))
+        return cls
+    @decorate
+    class Child(Base):
+        field = Field()
+    result = Child.ready, calls
+    ''')
+
+
+def test_inherited_explicit_classmethod_init_subclass_differential():
+    check('''
+    calls = []
+    class Base:
+        @classmethod
+        def __init_subclass__(cls):
+            calls.append(cls.__name__)
+    class Middle(Base):
+        pass
+    class Child(Middle):
+        pass
+    result = calls
+    ''')
+
+
+def test_class_creation_hooks_resume_after_checkpoint():
+    vm = astvm.Interpreter()
+    vm.start('''
+events = []
+class Field:
+    def __set_name__(self, owner, name):
+        events.append(('field', name))
+class Base:
+    def __init_subclass__(cls):
+        events.append(('subclass', cls.__name__))
+class Child(Base):
+    value = Field()
+result = events
+''')
+    for _ in range(300):
+        thread = vm._runtime.read_thread()
+        if any(
+            task.kind == 'class_set_name_next' and vm._space.data(task.data[0]).name == 'Child'
+            for execution in thread.executions for task in execution.tasks
+        ):
+            break
+        vm.step()
+    else:
+        raise AssertionError('class creation did not reach descriptor hooks')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == [('field', 'value'), ('subclass', 'Child')]
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == [('field', 'value'), ('subclass', 'Child')]
+
+
+def test_guest_new_initialization_and_foreign_return_differential():
+    check('''
+    calls = []
+    class Example:
+        def __new__(cls, value):
+            calls.append(('new', value))
+            instance = object.__new__(cls)
+            instance.before = value
+            return instance
+        def __init__(self, value):
+            calls.append(('init', value))
+            self.after = value + 1
+    class Foreign:
+        def __new__(cls):
+            calls.append(('foreign_new',))
+            return 42
+        def __init__(self):
+            calls.append(('foreign_init',))
+    item = Example(3)
+    other = Foreign()
+    result = item.before, item.after, other, calls
+    ''')
+
+
+def test_inherited_guest_new_and_object_initializer_differential():
+    check('''
+    calls = []
+    class Base:
+        def __new__(cls, value):
+            calls.append(('new', cls.__name__))
+            return object.__new__(cls)
+    class Child(Base):
+        def __init__(self, value):
+            object.__init__(self)
+            calls.append(('init', value))
+            self.value = value
+    item = Child(4)
+    result = item.value, calls, object.__init__(3)
+    ''')
+
+
+def test_guest_new_returning_subclass_uses_subclass_initializer_differential():
+    check('''
+    calls = []
+    class Parent:
+        def __new__(cls):
+            return object.__new__(Child)
+        def __init__(self):
+            calls.append('parent')
+    class Child(Parent):
+        def __init__(self):
+            calls.append('child')
+    value = Parent()
+    result = type(value).__name__, calls
+    ''')
+
+
+def test_guest_new_resumes_after_checkpoint():
+    vm = astvm.Interpreter()
+    vm.start('''
+calls = []
+class Example:
+    def __new__(cls, value):
+        calls.append('new')
+        return object.__new__(cls)
+    def __init__(self, value):
+        calls.append('init')
+        self.value = value
+item = Example(5)
+result = item.value, calls
+''')
+    for _ in range(200):
+        thread = vm._runtime.read_thread()
+        if any(task.kind == 'class_new_result' for execution in thread.executions for task in execution.tasks):
+            break
+        vm.step()
+    else:
+        raise AssertionError('class construction did not reach __new__')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == (5, ['new', 'init'])
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == (5, ['new', 'init'])
+
+
+def test_class_sequence_iteration_can_resume_after_checkpoint():
+    vm = astvm.Interpreter()
+    vm.execute('''
+class Sequence:
+    def __init__(self):
+        self.indices = []
+    def __getitem__(self, index):
+        self.indices.append(index)
+        return [4, 5][index]
+sequence = Sequence()
+iterator = iter(sequence)
+''')
+    vm.start('result = next(iterator)')
+    for _ in range(100):
+        thread = vm._runtime.read_thread()
+        if any(task.kind == 'sequence_next_guard' for execution in thread.executions for task in execution.tasks):
+            break
+        vm.step()
+    else:
+        raise AssertionError('sequence iterator did not enter guest indexing')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == 4
+    assert vm.evaluate('sequence.indices') == [0]
+
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == 4
+    assert vm.evaluate('sequence.indices') == [0]
+
+
+@pytest.mark.parametrize('expression', [
+    'sum([1e16, 1.0, -1e16])',
+    'sum([1e16, 1, -1e16])',
+    'sum([1e16, -1e16, 1.0])',
+    'sum([1e308, 1e308, -1e308])',
+    'sum([1e16, 1.0, -1e16, 2 + 3j])',
+    'sum([1e16, 1.0, -1e16], 5.0)',
+])
+def test_floating_sum_differential(expression):
+    check_expression(expression)
+
+
+def test_floating_sum_falls_back_to_guest_addition_differential():
+    check('''
+    class Right:
+        def __radd__(self, other):
+            return other + 10
+    result = sum([1e16, 1.0, -1e16, Right()])
+    ''')
+
+
+def test_floating_sum_compensation_survives_checkpoint():
+    vm = astvm.Interpreter()
+    vm.start('result = sum([1e16, 1.0, -1e16])')
+    for _ in range(200):
+        thread = vm._runtime.read_thread()
+        if any(
+            isinstance(task.data, astvm.ReductionState) and task.data.compensation == 1.0
+            for execution in thread.executions for task in execution.tasks
+        ):
+            break
+        vm.step()
+    else:
+        raise AssertionError('sum did not reach a compensated intermediate state')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == 1.0
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == 1.0
+
+
+@pytest.mark.parametrize('source', [
+    'result = dict(None)',
+    'value = {}\nvalue.update(None)',
+])
+def test_explicit_none_is_not_an_omitted_mapping_argument(source):
+    with pytest.raises(TypeError):
+        exec(source, {})
+    guest_error(source, 'TypeError')
+
+
 @pytest.mark.parametrize('source', [
     '''
     a = b = []
