@@ -3,7 +3,6 @@ import typing as ta
 
 from omcore import check
 from omcore import dataclasses as dc
-from omcore import typedvalues as tv
 from omcore.os.pyremote.bestpython import get_best_python_sh
 from omcore.os.pyremote.core import PyremoteBootstrapDriver
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
@@ -18,9 +17,14 @@ from .payload import get_remote_agent_payload_src
 ##
 
 
-class DockerContainerIdt(tv.UniqueScalarTypedValue[str], final=True):
+@ta.final
+@dc.dataclass(frozen=True)
+@dc.extra_class_params(terse_repr=True)
+class DockerContainerId:
+    id: str
+
     def __post_init__(self) -> None:
-        check.non_empty_str(self.v)
+        check.non_empty_str(self.id)
 
 
 @dc.dataclass(frozen=True, kw_only=True)
@@ -46,14 +50,14 @@ class DockerRemoteAgentError(RuntimeError):
 
 
 def build_docker_remote_agent_argv(
-        container_id: DockerContainerIdt,
+        container_id: DockerContainerId,
         config: DockerRemoteAgentConfig = DockerRemoteAgentConfig(),
 ) -> tuple[str, ...]:
     return subprocess_maybe_shell_wrap_exec(
         config.docker,
         'exec',
         '-i',
-        container_id.v,
+        container_id.id,
         'sh',
         '-c',
         get_best_python_sh(),
@@ -69,7 +73,7 @@ def build_docker_remote_agent_argv(
 class DockerRemoteAgentConnection:
     def __init__(
             self,
-            container_id: DockerContainerIdt,
+            container_id: DockerContainerId,
             config: DockerRemoteAgentConfig = DockerRemoteAgentConfig(),
     ) -> None:
         super().__init__()
@@ -86,7 +90,7 @@ class DockerRemoteAgentConnection:
         self._closed = False
 
     @property
-    def container_id(self) -> DockerContainerIdt:
+    def container_id(self) -> DockerContainerId:
         return self._container_id
 
     @property
@@ -131,7 +135,7 @@ class DockerRemoteAgentConnection:
             await self._stderr_task
 
     def _error_message(self, message: str, *, returncode: int | None = None) -> str:
-        parts = [message, f'container={self._container_id.v!r}']
+        parts = [message, f'container={self._container_id!r}']
         if returncode is not None:
             parts.append(f'returncode={returncode}')
         if self._stderr_tail:

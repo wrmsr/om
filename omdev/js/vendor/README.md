@@ -40,7 +40,7 @@ from omdev.js.vendor import load_manifest
 from omdev.js.vendor import resolve
 from omdev.js.vendor import vendor
 
-manifest = load_manifest('path/to/vendor.json')
+manifest = load_manifest('path/to/.om-js-vendor.json')
 resolved = resolve(ResolveRequest(manifest=manifest))
 
 result = vendor(VendorRequest(
@@ -63,15 +63,15 @@ The equivalent CLI form of the usage show above is shown below.
 
 ```bash
 python -m omdev.js.vendor resolve \
-    --manifest path/to/vendor.json \
+    --manifest path/to/.om-js-vendor.json \
     --destination path/to/resources/vendor
 
 python -m omdev.js.vendor vendor \
-    --manifest path/to/vendor.json \
+    --manifest path/to/.om-js-vendor.json \
     --destination path/to/resources/vendor
 
 python -m omdev.js.vendor verify \
-    --manifest path/to/vendor.json \
+    --manifest path/to/.om-js-vendor.json \
     --destination path/to/resources/vendor
 ```
 
@@ -80,19 +80,19 @@ Manage root intent with package arguments:
 ```bash
 # Add latest as an exact root version, or preserve an explicit range.
 python -m omdev.js.vendor add crelt @codemirror/lang-json@^6.0.0 \
-    --manifest path/to/vendor.json --destination path/to/resources/vendor
+    --manifest path/to/.om-js-vendor.json --destination path/to/resources/vendor
 
 # Advance every root to its latest tag, advance selected roots, or set a new range.
 python -m omdev.js.vendor update \
-    --manifest path/to/vendor.json --destination path/to/resources/vendor
+    --manifest path/to/.om-js-vendor.json --destination path/to/resources/vendor
 python -m omdev.js.vendor update @codemirror/view @codemirror/state@^6.7.0 \
-    --manifest path/to/vendor.json --destination path/to/resources/vendor
+    --manifest path/to/.om-js-vendor.json --destination path/to/resources/vendor
 
 python -m omdev.js.vendor remove crelt \
-    --manifest path/to/vendor.json --destination path/to/resources/vendor
+    --manifest path/to/.om-js-vendor.json --destination path/to/resources/vendor
 
 python -m omdev.js.vendor outdated \
-    --manifest path/to/vendor.json --destination path/to/resources/vendor
+    --manifest path/to/.om-js-vendor.json --destination path/to/resources/vendor
 ```
 
 Package arguments accept unscoped or scoped names plus an optional npm range or dist-tag. A missing version and a bare

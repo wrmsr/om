@@ -8,7 +8,7 @@ from ..environment.remote.client import RemoteEnvironmentOps
 from ..fs.ops import FsOps
 from ..fs.remote.client import RemoteFsOps
 from .client import RemoteAgentClient
-from .docker import DockerContainerIdt
+from .docker import DockerContainerId
 from .docker import DockerRemoteAgentConfig
 from .docker import DockerRemoteAgentConnection
 
@@ -55,7 +55,7 @@ def _provide_docker_remote_agent_client(connection: DockerRemoteAgentConnection)
 
 
 def bind_docker_remote_agent(
-        container_id: DockerContainerIdt,
+        container_id: DockerContainerId,
         config: DockerRemoteAgentConfig | None = None,
 ) -> inj.Elements:
     """A remote agent in a docker container: the connection, and the agent interfaces over it."""

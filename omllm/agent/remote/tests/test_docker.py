@@ -11,7 +11,7 @@ from omcore.os.pyremote.bestpython import get_best_python_sh
 from omcore.os.pyremote.core import pyremote_build_bootstrap_source
 
 from ....core import processes
-from ..docker import DockerContainerIdt
+from ..docker import DockerContainerId
 from ..docker import DockerRemoteAgentConfig
 from ..docker import DockerRemoteAgentConnection
 from ..docker import DockerRemoteAgentError
@@ -20,7 +20,7 @@ from ..docker import build_docker_remote_agent_argv
 
 def test_build_docker_remote_agent_argv():
     assert build_docker_remote_agent_argv(
-        DockerContainerIdt('container-id'),
+        DockerContainerId('container-id'),
         DockerRemoteAgentConfig(docker='/usr/local/bin/docker'),
     ) == (
         '/usr/local/bin/docker',
@@ -43,7 +43,7 @@ async def test_docker_remote_agent_start_error_includes_stderr(tmp_path):
     docker.chmod(docker.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
     connection = DockerRemoteAgentConnection(
-        DockerContainerIdt('container-id'),
+        DockerContainerId('container-id'),
         DockerRemoteAgentConfig(
             docker=str(docker),
             startup_timeout_s=1.,
@@ -108,7 +108,7 @@ async def test_docker_remote_agent_live():
         if not _wait_container_ready(cid):
             pytest.skip('container did not become exec-ready')
 
-        async with DockerRemoteAgentConnection(DockerContainerIdt(cid)) as connection:
+        async with DockerRemoteAgentConnection(DockerContainerId(cid)) as connection:
             client = connection.client
 
             await client.fs.write_file('/root/remote.txt', b'from the host')

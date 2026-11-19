@@ -259,7 +259,7 @@ with _lang.auto_proxy_init(
     )
 
     from .remote.docker import (  # noqa
-        DockerContainerIdt,
+        DockerContainerId,
         DockerRemoteAgentConfig,
         DockerRemoteAgentConnection,
         DockerRemoteAgentError,

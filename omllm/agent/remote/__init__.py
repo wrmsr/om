@@ -3,7 +3,7 @@ from .client import (  # noqa
 )
 
 from .docker import (  # noqa
-    DockerContainerIdt,
+    DockerContainerId,
     DockerRemoteAgentConfig,
     DockerRemoteAgentConnection,
     DockerRemoteAgentError,
