@@ -1,6 +1,6 @@
 # Hy test isolation audit
 
-Run the suite with `./python -m pytest omxtra/hy/tests`, optionally with `-n auto`. The ordinary pytest interpreter
+Run the suite with `./python -m pytest omdev/hy/tests`, optionally with `-n auto`. The ordinary pytest interpreter
 must not call `globalruntime.install()`. Installation adds `sys.path_hooks` (rather than a `meta_path` finder), patches
 source inspection, and wraps multiprocessing bootstrap functions.
 
@@ -43,7 +43,7 @@ practical. The child runner selects them explicitly. These are audit notes, not 
 
 ## CLI state audit
 
-Importing `omxtra.hy.cli` and its modules does not install Hy or alter Python's search paths. The command entrypoints
+Importing `omdev.hy.cli` and its modules does not install Hy or alter Python's search paths. The command entrypoints
 `hy_main`, `hyc_main`, and `hy2py_main` call `globalruntime.install()` directly or through `run_hy_cli`. They also alter
 `sys.path`, `sys.argv`, environment variables, or stdio according to command options. Helpers in `cli/running.py` alter
 `sys.path` or `sys.modules['__main__']` when used to execute files. Those calls belong in command entrypoint processes.

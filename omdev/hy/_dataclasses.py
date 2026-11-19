@@ -40,7 +40,7 @@ IMPLEMENTATION_KEY = 'b737c9e9784700f75d0a861cde465d33397d28232b0b31eac8c2d80a2e
         ),
     ),
     cls_names=(
-        ('omxtra.hy.cli.main', '_HyCliAction'),
+        ('omdev.hy.cli.main', '_HyCliAction'),
     ),
 )
 def _process_dataclass__3d289195f6a3f6a0720ef174acdf200627f67c29():
@@ -153,7 +153,7 @@ def _process_dataclass__3d289195f6a3f6a0720ef174acdf200627f67c29():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.cli.options', 'HyCliArgs'),
+        ('omdev.hy.cli.options', 'HyCliArgs'),
     ),
 )
 def _process_dataclass__23e70ccdb34882517f16611a3ac3d977aee8b2b4():
@@ -274,7 +274,7 @@ def _process_dataclass__23e70ccdb34882517f16611a3ac3d977aee8b2b4():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.cli.options', 'HyCliOption'),
+        ('omdev.hy.cli.options', 'HyCliOption'),
     ),
 )
 def _process_dataclass__4177e8f82da79db4dbf046dbc298e02b2b335baa():
@@ -405,7 +405,7 @@ def _process_dataclass__4177e8f82da79db4dbf046dbc298e02b2b335baa():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.core.specials.comprehensions', '_CompiledLooper'),
+        ('omdev.hy.core.specials.comprehensions', '_CompiledLooper'),
     ),
 )
 def _process_dataclass__ea764ac6935c64cdf925cf5fdfd35c1341f98622():
@@ -525,7 +525,7 @@ def _process_dataclass__ea764ac6935c64cdf925cf5fdfd35c1341f98622():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.core.specials.quoting', '_QuotedForm'),
+        ('omdev.hy.core.specials.quoting', '_QuotedForm'),
     ),
 )
 def _process_dataclass__facac25b11a5eb360834bb7a93a07a55a015ce27():
@@ -639,7 +639,7 @@ def _process_dataclass__facac25b11a5eb360834bb7a93a07a55a015ce27():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.errors', '_HyLanguageErrorLocation'),
+        ('omdev.hy.errors', '_HyLanguageErrorLocation'),
     ),
 )
 def _process_dataclass__dd07409d52ed99153b0de23f38056d7d779b51bc():
@@ -769,7 +769,7 @@ def _process_dataclass__dd07409d52ed99153b0de23f38056d7d779b51bc():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.finders', 'HyModuleSource'),
+        ('omdev.hy.finders', 'HyModuleSource'),
     ),
 )
 def _process_dataclass__03252ea57acae8ae2f87092014f2710112c5b404():
@@ -911,7 +911,7 @@ def _process_dataclass__03252ea57acae8ae2f87092014f2710112c5b404():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.funcparserlib.lexer', 'Token'),
+        ('omdev.hy.funcparserlib.lexer', 'Token'),
     ),
 )
 def _process_dataclass__630ca1cdcb63fbba4c94f97c64b565bdfe79a03a():
@@ -1001,7 +1001,7 @@ def _process_dataclass__630ca1cdcb63fbba4c94f97c64b565bdfe79a03a():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.funcparserlib.lexer', 'TokenSpec'),
+        ('omdev.hy.funcparserlib.lexer', 'TokenSpec'),
     ),
 )
 def _process_dataclass__ae398d2040874e5c0984a02cce29ca946a0f6c43():
@@ -1107,7 +1107,7 @@ def _process_dataclass__ae398d2040874e5c0984a02cce29ca946a0f6c43():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.funcparserlib.parser', 'State'),
+        ('omdev.hy.funcparserlib.parser', 'State'),
     ),
 )
 def _process_dataclass__493fb521b520a5e9e7ac95304a40315e38de56cd():
@@ -1215,7 +1215,7 @@ def _process_dataclass__493fb521b520a5e9e7ac95304a40315e38de56cd():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.inspection', '_HyInspectFunctions'),
+        ('omdev.hy.inspection', '_HyInspectFunctions'),
     ),
 )
 def _process_dataclass__17cd2c5457675ecc6b43b641d892f5b4beca054a():
@@ -1350,7 +1350,7 @@ def _process_dataclass__17cd2c5457675ecc6b43b641d892f5b4beca054a():
         ),
     ),
     cls_names=(
-        ('omxtra.hy.runtime', 'HyPreludeImport'),
+        ('omdev.hy.runtime', 'HyPreludeImport'),
     ),
 )
 def _process_dataclass__540b749d3ecb115e2390895424309bc4ac7334ff():

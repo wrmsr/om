@@ -1,11 +1,12 @@
-- all .om-vendor.json's
 - all .om-js-vendor.json's
+- all .om-vendor.json's
+- omcore/c3.py
 - omcore/collections/hamt/_hamt.c
 - omcore/dataclasses (ish)
 - omcore/formats/cbor/py
+- omcore/formats/dotenv.py
 - omcore/formats/toml/parser.py
 - omcore/formats/yaml/goyaml
-- omcore/formats/dotenv.py
 - omcore/http/cookies.py
 - omcore/http/json.py
 - omcore/io/compress/gzip.py
@@ -18,21 +19,21 @@
 - omcore/specs/jmespath
 - omcore/sql/drivers/og8000
 - omcore/sql/drivers/omysql
-- omcore/term/vt100/states.py
 - omcore/term/pager.py
 - omcore/term/terminfo.py
+- omcore/term/vt100/states.py
 - omcore/testing/pytest/plugins/asyncs/fixtures.py
 - omcore/testing/unittest
 - omcore/text/abnf
-- omcore/text/diffs/parsing.py
-- omcore/text/diffs
-- omcore/text/go/quoting.py
-- omcore/text/pdcmark
 - omcore/text/asdl.py
+- omcore/text/diffs
+- omcore/text/diffs/parsing.py
+- omcore/text/go/quoting.py
 - omcore/text/inflect.py
+- omcore/text/pdcmark
 - omcore/text/widths.py
-- omcore/c3.py
 - omdev/cexts/_distutils
+- omdev/hy
 - omdev/interp/providers/standalone.py
 - omdev/minitui/screens/cells.py
 - omdev/minitui/screens/diffs.py
@@ -48,7 +49,6 @@
 - omllm/interop/mlx
 - omllm/interop/tinygrad/models
 - omllm/local/qwen/load/gguf
-- omxtra/hy
 - omxtra/hy/funcparserlib
 - omxtra/text/gotmpl
 - omxtra/text/shparse

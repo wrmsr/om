@@ -115,6 +115,20 @@
     }
   },
   {
+    "module": ".hy.__main__",
+    "attr": null,
+    "file": "omdev/hy/__main__.py",
+    "line": 1,
+    "value": {
+      "!.cli.types.CliModule": {
+        "name": [
+          "hy"
+        ],
+        "module": "omdev.hy.__main__"
+      }
+    }
+  },
+  {
     "module": ".imgur",
     "attr": "_CLI_MODULE",
     "file": "omdev/imgur.py",
