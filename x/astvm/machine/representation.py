@@ -10,11 +10,11 @@ from ..values import Value
 
 
 class MachineRepresentation:
-    _REPRESENTED_CONTAINERS = ('list', 'tuple', 'dict', 'namespace', 'set', 'frozenset')
+    _REPRESENTED_CONTAINERS = ('list', 'tuple', 'dict', 'namespace', 'mappingproxy', 'set', 'frozenset')
 
     def _flat_intrinsic_container(self, value: ObjectRef) -> bool:
         kind = self._space.kind(value)
-        if kind in ('dict', 'namespace'):
+        if kind in ('dict', 'namespace', 'mappingproxy'):
             return all(
                 type(key) is not ObjectRef and type(item) is not ObjectRef
                 for key, item in self._space.mapping_pairs(value)
@@ -28,12 +28,13 @@ class MachineRepresentation:
         if value.serial in seen:
             self._push({
                 'list': '[...]', 'tuple': '(...)', 'dict': '{...}', 'namespace': '{...}',
+                'mappingproxy': 'mappingproxy({...})',
             }.get(kind, '...'))
             return
         if len(seen) > self._budget.limits.conversion_depth:
             self._budget.fail('representation nesting limit')
 
-        if kind in ('list', 'dict', 'namespace'):
+        if kind in ('list', 'dict', 'namespace', 'mappingproxy'):
             entries = None
         elif kind in ('set', 'frozenset'):
             entries = tuple(self._space.data(value).values())
@@ -51,7 +52,11 @@ class MachineRepresentation:
     def _task_representation_next(self, task: Task) -> None:
         kind, value, seen, entries, index, parts, size = task.data
         if entries is None:
-            entries = self._space.mapping_pairs(value) if kind in ('dict', 'namespace') else self._space.data(value)
+            entries = (
+                self._space.mapping_pairs(value)
+                if kind in ('dict', 'namespace', 'mappingproxy')
+                else self._space.data(value)
+            )
         if index == len(entries):
             body = ', '.join(parts)
             if kind == 'list':
@@ -62,13 +67,15 @@ class MachineRepresentation:
                 result = '{' + body + '}' if parts else 'set()'
             elif kind == 'frozenset':
                 result = 'frozenset({' + body + '})' if parts else 'frozenset()'
+            elif kind == 'mappingproxy':
+                result = 'mappingproxy({' + body + '})'
             else:
                 result = '{' + body + '}'
             self._budget.size(len(result), string=True)
             self._push(result)
             return
 
-        if kind in ('dict', 'namespace'):
+        if kind in ('dict', 'namespace', 'mappingproxy'):
             self._add('representation_key', task.env, data=task.data)
             self._represent_part(task.env, entries[index][0], seen)
         else:

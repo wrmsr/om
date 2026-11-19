@@ -136,11 +136,13 @@ class MachineOperations:
             if type(attribute_name) is not str:
                 space.error('TypeError', 'attribute name must be a string')
             if kind == 'super':
-                if attribute_name in ('__class__', '__thisclass__', '__self__', '__self_class__'):
+                if attribute_name in ('__class__', '__thisclass__', '__self__', '__self_class__', '__get__'):
                     self._push(space.get_attribute(value, attribute_name))
                     return
                 info = space.data(value)
-                found = space.lookup_super(info.start, attribute_name, info.receiver)
+                if info.owner is None:
+                    space.error('AttributeError', attribute_name)
+                found = space.lookup_super(info.start, info.owner, attribute_name, info.receiver)
                 if found is _MISSING:
                     space.error('AttributeError', attribute_name)
                 receiver = info.receiver if space.kind(info.receiver) in ('instance', 'exception') else _MISSING
@@ -307,9 +309,12 @@ class MachineOperations:
                 if method is not _MISSING:
                     self._invoke(env, method, (left,))
 
-                elif space.kind(right) in ('dict', 'namespace', 'set', 'frozenset'):
-                    if space.kind(right) == 'namespace':
-                        self._push(type(left) is str and left in space.data(right))
+                elif space.kind(right) in ('dict', 'namespace', 'mappingproxy', 'set', 'frozenset'):
+                    if space.kind(right) in ('namespace', 'mappingproxy'):
+                        namespace = space.data(right)
+                        if space.kind(right) == 'mappingproxy':
+                            namespace = space.data(namespace)
+                        self._push(type(left) is str and left in namespace)
                     else:
                         self._push(space.key(left) in space.data(right))
 

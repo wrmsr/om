@@ -19,6 +19,8 @@ class Environment:
     namespace: ObjectRef
     globals: ObjectRef
     parent: Environment | None = None
+    class_cell: ObjectRef | None = None
+    first_arg_name: str | None = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -35,9 +37,10 @@ class FunctionData:
 class ClassData:
     name: str
     namespace: ObjectRef
-    base: ObjectRef | None
-    bases: ObjectRef | None = None
-    mro: ObjectRef | None = None
+    bases: tuple[ObjectRef, ...]
+    mro: tuple[ObjectRef, ...] = ()
+    bases_value: ObjectRef | None = None
+    mro_value: ObjectRef | None = None
 
 
 @dc.dataclass(frozen=True, slots=True)
@@ -56,7 +59,7 @@ class BoundMethodData:
 class SuperData:
     start: ObjectRef
     receiver: Value
-    owner: ObjectRef
+    owner: ObjectRef | None
 
 
 @dc.dataclass(frozen=True, slots=True)

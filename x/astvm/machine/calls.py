@@ -56,17 +56,15 @@ class MachineCalls:
 
         elif kind in ('class', 'type'):
             if space.subclass(function, space.types['BaseException']):
-                value = space.new('exception', ExceptionData(function, args))
-                init = space.special(value, '__init__')
-
-                if init is not _MISSING:
-                    self._add('instance_initialized', task.env, data=value)
-                    self._invoke(task.env, init, args, kwargs)
-
+                constructor = space.lookup_class(function, '__new__') if kind == 'class' else _MISSING
+                if constructor is not _MISSING:
+                    if space.kind(constructor) == 'staticmethod':
+                        constructor = space.data(constructor)
+                    self._add('class_new_result', task.env, data=(function, args, dict(kwargs)))
+                    self._invoke(task.env, constructor, (function, *args), kwargs)
                 else:
-                    if kwargs:
-                        space.error('TypeError', 'exception constructor does not accept keywords')
-                    self._push(value)
+                    value = space.new('exception', ExceptionData(function, args))
+                    self._initialize_constructed(task.env, function, value, args, kwargs, new_invoked=False)
 
             elif kind == 'type' and function != space.types['object']:
                 self._constructor(task.env, space.data(function).name, args, kwargs)
@@ -103,7 +101,8 @@ class MachineCalls:
             new_invoked: bool,
     ) -> None:
         space = self._space
-        if space.kind(value) != 'instance' or not space.subclass(space.type_of(value), cls):
+        value_kind = space.kind(value)
+        if value_kind not in ('instance', 'exception') or not space.subclass(space.type_of(value), cls):
             self._push(value)
             return
 
@@ -111,6 +110,10 @@ class MachineCalls:
         if init is not _MISSING:
             self._add('instance_initialized', env, data=value)
             self._invoke(env, init, args, kwargs)
+        elif value_kind == 'exception':
+            if kwargs:
+                space.error('TypeError', 'exception constructor does not accept keywords')
+            self._push(value)
         elif (args or kwargs) and not new_invoked:
             space.error('TypeError', 'class takes no arguments')
         else:

@@ -5,12 +5,15 @@ import typing as ta
 from ..state import AdapterData
 from ..state import BuiltinData
 from ..state import Environment
+from ..state import ExceptionData
 from ..state import InstanceData
 from ..state import ReductionState
+from ..state import SuperData
 from ..state import Task
 from ..values import _MISSING
 from ..values import _NUMBERS
 from ..values import InterpreterError
+from ..values import ObjectRef
 from ..values import Value
 
 
@@ -47,6 +50,8 @@ class MachineBuiltins:
             cls = args[0]
             if space.kind(cls) not in ('class', 'type') or not space.subclass(cls, space.types['object']):
                 space.error('TypeError', 'object.__new__ requires a guest class')
+            if space.subclass(cls, space.types['BaseException']):
+                space.error('TypeError', 'object.__new__ cannot allocate exception classes')
             if space.kind(cls) == 'type' and cls != space.types['object']:
                 space.error('TypeError', 'object.__new__ does not allocate intrinsic types')
             if len(args) > 1 or kwargs:
@@ -62,6 +67,14 @@ class MachineBuiltins:
                 if not accepts_arguments:
                     self._arity(name, args, kwargs, 1, 1)
             self._push(space.new('instance', InstanceData(cls, space.new('namespace', {}))))
+            return
+
+        elif name == 'exception_new':
+            self._arity(name, args, {}, 1, None)
+            cls = args[0]
+            if space.kind(cls) not in ('class', 'type') or not space.subclass(cls, space.types['BaseException']):
+                space.error('TypeError', 'BaseException.__new__ requires an exception class')
+            self._push(space.new('exception', ExceptionData(ta.cast(ObjectRef, cls), args[1:])))
             return
 
         elif name == 'object_init':
@@ -87,11 +100,43 @@ class MachineBuiltins:
             self._push(None)
             return
 
+        elif name == 'object_init_subclass':
+            self._arity(name, args, kwargs, 0, 0)
+            self._push(None)
+            return
+
+        elif name == 'super_get':
+            self._arity(name, args, kwargs, 1, 2)
+            proxy = info.receiver
+            data = space.data(proxy)
+            if data.owner is not None or args[0] is None:
+                self._push(proxy)
+                return
+            receiver = args[0]
+            receiver_kind = space.kind(receiver)
+            if receiver_kind in ('instance', 'exception'):
+                owner = space.type_of(receiver)
+            elif receiver_kind in ('class', 'type'):
+                owner = receiver
+            else:
+                space.error('TypeError', 'super descriptor requires a guest instance or type')
+            if not space.subclass(owner, data.start):
+                space.error('TypeError', 'super descriptor receiver is not a subtype')
+            self._push(space.new('super', SuperData(data.start, receiver, owner)))
+            return
+
         elif name == 'object_hash':
             if info.receiver is not _MISSING:
                 args = (info.receiver, *args)
             self._arity(name, args, kwargs, 1, 1)
             self._push(hash(space.identity_number(args[0])))
+            return
+
+        elif name == 'object_dir':
+            if info.receiver is not _MISSING:
+                args = (info.receiver, *args)
+            self._arity(name, args, kwargs, 1, 1)
+            self._push(space.new('list', sorted(self._dir_names(args[0]))))
             return
 
         elif name in ('object_getattribute', 'object_setattr', 'object_delattr'):
@@ -166,6 +211,21 @@ class MachineBuiltins:
 
             else:
                 self._push(env.namespace)
+
+        elif name == 'dir':
+            self._arity(name, args, kwargs, 0, 1)
+            if args:
+                value = args[0]
+                if space.kind(value) in ('instance', 'exception'):
+                    method = space.special(value, '__dir__')
+                    if method is not _MISSING:
+                        self._add('dir_collected', env)
+                        self._invoke(env, method, ())
+                        return
+                names = self._dir_names(value)
+            else:
+                names = space.data(env.namespace).keys()
+            self._push(space.new('list', sorted(names)))
 
         elif name == 'id':
             self._arity(name, args, kwargs, 1, 1)
@@ -336,6 +396,51 @@ class MachineBuiltins:
 
         else:
             raise InterpreterError('unimplemented registered builtin: ' + name)
+
+    def _dir_names(self, value: Value) -> set[str]:
+        space = self._space
+        kind = space.kind(value)
+        names = {'__class__'}
+        object_methods = (
+            '__dict__', '__init__', '__new__', '__dir__', '__getattribute__', '__setattr__', '__delattr__',
+            '__hash__',
+        )
+        cls: ObjectRef | None = None
+
+        if kind in ('instance', 'exception'):
+            info = space.data(value)
+            cls = info.cls
+            if kind == 'instance' or info.namespace is not None:
+                names.update(space.data(info.namespace))
+            names.update(object_methods)
+            if kind == 'exception':
+                names.update(('args', '__cause__', '__context__', '__traceback__', '__suppress_context__'))
+
+        elif kind in ('class', 'type'):
+            cls = ta.cast(ObjectRef, value)
+            names.update(object_methods)
+
+        elif kind == 'module':
+            names.update(space.data(space.data(value)))
+
+        if cls is not None:
+            for base in space.data(cls).mro:
+                self._budget.tick()
+                names.update(space.data(space.data(base).namespace))
+        else:
+            names.update(space.method_names(kind))
+
+        return names
+
+    def _task_dir_collected(self, task: Task) -> None:
+        self._add('dir_result', task.env)
+        self._collect(task.env, self._pop())
+
+    def _task_dir_result(self, task: Task) -> None:
+        values = self._space.data(self._pop())
+        if any(type(value) is not str for value in values):
+            self._space.error('TypeError', '__dir__() must return strings')
+        self._push(self._space.new('list', sorted(values)))
 
     def _task_integer_builtin(self, task: Task) -> None:
         function = {'chr': chr, 'bin': bin, 'oct': oct, 'hex': hex}[task.data]

@@ -82,7 +82,7 @@ class MachineMappings:
         if source is _MISSING:
             return
 
-        if self._space.kind(source) in ('dict', 'namespace'):
+        if self._space.kind(source) in ('dict', 'namespace', 'mappingproxy'):
             for key, value in self._space.mapping_pairs(source):
                 self._budget.tick()
                 self._space.set_item(target, key, value)

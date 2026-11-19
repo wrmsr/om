@@ -137,6 +137,8 @@ class MachineFunctions:
 
         namespace = self._space.new('namespace', bindings)
         parent = info.environment
+        first_args = [*args.posonlyargs, *args.args, *args.kwonlyargs]
+        first_arg = first_args[0] if first_args else args.vararg or args.kwarg
 
         return Environment(
             parent.program,
@@ -144,6 +146,7 @@ class MachineFunctions:
             namespace,
             parent.globals,
             parent,
+            first_arg_name=first_arg.arg if first_arg is not None else None,
         )
 
     def _enter_function(
@@ -184,14 +187,7 @@ class MachineFunctions:
         values = self._space.data(self._pop())
         count = len(task.node.decorator_list)
         decorators = values[:count]
-        base = values[count] if len(values) > count else self._space.types['object']
-
-        if self._space.kind(base) not in ('class', 'type'):
-            self._space.error('TypeError', 'base must be a guest class')
-
-        if self._space.kind(base) == 'type' and base != self._space.types['object']:
-            if not self._space.subclass(base, self._space.types['BaseException']):
-                self._space.error('TypeError', 'subclassing intrinsic types is not supported')
+        bases = tuple(values[count:]) if len(values) > count else (self._space.types['object'],)
 
         namespace = self._space.new('namespace', {
             '__module__': self._space.data(task.env.globals).get('__name__', '__main__'),
@@ -205,9 +201,10 @@ class MachineFunctions:
             namespace,
             task.env.globals,
             task.env,
+            class_cell=self._space.new('cell', _MISSING),
         )
 
-        self._add('class_end', env, task.node, (base, decorators))
+        self._add('class_end', env, task.node, (bases, decorators))
         self._suite(task.node.body, env)
 
     _TASK_CLASS_END_UNSUPPORTED: ta.ClassVar = frozenset({
@@ -230,21 +227,45 @@ class MachineFunctions:
         if '__eq__' in namespace and '__hash__' not in namespace:
             self._runtime.write(task.env.namespace, '__hash__', None)
 
-        base, decorators = task.data
+        new_method = namespace.get('__new__', _MISSING)
+        if new_method is not _MISSING and self._space.kind(new_method) == 'function':
+            self._runtime.write(task.env.namespace, '__new__', self._space.new('staticmethod', new_method))
 
-        cls = self._space.new('class', ClassData(task.node.name, task.env.namespace, base))
+        subclass_method = namespace.get('__init_subclass__', _MISSING)
+        if subclass_method is not _MISSING and self._space.kind(subclass_method) == 'function':
+            self._runtime.write(
+                task.env.namespace, '__init_subclass__', self._space.new('classmethod', subclass_method),
+            )
+
+        bases, decorators = task.data
+
+        for base in bases:
+            if self._space.kind(base) not in ('class', 'type'):
+                self._space.error('TypeError', 'base must be a guest class')
+
+            if self._space.kind(base) == 'type' and base != self._space.types['object']:
+                if not self._space.subclass(base, self._space.types['BaseException']):
+                    self._space.error('TypeError', 'subclassing intrinsic types is not supported')
+
+        mro_tail = self._space.mro_tail(bases)
+
+        cls = self._space.new('class', ClassData(task.node.name, task.env.namespace, bases))
+        self._runtime.replace(cls, dc.replace(self._space.data(cls), mro=(cls, *mro_tail)))
+        self._runtime.replace(task.env.class_cell, cls)
 
         self._add('decorate', task.env.parent, data=(decorators, cls))
-        self._add('class_init_subclass', task.env, data=(base, cls))
+        self._add('class_init_subclass', task.env, data=cls)
         self._add('class_set_name_next', task.env, data=(cls, tuple(namespace.items()), 0))
 
     def _task_class_init_subclass(self, task: Task) -> None:
-        base, cls = task.data
-        method = self._space.lookup_class(base, '__init_subclass__')
+        cls = task.data
+        method = self._space.lookup_super(cls, cls, '__init_subclass__', cls)
         if method is _MISSING:
             return
 
         kind = self._space.kind(method)
+        if kind == 'builtin' and self._space.data(method).name == 'object_init_subclass':
+            return
         if kind in ('classmethod', 'staticmethod'):
             method = self._space.data(method)
         self._add('discard', task.env)

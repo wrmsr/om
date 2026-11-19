@@ -29,7 +29,9 @@ class MachineComparisons:
                 self._push(space.compare(name, left, right))
             else:
                 self._add('sequence_compare_next', env, data=(name, left, right, 0, depth))
-        elif name in ('Eq', 'NotEq') and lk in ('dict', 'namespace') and rk in ('dict', 'namespace'):
+        elif name in ('Eq', 'NotEq') and lk in ('dict', 'namespace', 'mappingproxy') and rk in (
+                'dict', 'namespace', 'mappingproxy',
+        ):
             if self._flat_intrinsic_container(left) and self._flat_intrinsic_container(right):
                 self._push(space.compare(name, left, right))
             else:
@@ -44,7 +46,7 @@ class MachineComparisons:
             self._push(self._space.compare('Eq', left, right))
         elif (
             self._space.kind(left) == self._space.kind(right) and
-            self._space.kind(left) in ('list', 'tuple', 'dict', 'namespace')
+            self._space.kind(left) in ('list', 'tuple', 'dict', 'namespace', 'mappingproxy')
         ):
             self._compare_value(env, 'Eq', left, right, depth)
         else:
@@ -103,7 +105,10 @@ class MachineComparisons:
             return
 
         key, value = a[index]
-        record = space.data(right).get(space.key(key), _MISSING)
+        data = space.data(right)
+        if space.kind(right) == 'mappingproxy':
+            data = space.data(data)
+        record = data.get(space.key(key), _MISSING)
         if record is _MISSING:
             self._push(name == 'NotEq')
             return

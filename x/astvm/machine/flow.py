@@ -103,6 +103,18 @@ class MachineFlow:
 
         return None
 
+    def _class_cell(self, env: Environment) -> ObjectRef | None:
+        current: Environment | None = env
+        while current is not None:
+            if current.scope.kind in ('function', 'comprehension') and '__class__' in (
+                    current.scope.local_names | current.scope.global_names
+            ):
+                return None
+            if current.class_cell is not None:
+                return current.class_cell
+            current = current.parent
+        return None
+
     def _read_name(self, env: Environment, name: str) -> Value:
         space = self._space
         scope = env.scope
@@ -122,6 +134,14 @@ class MachineFlow:
                     if name not in namespace:
                         space.error('NameError', f"free variable '{name}' is not bound")
                     return namespace[name]
+
+            if name == '__class__' and scope.kind in ('function', 'comprehension'):
+                cell = self._class_cell(env)
+                if cell is not None:
+                    value = space.data(cell)
+                    if value is _MISSING:
+                        space.error('NameError', "free variable '__class__' is not bound")
+                    return value
 
         global_values = space.data(env.globals)
         if name in global_values:
@@ -148,9 +168,15 @@ class MachineFlow:
 
         elif name in env.scope.nonlocal_names:
             parent = self._find_nonlocal(env, name)
-            if parent is None:
+            if parent is not None:
+                namespace = parent.namespace
+            elif name == '__class__' and (cell := self._class_cell(env)) is not None:
+                if delete and space.data(cell) is _MISSING:
+                    space.error('NameError', "free variable '__class__' is not bound")
+                self._runtime.replace(cell, _MISSING if delete else value)
+                return
+            else:
                 raise InterpreterError('unresolved nonlocal binding')
-            namespace = parent.namespace
 
         else:
             namespace = env.namespace

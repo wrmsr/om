@@ -69,6 +69,14 @@ class MachineMethods:
             self._push(space.native(range.count if name == 'count' else range.index, seq, args[0]))
             return
 
+        if kind == 'mappingproxy':
+            if name == 'copy':
+                self._arity(name, args, kwargs, 0, 0)
+                self._push(space.make_dict(space.mapping_pairs(value)))
+            else:
+                self._mapping_method(env, value, name, args, kwargs)
+            return
+
         if kind in ('list', 'tuple'):
             indices = (
                 (0,) if kind == 'list' and name in ('insert', 'pop') and args else

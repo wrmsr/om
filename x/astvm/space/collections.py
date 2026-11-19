@@ -96,6 +96,9 @@ class SpaceCollections:
         if kind in ('list', 'tuple', 'dict', 'namespace', 'set', 'frozenset'):
             return len(self.data(value))
 
+        if kind == 'mappingproxy':
+            return len(self.data(self.data(value)))
+
         if kind == 'dict_view':
             return self.length(self.data(value)[0])
 
@@ -113,7 +116,7 @@ class SpaceCollections:
 
         kind = self.kind(value)
 
-        if kind in ('list', 'tuple', 'dict', 'namespace', 'set', 'frozenset', 'range', 'dict_view'):
+        if kind in ('list', 'tuple', 'dict', 'namespace', 'mappingproxy', 'set', 'frozenset', 'range', 'dict_view'):
             return self.length(value) != 0
 
         if value is _NOT_IMPLEMENTED:
@@ -147,6 +150,9 @@ class SpaceCollections:
             if key not in data:
                 self.error('KeyError', key)
             return data[key]
+
+        if kind == 'mappingproxy':
+            return self.get_item(self.data(value), key)
 
         if kind in ('list', 'tuple', 'str', 'bytes', 'range'):
             if kind == 'range':
@@ -268,11 +274,11 @@ class SpaceCollections:
         if kind in ('list', 'tuple', 'str', 'bytes', 'range'):
             return self.new('iterator', IteratorData(value))
 
-        if kind in ('dict', 'namespace', 'set', 'frozenset'):
-            data = self.data(value)
+        if kind in ('dict', 'namespace', 'mappingproxy', 'set', 'frozenset'):
+            data = self.data(self.data(value)) if kind == 'mappingproxy' else self.data(value)
             if kind == 'dict':
                 keys = tuple(entry[0] for entry in data.values())
-            elif kind == 'namespace':
+            elif kind in ('namespace', 'mappingproxy'):
                 keys = tuple(data)
             else:
                 keys = tuple(data.values())

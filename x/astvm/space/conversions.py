@@ -140,7 +140,7 @@ class SpaceConversions:
                 result.append(self.export_value(item, memo=memo, depth=depth + 1))
             return result
 
-        if kind in ('dict', 'namespace'):
+        if kind in ('dict', 'namespace', 'mappingproxy'):
             result = {}
             memo[value.serial] = result
             for key, item in self.mapping_pairs(value):

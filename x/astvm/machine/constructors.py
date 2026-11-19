@@ -162,10 +162,32 @@ class MachineConstructors:
             self._push(space.type_of(args[0]))
 
         elif name == 'super':
-            self._arity(name, args, kwargs, 2, 2)
+            self._arity(name, args, kwargs, 0, 2)
+            if not args:
+                frame = env
+                while frame.scope.kind == 'comprehension' and not frame.scope.generator and frame.parent is not None:
+                    frame = frame.parent
+                if frame.first_arg_name is None:
+                    space.error('RuntimeError', 'super(): no arguments')
+                cell = self._class_cell(frame)
+                if cell is None or space.data(cell) is _MISSING:
+                    space.error('RuntimeError', 'super(): __class__ cell not found')
+                local = space.data(frame.namespace)
+                if frame.first_arg_name not in local:
+                    space.error('RuntimeError', 'super(): arg[0] deleted')
+                args = (space.data(cell), local[frame.first_arg_name])
+            elif len(args) == 1:
+                start = args[0]
+                if space.kind(start) not in ('class', 'type'):
+                    space.error('TypeError', 'super() argument 1 must be a guest type')
+                self._push(space.new('super', SuperData(ta.cast(ObjectRef, start), None, None)))
+                return
             start, receiver = args
             if space.kind(start) not in ('class', 'type'):
                 space.error('TypeError', 'super() argument 1 must be a guest type')
+            if receiver is None:
+                self._push(space.new('super', SuperData(ta.cast(ObjectRef, start), None, None)))
+                return
             receiver_kind = space.kind(receiver)
             if receiver_kind in ('instance', 'exception'):
                 owner = space.type_of(receiver)

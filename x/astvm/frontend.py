@@ -303,8 +303,8 @@ class Frontend:
                 raise UnsupportedSyntaxError('type parameters')
 
             if isinstance(node, ast.ClassDef):
-                if len(node.bases) > 1 or node.keywords:
-                    raise UnsupportedSyntaxError('multiple inheritance and class keywords')
+                if node.keywords:
+                    raise UnsupportedSyntaxError('class keywords')
 
             if isinstance(node, ast.comprehension) and node.is_async:
                 raise UnsupportedSyntaxError('asynchronous comprehension')

@@ -1,4 +1,5 @@
 # mypy: disable-error-code=attr-defined
+import dataclasses as dc
 import operator
 import typing as ta
 
@@ -67,6 +68,7 @@ class SpaceBase:
         'generator',
         'iterator',
         'module',
+        'mappingproxy',
         'property',
         'super',
     )
@@ -103,6 +105,7 @@ class SpaceBase:
         'globals',
         'locals',
         'vars',
+        'dir',
         'id',
         'hash',
         'chr',
@@ -154,6 +157,8 @@ class SpaceBase:
             'update',
             'setdefault',
         }),
+
+        'mappingproxy': frozenset({'get', 'keys', 'values', 'items', 'copy'}),
 
         'set': frozenset({
             'add',
@@ -274,6 +279,9 @@ class SpaceBase:
         'GtE': operator.ge,
     }
 
+    def method_names(self, kind: str) -> frozenset[str]:
+        return self._METHODS.get(kind, frozenset())
+
     def __init__(
             self,
             runtime: Runtime,
@@ -298,9 +306,12 @@ class SpaceBase:
                     'namespace',
                     {},
                 ),
-                None,
+                (),
             ),
         )
+        object_ref = self.types['object']
+        object_info = self.data(object_ref)
+        self.runtime.replace(object_ref, dc.replace(object_info, mro=(object_ref,)))
         for name, base in self._EXCEPTION_BASES.items():
             self.types[name] = self.new(
                 'type',
@@ -310,9 +321,12 @@ class SpaceBase:
                         'namespace',
                         {},
                     ),
-                    self.types[base],
+                    (self.types[base],),
                 ),
             )
+            ref = self.types[name]
+            info = self.data(ref)
+            self.runtime.replace(ref, dc.replace(info, mro=(ref, *self.data(self.types[base]).mro)))
         for name in self._TYPE_NAMES:
             base = self.types['int'] if name == 'bool' else self.types['object']
             self.types[name] = self.new(
@@ -323,11 +337,15 @@ class SpaceBase:
                         'namespace',
                         {},
                     ),
-                    base,
+                    (base,),
                 ),
             )
+            ref = self.types[name]
+            info = self.data(ref)
+            self.runtime.replace(ref, dc.replace(info, mro=(ref, *self.data(base).mro)))
         for name, value in self.types.items():
-            self.runtime.write(self.builtins, name, value)
+            if name != 'mappingproxy':
+                self.runtime.write(self.builtins, name, value)
 
         for name in self._FUNCTION_NAMES:
             self.runtime.write(self.builtins, name, self.new('builtin', BuiltinData(name)))

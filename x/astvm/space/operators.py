@@ -55,7 +55,7 @@ class SpaceOperators:
                 for x, y in zip(a, b)
             )
 
-        if lk in ('dict', 'namespace') and rk in ('dict', 'namespace'):
+        if lk in ('dict', 'namespace', 'mappingproxy') and rk in ('dict', 'namespace', 'mappingproxy'):
             a, b = self.mapping_pairs(left), self.mapping_pairs(right)
             if len(a) != len(b):
                 return False
@@ -158,8 +158,8 @@ class SpaceOperators:
             return self.new(lk, {k: a[k] if k in a else b[k] for k in keys})
 
         if (
-                lk in ('dict', 'namespace') and
-                rk in ('dict', 'namespace') and
+                lk in ('dict', 'namespace', 'mappingproxy') and
+                rk in ('dict', 'namespace', 'mappingproxy') and
                 name == 'BitOr'
         ):
             return self.make_dict([*self.mapping_pairs(left), *self.mapping_pairs(right)])
@@ -192,6 +192,9 @@ class SpaceOperators:
 
     def mapping_pairs(self, value: Value) -> list[tuple[Value, Value]]:
         kind = self.kind(value)
+
+        if kind == 'mappingproxy':
+            return self.mapping_pairs(self.data(value))
 
         if kind == 'namespace':
             return list(self.data(value).items())
@@ -228,6 +231,7 @@ class SpaceOperators:
                 'list': '[...]',
                 'dict': '{...}',
                 'namespace': '{...}',
+                'mappingproxy': 'mappingproxy({...})',
                 'tuple': '(...)',
             }.get(kind, '...')
 
@@ -261,7 +265,7 @@ class SpaceOperators:
 
                 return 'frozenset({' + text + '})' if parts else 'frozenset()'
 
-            if kind in ('dict', 'namespace'):
+            if kind in ('dict', 'namespace', 'mappingproxy'):
                 parts = []
                 size = 0
                 for key, item in self.mapping_pairs(value):
@@ -270,7 +274,8 @@ class SpaceOperators:
                     self.budget.size(size, string=True)
                     parts.append(text)
 
-                return '{' + ', '.join(parts) + '}'
+                body = '{' + ', '.join(parts) + '}'
+                return 'mappingproxy(' + body + ')' if kind == 'mappingproxy' else body
 
             if kind in ('class', 'type'):
                 info = self.data(value)

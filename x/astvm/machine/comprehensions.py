@@ -28,9 +28,11 @@ class MachineComprehensions:
             self._space.new('namespace', {}),
             task.env.globals,
             task.env,
+            first_arg_name='.0' if isinstance(node, ast.GeneratorExp) else None,
         )
 
         if isinstance(node, ast.GeneratorExp):
+            self._runtime.write(env.namespace, '.0', iterator)
             state = ComprehensionState(node, None, iterator=iterator)
             execution = Execution(tasks=[Task('generator_end', env, node), Task('comprehension_next', env, data=state)])
             ref = self._space.new('generator', GeneratorData(execution))

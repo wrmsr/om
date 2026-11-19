@@ -100,20 +100,26 @@ explicit `close` where cleanup matters.
 
 ### Minimal classes
 
-Class bodies, construction, instance attributes, method binding, single inheritance, private-name mangling,
+Class bodies, construction, instance attributes, method binding, multiple inheritance with C3 method order,
+private-name mangling,
 basic qualified names, and custom `__getattribute__`, `__getattr__`, `__setattr__`, and `__delattr__` hooks.
-Ordinary classes support guest `__new__`, descriptors,
-`property`, `__set_name__`, and `__init_subclass__`; guest exception subclasses support custom fields and
+Ordinary classes and guest exception subclasses support guest `__new__`, descriptors,
+`property`, `__set_name__`, and cooperative `__init_subclass__`; guest exception subclasses support custom fields and
 descriptors. `staticmethod` and `classmethod` are available, and their wrappers expose guest function metadata;
 standalone `staticmethod` wrappers are callable. Useful special methods are dispatched through the
 guest machine, including truth/length, iteration, subscription, operators, representations and context management.
-Explicit `super(CurrentClass, instance)` works for the supported single-inheritance model, including guest
-descriptors and class methods. `hash(instance)` runs a guest `__hash__` method; dictionary and set keys with
-custom guest hashing and equality remain unsupported. Class `__bases__` and `__mro__` tuples retain identity,
+Explicit and zero-argument `super()` follow the receiver's C3 order, including guest descriptors and class
+methods. One-argument `super(Class)` creates an unbound proxy that can bind through `__get__`. Methods can read
+their lexical `__class__` cell. `hash(instance)` runs a guest `__hash__` method;
+dictionary and set keys with
+custom guest hashing and equality remain unsupported. Class `__dict__` and `vars(Class)` expose a live,
+read-only guest mapping view; intrinsic class namespaces and automatic descriptor entries are simplified.
+Class `__bases__` and `__mro__` tuples retain identity,
 and assigning `__name__` updates the guest class name. Class representations use guest module and qualified
-names.
+names. `dir()` reports supported guest attributes and runs a guest `__dir__` hook on instances; hooks can
+delegate to guest `object.__dir__`.
 
-No metaclasses, multiple inheritance, zero-argument `super()`, builtin-container subclassing,
+No metaclasses, builtin-container subclassing,
 finalizers, weak references or slots. Full class/function
 introspection and the remaining data-model protocols are not implemented.
 

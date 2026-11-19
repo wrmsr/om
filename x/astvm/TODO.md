@@ -208,8 +208,8 @@ coverage still need work.
   globals, and nonlocals, while retaining original class/function names. Extend differential coverage for
   annotations, import aliases, and source-module boundaries; keep nested-class contexts distinct and do not
   mangle strings passed to `getattr` or other runtime APIs. Basic lexical class/function qualified names are
-  implemented; finish comprehension and edge-case metadata and build the class-cell infrastructure required
-  by `__class__` and zero-argument `super`. Test methods,
+  implemented; class cells now support `__class__` and zero-argument `super`. Finish comprehension and edge-case
+  metadata. Test methods,
   comprehensions, nested functions, nested classes, and source-module boundaries together, not only direct
   `self.__field` assignments. Preserve immutable analyzed program metadata so these rules do not become
   repeated runtime work. This is a compiler/frontend correctness feature even though its primary beneficiaries
@@ -227,8 +227,10 @@ coverage still need work.
   dataclasses that happen to represent guest objects. Reference: [the data model][py-data-model].
 
 - [ ] **M03 — Complete ordinary class construction without custom metaclasses.** Guest `__set_name__` and
-  `__init_subclass__` now run before class decorators. Guest `__new__`, `object.__new__`, and the resulting
-  `__init__` rules are implemented for ordinary classes, including foreign return values, dynamic `__new__`
+  `__init_subclass__` now run before class decorators, with implicit staticmethod/classmethod wrapping for
+  `__new__`/`__init_subclass__`. Guest `__new__`, `object.__new__`, and the resulting
+  `__init__` rules are implemented for ordinary classes and guest exception subclasses, including foreign return
+  values, dynamic `__new__`
   replacement, and the argument rules for explicit `object.__new__`/`object.__init__`. Complete class-body
   metadata initialization and construction edge cases. Keep normal
   `object`/`type` behavior intrinsic for now rather than quietly enabling arbitrary metaclass execution.
@@ -237,14 +239,15 @@ coverage still need work.
   Ensure partially constructed objects remain ordinary GC-managed guest state. These hooks cover many common
   class-customization use cases before L01's full metaclass work. Reference: [PEP 487][pep-487].
 
-- [ ] **M04 — Add multiple inheritance, C3 lookup, and `super`.** Explicit two-argument `super` now works with
-  single inheritance, descriptors, class methods, and guest exception initialization. Replace single-base
-  `ClassData` assumptions with explicit base tuples and a validated method-resolution order. Implement
-  zero-argument `super`, using frontend-created class cells rather than searching native frames. Support cooperative methods,
-  diamonds, inherited constructors, classmethods, descriptor access through `super`, and rejection of
-  inconsistent hierarchies. Single-inheritance `__bases__` and `__mro__` are exposed; extend them for multiple
-  inheritance, and make
-  lookup caches respond correctly to class-dictionary mutation and restore. Keep arbitrary post-creation base
+- [ ] **M04 — Add multiple inheritance, C3 lookup, and `super`.** Explicit two-argument `super` now follows
+  a validated C3 order through multiple inheritance, descriptors, class methods, and guest exception
+  initialization. `ClassData` stores explicit base and method-order tuples. Zero-argument `super` uses guest
+  class cells rather than native frames; one-argument `super` creates an unbound descriptor. Cover remaining
+  cooperative method and constructor edge cases.
+  Diamonds, inherited constructors, classmethods,
+  descriptor access through `super`, and inconsistent-hierarchy rejection have differential coverage. Multiple
+  inheritance `__bases__` and `__mro__` retain identity; make lookup caches respond correctly to class-dictionary
+  mutation and restore. Keep arbitrary post-creation base
   replacement and exotic mixed builtin layouts explicitly unsupported until their invariants are implemented.
   This item should make ordinary mixins practical, not require reproducing CPython's physical instance layout
   or completing custom metaclasses first.
@@ -274,8 +277,10 @@ coverage still need work.
 
 - [ ] **M07 — Provide useful, exclusively guest introspection.** Add ordinary function attributes, defaults,
   keyword defaults, names, qualified names, module metadata, custom attribute dictionaries, bound-method
-  `__self__`/`__func__`, closure cells, and guest globals/builtins access. Complete `dir`, `vars`, class and
-  instance dictionaries, bases, MRO, and suitably read-only namespace views. Route writable metadata through
+  `__self__`/`__func__`, closure cells, and guest globals/builtins access. Class `__dict__` and `vars(Class)` now
+  expose a live, read-only mapping view. Basic `dir()` support now lists guest attributes and calls a resumable
+  instance `__dir__` hook. Complete `dir` edge cases, instance dictionaries, bases, MRO, and remaining
+  namespace-view behavior. Route writable metadata through
   runtime mutations and explicitly specify which views are live. Expose source/AST metadata rather than
   inventing native code objects or a `co_code` compatibility promise. Test traversal from every exposed
   object to ensure it never reaches host callbacks, modules, frames, or implementation classes. A read-only

@@ -64,20 +64,35 @@ class SpaceObjects:
         return self.subclass(self.data(ref).cls, cls)
 
     def subclass(self, cls: ObjectRef, base: ObjectRef) -> bool:
-        current: ObjectRef | None = cls
-
-        while current is not None:
+        if self.kind(cls) not in ('type', 'class'):
+            return False
+        for current in self.data(cls).mro:
             self.budget.tick()
-
             if current == base:
                 return True
-
-            if self.kind(current) not in ('type', 'class'):
-                return False
-
-            current = self.data(current).base
-
         return False
+
+    def mro_tail(self, bases: tuple[ObjectRef, ...]) -> tuple[ObjectRef, ...]:
+        if len(set(bases)) != len(bases):
+            self.error('TypeError', 'duplicate base class')
+
+        sequences = [list(self.data(base).mro) for base in bases]
+        sequences.append(list(bases))
+        result: list[ObjectRef] = []
+
+        while any(sequences):
+            self.budget.tick()
+            candidate = next((seq[0] for seq in sequences if seq and all(
+                seq[0] not in other[1:] for other in sequences
+            )), None)
+            if candidate is None:
+                self.error('TypeError', 'cannot create a consistent method resolution order')
+            result.append(candidate)
+            for seq in sequences:
+                if seq and seq[0] == candidate:
+                    seq.pop(0)
+
+        return tuple(result)
 
     def type_of(self, value: Value) -> ObjectRef:
         kind = self.kind(value)
@@ -100,28 +115,41 @@ class SpaceObjects:
         return self.types.get(kind, self.types['object'])
 
     def lookup_class(self, cls: ObjectRef, name: str) -> Value:
-        while cls is not None:
+        for current in self.data(cls).mro:
             self.budget.tick()
-
-            info = self.data(cls)
-
+            info = self.data(current)
             namespace = self.data(info.namespace)
             if name in namespace:
                 return namespace[name]
-
-            cls = info.base
-
         return _MISSING
 
-    def lookup_super(self, start: ObjectRef, name: str, receiver: Value) -> Value:
-        base = self.data(start).base
-        if base is None:
+    def lookup_super(self, start: ObjectRef, owner: ObjectRef, name: str, receiver: Value) -> Value:
+        mro = self.data(owner).mro
+        for index in range(len(mro)):
+            self.budget.tick()
+            if mro[index] == start:
+                break
+        else:
             return _MISSING
-        found = self.lookup_class(base, name)
-        if found is not _MISSING:
-            return found
-        if name in ('__init__', '__getattribute__', '__setattr__', '__delattr__', '__hash__'):
-            if name == '__init__' and self.subclass(base, self.types['BaseException']):
+        tail = mro[index + 1:]
+        for current in tail:
+            self.budget.tick()
+            namespace = self.data(self.data(current).namespace)
+            if name in namespace:
+                return namespace[name]
+        if self.types['object'] not in tail:
+            return _MISSING
+        if name == '__new__':
+            constructor = 'exception_new' if any(
+                self.subclass(current, self.types['BaseException']) for current in tail
+            ) else 'object_new'
+            return self.new('builtin', BuiltinData(constructor))
+        if name == '__init_subclass__':
+            return self.new('builtin', BuiltinData('object_init_subclass'))
+        if name in ('__init__', '__getattribute__', '__setattr__', '__delattr__', '__hash__', '__dir__'):
+            if name == '__init__' and any(
+                    self.subclass(current, self.types['BaseException']) for current in tail
+            ):
                 return self.new('builtin', BuiltinData('exception_init_bound', receiver))
             return self.new('builtin', BuiltinData('object_' + name.strip('_')))
         return _MISSING
@@ -145,7 +173,10 @@ class SpaceObjects:
 
         if receiver is not _MISSING and kind == 'builtin':
             info = self.data(ta.cast(ObjectRef, value))
-            if info.name in ('object_init', 'object_getattribute', 'object_setattr', 'object_delattr', 'object_hash'):
+            if info.name in (
+                    'object_init', 'object_getattribute', 'object_setattr', 'object_delattr', 'object_hash',
+                    'object_dir',
+            ):
                 return self.new('builtin', BuiltinData(info.name, receiver))
 
         return value
@@ -189,7 +220,13 @@ class SpaceObjects:
             if found is not _MISSING:
                 return self.bind(found, value, info.cls)
 
-            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__'):
+            if name == '__new__':
+                return self.new('builtin', BuiltinData('object_new'))
+
+            if name == '__init__':
+                return self.new('builtin', BuiltinData('object_init', value))
+
+            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__', '__dir__'):
                 return self.new('builtin', BuiltinData('object_' + name.strip('_'), value))
 
         elif kind in ('class', 'type'):
@@ -204,41 +241,53 @@ class SpaceObjects:
             if name == '__init__' and value == self.types['object']:
                 return self.new('builtin', BuiltinData('object_init'))
 
+            if name == '__init_subclass__' and value == self.types['object']:
+                return self.new('builtin', BuiltinData('object_init_subclass'))
+
             if value == self.types['object'] and name in (
-                    '__getattribute__', '__setattr__', '__delattr__', '__hash__',
+                    '__getattribute__', '__setattr__', '__delattr__', '__hash__', '__dir__',
             ):
                 return self.new('builtin', BuiltinData('object_' + name.strip('_')))
 
             if name == '__bases__':
-                if info.bases is None:
-                    bases = self.new('tuple', () if info.base is None else (info.base,))
-                    self.runtime.replace(value, dc.replace(info, bases=bases))
+                if info.bases_value is None:
+                    bases = self.new('tuple', info.bases)
+                    self.runtime.replace(value, dc.replace(info, bases_value=bases))
                     return bases
-                return info.bases
+                return info.bases_value
 
             if name == '__mro__':
-                if info.mro is not None:
-                    return info.mro
-                classes: list[ObjectRef] = []
-                current: ObjectRef | None = ta.cast(ObjectRef, value)
-                while current is not None:
-                    self.budget.tick()
-                    classes.append(current)
-                    current = self.data(current).base
-                mro = self.new('tuple', tuple(classes))
-                self.runtime.replace(value, dc.replace(info, mro=mro))
+                if info.mro_value is not None:
+                    return info.mro_value
+                mro = self.new('tuple', info.mro)
+                self.runtime.replace(value, dc.replace(info, mro_value=mro))
                 return mro
+
+            if name == '__dict__':
+                return self.new('mappingproxy', info.namespace)
 
             # Do not return a writable class dictionary bypassing class attribute policy.
             found = self.lookup_class(value, name)
             if found is not _MISSING:
                 return self.bind(found, _MISSING, value)
 
-            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__'):
+            if name == '__new__' and self.subclass(ta.cast(ObjectRef, value), self.types['BaseException']):
+                return self.new('builtin', BuiltinData('exception_new'))
+
+            if kind == 'class' and name == '__new__':
+                return self.new('builtin', BuiltinData('object_new'))
+
+            if kind == 'class' and name == '__init_subclass__':
+                return self.new('builtin', BuiltinData('object_init_subclass'))
+
+            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__', '__dir__'):
                 return self.new('builtin', BuiltinData('object_' + name.strip('_')))
 
             if name == '__init__' and self.subclass(value, self.types['BaseException']):
                 return self.new('builtin', BuiltinData('exception_init', value))
+
+            if kind == 'class' and name == '__init__':
+                return self.new('builtin', BuiltinData('object_init'))
 
         elif kind == 'function':
             info = self.data(value)
@@ -282,6 +331,8 @@ class SpaceObjects:
 
         elif kind == 'super':
             info = self.data(ta.cast(ObjectRef, value))
+            if name == '__get__':
+                return self.new('builtin', BuiltinData('super_get', value))
             if name == '__thisclass__':
                 return info.start
             if name == '__self__':
@@ -335,11 +386,14 @@ class SpaceObjects:
             if found is not _MISSING:
                 return self.bind(found, value, info.cls)
 
-            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__'):
+            if name in ('__getattribute__', '__setattr__', '__delattr__', '__hash__', '__dir__'):
                 return self.new('builtin', BuiltinData('object_' + name.strip('_'), value))
 
             if name == '__init__':
                 return self.new('builtin', BuiltinData('exception_init_bound', value))
+
+            if name == '__new__':
+                return self.new('builtin', BuiltinData('exception_new'))
 
         elif kind == 'generator':
             info = self.data(value)
