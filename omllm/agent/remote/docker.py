@@ -71,6 +71,11 @@ class DockerRemoteAgentConfig:
         check.arg(self.shutdown_timeout_s > 0.)
         check.arg(self.stderr_tail_bytes > 0)
 
+    DEFAULT: ta.ClassVar[DockerRemoteAgentConfig]
+
+
+DockerRemoteAgentConfig.DEFAULT = DockerRemoteAgentConfig()
+
 
 class DockerRemoteAgentError(RuntimeError):
     pass
@@ -78,8 +83,10 @@ class DockerRemoteAgentError(RuntimeError):
 
 def build_docker_remote_agent_argv(
         container_id: DockerContainerId,
-        config: DockerRemoteAgentConfig = DockerRemoteAgentConfig(),
+        config: DockerRemoteAgentConfig | None = None,
 ) -> tuple[str, ...]:
+    if config is None:
+        config = DockerRemoteAgentConfig.DEFAULT
     return subprocess_maybe_shell_wrap_exec(
         config.docker,
         'exec',

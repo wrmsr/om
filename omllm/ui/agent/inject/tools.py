@@ -62,7 +62,7 @@ def bind_tool_infrastructure(config: AgentConfig) -> inj.Elements:
     # where it is regardless, and the user's own shell runs on the manager too.
     if config.container is not None:
         lst.extend([
-            bind_docker_remote_agent(agn.DockerContainerId(config.container)),
+            bind_docker_remote_agent(agn.DockerContainerId.parse(config.container)),
         ])
     else:
         lst.extend([
