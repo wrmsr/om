@@ -532,7 +532,7 @@ def _process_dataclass__fbb65cab1c264ec0ac037e09ca96dffe379fdf69():
 
 
 @_register(
-    installer_sha1='9003e8dbfc3095143ba476e83e3b4de72bf8d5f9',
+    installer_sha1='15cebaaef45388bcb48dccc7720315e9d272f944',
     spec_keys=(
         (
             "(((True, True, True, False, False, True, True, True, False, False, False, False, False, False, False, Fals"
@@ -541,15 +541,16 @@ def _process_dataclass__fbb65cab1c264ec0ac037e09ca96dffe379fdf69():
             ", None, False, False, False), (('startup_timeout_s', True, True, None, True, True, False, None), 'instance"
             "', 'value', None, False, False, False), (('shutdown_timeout_s', True, True, None, True, True, False, None)"
             ", 'instance', 'value', None, False, False, False), (('stderr_tail_bytes', True, True, None, True, True, Fa"
-            "lse, None), 'instance', 'value', None, False, False, False)), False, 0, ()), ((False,), (False,), (), (Fal"
-            "se,), (False, True, ()), ((),), (), (False,)))"
+            "lse, None), 'instance', 'value', None, False, False, False), (('DEFAULT', True, True, None, True, None, Fa"
+            "lse, None), 'class_var', 'missing', None, False, False, False)), False, 0, ()), ((False,), (False,), (), ("
+            "False,), (False, True, ()), ((),), (), (False,)))"
         ),
     ),
     cls_names=(
         ('omllm.agent.remote.docker', 'DockerRemoteAgentConfig'),
     ),
 )
-def _process_dataclass__9003e8dbfc3095143ba476e83e3b4de72bf8d5f9():
+def _process_dataclass__15cebaaef45388bcb48dccc7720315e9d272f944():
     def _process_dataclass(
         __class__,
         __dataclass__spec,
@@ -566,6 +567,7 @@ def _process_dataclass__9003e8dbfc3095143ba476e83e3b4de72bf8d5f9():
         __dataclass__init__fields__3__default = __dataclass__spec.fields[3].default.must()
         __dataclass__init__fields__4__annotation = __dataclass__spec.fields[4].annotation
         __dataclass__init__fields__4__default = __dataclass__spec.fields[4].default.must()
+        __dataclass__init__fields__5__annotation = __dataclass__spec.fields[5].annotation
         __dataclass__FrozenInstanceError = __dataclass__globals['__dataclass__FrozenInstanceError']
         __dataclass__None = __dataclass__globals['__dataclass__None']
         __dataclass___recursive_repr = __dataclass__globals['__dataclass___recursive_repr']
@@ -606,6 +608,7 @@ def _process_dataclass__9003e8dbfc3095143ba476e83e3b4de72bf8d5f9():
             'startup_timeout_s',
             'shutdown_timeout_s',
             'stderr_tail_bytes',
+            'DEFAULT',
         }
 
         def __setattr__(self, name, value):

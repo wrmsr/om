@@ -91,13 +91,13 @@ if sys.version_info < (3, 8):
     raise OSError(f'Requires python (3, 8), got {sys.version_info} from {sys.executable}')  # noqa
 
 
-__om_amalg_sha1__ = '141e300af3fd52285f3aed2d19f1f492aa4b0091'
+__om_amalg_sha1__ = 'b1e66318ac76679d7ffce0dbb4b3df56403ada80'
 
 
 def __om_amalg__():  # noqa
     return dict(
         src_files=[
-            dict(sha1='4f3e1678dab2b1baf6cb3407ed2bd972a5b6bb49', mod='omcore.asyncs.asyncio.utils', path='../../omcore/asyncs/asyncio/utils.py'),  # noqa
+            dict(sha1='1397044059e08e8789e490965a8e09ec1e6afe6c', mod='omcore.asyncs.asyncio.utils', path='../../omcore/asyncs/asyncio/utils.py'),  # noqa
             dict(sha1='087c5375697aaf247921786f89e46ed71b8218ee', mod='omcore.docker.ports', path='../../omcore/docker/ports.py'),  # noqa
             dict(sha1='34b51b06f942650ae8528eea69af9202a007065e', mod='omcore.formats.yaml.goyaml.gostd', path='../../omcore/formats/yaml/goyaml/gostd.py'),  # noqa
             dict(sha1='f026d0fe4567b68d31ce774ce8a05eadb5a36e8b', mod='omcore.http.statuses', path='../../omcore/http/statuses.py'),  # noqa
@@ -447,6 +447,9 @@ async def asyncio_wait_concurrent(
         *,
         return_when: ta.Any = asyncio.FIRST_EXCEPTION,
 ) -> ta.List[T]:
+    if not awaitables:
+        return []
+
     if isinstance(concurrency, asyncio.Semaphore):
         semaphore = concurrency
     elif isinstance(concurrency, int):

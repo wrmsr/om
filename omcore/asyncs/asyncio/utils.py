@@ -75,6 +75,9 @@ async def asyncio_wait_concurrent(
         *,
         return_when: ta.Any = asyncio.FIRST_EXCEPTION,
 ) -> ta.List[T]:
+    if not awaitables:
+        return []
+
     if isinstance(concurrency, asyncio.Semaphore):
         semaphore = concurrency
     elif isinstance(concurrency, int):

@@ -65,8 +65,8 @@
   - Our code is 'type-heavy', and small modules defining nothing but interrelated stateless structures are welcome.
 - While not necessarily the case, organize packages as if it were to be managed by a guice-style dependency injector,
   with package-level injector modules that each refer to their child packages' injector modules and so on.
-- With the exception of root packages (`om*` directories), (relatively) deep package nesting is preferred over large
-  flat packages with many, less tightly related modules.
+- With the exception of root packages, (relatively) deep package nesting is preferred over large flat packages with
+  many, less tightly related modules.
 - Structurally quarantine all interaction with any external dependencies.
   - For small, simple integrations, it may be done within a single module as an optional implementation of an interface
     (or simple function conforming to a signature)
@@ -198,8 +198,8 @@
   - Import blocks, separated by a single blank line if multiple blocks are present:
     - Stdlib (always imported as whole modules, never individual items)
     - Third-party
-    - Local (other in-repo `om*` packages)
-    - Current-`om*`-package internal imports (always relative)
+    - Local (other in-repo root packages)
+    - Current-root-package internal imports (always relative)
   - **TWO blank lines**, if the following is present:
   - Typing stuff:
     - TypeVars, like the following:
