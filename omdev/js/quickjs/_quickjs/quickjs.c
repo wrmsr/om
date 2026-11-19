@@ -5491,7 +5491,9 @@ static JSValue JS_ConcatString2(JSContext *ctx, JSValue op1, JSValue op2)
     if (p2->len == 0) {
         goto ret_op1;
     }
-    if (JS_REF_COUNT(p1) == 1 && p1->is_wide_char == p2->is_wide_char
+    // not if p1 is an atom: the atom table finds it by its characters
+    if (JS_REF_COUNT(p1) == 1 && p1->atom_type == 0
+    &&  p1->is_wide_char == p2->is_wide_char
     &&  js_malloc_usable_size(ctx, p1) >= sizeof(*p1) + ((p1->len + p2->len) << p2->is_wide_char) + 1 - p1->is_wide_char) {
         /* Concatenate in place in available space at the end of p1 */
         if (p1->is_wide_char) {
@@ -17072,9 +17074,12 @@ static JSValue JS_IteratorNext2(JSContext *ctx, JSValueConst enum_obj,
     return JS_EXCEPTION;
 }
 
-static JSValue JS_IteratorNext(JSContext *ctx, JSValueConst enum_obj,
-                               JSValueConst method,
-                               int argc, JSValueConst *argv, int *pdone)
+enum { JS_ITERATOR_NEXT_DROP_VALUE = 1 };
+
+static JSValue JS_IteratorNext1(JSContext *ctx, JSValueConst enum_obj,
+                                JSValueConst method,
+                                int argc, JSValueConst *argv,
+                                int *pdone, int flags)
 {
     JSValue obj, value, done_val;
     int done;
@@ -17095,7 +17100,7 @@ static JSValue JS_IteratorNext(JSContext *ctx, JSValueConst enum_obj,
             goto fail;
         *pdone = JS_ToBoolFree(ctx, done_val);
         value = JS_UNDEFINED;
-        if (!*pdone) {
+        if (!*pdone && !(flags & JS_ITERATOR_NEXT_DROP_VALUE)) {
             value = JS_GetProperty(ctx, obj, JS_ATOM_value);
         }
         JS_FreeValue(ctx, obj);
@@ -17105,6 +17110,13 @@ static JSValue JS_IteratorNext(JSContext *ctx, JSValueConst enum_obj,
     JS_FreeValue(ctx, obj);
     *pdone = false;
     return JS_EXCEPTION;
+}
+
+static JSValue JS_IteratorNext(JSContext *ctx, JSValueConst enum_obj,
+                               JSValueConst method,
+                               int argc, JSValueConst *argv, int *pdone)
+{
+    return JS_IteratorNext1(ctx, enum_obj, method, argc, argv, pdone, 0);
 }
 
 /* return < 0 in case of exception */
@@ -46443,16 +46455,15 @@ static JSValue js_iterator_helper_next(JSContext *ctx, JSValueConst this_val,
                 goto close;
             while (it->count > 0) {
                 it->count--;
-                item = JS_IteratorNext(ctx, it->obj, it->next, 0, NULL, pdone);
+                item = JS_IteratorNext1(ctx, it->obj, it->next, 0, NULL, pdone,
+                                        JS_ITERATOR_NEXT_DROP_VALUE);
                 if (JS_IsException(item))
                     goto step_fail;
-                JS_FreeValue(ctx, item);
                 if (*pdone) {
                     ret = JS_UNDEFINED;
                     goto done;
                 }
             }
-
             item = JS_IteratorNext(ctx, it->obj, it->next, 0, NULL, pdone);
             if (JS_IsException(item))
                 goto step_fail;
