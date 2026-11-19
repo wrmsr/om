@@ -74,31 +74,130 @@ class JsLexError(ValueError):
 
 
 _LINE_TERMINATORS = '\r\n\u2028\u2029'
-_TRIVIA_KINDS = frozenset({'whitespace', 'comment', 'template_boundary'})
+_TRIVIA_KINDS = frozenset({
+    'whitespace',
+    'comment',
+    'template_boundary',
+})
 
 _REGEX_PREFIX_KEYWORDS = frozenset({
-    'await', 'case', 'delete', 'do', 'else', 'in', 'instanceof', 'new', 'of', 'return', 'throw', 'typeof', 'void',
+    'await',
+    'case',
+    'delete',
+    'do',
+    'else',
+    'in',
+    'instanceof',
+    'new',
+    'of',
+    'return',
+    'throw',
+    'typeof',
+    'void',
     'yield',
 })
-_BLOCK_PREFIX_KEYWORDS = frozenset({'do', 'else', 'try', 'finally'})
-_STATEMENT_HEAD_KEYWORDS = frozenset({'for', 'if', 'while', 'with', 'switch', 'catch'})
+
+_BLOCK_PREFIX_KEYWORDS = frozenset({
+    'do',
+    'else',
+    'try',
+    'finally',
+})
+
+_STATEMENT_HEAD_KEYWORDS = frozenset({
+    'catch',
+    'for',
+    'if',
+    'switch',
+    'while',
+    'with',
+})
 
 # Longest match wins. Single-character punctuators are handled separately.
 _MULTI_CHARACTER_PUNCTUATION = tuple(sorted({
-    '>>>=', '===', '!==', '**=', '<<=', '>>=', '>>>', '&&=', '||=', '??=', '...',
-    '=>', '==', '!=', '<=', '>=', '++', '--', '<<', '>>', '**', '&&', '||', '??', '?.',
-    '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=',
+    '!=',
+    '!==',
+    '%=',
+    '&&',
+    '&&=',
+    '&=',
+    '**',
+    '**=',
+    '*=',
+    '++',
+    '+=',
+    '--',
+    '-=',
+    '...',
+    '/=',
+    '<<',
+    '<<=',
+    '<=',
+    '==',
+    '===',
+    '=>',
+    '>=',
+    '>>',
+    '>>=',
+    '>>>',
+    '>>>=',
+    '?.',
+    '??',
+    '??=',
+    '^=',
+    '|=',
+    '||',
+    '||=',
 }, key=lambda s: (-len(s), s)))
+
 _SINGLE_CHARACTER_PUNCTUATION = frozenset('{}()[].;,<>+-*%&|^!~?:=/')
+
 _REGEX_PREFIX_PUNCTUATION = frozenset({
-    *'([{,;:=!?&|+-*%^~<>', '=>', '==', '===', '!=', '!==', '<=', '>=', '**', '&&', '||', '??',
-    '<<', '>>', '>>>', '+=', '-=', '*=', '/=', '%=', '**=', '&=', '|=', '^=', '<<=', '>>=', '>>>=',
-    '&&=', '||=', '??=', '...',
+    *'([{,;:=!?&|+-*%^~<>',
+
+    '!=',
+    '!==',
+    '%=',
+    '&&',
+    '&&=',
+    '&=',
+    '**',
+    '**=',
+    '*=',
+    '+=',
+    '-=',
+    '...',
+    '/=',
+    '<<',
+    '<<=',
+    '<=',
+    '==',
+    '===',
+    '=>',
+    '>=',
+    '>>',
+    '>>=',
+    '>>>',
+    '>>>=',
+    '??',
+    '??=',
+    '^=',
+    '|=',
+    '||',
+    '||=',
 })
-_BLOCK_PREFIX_PUNCTUATION = frozenset({')', '}', ';', '{', '=>'})
+
+_BLOCK_PREFIX_PUNCTUATION = frozenset({
+    ')',
+    ';',
+    '=>',
+    '{',
+    '}',
+})
 
 # Lexical recognition, not numeric validation (e.g. legacy octal is accepted as decimal digits).
 _DIGITS = r'[0-9](?:_?[0-9])*'
+
 _NUMBER = re.compile(
     r'(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*n?'
     r'|0[bB][01](?:_?[01])*n?'
@@ -106,6 +205,7 @@ _NUMBER = re.compile(
     rf'|{_DIGITS}n'
     rf'|(?:{_DIGITS}(?:\.(?:{_DIGITS})?)?|\.{_DIGITS})(?:[eE][+-]?{_DIGITS})?)',
 )
+
 _IDENTIFIER_ESCAPE = re.compile(r'\\u(?:[0-9a-fA-F]{4}|\{[0-9a-fA-F]+\})')
 
 

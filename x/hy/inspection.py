@@ -36,7 +36,7 @@ class HySafeReader(HyReader):
     if ta.TYPE_CHECKING:
         reader_for = ReaderMeta._attach_reader  # noqa: SLF001
 
-    @reader_for(')')
+    @reader_for(')')  # noqa
     @reader_for(']')
     @reader_for('}')
     def _skip(self, key: str) -> None:

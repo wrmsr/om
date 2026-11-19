@@ -306,8 +306,8 @@ class IsolatedHyModules(HyModules):
     def _dunder_import(
             self,
             name: str,
-            globals: ta.Mapping[str, ta.Any] | None = None,  # noqa: A002
-            locals: ta.Mapping[str, ta.Any] | None = None,  # noqa: A002
+            globals: ta.Mapping[str, ta.Any] | None = None,  # noqa
+            locals: ta.Mapping[str, ta.Any] | None = None,  # noqa
             fromlist: ta.Sequence[str] | None = (),
             level: int = 0,
     ) -> types.ModuleType:
