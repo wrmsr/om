@@ -618,7 +618,7 @@ def test_assert(tmp_path, monkeypatch):
             out, err = run_cmd(
                 cmd='python3 {} {}'.format(
                     ('-O' if optim else ''),
-                    f"-c 'import {PACKAGE}.autoinstall; import ex; ex.f({test})'"),
+                    f"-c 'from {PACKAGE}.globalruntime import install; install(); import ex; ex.f({test})'"),
                 expect=(1 if not optim and not test else 0))
             assert ('testing' in out) == (not optim)
             show_msg = has_msg and not optim and not test
@@ -630,6 +630,22 @@ def test_hy2py_stdin():
     out, _ = run_cmd('hy2py', '(+ 482 223)')
     assert '482 + 223' in out
     assert '705' not in out
+
+
+def test_hy2py_import_does_not_install(tmp_path):
+    generated = tmp_path / 'generated.py'
+    run_cmd(['hy2py', '-o', generated], "(setv model 'hello)")
+
+    run_cmd(
+        ['python3', '-c', textwrap.dedent(f"""\
+            from {PACKAGE} import globalruntime
+            import generated
+
+            assert generated.model == generated.hy.models.Symbol('hello')
+            assert not globalruntime.is_installed()
+        """)],
+        cwd=tmp_path,
+    )
 
 
 def test_hy2py_compile_only(monkeypatch):
@@ -669,7 +685,11 @@ def test_hy2py_recursive(monkeypatch, tmp_path):
         tmp_path / 'bar' / p
         for p in ('first.py', 'folder', 'folder/second.py')}
 
-    output, _ = run_cmd('python3 first.py', cwd=tmp_path / 'bar')
+    # The generated file still refers to the original package, whose dependencies are Hy source files.
+    output, _ = run_cmd(
+        ['python3', '-c', f'from {PACKAGE}.globalruntime import install; install(); import first'],
+        cwd=tmp_path / 'bar',
+    )
     assert output == '1\nhello world\n'
 
 
@@ -693,7 +713,11 @@ def test_relative_require(case, monkeypatch, tmp_path):
     elif case == 'hy2py -m':
         run_cmd('hy2py -m pkg -o out')
         (tmp_path / 'out' / '__init__.py').touch()
-        output, _ = run_cmd('python3 -m out.b')
+        output, _ = run_cmd([
+            'python3',
+            '-c',
+            f'from {PACKAGE}.globalruntime import install; install(); import out.b',
+        ])
 
     assert 'HELLO' in output
 
@@ -769,3 +793,27 @@ def test_multiprocessing(tmp_path, start_method):
 
     out, _ = run_cmd(['hy', tmp_path / 'mp.hy'])
     assert '[10, 20, 30]' in out
+
+
+def test_forkserver_preloads_hy(tmp_path):
+    if platform.system() == 'Windows':
+        pytest.skip('Python does not support forkserver on Windows')
+
+    (tmp_path / 'preloaded.hy').write_text('(setv x 42)')
+    (tmp_path / 'mp.hy').write_text("""
+        (import multiprocessing)
+        (import sys)
+
+        (defn f []
+          (print (. (get sys.modules "preloaded") x)))
+
+        (when (= __name__ "__main__")
+          (setv ctx (multiprocessing.get-context "forkserver"))
+          (.set-forkserver-preload ctx ["preloaded"])
+          (setv p (.Process ctx :target f))
+          (.start p)
+          (.join p)
+          (sys.exit p.exitcode))""")
+
+    out, _ = run_cmd(['hy', tmp_path / 'mp.hy'])
+    assert out == '42\n'

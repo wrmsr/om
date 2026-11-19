@@ -665,17 +665,15 @@ def test_models_accessible():
 def test_module_prelude():
     """Make sure the preamble (binding the prelude and hy) appears at the top of a compiled module."""
 
-    for code, n in ('', 2), ('(setv flag (- hy.models.Symbol 1))', 3):
-        x = can_compile(code, preamble=True).body
-        assert len(x) == n
-
-        assert isinstance(x[0], ast.Import)
-        assert [(a.name, a.asname) for a in x[0].names] == [('typing', 'ta')]
-
-        assert isinstance(x[1], ast.ImportFrom)
-        assert x[1].module == f'{PACKAGE}.autoinstall'
-        assert x[1].level == 0
-        assert [(a.name, a.asname) for a in x[1].names] == [('hy', None)]
+    for code, n in ('', 4), ('(setv flag (- hy.models.Symbol 1))', 5):
+        body = can_compile(code, preamble=True).body
+        assert len(body) == n
+        assert ast.unparse(ast.Module(body=body[:4], type_ignores=[])).splitlines() == [
+            'import typing as ta',
+            f'from {PACKAGE}.globalruntime import get_global_runtime as _hy_get_global_runtime',
+            'hy = _hy_get_global_runtime().hy',
+            'del _hy_get_global_runtime',
+        ]
 
 
 def test_pragma():

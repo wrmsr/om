@@ -42,6 +42,9 @@ def test_relocated_package(tmp_path, package):
         import ast
         import builtins
         import importlib
+        import inspect
+        import multiprocessing.forkserver as forkserver
+        import multiprocessing.spawn as spawn
         import sys
 
         def hy_named():
@@ -49,6 +52,9 @@ def test_relocated_package(tmp_path, package):
 
         hooks_before = list(sys.path_hooks)
         builtins_before = dict(builtins.__dict__)
+        getsource_before = inspect.getsource
+        spawn_before = spawn.get_command_line
+        forkserver_util_before = forkserver.util
 
         pkg = importlib.import_module({package!r})
         assert pkg.__package__ == {package!r}
@@ -84,9 +90,22 @@ def test_relocated_package(tmp_path, package):
         # The global runtime.
 
         globalruntime = importlib.import_module({package!r} + '.globalruntime')
-        grt = globalruntime.install()
+        assert not globalruntime.is_installed()
+        grt = globalruntime.get_global_runtime()
         tree = grt.compile("(setv model 'hello)", preamble=True)
-        assert 'from {package}.autoinstall import hy' in ast.unparse(tree)
+        source = ast.unparse(tree)
+        assert 'from {package}.globalruntime import get_global_runtime' in source
+        namespace = {{}}
+        exec(compile(tree, '<test>', 'exec'), namespace)
+        assert namespace['hy'] is grt.hy
+        assert namespace['model'] == pkg.models.Symbol('hello')
+        assert not globalruntime.is_installed()
+        assert sys.path_hooks == hooks_before
+        assert inspect.getsource is getsource_before
+        assert spawn.get_command_line is spawn_before
+        assert forkserver.util is forkserver_util_before
+
+        assert globalruntime.install() is grt
 
         import hymod
         assert hymod.double(2) == 4
@@ -94,6 +113,9 @@ def test_relocated_package(tmp_path, package):
 
         globalruntime.uninstall()
         assert sys.path_hooks == hooks_before
+        assert inspect.getsource is getsource_before
+        assert spawn.get_command_line is spawn_before
+        assert forkserver.util is forkserver_util_before
         assert not hy_named()
     """)
     result = subprocess.run(

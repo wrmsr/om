@@ -10,9 +10,9 @@ process-wide :class:`HyRuntime <.runtime.HyRuntime>` - using ``sys.modules`` as 
   - :mod:`multiprocessing` children (in ``spawn`` and ``forkserver`` modes) installing the global runtime themselves
     before running anything, so they can import Hy modules and run Hy main scripts.
 
-Hy modules compiled by the global runtime bind ``hy`` (and the runtime's prelude) by importing them in a preamble, as
-``from <package>.autoinstall import hy`` - so that, as with upstream Hy, merely running such compiled code (for instance
-the output of ``hy2py``) installs the global runtime. Each part of the installation is reversed by :func:`uninstall`.
+Hy modules compiled by the global runtime bind ``hy`` through :func:`get_global_runtime` in their preamble. Running
+compiled code (for instance, the output of ``hy2py``) does not install the runtime. Each part of the installation is
+reversed by :func:`uninstall`.
 """
 import ast
 import contextlib
@@ -40,8 +40,16 @@ from .runtime import HyRuntime
 ##
 
 
+def _global_preamble() -> list[ast.stmt]:
+    return ast.parse(
+        f'from {__name__} import get_global_runtime as _hy_get_global_runtime; '
+        'hy = _hy_get_global_runtime().hy; '
+        'del _hy_get_global_runtime',
+    ).body
+
+
 def _new_global_runtime() -> HyRuntime:
-    return HyRuntime(modules=lambda _: SysHyModules(preamble_hy_import=f'{__package__}.autoinstall'))
+    return HyRuntime(modules=lambda _: SysHyModules(preamble=_global_preamble))
 
 
 class _HyGlobalState:
@@ -307,11 +315,49 @@ def compile_hy_file(
 # Multiprocessing
 
 
+class _HyForkserverUtil:
+    """Wrap the forkserver's utility module without patching other multiprocessing users of that module."""
+
+    def __init__(self, util: types.ModuleType) -> None:
+        super().__init__()
+
+        self._util = util
+
+    def __getattr__(self, name: str) -> ta.Any:
+        return getattr(self._util, name)
+
+    # Unlike spawn, forkserver has no separate command-line builder. Wrap its launch command before the
+    # stdlib starts the server, so Hy is available even to the user's preload modules. Apply the parent's
+    # search path first, since this package may only be importable through it.
+    _MAIN_IMPORT = 'from multiprocessing.forkserver import main; '
+    _MAIN_BOOTSTRAP = (
+        'from multiprocessing.forkserver import main as _forkserver_main\n'
+        'from multiprocessing.spawn import prepare\n'
+        '\n'
+        'def main(*args, **kwargs):\n'
+        '    if kwargs.get("sys_path") is not None:\n'
+        '        prepare({"sys_path": kwargs["sys_path"]})\n'
+        f'    from {__name__} import install\n'
+        '    install()\n'
+        '    _forkserver_main(*args, **kwargs)\n'
+        '\n'
+    )
+
+    def spawnv_passfds(self, path: bytes, args: list[str | bytes], passfds: ta.Iterable[int]) -> int:
+        # Forkserver also passes the parent's argv through this command. Only look at the actual -c argument.
+        for i, arg in enumerate(args[:-1]):
+            if arg == '-c':
+                code = args[i + 1]
+                if isinstance(code, str) and self._MAIN_IMPORT in code:
+                    args = list(args)
+                    args[i + 1] = code.replace(self._MAIN_IMPORT, self._MAIN_BOOTSTRAP, 1)
+                break
+
+        return self._util.spawnv_passfds(path, args, passfds)
+
+
 class _HyMultiprocessingInstallation:
-    """
-    Makes ``spawn`` children run :func:`install` before anything else (by way of their bootstrap command line), and
-    makes the ``forkserver`` server process import :mod:`.autoinstall` (which does the same) as part of its preload.
-    """
+    """Add explicit installation calls to the spawn and forkserver bootstrap commands."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -321,7 +367,8 @@ class _HyMultiprocessingInstallation:
         self._forkserver: ta.Any = importlib.import_module('multiprocessing.forkserver')
 
         self._orig_get_command_line = self._spawn.get_command_line
-        self._preload_module = f'{__package__}.autoinstall'
+        self._orig_forkserver_util = self._forkserver.util
+        self._forkserver_util = _HyForkserverUtil(self._orig_forkserver_util)
         self._bootstrap = f'from {__name__} import install; install(); '
 
     def _get_command_line(self, **kwds: ta.Any) -> list[str]:
@@ -334,21 +381,14 @@ class _HyMultiprocessingInstallation:
 
     def install(self) -> None:
         self._spawn.get_command_line = self._get_command_line
-
-        fs = self._forkserver._forkserver  # noqa: SLF001
-        preload = list(getattr(fs, '_preload_modules', []))
-        if self._preload_module not in preload:
-            fs.set_forkserver_preload([self._preload_module, *preload])
+        self._forkserver.util = self._forkserver_util
 
     def uninstall(self) -> None:
         if self._spawn.get_command_line == self._get_command_line:
             self._spawn.get_command_line = self._orig_get_command_line
 
-        fs = self._forkserver._forkserver  # noqa: SLF001
-        preload = list(getattr(fs, '_preload_modules', []))
-        if self._preload_module in preload:
-            preload.remove(self._preload_module)
-            fs.set_forkserver_preload(preload)
+        if self._forkserver.util is self._forkserver_util:
+            self._forkserver.util = self._orig_forkserver_util
 
 
 ##

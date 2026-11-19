@@ -112,7 +112,7 @@ def test_relocated_runtime_binding():
     module = types.ModuleType('hy_runtime_binding_test')
     tree = hy_compile(read_many("(setv model 'hello)"), module, preamble=True, runtime=RT)
     source = ast.unparse(tree)
-    assert f'from {PACKAGE}.autoinstall import hy' in source
+    assert f'from {PACKAGE}.globalruntime import get_global_runtime' in source
     assert 'import typing as ta' in source
     assert 'hy.models.Symbol' in source
     assert f'{PACKAGE}.models' not in source

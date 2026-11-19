@@ -539,8 +539,7 @@ class HyRuntime:
             for p in self._prelude
         ]
 
-        if (hy_from := self._modules.preamble_hy_import()) is not None:
-            stmts.append(ast.ImportFrom(module=hy_from, names=[ast.alias(name='hy')], level=0))
+        stmts.extend(self._modules.preamble_statements())
 
         return [ast.fix_missing_locations(s) for s in stmts]
 

@@ -113,18 +113,20 @@ and installs, reversibly (`globalruntime.uninstall()`):
 - `sys.path_hooks` entries making `.hy` files importable from directories and zip archives, preferred over same-named
   `.py` files, and bytecode-cached like them (`HyLoader`, `HyZipImporter`),
 - Hy-aware source inspection in `inspect` (`inspection`),
-- `multiprocessing` support: `spawn` children run `install()` first (by way of their bootstrap command line), and the
-  `forkserver` preloads `autoinstall`.
+- `multiprocessing` support: `spawn` children and newly launched `forkserver` servers call `install()` in their
+  bootstrap commands, before re-importing the main module or running preload imports. A forkserver that is already
+  running is unaffected. Pass `no_multiprocessing=True` to leave multiprocessing alone.
 
-Code compiled by the global runtime (bytecode-cached modules, `hy2py` output) binds `hy` and the prelude in a preamble:
+Code compiled by the global runtime (bytecode-cached modules, `hy2py` output) binds `hy` and the prelude without
+installing any hooks or patches. If the generated Python needs to import `.hy` modules or use other global integration,
+opt in before loading it, just as you would before importing a `.hy` module from Python:
 
 ```python
-import typing as ta
-from x.hy.autoinstall import hy
-```
+from x.hy.globalruntime import install
 
-`autoinstall` is a deliberately side-effecting module which installs the global runtime - so, as with upstream's
-`import hy`, merely running such compiled code installs the global runtime.
+rt = install()
+import my_hy_module
+```
 
 Note that bytecode caches don't record which version of the compiler produced them: after changing the compiler or the
 global runtime's prelude, delete stale `__pycache__` entries of `.hy` files.
@@ -141,7 +143,7 @@ naming the script, as Python does for `-m`, so that `multiprocessing` children r
 - `runtime` - `HyRuntime`, `HyNamespace`, the prelude, and core module loading.
 - `importing` - the `HyModules` interface, `IsolatedHyModules` (and its `__import__`), and `SysHyModules`.
 - `finders` - `HyModuleFinder` and its implementations.
-- `globalruntime` / `autoinstall` - the opt-in global runtime, and its loaders and path hooks.
+- `globalruntime` - the opt-in global runtime, and its loaders and path hooks.
 - `reader` - reading source into models (`models`).
 - `compiler` / `results` / `scoping` / `macros` / `patterns` - compiling models to Python ASTs.
 - `core/specials` - the special forms: the core macros written in Python, which compile directly to Python ASTs.

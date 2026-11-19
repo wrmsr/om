@@ -15,6 +15,7 @@ A :class:`HyRuntime <.runtime.HyRuntime>` delegates the resolution, loading, and
     installed path hook.
 """
 import abc
+import ast
 import builtins
 import importlib
 import importlib.util
@@ -69,15 +70,13 @@ class HyModules(lang.Abstract):
 
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def preamble_hy_import(self) -> str | None:
+    def preamble_statements(self) -> list[ast.stmt]:
         """
-        The absolute name of a module from which compiled module code can import ``hy`` itself, for code which is to be
-        executed somewhere its runtime can't inject it (such as bytecode loaded by Python's import system). `None` if
-        there's no such module.
+        Bind ``hy`` in compiled code executed somewhere its runtime can't inject it, such as bytecode loaded by
+        Python's import system.
         """
 
-        raise NotImplementedError
+        return []
 
 
 ##
@@ -86,10 +85,10 @@ class HyModules(lang.Abstract):
 class SysHyModules(HyModules):
     """Python's own module system: modules live in ``sys.modules`` and are imported through ``importlib``."""
 
-    def __init__(self, *, preamble_hy_import: str | None = None) -> None:
+    def __init__(self, *, preamble: ta.Callable[[], list[ast.stmt]] | None = None) -> None:
         super().__init__()
 
-        self._preamble_hy_import = preamble_hy_import
+        self._preamble = preamble
 
     def import_module(self, name: str) -> types.ModuleType:
         return importlib.import_module(name)
@@ -106,8 +105,8 @@ class SysHyModules(HyModules):
     def module_builtins(self) -> dict[str, ta.Any] | None:
         return None
 
-    def preamble_hy_import(self) -> str | None:
-        return self._preamble_hy_import
+    def preamble_statements(self) -> list[ast.stmt]:
+        return self._preamble() if self._preamble is not None else []
 
 
 ##
@@ -189,9 +188,6 @@ class IsolatedHyModules(HyModules):
     def remove_module(self, name: str) -> None:
         with self._lock:
             self._modules.pop(name, None)
-
-    def preamble_hy_import(self) -> str | None:
-        return None
 
     #
 
