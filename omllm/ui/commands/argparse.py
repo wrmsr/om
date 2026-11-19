@@ -49,14 +49,6 @@ class ArgparseCommand(Command, lang.Abstract):
 
     #
 
-    @property
-    def name(self) -> str:
-        return lang.camel_to_snake(type(self).__name__.removesuffix('Command'))
-
-    @property
-    def description(self) -> str | None:
-        return None
-
     class _HelpFormatter(ap.HelpFormatter):
         def start_section(self, heading):
             return super().start_section(heading.title())
@@ -72,11 +64,17 @@ class ArgparseCommand(Command, lang.Abstract):
     #
 
     @ta.final
-    async def run(self, ctx: CommandContext, args: str | lang.SequenceNotStr[str]) -> None:
+    async def run(
+            self,
+            ctx: CommandContext,
+            args: str | lang.SequenceNotStr[str] | None = None,
+    ) -> None:
         if isinstance(args, str):
             argv = shlex.split(args)
-        else:
+        elif args is not None:
             argv = list(args)
+        else:
+            argv = []
 
         pm: list[str] = []
 

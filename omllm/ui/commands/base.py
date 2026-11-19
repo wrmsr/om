@@ -2,6 +2,7 @@ import abc
 import enum
 import typing as ta
 
+from omcore import cached
 from omcore import dataclasses as dc
 from omcore import lang
 from omcore.argparse import all as ap
@@ -43,10 +44,9 @@ class RunCommandResult(enum.StrEnum):
 
 
 class Command(lang.Abstract):
-    @property
-    @abc.abstractmethod
+    @cached.property
     def name(self) -> str:
-        raise NotImplementedError
+        return lang.camel_to_snake(type(self).__name__.removesuffix('Command'))
 
     @property
     def description(self) -> str | None:
@@ -57,7 +57,11 @@ class Command(lang.Abstract):
         return False
 
     @abc.abstractmethod
-    def run(self, ctx: CommandContext, args: str | lang.SequenceNotStr[str]) -> ta.Awaitable[RunCommandResult | None]:
+    def run(
+            self,
+            ctx: CommandContext,
+            args: str | lang.SequenceNotStr[str] | None = None,
+    ) -> ta.Awaitable[RunCommandResult | None]:
         raise NotImplementedError
 
 

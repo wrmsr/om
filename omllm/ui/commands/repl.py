@@ -6,10 +6,9 @@ import abc
 import typing as ta
 
 from omcore import lang
-from omcore.argparse import all as ap
 from omdev import repl
 
-from .argparse import ArgparseCommand
+from .base import Command
 from .base import CommandContext
 
 
@@ -32,11 +31,15 @@ class ReplModeSwitcher(lang.Abstract):
 
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def submit_to(self, name: str | None, text: str) -> ta.Awaitable[None]:
+        raise NotImplementedError
+
 
 ##
 
 
-class _ReplSwitchCommand(ArgparseCommand, lang.Abstract):
+class _ReplSwitchCommand(Command, lang.Abstract):
     _target: ta.ClassVar[str | None] = None
 
     def __init__(self, *, switcher: ReplModeSwitcher) -> None:
@@ -48,9 +51,20 @@ class _ReplSwitchCommand(ArgparseCommand, lang.Abstract):
     def can_run_while_busy(self) -> bool:
         return True
 
-    async def _run_args(self, ctx: CommandContext, args: ap.Namespace) -> None:
+    async def run(
+            self,
+            ctx: CommandContext,
+            args: str | lang.SequenceNotStr[str] | None = None,
+    ) -> None:
         try:
-            await self._switcher.switch(self._target)
+            if args:
+                if isinstance(args, str):
+                    args_text = args
+                else:
+                    args_text = ' '.join(args)
+                await self._switcher.submit_to(self._target, args_text)
+            else:
+                await self._switcher.switch(self._target)
         except ReplSwitchError as e:
             await ctx.print(str(e))
 

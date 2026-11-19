@@ -126,6 +126,10 @@ class MinituiRepl(ReplModeSwitcher):
     def names(self) -> ta.Sequence[str]:
         return self._session.names
 
+    def _raise_switch_error(self, name: str) -> ta.NoReturn:
+        have = ', '.join(self._session.names) or 'none'
+        raise ReplSwitchError(f'No such repl: {name} (have: {have})') from None
+
     async def switch(self, name: str | None) -> None:
         if name is None:
             self.leave()
@@ -134,10 +138,17 @@ class MinituiRepl(ReplModeSwitcher):
         try:
             self._session.switch(name)
         except repl.NoSuchInterpreterError:
-            have = ', '.join(self._session.names) or 'none'
-            raise ReplSwitchError(f'No such repl: {name} (have: {have})') from None
+            self._raise_switch_error(name)
 
         self._app.set_input_mode(self._mode)
 
     def leave(self) -> None:
         self._app.set_input_mode(self._app.chat_mode)
+
+    async def submit_to(self, name: str | None, text: str) -> None:
+        prev = self._session.active_name
+        await self.switch(name)
+        try:
+            self._mode.submit(text)
+        finally:
+            await self.switch(prev)
