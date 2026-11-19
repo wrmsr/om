@@ -50,7 +50,6 @@ def test_hy2py_import():
 
 
 def assert_stuff(m):
-
     # This makes sure that automatically imported builtins go after docstrings.
     assert m.__doc__ == 'This is a module docstring.'
 

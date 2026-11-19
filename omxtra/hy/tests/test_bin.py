@@ -10,6 +10,8 @@ import zipfile
 
 import pytest
 
+from omcore.subprocesses.wrap import subprocess_maybe_shell_wrap_exec
+
 from ..globalruntime import compile_hy_file
 from .helpers import PACKAGE
 from .helpers import PACKAGE_DIR
@@ -53,7 +55,7 @@ def run_cmd(
         cmd[0] = REPO_PYTHON
 
     result = subprocess.run(
-        cmd,
+        subprocess_maybe_shell_wrap_exec(*cmd),
         input=stdin_data,
         # Never let the command (and particularly a REPL) inherit the terminal of the test process.
         stdin=subprocess.DEVNULL if stdin_data is None else None,
@@ -244,6 +246,7 @@ def test_no_main():
     assert 'This Should Still Work' in output
 
 
+@pytest.mark.serial
 @pytest.mark.parametrize(
     'scenario', ['normal', 'prevent_by_force', 'prevent_by_env', 'prevent_by_option'],
 )
@@ -256,7 +259,6 @@ def test_no_main():
     ],
 )
 def test_byte_compile(scenario, cmd_fmt):
-
     modname = f'{PACKAGE}.tests.resources.bin.bytecompile'
     fpath = modname.replace('.', '/') + '.hy'
 
