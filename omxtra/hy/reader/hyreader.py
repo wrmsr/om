@@ -49,7 +49,8 @@ def mkexpr(root: str | Object, *args: Object) -> Expression:
     return Expression((sym(root) if isinstance(root, str) else root, *args))
 
 
-## Identifiers
+##
+# Identifiers
 
 
 def _as_number(ident: str) -> Integer | Float | Complex | None:
@@ -124,7 +125,8 @@ def as_identifier(ident: str, reader: Reader | None = None) -> Object:
     return sym(ident)
 
 
-## Reader
+##
+# Reader
 
 
 # The reader currently reading (or whose output is currently being compiled), dynamically scoped to the current context.

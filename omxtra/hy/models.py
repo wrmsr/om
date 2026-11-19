@@ -47,7 +47,8 @@ def repr_indent(obj: object) -> str:
     return repr(obj).replace('\n', '\n  ')
 
 
-## Base
+##
+# Base
 
 
 class Object:
@@ -136,7 +137,8 @@ def is_unpack(kind: str, x: object) -> bool:
     return isinstance(x, Expression) and len(x) > 0 and x[0] == Symbol('unpack-' + kind)
 
 
-## Atoms
+##
+# Atoms
 
 
 class String(Object, str):  # type: ignore[misc]  # Models use Object.replace rather than str.replace.
@@ -294,7 +296,8 @@ class Keyword(Object):
             return default
 
 
-## Numbers
+##
+# Numbers
 
 
 def strip_digit_separators(number: ta.Any) -> ta.Any:
@@ -387,7 +390,8 @@ class Complex(Object, complex):
         return super().__new__(cls, real, imag)
 
 
-## Sequences
+##
+# Sequences
 
 
 class Sequence(Object, tuple[ta.Any, ...]):
@@ -614,7 +618,8 @@ class Tuple(Sequence):
     """Represents a literal :class:`tuple`."""
 
 
-## Lazy
+##
+# Lazy
 
 
 class Lazy(Object):
@@ -636,7 +641,8 @@ class Lazy(Object):
         return self._gen.__next__()
 
 
-## Wrapping
+##
+# Wrapping
 
 
 class _ModelWrapping:

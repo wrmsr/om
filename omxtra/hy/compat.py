@@ -14,7 +14,8 @@ PY3_15 = sys.version_info >= (3, 15)
 PYPY = platform.python_implementation() == 'PyPy'
 
 
-## ast.unparse keyword mincing
+##
+# ast.unparse keyword mincing
 
 
 @lang.cached_function

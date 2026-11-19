@@ -199,7 +199,8 @@ class HyWrapperError(HyError, TypeError):
     """
 
 
-## Traceback filtering
+##
+# Traceback filtering
 
 
 def _module_filter_name(module_name: str) -> str | None:
