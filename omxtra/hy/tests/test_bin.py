@@ -105,13 +105,11 @@ def test_stdin():
 
 
 def test_i_flag_repl_env():
-    # If a program is passed in through standard input, it's evaluated
-    # in the REPL environment.
+    # If a program is passed in through standard input, it's evaluated in the REPL environment.
     code = '(import sys) (if (hasattr sys "ps1") "Yeppers" "Nopers")'
     out, _ = run_cmd('hy -i', code)
     assert 'Yeppers' in out
-    # With `-c`, on the other hand, the code is run before the REPL is
-    # launched.
+    # With `-c`, on the other hand, the code is run before the REPL is launched.
     out, _ = run_cmd(['hy', '-i', '-c', code])
     assert 'Nopers' in out
 
@@ -162,9 +160,11 @@ def test_cmd():
     assert 'fizbing' in output
 
     # https://github.com/hylang/hy/issues/1894
-    output, _ = run_cmd(' '.join(('hy -c ',
-                                  repr('(import sys) (print (+ "<" (.join "|" sys.argv) ">"))'),
-                                  'AA', 'ZZ', '-m')))
+    output, _ = run_cmd(' '.join((
+        'hy -c ',
+        repr('(import sys) (print (+ "<" (.join "|" sys.argv) ">"))'),
+        'AA', 'ZZ', '-m',
+    )))
     assert '<-c|AA|ZZ|-m>' in output
 
 
@@ -274,13 +274,11 @@ def test_byte_compile(scenario, cmd_fmt, tmp_path):
         cmd.insert(1, '-B')
 
     if scenario == 'prevent_by_force':
-        # Keep Hy from being able to byte-compile the module by
-        # creating a directory at the target location.
+        # Keep Hy from being able to byte-compile the module by creating a directory at the target location.
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)
         os.mkdir(cache_path)
 
-    # Whether or not we can byte-compile the module, we should be able
-    # to run it.
+    # Whether or not we can byte-compile the module, we should be able to run it.
     output, _ = run_cmd(cmd, dontwritebytecode=(scenario == 'prevent_by_env'), env={'PYTHONPATH': str(tmp_path)})
     assert 'Hello from macro' in output
     assert 'The macro returned: boink' in output
@@ -292,9 +290,8 @@ def test_byte_compile(scenario, cmd_fmt, tmp_path):
         # No byte-compiled version should've been created.
         assert not os.path.exists(cache_path)
 
-    # When we run the same command again, and we've byte-compiled the
-    # module, the byte-compiled version should be run instead of the
-    # source, in which case the macro shouldn't be run.
+    # When we run the same command again, and we've byte-compiled the module, the byte-compiled version should be run
+    # instead of the source, in which case the macro shouldn't be run.
     output, _ = run_cmd(cmd, env={'PYTHONPATH': str(tmp_path)})
     assert ('Hello from macro' in output) ^ (scenario == 'normal')
     assert 'The macro returned: boink' in output
@@ -314,11 +311,9 @@ def test_file_main_file():
 
 def test_file_sys_path():
     """
-    The test resource `relative_import.hy` will perform an absolute import
-    of a module in its directory: a directory that is not on the `sys.path` of
-    the script executing the module (i.e. `hy`).  We want to make sure that Hy
-    adopts the file's location in `sys.path`, instead of the runner's current
-    dir (e.g. '' in `sys.path`).
+    The test resource `relative_import.hy` will perform an absolute import of a module in its directory: a directory
+    that is not on the `sys.path` of the script executing the module (i.e. `hy`). We want to make sure that Hy adopts
+    the file's location in `sys.path`, instead of the runner's current dir (e.g. '' in `sys.path`).
     """
 
     file_path, _ = os.path.split(f'{PACKAGE_DIR}/tests/resources/relative_import.hy')
@@ -329,8 +324,7 @@ def test_file_sys_path():
 
 
 def testc_file_sys_path(tmp_path):
-    # similar to test_file_sys_path, test hyc and hy2py to make sure
-    # they can find the relative import at compile time
+    # similar to test_file_sys_path, test hyc and hy2py to make sure they can find the relative import at compile time
     # https://github.com/hylang/hy/issues/2021
 
     source_dir = f'{PACKAGE_DIR}/tests/resources'
@@ -372,10 +366,7 @@ def test_file_no_extension():
 
 
 def test_circular_macro_require(tmp_path):
-    """
-    Confirm that macros can require themselves during expansion and when
-    run from the command line.
-    """
+    """Confirm that macros can require themselves during expansion and when run from the command line."""
 
     # First, with no bytecode
     test_file = os.path.join(str(tmp_path), 'circular_macro_require.hy')
@@ -396,10 +387,9 @@ def test_circular_macro_require(tmp_path):
 
 def test_macro_require(tmp_path):
     """
-    Confirm that a `require` will load macros into the non-module namespace
-    (i.e. `exec(code, locals)`) used by `runpy.run_path`.
-    In other words, this confirms that the AST generated for a `require` will
-    load macros into the unnamed namespace its run in.
+    Confirm that a `require` will load macros into the non-module namespace (i.e. `exec(code, locals)`) used by
+    `runpy.run_path`. In other words, this confirms that the AST generated for a `require` will load macros into the
+    unnamed namespace its run in.
     """
 
     # First, with no bytecode

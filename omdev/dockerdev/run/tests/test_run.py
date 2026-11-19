@@ -109,7 +109,7 @@ def _staging_mount(run: _Run) -> str:
 
 
 def test_defaults(tmp_path):
-    run = _process(tmp_path)
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, shift_uid='off'))
     assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL])
     assert run.image_and_command == [_SHA, 'bash']
     assert run.env is None
@@ -152,24 +152,24 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
 
 
 def test_unknown_args_are_forwarded_alongside_the_defaults(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, unknown_args=['--name=x', '-d']))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, unknown_args=['--name=x', '-d'], shift_uid='off'))
     assert run.options == sorted(['--rm', '-i', '-t', '--name=x', '-d', _HOST_PLATFORM, _LABEL])
 
 
 def test_defaults_can_be_disabled(tmp_path):
-    assert '--rm' not in _process(tmp_path / 'a', RunArgs(id=_RUN_ID, no_rm=True)).options
-    assert '-i' not in _process(tmp_path / 'b', RunArgs(id=_RUN_ID, no_interactive=True)).options
-    assert '-t' not in _process(tmp_path / 'c', RunArgs(id=_RUN_ID, no_tty=True)).options
+    assert '--rm' not in _process(tmp_path / 'a', RunArgs(id=_RUN_ID, no_rm=True, shift_uid='off')).options
+    assert '-i' not in _process(tmp_path / 'b', RunArgs(id=_RUN_ID, no_interactive=True, shift_uid='off')).options
+    assert '-t' not in _process(tmp_path / 'c', RunArgs(id=_RUN_ID, no_tty=True, shift_uid='off')).options
 
-    run = _process(tmp_path / 'd', RunArgs(id=_RUN_ID, no_rm=True, no_interactive=True, no_tty=True))
+    run = _process(tmp_path / 'd', RunArgs(id=_RUN_ID, no_rm=True, no_interactive=True, no_tty=True, shift_uid='off'))
     assert run.options == sorted([_HOST_PLATFORM, _LABEL])
 
 
 def test_detach_disables_nothing_else(tmp_path):
-    run = _process(tmp_path / 'a', RunArgs(id=_RUN_ID, detach=True))
+    run = _process(tmp_path / 'a', RunArgs(id=_RUN_ID, detach=True, shift_uid='off'))
     assert run.options == sorted(['--rm', '-i', '-t', '-d', _HOST_PLATFORM, _LABEL])
 
-    run = _process(tmp_path / 'b', RunArgs(id=_RUN_ID, detach=True, no_interactive=True, no_tty=True))
+    run = _process(tmp_path / 'b', RunArgs(id=_RUN_ID, detach=True, no_interactive=True, no_tty=True, shift_uid='off'))
     assert run.options == sorted(['--rm', '-d', _HOST_PLATFORM, _LABEL])
 
 
@@ -182,6 +182,7 @@ def test_simple_options(tmp_path):
         mount_docker_sock=True,
         no_host_platform=True,
         no_id_label=True,
+        shift_uid='off',
     ))
     assert run.options == sorted([
         '--rm',
@@ -196,7 +197,7 @@ def test_simple_options(tmp_path):
 
 
 def test_cuda(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, cuda=True))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, cuda=True, shift_uid='off'))
     assert run.options == sorted(['--rm', '-i', '-t', '--runtime=nvidia', '--gpus=all', _HOST_PLATFORM, _LABEL])
 
 
@@ -220,7 +221,7 @@ def test_run_id_is_generated(tmp_path):
 
 
 def test_cache_mounts(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_cache=True))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_cache=True, shift_uid='off'))
     assert run.options == sorted([
         '--rm',
         '-i',
@@ -247,19 +248,19 @@ def test_cache_mounts(tmp_path):
 
 
 def test_cache_mounts_need_configured_caches(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_cache=True), cfg=Config('ubuntu:24.04'))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_cache=True, shift_uid='off'), cfg=Config('ubuntu:24.04'))
     assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL])
     assert run.staging_dir is None
 
 
 def test_git_mounts(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_git=True))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, mount_git=True, shift_uid='off'))
     git_mount = f'--mount=type=bind,src={tmp_path}/cwd/.git,dst=/git,ro'
     assert run.options == sorted(['--rm', '-i', '-t', git_mount, _HOST_PLATFORM, _LABEL])
 
 
 def test_git_clone(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, clone_mount_git=True))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, clone_mount_git=True, shift_uid='off'))
     assert f'--mount=type=bind,src={tmp_path}/cwd/.git,dst=/git,ro' in run.options
     assert '--entrypoint=/dockerdev/autoexec.sh' in run.options
     assert run.staged['autoexec.sh'].splitlines()[2:] == [
@@ -342,7 +343,7 @@ def test_shift_uid_wraps_the_autoexec_entrypoint(tmp_path):
 
 
 def test_x11_linux(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, x11=True))
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, shift_uid='off', x11=True))
     assert run.options == sorted([
         '--rm',
         '-i',
@@ -357,7 +358,7 @@ def test_x11_linux(tmp_path):
 
 
 def test_x11_darwin(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, x11=True), sys_platform='darwin')
+    run = _process(tmp_path, RunArgs(id=_RUN_ID, x11=True, shift_uid='off'), sys_platform='darwin')
     assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, '--env=DISPLAY=host.docker.internal:0', _LABEL])
 
 
@@ -381,7 +382,15 @@ def _load_secrets() -> sec.Secrets:
 
 
 def test_secrets_inject_every_match(tmp_path):
-    run = _process(tmp_path, RunArgs(id=_RUN_ID, env_secret_pats=[re.compile('.*_key')]), load_secrets=_load_secrets)
+    run = _process(
+        tmp_path,
+        RunArgs(
+            id=_RUN_ID,
+            env_secret_pats=[re.compile('.*_key')],
+            shift_uid='off',
+        ),
+        load_secrets=_load_secrets,
+    )
 
     # Passed through by name only: the values are in the docker client's environment, never its argv.
     assert run.options == sorted(['--rm', '-i', '-t', _HOST_PLATFORM, _LABEL, '--env=FOO_KEY', '--env=BAR_KEY'])

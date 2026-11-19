@@ -20,7 +20,7 @@ hy = RT.hy
 
 
 def test_basics():
-    "Make sure the basics of the importer work"
+    """Make sure the basics of the importer work"""
 
     resources_mod = importlib.import_module('.resources', __package__)
     assert resources_mod.in_init == 'chippy'
@@ -50,7 +50,7 @@ def test_runpy():
 
 
 def test_import_error_cleanup():
-    "Failed initial imports should not leave dead modules in `sys.modules`."
+    """Failed initial imports should not leave dead modules in `sys.modules`."""
 
     with pytest.raises(hy.errors.HyMacroExpansionError):
         importlib.import_module(f'{PACKAGE}.tests.resources.fails')
@@ -60,10 +60,9 @@ def test_import_error_cleanup():
 
 def test_reload(tmp_path, monkeypatch):
     """
-    Generate a test module, confirm that it imports properly (and puts the
-    module in `sys.modules`), then modify the module so that it produces an
-    error when reloaded.  Next, fix the error, reload, and check that the
-    module is updated and working fine.  Rinse, repeat.
+    Generate a test module, confirm that it imports properly (and puts the module in `sys.modules`), then modify the
+    module so that it produces an error when reloaded. Next, fix the error, reload, and check that the module is updated
+    and working fine. Rinse, repeat.
 
     This test is adapted from CPython's `test_import.py`.
     """
@@ -85,10 +84,9 @@ def test_reload(tmp_path, monkeypatch):
         assert mod.a == 1
         assert mod.b == 2
 
-        # On WinXP, just replacing the .py file wasn't enough to
-        # convince importlib.reload() to reparse it.  Maybe the timestamp didn't
-        # move enough.  We force it to get reparsed by removing the
-        # compiled file too.
+        # On WinXP, just replacing the .py file wasn't enough to convince importlib.reload() to reparse it. Maybe the
+        # timestamp didn't move enough. We force it to get reparsed by removing the compiled file too.
+        # FIXME: lol WinXP
         unlink(source)
 
         # Now damage the module.
@@ -102,8 +100,7 @@ def test_reload(tmp_path, monkeypatch):
         mod = sys.modules[test_module_name]
         assert mod is not None
 
-        # We should have replaced a w/ 10, but the old b value should
-        # stick.
+        # We should have replaced a w/ 10, but the old b value should stick.
         assert mod.a == 10
         assert mod.b == 2
 
@@ -215,8 +212,8 @@ def test_hy_python_require():
 def test_zipimport(tmp_path, monkeypatch):
     zpath = tmp_path / 'archive.zip'
     with zipfile.ZipFile(zpath, 'w') as o:
-        # Test a Python module as well as a Hy module to ensure that
-        # Hy's edits to ZIP imports can still get Python files.
+        # Test a Python module as well as a Hy module to ensure that Hy's edits to ZIP imports can still get Python
+        # files.
         o.writestr('zip_py.py', 'x = "Py from ZIP"')
         o.writestr('zip_hy.hy', '(setv x "Hy from ZIP")')
 
