@@ -143,10 +143,11 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
         env_secret_pats=[],
         unknown_args=[],
         extra_args=[],
+        shift_uid='off',
     )
 
     # Every field which has an explicit 'off' value: a new one must be added here too.
-    assert {f.name for f in dc.fields(RunArgs)} - set(explicit) == {'id', 'shift_uid'}
+    assert {f.name for f in dc.fields(RunArgs)} - set(explicit) == {'id'}
 
     assert _process(tmp_path / 'a', RunArgs(id=_RUN_ID)) == _process(tmp_path / 'b', RunArgs(id=_RUN_ID, **explicit))
 
