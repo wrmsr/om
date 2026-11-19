@@ -126,7 +126,7 @@ SUPERVISOR_SPEC = DeployAppSpec(
         ),
         rev=DeployRev('a2fc184a53ba524221b2443750c2493765d34efd'),
         subtrees=[
-            'ominfra/scripts/supervisor.py',
+            'omxtra/scripts/supervisor.py',
         ],
     ),
 
@@ -148,7 +148,7 @@ SUPERVISOR_SPEC = DeployAppSpec(
                     'Service': {
                         'ExecStart': (
                             '{app_dir}/venv/bin/python '
-                            'ominfra/scripts/supervisor.py '
+                            'omxtra/scripts/supervisor.py '
                             '{current_deploy_link}/conf/supervisor/supervisor.json'
                         ),
                         'WorkingDirectory': '{app_dir}',
