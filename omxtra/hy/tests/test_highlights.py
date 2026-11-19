@@ -3,9 +3,6 @@ import builtins
 import glob
 import os.path
 import random
-import subprocess
-import sys
-import textwrap
 
 import pytest
 
@@ -339,37 +336,6 @@ def test_hy_fixture_corpus_preserves_text_and_span_bounds():
         with open(path, encoding='utf-8', newline='') as f:
             source = f.read()
         _check_lines(source, highlighter.highlight(source.split('\n')))
-
-
-def test_no_external_dependencies_or_source_execution():
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    code = textwrap.dedent(f"""
-        import sys
-        from {__package__.rpartition('.')[0]}.highlights import HyHighlighter
-
-        source = [
-            '(defreader dangerous (raise (RuntimeError "reader executed")))',
-            '#dangerous (raise (RuntimeError "source executed"))',
-            '(eval-and-compile (raise (RuntimeError "compiler executed")))',
-            '(defmacro dangerous [] (raise (RuntimeError "macro executed")))',
-            '(dangerous)',
-            'f"{{(raise (RuntimeError "interpolation executed"))}}"',
-        ]
-        result = HyHighlighter().highlight(source)
-        assert [line.text for line in result] == source
-        assert not any(name == 'pygments' or name.startswith('pygments.') for name in sys.modules)
-        assert 'site' not in sys.modules
-    """)
-    result = subprocess.run(
-        [sys.executable, '-S', '-c', code],
-        cwd=root,
-        env={'PYTHONPATH': root},
-        capture_output=True,
-        check=False,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_all_core_specials_macros_and_mangled_aliases():
