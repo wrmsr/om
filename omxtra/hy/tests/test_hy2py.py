@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 # This file is also used by py2hy.
 import asyncio
 import datetime

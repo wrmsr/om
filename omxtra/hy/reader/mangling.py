@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 # ruff: noqa: RUF002
 import re
 import unicodedata

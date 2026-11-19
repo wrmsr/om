@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 import builtins
 import glob
 import os.path
@@ -342,9 +343,9 @@ def test_hy_fixture_corpus_preserves_text_and_span_bounds():
 
 def test_no_external_dependencies_or_source_execution():
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    code = textwrap.dedent("""
+    code = textwrap.dedent(f"""
         import sys
-        from x.hy.highlights import HyHighlighter
+        from {__package__.rpartition('.')[0]}.highlights import HyHighlighter
 
         source = [
             '(defreader dangerous (raise (RuntimeError "reader executed")))',
@@ -352,7 +353,7 @@ def test_no_external_dependencies_or_source_execution():
             '(eval-and-compile (raise (RuntimeError "compiler executed")))',
             '(defmacro dangerous [] (raise (RuntimeError "macro executed")))',
             '(dangerous)',
-            'f"{(raise (RuntimeError "interpolation executed"))}"',
+            'f"{{(raise (RuntimeError "interpolation executed"))}}"',
         ]
         result = HyHighlighter().highlight(source)
         assert [line.text for line in result] == source

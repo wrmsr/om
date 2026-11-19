@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 """
 The Hy engine.
 

@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 """Parser combinators for pattern-matching Hy model trees."""
 import functools
 import itertools

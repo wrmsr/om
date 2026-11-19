@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 """The `hyc` command: byte-compiles Hy source files."""
 import argparse
 import importlib.util

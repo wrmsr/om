@@ -1,3 +1,4 @@
+# @om-precheck-allow-any-unicode
 # ruff: noqa: S307
 import copy
 import typing as ta

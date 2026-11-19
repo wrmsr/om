@@ -1,3 +1,5 @@
+# fmt: off
+# ruff: noqa: I001
 """
 An internal fork of Hy (https://github.com/hylang/hy, at 97dd2327b0a2ceb3c1e0bf8d9c6b5d04ace974c2), a Lisp dialect
 embedded in Python.
@@ -22,25 +24,61 @@ system, under which ``.hy`` files are importable just like ``.py`` files.
 The package never refers to its own absolute name: it may be relocated, and code it generates refers to ``hy`` only as a
 name which is either injected into the namespace it runs in, or imported in a preamble derived from ``__package__``.
 """
+from omcore import dataclasses as _dc  # noqa
+
+
+_dc.init_package(
+    globals(),
+    codegen=True,
+)
+
+
+##
+
+
 from . import models  # noqa
-from .finders import DirectoryHyModuleFinder  # noqa
-from .finders import HyModuleFinder  # noqa
-from .finders import HyModuleSource  # noqa
-from .finders import MappingHyModuleFinder  # noqa
-from .finders import PackageHyModuleFinder  # noqa
-from .importing import HyModules  # noqa
-from .importing import IsolatedHyModules  # noqa
-from .importing import SysHyModules  # noqa
-from .models import as_model  # noqa
-from .reader import mangle  # noqa
-from .reader import read  # noqa
-from .reader import read_many  # noqa
-from .reader import unmangle  # noqa
-from .reader.exceptions import PrematureEndOfInput  # noqa
-from .reader.hyreader import HyReader  # noqa
-from .reader.reader import Reader  # noqa
-from .runtime import DEFAULT_HY_PRELUDE  # noqa
-from .runtime import HyCoreCodeCache  # noqa
-from .runtime import HyNamespace  # noqa
-from .runtime import HyPreludeImport  # noqa
-from .runtime import HyRuntime  # noqa
+
+from .finders import (  # noqa
+    DirectoryHyModuleFinder,
+    HyModuleFinder,
+    HyModuleSource,
+    MappingHyModuleFinder,
+    PackageHyModuleFinder,
+)
+
+from .importing import (  # noqa
+    HyModules,
+    IsolatedHyModules,
+    SysHyModules,
+)
+
+from .models import (  # noqa
+    as_model,
+)
+
+from .reader import (  # noqa
+    mangle,
+    read,
+    read_many,
+    unmangle,
+)
+
+from .reader.exceptions import (  # noqa
+    PrematureEndOfInput,
+)
+
+from .reader.hyreader import (  # noqa
+    HyReader,
+)
+
+from .reader.reader import (  # noqa
+    Reader,
+)
+
+from .runtime import (  # noqa
+    DEFAULT_HY_PRELUDE,
+    HyCoreCodeCache,
+    HyNamespace,
+    HyPreludeImport,
+    HyRuntime,
+)
