@@ -149,7 +149,8 @@ def test_unset_args_behave_as_false_and_empty(tmp_path):
     # Every field which has an explicit 'off' value: a new one must be added here too.
     assert {f.name for f in dc.fields(RunArgs)} - set(explicit) == {'id'}
 
-    assert _process(tmp_path / 'a', RunArgs(id=_RUN_ID)) == _process(tmp_path / 'b', RunArgs(id=_RUN_ID, **explicit))
+    assert _process(tmp_path / 'a', RunArgs(id=_RUN_ID, shift_uid='off')) == \
+           _process(tmp_path / 'b', RunArgs(id=_RUN_ID, **explicit))
 
 
 def test_unknown_args_are_forwarded_alongside_the_defaults(tmp_path):
