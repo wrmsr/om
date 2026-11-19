@@ -177,6 +177,7 @@ class GitMountRunStep(RunStep):
             else:
                 plan.add_autoexec_lines(
                     'git clone -q /git /work/git',
+                    'git config --global --add safe.directory /work/git',
                 )
 
 
