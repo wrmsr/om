@@ -700,8 +700,8 @@ def test_lex_exception_filtering(capsys):
 
 def test_read_error():
     """
-    Compilation errors from code that was parsed with `hy.read` should have an arrow
-    pointing to the source position where the error arose.
+    Compilation errors from code that was parsed with `hy.read` should have an arrow pointing to the source position
+    where the error arose.
     """
 
     with pytest.raises(HySyntaxError) as e:
@@ -721,7 +721,7 @@ def test_shebang():
 
 
 def test_reader_class_reprs():
-    "Don't show internal modules in which these classes are defined."
+    """Don't show internal modules in which these classes are defined."""
 
     assert repr(hy.Reader) == f"<class '{PACKAGE}.Reader'>"
     assert repr(hy.HyReader) == f"<class '{PACKAGE}.HyReader'>"

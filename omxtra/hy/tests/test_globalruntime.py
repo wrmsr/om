@@ -133,9 +133,7 @@ def test_eval():
     assert eval_str('#(1 2 3)') == (1, 2, 3)
     assert eval_str('#{3 1 2}') == {1, 2, 3}
     assert eval_str('(.strip " fooooo   ")') == 'fooooo'
-    assert (
-        eval_str('(if True "this is if true" "this is if false")') == 'this is if true'
-    )
+    assert eval_str('(if True "this is if true" "this is if false")') == 'this is if true'
     assert eval_str('(lfor num (range 100) :if (= (% num 2) 1) (pow num 2))') == [
         pow(num, 2) for num in range(100) if num % 2 == 1
     ]
@@ -240,8 +238,7 @@ def test_reload(tmp_path, monkeypatch):
 
 def test_reload_reexecute(capsys):
     """
-    A module is re-executed when it's reloaded, even if it's
-    unchanged.
+    A module is re-executed when it's reloaded, even if it's unchanged.
 
     https://github.com/hylang/hy/issues/712
     """
@@ -255,20 +252,14 @@ def test_reload_reexecute(capsys):
 
 
 def test_circular(monkeypatch):
-    """
-    Test circular imports by creating a temporary file/module that calls a
-    function that imports itself.
-    """
+    """Test circular imports by creating a temporary file/module that calls a function that imports itself."""
 
     monkeypatch.syspath_prepend(f'{PACKAGE_DIR}/tests/resources/importer')
     assert runpy.run_module('circular')['f']() == 1
 
 
 def test_shadowed_basename(monkeypatch):
-    """
-    Make sure Hy loads `.hy` files instead of their `.py` counterparts (.e.g
-    `__init__.py` and `__init__.hy`).
-    """
+    """Make sure Hy loads `.hy` files instead of their `.py` counterparts (.e.g `__init__.py` and `__init__.hy`)."""
 
     monkeypatch.syspath_prepend(f'{PACKAGE_DIR}/tests/resources/importer')
     # Other tests may have imported different modules of these generic names.

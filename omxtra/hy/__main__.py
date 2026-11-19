@@ -1,4 +1,4 @@
-# @om-manifest omdev.cli.CliModule(['llm'], __name__)
+# @om-manifest omdev.cli.CliModule(['hy'], __name__)
 
 
 # Running hy as a module (e.g. `python -m <package>`) is equivalent to running the main `hy` command.

@@ -38,8 +38,7 @@ def can_eval(expr):
 def cant_compile(expr):
     with pytest.raises(HyError) as excinfo:
         hy_compile(read_many(expr), __name__, runtime=RT)
-    # Anything that can't be compiled should raise a user friendly
-    # error, otherwise it's a compiler bug.
+    # Anything that can't be compiled should raise a user friendly error, otherwise it's a compiler bug.
     assert isinstance(excinfo.value, HyLanguageError)
     assert excinfo.value.msg
     return excinfo.value
@@ -228,10 +227,7 @@ def test_ast_bad_yield():
 
 
 def test_ast_import_mangle_dotted():
-    """
-    Mangling a module name with a period shouldn't create a spurious
-    `asname`.
-    """
+    """Mangling a module name with a period shouldn't create a spurious `asname`."""
 
     code = can_compile('(import a-b.c)')
     assert code.body[0].names[0].name == 'a_b.c'
@@ -254,10 +250,7 @@ def test_ast_require():
 
 
 def test_ast_import_require_dotted():
-    """
-    As in Python, it should be a compile-time error to attempt to
-    import a dotted name.
-    """
+    """As in Python, it should be a compile-time error to attempt to import a dotted name."""
 
     cant_compile('(import spam [foo.bar])')
     cant_compile('(require spam [foo.bar])')
@@ -481,8 +474,7 @@ def test_literal_newlines():
 
 def test_linear_boolop():
     """
-    Operations like `(and 1 2 3)` should use only one `BoolOp`,
-    instead of an equivalent nested sequence of `BoolOp`s.
+    Operations like `(and 1 2 3)` should use only one `BoolOp`, instead of an equivalent nested sequence of `BoolOp`s.
     """
 
     for op in ('and', 'or'):

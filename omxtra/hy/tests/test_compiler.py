@@ -58,11 +58,9 @@ def test_compiler_bare_names():
 
 def test_compiler_yield_return():
     """
-    Check that the compiler correctly generates return statements for
-    a generator function. In Python versions prior to 3.3, the return
-    statement in a generator can't take a value, so the final expression
-    should not generate a return statement. From 3.3 onwards a return
-    value should be generated.
+    Check that the compiler correctly generates return statements for a generator function. In Python versions prior to
+    3.3, the return statement in a generator can't take a value, so the final expression should not generate a return
+    statement. From 3.3 onwards a return value should be generated.
     """
 
     e = make_expression(
@@ -86,10 +84,7 @@ def test_compiler_yield_return():
 
 # https://github.com/hylang/hy/issues/854
 def test_compact_logic():
-    """
-    Check that we don't generate multiple unnecessary if-statements
-    when compiling the short-circuiting operators.
-    """
+    """Check that we don't generate multiple unnecessary if-statements when compiling the short-circuiting operators."""
 
     py = hy2py('(and 1 2 3 (do (setv x 4) x) 5 6)')
     assert py.count('if') == 1
