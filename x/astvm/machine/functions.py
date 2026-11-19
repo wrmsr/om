@@ -184,28 +184,104 @@ class MachineFunctions:
     def _task_class_values(self, task: Task) -> None:
         if not isinstance(task.node, ast.ClassDef):
             raise InterpreterError('class task lacks a class definition')
-        values = self._space.data(self._pop())
-        count = len(task.node.decorator_list)
+        values = tuple(self._space.data(self._pop()))
+        self._add('class_keyword_next', task.env, task.node, (values, 0, ()))
+
+    def _class_keyword_add(
+            self,
+            keywords: tuple[tuple[str, Value], ...],
+            name: Value,
+            value: Value,
+    ) -> tuple[tuple[str, Value], ...]:
+        if type(name) is not str:
+            self._space.error('TypeError', 'keywords must be strings')
+        name = ta.cast(str, name)
+        if name == 'metaclass':
+            self._space.error('TypeError', 'custom metaclasses are not supported')
+        if any(existing == name for existing, _ in keywords):
+            self._space.error('TypeError', f'multiple values for keyword argument {name!r}')
+        self._budget.size(len(keywords) + 1)
+        return (*keywords, (name, value))
+
+    def _task_class_keyword_next(self, task: Task) -> None:
+        values, index, keywords = task.data
+        node = ta.cast(ast.ClassDef, task.node)
+        if index == len(node.keywords):
+            self._begin_class_body(task, values, dict(keywords))
+            return
+        self._add('class_keyword_value', task.env, node, task.data)
+        self._evaluate(node.keywords[index].value, task.env)
+
+    def _task_class_keyword_value(self, task: Task) -> None:
+        values, index, keywords = task.data
+        node = ta.cast(ast.ClassDef, task.node)
+        name = node.keywords[index].arg
+        value = self._pop()
+        if name is not None:
+            updated = self._class_keyword_add(keywords, name, value)
+            self._add('class_keyword_next', task.env, task.node, (values, index + 1, updated))
+        elif self._space.kind(value) in ('instance', 'exception'):
+            self._add('class_kwargs_guard', task.env, task.node, (values, index, keywords, value))
+            self._operation('getattr', task.env, value, 'keys')
+        else:
+            for key, item in self._space.mapping_pairs(value):
+                keywords = self._class_keyword_add(keywords, key, item)
+            self._add('class_keyword_next', task.env, task.node, (values, index + 1, keywords))
+
+    def _task_class_kwargs_guard(self, task: Task) -> None:
+        self._add('class_kwargs_keys', task.env, task.node, task.data)
+        self._invoke(task.env, self._pop(), ())
+
+    def _task_class_kwargs_keys(self, task: Task) -> None:
+        self._add('class_kwargs_entries_start', task.env, task.node, task.data)
+        self._collect(task.env, self._pop())
+
+    def _task_class_kwargs_entries_start(self, task: Task) -> None:
+        self._add('class_kwargs_entries', task.env, task.node, (*task.data, self._pop(), 0))
+
+    def _task_class_kwargs_entries(self, task: Task) -> None:
+        values, index, keywords, source, keys, key_index = task.data
+        entries = self._space.data(keys)
+        if key_index == len(entries):
+            self._add('class_keyword_next', task.env, task.node, (values, index + 1, keywords))
+            return
+        name = entries[key_index]
+        if type(name) is not str:
+            self._space.error('TypeError', 'keywords must be strings')
+        if any(existing == name for existing, _ in keywords):
+            self._space.error('TypeError', f'multiple values for keyword argument {name!r}')
+        self._add('class_kwargs_item', task.env, task.node, task.data)
+        self._operation('getitem', task.env, source, name)
+
+    def _task_class_kwargs_item(self, task: Task) -> None:
+        values, index, keywords, source, keys, key_index = task.data
+        name = self._space.data(keys)[key_index]
+        updated = self._class_keyword_add(keywords, name, self._pop())
+        self._add('class_kwargs_entries', task.env, task.node, (values, index, updated, source, keys, key_index + 1))
+
+    def _begin_class_body(self, task: Task, values: tuple[Value, ...], keywords: dict[str, Value]) -> None:
+        node = ta.cast(ast.ClassDef, task.node)
+        count = len(node.decorator_list)
         decorators = values[:count]
-        bases = tuple(values[count:]) if len(values) > count else (self._space.types['object'],)
+        bases = values[count:] or (self._space.types['object'],)
 
         namespace = self._space.new('namespace', {
             '__module__': self._space.data(task.env.globals).get('__name__', '__main__'),
-            '__qualname__': getattr(task.node, '_astvm_qualname', task.node.name),
-            '__doc__': ast.get_docstring(task.node, clean=False),
+            '__qualname__': getattr(node, '_astvm_qualname', node.name),
+            '__doc__': ast.get_docstring(node, clean=False),
         })
 
         env = Environment(
             task.env.program,
-            task.env.program.scopes[task.node],
+            task.env.program.scopes[node],
             namespace,
             task.env.globals,
             task.env,
             class_cell=self._space.new('cell', _MISSING),
         )
 
-        self._add('class_end', env, task.node, (bases, decorators))
-        self._suite(task.node.body, env)
+        self._add('class_end', env, node, (bases, decorators, keywords))
+        self._suite(node.body, env)
 
     _TASK_CLASS_END_UNSUPPORTED: ta.ClassVar = frozenset({
         '__del__',
@@ -224,6 +300,11 @@ class MachineFunctions:
         if type(namespace.get('__qualname__')) is not str:
             self._space.error('TypeError', 'class qualified name must be a string')
 
+        if '__classcell__' in namespace:
+            if not task.env.scope.class_cell:
+                self._space.error('TypeError', '__classcell__ must be a nonlocal cell')
+            self._runtime.delete(task.env.namespace, '__classcell__')
+
         if '__eq__' in namespace and '__hash__' not in namespace:
             self._runtime.write(task.env.namespace, '__hash__', None)
 
@@ -237,7 +318,7 @@ class MachineFunctions:
                 task.env.namespace, '__init_subclass__', self._space.new('classmethod', subclass_method),
             )
 
-        bases, decorators = task.data
+        bases, decorators, keywords = task.data
 
         for base in bases:
             if self._space.kind(base) not in ('class', 'type'):
@@ -254,22 +335,30 @@ class MachineFunctions:
         self._runtime.replace(task.env.class_cell, cls)
 
         self._add('decorate', task.env.parent, data=(decorators, cls))
-        self._add('class_init_subclass', task.env, data=cls)
+        self._add('class_init_subclass', task.env, data=(cls, keywords))
         self._add('class_set_name_next', task.env, data=(cls, tuple(namespace.items()), 0))
 
     def _task_class_init_subclass(self, task: Task) -> None:
-        cls = task.data
+        cls, keywords = task.data
         method = self._space.lookup_super(cls, cls, '__init_subclass__', cls)
         if method is _MISSING:
             return
 
-        kind = self._space.kind(method)
-        if kind == 'builtin' and self._space.data(method).name == 'object_init_subclass':
+        if (
+            self._space.kind(method) == 'builtin' and
+            self._space.data(method).name == 'object_init_subclass' and not keywords
+        ):
             return
-        if kind in ('classmethod', 'staticmethod'):
-            method = self._space.data(method)
         self._add('discard', task.env)
-        self._invoke(task.env, method, () if kind == 'staticmethod' else (cls,))
+        getter = self._space.special(method, '__get__')
+        if getter is not _MISSING:
+            self._add('class_init_subclass_bound', task.env, data=keywords)
+            self._invoke(task.env, getter, (None, cls))
+        else:
+            self._invoke(task.env, self._space.bind(method, _MISSING, cls), (), keywords)
+
+    def _task_class_init_subclass_bound(self, task: Task) -> None:
+        self._invoke(task.env, self._pop(), (), task.data)
 
     def _task_class_set_name_next(self, task: Task) -> None:
         cls, entries, index = task.data
@@ -281,7 +370,7 @@ class MachineFunctions:
         method = self._space.special(value, '__set_name__')
         if method is not _MISSING:
             self._add('discard', task.env)
-            self._invoke(task.env, method, (cls, name))
+            self._invoke_special_method(task.env, value, method, (cls, name))
 
     def _task_instance_initialized(self, task: Task) -> None:
         if self._pop() is not None:

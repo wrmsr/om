@@ -58,10 +58,7 @@ class MachineCalls:
             if space.subclass(function, space.types['BaseException']):
                 constructor = space.lookup_class(function, '__new__') if kind == 'class' else _MISSING
                 if constructor is not _MISSING:
-                    if space.kind(constructor) == 'staticmethod':
-                        constructor = space.data(constructor)
-                    self._add('class_new_result', task.env, data=(function, args, dict(kwargs)))
-                    self._invoke(task.env, constructor, (function, *args), kwargs)
+                    self._invoke_class_new(task.env, function, constructor, args, kwargs)
                 else:
                     value = space.new('exception', ExceptionData(function, args))
                     self._initialize_constructed(task.env, function, value, args, kwargs, new_invoked=False)
@@ -72,10 +69,7 @@ class MachineCalls:
             else:
                 constructor = space.lookup_class(function, '__new__')
                 if constructor is not _MISSING:
-                    if space.kind(constructor) == 'staticmethod':
-                        constructor = space.data(constructor)
-                    self._add('class_new_result', task.env, data=(function, args, dict(kwargs)))
-                    self._invoke(task.env, constructor, (function, *args), kwargs)
+                    self._invoke_class_new(task.env, function, constructor, args, kwargs)
                 else:
                     value = space.new('instance', InstanceData(function, space.new('namespace', {})))
                     self._initialize_constructed(task.env, function, value, args, kwargs, new_invoked=False)
@@ -84,7 +78,28 @@ class MachineCalls:
             method = space.special(function, '__call__')
             if method is _MISSING:
                 space.error('TypeError', 'object is not callable')
-            self._invoke(task.env, method, args, kwargs)
+            self._invoke_special_method(task.env, function, method, args, kwargs)
+
+    def _invoke_class_new(
+            self,
+            env: Environment,
+            cls: ObjectRef,
+            constructor: Value,
+            args: tuple[Value, ...],
+            kwargs: ta.Mapping[str, Value],
+    ) -> None:
+        space = self._space
+        self._add('class_new_result', env, data=(cls, args, dict(kwargs)))
+        getter = space.special(constructor, '__get__')
+        if getter is not _MISSING:
+            self._add('class_new_bound', env, data=(cls, args, dict(kwargs)))
+            self._invoke(env, getter, (None, cls))
+        else:
+            self._invoke(env, space.bind(constructor, _MISSING, cls), (cls, *args), kwargs)
+
+    def _task_class_new_bound(self, task: Task) -> None:
+        cls, args, kwargs = task.data
+        self._invoke(task.env, self._pop(), (cls, *args), kwargs)
 
     def _task_class_new_result(self, task: Task) -> None:
         cls, args, kwargs = task.data
@@ -108,6 +123,18 @@ class MachineCalls:
 
         init = space.special(value, '__init__')
         if init is not _MISSING:
+            getter = space.special(init, '__get__')
+            if getter is not _MISSING:
+                self._add('class_init_bound', env, data=(value, args, dict(kwargs)))
+                self._invoke(env, getter, (value, space.type_of(value)))
+                return
+            if space.kind(init) == 'property':
+                getter = space.data(init).getter
+                if getter is None:
+                    space.error('AttributeError', '__init__')
+                self._add('class_init_bound', env, data=(value, args, dict(kwargs)))
+                self._invoke(env, getter, (value,))
+                return
             self._add('instance_initialized', env, data=value)
             self._invoke(env, init, args, kwargs)
         elif value_kind == 'exception':
@@ -118,6 +145,11 @@ class MachineCalls:
             space.error('TypeError', 'class takes no arguments')
         else:
             self._push(value)
+
+    def _task_class_init_bound(self, task: Task) -> None:
+        value, args, kwargs = task.data
+        self._add('instance_initialized', task.env, data=value)
+        self._invoke(task.env, self._pop(), args, kwargs)
 
     def _resume_generator(
             self,

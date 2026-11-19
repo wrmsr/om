@@ -188,6 +188,9 @@ class SpaceObjects:
             cls = self.data(value).cls
             found = self.lookup_class(cls, name)
             if found is not _MISSING:
+                if self.kind(found) == 'staticmethod':
+                    # Keep the wrapper through implicit dispatch so its target is not bound again.
+                    return found
                 return self.bind(found, value, cls)
 
         if kind == 'host_object':
@@ -316,6 +319,8 @@ class SpaceObjects:
 
         elif kind in ('staticmethod', 'classmethod'):
             wrapped = self.data(ta.cast(ObjectRef, value))
+            if name == '__get__':
+                return self.new('builtin', BuiltinData(kind + '_get', value))
             if name in ('__func__', '__wrapped__'):
                 return wrapped
             if name in ('__name__', '__qualname__', '__module__', '__doc__', '__annotations__'):
@@ -342,6 +347,8 @@ class SpaceObjects:
 
         elif kind == 'property':
             info = self.data(value)
+            if name in ('__get__', '__set__', '__delete__'):
+                return self.new('builtin', BuiltinData('property_' + name.strip('_'), value))
             if name in ('fget', 'fset', 'fdel', '__doc__'):
                 return {
                     'fget': info.getter,
@@ -516,7 +523,7 @@ class SpaceObjects:
                 self.runtime.replace(value, dc.replace(self.data(ta.cast(ObjectRef, value)), name=item))
                 return
 
-            if name in ('__qualname__', '__module__'):
+            if name in ('__qualname__', '__module__', '__doc__'):
                 if delete:
                     self.error('TypeError', 'class metadata cannot be deleted')
                 if name == '__qualname__' and type(item) is not str:

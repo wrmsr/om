@@ -20,6 +20,7 @@ class Scope:
     global_names: frozenset[str]
     nonlocal_names: frozenset[str]
     generator: bool = False
+    class_cell: bool = False
 
 
 @dc.dataclass(frozen=True)
@@ -204,7 +205,7 @@ class Frontend:
 
         self._budget = budget
 
-    def _scope(self, node: ast.AST, kind: str) -> Scope:
+    def _scope(self, node: ast.AST, kind: str, *, class_cell: bool = False) -> Scope:
         scan = _Bindings()
 
         if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
@@ -232,6 +233,7 @@ class Frontend:
             frozenset(scan.globals),
             frozenset(scan.nonlocals),
             scan.generator or isinstance(node, ast.GeneratorExp),
+            class_cell,
         )
 
     def _validate_context(self, tree: ast.AST) -> None:
@@ -303,8 +305,8 @@ class Frontend:
                 raise UnsupportedSyntaxError('type parameters')
 
             if isinstance(node, ast.ClassDef):
-                if node.keywords:
-                    raise UnsupportedSyntaxError('class keywords')
+                if any(keyword.arg == 'metaclass' for keyword in node.keywords):
+                    raise UnsupportedSyntaxError('metaclass')
 
             if isinstance(node, ast.comprehension) and node.is_async:
                 raise UnsupportedSyntaxError('asynchronous comprehension')
@@ -326,7 +328,17 @@ class Frontend:
 
         # The symbol-table frontend validates global/nonlocal declarations and comprehension restrictions. It does not
         # create executable code objects. Context checks above are still necessary.
-        symtable.symtable(source, filename, mode)
+        symbols = symtable.symtable(source, filename, mode)
+        class_cells: set[tuple[str, int]] = set()
+        pending_tables = [symbols]
+        while pending_tables:
+            table = pending_tables.pop()
+            if table.get_type() == 'class' and any(
+                '__class__' in child.get_identifiers() and child.lookup('__class__').is_free()
+                for child in table.get_children()
+            ):
+                class_cells.add((table.get_name(), table.get_lineno()))
+            pending_tables.extend(table.get_children())
 
         self._validate_context(tree)
         QualifiedNames().visit(tree)
@@ -343,7 +355,9 @@ class Frontend:
                 scopes[node] = self._scope(node, 'function')
 
             elif isinstance(node, ast.ClassDef):
-                scopes[node] = self._scope(node, 'class')
+                scopes[node] = self._scope(
+                    node, 'class', class_cell=(node.name, node.lineno) in class_cells,
+                )
 
             elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
                 scopes[node] = self._scope(node, 'comprehension')

@@ -197,14 +197,26 @@ class MachineControl:
         manager = self._pop()
 
         exit_method = self._space.special(manager, '__exit__')
-        enter_method = self._space.special(manager, '__enter__')
-        if enter_method is _MISSING or exit_method is _MISSING:
+        if exit_method is _MISSING:
             self._space.error('TypeError', 'object does not support the context manager protocol')
 
-        state = WithState(task.node, task.data, exit_method)
+        self._add('with_exit_bound', task.env, data=(task.node, task.data, manager))
+        self._bind_special_method(task.env, manager, exit_method)
 
+    def _task_with_exit_bound(self, task: Task) -> None:
+        node, index, manager = task.data
+        exit_method = self._pop()
+        enter_method = self._space.special(manager, '__enter__')
+        if enter_method is _MISSING:
+            self._space.error('TypeError', 'object does not support the context manager protocol')
+        self._add('with_enter_bound', task.env, data=(node, index, exit_method))
+        self._bind_special_method(task.env, manager, enter_method)
+
+    def _task_with_enter_bound(self, task: Task) -> None:
+        node, index, exit_method = task.data
+        state = WithState(node, index, exit_method)
         self._add('with_entered', task.env, data=state)
-        self._invoke(task.env, enter_method, ())
+        self._invoke(task.env, self._pop(), ())
 
     def _task_with_entered(self, task: Task) -> None:
         state = task.data

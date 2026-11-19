@@ -81,7 +81,7 @@ class MachineConstructors:
                 method = space.special(args[0], '__' + name + '__')
                 if method is not _MISSING and len(args) == 1 and not kwargs:
                     self._add('numeric_constructed', env, data=name)
-                    self._invoke(env, method, ())
+                    self._invoke_special_method(env, args[0], method, ())
                     return
                 if (
                     name == 'int' and len(args) == 1 and not kwargs and

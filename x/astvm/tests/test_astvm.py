@@ -626,6 +626,298 @@ def test_class_descriptors_read_write_delete_differential():
     ''')
 
 
+def test_special_method_descriptors_bind_differential():
+    check("""
+    events = []
+    class Descriptor:
+        def __init__(self, name):
+            self.name = name
+        def __get__(self, instance, owner):
+            events.append(('bind', self.name, owner.__name__))
+            if self.name == 'call':
+                return lambda value: value + 3
+            if self.name == 'len':
+                return lambda: 7
+            if self.name == 'getitem':
+                return lambda key: key * 2
+            return lambda: iter((1, 2))
+    class Example:
+        __call__ = Descriptor('call')
+        __len__ = Descriptor('len')
+        __getitem__ = Descriptor('getitem')
+        __iter__ = Descriptor('iter')
+    obj = Example()
+    called, length, indexed = obj(4), len(obj), obj[5]
+    iterator = iter(obj)
+    result = called, length, indexed, (next(iterator), next(iterator)), events
+    """)
+
+
+def test_property_backed_special_method_differential():
+    check("""
+    events = []
+    class Example:
+        @property
+        def __bool__(self):
+            events.append('bind')
+            return lambda: False
+    result = bool(Example()), events
+    """)
+
+
+def test_staticmethod_special_target_is_not_rebound_differential():
+    check("""
+    events = []
+    class CallableDescriptor:
+        def __get__(self, instance, owner):
+            events.append('bind')
+            return lambda: 9
+        def __call__(self):
+            events.append('call')
+            return 5
+    class Example:
+        __len__ = staticmethod(CallableDescriptor())
+    result = len(Example()), events
+    """)
+
+
+def test_operator_and_membership_descriptors_bind_differential():
+    check("""
+    events = []
+    class Descriptor:
+        def __init__(self, name):
+            self.name = name
+        def __get__(self, instance, owner):
+            events.append(self.name)
+            if self.name == 'add':
+                return lambda other: NotImplemented
+            if self.name == 'right_add':
+                return lambda other: 8
+            if self.name == 'inplace_add':
+                return lambda other: other + 5
+            if self.name == 'contains':
+                return lambda item: item == 4
+            return lambda: 9
+    class Left:
+        __add__ = Descriptor('add')
+        __iadd__ = Descriptor('inplace_add')
+        __contains__ = Descriptor('contains')
+        __neg__ = Descriptor('neg')
+    class Right:
+        __radd__ = Descriptor('right_add')
+    left = Left()
+    added = left + Right()
+    contained = 4 in left
+    negated = -left
+    left += 3
+    result = added, contained, negated, left, events
+    """)
+
+
+def test_inherited_reflected_operator_waits_for_left_operand_differential():
+    check("""
+    events = []
+    class Base:
+        def __add__(self, other):
+            events.append('left')
+            return 'left result'
+        def __radd__(self, other):
+            events.append('right')
+            return 'right result'
+    class Child(Base):
+        pass
+    first = Base() + Child()
+    Child.__radd__ = Base.__radd__
+    second = Base() + Child()
+    result = first, second, events
+    """)
+
+
+def test_overridden_reflected_operator_keeps_subclass_priority_differential():
+    check("""
+    events = []
+    class Base:
+        def __add__(self, other):
+            events.append('left')
+            return 'left result'
+        def __radd__(self, other):
+            events.append('inherited right')
+            return 'inherited result'
+    class Child(Base):
+        def __radd__(self, other):
+            events.append('overridden right')
+            return 'overridden result'
+    result = Base() + Child(), events
+    """)
+
+
+def test_same_staticmethod_wrapper_for_both_operator_sides_differential():
+    check("""
+    events = []
+    def operation(other):
+        events.append('called')
+        return 5
+    wrapper = staticmethod(operation)
+    class Example:
+        __add__ = wrapper
+        __radd__ = wrapper
+    result = Example() + Example(), events
+    """)
+
+
+def test_attribute_hook_descriptor_binds_differential():
+    check("""
+    events = []
+    class ReadHook:
+        def __get__(self, instance, owner):
+            events.append('bind')
+            return lambda name: object.__getattribute__(instance, name)
+    class Example:
+        __getattribute__ = ReadHook()
+    obj = Example()
+    obj.value = 11
+    result = obj.value, events
+    """)
+
+
+def test_special_method_descriptor_restores_mid_binding():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Descriptor:
+    def __get__(self, instance, owner):
+        events.append('bound')
+        return lambda: 6
+class Example:
+    __len__ = Descriptor()
+result = len(Example()), events
+""")
+    for _ in range(300):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['bound']:
+            break
+    else:
+        raise AssertionError('special method descriptor did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == (6, ['bound'])
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == (6, ['bound'])
+
+
+def test_builtin_special_method_descriptors_bind_differential():
+    check("""
+    events = []
+    class Descriptor:
+        def __init__(self, name):
+            self.name = name
+        def __get__(self, instance, owner):
+            events.append(self.name)
+            if self.name == 'dir':
+                return lambda: ['x']
+            if self.name == 'reverse':
+                return lambda: iter((4, 3))
+            return lambda: 7
+    class Example:
+        __dir__ = Descriptor('dir')
+        __hash__ = Descriptor('hash')
+        __abs__ = Descriptor('abs')
+        __int__ = Descriptor('int')
+        __reversed__ = Descriptor('reverse')
+    obj = Example()
+    iterator = reversed(obj)
+    result = dir(obj), hash(obj), abs(obj), int(obj), next(iterator), events
+    """)
+
+
+def test_context_manager_descriptors_bind_in_order_differential():
+    check("""
+    events = []
+    class Hook:
+        def __init__(self, name):
+            self.name = name
+        def __get__(self, instance, owner):
+            events.append(('bind', self.name))
+            if self.name == 'enter':
+                return lambda: events.append('enter') or 3
+            def exit_method(exc_type, exc, traceback):
+                events.append(('exit', exc_type.__name__ if exc_type else None))
+                return True
+            return exit_method
+    class Example:
+        __enter__ = Hook('enter')
+        __exit__ = Hook('exit')
+    with Example() as value:
+        events.append(('body', value))
+        raise ValueError('handled')
+    result = events
+    """)
+
+
+def test_context_manager_exit_descriptor_can_replace_enter_differential():
+    check("""
+    events = []
+    class Exit:
+        def __get__(self, instance, owner):
+            events.append('bind_exit')
+            def new_enter(self):
+                events.append('new_enter')
+                return 2
+            owner.__enter__ = new_enter
+            return lambda exc_type, exc, traceback: events.append('exit')
+    class Example:
+        __exit__ = Exit()
+        def __enter__(self):
+            events.append('old_enter')
+            return 1
+    with Example() as value:
+        events.append(('body', value))
+    result = events
+    """)
+
+
+def test_context_manager_exit_descriptor_restores_mid_binding():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Exit:
+    def __get__(self, instance, owner):
+        events.append('exit_bound')
+        return lambda exc_type, exc, traceback: events.append('exit')
+class Example:
+    __exit__ = Exit()
+    def __enter__(self):
+        events.append('enter')
+        return self
+with Example():
+    events.append('body')
+result = events
+""")
+    for _ in range(300):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['exit_bound']:
+            break
+    else:
+        raise AssertionError('context manager exit descriptor did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == ['exit_bound', 'enter', 'body', 'exit']
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == ['exit_bound', 'enter', 'body', 'exit']
+
+
 def test_descriptor_without_getter_precedes_instance_dictionary_differential():
     check("""
     events = []
@@ -662,6 +954,61 @@ def test_staticmethod_and_classmethod_wrapper_metadata_differential():
         static.__module__, classed.__module__, static.__doc__, classed.__doc__,
     )
     """, initial={'__name__': 'sample'})
+
+
+def test_explicit_builtin_descriptor_binding_differential():
+    check("""
+    class Example:
+        pass
+    def static(value):
+        return value + 1
+    def classed(cls):
+        return cls.__name__
+    static_wrapper = staticmethod(static)
+    class_wrapper = classmethod(classed)
+    instance = Example()
+    result = (
+        static_wrapper.__get__(instance)(3),
+        static_wrapper.__get__(None, Example)(4),
+        class_wrapper.__get__(instance)(),
+        class_wrapper.__get__(None, Example)(),
+        class_wrapper.__get__(instance).__self__ is Example,
+    )
+    """)
+
+
+def test_explicit_property_descriptor_methods_differential():
+    check("""
+    events = []
+    class Example:
+        pass
+    def get(instance):
+        events.append('get')
+        return instance.value
+    def set_value(instance, value):
+        events.append(('set', value))
+        instance.value = value
+        return 42
+    def delete(instance):
+        events.append('delete')
+        del instance.value
+        return 43
+    descriptor = property(get, set_value, delete)
+    instance = Example()
+    assigned = descriptor.__set__(instance, 5)
+    first = descriptor.__get__(instance)
+    class_access = descriptor.__get__(None, Example) is descriptor
+    deleted = descriptor.__delete__(instance)
+    result = assigned, first, class_access, deleted, events, vars(instance)
+    """)
+
+
+def test_explicit_builtin_descriptor_missing_accessors():
+    guest_error('result = property().__get__(object())', 'AttributeError')
+    guest_error('result = property().__set__(object(), 1)', 'AttributeError')
+    guest_error('result = property().__delete__(object())', 'AttributeError')
+    guest_error('result = staticmethod(lambda: None).__get__(None)', 'TypeError')
+    guest_error('result = classmethod(lambda cls: None).__get__(None)', 'TypeError')
 
 
 def test_function_module_metadata_is_captured_when_defined_differential():
@@ -769,6 +1116,22 @@ def test_class_function_and_property_docstrings_differential():
             return self.value
     result = Example.__doc__, Example.value.__doc__, Example.method.__doc__, Example().value
     ''')
+
+
+def test_class_docstring_cannot_be_deleted_differential():
+    check("""
+    class Example:
+        "A class docstring."
+    try:
+        del Example.__doc__
+    except TypeError:
+        rejected = True
+    else:
+        rejected = False
+    before = Example.__doc__
+    Example.__doc__ = 3
+    result = rejected, before, Example.__doc__, '__doc__' in Example.__dict__
+    """)
 
 
 def test_property_replacement_getter_updates_inherited_docstring_differential():
@@ -949,6 +1312,228 @@ def test_inherited_explicit_classmethod_init_subclass_differential():
     ''')
 
 
+def test_class_header_keywords_and_creation_order_differential():
+    check("""
+    events = []
+    def decorate(cls):
+        events.append('decorate')
+        return cls
+    def keyword():
+        events.append('keyword')
+        return 7
+    class Field:
+        def __set_name__(self, owner, name):
+            events.append(('set_name', name))
+    class Base:
+        def __init_subclass__(cls, *, token=0, **kwargs):
+            events.append(('init_subclass', cls.__name__, token))
+            super().__init_subclass__(**kwargs)
+    @decorate
+    class Child(Base, token=keyword()):
+        events.append('body')
+        field = Field()
+    result = events
+    """)
+
+
+def test_class_header_keywords_follow_cooperative_mro_differential():
+    check("""
+    events = []
+    class Root:
+        def __init_subclass__(cls, *, root=False, **kwargs):
+            events.append(('root', root))
+            super().__init_subclass__(**kwargs)
+    class Middle(Root):
+        def __init_subclass__(cls, *, middle=False, **kwargs):
+            events.append(('middle', middle))
+            super().__init_subclass__(**kwargs)
+    class Child(Middle, root=True, middle=True):
+        pass
+    result = events
+    """)
+
+
+def test_class_header_keyword_unpacking_differential():
+    check("""
+    events = []
+    class Options:
+        def keys(self):
+            events.append('keys')
+            return ['left', 'right']
+        def __getitem__(self, name):
+            events.append(('item', name))
+            return {'left': 3, 'right': 4}[name]
+    class Base:
+        def __init_subclass__(cls, *, left, right, extra):
+            events.append((left, right, extra))
+    def extra():
+        events.append('extra')
+        return 5
+    class Child(Base, **Options(), extra=extra()):
+        events.append('body')
+    result = events
+    """)
+
+
+def test_class_header_keyword_unpacking_validates_keys_differential():
+    check("""
+    class Base:
+        def __init_subclass__(cls, **kwargs):
+            pass
+    results = []
+    for options in ({'x': 1}, {1: 2}):
+        try:
+            class Child(Base, **options, x=3):
+                pass
+        except TypeError:
+            results.append('rejected')
+    result = results
+    """)
+
+
+def test_class_keyword_unpacking_error_stops_later_evaluation_differential():
+    check("""
+    events = []
+    class Base:
+        def __init_subclass__(cls, **kwargs):
+            events.append('hook')
+    class MissingKeys:
+        pass
+    def later():
+        events.append('later')
+        return 3
+    try:
+        class Child(Base, **MissingKeys(), token=later()):
+            events.append('body')
+    except TypeError:
+        events.append('error')
+    result = events
+    """)
+
+
+def test_class_header_keyword_unpacking_restores_mid_mapping_lookup():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Options:
+    def keys(self):
+        events.append('keys')
+        return ['token']
+    def __getitem__(self, name):
+        events.append('item')
+        return 8
+class Base:
+    def __init_subclass__(cls, *, token):
+        events.append(token)
+class Child(Base, **Options()):
+    pass
+result = events
+""")
+    for _ in range(300):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['keys']:
+            break
+    else:
+        raise AssertionError('class keyword mapping lookup did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == ['keys', 'item', 8]
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == ['keys', 'item', 8]
+
+
+def test_class_header_keywords_rejected_by_object_hook():
+    guest_error('class Child(token=1): pass', 'TypeError')
+
+
+def test_post_creation_subclass_hook_binding_differential():
+    check("""
+    events = []
+    class Base:
+        pass
+    def plain():
+        events.append('plain')
+    Base.__init_subclass__ = plain
+    class First(Base):
+        pass
+    def classed(cls, *, token):
+        events.append((cls.__name__, token))
+    Base.__init_subclass__ = classmethod(classed)
+    class Second(Base, token=5):
+        pass
+    result = events
+    """)
+    guest_error("""
+    class Base:
+        pass
+    def needs_class(cls):
+        pass
+    Base.__init_subclass__ = needs_class
+    class Child(Base):
+        pass
+    """, 'TypeError')
+
+
+def test_post_creation_subclass_hook_custom_descriptor_differential():
+    check("""
+    events = []
+    class Hook:
+        def __get__(self, instance, owner):
+            events.append(('bind', instance is None, owner.__name__))
+            def callback(*, token):
+                events.append(('call', token))
+            return callback
+    class Base:
+        pass
+    Base.__init_subclass__ = Hook()
+    class Child(Base, token=8):
+        pass
+    result = events
+    """)
+
+
+def test_subclass_hook_descriptor_restores_mid_binding():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Hook:
+    def __get__(self, instance, owner):
+        events.append('bound')
+        def callback(*, token):
+            events.append(token)
+        return callback
+class Base:
+    pass
+Base.__init_subclass__ = Hook()
+class Child(Base, token=9):
+    pass
+result = events
+""")
+    for _ in range(300):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['bound']:
+            break
+    else:
+        raise AssertionError('subclass hook descriptor did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == ['bound', 9]
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == ['bound', 9]
+
+
 def test_class_creation_hooks_resume_after_checkpoint():
     vm = astvm.Interpreter()
     vm.start('''
@@ -957,9 +1542,9 @@ class Field:
     def __set_name__(self, owner, name):
         events.append(('field', name))
 class Base:
-    def __init_subclass__(cls):
-        events.append(('subclass', cls.__name__))
-class Child(Base):
+    def __init_subclass__(cls, *, token):
+        events.append(('subclass', cls.__name__, token))
+class Child(Base, token=7):
     value = Field()
     def owning_class(self):
         return __class__ is Child
@@ -978,10 +1563,10 @@ result = events, Child().owning_class()
 
     checkpoint = vm.checkpoint()
     vm.run()
-    assert vm.get('result') == ([('field', 'value'), ('subclass', 'Child')], True)
+    assert vm.get('result') == ([('field', 'value'), ('subclass', 'Child', 7)], True)
     vm.restore(checkpoint)
     vm.run()
-    assert vm.get('result') == ([('field', 'value'), ('subclass', 'Child')], True)
+    assert vm.get('result') == ([('field', 'value'), ('subclass', 'Child', 7)], True)
 
 
 def test_guest_new_initialization_and_foreign_return_differential():
@@ -1006,6 +1591,95 @@ def test_guest_new_initialization_and_foreign_return_differential():
     other = Foreign()
     result = item.before, item.after, other, calls
     ''')
+
+
+def test_constructor_descriptors_bind_and_call_differential():
+    check("""
+    events = []
+    class New:
+        def __get__(self, instance, owner):
+            events.append(('new_bind', instance is None, owner.__name__))
+            def make(cls, value):
+                events.append(('new', value))
+                return object.__new__(cls)
+            return make
+    class Init:
+        def __get__(self, instance, owner):
+            events.append(('init_bind', instance is None, owner.__name__))
+            def initialize(value):
+                instance.value = value
+                events.append(('init', value))
+            return initialize
+    class Example:
+        __new__ = New()
+        __init__ = Init()
+    item = Example(7)
+    result = item.value, events
+    """)
+
+
+def test_property_as_constructor_initializer_differential():
+    check("""
+    events = []
+    class Example:
+        @property
+        def __init__(self):
+            events.append('bind')
+            return lambda value: setattr(self, 'value', value)
+    result = Example(5).value, events
+    """)
+
+
+def test_exception_constructor_descriptors_differential():
+    check("""
+    events = []
+    class New:
+        def __get__(self, instance, owner):
+            events.append(('new_bind', owner.__name__))
+            return lambda cls, value: Exception.__new__(cls, value)
+    class Init:
+        def __get__(self, instance, owner):
+            events.append(('init_bind', owner.__name__))
+            return lambda value: setattr(instance, 'code', value)
+    class Problem(Exception):
+        __new__ = New()
+        __init__ = Init()
+    error = Problem(6)
+    result = error.code, error.args, events
+    """)
+
+
+def test_constructor_descriptor_restores_mid_binding():
+    vm = astvm.Interpreter()
+    vm.start("""
+events = []
+class Init:
+    def __get__(self, instance, owner):
+        events.append('bound')
+        def initialize(value):
+            instance.value = value
+        return initialize
+class Example:
+    __init__ = Init()
+result = Example(9).value, events
+""")
+    for _ in range(300):
+        vm.step()
+        try:
+            events = vm.get('events')
+        except KeyError:
+            continue
+        if events == ['bound']:
+            break
+    else:
+        raise AssertionError('constructor descriptor did not start')
+
+    checkpoint = vm.checkpoint()
+    vm.run()
+    assert vm.get('result') == (9, ['bound'])
+    vm.restore(checkpoint)
+    vm.run()
+    assert vm.get('result') == (9, ['bound'])
 
 
 def test_inherited_guest_new_and_object_initializer_differential():
@@ -2690,6 +3364,34 @@ def test_class_cell_lexical_scope_and_shadowing_differential():
             __class__ = 'local'
             return __class__
     result = Outer.__class__ is type, Outer().method(), Outer().shadow()
+    """)
+
+
+def test_explicit_class_cell_requires_lexical_cell_differential():
+    guest_error('class Example:\n    __classcell__ = 3', 'TypeError')
+    guest_error("""
+    class Example:
+        def method(self):
+            __class__ = 3
+            return __class__
+        __classcell__ = 4
+    """, 'TypeError')
+    guest_error("""
+    class Outer:
+        class Inner:
+            def method(self):
+                return __class__
+        __classcell__ = 5
+    """, 'TypeError')
+
+
+def test_explicit_class_cell_is_replaced_by_lexical_cell_differential():
+    check("""
+    class Example:
+        def method(self):
+            return __class__
+        __classcell__ = 3
+    result = Example().method() is Example, '__classcell__' in Example.__dict__
     """)
 
 

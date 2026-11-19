@@ -105,7 +105,9 @@ private-name mangling,
 basic qualified names, and custom `__getattribute__`, `__getattr__`, `__setattr__`, and `__delattr__` hooks.
 Ordinary classes and guest exception subclasses support guest `__new__`, descriptors,
 `property`, `__set_name__`, and cooperative `__init_subclass__`; guest exception subclasses support custom fields and
-descriptors. `staticmethod` and `classmethod` are available, and their wrappers expose guest function metadata;
+descriptors. Class-header keywords, including `**` mappings, reach `__init_subclass__`.
+`staticmethod` and `classmethod` are available, and their wrappers expose guest function metadata and explicit
+descriptor binding;
 standalone `staticmethod` wrappers are callable. Useful special methods are dispatched through the
 guest machine, including truth/length, iteration, subscription, operators, representations and context management.
 Explicit and zero-argument `super()` follow the receiver's C3 order, including guest descriptors and class

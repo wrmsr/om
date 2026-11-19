@@ -3,6 +3,7 @@ import dataclasses as dc
 import typing as ta
 
 from ..state import AdapterData
+from ..state import BoundMethodData
 from ..state import BuiltinData
 from ..state import Environment
 from ..state import ExceptionData
@@ -103,6 +104,38 @@ class MachineBuiltins:
         elif name == 'object_init_subclass':
             self._arity(name, args, kwargs, 0, 0)
             self._push(None)
+            return
+
+        elif name in ('staticmethod_get', 'classmethod_get', 'property_get'):
+            self._arity(name, args, kwargs, 1, 2)
+            instance = args[0]
+            descriptor_owner = args[1] if len(args) == 2 else None
+            if instance is None and descriptor_owner is None:
+                space.error('TypeError', '__get__(None, None) is invalid')
+            if name == 'staticmethod_get':
+                self._push(space.data(info.receiver))
+            elif name == 'classmethod_get':
+                cls = descriptor_owner if descriptor_owner is not None else space.type_of(instance)
+                self._push(space.new('bound_method', BoundMethodData(space.data(info.receiver), cls)))
+            elif instance is None:
+                self._push(info.receiver)
+            else:
+                getter = space.data(info.receiver).getter
+                if getter is None:
+                    space.error('AttributeError', 'property has no getter')
+                self._invoke(env, getter, (instance,))
+            return
+
+        elif name in ('property_set', 'property_delete'):
+            count = 2 if name == 'property_set' else 1
+            self._arity(name, args, kwargs, count, count)
+            data = space.data(info.receiver)
+            method = data.setter if name == 'property_set' else data.deleter
+            if method is None:
+                space.error('AttributeError', 'property has no setter or deleter')
+            self._add('constant', env, data=None)
+            self._add('discard', env)
+            self._invoke(env, method, args)
             return
 
         elif name == 'super_get':
@@ -220,7 +253,7 @@ class MachineBuiltins:
                     method = space.special(value, '__dir__')
                     if method is not _MISSING:
                         self._add('dir_collected', env)
-                        self._invoke(env, method, ())
+                        self._invoke_special_method(env, value, method, ())
                         return
                 names = self._dir_names(value)
             else:
@@ -240,7 +273,7 @@ class MachineBuiltins:
                     if method is None:
                         space.error('TypeError', 'unhashable type')
                     self._add('hash_result', env)
-                    self._invoke(env, method, ())
+                    self._invoke_special_method(env, value, method, ())
                     return
             key = space.key(value)
             if space.kind(value) in (
@@ -271,7 +304,7 @@ class MachineBuiltins:
             method = space.special(args[0], '__' + name + '__')
 
             if method is not _MISSING:
-                self._invoke(env, method, args[1:])
+                self._invoke_special_method(env, args[0], method, args[1:])
 
             elif type(args[0]) in _NUMBERS:
                 if len(args) == 2:
@@ -331,7 +364,7 @@ class MachineBuiltins:
 
                 method = space.special(args[0], '__reversed__')
                 if method is not _MISSING:
-                    self._invoke(env, method, ())
+                    self._invoke_special_method(env, args[0], method, ())
                     return
 
                 if (

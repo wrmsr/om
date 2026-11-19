@@ -87,7 +87,7 @@ class MachineOperations:
                     self._add('discard', env)
                     args = values[1:2] if name == 'delitem' else values[1:]
 
-                self._invoke(env, method, args)
+                self._invoke_special_method(env, value, method, args)
                 return
 
         if name == 'truth':
@@ -123,7 +123,7 @@ class MachineOperations:
                         space.error('TypeError', 'sequence no longer supports indexing')
                     self._add('sequence_next_guard', env, data=value)
                     self._add('sequence_next_value', env, data=value)
-                    self._invoke(env, method, (info.index,))
+                    self._invoke_special_method(env, info.target, method, (info.index,))
                 else:
                     self._push(space.next_value(value))
             elif kind == 'adapter':
@@ -157,7 +157,9 @@ class MachineOperations:
                     return
                 getter = space.special(found, '__get__')
                 if getter is not _MISSING:
-                    self._invoke(env, getter, (receiver if receiver is not _MISSING else None, info.owner))
+                    self._invoke_special_method(
+                        env, found, getter, (receiver if receiver is not _MISSING else None, info.owner),
+                    )
                 else:
                     self._resolve(space.bind(found, receiver, info.owner), env)
                 return
@@ -166,7 +168,7 @@ class MachineOperations:
                 method = space.special(value, '__getattribute__')
                 if method is not _MISSING:
                     self._add('descriptor_get_guard', env, data=(value, attribute_name, True))
-                    self._invoke(env, method, (attribute_name,))
+                    self._invoke_special_method(env, value, method, (attribute_name,))
                     return
             exception_fields = (
                 'args', '__cause__', '__context__', '__suppress_context__', '__traceback__', '__dict__',
@@ -186,7 +188,7 @@ class MachineOperations:
                         if getter is None:
                             getattr_method = space.special(value, '__getattr__') if fallback else _MISSING
                             if getattr_method is not _MISSING:
-                                self._invoke(env, getattr_method, (attribute_name,))
+                                self._invoke_special_method(env, value, getattr_method, (attribute_name,))
                                 return
                             space.error('AttributeError', attribute_name)
                         self._add('descriptor_get_guard', env, data=(value, attribute_name, fallback))
@@ -203,7 +205,9 @@ class MachineOperations:
                         )
                         if kind == 'class' or data_descriptor or attribute_name not in namespace:
                             self._add('descriptor_get_guard', env, data=(value, attribute_name, fallback))
-                            self._invoke(env, getter, (value if kind in ('instance', 'exception') else None, cls))
+                            self._invoke_special_method(
+                                env, found, getter, (value if kind in ('instance', 'exception') else None, cls),
+                            )
                             return
 
             try:
@@ -219,7 +223,7 @@ class MachineOperations:
                 if method is _MISSING:
                     raise
 
-                self._invoke(env, method, (values[1],))
+                self._invoke_special_method(env, value, method, (values[1],))
 
             else:
                 self._resolve(attribute, env)
@@ -234,7 +238,9 @@ class MachineOperations:
                 if method is not _MISSING:
                     self._add('constant', env, data=None)
                     self._add('discard', env)
-                    self._invoke(env, method, (attribute_name,) if delete else (attribute_name, values[2]))
+                    self._invoke_special_method(
+                        env, value, method, (attribute_name,) if delete else (attribute_name, values[2]),
+                    )
                     return
             structural: tuple[str, ...] = ('__class__', '__dict__', '__bases__', '__mro__')
             if kind == 'exception':
@@ -256,7 +262,9 @@ class MachineOperations:
                     if method is not _MISSING:
                         self._add('constant', env, data=None)
                         self._add('discard', env)
-                        self._invoke(env, method, (value,) if delete else (value, values[2]))
+                        self._invoke_special_method(
+                            env, found, method, (value,) if delete else (value, values[2]),
+                        )
                         return
                     if space.special(found, '__set__' if delete else '__delete__') is not _MISSING:
                         space.error('AttributeError', 'descriptor does not support this operation')
@@ -307,7 +315,7 @@ class MachineOperations:
                 method = space.special(right, '__contains__')
 
                 if method is not _MISSING:
-                    self._invoke(env, method, (left,))
+                    self._invoke_special_method(env, right, method, (left,))
 
                 elif space.kind(right) in ('dict', 'namespace', 'mappingproxy', 'set', 'frozenset'):
                     if space.kind(right) in ('namespace', 'mappingproxy'):
@@ -363,7 +371,7 @@ class MachineOperations:
             if category == 'inplace':
                 method = space.special(left, '__i' + self._binary_method(op) + '__')
                 if method is not _MISSING:
-                    candidates.append((method, (right,)))
+                    candidates.append((left, method, (right,)))
 
             if category == 'compare':
                 methods = {
@@ -383,12 +391,18 @@ class MachineOperations:
             lt, rt = space.type_of(left), space.type_of(right)
 
             reverse_first = lt != rt and space.subclass(rt, lt)
-            left_pair, right_pair = (lm, (right,)), (rm, (left,))
-            for method, args in ((right_pair, left_pair) if reverse_first else (left_pair, right_pair)):
+            if reverse_first and category != 'compare':
+                reverse_first = (
+                    rm is not _MISSING and
+                    space.lookup_class(rt, rname) != space.lookup_class(lt, rname)
+                )
+            left_pair, right_pair = (left, lm, (right,)), (right, rm, (left,))
+            pairs = (right_pair, left_pair) if reverse_first else (left_pair, right_pair)
+            for pair_index, (receiver, method, args) in enumerate(pairs):
                 if method is not _MISSING:
-                    if method == rm and category != 'compare' and lt == rt and not reverse_first:
+                    if pair_index == 1 and category != 'compare' and lt == rt:
                         continue
-                    candidates.append((method, args))
+                    candidates.append((receiver, method, args))
 
             self._add('special_next', env, data=(name, values, tuple(candidates), 0))
 
@@ -410,7 +424,7 @@ class MachineOperations:
             )
 
             if method is not _MISSING:
-                self._invoke(env, method, ())
+                self._invoke_special_method(env, value, method, ())
 
             elif type(value) in _NUMBERS:
                 operation = {'UAdd': operator.pos, 'USub': operator.neg, 'Invert': operator.invert}[op]

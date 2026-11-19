@@ -350,7 +350,7 @@ class MachineFlow:
                     self._operation('iter', task.env, source)
                     return
 
-            elif kind == 'call_kwargs_guard' and outcome.kind == 'raise':
+            elif kind in ('call_kwargs_guard', 'class_kwargs_guard') and outcome.kind == 'raise':
                 if space.exception_matches(outcome.value, space.types['AttributeError']):
                     outcome = Outcome('raise', space.exception('TypeError', ('argument after ** must be a mapping',)))
 
@@ -365,7 +365,7 @@ class MachineFlow:
                 if fallback and space.exception_matches(outcome.value, space.types['AttributeError']):
                     method = space.special(receiver, '__getattr__')
                     if method is not _MISSING:
-                        self._invoke(task.env, method, (attribute,))
+                        self._invoke_special_method(task.env, receiver, method, (attribute,))
                         return
 
             elif kind == 'hasattr_guard' and outcome.kind == 'raise':

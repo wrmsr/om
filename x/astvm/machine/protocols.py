@@ -2,9 +2,11 @@
 import dataclasses as dc
 import typing as ta
 
+from ..state import Environment
 from ..state import Task
 from ..values import _MISSING
 from ..values import _NOT_IMPLEMENTED
+from ..values import Value
 
 
 ##
@@ -29,6 +31,46 @@ class MachineProtocols:
     @classmethod
     def _binary_method(cls, name: str) -> str:
         return cls._BINARY_METHODS[name]
+
+    def _special_method_binding(self, receiver: Value, method: Value) -> tuple[Value, tuple[Value, ...]] | None:
+        space = self._space
+        getter = space.special(method, '__get__')
+        if getter is not _MISSING:
+            return getter, (receiver, space.type_of(receiver))
+        if space.kind(method) == 'property':
+            getter = space.data(method).getter
+            if getter is None:
+                space.error('AttributeError', 'property has no getter')
+            return getter, (receiver,)
+        return None
+
+    def _bind_special_method(self, env: Environment, receiver: Value, method: Value) -> None:
+        binding = self._special_method_binding(receiver, method)
+        if binding is None:
+            self._push(method)
+        else:
+            getter, args = binding
+            self._invoke(env, getter, args)
+
+    def _invoke_special_method(
+            self,
+            env: Environment,
+            receiver: Value,
+            method: Value,
+            args: tuple[Value, ...],
+            kwargs: ta.Mapping[str, Value] | None = None,
+    ) -> None:
+        binding = self._special_method_binding(receiver, method)
+        if binding is None:
+            self._invoke(env, method, args, kwargs)
+        else:
+            getter, bind_args = binding
+            self._add('special_method_bound', env, data=(args, dict(kwargs or {})))
+            self._invoke(env, getter, bind_args)
+
+    def _task_special_method_bound(self, task: Task) -> None:
+        args, kwargs = task.data
+        self._invoke(task.env, self._pop(), args, kwargs)
 
     def _task_special_next(self, task: Task) -> None:
         name, values, candidates, index = task.data
@@ -59,9 +101,9 @@ class MachineProtocols:
                     self._push(self._space.binary(op, *values))
 
         else:
-            method, args = candidates[index]
+            receiver, method, args = candidates[index]
             self._add('special_result', task.env, data=task.data)
-            self._invoke(task.env, method, args)
+            self._invoke_special_method(task.env, receiver, method, args)
 
     def _task_special_result(self, task: Task) -> None:
         value = self._pop()

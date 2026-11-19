@@ -209,7 +209,7 @@ coverage still need work.
   annotations, import aliases, and source-module boundaries; keep nested-class contexts distinct and do not
   mangle strings passed to `getattr` or other runtime APIs. Basic lexical class/function qualified names are
   implemented; class cells now support `__class__` and zero-argument `super`. Finish comprehension and edge-case
-  metadata. Test methods,
+  metadata. Explicit `__classcell__` follows the symbol-table class-cell requirement. Test methods,
   comprehensions, nested functions, nested classes, and source-module boundaries together, not only direct
   `self.__field` assignments. Preserve immutable analyzed program metadata so these rules do not become
   repeated runtime work. This is a compiler/frontend correctness feature even though its primary beneficiaries
@@ -228,13 +228,16 @@ coverage still need work.
 
 - [ ] **M03 — Complete ordinary class construction without custom metaclasses.** Guest `__set_name__` and
   `__init_subclass__` now run before class decorators, with implicit staticmethod/classmethod wrapping for
-  `__new__`/`__init_subclass__`. Guest `__new__`, `object.__new__`, and the resulting
+  `__new__`/`__init_subclass__`. Named and unpacked class-header keywords are forwarded to cooperative subclass hooks.
+  Subclass hooks assigned after class creation follow descriptor binding,
+  including resumable guest `__get__` methods. Guest `__new__`, `object.__new__`, and the resulting
   `__init__` rules are implemented for ordinary classes and guest exception subclasses, including foreign return
   values, dynamic `__new__`
   replacement, and the argument rules for explicit `object.__new__`/`object.__init__`. Complete class-body
   metadata initialization and construction edge cases. Keep normal
   `object`/`type` behavior intrinsic for now rather than quietly enabling arbitrary metaclass execution.
-  Checkpoint partway through construction and test failed initialization, inherited hooks, custom exceptions,
+  Guest descriptors now bind for implicit `__new__` and `__init__` during construction. Checkpoint partway through
+  construction and test failed initialization, inherited hooks, custom exceptions,
   constructor argument forwarding, and objects whose initialization makes them reachable before completion.
   Ensure partially constructed objects remain ordinary GC-managed guest state. These hooks cover many common
   class-customization use cases before L01's full metaclass work. Reference: [PEP 487][pep-487].
@@ -256,7 +259,9 @@ coverage still need work.
   reflected operators, in-place operators, rich comparisons, conversion hooks, callability, containment,
   iteration, reversal, formatting, and context-manager protocols. Make lookup follow the guest type rules
   rather than ordinary instance attribute lookup; a same-named attribute should not accidentally override
-  every implicit operation. Test subclass precedence, `NotImplemented`, missing methods versus methods set to
+  every implicit operation. Guest descriptor binding now covers core call, iteration, subscription, truth,
+  attribute-hook, operator, builtin, and context-manager dispatch paths. Audit remaining protocol paths.
+  Test subclass precedence, `NotImplemented`, missing methods versus methods set to
   `None`, non-boolean comparison results, and return-type validation. Extend dispatch to every applicable
   builtin, including less common numeric hooks, without duplicating subtly different fallback logic. Use
   mutation/version guards for any optimized method caches, including after restore. N05/N08 handle the
